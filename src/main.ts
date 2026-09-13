@@ -73,7 +73,7 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) joystic
   if ((event as PointerEvent).pointerId === moveId) { moveId = null; moveX = moveZ = 0; stick.style.transform = ''; }
 });
 let view: ReturnType<typeof createScene>;
-try { view = createScene(canvas); }
+try { view = createScene(canvas, status => { element('art-status').textContent = status; }); }
 catch {
   element('performance').textContent = '3D unavailable';
   message.hidden = false; message.textContent = 'The courtyard needs WebGL 2. Try an up-to-date browser with hardware acceleration enabled.';

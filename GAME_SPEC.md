@@ -12,7 +12,7 @@ Visual references, researched 2026-09-13 (inspiration only; no game assets copie
 - Elder Scrolls Online, One Tamriel: grounded fantasy places and duel framing. https://www.elderscrollsonline.com/en-us/updates/update/onetamriel
 - Black Desert, original Warrior: conventional longsword, believable metal armour and restrained character silhouette. Exclude its extreme awakening effects. https://blackdesert.pearlabyss.com/Console/en-us/Game/Classes?_classType=0
 
-These define a direction, not a promise of native AAA fidelity on a mobile browser. Phase 0A uses an explicit capsule proxy and original geometric environment. Licensed character art follows only after movement validation.
+These define a direction, not a promise of native AAA fidelity on a mobile browser. The initial Phase 0A used capsule proxies and an original geometric environment. After owner movement feedback, the authorized character pass uses a CC0 Quaternius humanoid foundation with original armour and four coherent movement clips. Capsules remain only as a loading/failure fallback. This art pass does not waive the remaining hardware/usability gate.
 
 ## Product defaults
 - One persistent fighter. Start as a neutral longsword wielder. No classes in the initial combat test.

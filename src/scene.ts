@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { captureException } from '@sentry/browser';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadWarriors } from './characters.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean) {
@@ -15,7 +18,7 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
   };
 }
 
-export function createScene(canvas: HTMLCanvasElement) {
+export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: string) => void = () => {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
@@ -25,6 +28,10 @@ export function createScene(canvas: HTMLCanvasElement) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#9ca8a6');
   scene.fog = new THREE.FogExp2('#9ca8a6', 0.018);
+  const environment = new RoomEnvironment(), pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(environment, 0.04).texture;
+  scene.environmentIntensity = 0.65;
+  environment.dispose(); pmrem.dispose();
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
   const stone = new THREE.MeshStandardMaterial({ color: '#878579', roughness: 0.98 });
   const darkStone = new THREE.MeshStandardMaterial({ color: '#555b56', roughness: 1 });
@@ -97,7 +104,21 @@ export function createScene(canvas: HTMLCanvasElement) {
     return group;
   }
   const player = capsule(0, 4, metal);
-  capsule(TARGET.x, TARGET.z, new THREE.MeshStandardMaterial({ color: '#6d5447', roughness: 0.8, metalness: 0.25 }));
+  const opponent = capsule(TARGET.x, TARGET.z, new THREE.MeshStandardMaterial({ color: '#6d5447', roughness: 0.8, metalness: 0.25 }));
+  let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
+  assetStatus('Loading warriors…');
+  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href).then(loaded => {
+    warriors = loaded;
+    for (const proxy of [player, opponent]) {
+      proxy.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
+      proxy.clear();
+    }
+    player.add(loaded.player.anchor); opponent.add(loaded.opponent.anchor);
+    assetStatus('');
+  }).catch(error => {
+    captureException(error);
+    assetStatus('Warrior art could not load. Movement still works; reload to retry.');
+  });
   const marker = mesh(new THREE.RingGeometry(0.56, 0.59, 48), brass, TARGET.x, 0.04, TARGET.z);
   marker.rotation.x = -Math.PI / 2; marker.castShadow = false;
   const desired = new THREE.Vector3(), look = new THREE.Vector3(), aim = new THREE.Vector3(0, 1, 0);
@@ -106,13 +127,16 @@ export function createScene(canvas: HTMLCanvasElement) {
   const resize = () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); };
   resize(); window.addEventListener('resize', resize);
   return {
-    renderer,
+    renderer, ready,
     get yaw() { return yaw; },
     orbit(dx: number, dy: number) { yaw -= dx * 0.005; pitch = THREE.MathUtils.clamp(pitch + dy * 0.003, 0.22, 0.9); },
     recenter() { yaw = 0; pitch = 0.45; started = false; },
     lowerResolution() { if (ratio > 1) { ratio = 1; renderer.setPixelRatio(ratio); resize(); } },
     render(state: State, locked: boolean, dt: number) {
+      const travel = started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       player.position.set(state.x, 0, state.z);
+      warriors?.player.update(travel, dt); warriors?.opponent.update(0, dt);
+      opponent.rotation.y = Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
       const blend = 1 - Math.exp(-dt * 8);
       if (locked) {
         const lockYaw = Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
@@ -120,7 +144,7 @@ export function createScene(canvas: HTMLCanvasElement) {
       }
       const pose = cameraPose(state, yaw, pitch, locked);
       look.set(pose.lookX, 1, pose.lookZ); desired.set(pose.x, pose.y, pose.z);
-      heading += wrapAngle((locked ? Math.atan2(TARGET.x - state.x, TARGET.z - state.z) : state.heading) - heading) * blend;
+      heading += wrapAngle((locked && travel < 0.05 ? Math.atan2(TARGET.x - state.x, TARGET.z - state.z) : state.heading) - heading) * blend;
       player.rotation.y = heading;
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim); started = true;

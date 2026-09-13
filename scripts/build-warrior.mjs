@@ -1,0 +1,219 @@
+// Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
+// No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { deflateSync } from 'node:zlib';
+import * as T from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+
+globalThis.ProgressEvent = class { constructor(_, fields) { Object.assign(this, fields); } };
+globalThis.FileReader = class {
+  async readAsArrayBuffer(blob) { this.result = await blob.arrayBuffer(); this.onloadend?.(); }
+  async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); }
+};
+const source = 'artifacts/source';
+const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
+const json = JSON.parse(await fs.readFile(path.join(baseDir, 'Superhero_Male_FullBody.gltf'), 'utf8'));
+// The foundation supplies topology and weights. Our covered warrior needs none of its face/hair textures.
+json.images = []; json.textures = [];
+json.materials = json.materials.map(m => ({ name: m.name }));
+for (const buffer of json.buffers) buffer.uri = 'data:application/octet-stream;base64,' + (await fs.readFile(path.join(baseDir, buffer.uri))).toString('base64');
+const loader = new GLTFLoader();
+const base = await loader.parseAsync(JSON.stringify(json), '');
+const bytes = await fs.readFile(path.join(source, 'animations/Universal Animation Library[Standard]/Unreal-Godot/UAL1_Standard.glb'));
+const library = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+base.scene.updateMatrixWorld(true); library.scene.updateMatrixWorld(true);
+const body = base.scene.getObjectByName('SuperHero_Male');
+if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
+const skeleton = body.skeleton;
+const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#303937', roughness: 0.96 });
+const steel = new T.MeshStandardMaterial({ name: 'Steel', color: '#77858b', metalness: 0.82, roughness: 0.46 });
+const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#97805a', metalness: 0.75, roughness: 0.43 });
+const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#28211d', roughness: 0.85 });
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#273f3b', roughness: 0.92, side: T.DoubleSide });
+body.material = cloth;
+body.geometry.morphAttributes = {}; body.morphTargetInfluences = []; body.morphTargetDictionary = {};
+for (const name of ['Eyes', 'Eyebrows']) base.scene.getObjectByName(name)?.removeFromParent();
+// Remove skin hidden inside the helmet. Keep the original hand topology as leather gloves.
+const indices = [], geometry = body.geometry, pos = geometry.getAttribute('position');
+for (let i = 0; i < geometry.index.count; i += 3) {
+  const triangle = [0, 1, 2].map(k => geometry.index.getX(i + k));
+  if (triangle.every(v => pos.getY(v) < 1.58)) indices.push(...triangle);
+}
+geometry.setIndex(indices);
+const parts = new Map([steel, trim, leather, heraldry].map(m => [m, []]));
+const boneIndex = name => {
+  const index = skeleton.bones.findIndex(b => b.name === name);
+  if (index < 0) throw new Error(`Missing attachment bone ${name}`);
+  return index;
+};
+// Rigid plate pieces become one skinned draw per material, not dozens of moving meshes.
+function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0) {
+  if (g.index) g = g.toNonIndexed();
+  g.rotateZ(rotation); g.translate(x, y, z);
+  const count = g.getAttribute('position').count, index = boneIndex(bone);
+  g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 ? 0 : index), 4));
+  g.setAttribute('skinWeight', new T.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 ? 0 : 1), 4));
+  parts.get(material).push(g);
+}
+function plate(x, y, z, sx, sy, sz, material, bone) {
+  add(new T.SphereGeometry(1, 20, 12).scale(sx, sy, sz), material, bone, x, y, z);
+}
+function band(x, y, z, radius, depth, bone, material = trim, rotation = 0, stretch = 1) {
+  const g = new T.TorusGeometry(radius, depth, 5, 24); g.rotateX(Math.PI / 2); g.scale(1, 1, stretch);
+  add(g, material, bone, x, y, z, rotation);
+}
+function strip(w, h, d, x, y, z, material, bone, rotation = 0) {
+  add(new T.BoxGeometry(w, h, d), material, bone, x, y, z, rotation);
+}
+function knee(x, bone) {
+  const shape = new T.Shape(); shape.moveTo(0,.076); shape.lineTo(.064,.035); shape.lineTo(.072,-.015); shape.lineTo(0,-.078); shape.lineTo(-.072,-.015); shape.lineTo(-.064,.035); shape.closePath();
+  const g = new T.ExtrudeGeometry(shape,{depth:.025,bevelEnabled:true,bevelSize:.012,bevelThickness:.012,bevelSegments:2,steps:1});
+  add(g,steel,bone,x,.55,.025);
+}
+// Peaked closed sallet: elliptical rings give it a forged silhouette, tapered neck and brow.
+function shell(rings, material, bone, z = 0) {
+  const vertices = [], uvs = [], segments = 48;
+  for (let row = 0; row < rings.length - 1; row++) for (let i = 0; i < segments; i++) {
+    const point = (r, a) => { const [y, rx, rz] = rings[r]; return [Math.sin(a) * rx, y, Math.cos(a) * rz + z]; };
+    const a = i / segments * Math.PI * 2, b = (i + 1) / segments * Math.PI * 2;
+    for (const [r,t] of [[row,a],[row,b],[row+1,a],[row,b],[row+1,b],[row+1,a]]) { vertices.push(...point(r,t)); uvs.push(t/(2*Math.PI), r/(rings.length-1)); }
+  }
+  let g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(vertices, 3));
+  g.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2)); g = mergeVertices(g);
+  g.computeVertexNormals(); add(g, material, bone);
+}
+shell([[1.56,.083,.088],[1.60,.108,.108],[1.69,.119,.129],[1.76,.111,.117],[1.815,.064,.07],[1.835,.002,.002]],steel,'Head',-.018);
+// Visor eye slit, centre nose ridge, rolled lower rim and breathing perforations.
+for (let i=-9;i<=9;i++) { const a=i*.075;
+  plate(Math.sin(a)*.12,1.699,Math.cos(a)*.133-.018,.009,.0045,.004,leather,'Head');
+}
+strip(.013,.112,.018,0,1.653,.12,trim,'Head');
+band(0,1.595,-.018,.105,.005,'Head',trim,0,1.03);
+for (const side of [-1,1]) for (let i=0;i<3;i++) plate(side*(.042+i*.015),1.642,.092,.0035,.0035,.0035,leather,'Head');
+// Breastplate and articulated waist lames. A narrow centre ridge catches the key light.
+shell([[1.12,.153,.102],[1.19,.18,.117],[1.32,.23,.143],[1.43,.245,.125],[1.485,.16,.085]],steel,'spine_03');
+strip(.014,.24,.012,0,1.335,.143,trim,'spine_03');
+for (let i=0;i<3;i++) {
+  const y=1.12-i*.042, r=.155+i*.012;
+  shell([[y-.038,r+.01,.112],[y,r,.109]],steel,'pelvis');
+  band(0,y-.032,0,r+.008,.003,'pelvis',trim,0,.66);
+}
+// Backplate and a narrow heraldic panel remain legible from the play camera.
+plate(0,1.31,-.12,.205,.218,.086,steel,'spine_03');
+strip(.15,.22,.012,0,1.32,-.208,heraldry,'spine_03');
+for (const x of [-.073,.073]) strip(.004,.22,.006,x,1.32,-.218,trim,'spine_03');
+strip(.007,.135,.009,0,1.32,-.220,trim,'spine_03');
+strip(.06,.007,.009,0,1.35,-.220,trim,'spine_03');
+// Inlaid house device on the breastplate: a narrow gilt sword over dark enamel.
+plate(-.10,1.375,.125,.048,.066,.009,heraldry,'spine_03');
+strip(.005,.071,.01,-.10,1.379,.136,trim,'spine_03');
+strip(.036,.005,.01,-.10,1.399,.136,trim,'spine_03');
+// Raised gorget protects the neck, fitted close rather than oversized shoulder armour.
+shell([[1.465,.143,.09],[1.50,.105,.078],[1.55,.08,.067]],steel,'neck_01');
+band(0,1.547,0,.081,.004,'neck_01',trim,0,.83);
+// Split surcoat, belt and plain buckle. Cloth identifies the two fighters.
+for (const side of [-1,1]) {
+  strip(.17,.25,.028,side*.093,.90,.115,heraldry,'pelvis');
+  strip(.009,.24,.008,side*.17,.90,.134,trim,'pelvis');
+}
+strip(.36,.038,.028,0,1.033,.127,leather,'pelvis');
+strip(.051,.047,.012,0,1.032,.149,trim,'pelvis');
+strip(.03,.027,.013,0,1.032,.156,leather,'pelvis');
+// Shoulder caps, segmented arm plates, gauntlet cuffs and leg harness.
+for (const [side,suffix] of [[1,'l'],[-1,'r']]) {
+  const upper=`upperarm_${suffix}`, fore=`lowerarm_${suffix}`, thigh=`thigh_${suffix}`, calf=`calf_${suffix}`, foot=`foot_${suffix}`;
+  plate(side*.255,1.465,-.058,.115,.092,.112,steel,upper);
+  plate(side*.306,1.44,-.058,.092,.073,.105,steel,upper);
+  plate(side*.365,1.45,-.062,.105,.067,.074,steel,upper);
+  plate(side*.465,1.457,-.071,.059,.076,.078,steel,fore);
+  plate(side*.588,1.453,-.069,.103,.061,.068,steel,fore);
+  band(side*.67,1.455,-.068,.063,.005,fore,trim,Math.PI/2);
+  plate(side*.113,.78,-.035,.102,.178,.112,steel,thigh);
+  knee(side*.114,calf);
+  plate(side*.114,.324,-.048,.072,.195,.082,steel,calf);
+  plate(side*.114,.075,.014,.078,.066,.148,steel,foot);
+  for (let i=0;i<3;i++) strip(.13,.007,.012,side*.114,.116-i*.007,.04+i*.028,trim,foot);
+  for (let i=0;i<3;i++) plate(side*(.20+i*.035),1.50,-.06+.11,.004,.004,.004,trim,upper);
+}
+// Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
+// Geometry is baked in bind space, with the scabbard angled away from the leg.
+strip(.05,.66,.036,-.24,.79,-.13,leather,'pelvis',-.19);
+strip(.052,.05,.04,-.30,.47,-.13,trim,'pelvis',-.19);
+strip(.21,.025,.045,-.175,1.13,-.13,steel,'pelvis',-.19);
+strip(.027,.14,.029,-.16,1.22,-.13,leather,'pelvis',-.19);
+plate(-.147,1.30,-.13,.027,.027,.025,trim,'pelvis');
+for (const [material, geometries] of parts) {
+  const mesh = new T.SkinnedMesh(mergeVertices(mergeGeometries(geometries)), material);
+  mesh.name=material.name; mesh.bind(skeleton,body.bindMatrix); body.parent.add(mesh);
+}
+// Retarget rotation deltas onto the body rest pose; preserve its own bone lengths.
+const clips = [];
+for (const [sourceName,name] of [['Idle_Loop','Idle'],['Walk_Loop','Walk'],['Jog_Fwd_Loop','Jog'],['Sprint_Loop','Run']]) {
+  const original = library.animations.find(a=>a.name===sourceName);
+  if (!original) throw new Error(`Missing clip ${sourceName}`);
+  const tracks=[];
+  for (const track of original.tracks) {
+    const [bone,property]=track.name.split('.'), target=base.scene.getObjectByName(bone), from=library.scene.getObjectByName(bone);
+    if (!target || !from || bone==='root') continue;
+    if (property==='quaternion') {
+      const copy=track.clone(), correction=target.quaternion.clone().multiply(from.quaternion.clone().invert());
+      for(let i=0;i<copy.values.length;i+=4) new T.Quaternion().fromArray(copy.values,i).premultiply(correction).normalize().toArray(copy.values,i);
+      tracks.push(copy);
+    } else if (property==='position' && bone==='pelvis') {
+      const copy=track.clone();
+      for(let i=0;i<copy.values.length;i+=3) for(let c=0;c<3;c++) copy.values[i+c]=target.position.getComponent(c)+(track.values[i+c]-from.position.getComponent(c))*1.04;
+      tracks.push(copy);
+    }
+  }
+  clips.push(new T.AnimationClip(name,original.duration,tracks).optimize());
+}
+base.scene.name='Ashcourt warrior';
+base.scene.scale.set(.9,.97,.97); base.scene.position.y=.025;
+base.scene.updateMatrixWorld(true);
+const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
+await fs.mkdir('src/assets',{recursive:true});
+const finished = finishMaterials(Buffer.from(result));
+await fs.writeFile('src/assets/warrior.glb', finished);
+console.log(`Warrior: ${finished.byteLength} bytes; ${clips.map(a=>a.name).join(', ')}`);
+
+// Original seamless surface maps, baked into the GLB. Deterministic; no external image service.
+function png(width, height, pixel) {
+  function chunk(type, data) {
+    const name=Buffer.from(type), bytes=Buffer.concat([name,data]); let crc=0xffffffff;
+    for(const byte of bytes) { crc^=byte; for(let i=0;i<8;i++) crc=(crc>>>1)^((crc&1)?0xedb88320:0); }
+    const out=Buffer.alloc(data.length+12);out.writeUInt32BE(data.length);bytes.copy(out,4);out.writeUInt32BE((crc^0xffffffff)>>>0,out.length-4);return out;
+  }
+  const raw=Buffer.alloc(height*(width*4+1));
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++) {
+    const rgba=pixel(x,y);for(let c=0;c<4;c++)raw[y*(width*4+1)+1+x*4+c]=rgba[c]??255;
+  }
+  const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=6;
+  return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);
+}
+function finishMaterials(glb) {
+  const length=glb.readUInt32LE(12), j=JSON.parse(glb.subarray(20,20+length).toString());
+  const chunks=[glb.subarray(28+length)]; let offset=chunks[0].length;
+  j.images=[];j.textures=[];j.samplers=[{magFilter:9729,minFilter:9987,wrapS:10497,wrapT:10497}];
+  function texture(pixel) {
+    const bytes=png(256,256,pixel), padding=Buffer.alloc((4-bytes.length%4)%4);
+    j.bufferViews.push({buffer:0,byteOffset:offset,byteLength:bytes.length});offset+=bytes.length+padding.length;chunks.push(bytes,padding);
+    j.images.push({bufferView:j.bufferViews.length-1,mimeType:'image/png'});j.textures.push({source:j.images.length-1,sampler:0});return j.textures.length-1;
+  }
+  const noise=(x,y)=>((Math.imul(x+1,374761393)^Math.imul(y+1,668265263))>>>0)%97/97;
+  const metal=texture((x,y)=>{const wear=noise(x,y)*13+Math.sin(y*1.7)*3;return [218+wear,222+wear,224+wear,255]});
+  const rough=texture((x,y)=>[255,125+noise(x,y)*40,255,255]);
+  const weave=texture((x,y)=>{const v=174+((x%4<2)===(y%4<2)?16:0)+noise(x,y)*12;return [v,v,v,255]});
+  const grain=texture((x,y)=>[126+noise(x,y)*4,126+noise(y,x)*4,255,255]);
+  for(const m of j.materials) {
+    const p=m.pbrMetallicRoughness;
+    if(m.name==='Steel') {p.baseColorTexture={index:metal};p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;m.normalTexture={index:grain,scale:.3};}
+    if(m.name==='Gambeson'||m.name==='Heraldry') {p.baseColorTexture={index:weave};m.normalTexture={index:grain,scale:.5};}
+  }
+  j.buffers[0].byteLength=offset;
+  const text=Buffer.from(JSON.stringify(j)), padded=Buffer.concat([text,Buffer.alloc((4-text.length%4)%4,32)]), bin=Buffer.concat(chunks);
+  const header=Buffer.alloc(20);header.writeUInt32LE(0x46546c67);header.writeUInt32LE(2,4);header.writeUInt32LE(28+padded.length+bin.length,8);header.writeUInt32LE(padded.length,12);header.writeUInt32LE(0x4e4f534a,16);
+  const bh=Buffer.alloc(8);bh.writeUInt32LE(bin.length);bh.writeUInt32LE(0x004e4942,4);return Buffer.concat([header,padded,bh,bin]);
+}

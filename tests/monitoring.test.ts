@@ -7,9 +7,10 @@ import { monitoringOptions } from '../src/monitoring.ts';
 test('production CSP permits one explicit HTTPS ingest origin, not a wildcard', () => {
   const config = readFileSync(new URL('../deploy/frankendom.com.conf', import.meta.url), 'utf8');
   const sources = config.match(/connect-src ([^;]+);/)![1].split(' ');
-  assert.equal(sources.length, 2);
+  assert.equal(sources.length, 3);
   assert.equal(sources[0], "'self'");
-  assert.match(sources[1], /^https:\/\/o\d+\.ingest\.us\.sentry\.io$/);
+  assert.equal(sources[1], 'blob:');
+  assert.match(sources[2], /^https:\/\/o\d+\.ingest\.us\.sentry\.io$/);
 });
 
 test('monitoring is disabled without a DSN and excludes high-volume integrations', () => {
