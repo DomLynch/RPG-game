@@ -314,6 +314,28 @@ for(const [name,direction] of [['StrafeLeft',-1],['StrafeRight',1]]) {
  }
  clips.push(new T.AnimationClip('Kick',1,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
 }
+// Original defensive exchanges: absorb a block, sweep a parry, and lose the attacking line.
+for(const name of ['BlockImpact','Parry','Deflected']) {
+ const times=[0,.12,.35,.65,1],positions=[],values=new Map(skeleton.bones.map(b=>[b.name,[]]));
+ for(const phase of times) {
+  const source=clips.find(c=>c.name===(name==='Deflected' ? (phase===1 ? 'Armed' : 'Attack') : 'Guard'));
+  poseMixer.clipAction(source).play();poseMixer.setTime(name==='Deflected' && phase<1 ? source.duration*18/66 : 0);base.scene.updateMatrixWorld(true);
+  const wave=Math.sin(Math.PI*phase),hand=base.scene.getObjectByName('hand_r'),goal=hand.getWorldPosition(new T.Vector3()),orientation=hand.getWorldQuaternion(new T.Quaternion());
+  const delta=name==='BlockImpact' ? new T.Vector3(.05,0,-.20) : name==='Parry' ? new T.Vector3(-.22,.04,.04) : new T.Vector3(.27,.12,-.10);
+  base.scene.getObjectByName('spine_01').rotation.x-=wave*(name==='BlockImpact' ? .07 : .03);
+  base.scene.getObjectByName('spine_02').rotation.y+=wave*(name==='Parry' ? -.18 : .12);
+  if(phase>0 && phase<1) {
+   for(const side of ['r','l']) { const target=base.scene.getObjectByName('hand_'+side).getWorldPosition(new T.Vector3()).addScaledVector(delta,wave);reachArm(side,side==='r' ? goal.clone().addScaledVector(delta,wave) : target); }
+   base.scene.updateMatrixWorld(true);
+   const turn=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),wave*(name==='Parry' ? -.55 : name==='Deflected' ? .7 : -.08));
+   hand.quaternion.copy(hand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(turn).multiply(orientation));
+  }
+  positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
+  for(const bone of skeleton.bones)values.get(bone.name).push(...bone.quaternion.toArray());
+  poseMixer.stopAllAction();
+ }
+ clips.push(new T.AnimationClip(name,1,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
+}
 base.scene.name='Ashcourt warrior';
 base.scene.scale.set(.9,.97,.97); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);

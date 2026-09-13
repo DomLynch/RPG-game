@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import { AnimationMixer, Box3, Vector3, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { SWORD, ATTACKS } from '../src/combat.ts';
-import { CLIPS, COMBAT_CLIPS, gaitWeights, swingProgress } from '../src/characters.ts';
+import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
+import { CLIPS, COMBAT_CLIPS, gaitWeights, swingProgress, defenceReaction } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -109,7 +109,7 @@ test('the exported blade crosses the target at the simulation contact frame', as
 
 test('roll and guard keep the shipped body finite, above the floor and within a compact silhouette', async () => {
   const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene), point = new Vector3();
-  for (const name of ['Roll', 'Guard']) {
+  for (const name of ['Roll', 'Guard', 'BlockImpact', 'Parry']) {
     const clip = asset.animations.find(a => a.name === name)!;
     const action = mixer.clipAction(clip).play();
     for (let frame = 0; frame < 24; frame++) {
@@ -186,4 +186,21 @@ test('authored kick plants its support foot and extends towards its contact rang
  const foot=asset.scene.getObjectByName('foot_r')!.getWorldPosition(new Vector3());
  assert.ok(foot.z>.6 && foot.y>.5 && foot.y<1.1,`kick contact ${foot.toArray()}`);
  assert.ok(asset.scene.getObjectByName('foot_l')!.getWorldPosition(new Vector3()).distanceTo(support)<.01);
+});
+
+test('defence presentation follows confirmed contacts and yields immediately to new actions',()=>{
+ const s={...initialPractice(),phase:'guard' as const,result:'parried' as const,reaction:90};
+ assert.equal(defenceReaction(s)?.pose,'parry');assert.equal(defenceReaction(s,true)?.pose,'deflected');
+ assert.equal(defenceReaction({...s,phase:'attack'}),undefined);assert.equal(defenceReaction({...s,playerHealth:0}),undefined);
+ assert.equal(defenceReaction({...s,resultAge:18}),undefined);
+ assert.equal(defenceReaction({...s,result:'blocked'})?.pose,'block');
+ assert.equal(defenceReaction({...s,result:'enemyBlocked',enemyMode:'guard'},true)?.pose,'block');
+});
+test('block recoil and parry visibly redirect the shipped blade and recover their guard pose',async()=>{
+ const asset=await readWarrior(),mixer=new AnimationMixer(asset.scene),blade=asset.scene.getObjectByName('SwordDrawn')!;
+ for(const name of ['BlockImpact','Parry']){
+  const clip=asset.animations.find(a=>a.name===name)!;const action=mixer.clipAction(clip).play();mixer.setTime(0);asset.scene.updateMatrixWorld(true);const start=blade.localToWorld(new Vector3(0,.86,0));
+  mixer.setTime(.35);asset.scene.updateMatrixWorld(true);assert.ok(blade.localToWorld(new Vector3(0,.86,0)).distanceTo(start)>.08,name+' must move blade');
+  mixer.setTime(.99999);asset.scene.updateMatrixWorld(true);assert.ok(blade.localToWorld(new Vector3(0,.86,0)).distanceTo(start)<.005,name+' recovers');action.stop();
+ }
 });

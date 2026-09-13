@@ -7,8 +7,9 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "test": "node --test tests/*.test.ts",
-    "quality": "eslint src && npm test && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs",
-    "build:warrior": "node scripts/build-warrior.mjs && node scripts/bake-blades.mjs"
+    "quality": "eslint src && npm test && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
+    "build:warrior": "node scripts/build-warrior.mjs && node scripts/bake-blades.mjs",
+    "test:browser": "node scripts/browser-check.mjs"
   },
   "dependencies": {
     "@sentry/browser": "10.74.0",
@@ -18,6 +19,7 @@
     "@eslint/js": "10.0.1",
     "@types/three": "^0.183.0",
     "eslint": "10.10.0",
+    "playwright": "1.62.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "8.70.0",
     "vite": "8.3.0"

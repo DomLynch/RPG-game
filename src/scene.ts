@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { loadWarriors } from './characters.ts';
+import { defenceReaction, loadWarriors } from './characters.ts';
 import { KICK, SWORD, DEFENCE, ATTACKS, type Practice } from './combat.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
@@ -189,11 +189,12 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       const enemyTravel = started && dt > 0 ? Math.hypot(practice.enemy.x - opponent.position.x, practice.enemy.z - opponent.position.z) / dt : 0;
       player.position.set(state.x, 0, state.z); opponent.position.set(practice.enemy.x, 0, practice.enemy.z);
       marker.position.set(practice.enemy.x, .04, practice.enemy.z);
+      const playerDefence=defenceReaction(practice),enemyDefence=defenceReaction(practice,true);
       const pose = practice.phase === 'dead' ? 'death' : practice.phase === 'hurt' ? 'hit' : practice.phase;
       const duration = pose === 'kick' ? KICK.recovery : pose === 'draw' ? SWORD.draw : pose === 'roll' ? DEFENCE.roll : pose === 'hit' ? SWORD.reaction : pose === 'death' ? SWORD.death : ATTACKS[practice.attack].recovery;
-      warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, pose, Math.min(1, practice.age / duration), practice.attack, ATTACKS[practice.attack].contact / duration, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, playerDefence?.pose || pose, playerDefence?.progress ?? Math.min(1, practice.age / duration), practice.attack, ATTACKS[practice.attack].contact / duration, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       const enemyProgress = practice.enemyAge <= DEFENCE.enemyContact ? practice.enemyAge / DEFENCE.enemyContact * SWORD.contact / SWORD.recovery : SWORD.contact / SWORD.recovery + (practice.enemyAge - DEFENCE.enemyContact) / (DEFENCE.enemyRecovery - DEFENCE.enemyContact) * (1 - SWORD.contact / SWORD.recovery);
-      warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, !practice.health ? 'death' : practice.reaction ? 'hit' : practice.enemyAttacking && practice.playerHealth ? 'attack' : practice.enemyMode === 'guard' ? 'guard' : 'ready', practice.enemyAttacking ? enemyProgress : Math.max(0, 1 - practice.reaction / practice.reactionDuration), practice.reaction ? practice.attack : 'light', .35, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, enemyDefence?.pose || (!practice.health ? 'death' : practice.reaction ? 'hit' : practice.enemyAttacking && practice.playerHealth ? 'attack' : practice.enemyMode === 'guard' ? 'guard' : 'ready'), enemyDefence?.progress ?? (practice.enemyAttacking ? enemyProgress : Math.max(0, 1 - practice.reaction / practice.reactionDuration)), practice.reaction ? practice.attack : 'light', .35, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       brass.color.set(practice.enemyAttacking && !practice.enemyHit && practice.enemyAge < DEFENCE.enemyContact + 4 ? '#e7a35e' : '#ad9365');
       marker.visible = practice.health > 0;
       if (practice.health) opponent.rotation.y = practice.enemyAttacking ? practice.enemyHeading : Math.atan2(state.x - practice.enemy.x, state.z - practice.enemy.z);
