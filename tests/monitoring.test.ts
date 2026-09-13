@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { init, captureException, type Envelope } from '@sentry/browser';
 import { monitoringOptions } from '../src/monitoring.ts';
+
+test('production CSP permits one explicit HTTPS ingest origin, not a wildcard', () => {
+  const config = readFileSync(new URL('../deploy/frankendom.com.conf', import.meta.url), 'utf8');
+  const sources = config.match(/connect-src ([^;]+);/)![1].split(' ');
+  assert.equal(sources.length, 2);
+  assert.equal(sources[0], "'self'");
+  assert.match(sources[1], /^https:\/\/o\d+\.ingest\.us\.sentry\.io$/);
+});
 
 test('monitoring is disabled without a DSN and excludes high-volume integrations', () => {
   const options = monitoringOptions(undefined, undefined, 'development');
