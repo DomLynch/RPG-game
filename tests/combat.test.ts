@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice, SWORD, ATTACKS, DEFENCE, canDefend, canStrike, type Practice } from '../src/combat.ts';
+import { initialPractice, stepPractice, SWORD, ATTACKS, DEFENCE, canDefend, canStrike, practiceHint, type Practice } from '../src/combat.ts';
 import { TARGET, RADIUS } from '../src/sim.ts';
 const idle = { x: 0, z: 0, yaw: 0, run: false };
 function tick(state: Practice, count: number) { for (let i = 0; i < count; i++) state = stepPractice(state, idle, false, false); return state; }
@@ -235,4 +235,24 @@ test('moving target collision, heavy attacks and all resources remain bounded in
     return s;
   };
   assert.deepEqual(run(),run());
+});
+
+
+test('combat notices expire even when hidden by a guard hint; repeated contacts refresh them', () => {
+  let hit = tick(stepPractice(ready(), idle, true, false), SWORD.contact);
+  assert.match(practiceHint(hit), /Clean light hit/);
+  // Keep the opponent recovering so no new contact replaces the notice.
+  hit = { ...hit, reaction: 240 };
+  const stale = tick(hit, 120);
+  assert.doesNotMatch(practiceHint(stale), /Clean light hit/);
+  assert.match(practiceHint({ ...stale, reaction: 0, enemyMode: 'guard' }), /Warden guarding/);
+  assert.doesNotMatch(practiceHint({ ...stale, enemyMode: 'circle' }), /Clean light hit/);
+  let hurt = stepPractice(incoming(ready()), idle, false, false);
+  assert.match(practiceHint(hurt), /Hit taken/);
+  hurt = tick({ ...hurt, reaction: 240 }, 120);
+  assert.doesNotMatch(practiceHint(hurt), /Hit taken/);
+  const again = stepPractice(incoming({ ...hurt, reaction: 0 }), idle, false, false);
+  assert.match(practiceHint(again), /Hit taken/);
+  assert.equal(again.playerHealth, 60);
+  assert.match(practiceHint({ ...stale, health: 0 }), /Warden defeated/);
 });

@@ -14,19 +14,19 @@ export type DefenceInput = { heavy?: boolean; dodge?: boolean; guard?: boolean; 
 export type Practice = {
   enemy: State; enemyMode: 'approach' | 'circle' | 'retreat' | 'guard'; decision: number; seed: number; enemyWait: number; enemyStamina: number; enemyGuardAge: number;
   fighter: State; phase: 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'guard' | 'hurt' | 'dead'; age: number;
-  attack: Attack; chain: number;
+  attack: Attack; chain: number; resultAge: number;
   health: number; playerHealth: number; stamina: number; rest: number; parryCooldown: number;
   enemyAge: number; enemyAttacking: boolean; enemyHeading: number; reaction: number; reactionDuration: number; hits: number;
   result: 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged' | 'broken' | 'enemyBlocked' | 'enemyBroken';
 };
-export const initialPractice = (): Practice => ({ enemy: { ...TARGET, heading: 0, distance: 0 }, enemyMode: 'approach', decision: 90, seed: 731, enemyWait: DEFENCE.enemyWait, enemyStamina: 100, enemyGuardAge: 0, fighter: initialState(), phase: 'sheathed', age: 0, attack: 'light', chain: 0, health: 100, playerHealth: 100, stamina: 100, rest: 0, parryCooldown: 0, enemyAge: 0, enemyAttacking: false, enemyHeading: 0, reaction: 0, reactionDuration: SWORD.reaction, hits: 0, result: 'none' });
+export const initialPractice = (): Practice => ({ enemy: { ...TARGET, heading: 0, distance: 0 }, enemyMode: 'approach', decision: 90, seed: 731, enemyWait: DEFENCE.enemyWait, enemyStamina: 100, enemyGuardAge: 0, fighter: initialState(), phase: 'sheathed', age: 0, attack: 'light', chain: 0, health: 100, playerHealth: 100, stamina: 100, rest: 0, parryCooldown: 0, enemyAge: 0, enemyAttacking: false, enemyHeading: 0, reaction: 0, reactionDuration: SWORD.reaction, hits: 0, resultAge: 0, result: 'none' });
 export const canStrike = (s: Practice): boolean => s.health > 0 && s.playerHealth > 0 && (s.phase === 'sheathed' || (s.phase === 'ready' && s.stamina >= DEFENCE.attackCost));
 export const canDefend = (s: Practice): boolean => s.health > 0 && s.playerHealth > 0 && (s.phase === 'ready' || s.phase === 'guard');
 const aim = (s: State, target: State) => Math.atan2(target.x - s.x, target.z - s.z);
 const inReach = (s: State, target: State, heading: number, toward: number, reach: number = SWORD.reach) => Math.hypot(target.x - s.x, target.z - s.z) <= reach && Math.abs(wrapAngle(toward - heading)) <= SWORD.arc;
 
 export function stepPractice(current: Practice, input: Input, strike: boolean, locked: boolean, defence: DefenceInput = {}): Practice {
-  const next = { ...current, age: current.age + 1, reaction: Math.max(0, current.reaction - 1), rest: Math.max(0, current.rest - 1), parryCooldown: Math.max(0, current.parryCooldown - 1), chain: Math.max(0, current.chain - 1) };
+  const next = { ...current, resultAge: Math.min(120, current.resultAge + 1), age: current.age + 1, reaction: Math.max(0, current.reaction - 1), rest: Math.max(0, current.rest - 1), parryCooldown: Math.max(0, current.parryCooldown - 1), chain: Math.max(0, current.chain - 1) };
   if (!current.health || !current.playerHealth) return next;
   const spend = (cost: number) => { next.stamina = Math.max(0, next.stamina - cost); next.rest = DEFENCE.regenDelay; };
   if (defence.dodge && canDefend(current) && current.stamina >= DEFENCE.rollCost) {
@@ -61,6 +61,7 @@ export function stepPractice(current: Practice, input: Input, strike: boolean, l
   }
   if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed')) next.stamina = Math.min(100, next.stamina + .4);
   if (next.phase === 'attack' && next.age === ATTACKS[next.attack].contact) {
+    next.resultAge = 0;
     if (inReach(next.fighter, next.enemy, next.fighter.heading, aim(next.fighter, next.enemy), ATTACKS[next.attack].reach)) {
       const guarded = next.enemyMode === 'guard' && next.enemyGuardAge >= 12 && !next.reaction && !next.enemyAttacking && next.enemyStamina >= 20 && Math.abs(wrapAngle(aim(next.enemy, next.fighter) - next.enemy.heading)) < SWORD.arc;
       if (guarded && next.attack !== 'heavy' && next.attack !== 'riposte') {
@@ -106,6 +107,7 @@ export function stepPractice(current: Practice, input: Input, strike: boolean, l
     next.enemyAttacking = true; next.enemyAge = 0; next.enemyHeading = aim(next.fighter, next.enemy) + Math.PI;
   } else if (next.enemyAttacking && next.enemyAge >= DEFENCE.enemyRecovery) { next.enemyAttacking = false; next.enemyAge = 0; next.decision = 0; }
   if (next.enemyAttacking && next.enemyAge === DEFENCE.enemyContact) {
+    next.resultAge = 0;
     if (!inReach(next.fighter, next.enemy, next.enemyHeading, aim(next.fighter, next.enemy) + Math.PI)) { next.result = 'dodged'; return next; }
     const facing = Math.abs(wrapAngle(aim(next.fighter, next.enemy) - next.fighter.heading)) <= SWORD.arc;
     if (next.phase === 'roll' && next.age >= DEFENCE.safeStart && next.age <= DEFENCE.safeEnd) next.result = 'dodged';
@@ -129,6 +131,6 @@ export function practiceHint(s: Practice): string {
   if (s.enemyAttacking && s.enemyAge < DEFENCE.enemyContact) return 'Incoming strike — roll or time your guard!';
   if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return 'Warden guarding · heavy attack breaks the guard';
   if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
-  if (s.result !== 'none') return { hit: `Clean ${s.attack === 'return' ? 'follow-up' : s.attack} hit · −${ATTACKS[s.attack].damage}`, miss: 'Miss — close the distance and face the warden.', hurt: 'Hit taken · −20', blocked: 'Blocked · −25 stamina', parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening' }[s.result];
+  if (s.result !== 'none' && s.resultAge < 120) return { hit: `Clean ${s.attack === 'return' ? 'follow-up' : s.attack} hit · −${ATTACKS[s.attack].damage}`, miss: 'Miss — close the distance and face the warden.', hurt: 'Hit taken · −20', blocked: 'Blocked · −25 stamina', parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening' }[s.result];
   return s.phase === 'guard' ? 'Guarding · release to recover stamina' : 'Hold guard to block · tap just before impact to parry';
 }
