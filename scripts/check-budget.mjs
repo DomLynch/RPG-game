@@ -10,4 +10,4 @@ async function size(path) {
 }
 const bytes = await size('dist');
 if (bytes.gzip >= 5_000_000) throw new Error(`Shell exceeds 5 MB: ${bytes.gzip}`);
-console.log(`All fight-ready 0A assets: ${bytes.raw} bytes raw; ${bytes.gzip} bytes gzip. Budget PASS.`);
+console.log(`All fight-ready assets: ${bytes.raw} bytes raw; ${bytes.gzip} bytes gzip. Budget PASS.`);

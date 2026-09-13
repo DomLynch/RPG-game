@@ -1,7 +1,7 @@
 # Project state
 
-Objective: live Phase 0A on frankendom.com, with canonical RPG direction.
-Success: functioning keyboard/touch movement, stable camera, saved guest identity, isolated HTTPS deployment; no claim of a passed player/hardware gate.
+Objective: live first-hit longsword practice on frankendom.com, with canonical persistent-fighter RPG direction.
+Success: draw, range/facing-based strike, hit reaction, health loss, defeat/reset; functioning movement/camera and saved guest identity; isolated verified HTTPS deployment. No claim of a passed player/hardware or online-combat gate.
 Scope: GAME_SPEC.md. Semble discovery is working; CodeGraph was initialized with owner authorization on 2026-09-13. Use both for code work, and run `codegraph sync` after edits.
 Files: src/{main,scene,sim,profile}.ts, src/style.css; tests; scripts/deploy.sh; deployment vhost.
 Do not inspect/change other business products or existing VPS services.
@@ -27,11 +27,11 @@ Next validation: pure simulation invariants, storage failure/reload, touch cance
 - Initial hosting: bash scripts/provision.sh (frankendom.com only).
 - Release from a clean committed checkout: bash scripts/deploy.sh. It validates, transfers only built assets, and atomically switches the site symlink. Public /release.json records the exact source revision.
 - Rollback: on VPS, cd /var/www/frankendom; ln -sfn "$(readlink previous)" next; mv -Tf next current. Verify public /release.json after switching. Each source revision retains its own static release directory.
-- Remote source: private DomLynch/frankendom repository; verify local/remote HEAD and /release.json on every close-out.
+- Remote source: private DomLynch/RPG-game repository (previous origin preserved as legacy); verify local/remote HEAD and /release.json on every close-out.
 - No recurring background agent or automatic development task is installed. The static site remains available between sessions.
 
 ## Still gated
-- Physical iPhone 12 / Pixel 6 performance, five-minute sessions and independent player usability must pass before combat.
+- Physical iPhone 12 / Pixel 6 performance, five-minute sessions and independent player usability remain required before a validated combat-gate decision; owner authorized the bounded first-hit development slice below.
 - A humanoid rig and four movement clips are implemented in the character pass below. Full combat animation coverage, online combat, recoverable identity and RPG progression remain deferred.
 
 ## Character art pass — 2026-09-13
@@ -50,3 +50,19 @@ Next validation: pure simulation invariants, storage failure/reload, touch cance
 - Two new regression tests cover disabled configuration, selected integrations and real SDK event serialization/privacy. Browser auto-capture and live ingestion must be checked on release; unit tests alone do not prove ingestion.
 - CodeGraph index is local/ignored, not a runtime dependency. Semble and CodeGraph are complementary discovery/structure tools; Sentry supplies runtime error evidence. Do not equate telemetry ingestion with validated gameplay.
 - Release validation caught CSP blocking Sentry: the site now allows only its explicit HTTPS ingest origin, with a regression assertion and deployment configuration check. Browser auto-capture reached HTTP 200 after the fix; remote event lookup is a separate required verification. Total quality suite: 14 passing tests, typecheck/lint/build/audit/budget pass. Desktop/mobile renders were checked with blocked telemetry; software-rendered browser timing is not a phone-performance benchmark.
+
+## First-hit slice — active 2026-09-13
+- Owner explicitly authorized: sync baseline to DomLynch/RPG-game first, audit code/bloat, then implement the first convincing longsword hit. This overrides the no-combat-before-0A development restriction for this bounded local slice only; hardware/usability and full online-combat validation remain unpassed.
+- Baseline complete: clean c4461da on MacBook, new private GitHub origin, VPS current symlink and public release. All 17 tests, lint, tsc/build, audit/budget passed. Homepage, JS, CSS, GLB and release HTTP 200 and byte-equal to dist. Nginx active/config check passed; live camera/model rendered with no console errors. Existing old GitHub remote retained as legacy. No empty commit needed.
+- Required discovery BEFORE edits: three Semble MCP searches: (1) deployment atomic releases revision parity; (2) fixed timestep player input collision attack integration; (3) humanoid animation mixer sword clips asset generation. Results localized scripts/deploy.sh, main.ts, sim.ts, characters.ts, scene.ts and build-warrior.mjs.
+- Required structural/impact evidence BEFORE edits: CodeGraph MCP explore query main.ts sim.ts characters.ts scene.ts scripts/deploy.sh scripts/build-warrior.mjs; then src/main.ts advance initialState clearInput frame loadProfile monitoringOptions. Reviewed live source and caller/test impact for advance, initialState, createScene, loadWarriors, clearInput and monitoringOptions. CodeGraph omitted top-level builder sections; read only missing sections directly. No fallback search required.
+- Audit baseline: 403 TypeScript lines, 951 lines including CSS/scripts/tests (CSS is compact, LOC alone understates it). Two runtime dependencies. No broad rewrite warranted. Need freeze animations when simulation is paused and keep attack event delivery single-shot across fixed substeps. No new runtime dependency, physics, backend, item framework or visual-refinement scope.
+- Alternatives: animation-owned damage rejected (violates fixed simulation); generic combat framework rejected (speculative); selected a small pure practice state composed with existing movement plus presentation driven by its ticks.
+- Source clip inspection: Sword_Attack 1.533s, Sword_Idle 1.667s, Hit_Chest .333s, Death01 2.4s. Four coherent clips added to offline export; full 14-clip combat coverage remains absent. Sword now separate from scabbard for hand attachment. Need visual pose/contact review before release.
+- Next: deterministic first-hit implementation, cancellation/pause/reset tests, actual rendered swing/health/reset QA, second review, quality checks, sync index, commit/push/deploy and public receipts. Five-minute iPhone result requested from owner; cannot substitute desktop/browser emulation.
+
+- Review pass 1 complete: simulation remains pure and composes existing movement. Contact tick 18 of 66 is checked against the actual exported blade crossing the target; input is consumed once per fixed step. Tests cover wind-up, recovery spam, range/facing misses, four-hit defeat, immutability and 10,000 seeded input replay. Three isolated mutants (repeated damage, ignored range, ignored facing) were all caught. No graph-edge dispute or unresolved structural bug required a separate Tree-sitter/ast-grep audit.
+- Review pass 2 complete: portrait 390x844 and landscape 844x390; real UI controls produced an out-of-range miss, four close strikes reduced health 100 to 0, and Reset restored 100 health and Draw sword. Journal held health at 100 during an interrupted pre-contact strike, then resumed to 75. Animation uses paused dt=0. Production-CSP preview loaded textures without console errors; deliberate missing-GLB preview showed the error and disabled attacks while capsule movement remained available. Expected-failure preview built with empty DSN; release rebuild restores configured monitoring.
+- Bloat audit: runtime TypeScript 479 lines versus baseline 403 (+76), still only Three.js and Sentry runtime dependencies. No new framework/service/package. Offline authoring adds a separate sword and baked draw clip. Removed continuous HUD DOM replacement; update only when displayed values change. Baseline CSS is already densely formatted, so physical LOC is not a standalone complexity score. First-hit asset bundle approximately 1.15 MB estimated gzip versus 1.00 MB baseline; final deployment checks measure actual compressed HTTP.
+- Remaining limits: stationary local target only; no heavy/dodge/guard/stamina, opponent AI, network fairness, progression or full animation coverage. Five-minute physical iPhone result has not been received; minimum phones and independent testers remain unverified. Desktop browser spot checks ~60 fps / p95 18–19 ms are not phone measurements.
+- Final pre-release checks: 24 tests pass; ESLint, tsc/Vite build, dependency audit (zero known vulnerabilities), gzip budget, shell syntax and diff whitespace checks pass. CodeGraph synced after the final test edit. Deploy phase receipt is now 0B-first-hit; this label names the slice, not a passed gate. No GitHub Actions CI workflow is configured; these are local release-gate results.

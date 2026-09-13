@@ -59,7 +59,7 @@ Provisional progression gate: >=6 of 10 distinct losing testers independently op
 - Deploy static 0A via isolated Nginx virtual host, HTTPS, atomic release symlink, source revision receipt, rollback to previous release. No new daemon required.
 
 ## NOT NOW — known and deliberately deferred
-Combat until gate 0A passes; multiple weapons/classes; full RPG progression until combat is worth repeating; open world; PvE campaign; guilds; chat; trading; crafting; auction house; matchmaking ladders; monetisation; leaderboards; speculative backend/frameworks; full rollback implementation.
+Full combat validation until gate 0A passes; multiple weapons/classes; full RPG progression until combat is worth repeating; open world; PvE campaign; guilds; chat; trading; crafting; auction house; matchmaking ladders; monetisation; leaderboards; speculative backend/frameworks; full rollback implementation.
 
 Blood Duels: undefined, deferred, and no economy/stakes implementation authorized. No real-money wagering.
 
@@ -67,3 +67,6 @@ Cheating: authoritative damage validation does not stop input automation. Reacti
 
 ## Scope and next decision
 First answer: is moving this fighter around another fighter comfortable on a phone? Second: is a fair loss followed by another wanted fight? Third: does shaping the fighter make people return? Do not treat one answer as evidence for all three.
+
+## Owner-authorized first-hit slice — 2026-09-13
+Proceed with local longsword draw/attack, range/facing validation, hit reaction, health, defeat and reset after the baseline sync and code audit. This authorizes development ahead of the outstanding hardware/usability gate, not a passed gate. The opponent is a stationary training warden. Heavy/dodge/guard/stamina, opponent AI, online duels and builds follow separately. Animation observes pure fixed-tick combat state. No retained rewards, fake match history or rematch analytics from this training target.

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadWarriors } from './characters.ts';
+import { SWORD, type Practice } from './combat.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean) {
@@ -132,11 +133,13 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     orbit(dx: number, dy: number) { yaw -= dx * 0.005; pitch = THREE.MathUtils.clamp(pitch + dy * 0.003, 0.22, 0.9); },
     recenter() { yaw = 0; pitch = 0.45; started = false; },
     lowerResolution() { if (ratio > 1) { ratio = 1; renderer.setPixelRatio(ratio); resize(); } },
-    render(state: State, locked: boolean, dt: number) {
+    render(state: State, locked: boolean, dt: number, practice: Practice) {
       const travel = started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       player.position.set(state.x, 0, state.z);
-      warriors?.player.update(travel, dt); warriors?.opponent.update(0, dt);
-      opponent.rotation.y = Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
+      warriors?.player.update(travel, dt, practice.phase, practice.age / (practice.phase === 'draw' ? SWORD.draw : SWORD.recovery));
+      warriors?.opponent.update(0, dt, !practice.health ? 'death' : practice.reaction ? 'hit' : 'ready', 1 - practice.reaction / (practice.health ? SWORD.reaction : SWORD.death));
+      marker.visible = practice.health > 0;
+      if (practice.health) opponent.rotation.y = Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
       const blend = 1 - Math.exp(-dt * 8);
       if (locked) {
         const lockYaw = Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
@@ -144,7 +147,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       }
       const pose = cameraPose(state, yaw, pitch, locked);
       look.set(pose.lookX, 1, pose.lookZ); desired.set(pose.x, pose.y, pose.z);
-      heading += wrapAngle((locked && travel < 0.05 ? Math.atan2(TARGET.x - state.x, TARGET.z - state.z) : state.heading) - heading) * blend;
+      heading += wrapAngle((locked && travel < 0.05 && practice.phase !== 'attack' ? Math.atan2(TARGET.x - state.x, TARGET.z - state.z) : state.heading) - heading) * blend;
+      if (practice.phase === 'attack') heading = state.heading;
       player.rotation.y = heading;
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim); started = true;

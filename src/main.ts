@@ -1,7 +1,8 @@
 import './monitoring.ts';
 import './style.css';
-import { advance, initialState, STEP, wrapAngle } from './sim.ts';
+import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
+import { initialPractice, stepPractice, practiceHint } from './combat.ts';
 import { createScene } from './scene.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -10,6 +11,10 @@ const welcome = element('welcome');
 const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
 const cameraButton = element<HTMLButtonElement>('camera-button');
+const attackButton = element<HTMLButtonElement>('attack-button');
+const resetButton = element<HTMLButtonElement>('reset-button');
+const health = element<HTMLMeterElement>('target-health');
+const combatStatus = element('combat-status');
 const runButton = element<HTMLButtonElement>('run-button');
 const joystick = element('joystick');
 const stick = element('stick');
@@ -24,12 +29,24 @@ function persist() {
   element('save-status').textContent = saveProfile(storage, profile) ? 'Guest · saved on this device' : 'Storage unavailable · name will not be saved';
 }
 persist();
-let state = initialState(), previous = state, accumulator = 0, locked = false;
+let practice = initialPractice(), state = practice.fighter, previous = state, accumulator = 0, locked = false;
+let strike = false, assetsReady = false, lastHud = '';
+function updateHud() {
+  const key = `${practice.phase}:${practice.health}:${practice.result}:${assetsReady}`;
+  if (key === lastHud) return;
+  lastHud = key;
+  health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
+  combatStatus.textContent = practiceHint(practice);
+  attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
+  attackButton.disabled = !assetsReady || !practice.health || practice.phase === 'draw' || practice.phase === 'attack';
+  attackButton.hidden = !practice.health; resetButton.hidden = practice.health > 0;
+}
+function requestStrike() { if (!paused() && assetsReady) strike = true; }
 let run = false, moveId: number | null = null, orbitId: number | null = null;
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  keys.clear(); run = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
+  keys.clear(); strike = false; run = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
 element('name-form').addEventListener('submit', event => {
@@ -47,6 +64,7 @@ window.addEventListener('keydown', event => {
   if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(event.code)) {
     event.preventDefault(); keys.add(event.code);
   }
+  if (event.code === 'KeyF' && !event.repeat) { event.preventDefault(); requestStrike(); }
   if (event.code === 'KeyR' && !event.repeat) element('recenter-button').click();
 });
 window.addEventListener('keyup', event => keys.delete(event.code));
@@ -56,6 +74,10 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) runButt
 runButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); setRun(true); } });
 runButton.addEventListener('keyup', () => setRun(false));
 runButton.addEventListener('blur', () => setRun(false));
+attackButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestStrike(); } });
+attackButton.addEventListener('pointercancel', () => { strike = false; });
+attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
+resetButton.addEventListener('click', () => { clearInput(); practice = initialPractice(); state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
   const x = (event.clientX - rect.left - rect.width / 2) / 42;
@@ -73,11 +95,11 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) joystic
   if ((event as PointerEvent).pointerId === moveId) { moveId = null; moveX = moveZ = 0; stick.style.transform = ''; }
 });
 let view: ReturnType<typeof createScene>;
-try { view = createScene(canvas, status => { element('art-status').textContent = status; }); }
+try { view = createScene(canvas, status => { element('art-status').textContent = status; assetsReady = status === ''; }); }
 catch {
   element('performance').textContent = '3D unavailable';
   message.hidden = false; message.textContent = 'The courtyard needs WebGL 2. Try an up-to-date browser with hardware acceleration enabled.';
-  cameraButton.disabled = runButton.disabled = true;
+  cameraButton.disabled = runButton.disabled = attackButton.disabled = true;
   throw new Error('Unable to initialise the WebGL2 courtyard');
 }
 canvas.addEventListener('webglcontextlost', event => {
@@ -106,11 +128,13 @@ function frame(now: number) {
     const x = moveX + Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= STEP) {
-      previous = state; state = advance(state, { x, z, yaw: view.yaw, run: run || keys.has('ShiftLeft') || keys.has('ShiftRight') }); accumulator -= STEP;
+      previous = state; practice = stepPractice(practice, { x, z, yaw: view.yaw, run: run || keys.has('ShiftLeft') || keys.has('ShiftRight') }, strike, locked);
+      strike = false; state = practice.fighter; accumulator -= STEP;
     }
   } else { accumulator = 0; previous = state; }
   const alpha = accumulator / STEP;
-  view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, dt);
+  view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, paused() ? 0 : dt, practice);
+  updateHud();
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)], p95 = sorted[Math.floor(sorted.length * 0.95)];
