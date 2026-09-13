@@ -12,9 +12,12 @@ import * as profile from '../src/profile.ts';
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
-  style = {}; dataset = {}; attributes = new Map<string, string>(); children: Element[] = [];
+  style = { setProperty() {} }; dataset = {}; attributes = new Map<string, string>(); children: Element[] = [];
   setAttribute(key: string, value: string) { this.attributes.set(key, value); }
   append(child: Element) { this.children.push(child); }
+  setPointerCapture() {}
+  getBoundingClientRect() { return { left: 0, top: 0, width: 108, height: 108 }; }
+  click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
 function boot() {
@@ -29,7 +32,7 @@ function boot() {
   const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
-    HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++ },
+    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++ },
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
@@ -92,4 +95,24 @@ test('a late draw press buffers one attack, and focus loss cancels it', () => {
     for (let i = 0; i < 14; i++) app.tick();
     assert.equal(app.element('stamina').value, interrupt ? 100 : 80);
   }
+});
+
+test('mobile outer-stick sprint stops on cancellation and menu opening pauses combat', () => {
+  for (const end of ['pointercancel','menu']) {
+    const app=boot();app.tick();
+    app.element('joystick').dispatchEvent(Object.assign(new Event('pointerdown'),{pointerId:1,clientX:106,clientY:54}));
+    for(let i=0;i<10;i++)app.tick();
+    const spent=app.element('stamina').value as number;assert.ok(spent<100&&spent>95);
+    if(end==='menu')app.element('journal-button').click();
+    else app.element('joystick').dispatchEvent(Object.assign(new Event('pointercancel'),{pointerId:1}));
+    for(let i=0;i<10;i++)app.tick();assert.equal(app.element('stamina').value,spent);
+    if(end==='menu') { app.element('close-journal').click();for(let i=0;i<10;i++)app.tick();assert.equal(app.element('stamina').value,spent); }
+  }
+});
+test('menu sound and camera controls stay synchronized with desktop controls', () => {
+  const app=boot();app.element('mobile-sound').click();
+  assert.equal(app.element('sound-button').textContent,'Sound off');
+  app.element('sound-button').click();assert.equal(app.element('mobile-sound').textContent,'Sound on');
+  app.element('mobile-camera').click();assert.equal(app.element('camera-button').attributes.get('aria-pressed'),'false');
+  app.element('camera-button').click();assert.equal(app.element('mobile-camera').attributes.get('aria-pressed'),'true');
 });

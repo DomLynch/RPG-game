@@ -13,7 +13,7 @@ const canvas = element<HTMLCanvasElement>('world');
 const feedback = createFeedback();
 window.addEventListener('pointerdown', () => feedback.unlock());
 window.addEventListener('keydown', () => feedback.unlock());
-element('sound-button').addEventListener('click', () => { const enabled = feedback.toggle(); element('sound-button').textContent = enabled ? 'Sound on' : 'Sound off'; element('sound-button').setAttribute('aria-pressed', String(enabled)); });
+for (const id of ['sound-button', 'mobile-sound']) element(id).addEventListener('click', () => { const enabled = feedback.toggle(); for (const target of ['sound-button', 'mobile-sound']) { element(target).textContent = enabled ? 'Sound on' : 'Sound off'; element(target).setAttribute('aria-pressed', String(enabled)); } });
 const welcome = element('welcome');
 const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
@@ -54,10 +54,12 @@ function updateHud() {
   lastHud = key;
   health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
   playerHealth.value = practice.playerHealth; element('player-health-value').textContent = `${practice.playerHealth} / 100`;
+  for (const [meter, value] of [[health, practice.health], [playerHealth, practice.playerHealth], [stamina, practice.stamina]] as const) meter.style.setProperty('--fill', `${value}%`);
   stamina.value = practice.stamina; element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
   combatStatus.textContent = hint;
   combatStatus.dataset.threat = String(practice.enemyAttacking && practice.enemyAge < DEFENCE.enemyContact);
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
+  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Light'; attackButton.setAttribute('aria-label', attackButton.textContent);
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
   attackButton.setAttribute('aria-disabled', String(!controlsReady || !acceptsStrike()));
   const ended = !practice.health || !practice.playerHealth;
@@ -75,11 +77,11 @@ function requestStrike(isHeavy = false) {
   if (canStrike(practice)) { strike = !isHeavy; heavy = isHeavy; }
   else if (bufferWindow()) { strikeBuffer = 9; bufferHeavy = isHeavy; }
 }
-let run = false, moveId: number | null = null, orbitId: number | null = null;
+let run = false, stickRun = false, moveId: number | null = null, orbitId: number | null = null;
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  strikeBuffer = dodgeBuffer = 0; heavy = bufferHeavy = false; feedback.quiet(); keys.clear(); dodge = parry = guard = false; guardId = null; strike = false; run = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
+  strikeBuffer = dodgeBuffer = 0; heavy = bufferHeavy = false; feedback.quiet(); keys.clear(); dodge = parry = guard = false; guardId = null; strike = false; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
 element('name-form').addEventListener('submit', event => {
@@ -87,6 +89,7 @@ element('name-form').addEventListener('submit', event => {
 });
 element('name-button').addEventListener('click', () => { clearInput(); input.value = profile.name; welcome.hidden = false; input.focus(); });
 element('journal-button').addEventListener('click', () => { clearInput(); journal.showModal(); });
+element('mobile-name').addEventListener('click', () => { journal.close(); element('name-button').click(); });
 element('close-journal').addEventListener('click', () => journal.close());
 journal.addEventListener('close', clearInput);
 window.addEventListener('blur', clearInput);
@@ -136,6 +139,7 @@ function moveStick(event: PointerEvent) {
   const z = (event.clientY - rect.top - rect.height / 2) / 42;
   const length = Math.hypot(x, z), scale = Math.max(1, length);
   moveX = length < 0.12 ? 0 : x / scale; moveZ = length < 0.12 ? 0 : z / scale;
+  stickRun = (innerWidth <= 900 || matchMedia('(pointer:coarse)').matches) && length > 1.15;
   stick.style.transform = `translate(${moveX * 34}px, ${moveZ * 34}px)`;
 }
 joystick.addEventListener('pointerdown', event => {
@@ -144,7 +148,7 @@ joystick.addEventListener('pointerdown', event => {
 });
 joystick.addEventListener('pointermove', event => { if (event.pointerId === moveId) moveStick(event); });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) joystick.addEventListener(name, event => {
-  if ((event as PointerEvent).pointerId === moveId) { moveId = null; moveX = moveZ = 0; stick.style.transform = ''; }
+  if ((event as PointerEvent).pointerId === moveId) { moveId = null; stickRun = false; moveX = moveZ = 0; stick.style.transform = ''; }
 });
 let view: ReturnType<typeof createScene>;
 try { view = createScene(canvas, status => { element('art-status').textContent = status; assetsReady = status === ''; }); }
@@ -177,8 +181,8 @@ canvas.addEventListener('webglcontextrestored', () => {
   last = reportAt = performance.now(); frames = []; graphicsLost = false; message.hidden = true;
   updateHud(); frameId = requestAnimationFrame(frame);
 });
-cameraButton.addEventListener('click', () => {
-  locked = !locked; cameraButton.setAttribute('aria-pressed', String(locked)); cameraButton.textContent = locked ? 'Camera locked' : 'Lock camera';
+for (const id of ['camera-button', 'mobile-camera']) element(id).addEventListener('click', () => {
+  locked = !locked; for (const target of ['camera-button', 'mobile-camera']) { element(target).setAttribute('aria-pressed', String(locked)); element(target).textContent = locked ? 'Camera locked' : 'Lock camera'; }
 });
 element('recenter-button').addEventListener('click', () => view.recenter());
 canvas.addEventListener('pointerdown', event => {
@@ -205,7 +209,7 @@ function frame(now: number) {
       else strikeBuffer = Math.max(0, strikeBuffer - 1);
       if (dodgeBuffer > 0 && canDefend(practice)) { dodge = true; dodgeBuffer = strikeBuffer = 0; strike = heavy = false; }
       else dodgeBuffer = Math.max(0, dodgeBuffer - 1);
-      previous = state; practice = stepPractice(practice, { x, z, yaw: view.yaw, run: run || keys.has('ShiftLeft') || keys.has('ShiftRight') }, strike, locked, assetsReady ? { heavy, dodge, parry, guard: guard || keys.has('KeyQ') } : {});
+      previous = state; practice = stepPractice(practice, { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, strike, locked, assetsReady ? { heavy, dodge, parry, guard: guard || keys.has('KeyQ') } : {});
       feedback.update(before, practice);
       heavy = strike = dodge = parry = false; state = practice.fighter; accumulator -= STEP;
     }
@@ -223,6 +227,7 @@ function frame(now: number) {
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)], p95 = sorted[Math.floor(sorted.length * 0.95)];
     element('performance').textContent = `${Math.round(1000 / median)} fps · p95 ${Math.round(p95)} ms`;
+    element('menu-performance').textContent = element('performance').textContent;
     if (median > 22) view.lowerResolution();
     frames = []; reportAt = now;
   }
