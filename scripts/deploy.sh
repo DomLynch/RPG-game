@@ -9,7 +9,7 @@ host=root@49.12.7.18
 key="$HOME/.ssh/binance_futures_tool"
 release="/var/www/frankendom/releases/$revision"
 ssh -o BatchMode=yes -i "$key" "$host" "mkdir -p '$release'"
-rsync -az --chmod=D755,F644 -e "ssh -o BatchMode=yes -i $key" dist/ "$host:$release/"
+rsync -az --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r -e "ssh -o BatchMode=yes -i $key" dist/ "$host:$release/"
 ssh -o BatchMode=yes -i "$key" "$host" bash -s -- "$release" <<'REMOTE'
 set -euo pipefail
 test -s "$1/index.html"
