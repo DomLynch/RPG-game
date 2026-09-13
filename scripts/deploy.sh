@@ -18,5 +18,6 @@ if test -L current; then ln -sfn "$(readlink current)" previous; fi
 ln -sfn "$1" next
 mv -Tf next current
 REMOTE
-curl --fail --silent --show-error https://frankendom.com/release.json
+cmp dist/index.html <(curl --fail --silent --show-error https://frankendom.com/)
+cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com/release.json)
 printf '\nPublished %s\n' "$revision"
