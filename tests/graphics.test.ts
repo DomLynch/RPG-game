@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import * as gestures from '../src/gestures.ts';
 import * as feedback from '../src/feedback.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
@@ -29,7 +30,7 @@ function boot() {
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render() { renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const storage = { getItem: () => JSON.stringify({ version: 1, id: 'test', name: 'Tester' }), setItem() {} };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++ },
@@ -115,4 +116,34 @@ test('menu sound and camera controls stay synchronized with desktop controls', (
   app.element('sound-button').click();assert.equal(app.element('mobile-sound').textContent,'Sound on');
   app.element('mobile-camera').click();assert.equal(app.element('camera-button').attributes.get('aria-pressed'),'false');
   app.element('camera-button').click();assert.equal(app.element('mobile-camera').attributes.get('aria-pressed'),'true');
+});
+
+test('swipe trial fires once per gesture and clears on cancellation, pause and mode change', () => {
+  const app=boot();app.tick();app.element('controls-mode').click();
+  const pad=app.element('gesture-pad');
+  const pointer=(type:string,x:number,y:number,id=1)=>pad.dispatchEvent(Object.assign(new Event(type,{cancelable:true}),{pointerId:id,button:0,clientX:x,clientY:y}));
+  pointer('pointerdown',60,60);app.tick();pointer('pointerup',60,60);
+  for(let i=0;i<45;i++)app.tick();
+  assert.equal(app.element('stamina').value,100);
+  pointer('pointerdown',60,60);pointer('pointermove',60,20);pointer('pointermove',60,0);app.tick();
+  assert.equal(app.element('stamina').value,65,'one upward swipe spends one heavy cost');
+  pointer('pointercancel',60,0);for(let i=0;i<80;i++)app.tick();
+  app.element('reset-button').click();app.tick();app.key('KeyF');for(let i=0;i<45;i++)app.tick();
+  pointer('pointerdown',60,60);pointer('pointermove',100,60);pointer('pointercancel',100,60);app.tick();
+  assert.equal(app.element('stamina').value,100,'cancelled queued gesture cannot attack');
+  pointer('pointerdown',60,60);app.element('journal-button').click();pointer('pointermove',100,60);app.tick();
+  assert.equal(app.element('stamina').value,100);
+  app.element('controls-mode').click();app.element('close-journal').click();pointer('pointermove',120,60);app.tick();
+  assert.equal(app.element('stamina').value,100);
+});
+
+test('kick input spends once and clears on pointer cancellation or graphics interruption',()=>{
+ for(const cancel of ['none','pointercancel','graphics']){
+  const app=boot();app.tick();app.key('KeyF');for(let i=0;i<45;i++)app.tick();
+  app.element('kick-button').dispatchEvent(Object.assign(new Event('pointerdown',{cancelable:true}),{button:0,pointerId:1}));
+  if(cancel==='pointercancel')app.element('kick-button').dispatchEvent(new Event('pointercancel'));
+  if(cancel==='graphics'){app.lose();app.restore();}
+  app.tick();assert.equal(app.element('stamina').value,cancel==='none'?75:100);
+  app.tick();assert.equal(app.element('stamina').value,cancel==='none'?75:100);
+ }
 });

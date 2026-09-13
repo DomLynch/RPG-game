@@ -1,9 +1,11 @@
-import type { Attack } from './combat.ts';
+import { swingProgress } from './blade.ts';
+export { swingProgress } from './blade.ts';
+import { ATTACKS, type Attack } from './combat.ts';
 import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, BufferGeometry, BufferAttribute, DoubleSide, Vector3, LoopOnce, type AnimationAction } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 
-export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte'] as const;
+export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
@@ -14,17 +16,6 @@ export function gaitWeights(speed: number): number[] {
     return knots.map((_, k) => k === i ? t : k === i - 1 ? 1 - t : 0);
   }
   return [0, 0, 0, 1];
-}
-
-// Preserve the authored contact pose while sharpening the release through contact.
-export function swingProgress(progress: number, contact = .35, sourceContact = 18 / 66): number {
-  const keys = [[0, 0], [contact * .7, sourceContact * .44], [contact, sourceContact], [contact + .16, sourceContact + (1 - sourceContact) * .56], [1, 1]];
-  const p = Math.max(0, Math.min(1, progress));
-  for (let i = 1; i < keys.length; i++) if (p <= keys[i][0]) {
-    const [x, y] = keys[i - 1], [end, value] = keys[i];
-    return y + (value - y) * (p - x) / (end - x);
-  }
-  return 1;
 }
 
 export async function loadWarriors(url: string) {
@@ -52,7 +43,7 @@ export async function loadWarriors(url: string) {
     actions.forEach((a, i) => a.setEffectiveWeight(i === 0 ? 1 : 0));
     const sheathed = root.getObjectByName('SwordSheathed')!, drawn = root.getObjectByName('SwordDrawn')!;
     if (!sheathed || !drawn) throw new Error('Warrior sword attachments are missing');
-    actions.slice(5).forEach(action => { action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; });
+    [...actions.slice(5,14),actions[17]].forEach(action => { action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; });
     if (opponent) actions[0].time = clips[0].duration * 0.4;
     mixer.update(0);
     const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
@@ -63,24 +54,30 @@ export async function loadWarriors(url: string) {
     let speed = 0;
     return {
       anchor,
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35) {
+      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' | 'kick' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
         const step = Math.max(0, Math.min(dt, 0.1));
         if (!step) return;
         speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
         actions.slice(1, 4).forEach(action => action.setEffectiveTimeScale(travelSpeed < 0 ? -1 : 1));
         const weights = gaitWeights(speed);
-        const combatIndex = pose === 'attack' ? attack === 'return' ? 11 : attack === 'heavy' ? 12 : attack === 'riposte' ? 13 : 5 : pose === 'hit' ? 6 : pose === 'death' ? 7 : pose === 'draw' ? 8 : pose === 'roll' ? 9 : pose === 'guard' ? 10 : -1;
+        if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-weights[0], side = Math.min(1,Math.abs(lateral)); weights.fill(0,1); weights[14] = movement*(1-side); weights[lateral < 0 ? 15 : 16] = movement*side; }
+        actions[14].setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/1.7));
+        for (const i of [15,16]) actions[i].setEffectiveTimeScale(Math.max(.25,speed/ .75));
+        const combatIndex = pose === 'kick' ? 17 : pose === 'attack' ? attack === 'return' ? 11 : attack === 'heavy' ? 12 : attack === 'riposte' ? 13 : 5 : pose === 'hit' ? 6 : pose === 'death' ? 7 : pose === 'draw' ? 8 : pose === 'roll' ? 9 : pose === 'guard' ? 10 : -1;
         const armed = pose !== 'sheathed';
         if (armed) { weights[4] = weights[0]; weights[0] = 0; }
         actions.forEach((a, i) => {
           const fade = combatIndex < 0 ? 0 : pose === 'draw' || pose === 'guard' ? 1 : Math.min(1, progress * 12, pose === 'death' ? 1 : (1 - progress) * 10);
           const target = (weights[i] || 0) * (1 - fade) + Number(i === combatIndex) * fade;
-          a.setEffectiveWeight(a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
+          const activeBlade = pose === 'attack' && progress >= contact-1/ATTACKS[attack].recovery && progress <= contact+4/ATTACKS[attack].recovery;
+          a.setEffectiveWeight(activeBlade ? Number(i === combatIndex) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
           if (i === combatIndex) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, attack === 'return' ? 1 - 18 / 66 : attack === 'heavy' ? .48 : attack === 'riposte' ? .34 : 18 / 66) : progress)) * clips[i].duration;
         });
         drawn.visible = armed && (pose !== 'draw' || progress >= .29); sheathed.visible = !drawn.visible;
         mixer.update(step);
+        root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
+        root.position.z = -Math.abs(recoil)*.045;
         trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;
         if (trail.visible) {
           anchor.updateWorldMatrix(true, true);

@@ -19,7 +19,7 @@ art pass; no claim of final AAA art or complete combat animation coverage.
 
 Rebuild: extract the two official Standard archives into artifacts/source/base and
 artifacts/source/animations, preserving their archive directory names. Run
-`node scripts/build-warrior.mjs` from the repository root. The script uses only
+`npm run build:warrior` from the repository root. The script uses only
 locked project dependencies and writes warrior.glb. Source archives stay ignored.
 The free body has broader proportions; the finished model narrows its width by 10%.
 Included source clips: Idle_Loop, Walk_Loop, Jog_Fwd_Loop, Sprint_Loop, Sword_Idle,
@@ -31,3 +31,5 @@ Source archive SHA-256:
 - animations.zip: cc73fc4e495b82958207316596317a3f40b9fa38065bde1027937452da537724
 
 Combat feel pass: the same CC0 Sword_Attack supplies a reversed Return (backhand) clip. Heavy and Riposte are original offline-authored two-arm poses on this rig, exported by scripts/build-warrior.mjs. No additional third-party source, audio sample or licence is introduced. Runtime audio is original procedural noise/resonance synthesis. These 14 exported clips include the three additions; this is not a claim that all 14 distinct spec checklist roles are filled (bespoke guard impact and alternate hit remain absent).
+
+Polished exchange: ArmedWalk, StrafeLeft, StrafeRight and Kick are original offline work on the existing CC0 rig (18 shipped clips total). Guard/Draw and lateral motion include grounded pelvis tracks. Collision paths are regenerated from the final GLB by scripts/bake-blades.mjs and checked against its active blade poses. Blood droplet/splash sprites are original procedural Canvas textures; no downloaded sound, texture, paid pack or new asset licence. The free CC0 UAL2 Standard remains a future clip-fit candidate; it was researched, not acquired or integrated.

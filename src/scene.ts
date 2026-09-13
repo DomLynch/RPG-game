@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadWarriors } from './characters.ts';
-import { SWORD, DEFENCE, ATTACKS, type Practice } from './combat.ts';
+import { KICK, SWORD, DEFENCE, ATTACKS, type Practice } from './combat.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
@@ -127,10 +127,26 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   });
   const marker = mesh(new THREE.RingGeometry(0.56, 0.59, 48), brass, TARGET.x, 0.04, TARGET.z);
   marker.rotation.x = -Math.PI / 2; marker.castShadow = false;
+  // Two original alpha sprites, generated once; all impacts reuse the same GPU resources.
+  function impactTexture(splash: boolean) {
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=128;const ctx=canvas.getContext('2d')!;
+    const fill=ctx.createRadialGradient(64,64,8,64,64,58);fill.addColorStop(0,'#ffffffff');fill.addColorStop(.75,'#ffffffcc');fill.addColorStop(1,'#ffffff00');ctx.fillStyle=fill;
+    ctx.beginPath();
+    for(let i=0;i<=64;i++){const angle=i/64*Math.PI*2,r=splash ? 33+Math.sin(angle*7)*6+Math.cos(angle*11)*4 : 48;const x=64+Math.cos(angle)*r,y=64+Math.sin(angle)*r*(splash ? 1 : .65);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+    ctx.closePath();ctx.fill();
+    if(splash)for(let i=0;i<17;i++){const a=i*2.4,r=42+i%4*4;ctx.beginPath();ctx.ellipse(64+Math.cos(a)*r,64+Math.sin(a)*r,1.5+i%3,1+i%2,a,0,Math.PI*2);ctx.fill();}
+    return new THREE.CanvasTexture(canvas);
+  }
+  const dropTexture=impactTexture(false),splatTexture=impactTexture(true);
   const sparkPositions = new Float32Array(12 * 3), sparkGeometry = new THREE.BufferGeometry();
   sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
-  const sparkMaterial = new THREE.PointsMaterial({ color: '#ffe4af', size: .045, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const sparkMaterial = new THREE.PointsMaterial({ color: '#ffe4af', map: dropTexture, alphaTest:.02, size: .045, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const sparks = new THREE.Points(sparkGeometry, sparkMaterial); sparks.frustumCulled = false; sparks.visible = false; scene.add(sparks);
+  const splats = Array.from({length:12},()=>{
+    const splat = new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshBasicMaterial({color:'#591415',map:splatTexture,transparent:true,opacity:0,depthWrite:false,toneMapped:false}));
+    splat.rotation.x=-Math.PI/2; splat.visible=false; scene.add(splat); return {mesh:splat,life:0};
+  });
+  let bloodMode: 'red' | 'dark' | 'off' = 'red', splatIndex=0, impactDuration=.18, impactHeading=0, flesh=false;
   let impact = 0, lastHealth = 100, lastPlayerHealth = 100, lastReaction = 0, lastEnemyAge = -1, lastEnemyStamina = 100;
   const desired = new THREE.Vector3(), look = new THREE.Vector3(), aim = new THREE.Vector3(0, 1, 0);
   let yaw = 0, pitch = 0.45, heading = Math.PI, started = false;
@@ -139,6 +155,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   resize(); window.addEventListener('resize', resize);
   return {
     renderer, ready,
+    setBloodMode(mode: 'red' | 'dark' | 'off') { bloodMode=mode; for (const splat of splats) { splat.life=0;splat.mesh.visible=false; } if (flesh) { impact=0;sparks.visible=false; } },
     get yaw() { return yaw; },
     orbit(dx: number, dy: number) { yaw -= dx * 0.005; pitch = THREE.MathUtils.clamp(pitch + dy * 0.003, 0.22, 0.9); },
     recenter() { yaw = 0; pitch = 0.45; started = false; },
@@ -146,25 +163,38 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     restoreGraphics() { this.lowerResolution(); rebuildEnvironment(); },
     render(state: State, locked: boolean, dt: number, practice: Practice) {
       const contact = practice.enemyStamina < lastEnemyStamina || practice.health < lastHealth || practice.playerHealth < lastPlayerHealth || (practice.result === 'parried' && practice.reaction > lastReaction) || (practice.result === 'blocked' && practice.enemyAge === DEFENCE.enemyContact && lastEnemyAge !== practice.enemyAge);
-      if (contact && dt > 0) { impact = .18; sparks.position.set((state.x + practice.enemy.x) / 2, 1.2, (state.z + practice.enemy.z) / 2); }
+      if (practice.health===100 && practice.playerHealth===100 && (lastHealth<100 || lastPlayerHealth<100)) { impact=0; for(const splat of splats) splat.life=0; }
+      if (contact && dt > 0) {
+        const enemyHurt=practice.health<lastHealth, hurt=enemyHurt || practice.playerHealth<lastPlayerHealth;
+        const kick=enemyHurt && practice.result==='kicked'; flesh=hurt && !kick && bloodMode!=='off';
+        impactDuration=flesh ? .34 : .18; impact=impactDuration; impactHeading=enemyHurt ? state.heading : practice.enemyHeading;
+        const site=enemyHurt ? practice.enemyWoundSite : practice.woundSite;
+        const target=enemyHurt ? practice.enemy : state;
+        sparks.position.set(hurt ? target.x : (state.x+practice.enemy.x)/2,hurt ? (site==='head' ? 1.55 : site==='legs' ? .6 : 1.15) : 1.2,hurt ? target.z : (state.z+practice.enemy.z)/2);
+        sparkMaterial.color.set(flesh ? (bloodMode==='dark' ? '#3e2527' : '#a32b27') : kick || hurt ? '#b1a28a' : '#ffe4af');
+        sparkMaterial.blending=flesh || kick || hurt ? THREE.NormalBlending : THREE.AdditiveBlending; sparkMaterial.size=flesh ? .095 : .045;
+        if(flesh) { const splat=splats[splatIndex++%splats.length]; splat.life=20; splat.mesh.position.set(target.x,.022+splatIndex%12*.0001,target.z); splat.mesh.scale.set(.22+(splatIndex%3)*.05,.13+(splatIndex%4)*.035,1); splat.mesh.rotation.z=splatIndex*2.4;splat.mesh.material.color.set(bloodMode==='dark' ? '#352426' : '#681a19'); }
+      }
       lastHealth = practice.health; lastPlayerHealth = practice.playerHealth; lastReaction = practice.reaction; lastEnemyAge = practice.enemyAge; lastEnemyStamina = practice.enemyStamina;
       impact = Math.max(0, impact - dt); sparks.visible = impact > 0;
       if (impact > 0) {
-        const t = .18 - impact; sparkMaterial.opacity = impact / .18;
-        for (let i = 0; i < 12; i++) { sparkPositions[i * 3] = Math.sin(i * 2.4) * t * 2; sparkPositions[i * 3 + 1] = Math.cos(i * 1.7) * t * 2 - t * t * 4; sparkPositions[i * 3 + 2] = Math.cos(i * 2.4) * t * 2; }
+        const t = impactDuration-impact; sparkMaterial.opacity=impact/impactDuration;
+        for (let i = 0; i < 12; i++) { sparkPositions[i * 3] = (Math.sin(i*2.4)*2+(flesh ? Math.sin(impactHeading)*1.5 : 0))*t; sparkPositions[i * 3 + 1] = Math.cos(i * 1.7) * t * 2 - t * t * 4; sparkPositions[i * 3 + 2] = (Math.cos(i*2.4)*2+(flesh ? Math.cos(impactHeading)*1.5 : 0))*t; }
         sparkGeometry.attributes.position.needsUpdate = true;
       }
-      const animationDt = impact > .13 ? 0 : dt;
+      for(const splat of splats) { splat.life=Math.max(0,splat.life-dt); splat.mesh.visible=splat.life>0; splat.mesh.material.opacity=Math.min(.65,splat.life/4); }
+      const animationDt = impact > 0 && impactDuration-impact < .05 ? 0 : dt;
+      const dx = state.x-player.position.x, dz = state.z-player.position.z, ex = practice.enemy.x-opponent.position.x, ez = practice.enemy.z-opponent.position.z;
       const travel = started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       const enemyTravel = started && dt > 0 ? Math.hypot(practice.enemy.x - opponent.position.x, practice.enemy.z - opponent.position.z) / dt : 0;
       player.position.set(state.x, 0, state.z); opponent.position.set(practice.enemy.x, 0, practice.enemy.z);
       marker.position.set(practice.enemy.x, .04, practice.enemy.z);
       const pose = practice.phase === 'dead' ? 'death' : practice.phase === 'hurt' ? 'hit' : practice.phase;
-      const duration = pose === 'draw' ? SWORD.draw : pose === 'roll' ? DEFENCE.roll : pose === 'hit' ? SWORD.reaction : pose === 'death' ? SWORD.death : ATTACKS[practice.attack].recovery;
-      warriors?.player.update(travel, animationDt, pose, Math.min(1, practice.age / duration), practice.attack, ATTACKS[practice.attack].contact / duration);
+      const duration = pose === 'kick' ? KICK.recovery : pose === 'draw' ? SWORD.draw : pose === 'roll' ? DEFENCE.roll : pose === 'hit' ? SWORD.reaction : pose === 'death' ? SWORD.death : ATTACKS[practice.attack].recovery;
+      warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, pose, Math.min(1, practice.age / duration), practice.attack, ATTACKS[practice.attack].contact / duration, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       const enemyProgress = practice.enemyAge <= DEFENCE.enemyContact ? practice.enemyAge / DEFENCE.enemyContact * SWORD.contact / SWORD.recovery : SWORD.contact / SWORD.recovery + (practice.enemyAge - DEFENCE.enemyContact) / (DEFENCE.enemyRecovery - DEFENCE.enemyContact) * (1 - SWORD.contact / SWORD.recovery);
-      warriors?.opponent.update(practice.enemyMode === 'retreat' ? -enemyTravel : enemyTravel, animationDt, !practice.health ? 'death' : practice.reaction ? 'hit' : practice.enemyAttacking && practice.playerHealth ? 'attack' : practice.enemyMode === 'guard' ? 'guard' : 'ready', practice.enemyAttacking ? enemyProgress : Math.max(0, 1 - practice.reaction / practice.reactionDuration));
-      brass.color.set(practice.enemyAttacking && practice.enemyAge < DEFENCE.enemyContact ? '#e7a35e' : '#ad9365');
+      warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, !practice.health ? 'death' : practice.reaction ? 'hit' : practice.enemyAttacking && practice.playerHealth ? 'attack' : practice.enemyMode === 'guard' ? 'guard' : 'ready', practice.enemyAttacking ? enemyProgress : Math.max(0, 1 - practice.reaction / practice.reactionDuration), practice.reaction ? practice.attack : 'light', .35, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      brass.color.set(practice.enemyAttacking && !practice.enemyHit && practice.enemyAge < DEFENCE.enemyContact + 4 ? '#e7a35e' : '#ad9365');
       marker.visible = practice.health > 0;
       if (practice.health) opponent.rotation.y = practice.enemyAttacking ? practice.enemyHeading : Math.atan2(state.x - practice.enemy.x, state.z - practice.enemy.z);
       const blend = 1 - Math.exp(-dt * 8);
@@ -174,8 +204,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       }
       const cameraTarget = cameraPose(state, yaw, pitch, locked, practice.enemy);
       look.set(cameraTarget.lookX, 1, cameraTarget.lookZ); desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
-      heading += wrapAngle((locked && travel < 0.05 && practice.phase !== 'attack' ? Math.atan2(practice.enemy.x - state.x, practice.enemy.z - state.z) : state.heading) - heading) * blend;
-      if (['attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading += wrapAngle(state.heading - heading) * (1 - Math.exp(-dt * 30));
+      heading += wrapAngle(state.heading - heading) * blend;
+      if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading = state.heading;
       player.rotation.y = heading;
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim); started = true;

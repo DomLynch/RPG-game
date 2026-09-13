@@ -42,3 +42,12 @@
   #joystick{display:block;width:108px;height:108px;left:max(16px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));background:#17272930}#stick{left:33px;top:33px}
   .mobile-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}.mobile-tools button{backdrop-filter:none}.mobile-tools p,.mobile-tools output{grid-column:1/-1;font:12px/1.7 Arial;color:#c5ceca;margin:0}.mobile-tools output{font-size:11px;color:#aeb9b6}
 }
+
+#gesture-pad{display:none}.actions{touch-action:none}
+@media(max-width:900px),(pointer:coarse){
+ .actions[data-gestures=true] #attack-button,.actions[data-gestures=true] #heavy-button,.actions[data-gestures=true] #dodge-button{display:none}
+ .actions[data-gestures=true] #gesture-pad{display:block;grid-column:1/-1;grid-row:1;width:148px;height:100px;font:13px/1.7 Arial;padding:18px!important;color:#f0e3c9;border-color:#c6af78;background:#172329a8}
+ .actions[data-gestures=true] #guard-button{grid-column:1/-1;width:148px}
+}
+
+@media(max-width:900px),(pointer:coarse){#kick-button{grid-column:1/-1;grid-row:3;justify-self:end;width:70px;height:44px;min-height:44px;border-radius:22px;font-size:0;background:#283233a6}.actions[data-gestures="true"] #kick-button{grid-row:auto}}

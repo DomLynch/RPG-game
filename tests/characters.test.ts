@@ -123,6 +123,7 @@ test('roll and guard keep the shipped body finite, above the floor and within a 
         }
       });
       assert.ok(bounds.min.y > -.12, `${name} floor: ${bounds.min.y}`);
+      if(name === 'Guard') assert.ok(bounds.min.y < .06, `Guard floats: ${bounds.min.y}`);
       assert.ok(bounds.max.y < 2.2, `${name} height: ${bounds.max.y}`);
       assert.ok(bounds.getSize(point).length() < 3.5, `${name} silhouette: ${point.toArray()}`);
     }
@@ -147,4 +148,42 @@ test('return, heavy and riposte authored blades agree with their contact ticks',
     assert.ok(tip.z > .85 && Math.abs(tip.x) < .45 && tip.y > .6 && tip.y < 1.8, `${name} ${tip.toArray()}`);
     action.stop();
   }
+});
+
+test('baked collision paths match the shipped blade throughout every active strike', async () => {
+  const {bladePose}=await import('../src/blade.ts');
+  const asset=await readWarrior(),mixer=new AnimationMixer(asset.scene),blade=asset.scene.getObjectByName('SwordDrawn')!;
+  for(const [kind,name,source] of [['light','Attack',18/66],['return','Return',1-18/66],['heavy','Heavy',.48],['riposte','Riposte',.34]] as const) {
+    const spec=ATTACKS[kind],clip=asset.animations.find(c=>c.name===name)!,action=mixer.clipAction(clip).play();
+    for(let age=spec.contact-1;age<=spec.contact+4;age++) {
+      mixer.setTime(swingProgress(age/spec.recovery,spec.contact/spec.recovery,source)*clip.duration);asset.scene.updateMatrixWorld(true);
+      const actual=[.18,.86].flatMap(y=>blade.localToWorld(new Vector3(0,y,0)).toArray());
+      assert.ok(actual.every((v,i)=>Math.abs(v-bladePose(kind,age)[i])<.00002),`${kind} tick ${age}`);
+    }
+    action.stop();
+  }
+});
+test('authored strafe loops close cleanly and alternate grounded feet',async()=>{
+  const asset=await readWarrior(),mixer=new AnimationMixer(asset.scene);
+  for(const name of ['StrafeLeft','StrafeRight']) {
+    const clip=asset.animations.find(c=>c.name===name)!,action=mixer.clipAction(clip).play();
+    for(let i=0;i<24;i++) {
+      mixer.setTime(i/24*clip.duration);asset.scene.updateMatrixWorld(true);
+      const feet=['foot_l','foot_r'].map(n=>asset.scene.getObjectByName(n)!.getWorldPosition(new Vector3()));
+      assert.ok(feet.every(p=>p.y>-.02&&p.y<.3));
+      assert.ok(Math.min(...feet.map(p=>p.y))<.17,`${name} ${i}: ${feet.map(p=>p.y)} at least one supporting foot`);
+    }
+    for(const track of clip.tracks){const n=track.getValueSize();assert.ok([...track.values.slice(0,n)].every((v,i)=>Math.abs(v-track.values[track.values.length-n+i])<.00001));}
+    action.stop();
+  }
+});
+
+test('authored kick plants its support foot and extends towards its contact range', async()=>{
+ const asset=await readWarrior(),mixer=new AnimationMixer(asset.scene),clip=asset.animations.find(a=>a.name==='Kick')!;
+ mixer.clipAction(clip).play();mixer.setTime(0);asset.scene.updateMatrixWorld(true);
+ const support=asset.scene.getObjectByName('foot_l')!.getWorldPosition(new Vector3());
+ mixer.setTime(18/44);asset.scene.updateMatrixWorld(true);
+ const foot=asset.scene.getObjectByName('foot_r')!.getWorldPosition(new Vector3());
+ assert.ok(foot.z>.6 && foot.y>.5 && foot.y<1.1,`kick contact ${foot.toArray()}`);
+ assert.ok(asset.scene.getObjectByName('foot_l')!.getWorldPosition(new Vector3()).distanceTo(support)<.01);
 });

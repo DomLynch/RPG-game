@@ -1,3 +1,4 @@
+import { swipeAction } from './gestures.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
@@ -5,7 +6,7 @@ import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { initialPractice, stepPractice, practiceHint, canStrike, canDefend, DEFENCE } from './combat.ts';
 import { createFeedback } from './feedback.ts';
-import { SWORD, ATTACKS } from './combat.ts';
+import { SWORD, ATTACKS, KICK } from './combat.ts';
 import { createScene } from './scene.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -19,6 +20,7 @@ const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
+const kickButton = element<HTMLButtonElement>('kick-button');
 const heavyButton = element<HTMLButtonElement>('heavy-button');
 const dodgeButton = element<HTMLButtonElement>('dodge-button');
 const guardButton = element<HTMLButtonElement>('guard-button');
@@ -29,6 +31,8 @@ const health = element<HTMLMeterElement>('target-health');
 const combatStatus = element('combat-status');
 const runButton = element<HTMLButtonElement>('run-button');
 const joystick = element('joystick');
+const gesturePad = element('gesture-pad');
+let gestureMode = false, gestureId: number | null = null, gestureX = 0, gestureY = 0, gestureUsed = false;
 const stick = element('stick');
 const input = element<HTMLInputElement>('fighter-name');
 const storage: StoragePort = { getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value) };
@@ -42,6 +46,7 @@ function persist() {
 }
 persist();
 let practice = initialPractice(), state = practice.fighter, previous = state, accumulator = 0, locked = true;
+let kick = false;
 let dodge = false, parry = false, guard = false, guardId: number | null = null;
 let strike = false, strikeBuffer = 0, heavy = false, bufferHeavy = false, dodgeBuffer = 0, assetsReady = false, graphicsLost = false, lastHud = '';
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -49,7 +54,7 @@ function bufferWindow() { return (practice.phase === 'attack' && practice.age >=
 function acceptsStrike(isHeavy = false) { return practice.health > 0 && practice.playerHealth > 0 && (!isHeavy || (practice.phase !== 'sheathed' && practice.stamina >= ATTACKS.heavy.cost)) && (canStrike(practice) || bufferWindow()); }
 function updateHud() {
   const hint = practiceHint(practice), controlsReady = assetsReady && !graphicsLost;
-  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${hint}:${controlsReady}:${bufferWindow()}`;
+  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${hint}:${controlsReady}:${bufferWindow()}:${practice.wound > 0}`;
   if (key === lastHud) return;
   lastHud = key;
   health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
@@ -57,8 +62,15 @@ function updateHud() {
   for (const [meter, value] of [[health, practice.health], [playerHealth, practice.playerHealth], [stamina, practice.stamina]] as const) meter.style.setProperty('--fill', `${value}%`);
   stamina.value = practice.stamina; element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
   combatStatus.textContent = hint;
-  combatStatus.dataset.threat = String(practice.enemyAttacking && practice.enemyAge < DEFENCE.enemyContact);
+  element('stamina-label').dataset.mobile = practice.wound ? 'Stamina · wound' : 'Stamina';
+  stamina.setAttribute('aria-label',practice.wound ? 'Stamina — wounded: recovery reduced 20 percent' : 'Stamina');
+  kickButton.hidden = practice.phase === 'sheathed' || practice.phase === 'draw' || !practice.health || !practice.playerHealth;
+  kickButton.setAttribute('aria-disabled',String(!controlsReady || !canDefend(practice) || practice.stamina < KICK.cost));
+  combatStatus.dataset.threat = String(practice.enemyAttacking && !practice.enemyHit && practice.enemyAge < DEFENCE.enemyContact + 4);
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
+  gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '← Light → · ↑ Heavy · ↓ Dodge';
+  gesturePad.setAttribute('aria-disabled', String(!controlsReady));
+  gesturePad.hidden = !practice.health || !practice.playerHealth;
   attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Light'; attackButton.setAttribute('aria-label', attackButton.textContent);
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
   attackButton.setAttribute('aria-disabled', String(!controlsReady || !acceptsStrike()));
@@ -69,6 +81,7 @@ function updateHud() {
   guardButton.setAttribute('aria-disabled', String(!controlsReady || (!canDefend(practice) && !(practice.phase === 'attack' && bufferWindow())) || practice.stamina <= 0));
   guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));
 }
+function requestKick() { if (!paused() && assetsReady && canDefend(practice) && practice.stamina >= KICK.cost) { kick = true; strike = heavy = false; strikeBuffer = dodgeBuffer = 0; } }
 function requestDodge() { if (!paused() && assetsReady && practice.stamina >= DEFENCE.rollCost) { if (canDefend(practice)) dodge = true; else if (practice.phase === 'attack' && practice.age >= ATTACKS[practice.attack].recovery - 8) dodgeBuffer = 9; } }
 function requestParry() { if (!paused() && assetsReady && canDefend(practice)) parry = true; }
 function requestStrike(isHeavy = false) {
@@ -81,6 +94,7 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
+  gestureId = null; gestureUsed = false; kick = false;
   strikeBuffer = dodgeBuffer = 0; heavy = bufferHeavy = false; feedback.quiet(); keys.clear(); dodge = parry = guard = false; guardId = null; strike = false; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -101,6 +115,7 @@ window.addEventListener('keydown', event => {
     event.preventDefault(); keys.add(event.code);
   }
   if (event.code === 'KeyF' && !event.repeat) { event.preventDefault(); requestStrike(); }
+  if (event.code === 'KeyC' && !event.repeat) { event.preventDefault(); requestKick(); }
   if (event.code === 'KeyG' && !event.repeat) { event.preventDefault(); requestStrike(true); }
   if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); requestDodge(); }
   if (event.code === 'KeyQ') { event.preventDefault(); keys.add(event.code); if (!event.repeat) requestParry(); }
@@ -114,6 +129,9 @@ runButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes
 runButton.addEventListener('keyup', () => setRun(false));
 runButton.addEventListener('blur', () => setRun(false));
 attackButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestStrike(); } });
+kickButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestKick(); } });
+kickButton.addEventListener('pointercancel', () => { kick = false; });
+kickButton.addEventListener('keydown', event => { if (['Space','Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestKick(); } });
 heavyButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestStrike(true); } });
 heavyButton.addEventListener('pointercancel', () => { heavy = false; });
 heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(true); } });
@@ -133,6 +151,27 @@ guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includ
 guardButton.addEventListener('keyup', () => { guard = false; });
 guardButton.addEventListener('blur', () => { guard = parry = false; });
 resetButton.addEventListener('click', () => { clearInput(); practice = initialPractice(); state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+element('controls-mode').addEventListener('click', () => {
+  clearInput(); gestureMode = !gestureMode; element('actions').dataset.gestures = String(gestureMode);
+  element('controls-mode').textContent = gestureMode ? 'Controls: swipes (trial)' : 'Controls: buttons';
+  element('controls-mode').setAttribute('aria-pressed', String(gestureMode));
+});
+gesturePad.addEventListener('pointerdown', event => {
+  if (!gestureMode || paused() || !assetsReady || event.button !== 0 || gestureId !== null) return;
+  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false; gesturePad.setPointerCapture(gestureId);
+  if (practice.phase === 'sheathed') { requestStrike(); gestureUsed = true; }
+});
+gesturePad.addEventListener('pointermove', event => {
+  if (event.pointerId !== gestureId || gestureUsed || paused()) return;
+  const action = swipeAction(event.clientX-gestureX,event.clientY-gestureY);
+  if (!action) return;
+  event.preventDefault(); gestureUsed = true;
+  if (action === 'dodge') requestDodge(); else requestStrike(action === 'heavy');
+});
+gesturePad.addEventListener('keydown', event => { if (!gestureMode || event.repeat) return; if (['Enter','Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.code)) { event.preventDefault(); if (event.code === 'ArrowDown') requestDodge(); else requestStrike(event.code === 'ArrowUp'); } });
+for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => {
+  if ((event as PointerEvent).pointerId === gestureId) { if (name !== 'pointerup') { strike = heavy = dodge = false; strikeBuffer = dodgeBuffer = 0; } gestureId = null; }
+});
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
   const x = (event.clientX - rect.left - rect.width / 2) / 42;
@@ -159,6 +198,8 @@ catch {
   attackButton.setAttribute('aria-disabled', 'true');
   throw new Error('Unable to initialise the WebGL2 courtyard');
 }
+let bloodMode = 0;
+element('blood-mode').addEventListener('click', () => { bloodMode=(bloodMode+1)%3; const mode=(['red','dark','off'] as const)[bloodMode]; view.setBloodMode(mode); element('blood-mode').textContent=`Blood: ${mode}`; });
 function graphicsFailure() {
   message.hidden = false; message.textContent = 'Graphics could not recover. Reload to return to the courtyard. ';
   const reload = document.createElement('button'); reload.textContent = 'Reload game';
@@ -209,9 +250,9 @@ function frame(now: number) {
       else strikeBuffer = Math.max(0, strikeBuffer - 1);
       if (dodgeBuffer > 0 && canDefend(practice)) { dodge = true; dodgeBuffer = strikeBuffer = 0; strike = heavy = false; }
       else dodgeBuffer = Math.max(0, dodgeBuffer - 1);
-      previous = state; practice = stepPractice(practice, { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, strike, locked, assetsReady ? { heavy, dodge, parry, guard: guard || keys.has('KeyQ') } : {});
+      previous = state; practice = stepPractice(practice, { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, strike, locked, assetsReady ? { kick, heavy, dodge, parry, guard: guard || keys.has('KeyQ') } : {});
       feedback.update(before, practice);
-      heavy = strike = dodge = parry = false; state = practice.fighter; accumulator -= STEP;
+      kick = heavy = strike = dodge = parry = false; state = practice.fighter; accumulator -= STEP;
     }
   } else { accumulator = 0; previous = state; }
   const alpha = accumulator / STEP;

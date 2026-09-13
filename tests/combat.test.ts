@@ -32,7 +32,7 @@ test('one strike damages exactly once on contact, never on input or repeated req
 
 test('range and facing cause real misses beyond the step-in; lock turns during wind-up', () => {
   for (const state of [ready(SWORD.reach + 1), ready(1.2, 0)]) {
-    const result = tick(stepPractice(state, idle, true, false), SWORD.contact);
+    const result = tick(stepPractice(state, idle, true, false), SWORD.contact + 4);
     assert.equal(result.health, 100); assert.equal(result.result, 'miss');
   }
   let turning = stepPractice(ready(1.2, 0), idle, true, true);
@@ -83,7 +83,7 @@ test('repeated input cannot queue an attack during drawing or recovery', () => {
   assert.equal(canStrike({ ...state, health: 0 }), false);
 });
 
-const incoming = (state = ready()): Practice => ({ ...state, enemyAttacking: true, enemyAge: DEFENCE.enemyContact - 1, enemyHeading: 0 });
+const incoming = (state = ready()): Practice => ({ ...state, enemyHit: false, enemyAttacking: true, enemyAge: DEFENCE.enemyContact - 1, enemyHeading: 0 });
 test('warden telegraphs, commits its facing, hits only once and leaves time to recover', () => {
   const winding = tick(ready(), DEFENCE.enemyWait);
   assert.equal(winding.enemyAttacking, true); assert.equal(winding.playerHealth, 100);
@@ -225,7 +225,7 @@ test('moving target collision, heavy attacks and all resources remain bounded in
     for(let i=0;i<16000;i++) {
       if(!s.health||!s.playerHealth)s={...initialPractice(),phase:'ready',seed};
       const before=structuredClone(s);Object.freeze(s.fighter);Object.freeze(s.enemy);Object.freeze(s);
-      const next=stepPractice(s,{...idle,x:random()*2-1,z:random()*2-1},random()<.1,true,{heavy:random()<.06,dodge:random()<.04,guard:random()<.2,parry:random()<.03});
+      const next=stepPractice(s,{...idle,x:random()*2-1,z:random()*2-1},random()<.1,true,{kick:random()<.04,heavy:random()<.06,dodge:random()<.04,guard:random()<.2,parry:random()<.03});
       assert.deepEqual(s,before);
       for(const actor of [next.enemy,next.fighter])assert.ok(Math.hypot(actor.x,actor.z)<=RADIUS+1e-8);
       assert.ok(Math.hypot(next.enemy.x-next.fighter.x,next.enemy.z-next.fighter.z)>=.85-1e-8);
