@@ -10,6 +10,7 @@
     "quality": "eslint src && npm test && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs"
   },
   "dependencies": {
+    "@sentry/browser": "10.74.0",
     "three": "0.186.0"
   },
   "devDependencies": {

@@ -1,3 +1,4 @@
+import './monitoring.ts';
 import './style.css';
 import { advance, initialState, STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';

@@ -2,6 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [[ -z "$(git status --porcelain)" ]] || { echo 'Refusing a dirty release'; exit 1; }
+node --input-type=module -e 'import { loadEnv } from "vite"; const dsn = process.env.VITE_SENTRY_DSN || loadEnv("production", process.cwd()).VITE_SENTRY_DSN; if (!dsn || new URL(dsn).protocol !== "https:") throw new Error("Configure VITE_SENTRY_DSN before deployment");'
+export VITE_SENTRY_RELEASE="$(git rev-parse HEAD)"
 npm run quality
 revision=$(git rev-parse HEAD)
 printf '{"revision":"%s","phase":"0A"}\n' "$revision" > dist/release.json
