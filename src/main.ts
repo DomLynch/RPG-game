@@ -2,7 +2,7 @@ import './monitoring.ts';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { initialPractice, stepPractice, practiceHint, canStrike } from './combat.ts';
+import { initialPractice, stepPractice, practiceHint, canStrike, canDefend, DEFENCE } from './combat.ts';
 import { createScene } from './scene.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -12,6 +12,10 @@ const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
+const dodgeButton = element<HTMLButtonElement>('dodge-button');
+const guardButton = element<HTMLButtonElement>('guard-button');
+const playerHealth = element<HTMLMeterElement>('player-health');
+const stamina = element<HTMLMeterElement>('stamina');
 const resetButton = element<HTMLButtonElement>('reset-button');
 const health = element<HTMLMeterElement>('target-health');
 const combatStatus = element('combat-status');
@@ -30,24 +34,35 @@ function persist() {
 }
 persist();
 let practice = initialPractice(), state = practice.fighter, previous = state, accumulator = 0, locked = false;
+let dodge = false, parry = false, guard = false, guardId: number | null = null;
 let strike = false, assetsReady = false, lastHud = '';
 function updateHud() {
-  const key = `${practice.phase}:${practice.health}:${practice.result}:${assetsReady}`;
+  const hint = practiceHint(practice);
+  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${hint}:${assetsReady}`;
   if (key === lastHud) return;
   lastHud = key;
   health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
-  combatStatus.textContent = practiceHint(practice);
+  playerHealth.value = practice.playerHealth; element('player-health-value').textContent = `${practice.playerHealth} / 100`;
+  stamina.value = practice.stamina; element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
+  combatStatus.textContent = hint;
+  combatStatus.dataset.threat = String(practice.enemyAttacking && practice.enemyAge < DEFENCE.enemyContact);
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
   attackButton.setAttribute('aria-disabled', String(!assetsReady || !canStrike(practice)));
-  attackButton.hidden = !practice.health; resetButton.hidden = practice.health > 0;
+  const ended = !practice.health || !practice.playerHealth;
+  attackButton.hidden = ended; resetButton.hidden = !ended;
+  dodgeButton.setAttribute('aria-disabled', String(!assetsReady || !canDefend(practice) || practice.stamina < DEFENCE.rollCost));
+  guardButton.setAttribute('aria-disabled', String(!assetsReady || !canDefend(practice) || practice.stamina <= 0));
+  guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));
 }
+function requestDodge() { if (!paused() && assetsReady && canDefend(practice) && practice.stamina >= DEFENCE.rollCost) dodge = true; }
+function requestParry() { if (!paused() && assetsReady && canDefend(practice)) parry = true; }
 function requestStrike() { if (!paused() && assetsReady && canStrike(practice)) strike = true; }
 let run = false, moveId: number | null = null, orbitId: number | null = null;
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  keys.clear(); strike = false; run = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
+  keys.clear(); dodge = parry = guard = false; guardId = null; strike = false; run = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
 element('name-form').addEventListener('submit', event => {
@@ -66,6 +81,8 @@ window.addEventListener('keydown', event => {
     event.preventDefault(); keys.add(event.code);
   }
   if (event.code === 'KeyF' && !event.repeat) { event.preventDefault(); requestStrike(); }
+  if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); requestDodge(); }
+  if (event.code === 'KeyQ') { event.preventDefault(); keys.add(event.code); if (!event.repeat) requestParry(); }
   if (event.code === 'KeyR' && !event.repeat) element('recenter-button').click();
 });
 window.addEventListener('keyup', event => keys.delete(event.code));
@@ -78,6 +95,19 @@ runButton.addEventListener('blur', () => setRun(false));
 attackButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestStrike(); } });
 attackButton.addEventListener('pointercancel', () => { strike = false; });
 attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
+dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestDodge(); } });
+dodgeButton.addEventListener('pointercancel', () => { dodge = false; });
+dodgeButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestDodge(); } });
+guardButton.addEventListener('pointerdown', event => {
+  if (event.button !== 0 || paused() || guardId !== null) return;
+  event.preventDefault(); guardId = event.pointerId; guardButton.setPointerCapture(guardId); guard = true; requestParry();
+});
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) guardButton.addEventListener(name, event => {
+  if ((event as PointerEvent).pointerId === guardId) { guardId = null; guard = false; if (name !== 'pointerup') parry = false; }
+});
+guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); guard = true; if (!event.repeat) requestParry(); } });
+guardButton.addEventListener('keyup', () => { guard = false; });
+guardButton.addEventListener('blur', () => { guard = parry = false; });
 resetButton.addEventListener('click', () => { clearInput(); practice = initialPractice(); state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
@@ -130,8 +160,8 @@ function frame(now: number) {
     const x = moveX + Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= STEP) {
-      previous = state; practice = stepPractice(practice, { x, z, yaw: view.yaw, run: run || keys.has('ShiftLeft') || keys.has('ShiftRight') }, strike, locked);
-      strike = false; state = practice.fighter; accumulator -= STEP;
+      previous = state; practice = stepPractice(practice, { x, z, yaw: view.yaw, run: run || keys.has('ShiftLeft') || keys.has('ShiftRight') }, strike, locked, assetsReady ? { dodge, parry, guard: guard || keys.has('KeyQ') } : {});
+      strike = dodge = parry = false; state = practice.fighter; accumulator -= STEP;
     }
   } else { accumulator = 0; previous = state; }
   const alpha = accumulator / STEP;

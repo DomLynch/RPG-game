@@ -106,3 +106,26 @@ test('the exported blade crosses the target at the simulation contact frame', as
   const tip = asset.scene.getObjectByName('SwordDrawn')!.localToWorld(new Vector3(0, .86, 0));
   assert.ok(tip.z > .9 && tip.z <= SWORD.reach + .1 && Math.abs(tip.x) < .45 && tip.y > .6 && tip.y < 2, `Contact tip: ${tip.toArray()}`);
 });
+
+test('roll and guard keep the shipped body finite, above the floor and within a compact silhouette', async () => {
+  const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene), point = new Vector3();
+  for (const name of ['Roll', 'Guard']) {
+    const clip = asset.animations.find(a => a.name === name)!;
+    const action = mixer.clipAction(clip).play();
+    for (let frame = 0; frame < 24; frame++) {
+      mixer.setTime(clip.duration * frame / 24); asset.scene.updateMatrixWorld(true);
+      const bounds = new Box3();
+      asset.scene.traverse(object => {
+        if (!(object instanceof SkinnedMesh)) return;
+        object.skeleton.update();
+        for (let i = 0; i < object.geometry.attributes.position.count; i++) {
+          object.getVertexPosition(i, point).applyMatrix4(object.matrixWorld); bounds.expandByPoint(point);
+        }
+      });
+      assert.ok(bounds.min.y > -.12, `${name} floor: ${bounds.min.y}`);
+      assert.ok(bounds.max.y < 2.2, `${name} height: ${bounds.max.y}`);
+      assert.ok(bounds.getSize(point).length() < 3.5, `${name} silhouette: ${point.toArray()}`);
+    }
+    action.stop();
+  }
+});

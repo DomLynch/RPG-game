@@ -2,7 +2,7 @@ import { AnimationMixer, Group, Mesh, MeshStandardMaterial, LoopOnce, type Anima
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 
-export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw'] as const;
+export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
@@ -46,16 +46,16 @@ export async function loadWarriors(url: string) {
     let speed = 0;
     return {
       anchor,
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' = 'sheathed', progress = 0) {
+      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' = 'sheathed', progress = 0) {
         const step = Math.max(0, Math.min(dt, 0.1));
         speed += (Math.max(0, travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
         const weights = gaitWeights(speed);
-        const combatIndex = pose === 'attack' ? 5 : pose === 'hit' ? 6 : pose === 'death' ? 7 : pose === 'draw' ? 8 : -1;
+        const combatIndex = pose === 'attack' ? 5 : pose === 'hit' ? 6 : pose === 'death' ? 7 : pose === 'draw' ? 8 : pose === 'roll' ? 9 : pose === 'guard' ? 10 : -1;
         const armed = pose !== 'sheathed';
         if (armed) { weights[4] = weights[0]; weights[0] = 0; }
         actions.forEach((a, i) => {
-          const fade = combatIndex < 0 ? 0 : pose === 'draw' ? 1 : Math.min(1, progress * 12, pose === 'death' ? 1 : (1 - progress) * 10);
+          const fade = combatIndex < 0 ? 0 : pose === 'draw' || pose === 'guard' ? 1 : Math.min(1, progress * 12, pose === 'death' ? 1 : (1 - progress) * 10);
           a.setEffectiveWeight((weights[i] || 0) * (1 - fade) + Number(i === combatIndex) * fade);
           if (i === combatIndex) a.time = Math.min(.999999, Math.max(0, progress)) * clips[i].duration;
         });

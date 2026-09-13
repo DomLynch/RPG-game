@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadWarriors } from './characters.ts';
-import { SWORD, type Practice } from './combat.ts';
+import { SWORD, DEFENCE, type Practice } from './combat.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean) {
@@ -136,19 +136,23 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     render(state: State, locked: boolean, dt: number, practice: Practice) {
       const travel = started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       player.position.set(state.x, 0, state.z);
-      warriors?.player.update(travel, dt, practice.phase, practice.age / (practice.phase === 'draw' ? SWORD.draw : SWORD.recovery));
-      warriors?.opponent.update(0, dt, !practice.health ? 'death' : practice.reaction ? 'hit' : 'ready', 1 - practice.reaction / (practice.health ? SWORD.reaction : SWORD.death));
+      const pose = practice.phase === 'dead' ? 'death' : practice.phase === 'hurt' ? 'hit' : practice.phase;
+      const duration = pose === 'draw' ? SWORD.draw : pose === 'roll' ? DEFENCE.roll : pose === 'hit' ? SWORD.reaction : pose === 'death' ? SWORD.death : SWORD.recovery;
+      warriors?.player.update(travel, dt, pose, Math.min(1, practice.age / duration));
+      const enemyProgress = practice.enemyAge <= DEFENCE.enemyContact ? practice.enemyAge / DEFENCE.enemyContact * SWORD.contact / SWORD.recovery : SWORD.contact / SWORD.recovery + (practice.enemyAge - DEFENCE.enemyContact) / (DEFENCE.enemyRecovery - DEFENCE.enemyContact) * (1 - SWORD.contact / SWORD.recovery);
+      warriors?.opponent.update(0, dt, !practice.health ? 'death' : practice.reaction ? 'hit' : practice.enemyAttacking && practice.playerHealth ? 'attack' : 'ready', practice.enemyAttacking ? enemyProgress : Math.max(0, 1 - practice.reaction / practice.reactionDuration));
+      brass.color.set(practice.enemyAttacking && practice.enemyAge < DEFENCE.enemyContact ? '#e7a35e' : '#ad9365');
       marker.visible = practice.health > 0;
-      if (practice.health) opponent.rotation.y = Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
+      if (practice.health) opponent.rotation.y = practice.enemyAttacking ? practice.enemyHeading : Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
       const blend = 1 - Math.exp(-dt * 8);
       if (locked) {
         const lockYaw = Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
         yaw += wrapAngle(lockYaw - yaw) * blend;
       }
-      const pose = cameraPose(state, yaw, pitch, locked);
-      look.set(pose.lookX, 1, pose.lookZ); desired.set(pose.x, pose.y, pose.z);
+      const cameraTarget = cameraPose(state, yaw, pitch, locked);
+      look.set(cameraTarget.lookX, 1, cameraTarget.lookZ); desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
       heading += wrapAngle((locked && travel < 0.05 && practice.phase !== 'attack' ? Math.atan2(TARGET.x - state.x, TARGET.z - state.z) : state.heading) - heading) * blend;
-      if (practice.phase === 'attack') heading = state.heading;
+      if (['attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading = state.heading;
       player.rotation.y = heading;
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim); started = true;

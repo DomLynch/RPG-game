@@ -14,7 +14,7 @@ Retrieved from the creator's free itch.io downloads on 2026-09-13; no purchase o
 The original animation archive's License.txt is preserved alongside this file.
 
 Original project work: helmet, fitted plate harness, heraldry, scabbard, surface maps,
-body proportion adjustment, sword geometry, authored draw transition and animation retargeting. This is an early original character
+body proportion adjustment, sword geometry, authored guard pose, draw transition and animation retargeting. This is an early original character
 art pass; no claim of final AAA art or complete combat animation coverage.
 
 Rebuild: extract the two official Standard archives into artifacts/source/base and
@@ -23,7 +23,7 @@ artifacts/source/animations, preserving their archive directory names. Run
 locked project dependencies and writes warrior.glb. Source archives stay ignored.
 The free body has broader proportions; the finished model narrows its width by 10%.
 Included source clips: Idle_Loop, Walk_Loop, Jog_Fwd_Loop, Sprint_Loop, Sword_Idle,
-Sword_Attack, Hit_Chest and Death01. Draw is authored offline on the same rig. Runtime animation
+Sword_Attack, Hit_Chest, Death01 and Roll. Draw and Guard are authored offline on the same rig. Roll pelvis translation is kept in place horizontally; the simulation owns travel. Runtime animation
 never moves simulation. The two fighters share geometry and use separate skeletons.
 
 Source archive SHA-256:

@@ -163,7 +163,7 @@ for (const [material, geometries] of parts) {
 }
 // Retarget rotation deltas onto the body rest pose; preserve its own bone lengths.
 const clips = [];
-for (const [sourceName,name] of [['Idle_Loop','Idle'],['Walk_Loop','Walk'],['Jog_Fwd_Loop','Jog'],['Sprint_Loop','Run'],['Sword_Idle','Armed'],['Sword_Attack','Attack'],['Hit_Chest','Hit'],['Death01','Death']]) {
+for (const [sourceName,name] of [['Idle_Loop','Idle'],['Walk_Loop','Walk'],['Jog_Fwd_Loop','Jog'],['Sprint_Loop','Run'],['Sword_Idle','Armed'],['Sword_Attack','Attack'],['Hit_Chest','Hit'],['Death01','Death'],['Roll','Roll']]) {
   const original = library.animations.find(a=>a.name===sourceName);
   if (!original) throw new Error(`Missing clip ${sourceName}`);
   const tracks=[];
@@ -176,7 +176,7 @@ for (const [sourceName,name] of [['Idle_Loop','Idle'],['Walk_Loop','Walk'],['Jog
       tracks.push(copy);
     } else if (property==='position' && bone==='pelvis') {
       const copy=track.clone();
-      for(let i=0;i<copy.values.length;i+=3) for(let c=0;c<3;c++) copy.values[i+c]=target.position.getComponent(c)+(track.values[i+c]-from.position.getComponent(c))*1.04;
+      for(let i=0;i<copy.values.length;i+=3) for(let c=0;c<3;c++) copy.values[i+c]=target.position.getComponent(c)+(name === 'Roll' && c !== 1 ? 0 : track.values[i+c]-from.position.getComponent(c))*1.04;
       tracks.push(copy);
     }
   }
@@ -210,6 +210,17 @@ for (let frame=0;frame<drawTimes.length;frame++) {
   action.stop();
 }
 clips.push(new T.AnimationClip('Draw',.70,skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',drawTimes,drawValues.get(b.name)))));
+clips.push(clips.splice(clips.findIndex(c => c.name === 'Roll'), 1)[0]);
+// Original guard pose: blade across the upper body, left hand supporting the defence.
+poseMixer.clipAction(clips.find(c => c.name === 'Armed')).play(); poseMixer.update(0);
+for (const [side, joint, target] of [['r',[.35,1.25,.32],[.08,1.45,.48]],['l',[-.30,1.20,.28],[-.12,1.34,.44]]]) {
+  const upper=base.scene.getObjectByName('upperarm_'+side), lower=base.scene.getObjectByName('lowerarm_'+side), hand=base.scene.getObjectByName('hand_'+side);
+  aimBone(upper,lower,new T.Vector3(...joint)); aimBone(lower,hand,new T.Vector3(...target));
+}
+base.scene.updateMatrixWorld(true);
+const guardHand=base.scene.getObjectByName('hand_r');
+guardHand.quaternion.copy(guardHand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,0,1),Math.PI/3)).multiply(drawn.quaternion.clone().invert()));
+clips.push(new T.AnimationClip('Guard',1,skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',[0,1],[...b.quaternion.toArray(),...b.quaternion.toArray()]))));
 poseMixer.stopAllAction();
 base.scene.name='Ashcourt warrior';
 base.scene.scale.set(.9,.97,.97); base.scene.position.y=.025;

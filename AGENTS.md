@@ -3,7 +3,7 @@
 Read GAME_SPEC.md and PROJECT_STATE.md before work. GAME_SPEC.md is canonical design.
 
 - Grounded medieval fantasy RPG. Persistent fighter identity and meaningful builds lead design.
-- Current scope: owner-authorized local first-hit practice slice after the Phase 0A foundation. Broader hardware/usability gate remains unpassed; no claim of validated combat or online PvP.
+- Current scope: owner-authorized local defensive-combat practice slice after the Phase 0A foundation. Broader hardware/usability gate remains unpassed; no claim of validated combat or online PvP.
 - Minimal TypeScript + Three.js + Vite; no UI framework, physics engine, ECS or backend in 0A.
 - Simulation is pure, fixed at 60 Hz, independent of rendering, animation, wall clock and browser APIs.
 - Never claim greybox art is final art, local storage is recoverable identity, or a prototype is validated gameplay.
