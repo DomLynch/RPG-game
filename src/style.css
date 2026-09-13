@@ -51,3 +51,4 @@
 }
 
 @media(max-width:900px),(pointer:coarse){#kick-button{grid-column:1/-1;grid-row:3;justify-self:end;width:70px;height:44px;min-height:44px;border-radius:22px;font-size:0;background:#283233a6}.actions[data-gestures="true"] #kick-button{grid-row:auto}}
+@media(min-width:901px) and (pointer:fine){#performance{bottom:190px}}
