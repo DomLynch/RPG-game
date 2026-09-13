@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice, SWORD, type Practice } from '../src/combat.ts';
+import { initialPractice, stepPractice, SWORD, canStrike, type Practice } from '../src/combat.ts';
 import { TARGET } from '../src/sim.ts';
 const idle = { x: 0, z: 0, yaw: 0, run: false };
 function tick(state: Practice, count: number) { for (let i = 0; i < count; i++) state = stepPractice(state, idle, false, false); return state; }
@@ -58,4 +58,21 @@ test('seeded movement and strike sequences replay identically without mutating p
     return next;
   }, initialPractice());
   assert.deepEqual(run(), run());
+});
+
+
+test('repeated input cannot queue an attack during drawing or recovery', () => {
+  let state = stepPractice(initialPractice(), idle, true, false);
+  for (let tick = 0; tick < SWORD.draw; tick++) {
+    assert.equal(canStrike(state), false);
+    state = stepPractice(state, idle, true, false);
+  }
+  assert.equal(canStrike(state), true); assert.equal(state.phase, 'ready');
+  state = stepPractice(state, idle, true, false);
+  for (let tick = 0; tick < SWORD.recovery; tick++) {
+    assert.equal(canStrike(state), false);
+    state = stepPractice(state, idle, true, false);
+  }
+  assert.equal(state.phase, 'ready'); assert.equal(state.health, 100);
+  assert.equal(canStrike({ ...state, health: 0 }), false);
 });

@@ -5,9 +5,11 @@ export const SWORD = { draw: 42, contact: 18, recovery: 66, damage: 25, reach: 1
 export type Practice = { fighter: State; phase: 'sheathed' | 'draw' | 'ready' | 'attack'; age: number; health: number; reaction: number; hits: number; result: 'none' | 'hit' | 'miss' };
 export const initialPractice = (): Practice => ({ fighter: initialState(), phase: 'sheathed', age: 0, health: 100, reaction: 0, hits: 0, result: 'none' });
 
+export const canStrike = (state: Practice): boolean => state.health > 0 && (state.phase === 'sheathed' || state.phase === 'ready');
+
 export function stepPractice(current: Practice, input: Input, strike: boolean, locked: boolean): Practice {
   const next = { ...current, age: current.age + 1, reaction: Math.max(0, current.reaction - 1) };
-  if (strike && current.health > 0 && (current.phase === 'sheathed' || current.phase === 'ready')) {
+  if (strike && canStrike(current)) {
     next.phase = current.phase === 'sheathed' ? 'draw' : 'attack'; next.age = 0; next.result = 'none';
     if (locked) next.fighter = { ...current.fighter, heading: Math.atan2(TARGET.x - current.fighter.x, TARGET.z - current.fighter.z) };
   }

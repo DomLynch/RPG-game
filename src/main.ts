@@ -2,7 +2,7 @@ import './monitoring.ts';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { initialPractice, stepPractice, practiceHint } from './combat.ts';
+import { initialPractice, stepPractice, practiceHint, canStrike } from './combat.ts';
 import { createScene } from './scene.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -38,10 +38,11 @@ function updateHud() {
   health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
   combatStatus.textContent = practiceHint(practice);
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
-  attackButton.disabled = !assetsReady || !practice.health || practice.phase === 'draw' || practice.phase === 'attack';
+  // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
+  attackButton.setAttribute('aria-disabled', String(!assetsReady || !canStrike(practice)));
   attackButton.hidden = !practice.health; resetButton.hidden = practice.health > 0;
 }
-function requestStrike() { if (!paused() && assetsReady) strike = true; }
+function requestStrike() { if (!paused() && assetsReady && canStrike(practice)) strike = true; }
 let run = false, moveId: number | null = null, orbitId: number | null = null;
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
@@ -99,7 +100,8 @@ try { view = createScene(canvas, status => { element('art-status').textContent =
 catch {
   element('performance').textContent = '3D unavailable';
   message.hidden = false; message.textContent = 'The courtyard needs WebGL 2. Try an up-to-date browser with hardware acceleration enabled.';
-  cameraButton.disabled = runButton.disabled = attackButton.disabled = true;
+  cameraButton.disabled = runButton.disabled = true;
+  attackButton.setAttribute('aria-disabled', 'true');
   throw new Error('Unable to initialise the WebGL2 courtyard');
 }
 canvas.addEventListener('webglcontextlost', event => {
