@@ -10,9 +10,12 @@ printf '{"revision":"%s","phase":"0A"}\n' "$revision" > dist/release.json
 host=root@49.12.7.18
 key="$HOME/.ssh/binance_futures_tool"
 release="/var/www/frankendom/releases/$revision"
-ssh -o BatchMode=yes -i "$key" "$host" "mkdir -p '$release'"
-rsync -az --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r -e "ssh -o BatchMode=yes -i $key" dist/ "$host:$release/"
-ssh -o BatchMode=yes -i "$key" "$host" bash -s -- "$release" <<'REMOTE'
+# Reuse one connection for mkdir, transfer and switch; bound failed connection attempts.
+ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
+printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
+ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
+rsync -az --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r -e "$remote_shell" dist/ "$host:$release/"
+ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE'
 set -euo pipefail
 test -s "$1/index.html"
 cd /var/www/frankendom
