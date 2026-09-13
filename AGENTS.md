@@ -1,0 +1,17 @@
+# Frankendom
+
+Read GAME_SPEC.md and PROJECT_STATE.md before work. GAME_SPEC.md is canonical design.
+
+- Grounded medieval fantasy RPG. Persistent fighter identity and meaningful builds lead design.
+- Current scope: Phase 0A movement/camera prototype. No combat until the usability gate passes.
+- Minimal TypeScript + Three.js + Vite; no UI framework, physics engine, ECS or backend in 0A.
+- Simulation is pure, fixed at 60 Hz, independent of rendering, animation, wall clock and browser APIs.
+- Never claim greybox art is final art, local storage is recoverable identity, or a prototype is validated gameplay.
+- Items become data when equipment gameplay is authorized. No speculative item framework now.
+- Check the NOT-NOW list before adding features. Do not implement deferred scope autonomously.
+- Run every command in .quality-gate.json; audit changes for state, input cancellation, mobile layout and deployed behavior.
+- Keep runtime dependencies at one unless a demonstrated requirement justifies more.
+- Deployment: scripts/deploy.sh to frankendom.com only. Atomic static releases; no changes to other VPS sites.
+- No purchases or player outreach without explicit authorization. Record licensing before adding third-party assets.
+- Review in two passes: simulation/input correctness, then actual browser/render/persistence behavior.
+- Keep PROJECT_STATE.md current with evidence and remaining validation. Do not write user memories.
