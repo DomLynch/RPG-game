@@ -2,7 +2,7 @@
 
 Objective: live Phase 0A on frankendom.com, with canonical RPG direction.
 Success: functioning keyboard/touch movement, stable camera, saved guest identity, isolated HTTPS deployment; no claim of a passed player/hardware gate.
-Scope: GAME_SPEC.md. New empty project, no existing code or CodeGraph index. Semble discovery and CodeGraph impact are not applicable to greenfield authoring; use direct review and executable behavior checks. No index created without user decision.
+Scope: GAME_SPEC.md. Semble discovery is working; CodeGraph was initialized with owner authorization on 2026-09-13. Use both for code work, and run `codegraph sync` after edits.
 Files: src/{main,scene,sim,profile}.ts, src/style.css; tests; scripts/deploy.sh; deployment vhost.
 Do not inspect/change other business products or existing VPS services.
 Selected approach: Vite + TypeScript + Three.js static build, no framework/backend. Babylon and native web exports rejected for additional surface in this bounded gate.
@@ -33,3 +33,9 @@ Next validation: pure simulation invariants, storage failure/reload, touch cance
 ## Still gated
 - Physical iPhone 12 / Pixel 6 performance, five-minute sessions and independent player usability must pass before combat.
 - Final humanoid rig, licensed animation pack, online combat, recoverable identity and RPG progression are not implemented or validated.
+
+## Monitoring and code discovery - 2026-09-13
+- Authorized addition: pinned @sentry/browser 10.74.0, the second runtime dependency, for production error reporting. No gameplay changes, tracing, session replay or session tracking; request, user, extra and breadcrumb fields are removed before sending.
+- Sentry project: na-wnr/frankendom. Build connection setting is in ignored .env.production.local (mode 600); .env.example documents setup. This is a public browser ingest key, never a management credential. Release script refuses an absent/non-HTTPS DSN and stamps errors with the committed SHA.
+- Two new regression tests cover disabled configuration, selected integrations and real SDK event serialization/privacy. Browser auto-capture and live ingestion must be checked on release; unit tests alone do not prove ingestion.
+- CodeGraph index is local/ignored, not a runtime dependency. Semble and CodeGraph are complementary discovery/structure tools; Sentry supplies runtime error evidence. Do not equate telemetry ingestion with validated gameplay.

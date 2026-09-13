@@ -18,6 +18,10 @@ test('real SDK sends error and release but strips guest identity and request det
     ...monitoringOptions('https://public@example.com/1', 'test-revision', 'test'),
     transport: () => ({ send: async envelope => { envelopes.push(envelope); return { statusCode: 200 }; }, flush: async () => true }),
   });
+  client?.addEventProcessor(event => ({ ...event,
+    request: { url: 'https://example.com/?token=private-value', headers: { Cookie: 'private-value' } },
+    breadcrumbs: [{ message: 'private-name' }],
+  }));
   captureException(new Error('monitoring regression probe'), {
     user: { id: 'private-id', username: 'private-name' },
     extra: { secret: 'private-value' },
