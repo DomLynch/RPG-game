@@ -222,6 +222,46 @@ const guardHand=base.scene.getObjectByName('hand_r');
 guardHand.quaternion.copy(guardHand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,0,1),Math.PI/3)).multiply(drawn.quaternion.clone().invert()));
 clips.push(new T.AnimationClip('Guard',1,skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',[0,1],[...b.quaternion.toArray(),...b.quaternion.toArray()]))));
 poseMixer.stopAllAction();
+// Backhand return from the same coherent swing; preserve the contact pose in reverse.
+const sourceAttack = clips.find(c => c.name === 'Attack');
+const backhand = sourceAttack.clone(); backhand.name = 'Return';
+for (const track of backhand.tracks) {
+  const times = Array.from(track.times), values = Array.from(track.values), stride = track.getValueSize();
+  for (let i = 0; i < times.length; i++) {
+    track.times[i] = backhand.duration - times[times.length - 1 - i];
+    for (let k = 0; k < stride; k++) track.values[i * stride + k] = values[(times.length - 1 - i) * stride + k];
+  }
+}
+clips.push(backhand);
+// Original overhead and thrust on the same rig; offline two-bone reach, no runtime IK dependency.
+function reachArm(side, target) {
+  const upper = base.scene.getObjectByName('upperarm_' + side), lower = base.scene.getObjectByName('lowerarm_' + side), hand = base.scene.getObjectByName('hand_' + side);
+  base.scene.updateMatrixWorld(true);
+  const start = upper.getWorldPosition(new T.Vector3()), joint = lower.getWorldPosition(new T.Vector3()), end = hand.getWorldPosition(new T.Vector3());
+  const a = start.distanceTo(joint), b = joint.distanceTo(end), direction = target.clone().sub(start);
+  const distance = Math.max(.03, Math.min(direction.length(), a + b - .001)); direction.normalize();
+  const along = (a*a-b*b+distance*distance)/(2*distance);
+  const bend = new T.Vector3(side === 'r' ? 1 : -1,-.5,-.3); bend.addScaledVector(direction,-bend.dot(direction)).normalize();
+  aimBone(upper,lower,start.clone().addScaledVector(direction,along).addScaledVector(bend,Math.sqrt(Math.max(0,a*a-along*along))));
+  aimBone(lower,hand,start.clone().addScaledVector(direction,distance));
+}
+for (const [name, keys] of [
+  ['Heavy', [[0,[.18,1.3,.3],[0,0,1]],[.28,[.2,1.65,-.08],[0,1,-.4]],[.48,[.04,1.13,.43],[0,0,1]],[.64,[.28,.98,.35],[.3,-.6,.7]],[1,[.18,1.3,.3],[0,0,1]]]],
+  ['Riposte', [[0,[.18,1.3,.3],[0,0,1]],[.2,[.15,1.25,.05],[0,0,1]],[.34,[.02,1.23,.48],[0,0,1]],[.55,[.04,1.2,.48],[0,0,1]],[1,[.18,1.3,.3],[0,0,1]]]]
+]) {
+  const values = new Map(skeleton.bones.map(b => [b.name, []]));
+  for (const [, position, direction] of keys) {
+    poseMixer.clipAction(clips.find(c => c.name === 'Armed')).play(); poseMixer.update(0);
+    const handGoal = new T.Vector3(...position), bladeDirection = new T.Vector3(...direction).normalize();
+    reachArm('r',handGoal); reachArm('l',handGoal.clone().addScaledVector(bladeDirection,-.10).add(new T.Vector3(-.04,0,0)));
+    base.scene.updateMatrixWorld(true);
+    const hand = base.scene.getObjectByName('hand_r'), orientation = new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),bladeDirection);
+    hand.quaternion.copy(hand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(orientation).multiply(drawn.quaternion.clone().invert()));
+    for (const bone of skeleton.bones) values.get(bone.name).push(...bone.quaternion.toArray());
+    poseMixer.stopAllAction();
+  }
+  clips.push(new T.AnimationClip(name,1,skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',keys.map(k=>k[0]),values.get(b.name)))));
+}
 base.scene.name='Ashcourt warrior';
 base.scene.scale.set(.9,.97,.97); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);

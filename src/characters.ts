@@ -1,8 +1,9 @@
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, LoopOnce, type AnimationAction } from 'three';
+import type { Attack } from './combat.ts';
+import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, BufferGeometry, BufferAttribute, DoubleSide, Vector3, LoopOnce, type AnimationAction } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 
-export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard'] as const;
+export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
@@ -13,6 +14,17 @@ export function gaitWeights(speed: number): number[] {
     return knots.map((_, k) => k === i ? t : k === i - 1 ? 1 - t : 0);
   }
   return [0, 0, 0, 1];
+}
+
+// Preserve the authored contact pose while sharpening the release through contact.
+export function swingProgress(progress: number, contact = .35, sourceContact = 18 / 66): number {
+  const keys = [[0, 0], [contact * .7, sourceContact * .44], [contact, sourceContact], [contact + .16, sourceContact + (1 - sourceContact) * .56], [1, 1]];
+  const p = Math.max(0, Math.min(1, progress));
+  for (let i = 1; i < keys.length; i++) if (p <= keys[i][0]) {
+    const [x, y] = keys[i - 1], [end, value] = keys[i];
+    return y + (value - y) * (p - x) / (end - x);
+  }
+  return 1;
 }
 
 export async function loadWarriors(url: string) {
@@ -43,24 +55,41 @@ export async function loadWarriors(url: string) {
     actions.slice(5).forEach(action => { action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; });
     if (opponent) actions[0].time = clips[0].duration * 0.4;
     mixer.update(0);
+    const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
+    ribbon.setAttribute('position', new BufferAttribute(ribbonVertices, 3));
+    const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
+    trail.frustumCulled = false; trail.visible = false; anchor.add(trail);
+    const samples: Vector3[][] = [];
     let speed = 0;
     return {
       anchor,
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' = 'sheathed', progress = 0) {
+      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35) {
         const step = Math.max(0, Math.min(dt, 0.1));
-        speed += (Math.max(0, travelSpeed) - speed) * (1 - Math.exp(-step * 14));
+        if (!step) return;
+        speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
+        actions.slice(1, 4).forEach(action => action.setEffectiveTimeScale(travelSpeed < 0 ? -1 : 1));
         const weights = gaitWeights(speed);
-        const combatIndex = pose === 'attack' ? 5 : pose === 'hit' ? 6 : pose === 'death' ? 7 : pose === 'draw' ? 8 : pose === 'roll' ? 9 : pose === 'guard' ? 10 : -1;
+        const combatIndex = pose === 'attack' ? attack === 'return' ? 11 : attack === 'heavy' ? 12 : attack === 'riposte' ? 13 : 5 : pose === 'hit' ? 6 : pose === 'death' ? 7 : pose === 'draw' ? 8 : pose === 'roll' ? 9 : pose === 'guard' ? 10 : -1;
         const armed = pose !== 'sheathed';
         if (armed) { weights[4] = weights[0]; weights[0] = 0; }
         actions.forEach((a, i) => {
           const fade = combatIndex < 0 ? 0 : pose === 'draw' || pose === 'guard' ? 1 : Math.min(1, progress * 12, pose === 'death' ? 1 : (1 - progress) * 10);
-          a.setEffectiveWeight((weights[i] || 0) * (1 - fade) + Number(i === combatIndex) * fade);
-          if (i === combatIndex) a.time = Math.min(.999999, Math.max(0, progress)) * clips[i].duration;
+          const target = (weights[i] || 0) * (1 - fade) + Number(i === combatIndex) * fade;
+          a.setEffectiveWeight(a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
+          if (i === combatIndex) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, attack === 'return' ? 1 - 18 / 66 : attack === 'heavy' ? .48 : attack === 'riposte' ? .34 : 18 / 66) : progress)) * clips[i].duration;
         });
         drawn.visible = armed && (pose !== 'draw' || progress >= .29); sheathed.visible = !drawn.visible;
         mixer.update(step);
+        trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;
+        if (trail.visible) {
+          anchor.updateWorldMatrix(true, true);
+          samples.unshift([.24, .85].map(y => anchor.worldToLocal(drawn.localToWorld(new Vector3(0, y, 0)))));
+          if (samples.length > 7) samples.pop();
+          let offset = 0;
+          for (let i = 1; i < samples.length; i++) for (const point of [samples[i-1][0],samples[i-1][1],samples[i][0],samples[i][0],samples[i-1][1],samples[i][1]]) { point.toArray(ribbonVertices, offset); offset += 3; }
+          ribbon.setDrawRange(0, offset / 3); ribbon.attributes.position.needsUpdate = true;
+        } else samples.length = 0;
       }
     };
   }

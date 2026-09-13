@@ -12,3 +12,8 @@
 .actions{display:grid;grid-template-columns:repeat(3,auto)}#recenter-button{display:none}#attack-button,#reset-button{grid-column:2;grid-row:1}#dodge-button{grid-column:2;grid-row:2}#guard-button{grid-column:3;grid-row:2}#run-button{grid-column:3;grid-row:1}#performance{bottom:140px}
 @media(max-width:700px){.place{display:none}.combat-hud{top:160px;left:20px;width:230px}.actions{grid-template-columns:repeat(2,94px);gap:6px;max-width:none}.actions button{padding:10px 5px}.actions .primary{min-width:0}.actions #attack-button,.actions #reset-button{grid-column:1/-1;grid-row:1}.actions #dodge-button{grid-column:1;grid-row:2}.actions #guard-button{grid-column:2;grid-row:2}.actions #camera-button{grid-column:1;grid-row:3}.actions #run-button{grid-column:2;grid-row:3}#performance{bottom:194px}}
 @media(max-height:500px){.place,.identity{display:none}.combat-hud{top:68px;left:20px;right:auto;width:210px}.combat-hud>span:not(:first-child){margin-top:5px}.combat-hud p{margin-top:4px}.actions{grid-template-columns:repeat(3,auto)}#performance{bottom:142px}}
+
+/* Four stable combat targets; utility controls sit above the fighting thumb zone. */
+.actions{grid-template-columns:repeat(3,auto)}#heavy-button{grid-column:3;grid-row:1}#run-button{grid-column:1;grid-row:2}
+@media(max-width:700px){header{gap:8px}.brand{font-size:15px;letter-spacing:2px}.brand span{font-size:8px}header button{font-size:11px;padding:8px}.actions{grid-template-columns:repeat(2,94px)}.actions #attack-button{grid-column:1;grid-row:1}.actions #heavy-button{grid-column:2;grid-row:1}.actions #run-button{grid-column:2;grid-row:3}}
+@media(max-height:500px){.actions{grid-template-columns:repeat(3,auto)}}

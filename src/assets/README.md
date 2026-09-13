@@ -29,3 +29,5 @@ never moves simulation. The two fighters share geometry and use separate skeleto
 Source archive SHA-256:
 - base.zip: fdbf1804c90dfc1ea03e992bff7da2dfd1a79318e13270a660180f9308455f40
 - animations.zip: cc73fc4e495b82958207316596317a3f40b9fa38065bde1027937452da537724
+
+Combat feel pass: the same CC0 Sword_Attack supplies a reversed Return (backhand) clip. Heavy and Riposte are original offline-authored two-arm poses on this rig, exported by scripts/build-warrior.mjs. No additional third-party source, audio sample or licence is introduced. Runtime audio is original procedural noise/resonance synthesis. These 14 exported clips include the three additions; this is not a claim that all 14 distinct spec checklist roles are filled (bespoke guard impact and alternate hit remain absent).

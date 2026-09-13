@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import * as feedback from '../src/feedback.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
 import * as profile from '../src/profile.ts';
@@ -25,7 +26,7 @@ function boot() {
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render() { renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const storage = { getItem: () => JSON.stringify({ version: 1, id: 'test', name: 'Tester' }), setItem() {} };
-  const modules: Record<string, unknown> = { './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++ },
@@ -80,4 +81,15 @@ test('ordinary render failures are not swallowed as recoverable GPU loss', () =>
   const app = boot(); app.failDraw(false);
   assert.throws(() => app.tick(), /shader lost during draw/);
   assert.equal(app.timers.size, 0);
+});
+
+test('a late draw press buffers one attack, and focus loss cancels it', () => {
+  for (const interrupt of [false, true]) {
+    const app = boot(); app.tick(); app.key('KeyF'); app.tick();
+    for (let i = 0; i < 35; i++) app.tick();
+    app.key('KeyF');
+    if (interrupt) { app.lose(); app.restore(); }
+    for (let i = 0; i < 14; i++) app.tick();
+    assert.equal(app.element('stamina').value, interrupt ? 100 : 80);
+  }
 });

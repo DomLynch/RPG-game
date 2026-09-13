@@ -33,3 +33,13 @@ test('locked camera frames both capsules at boundary and near contact in portrai
     }
   }
 });
+
+test('duel camera frames a moving opponent anywhere in the arena', () => {
+  for (const aspect of [375/812,844/390,16/9]) for (let a=0;a<6.28;a+=.3) for(let b=0;b<6.28;b+=.4) {
+    const state={...initialState(),x:Math.sin(a)*RADIUS,z:Math.cos(a)*RADIUS};
+    const target={x:Math.sin(b)*7,z:Math.cos(b)*7};
+    const pose=cameraPose(state,Math.atan2(state.x-target.x,state.z-target.z),.45,true,target);
+    const camera=new PerspectiveCamera(51,aspect,.1,180);camera.position.set(pose.x,pose.y,pose.z);camera.lookAt(pose.lookX,1,pose.lookZ);camera.updateMatrixWorld();
+    for(const actor of [state,target])for(const y of [0,1.8]) { const p=new Vector3(actor.x,y,actor.z).project(camera); assert.ok(Math.abs(p.x)<.95&&Math.abs(p.y)<.95&&p.z<1,JSON.stringify({aspect,a,b,p})); }
+  }
+});

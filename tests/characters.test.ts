@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import { AnimationMixer, Box3, Vector3, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { SWORD } from '../src/combat.ts';
-import { CLIPS, COMBAT_CLIPS, gaitWeights } from '../src/characters.ts';
+import { SWORD, ATTACKS } from '../src/combat.ts';
+import { CLIPS, COMBAT_CLIPS, gaitWeights, swingProgress } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -101,7 +101,7 @@ test('combat clips and both sword attachments are present and produce finite ani
 test('the exported blade crosses the target at the simulation contact frame', async () => {
   const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene);
   const clip = asset.animations.find(a => a.name === 'Attack')!;
-  mixer.clipAction(clip).play(); mixer.setTime(clip.duration * SWORD.contact / SWORD.recovery);
+  mixer.clipAction(clip).play(); mixer.setTime(clip.duration * swingProgress(SWORD.contact / SWORD.recovery));
   asset.scene.updateMatrixWorld(true);
   const tip = asset.scene.getObjectByName('SwordDrawn')!.localToWorld(new Vector3(0, .86, 0));
   assert.ok(tip.z > .9 && tip.z <= SWORD.reach + .1 && Math.abs(tip.x) < .45 && tip.y > .6 && tip.y < 2, `Contact tip: ${tip.toArray()}`);
@@ -126,6 +126,25 @@ test('roll and guard keep the shipped body finite, above the floor and within a 
       assert.ok(bounds.max.y < 2.2, `${name} height: ${bounds.max.y}`);
       assert.ok(bounds.getSize(point).length() < 3.5, `${name} silhouette: ${point.toArray()}`);
     }
+    action.stop();
+  }
+});
+
+test('swing easing remains monotone and preserves the authored contact pose', () => {
+  let previous = 0;
+  for (let i = 0; i <= 1000; i++) { const p = swingProgress(i / 1000); assert.ok(p >= previous && p <= 1); previous = p; }
+  assert.ok(Math.abs(swingProgress(SWORD.contact / SWORD.recovery) - 18 / 66) < 1e-8);
+});
+
+test('return, heavy and riposte authored blades agree with their contact ticks', async () => {
+  const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene);
+  for (const [kind,name,source] of [['return','Return',1-18/66],['heavy','Heavy',.48],['riposte','Riposte',.34]] as const) {
+    const spec = ATTACKS[kind], clip = asset.animations.find(a => a.name === name)!;
+    const action = mixer.clipAction(clip).play();
+    mixer.setTime(clip.duration * swingProgress(spec.contact/spec.recovery,spec.contact/spec.recovery,source));
+    asset.scene.updateMatrixWorld(true);
+    const tip = asset.scene.getObjectByName('SwordDrawn')!.localToWorld(new Vector3(0,.86,0));
+    assert.ok(tip.z > .85 && Math.abs(tip.x) < .45 && tip.y > .6 && tip.y < 1.8, `${name} ${tip.toArray()}`);
     action.stop();
   }
 });

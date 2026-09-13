@@ -6,7 +6,7 @@ export type Input = { x: number; z: number; yaw: number; run: boolean };
 export const initialState = (): State => ({ x: 0, z: 4, heading: Math.PI, distance: 0 });
 
 // World coordinates only. No renderer, clock, animation, physics or browser state.
-export function advance(state: State, input: Input): State {
+export function advance(state: State, input: Input, target: { x: number; z: number } = TARGET): State {
   const length = Math.hypot(input.x, input.z);
   if (!length || !Number.isFinite(length) || !Number.isFinite(input.yaw)) return { ...state };
   const scale = Math.min(1, length) / length;
@@ -15,16 +15,17 @@ export function advance(state: State, input: Input): State {
   const speed = input.run ? 5.2 : 3;
   let x = state.x + dx * speed * STEP;
   let z = state.z + dz * speed * STEP;
-  // A stationary capsule lets the camera trial exercise a real near-target case.
-  const tx = x - TARGET.x, tz = z - TARGET.z;
+  // Resolve against the other fighter, including attack step-in and retreat.
+  const tx = x - target.x, tz = z - target.z;
   const gap = Math.hypot(tx, tz);
   if (gap < 0.85) {
     const angle = gap > 0.00001 ? Math.atan2(tx, tz) : state.heading + Math.PI;
-    x = TARGET.x + Math.sin(angle) * 0.85;
-    z = TARGET.z + Math.cos(angle) * 0.85;
+    x = target.x + Math.sin(angle) * 0.85;
+    z = target.z + Math.cos(angle) * 0.85;
   }
   const radius = Math.hypot(x, z);
   if (radius > RADIUS) { x *= RADIUS / radius; z *= RADIUS / radius; }
+  if (Math.hypot(x - target.x, z - target.z) < .85 - 1e-8) return { ...state };
   return { x, z, heading: Math.atan2(dx, dz), distance: state.distance + Math.hypot(x - state.x, z - state.z) };
 }
 

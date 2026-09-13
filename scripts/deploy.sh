@@ -6,7 +6,7 @@ node --input-type=module -e 'import { loadEnv } from "vite"; import { readFileSy
 export VITE_SENTRY_RELEASE="$(git rev-parse HEAD)"
 npm run quality
 revision=$(git rev-parse HEAD)
-printf '{"revision":"%s","phase":"0B-defence"}\n' "$revision" > dist/release.json
+printf '{"revision":"%s","phase":"0B-swordplay"}\n' "$revision" > dist/release.json
 host=root@49.12.7.18
 key="$HOME/.ssh/binance_futures_tool"
 release="/var/www/frankendom/releases/$revision"

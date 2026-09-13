@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadWarriors } from './characters.ts';
-import { SWORD, DEFENCE, type Practice } from './combat.ts';
+import { SWORD, DEFENCE, ATTACKS, type Practice } from './combat.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
-export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean) {
-  const distance = Math.hypot(state.x - TARGET.x, state.z - TARGET.z);
+export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
+  const distance = Math.hypot(state.x - target.x, state.z - target.z);
   const back = locked ? Math.max(6, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);
   let x = state.x + Math.sin(yaw) * back, z = state.z + Math.cos(yaw) * back;
   // Camera stays inside the colonnade even when the fighter reaches the arena edge.
@@ -14,8 +14,8 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
   if (radius > 11.5) { x *= 11.5 / radius; z *= 11.5 / radius; }
   return {
     x, y: locked ? Math.max(4.7, distance * 1.3) : 1 + 7.5 * Math.sin(pitch), z,
-    lookX: locked ? (state.x + TARGET.x) / 2 : state.x,
-    lookZ: locked ? (state.z + TARGET.z) / 2 : state.z,
+    lookX: locked ? (state.x + target.x) / 2 : state.x,
+    lookZ: locked ? (state.z + target.z) / 2 : state.z,
   };
 }
 
@@ -127,6 +127,11 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   });
   const marker = mesh(new THREE.RingGeometry(0.56, 0.59, 48), brass, TARGET.x, 0.04, TARGET.z);
   marker.rotation.x = -Math.PI / 2; marker.castShadow = false;
+  const sparkPositions = new Float32Array(12 * 3), sparkGeometry = new THREE.BufferGeometry();
+  sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
+  const sparkMaterial = new THREE.PointsMaterial({ color: '#ffe4af', size: .045, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const sparks = new THREE.Points(sparkGeometry, sparkMaterial); sparks.frustumCulled = false; sparks.visible = false; scene.add(sparks);
+  let impact = 0, lastHealth = 100, lastPlayerHealth = 100, lastReaction = 0, lastEnemyAge = -1, lastEnemyStamina = 100;
   const desired = new THREE.Vector3(), look = new THREE.Vector3(), aim = new THREE.Vector3(0, 1, 0);
   let yaw = 0, pitch = 0.45, heading = Math.PI, started = false;
   let ratio = Math.min(devicePixelRatio, 1.5);
@@ -140,25 +145,37 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     lowerResolution() { if (ratio > 1) { ratio = 1; renderer.setPixelRatio(ratio); resize(); } },
     restoreGraphics() { this.lowerResolution(); rebuildEnvironment(); },
     render(state: State, locked: boolean, dt: number, practice: Practice) {
+      const contact = practice.enemyStamina < lastEnemyStamina || practice.health < lastHealth || practice.playerHealth < lastPlayerHealth || (practice.result === 'parried' && practice.reaction > lastReaction) || (practice.result === 'blocked' && practice.enemyAge === DEFENCE.enemyContact && lastEnemyAge !== practice.enemyAge);
+      if (contact && dt > 0) { impact = .18; sparks.position.set((state.x + practice.enemy.x) / 2, 1.2, (state.z + practice.enemy.z) / 2); }
+      lastHealth = practice.health; lastPlayerHealth = practice.playerHealth; lastReaction = practice.reaction; lastEnemyAge = practice.enemyAge; lastEnemyStamina = practice.enemyStamina;
+      impact = Math.max(0, impact - dt); sparks.visible = impact > 0;
+      if (impact > 0) {
+        const t = .18 - impact; sparkMaterial.opacity = impact / .18;
+        for (let i = 0; i < 12; i++) { sparkPositions[i * 3] = Math.sin(i * 2.4) * t * 2; sparkPositions[i * 3 + 1] = Math.cos(i * 1.7) * t * 2 - t * t * 4; sparkPositions[i * 3 + 2] = Math.cos(i * 2.4) * t * 2; }
+        sparkGeometry.attributes.position.needsUpdate = true;
+      }
+      const animationDt = impact > .13 ? 0 : dt;
       const travel = started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
-      player.position.set(state.x, 0, state.z);
+      const enemyTravel = started && dt > 0 ? Math.hypot(practice.enemy.x - opponent.position.x, practice.enemy.z - opponent.position.z) / dt : 0;
+      player.position.set(state.x, 0, state.z); opponent.position.set(practice.enemy.x, 0, practice.enemy.z);
+      marker.position.set(practice.enemy.x, .04, practice.enemy.z);
       const pose = practice.phase === 'dead' ? 'death' : practice.phase === 'hurt' ? 'hit' : practice.phase;
-      const duration = pose === 'draw' ? SWORD.draw : pose === 'roll' ? DEFENCE.roll : pose === 'hit' ? SWORD.reaction : pose === 'death' ? SWORD.death : SWORD.recovery;
-      warriors?.player.update(travel, dt, pose, Math.min(1, practice.age / duration));
+      const duration = pose === 'draw' ? SWORD.draw : pose === 'roll' ? DEFENCE.roll : pose === 'hit' ? SWORD.reaction : pose === 'death' ? SWORD.death : ATTACKS[practice.attack].recovery;
+      warriors?.player.update(travel, animationDt, pose, Math.min(1, practice.age / duration), practice.attack, ATTACKS[practice.attack].contact / duration);
       const enemyProgress = practice.enemyAge <= DEFENCE.enemyContact ? practice.enemyAge / DEFENCE.enemyContact * SWORD.contact / SWORD.recovery : SWORD.contact / SWORD.recovery + (practice.enemyAge - DEFENCE.enemyContact) / (DEFENCE.enemyRecovery - DEFENCE.enemyContact) * (1 - SWORD.contact / SWORD.recovery);
-      warriors?.opponent.update(0, dt, !practice.health ? 'death' : practice.reaction ? 'hit' : practice.enemyAttacking && practice.playerHealth ? 'attack' : 'ready', practice.enemyAttacking ? enemyProgress : Math.max(0, 1 - practice.reaction / practice.reactionDuration));
+      warriors?.opponent.update(practice.enemyMode === 'retreat' ? -enemyTravel : enemyTravel, animationDt, !practice.health ? 'death' : practice.reaction ? 'hit' : practice.enemyAttacking && practice.playerHealth ? 'attack' : practice.enemyMode === 'guard' ? 'guard' : 'ready', practice.enemyAttacking ? enemyProgress : Math.max(0, 1 - practice.reaction / practice.reactionDuration));
       brass.color.set(practice.enemyAttacking && practice.enemyAge < DEFENCE.enemyContact ? '#e7a35e' : '#ad9365');
       marker.visible = practice.health > 0;
-      if (practice.health) opponent.rotation.y = practice.enemyAttacking ? practice.enemyHeading : Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
+      if (practice.health) opponent.rotation.y = practice.enemyAttacking ? practice.enemyHeading : Math.atan2(state.x - practice.enemy.x, state.z - practice.enemy.z);
       const blend = 1 - Math.exp(-dt * 8);
       if (locked) {
-        const lockYaw = Math.atan2(state.x - TARGET.x, state.z - TARGET.z);
+        const lockYaw = Math.atan2(state.x - practice.enemy.x, state.z - practice.enemy.z);
         yaw += wrapAngle(lockYaw - yaw) * blend;
       }
-      const cameraTarget = cameraPose(state, yaw, pitch, locked);
+      const cameraTarget = cameraPose(state, yaw, pitch, locked, practice.enemy);
       look.set(cameraTarget.lookX, 1, cameraTarget.lookZ); desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
-      heading += wrapAngle((locked && travel < 0.05 && practice.phase !== 'attack' ? Math.atan2(TARGET.x - state.x, TARGET.z - state.z) : state.heading) - heading) * blend;
-      if (['attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading = state.heading;
+      heading += wrapAngle((locked && travel < 0.05 && practice.phase !== 'attack' ? Math.atan2(practice.enemy.x - state.x, practice.enemy.z - state.z) : state.heading) - heading) * blend;
+      if (['attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading += wrapAngle(state.heading - heading) * (1 - Math.exp(-dt * 30));
       player.rotation.y = heading;
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim); started = true;
