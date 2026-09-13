@@ -22,10 +22,15 @@ try {
  await page.evaluate(()=>{const gl=document.querySelector('#world').getContext('webgl2'),extension=gl.getExtension('WEBGL_lose_context');if(!extension)throw Error('WebGL loss extension unavailable');extension.loseContext();setTimeout(()=>extension.restoreContext(),350);});
  await page.waitForFunction(()=>document.querySelector('#message').textContent.startsWith('Restoring'));
  await page.waitForFunction(()=>document.querySelector('#message').hidden);
- receipt.graphicsRestored=true; receipt.afterRestore=await snapshot();console.log('restored',receipt.afterRestore,await page.locator('.actions').innerText());
+ receipt.graphicsRestored=true; receipt.afterRestore=await snapshot();
+ // Timestamp the first rendered tell before drawing. Polling plus a fresh layout query after a fixed sleep can miss the parry window.
+ await page.evaluate(()=>{window.__tellAt=0;window.__guardAt=0;const status=document.querySelector('#combat-status');const observer=new MutationObserver(()=>{if(status.textContent.startsWith('Incoming strike')){window.__tellAt=performance.now();observer.disconnect();}});observer.observe(status,{childList:true});document.querySelector('#guard-button').addEventListener('pointerdown',()=>{window.__guardAt=performance.now();},{once:true});});
  await page.getByRole('button',{name:'Draw sword',exact:true}).tap();
- await page.waitForFunction(()=>document.querySelector('#combat-status').textContent.startsWith('Incoming strike'));
- await page.waitForTimeout(505);await touch('touchStart',await center('guard-button'));
+ await page.waitForFunction(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden);
+ const guardPoint=await center('guard-button');
+ await page.waitForFunction(()=>window.__tellAt>0 && performance.now()-window.__tellAt>=475);
+ await touch('touchStart',guardPoint);
+ receipt.guardAfterTellMs=await page.evaluate(()=>window.__guardAt-window.__tellAt);assert.ok(receipt.guardAfterTellMs>0,'Guard must receive the real touch after the tell');
  await page.waitForFunction(()=>/Parried|Blocked|Hit taken|Guard broken/.test(document.querySelector('#combat-status').textContent),null,{timeout:1500});
  receipt.parry=await snapshot();assert.match(receipt.parry.status,/Parried/);await touch('touchEnd');
  await page.waitForTimeout(60);await page.screenshot({path:'artifacts/browser-parry.png'});
