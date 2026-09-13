@@ -1,4 +1,5 @@
 import './monitoring.ts';
+import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
@@ -35,10 +36,11 @@ function persist() {
 persist();
 let practice = initialPractice(), state = practice.fighter, previous = state, accumulator = 0, locked = false;
 let dodge = false, parry = false, guard = false, guardId: number | null = null;
-let strike = false, assetsReady = false, lastHud = '';
+let strike = false, assetsReady = false, graphicsLost = false, lastHud = '';
+let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 function updateHud() {
-  const hint = practiceHint(practice);
-  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${hint}:${assetsReady}`;
+  const hint = practiceHint(practice), controlsReady = assetsReady && !graphicsLost;
+  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${hint}:${controlsReady}`;
   if (key === lastHud) return;
   lastHud = key;
   health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
@@ -48,11 +50,11 @@ function updateHud() {
   combatStatus.dataset.threat = String(practice.enemyAttacking && practice.enemyAge < DEFENCE.enemyContact);
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
-  attackButton.setAttribute('aria-disabled', String(!assetsReady || !canStrike(practice)));
+  attackButton.setAttribute('aria-disabled', String(!controlsReady || !canStrike(practice)));
   const ended = !practice.health || !practice.playerHealth;
   attackButton.hidden = ended; resetButton.hidden = !ended;
-  dodgeButton.setAttribute('aria-disabled', String(!assetsReady || !canDefend(practice) || practice.stamina < DEFENCE.rollCost));
-  guardButton.setAttribute('aria-disabled', String(!assetsReady || !canDefend(practice) || practice.stamina <= 0));
+  dodgeButton.setAttribute('aria-disabled', String(!controlsReady || !canDefend(practice) || practice.stamina < DEFENCE.rollCost));
+  guardButton.setAttribute('aria-disabled', String(!controlsReady || !canDefend(practice) || practice.stamina <= 0));
   guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));
 }
 function requestDodge() { if (!paused() && assetsReady && canDefend(practice) && practice.stamina >= DEFENCE.rollCost) dodge = true; }
@@ -74,7 +76,7 @@ element('close-journal').addEventListener('click', () => journal.close());
 journal.addEventListener('close', clearInput);
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
-const paused = () => !welcome.hidden || journal.open || document.hidden;
+const paused = () => graphicsLost || !welcome.hidden || journal.open || document.hidden;
 window.addEventListener('keydown', event => {
   if (paused() || event.target instanceof HTMLInputElement) return;
   if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(event.code)) {
@@ -134,9 +136,27 @@ catch {
   attackButton.setAttribute('aria-disabled', 'true');
   throw new Error('Unable to initialise the WebGL2 courtyard');
 }
-canvas.addEventListener('webglcontextlost', event => {
-  event.preventDefault(); clearInput(); cancelAnimationFrame(frameId);
-  message.hidden = false; message.textContent = 'The graphics connection was interrupted. Reload this page to return to the courtyard.';
+function graphicsFailure() {
+  message.hidden = false; message.textContent = 'Graphics could not recover. Reload to return to the courtyard. ';
+  const reload = document.createElement('button'); reload.textContent = 'Reload game';
+  reload.addEventListener('click', () => location.reload()); message.append(reload);
+}
+function pauseGraphics() {
+  if (graphicsLost) return;
+  graphicsLost = true; clearInput(); previous = state; cancelAnimationFrame(frameId); updateHud();
+  message.hidden = false; message.textContent = 'Restoring graphics… Your fight is paused.';
+  recoveryTimer = setTimeout(graphicsFailure, 10000);
+}
+canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); pauseGraphics(); });
+canvas.addEventListener('webglcontextrestored', () => {
+  if (!graphicsLost) return;
+  // Three.js restores its renderer first; generated environment pixels must be rebuilt too.
+  try { view.restoreGraphics(); }
+  catch (error) { if (!view.renderer.getContext().isContextLost()) { captureException(error); graphicsFailure(); } return; }
+  if (view.renderer.getContext().isContextLost()) return;
+  clearTimeout(recoveryTimer); clearInput(); previous = state;
+  last = reportAt = performance.now(); frames = []; graphicsLost = false; message.hidden = true;
+  updateHud(); frameId = requestAnimationFrame(frame);
 });
 cameraButton.addEventListener('click', () => {
   locked = !locked; cameraButton.setAttribute('aria-pressed', String(locked)); cameraButton.textContent = locked ? 'Camera locked' : 'Lock camera';
@@ -153,6 +173,7 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.
 let last = performance.now(), reportAt = last, frames: number[] = [], frameId = 0;
 document.addEventListener('visibilitychange', () => { last = performance.now(); frames = []; reportAt = last; });
 function frame(now: number) {
+  if (view.renderer.getContext().isContextLost()) { pauseGraphics(); return; }
   const elapsed = (now - last) / 1000; last = now;
   const dt = Math.min(elapsed, 0.1);
   if (!paused()) {
@@ -165,7 +186,13 @@ function frame(now: number) {
     }
   } else { accumulator = 0; previous = state; }
   const alpha = accumulator / STEP;
-  view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, paused() ? 0 : dt, practice);
+  try {
+    view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, paused() ? 0 : dt, practice);
+  } catch (error) {
+    // Loss can happen inside a draw, before the browser delivers its context-lost event.
+    if (!view.renderer.getContext().isContextLost()) throw error;
+    pauseGraphics(); return;
+  }
   updateHud();
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (now - reportAt >= 2000 && frames.length) {

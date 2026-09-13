@@ -29,10 +29,15 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#9ca8a6');
   scene.fog = new THREE.FogExp2('#9ca8a6', 0.018);
-  const environment = new RoomEnvironment(), pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(environment, 0.04).texture;
-  scene.environmentIntensity = 0.65;
-  environment.dispose(); pmrem.dispose();
+  let environmentTarget: THREE.WebGLRenderTarget | undefined;
+  function rebuildEnvironment() {
+    const environment = new RoomEnvironment(), pmrem = new THREE.PMREMGenerator(renderer);
+    try {
+      const target = pmrem.fromScene(environment, 0.04);
+      environmentTarget?.dispose(); environmentTarget = target; scene.environment = target.texture;
+    } finally { environment.dispose(); pmrem.dispose(); }
+  }
+  rebuildEnvironment(); scene.environmentIntensity = 0.65;
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
   const stone = new THREE.MeshStandardMaterial({ color: '#878579', roughness: 0.98 });
   const darkStone = new THREE.MeshStandardMaterial({ color: '#555b56', roughness: 1 });
@@ -133,6 +138,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     orbit(dx: number, dy: number) { yaw -= dx * 0.005; pitch = THREE.MathUtils.clamp(pitch + dy * 0.003, 0.22, 0.9); },
     recenter() { yaw = 0; pitch = 0.45; started = false; },
     lowerResolution() { if (ratio > 1) { ratio = 1; renderer.setPixelRatio(ratio); resize(); } },
+    restoreGraphics() { this.lowerResolution(); rebuildEnvironment(); },
     render(state: State, locked: boolean, dt: number, practice: Practice) {
       const travel = started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       player.position.set(state.x, 0, state.z);
