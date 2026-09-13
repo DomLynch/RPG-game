@@ -85,7 +85,7 @@ export function stepPractice(current: Practice, input: Input, strike: boolean, l
     if (!next.decision) {
       next.seed = (Math.imul(next.seed, 1664525) + 1013904223) >>> 0;
       next.decision = 36 + next.seed % 45; next.enemyWait = 45 + (next.seed >>> 8) % 61;
-      next.enemyMode = distance > 2.2 ? 'approach' : next.enemyStamina < 25 || distance < 1.05 ? 'retreat' : next.seed % 3 === 0 ? 'guard' : 'circle';
+      next.enemyMode = distance > 1.7 ? 'approach' : next.enemyStamina < 25 || distance < 1.05 ? 'retreat' : next.seed % 3 === 0 ? 'guard' : 'circle';
       next.enemyGuardAge = 0;
     }
     if (distance > 2.5) next.enemyMode = 'approach';

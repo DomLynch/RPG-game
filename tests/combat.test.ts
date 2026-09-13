@@ -196,6 +196,17 @@ test('warden closes distance, circles, retreats and varies waits without reading
   assert.ok(strikes > 0);
   const passive = tick(initialPractice(),600); assert.deepEqual(passive.enemy,initialPractice().enemy);
 });
+test('warden never idles out of reach: a stationary fighter is attacked at least every eight seconds', () => {
+  // Regression: retreat left the warden at 1.8–2.2 m, beyond its 1.8 m strike range yet below its 2.2 m approach trigger, for 20+ seconds.
+  let s = {...initialPractice(), phase:'ready' as const} as Practice, last = 0, longest = 0;
+  for (let i = 1; i <= 3600; i++) {
+    const before = s; s = stepPractice(s,idle,false,true,{guard:true});
+    s = {...s,playerHealth:100,stamina:100,phase:s.phase === 'dead' || s.phase === 'hurt' ? 'ready' : s.phase};
+    if (s.enemyAttacking && !before.enemyAttacking) { longest = Math.max(longest,i - last); last = i; }
+  }
+  longest = Math.max(longest,3600 - last);
+  assert.ok(longest <= 480, `warden idled ${longest} ticks`);
+});
 test('visible directional warden guard blocks light, heavy breaks it, and recovery cannot block', () => {
   const guarded: Practice = {...ready(), enemyMode:'guard', enemyGuardAge:20,decision:100};
   const light = tick(stepPractice(guarded,idle,true,true),SWORD.contact);
