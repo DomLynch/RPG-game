@@ -582,15 +582,17 @@ def eye_maps(eye, size=512):
     r = np.linalg.norm(d, axis=2) + 1e-6
     forward = -d[..., 1] / r  # 1 at the front pole
     angle = np.arccos(np.clip(forward, -1, 1))
-    iris = np.clip((0.42 - angle) / 0.03, 0, 1)
-    pupil = np.clip((0.16 - angle) / 0.02, 0, 1)
+    iris = np.clip((0.47 - angle) / 0.03, 0, 1)  # a little larger than anatomical: less white, a heavier-lidded read
+    pupil = np.clip((0.17 - angle) / 0.02, 0, 1)
     theta = np.arctan2(d[..., 2], d[..., 0])
     fibres = 0.5 + 0.5 * np.sin(theta * 48) * np.sin(theta * 7)
-    ring = np.clip((angle - 0.36) / 0.06, 0, 1)
-    iris_colour = np.array([0.20, 0.12, 0.06])[None, None, :] * (0.7 + fibres[..., None] * 0.6) * (1 - ring[..., None] * 0.6)
-    sclera = np.array([0.66, 0.62, 0.58])[None, None, :] * (0.85 + 0.15 * (1 - np.clip((angle - 0.5) / 0.9, 0, 1)))[..., None]
-    lid = np.clip((d[..., 2] / r - 0.15) / 0.5, 0, 1)  # the upper lid shades the top of the eyeball
-    sclera *= (1 - lid * 0.45)[..., None]
+    ring = np.clip((angle - 0.38) / 0.09, 0, 1)  # limbal ring: dark, wide
+    iris_colour = np.array([0.22, 0.13, 0.06])[None, None, :] * (0.7 + fibres[..., None] * 0.6) * (1 - ring[..., None] * 0.75)
+    sclera = np.array([0.60, 0.55, 0.50])[None, None, :] * (0.85 + 0.15 * (1 - np.clip((angle - 0.5) / 0.9, 0, 1)))[..., None]
+    lid = np.clip((d[..., 2] / r - 0.05) / 0.5, 0, 1)  # the upper lid shades the top of the eyeball
+    sclera *= (1 - lid * 0.55)[..., None]
+    corner = np.clip((np.abs(d[..., 0]) / r - 0.55) / 0.4, 0, 1)  # inner and outer corners are pinker and darker
+    sclera = sclera * (1 - corner[..., None] * 0.25) + np.array([0.55, 0.30, 0.26])[None, None, :] * (corner * 0.25)[..., None]
     veins = fbm(size, 71, octaves=(32, 64, 128))
     sclera[..., 1:] *= 1 - np.clip((veins - 0.62) * 4, 0, 1)[..., None] * 0.35
     colour = sclera * (1 - iris[..., None]) + iris_colour * iris[..., None]
@@ -813,7 +815,7 @@ if not proof:
     manifest_path = os.path.join(materials_out, 'manifest_realistic.json' if realistic else 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
-    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0)] if realistic else []
+    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0)] if realistic else []
     for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale

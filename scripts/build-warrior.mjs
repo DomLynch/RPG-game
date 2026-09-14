@@ -49,8 +49,9 @@ const eyesMaterial = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .3 })
 // Realistic head: its own texture tile with skin-strength specular (KHR_materials_specular), and strand cards for hair,
 // brows and lashes as an alpha cut-out (no sorting, works in the shadow pass).
 const face = new T.MeshPhysicalMaterial({ name: 'Face', roughness: 1, specularIntensity: 0.5 });
-const hairCards = new T.MeshPhysicalMaterial({ name: 'HairCards', roughness: .9, specularIntensity: .3, alphaTest: .35, side: T.DoubleSide }); // 0.35: small cards (brows, lashes) keep their strands through mip averaging
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial, face, hairCards].map(m => [m, []]));
+const hairCards = new T.MeshPhysicalMaterial({ name: 'HairCards', roughness: .9, specularIntensity: .3, alphaTest: .35, side: T.DoubleSide }); // 0.35: loose strands survive mip averaging
+const browCards = new T.MeshPhysicalMaterial({ name: 'BrowCards', roughness: .9, specularIntensity: .3, alphaTest: .5, side: T.DoubleSide }); // dense columns: a sharper cut keeps hairs, not bands
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial, face, hairCards, browCards].map(m => [m, []]));
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);

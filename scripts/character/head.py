@@ -333,14 +333,13 @@ def body_colour(pos, mask, ao, detail, size):
     fbm = P.fbm
     base = np.array([0.60, 0.44, 0.31])[None, None, :]
     tone = fbm(size, 41, octaves=(4, 8, 16, 32))[..., None]
-    colour = base * (0.90 + tone * 0.22)
+    colour = base * (0.92 + tone * 0.18)
     colour[..., 1] *= 1 + (tone[..., 0] - 0.5) * 0.06
-    colour[..., 0] *= 1 + (fbm(size, 42, octaves=(8, 16)) - 0.5) * 0.12
-    colour[..., 2] *= 1 - (fbm(size, 43, octaves=(16, 32)) - 0.5) * 0.10
+    colour[..., 0] *= 1 + (fbm(size, 42, octaves=(8, 16)) - 0.5) * 0.10
     colour = colour * (0.55 + 0.45 * np.clip(ao, 0, 1) ** 1.2)[..., None]
-    colour = colour * (1 + (detail - 0.5) * 0.9)
-    dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.42) * 2.4, 0, 1)[..., None]
-    colour = colour * (1 - dust * 0.30) + np.array([0.30, 0.28, 0.25])[None, None, :] * dust * 0.30
+    colour = colour * (1 + (detail - 0.5) * 2.0)
+    dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.45) * 2.4, 0, 1)[..., None]
+    colour = colour * (1 - dust * 0.22) + np.array([0.30, 0.28, 0.25])[None, None, :] * dust * 0.22
     return np.clip(colour, 0, 1)
 
 
@@ -409,9 +408,9 @@ def card_texture(size=512):
             strand(x0, x1, rng.uniform(0, size * 0.06), y1, rng.uniform(1.4, 2.4), dark * rng.uniform(0.7, 1.9) * np.array([1.0, rng.uniform(0.9, 1.0), rng.uniform(0.8, 1.0)]))
     for col in (4, 5):  # brows: small cards, so the column must stay dense enough to survive mip averaging
         x_base = col * col_w
-        for _ in range(20):
+        for _ in range(24):
             x0 = x_base + rng.uniform(4, col_w - 4)
-            strand(x0, x0 + rng.uniform(-6, 6), rng.uniform(0, size * 0.1), rng.uniform(size * 0.6, size * 0.95), rng.uniform(2.0, 2.8), dark * rng.uniform(0.9, 1.4))
+            strand(x0, x0 + rng.uniform(-6, 6), rng.uniform(0, size * 0.1), rng.uniform(size * 0.6, size * 0.95), rng.uniform(2.4, 3.2), dark * rng.uniform(0.9, 1.4))
     for col in (6, 7):  # lashes: root at the column's left edge, fanning right, repeated down the column
         x_base = col * col_w
         for k in range(90):
@@ -516,7 +515,7 @@ def hair_cards(head, F, rng_seed=71):
         if s < 0.8:  # cards stay inside the painted cap; the feathered hairline is paint, not strokes on the forehead
             continue
         height = np.clip((c.z - (ez + 0.025)) / 0.10, 0, 1)  # 0 at the temples, 1 at the crown
-        density = 1.8 + 2.4 * height  # cards per polygon on top; sparser down the fade
+        density = 2.4 + 3.2 * height  # cards per polygon on top; sparser down the fade
         n_cards = int(density) + (1 if rng.random() < density - int(density) else 0)
         for _ in range(n_cards):
             jitter = Vector((rng.normal(0, 0.003), rng.normal(0, 0.003), rng.normal(0, 0.003)))
@@ -526,7 +525,7 @@ def hair_cards(head, F, rng_seed=71):
             side = nrm.cross(d).normalized()
             d = (d * math.cos(lean) + side * math.sin(lean)).normalized()
             length = 0.006 + 0.014 * height ** 0.8
-            width = 0.009 + 0.006 * height
+            width = 0.008 + 0.005 * height
             lifts = [0.0004, 0.0025 + 0.002 * height, 0.0035 + 0.003 * height, 0.003 + 0.0025 * height]
             rows = card_rows(root, nrm, d, length, width, lifts, [1.0, 1.0, 0.9, 0.6])
             mesh.add(rows, nrm, int(rng.integers(0, 4)))
@@ -553,8 +552,8 @@ def brow_cards(head, F, rng_seed=72):
                     continue
                 up = Vector((sx * 0.35, 0, 1)) if t < 0.3 else (Vector((sx * 1, 0, 0.35)) if t < 0.72 else Vector((sx * 1, 0, -0.45)))
                 _, nrm, d = surface_frame(head, loc, up)
-                length = 0.0095 - 0.004 * t
-                width = 0.0032
+                length = 0.0090 - 0.0035 * t
+                width = 0.0030
                 rows = card_rows(loc, nrm, d, length, width, [0.0005, 0.0010, 0.0014, 0.0016], [1.0, 1.0, 0.9, 0.7])
                 mesh.add(rows, nrm, 4 + int(rng.integers(0, 2)))
                 count += 1
@@ -574,8 +573,8 @@ def lash_cards(head, F, eye_radius):
             u = math.cos(a) * sx
             # lid margin: on the eyeball's upper front, then the lashes fan forward-up
             root = centre + Vector((u * eye_radius * 0.92, -eye_radius * 0.72 * math.sin(a) ** 0.5 - 0.001, eye_radius * 0.42 * math.sin(a) + 0.001))
-            direction = Vector((u * 0.25, -1.0, 0.55)).normalized()
-            tip = root + direction * (0.0065 * (0.6 + 0.4 * math.sin(a)))
+            direction = Vector((u * 0.3, -0.8, 0.85)).normalized()
+            tip = root + direction * (0.0085 * (0.55 + 0.45 * math.sin(a)))
             rows.append((root, tip))
             normals.append(Vector((u * 0.3, -1, 0.3)).normalized())
         mesh.add_strip(rows, normals, 0.75, 1.0, 3.0)
@@ -618,6 +617,7 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     eye_centre = sum((v.co for v in eye.data.vertices), Vector()) / len(eye.data.vertices)
     eye_radius = max((v.co - eye_centre).length for v in eye.data.vertices)
     hair = tag(hair_cards(head, F), 'hair_cards', 'HairCards', bone='Head', slot='Hair')
-    brows = tag(brow_cards(head, F), 'brow_cards', 'HairCards', bone='Head', slot='Face')
-    lashes = tag(lash_cards(head, F, eye_radius), 'lash_cards', 'HairCards', bone='Head', slot='Face')
+    brows = tag(brow_cards(head, F), 'brow_cards', 'BrowCards', bone='Head', slot='Face')
+    lashes = tag(lash_cards(head, F, eye_radius), 'lash_cards', 'BrowCards', bone='Head', slot='Face')
+    maps['BrowCards'] = dict(maps['HairCards'])  # same sheet, sharper cut-off in the build
     return {'maps': maps, 'ao_body': ao_body, 'head': head, 'body': rest, 'parts': [head, rest, hair, brows, lashes]}
