@@ -210,14 +210,11 @@ def level1_kit():
                        and not bare_right(p) and not armhole_left(p) and (p - shoulder_r).length > 0.09, lift=0.010, thickness=0.007))
     # Under-skirt: dyed cloth over hips and upper thighs, so the strips above it never show skin between them.
     kit.append(extract('skirt', 'Heraldry', lambda p: abs(p.x) < 0.24 and pelvis.z - 0.25 < p.z < pelvis.z + 0.01, lift=0.014, thickness=0.005))
-    # Baldric: a leather band from the left shoulder to the right hip, front and back.
-    a, b = Vector((shoulder_l.x - 0.05, 0, shoulder_l.z)), Vector((shoulder_r.x + 0.16, 0, pelvis.z + 0.03))
-    d = (b - a).normalized()
-    def on_baldric(p):
-        q = Vector((p.x, 0, p.z))
-        t = (q - a).dot(d)
-        return in_torso(p) and 0 < t < (b - a).length and abs((q - a - d * t).length) < 0.032
-    kit.append(extract('baldric', 'Leather', on_baldric, lift=0.018, thickness=0.005))
+    # Baldric: a leather loop around the torso, over the left shoulder and under the right arm, hugging the body.
+    centre = Vector((0.0, pelvis.y, pelvis.z + 0.37))
+    n = Vector((0.66, 0.0, 0.75)).normalized()  # the loop's plane leans from the right hip up to the left shoulder
+    kit.append(ring_strip('baldric', 'Leather', centre - n * 0.025, centre + n * 0.025, 0.0, 0.05, segments=44,
+                          lift=0.017, thickness=0.005, probe_radius=0.30, max_reach=0.34))
     # Belt around the hips.
     kit.append(extract('belt', 'Leather', lambda p: in_torso(p) and pelvis.z + 0.005 < p.z < pelvis.z + 0.055, lift=0.024, thickness=0.007))
     # Forearm wraps: five overlapping leather turns from the wrist up, both arms.
@@ -243,15 +240,16 @@ def level1_kit():
                               lift=0.026, thickness=0.005, probe_radius=0.16, max_reach=0.19, rows_n=7))
     # Iron studs along the baldric and belt: the kit's only metal, skinned like the leather beneath it.
     studs = []
-    for k in range(16):
-        t = (k + 0.5) / 16
-        for front in (True, False):
-            probe = a + (b - a) * t + Vector((0, -0.3 if front else 0.3, 0))
-            surface, normal = nearest_surface(probe)
-            if abs(surface.x) >= torso_half_width - 0.01:
-                continue  # the strap stops at the torso edge; so do its studs
-            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.0065, location=surface + normal * 0.0215)
-            studs.append(bpy.context.active_object)
+    axis_u = n.cross(Vector((0, 0, 1))).normalized()
+    axis_v = n.cross(axis_u)
+    for k in range(22):  # rivets along the baldric loop, skipping the underarm
+        th = (k + 0.5) / 22 * math.pi * 2
+        radial = axis_u * math.cos(th) + axis_v * math.sin(th)
+        surface, normal = nearest_surface(centre + radial * 0.30)
+        if (surface - centre).length > 0.34 or (surface.x < -0.12 and surface.z > pelvis.z + 0.3):
+            continue
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.0065, location=surface + normal * 0.0195)
+        studs.append(bpy.context.active_object)
     for k in range(12):
         ang = (k + 0.5) / 12 * math.pi * 2
         surface, normal = nearest_surface(pelvis + Vector((math.sin(ang) * 0.3, -math.cos(ang) * 0.3, 0.03)))
