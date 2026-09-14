@@ -34,7 +34,6 @@ export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x,
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
 export const timing = (f: Fighter): Timing => f.chained && f.move ? MOVES[f.move].chained! : MOVES[f.move!];
 export const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
-const isSword = (f: Fighter) => f.phase === 'attack' && f.move !== null && f.move !== 'kick';
 // Ticks a committed phase lasts; null for phases that end on input.
 export function phaseLength(f: Fighter): number | null {
   if (f.phase === 'draw') return RULES.draw;
@@ -115,9 +114,11 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (next.phase === 'attack' && !next.chained && next.move && MOVES[next.move].chain) next.chain = MOVES[next.move].chain!.window;
       next.phase = 'ready'; next.age = 0; next.guardDirection = null; next.parrying = false;
     }
-    if (isSword(next) && next.age < timing(next).windup) {
-      if (intent.lock) next.body = { ...next.body, heading: next.body.heading + Math.max(-R.turnWindup, Math.min(R.turnWindup, wrapAngle(aim(next.body, foe) - next.body.heading))) };
-      if (next.age > R.stepInFrom) next.body = advance(next.body, { x: Math.sin(next.body.heading) * R.stepIn, z: Math.cos(next.body.heading) * R.stepIn, yaw: 0, run: false }, foe);
+    if (next.phase === 'attack' && next.move && next.age < timing(next).windup) {
+      // Wind-up: controlled turning toward the opponent and the move's lunge; a kick lunges too, so a backstep cannot walk out of a point-blank kick.
+      if (intent.lock && next.move !== 'kick') next.body = { ...next.body, heading: next.body.heading + Math.max(-R.turnWindup, Math.min(R.turnWindup, wrapAngle(aim(next.body, foe) - next.body.heading))) };
+      const lunge = MOVES[next.move].stepIn;
+      if (lunge && next.age > R.stepInFrom) next.body = advance(next.body, { x: Math.sin(next.body.heading) * lunge, z: Math.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe);
     } else if (next.phase === 'roll') {
       next.body = advance(next.body, { x: Math.sin(next.body.heading), z: Math.cos(next.body.heading), yaw: 0, run: true }, foe);
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {

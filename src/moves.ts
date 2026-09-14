@@ -33,6 +33,7 @@ export type MoveDef = Timing & {
   breaksGuard: boolean;           // cannot be blocked: a standing guard is broken instead
   parryable: boolean;
   knockback: number;              // defender shove ticks on a clean hit
+  stepIn: number;                 // wind-up lunge speed (fraction of walking speed) from RULES.stepInFrom until contact
   reach: number;                  // AI range estimate for swords; the actual cone for kicks
   vsGuard: { stagger: number; staminaDamage: number } | null;  // kick against a standing guard
 };
@@ -41,7 +42,7 @@ const light = (id: 'light_right' | 'light_left', direction: Direction): MoveDef 
   id, direction, path: id, chainPath: `${id}_chain`, chained: { windup: 12, active: 5, recovery: 17 },
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right'] },
   windup: 14, active: 5, recovery: 21, damage: 25, stamina: 20, staminaDamage: 25, stagger: 24, poise: 0, poiseFrom: 0,
-  breaksGuard: false, parryable: true, knockback: 4, reach: 1.65, vsGuard: null,
+  breaksGuard: false, parryable: true, knockback: 4, stepIn: .55, reach: 1.65, vsGuard: null,
 });
 export const MOVES: Record<MoveId, MoveDef> = {
   light_right: light('light_right', 'right'),
@@ -49,17 +50,17 @@ export const MOVES: Record<MoveId, MoveDef> = {
   heavy_overhead: {
     id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: null, chained: null, chain: null,
     windup: 32, active: 5, recovery: 31, damage: 38, stamina: 35, staminaDamage: 0, stagger: 24, poise: 24, poiseFrom: 24,
-    breaksGuard: true, parryable: true, knockback: 4, reach: 1.9, vsGuard: null,
+    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, reach: 1.9, vsGuard: null,
   },
   riposte: {
     id: 'riposte', direction: 'thrust', path: 'riposte', chainPath: null, chained: null, chain: null,
     windup: 12, active: 5, recovery: 19, damage: 40, stamina: 20, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
-    breaksGuard: true, parryable: true, knockback: 4, reach: 1.65, vsGuard: null,
+    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, reach: 1.65, vsGuard: null,
   },
   kick: {
     id: 'kick', direction: 'low', path: null, chainPath: null, chained: null, chain: null,
     windup: 18, active: 1, recovery: 25, damage: 8, stamina: 25, staminaDamage: 15, stagger: 18, poise: 0, poiseFrom: 0,
-    breaksGuard: false, parryable: false, knockback: 6, reach: 1.2, vsGuard: { stagger: 36, staminaDamage: 45 },
+    breaksGuard: false, parryable: false, knockback: 6, stepIn: .55, reach: 1.2, vsGuard: { stagger: 36, staminaDamage: 45 },
   },
 };
 
@@ -68,7 +69,7 @@ export const RULES = {
   parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 0, blockCost: 25, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: false,
   regen: .4, regenDelay: 60, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,
-  bufferWindow: 8, bufferTtl: 9, stepIn: .55, stepInFrom: 3, turnStart: .3, turnWindup: .25,
+  bufferWindow: 8, bufferTtl: 9, stepInFrom: 3, turnStart: .3, turnWindup: .25,
   location: { head: 1, torso: 1, legs: 1 } as Record<'head' | 'torso' | 'legs', number>,
 } as const;
 

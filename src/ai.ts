@@ -15,9 +15,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const roll = () => { next.seed = lcg(next.seed); return next.seed / 2 ** 32; };
   const gap = distance(M.body, F.body), facing = aim(M.body, F.body);
   const canAct = M.phase === 'ready' || M.phase === 'guard';
-  if (M.phase === 'hurt' && M.age === 1) { next.retreatUntil = tick + 48; next.mode = 'retreat'; next.plan = null; }
+  // Being hit: back off briefly, then decide afresh (re-engage or keep distance) rather than drifting away.
+  if (M.phase === 'hurt' && M.age === 1) { next.retreatUntil = tick + 48; next.decision = 48; next.mode = 'retreat'; next.plan = null; next.next = null; next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); }   // a landed blow earns the player a window; no instant retaliation
   // Perception. An attack is noticed `reaction` ticks after it starts; one response is planned per attack.
-  const threat = F.phase === 'attack' && !F.landed && F.move !== null;
+  const threat = F.phase === 'attack' && !F.landed && F.move !== null && F.age < timing(F).windup + timing(F).active;   // a swing is a threat until its active window closes
   const noticed = threat && F.age >= profile.reaction;
   if (!threat) next.plan = null;
   else if (F.age === profile.reaction) {
@@ -26,10 +27,12 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     next.plan = !inRange ? 'ignore' : r < profile.parry && !M.parryCooldown ? 'parry' : r < profile.parry + profile.dodge && M.stamina >= RULES.rollCost ? 'dodge' : unblockable ? (M.stamina >= RULES.rollCost ? 'dodge' : !M.parryCooldown ? 'parry' : 'evade') : 'block';
     next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
   }
-  const opening = (F.phase === 'hurt' && F.age >= profile.reaction) || F.exhausted || (F.phase === 'attack' && F.age - timing(F).windup - timing(F).active >= profile.reaction);
+  // Openings: a stagger, exhaustion, or the recovery of a swing that missed. A landed hit is not an opening: it staggered me.
+  const opening = (F.phase === 'hurt' && F.age >= profile.reaction) || F.exhausted || (F.phase === 'attack' && !F.landed && F.age - timing(F).windup - timing(F).active >= profile.reaction);
   const guarded = F.phase === 'guard' && F.age >= profile.reaction;
   // Movement mode: seeded, bounded decisions; never reads hidden input.
-  next.decision = Math.max(0, next.decision - 1); next.wait = Math.max(0, next.wait - 1);
+  // Timers pause while staggered: the punish window is measured from recovery, not from the blow.
+  if (M.phase !== 'hurt') { next.decision = Math.max(0, next.decision - 1); next.wait = Math.max(0, next.wait - 1); }
   // When the cadence timer expires the warden commits to the kind of attack it will close in for.
   if (!next.wait && !next.next && canAct) next.next = roll() < profile.pressure ? 'light' : 'heavy';
   // Below the stamina floor it recovers by circling just outside the player's light reach; it only backs right off
