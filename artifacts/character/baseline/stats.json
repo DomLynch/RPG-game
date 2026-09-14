@@ -1,0 +1,329 @@
+{
+ "label": "baseline",
+ "commit": "eb6120a",
+ "date": "2026-09-14",
+ "glbBytes": 3386704,
+ "glbGzip": 1097236,
+ "meshes": [
+  {
+   "name": "SuperHero_Male",
+   "triangles": 9866,
+   "material": "Gambeson"
+  },
+  {
+   "name": "mesh_1",
+   "triangles": 16,
+   "material": "Steel"
+  },
+  {
+   "name": "mesh_2",
+   "triangles": 12,
+   "material": "Steel"
+  },
+  {
+   "name": "mesh_3",
+   "triangles": 32,
+   "material": "Leather"
+  },
+  {
+   "name": "mesh_4",
+   "triangles": 168,
+   "material": "Antique brass"
+  },
+  {
+   "name": "mesh_5",
+   "triangles": 16,
+   "material": "Steel"
+  },
+  {
+   "name": "mesh_6",
+   "triangles": 12,
+   "material": "Steel"
+  },
+  {
+   "name": "mesh_7",
+   "triangles": 32,
+   "material": "Leather"
+  },
+  {
+   "name": "mesh_8",
+   "triangles": 168,
+   "material": "Antique brass"
+  },
+  {
+   "name": "Steel",
+   "triangles": 8960,
+   "material": "Steel"
+  },
+  {
+   "name": "Antique_brass",
+   "triangles": 4536,
+   "material": "Antique brass"
+  },
+  {
+   "name": "Leather",
+   "triangles": 11036,
+   "material": "Leather"
+  },
+  {
+   "name": "Heraldry",
+   "triangles": 476,
+   "material": "Heraldry"
+  }
+ ],
+ "materials": [
+  {
+   "name": "Gambeson",
+   "maps": [
+    "map",
+    "normalMap"
+   ],
+   "metalness": 0,
+   "roughness": 0.96
+  },
+  {
+   "name": "Steel",
+   "maps": [
+    "map",
+    "normalMap",
+    "roughnessMap",
+    "metalnessMap"
+   ],
+   "metalness": 0.82,
+   "roughness": 1
+  },
+  {
+   "name": "Leather",
+   "maps": [],
+   "metalness": 0,
+   "roughness": 0.85
+  },
+  {
+   "name": "Antique brass",
+   "maps": [],
+   "metalness": 0.75,
+   "roughness": 0.43
+  },
+  {
+   "name": "Heraldry",
+   "maps": [
+    "map",
+    "normalMap"
+   ],
+   "metalness": 0,
+   "roughness": 0.92
+  }
+ ],
+ "textures": [
+  {
+   "material": "Heraldry",
+   "slot": "map",
+   "width": 256,
+   "height": 256,
+   "bytes": 349525
+  },
+  {
+   "material": "Heraldry",
+   "slot": "normalMap",
+   "width": 256,
+   "height": 256,
+   "bytes": 349525
+  },
+  {
+   "material": "Steel",
+   "slot": "map",
+   "width": 256,
+   "height": 256,
+   "bytes": 349525
+  },
+  {
+   "material": "Steel",
+   "slot": "metalnessMap",
+   "width": 256,
+   "height": 256,
+   "bytes": 349525
+  }
+ ],
+ "textureBytes": 1398100,
+ "bones": 65,
+ "boneNames": [
+  "root",
+  "pelvis",
+  "spine_01",
+  "spine_02",
+  "spine_03",
+  "neck_01",
+  "Head",
+  "clavicle_l",
+  "upperarm_l",
+  "lowerarm_l",
+  "hand_l",
+  "index_01_l",
+  "index_02_l",
+  "index_03_l",
+  "index_04_leaf_l",
+  "middle_01_l",
+  "middle_02_l",
+  "middle_03_l",
+  "middle_04_leaf_l",
+  "pinky_01_l",
+  "pinky_02_l",
+  "pinky_03_l",
+  "pinky_04_leaf_l",
+  "ring_01_l",
+  "ring_02_l",
+  "ring_03_l",
+  "ring_04_leaf_l",
+  "thumb_01_l",
+  "thumb_02_l",
+  "thumb_03_l",
+  "thumb_04_leaf_l",
+  "clavicle_r",
+  "upperarm_r",
+  "lowerarm_r",
+  "hand_r",
+  "index_01_r",
+  "index_02_r",
+  "index_03_r",
+  "index_04_leaf_r",
+  "middle_01_r",
+  "middle_02_r",
+  "middle_03_r",
+  "middle_04_leaf_r",
+  "pinky_01_r",
+  "pinky_02_r",
+  "pinky_03_r",
+  "pinky_04_leaf_r",
+  "ring_01_r",
+  "ring_02_r",
+  "ring_03_r",
+  "ring_04_leaf_r",
+  "thumb_01_r",
+  "thumb_02_r",
+  "thumb_03_r",
+  "thumb_04_leaf_r",
+  "thigh_l",
+  "calf_l",
+  "foot_l",
+  "ball_l",
+  "ball_leaf_l",
+  "thigh_r",
+  "calf_r",
+  "foot_r",
+  "ball_r",
+  "ball_leaf_r"
+ ],
+ "meshTriangles": 35330,
+ "clips": [
+  {
+   "name": "Idle",
+   "duration": 2.5,
+   "tracks": 65
+  },
+  {
+   "name": "Walk",
+   "duration": 1.333,
+   "tracks": 65
+  },
+  {
+   "name": "Jog",
+   "duration": 0.933,
+   "tracks": 65
+  },
+  {
+   "name": "Run",
+   "duration": 0.667,
+   "tracks": 65
+  },
+  {
+   "name": "Armed",
+   "duration": 1.667,
+   "tracks": 65
+  },
+  {
+   "name": "Attack",
+   "duration": 1.533,
+   "tracks": 65
+  },
+  {
+   "name": "Hit",
+   "duration": 0.333,
+   "tracks": 65
+  },
+  {
+   "name": "Death",
+   "duration": 2.4,
+   "tracks": 65
+  },
+  {
+   "name": "Draw",
+   "duration": 0.7,
+   "tracks": 66
+  },
+  {
+   "name": "Roll",
+   "duration": 1.467,
+   "tracks": 65
+  },
+  {
+   "name": "Guard",
+   "duration": 1,
+   "tracks": 66
+  },
+  {
+   "name": "Return",
+   "duration": 1.533,
+   "tracks": 65
+  },
+  {
+   "name": "Heavy",
+   "duration": 1,
+   "tracks": 66
+  },
+  {
+   "name": "Riposte",
+   "duration": 1,
+   "tracks": 66
+  },
+  {
+   "name": "ArmedWalk",
+   "duration": 1.333,
+   "tracks": 65
+  },
+  {
+   "name": "StrafeLeft",
+   "duration": 0.8,
+   "tracks": 66
+  },
+  {
+   "name": "StrafeRight",
+   "duration": 0.8,
+   "tracks": 66
+  },
+  {
+   "name": "Kick",
+   "duration": 1,
+   "tracks": 66
+  },
+  {
+   "name": "BlockImpact",
+   "duration": 1,
+   "tracks": 66
+  },
+  {
+   "name": "Parry",
+   "duration": 1,
+   "tracks": 66
+  },
+  {
+   "name": "Deflected",
+   "duration": 1,
+   "tracks": 66
+  }
+ ],
+ "characterOnly": {
+  "drawCalls": 36,
+  "triangles": 140408,
+  "fighters": 2
+ }
+}
