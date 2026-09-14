@@ -445,21 +445,25 @@ def photo_landmarks_3d(base3, ok_mask):
     target = base3.copy()
     target[:, 0] = xz[:, 0]
     target[:, 2] = xz[:, 1]
-    # depth from the profiles: image x along the view's right vector; scale from the same framing (s), anchored on the nose tip
-    depth = np.full(len(front), np.nan)
+    # Depth: the profiles are trusted only along the midline silhouette (forehead, nose, lips, chin), where a profile
+    # landmark sits on a real edge. Everything else keeps the base head's lateral depth structure, shifted so the
+    # midline follows his profile curve — eye sockets and cheeks are never sheared by hallucinated side landmarks.
+    midline = np.abs(xz[:, 0] - xz[1, 0]) < 0.006
+    prof_depth = np.full(len(front), np.nan)
     for yaw, image in PROFILES.items():
         if not os.path.exists(image.rsplit('.', 1)[0] + '.landmarks.json'):
             continue
-        prof, pw, ph = load_landmarks(image)
+        prof, pw, _ = load_landmarks(image)
         sign = 1.0 if yaw > 0 else -1.0  # camera on the left: image right = +y (back)
-        visible = (xz[:, 0] * sign > -0.006)
         d = sign * (prof[:, 0] - prof[1, 0]) * s + base3[1, 1]  # nose tip (id 1) at the base nose depth
-        depth = np.where(visible & np.isnan(depth), d, depth)
-        both = visible & ~np.isnan(depth)
-        depth = np.where(both, np.where(np.isnan(depth), d, (depth + d) / 2), depth)
-    fill = np.isnan(depth)
-    depth[fill] = base3[fill, 1]  # nothing saw it: keep the base depth
-    target[:, 1] = depth
+        prof_depth = np.where(np.isnan(prof_depth), d, (prof_depth + d) / 2)
+    ids = np.where(midline & ok_mask & ~np.isnan(prof_depth))[0]
+    if len(ids) >= 4:
+        order = ids[np.argsort(xz[ids, 1])]
+        offset = np.interp(xz[:, 1], xz[order, 1], prof_depth[order] - base3[order, 1])  # midline depth change, by height
+    else:
+        offset = np.zeros(len(front))
+    target[:, 1] = base3[:, 1] + offset
     return target
 
 
@@ -468,11 +472,6 @@ def fit_head_dense(objs, eyes, head, F):
     seat the eyeballs in his eye openings. Returns the target landmark cloud (the mesh's landmarks after the fit)."""
     base3, ok_mask = base_landmarks_3d(head, F)
     target = photo_landmarks_3d(base3, ok_mask)
-    rings = []  # the lid margins: vertices touching each eyeball now, by index, so they can be found again after the warp
-    for e in eyes:
-        old_c = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)
-        old_r = max((v.co - old_c).length for v in e.data.vertices)
-        rings.append([v.index for v in head.data.vertices if abs((v.co - old_c).length - old_r) < 0.004 and v.co.y < old_c.y + 0.01])
     src, dst = base3[ok_mask], target[ok_mask]
     n = len(src)
     d = np.linalg.norm(src[:, None, :] - src[None, :, :], axis=2)
@@ -503,14 +502,28 @@ def fit_head_dense(objs, eyes, head, F):
     # eyeballs: the size and place of his openings
     result = {}
     head_co = np.array([[v.co.x, v.co.y, v.co.z] for v in head.data.vertices], np.float64)  # the fitted head
-    for e, ring_idx in zip(eyes, rings):
-        margin = head_co[ring_idx]  # the lid margin, as the fit left it
+    for e, ids in zip(eyes, (LEFT_EYE, RIGHT_EYE)):
+        # the lid margin: the eye-contour landmarks cast from the front into the fitted head hit the lid edge surface
+        margin = []
+        for xz in target[list(ids)][:, [0, 2]]:
+            hit, loc, _, _ = head.ray_cast(Vector((float(xz[0]), F['nose'].y - 0.2, float(xz[1]))), Vector((0, 1, 0)))
+            if hit:
+                margin.append((loc.x, loc.y, loc.z))
+        margin = np.array(margin) if len(margin) >= 8 else target[list(ids)]
         half_w = float(margin[:, 0].max() - margin[:, 0].min()) / 2
         radius = half_w * 0.85  # eyeball ≈ 0.8 of the opening's half-width
-        centre = np.array([(margin[:, 0].max() + margin[:, 0].min()) / 2, float(margin[:, 1].min()) + radius + 0.001, (margin[:, 2].max() + margin[:, 2].min()) / 2])
-        print(f'EYE {e.name} margin verts={len(margin)} half_w mm={half_w * 1000:.1f} front y={margin[:, 1].min():.4f}')
-        old_c = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)
-        old_r = max((v.co - old_c).length for v in e.data.vertices)
+        cx, cz = (margin[:, 0].max() + margin[:, 0].min()) / 2, (margin[:, 2].max() + margin[:, 2].min()) / 2
+        # depth from the upper and lower lid margins (the corners sit off the eyeball): the cornea's front pole stands
+        # 1.5 mm in front of the mid-lid margin plane, as on a real eye (−y is forward)
+        mid = margin[np.abs(margin[:, 0] - cx) < half_w * 0.35]
+        y_mid = float(mid[:, 1].mean()) if len(mid) >= 2 else float(margin[:, 1].mean())
+        centre = np.array([cx, y_mid + radius + 0.0015, cz])  # cornea apex 1.5 mm behind the mid-lid skin
+        print(f'EYE {e.name} margin pts={len(margin)} half_w mm={half_w * 1000:.1f} r mm={radius * 1000:.1f} centre y={centre[1]:.4f} mid-lid y={y_mid:.4f}')
+        pts = np.array([[v.co.x, v.co.y, v.co.z] for v in e.data.vertices], np.float64)
+        A = np.hstack([2 * pts, np.ones((len(pts), 1))])  # the eyeball's true sphere: the vertex mean sits toward the iris
+        sol, *_ = np.linalg.lstsq(A, (pts ** 2).sum(axis=1), rcond=None)
+        old_c = Vector(sol[:3])
+        old_r = math.sqrt(max(float(sol[3] + (sol[:3] ** 2).sum()), 1e-8))
         k = radius / old_r
         for v in e.data.vertices:
             v.co = Vector(centre) + (v.co - old_c) * k
@@ -1112,7 +1125,7 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     head, rest = separate_head(body, select_only)
     tag(head, 'Head', 'Face', slot='Face')
     tag(rest, 'Body', 'Skin', slot='Skin')
-    if os.path.exists(PHOTO) and os.environ.get('HEAD_PHOTO', '0') == '1':
+    if os.path.exists(PHOTO) and os.environ.get('HEAD_PHOTO', '1') == '1':
         photo = photo_layer_multi(pos_face, normal_obj, F, lid_ring, size, head)
         colour_face = face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size, photo)
         maps['Face']['baseColor'] = save_two_sizes('face_color', colour_face, 'sRGB')

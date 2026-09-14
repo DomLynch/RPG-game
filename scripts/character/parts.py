@@ -107,7 +107,7 @@ def realistic_body():
     eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
     if eye_l.x < eye_r.x:
         eye_l, eye_r = eye_r, eye_l
-    if os.environ.get('HEAD_PHOTO', '0') == '1' and os.path.exists(HEADMOD.PHOTO):  # fit the head to the portrait first
+    if os.environ.get('HEAD_PHOTO', '1') == '1' and os.path.exists(HEADMOD.PHOTO):  # fit the head to the portrait first
         pre_face = [v.co for v in hbm.data.vertices if v.co.z > eye_l.z - 0.12 and v.co.z < eye_l.z + 0.16]
         pre_nose = min(pre_face, key=lambda c: c.y)
         pre_radius = max((v.co - eye_l).length for v in eyes[0].data.vertices)
@@ -618,8 +618,9 @@ def bake_position(obj, size=2048):
 def eye_maps(eye, size=512):
     """Iris, pupil and sclera painted from the eye's own object-space positions: the iris faces -y (forward)."""
     pos, mask = bake_position(eye, size)
-    c = sum((v.co for v in eye.data.vertices), Vector()) / len(eye.data.vertices)  # the bake's alpha is not an island mask
-    centre = np.array([c.x, c.y, c.z], dtype=np.float32)
+    pts_ = np.array([[v.co.x, v.co.y, v.co.z] for v in eye.data.vertices], np.float64)  # true sphere centre (the mean leans to the iris)
+    sol_, *_ = np.linalg.lstsq(np.hstack([2 * pts_, np.ones((len(pts_), 1))]), (pts_ ** 2).sum(axis=1), rcond=None)
+    centre = sol_[:3].astype(np.float32)
     d = pos - centre[None, None, :]
     r = np.linalg.norm(d, axis=2) + 1e-6
     forward = -d[..., 1] / r  # 1 at the front pole
