@@ -138,6 +138,19 @@ for (const [side,suffix] of [[1,'l'],[-1,'r']]) {
   for (let i=0;i<3;i++) strip(.13,.007,.012,side*.114,.116-i*.007,.04+i*.028,trim,foot);
   for (let i=0;i<3;i++) plate(side*(.20+i*.035),1.50,-.06+.11,.004,.004,.004,trim,upper);
 }
+// Authored parts from scripts/character/parts.py: meshes in this same unscaled rest space, rigid to extras.bone,
+// merged into the per-material skinned draws exactly like the primitives above. No parts → identical output.
+const partsDir = process.env.WARRIOR_PARTS || 'src/assets/source/parts';
+for (const file of (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb')).sort()) {
+  const glb = await fs.readFile(path.join(partsDir, file)), part = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
+  part.scene.updateMatrixWorld(true);
+  part.scene.traverse(o => {
+    if (!o.isMesh) return;
+    const material = [...parts.keys()].find(m => m.name === o.userData.material);
+    if (!material || !o.userData.bone) throw new Error(`${file}: mesh ${o.name} needs extras.material (${[...parts.keys()].map(m => m.name).join('|')}) and extras.bone`);
+    add(o.geometry.clone().applyMatrix4(o.matrixWorld), material, o.userData.bone);
+  });
+}
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 strip(.05,.66,.036,-.24,.79,-.13,leather,'pelvis',-.19);

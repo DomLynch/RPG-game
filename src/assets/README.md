@@ -35,3 +35,9 @@ Combat feel pass: the same CC0 Sword_Attack supplies a reversed Return (backhand
 Polished exchange: ArmedWalk, StrafeLeft, StrafeRight and Kick are original offline work on the existing CC0 rig (18 shipped clips total). Guard/Draw and lateral motion include grounded pelvis tracks. Collision paths are regenerated from the final GLB by scripts/bake-blades.mjs and checked against its active blade poses. Blood droplet/splash sprites are original procedural Canvas textures; no downloaded sound, texture, paid pack or new asset licence. The free CC0 UAL2 Standard remains a future clip-fit candidate; it was researched, not acquired or integrated.
 
 Defensive motion pass: BlockImpact, Parry and Deflected are original same-rig clips, bringing the asset to21 clips. Confirmed blocks absorb force through the arms/spine; a parry turns the blade and the attacker loses the striking line. These are authored clips, not purchased or downloaded mocap.
+
+Parts pipeline (character lane, 2026-09-14): `scripts/character/parts.py` runs headless in Blender (`blender -b -P
+scripts/character/parts.py`) against the CC0 base rig and writes `src/assets/source/parts/*.glb` — meshes in the unscaled
+rest space with `bone` and `material` extras. `scripts/build-warrior.mjs` merges any such parts into the per-material
+skinned draws before the final body narrowing; with no parts the output is byte-identical to the previous build. Blender
+5.2 LTS (GPL) is an authoring tool only; nothing from it ships except geometry authored by this project's own scripts.
