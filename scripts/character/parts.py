@@ -260,7 +260,7 @@ def bronze_helmet():
     crest.scale = (1, 1, 0.32)  # flatten the tube across the ring plane into a plate
     select_only([crest])
     bpy.ops.object.transform_apply(scale=True, rotation=True, location=True)
-    return [helm, tag(crest, 'helmet_bronze_crest', 'Heraldry', bone='Head', slot='Helmet')]
+    return [helm, tag(crest, 'crest_red', 'Heraldry', bone='Head', slot='Crest')]
 
 
 def bronze_maps():
@@ -421,7 +421,9 @@ if proof:
 else:
     export_kit(level1_kit(), os.path.join(out, 'level1.glb'))
     export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
-    export_kit(bronze_helmet(), 'src/assets/source/items/helmet_bronze.glb')
+    helm, crest = bronze_helmet()
+    export_kit([helm], 'src/assets/source/items/helmet_bronze.glb')   # a poor gladiator's first helm: plain
+    export_kit([crest], 'src/assets/source/items/crest_red.glb')      # the crest is a later, extravagant reward
 if not proof:
     import json
     manifest_path = os.path.join(materials_out, 'manifest.json')
