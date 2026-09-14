@@ -36,9 +36,16 @@ def joint(name):
     return armature.data.bones[name].head_local.copy()
 
 
-def tag(obj, name, material, bone=None):
+SLOTS = {'tunic': 'Body', 'baldric': 'Body', 'belt': 'Body', 'studs': 'Body', 'skirt': 'Legs', 'kilt': 'Legs',
+         'wrap_l': 'Arms', 'wrap_r': 'Arms', 'sandal_l': 'Boots', 'sandal_r': 'Boots'}
+
+
+def tag(obj, name, material, bone=None, slot=None):
+    """Every exported piece names its material, its equipment slot (Helmet, Body, Arms, Gloves, Legs, Boots, Shield) and
+    either a rigid bone or carries skin weights."""
     obj.name = name
     obj['material'] = material
+    obj['slot'] = slot or SLOTS.get(name, 'Body')
     if bone:
         obj['bone'] = bone
     return obj

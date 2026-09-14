@@ -48,8 +48,12 @@ const boneIndex = name => {
   return index;
 };
 // Rigid plate pieces become one skinned draw per material, not dozens of moving meshes.
-function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0) {
+// Equipment slots: authored parts declare extras.slot; each (slot, material) pair becomes its own skinned draw so a slot
+// can be shown, hidden or swapped without touching the others. Built-in pieces (hair, scabbard) sit in the '' slot.
+const slotOf = new Map();
+function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = '') {
   if (g.index) g = g.toNonIndexed();
+  g.userData.slot = slot;
   g.rotateZ(rotation); g.translate(x, y, z);
   if (bone) { // rigid: every vertex follows one bone; otherwise the geometry already carries remapped skin weights
     const count = g.getAttribute('position').count, index = boneIndex(bone);
@@ -111,7 +115,7 @@ for (const file of (await fs.readdir(partsDir).catch(() => [])).filter(f => f.en
       const map = o.skeleton.bones.map(b => boneIndex(b.name)), index = g.getAttribute('skinIndex');
       g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
     }
-    add(g, material, o.userData.bone);
+    add(g, material, o.userData.bone, 0, 0, 0, 0, o.userData.slot || '');
   });
 }
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
@@ -152,9 +156,13 @@ sheathed.applyMatrix4(base.scene.getObjectByName('pelvis').matrixWorld.clone().i
 const drawn = sword('SwordDrawn',base.scene.getObjectByName('hand_r'));
 drawn.position.set(0,.08,.015); drawn.rotation.x = Math.PI / 2;
 for (const [material, geometries] of parts) {
-  if (!geometries.length) continue;
-  const mesh = new T.SkinnedMesh(mergeVertices(mergeGeometries(geometries)), material);
-  mesh.name=material.name; mesh.bind(skeleton,body.bindMatrix); body.parent.add(mesh);
+  const slots = [...new Set(geometries.map(g => g.userData.slot))].sort();
+  for (const slot of slots) {
+    const mesh = new T.SkinnedMesh(mergeVertices(mergeGeometries(geometries.filter(g => g.userData.slot === slot))), material);
+    // The first draw of a material keeps the plain material name (the runtime looks up 'Steel'); further slots are suffixed.
+    mesh.name = slotOf.has(material) ? `${material.name}.${slot}` : material.name; slotOf.set(material, true);
+    mesh.userData.slot = slot; mesh.bind(skeleton, body.bindMatrix); body.parent.add(mesh);
+  }
 }
 // Retarget rotation deltas onto the body rest pose; preserve its own bone lengths.
 const clips = [];
