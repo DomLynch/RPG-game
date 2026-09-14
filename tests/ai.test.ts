@@ -20,7 +20,8 @@ function play(profile: AiProfile, ticks: number, player: (d: Duel) => Intent, st
     d = stepDuel(d, [player(d), warden.intent]);
     travelled += Math.hypot(d.fighters[1].body.x - before.x, d.fighters[1].body.z - before.z);
     events.push(...d.events); modes.add(ai.mode);
-    if (immortal) d = { ...d, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: Math.max(1, d.fighters[1].health) }] };
+    // Keep the observation fight alive on both sides without touching the warden's decisions or resources.
+    if (immortal) d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
   return { duel: d, ai, events, modes, travelled };
 }
@@ -68,8 +69,11 @@ test('a passive opponent sees a readable opener: at easy and normal the first at
 });
 
 test('the warden punishes a whiff with a light and kicks or breaks a standing guard', () => {
-  let d = arena(1.2), ai = initialAi(); const moves: string[] = [];
-  for (let i = 0; i < 400; i++) { const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai; d = stepDuel(d, [i === 5 ? act('light') : { ...idle(), move: { x: 0, z: i < 5 ? 1 : 0, yaw: 0, run: true } }, w.intent]); for (const e of d.events) if (e.type === 'AttackStarted' && e.actor === 1) moves.push(e.move!); }
+  // A cut swung facing away whiffs at any distance, leaving the warden in reach to punish the recovery.
+  let d = arena(1.2), ai = initialAi(); const moves: string[] = []; let whiffed = false;
+  d.fighters[0] = { ...d.fighters[0], body: { ...d.fighters[0].body, heading: 0 } };
+  for (let i = 0; i < 400; i++) { const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai; d = stepDuel(d, [i === 0 ? { ...act('light'), lock: false } : { ...idle(), lock: false }, w.intent]); whiffed ||= d.events.some(e => e.type === 'AttackMissed' && e.actor === 0); for (const e of d.events) if (e.type === 'AttackStarted' && e.actor === 1) moves.push(e.move!); }
+  assert.ok(whiffed, 'the scripted light must whiff');
   assert.ok(moves.length && ['light_right', 'light_left'].includes(moves[0]), `whiff punished with ${moves.join(' ')}`);
   const guarded = play(PROFILES.normal, 1800, () => hold()).events;
   const opener = wardenAttacks(guarded)[0];
@@ -129,4 +133,17 @@ test('difficulty changes outcomes through reaction, defence and aggression, not 
   const levels = Object.values(PROFILES);
   assert.ok(levels.every(p => p.reaction >= 1 && p.parry + p.dodge <= 1 && p.aggression > 0 && p.aggression <= 1));
   for (const id of Object.keys(MOVES)) assert.ok(MOVES[id as keyof typeof MOVES].windup > 0, 'profiles never change move data');
+});
+
+test('a landed blow earns a punish window: the warden never counter-attacks the instant its stagger ends', () => {
+  // Regression: the cadence timer kept running through the stagger, so the warden swung a poised heavy straight out of a riposte and through the follow-up kick.
+  let d = arena(1.2), ai = initialAi(); let staggered = false, staggerEnd = -1, nextAttack = -1;
+  for (let i = 0; i < 600 && nextAttack < 0; i++) {
+    const w = decide(d, 1, ai, { ...PROFILES.hard, reaction: 999 }); ai = w.ai;   // never notices the swing, so it is hit and staggered
+    d = stepDuel(d, [i === 0 ? act('light') : idle(), w.intent]);
+    staggered ||= d.events.some(e => e.type === 'Staggered' && e.actor === 1);
+    if (staggered && staggerEnd < 0 && d.fighters[1].phase === 'ready') staggerEnd = d.tick;
+    if (staggerEnd >= 0 && d.events.some(e => e.type === 'AttackStarted' && e.actor === 1)) nextAttack = d.tick;
+  }
+  assert.ok(staggerEnd > 0 && nextAttack > staggerEnd + 30, `warden attacked ${nextAttack - staggerEnd} ticks after recovering`);
 });
