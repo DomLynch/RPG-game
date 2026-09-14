@@ -116,3 +116,9 @@ painted to the scan's neck colour (`SKIN_TONE`), and both sides of the seam meet
 shells and brow cards are off when the scan is present; the bronze helm is shelled from the scan. A/B against Hunyuan3D-2mv
 (`scripts/character/hunyuan.py`, Hugging Face Space, shape only on the free quota): likeness lost to KeenTools —
 `artifacts/character/humanoid-v19/AB-RESULTS.md`.
+
+Body pass (character lane, 2026-09-14, demo builds only): `parts.align_arms` lays each raised arm of the Studio body onto the
+rig's bones — the arm's smoothed slice centreline is translated onto the shoulder → elbow → wrist → fingertip bone line, and
+the hand is rotated about the wrist (the forearm pronating into it) so its finger and thumb directions match the rig's; the
+finger bones now sit inside the fingers and the grip closes on the hilt. Forearm wraps are seven narrow turns hugging the
+wrist half of the forearm (smooth-shaded); the sandal sole is the underside only, so the toes stay bare.

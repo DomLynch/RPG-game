@@ -92,6 +92,8 @@ def realistic_body():
                 v.co.x = pivot.x + dx * math.cos(a) - sgn * dz * math.sin(a)
                 v.co.z = pivot.z + sgn * dx * math.sin(a) + dz * math.cos(a)
         mesh_obj.data.update()
+    for mesh_obj in (hbm, HIGH):
+        align_arms(mesh_obj)
     HEADMOD.split_tiles(hbm)   # head → its own `Face` tile and material; body tiles → one atlas
     HEADMOD.face_group(HIGH)   # the sculpt copy keeps UDIM UVs; the face group limits the displacement
     # Weights from the CC0 body at rest, both now in T.
@@ -164,6 +166,80 @@ def realistic_body():
 def joint(name):
     """Rest-pose position of a bone head, in the unscaled rig space (Blender Z-up)."""
     return armature.data.bones[name].head_local.copy()
+
+
+def bone_tail(name):
+    return armature.data.bones[name].tail_local.copy()
+
+
+def align_arms(mesh_obj):
+    """Lay each raised arm onto its bones. The Studio body's arms come forward and up of the rig's straight T, and its
+    hands are palm-down where the rig's are palm-back, so finger bones fell outside the fingers and the grip tore.
+    (1) The arm's centreline (mean of 1 cm slices along x) is translated onto the bone line shoulder → elbow → wrist →
+    middle fingertip, blended in over the shoulder. (2) The hand is rotated about the wrist so its finger direction and
+    thumb direction match the rig's; the forearm takes that rotation progressively from the elbow (pronation)."""
+    from mathutils import Matrix, Quaternion
+    verts = mesh_obj.data.vertices
+    for side, sgn in (('l', 1), ('r', -1)):
+        shoulder, elbow, wrist = joint(f'upperarm_{side}'), joint(f'lowerarm_{side}'), joint(f'hand_{side}')
+        tip = bone_tail(f'middle_03_{side}')
+        thumb = bone_tail(f'thumb_03_{side}')
+        line = sorted([shoulder, elbow, wrist, tip], key=lambda p: abs(p.x))
+        def bone_centre(ax):
+            for a, b in zip(line, line[1:]):
+                if abs(a.x) <= ax <= abs(b.x):
+                    t = (ax - abs(a.x)) / max(1e-6, abs(b.x) - abs(a.x))
+                    return a.lerp(b, t)
+            return line[-1] if ax > abs(line[-1].x) else line[0]
+        arm = [v for v in verts if v.co.x * sgn > abs(shoulder.x) + 0.03 and v.co.z > shoulder.z - 0.3]
+        bins = {}
+        for v in arm:
+            bins.setdefault(round(abs(v.co.x) * 100), []).append(v.co.copy())
+        raw = {k: sum(c, Vector()) / len(c) for k, c in bins.items()}
+        keys = sorted(raw)
+        centres = {}  # smoothed over ±3 cm: slice means jitter at creases and knuckles, and every jump would print a ridge
+        for k in keys:
+            near = [(raw[q], math.exp(-((q - k) / 2.0) ** 2)) for q in keys if abs(q - k) <= 3]
+            centres[k] = sum((c * w for c, w in near), Vector()) / sum(w for _, w in near)
+        def body_centre(ax):
+            k = ax * 100
+            lo = max([q for q in keys if q <= k], default=keys[0])
+            hi = min([q for q in keys if q >= k], default=keys[-1])
+            if lo == hi:
+                return centres[lo]
+            return centres[lo].lerp(centres[hi], (k - lo) / (hi - lo))
+        # (1) centreline onto the bones (y and z only), blended in across the shoulder
+        for v in verts:
+            if v.co.x * sgn <= abs(shoulder.x) - 0.02 or v.co.z < shoulder.z - 0.3:
+                continue
+            ax = abs(v.co.x)
+            blend = min(1.0, max(0.0, (ax - (abs(shoulder.x) - 0.02)) / 0.10))
+            d = bone_centre(ax) - body_centre(max(ax, keys[0] / 100))
+            v.co.y += d.y * blend
+            v.co.z += d.z * blend
+        mesh_obj.data.update()
+        # (2) hand frame: finger direction and thumb direction, body vs rig
+        hand = [v for v in verts if v.co.x * sgn > abs(wrist.x) + 0.005 and (v.co - wrist).length < 0.25]
+        far = sorted(hand, key=lambda v: -abs(v.co.x))[:60]
+        finger_b = (sum((v.co for v in far), Vector()) / len(far) - wrist).normalized()
+        base = [v for v in hand if abs(v.co.x) < abs(wrist.x) + 0.08]
+        thumb_tip = max(base, key=lambda v: ((v.co - wrist) - (v.co - wrist).dot(finger_b) * finger_b).length)
+        thumb_b = (thumb_tip.co - wrist).normalized()
+        finger_r, thumb_r = (tip - wrist).normalized(), (thumb - wrist).normalized()
+        def frame(f, t):
+            n = f.cross(t).normalized()
+            return Matrix((f, n.cross(f), n)).transposed()  # columns: finger, in-palm, palm normal
+        R = frame(finger_r, thumb_r) @ frame(finger_b, thumb_b).inverted()
+        q = R.to_quaternion()
+        print(f'ALIGN ARMS {side}: hand rotation {math.degrees(q.angle):.1f}° about {tuple(round(c, 2) for c in q.axis)}; finger dir body {tuple(round(c, 2) for c in finger_b)} rig {tuple(round(c, 2) for c in finger_r)}')
+        for v in verts:
+            if v.co.x * sgn <= abs(elbow.x) or v.co.z < shoulder.z - 0.3:
+                continue
+            t = min(1.0, (abs(v.co.x) - abs(elbow.x)) / max(1e-6, abs(wrist.x) - abs(elbow.x)))  # 0 at the elbow, 1 from the wrist out
+            pivot = elbow.lerp(wrist, t) if t < 1 else wrist
+            rot = Quaternion().slerp(q, t)
+            v.co = pivot + rot @ (v.co - pivot)
+        mesh_obj.data.update()
 
 
 SLOTS = {'tunic': 'Body', 'baldric': 'Body', 'belt': 'Body', 'studs': 'Body', 'skirt': 'Legs', 'kilt': 'Legs',
@@ -289,6 +365,8 @@ def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=
     mesh = bpy.data.meshes.new(name)
     bm.to_mesh(mesh)
     bm.free()
+    for poly in mesh.polygons:
+        poly.use_smooth = True
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     shell = obj.modifiers.new('Shell', 'SOLIDIFY')
@@ -345,14 +423,14 @@ def level1_kit():
                           lift=0.017, thickness=0.005, probe_radius=0.30, max_reach=0.34))
     # Belt around the hips.
     kit.append(extract('belt', 'Leather', lambda p: in_torso(p) and pelvis.z + 0.005 < p.z < pelvis.z + 0.055, lift=0.024, thickness=0.007))
-    # Forearm wraps: five overlapping leather turns from the wrist up, both arms.
+    # Forearm wraps: seven narrow overlapping leather turns from the wrist to mid-forearm, each hugging the arm's taper.
     for elbow, hand, side in [(elbow_l, hand_l, 1), (elbow_r, hand_r, -1)]:
-        for k in range(5):
-            kit.append(ring_strip(f'wrap_{"l" if side > 0 else "r"}_{k}', 'Leather', elbow, hand, 0.86 - k * 0.11, 0.14, lift=0.004 + k * 0.0015, probe_radius=0.1, max_reach=0.09))
+        for k in range(7):
+            kit.append(ring_strip(f'wrap_{"l" if side > 0 else "r"}_{k}', 'Leather', elbow, hand, 0.93 - k * 0.055, 0.06, lift=0.003 + (k % 2) * 0.002, probe_radius=0.1, max_reach=0.09, rows_n=3))
     # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare.
     for foot, ball, side in [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
         name = 'l' if side > 0 else 'r'
-        kit.append(extract(f'sole_{name}', 'Leather', lambda p, s=side: p.x * s > 0 and p.z < 0.014, lift=0.0, thickness=0.014))
+        kit.append(extract(f'sole_{name}', 'Leather', lambda p, s=side: p.x * s > 0 and p.z < 0.0045, lift=0.0, thickness=0.012))  # the underside only: toes stay bare
         heel = Vector((foot.x, foot.y, 0.012))  # the strap rings run from the heel-top down the foot to the toes
         toe = Vector((ball.x, ball.y - 0.02, 0.012))
         kit.append(ring_strip(f'strap_instep_{name}', 'Leather', heel, toe, 0.42, 0.016, arc=(0, math.pi), lift=0.004, probe_radius=0.08, max_reach=0.075))
