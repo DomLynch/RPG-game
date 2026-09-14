@@ -177,7 +177,7 @@ def scan_detail(size):
 
 # --- photographed face by projection ---------------------------------------------------------------------------------
 
-PHOTO = 'artifacts/source/face/portrait_seed11.png'  # FLUX.1-Krea-dev output (synthetic; no real person), landmarks beside it
+PHOTO = 'artifacts/source/face/portrait_local_a.png'  # FLUX.1-schnell, local, flat-lit (synthetic; no real person); landmarks beside it
 
 # MediaPipe index → head-mesh (x, z) in rig space. The mesh side is measured (probe of body_realistic.glb) or derived from
 # the FACE landmarks; the photo side is read from the landmarks JSON. Two eyes × (centre, inner, outer), nose, subnasale,
@@ -258,9 +258,9 @@ def photo_layer(pos, normal_obj, F, lid_ring, size):
     luma = sample @ np.array([0.30, 0.59, 0.11])
     spots = np.clip(blur(luma, 16) - luma, 0, 1)[..., None]  # small dark marks (freckles, moles): mostly lifted; a few stay
     sample = sample + spots * 0.85 * sample
-    wide = blur(luma, 32)
+    wide = blur(luma, 128)  # the broad lighting gradient
     mean = float((wide * oval).sum() / (oval.sum() + 1e-6))
-    sample = sample * np.clip((mean / (wide + 1e-3)) ** 0.9, 0.6, 1.6)[..., None]  # flatten the studio key almost fully
+    sample = sample * np.clip((mean / (wide + 1e-3)) ** 0.9, 0.6, 1.6)[..., None]
     facing = np.clip((-normal_obj[..., 1] + 0.05) / 0.5, 0, 1)  # -y is the camera side; 45° surfaces still take the photo
     inside = (u > 2) & (u < pw - 3) & (v > 2) & (v < ph - 3)
     weight = facing * oval * inside * sil
@@ -377,7 +377,20 @@ def face_colour(pos, mask, F, ao, detail, size, photo=None):
         core = w > 0.8  # match the photo's skin statistics to the painted skin so the two meet without a step
         gain = (colour[core].mean(axis=0) / (sample[core].mean(axis=0) + 1e-6)) if core.any() else np.ones(3)
         sample = np.clip(sample * gain[None, None, :], 0, 1)
-        colour = colour * (1 - w[..., None]) + sample * (np.array([0.55, 0.47, 0.44])[None, None, :] * (1 - cavity) * 0.5 + 0.5 + cavity * 0.5) * w[..., None]
+        lips_w = ellipse(pos, (F['mouth'].x, F['mouth'].y, F['mouth'].z), (0.028, 0.014, 0.012), 0.5)[..., None]
+        luma = (sample @ np.array([0.30, 0.59, 0.11]))[..., None]
+        sample = sample * (1 - lips_w * 0.45) + luma * lips_w * 0.45  # a man's lips: desaturate what the portrait brought
+        # Skin: the painted base keeps tone and shape (no baked shadows); the portrait adds only what is finer than ~8 mm —
+        # pores, mottle, hair. Feature zones (brows, lips, beard, nostrils) take the portrait as it is.
+        detail = np.clip(sample / (blur(sample, 32) + 1e-3), 0.55, 1.6)  # finer than ~1 cm
+        ex_, ey_, ez_ = F['eye_l'].x, F['eye_l'].y, F['eye_l'].z
+        zones = np.maximum.reduce([
+            ellipse(pos, (0.034, ey_ - 0.006, ez_ + 0.017), (0.026, 0.02, 0.008), 0.5), ellipse(pos, (-0.034, ey_ - 0.006, ez_ + 0.017), (0.026, 0.02, 0.008), 0.5),
+            ellipse(pos, (F['mouth'].x, F['mouth'].y, F['mouth'].z), (0.028, 0.014, 0.012), 0.5),
+            ellipse(pos, (0.012, F['nose'].y + 0.01, F['nose'].z - 0.01), (0.008, 0.012, 0.007), 0.5), ellipse(pos, (-0.012, F['nose'].y + 0.01, F['nose'].z - 0.01), (0.008, 0.012, 0.007), 0.5),
+            beard_mask(pos, F, size) * 0.85])
+        photo_col = colour * detail * (1 - zones[..., None]) + sample * zones[..., None]
+        colour = colour * (1 - w[..., None]) + photo_col * w[..., None]
         keep = 1 - w
     else:
         keep = np.ones(pos.shape[:2], np.float32)
