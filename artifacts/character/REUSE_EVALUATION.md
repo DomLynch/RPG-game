@@ -24,3 +24,11 @@ For every need: find the best legal source asset → extract → adapt to the Fr
 optimise for mobile → export GLB → validate under the real lock camera. Offline fixes only; never a runtime hack for an asset problem.
 Open-sourcing the rig/pipeline (Frankendom Human Rig v1 + viewer + validator + build scripts) is the owner's strategic call; the
 lane keeps everything reproducible and licence-clean so that option stays open.
+
+## Owner downloads checked 2026-09-14 (second batch)
+| Folder | Disposition | Why |
+|---|---|---|
+| Universal Base Characters [Standard] | Already in use | Byte-identical to `artifacts/source/base`. |
+| Modular Character Outfits – Fantasy [Standard] | **Adopted** (items) | Free tier = Peasant + Ranger only; Ranger boots, bracers, pauldron are now `src/assets/source/items/ranger.glb` with re-tinted maps. No helmets or metal armour in the free tier. |
+| Bestiary – Dungeon Monsters Kit [Standard] | Lead's lane | Two CC0 monsters (Puglin, Imp) with PBR + emissive sets: future opponents/creatures, own rigs. Not part of the humanoid. Location noted in REQUESTS.md. |
+| All together / Humans_Master.blend | Rejected | Different Quaternius family: 62-bone `CharacterArmature` (Hips/Abdomen naming), flat-colour low-poly outfits. Wrong rig and wrong look for this fighter. |

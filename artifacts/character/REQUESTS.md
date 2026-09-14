@@ -28,3 +28,9 @@
    combat-sim expectations change (enemy health 100 vs 60; 50 vs 0) because the swept paths land differently. The heavy
    candidate leaves the ground. Nothing is shipped; the default build is unchanged. Decision: adopt per clip with re-tuned
    contact windows, or keep the authored strikes.
+
+7. **Triangle ceiling raised 40k → 60k per fighter** in `tests/characters.test.ts` on the owner's instruction (2026-09-14:
+   "we can increase the size, 40k is nothing"). The measured phone gate (iPhone 12 / Pixel 6, median ≥55 fps) is unchanged and
+   still unpassed; the lead measures it on device.
+8. **Creatures**: CC0 Bestiary – Dungeon Monsters Kit [Standard] (Puglin, Imp; PBR + emissive) is in
+   `~/Downloads/Bestiary - Dungeon Monsters Kit[Standard]` for future opponents. Not integrated by this lane.

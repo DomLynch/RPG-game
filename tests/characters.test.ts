@@ -42,7 +42,7 @@ test('shipped skinned warrior has finite poses, grounded walk and bounded runnin
   const mixer = new AnimationMixer(asset.scene), point = new Vector3();
   let triangles = 0;
   asset.scene.traverse(o => { if (o instanceof SkinnedMesh) triangles += o.geometry.index!.count / 3; });
-  assert.ok(triangles < 40000, `Per-character triangle count: ${triangles}`);
+  assert.ok(triangles < 60000, `Per-character triangle count: ${triangles}`); // ceiling raised 40k→60k by the owner, 2026-09-14 (character lane)
   for (const clip of asset.animations.filter(a => (CLIPS as readonly string[]).includes(a.name))) {
     assert.ok(clip.tracks.every(t => t.values.every(Number.isFinite)));
     const action = mixer.clipAction(clip).play();

@@ -293,7 +293,7 @@ def ranger_items():
     """Loot-tier light armour from the CC0 Modular Character Outfits pack (rigged to this skeleton): boots, bracers, one
     pauldron. Imported as-is; their own UVs address the pack's atlas, which ranger_maps() re-tints into our palette."""
     items = []
-    for part, slot, ratio in [('Male_Ranger_Feet_Boots', 'Boots', 0.35), ('Male_Ranger_Arms', 'Arms', 0.4), ('Male_Ranger_Acc_Pauldron', 'Shoulders', 0.6)]:
+    for part, slot, ratio in [('Male_Ranger_Feet_Boots', 'Boots', 0.6), ('Male_Ranger_Arms', 'Arms', 0.6), ('Male_Ranger_Acc_Pauldron', 'Shoulders', 0.8)]:
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=f'{OUTFITS}/glTF (Godot-Unreal)/Modular Parts/{part}.gltf')
         new = [o for o in bpy.data.objects if o not in before]
@@ -316,10 +316,12 @@ def ranger_maps():
     colour = downsample(load_pixels(f'{OUTFITS}/Textures/Ranger/T_Ranger_BaseColor.png', 'sRGB'), 4)
     size = colour.shape[0]
     r, g, b = colour[..., 0], colour[..., 1], colour[..., 2]
-    green = np.clip((g - np.maximum(r, b) * 1.1) * 6, 0, 1)[..., None]
-    leather = np.array([0.16, 0.10, 0.06])[None, None, :]
+    green = np.clip((g - np.maximum(r, b)) / (g + 1e-3) * 5, 0, 1)[..., None]  # relative greenness, catches dark olives
+    leather = np.array([0.30, 0.19, 0.11])[None, None, :]
     lum = (0.3 * r + 0.59 * g + 0.11 * b)[..., None]
-    colour = colour * (1 - green) + (leather * (0.6 + lum * 1.6)) * green
+    colour = colour * (1 - green) + (leather * np.clip(lum / 0.18, 0.25, 1.6)) * green  # keep the pack's shading, drop its hue
+    grey = lum * np.ones_like(colour)
+    colour = colour * 0.8 + grey * 0.2  # take the remaining chroma down a step
     dust = np.clip((fbm(size, 11, octaves=(4, 8, 16, 64)) - 0.42) * 2.2, 0, 1)[..., None]
     colour = colour * (1 - dust * 0.4) + np.array([0.18, 0.17, 0.16])[None, None, :] * dust * 0.4
     normal = downsample(load_pixels(f'{OUTFITS}/Textures/Ranger/T_Ranger_Normal.png', 'Non-Color'), 4)
