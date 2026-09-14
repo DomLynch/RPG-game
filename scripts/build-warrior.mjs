@@ -354,7 +354,18 @@ base.scene.scale.set(.9,.97,.97); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);
 const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
 await fs.mkdir('src/assets',{recursive:true});
-const finished = finishMaterials(Buffer.from(result));
+// Authored material maps (scripts/character): src/assets/source/materials/manifest.json maps a material name to
+// { baseColor, metallicRoughness, normal, normalScale } image files in that directory. Listed materials replace the
+// procedural maps below; unlisted ones keep them. No manifest → identical output.
+const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials';
+const manifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest.json'), 'utf8').catch(() => '{}'));
+const authored = new Map();
+for (const [name, maps] of Object.entries(manifest)) {
+  const entry = { normalScale: maps.normalScale };
+  for (const slot of ['baseColor', 'metallicRoughness', 'normal']) if (maps[slot]) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, maps[slot])), mime: /\.jpe?g$/i.test(maps[slot]) ? 'image/jpeg' : 'image/png' };
+  authored.set(name, entry);
+}
+const finished = finishMaterials(Buffer.from(result), authored);
 await fs.writeFile('src/assets/warrior.glb', finished);
 console.log(`Warrior: ${finished.byteLength} bytes; ${clips.map(a=>a.name).join(', ')}`);
 
@@ -372,24 +383,29 @@ function png(width, height, pixel) {
   const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=6;
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);
 }
-function finishMaterials(glb) {
+function finishMaterials(glb, authored = new Map()) {
   const length=glb.readUInt32LE(12), j=JSON.parse(glb.subarray(20,20+length).toString());
   const chunks=[glb.subarray(28+length)]; let offset=chunks[0].length;
   j.images=[];j.textures=[];j.samplers=[{magFilter:9729,minFilter:9987,wrapS:10497,wrapT:10497}];
-  function texture(pixel) {
-    const bytes=png(256,256,pixel), padding=Buffer.alloc((4-bytes.length%4)%4);
+  function image(bytes, mimeType) {
+    const padding=Buffer.alloc((4-bytes.length%4)%4);
     j.bufferViews.push({buffer:0,byteOffset:offset,byteLength:bytes.length});offset+=bytes.length+padding.length;chunks.push(bytes,padding);
-    j.images.push({bufferView:j.bufferViews.length-1,mimeType:'image/png'});j.textures.push({source:j.images.length-1,sampler:0});return j.textures.length-1;
+    j.images.push({bufferView:j.bufferViews.length-1,mimeType});j.textures.push({source:j.images.length-1,sampler:0});return j.textures.length-1;
   }
+  const texture=pixel=>image(png(256,256,pixel),'image/png');
   const noise=(x,y)=>((Math.imul(x+1,374761393)^Math.imul(y+1,668265263))>>>0)%97/97;
   const metal=texture((x,y)=>{const wear=noise(x,y)*13+Math.sin(y*1.7)*3;return [218+wear,222+wear,224+wear,255]});
   const rough=texture((x,y)=>[255,125+noise(x,y)*40,255,255]);
   const weave=texture((x,y)=>{const v=174+((x%4<2)===(y%4<2)?16:0)+noise(x,y)*12;return [v,v,v,255]});
   const grain=texture((x,y)=>[126+noise(x,y)*4,126+noise(y,x)*4,255,255]);
   for(const m of j.materials) {
-    const p=m.pbrMetallicRoughness;
-    if(m.name==='Steel') {p.baseColorTexture={index:metal};p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;m.normalTexture={index:grain,scale:.3};}
-    if(m.name==='Gambeson'||m.name==='Heraldry') {p.baseColorTexture={index:weave};m.normalTexture={index:grain,scale:.5};}
+    const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
+    // Authored slots own their channel outright; anything not authored keeps the procedural map below.
+    if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};p.baseColorFactor=[1,1,1,1];}
+    if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
+    if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
+    if(m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
+    if(m.name==='Gambeson'||m.name==='Heraldry') {if(!a.baseColor)p.baseColorTexture={index:weave};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
   }
   j.buffers[0].byteLength=offset;
   const text=Buffer.from(JSON.stringify(j)), padded=Buffer.concat([text,Buffer.alloc((4-text.length%4)%4,32)]), bin=Buffer.concat(chunks);

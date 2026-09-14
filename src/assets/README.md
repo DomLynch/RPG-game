@@ -41,3 +41,6 @@ scripts/character/parts.py`) against the CC0 base rig and writes `src/assets/sou
 rest space with `bone` and `material` extras. `scripts/build-warrior.mjs` merges any such parts into the per-material
 skinned draws before the final body narrowing; with no parts the output is byte-identical to the previous build. Blender
 5.2 LTS (GPL) is an authoring tool only; nothing from it ships except geometry authored by this project's own scripts.
+Material maps follow the same pattern: `src/assets/source/materials/manifest.json` maps a material name to `baseColor`,
+`metallicRoughness` (glTF packed: G roughness, B metal), `normal` and optional `normalScale` image files in that directory
+(PNG or JPEG). Authored slots replace the procedural 256² maps per channel; unlisted slots keep them. No manifest → identical output.
