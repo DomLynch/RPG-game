@@ -122,3 +122,8 @@ rig's bones — the arm's smoothed slice centreline is translated onto the shoul
 the hand is rotated about the wrist (the forearm pronating into it) so its finger and thumb directions match the rig's; the
 finger bones now sit inside the fingers and the grip closes on the hilt. Forearm wraps are seven narrow turns hugging the
 wrist half of the forearm (smooth-shaded); the sandal sole is the underside only, so the toes stay bare.
+
+Shipped fighter (2026-09-14): the Blender Studio body with the reconstructed head is now the default build — `npm run build:warrior`
+writes it; `WARRIOR_BODY=classic` rebuilds the CC0 stylised body. The "demo builds only" notes above describe how the passes were
+staged, not the current default. Shipped budget: 5.80 MB GLB (3.25 MB gzip), 59.8k skinned triangles per fighter, 1K face and
+body maps (2K authored copies stay in `src/assets/source/materials/*@2k.jpg`).

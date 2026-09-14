@@ -14,7 +14,7 @@ globalThis.FileReader = class {
   async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); }
 };
 const source = 'artifacts/source';
-const realistic = process.env.WARRIOR_BODY === 'realistic'; // Blender Studio body instead of the CC0 stylised one
+const realistic = process.env.WARRIOR_BODY !== 'classic'; // the Blender Studio body with the reconstructed head ships; WARRIOR_BODY=classic rebuilds the CC0 stylised one
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
 const json = JSON.parse(await fs.readFile(path.join(baseDir, 'Superhero_Male_FullBody.gltf'), 'utf8'));
 // The foundation supplies topology and weights. Our covered warrior needs none of its face/hair textures.

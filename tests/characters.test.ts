@@ -60,7 +60,8 @@ test('shipped skinned warrior has finite poses, grounded walk and bounded runnin
       assert.ok(bounds.min.y >= -.03, `${clip.name}: underground foot ${bounds.min.y}`);
       assert.ok(bounds.min.y < (clip.name === 'Idle' || clip.name === 'Walk' ? .06 : .32), `${clip.name}: floating ${bounds.min.y}`);
       assert.ok(bounds.max.y < 1.87 && bounds.max.y > 1.4);
-      assert.ok(bounds.max.x - bounds.min.x < 1.5 && bounds.max.z - bounds.min.z < 1.6);
+      // depth 1.6→1.65: the Studio body's feet are real length, so the Jog stride measures 1.605 m toe to toe (2026-09-14)
+      assert.ok(bounds.max.x - bounds.min.x < 1.5 && bounds.max.z - bounds.min.z < 1.65, `${clip.name} frame ${frame}: reach ${(bounds.max.x - bounds.min.x).toFixed(2)} × ${(bounds.max.z - bounds.min.z).toFixed(2)}`);
     }
     action.stop();
   }
