@@ -39,3 +39,9 @@
    written for a bare head. A crested helm on this 1.8 m fighter reaches ~1.91 m. The shipped build (no helmet) still passes; when
    helmet items ship through runtime slots, raise the ceiling to 2.0 (`WARRIOR_ITEMS=ranger,helmet_bronze npm test` shows the one
    failure). Not changed by this lane without a decision.
+
+## 10. Triangle ceiling for the realistic head (2026-09-14)
+`WARRIOR_BODY=realistic` with hair/brow/lash cards measures 54,164 mesh triangles per fighter before the kit's arm re-fit;
+the hair layer planned next adds ~5k. `tests/characters.test.ts` caps at 60,000 (owner-approved 2026-09-14, #7). Request:
+raise to 72,000 when the realistic body becomes the default build, or accept the cards as a quality-tier toggle.
+Evidence: `artifacts/character/realistic-v2/stats.json`.
