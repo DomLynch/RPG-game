@@ -214,14 +214,18 @@ def tps_fit(src, dst):
     return src, np.linalg.solve(A, rhs)
 
 
-def tps_eval(model, q):
-    """Evaluate the spline at q (…×2) → …×2."""
+def tps_eval(model, q, chunk=32768):
+    """Evaluate the spline at q (…×2) → …×2, in chunks: a 2K tile against hundreds of landmarks must not be one array."""
     src, w = model
     n = len(src)
     flat = q.reshape(-1, 2)
-    d = np.linalg.norm(flat[:, None, :] - src[None, :, :], axis=2)
-    U = np.where(d > 0, d * d * np.log(d + 1e-12), 0.0)
-    out = U @ w[:n] + w[n] + flat @ w[n + 1:]
+    out = np.empty_like(flat)
+    src32 = src.astype(np.float32)
+    for i in range(0, len(flat), chunk):
+        f = flat[i:i + chunk].astype(np.float32)
+        d = np.linalg.norm(f[:, None, :] - src32[None, :, :], axis=2)
+        U = np.where(d > 0, d * d * np.log(d + 1e-12), 0.0)
+        out[i:i + chunk] = U @ w[:n] + w[n] + f @ w[n + 1:]
     return out.reshape(q.shape)
 
 
@@ -237,12 +241,16 @@ def photo_layer_multi(pos, normal_obj, F, lid_ring, size, head):
     warp comes from its own landmarks against the head's 3D landmarks rotated into that view; profiles use only the
     visible side's landmarks. Views are exposure-matched to the front."""
     import json
-    pairs = head_correspondences(F, lid_ring)
-    # 3D positions of the mesh landmarks: (x, z) known, y from a ray into the face from the front
-    def mesh3(xz):
-        hit, loc, _, _ = head.ray_cast(Vector((float(xz[0]), F['nose'].y - 0.15, float(xz[1]))), Vector((0, 1, 0)))
-        return np.array([xz[0], loc.y if hit else F['nose'].y + 0.03, xz[1]], np.float64)
-    land3 = {key: mesh3(val[1] if isinstance(val[0], tuple) else val) for key, val in pairs.items()}
+    dense = F.get('dense')  # (target cloud, ok mask) from fit_head_dense: the mesh's 468 landmarks in 3D
+    if dense is not None:
+        land3 = {i: dense[0][i] for i in np.where(dense[1])[0]}
+        pairs = {i: None for i in land3}
+    else:
+        pairs = head_correspondences(F, lid_ring)
+        def mesh3(xz):
+            hit, loc, _, _ = head.ray_cast(Vector((float(xz[0]), F['nose'].y - 0.15, float(xz[1]))), Vector((0, 1, 0)))
+            return np.array([xz[0], loc.y if hit else F['nose'].y + 0.03, xz[1]], np.float64)
+        land3 = {key: mesh3(val[1] if isinstance(val[0], tuple) else val) for key, val in pairs.items()}
     acc = np.zeros(pos.shape[:2] + (3,), np.float32)
     wsum = np.zeros(pos.shape[:2], np.float32)
     front_mean = None
@@ -264,7 +272,9 @@ def photo_layer_multi(pos, normal_obj, F, lid_ring, size, head):
             p3 = land3[key]
             if abs(yaw) > 60 and (p3[0] * math.copysign(1, yaw) < -0.004 or key in (10,)):  # profile: visible side only
                 continue
-            if isinstance(val[0], tuple):
+            if val is None:
+                px = pts[key]
+            elif isinstance(val[0], tuple):
                 a, b = val[0]
                 px = (pts[a] + pts[b]) / 2
             else:
@@ -331,7 +341,7 @@ def photo_layer(pos, normal_obj, F, lid_ring, size):
     silhouette = P.load_pixels(PHOTO.rsplit('.', 1)[0] + '.mask.png', 'Non-Color')[..., 0]
     sil = silhouette[v0, u0]
     # De-light: divide by a wide luminance blur inside the face, keep the mean.
-    ex, ez = F['eye_l'].x, F['eye_l'].z
+    ez = F['eye_l'].z
     oval = ellipse(pos, (0.0, F['nose'].y + 0.03, ez - 0.02), (0.088, 0.09, 0.108), 0.3)
     luma = sample @ np.array([0.30, 0.59, 0.11])
     spots = np.clip(blur(luma, 16) - luma, 0, 1)[..., None]  # small dark marks (freckles, moles): mostly lifted; a few stay
@@ -353,7 +363,7 @@ def fit_head_to_photo(objs, eyes, F):
     import json
     lm = json.load(open(PHOTO.rsplit('.', 1)[0] + '.landmarks.json'))
     pts = np.array(lm['points'], np.float64)
-    ph = lm['height']
+    ph = lm['height']  # noqa: F841
     pairs = head_correspondences(F, F['lid_ring'])
     def photo_pt(key, val):
         if isinstance(val[0], tuple):
@@ -374,7 +384,7 @@ def fit_head_to_photo(objs, eyes, F):
         dst.append(to_mesh(photo_pt(key, val)))
     src, dst = np.array(src), np.array(dst)
     model = tps_fit(src, dst - src)  # spline of displacements, so far-away skin moves ~0
-    ez, ey = F['eye_l'].z, F['eye_l'].y
+    ez = F['eye_l'].z
     for obj in objs:
         co = np.array([[v.co.x, v.co.y, v.co.z] for v in obj.data.vertices], np.float64)
         face = np.clip((F['nose'].y + 0.10 - co[:, 1]) / 0.05, 0, 1) * np.clip((co[:, 2] - (ez - 0.20)) / 0.05, 0, 1) * np.clip((ez + 0.14 - co[:, 2]) / 0.05, 0, 1)
@@ -386,6 +396,128 @@ def fit_head_to_photo(objs, eyes, F):
     fitted = {key: to_mesh(photo_pt(key, val)) for key, val in pairs.items()}
     print('FIT scale_m_per_px', round(scale, 6), 'max move mm', round(float(np.abs(dst - src).max() * 1000), 1))
     return fitted
+
+
+BASE_RENDER = 'artifacts/source/face/base_front.png'  # the base head rendered by render_head.py, landmarks beside it
+PROFILES = {90.0: 'artifacts/source/face/gpt/raw2.png', -90.0: 'artifacts/source/face/gpt/raw1.png'}
+LEFT_EYE = (33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246)
+RIGHT_EYE = (362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398)
+
+
+def load_landmarks(image):
+    import json
+    lm = json.load(open(image.rsplit('.', 1)[0] + '.landmarks.json'))
+    return np.array(lm['points'], np.float64), lm['width'], lm['height']
+
+
+def base_landmarks_3d(head, F):
+    """The 468 landmarks the model found on the rendered base head, cast back into the mesh: 3D positions in rig space."""
+    import json
+    meta = json.load(open('artifacts/source/face/base_render.json'))
+    pts, w, h = load_landmarks(BASE_RENDER)
+    c = Vector(meta['centre'])
+    ortho = meta['ortho_scale']
+    out = np.zeros((len(pts), 3))
+    ok_mask = np.zeros(len(pts), bool)
+    for i, (px, py) in enumerate(pts):
+        x = c.x + (px / w - 0.5) * ortho
+        z = c.z + (0.5 - py / h) * ortho
+        hit, loc, _, _ = head.ray_cast(Vector((x, c.y - 2.0, z)), Vector((0, 1, 0)))
+        if hit:
+            out[i] = (loc.x, loc.y, loc.z)
+            ok_mask[i] = True
+    return out, ok_mask
+
+
+def photo_landmarks_3d(base3, ok_mask):
+    """The same 468 points on the man in the portraits: x, z from the front by a similarity solved against the base
+    (scale + shift, least squares over every landmark), depth from whichever profile sees each point, anchored so his
+    nose tip sits at the base nose's depth."""
+    front, w, h = load_landmarks(PHOTO)
+    f2 = np.stack([front[:, 0], h - front[:, 1]], axis=1)
+    b2 = base3[:, [0, 2]]
+    # similarity: b2 ≈ s * f2 + t  (isotropic; portraits and render share the orthographic framing convention)
+    fm, bm = f2[ok_mask].mean(axis=0), b2[ok_mask].mean(axis=0)
+    fc, bc = f2[ok_mask] - fm, b2[ok_mask] - bm
+    s = float((fc * bc).sum() / (fc * fc).sum())
+    t = bm - s * fm
+    xz = s * f2 + t
+    target = base3.copy()
+    target[:, 0] = xz[:, 0]
+    target[:, 2] = xz[:, 1]
+    # depth from the profiles: image x along the view's right vector; scale from the same framing (s), anchored on the nose tip
+    depth = np.full(len(front), np.nan)
+    for yaw, image in PROFILES.items():
+        if not os.path.exists(image.rsplit('.', 1)[0] + '.landmarks.json'):
+            continue
+        prof, pw, ph = load_landmarks(image)
+        sign = 1.0 if yaw > 0 else -1.0  # camera on the left: image right = +y (back)
+        visible = (xz[:, 0] * sign > -0.006)
+        d = sign * (prof[:, 0] - prof[1, 0]) * s + base3[1, 1]  # nose tip (id 1) at the base nose depth
+        depth = np.where(visible & np.isnan(depth), d, depth)
+        both = visible & ~np.isnan(depth)
+        depth = np.where(both, np.where(np.isnan(depth), d, (depth + d) / 2), depth)
+    fill = np.isnan(depth)
+    depth[fill] = base3[fill, 1]  # nothing saw it: keep the base depth
+    target[:, 1] = depth
+    return target
+
+
+def fit_head_dense(objs, eyes, head, F):
+    """Warp the head to the portraits with all 468 landmarks (3D thin-plate spline of displacements), then resize and
+    seat the eyeballs in his eye openings. Returns the target landmark cloud (the mesh's landmarks after the fit)."""
+    base3, ok_mask = base_landmarks_3d(head, F)
+    target = photo_landmarks_3d(base3, ok_mask)
+    rings = []  # the lid margins: vertices touching each eyeball now, by index, so they can be found again after the warp
+    for e in eyes:
+        old_c = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)
+        old_r = max((v.co - old_c).length for v in e.data.vertices)
+        rings.append([v.index for v in head.data.vertices if abs((v.co - old_c).length - old_r) < 0.004 and v.co.y < old_c.y + 0.01])
+    src, dst = base3[ok_mask], target[ok_mask]
+    n = len(src)
+    d = np.linalg.norm(src[:, None, :] - src[None, :, :], axis=2)
+    K = -d  # 3D thin-plate kernel
+    Pm = np.hstack([np.ones((n, 1)), src])
+    A = np.zeros((n + 4, n + 4))
+    A[:n, :n] = K + np.eye(n) * 2e-4
+    A[:n, n:] = Pm
+    A[n:, :n] = Pm.T
+    rhs = np.zeros((n + 4, 3))
+    rhs[:n] = dst - src
+    wts = np.linalg.solve(A, rhs)
+    def warp(q):
+        dq = np.linalg.norm(q[:, None, :] - src[None, :, :], axis=2)
+        return (-dq) @ wts[:n] + wts[n] + q @ wts[n + 1:]
+    ez = F['eye_l'].z
+    for obj in objs:
+        co = np.array([[v.co.x, v.co.y, v.co.z] for v in obj.data.vertices], np.float64)
+        face = np.clip((F['nose'].y + 0.12 - co[:, 1]) / 0.06, 0, 1) * np.clip((co[:, 2] - (ez - 0.22)) / 0.06, 0, 1) * np.clip((ez + 0.16 - co[:, 2]) / 0.05, 0, 1)
+        disp = np.zeros_like(co)
+        active = face > 0.001
+        disp[active] = warp(co[active]) * face[active, None]
+        for v, dd in zip(obj.data.vertices, disp):
+            v.co.x += float(dd[0])
+            v.co.y += float(dd[1])
+            v.co.z += float(dd[2])
+        obj.data.update()
+    # eyeballs: the size and place of his openings
+    result = {}
+    head_co = np.array([[v.co.x, v.co.y, v.co.z] for v in head.data.vertices], np.float64)  # the fitted head
+    for e, ring_idx in zip(eyes, rings):
+        margin = head_co[ring_idx]  # the lid margin, as the fit left it
+        half_w = float(margin[:, 0].max() - margin[:, 0].min()) / 2
+        radius = half_w * 0.85  # eyeball ≈ 0.8 of the opening's half-width
+        centre = np.array([(margin[:, 0].max() + margin[:, 0].min()) / 2, float(margin[:, 1].min()) + radius + 0.001, (margin[:, 2].max() + margin[:, 2].min()) / 2])
+        print(f'EYE {e.name} margin verts={len(margin)} half_w mm={half_w * 1000:.1f} front y={margin[:, 1].min():.4f}')
+        old_c = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)
+        old_r = max((v.co - old_c).length for v in e.data.vertices)
+        k = radius / old_r
+        for v in e.data.vertices:
+            v.co = Vector(centre) + (v.co - old_c) * k
+        e.data.update()
+        result[e.name] = (Vector(centre), radius)
+    print(f'DENSE FIT landmarks={n} max move mm={float(np.abs(dst - src).max() * 1000):.1f} eye radius mm={radius * 1000:.1f}')
+    return target, ok_mask, result
 
 
 def close_lids(obj, eye_centres, radius, upper=math.radians(13), lower=math.radians(4)):
@@ -505,13 +637,13 @@ def face_colour(pos, mask, F, ao, detail, size, photo=None):
         # Skin: the painted base keeps tone and shape (no baked shadows); the portrait adds only what is finer than ~8 mm —
         # pores, mottle, hair. Feature zones (brows, lips, beard, nostrils) take the portrait as it is.
         detail = np.clip(sample / (blur(sample, 32) + 1e-3), 0.55, 1.6)  # finer than ~1 cm
-        ex_, ey_, ez_ = F['eye_l'].x, F['eye_l'].y, F['eye_l'].z
+        ey_, ez_ = F['eye_l'].y, F['eye_l'].z
         zones = np.maximum.reduce([
             ellipse(pos, (0.034, ey_ - 0.006, ez_ + 0.017), (0.026, 0.02, 0.008), 0.5), ellipse(pos, (-0.034, ey_ - 0.006, ez_ + 0.017), (0.026, 0.02, 0.008), 0.5),
             ellipse(pos, (F['mouth'].x, F['mouth'].y, F['mouth'].z), (0.028, 0.014, 0.012), 0.5),
             ellipse(pos, (0.012, F['nose'].y + 0.01, F['nose'].z - 0.01), (0.008, 0.012, 0.007), 0.5), ellipse(pos, (-0.012, F['nose'].y + 0.01, F['nose'].z - 0.01), (0.008, 0.012, 0.007), 0.5),
             beard_mask(pos, F, size) * 0.85])
-        photo_col = sample  # flat-lit portraits: take them as they are; the base shows only where the views fade
+        photo_col = sample * (1 - zones[..., None] * 0.0)  # flat-lit portraits: taken as they are; zones kept for the composite option
         colour = colour * (1 - w[..., None]) + photo_col * w[..., None]
         keep = 1 - w
     else:
@@ -653,13 +785,17 @@ def card_texture(size=1024):
 
     def strand(p0, p1, p2, root_w, tip_w, tint, y_range=None):
         # quadratic Bézier p0→p2 via p1, rasterised as a chain of 18 segments; alpha soft over 1 px, tapered
-        bx0 = min(p0[0], p1[0], p2[0]) - 6; bx1 = max(p0[0], p1[0], p2[0]) + 6
-        by0 = min(p0[1], p1[1], p2[1]) - 6; by1 = max(p0[1], p1[1], p2[1]) + 6
-        x0, x1 = int(max(bx0, 0)), int(min(bx1, size)); y0, y1 = int(max(by0, 0)), int(min(by1, size))
+        bx0 = min(p0[0], p1[0], p2[0]) - 6
+        bx1 = max(p0[0], p1[0], p2[0]) + 6
+        by0 = min(p0[1], p1[1], p2[1]) - 6
+        by1 = max(p0[1], p1[1], p2[1]) + 6
+        x0, x1 = int(max(bx0, 0)), int(min(bx1, size))
+        y0, y1 = int(max(by0, 0)), int(min(by1, size))
         if x1 <= x0 or y1 <= y0:
             return
         X, Y = xx[y0:y1, x0:x1], yy[y0:y1, x0:x1]
-        best = np.full(X.shape, 1e9, np.float32); best_t = np.zeros(X.shape, np.float32)
+        best = np.full(X.shape, 1e9, np.float32)
+        best_t = np.zeros(X.shape, np.float32)
         ts = np.linspace(0, 1, 19)
         pts = [((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0], (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]) for t in ts]
         for (ax, ay), (bx, by), t in zip(pts[:-1], pts[1:], ts[:-1]):
@@ -667,7 +803,8 @@ def card_texture(size=1024):
             u = np.clip(((X - ax) * abx + (Y - ay) * aby) / (abx * abx + aby * aby + 1e-6), 0, 1)
             d = np.sqrt((X - (ax + u * abx)) ** 2 + (Y - (ay + u * aby)) ** 2)
             closer = d < best
-            best = np.where(closer, d, best); best_t = np.where(closer, t + u / 18, best_t)
+            best = np.where(closer, d, best)
+            best_t = np.where(closer, t + u / 18, best_t)
         w = root_w + (tip_w - root_w) * best_t
         a = np.clip((w / 2 + 0.5 - best), 0, 1)
         light = 0.8 + 0.5 * best_t  # tips catch the light
@@ -834,7 +971,8 @@ def hair_shells(head, F, layers=10, spacing=0.0005):
     bm.free()
     verts, faces, uvs, colours, normals = [], [], [], [], []
     ez = F['eye_l'].z
-    xs = [v.co.x for v in base.vertices]; ys = [v.co.y for v in base.vertices]
+    xs = [v.co.x for v in base.vertices]
+    ys = [v.co.y for v in base.vertices]
     x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
     feather = {v.index: float(scalp_mask(np.array([[[v.co.x, v.co.y, v.co.z]]], np.float32), F)[0, 0]) for v in base.vertices}
     full_normals = []

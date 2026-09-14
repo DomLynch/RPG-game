@@ -114,21 +114,29 @@ def realistic_body():
         pre_ring = [v.co for v in hbm.data.vertices if abs((v.co - eye_l).length - pre_radius) < 0.004 and v.co.y < eye_l.y + 0.01]
         pre = {'eye_l': eye_l, 'eye_r': eye_r, 'nose': pre_nose.copy(), 'mouth': Vector((0, pre_nose.y + 0.012, pre_nose.z - 0.038)),
                'lid_ring': (min(abs(c.x) for c in pre_ring), max(abs(c.x) for c in pre_ring)) if pre_ring else (eye_l.x - 0.018, eye_l.x + 0.022)}
-        FITTED = HEADMOD.fit_head_to_photo([hbm, HIGH], eyes, pre)
+        if os.path.exists(HEADMOD.BASE_RENDER.rsplit('.', 1)[0] + '.landmarks.json'):
+            DENSE = HEADMOD.fit_head_dense([hbm, HIGH], eyes, hbm, pre)
+            FITTED = None
+        else:
+            DENSE = None
+            FITTED = HEADMOD.fit_head_to_photo([hbm, HIGH], eyes, pre)
         eye_l = sum((v.co for v in eyes[0].data.vertices), Vector()) / len(eyes[0].data.vertices)
         eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
         if eye_l.x < eye_r.x:
             eye_l, eye_r = eye_r, eye_l
     else:
         FITTED = None
-    for e in eyes:  # a touch deeper in the socket: the lids overlap the eyeball more, less white shows
-        for v in e.data.vertices:
-            v.co.y += 0.0015
-        e.data.update()
-    eye_l, eye_r = eye_l + Vector((0, 0.0015, 0)), eye_r + Vector((0, 0.0015, 0))
+        DENSE = None
+    if DENSE is None:  # the base eyes: a touch deeper and the lids brought down; a dense fit seats them from the portraits
+        for e in eyes:
+            for v in e.data.vertices:
+                v.co.y += 0.0015
+            e.data.update()
+        eye_l, eye_r = eye_l + Vector((0, 0.0015, 0)), eye_r + Vector((0, 0.0015, 0))
     eye_radius = max((v.co - eye_l).length for v in eyes[0].data.vertices)
-    for mesh_obj in (hbm, HIGH):  # a fighter's eyes are not wide open: bring the lids down before any bake
-        HEADMOD.close_lids(mesh_obj, [eye_l, eye_r], eye_radius, upper=math.radians(20), lower=math.radians(6))
+    if DENSE is None:
+        for mesh_obj in (hbm, HIGH):  # a fighter's eyes are not wide open: bring the lids down before any bake
+            HEADMOD.close_lids(mesh_obj, [eye_l, eye_r], eye_radius, upper=math.radians(20), lower=math.radians(6))
     ring = [v.co for v in hbm.data.vertices if abs((v.co - eye_l).length - eye_radius) < 0.004 and v.co.y < eye_l.y + 0.01]
     lid_ring = (min(abs(c.x) for c in ring), max(abs(c.x) for c in ring)) if ring else (eye_l.x - 0.018, eye_l.x + 0.022)
     face = [v.co for v in hbm.data.vertices if v.co.z > eye_l.z - 0.12 and v.co.z < eye_l.z + 0.16]
@@ -140,6 +148,12 @@ def realistic_body():
         FACE['mouth'] = Vector((float(FITTED[13][0]), nose.y + 0.012, float(FITTED[13][1])))
         FACE['chin'] = Vector((0, nose.y + 0.02, float(FITTED[152][1]) + 0.01))
         FACE['hairline_z'] = float(FITTED[10][1])
+    if DENSE is not None:
+        target, ok_mask, eye_fit = DENSE
+        FACE['dense'] = (target, ok_mask)
+        FACE['mouth'] = Vector((float(target[13][0]), float(target[13][1]), float(target[13][2])))
+        FACE['chin'] = Vector((0, float(target[152][1]), float(target[152][2]) + 0.01))
+        FACE['hairline_z'] = float(target[10][2])
     for e, side in zip(eyes, ('L', 'R')):
         tag(e, f'eye_{side}', 'Eyes', bone='Head', slot='Eyes')
     bpy.data.objects.remove(body, do_unlink=True)
@@ -616,19 +630,19 @@ def eye_maps(eye, size=512):
     fibres = 0.5 + 0.5 * np.sin(theta * 48) * np.sin(theta * 7)
     ring = np.clip((angle - 0.38) / 0.09, 0, 1)  # limbal ring: dark, wide
     iris_colour = np.array([0.22, 0.13, 0.06])[None, None, :] * (0.7 + fibres[..., None] * 0.6) * (1 - ring[..., None] * 0.75)
-    sclera = np.array([0.56, 0.50, 0.46])[None, None, :] * (0.85 + 0.15 * (1 - np.clip((angle - 0.5) / 0.9, 0, 1)))[..., None]
+    sclera = np.array([0.74, 0.68, 0.63])[None, None, :] * (0.85 + 0.15 * (1 - np.clip((angle - 0.5) / 0.9, 0, 1)))[..., None]
     # The upper lid overhangs the eye: its shadow on the VISIBLE upper sclera is what stops an eye reading as a white
     # ball. z/r = 0 is straight ahead; the shadow starts just below that and is solid by a third of the way up.
     lid = np.clip((d[..., 2] / r + 0.30) / 0.55, 0, 1)
-    sclera *= (1 - lid ** 1.3 * 0.78)[..., None]
+    sclera *= (1 - lid ** 1.3 * 0.5)[..., None]
     side = np.clip((np.abs(d[..., 0]) / r - 0.40) / 0.45, 0, 1)  # the eyeball darkens toward the corners and the sides
-    sclera = sclera * (1 - side[..., None] * 0.72) + np.array([0.42, 0.24, 0.20])[None, None, :] * (side * 0.35)[..., None]
+    sclera = sclera * (1 - side[..., None] * 0.45) + np.array([0.42, 0.24, 0.20])[None, None, :] * (side * 0.35)[..., None]
     veins = fbm(size, 71, octaves=(32, 64, 128))
     sclera[..., 1:] *= 1 - np.clip((veins - 0.62) * 4, 0, 1)[..., None] * 0.35
     colour = sclera * (1 - iris[..., None]) + iris_colour * iris[..., None]
     colour *= (1 - lid[..., None] ** 1.3 * 0.5 * iris[..., None])  # the lid shadow crosses the iris too
     colour *= (1 - pupil[..., None] * 0.97)
-    rough = np.where(iris > 0.5, 0.08, 0.38).astype(np.float32)  # wet cornea; the white is moist, not glass
+    rough = np.where(iris > 0.5, 0.10, 0.48).astype(np.float32)  # wet cornea; the white is moist, not glass
     orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
     return {'baseColor': save_jpeg('eye_color', colour, 'sRGB'), 'metallicRoughness': save_jpeg('eye_orm', orm, 'Non-Color')}
 
@@ -699,6 +713,7 @@ AO = None
 HEAD = None  # realistic: the head object (its own material and texture tile)
 REAL = None
 FITTED = None
+DENSE = None
 
 
 def occlusion_map():
