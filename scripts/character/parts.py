@@ -107,9 +107,14 @@ def realistic_body():
     eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
     if eye_l.x < eye_r.x:
         eye_l, eye_r = eye_r, eye_l
+    for e in eyes:  # a touch deeper in the socket: the lids overlap the eyeball more, less white shows
+        for v in e.data.vertices:
+            v.co.y += 0.0015
+        e.data.update()
+    eye_l, eye_r = eye_l + Vector((0, 0.0015, 0)), eye_r + Vector((0, 0.0015, 0))
     eye_radius = max((v.co - eye_l).length for v in eyes[0].data.vertices)
     for mesh_obj in (hbm, HIGH):  # a fighter's eyes are not wide open: bring the lids down before any bake
-        HEADMOD.close_lids(mesh_obj, [eye_l, eye_r], eye_radius)
+        HEADMOD.close_lids(mesh_obj, [eye_l, eye_r], eye_radius, upper=math.radians(20), lower=math.radians(6))
     ring = [v.co for v in hbm.data.vertices if abs((v.co - eye_l).length - eye_radius) < 0.004 and v.co.y < eye_l.y + 0.01]
     lid_ring = (min(abs(c.x) for c in ring), max(abs(c.x) for c in ring)) if ring else (eye_l.x - 0.018, eye_l.x + 0.022)
     face = [v.co for v in hbm.data.vertices if v.co.z > eye_l.z - 0.12 and v.co.z < eye_l.z + 0.16]
@@ -587,22 +592,25 @@ def eye_maps(eye, size=512):
     r = np.linalg.norm(d, axis=2) + 1e-6
     forward = -d[..., 1] / r  # 1 at the front pole
     angle = np.arccos(np.clip(forward, -1, 1))
-    iris = np.clip((0.47 - angle) / 0.03, 0, 1)  # a little larger than anatomical: less white, a heavier-lidded read
+    iris = np.clip((0.52 - angle) / 0.03, 0, 1)  # larger than anatomical: less white, a heavier-lidded read
     pupil = np.clip((0.17 - angle) / 0.02, 0, 1)
     theta = np.arctan2(d[..., 2], d[..., 0])
     fibres = 0.5 + 0.5 * np.sin(theta * 48) * np.sin(theta * 7)
     ring = np.clip((angle - 0.38) / 0.09, 0, 1)  # limbal ring: dark, wide
     iris_colour = np.array([0.22, 0.13, 0.06])[None, None, :] * (0.7 + fibres[..., None] * 0.6) * (1 - ring[..., None] * 0.75)
-    sclera = np.array([0.60, 0.55, 0.50])[None, None, :] * (0.85 + 0.15 * (1 - np.clip((angle - 0.5) / 0.9, 0, 1)))[..., None]
-    lid = np.clip((d[..., 2] / r - 0.05) / 0.5, 0, 1)  # the upper lid shades the top of the eyeball
-    sclera *= (1 - lid * 0.55)[..., None]
-    corner = np.clip((np.abs(d[..., 0]) / r - 0.55) / 0.4, 0, 1)  # inner and outer corners are pinker and darker
-    sclera = sclera * (1 - corner[..., None] * 0.25) + np.array([0.55, 0.30, 0.26])[None, None, :] * (corner * 0.25)[..., None]
+    sclera = np.array([0.56, 0.50, 0.46])[None, None, :] * (0.85 + 0.15 * (1 - np.clip((angle - 0.5) / 0.9, 0, 1)))[..., None]
+    # The upper lid overhangs the eye: its shadow on the VISIBLE upper sclera is what stops an eye reading as a white
+    # ball. z/r = 0 is straight ahead; the shadow starts just below that and is solid by a third of the way up.
+    lid = np.clip((d[..., 2] / r + 0.30) / 0.55, 0, 1)
+    sclera *= (1 - lid ** 1.3 * 0.78)[..., None]
+    side = np.clip((np.abs(d[..., 0]) / r - 0.40) / 0.45, 0, 1)  # the eyeball darkens toward the corners and the sides
+    sclera = sclera * (1 - side[..., None] * 0.72) + np.array([0.42, 0.24, 0.20])[None, None, :] * (side * 0.35)[..., None]
     veins = fbm(size, 71, octaves=(32, 64, 128))
     sclera[..., 1:] *= 1 - np.clip((veins - 0.62) * 4, 0, 1)[..., None] * 0.35
     colour = sclera * (1 - iris[..., None]) + iris_colour * iris[..., None]
+    colour *= (1 - lid[..., None] ** 1.3 * 0.5 * iris[..., None])  # the lid shadow crosses the iris too
     colour *= (1 - pupil[..., None] * 0.97)
-    rough = np.full((size, size), 0.18, np.float32)
+    rough = np.where(iris > 0.5, 0.08, 0.38).astype(np.float32)  # wet cornea; the white is moist, not glass
     orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
     return {'baseColor': save_jpeg('eye_color', colour, 'sRGB'), 'metallicRoughness': save_jpeg('eye_orm', orm, 'Non-Color')}
 

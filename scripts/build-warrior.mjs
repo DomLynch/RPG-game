@@ -45,13 +45,13 @@ base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name:
 const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
 const ranger = new T.MeshStandardMaterial({ name: 'Ranger', roughness: 1 }); // CC0 outfit-pack items; maps from the manifest
 const bronze = new T.MeshStandardMaterial({ name: 'Bronze', roughness: 1, metalness: 1 });
-const eyesMaterial = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .3 });
+const eyesMaterial = new T.MeshPhysicalMaterial({ name: 'Eyes', roughness: .3, clearcoat: 1, clearcoatRoughness: .06 }); // wet cornea; roughness from the map
 // Realistic head: its own texture tile with skin-strength specular (KHR_materials_specular), and strand cards for hair,
 // brows and lashes as an alpha cut-out (no sorting, works in the shadow pass).
 const face = new T.MeshPhysicalMaterial({ name: 'Face', roughness: 1, specularIntensity: 0.5 });
 const hairCards = new T.MeshPhysicalMaterial({ name: 'HairCards', roughness: .9, specularIntensity: .3, alphaTest: .35, side: T.DoubleSide }); // 0.35: loose strands survive mip averaging
 const browCards = new T.MeshPhysicalMaterial({ name: 'BrowCards', roughness: .9, specularIntensity: .3, transparent: true, alphaTest: .04, side: T.DoubleSide }); // small cards over opaque skin: blended, so hair tips stay soft
-const hairShell = new T.MeshPhysicalMaterial({ name: 'HairShell', roughness: .9, specularIntensity: .25, alphaTest: .5, side: T.DoubleSide, vertexColors: true }); // fur shells: dot alpha × per-shell vertex alpha
+const hairShell = new T.MeshPhysicalMaterial({ name: 'HairShell', roughness: .9, specularIntensity: .25, alphaTest: .42, side: T.DoubleSide, vertexColors: true }); // fur shells: dot alpha × per-shell vertex alpha
 const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial, face, hairCards, browCards, hairShell].map(m => [m, []]));
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
