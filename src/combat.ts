@@ -1,158 +1,107 @@
-import { bladeImpact, type HitLocation } from './blade.ts';
-import { advance, initialState, TARGET, wrapAngle, type Input, type State } from './sim.ts';
+import { decide, initialAi, type AiMode, type AiState } from './ai.ts';
+import type { HitLocation } from './blade.ts';
+import { inBufferWindow, initialDuel, legal, pathFor, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
+import { MOVES, PATHS, PROFILES, RULES, total, type AiProfile, type MoveId, type PathId } from './moves.ts';
+import type { State } from './sim.ts';
+export { PROFILES, RULES, MOVES } from './moves.ts';
+export type { Intent, Action, CombatEvent, Duel, Fighter } from './duel.ts';
+export type { AiProfile } from './moves.ts';
 
-// Experimental timings in fixed 60 Hz ticks. Animation observes these; it never deals damage.
-export const SWORD = { draw: 42, contact: 14, recovery: 40, damage: 25, reach: 1.65, arc: Math.PI / 3, reaction: 24, death: 144 } as const;
-export const DEFENCE = { roll: 36, safeStart: 4, safeEnd: 20, rollCost: 30, blockCost: 25, parry: 10, parryCooldown: 30, stun: 90, regenDelay: 60, attackCost: 20, enemyWait: 90, enemyContact: 36, enemyRecovery: 100, enemyDamage: 20 } as const;
-export const ATTACKS = {
-  light: { ...SWORD, cost: 20 },
-  return: { ...SWORD, contact: 12, recovery: 34, cost: 20 },
-  heavy: { ...SWORD, contact: 32, recovery: 68, damage: 38, reach: 1.9, cost: 35 },
-  riposte: { ...SWORD, contact: 12, recovery: 36, damage: 40, cost: 20 },
-} as const;
+// Legacy constant views. Presentation, the blade bake and older tests read these shapes; the simulation reads moves.ts.
+export const SWORD = { draw: RULES.draw, contact: PATHS.light_right.windup, recovery: total(PATHS.light_right), damage: MOVES.light_right.damage, reach: MOVES.light_right.reach, arc: RULES.guardArc, reaction: MOVES.light_right.stagger, death: RULES.death } as const;
+const clipSpec = (path: PathId, move: MoveId) => ({ contact: PATHS[path].windup, recovery: total(PATHS[path]), damage: MOVES[move].damage, reach: MOVES[move].reach, cost: MOVES[move].stamina });
+// Clip keys: the rig has one authored clip per key; a left cut plays the Return clip whether or not it was chained.
+export const ATTACKS = { light: clipSpec('light_right', 'light_right'), return: clipSpec('light_left_chain', 'light_left'), heavy: clipSpec('heavy_overhead', 'heavy_overhead'), riposte: clipSpec('riposte', 'riposte') } as const;
 export type Attack = keyof typeof ATTACKS;
-export const KICK = { contact: 18, recovery: 44, cost: 25, reach: 1.2, damage: 8 } as const;
-export const WOUND = { duration: 240, recovery: .8 } as const;
-export type DefenceInput = { kick?: boolean; heavy?: boolean; dodge?: boolean; guard?: boolean; parry?: boolean };
+export const KICK = { contact: MOVES.kick.windup, recovery: total(MOVES.kick), cost: MOVES.kick.stamina, reach: MOVES.kick.reach, damage: MOVES.kick.damage } as const;
+export const DEFENCE = { roll: RULES.roll, safeStart: RULES.safeStart, safeEnd: RULES.safeEnd, rollCost: RULES.rollCost, blockCost: RULES.blockCost, parry: RULES.parry, parryCooldown: RULES.parryCooldown, stun: RULES.parryStun, regenDelay: RULES.regenDelay, attackCost: MOVES.light_right.stamina } as const;
+export const WOUND = { duration: RULES.wound, recovery: RULES.woundRegen } as const;
+
+export type LegacyPhase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'guard' | 'hurt' | 'dead' | 'kick';
+export type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged' | 'broken' | 'kicked' | 'enemyBlocked' | 'enemyBroken' | 'enemyParried' | 'enemyDodged' | 'enemyKicked';
+// Practice = the duel plus a read-only view in the vocabulary the renderer and HUD already speak. Never write to the view.
 export type Practice = {
-  enemy: State; enemyMode: 'approach' | 'circle' | 'retreat' | 'guard'; decision: number; seed: number; enemyWait: number; enemyStamina: number; enemyGuardAge: number;
-  fighter: State; phase: 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'guard' | 'hurt' | 'dead' | 'kick'; age: number;
-  attack: Attack; chain: number; resultAge: number; attackHit: boolean; enemyHit: boolean;
-  wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; finish: { victim: 'player' | 'warden'; location: HitLocation; attack: Attack | 'kick'; heading: number } | null; health: number; playerHealth: number; stamina: number; rest: number; parryCooldown: number;
-  enemyAge: number; enemyAttacking: boolean; enemyHeading: number; reaction: number; reactionDuration: number; hits: number;
-  result: 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged' | 'broken' | 'enemyBlocked' | 'enemyBroken' | 'kicked';
+  duel: Duel; ai: AiState; events: CombatEvent[]; result: Result; resultAge: number; resultDamage: number;
+  fighter: State; enemy: State; finish: Finish | null;
+  phase: LegacyPhase; age: number; attack: Attack; chain: number; threat: boolean; threatMove: MoveId | null;
+  enemyPhase: LegacyPhase; enemyAge: number; enemyAttack: Attack; enemyAttacking: boolean; enemyHit: boolean; enemyHeading: number; enemyMode: AiMode; enemyGuardAge: number;
+  health: number; playerHealth: number; stamina: number; enemyStamina: number; exhausted: boolean; enemyExhausted: boolean;
+  wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; reaction: number; reactionDuration: number;
 };
-export const initialPractice = (): Practice => ({ enemy: { ...TARGET, heading: 0, distance: 0 }, enemyMode: 'approach', decision: 90, seed: 731, enemyWait: DEFENCE.enemyWait, enemyStamina: 100, enemyGuardAge: 0, fighter: initialState(), phase: 'sheathed', age: 0, attack: 'light', attackHit: false, enemyHit: false, chain: 0, wound: 0, enemyWound: 0, woundSite: 'torso', enemyWoundSite: 'torso', finish: null, health: 100, playerHealth: 100, stamina: 100, rest: 0, parryCooldown: 0, enemyAge: 0, enemyAttacking: false, enemyHeading: 0, reaction: 0, reactionDuration: SWORD.reaction, hits: 0, resultAge: 0, result: 'none' });
-export const canStrike = (s: Practice): boolean => s.health > 0 && s.playerHealth > 0 && (s.phase === 'sheathed' || (s.phase === 'ready' && s.stamina >= DEFENCE.attackCost));
-export const canDefend = (s: Practice): boolean => s.health > 0 && s.playerHealth > 0 && (s.phase === 'ready' || s.phase === 'guard');
-const aim = (s: State, target: State) => Math.atan2(target.x - s.x, target.z - s.z);
-
-export function stepPractice(current: Practice, input: Input, strike: boolean, locked: boolean, defence: DefenceInput = {}): Practice {
-  const next = { ...current, wound: Math.max(0,current.wound-1), enemyWound: Math.max(0,current.enemyWound-1), resultAge: Math.min(120, current.resultAge + 1), age: current.age + 1, reaction: Math.max(0, current.reaction - 1), rest: Math.max(0, current.rest - 1), parryCooldown: Math.max(0, current.parryCooldown - 1), chain: Math.max(0, current.chain - 1) };
-  if (!current.health || !current.playerHealth) return next;
-  const spend = (cost: number) => { next.stamina = Math.max(0, next.stamina - cost); next.rest = DEFENCE.regenDelay; };
-  if (defence.dodge && canDefend(current) && current.stamina >= DEFENCE.rollCost) {
-    // Lock direction at touch-down; without movement, roll away from the opponent.
-    const moving = Math.hypot(input.x, input.z) > .1;
-    const heading = moving ? advance(current.fighter, input, current.enemy).heading : aim(current.fighter, current.enemy) + Math.PI;
-    next.fighter = { ...current.fighter, heading }; next.phase = 'roll'; next.age = 0; spend(DEFENCE.rollCost);
-  } else if (defence.kick && canDefend(current) && current.stamina >= KICK.cost) {
-    next.phase = 'kick'; next.age = 0; next.chain = 0; next.result = 'none'; spend(KICK.cost);
-    if (locked) next.fighter = { ...current.fighter, heading: aim(current.fighter,current.enemy) };
-  } else if ((defence.guard || defence.parry) && current.phase === 'ready' && current.stamina > 0) {
-    next.phase = 'guard'; next.age = defence.parry && !current.parryCooldown ? 0 : DEFENCE.parry;
-    if (next.age === 0) next.parryCooldown = DEFENCE.parryCooldown;
-  } else if ((strike || defence.heavy) && canStrike(current) && (!defence.heavy || current.stamina >= ATTACKS.heavy.cost)) {
-    next.phase = current.phase === 'sheathed' ? 'draw' : 'attack'; next.age = 0; next.result = 'none';
-    if (next.phase === 'attack') { next.attackHit = false; next.attack = defence.heavy ? 'heavy' : current.result === 'parried' && current.reaction > 0 ? 'riposte' : current.chain > 0 ? 'return' : 'light'; next.chain = 0; spend(ATTACKS[next.attack].cost); }
-    if (locked) next.fighter = { ...current.fighter, heading: current.fighter.heading + Math.max(-.3, Math.min(.3, wrapAngle(aim(current.fighter, current.enemy) - current.fighter.heading))) };
+const clipOf = (move: MoveId | null): Attack => move === 'light_left' ? 'return' : move === 'heavy_overhead' ? 'heavy' : move === 'riposte' ? 'riposte' : 'light';
+const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
+const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = { Hit: ['hit', 'hurt'], AttackMissed: ['miss', 'dodged'], Blocked: ['blocked', 'enemyBlocked'], Parried: ['parried', 'enemyParried'], GuardBroken: ['broken', 'enemyBroken'], Dodged: ['dodged', 'enemyDodged'] };
+export function project(duel: Duel, ai: AiState, previous?: Practice): Practice {
+  const [p, w] = duel.fighters;
+  let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0, resultDamage = previous?.resultDamage ?? 0;
+  for (const event of duel.events) {
+    const pair = RESULTS[event.type];
+    if (!pair) continue;
+    result = event.type === 'Hit' && event.move === 'kick' ? (event.actor === 0 ? 'kicked' : 'enemyKicked') : pair[event.actor];
+    resultAge = 0; resultDamage = event.damage ?? 0;
   }
-  if ((next.phase === 'kick' && next.age >= KICK.recovery) || (next.phase === 'draw' && next.age >= SWORD.draw) || (next.phase === 'attack' && next.age >= ATTACKS[next.attack].recovery) || (next.phase === 'roll' && next.age >= DEFENCE.roll) || (next.phase === 'hurt' && next.age >= SWORD.reaction) || (next.phase === 'guard' && !defence.guard && next.age >= DEFENCE.parry)) { if (next.phase === 'attack' && next.attack === 'light') next.chain = 18; next.phase = 'ready'; next.age = 0; }
-  if (next.phase === 'attack' && next.age < ATTACKS[next.attack].contact) {
-    if (locked) next.fighter = { ...next.fighter, heading: next.fighter.heading + Math.max(-.25, Math.min(.25, wrapAngle(aim(next.fighter, next.enemy) - next.fighter.heading))) };
-    if (next.age > 3) {
-      const heading = next.fighter.heading;
-      next.fighter = advance(next.fighter, { x: Math.sin(heading) * .55, z: Math.cos(heading) * .55, yaw: 0, run: false }, next.enemy);
-    }
-  }
-  if (next.phase === 'roll') {
-    const heading = next.fighter.heading;
-    next.fighter = advance(next.fighter, { x: Math.sin(heading), z: Math.cos(heading), yaw: 0, run: true }, next.enemy);
-  } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
-    const guarding = next.phase === 'guard';
-    next.fighter = advance(next.fighter, { ...input, x: input.x * (guarding ? .35 : 1), z: input.z * (guarding ? .35 : 1), run: !guarding && input.run && next.stamina > 0 }, next.enemy);
-    if (locked && next.phase !== 'sheathed' && !input.run) next.fighter.heading = aim(next.fighter, next.enemy);
-    if (!guarding && input.run && next.fighter.distance > current.fighter.distance) spend(.2);
-  }
-  if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed')) next.stamina = Math.min(100, next.stamina + .4*(next.wound ? WOUND.recovery : 1));
-  if (next.phase === 'kick' && next.age === KICK.contact) {
-    next.resultAge = 0;
-    if (Math.hypot(next.enemy.x-next.fighter.x,next.enemy.z-next.fighter.z) <= KICK.reach && Math.abs(wrapAngle(aim(next.fighter,next.enemy)-next.fighter.heading)) < Math.PI/4) {
-      const guarded = next.enemyMode === 'guard' && next.enemyGuardAge >= 12 && !next.enemyAttacking && !next.reaction && Math.abs(wrapAngle(aim(next.enemy,next.fighter)-next.enemy.heading)) < SWORD.arc;
-      next.health = Math.max(0,next.health-KICK.damage); next.hits++; next.enemyStamina = Math.max(0,next.enemyStamina-(guarded ? 45 : 15));
-      if (!next.health) next.finish = {victim:'warden',location:'torso',attack:'kick',heading:next.fighter.heading};
-      next.result = 'kicked'; next.reaction = next.health ? (guarded ? 36 : 18) : SWORD.death; next.reactionDuration = next.reaction;
-      next.enemyAttacking = false; next.enemyAge = 0; next.enemyMode = 'retreat'; next.enemyGuardAge = 0; next.decision = 48;
-      const away = aim(next.enemy,next.fighter)+Math.PI;
-      for (let i=0;i<6;i++) next.enemy = advance(next.enemy,{x:Math.sin(away),z:Math.cos(away),yaw:0,run:false},next.fighter);
-    } else next.result = 'miss';
-  }
-  if (next.phase === 'attack' && !next.attackHit && next.age >= ATTACKS[next.attack].contact && next.age <= ATTACKS[next.attack].contact + 4) {
-    const location = bladeImpact(next.attack, next.age-1, next.age, current.fighter, next.fighter, current.enemy, next.enemy);
-    if (location) {
-      next.attackHit = true; next.resultAge = 0;
-      const guarded = next.enemyMode === 'guard' && next.enemyGuardAge >= 12 && !next.reaction && !next.enemyAttacking && next.enemyStamina >= 20 && Math.abs(wrapAngle(aim(next.enemy, next.fighter) - next.enemy.heading)) < SWORD.arc;
-      if (guarded && next.attack !== 'heavy' && next.attack !== 'riposte') {
-        next.enemyStamina -= 20; next.result = 'enemyBlocked'; next.enemyWait = 30; next.enemyAge = 0;
-      } else {
-        if (guarded) next.enemyStamina = 0;
-        next.health = Math.max(0, current.health - ATTACKS[next.attack].damage); next.enemyWound = WOUND.duration; next.enemyWoundSite = location;
-        if (!next.health) next.finish = {victim:'warden',location,attack:next.attack,heading:next.fighter.heading}; next.hits++;
-        next.reaction = next.health ? SWORD.reaction : SWORD.death; next.reactionDuration = next.reaction; next.result = guarded ? 'enemyBroken' : 'hit';
-        next.decision = 48; next.enemyMode = 'retreat'; next.enemyGuardAge = 0;
-        const away = aim(next.enemy, next.fighter) + Math.PI;
-        for (let i = 0; i < 4; i++) next.enemy = advance(next.enemy, { x: Math.sin(away), z: Math.cos(away), yaw: 0, run: false }, next.fighter);
-        next.enemyAttacking = false; next.enemyAge = 0;
-      }
-    } else if (next.age === ATTACKS[next.attack].contact + 4) { next.result = 'miss'; next.resultAge = 0; }
-  }
-  // Readable local opponent. Decisions consume seeded state, never renderer time or hidden player input.
-  if (!next.health || next.phase === 'sheathed' || next.phase === 'draw' || next.reaction) return next;
-  next.enemyAge++;
-  next.decision = Math.max(0, current.decision - 1);
-  if (!next.enemyAttacking) {
-    const distance = Math.hypot(next.enemy.x - next.fighter.x, next.enemy.z - next.fighter.z);
-    if (!next.decision) {
-      next.seed = (Math.imul(next.seed, 1664525) + 1013904223) >>> 0;
-      next.decision = 36 + next.seed % 45; next.enemyWait = 45 + (next.seed >>> 8) % 61;
-      next.enemyMode = distance > 1.3 ? 'approach' : next.enemyStamina < 25 || distance < 1.05 ? 'retreat' : next.seed % 3 === 0 ? 'guard' : 'circle';
-      next.enemyGuardAge = 0;
-    }
-    if (distance > 2.5) next.enemyMode = 'approach';
-    const facing = aim(next.enemy, next.fighter), side = (next.seed & 1) ? 1 : -1;
-    const forward = next.enemyMode === 'approach' && distance > 1.1 ? .6 : next.enemyMode === 'retreat' && distance < 2.2 ? -.4 : 0;
-    const lateral = next.enemyMode === 'circle' ? side * .25 : 0;
-    next.enemy = advance(next.enemy, { x: Math.sin(facing) * forward + Math.cos(facing) * lateral, z: Math.cos(facing) * forward - Math.sin(facing) * lateral, yaw: 0, run: false }, next.fighter);
-    next.enemy.heading = facing;
-    next.enemyGuardAge = next.enemyMode === 'guard' ? next.enemyGuardAge + 1 : 0;
-    if (next.enemyMode !== 'guard') next.enemyStamina = Math.min(100, next.enemyStamina + .3*(next.enemyWound ? WOUND.recovery : 1));
-    // A whiff is observable only after contact. Never react to an uncommitted input.
-    if (next.phase === 'attack' && next.result === 'miss' && next.age > ATTACKS[next.attack].contact + 12) next.enemyWait = Math.min(next.enemyWait, 24);
-  } else if (next.enemyAge > 6 && next.enemyAge < DEFENCE.enemyContact) {
-    next.enemy = advance(next.enemy, { x: Math.sin(next.enemyHeading) * .18, z: Math.cos(next.enemyHeading) * .18, yaw: 0, run: false }, next.fighter);
-  }
-
-  if (!next.enemyAttacking && next.enemyAge >= next.enemyWait && next.enemyMode !== 'guard' && Math.hypot(next.enemy.x - next.fighter.x, next.enemy.z - next.fighter.z) <= 1.45) {
-    next.enemyAttacking = true; next.enemyHit = false; next.enemyAge = 0; next.enemyHeading = aim(next.fighter, next.enemy) + Math.PI;
-  } else if (next.enemyAttacking && next.enemyAge >= DEFENCE.enemyRecovery) { next.enemyAttacking = false; next.enemyAge = 0; next.decision = 0; }
-  if (next.enemyAttacking && !next.enemyHit && next.enemyAge >= DEFENCE.enemyContact && next.enemyAge <= DEFENCE.enemyContact + 4) {
-    const age = SWORD.contact + (next.enemyAge - DEFENCE.enemyContact) * (SWORD.recovery - SWORD.contact) / (DEFENCE.enemyRecovery - DEFENCE.enemyContact);
-    const location = bladeImpact('light', age-.5, age, { ...current.enemy, heading: current.enemyHeading }, { ...next.enemy, heading: next.enemyHeading }, current.fighter, next.fighter);
-    if (!location) { if (next.enemyAge === DEFENCE.enemyContact + 4) { next.result = 'dodged'; next.resultAge = 0; } return next; }
-    next.enemyHit = true; next.resultAge = 0;
-    const facing = Math.abs(wrapAngle(aim(next.fighter, next.enemy) - next.fighter.heading)) <= SWORD.arc;
-    if (next.phase === 'roll' && next.age >= DEFENCE.safeStart && next.age <= DEFENCE.safeEnd) next.result = 'dodged';
-    else if (next.phase === 'guard' && facing && next.age < DEFENCE.parry) {
-      next.enemyMode = 'retreat'; next.result = 'parried'; next.reaction = DEFENCE.stun; next.reactionDuration = DEFENCE.stun; next.enemyAttacking = false; next.enemyAge = 0;
-    } else if (next.phase === 'guard' && facing && next.stamina >= DEFENCE.blockCost) { spend(DEFENCE.blockCost); next.result = 'blocked'; }
-    else {
-      const broken = next.phase === 'guard' && facing;
-      if (broken) spend(next.stamina);
-      next.wound = WOUND.duration; next.woundSite = location; next.playerHealth = Math.max(0, next.playerHealth - DEFENCE.enemyDamage); next.phase = next.playerHealth ? 'hurt' : 'dead'; next.age = 0; next.result = broken ? 'broken' : 'hurt';
-      if (!next.playerHealth) next.finish = {victim:'player',location,attack:'light',heading:next.enemyHeading};
-    }
-  }
-  return next;
+  const wardenTiming = w.phase === 'attack' ? timing(w) : null;
+  return {
+    duel, ai, events: duel.events, result, resultAge, resultDamage, fighter: p.body, enemy: w.body, finish: duel.finish,
+    phase: legacyPhase(p), age: p.age, attack: clipOf(p.lastMove), chain: p.chain,
+    threat: w.phase === 'attack' && !w.landed && w.age < wardenTiming!.windup + wardenTiming!.active, threatMove: w.phase === 'attack' ? w.move : null,
+    enemyPhase: legacyPhase(w), enemyAge: w.age, enemyAttack: clipOf(w.lastMove), enemyAttacking: w.phase === 'attack', enemyHit: w.landed, enemyHeading: w.body.heading,
+    enemyMode: w.phase === 'guard' ? 'guard' : ai.mode, enemyGuardAge: w.phase === 'guard' ? w.age : 0,
+    health: w.health, playerHealth: p.health, stamina: p.stamina, enemyStamina: w.stamina, exhausted: p.exhausted, enemyExhausted: w.exhausted,
+    wound: p.wound, enemyWound: w.wound, woundSite: p.woundSite, enemyWoundSite: w.woundSite,
+    reaction: w.phase === 'hurt' || w.phase === 'dead' ? Math.max(0, w.stun - w.age) : 0, reactionDuration: w.phase === 'hurt' || w.phase === 'dead' ? w.stun : SWORD.reaction,
+  };
 }
+export const initialPractice = (seed = 731): Practice => project(initialDuel(), initialAi(seed));
+export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal): Practice {
+  const warden = decide(current.duel, 1, current.ai, profile);
+  return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current);
+}
+export const canStrike = (s: Practice): boolean => legal(s.duel.fighters[0], 'light');
+export const canDefend = (s: Practice): boolean => s.health > 0 && s.playerHealth > 0 && (s.phase === 'ready' || s.phase === 'guard');
+// Controls stay responsive while busy: an action is accepted now, or queued in the last ticks of a committed action.
+export const accepts = (s: Practice, action: Action): boolean => s.health > 0 && s.playerHealth > 0 && (legal(s.duel.fighters[0], action) || (inBufferWindow(s.duel.fighters[0]) && !(action === 'heavy' && s.phase === 'draw')));
 
+// Presentation helper: which clip, how far through it, and where its contact pose sits. Animation observes; it never decides.
+export type Pose = Exclude<LegacyPhase, 'hurt' | 'dead'> | 'hit' | 'death';
+export function actorPose(s: Practice, side: Side): { pose: Pose; progress: number; attack: Attack; contact: number } {
+  const f = s.duel.fighters[side], phase = legacyPhase(f), attack = clipOf(f.lastMove);
+  const pose: Pose = phase === 'dead' ? 'death' : phase === 'hurt' ? 'hit' : phase;
+  const duration = phase === 'attack' || phase === 'kick' ? total(timing(f)) : phase === 'draw' ? RULES.draw : phase === 'roll' ? RULES.roll : phase === 'hurt' || phase === 'dead' ? f.stun : 1;
+  const contact = phase === 'attack' || phase === 'kick' ? timing(f).windup / duration : ATTACKS[attack].contact / ATTACKS[attack].recovery;
+  return { pose, progress: Math.min(1, f.age / Math.max(1, duration)), attack, contact };
+}
+export const pathOf = pathFor;
+
+const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', riposte: 'riposte', kick: 'kick' };
 export function practiceHint(s: Practice): string {
+  const me = s.duel.fighters[0];
   if (!s.playerHealth) return 'You fell. Rematch and try another defence.';
   if (!s.health) return 'Warden defeated. Ready for a rematch?';
   if (s.phase === 'sheathed') return 'Draw your sword. The warden will counterattack.';
   if (s.phase === 'draw') return 'Drawing longsword…';
-  if (s.enemyAttacking && !s.enemyHit && s.enemyAge < DEFENCE.enemyContact + 4) return 'Incoming strike — roll or time your guard!';
+  if (s.threat) return s.threatMove === 'heavy_overhead' ? 'Incoming strike — heavy: roll or time your guard!' : 'Incoming strike — roll or time your guard!';
+  if (me.exhausted) return 'Exhausted · walk it off until your stamina returns';
   if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return 'Warden guarding · heavy or close-range kick';
   if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
-  if (s.result !== 'none' && s.resultAge < 120) return { kicked: 'Kick connected · press the opening', hit: `Clean ${s.attack === 'return' ? 'follow-up' : s.attack} hit · −${ATTACKS[s.attack].damage}`, miss: 'Miss — close the distance and face the warden.', hurt: 'Hit taken · −20', blocked: 'Blocked · −25 stamina', parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening' }[s.result];
+  if (s.result !== 'none' && s.resultAge < 120) {
+    const name = me.chained ? 'follow-up' : NAMES[me.lastMove ?? 'light_right'];
+    return { kicked: 'Kick connected · press the opening', hit: `Clean ${name} hit · −${s.resultDamage}`, miss: 'Miss — close the distance and face the warden.', hurt: `Hit taken · −${s.resultDamage}`, blocked: `Blocked · −${RULES.blockCost} stamina`, parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening', enemyParried: 'Your strike was turned aside — recover!', enemyDodged: 'The warden rolled clear.', enemyKicked: `Kicked · −${s.resultDamage}` }[s.result];
+  }
   return s.phase === 'guard' ? 'Guarding · release to recover stamina' : 'Hold guard to block · tap just before impact to parry';
+}
+
+// Debug overlay text: developer readout of the simulation, never a source of truth for presentation or rules.
+export function describe(s: Practice, difficulty = 'normal'): string {
+  const bar = (f: Fighter) => {
+    if (f.phase !== 'attack' || !f.move) return f.phase === 'hurt' ? `hurt ${f.age}/${f.stun}` : f.phase === 'guard' ? `guard ${f.age}${f.age < RULES.parry ? ' PARRY' : ''}` : f.phase === 'roll' ? `roll ${f.age}/${RULES.roll}${f.age >= RULES.safeStart && f.age <= RULES.safeEnd ? ' safe' : ''}` : `${f.phase} ${f.age}`;
+    const t = timing(f), cells: string[] = Array.from({ length: total(t) }, (_, k) => k < t.windup ? '·' : k < t.windup + t.active ? '#' : '-');
+    if (f.age < cells.length) cells[f.age] = '|';
+    return `${f.move}${f.chained ? '+' : ''} ${f.age}/${total(t)} ${cells.join('')}${f.landed ? ' landed' : ''}`;
+  };
+  const fighter = (name: string, f: Fighter) => `${name}: hp ${f.health} st ${f.stamina.toFixed(0)}${f.exhausted ? ' EXH' : ''} rest ${f.rest} wound ${f.wound}\n  ${bar(f)}\n  chain ${f.chain} punish ${f.punish} parryCd ${f.parryCooldown} buf ${f.buffer ? `${f.buffer.action}:${f.buffer.ttl}` : '-'} pos ${f.body.x.toFixed(2)},${f.body.z.toFixed(2)} hd ${f.body.heading.toFixed(2)}`;
+  const [p, w] = s.duel.fighters;
+  const scores = Object.entries(s.ai.scores).map(([k, v]) => `${k}=${typeof v === 'number' ? v.toFixed(2) : v}`).join(' ');
+  const recent = s.events.map(e => `${e.type}${e.move ? `(${e.move})` : e.action ? `(${e.action})` : ''}${e.damage ? ` -${e.damage}` : ''}`).join(' ');
+  return `tick ${s.duel.tick} gap ${Math.hypot(p.body.x - w.body.x, p.body.z - w.body.z).toFixed(2)}\n${fighter('you', p)}\n${fighter('warden', w)}\nai ${difficulty}: mode ${s.ai.mode} plan ${s.ai.plan ?? '-'} wait ${s.ai.wait} decide ${s.ai.decision} ${scores}\nresult ${s.result} ${s.resultAge}${recent ? `\nevents ${recent}` : ''}`;
 }

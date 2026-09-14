@@ -5,6 +5,7 @@ import { AnimationMixer, Box3, Vector3, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
+import { PATHS, total } from '../src/moves.ts';
 import { CLIPS, COMBAT_CLIPS, gaitWeights, swingProgress, defenceReaction } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
@@ -153,10 +154,10 @@ test('return, heavy and riposte authored blades agree with their contact ticks',
 test('baked collision paths match the shipped blade throughout every active strike', async () => {
   const {bladePose}=await import('../src/blade.ts');
   const asset=await readWarrior(),mixer=new AnimationMixer(asset.scene),blade=asset.scene.getObjectByName('SwordDrawn')!;
-  for(const [kind,name,source] of [['light','Attack',18/66],['return','Return',1-18/66],['heavy','Heavy',.48],['riposte','Riposte',.34]] as const) {
-    const spec=ATTACKS[kind],clip=asset.animations.find(c=>c.name===name)!,action=mixer.clipAction(clip).play();
-    for(let age=spec.contact-1;age<=spec.contact+4;age++) {
-      mixer.setTime(swingProgress(age/spec.recovery,spec.contact/spec.recovery,source)*clip.duration);asset.scene.updateMatrixWorld(true);
+  for(const [kind,spec] of Object.entries(PATHS)) {
+    const length=total(spec),clip=asset.animations.find(c=>c.name===spec.clip)!,action=mixer.clipAction(clip).play();
+    for(let age=spec.windup-1;age<=spec.windup+spec.active;age++) {
+      mixer.setTime(swingProgress(age/length,spec.windup/length,spec.source)*clip.duration);asset.scene.updateMatrixWorld(true);
       const actual=[.18,.86].flatMap(y=>blade.localToWorld(new Vector3(0,y,0)).toArray());
       assert.ok(actual.every((v,i)=>Math.abs(v-bladePose(kind,age)[i])<.00002),`${kind} tick ${age}`);
     }
