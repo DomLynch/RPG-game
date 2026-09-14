@@ -4,9 +4,8 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { initialPractice, stepPractice, practiceHint, canStrike, canDefend, DEFENCE } from './combat.ts';
+import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILES, type Action, type CombatEvent } from './combat.ts';
 import { createFeedback } from './feedback.ts';
-import { SWORD, ATTACKS, KICK } from './combat.ts';
 import { createScene } from './scene.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -46,15 +45,14 @@ function persist() {
 }
 persist();
 let practice = initialPractice(), state = practice.fighter, previous = state, accumulator = 0, locked = true;
-let kick = false;
-let dodge = false, parry = false, guard = false, guardId: number | null = null;
-let strike = false, strikeBuffer = 0, heavy = false, bufferHeavy = false, dodgeBuffer = 0, assetsReady = false, graphicsLost = false, lastHud = '';
+// Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
+let action: Action | null = null, guard = false, guardId: number | null = null, cancel = false, assetsReady = false, graphicsLost = false, lastHud = '';
+let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(window.location?.search ?? ''), frameEvents: CombatEvent[] = [];
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
-function bufferWindow() { return (practice.phase === 'attack' && practice.age >= ATTACKS[practice.attack].recovery - 8) || (practice.phase === 'draw' && practice.age >= SWORD.draw - 8); }
-function acceptsStrike(isHeavy = false) { return practice.health > 0 && practice.playerHealth > 0 && (!isHeavy || (practice.phase !== 'sheathed' && practice.stamina >= ATTACKS.heavy.cost)) && (canStrike(practice) || bufferWindow()); }
 function updateHud() {
   const hint = practiceHint(practice), controlsReady = assetsReady && !graphicsLost;
-  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${hint}:${controlsReady}:${bufferWindow()}:${practice.wound > 0}`;
+  const ok = (['light', 'heavy', 'kick', 'dodge', 'parry'] as const).map(a => accepts(practice, a));
+  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}`;
   if (key === lastHud) return;
   lastHud = key;
   health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
@@ -62,40 +60,37 @@ function updateHud() {
   for (const [meter, value] of [[health, practice.health], [playerHealth, practice.playerHealth], [stamina, practice.stamina]] as const) meter.style.setProperty('--fill', `${value}%`);
   stamina.value = practice.stamina; element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
   combatStatus.textContent = hint;
-  element('stamina-label').dataset.mobile = practice.wound ? 'Stamina · wound' : 'Stamina';
-  stamina.setAttribute('aria-label',practice.wound ? 'Stamina — wounded: recovery reduced 20 percent' : 'Stamina');
+  element('stamina-label').dataset.mobile = practice.exhausted ? 'Stamina · exhausted' : practice.wound ? 'Stamina · wound' : 'Stamina';
+  stamina.setAttribute('aria-label',practice.exhausted ? 'Stamina — exhausted: no attacks or guard until it recovers' : practice.wound ? 'Stamina — wounded: recovery reduced 20 percent' : 'Stamina');
   kickButton.hidden = practice.phase === 'sheathed' || practice.phase === 'draw' || !practice.health || !practice.playerHealth;
-  kickButton.setAttribute('aria-disabled',String(!controlsReady || !canDefend(practice) || practice.stamina < KICK.cost));
-  combatStatus.dataset.threat = String(practice.enemyAttacking && !practice.enemyHit && practice.enemyAge < DEFENCE.enemyContact + 4);
+  kickButton.setAttribute('aria-disabled',String(!controlsReady || !ok[2]));
+  combatStatus.dataset.threat = String(practice.threat); combatStatus.dataset.move = practice.threatMove ?? '';
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
   gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '← Light → · ↑ Heavy · ↓ Dodge';
   gesturePad.setAttribute('aria-disabled', String(!controlsReady));
   gesturePad.hidden = !practice.health || !practice.playerHealth;
   attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Light'; attackButton.setAttribute('aria-label', attackButton.textContent);
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
-  attackButton.setAttribute('aria-disabled', String(!controlsReady || !acceptsStrike()));
+  attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
   const ended = !practice.health || !practice.playerHealth;
-  heavyButton.hidden = ended; heavyButton.setAttribute('aria-disabled', String(!controlsReady || !acceptsStrike(true)));
+  heavyButton.hidden = ended; heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
   attackButton.hidden = ended; resetButton.hidden = !ended;
-  dodgeButton.setAttribute('aria-disabled', String(!controlsReady || (!canDefend(practice) && !(practice.phase === 'attack' && bufferWindow())) || practice.stamina < DEFENCE.rollCost));
-  guardButton.setAttribute('aria-disabled', String(!controlsReady || (!canDefend(practice) && !(practice.phase === 'attack' && bufferWindow())) || practice.stamina <= 0));
+  dodgeButton.setAttribute('aria-disabled', String(!controlsReady || !ok[3]));
+  guardButton.setAttribute('aria-disabled', String(!controlsReady || !(ok[4] || practice.phase === 'guard')));
   guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));
+  element('debug').hidden = !debug;
 }
-function requestKick() { if (!paused() && assetsReady && canDefend(practice) && practice.stamina >= KICK.cost) { kick = true; strike = heavy = false; strikeBuffer = dodgeBuffer = 0; } }
-function requestDodge() { if (!paused() && assetsReady && practice.stamina >= DEFENCE.rollCost) { if (canDefend(practice)) dodge = true; else if (practice.phase === 'attack' && practice.age >= ATTACKS[practice.attack].recovery - 8) dodgeBuffer = 9; } }
-function requestParry() { if (!paused() && assetsReady && canDefend(practice)) parry = true; }
-function requestStrike(isHeavy = false) {
-  if (paused() || !assetsReady) return;
-  if (isHeavy && (practice.phase === 'sheathed' || practice.stamina < ATTACKS.heavy.cost)) return;
-  if (canStrike(practice)) { strike = !isHeavy; heavy = isHeavy; }
-  else if (bufferWindow()) { strikeBuffer = 9; bufferHeavy = isHeavy; }
-}
+function request(next: Action) { if (!paused() && assetsReady && accepts(practice, next)) action = next; }
+function requestKick() { request('kick'); }
+function requestDodge() { request('dodge'); }
+function requestParry() { request('parry'); }
+function requestStrike(isHeavy = false) { request(isHeavy ? 'heavy' : 'light'); }
 let run = false, stickRun = false, moveId: number | null = null, orbitId: number | null = null;
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; kick = false;
-  strikeBuffer = dodgeBuffer = 0; heavy = bufferHeavy = false; feedback.quiet(); keys.clear(); dodge = parry = guard = false; guardId = null; strike = false; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
+  gestureId = null; gestureUsed = false; action = null; cancel = true;
+  feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
 element('name-form').addEventListener('submit', event => {
@@ -130,27 +125,29 @@ runButton.addEventListener('keyup', () => setRun(false));
 runButton.addEventListener('blur', () => setRun(false));
 attackButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestStrike(); } });
 kickButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestKick(); } });
-kickButton.addEventListener('pointercancel', () => { kick = false; });
+kickButton.addEventListener('pointercancel', () => { if (action === 'kick') action = null; });
 kickButton.addEventListener('keydown', event => { if (['Space','Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestKick(); } });
 heavyButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestStrike(true); } });
-heavyButton.addEventListener('pointercancel', () => { heavy = false; });
+heavyButton.addEventListener('pointercancel', () => { if (action === 'heavy') action = null; });
 heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(true); } });
-attackButton.addEventListener('pointercancel', () => { strike = false; });
+attackButton.addEventListener('pointercancel', () => { if (action === 'light') action = null; });
 attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
 dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestDodge(); } });
-dodgeButton.addEventListener('pointercancel', () => { dodge = false; });
+dodgeButton.addEventListener('pointercancel', () => { if (action === 'dodge') action = null; });
 dodgeButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestDodge(); } });
 guardButton.addEventListener('pointerdown', event => {
   if (event.button !== 0 || paused() || guardId !== null) return;
   event.preventDefault(); guardId = event.pointerId; guardButton.setPointerCapture(guardId); guard = true; requestParry();
 });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) guardButton.addEventListener(name, event => {
-  if ((event as PointerEvent).pointerId === guardId) { guardId = null; guard = false; if (name !== 'pointerup') parry = false; }
+  if ((event as PointerEvent).pointerId === guardId) { guardId = null; guard = false; if (name !== 'pointerup' && action === 'parry') action = null; }
 });
 guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); guard = true; if (!event.repeat) requestParry(); } });
 guardButton.addEventListener('keyup', () => { guard = false; });
-guardButton.addEventListener('blur', () => { guard = parry = false; });
-resetButton.addEventListener('click', () => { clearInput(); practice = initialPractice(); state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+guardButton.addEventListener('blur', () => { guard = false; if (action === 'parry') action = null; });
+resetButton.addEventListener('click', () => { clearInput(); practice = initialPractice(); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
+element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => {
   clearInput(); gestureMode = !gestureMode; element('actions').dataset.gestures = String(gestureMode);
   element('controls-mode').textContent = gestureMode ? 'Controls: swipes (trial)' : 'Controls: buttons';
@@ -166,11 +163,11 @@ gesturePad.addEventListener('pointermove', event => {
   const action = swipeAction(event.clientX-gestureX,event.clientY-gestureY);
   if (!action) return;
   event.preventDefault(); gestureUsed = true;
-  if (action === 'dodge') requestDodge(); else requestStrike(action === 'heavy');
+  request(action);
 });
 gesturePad.addEventListener('keydown', event => { if (!gestureMode || event.repeat) return; if (['Enter','Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.code)) { event.preventDefault(); if (event.code === 'ArrowDown') requestDodge(); else requestStrike(event.code === 'ArrowUp'); } });
 for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => {
-  if ((event as PointerEvent).pointerId === gestureId) { if (name !== 'pointerup') { strike = heavy = dodge = false; strikeBuffer = dodgeBuffer = 0; } gestureId = null; }
+  if ((event as PointerEvent).pointerId === gestureId) { if (name !== 'pointerup') action = null; gestureId = null; }
 });
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
@@ -245,25 +242,23 @@ function frame(now: number) {
     const x = moveX + Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= STEP) {
-      const before = practice;
-      if (strikeBuffer > 0 && canStrike(practice)) { heavy = bufferHeavy; strike = !heavy; strikeBuffer = 0; }
-      else strikeBuffer = Math.max(0, strikeBuffer - 1);
-      if (dodgeBuffer > 0 && canDefend(practice)) { dodge = true; dodgeBuffer = strikeBuffer = 0; strike = heavy = false; }
-      else dodgeBuffer = Math.max(0, dodgeBuffer - 1);
-      previous = state; practice = stepPractice(practice, { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, strike, locked, assetsReady ? { kick, heavy, dodge, parry, guard: guard || keys.has('KeyQ') } : {});
-      feedback.update(before, practice);
-      kick = heavy = strike = dodge = parry = false; state = practice.fighter; accumulator -= STEP;
+      previous = state;
+      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || keys.has('KeyQ')), lock: locked, cancel }, PROFILES[difficulty]);
+      feedback.update(practice.events); frameEvents.push(...practice.events);
+      action = null; cancel = false; state = practice.fighter; accumulator -= STEP;
     }
   } else { accumulator = 0; previous = state; }
   const alpha = accumulator / STEP;
   try {
-    view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, paused() ? 0 : dt, practice);
+    view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, paused() ? 0 : dt, practice, frameEvents);
+    frameEvents = [];
   } catch (error) {
     // Loss can happen inside a draw, before the browser delivers its context-lost event.
     if (!view.renderer.getContext().isContextLost()) throw error;
     pauseGraphics(); return;
   }
   updateHud();
+  if (debug) element('debug').textContent = describe(practice, difficulty);
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)], p95 = sorted[Math.floor(sorted.length * 0.95)];

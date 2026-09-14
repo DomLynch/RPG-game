@@ -1,4 +1,4 @@
-import type { Practice } from './combat.ts';
+import type { CombatEvent } from './combat.ts';
 
 // Original synthesised Foley: short air, body and inharmonic steel layers, no downloads.
 export function createFeedback() {
@@ -32,11 +32,12 @@ export function createFeedback() {
     unlock,
     toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? .22 : 0, context.currentTime); if (enabled) unlock(); return enabled; },
     quiet() { if (context?.state === 'running') void context.suspend().catch(() => {}); },
-    update(before: Practice, after: Practice) {
-      if (after.health < before.health || after.playerHealth < before.playerHealth) play('hit');
-      else if (after.reaction > before.reaction && after.result === 'parried') play('parry');
-      else if ((after.stamina < before.stamina && after.result === 'blocked') || after.enemyStamina < before.enemyStamina) play('steel');
-      else if ((after.phase === 'attack' && after.age === 4) || (after.phase === 'draw' && after.age === 12) || (after.phase === 'roll' && after.age === 1)) play('swing');
+    // Sound consumes the simulation's events; one cue per tick, strongest first.
+    update(events: CombatEvent[]) {
+      if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) play('hit');
+      else if (events.some(e => e.type === 'Parried')) play('parry');
+      else if (events.some(e => e.type === 'Blocked')) play('steel');
+      else if (events.some(e => e.type === 'AttackStarted' || (e.type === 'ActionStarted' && (e.action === 'draw' || e.action === 'roll')))) play('swing');
     },
   };
 }
