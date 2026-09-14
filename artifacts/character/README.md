@@ -28,7 +28,7 @@ Audit: `audit/DEFECTS.md`. Direction proposal: `moodboard/DIRECTION.md` (owner p
 
 ## Labels
 `baseline` (60e94b3 tin-can knight) · `base-source` (raw CC0 body via `--src`) · `level1-kit-raw` (kit parts alone) ·
-`humanoid-v1…v5` (iterations; v5 = weapon pass, committed 131cd52) · `motion-v1` (UAL2 Guard sheet) · `ual2-attacks` (opt-in strike candidates + variant GLB) · `ual2-block` (raw UAL2 key frames) · `level1-kit-raw` · `moodboard` (direction pick) · `realistic-v1` (Blender Studio head, painted) · `realistic-v2` (face tile, sculpted normal, hair/brow/lash cards; `face.png`, `eyes-zoom.png`) · `proof-*` (pipeline proofs, deleted).
+`humanoid-v1…v5` (iterations; v5 = weapon pass, committed 131cd52) · `motion-v1` (UAL2 Guard sheet) · `ual2-attacks` (opt-in strike candidates + variant GLB) · `ual2-block` (raw UAL2 key frames) · `level1-kit-raw` · `moodboard` (direction pick) · `realistic-v1` (Blender Studio head, painted) · `realistic-v2` (face tile, sculpted normal, hair/brow/lash cards; `face.png`, `eyes-zoom.png`) · `humanoid-v10` (= realistic pass 2b at 4270e9f, the owner's review copy) · `proof-*` (pipeline proofs, deleted).
 
 ## Baseline resource table (60e94b3)
 | resource | baseline |
