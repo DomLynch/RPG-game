@@ -135,7 +135,8 @@ function scrub(group, name, t) {
   for (const [n, a] of actions) if (n !== name) a.stop();
   const action = actions.get(name); action.play(); action.paused = true; action.time = Math.min(t, .999999) * action.getClip().duration; mixer.update(0);
   const armed = !CLIPS.includes(name) && !(name === 'Draw' && t < .29);
-  root.getObjectByName('SwordDrawn').visible = armed; root.getObjectByName('SwordSheathed').visible = !armed;
+  const drawn = root.getObjectByName('SwordDrawn'), sheathed = root.getObjectByName('SwordSheathed'); // absent on raw sources
+  if (drawn) drawn.visible = armed; if (sheathed) sheathed.visible = !armed;
 }
 function stage(scene) { scene.add(player, opponent); }
 function frame(w, h, ratio) { renderer.setPixelRatio(ratio); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
@@ -199,7 +200,7 @@ const api = {
   },
   async clipSheet(list = CLIP_SHEET) {
     await reset(); stage(studio); opponent.visible = false; renderer.toneMappingExposure = 1; player.position.set(0, 0, 0); player.rotation.y = 0;
-    return cells(8, 3, 360, 480, 1, i => { if (!list[i]) return false; const [name, t] = list[i]; scrub(player, name, t); studioCamera(false, Math.PI / 6); renderer.render(studio, camera); return `${name} t=${t.toFixed(2)}`; });
+    return cells(8, Math.ceil(list.length / 8), 360, 480, 1, i => { if (!list[i]) return false; const [name, t] = list[i]; scrub(player, name, t); studioCamera(false, Math.PI / 6); renderer.render(studio, camera); return `${name} t=${t.toFixed(2)}`; });
   },
   async lockStill(orientation, moment) {
     await reset(); stage(arena); opponent.visible = true; renderer.toneMappingExposure = 1.3;
@@ -273,7 +274,7 @@ function loop(now) {
 for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => setMode(button.dataset.mode));
 try {
   const asset = await new GLTFLoader().loadAsync(SRC || GLB); clips = asset.animations;
-  for (const name of clips.length ? [...CLIPS, ...COMBAT_CLIPS] : []) { const o = document.createElement('option'); o.textContent = o.value = name; select.append(o); }
+  for (const name of SRC ? clips.map(c => c.name) : [...CLIPS, ...COMBAT_CLIPS]) { const o = document.createElement('option'); o.textContent = o.value = name; select.append(o); }
   await setMode('studio'); api.loaded = true; status(`Ready · ${clips.length} clips · sequence ${(SEQUENCE_TICKS / 60).toFixed(1)}s`); requestAnimationFrame(loop);
 } catch (error) { api.error = String(error); status(api.error); throw error; }
 </script>

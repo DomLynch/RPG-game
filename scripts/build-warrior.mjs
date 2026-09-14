@@ -24,7 +24,9 @@ const loader = new GLTFLoader();
 const base = await loader.parseAsync(JSON.stringify(json), '');
 const bytes = await fs.readFile(path.join(source, 'animations/Universal Animation Library[Standard]/Unreal-Godot/UAL1_Standard.glb'));
 const library = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
-base.scene.updateMatrixWorld(true); library.scene.updateMatrixWorld(true);
+const bytes2 = await fs.readFile(path.join(source, 'animations2/Universal Animation Library 2[Standard]/Unreal-Godot/UAL2_Standard.glb'));
+const library2 = await loader.parseAsync(bytes2.buffer.slice(bytes2.byteOffset, bytes2.byteOffset + bytes2.byteLength), '');
+base.scene.updateMatrixWorld(true); library.scene.updateMatrixWorld(true); library2.scene.updateMatrixWorld(true);
 const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
@@ -164,27 +166,36 @@ for (const [material, geometries] of parts) {
     mesh.userData.slot = slot; mesh.bind(skeleton, body.bindMatrix); body.parent.add(mesh);
   }
 }
-// Retarget rotation deltas onto the body rest pose; preserve its own bone lengths.
+// Retarget rotation deltas onto the body rest pose; preserve its own bone lengths. A window [t0, t1] of the source can be
+// cut out and retimed to a fixed duration, so a library clip can fill a contract clip without changing its length.
 const clips = [];
-for (const [sourceName,name] of [['Idle_Loop','Idle'],['Walk_Loop','Walk'],['Jog_Fwd_Loop','Jog'],['Sprint_Loop','Run'],['Sword_Idle','Armed'],['Sword_Attack','Attack'],['Hit_Chest','Hit'],['Death01','Death'],['Roll','Roll']]) {
-  const original = library.animations.find(a=>a.name===sourceName);
+function retargetClip(lib, sourceName, name, { t0 = 0, t1 = Infinity, duration, inPlace = false } = {}) {
+  const original = lib.animations.find(a => a.name === sourceName);
   if (!original) throw new Error(`Missing clip ${sourceName}`);
-  const tracks=[];
+  const end = Math.min(t1, original.duration), scale = duration ? duration / (end - t0) : 1, tracks = [];
   for (const track of original.tracks) {
-    const [bone,property]=track.name.split('.'), target=base.scene.getObjectByName(bone), from=library.scene.getObjectByName(bone);
-    if (!target || !from || bone==='root') continue;
-    if (property==='quaternion') {
-      const copy=track.clone(), correction=target.quaternion.clone().multiply(from.quaternion.clone().invert());
-      for(let i=0;i<copy.values.length;i+=4) new T.Quaternion().fromArray(copy.values,i).premultiply(correction).normalize().toArray(copy.values,i);
-      tracks.push(copy);
-    } else if (property==='position' && bone==='pelvis') {
-      const copy=track.clone();
-      for(let i=0;i<copy.values.length;i+=3) for(let c=0;c<3;c++) copy.values[i+c]=target.position.getComponent(c)+(name === 'Roll' && c !== 1 ? 0 : track.values[i+c]-from.position.getComponent(c))*1.04;
-      tracks.push(copy);
+    const [bone, property] = track.name.split('.'), target = base.scene.getObjectByName(bone), from = lib.scene.getObjectByName(bone);
+    if (!target || !from || bone === 'root') continue;
+    if (property !== 'quaternion' && !(property === 'position' && bone === 'pelvis')) continue;
+    const size = track.getValueSize(), times = [], values = [];
+    for (let i = 0; i < track.times.length; i++) {
+      if (track.times[i] < t0 - 1e-6 || track.times[i] > end + 1e-6) continue;
+      times.push((track.times[i] - t0) * scale); values.push(...track.values.subarray(i * size, (i + 1) * size));
+    }
+    if (!times.length) continue;
+    if (property === 'quaternion') {
+      const correction = target.quaternion.clone().multiply(from.quaternion.clone().invert());
+      for (let i = 0; i < values.length; i += 4) new T.Quaternion().fromArray(values, i).premultiply(correction).normalize().toArray(values, i);
+      tracks.push(new T.QuaternionKeyframeTrack(track.name, times, values));
+    } else {
+      for (let i = 0; i < values.length; i += 3) for (let c = 0; c < 3; c++) values[i + c] = target.position.getComponent(c) + (inPlace && c !== 1 ? 0 : values[i + c] - from.position.getComponent(c)) * 1.04;
+      tracks.push(new T.VectorKeyframeTrack(track.name, times, values));
     }
   }
-  clips.push(new T.AnimationClip(name,original.duration,tracks).optimize());
+  return new T.AnimationClip(name, duration ?? end - t0, tracks).optimize();
 }
+for (const [sourceName, name] of [['Idle_Loop','Idle'],['Walk_Loop','Walk'],['Jog_Fwd_Loop','Jog'],['Sprint_Loop','Run'],['Sword_Idle','Armed'],['Sword_Attack','Attack'],['Hit_Chest','Hit'],['Death01','Death'],['Roll','Roll']])
+  clips.push(retargetClip(library, sourceName, name, { inPlace: name === 'Roll' }));
 // Author a short in-place draw on this rig: reach the hilt, lift clear, settle into guard.
 const poseMixer = new T.AnimationMixer(base.scene), drawTimes = [0,.20,.32,.50,.70];
 const drawPositions = [], drawValues = new Map(skeleton.bones.map(b => [b.name, []]));
@@ -215,17 +226,9 @@ for (let frame=0;frame<drawTimes.length;frame++) {
 }
 clips.push(new T.AnimationClip('Draw',.70,[new T.VectorKeyframeTrack('pelvis.position',drawTimes,drawPositions),...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',drawTimes,drawValues.get(b.name)))]));
 clips.push(clips.splice(clips.findIndex(c => c.name === 'Roll'), 1)[0]);
-// Original guard pose: blade across the upper body, left hand supporting the defence.
-poseMixer.clipAction(clips.find(c => c.name === 'Armed')).play(); poseMixer.update(0);
-for (const [side, joint, target] of [['r',[.35,1.25,.32],[.08,1.45,.48]],['l',[-.30,1.20,.28],[-.12,1.34,.44]]]) {
-  const upper=base.scene.getObjectByName('upperarm_'+side), lower=base.scene.getObjectByName('lowerarm_'+side), hand=base.scene.getObjectByName('hand_'+side);
-  aimBone(upper,lower,new T.Vector3(...joint)); aimBone(lower,hand,new T.Vector3(...target));
-}
-base.scene.updateMatrixWorld(true);
-const guardHand=base.scene.getObjectByName('hand_r');
-guardHand.quaternion.copy(guardHand.parent.getWorldQuaternion(new T.Quaternion()).invert().multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,0,1),Math.PI/3)).multiply(drawn.quaternion.clone().invert()));
-clips.push(new T.AnimationClip('Guard',1,[new T.VectorKeyframeTrack('pelvis.position',[0,1],[...base.scene.getObjectByName('pelvis').position.toArray(),...base.scene.getObjectByName('pelvis').position.toArray()]),...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',[0,1],[...b.quaternion.toArray(),...b.quaternion.toArray()]))]));
-poseMixer.stopAllAction();
+// Guard: the raise-and-hold of the CC0 UAL2 Sword_Block, retimed into the contract's 1 s. The runtime scrubs it over
+// 40 ticks and then holds its last frame, so the clip ends on the settled block.
+clips.push(retargetClip(library2, 'Sword_Block', 'Guard', { t0: .05, t1: .60, duration: 1 }));
 // Backhand return from the same coherent swing; preserve the contact pose in reverse.
 const sourceAttack = clips.find(c => c.name === 'Attack');
 const backhand = sourceAttack.clone(); backhand.name = 'Return';
@@ -322,7 +325,7 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
  const times=[0,.12,.35,.65,1],positions=[],values=new Map(skeleton.bones.map(b=>[b.name,[]]));
  for(const phase of times) {
   const source=clips.find(c=>c.name===(name==='Deflected' ? (phase===1 ? 'Armed' : 'Attack') : 'Guard'));
-  poseMixer.clipAction(source).play();poseMixer.setTime(name==='Deflected' && phase<1 ? source.duration*18/66 : 0);base.scene.updateMatrixWorld(true);
+  poseMixer.clipAction(source).play();poseMixer.setTime(name==='Deflected' && phase<1 ? source.duration*18/66 : source.name==='Guard' ? source.duration-1e-4 : 0);base.scene.updateMatrixWorld(true);
   const wave=Math.sin(Math.PI*phase),hand=base.scene.getObjectByName('hand_r'),goal=hand.getWorldPosition(new T.Vector3()),orientation=hand.getWorldQuaternion(new T.Quaternion());
   const delta=name==='BlockImpact' ? new T.Vector3(.05,0,-.20) : name==='Parry' ? new T.Vector3(-.22,.04,.04) : new T.Vector3(.27,.12,-.10);
   base.scene.getObjectByName('spine_01').rotation.x-=wave*(name==='BlockImpact' ? .07 : .03);

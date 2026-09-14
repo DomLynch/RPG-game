@@ -52,3 +52,9 @@ mesh attached to the head bone. All plate primitives are gone. The level-1 kit (
 work generated headlessly from the body surface: sleeveless linen tunic, studded leather baldric and belt, forearm wraps,
 sandal-boots, dyed under-skirt and kilt strips (the Heraldry surface), iron studs (the Steel surface). Sword and scabbard are
 unchanged. No new third-party asset or licence; everything derives from the two CC0 archives above.
+
+Motion pass (character lane, 2026-09-14): Guard now comes from the CC0 Universal Animation Library 2 (Standard, Quaternius,
+`Unreal-Godot/UAL2_Standard.glb`, SHA-256 8cee20ab1bc55130092447e810e26df22dd2803eccc54f52137a7d54d7ab88a8, retrieved by the
+owner from the creator's free itch.io download on 2026-09-14; License.txt preserved alongside): the raise-and-hold window of
+`Sword_Block` retimed to the contract's 1 s. BlockImpact and Parry remain original derivations, now from that hold pose.
+Extract the archive under artifacts/source/animations2 preserving its directory name; the build requires it.
