@@ -3,7 +3,8 @@
   "baseColor": "skin_color.jpg",
   "normal": "skin_normal.jpg",
   "metallicRoughness": "skin_orm.jpg",
-  "normalScale": 0.8
+  "normalScale": 0.8,
+  "occlusion": "ao_body.jpg"
  },
  "Ranger": {
   "baseColor": "ranger_color.jpg",
@@ -16,5 +17,26 @@
   "normal": "bronze_normal.jpg",
   "metallicRoughness": "bronze_orm.jpg",
   "normalScale": 0.7
+ },
+ "Hair": {
+  "baseColor": "hair_color.jpg",
+  "normal": "hair_normal.jpg",
+  "normalScale": 0.6
+ },
+ "Gambeson": {
+  "occlusion": "ao_body.jpg",
+  "occlusionTexCoord": 1
+ },
+ "Leather": {
+  "occlusion": "ao_body.jpg",
+  "occlusionTexCoord": 1
+ },
+ "Heraldry": {
+  "occlusion": "ao_body.jpg",
+  "occlusionTexCoord": 1
+ },
+ "Steel": {
+  "occlusion": "ao_body.jpg",
+  "occlusionTexCoord": 1
  }
 }

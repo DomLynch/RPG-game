@@ -29,6 +29,8 @@ armature.matrix_world.identity()  # author against the unscaled rest pose
 body = bpy.data.objects['SuperHero_Male']
 for o in [o for o in bpy.data.objects if o.type == 'MESH' and o is not body]:
     bpy.data.objects.remove(o, do_unlink=True)
+while len(body.data.uv_layers) > 1:  # the source carries an empty second UV set; TEXCOORD_1 is ours (occlusion)
+    body.data.uv_layers.remove(body.data.uv_layers[1])
 
 
 def joint(name):
@@ -37,7 +39,14 @@ def joint(name):
 
 
 SLOTS = {'tunic': 'Body', 'baldric': 'Body', 'belt': 'Body', 'studs': 'Body', 'skirt': 'Legs', 'kilt': 'Legs',
-         'wrap_l': 'Arms', 'wrap_r': 'Arms', 'sandal_l': 'Boots', 'sandal_r': 'Boots'}
+         'wrap_l': 'Arms', 'wrap_r': 'Arms', 'sole_l': 'Boots', 'sole_r': 'Boots', 'straps_l': 'Boots', 'straps_r': 'Boots'}
+
+
+def slot_for(name):
+    for prefix, slot in [('strap', 'Boots'), ('sole', 'Boots'), ('wrap', 'Arms'), ('skirt', 'Legs'), ('kilt', 'Legs')]:
+        if name.startswith(prefix):
+            return slot
+    return 'Body'
 
 
 def tag(obj, name, material, bone=None, slot=None):
@@ -45,7 +54,7 @@ def tag(obj, name, material, bone=None, slot=None):
     either a rigid bone or carries skin weights."""
     obj.name = name
     obj['material'] = material
-    obj['slot'] = slot or SLOTS.get(name, 'Body')
+    obj['slot'] = slot or slot_for(name)
     if bone:
         obj['bone'] = bone
     return obj
@@ -71,6 +80,9 @@ def extract(name, material, keep, lift=0.012, thickness=0.008):
     smooth_boundary(bm)
     bm.to_mesh(part.data)
     bm.free()
+    ao_uv = part.data.uv_layers.new(name='ao')  # TEXCOORD_1 → the body's baked occlusion, same layout as the skin atlas
+    for i, loop in enumerate(part.data.uv_layers[0].data):
+        ao_uv.data[i].uv = loop.uv
     part.modifiers.clear()
     lift_mod = part.modifiers.new('Lift', 'DISPLACE')
     lift_mod.strength, lift_mod.mid_level = lift, 0
@@ -90,6 +102,16 @@ def smooth_boundary(bm, passes=24, factor=0.6):
             v.co = v.co.lerp(t, factor)
 
 
+AO_WHITE = (0.85, 0.30)  # a fully lit texel of the baked body occlusion, for pieces with their own UVs
+
+
+def ao_white(part):
+    layer = part.data.uv_layers.new(name='ao')
+    for d in layer.data:
+        d.uv = AO_WHITE
+    return part
+
+
 def transfer_weights(part):
     """Nearest-body-vertex skin weights for a piece that was not cut from the body (strips, studs)."""
     select_only([part])
@@ -101,6 +123,46 @@ def transfer_weights(part):
     arm = part.modifiers.new('Armature', 'ARMATURE')
     arm.object = armature
     return part
+
+
+def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=28, lift=0.004, thickness=0.004, probe_radius=0.2, max_reach=None):
+    """A strap that hugs the body: probe points around the limb axis a→b at parameter t, snap each to the nearest skin,
+    and stitch a strip `width` wide along the axis. Weights come from the body; the strap has its own UVs."""
+    axis = (b - a).normalized()
+    u = axis.cross(Vector((0, 0, 1)))
+    if u.length < 1e-3:
+        u = axis.cross(Vector((0, 1, 0)))
+    u.normalize()
+    v = axis.cross(u)
+    bm = bmesh.new()
+    uv_layer = bm.loops.layers.uv.new('UVMap')
+    rows = []
+    for k, tt in enumerate((t, t + width / (b - a).length)):
+        row = []
+        for i in range(segments + 1):
+            th = arc[0] + (arc[1] - arc[0]) * i / segments
+            centre = a + (b - a) * tt
+            radial = u * math.cos(th) + v * math.sin(th)
+            surface, normal = nearest_surface(centre + radial * probe_radius)
+            if max_reach and (surface - centre).length > max_reach:  # snapped to another limb: stay on this one
+                surface, normal = centre + radial * max_reach * 0.7, radial
+            row.append(bm.verts.new(surface + normal * lift))
+        rows.append(row)
+    closed = abs((arc[1] - arc[0]) - 2 * math.pi) < 1e-6
+    for i in range(segments):
+        f = bm.faces.new((rows[0][i], rows[0][i + 1], rows[1][i + 1], rows[1][i]))
+        for loop, (uu, vv) in zip(f.loops, ((i / segments, 0), ((i + 1) / segments, 0), ((i + 1) / segments, 1), (i / segments, 1))):
+            loop[uv_layer].uv = (uu * 4, vv)
+    if closed:
+        bmesh.ops.remove_doubles(bm, verts=rows[0] + rows[1], dist=1e-5)
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    shell = obj.modifiers.new('Shell', 'SOLIDIFY')
+    shell.thickness, shell.offset, shell.use_rim = thickness, 0, True
+    return tag(ao_white(transfer_weights(obj)), name, material)
 
 
 def nearest_surface(point):
@@ -133,13 +195,16 @@ def along(p, a, b):
 def level1_kit():
     kit = []
     # Tunic: rough cloth over the torso and the tops of the arms, open at the neck.
-    # Sleeveless: the armholes end at the shoulder joint; the neckline dips at the front.
+    # Exomis: a working man's tunic pinned over the LEFT shoulder, the sword arm and right shoulder bare.
     def neckline(p):
-        dip = math.exp(-(p.x / 0.07) ** 2) * (0.075 if p.y < 0 else 0.025)
-        return neck.z - 0.04 - dip
-    def armhole(p):
-        return (p - shoulder_l).length < 0.105 or (p - shoulder_r).length < 0.105
-    kit.append(extract('tunic', 'Gambeson', lambda p: abs(p.x) < torso_half_width + 0.06 and pelvis.z - 0.03 < p.z < neckline(p) and not armhole(p), lift=0.010, thickness=0.005))
+        dip = math.exp(-(p.x / 0.07) ** 2) * (0.07 if p.y < 0 else 0.02)
+        return neck.z - 0.035 - dip
+    def bare_right(p):  # a diagonal from the right armpit up across the right chest and shoulder
+        return p.x < -0.03 and p.z > neck.z - 0.15 - (p.x + 0.03) * 1.1 and p.y < 0.06
+    def armhole_left(p):
+        return along(p, shoulder_l, elbow_l) > 0.22 and p.z < shoulder_l.z + 0.05
+    kit.append(extract('tunic', 'Gambeson', lambda p: abs(p.x) < torso_half_width + 0.07 and pelvis.z - 0.03 < p.z < neckline(p)
+                       and not bare_right(p) and not armhole_left(p) and (p - shoulder_r).length > 0.09, lift=0.010, thickness=0.007))
     # Under-skirt: dyed cloth over hips and upper thighs, so the strips above it never show skin between them.
     kit.append(extract('skirt', 'Heraldry', lambda p: abs(p.x) < 0.24 and pelvis.z - 0.25 < p.z < pelvis.z + 0.01, lift=0.014, thickness=0.005))
     # Baldric: a leather band from the left shoulder to the right hip, front and back.
@@ -149,15 +214,22 @@ def level1_kit():
         q = Vector((p.x, 0, p.z))
         t = (q - a).dot(d)
         return in_torso(p) and 0 < t < (b - a).length and abs((q - a - d * t).length) < 0.032
-    kit.append(extract('baldric', 'Leather', on_baldric, lift=0.022, thickness=0.006))
+    kit.append(extract('baldric', 'Leather', on_baldric, lift=0.019, thickness=0.006))
     # Belt around the hips.
     kit.append(extract('belt', 'Leather', lambda p: in_torso(p) and pelvis.z + 0.005 < p.z < pelvis.z + 0.055, lift=0.024, thickness=0.007))
-    # Forearm wraps, both arms.
+    # Forearm wraps: five overlapping leather turns from the wrist up, both arms.
     for elbow, hand, side in [(elbow_l, hand_l, 1), (elbow_r, hand_r, -1)]:
-        kit.append(extract(f'wrap_{"l" if side > 0 else "r"}', 'Leather', lambda p, e=elbow, h=hand: 0.30 < along(p, e, h) < 0.92 and abs(p.z - e.z) < 0.09, lift=0.006, thickness=0.006))
-    # Sandal-boots: the foot itself, plus an ankle strap.
-    for foot, calf, side in [(foot_l, calf_l, 1), (foot_r, calf_r, -1)]:
-        kit.append(extract(f'sandal_{"l" if side > 0 else "r"}', 'Leather', lambda p, f=foot, s=side: p.x * s > 0 and (p.z < f.z + 0.01 or f.z + 0.05 < p.z < f.z + 0.085), lift=0.007, thickness=0.006))
+        for k in range(5):
+            kit.append(ring_strip(f'wrap_{"l" if side > 0 else "r"}_{k}', 'Leather', elbow, hand, 0.86 - k * 0.11, 0.14, lift=0.004 + k * 0.0015, probe_radius=0.1, max_reach=0.09))
+    # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare.
+    for foot, ball, side in [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
+        name = 'l' if side > 0 else 'r'
+        kit.append(extract(f'sole_{name}', 'Leather', lambda p, s=side: p.x * s > 0 and p.z < 0.014, lift=0.0, thickness=0.014))
+        heel = Vector((foot.x, foot.y, 0.012))  # the strap rings run from the heel-top down the foot to the toes
+        toe = Vector((ball.x, ball.y - 0.02, 0.012))
+        kit.append(ring_strip(f'strap_instep_{name}', 'Leather', heel, toe, 0.42, 0.016, arc=(0, math.pi), lift=0.004, probe_radius=0.08, max_reach=0.075))
+        kit.append(ring_strip(f'strap_toe_{name}', 'Leather', heel, toe, 0.80, 0.012, arc=(0, math.pi), lift=0.004, probe_radius=0.08, max_reach=0.07))
+        kit.append(ring_strip(f'strap_ankle_{name}', 'Leather', Vector((foot.x, foot.y, 0)), Vector((foot.x, foot.y, 0.2)), 0.42, 0.06, lift=0.004, probe_radius=0.08, max_reach=0.075))
     # Kilt strips over the hips, dyed cloth (the Heraldry surface): weights come from the nearest body vertex.
     strips = []
     for i in range(10):
@@ -179,7 +251,7 @@ def level1_kit():
     select_only(strips)
     bpy.ops.object.join()
     kilt = bpy.context.active_object
-    kit.append(tag(transfer_weights(kilt), 'kilt', 'Heraldry'))
+    kit.append(tag(ao_white(transfer_weights(kilt)), 'kilt', 'Heraldry'))
     # Iron studs along the baldric and belt: the kit's only metal, skinned like the leather beneath it.
     studs = []
     for k in range(16):
@@ -198,7 +270,7 @@ def level1_kit():
         studs.append(bpy.context.active_object)
     select_only(studs)
     bpy.ops.object.join()
-    kit.append(tag(transfer_weights(bpy.context.active_object), 'studs', 'Steel'))
+    kit.append(tag(ao_white(transfer_weights(bpy.context.active_object)), 'studs', 'Steel'))
     return kit
 
 
@@ -341,6 +413,53 @@ def downsample(px, factor):
     return px.reshape(h // factor, factor, w // factor, factor, -1).mean(axis=(1, 3))
 
 
+def bake_ao(size=1024, distance=0.35):
+    """Cycles ambient occlusion of the bare body in its own UV layout, at rest. Cloth and leather cut from the body share
+    that layout, so one bake serves the skin (multiplied in) and every extracted piece (as a glTF occlusion map)."""
+    scene = bpy.context.scene
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = 32
+    scene.world = scene.world or bpy.data.worlds.new('bake')
+    scene.world.light_settings.distance = distance
+    scene.render.bake.margin = 8
+    img = bpy.data.images.new('ao', size, size)
+    mat = bpy.data.materials.new('bake')
+    mat.use_nodes = True
+    node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    node.image = img
+    mat.node_tree.nodes.active = node
+    previous = [m for m in body.data.materials]
+    body.data.materials.clear()
+    body.data.materials.append(mat)
+    select_only([body])
+    bpy.ops.object.bake(type='AO', use_clear=True)
+    body.data.materials.clear()
+    for m in previous:
+        body.data.materials.append(m)
+    px = np.empty(size * size * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    ao = px.reshape(size, size, 4)[:, :, 0]
+    return np.clip(ao, 0, 1)
+
+
+AO = None
+
+
+def occlusion_map():
+    """The baked occlusion as a shared greyscale JPEG (contact shadow under straps, arms, jaw, between fingers)."""
+    soft = np.clip(AO ** 1.3, 0, 1)
+    return save_jpeg('ao_body', np.stack([soft, soft, soft], axis=2), 'Non-Color')
+
+
+def hair_maps():
+    """The CC0 hair set at 512: dark cropped hair with a soft hairline instead of a flat cap."""
+    colour = downsample(load_pixels(f'{TEXTURES}/T_Hair_1_BaseColor.png', 'sRGB'), 4)
+    colour = colour * np.array([0.55, 0.42, 0.32])[None, None, :] * 0.7  # dark brown, keeps the strand shading
+    normal = downsample(load_pixels(f'{TEXTURES}/T_Hair_1_Normal.png', 'Non-Color'), 4)
+    return {'baseColor': save_jpeg('hair_color', colour, 'sRGB'), 'normal': save_jpeg('hair_normal', normal, 'Non-Color')}
+
+
 def skin_maps():
     """Mobile-sized skin maps from the CC0 source with an ash-and-grit pass: grey dust in the noise, dark speckles, no clean skin."""
     os.makedirs(materials_out, exist_ok=True)
@@ -353,6 +472,8 @@ def skin_maps():
     out_colour = colour * (1 - dust[..., None] * 0.5) + ash * dust[..., None] * 0.5
     out_colour = out_colour * (1 - speck[..., None] * 0.4) + grime * speck[..., None] * 0.4
     out_colour *= np.array([0.92, 0.86, 0.80])[None, None, :]  # sun-darkened, less pink
+    cavity = (0.42 + 0.58 * np.clip(AO, 0, 1) ** 1.6)[..., None]  # baked occlusion as dirt and shadow in every crease
+    out_colour = out_colour * cavity
     normal = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Normal.png', 'Non-Color'), 2)
     rough = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Roughness.png', 'Non-Color'), 4)[:, :, 0]
     rough = np.clip(rough * 0.85 + dust[::2, ::2] * 0.25, 0, 1)
@@ -419,6 +540,7 @@ def ranger_maps():
 if proof:
     export_kit([proof_ring()], os.path.join(out, 'proof_ring.glb'), skins=False)
 else:
+    AO = bake_ao()  # bare body only: every later piece would occlude it
     export_kit(level1_kit(), os.path.join(out, 'level1.glb'))
     export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
     helm, crest = bronze_helmet()
@@ -428,8 +550,12 @@ if not proof:
     import json
     manifest_path = os.path.join(materials_out, 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
-    for name, maps, scale in [('Skin', skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7)]:
+    ao_file = os.path.basename(occlusion_map())
+    for name, maps, scale in [('Skin', skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)]:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale
         print(f'MAPS {name} {maps}')
+    manifest['Skin']['occlusion'] = ao_file
+    for name in ['Gambeson', 'Leather', 'Heraldry', 'Steel']:  # procedural colour, baked occlusion via TEXCOORD_1
+        manifest[name] = {'occlusion': ao_file, 'occlusionTexCoord': 1}
     json.dump(manifest, open(manifest_path, 'w'), indent=1)

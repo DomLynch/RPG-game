@@ -241,7 +241,7 @@ const api = {
       if (materials.some(m => m.name === o.material.name)) return;
       const maps = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'].filter(k => o.material[k]);
       materials.push({ name: o.material.name, maps, metalness: o.material.metalness, roughness: o.material.roughness });
-      for (const k of maps) { const t = o.material[k], img = t.image; textures.set(t.uuid, { material: o.material.name, slot: k, width: img.width, height: img.height, bytes: Math.round(img.width * img.height * 4 * 4 / 3) }); }
+      for (const k of maps) { const t = o.material[k], img = t.image; textures.set(t.source?.uuid ?? t.uuid, { material: o.material.name, slot: k, width: img.width, height: img.height, bytes: Math.round(img.width * img.height * 4 * 4 / 3) }); } // one upload per shared source
     });
     for (const f of arenaFloor) f.visible = false; frame(...LOCK.landscape, GAME_RATIO); lockCamera(); renderer.render(arena, camera);
     const characterOnly = { drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, fighters: 2 };

@@ -64,8 +64,16 @@ function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = '') {
     g.setAttribute('skinWeight', new T.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 ? 0 : 1), 4));
   }
   // Every bucket merges into one draw: keep only the attributes the game reads so authored and primitive parts agree.
-  for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'skinIndex', 'skinWeight'].includes(name)) g.deleteAttribute(name);
+  for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'uv1', 'skinIndex', 'skinWeight'].includes(name)) g.deleteAttribute(name);
+  withAoUv(g);
   parts.get(material).push(g);
+}
+// TEXCOORD_1 addresses the baked body occlusion. Pieces cut from the body carry the body's layout; anything else points
+// at a fully lit texel so it takes no shadow it did not earn.
+const AO_WHITE = [0.85, 0.30];
+function withAoUv(g) {
+  if (!g.getAttribute('uv1')) g.setAttribute('uv1', new T.Float32BufferAttribute(Array.from({ length: g.getAttribute('position').count * 2 }, (_, i) => AO_WHITE[i % 2]), 2));
+  return g;
 }
 function plate(x, y, z, sx, sy, sz, material, bone) {
   add(new T.SphereGeometry(1, 20, 12).scale(sx, sy, sz), material, bone, x, y, z);
@@ -163,7 +171,7 @@ function bladeGeometry(base, tip, width, thickness, pointFraction = .14, segment
 }
 function sword(name, parent) {
   const group = new T.Group(); group.name = name; parent.add(group);
-  const piece = (geometry, material, y) => { const mesh = new T.Mesh(geometry, material); mesh.position.y = y; group.add(mesh); };
+  const piece = (geometry, material, y) => { const mesh = new T.Mesh(withAoUv(geometry), material); mesh.position.y = y; group.add(mesh); };
   piece(bladeGeometry(.10, .86, .046, .007), blade, 0);
   piece(new T.CapsuleGeometry(.011, .21, 3, 10).rotateZ(Math.PI / 2), trim, .092);           // rounded bronze crossguard
   piece(new T.CylinderGeometry(.013, .015, .15, 10), leather, -.003);                         // wrapped grip
@@ -403,10 +411,13 @@ await fs.mkdir('src/assets',{recursive:true});
 // procedural maps below; unlisted ones keep them. No manifest → identical output.
 const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials';
 const manifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest.json'), 'utf8').catch(() => '{}'));
-const authored = new Map();
+const authored = new Map(), files = new Map(); // one object per file so a map shared by several materials is embedded once
 for (const [name, maps] of Object.entries(manifest)) {
-  const entry = { normalScale: maps.normalScale };
-  for (const slot of ['baseColor', 'metallicRoughness', 'normal']) if (maps[slot]) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, maps[slot])), mime: /\.jpe?g$/i.test(maps[slot]) ? 'image/jpeg' : 'image/png' };
+  const entry = { normalScale: maps.normalScale, occlusionTexCoord: maps.occlusionTexCoord ?? 0 };
+  for (const slot of ['baseColor', 'metallicRoughness', 'normal', 'occlusion']) if (maps[slot]) {
+    if (!files.has(maps[slot])) files.set(maps[slot], { bytes: await fs.readFile(path.join(materialsDir, maps[slot])), mime: /\.jpe?g$/i.test(maps[slot]) ? 'image/jpeg' : 'image/png' });
+    entry[slot] = files.get(maps[slot]);
+  }
   authored.set(name, entry);
 }
 const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
@@ -453,6 +464,7 @@ function finishMaterials(glb, authored = new Map()) {
     if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};p.baseColorFactor=[1,1,1,1];}
     if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
     if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
+    if(a.occlusion) {a.occlusion.index ??= image(a.occlusion.bytes,a.occlusion.mime); m.occlusionTexture={index:a.occlusion.index,texCoord:a.occlusionTexCoord,strength:1};} // one shared image across materials
     if(m.name==='Blade') {p.metallicRoughnessTexture={index:rough};p.roughnessFactor=.7;m.normalTexture={index:grain,scale:.15};}
     if(m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
     if(m.name==='Gambeson'||m.name==='Heraldry') {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
