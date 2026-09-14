@@ -152,6 +152,7 @@ for (const item of (process.env.WARRIOR_ITEMS || '').split(',').filter(Boolean))
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
 add(bladeGeometry(-.33, .33, .06, .026, .12).rotateZ(Math.PI), leather, 'pelvis', -.24, .79, -.13, -.19);
 add(new T.CylinderGeometry(.031, .031, .03, 12), trim, 'pelvis', -.24, .79 + .30, -.13, -.19);
+add(new T.TorusGeometry(.036, .007, 6, 18).rotateX(Math.PI / 2), leather, 'pelvis', -.24, .79 + .26, -.13, -.19); // belt loop holding the scabbard
 add(new T.CylinderGeometry(.008, .016, .05, 10), trim, 'pelvis', -.24, .79 - .30, -.13, -.19);
 // Separate sword nodes allow a presentation-only transfer from scabbard to hand.
 // Diamond-section blade: a centre ridge that catches the key light, tapering to a point. Length and tip stay where the

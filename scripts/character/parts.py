@@ -236,7 +236,8 @@ def level1_kit():
     for i in range(11):
         ang = (i + 0.5) / 11 * math.pi * 2 - math.pi / 2  # ring_strip's angle 0 is +x; start at the front
         half = 0.13
-        kit.append(ring_strip(f'kilt_{i}', 'Heraldry', top, bottom, 0.0, 0.28, arc=(ang - half, ang + half), segments=3,
+        length = 0.25 + ((i * 7) % 5) * 0.012  # a worn, uneven hem
+        kit.append(ring_strip(f'kilt_{i}', 'Heraldry', top, bottom, 0.0, length, arc=(ang - half, ang + half), segments=3,
                               lift=0.026, thickness=0.005, probe_radius=0.16, max_reach=0.19, rows_n=7))
     # Iron studs along the baldric and belt: the kit's only metal, skinned like the leather beneath it.
     studs = []
