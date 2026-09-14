@@ -30,7 +30,12 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   const page = await open(context);
   console.log(`Capturing ${label} (${commit}) →`);
+  if (args.includes('--moodboard')) { // Direction proposal only: swatches and silhouette blockout, no baseline captures.
+    for (const [name, data] of Object.entries(await page.evaluate(() => __preview.moodboard()))) await save(`${name}.png`, data);
+    if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
+  }
   await save('inspection-turntable.png', await page.evaluate(() => __preview.turntable()));
+  await save('details.png', await page.evaluate(() => __preview.details()));
   await save('clips.png', await page.evaluate(() => __preview.clipSheet()));
   for (const orientation of ['portrait', 'landscape']) for (const moment of ['ready', 'attack'])
     await save(`gameplay-${orientation}-${moment}.png`, await page.evaluate(([o, m]) => __preview.lockStill(o, m), [orientation, moment]));

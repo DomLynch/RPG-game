@@ -16,10 +16,15 @@ Owner direction (2026-09-14): mobile-first, AAA-grade visual fidelity, "wow fact
   - `node scripts/character-preview.mjs --label <name> --against baseline` → same, plus a Δ table
   - `node scripts/character-preview.mjs --serve` → dev server for manual review (turntable, clip scrub, lock views)
 
-Outputs per label: `inspection-turntable.png` (8 angles, both fighters, Armed t=0), `clips.png` (24 key frames across all 21 clips),
+Outputs per label: `inspection-turntable.png` (8 angles, both fighters, Armed t=0), `details.png` (12 close-ups: head, neck, shoulder,
+armpit, guard, grip ×2, sword, feet ×2, hips), `clips.png` (24 key frames across all 21 clips),
 `gameplay-{portrait,landscape}-{ready,attack}.png` (true lock camera at 390×844 / 844×390 @1.5), `sequence.png` (6 s combat
 sequence, 24 frames @0.25 s, true framing), `sequence-zoom.png` (same frames, 2× crop around the fighters), `sequence.webm`
 (real-time playback, feel reference only), `stats.json`.
+
+Mood board (Task 2): `node scripts/character-preview.mjs --label moodboard --moodboard` → `scripts/character-moodboard.js` renders
+procedural material swatches under the arena lighting (near + at lock distance) and a primitive silhouette blockout on the real rig.
+Audit: `audit/DEFECTS.md`. Direction proposal: `moodboard/DIRECTION.md` (owner pick pending).
 
 ## Baseline resource table (60e94b3)
 | resource | baseline |
