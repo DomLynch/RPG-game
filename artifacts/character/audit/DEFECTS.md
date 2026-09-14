@@ -21,3 +21,11 @@ gambeson under-cloth is near-black so joints read as holes (`swatches-near.png` 
 untextured strip (runtime, not this lane).
 
 None of the ten require changing the skeleton, clip names, durations or blade contact frames.
+
+## Disposition after character pass v1 (humanoid-v5)
+1 plastic → fixed (skin/leather/linen maps, iron/bronze/blade materials). 2 cool-on-cool → fixed (skin, linen, leather, red
+cloth against the grey floor). 3 toy silhouette → changed: human outline, kilt and baldric; the crested helmet/shoulder tier
+adds the asymmetry later. 4 twins → improved: Heraldry now covers skirt + strips (red vs brown lower half); hair/skin variants
+are a runtime-material request. 5 helmet → removed (bare head, face visible); higher-tier helmets are slot items.
+6 shoulders → removed (bare shoulders; kit inherits body weights). 7 hands/grip → bare hands with fingers; grip sits in the fist.
+8 held-frame Guard → OPEN (motion pass / UAL2). 9 feet/scabbard → sandal-boots and a real scabbard. 10 sword → fixed.

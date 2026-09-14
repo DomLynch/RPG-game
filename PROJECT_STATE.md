@@ -153,3 +153,36 @@ Owner authorized all three passes in order and one audit before completing each,
 - Shared enforcement is already installed by the hooks task at c4aa0ce, not pending: independently compared all 28 Codex/23 Claude tracked files with the Mac installs, checked global registrations, verified GitHub CI success, and reran 14 enforcement tests per installed agent on Mac and VPS. No duplicate shared-hook edit.
 - Fresh RPG reruns exposed a brittle parry browser driver. Replaced post-poll fixed sleep/layout lookup with a timestamp captured on the first rendered warning and a precomputed target after Draw finishes. Diagnostics caught an intermediate stale target hitting the newly shown Kick row; waiting for armed Guard/Kick readiness fixes the coordinates. A successful public rerun recorded the real Guard pointer event at ~520ms, Parried, 40-damage counter, 8-damage kick and exact35 swipe cost. Assertions and simulation rules are unchanged. Final required/local and public reruns follow this source revision.
 - Earlier timing/target failures are harness failures, retained in tool output; a deliberately late guard remains an expected negative control. Physical Safari and original-device recurrence of the two historical graphics issues remain outside these Chromium receipts.
+
+## Character pass v1 — 2026-09-14 (branch `char/hero-v1`, worktree, no runtime files changed)
+Owner decision: one universal humanoid with collectable equipment slots; level-1 starting kit first. The tin-can knight is
+replaced by the whole CC0 body (face, eyes, eyebrows, buzzed hair, own skin/normal/roughness maps at 1024/512 JPEG with an
+original ash-and-grit pass) and a level-1 kit generated headlessly in Blender from the body surface (sleeveless linen tunic,
+studded leather baldric and belt, forearm wraps, sandal-boots, dyed under-skirt and kilt strips on the Heraldry surface,
+iron studs on the Steel surface). Longsword rebuilt with a diamond blade, bronze furniture and a real scabbard; the
+SwordDrawn/SwordSheathed nodes and sampled tip are unchanged, so `src/blade-paths.ts` is byte-identical after re-bake.
+
+Evidence (identical camera/lighting per view; harness in `character-preview.html` + `scripts/character-preview.mjs`):
+`artifacts/character/baseline/*` (60e94b3) vs `artifacts/character/humanoid-v5/*` — turntable, 21-clip sheet, 12 close-ups,
+lock-camera stills at 390×844 and 844×390 @1.5, 6 s combat sequence. Audit of the baseline: `artifacts/character/audit/DEFECTS.md`.
+
+| resource (per fighter unless noted) | baseline 60e94b3 | character pass v1 |
+|---|---|---|
+| triangles | 35,330 | 25,208 |
+| draw calls, two fighters incl. shadow pass | 36 | 56 (10 materials; Eyes/Eyebrows/Hair/Blade are candidates to merge) |
+| GLB raw / gzip | 3.39 MB / 1.10 MB | 3.51 MB / 1.64 MB (JPEG maps do not gzip) |
+| texture memory with mips | 1.4 MB (four 256² maps) | 15.4 MB (1024² skin colour+normal, 512² ORM, rest 256²) |
+| dist gzip (check-budget) | 1.28 MB | 1.82 MB (limit 5 MB) |
+
+GAMEPLAY CHANGE flags: none. Contract held: 21 clips in order and duration, `Steel` skinned mesh with maps, both sword
+attachments under `hand_r`, `Heraldry` material recoloured by the runtime, blade paths unchanged, 71 tests, budget and browser
+gate green on every commit.
+
+Reproducible build: `blender -b -P scripts/character/parts.py` (writes `src/assets/source/parts/level1.glb` and the skin maps +
+`manifest.json`; committed) → `npm run build:warrior` → `node scripts/bake-blades.mjs` → `npm run quality`.
+
+Remaining in this lane: motion pass from Quaternius UAL2 [Standard] (CC0; owner to place the zip at
+`artifacts/source/animations2.zip`) — non-contact clips inside the contract, attack clips prepared as flagged candidates for
+combat review; then the bronze crested helmet as the first higher-tier helmet slot. Requests to the lead in
+`artifacts/character/REQUESTS.md` (GAME_SPEC art-direction text, equipment-slot contract, N8AO, Guard clip duration).
+Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `npm run quality` → deploy.

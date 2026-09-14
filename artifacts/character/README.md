@@ -26,6 +26,10 @@ Mood board (Task 2): `node scripts/character-preview.mjs --label moodboard --moo
 procedural material swatches under the arena lighting (near + at lock distance) and a primitive silhouette blockout on the real rig.
 Audit: `audit/DEFECTS.md`. Direction proposal: `moodboard/DIRECTION.md` (owner pick pending).
 
+## Labels
+`baseline` (60e94b3 tin-can knight) · `base-source` (raw CC0 body via `--src`) · `level1-kit-raw` (kit parts alone) ·
+`humanoid-v1…v5` (iterations; v5 = weapon pass, committed 131cd52) · `moodboard` (direction pick) · `proof-*` (pipeline proofs, deleted).
+
 ## Baseline resource table (60e94b3)
 | resource | baseline |
 |---|---|
