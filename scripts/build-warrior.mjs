@@ -342,6 +342,38 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
  }
  clips.push(new T.AnimationClip(name,1,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
 }
+// GAMEPLAY CHANGE candidates (opt-in, combat review decides): strikes from UAL2 replace the authored attacks. Each candidate
+// joins a strike with its recovery, finds the blade's most-forward instant, and retimes piecewise so that instant lands on
+// the contract's contact fraction at the contract's duration. Moves the blade during contact → re-bake, tests, review.
+if (process.env.WARRIOR_UAL2_ATTACKS) {
+  const strike = (name, sources, duration, keyFraction) => {
+    const joined = new Map(); let offset = 0;
+    for (const [lib, src] of sources) {
+      const clip = retargetClip(lib, src, src);
+      for (const track of clip.tracks) {
+        const size = track.getValueSize(), entry = joined.get(track.name) ?? { times: [], values: [], size, Track: track.constructor };
+        for (let i = 0; i < track.times.length; i++) { entry.times.push(track.times[i] + offset); entry.values.push(...track.values.subarray(i * size, (i + 1) * size)); }
+        joined.set(track.name, entry);
+      }
+      offset += clip.duration;
+    }
+    const clip = new T.AnimationClip(name, offset, [...joined].map(([n, e]) => new e.Track(n, e.times, e.values)));
+    const mixer = new T.AnimationMixer(base.scene), action = mixer.clipAction(clip).play(); let hit = 0, best = -Infinity;
+    for (let t = 0; t <= offset; t += 1 / 120) { mixer.setTime(t); base.scene.updateMatrixWorld(true); const z = drawn.localToWorld(new T.Vector3(0, .86, 0)).z; if (z > best) { best = z; hit = t; } }
+    action.stop(); mixer.uncacheClip(clip);
+    const key = keyFraction * duration, map = t => t <= hit ? t / hit * key : key + (t - hit) / (offset - hit) * (duration - key);
+    for (const track of clip.tracks) track.times = new Float32Array(Array.from(track.times, map));
+    clip.duration = duration; console.log(`  candidate ${name}: ${sources.map(x => x[1]).join('+')} hit at ${hit.toFixed(2)}s (tip z ${best.toFixed(2)}) → key ${key.toFixed(3)}s of ${duration}s`);
+    return clip;
+  };
+  const candidates = [
+    strike('Attack', [[library2, 'Sword_Regular_A'], [library2, 'Sword_Regular_A_Rec']], 1.533, 18 / 66),
+    strike('Return', [[library2, 'Sword_Regular_B'], [library2, 'Sword_Regular_B_Rec']], 1.533, 1 - 18 / 66),
+    strike('Heavy', [[library2, 'Sword_Regular_C']], 1, .48),
+    strike('Riposte', [[library2, 'Sword_Dash']], 1, .34),
+  ];
+  for (const c of candidates) clips[clips.findIndex(k => k.name === c.name)] = c;
+}
 base.scene.name='Ashcourt warrior';
 base.scene.scale.set(.9,.97,.97); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);

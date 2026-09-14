@@ -19,3 +19,12 @@
 5. **Runtime (lead): equipment slots.** The GLB now carries one skinned draw per (slot, material) with `extras.slot` ∈
    Helmet/Body/Arms/Gloves/Legs/Boots/Shield ('' = built-in). Showing/hiding a slot is `object.visible` by `userData.slot`;
    swapping a slot is loading another part GLB and binding it to the same skeleton. No runtime change made by this lane.
+
+6. **Combat review — UAL2 attack candidates (GAMEPLAY CHANGE).** `WARRIOR_UAL2_ATTACKS=1 node scripts/build-warrior.mjs`
+   replaces Attack/Return/Heavy/Riposte with UAL2 strikes (Sword_Regular_A+Rec, Sword_Regular_B+Rec, Sword_Regular_C,
+   Sword_Dash), each retimed so the blade's most-forward instant lands on the contract contact fraction. Evidence:
+   `artifacts/character/ual2-attacks/sheet.png`, the variant GLB and its baked `blade-paths-ual2-attacks.ts` in the same folder.
+   With the variant, `npm test` fails 3/71: the backhand's contact tip sits 0.94 m to the side (test allows ±0.45 m) and two
+   combat-sim expectations change (enemy health 100 vs 60; 50 vs 0) because the swept paths land differently. The heavy
+   candidate leaves the ground. Nothing is shipped; the default build is unchanged. Decision: adopt per clip with re-tuned
+   contact windows, or keep the authored strikes.
