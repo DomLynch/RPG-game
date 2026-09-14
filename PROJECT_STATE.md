@@ -181,10 +181,13 @@ gate green on every commit.
 Reproducible build: `blender -b -P scripts/character/parts.py` (writes `src/assets/source/parts/level1.glb` and the skin maps +
 `manifest.json`; committed) → `npm run build:warrior` → `node scripts/bake-blades.mjs` → `npm run quality`.
 
-Since then (same branch): equipment-slot draws (one skinned mesh per slot × material, `extras.slot`); Guard replaced by the
-CC0 UAL2 `Sword_Block` raise-and-hold retimed to 1 s (Parry/BlockImpact derive from its hold; blade paths unchanged); UAL2
-attack candidates prepared as an opt-in build (`WARRIOR_UAL2_ATTACKS=1`, fails 3/71 on contact geometry → combat review,
-REQUESTS.md #6). Remaining: equipment items from Quaternius Modular Character Outfits – Fantasy (CC0, rigged to this body;
-owner download pending), starting with the bronze crested helmet slot. Requests to the lead in
+Since then (same branch, through 735a1bf): equipment-slot draws (one skinned mesh per slot × material, `extras.slot`; hair is
+its own slot); Guard replaced by the CC0 UAL2 `Sword_Block` raise-and-hold retimed to 1 s (Parry/BlockImpact derive from its
+hold; blade paths unchanged); UAL2 attack candidates as an opt-in build (`WARRIOR_UAL2_ATTACKS=1`, fails 3/71 on contact
+geometry → combat review, REQUESTS.md #6); equipment items as demo builds (`WARRIOR_ITEMS=ranger,helmet_bronze`): Ranger boots,
+bracers and pauldron from the CC0 outfit pack with re-tinted maps, and an original bronze crested helm (first Helmet slot; hides
+hair). Per-fighter triangle ceiling raised 40k→60k by the owner (REQUESTS.md #7). Evidence per label under
+`artifacts/character/` (`humanoid-v6` = shipped default; `items-ranger`, `items-helmet` = demo builds). Remaining for the lead:
+runtime slot show/hide/swap, the helmet-height test ceiling (REQUESTS.md #9), combat review of the attack candidates. Requests to the lead in
 `artifacts/character/REQUESTS.md` (GAME_SPEC art-direction text, equipment-slot contract, N8AO, Guard clip duration).
 Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `npm run quality` → deploy.
