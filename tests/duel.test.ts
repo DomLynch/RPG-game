@@ -108,6 +108,7 @@ test('a fresh parry that meets nothing can leave the fighter exposed when the ru
   d = stepDuel(d, [hold(), idle()], rules);
   assert.equal(d.fighters[0].phase, 'ready'); assert.equal(d.fighters[0].exposed, 6);
   assert.equal(stepDuel(d, [hold(), idle()], rules).fighters[0].phase, 'ready', 'guard is refused while exposed');
+  assert.equal(legal(d.fighters[0], 'parry'), false, 'the control gate agrees with the engine while exposed');
   assert.equal(run(d, 5, hold(), idle(), rules).fighters[0].phase, 'ready');
   assert.equal(run(d, 7, hold(), idle(), rules).fighters[0].phase, 'guard', 'exposure ends and the held guard engages');
   assert.equal(run(stepDuel(duel(), [act('parry', { guard: true }), idle()]), RULES.parry + 2, hold()).fighters[0].phase, 'guard', 'default rules keep the held guard');
@@ -243,6 +244,10 @@ test('heavy breaks a standing guard; kick opens a guard harder than an unguarded
   const open = run(stepDuel({ ...duel(1.05), fighters: [duel(1.05).fighters[0], duel(1.05).fighters[1]] }, [act('kick'), idle()]), kick.windup);
   assert.equal(open.fighters[1].health, 92); assert.equal(open.fighters[1].stamina, 100 - kick.staminaDamage); assert.equal(open.fighters[1].stun, kick.stagger);
   for (const d of [duel(2), duel(1.05, 0)]) assert.equal(run(stepDuel(d, [act('kick'), idle()]), kick.windup).fighters[1].health, 100);
+  // The kick cone is a rule of its own: a target off to the side stays in reach through the lunge yet must not be hit.
+  const beside = duel(.9, Math.PI / 2);
+  beside.fighters[0] = { ...beside.fighters[0], body: { x: 0, z: TARGET.z, heading: Math.PI / 2, distance: 0 } }; beside.fighters[1] = { ...beside.fighters[1], body: { x: 0, z: TARGET.z + .9, heading: Math.PI, distance: 0 } };
+  assert.equal(run(stepDuel(beside, [act('kick'), idle()]), kick.windup).fighters[1].health, 100, 'a target 90° off the kick line is not hit');
   // A point-blank kick lunges, so a plain backstep during its wind-up cannot walk out of reach.
   const backing = run(stepDuel(duel(.9), [act('kick'), idle()]), kick.windup, idle(), { ...idle(), move: { x: 0, z: -.4, yaw: 0, run: false }, lock: true });
   assert.equal(backing.fighters[1].health, 92);

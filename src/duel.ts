@@ -60,7 +60,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (action === 'heavy') return f.phase === 'ready' && f.stamina >= MOVES.heavy_overhead.stamina;
   if (action === 'kick') return (f.phase === 'ready' || f.phase === 'guard') && f.stamina >= MOVES.kick.stamina;
   if (action === 'dodge') return (f.phase === 'ready' || f.phase === 'guard') && f.stamina >= RULES.rollCost;
-  return f.phase === 'ready';
+  return f.phase === 'ready' && !f.exposed;
 }
 
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
