@@ -409,6 +409,55 @@ def downsample(px, factor):
     return px.reshape(h // factor, factor, w // factor, factor, -1).mean(axis=(1, 3))
 
 
+def bake_folds(part, name, size=1024, scale=0.09, strength=0.012):
+    """Tangent-space normal map of cloth folds for `part`, baked from a subdivided, procedurally displaced copy of it."""
+    scene = bpy.context.scene
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = 8
+    scene.render.bake.margin = 8
+    scene.render.bake.use_selected_to_active = True
+    scene.render.bake.cage_extrusion = 0.03
+    scene.render.bake.normal_space = 'TANGENT'
+    select_only([part])
+    bpy.ops.object.duplicate()
+    high = bpy.context.active_object
+    high.modifiers.clear()
+    lift = high.modifiers.new('Lift', 'DISPLACE')
+    lift.strength, lift.mid_level = 0.010, 0
+    sub = high.modifiers.new('Sub', 'SUBSURF')
+    sub.levels = sub.render_levels = 2
+    folds = bpy.data.textures.new('folds', type='CLOUDS')
+    folds.noise_scale, folds.noise_depth = scale, 3
+    disp = high.modifiers.new('Folds', 'DISPLACE')
+    disp.texture, disp.strength, disp.mid_level = folds, strength, 0.5
+    weave = bpy.data.textures.new('weave', type='STUCCI')
+    weave.noise_scale = 0.004
+    fine = high.modifiers.new('Weave', 'DISPLACE')
+    fine.texture, fine.strength, fine.mid_level = weave, 0.0012, 0.5
+    img = bpy.data.images.new(f'{name}_folds', size, size)
+    mat = bpy.data.materials.new(f'{name}_bake')
+    mat.use_nodes = True
+    node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    node.image = img
+    mat.node_tree.nodes.active = node
+    part.data.materials.clear()
+    part.data.materials.append(mat)
+    shell = part.modifiers.get('Shell')
+    if shell:
+        shell.show_render = shell.show_viewport = False  # bake the outer surface only
+    select_only([part, high])  # low mesh active, high mesh selected
+    bpy.ops.object.bake(type='NORMAL', use_clear=True)
+    if shell:
+        shell.show_render = shell.show_viewport = True
+    scene.render.bake.use_selected_to_active = False
+    bpy.data.objects.remove(high, do_unlink=True)
+    part.data.materials.clear()
+    px = np.empty(size * size * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    return px.reshape(size, size, 4)[:, :, :3]
+
+
 def bake_ao(size=1024, distance=0.35):
     """Cycles ambient occlusion of the bare body in its own UV layout, at rest. Cloth and leather cut from the body share
     that layout, so one bake serves the skin (multiplied in) and every extracted piece (as a glTF occlusion map)."""
@@ -456,10 +505,32 @@ def hair_maps():
     return {'baseColor': save_jpeg('hair_color', colour, 'sRGB'), 'normal': save_jpeg('hair_normal', normal, 'Non-Color')}
 
 
+def save_two_sizes(name, rgb, colorspace):
+    """Author at 2K, ship 1K: `<name>@2k.jpg` beside `<name>.jpg` (the build picks @2k with WARRIOR_TEXTURES=2k)."""
+    if rgb.shape[0] >= 2048:
+        save_jpeg(f'{name}@2k', rgb, colorspace)
+        rgb = downsample(rgb, rgb.shape[0] // 1024)
+    return save_jpeg(name, rgb, colorspace)
+
+
+def pore_normal(normal, seed=31, strength=0.35):
+    """Fine skin pores layered into a normal map: high-frequency noise slopes added to the tangent components."""
+    size = normal.shape[0]
+    rng = np.random.default_rng(seed)
+    fine = rng.random((size, size)).astype(np.float32)
+    fine = (fine + np.roll(fine, 1, 0) + np.roll(fine, 1, 1) + np.roll(np.roll(fine, 1, 0), 1, 1)) / 4  # soften to ~2 px pores
+    gy, gx = np.gradient(fine)
+    out = normal.copy()
+    out[..., 0] = np.clip(out[..., 0] - gx * strength, 0, 1)
+    out[..., 1] = np.clip(out[..., 1] + gy * strength, 0, 1)
+    return out
+
+
 def skin_maps():
-    """Mobile-sized skin maps from the CC0 source with an ash-and-grit pass: grey dust in the noise, dark speckles, no clean skin."""
+    """Skin maps from the CC0 source with an ash-and-grit pass: grey dust in the noise, dark speckles, no clean skin.
+    Authored at the source's 2K; the shipped default is the 1K downsample."""
     os.makedirs(materials_out, exist_ok=True)
-    colour = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Ligh.png', 'sRGB'), 2)
+    colour = load_pixels(f'{TEXTURES}/T_Superhero_Male_Ligh.png', 'sRGB')
     size = colour.shape[0]
     dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.40) * 2.4, 0, 1)
     speck = (np.random.default_rng(2).random((size, size)) < 0.006).astype(np.float32) * (fbm(size, 3) > 0.45)
@@ -468,18 +539,20 @@ def skin_maps():
     out_colour = colour * (1 - dust[..., None] * 0.5) + ash * dust[..., None] * 0.5
     out_colour = out_colour * (1 - speck[..., None] * 0.4) + grime * speck[..., None] * 0.4
     out_colour *= np.array([0.92, 0.86, 0.80])[None, None, :]  # sun-darkened, less pink
-    cavity = (0.42 + 0.58 * np.clip(AO, 0, 1) ** 1.6)[..., None]  # baked occlusion as dirt and shadow in every crease
+    ao_full = upsample(AO, size) if AO.shape[0] != size else AO
+    cavity = (0.42 + 0.58 * np.clip(ao_full, 0, 1) ** 1.6)[..., None]  # baked occlusion as dirt and shadow in every crease
     out_colour = out_colour * cavity
     # Stubble: fine dark grain over the jaw and upper lip of the face island (atlas rows are bottom-up).
     yy, xx = np.mgrid[0:size, 0:size] / size
     jaw = np.exp(-((yy - 0.80) / 0.045) ** 2) * (xx < 0.34) * (np.abs(xx - 0.17) < 0.12)
     grain = (np.random.default_rng(5).random((size, size)) < 0.35).astype(np.float32)
     out_colour = out_colour * (1 - (jaw * grain * 0.22)[..., None])
-    normal = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Normal.png', 'Non-Color'), 2)
+    normal = pore_normal(load_pixels(f'{TEXTURES}/T_Superhero_Male_Normal.png', 'Non-Color'))
     rough = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Roughness.png', 'Non-Color'), 4)[:, :, 0]
-    rough = np.clip(rough * 0.85 + dust[::2, ::2] * 0.25 + (fbm(size // 2, 8) - 0.5) * 0.25, 0, 1)  # oil and sweat vary the sheen
+    r = rough.shape[0]
+    rough = np.clip(rough * 0.85 + dust[::size // r, ::size // r] * 0.25 + (fbm(r, 8) - 0.5) * 0.25, 0, 1)  # oil and sweat vary the sheen
     orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
-    return {'baseColor': save_jpeg('skin_color', out_colour, 'sRGB'), 'normal': save_jpeg('skin_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('skin_orm', orm, 'Non-Color')}
+    return {'baseColor': save_two_sizes('skin_color', out_colour, 'sRGB'), 'normal': save_two_sizes('skin_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('skin_orm', orm, 'Non-Color')}
 
 
 OUTFITS = 'artifacts/source/outfits/Modular Character Outfits - Fantasy[Standard]'
@@ -542,7 +615,10 @@ if proof:
     export_kit([proof_ring()], os.path.join(out, 'proof_ring.glb'), skins=False)
 else:
     AO = bake_ao()  # bare body only: every later piece would occlude it
-    export_kit(level1_kit(), os.path.join(out, 'level1.glb'))
+    kit = level1_kit()
+    tunic = next(o for o in kit if o.name == 'tunic')
+    GAMBESON_NORMAL = save_jpeg('gambeson_normal', bake_folds(tunic, 'tunic'), 'Non-Color')
+    export_kit(kit, os.path.join(out, 'level1.glb'))
     export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
     helm, crest = bronze_helmet()
     export_kit([helm], 'src/assets/source/items/helmet_bronze.glb')   # a poor gladiator's first helm: plain
@@ -559,4 +635,6 @@ if not proof:
     manifest['Skin']['occlusion'] = ao_file
     for name in ['Gambeson', 'Leather', 'Heraldry', 'Steel']:  # procedural colour, baked occlusion via TEXCOORD_1
         manifest[name] = {'occlusion': ao_file, 'occlusionTexCoord': 1}
+    manifest['Gambeson']['normal'] = os.path.basename(GAMBESON_NORMAL)  # baked folds in the tunic's own layout
+    manifest['Gambeson']['normalScale'] = 1.0
     json.dump(manifest, open(manifest_path, 'w'), indent=1)

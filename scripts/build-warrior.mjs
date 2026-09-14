@@ -416,7 +416,8 @@ const authored = new Map(), files = new Map(); // one object per file so a map s
 for (const [name, maps] of Object.entries(manifest)) {
   const entry = { normalScale: maps.normalScale, occlusionTexCoord: maps.occlusionTexCoord ?? 0 };
   for (const slot of ['baseColor', 'metallicRoughness', 'normal', 'occlusion']) if (maps[slot]) {
-    if (!files.has(maps[slot])) files.set(maps[slot], { bytes: await fs.readFile(path.join(materialsDir, maps[slot])), mime: /\.jpe?g$/i.test(maps[slot]) ? 'image/jpeg' : 'image/png' });
+    const hi = maps[slot].replace(/\.(jpe?g|png)$/i, '@2k.$1'), file = process.env.WARRIOR_TEXTURES === '2k' && await fs.stat(path.join(materialsDir, hi)).then(() => true, () => false) ? hi : maps[slot];
+    if (!files.has(maps[slot])) files.set(maps[slot], { bytes: await fs.readFile(path.join(materialsDir, file)), mime: /\.jpe?g$/i.test(file) ? 'image/jpeg' : 'image/png' });
     entry[slot] = files.get(maps[slot]);
   }
   authored.set(name, entry);

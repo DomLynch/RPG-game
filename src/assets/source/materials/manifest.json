@@ -25,7 +25,9 @@
  },
  "Gambeson": {
   "occlusion": "ao_body.jpg",
-  "occlusionTexCoord": 1
+  "occlusionTexCoord": 1,
+  "normal": "gambeson_normal.jpg",
+  "normalScale": 1.0
  },
  "Leather": {
   "occlusion": "ao_body.jpg",
