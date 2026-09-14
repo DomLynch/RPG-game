@@ -59,7 +59,9 @@ def extract(name, material, keep, lift=0.012, thickness=0.008):
     part = bpy.context.active_object
     bm = bmesh.new()
     bm.from_mesh(part.data)
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not keep(f.calc_center_median())], context='FACES')
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)  # weld UV-seam splits so only the real cut counts as a boundary
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not all(keep(v.co) for v in f.verts)], context='FACES')
+    smooth_boundary(bm)
     bm.to_mesh(part.data)
     bm.free()
     part.modifiers.clear()
@@ -72,21 +74,35 @@ def extract(name, material, keep, lift=0.012, thickness=0.008):
     return tag(part, name, material)
 
 
+def smooth_boundary(bm, passes=24, factor=0.6):
+    """Relax the cut edge along itself so a hem reads as cloth, not as the triangle mesh it was cut from."""
+    boundary = {v: [e.other_vert(v) for e in v.link_edges if e.is_boundary] for v in bm.verts if any(e.is_boundary for e in v.link_edges)}
+    for _ in range(passes):
+        target = {v: sum((n.co for n in ns), Vector()) / len(ns) for v, ns in boundary.items() if len(ns) >= 2}
+        for v, t in target.items():
+            v.co = v.co.lerp(t, factor)
+
+
 def transfer_weights(part):
     """Nearest-body-vertex skin weights for a piece that was not cut from the body (strips, studs)."""
-    select_only([part, body])
-    bpy.context.view_layer.objects.active = part
-    bpy.ops.object.data_transfer(data_type='VGROUP_WEIGHTS', vert_mapping='NEAREST', layers_select_src='ALL', layers_select_dst='NAME', use_object_transform=True)
+    select_only([part])
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)  # verts in rig space, object at origin
+    select_only([body, part])  # data_transfer copies FROM the active object TO the other selected ones
+    bpy.ops.object.data_transfer(data_type='VGROUP_WEIGHTS', vert_mapping='NEAREST', layers_select_src='ALL', layers_select_dst='NAME', use_create=True)
+    weighted = sum(1 for v in part.data.vertices if v.groups)
+    assert weighted == len(part.data.vertices), f'{part.name}: {weighted}/{len(part.data.vertices)} vertices received weights'
     arm = part.modifiers.new('Armature', 'ARMATURE')
     arm.object = armature
-    part.parent = armature
     return part
 
 
 def nearest_surface(point):
-    """Body surface point and normal closest to `point` (object space == rig space)."""
-    ok, location, normal, _ = body.closest_point_on_mesh(point)
-    return (location, normal) if ok else (point, Vector((0, -1, 0)))
+    """Body surface point and normal closest to `point`, in rig space."""
+    to_body = body.matrix_world.inverted()
+    ok, location, normal, _ = body.closest_point_on_mesh(to_body @ point)
+    if not ok:
+        return point, Vector((0, -1, 0))
+    return body.matrix_world @ location, (body.matrix_world.to_3x3() @ normal).normalized()
 
 
 # --- rig landmarks (Blender Z-up: x = character's left, y = back, z = up) ---
@@ -110,9 +126,15 @@ def along(p, a, b):
 def level1_kit():
     kit = []
     # Tunic: rough cloth over the torso and the tops of the arms, open at the neck.
-    kit.append(extract('tunic', 'Gambeson', lambda p: (in_torso(p) and p.z < neck.z - 0.035 and p.z > pelvis.z - 0.03)
-                                                       or (0.02 < along(p, shoulder_l, elbow_l) < 0.42 and abs(p.z - shoulder_l.z) < 0.11 and p.x > 0)
-                                                       or (0.02 < along(p, shoulder_r, elbow_r) < 0.42 and abs(p.z - shoulder_r.z) < 0.11 and p.x < 0)))
+    # Sleeveless: the armholes end at the shoulder joint; the neckline dips at the front.
+    def neckline(p):
+        dip = math.exp(-(p.x / 0.07) ** 2) * (0.075 if p.y < 0 else 0.025)
+        return neck.z - 0.04 - dip
+    def armhole(p):
+        return (p - shoulder_l).length < 0.105 or (p - shoulder_r).length < 0.105
+    kit.append(extract('tunic', 'Gambeson', lambda p: abs(p.x) < torso_half_width + 0.06 and pelvis.z - 0.03 < p.z < neckline(p) and not armhole(p), lift=0.010, thickness=0.005))
+    # Under-skirt: dyed cloth over hips and upper thighs, so the strips above it never show skin between them.
+    kit.append(extract('skirt', 'Heraldry', lambda p: abs(p.x) < 0.24 and pelvis.z - 0.25 < p.z < pelvis.z + 0.01, lift=0.014, thickness=0.005))
     # Baldric: a leather band from the left shoulder to the right hip, front and back.
     a, b = Vector((shoulder_l.x - 0.05, 0, shoulder_l.z)), Vector((shoulder_r.x + 0.16, 0, pelvis.z + 0.03))
     d = (b - a).normalized()
@@ -135,10 +157,10 @@ def level1_kit():
         ang = (i + 0.5) / 10 * math.pi * 2
         radial = Vector((math.sin(ang), -math.cos(ang), 0))  # -y is the front
         surface, normal = nearest_surface(pelvis + radial * 0.25 + Vector((0, 0, -0.06)))
-        top = surface + normal * 0.03
-        bpy.ops.mesh.primitive_plane_add(size=1, location=top + Vector((0, 0, -0.14)))
+        top = surface + normal * 0.028
+        bpy.ops.mesh.primitive_plane_add(size=1, location=top + Vector((0, 0, -0.12)))
         strip = bpy.context.active_object
-        strip.scale = (0.055, 1, 0.30)
+        strip.scale = (0.055, 0.26, 1)
         strip.rotation_euler = (math.radians(90), 0, math.atan2(radial.x, -radial.y))
         bpy.ops.object.transform_apply(scale=True, rotation=True)
         bpy.ops.object.modifier_add(type='SUBSURF')
@@ -153,17 +175,19 @@ def level1_kit():
     kit.append(tag(transfer_weights(kilt), 'kilt', 'Heraldry'))
     # Iron studs along the baldric and belt: the kit's only metal, skinned like the leather beneath it.
     studs = []
-    for k in range(14):
-        t = (k + 0.5) / 14
+    for k in range(16):
+        t = (k + 0.5) / 16
         for front in (True, False):
             probe = a + (b - a) * t + Vector((0, -0.3 if front else 0.3, 0))
             surface, normal = nearest_surface(probe)
-            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.009, location=surface + normal * 0.03)
+            if abs(surface.x) >= torso_half_width - 0.01:
+                continue  # the strap stops at the torso edge; so do its studs
+            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.0065, location=surface + normal * 0.026)
             studs.append(bpy.context.active_object)
     for k in range(12):
         ang = (k + 0.5) / 12 * math.pi * 2
         surface, normal = nearest_surface(pelvis + Vector((math.sin(ang) * 0.3, -math.cos(ang) * 0.3, 0.03)))
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.008, location=surface + normal * 0.032)
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.006, location=surface + normal * 0.029)
         studs.append(bpy.context.active_object)
     select_only(studs)
     bpy.ops.object.join()
@@ -229,13 +253,12 @@ def skin_maps():
     os.makedirs(materials_out, exist_ok=True)
     colour = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Ligh.png', 'sRGB'), 2)
     size = colour.shape[0]
-    dust = np.clip((fbm(size, 1) - 0.42) * 2.2, 0, 1)
-    speck = (np.random.default_rng(2).random((size, size)) < 0.012).astype(np.float32)
-    speck = np.clip(speck + np.roll(speck, 1, 0) + np.roll(speck, 1, 1), 0, 1) * fbm(size, 3)
+    dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.40) * 2.4, 0, 1)
+    speck = (np.random.default_rng(2).random((size, size)) < 0.006).astype(np.float32) * (fbm(size, 3) > 0.45)
     ash = np.array([0.20, 0.19, 0.18])[None, None, :]
     grime = np.array([0.06, 0.045, 0.035])[None, None, :]
-    out_colour = colour * (1 - dust[..., None] * 0.35) + ash * dust[..., None] * 0.35
-    out_colour = out_colour * (1 - speck[..., None] * 0.6) + grime * speck[..., None] * 0.6
+    out_colour = colour * (1 - dust[..., None] * 0.5) + ash * dust[..., None] * 0.5
+    out_colour = out_colour * (1 - speck[..., None] * 0.4) + grime * speck[..., None] * 0.4
     out_colour *= np.array([0.92, 0.86, 0.80])[None, None, :]  # sun-darkened, less pink
     normal = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Normal.png', 'Non-Color'), 2)
     rough = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Roughness.png', 'Non-Color'), 4)[:, :, 0]

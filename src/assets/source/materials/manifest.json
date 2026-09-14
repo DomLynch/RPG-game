@@ -1,0 +1,8 @@
+{
+ "Skin": {
+  "baseColor": "skin_color.jpg",
+  "normal": "skin_normal.jpg",
+  "metallicRoughness": "skin_orm.jpg",
+  "normalScale": 0.8
+ }
+}

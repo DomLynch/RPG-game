@@ -28,22 +28,19 @@ base.scene.updateMatrixWorld(true); library.scene.updateMatrixWorld(true);
 const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
-const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#303937', roughness: 0.96 });
-const steel = new T.MeshStandardMaterial({ name: 'Steel', color: '#77858b', metalness: 0.82, roughness: 0.46 });
+const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
+const steel = new T.MeshStandardMaterial({ name: 'Steel', color: '#767a7c', metalness: 0.85, roughness: 0.55 }); // iron, not chrome
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#97805a', metalness: 0.75, roughness: 0.43 });
-const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#28211d', roughness: 0.85 });
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#273f3b', roughness: 0.92, side: T.DoubleSide });
-body.material = cloth;
-body.geometry.morphAttributes = {}; body.morphTargetInfluences = []; body.morphTargetDictionary = {};
-for (const name of ['Eyes', 'Eyebrows']) base.scene.getObjectByName(name)?.removeFromParent();
-// Remove skin hidden inside the helmet. Keep the original hand topology as leather gloves.
-const indices = [], geometry = body.geometry, pos = geometry.getAttribute('position');
-for (let i = 0; i < geometry.index.count; i += 3) {
-  const triangle = [0, 1, 2].map(k => geometry.index.getX(i + k));
-  if (triangle.every(v => pos.getY(v) < 1.58)) indices.push(...triangle);
-}
-geometry.setIndex(indices);
-const parts = new Map([steel, trim, leather, heraldry].map(m => [m, []]));
+const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: 0.8 });
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#6b1a1e', roughness: 0.92, side: T.DoubleSide }); // dyed cloth; the runtime recolours the opponent's
+// The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
+const skin = new T.MeshStandardMaterial({ name: 'Skin', roughness: 1 });
+body.material = skin;
+for (const mesh of [body, base.scene.getObjectByName('Eyes'), base.scene.getObjectByName('Eyebrows')]) { mesh.geometry.morphAttributes = {}; mesh.morphTargetInfluences = []; mesh.morphTargetDictionary = {}; }
+base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .35 });
+base.scene.getObjectByName('Eyebrows').material = new T.MeshStandardMaterial({ name: 'Eyebrows', color: '#2a1e16', roughness: .85 });
+const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair].map(m => [m, []]));
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -53,9 +50,13 @@ const boneIndex = name => {
 function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0) {
   if (g.index) g = g.toNonIndexed();
   g.rotateZ(rotation); g.translate(x, y, z);
-  const count = g.getAttribute('position').count, index = boneIndex(bone);
-  g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 ? 0 : index), 4));
-  g.setAttribute('skinWeight', new T.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 ? 0 : 1), 4));
+  if (bone) { // rigid: every vertex follows one bone; otherwise the geometry already carries remapped skin weights
+    const count = g.getAttribute('position').count, index = boneIndex(bone);
+    g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 ? 0 : index), 4));
+    g.setAttribute('skinWeight', new T.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 ? 0 : 1), 4));
+  }
+  // Every bucket merges into one draw: keep only the attributes the game reads so authored and primitive parts agree.
+  for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'skinIndex', 'skinWeight'].includes(name)) g.deleteAttribute(name);
   parts.get(material).push(g);
 }
 function plate(x, y, z, sx, sy, sz, material, bone) {
@@ -85,58 +86,14 @@ function shell(rings, material, bone, z = 0) {
   g.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2)); g = mergeVertices(g);
   g.computeVertexNormals(); add(g, material, bone);
 }
-shell([[1.56,.083,.088],[1.60,.108,.108],[1.69,.119,.129],[1.76,.111,.117],[1.815,.064,.07],[1.835,.002,.002]],steel,'Head',-.018);
-// Visor eye slit, centre nose ridge, rolled lower rim and breathing perforations.
-for (let i=-9;i<=9;i++) { const a=i*.075;
-  plate(Math.sin(a)*.12,1.699,Math.cos(a)*.133-.018,.009,.0045,.004,leather,'Head');
-}
-strip(.013,.112,.018,0,1.653,.12,trim,'Head');
-band(0,1.595,-.018,.105,.005,'Head',trim,0,1.03);
-for (const side of [-1,1]) for (let i=0;i<3;i++) plate(side*(.042+i*.015),1.642,.092,.0035,.0035,.0035,leather,'Head');
-// Breastplate and articulated waist lames. A narrow centre ridge catches the key light.
-shell([[1.12,.153,.102],[1.19,.18,.117],[1.32,.23,.143],[1.43,.245,.125],[1.485,.16,.085]],steel,'spine_03');
-strip(.014,.24,.012,0,1.335,.143,trim,'spine_03');
-for (let i=0;i<3;i++) {
-  const y=1.12-i*.042, r=.155+i*.012;
-  shell([[y-.038,r+.01,.112],[y,r,.109]],steel,'pelvis');
-  band(0,y-.032,0,r+.008,.003,'pelvis',trim,0,.66);
-}
-// Backplate and a narrow heraldic panel remain legible from the play camera.
-plate(0,1.31,-.12,.205,.218,.086,steel,'spine_03');
-strip(.15,.22,.012,0,1.32,-.208,heraldry,'spine_03');
-for (const x of [-.073,.073]) strip(.004,.22,.006,x,1.32,-.218,trim,'spine_03');
-strip(.007,.135,.009,0,1.32,-.220,trim,'spine_03');
-strip(.06,.007,.009,0,1.35,-.220,trim,'spine_03');
-// Inlaid house device on the breastplate: a narrow gilt sword over dark enamel.
-plate(-.10,1.375,.125,.048,.066,.009,heraldry,'spine_03');
-strip(.005,.071,.01,-.10,1.379,.136,trim,'spine_03');
-strip(.036,.005,.01,-.10,1.399,.136,trim,'spine_03');
-// Raised gorget protects the neck, fitted close rather than oversized shoulder armour.
-shell([[1.465,.143,.09],[1.50,.105,.078],[1.55,.08,.067]],steel,'neck_01');
-band(0,1.547,0,.081,.004,'neck_01',trim,0,.83);
-// Split surcoat, belt and plain buckle. Cloth identifies the two fighters.
-for (const side of [-1,1]) {
-  strip(.17,.25,.028,side*.093,.90,.115,heraldry,'pelvis');
-  strip(.009,.24,.008,side*.17,.90,.134,trim,'pelvis');
-}
-strip(.36,.038,.028,0,1.033,.127,leather,'pelvis');
-strip(.051,.047,.012,0,1.032,.149,trim,'pelvis');
-strip(.03,.027,.013,0,1.032,.156,leather,'pelvis');
-// Shoulder caps, segmented arm plates, gauntlet cuffs and leg harness.
-for (const [side,suffix] of [[1,'l'],[-1,'r']]) {
-  const upper=`upperarm_${suffix}`, fore=`lowerarm_${suffix}`, thigh=`thigh_${suffix}`, calf=`calf_${suffix}`, foot=`foot_${suffix}`;
-  plate(side*.255,1.465,-.058,.115,.092,.112,steel,upper);
-  plate(side*.306,1.44,-.058,.092,.073,.105,steel,upper);
-  plate(side*.365,1.45,-.062,.105,.067,.074,steel,upper);
-  plate(side*.465,1.457,-.071,.059,.076,.078,steel,fore);
-  plate(side*.588,1.453,-.069,.103,.061,.068,steel,fore);
-  band(side*.67,1.455,-.068,.063,.005,fore,trim,Math.PI/2);
-  plate(side*.113,.78,-.035,.102,.178,.112,steel,thigh);
-  knee(side*.114,calf);
-  plate(side*.114,.324,-.048,.072,.195,.082,steel,calf);
-  plate(side*.114,.075,.014,.078,.066,.148,steel,foot);
-  for (let i=0;i<3;i++) strip(.13,.007,.012,side*.114,.116-i*.007,.04+i*.028,trim,foot);
-  for (let i=0;i<3;i++) plate(side*(.20+i*.035),1.50,-.06+.11,.004,.004,.004,trim,upper);
+// Level-1 kit and every later tier come from authored parts (below). Buzzed hair from the CC0 pack sits on the head.
+{
+  const hairDir = path.join(source, 'base/Universal Base Characters[Standard]/Hairstyles/Rigged to Head Bone/glTF (Godot -Unreal)');
+  const hairJson = JSON.parse(await fs.readFile(path.join(hairDir, 'Hair_Buzzed.gltf'), 'utf8'));
+  hairJson.images = []; hairJson.textures = []; hairJson.materials = hairJson.materials.map(m => ({ name: m.name }));
+  for (const buffer of hairJson.buffers) buffer.uri = 'data:application/octet-stream;base64,' + (await fs.readFile(path.join(hairDir, buffer.uri))).toString('base64');
+  const asset = await loader.parseAsync(JSON.stringify(hairJson), ''); asset.scene.updateMatrixWorld(true);
+  asset.scene.traverse(o => { if (o.isMesh) add(o.geometry.clone().applyMatrix4(o.matrixWorld), hair, 'Head'); });
 }
 // Authored parts from scripts/character/parts.py: meshes in this same unscaled rest space, rigid to extras.bone,
 // merged into the per-material skinned draws exactly like the primitives above. No parts → identical output.
@@ -147,8 +104,13 @@ for (const file of (await fs.readdir(partsDir).catch(() => [])).filter(f => f.en
   part.scene.traverse(o => {
     if (!o.isMesh) return;
     const material = [...parts.keys()].find(m => m.name === o.userData.material);
-    if (!material || !o.userData.bone) throw new Error(`${file}: mesh ${o.name} needs extras.material (${[...parts.keys()].map(m => m.name).join('|')}) and extras.bone`);
-    add(o.geometry.clone().applyMatrix4(o.matrixWorld), material, o.userData.bone);
+    if (!material || (!o.userData.bone && !o.isSkinnedMesh)) throw new Error(`${file}: mesh ${o.name} needs extras.material (${[...parts.keys()].map(m => m.name).join('|')}) and extras.bone or skin weights`);
+    const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    if (o.isSkinnedMesh && !o.userData.bone) { // authored weights: the part's joint order → this skeleton's, by bone name
+      const map = o.skeleton.bones.map(b => boneIndex(b.name)), index = g.getAttribute('skinIndex');
+      g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
+    }
+    add(g, material, o.userData.bone);
   });
 }
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
@@ -171,6 +133,7 @@ sheathed.applyMatrix4(base.scene.getObjectByName('pelvis').matrixWorld.clone().i
 const drawn = sword('SwordDrawn',base.scene.getObjectByName('hand_r'));
 drawn.position.set(0,.08,.015); drawn.rotation.x = Math.PI / 2;
 for (const [material, geometries] of parts) {
+  if (!geometries.length) continue;
   const mesh = new T.SkinnedMesh(mergeVertices(mergeGeometries(geometries)), material);
   mesh.name=material.name; mesh.bind(skeleton,body.bindMatrix); body.parent.add(mesh);
 }
@@ -365,6 +328,8 @@ for (const [name, maps] of Object.entries(manifest)) {
   for (const slot of ['baseColor', 'metallicRoughness', 'normal']) if (maps[slot]) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, maps[slot])), mime: /\.jpe?g$/i.test(maps[slot]) ? 'image/jpeg' : 'image/png' };
   authored.set(name, entry);
 }
+const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
+authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
 const finished = finishMaterials(Buffer.from(result), authored);
 await fs.writeFile('src/assets/warrior.glb', finished);
 console.log(`Warrior: ${finished.byteLength} bytes; ${clips.map(a=>a.name).join(', ')}`);
@@ -396,8 +361,11 @@ function finishMaterials(glb, authored = new Map()) {
   const noise=(x,y)=>((Math.imul(x+1,374761393)^Math.imul(y+1,668265263))>>>0)%97/97;
   const metal=texture((x,y)=>{const wear=noise(x,y)*13+Math.sin(y*1.7)*3;return [218+wear,222+wear,224+wear,255]});
   const rough=texture((x,y)=>[255,125+noise(x,y)*40,255,255]);
-  const weave=texture((x,y)=>{const v=174+((x%4<2)===(y%4<2)?16:0)+noise(x,y)*12;return [v,v,v,255]});
+  // Linen: two fine thread directions, low contrast, with dirt in the low-frequency noise.
+  const linen=texture((x,y)=>{const thread=(x%2?3:-3)+(y%2?3:-3), dirt=(noise(x>>4,y>>4)+noise(x>>5,y>>5))*22;const v=168+thread+noise(x,y)*9-dirt;return [v,v-2,v-6,255]});
   const grain=texture((x,y)=>[126+noise(x,y)*4,126+noise(y,x)*4,255,255]);
+  const hide=texture((x,y)=>{const pore=noise(x,y)*18, blotch=(noise(x>>3,y>>3)+noise(x>>5,y>>5))*30;const v=150+pore-blotch;return [v,v*.86,v*.72,255]});
+  const hideNormal=texture((x,y)=>[122+noise(x,y)*12,122+noise(y,x)*12,255,255]);
   for(const m of j.materials) {
     const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
     // Authored slots own their channel outright; anything not authored keeps the procedural map below.
@@ -405,7 +373,8 @@ function finishMaterials(glb, authored = new Map()) {
     if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
     if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
     if(m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
-    if(m.name==='Gambeson'||m.name==='Heraldry') {if(!a.baseColor)p.baseColorTexture={index:weave};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
+    if(m.name==='Gambeson'||m.name==='Heraldry') {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
+    if(m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
   }
   j.buffers[0].byteLength=offset;
   const text=Buffer.from(JSON.stringify(j)), padded=Buffer.concat([text,Buffer.alloc((4-text.length%4)%4,32)]), bin=Buffer.concat(chunks);

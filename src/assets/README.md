@@ -44,3 +44,11 @@ skinned draws before the final body narrowing; with no parts the output is byte-
 Material maps follow the same pattern: `src/assets/source/materials/manifest.json` maps a material name to `baseColor`,
 `metallicRoughness` (glTF packed: G roughness, B metal), `normal` and optional `normalScale` image files in that directory
 (PNG or JPEG). Authored slots replace the procedural 256² maps per channel; unlisted slots keep them. No manifest → identical output.
+
+Universal humanoid and level-1 kit (character lane, 2026-09-14): the build now keeps the whole CC0 body — face, eyes, eyebrows —
+with its own skin, normal and roughness maps resampled to 1024/512 JPEG by `scripts/character/parts.py` (with an original
+ash-and-grit pass) and committed under `src/assets/source/materials/` via `manifest.json`. Buzzed hair is the CC0 `Hair_Buzzed`
+mesh attached to the head bone. All plate primitives are gone. The level-1 kit (`src/assets/source/parts/level1.glb`) is original
+work generated headlessly from the body surface: sleeveless linen tunic, studded leather baldric and belt, forearm wraps,
+sandal-boots, dyed under-skirt and kilt strips (the Heraldry surface), iron studs (the Steel surface). Sword and scabbard are
+unchanged. No new third-party asset or licence; everything derives from the two CC0 archives above.
