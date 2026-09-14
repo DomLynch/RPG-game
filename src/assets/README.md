@@ -58,3 +58,11 @@ Motion pass (character lane, 2026-09-14): Guard now comes from the CC0 Universal
 owner from the creator's free itch.io download on 2026-09-14; License.txt preserved alongside): the raise-and-hold window of
 `Sword_Block` retimed to the contract's 1 s. BlockImpact and Parry remain original derivations, now from that hold pose.
 Extract the archive under artifacts/source/animations2 preserving its directory name; the build requires it.
+
+Equipment items (character lane, 2026-09-14): loot-tier pieces from the CC0 Quaternius Modular Character Outfits – Fantasy
+[Standard] pack (retrieved by the owner from the creator's free download on 2026-09-14; License_Standard.txt preserved under
+artifacts/source/outfits; part file SHA-256: Male_Ranger_Acc_Pauldron.gltf 967bd4e8d85821fb9…, Male_Ranger_Feet_Boots.gltf
+e71cd92792aeabca2…). `scripts/character/parts.py` imports the Ranger boots, bracers and pauldron (rigged to this skeleton),
+decimates them to the phone budget and writes `src/assets/source/items/ranger.glb` plus re-tinted 1024/512 JPEG maps of the
+pack's own PBR set (`ranger_*.jpg`, greens pulled to worn leather, dust added). Items are equipped only in demo builds
+(`WARRIOR_ITEMS=ranger`) until the runtime swaps slots; the shipped GLB is unchanged.

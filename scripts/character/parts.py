@@ -274,22 +274,71 @@ def skin_maps():
     return {'baseColor': save_jpeg('skin_color', out_colour, 'sRGB'), 'normal': save_jpeg('skin_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('skin_orm', orm, 'Non-Color')}
 
 
-kit = [proof_ring()] if proof else level1_kit()
-os.makedirs(out, exist_ok=True)
-select_only(kit + [armature])
-path = os.path.join(out, 'proof_ring.glb' if proof else 'level1.glb')
-bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_extras=True, export_apply=True,
-                          export_yup=True, export_materials='NONE', export_skins=not proof, export_animations=False,
-                          export_normals=True, export_texcoords=True)
-for obj in kit:
-    print(f'PART {obj.name} material={obj["material"]} bone={obj.get("bone", "skinned")} faces={len(obj.data.polygons)}')
-print(f'PARTS {len(kit)} → {path}')
+OUTFITS = 'artifacts/source/outfits/Modular Character Outfits - Fantasy[Standard]'
+
+
+def export_kit(kit, path, skins=True):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    armatures = list({o.find_armature() or armature for o in kit})
+    select_only(kit + armatures)
+    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_extras=True, export_apply=True,
+                              export_yup=True, export_materials='NONE', export_skins=skins, export_animations=False,
+                              export_normals=True, export_texcoords=True)
+    for obj in kit:
+        print(f'PART {obj.name} material={obj["material"]} slot={obj["slot"]} bone={obj.get("bone", "skinned")} faces={len(obj.data.polygons)}')
+    print(f'PARTS {len(kit)} → {path}')
+
+
+def ranger_items():
+    """Loot-tier light armour from the CC0 Modular Character Outfits pack (rigged to this skeleton): boots, bracers, one
+    pauldron. Imported as-is; their own UVs address the pack's atlas, which ranger_maps() re-tints into our palette."""
+    items = []
+    for part, slot, ratio in [('Male_Ranger_Feet_Boots', 'Boots', 0.35), ('Male_Ranger_Arms', 'Arms', 0.4), ('Male_Ranger_Acc_Pauldron', 'Shoulders', 0.6)]:
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=f'{OUTFITS}/glTF (Godot-Unreal)/Modular Parts/{part}.gltf')
+        new = [o for o in bpy.data.objects if o not in before]
+        mesh = next(o for o in new if o.type == 'MESH' and o.name.startswith(part))  # the rig ships a helper Icosphere too
+        for o in new:
+            if o.type == 'MESH' and o is not mesh:
+                bpy.data.objects.remove(o, do_unlink=True)
+        rig = next(o for o in new if o.type == 'ARMATURE')
+        rig.matrix_world.identity()
+        decimate = mesh.modifiers.new('Budget', 'DECIMATE')  # the pack is not low-poly; keep the phone budget
+        decimate.ratio = ratio
+        mesh.modifiers.move(len(mesh.modifiers) - 1, 0)  # before the armature modifier
+        items.append(tag(mesh, part.replace('Male_Ranger_', '').lower(), 'Ranger', slot=slot))
+    return items
+
+
+def ranger_maps():
+    """The pack's 4K Ranger PBR set at 1024, greens pulled to worn leather, plus the same dust and grit as the skin."""
+    os.makedirs(materials_out, exist_ok=True)
+    colour = downsample(load_pixels(f'{OUTFITS}/Textures/Ranger/T_Ranger_BaseColor.png', 'sRGB'), 4)
+    size = colour.shape[0]
+    r, g, b = colour[..., 0], colour[..., 1], colour[..., 2]
+    green = np.clip((g - np.maximum(r, b) * 1.1) * 6, 0, 1)[..., None]
+    leather = np.array([0.16, 0.10, 0.06])[None, None, :]
+    lum = (0.3 * r + 0.59 * g + 0.11 * b)[..., None]
+    colour = colour * (1 - green) + (leather * (0.6 + lum * 1.6)) * green
+    dust = np.clip((fbm(size, 11, octaves=(4, 8, 16, 64)) - 0.42) * 2.2, 0, 1)[..., None]
+    colour = colour * (1 - dust * 0.4) + np.array([0.18, 0.17, 0.16])[None, None, :] * dust * 0.4
+    normal = downsample(load_pixels(f'{OUTFITS}/Textures/Ranger/T_Ranger_Normal.png', 'Non-Color'), 4)
+    orm = downsample(load_pixels(f'{OUTFITS}/Textures/Ranger/T_Ranger_ORM.png', 'Non-Color'), 8)
+    orm[..., 1] = np.clip(orm[..., 1] * 0.9 + dust[::2, ::2, 0] * 0.25, 0, 1)
+    return {'baseColor': save_jpeg('ranger_color', colour, 'sRGB'), 'normal': save_jpeg('ranger_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('ranger_orm', orm, 'Non-Color')}
+
+
+if proof:
+    export_kit([proof_ring()], os.path.join(out, 'proof_ring.glb'), skins=False)
+else:
+    export_kit(level1_kit(), os.path.join(out, 'level1.glb'))
+    export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
 if not proof:
-    maps = skin_maps()
     import json
     manifest_path = os.path.join(materials_out, 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
-    manifest['Skin'] = {k: os.path.basename(v) for k, v in maps.items()}
-    manifest['Skin']['normalScale'] = 0.8
+    for name, maps, scale in [('Skin', skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0)]:
+        manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
+        manifest[name]['normalScale'] = scale
+        print(f'MAPS {name} {maps}')
     json.dump(manifest, open(manifest_path, 'w'), indent=1)
-    print(f'MAPS {maps}')

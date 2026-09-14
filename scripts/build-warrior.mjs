@@ -42,7 +42,8 @@ body.material = skin;
 for (const mesh of [body, base.scene.getObjectByName('Eyes')]) { mesh.geometry.morphAttributes = {}; mesh.morphTargetInfluences = []; mesh.morphTargetDictionary = {}; }
 base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .35 });
 const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair].map(m => [m, []]));
+const ranger = new T.MeshStandardMaterial({ name: 'Ranger', roughness: 1 }); // CC0 outfit-pack items; maps from the manifest
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger].map(m => [m, []]));
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -116,10 +117,24 @@ for (const file of (await fs.readdir(partsDir).catch(() => [])).filter(f => f.en
     if (!material || (!o.userData.bone && !o.isSkinnedMesh)) throw new Error(`${file}: mesh ${o.name} needs extras.material (${[...parts.keys()].map(m => m.name).join('|')}) and extras.bone or skin weights`);
     const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
     if (o.isSkinnedMesh && !o.userData.bone) { // authored weights: the part's joint order → this skeleton's, by bone name
-      const map = o.skeleton.bones.map(b => boneIndex(b.name)), index = g.getAttribute('skinIndex');
+      const map = o.skeleton.bones.map(b => skeleton.bones.some(x => x.name === b.name) ? boneIndex(b.name) : boneIndex(b.name.replace(/[._]\d{1,3}$/, ''))), index = g.getAttribute('skinIndex');
       g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
     }
     add(g, material, o.userData.bone, 0, 0, 0, 0, o.userData.slot || '');
+  });
+}
+// Equipped items (WARRIOR_ITEMS=ranger,...): src/assets/source/items/<name>.glb, same contract as parts. An item replaces
+// whatever the level-1 kit put in the same slot. Demo builds only until the runtime swaps slots itself.
+for (const item of (process.env.WARRIOR_ITEMS || '').split(',').filter(Boolean)) {
+  const glb = await fs.readFile(`src/assets/source/items/${item}.glb`), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
+  asset.scene.updateMatrixWorld(true);
+  const slots = new Set(); asset.scene.traverse(o => { if (o.isMesh) slots.add(o.userData.slot); });
+  for (const [material, list] of parts) parts.set(material, list.filter(g => !slots.has(g.userData.slot)));
+  asset.scene.traverse(o => {
+    if (!o.isMesh) return;
+    const material = [...parts.keys()].find(m => m.name === o.userData.material), g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    if (o.isSkinnedMesh) { const map = o.skeleton.bones.map(b => skeleton.bones.some(x => x.name === b.name) ? boneIndex(b.name) : boneIndex(b.name.replace(/[._]\d{1,3}$/, ''))), index = g.getAttribute('skinIndex'); g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4)); }
+    add(g, material, o.userData.bone, 0, 0, 0, 0, o.userData.slot);
   });
 }
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.

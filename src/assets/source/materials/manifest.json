@@ -4,5 +4,11 @@
   "normal": "skin_normal.jpg",
   "metallicRoughness": "skin_orm.jpg",
   "normalScale": 0.8
+ },
+ "Ranger": {
+  "baseColor": "ranger_color.jpg",
+  "normal": "ranger_normal.jpg",
+  "metallicRoughness": "ranger_orm.jpg",
+  "normalScale": 1.0
  }
 }
