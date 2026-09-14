@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
-import { KICK, SWORD, DEFENCE, ATTACKS, type Practice } from './combat.ts';
+import { actorPose, type CombatEvent, type Practice } from './combat.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
@@ -147,7 +147,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     splat.rotation.x=-Math.PI/2; splat.visible=false; scene.add(splat); return {mesh:splat,life:0};
   });
   let bloodMode: 'red' | 'dark' | 'off' = 'red', splatIndex=0, impactDuration=.18, impactHeading=0, flesh=false;
-  let impact = 0, lastHealth = 100, lastPlayerHealth = 100, lastReaction = 0, lastEnemyAge = -1, lastEnemyStamina = 100;
+  let impact = 0, lastHealth = 100, lastPlayerHealth = 100;
   const desired = new THREE.Vector3(), look = new THREE.Vector3(), aim = new THREE.Vector3(0, 1, 0);
   let yaw = 0, pitch = 0.45, heading = Math.PI, started = false;
   let ratio = Math.min(devicePixelRatio, 1.5);
@@ -161,13 +161,14 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     recenter() { yaw = 0; pitch = 0.45; started = false; },
     lowerResolution() { if (ratio > 1) { ratio = 1; renderer.setPixelRatio(ratio); resize(); } },
     restoreGraphics() { this.lowerResolution(); rebuildEnvironment(); },
-    render(state: State, locked: boolean, dt: number, practice: Practice) {
-      const contact = practice.enemyStamina < lastEnemyStamina || practice.health < lastHealth || practice.playerHealth < lastPlayerHealth || (practice.result === 'parried' && practice.reaction > lastReaction) || (practice.result === 'blocked' && practice.enemyAge === DEFENCE.enemyContact && lastEnemyAge !== practice.enemyAge);
+    // Effects consume the simulation's events for the frame; they never infer contact from animation.
+    render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events) {
+      const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
       if (practice.health===100 && practice.playerHealth===100 && (lastHealth<100 || lastPlayerHealth<100)) { impact=0; for(const splat of splats) splat.life=0; }
       if (contact && dt > 0) {
-        const enemyHurt=practice.health<lastHealth, hurt=enemyHurt || practice.playerHealth<lastPlayerHealth;
-        const kick=enemyHurt && practice.result==='kicked'; flesh=hurt && !kick && bloodMode!=='off';
-        impactDuration=flesh ? .34 : .18; impact=impactDuration; impactHeading=enemyHurt ? state.heading : practice.enemyHeading;
+        const enemyHurt=blow?.target===1, hurt=!!blow;
+        const kick=blow?.move==='kick'; flesh=hurt && !kick && bloodMode!=='off';
+        impactDuration=flesh ? .34 : .18; impact=impactDuration; impactHeading=blow?.heading ?? state.heading;
         const site=enemyHurt ? practice.enemyWoundSite : practice.woundSite;
         const target=enemyHurt ? practice.enemy : state;
         sparks.position.set(hurt ? target.x : (state.x+practice.enemy.x)/2,hurt ? (site==='head' ? 1.55 : site==='legs' ? .6 : 1.15) : 1.2,hurt ? target.z : (state.z+practice.enemy.z)/2);
@@ -175,7 +176,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
         sparkMaterial.blending=flesh || kick || hurt ? THREE.NormalBlending : THREE.AdditiveBlending; sparkMaterial.size=flesh ? .095 : .045;
         if(flesh) { const splat=splats[splatIndex++%splats.length]; splat.life=20; splat.mesh.position.set(target.x,.022+splatIndex%12*.0001,target.z); splat.mesh.scale.set(.22+(splatIndex%3)*.05,.13+(splatIndex%4)*.035,1); splat.mesh.rotation.z=splatIndex*2.4;splat.mesh.material.color.set(bloodMode==='dark' ? '#352426' : '#681a19'); }
       }
-      lastHealth = practice.health; lastPlayerHealth = practice.playerHealth; lastReaction = practice.reaction; lastEnemyAge = practice.enemyAge; lastEnemyStamina = practice.enemyStamina;
+      lastHealth = practice.health; lastPlayerHealth = practice.playerHealth;
       impact = Math.max(0, impact - dt); sparks.visible = impact > 0;
       if (impact > 0) {
         const t = impactDuration-impact; sparkMaterial.opacity=impact/impactDuration;
@@ -190,14 +191,13 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       player.position.set(state.x, 0, state.z); opponent.position.set(practice.enemy.x, 0, practice.enemy.z);
       marker.position.set(practice.enemy.x, .04, practice.enemy.z);
       const playerDefence=defenceReaction(practice),enemyDefence=defenceReaction(practice,true);
-      const pose = practice.phase === 'dead' ? 'death' : practice.phase === 'hurt' ? 'hit' : practice.phase;
-      const duration = pose === 'kick' ? KICK.recovery : pose === 'draw' ? SWORD.draw : pose === 'roll' ? DEFENCE.roll : pose === 'hit' ? SWORD.reaction : pose === 'death' ? SWORD.death : ATTACKS[practice.attack].recovery;
-      warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, playerDefence?.pose || pose, playerDefence?.progress ?? Math.min(1, practice.age / duration), practice.attack, ATTACKS[practice.attack].contact / duration, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
-      const enemyProgress = practice.enemyAge <= DEFENCE.enemyContact ? practice.enemyAge / DEFENCE.enemyContact * SWORD.contact / SWORD.recovery : SWORD.contact / SWORD.recovery + (practice.enemyAge - DEFENCE.enemyContact) / (DEFENCE.enemyRecovery - DEFENCE.enemyContact) * (1 - SWORD.contact / SWORD.recovery);
-      warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, enemyDefence?.pose || (!practice.health ? 'death' : practice.reaction ? 'hit' : practice.enemyAttacking && practice.playerHealth ? 'attack' : practice.enemyMode === 'guard' ? 'guard' : 'ready'), enemyDefence?.progress ?? (practice.enemyAttacking ? enemyProgress : Math.max(0, 1 - practice.reaction / practice.reactionDuration)), practice.reaction ? practice.attack : 'light', .35, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
-      brass.color.set(practice.enemyAttacking && !practice.enemyHit && practice.enemyAge < DEFENCE.enemyContact + 4 ? '#e7a35e' : '#ad9365');
+      // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
+      const mine = actorPose(practice, 0), theirs = actorPose(practice, 1);
+      warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, playerDefence?.pose || mine.pose, playerDefence?.progress ?? mine.progress, mine.attack, mine.contact, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, enemyDefence?.pose || theirs.pose, enemyDefence?.progress ?? theirs.progress, theirs.attack, theirs.contact, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
       marker.visible = practice.health > 0;
-      if (practice.health) opponent.rotation.y = practice.enemyAttacking ? practice.enemyHeading : Math.atan2(state.x - practice.enemy.x, state.z - practice.enemy.z);
+      if (practice.health) opponent.rotation.y = practice.enemy.heading;
       const blend = 1 - Math.exp(-dt * 8);
       if (locked) {
         const lockYaw = Math.atan2(state.x - practice.enemy.x, state.z - practice.enemy.z);
