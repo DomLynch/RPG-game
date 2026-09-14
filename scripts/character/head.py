@@ -177,7 +177,7 @@ def scan_detail(size):
 
 # --- photographed face by projection ---------------------------------------------------------------------------------
 
-PHOTO = 'artifacts/source/face/portrait_local_a.png'  # FLUX.1-schnell, local, flat-lit (synthetic; no real person); landmarks beside it
+PHOTO = 'artifacts/source/face/gpt_front.png'  # owner-generated (GPT image model), flat-lit, synthetic; landmarks beside it
 
 # MediaPipe index → head-mesh (x, z) in rig space. The mesh side is measured (probe of body_realistic.glb) or derived from
 # the FACE landmarks; the photo side is read from the landmarks JSON. Two eyes × (centre, inner, outer), nose, subnasale,
@@ -225,6 +225,82 @@ def tps_eval(model, q):
     return out.reshape(q.shape)
 
 
+VIEWS = [  # (image, camera yaw in degrees: + = camera on the character's left, seeing the left side of the face)
+    ('artifacts/source/face/gpt_front.png', 0.0),
+    ('artifacts/source/face/gpt/raw4.png', 35.0), ('artifacts/source/face/gpt/raw3.png', -35.0),
+    ('artifacts/source/face/gpt/raw2.png', 90.0), ('artifacts/source/face/gpt/raw1.png', -90.0),
+]
+
+
+def photo_layer_multi(pos, normal_obj, F, lid_ring, size, head):
+    """Every portrait view projected onto the face tile and blended by how squarely each sees the surface. Each view's
+    warp comes from its own landmarks against the head's 3D landmarks rotated into that view; profiles use only the
+    visible side's landmarks. Views are exposure-matched to the front."""
+    import json
+    pairs = head_correspondences(F, lid_ring)
+    # 3D positions of the mesh landmarks: (x, z) known, y from a ray into the face from the front
+    def mesh3(xz):
+        hit, loc, _, _ = head.ray_cast(Vector((float(xz[0]), F['nose'].y - 0.15, float(xz[1]))), Vector((0, 1, 0)))
+        return np.array([xz[0], loc.y if hit else F['nose'].y + 0.03, xz[1]], np.float64)
+    land3 = {key: mesh3(val[1] if isinstance(val[0], tuple) else val) for key, val in pairs.items()}
+    acc = np.zeros(pos.shape[:2] + (3,), np.float32)
+    wsum = np.zeros(pos.shape[:2], np.float32)
+    front_mean = None
+    ez = F['eye_l'].z
+    oval = ellipse(pos, (0.0, F['nose'].y + 0.03, ez - 0.02), (0.095, 0.11, 0.115), 0.3)
+    for image, yaw in VIEWS:
+        if not os.path.exists(image):
+            continue
+        th = math.radians(yaw)
+        right = np.array([math.cos(th), math.sin(th), 0.0])
+        cam = np.array([math.sin(th), -math.cos(th), 0.0])
+        lm = json.load(open(image.rsplit('.', 1)[0] + '.landmarks.json'))
+        pts = np.array(lm['points'], np.float32)
+        ph, pw = lm['height'], lm['width']
+        photo = P.load_pixels(image, 'sRGB')
+        sil = P.load_pixels(image.rsplit('.', 1)[0] + '.mask.png', 'Non-Color')[..., 0]
+        src, dst = [], []
+        for key, val in pairs.items():
+            p3 = land3[key]
+            if abs(yaw) > 60 and (p3[0] * math.copysign(1, yaw) < -0.004 or key in (10,)):  # profile: visible side only
+                continue
+            if isinstance(val[0], tuple):
+                a, b = val[0]
+                px = (pts[a] + pts[b]) / 2
+            else:
+                px = pts[key]
+            src.append((float(p3 @ right), float(p3[2])))
+            dst.append((float(px[0]), float(ph - px[1])))
+        if len(src) < 6:
+            continue
+        model = tps_fit(np.array(src, np.float64), np.array(dst, np.float64))
+        proj = np.stack([pos.astype(np.float64) @ right, pos[..., 2].astype(np.float64)], axis=2)
+        uv = tps_eval(model, proj)
+        u = np.clip(uv[..., 0], 0, pw - 1.001)
+        v = np.clip(uv[..., 1], 0, ph - 1.001)
+        u0, v0 = np.floor(u).astype(int), np.floor(v).astype(int)
+        fu, fv = (u - u0)[..., None], (v - v0)[..., None]
+        sample = (photo[v0, u0] * (1 - fu) * (1 - fv) + photo[v0, u0 + 1] * fu * (1 - fv) + photo[v0 + 1, u0] * (1 - fu) * fv + photo[v0 + 1, u0 + 1] * fu * fv)
+        facing = np.clip(normal_obj.astype(np.float64) @ cam, 0, 1) ** 1.5
+        inside = (u > 2) & (u < pw - 3) & (v > 2) & (v < ph - 3)
+        w = (facing * sil[v0, u0] * inside * oval).astype(np.float32)
+        luma = sample @ np.array([0.30, 0.59, 0.11])
+        wide = blur(luma, 128)
+        mean = float((wide * w).sum() / (w.sum() + 1e-6))
+        sample = sample * np.clip((mean / (wide + 1e-3)) ** 0.9, 0.6, 1.6)[..., None]
+        view_mean = (sample * w[..., None]).sum(axis=(0, 1)) / (w.sum() + 1e-6)
+        if front_mean is None:
+            front_mean = view_mean
+        else:
+            sample = sample * (front_mean / (view_mean + 1e-6))[None, None, :]  # exposure match to the front
+        acc += sample.astype(np.float32) * w[..., None]
+        wsum += w
+        print(f'VIEW {os.path.basename(image)} yaw={yaw:+.0f} landmarks={len(src)} coverage={float((w > 0.2).mean()):.3f}')
+    sample = acc / np.maximum(wsum, 1e-6)[..., None]
+    weight = np.clip(wsum * 1.4, 0, 1)
+    return np.clip(sample, 0, 1), weight
+
+
 def photo_layer(pos, normal_obj, F, lid_ring, size):
     """The portrait projected onto the face tile: (x, z) of every texel → thin-plate-warped photo pixel; weight from
     how squarely the surface faces the camera and a soft face oval. Mild de-lighting flattens the studio key."""
@@ -241,11 +317,13 @@ def photo_layer(pos, normal_obj, F, lid_ring, size):
             px, mesh = (pts[a] + pts[b]) / 2, val[1]
         else:
             px, mesh = pts[key], val
-        src.append(mesh); dst.append((px[0], ph - px[1]))  # photo rows counted from the bottom
+        src.append(mesh)
+        dst.append((px[0], ph - px[1]))  # photo rows counted from the bottom
     model = tps_fit(np.array(src, np.float64), np.array(dst, np.float64))
     xz = pos[..., [0, 2]].astype(np.float64)
     uv = tps_eval(model, xz)
-    u = np.clip(uv[..., 0], 0, pw - 1.001); v = np.clip(uv[..., 1], 0, ph - 1.001)
+    u = np.clip(uv[..., 0], 0, pw - 1.001)
+    v = np.clip(uv[..., 1], 0, ph - 1.001)
     u0, v0 = np.floor(u).astype(int), np.floor(v).astype(int)
     fu, fv = (u - u0)[..., None], (v - v0)[..., None]
     sample = (photo[v0, u0] * (1 - fu) * (1 - fv) + photo[v0, u0 + 1] * fu * (1 - fv) + photo[v0 + 1, u0] * (1 - fu) * fv + photo[v0 + 1, u0 + 1] * fu * fv)
@@ -265,6 +343,49 @@ def photo_layer(pos, normal_obj, F, lid_ring, size):
     inside = (u > 2) & (u < pw - 3) & (v > 2) & (v < ph - 3)
     weight = facing * oval * inside * sil
     return np.clip(sample, 0, 1), weight
+
+
+def fit_head_to_photo(objs, eyes, F):
+    """Warp the head (and the sculpt copy) so its features sit where the portrait's are: a similarity from the eye
+    spacing maps photo landmarks into rig metres; a smooth 2D spline (x, z) moves every correspondence onto its target
+    and carries the skin between them; the eyeballs follow their sockets. Returns the fitted landmark positions, so
+    later steps (lid ring, paint, projection) use the photo's proportions, not the base mesh's formulas."""
+    import json
+    lm = json.load(open(PHOTO.rsplit('.', 1)[0] + '.landmarks.json'))
+    pts = np.array(lm['points'], np.float64)
+    ph = lm['height']
+    pairs = head_correspondences(F, F['lid_ring'])
+    def photo_pt(key, val):
+        if isinstance(val[0], tuple):
+            a, b = val[0]
+            return (pts[a] + pts[b]) / 2
+        return pts[key]
+    eye_r_px, eye_l_px = photo_pt('eye_r', pairs['eye_r']), photo_pt('eye_l', pairs['eye_l'])
+    scale = (F['eye_l'].x - F['eye_r'].x) / (eye_l_px[0] - eye_r_px[0])  # metres per pixel
+    mid_px, mid_m = (eye_r_px + eye_l_px) / 2, ((F['eye_l'].x + F['eye_r'].x) / 2, F['eye_l'].z)
+    def to_mesh(px):
+        return np.array([mid_m[0] + (px[0] - mid_px[0]) * scale, mid_m[1] - (px[1] - mid_px[1]) * scale])
+    src, dst = [], []
+    for key, val in pairs.items():
+        if key in (33, 133, 362, 263, 'eye_l', 'eye_r'):  # eyes stay put: eyeballs and lids are tuned to the mesh's openings
+            continue
+        mesh = np.array(val[1] if isinstance(val[0], tuple) else val, np.float64)
+        src.append(mesh)
+        dst.append(to_mesh(photo_pt(key, val)))
+    src, dst = np.array(src), np.array(dst)
+    model = tps_fit(src, dst - src)  # spline of displacements, so far-away skin moves ~0
+    ez, ey = F['eye_l'].z, F['eye_l'].y
+    for obj in objs:
+        co = np.array([[v.co.x, v.co.y, v.co.z] for v in obj.data.vertices], np.float64)
+        face = np.clip((F['nose'].y + 0.10 - co[:, 1]) / 0.05, 0, 1) * np.clip((co[:, 2] - (ez - 0.20)) / 0.05, 0, 1) * np.clip((ez + 0.14 - co[:, 2]) / 0.05, 0, 1)
+        disp = tps_eval(model, co[:, [0, 2]].reshape(-1, 1, 2)).reshape(-1, 2) * face[:, None]
+        for v, d in zip(obj.data.vertices, disp):
+            v.co.x += float(d[0])
+            v.co.z += float(d[1])
+        obj.data.update()
+    fitted = {key: to_mesh(photo_pt(key, val)) for key, val in pairs.items()}
+    print('FIT scale_m_per_px', round(scale, 6), 'max move mm', round(float(np.abs(dst - src).max() * 1000), 1))
+    return fitted
 
 
 def close_lids(obj, eye_centres, radius, upper=math.radians(13), lower=math.radians(4)):
@@ -350,6 +471,7 @@ def beard_mask(pos, F, size):
 
 def scalp_mask(pos, F):
     ey, ez = F['eye_l'].y, F['eye_l'].z
+    ez = F.get('hairline_z', ez + 0.076) - 0.076 - (0.010 if 'hairline_z' in F else 0.0)  # fitted hairline, 1 cm of overlap with the portrait's hair
     recession = np.clip((np.abs(pos[..., 0]) - 0.028) / 0.022, 0, 1) ** 1.5 * 0.014  # the hairline rises at the temples
     sides = np.clip((np.abs(pos[..., 0]) - 0.048) / 0.02, 0, 1) ** 1.2  # … then drops to the ear tops round the sides
     hairline = ez + 0.076 + recession - sides * 0.062 - np.clip(pos[..., 1] - ey + 0.02, 0, None) * 0.55
@@ -389,7 +511,7 @@ def face_colour(pos, mask, F, ao, detail, size, photo=None):
             ellipse(pos, (F['mouth'].x, F['mouth'].y, F['mouth'].z), (0.028, 0.014, 0.012), 0.5),
             ellipse(pos, (0.012, F['nose'].y + 0.01, F['nose'].z - 0.01), (0.008, 0.012, 0.007), 0.5), ellipse(pos, (-0.012, F['nose'].y + 0.01, F['nose'].z - 0.01), (0.008, 0.012, 0.007), 0.5),
             beard_mask(pos, F, size) * 0.85])
-        photo_col = colour * detail * (1 - zones[..., None]) + sample * zones[..., None]
+        photo_col = sample  # flat-lit portraits: take them as they are; the base shows only where the views fade
         colour = colour * (1 - w[..., None]) + photo_col * w[..., None]
         keep = 1 - w
     else:
@@ -767,7 +889,7 @@ def shell_texture(size=1024):
     return np.concatenate([np.clip(colour, 0, 1), alpha[..., None]], axis=2).astype(np.float32)
 
 
-def brow_cards(head, F, rng_seed=72, dense=False):
+def brow_cards(head, F, rng_seed=72, dense=False, count=None):
     """Two rows of single-hair cards along each brow ridge: heavy and upward at the nose, sweeping outward and down
     toward the temple."""
     ey, ez = F['eye_l'].y, F['eye_l'].z
@@ -776,6 +898,8 @@ def brow_cards(head, F, rng_seed=72, dense=False):
     count = 0
     for sx in (1, -1):
         rows = ((0, 0.0), (1, 0.0016), (2, -0.0013)) if dense else ((0, 0.0),)  # painted face: the cards are the brow
+        if count == 0:  # the portrait carries the brows
+            rows = ()
         for row, dz in rows:
             for k in range(30 if dense else 22):
                 t = (k + rng.uniform(0.1, 0.9)) / (30 if dense else 22)
@@ -830,7 +954,7 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     normal_obj = bake_tiles(body, 'NORMAL', [size, size // 4], select_only, normal_space='OBJECT')[0][..., :3] * 2 - 1
     detail_colour, detail_height = scan_detail(size)
     lid_ring = F['lid_ring']
-    photo = photo_layer(pos_face, normal_obj, F, lid_ring, size) if os.path.exists(PHOTO) and os.environ.get('HEAD_PHOTO', '1') != '0' else None
+    photo = None
     height = height_map(pos_face, mask_face, F, detail_height, size)
     displace_high(high, height, select_only)
     nrm_face, nrm_body = [clean_normal(n[..., :3]) for n in bake_tiles(body, 'NORMAL', [size, size], select_only, high=high, samples=8, margin=8)]
@@ -850,12 +974,16 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     head, rest = separate_head(body, select_only)
     tag(head, 'Head', 'Face', slot='Face')
     tag(rest, 'Body', 'Skin', slot='Skin')
+    if os.path.exists(PHOTO) and os.environ.get('HEAD_PHOTO', '0') == '1':
+        photo = photo_layer_multi(pos_face, normal_obj, F, lid_ring, size, head)
+        colour_face = face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size, photo)
+        maps['Face']['baseColor'] = save_two_sizes('face_color', colour_face, 'sRGB')
     eye = bpy.data.objects['eye_L']
     eye_centre = sum((v.co for v in eye.data.vertices), Vector()) / len(eye.data.vertices)
     eye_radius = max((v.co - eye_centre).length for v in eye.data.vertices)
     hair = tag(hair_shells(head, F), 'hair_shells', 'HairShell', bone='Head', slot='Hair')
     maps['HairShell'] = {'baseColor': save_png_rgba(os.path.join(materials_out, 'hair_shell.png'), shell_texture())}
-    brows = tag(brow_cards(head, F, dense=photo is None), 'brow_cards', 'BrowCards', bone='Head', slot='Face')
+    brows = tag(brow_cards(head, F, dense=photo is None, count=0 if photo is not None else None), 'brow_cards', 'BrowCards', bone='Head', slot='Face')
     maps['BrowCards'] = dict(maps['HairCards'])  # same sheet, sharper cut-off in the build
     # Lash strips are off: with the lids closed they crossed the opening as a line. Back once placed on the scanned lid edge.
     return {'maps': maps, 'ao_body': ao_body, 'head': head, 'body': rest, 'parts': [head, rest, hair, brows]}

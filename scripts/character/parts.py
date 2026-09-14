@@ -107,6 +107,20 @@ def realistic_body():
     eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
     if eye_l.x < eye_r.x:
         eye_l, eye_r = eye_r, eye_l
+    if os.environ.get('HEAD_PHOTO', '0') == '1' and os.path.exists(HEADMOD.PHOTO):  # fit the head to the portrait first
+        pre_face = [v.co for v in hbm.data.vertices if v.co.z > eye_l.z - 0.12 and v.co.z < eye_l.z + 0.16]
+        pre_nose = min(pre_face, key=lambda c: c.y)
+        pre_radius = max((v.co - eye_l).length for v in eyes[0].data.vertices)
+        pre_ring = [v.co for v in hbm.data.vertices if abs((v.co - eye_l).length - pre_radius) < 0.004 and v.co.y < eye_l.y + 0.01]
+        pre = {'eye_l': eye_l, 'eye_r': eye_r, 'nose': pre_nose.copy(), 'mouth': Vector((0, pre_nose.y + 0.012, pre_nose.z - 0.038)),
+               'lid_ring': (min(abs(c.x) for c in pre_ring), max(abs(c.x) for c in pre_ring)) if pre_ring else (eye_l.x - 0.018, eye_l.x + 0.022)}
+        FITTED = HEADMOD.fit_head_to_photo([hbm, HIGH], eyes, pre)
+        eye_l = sum((v.co for v in eyes[0].data.vertices), Vector()) / len(eyes[0].data.vertices)
+        eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
+        if eye_l.x < eye_r.x:
+            eye_l, eye_r = eye_r, eye_l
+    else:
+        FITTED = None
     for e in eyes:  # a touch deeper in the socket: the lids overlap the eyeball more, less white shows
         for v in e.data.vertices:
             v.co.y += 0.0015
@@ -122,6 +136,10 @@ def realistic_body():
     print(f'FACE eye_l={tuple(round(v, 3) for v in eye_l)} nose={tuple(round(v, 3) for v in nose)}')
     FACE = {'eye_l': eye_l, 'eye_r': eye_r, 'nose': nose.copy(), 'ear_x': max(abs(c.x) for c in face), 'lid_ring': lid_ring,
             'mouth': Vector((0, nose.y + 0.012, nose.z - 0.038)), 'chin': Vector((0, nose.y + 0.02, nose.z - 0.085))}
+    if FITTED is not None:  # the portrait's proportions, now also the mesh's
+        FACE['mouth'] = Vector((float(FITTED[13][0]), nose.y + 0.012, float(FITTED[13][1])))
+        FACE['chin'] = Vector((0, nose.y + 0.02, float(FITTED[152][1]) + 0.01))
+        FACE['hairline_z'] = float(FITTED[10][1])
     for e, side in zip(eyes, ('L', 'R')):
         tag(e, f'eye_{side}', 'Eyes', bone='Head', slot='Eyes')
     bpy.data.objects.remove(body, do_unlink=True)
@@ -680,6 +698,7 @@ def bake_ao(size=1024, distance=0.35):
 AO = None
 HEAD = None  # realistic: the head object (its own material and texture tile)
 REAL = None
+FITTED = None
 
 
 def occlusion_map():
