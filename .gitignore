@@ -4,3 +4,4 @@ dist/
 artifacts/
 .codegraph/
 .env*.local
+__pycache__/
