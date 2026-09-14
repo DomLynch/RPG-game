@@ -54,13 +54,18 @@ def face_group(obj):
 
 
 def separate_head(body, select_only):
-    """Split the baked body into a head object (`Face`) and the rest (`Skin`); both keep weights, UVs and modifiers."""
+    """Split the baked body into a head object (`Face`) and the rest (`Skin`); both keep weights, UVs and modifiers.
+    The joint mesh's vertex normals are carried across as custom normals, or the seam shades as a dark line."""
     select_only([body])
+    joint = {(round(v.co.x, 6), round(v.co.y, 6), round(v.co.z, 6)): v.normal.copy() for v in body.data.vertices}
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.mesh.separate(type='MATERIAL')
     bpy.ops.object.mode_set(mode='OBJECT')
     pieces = [o for o in bpy.context.selected_objects if o.type == 'MESH']
+    for piece in pieces:
+        normals = [joint.get((round(v.co.x, 6), round(v.co.y, 6), round(v.co.z, 6)), v.normal).copy() for v in piece.data.vertices]
+        piece.data.normals_split_custom_set_from_vertices([tuple(n) for n in normals])
     head = max(pieces, key=lambda o: sum(v.co.z for v in o.data.vertices) / len(o.data.vertices))
     rest = next(o for o in pieces if o is not head)
     return head, rest
@@ -232,8 +237,7 @@ def tps_eval(model, q, chunk=32768):
 VIEWS = [  # (image, camera yaw in degrees: + = camera on the character's left, seeing the left side of the face)
     ('artifacts/source/face/gpt_front.png', 0.0),
     ('artifacts/source/face/gpt/raw4.png', 35.0), ('artifacts/source/face/gpt/raw3.png', -35.0),
-    ('artifacts/source/face/gpt/raw2.png', 90.0), ('artifacts/source/face/gpt/raw1.png', -90.0),
-]
+]  # the ±90° profiles supply depth (PROFILES) but are not projected: they paint hair and ear shadow onto the temples
 
 
 def photo_layer_multi(pos, normal_obj, F, lid_ring, size, head):
@@ -616,11 +620,13 @@ def beard_mask(pos, F, size):
 
 def scalp_mask(pos, F):
     ey, ez = F['eye_l'].y, F['eye_l'].z
-    ez = F.get('hairline_z', ez + 0.076) - 0.076 - (0.010 if 'hairline_z' in F else 0.0)  # fitted hairline, 1 cm of overlap with the portrait's hair
+    ez = F.get('hairline_z', ez + 0.076) - 0.076 - (0.018 if 'hairline_z' in F else 0.0)  # fitted hairline, shells start inside the portrait's hair
     recession = np.clip((np.abs(pos[..., 0]) - 0.028) / 0.022, 0, 1) ** 1.5 * 0.014  # the hairline rises at the temples
     sides = np.clip((np.abs(pos[..., 0]) - 0.048) / 0.02, 0, 1) ** 1.2  # … then drops to the ear tops round the sides
     hairline = ez + 0.076 + recession - sides * 0.062 - np.clip(pos[..., 1] - ey + 0.02, 0, None) * 0.55
-    scalp = np.clip((pos[..., 2] - hairline) / 0.02, 0, 1)
+    scalp = np.clip((pos[..., 2] - hairline) / (0.035 if 'hairline_z' in F else 0.02), 0, 1)  # a long feather into the portrait's hairline
+    ear = np.clip((np.abs(pos[..., 0]) - 0.058) / 0.01, 0, 1) * np.clip((pos[..., 1] - (ey + 0.015)) / 0.01, 0, 1) * np.clip(((ey + 0.10) - pos[..., 1]) / 0.01, 0, 1) * np.clip(((ez + 0.045) - pos[..., 2]) / 0.01, 0, 1)
+    scalp = scalp * (1 - ear)  # the ears are not scalp
     scalp = np.maximum(scalp, np.clip((pos[..., 1] - (ey + 0.075)) / 0.02, 0, 1) * np.clip((pos[..., 2] - (ez + 0.005)) / 0.02, 0, 1))
     return scalp * np.clip((pos[..., 2] - (ez - 0.02)) / 0.02, 0, 1)
 
@@ -774,6 +780,27 @@ def displace_high(high, height, select_only, strength=0.003, extra_levels=2):
     disp.mid_level = 0.5
     disp.strength = strength
     disp.vertex_group = 'face'
+
+
+def fill_margin(img, valid, steps=20):
+    """Grow the baked texels into the unbaked margin (nearest-neighbour style, by iterated averaging of valid
+    neighbours) so nothing dark bleeds through at UV seams via filtering and mips."""
+    out = img.copy()
+    ok = valid.copy()
+    for _ in range(steps):
+        if ok.all():
+            break
+        acc = np.zeros_like(out)
+        cnt = np.zeros(ok.shape, np.float32)
+        for shift, axis in ((1, 0), (-1, 0), (1, 1), (-1, 1)):
+            src = np.roll(out, shift, axis)
+            sok = np.roll(ok, shift, axis)
+            acc += src * sok[..., None]
+            cnt += sok
+        grow = (~ok) & (cnt > 0)
+        out[grow] = acc[grow] / cnt[grow][..., None]
+        ok = ok | grow
+    return out
 
 
 def clean_normal(n):
@@ -1115,6 +1142,7 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     rough_body = np.clip(0.66 + (detail_colour[::2, ::2, 0] - 0.5) * 0.3, 0.4, 0.95)
     def orm(rough):
         return np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
+    colour_face, nrm_face = fill_margin(colour_face, mask_face), fill_margin(nrm_face, mask_face)
     maps = {
         'Face': {'baseColor': save_two_sizes('face_color', colour_face, 'sRGB'), 'normal': save_two_sizes('face_normal', nrm_face, 'Non-Color'),
                  'metallicRoughness': save_jpeg('face_orm', orm(rough_face), 'Non-Color')},
@@ -1127,7 +1155,7 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     tag(rest, 'Body', 'Skin', slot='Skin')
     if os.path.exists(PHOTO) and os.environ.get('HEAD_PHOTO', '1') == '1':
         photo = photo_layer_multi(pos_face, normal_obj, F, lid_ring, size, head)
-        colour_face = face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size, photo)
+        colour_face = fill_margin(face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size, photo), mask_face)
         maps['Face']['baseColor'] = save_two_sizes('face_color', colour_face, 'sRGB')
     eye = bpy.data.objects['eye_L']
     eye_centre = sum((v.co for v in eye.data.vertices), Vector()) / len(eye.data.vertices)
