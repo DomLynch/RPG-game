@@ -20,7 +20,8 @@ for x, y in pts:
     cv2.circle(dbg, (int(x), int(y)), 1, (0, 255, 0), -1)
 KEY = (33, 133, 362, 263, 1, 61, 291, 152, 10, 234, 454, 168, 105, 334, 46, 276, 55, 285, 159, 145, 386, 374, 0, 17, 13, 14, 2, 98, 327, 199)
 for i in KEY:
-    x, y = pts[i]; cv2.circle(dbg, (int(x), int(y)), 4, (0, 0, 255), -1); cv2.putText(dbg, str(i), (int(x) + 4, int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 0), 1)
+    x, y = pts[i]
+    cv2.circle(dbg, (int(x), int(y)), 4, (0, 0, 255), -1); cv2.putText(dbg, str(i), (int(x) + 4, int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 0), 1)
 cv2.imwrite(path.rsplit('.', 1)[0] + '.landmarks.png', dbg)
 # Silhouette mask: the face-oval landmarks filled, pulled in so the background never bleeds, feathered.
 OVAL = (10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109)
@@ -37,4 +38,11 @@ for eye in EYES:
 holes = cv2.GaussianBlur(cv2.dilate(holes, np.ones((9, 9), np.uint8)), (0, 0), 3)
 mask = (mask.astype(np.float32) * (1 - holes.astype(np.float32) / 255)).astype(np.uint8)
 cv2.imwrite(path.rsplit('.', 1)[0] + '.mask.png', mask)
+# Whole-head mask (hair included) keyed on the plain background: for projecting the real hair onto the scalp.
+bg = np.median(np.concatenate([im[:40, :40].reshape(-1, 3), im[:40, -40:].reshape(-1, 3)]), axis=0)
+head_mask = (np.abs(im.astype(int) - bg.astype(int)).sum(axis=2) > 45).astype(np.uint8) * 255
+head_mask = cv2.erode(head_mask, np.ones((11, 11), np.uint8))
+head_mask = cv2.GaussianBlur(head_mask, (0, 0), 4)
+head_mask = (head_mask.astype(np.float32) * (1 - holes.astype(np.float32) / 255)).astype(np.uint8)
+cv2.imwrite(path.rsplit('.', 1)[0] + '.head.png', head_mask)
 print('landmarks', len(pts), {i: [round(pts[i][0]), round(pts[i][1])] for i in KEY})

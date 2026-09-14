@@ -50,6 +50,7 @@
   "baseColor": "face_color_r.jpg",
   "normal": "face_normal_r.jpg",
   "metallicRoughness": "face_orm_r.jpg",
+  "occlusion": "face_ao_r.jpg",
   "normalScale": 1.0
  },
  "HairCards": {
@@ -63,5 +64,18 @@
  "HairShell": {
   "baseColor": "hair_shell.png",
   "normalScale": 1.0
+ },
+ "Photo": {
+  "baseColor": "kt_face_color_r.jpg",
+  "normal": "kt_face_normal_r.jpg",
+  "normalScale": 0.8
+ },
+ "PhotoEyes": {
+  "baseColor": "kt_eye_color_r.jpg",
+  "normalScale": 0.8
+ },
+ "PhotoTeeth": {
+  "baseColor": "kt_teeth_color_r.jpg",
+  "normalScale": 0.8
  }
 }

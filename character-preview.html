@@ -180,10 +180,10 @@ const DETAILS = [
 const api = {
   loaded: false, error: null, SEQUENCE, ticks: SEQUENCE_TICKS,
   reset,
-  async details() {
+  async details(list = DETAILS) {
     await reset(); stage(studio); opponent.visible = false; renderer.toneMappingExposure = 1; player.position.set(0, 0, 0); player.rotation.y = 0;
-    return cells(4, Math.ceil(DETAILS.length / 4), 480, 480, 1, i => {
-      if (!DETAILS[i]) return false; const [caption, clip, t, node, distance, az, el] = DETAILS[i];
+    return cells(4, Math.ceil(list.length / 4), 480, 480, 1, i => {
+      if (!list[i]) return false; const [caption, clip, t, node, distance, az, el] = list[i];
       scrub(player, clip, t); player.updateWorldMatrix(true, true);
       const object = player.getObjectByName(node) || player.getObjectByName('Head'), target = object.name === 'SwordDrawn' ? object.localToWorld(new THREE.Vector3(0, .45, 0)) : object.getWorldPosition(new THREE.Vector3());
       if (caption === 'eyes') target.add(new THREE.Vector3(0, .05, .07).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion()))); // eye level, not the skull base
@@ -252,6 +252,7 @@ const api = {
       clips: clips.map(c => ({ name: c.name, duration: +c.duration.toFixed(3), tracks: c.tracks.length })), characterOnly };
   },
   // Material/geometry facts for one named draw, for debugging an asset that renders wrong (maps, alpha, sides, UVs).
+  names() { const n = []; warriors.player.anchor.traverse(o => { if (o.isMesh) n.push(`${o.name}:${o.material?.name}:${o.geometry.attributes.position.count}`); }); return n; },
   probe(name) {
     const o = warriors.player.anchor.getObjectByName(name); if (!o) return null;
     const m = o.material, g = o.geometry;

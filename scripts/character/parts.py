@@ -401,7 +401,7 @@ def level1_kit():
 def bronze_helmet():
     """Helmet slot, tier 2: an open-faced bronze helm shelled from the head itself (so it fits the skull), cheek guards and
     a nasal, a neck guard behind, and a dyed horsehair crest on the Heraldry surface so the two fighters stay distinct."""
-    skull_source = HEAD if realistic else body  # the realistic head is its own object
+    skull_source = bpy.data.objects.get('kt_head') or HEAD if realistic else body  # the realistic head is its own object; the scan when present
     skull = [v.co for v in skull_source.data.vertices if v.co.z > head.z - 0.03 and abs(v.co.x) < 0.12]
     front_y = min(v.y for v in skull)  # nose tip (-y is the front)
     def keep(p):
@@ -843,9 +843,20 @@ else:
     body_parts = realistic_body() if realistic else []
     if realistic:
         HIGH.hide_render = True  # only the game mesh occludes itself
+        use_kt = os.environ.get('HEAD_KT', '1') == '1' and os.path.exists(HEADMOD.KT_GLB)  # the photogrammetry head replaces ours
+        if use_kt:
+            eye_l_o, eye_r_o = bpy.data.objects['eye_L'], bpy.data.objects['eye_R']
+            el = sum((v.co for v in eye_l_o.data.vertices), Vector()) / len(eye_l_o.data.vertices)
+            er = sum((v.co for v in eye_r_o.data.vertices), Vector()) / len(eye_r_o.data.vertices)
+            HEADMOD.keentools_skin_tone(el, er)  # the body is painted to match the scan
+            FACE['kt_neck_z'] = (el.z + er.z) / 2 - HEADMOD.NECK_DROP
         REAL = HEADMOD.build(body, HIGH, FACE, armature, select_only, save_two_sizes, save_jpeg, materials_out, tag)  # bare body: bakes first
         AO, HEAD, body = REAL['ao_body'], REAL['head'], REAL['body']
         body_parts = REAL['parts'] + [o for o in body_parts if o.name.startswith('eye_')]
+        if use_kt:
+            kt_parts, kt_maps, neck_z, neck_c = HEADMOD.keentools_head(HEAD, el, er, armature, select_only, tag, save_jpeg, save_two_sizes, materials_out)
+            REAL['maps'].update(kt_maps)
+            body_parts = [o for o in body_parts if o.name not in ('hair_shells', 'brow_cards', 'eye_L', 'eye_R')] + kt_parts
     else:
         AO = bake_ao()  # bare body only: every later piece would occlude it
     kit = level1_kit()
@@ -863,7 +874,7 @@ if not proof:
     manifest_path = os.path.join(materials_out, 'manifest_realistic.json' if realistic else 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
-    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] if realistic else []
+    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
     for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale

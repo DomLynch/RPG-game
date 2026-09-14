@@ -52,7 +52,11 @@ const face = new T.MeshPhysicalMaterial({ name: 'Face', roughness: 1, specularIn
 const hairCards = new T.MeshPhysicalMaterial({ name: 'HairCards', roughness: .9, specularIntensity: .3, alphaTest: .35, side: T.DoubleSide }); // 0.35: loose strands survive mip averaging
 const browCards = new T.MeshPhysicalMaterial({ name: 'BrowCards', roughness: .9, specularIntensity: .3, transparent: true, alphaTest: .04, side: T.DoubleSide }); // small cards over opaque skin: blended, so hair tips stay soft
 const hairShell = new T.MeshPhysicalMaterial({ name: 'HairShell', roughness: .9, specularIntensity: .25, alphaTest: .42, side: T.DoubleSide, vertexColors: true }); // fur shells: dot alpha × per-shell vertex alpha
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial, face, hairCards, browCards, hairShell].map(m => [m, []]));
+// Photogrammetry head (KeenTools reconstruction of the owner's portraits): its own textures, skin specular, wet eyes.
+const photo = new T.MeshPhysicalMaterial({ name: 'Photo', roughness: .62, specularIntensity: .5 });
+const photoEyes = new T.MeshPhysicalMaterial({ name: 'PhotoEyes', roughness: .2, clearcoat: .6, clearcoatRoughness: .15 });
+const photoTeeth = new T.MeshStandardMaterial({ name: 'PhotoTeeth', roughness: .4 });
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth].map(m => [m, []]));
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);

@@ -9,9 +9,10 @@ import math
 import os
 
 import __main__ as P  # parts.py, the running Blender script: its image and noise helpers
+import bmesh
 import bpy
 import numpy as np
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 LPS = 'artifacts/source/lps'
 QUADRANT = {1: (0.0, 0.5), 2: (0.5, 0.5), 3: (0.0, 0.0)}  # body tiles 1002-1004 → atlas quadrants; (0.5, 0) stays white
@@ -260,6 +261,8 @@ def photo_layer_multi(pos, normal_obj, F, lid_ring, size, head):
     front_mean = None
     ez = F['eye_l'].z
     oval = ellipse(pos, (0.0, F['nose'].y + 0.03, ez - 0.02), (0.095, 0.11, 0.115), 0.3)
+    crown = ellipse(pos, (0.0, F['nose'].y + 0.06, ez + 0.02), (0.10, 0.13, 0.13), 0.3)  # the hair too, through the head mask
+    scalp_zone = scalp_mask(pos, F)
     for image, yaw in VIEWS:
         if not os.path.exists(image):
             continue
@@ -271,6 +274,8 @@ def photo_layer_multi(pos, normal_obj, F, lid_ring, size, head):
         ph, pw = lm['height'], lm['width']
         photo = P.load_pixels(image, 'sRGB')
         sil = P.load_pixels(image.rsplit('.', 1)[0] + '.mask.png', 'Non-Color')[..., 0]
+        head_path = image.rsplit('.', 1)[0] + '.head.png'
+        head_sil = P.load_pixels(head_path, 'Non-Color')[..., 0] if os.path.exists(head_path) else sil
         src, dst = [], []
         for key, val in pairs.items():
             p3 = land3[key]
@@ -297,7 +302,7 @@ def photo_layer_multi(pos, normal_obj, F, lid_ring, size, head):
         sample = (photo[v0, u0] * (1 - fu) * (1 - fv) + photo[v0, u0 + 1] * fu * (1 - fv) + photo[v0 + 1, u0] * (1 - fu) * fv + photo[v0 + 1, u0 + 1] * fu * fv)
         facing = np.clip(normal_obj.astype(np.float64) @ cam, 0, 1) ** 1.5
         inside = (u > 2) & (u < pw - 3) & (v > 2) & (v < ph - 3)
-        w = (facing * sil[v0, u0] * inside * oval).astype(np.float32)
+        w = (facing * np.maximum(sil[v0, u0] * oval, head_sil[v0, u0] * crown * scalp_zone) * inside).astype(np.float32)
         luma = sample @ np.array([0.30, 0.59, 0.11])
         wide = blur(luma, 128)
         mean = float((wide * w).sum() / (w.sum() + 1e-6))
@@ -505,7 +510,6 @@ def fit_head_dense(objs, eyes, head, F):
         obj.data.update()
     # eyeballs: the size and place of his openings
     result = {}
-    head_co = np.array([[v.co.x, v.co.y, v.co.z] for v in head.data.vertices], np.float64)  # the fitted head
     for e, ids in zip(eyes, (LEFT_EYE, RIGHT_EYE)):
         # the lid margin: the eye-contour landmarks cast from the front into the fitted head hit the lid edge surface
         margin = []
@@ -623,12 +627,12 @@ def scalp_mask(pos, F):
     ez = F.get('hairline_z', ez + 0.076) - 0.076 - (0.018 if 'hairline_z' in F else 0.0)  # fitted hairline, shells start inside the portrait's hair
     recession = np.clip((np.abs(pos[..., 0]) - 0.028) / 0.022, 0, 1) ** 1.5 * 0.014  # the hairline rises at the temples
     sides = np.clip((np.abs(pos[..., 0]) - 0.048) / 0.02, 0, 1) ** 1.2  # … then drops to the ear tops round the sides
-    hairline = ez + 0.076 + recession - sides * 0.062 - np.clip(pos[..., 1] - ey + 0.02, 0, None) * 0.55
+    hairline = ez + 0.076 + recession - sides * 0.021 - np.clip(pos[..., 1] - ey + 0.02, 0, None) * 0.55  # sides: 5 mm above the ear tops
     scalp = np.clip((pos[..., 2] - hairline) / (0.035 if 'hairline_z' in F else 0.02), 0, 1)  # a long feather into the portrait's hairline
-    ear = np.clip((np.abs(pos[..., 0]) - 0.058) / 0.01, 0, 1) * np.clip((pos[..., 1] - (ey + 0.015)) / 0.01, 0, 1) * np.clip(((ey + 0.10) - pos[..., 1]) / 0.01, 0, 1) * np.clip(((ez + 0.045) - pos[..., 2]) / 0.01, 0, 1)
+    ear = np.clip((np.abs(pos[..., 0]) - 0.040) / 0.008, 0, 1) * np.clip((pos[..., 1] - (ey + 0.010)) / 0.01, 0, 1) * np.clip(((ey + 0.12) - pos[..., 1]) / 0.01, 0, 1) * np.clip(((ez + 0.056) - pos[..., 2]) / 0.008, 0, 1)  # the ear and the skull under it
     scalp = scalp * (1 - ear)  # the ears are not scalp
-    scalp = np.maximum(scalp, np.clip((pos[..., 1] - (ey + 0.075)) / 0.02, 0, 1) * np.clip((pos[..., 2] - (ez + 0.005)) / 0.02, 0, 1))
-    return scalp * np.clip((pos[..., 2] - (ez - 0.02)) / 0.02, 0, 1)
+    scalp = np.maximum(scalp, np.clip((pos[..., 1] - (ey + 0.075)) / 0.02, 0, 1) * np.clip((pos[..., 2] - (ez - 0.03)) / 0.05, 0, 1))  # the nape reaches the neck, over a long feather
+    return scalp * np.clip((pos[..., 2] - (ez - 0.05)) / 0.02, 0, 1)
 
 
 def face_colour(pos, mask, F, ao, detail, size, photo=None):
@@ -637,7 +641,7 @@ def face_colour(pos, mask, F, ao, detail, size, photo=None):
     Brows and lashes are geometry now, so they leave only their shadow here."""
     fbm = P.fbm
     ex, ey, ez, n, m, c, front, xz = landmarks(F, pos)
-    base = np.array([0.64, 0.47, 0.35])[None, None, :]  # healthy olive: a shade lighter and pinker than the body
+    base = (np.array([0.64, 0.47, 0.35]) if SKIN_TONE is None else SKIN_TONE * 1.06)[None, None, :]  # healthy olive: a shade lighter and pinker than the body
     tone = fbm(size, 41, octaves=(4, 8, 16, 32))[..., None]
     colour = base * (0.94 + tone * 0.12)
     colour[..., 1] *= 1 + (tone[..., 0] - 0.5) * 0.04
@@ -715,11 +719,11 @@ def face_colour(pos, mask, F, ao, detail, size, photo=None):
     temples = np.maximum(ellipse(pos, (ex + 0.045, ey + 0.03, ez + 0.02), (0.012, 0.02, 0.045), 0.9), ellipse(pos, (-(ex + 0.045), ey + 0.03, ez + 0.02), (0.012, 0.02, 0.045), 0.9))
     colour *= (1 - temples * np.clip((streak - 0.58) * 6, 0, 1) * 0.0 * front)[..., None]  # no grime on the hero face
     # Shaved scalp under the hair cards, feathered hairline.
-    scalp = scalp_mask(pos, F) * (1 - (1 - keep) * 0.7)  # the photo already carries the buzz cut at the hairline
+    scalp = scalp_mask(pos, F) * keep  # painted only where no photo reaches (crown, back)
     for _ in range(8):  # grow across the skull island's seam margin so no texel there is left unpainted
         scalp = np.maximum.reduce([scalp, np.roll(scalp, 2, 0), np.roll(scalp, -2, 0), np.roll(scalp, 2, 1), np.roll(scalp, -2, 1)])
-    dense = (np.random.default_rng(64).random((size, size)) < 0.75).astype(np.float32)
-    colour *= (1 - scalp * (0.50 + dense * 0.22))[..., None]
+    dense = np.repeat(np.repeat((np.random.default_rng(64).random((size // 2, size // 2)) < 0.6).astype(np.float32), 2, 0), 2, 1)  # grain that survives 1K
+    colour *= (1 - scalp * (0.42 + dense * 0.30))[..., None]
     colour *= 1 - (scalp * 0.1)[..., None] * np.array([0, 0.3, 0.6])[None, None, :]
     # Arena dust, light.
     dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.45) * 2.4, 0, 1)[..., None]
@@ -743,7 +747,7 @@ def face_roughness(pos, F, detail, size):
 def body_colour(pos, mask, ao, detail, size):
     """Body tiles: the same skin, dustier, with the scan mottle at half strength."""
     fbm = P.fbm
-    base = np.array([0.60, 0.44, 0.31])[None, None, :]
+    base = (np.array([0.60, 0.44, 0.31]) if SKIN_TONE is None else SKIN_TONE)[None, None, :]  # matched to the scanned head when there is one
     tone = fbm(size, 41, octaves=(4, 8, 16, 32))[..., None]
     colour = base * (0.92 + tone * 0.18)
     colour[..., 1] *= 1 + (tone[..., 0] - 0.5) * 0.06
@@ -752,6 +756,8 @@ def body_colour(pos, mask, ao, detail, size):
     colour = colour * (1 + (detail - 0.5) * 2.0)
     dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.45) * 2.4, 0, 1)[..., None]
     colour = colour * (1 - dust * 0.22) + np.array([0.30, 0.28, 0.25])[None, None, :] * dust * 0.22
+    if SKIN_TONE is not None:  # the finished skin's median lands on the scanned neck's, shading and dust included
+        colour = colour * (SKIN_TONE / np.median(colour[mask], axis=0))[None, None, :]
     return np.clip(colour, 0, 1)
 
 
@@ -999,7 +1005,7 @@ def hair_shells(head, F, layers=10, spacing=0.0005):
     scalp_polys = []
     for poly in me.polygons:
         c = poly.center
-        if scalp_mask(np.array([[[c.x, c.y, c.z]]], np.float32), F)[0, 0] > 0.25:
+        if scalp_mask(np.array([[[c.x, c.y, c.z]]], np.float32), F)[0, 0] > 0.08:  # the vertex feather ends the hair, not the polygon edge
             scalp_polys.append(poly.index)
     keep = set(scalp_polys)
     bm = bmesh.new()
@@ -1014,7 +1020,7 @@ def hair_shells(head, F, layers=10, spacing=0.0005):
     xs = [v.co.x for v in base.vertices]
     ys = [v.co.y for v in base.vertices]
     x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
-    feather = {v.index: float(scalp_mask(np.array([[[v.co.x, v.co.y, v.co.z]]], np.float32), F)[0, 0]) for v in base.vertices}
+    feather = {v.index: float(scalp_mask(np.array([[[v.co.x, v.co.y, v.co.z]]], np.float32), F)[0, 0]) for v in base.vertices}  # noqa: F841
     full_normals = []
     for v in base.vertices:  # normals of the whole head, not of the cut-out: the scalp's centre seam must not split
         ok, loc, nrm, _ = head.closest_point_on_mesh(v.co)
@@ -1027,9 +1033,9 @@ def hair_shells(head, F, layers=10, spacing=0.0005):
         start = len(verts)
         for v, nrm in zip(base.vertices, full_normals):
             height = min(1.0, max(0.0, (v.co.z - (ez + 0.02)) / 0.10))  # 0 at the ear tops, 1 on top: the fade
-            alpha = (1.0 - 0.70 * t) * (0.5 + 0.5 * height) * min(1.0, max(0.0, (feather[v.index] - 0.15) / 0.45))  # taper, fade, hairline
+            alpha = (1.0 - 0.70 * t) * (0.5 + 0.5 * height)  # v16: taper and side fade in the density * min(1.0, max(0.0, (feather[v.index] - 0.15) / 0.45))  # taper, fade, hairline
             comb = Vector((0.0, 0.75, -0.66)) - nrm * Vector((0.0, 0.75, -0.66)).dot(nrm)  # back and down, along the skin
-            verts.append(v.co + nrm * off + comb.normalized() * (0.0012 * t))  # outer shells slide a little along the comb: a lean, not a streak
+            verts.append(v.co + nrm * off + comb.normalized() * (0.0012 * t))  # v16: outer shells slide a little along the comb
             normals.append(nrm.copy())
             colours.append((shade, shade, shade, alpha))
         for poly in base.polygons:
@@ -1061,7 +1067,8 @@ def shell_texture(size=1024):
     rng = np.random.default_rng(73)
     seed_dots = rng.random((size // 4, size // 4))
     length = rng.random((size // 4, size // 4)).astype(np.float32)
-    alpha = np.repeat(np.repeat(np.where(seed_dots < 0.72, 0.62 + 0.38 * length, 0.0).astype(np.float32), 4, 0), 4, 1)  # 4-px hairs
+    hard = np.repeat(np.repeat(np.where(seed_dots < 0.72, 0.62 + 0.38 * length, 0.0).astype(np.float32), 4, 0), 4, 1)
+    alpha = (hard + np.roll(hard, 1, 0) + np.roll(hard, -1, 0) + np.roll(hard, 1, 1) + np.roll(hard, -1, 1)) / 5  # soft round hairs, not squares
     tone = 0.75 + 0.5 * rng.random((size, size, 1))
     colour = np.array([0.15, 0.10, 0.07])[None, None, :] * tone  # dark brown, near-black at the roots
     return np.concatenate([np.clip(colour, 0, 1), alpha[..., None]], axis=2).astype(np.float32)
@@ -1153,16 +1160,341 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     head, rest = separate_head(body, select_only)
     tag(head, 'Head', 'Face', slot='Face')
     tag(rest, 'Body', 'Skin', slot='Skin')
-    if os.path.exists(PHOTO) and os.environ.get('HEAD_PHOTO', '1') == '1':
+    if SKIN_TONE is not None:  # the scanned head replaces everything above its neck stub: this tile's neck is painted like the body
+        below = np.clip((F['kt_neck_z'] + 0.02 - pos_face[..., 2]) / 0.02, 0, 1)[..., None]
+        near = np.clip((pos_face[..., 2] - (F['kt_neck_z'] - 0.025)) / 0.025, 0, 1)[..., None]  # 1 at the stub's edge, 0 2.5 cm below
+        flat = SKIN_TONE[None, None, :]  # what the stub fades to (keentools_head): both sides meet on the same flat tone
+        body_style = body_colour(pos_face, mask_face, P.upsample(ao_face, size), detail_colour, size)
+        colour_face = fill_margin(colour_face * (1 - below) + (body_style * (1 - near) + flat * near) * below, mask_face)
+        maps['Face']['baseColor'] = save_two_sizes('face_color', colour_face, 'sRGB')
+        soft = np.clip(ao_face ** 1.3, 0, 1)  # the body's occlusion map, in this tile's own layout, so the two necks shade alike
+        soft = soft * (1 - P.downsample(near, size // ao_face.shape[0])[..., 0]) + P.downsample(near, size // ao_face.shape[0])[..., 0]
+        maps['Face']['occlusion'] = save_jpeg('face_ao', np.stack([soft, soft, soft], axis=2), 'Non-Color')
+    elif os.path.exists(PHOTO) and os.environ.get('HEAD_PHOTO', '1') == '1':
         photo = photo_layer_multi(pos_face, normal_obj, F, lid_ring, size, head)
         colour_face = fill_margin(face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size, photo), mask_face)
         maps['Face']['baseColor'] = save_two_sizes('face_color', colour_face, 'sRGB')
-    eye = bpy.data.objects['eye_L']
-    eye_centre = sum((v.co for v in eye.data.vertices), Vector()) / len(eye.data.vertices)
-    eye_radius = max((v.co - eye_centre).length for v in eye.data.vertices)
     hair = tag(hair_shells(head, F), 'hair_shells', 'HairShell', bone='Head', slot='Hair')
     maps['HairShell'] = {'baseColor': save_png_rgba(os.path.join(materials_out, 'hair_shell.png'), shell_texture())}
     brows = tag(brow_cards(head, F, dense=photo is None, count=0 if photo is not None else None), 'brow_cards', 'BrowCards', bone='Head', slot='Face')
     maps['BrowCards'] = dict(maps['HairCards'])  # same sheet, sharper cut-off in the build
     # Lash strips are off: with the lids closed they crossed the opening as a line. Back once placed on the scanned lid edge.
     return {'maps': maps, 'ao_body': ao_body, 'head': head, 'body': rest, 'parts': [head, rest, hair, brows]}
+
+
+# --- KeenTools reconstructed head (photogrammetry from the owner's five portraits) ----------------------------------
+
+KT_GLB = 'artifacts/source/keentools/01a0a0ab-aa11-7be1-9b43-2221309c04b9.glb'
+SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painted body and neck stub take it as their base
+NECK_DROP = 0.10  # the scanned head is cut this far below eye level: just under the jaw, where the skin weights are all neck and head (lower, the base body's clavicle weights tear the seam in pose)
+KT = None         # (object, images, slot_names) once imported
+
+
+def keentools_import():
+    """Import the KeenTools GLB once: the single mesh with four material slots (Head, EyeLeft, EyeRight, Teeth)."""
+    global KT
+    if KT is not None:
+        return KT
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=KT_GLB)
+    kt = next(o for o in set(bpy.data.objects) - before if o.type == 'MESH')
+    bpy.context.view_layer.update()
+    for o in set(bpy.data.objects) - before:
+        if o is not kt:
+            bpy.data.objects.remove(o, do_unlink=True)
+    kt.parent = None
+    bpy.ops.object.select_all(action='DESELECT')
+    kt.select_set(True)
+    bpy.context.view_layer.objects.active = kt
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    images, slot_names = {}, []
+    for i, m in enumerate(kt.data.materials):  # the importer's textures, by slot
+        node = next((n for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image), None) if m and m.use_nodes else None
+        images[i] = node.image if node else None
+        slot_names.append(m.name if m else '')
+    KT = (kt, images, slot_names)
+    return KT
+
+
+def keentools_skin_tone(eye_l, eye_r):
+    """Median linear colour of the scan's neck band (11.5–16 cm below the eyes, once scaled to the rig), so the painted
+    body can be matched to the photographed head before it is painted."""
+    global SKIN_TONE
+    kt, images, _ = keentools_import()
+    mesh = kt.data
+    eye_slots = [i for i in (1, 2) if i < len(mesh.materials)]
+    cents = []
+    for slot in eye_slots:
+        vs = {v for p in mesh.polygons if p.material_index == slot for v in p.vertices}
+        cents.append(sum((mesh.vertices[v].co for v in vs), Vector()) / len(vs))
+    scale = abs(eye_l.x - eye_r.x) / abs(cents[0].x - cents[1].x)
+    mid = (cents[0] + cents[1]) / 2
+    lo, hi = mid.z - 0.16 / scale, mid.z - 0.115 / scale
+    uv = mesh.uv_layers.active.data
+    w, h = images[0].size
+    px = np.empty(w * h * 4, np.float32)
+    images[0].pixels.foreach_get(px)
+    px = px.reshape(h, w, 4)[:, :, :3]
+    samples = []
+    for p in mesh.polygons:
+        if p.material_index != 0 or not (lo < p.center.z < hi):
+            continue
+        for li in p.loop_indices:
+            u, v = uv[li].uv
+            samples.append(px[min(h - 1, int((1 - v) * h)), min(w - 1, int(u * w))])
+    samples = np.array(samples)
+    samples = samples[samples.max(axis=1) > 0.06]  # skip un-photographed texels
+    SKIN_TONE = np.median(samples, axis=0)
+    print(f'KEENTOOLS skin tone (linear) {np.round(SKIN_TONE, 3)} from {len(samples)} neck texels')
+    return SKIN_TONE
+
+
+def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_jpeg_fn, save_two_sizes_fn, materials_out, size=2048):
+    """Bring the KeenTools head (Head, EyeLeft, EyeRight, Teeth; 4K textures) onto the rig: scaled by eye spacing,
+    eyes aligned to the base eyes, shoulders cut off, skin weights from the body by nearest surface, head decimated for
+    the phone with a normal map baked from the full mesh, textures resampled, the untextured crown filled from its
+    neighbours. Returns (parts, maps, neck_z): everything above neck_z on the body's Face tile is replaced."""
+    kt, images, slot_names = keentools_import()
+    select_only([kt])
+    # split by material into four objects
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.separate(type='MATERIAL')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    pieces = [o for o in bpy.context.selected_objects if o.type == 'MESH']
+    by_slot = {}
+    for o in pieces:  # each piece keeps one material after the split: map it back to the original slot by name
+        used = [m.name for m in o.data.materials if m]
+        by_slot[slot_names.index(used[0]) if used and used[0] in slot_names else len(by_slot)] = o
+    head, eye_a, eye_b, teeth = by_slot[0], by_slot[1], by_slot[2], by_slot[3]
+    def centroid(o):
+        return sum((v.co for v in o.data.vertices), Vector()) / len(o.data.vertices)
+    ca, cb = centroid(eye_a), centroid(eye_b)
+    kt_eye_l, kt_eye_r = (eye_a, eye_b) if ca.x > cb.x else (eye_b, eye_a)
+    if eye_l.x < eye_r.x:  # the rig names its eyes from the viewer's side; match by position, never by name
+        eye_l, eye_r = eye_r, eye_l
+    cl, cr = centroid(kt_eye_l), centroid(kt_eye_r)
+    scale = (eye_l.x - eye_r.x) / (cl.x - cr.x)
+    kt_mid = (cl + cr) / 2
+    rig_mid = (eye_l + eye_r) / 2
+    M = Matrix.Translation(rig_mid) @ Matrix.Scale(scale, 4) @ Matrix.Translation(-kt_mid)
+    for o in (head, kt_eye_l, kt_eye_r, teeth):
+        o.data.transform(M)
+        o.data.update()
+    # shoulders off: keep the head and a neck stub
+    neck_z = rig_mid.z - NECK_DROP
+    bm = bmesh.new()
+    bm.from_mesh(head.data)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_center_median().z < neck_z - 0.03], context='FACES')
+    geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
+    bmesh.ops.bisect_plane(bm, geom=geom, plane_co=(0, 0, neck_z), plane_no=(0, 0, 1), clear_inner=True)  # a clean level edge
+    bm.to_mesh(head.data)
+    bm.free()
+    for poly in head.data.polygons:
+        poly.use_smooth = True
+    # the phone mesh: decimated copy, normal map baked from the full one
+    full = head.copy()
+    full.data = head.data.copy()
+    full.name = 'kt_head_full'
+    bpy.context.collection.objects.link(full)
+    keep = head.vertex_groups.new(name='decimate')  # the level bottom edge survives the collapse
+    keep.add([v.index for v in head.data.vertices if v.co.z > neck_z + 0.003], 1.0, 'REPLACE')
+    dec = head.modifiers.new('Decimate', 'DECIMATE')
+    dec.ratio = 0.34
+    dec.use_collapse_triangulate = True
+    dec.vertex_group = 'decimate'
+    dec.vertex_group_factor = 1.0
+    select_only([head])
+    bpy.ops.object.modifier_apply(modifier='Decimate')
+    head.vertex_groups.remove(head.vertex_groups['decimate'])
+    dec = teeth.modifiers.new('Decimate', 'DECIMATE')  # the scan's teeth are far denser than a phone mouth needs
+    dec.ratio = 0.15
+    dec.use_collapse_triangulate = True
+    select_only([teeth])
+    bpy.ops.object.modifier_apply(modifier='Decimate')
+    # the stub's lower band slides onto our neck so the silhouette runs straight into the body: aimed at a copy of our
+    # head already cut to the neck, so the rays never meet our chin
+    ring = [v.co for v in head.data.vertices if v.co.z < neck_z + 0.012]  # the stub's bottom edge: the neck axis
+    neck_c = sum(ring, Vector()) / max(1, len(ring))
+    neck_only = weights_from.copy()
+    neck_only.data = weights_from.data.copy()
+    bpy.context.collection.objects.link(neck_only)
+    cut_above(neck_only, neck_z + 0.0015, select_only)
+    for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
+        neck_blend(o, neck_only, neck_z, neck_c)
+    bpy.data.objects.remove(neck_only, do_unlink=True)
+    # weights from the fitted body (the base head, whose tile carries the neck; not the headless torso) — after the
+    # blend, so the collar deforms exactly like the neck it sits on — then the rig
+    for o in (head, kt_eye_l, kt_eye_r, teeth):
+        select_only([weights_from, o])
+        bpy.ops.object.data_transfer(data_type='VGROUP_WEIGHTS', vert_mapping='POLYINTERP_NEAREST', layers_select_src='ALL', layers_select_dst='NAME', use_create=True)
+        arm = o.modifiers.new('Armature', 'ARMATURE')
+        arm.object = armature
+    cut_above(weights_from, neck_z + 0.0015, select_only)  # our head goes; our neck ends just inside the scan's collar
+    seam = bake_attribute(head, 'neck_blend', select_only, size)  # where the stub fades into the body, in texture space
+    head.vertex_groups.remove(head.vertex_groups['neck_blend'])  # not a bone
+    zone = head.vertex_groups.new(name='hair_zone')  # above the nape hairline (eye level and up), for the crown fill
+    for v in head.data.vertices:
+        h = (v.co.z - (rig_mid.z - 0.055)) / 0.03  # the nape hairline of a buzz cut: about the ear lobes
+        if h > 0:
+            zone.add([v.index], min(1.0, h), 'REPLACE')
+    hair_zone = bake_attribute(head, 'hair_zone', select_only, size)
+    head.vertex_groups.remove(head.vertex_groups['hair_zone'])
+    cams = [Vector((math.sin(math.radians(a)), -math.cos(math.radians(a)), 0)) for a in (0, 35, -35, 90, -90)]  # the five portraits
+    cover = head.vertex_groups.new(name='coverage')  # how squarely the best photograph saw each vertex
+    head.data.update()
+    for v in head.data.vertices:
+        q = max(v.normal.dot(c) for c in cams)
+        if q > 0:
+            cover.add([v.index], min(1.0, q), 'REPLACE')
+    coverage = bake_attribute(head, 'coverage', select_only, size)
+    head.vertex_groups.remove(head.vertex_groups['coverage'])
+    # textures: resample the 4K head colour to 2K/1K, eyes to 512; fill the untextured crown from its neighbours
+    def pixels(img):
+        w, h = img.size
+        px = np.empty(w * h * 4, np.float32)
+        img.pixels.foreach_get(px)
+        return px.reshape(h, w, 4)[:, :, :3]
+    colour = pixels(images[0])
+    colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
+    dark = (colour.max(axis=2) < 0.06) | (coverage < 0.45)  # black, or seen only at a grazing angle: the crown, the back
+    filled = crown_fill(colour, dark, size, hair_zone)
+    if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
+        filled = filled * (1 - seam * 0.85)[..., None] + SKIN_TONE[None, None, :] * (seam * 0.85)[..., None]  # our neck meets it on the same flat tone, no occlusion on either side
+    island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands: their colours spill into the gutters so seams never sample the raw edges
+    filled = fill_margin(filled, island, steps=48)
+    maps = {'Photo': {'baseColor': save_two_sizes_fn('kt_face_color', filled, 'sRGB')},
+            'PhotoEyes': {'baseColor': save_jpeg_fn('kt_eye_color', P.downsample(pixels(images[1]), max(1, images[1].size[0] // 512)), 'sRGB')},
+            'PhotoTeeth': {'baseColor': save_jpeg_fn('kt_teeth_color', P.downsample(pixels(images[3]), max(1, images[3].size[0] // 512)), 'sRGB')}}
+    normal = bake_tiles_single(head, full, select_only, size)
+    maps['Photo']['normal'] = save_two_sizes_fn('kt_face_normal', normal, 'Non-Color')
+    bpy.data.objects.remove(full, do_unlink=True)
+    if kt not in (head, kt_eye_l, kt_eye_r, teeth) and kt.name in bpy.data.objects:  # the original object survives the split as one of the pieces
+        bpy.data.objects.remove(kt, do_unlink=True)
+    parts = [tag(head, 'kt_head', 'Photo', slot='Face'), tag(kt_eye_l, 'kt_eye_l', 'PhotoEyes', slot='Eyes'), tag(kt_eye_r, 'kt_eye_r', 'PhotoEyes', slot='Eyes'), tag(teeth, 'kt_teeth', 'PhotoTeeth', slot='Face')]
+    print(f'KEENTOOLS head scale={scale:.4f} neck_z={neck_z:.3f} neck_c=({neck_c.x:.3f}, {neck_c.y:.3f}) head faces={len(head.data.polygons)} eyes={len(kt_eye_l.data.polygons)} teeth={len(teeth.data.polygons)}')
+    return parts, maps, neck_z, neck_c
+
+
+def crown_fill(colour, dark, size, hair_zone):
+    """The scan photographs the front and sides; the crown and the back of the skull are smeared from grazing views
+    (`dark`). Growing the boundary inward leaves streaks, so beyond a short feather the fill is flat: the photographed
+    hair's own tone (buzz-cut grain on top) where the head is above the hairline, the skin tone below it (the nape), by
+    the baked `hair_zone` map."""
+    filled = fill_margin(colour, ~dark, steps=400)
+    reach = blur((~dark).astype(np.float32), 16)  # 1 on the photograph, fading to 0 across the boundary
+    lum = colour.mean(axis=2)
+    band = (~dark) & (reach < 0.9) & (reach > 0.3) & (hair_zone > 0.5) & (lum < 0.16)  # photographed hair next to the black
+    hair = np.median(colour[band], axis=0) * 1.1 if band.sum() > 500 else np.array([0.06, 0.046, 0.036])  # a little scalp shows through a buzz cut
+    skin = SKIN_TONE if SKIN_TONE is not None else np.array([0.50, 0.40, 0.34])
+    grain = P.fbm(size, 7, octaves=(size // 8, size // 4, size // 2))
+    dots = P.fbm(size, 8, octaves=(size // 2, size))
+    hair_synth = hair[None, None, :] * (0.72 + 0.56 * grain)[..., None] * (1 - 0.35 * (dots > 0.62))[..., None]
+    skin_synth = skin[None, None, :] * (0.92 + 0.16 * grain)[..., None]
+    synth = hair_synth * hair_zone[..., None] + skin_synth * (1 - hair_zone[..., None])
+    w = np.clip(1 - reach * 1.6, 0, 1)[..., None] * dark[..., None]
+    print(f'KEENTOOLS crown fill: hair tone {np.round(hair, 3)} from {int(band.sum())} texels')
+    return filled * (1 - w) + synth * w
+
+
+def neck_blend(obj, target, neck_z, axis, band=0.05, lift=0.0004):
+    """The stub's lowest `band` metres slide radially onto `target`'s neck (ray from the neck axis through each vertex),
+    so the silhouette runs straight into the body. Leaves the weights in a 'neck_blend' vertex group."""
+    vg = obj.vertex_groups.new(name='neck_blend')
+    inv = target.matrix_world.inverted()
+    hits = misses = 0
+    for v in obj.data.vertices:
+        w = min(1.0, 1 - (v.co.z - neck_z) / band)
+        if w <= 0:
+            continue
+        vg.add([v.index], w, 'REPLACE')
+        origin = Vector((axis.x, axis.y, min(v.co.z, neck_z - 0.001)))  # our neck is cut just above the ring: aim at its top
+        direction = Vector((v.co.x - axis.x, v.co.y - axis.y, 0))
+        if direction.length < 1e-6:
+            continue
+        hit, loc, _, _ = target.ray_cast(inv @ origin, (inv.to_3x3() @ direction).normalized(), distance=0.3)
+        if hit:
+            goal = target.matrix_world @ loc + direction.normalized() * lift  # a collar just outside our neck
+            v.co = v.co.lerp(Vector((goal.x, goal.y, v.co.z)), w)  # our neck's outline at the ring, carried up the band
+            hits += 1
+        else:
+            misses += 1
+    obj.data.update()
+    print(f'NECK BLEND {obj.name}: {hits} hits, {misses} misses; target matrix identity={target.matrix_world == Matrix.Identity(4)}')
+
+
+def bake_attribute(obj, group, select_only, size, margin=8):
+    """A vertex group rasterised into `obj`'s UV space (Cycles EMIT bake of the attribute), as a float map; with no
+    group, a mask of the UV islands themselves."""
+    scene = bpy.context.scene
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = 1
+    scene.render.bake.margin = margin
+    scene.render.bake.use_selected_to_active = False
+    img = bpy.data.images.new('kt_attr', size, size, float_buffer=True)
+    mat = bpy.data.materials.new('kt_attr_bake')
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    emit = nodes.new('ShaderNodeEmission')
+    if group is None:
+        emit.inputs['Color'].default_value = (1, 1, 1, 1)
+    else:
+        attr = nodes.new('ShaderNodeAttribute')
+        attr.attribute_name = group
+        links.new(attr.outputs['Fac'], emit.inputs['Color'])
+    links.new(emit.outputs['Emission'], nodes['Material Output'].inputs['Surface'])
+    node = nodes.new('ShaderNodeTexImage')
+    node.image = img
+    nodes.active = node
+    saved = [m for m in obj.data.materials]
+    obj.data.materials.clear()
+    obj.data.materials.append(mat)
+    select_only([obj])
+    bpy.ops.object.bake(type='EMIT', use_clear=True)
+    obj.data.materials.clear()
+    for m in saved:
+        obj.data.materials.append(m)
+    px = np.empty(size * size * 4, np.float32)
+    img.pixels.foreach_get(px)
+    bpy.data.images.remove(img)
+    return np.clip(px.reshape(size, size, 4)[:, :, 0], 0, 1)
+
+
+def bake_tiles_single(low, high, select_only, size):
+    """Tangent normal of `high` onto `low`'s single material slot (the low keeps its UVs from the full mesh)."""
+    scene = bpy.context.scene
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = 8
+    scene.render.bake.margin = 8
+    scene.render.bake.use_selected_to_active = True
+    scene.render.bake.cage_extrusion = 0.01
+    scene.render.bake.normal_space = 'TANGENT'
+    img = bpy.data.images.new('kt_normal', size, size)
+    mat = bpy.data.materials.new('kt_normal_bake')
+    mat.use_nodes = True
+    node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    node.image = img
+    mat.node_tree.nodes.active = node
+    low.data.materials.clear()
+    low.data.materials.append(mat)
+    high.hide_render = high.hide_viewport = False
+    select_only([low, high])
+    bpy.ops.object.bake(type='NORMAL', use_clear=True)
+    scene.render.bake.use_selected_to_active = False
+    px = np.empty(size * size * 4, np.float32)
+    img.pixels.foreach_get(px)
+    return clean_normal(px.reshape(size, size, 4)[:, :, :3])
+
+
+def cut_above(obj, z, select_only):
+    """Remove everything of `obj` above height z with a level cut (the base head, once the reconstructed head takes its
+    place: what is left of the neck ends just inside the scan's collar)."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, z), plane_no=(0, 0, 1), clear_outer=True)
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return obj

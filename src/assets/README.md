@@ -102,3 +102,17 @@ skin by facing angle (`head.photo_layer`). Lids are rotated 13°/4° about the e
 shells (7 offset copies of the scalp with a dotted alpha and per-shell vertex alpha, `hair_shell.png`); brows and lashes stay
 cards on a redrawn curved-strand sheet, alpha-blended. Portrait and landmark files are committed under
 `artifacts/source/face/` so the build is reproducible without network access.
+
+Realistic head pass 6 — reconstructed head (character lane, 2026-09-14, demo builds only): the head is now a photogrammetry
+reconstruction of the owner's five synthetic portraits (GPT-generated, no real person; `artifacts/source/face/gpt_front.png`
+and `gpt/raw1..4.png`) made with the KeenTools Cloud API (`scripts/create-head.mjs`, key from `KEENTOOLS_API_KEY`, never
+stored in the repo): `artifacts/source/keentools/01a0a0ab-aa11-7be1-9b43-2221309c04b9.glb` (SHA-256 04a4987809abc23c…,
+retrieved 2026-09-14; head, two eyes, teeth, four 2048² textures). `head.keentools_head` scales it by eye spacing onto the
+base eyes, cuts it 10 cm below eye level (under the jaw, where the base rig's weights are all neck and head), slides that
+collar radially onto our neck, transfers the skin weights from the base head by nearest surface, decimates to 15.6k
+triangles with a normal map baked from the full mesh, and fills the un-photographed crown and back (found by camera
+coverage, not colour) with the photographed hair's own tone and fresh buzz-cut grain — the nape with skin. The base body is
+painted to the scan's neck colour (`SKIN_TONE`), and both sides of the seam meet on that flat tone with no occlusion. Fur
+shells and brow cards are off when the scan is present; the bronze helm is shelled from the scan. A/B against Hunyuan3D-2mv
+(`scripts/character/hunyuan.py`, Hugging Face Space, shape only on the free quota): likeness lost to KeenTools —
+`artifacts/character/humanoid-v19/AB-RESULTS.md`.
