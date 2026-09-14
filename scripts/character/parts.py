@@ -580,11 +580,17 @@ def face_paint(colour, pos, mask, size):
     front = np.clip((f['nose'].y + 0.09 - pos[..., 1]) / 0.03, 0, 1)  # face-facing texels only
     noise = fbm(size, 61, octaves=(64, 128))
     # Brows: two tapered arcs of hair strokes above the eyes, denser toward the nose.
-    strokes = fbm(size, 63, octaves=(256,))  # fine, directional-looking grain
+    strokes = np.clip((fbm(size, 63, octaves=(128, 512)) - 0.42) * 3, 0, 1)  # hair breakup over a dense core
     for sx in (1, -1):
-        taper = np.clip(1 - (sx * pos[..., 0] - ex) / 0.03, 0.35, 1)  # thinner toward the temple
-        brow = ellipse(pos, (sx * (ex + 0.004), ey - 0.006, ez + 0.026), (0.027, 0.02, 0.0042), 0.6) * taper
-        colour *= 1 - (brow * (0.35 + strokes * 0.6) * 0.85 * front)[..., None]
+        inner = np.clip(1 - (sx * pos[..., 0] - ex + 0.012) / 0.04, 0.3, 1)  # heavy at the nose, thinning to the temple
+        thick = ellipse(pos, (sx * (ex + 0.002), ey - 0.006, ez + 0.026), (0.028, 0.02, 0.0056), 0.55)
+        thin = ellipse(pos, (sx * (ex + 0.002), ey - 0.006, ez + 0.026), (0.028, 0.02, 0.0036), 0.55)
+        brow = (thin + (thick - thin) * inner) * inner
+        colour *= 1 - (brow * (0.55 + strokes * 0.45) * 0.88 * front)[..., None]
+    # Lash line: a thin dark margin along the upper lid.
+    for sx in (1, -1):
+        lash = ellipse(pos, (sx * ex, ey - 0.012, ez + 0.011), (0.017, 0.012, 0.0016), 0.5)
+        colour *= 1 - (lash * 0.7 * front)[..., None]
     # Eye sockets and lids: a little depth, and a warm shadow.
     for sx in (1, -1):
         socket = ellipse(pos, (sx * ex, ey + 0.004, ez + 0.006), (0.03, 0.022, 0.02), 0.6)
@@ -601,6 +607,16 @@ def face_paint(colour, pos, mask, size):
         flush = np.maximum(flush, ellipse(pos, (sx * f['ear_x'], ey + 0.07, ez), (0.02, 0.03, 0.035), 0.8) * 0.8)
     colour[..., 0] *= 1 + flush * 0.10
     colour[..., 2] *= 1 - flush * 0.10
+    ears = np.maximum(ellipse(pos, (f['ear_x'], ey + 0.07, ez), (0.025, 0.035, 0.04), 0.6), ellipse(pos, (-f['ear_x'], ey + 0.07, ez), (0.025, 0.035, 0.04), 0.6))
+    colour *= (1 - ears * 0.12)[..., None]  # ears sit in shadow and read too bright otherwise
+    # An old scar across the left brow and cheek, and dirt streaks down from the temples.
+    for k in range(60):
+        t = k / 60
+        sc = ellipse(pos, (ex + 0.02 - t * 0.03, ey - 0.03 + t * 0.012, ez + 0.045 - t * 0.075), (0.0032, 0.01, 0.0032), 0.8)
+        colour = colour * (1 - sc[..., None] * 0.35) + np.array([0.50, 0.30, 0.26])[None, None, :] * (sc * 0.35)[..., None]
+    streak = fbm(size, 65, octaves=(16, 256))  # thin vertical-ish runs of sweat-dirt, not patches
+    temples = np.maximum(ellipse(pos, (ex + 0.045, ey + 0.03, ez + 0.02), (0.012, 0.02, 0.045), 0.9), ellipse(pos, (-(ex + 0.045), ey + 0.03, ez + 0.02), (0.012, 0.02, 0.045), 0.9))
+    colour *= (1 - temples * np.clip((streak - 0.58) * 6, 0, 1) * 0.10 * front)[..., None]
     # Stubble: jaw, chin and upper lip, front half of the head.
     c = f['chin']
     jaw = np.clip((m.z - 0.008 - pos[..., 2]) / 0.02, 0, 1) * np.clip((pos[..., 2] - (c.z - 0.045)) / 0.02, 0, 1) * front
@@ -615,7 +631,13 @@ def face_paint(colour, pos, mask, size):
     dense = (np.random.default_rng(64).random((size, size)) < 0.75).astype(np.float32)
     colour *= (1 - scalp * (0.55 + dense * 0.25))[..., None]
     colour *= 1 - (scalp * 0.1)[..., None] * np.array([0, 0.3, 0.6])[None, None, :]  # a cool cast to the shaved scalp
+    global FACE_SHINE
+    FACE_SHINE = np.maximum(ellipse(pos, (0, ey - 0.02, ez + 0.055), (0.035, 0.03, 0.03), 0.9),
+                            ellipse(pos, (n.x, n.y, n.z + 0.01), (0.014, 0.02, 0.03), 0.9)) * front  # forehead and nose sweat
     return np.clip(colour, 0, 1)
+
+
+FACE_SHINE = None
 
 
 def eye_maps(eye, size=512):
@@ -763,20 +785,23 @@ def skin_maps_procedural(size=2048):
     """Skin for the realistic body, which ships without textures: a warm base with subtle tone variation, veins and
     blotching in the low noise, the baked occlusion as cavity, dust and grit as before, pores in the normal."""
     os.makedirs(materials_out, exist_ok=True)
-    base = np.array([0.46, 0.32, 0.245])[None, None, :]  # linear; a Mediterranean tone under arena sun, not orange
+    base = np.array([0.60, 0.44, 0.31])[None, None, :]  # linear; olive Mediterranean — a Greek/Roman gladiator under sun, not African
     tone = fbm(size, 41, octaves=(4, 8, 16, 32))[..., None]
-    colour = base * (0.86 + tone * 0.28)
+    colour = base * (0.90 + tone * 0.22)
+    colour[..., 1] *= 1 + (tone[..., 0] - 0.5) * 0.06  # the olive cast lives in a slight green-yellow shift, not a grey one
     colour[..., 0] *= 1 + (fbm(size, 42, octaves=(8, 16)) - 0.5) * 0.12  # blood flush variation
     colour[..., 2] *= 1 - (fbm(size, 43, octaves=(16, 32)) - 0.5) * 0.10
     ao_full = upsample(AO, size) if AO.shape[0] != size else AO
-    colour = colour * (0.40 + 0.60 * np.clip(ao_full, 0, 1) ** 1.5)[..., None]
+    colour = colour * (0.55 + 0.45 * np.clip(ao_full, 0, 1) ** 1.2)[..., None]  # cavity only; lighting does the rest
     dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.42) * 2.4, 0, 1)[..., None]
-    colour = colour * (1 - dust * 0.45) + np.array([0.20, 0.19, 0.18])[None, None, :] * dust * 0.45
+    colour = colour * (1 - dust * 0.30) + np.array([0.30, 0.28, 0.25])[None, None, :] * dust * 0.30  # arena dust, lighter than soot
     pos, mask = bake_position(body, size)
     colour = face_paint(colour, pos, mask, size)
     normal = pore_normal(bake_high_normal(body, HIGH, size), strength=0.5)  # sculpted lids, folds and knuckles + pores
     r = size // 2
     rough = np.clip(0.62 + (fbm(r, 8) - 0.5) * 0.3 + dust[::2, ::2, 0] * 0.2, 0.35, 0.95)
+    if FACE_SHINE is not None:
+        rough = np.clip(rough - FACE_SHINE[::2, ::2] * 0.25, 0.25, 0.95)  # T-zone sweat: tighter highlights
     orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
     return {'baseColor': save_two_sizes('skin_color', colour, 'sRGB'), 'normal': save_two_sizes('skin_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('skin_orm', orm, 'Non-Color')}
 
