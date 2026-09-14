@@ -45,5 +45,15 @@
   "baseColor": "eye_color_r.jpg",
   "metallicRoughness": "eye_orm_r.jpg",
   "normalScale": 0.5
+ },
+ "Face": {
+  "baseColor": "face_color_r.jpg",
+  "normal": "face_normal_r.jpg",
+  "metallicRoughness": "face_orm_r.jpg",
+  "normalScale": 1.0
+ },
+ "HairCards": {
+  "baseColor": "hair_cards.png",
+  "normalScale": 1.0
  }
 }

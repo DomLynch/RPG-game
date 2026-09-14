@@ -79,3 +79,16 @@ to the rig, arms raised rigidly from A to the rig's T rest, weighted from the CC
 textures: skin colour is painted procedurally by landmark from a baked position map (brows, lips, flush, stubble, buzz cut),
 the multires sculpt is baked high→low into the normal map with pores added, eyes are painted the same way. Outputs carry the
 `_r` suffix (`body_realistic.glb`, `level1_realistic.glb`, `manifest_realistic.json`, `*_r.jpg`).
+
+Realistic head pass 2 (character lane, 2026-09-14, demo builds only): `scripts/character/head.py`. The Blender Studio body is UDIM,
+so the head now keeps its own texture tile as the `Face` material (2K authored, 1K shipped: `face_*_r.jpg`) and the three body
+tiles pack into one `Skin` atlas. Wrinkles, folds and pores are a landmark-keyed height map displaced into the multires sculpt
+(two extra levels) and baked high→low into the face normal map. Hair, brows and lashes are strand cards (`hair_cards.png`, an
+original procedural strand sheet; alpha cut-out, no sorting) rigid to the head — hair in the `Hair` slot, brows and lashes in
+`Face`. Skin micro-detail (pore and mottle structure only) is high-passed from a forehead patch of the "Infinite, 3D Head Scan"
+by Lee Perry-Smith (Infinite-Realities / Triplegangers), licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/),
+retrieved 2026-09-14 from the three.js examples (`examples/models/gltf/LeePerrySmith/`; SHA-256 Map-COL.jpg e976d73b31407f8d…,
+Infinite-Level_02_Disp_NoSmoothUV-4096.jpg 937dea3ab1adea46…); the licence file is preserved beside the download under
+`artifacts/source/lps/`. Nothing of that scan's face shape or identity is used — the patch is mirrored and tiled as texture grain.
+Attribution: "Infinite, 3D Head Scan by Lee Perry-Smith, CC BY 3.0". The `Face` material carries KHR_materials_specular
+(factor 0.5) and the cards `KHR_materials_specular` 0.3 — both load as MeshPhysicalMaterial in the runtime with no code change.

@@ -68,7 +68,7 @@ const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
 
 // Fighters: the game's loader and update() contract. Phases mirror src/scene.ts render() → update() mapping.
 const player = new THREE.Group(), opponent = new THREE.Group();
-let warriors, clips = [], scrubbers = new Map();
+let warriors, clips = [], scrubbers = new Map(), swaps = new Map();
 const phaseOf = name => {
   const [kind, attack = 'light'] = name.split(':');
   if (kind === 'attack') return { pose: 'attack', attack, duration: ATTACKS[attack].recovery, contact: ATTACKS[attack].contact / ATTACKS[attack].recovery };
@@ -123,6 +123,7 @@ async function inspectable(url) {
 }
 async function reset() {
   warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB); scrubbers.clear();
+  for (const [name, mode] of swaps) api.swapMaterial(name, mode); // diagnostic overrides survive the reload
   player.clear(); opponent.clear(); player.add(warriors.player.anchor); opponent.add(warriors.opponent.anchor);
   P = fighter(player, 0, TARGET.z + SWORD.reach + .85); O = fighter(opponent, TARGET.x, TARGET.z);
   cam = { yaw: 0, started: false, desired: new THREE.Vector3(), aim: new THREE.Vector3() };
@@ -249,6 +250,24 @@ const api = {
     for (const f of arenaFloor) f.visible = true;
     return { meshes, materials, textures: [...textures.values()], textureBytes: [...textures.values()].reduce((n, t) => n + t.bytes, 0), bones, boneNames, meshTriangles: meshes.reduce((n, m) => n + m.triangles, 0),
       clips: clips.map(c => ({ name: c.name, duration: +c.duration.toFixed(3), tracks: c.tracks.length })), characterOnly };
+  },
+  // Material/geometry facts for one named draw, for debugging an asset that renders wrong (maps, alpha, sides, UVs).
+  probe(name) {
+    const o = warriors.player.anchor.getObjectByName(name); if (!o) return null;
+    const m = o.material, g = o.geometry;
+    return { type: m.type, alphaTest: m.alphaTest, transparent: m.transparent, side: m.side, color: m.color?.getHexString(), map: m.map ? { image: m.map.image?.constructor?.name, size: [m.map.image?.width, m.map.image?.height], colorSpace: m.map.colorSpace, flipY: m.map.flipY, channel: m.map.channel } : null,
+      normalMap: !!m.normalMap, uv: g.attributes.uv ? [g.attributes.uv.count, g.attributes.uv.itemSize] : null, uv1: !!g.attributes.uv1, vertices: g.attributes.position.count, index: g.index?.count ?? null, skinned: !!o.isSkinnedMesh, visible: o.visible };
+  },
+  // Swap one draw's material for a diagnostic one ('basic' = unlit map, 'nomap' = same material without its map, 'hide')
+  // on both fighters; remembered across the reloads every capture starts with.
+  swapMaterial(name, mode) {
+    swaps.set(name, mode);
+    for (const w of [warriors.player, warriors.opponent]) w.anchor.traverse(o => {
+      if (o.name !== name) return;
+      const m = o.material;
+      if (mode === 'hide') { o.visible = false; return; }
+      o.material = mode === 'basic' ? new THREE.MeshBasicMaterial({ map: m.map, alphaTest: m.alphaTest, side: m.side }) : mode === 'nomap' ? Object.assign(m.clone(), { map: null }) : m;
+    });
   },
 };
 window.__preview = api;
