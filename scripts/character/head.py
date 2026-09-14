@@ -351,7 +351,8 @@ def beard_mask(pos, F, size):
 def scalp_mask(pos, F):
     ey, ez = F['eye_l'].y, F['eye_l'].z
     recession = np.clip((np.abs(pos[..., 0]) - 0.028) / 0.022, 0, 1) ** 1.5 * 0.014  # the hairline rises at the temples
-    hairline = ez + 0.076 + recession - np.clip(pos[..., 1] - ey + 0.02, 0, None) * 0.55
+    sides = np.clip((np.abs(pos[..., 0]) - 0.048) / 0.02, 0, 1) ** 1.2  # … then drops to the ear tops round the sides
+    hairline = ez + 0.076 + recession - sides * 0.062 - np.clip(pos[..., 1] - ey + 0.02, 0, None) * 0.55
     scalp = np.clip((pos[..., 2] - hairline) / 0.02, 0, 1)
     scalp = np.maximum(scalp, np.clip((pos[..., 1] - (ey + 0.075)) / 0.02, 0, 1) * np.clip((pos[..., 2] - (ez + 0.005)) / 0.02, 0, 1))
     return scalp * np.clip((pos[..., 2] - (ez - 0.02)) / 0.02, 0, 1)
@@ -677,7 +678,7 @@ def hair_cards(head, F, rng_seed=71):
     return mesh.build('hair_cards')
 
 
-def hair_shells(head, F, layers=12, spacing=0.0006):
+def hair_shells(head, F, layers=10, spacing=0.0005):
     """A buzz cut as fur shells: the scalp polygons copied `layers` times, each pushed out along the normal, one dotted
     alpha texture in the head's own UV layout, and a vertex-colour alpha that thins the outer shells so the crop tapers.
     Reads as dense short hair from every angle at any distance; no card silhouettes."""
@@ -709,19 +710,20 @@ def hair_shells(head, F, layers=12, spacing=0.0006):
         off = spacing * (layer + 1)
         t = layer / (layers - 1)
         shade = 0.6 + 0.5 * t  # roots dark, tips lit
+        jitter = (((layer * 7919) % 97) / 97 - 0.5) * 0.006, (((layer * 104729) % 89) / 89 - 0.5) * 0.006  # per-shell UV shift: no dot columns
         start = len(verts)
         for v, nrm in zip(base.vertices, full_normals):
-            height = min(1.0, max(0.0, (v.co.z - (ez + 0.03)) / 0.09))  # 0 at the temples, 1 on top: the fade
-            alpha = (1.0 - 0.62 * t) * (0.55 + 0.45 * height) * min(1.0, max(0.0, (feather[v.index] - 0.15) / 0.45))  # taper, fade, hairline
+            height = min(1.0, max(0.0, (v.co.z - (ez + 0.02)) / 0.10))  # 0 at the ear tops, 1 on top: the fade
+            alpha = (1.0 - 0.70 * t) * (0.5 + 0.5 * height) * min(1.0, max(0.0, (feather[v.index] - 0.15) / 0.45))  # taper, fade, hairline
             comb = Vector((0.0, 0.75, -0.66)) - nrm * Vector((0.0, 0.75, -0.66)).dot(nrm)  # back and down, along the skin
-            verts.append(v.co + nrm * off + comb.normalized() * (0.0032 * t))  # outer shells slide along the comb: hairs lie, not stand
+            verts.append(v.co + nrm * off + comb.normalized() * (0.0012 * t))  # outer shells slide a little along the comb: a lean, not a streak
             normals.append(nrm.copy())
             colours.append((shade, shade, shade, alpha))
         for poly in base.polygons:
             faces.append(tuple(start + i for i in poly.vertices))
             for li in poly.loop_indices:
                 v = base.vertices[base.loops[li].vertex_index]  # top-down projection: one island, no seam over the crown
-                uvs.append((start + v.index, ((v.co.x - x0) / (x1 - x0) * 2.0, (v.co.y - y0) / (y1 - y0) * 2.0)))
+                uvs.append((start + v.index, ((v.co.x - x0) / (x1 - x0) * 2.0 + jitter[0], (v.co.y - y0) / (y1 - y0) * 2.0 + jitter[1])))
     out = bpy.data.meshes.new('hair_shells')
     out.from_pydata([tuple(v) for v in verts], [], faces)
     out.update()
