@@ -43,7 +43,8 @@ for (const mesh of [body, base.scene.getObjectByName('Eyes')]) { mesh.geometry.m
 base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .35 });
 const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
 const ranger = new T.MeshStandardMaterial({ name: 'Ranger', roughness: 1 }); // CC0 outfit-pack items; maps from the manifest
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger].map(m => [m, []]));
+const bronze = new T.MeshStandardMaterial({ name: 'Bronze', roughness: 1, metalness: 1 });
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze].map(m => [m, []]));
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -100,7 +101,7 @@ function shell(rings, material, bone, z = 0) {
   hairJson.images = []; hairJson.textures = []; hairJson.materials = hairJson.materials.map(m => ({ name: m.name }));
   for (const buffer of hairJson.buffers) buffer.uri = 'data:application/octet-stream;base64,' + (await fs.readFile(path.join(hairDir, buffer.uri))).toString('base64');
   const asset = await loader.parseAsync(JSON.stringify(hairJson), ''); asset.scene.updateMatrixWorld(true);
-  asset.scene.traverse(o => { if (o.isMesh) add(o.geometry.clone().applyMatrix4(o.matrixWorld), hair, 'Head'); });
+  asset.scene.traverse(o => { if (o.isMesh) add(o.geometry.clone().applyMatrix4(o.matrixWorld), hair, 'Head', 0, 0, 0, 0, 'Hair'); });
   // Eyebrows ride the head rigidly too: one draw with the hair instead of their own skinned mesh.
   const eyebrows = base.scene.getObjectByName('Eyebrows'); eyebrows.geometry.morphAttributes = {};
   add(eyebrows.geometry.clone().applyMatrix4(eyebrows.matrixWorld), hair, 'Head'); eyebrows.removeFromParent();
@@ -129,6 +130,7 @@ for (const item of (process.env.WARRIOR_ITEMS || '').split(',').filter(Boolean))
   const glb = await fs.readFile(`src/assets/source/items/${item}.glb`), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
   asset.scene.updateMatrixWorld(true);
   const slots = new Set(); asset.scene.traverse(o => { if (o.isMesh) slots.add(o.userData.slot); });
+  if (slots.has('Helmet')) slots.add('Hair'); // a helmet covers the hair
   for (const [material, list] of parts) parts.set(material, list.filter(g => !slots.has(g.userData.slot)));
   asset.scene.traverse(o => {
     if (!o.isMesh) return;

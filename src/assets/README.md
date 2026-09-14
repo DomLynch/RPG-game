@@ -66,3 +66,8 @@ e71cd92792aeabca2…). `scripts/character/parts.py` imports the Ranger boots, br
 decimates them to the phone budget and writes `src/assets/source/items/ranger.glb` plus re-tinted 1024/512 JPEG maps of the
 pack's own PBR set (`ranger_*.jpg`, greens pulled to worn leather, dust added). Items are equipped only in demo builds
 (`WARRIOR_ITEMS=ranger`) until the runtime swaps slots; the shipped GLB is unchanged.
+
+Helmet slot (character lane, 2026-09-14): `src/assets/source/items/helmet_bronze.glb` is original work — an open-faced bronze
+helm shelled from the head mesh (so it inherits the head's skin weights), projected onto a smooth dome with cheek guards, nasal
+and neck guard, plus a horsehair crest on the Heraldry surface. Its bronze maps (`bronze_*.jpg`, 512) are procedural. Demo
+builds only (`WARRIOR_ITEMS=helmet_bronze`); a helmet hides the `Hair` slot. Hair is now its own slot draw for that reason.

@@ -202,6 +202,92 @@ def level1_kit():
     return kit
 
 
+def bronze_helmet():
+    """Helmet slot, tier 2: an open-faced bronze helm shelled from the head itself (so it fits the skull), cheek guards and
+    a nasal, a neck guard behind, and a dyed horsehair crest on the Heraldry surface so the two fighters stay distinct."""
+    skull = [v.co for v in body.data.vertices if v.co.z > head.z - 0.03 and abs(v.co.x) < 0.12]
+    front_y = min(v.y for v in skull)  # nose tip (-y is the front)
+    crown_z = max(v.z for v in skull)
+    def keep(p):
+        if p.z < head.z - 0.02 or (p.y < 0 and p.z < head.z + 0.015):  # below the neck guard; chin stays free
+            return False
+        face = p.y < front_y + 0.075 and head.z + 0.015 < p.z < head.z + 0.128 and abs(p.x) < 0.058
+        nasal = abs(p.x) < 0.013 and p.z > head.z + 0.055
+        return not (face and not nasal)
+    helm = extract('helmet_bronze', 'Bronze', keep, lift=0.0, thickness=0.009)
+    helm['slot'] = 'Helmet'  # keeps the head's own unique UVs; bronze is a tiled surface
+    # A helm has its own form: project the shell onto a smooth dome (ellipsoid above the brow line, vertical skirt below
+    # for the cheek guards and neck guard). Topology, UVs and weights stay; ears and hairline do not.
+    centre = Vector((0, head.y + 0.006, head.z + 0.088))
+    rx, ry, rz = 0.104, 0.128, 0.118
+    for v in helm.data.vertices:
+        d = v.co - centre
+        if d.z > 0:
+            k = math.sqrt((d.x / rx) ** 2 + (d.y / ry) ** 2 + (d.z / rz) ** 2)
+        else:
+            k = math.sqrt((d.x / rx) ** 2 + (d.y / ry) ** 2)
+            d.z *= k  # keep height on the skirt
+        projected = d / max(k, 1e-6)
+        ear = abs(v.co.x) > 0.06 and head.z + 0.03 < v.co.z < head.z + 0.10
+        if not ear and projected.length < d.length + 0.012:  # never inside the head (ears sit inside the dome anyway)
+            projected = d.normalized() * (d.length + 0.012)
+        v.co = centre + projected
+    # Seamless spherical UVs for the bronze: the skin atlas's islands would print their seams onto the metal.
+    uv = helm.data.uv_layers.active.data
+    for poly in helm.data.polygons:
+        us = []
+        for li in poly.loop_indices:
+            d = helm.data.vertices[helm.data.loops[li].vertex_index].co - centre
+            us.append((math.atan2(d.x, d.y) / (2 * math.pi) + 0.5) * 2)
+        if max(us) - min(us) > 1:  # polygon straddles the wrap
+            us = [u + 2 if u < 1 else u for u in us]
+        for li, u in zip(poly.loop_indices, us):
+            d = helm.data.vertices[helm.data.loops[li].vertex_index].co - centre
+            uv[li].uv = (u, (d.z + 0.15) / 0.3 * 1.5)
+    # Crest: an arc of dyed horsehair over the crown, rigid to the head.
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.215, minor_radius=0.052, major_segments=32, minor_segments=8,
+                                     location=head + Vector((0, 0.01, 0.10)), rotation=(0, math.radians(90), 0))
+    crest = bpy.context.active_object
+    bm = bmesh.new()
+    bm.from_mesh(crest.data)  # local space: ring in XY; after the 90° Y rotation local -y is the front, local -x the crown
+    def keep_arc(f):
+        c = f.calc_center_median()
+        angle = math.degrees(math.atan2(c.y, c.x)) % 360  # 270 = front, 180 = crown, 90 = back
+        return 108 <= angle <= 247
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not keep_arc(f)], context='FACES')
+    bm.to_mesh(crest.data)
+    bm.free()
+    crest.scale = (1, 1, 0.32)  # flatten the tube across the ring plane into a plate
+    select_only([crest])
+    bpy.ops.object.transform_apply(scale=True, rotation=True, location=True)
+    return [helm, tag(crest, 'helmet_bronze_crest', 'Heraldry', bone='Head', slot='Helmet')]
+
+
+def bronze_maps():
+    """Worn bronze at 512: warm metal, green-black patina in the low noise, bright scratches, roughness that follows the wear."""
+    size = 512
+    height = fbm(size, 21, octaves=(4, 8, 16, 32, 64))
+    rng = np.random.default_rng(22)
+    scratch = np.zeros((size, size), dtype=np.float32)
+    for _ in range(90):
+        x0, y0, a, n = rng.random() * size, rng.random() * size, rng.random() * math.pi, int(15 + rng.random() * 70)
+        xs = (x0 + np.cos(a) * np.arange(n)).astype(int) % size
+        ys = (y0 + np.sin(a) * np.arange(n)).astype(int) % size
+        scratch[ys, xs] = 1
+    cavity = np.clip(1 - height, 0, 1) ** 1.5
+    bronze = np.array([0.42, 0.27, 0.13])[None, None, :]
+    patina = np.array([0.10, 0.17, 0.14])[None, None, :]
+    colour = bronze * (1 - cavity[..., None] * 0.7) + patina * cavity[..., None] * 0.7
+    colour = colour * (1 - scratch[..., None] * 0.35) + np.array([0.72, 0.55, 0.32])[None, None, :] * scratch[..., None] * 0.35
+    rough = np.clip(0.32 + height * 0.45 - scratch * 0.15, 0.2, 0.9)
+    orm = np.stack([np.ones_like(rough), rough, np.ones_like(rough)], axis=2)
+    gy, gx = np.gradient(height - scratch * 0.25)
+    n = np.stack([-gx * 14, gy * 14, np.ones_like(gx)], axis=2)
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    normal = n * 0.5 + 0.5
+    return {'baseColor': save_jpeg('bronze_color', colour, 'sRGB'), 'normal': save_jpeg('bronze_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('bronze_orm', orm, 'Non-Color')}
+
+
 def proof_ring():
     """A bevelled ring under the helmet: exists only to prove the Blender → build → bake → gate path."""
     bpy.ops.mesh.primitive_torus_add(major_radius=.095, minor_radius=.012, major_segments=40, minor_segments=10, location=neck + Vector((0, 0, .075)))
@@ -335,11 +421,12 @@ if proof:
 else:
     export_kit(level1_kit(), os.path.join(out, 'level1.glb'))
     export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
+    export_kit(bronze_helmet(), 'src/assets/source/items/helmet_bronze.glb')
 if not proof:
     import json
     manifest_path = os.path.join(materials_out, 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
-    for name, maps, scale in [('Skin', skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0)]:
+    for name, maps, scale in [('Skin', skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7)]:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale
         print(f'MAPS {name} {maps}')

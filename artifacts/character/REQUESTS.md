@@ -34,3 +34,8 @@
    still unpassed; the lead measures it on device.
 8. **Creatures**: CC0 Bestiary – Dungeon Monsters Kit [Standard] (Puglin, Imp; PBR + emissive) is in
    `~/Downloads/Bestiary - Dungeon Monsters Kit[Standard]` for future opponents. Not integrated by this lane.
+
+9. **Helmet height vs the locomotion bounds test.** `tests/characters.test.ts` asserts `bounds.max.y < 1.87` for Idle/Walk/Jog/Run,
+   written for a bare head. A crested helm on this 1.8 m fighter reaches ~1.91 m. The shipped build (no helmet) still passes; when
+   helmet items ship through runtime slots, raise the ceiling to 2.0 (`WARRIOR_ITEMS=ranger,helmet_bronze npm test` shows the one
+   failure). Not changed by this lane without a decision.

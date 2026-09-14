@@ -10,5 +10,11 @@
   "normal": "ranger_normal.jpg",
   "metallicRoughness": "ranger_orm.jpg",
   "normalScale": 1.0
+ },
+ "Bronze": {
+  "baseColor": "bronze_color.jpg",
+  "normal": "bronze_normal.jpg",
+  "metallicRoughness": "bronze_orm.jpg",
+  "normalScale": 0.7
  }
 }
