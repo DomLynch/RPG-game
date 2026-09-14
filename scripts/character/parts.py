@@ -125,7 +125,7 @@ def transfer_weights(part):
     return part
 
 
-def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=28, lift=0.004, thickness=0.004, probe_radius=0.2, max_reach=None):
+def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=28, lift=0.004, thickness=0.004, probe_radius=0.2, max_reach=None, rows_n=1):
     """A strap that hugs the body: probe points around the limb axis a→b at parameter t, snap each to the nearest skin,
     and stitch a strip `width` wide along the axis. Weights come from the body; the strap has its own UVs."""
     axis = (b - a).normalized()
@@ -137,7 +137,9 @@ def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=
     bm = bmesh.new()
     uv_layer = bm.loops.layers.uv.new('UVMap')
     rows = []
-    for k, tt in enumerate((t, t + width / (b - a).length)):
+    steps = max(1, rows_n)
+    for k in range(steps + 1):
+        tt = t + (width / (b - a).length) * k / steps
         row = []
         for i in range(segments + 1):
             th = arc[0] + (arc[1] - arc[0]) * i / segments
@@ -149,12 +151,13 @@ def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=
             row.append(bm.verts.new(surface + normal * lift))
         rows.append(row)
     closed = abs((arc[1] - arc[0]) - 2 * math.pi) < 1e-6
-    for i in range(segments):
-        f = bm.faces.new((rows[0][i], rows[0][i + 1], rows[1][i + 1], rows[1][i]))
-        for loop, (uu, vv) in zip(f.loops, ((i / segments, 0), ((i + 1) / segments, 0), ((i + 1) / segments, 1), (i / segments, 1))):
-            loop[uv_layer].uv = (uu * 4, vv)
+    for r in range(steps):
+        for i in range(segments):
+            f = bm.faces.new((rows[r][i], rows[r][i + 1], rows[r + 1][i + 1], rows[r + 1][i]))
+            for loop, (uu, vv) in zip(f.loops, ((i / segments, r / steps), ((i + 1) / segments, r / steps), ((i + 1) / segments, (r + 1) / steps), (i / segments, (r + 1) / steps))):
+                loop[uv_layer].uv = (uu * 4, vv)
     if closed:
-        bmesh.ops.remove_doubles(bm, verts=rows[0] + rows[1], dist=1e-5)
+        bmesh.ops.remove_doubles(bm, verts=[v for row in rows for v in row], dist=1e-5)
     mesh = bpy.data.meshes.new(name)
     bm.to_mesh(mesh)
     bm.free()
@@ -214,7 +217,7 @@ def level1_kit():
         q = Vector((p.x, 0, p.z))
         t = (q - a).dot(d)
         return in_torso(p) and 0 < t < (b - a).length and abs((q - a - d * t).length) < 0.032
-    kit.append(extract('baldric', 'Leather', on_baldric, lift=0.019, thickness=0.006))
+    kit.append(extract('baldric', 'Leather', on_baldric, lift=0.018, thickness=0.005))
     # Belt around the hips.
     kit.append(extract('belt', 'Leather', lambda p: in_torso(p) and pelvis.z + 0.005 < p.z < pelvis.z + 0.055, lift=0.024, thickness=0.007))
     # Forearm wraps: five overlapping leather turns from the wrist up, both arms.
@@ -230,28 +233,14 @@ def level1_kit():
         kit.append(ring_strip(f'strap_instep_{name}', 'Leather', heel, toe, 0.42, 0.016, arc=(0, math.pi), lift=0.004, probe_radius=0.08, max_reach=0.075))
         kit.append(ring_strip(f'strap_toe_{name}', 'Leather', heel, toe, 0.80, 0.012, arc=(0, math.pi), lift=0.004, probe_radius=0.08, max_reach=0.07))
         kit.append(ring_strip(f'strap_ankle_{name}', 'Leather', Vector((foot.x, foot.y, 0)), Vector((foot.x, foot.y, 0.2)), 0.42, 0.06, lift=0.004, probe_radius=0.08, max_reach=0.075))
-    # Kilt strips over the hips, dyed cloth (the Heraldry surface): weights come from the nearest body vertex.
-    strips = []
-    for i in range(10):
-        ang = (i + 0.5) / 10 * math.pi * 2
-        radial = Vector((math.sin(ang), -math.cos(ang), 0))  # -y is the front
-        surface, normal = nearest_surface(pelvis + radial * 0.25 + Vector((0, 0, -0.06)))
-        top = surface + normal * 0.028
-        bpy.ops.mesh.primitive_plane_add(size=1, location=top + Vector((0, 0, -0.12)))
-        strip = bpy.context.active_object
-        strip.scale = (0.055, 0.26, 1)
-        strip.rotation_euler = (math.radians(90), 0, math.atan2(radial.x, -radial.y))
-        bpy.ops.object.transform_apply(scale=True, rotation=True)
-        bpy.ops.object.modifier_add(type='SUBSURF')
-        strip.modifiers[-1].levels = strip.modifiers[-1].render_levels = 1
-        strip.modifiers[-1].subdivision_type = 'SIMPLE'
-        shell = strip.modifiers.new('Shell', 'SOLIDIFY')
-        shell.thickness, shell.offset = 0.006, 0
-        strips.append(strip)
-    select_only(strips)
-    bpy.ops.object.join()
-    kilt = bpy.context.active_object
-    kit.append(tag(ao_white(transfer_weights(kilt)), 'kilt', 'Heraldry'))
+    # Kilt strips over the hips, dyed cloth (the Heraldry surface): each strip follows the hip and thigh surface down
+    # from the belt, so it curves with the body instead of hanging as a flat plank.
+    top, bottom = Vector((0, pelvis.y, pelvis.z - 0.02)), Vector((0, pelvis.y, pelvis.z - 0.30))
+    for i in range(11):
+        ang = (i + 0.5) / 11 * math.pi * 2 - math.pi / 2  # ring_strip's angle 0 is +x; start at the front
+        half = 0.13
+        kit.append(ring_strip(f'kilt_{i}', 'Heraldry', top, bottom, 0.0, 0.28, arc=(ang - half, ang + half), segments=3,
+                              lift=0.026, thickness=0.005, probe_radius=0.16, max_reach=0.19, rows_n=7))
     # Iron studs along the baldric and belt: the kit's only metal, skinned like the leather beneath it.
     studs = []
     for k in range(16):
@@ -261,16 +250,24 @@ def level1_kit():
             surface, normal = nearest_surface(probe)
             if abs(surface.x) >= torso_half_width - 0.01:
                 continue  # the strap stops at the torso edge; so do its studs
-            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.0065, location=surface + normal * 0.026)
+            bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.0065, location=surface + normal * 0.0215)
             studs.append(bpy.context.active_object)
     for k in range(12):
         ang = (k + 0.5) / 12 * math.pi * 2
         surface, normal = nearest_surface(pelvis + Vector((math.sin(ang) * 0.3, -math.cos(ang) * 0.3, 0.03)))
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.006, location=surface + normal * 0.029)
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.006, location=surface + normal * 0.0275)
         studs.append(bpy.context.active_object)
     select_only(studs)
     bpy.ops.object.join()
     kit.append(tag(ao_white(transfer_weights(bpy.context.active_object)), 'studs', 'Steel'))
+    # Belt buckle: a bronze ring at the front, rigid to the pelvis.
+    surface, normal = nearest_surface(pelvis + Vector((0, -0.3, 0.03)))
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.02, minor_radius=0.0045, major_segments=20, minor_segments=8, location=surface + normal * 0.03)
+    buckle = bpy.context.active_object
+    buckle.rotation_euler = (math.radians(90), 0, 0)
+    select_only([buckle])
+    bpy.ops.object.transform_apply(rotation=True, location=True)
+    kit.append(tag(ao_white(buckle), 'buckle', 'Antique brass', bone='pelvis'))
     return kit
 
 
@@ -474,9 +471,14 @@ def skin_maps():
     out_colour *= np.array([0.92, 0.86, 0.80])[None, None, :]  # sun-darkened, less pink
     cavity = (0.42 + 0.58 * np.clip(AO, 0, 1) ** 1.6)[..., None]  # baked occlusion as dirt and shadow in every crease
     out_colour = out_colour * cavity
+    # Stubble: fine dark grain over the jaw and upper lip of the face island (atlas rows are bottom-up).
+    yy, xx = np.mgrid[0:size, 0:size] / size
+    jaw = np.exp(-((yy - 0.80) / 0.045) ** 2) * (xx < 0.34) * (np.abs(xx - 0.17) < 0.12)
+    grain = (np.random.default_rng(5).random((size, size)) < 0.35).astype(np.float32)
+    out_colour = out_colour * (1 - (jaw * grain * 0.22)[..., None])
     normal = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Normal.png', 'Non-Color'), 2)
     rough = downsample(load_pixels(f'{TEXTURES}/T_Superhero_Male_Roughness.png', 'Non-Color'), 4)[:, :, 0]
-    rough = np.clip(rough * 0.85 + dust[::2, ::2] * 0.25, 0, 1)
+    rough = np.clip(rough * 0.85 + dust[::2, ::2] * 0.25 + (fbm(size // 2, 8) - 0.5) * 0.25, 0, 1)  # oil and sweat vary the sheen
     orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
     return {'baseColor': save_jpeg('skin_color', out_colour, 'sRGB'), 'normal': save_jpeg('skin_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('skin_orm', orm, 'Non-Color')}
 
