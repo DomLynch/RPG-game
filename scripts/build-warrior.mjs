@@ -30,7 +30,8 @@ if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
 const steel = new T.MeshStandardMaterial({ name: 'Steel', color: '#767a7c', metalness: 0.85, roughness: 0.55 }); // iron, not chrome
-const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#97805a', metalness: 0.75, roughness: 0.43 });
+const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
+const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
 const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: 0.8 });
 const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#6b1a1e', roughness: 0.92, side: T.DoubleSide }); // dyed cloth; the runtime recolours the opponent's
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
@@ -115,16 +116,34 @@ for (const file of (await fs.readdir(partsDir).catch(() => [])).filter(f => f.en
 }
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
-strip(.05,.66,.036,-.24,.79,-.13,leather,'pelvis',-.19);
-strip(.052,.05,.04,-.30,.47,-.13,trim,'pelvis',-.19);
+// Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
+add(bladeGeometry(-.33, .33, .06, .026, .12).rotateZ(Math.PI), leather, 'pelvis', -.24, .79, -.13, -.19);
+add(new T.CylinderGeometry(.031, .031, .03, 12), trim, 'pelvis', -.24, .79 + .30, -.13, -.19);
+add(new T.CylinderGeometry(.008, .016, .05, 10), trim, 'pelvis', -.24, .79 - .30, -.13, -.19);
 // Separate sword nodes allow a presentation-only transfer from scabbard to hand.
+// Diamond-section blade: a centre ridge that catches the key light, tapering to a point. Length and tip stay where the
+// bake samples them (local y .18 and .86 on the SwordDrawn node); only the look changes.
+function bladeGeometry(base, tip, width, thickness, pointFraction = .14, segments = 12) {
+  const length = tip - base, positions = [], uvs = [], ring = s => {
+    const t = s / segments, y = base + t * length, taper = t < 1 - pointFraction ? 1 - .3 * t / (1 - pointFraction) : .7 * (1 - t) / pointFraction;
+    const w = width * taper / 2, d = thickness * Math.max(taper, .08) / 2;
+    return [[w, y, 0], [0, y, d], [-w, y, 0], [0, y, -d]];
+  };
+  for (let s = 0; s < segments; s++) {
+    const a = ring(s), b = ring(s + 1);
+    for (let k = 0; k < 4; k++) { const n = (k + 1) % 4; for (const [p, v] of [[a[k], s], [a[n], s], [b[n], s + 1], [a[k], s], [b[n], s + 1], [b[k], s + 1]]) { positions.push(...p); uvs.push(k % 2, v / segments); } }
+  }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
+  g.computeVertexNormals(); return g;
+}
 function sword(name, parent) {
   const group = new T.Group(); group.name = name; parent.add(group);
   const piece = (geometry, material, y) => { const mesh = new T.Mesh(geometry, material); mesh.position.y = y; group.add(mesh); };
-  piece(new T.CylinderGeometry(.006,.032,.76,4).scale(1,1,.3),steel,.48);
-  piece(new T.BoxGeometry(.23,.025,.04),steel,.085);
-  piece(new T.CylinderGeometry(.018,.018,.16,8),leather,-.008);
-  piece(new T.SphereGeometry(.028,12,8),trim,-.105);
+  piece(bladeGeometry(.10, .86, .046, .007), blade, 0);
+  piece(new T.CapsuleGeometry(.011, .21, 3, 10).rotateZ(Math.PI / 2), trim, .092);           // rounded bronze crossguard
+  piece(new T.CylinderGeometry(.013, .015, .15, 10), leather, -.003);                         // wrapped grip
+  piece(new T.CylinderGeometry(.023, .023, .014, 14).rotateX(Math.PI / 2), trim, -.098);      // wheel pommel
+  piece(new T.CylinderGeometry(.009, .009, .012, 8).rotateX(Math.PI / 2), steel, -.098);      // peened tang
   return group;
 }
 const sheathed = sword('SwordSheathed',base.scene.getObjectByName('pelvis'));
@@ -372,6 +391,7 @@ function finishMaterials(glb, authored = new Map()) {
     if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};p.baseColorFactor=[1,1,1,1];}
     if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
     if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
+    if(m.name==='Blade') {p.metallicRoughnessTexture={index:rough};p.roughnessFactor=.7;m.normalTexture={index:grain,scale:.15};}
     if(m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
     if(m.name==='Gambeson'||m.name==='Heraldry') {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
     if(m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
