@@ -28,6 +28,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { loadWarriors, CLIPS, COMBAT_CLIPS } from '/src/characters.ts';
 import { cameraPose } from '/src/scene.ts';
 import { ATTACKS, DEFENCE, KICK, SWORD } from '/src/combat.ts';
@@ -114,15 +115,21 @@ const SEQUENCE = [
 const SEQUENCE_TICKS = SEQUENCE.reduce((n, [t]) => n + t, 0);
 function* sequence() { for (const [ticks, p, o] of SEQUENCE) for (let i = 0; i < ticks; i++) yield [p, o]; }
 
+// ?src=<url> inspects any glTF/GLB (a raw source, a single part) in the same rigs; update() is a no-op for it.
+const SRC = new URLSearchParams(location.search).get('src');
+async function inspectable(url) {
+  const asset = await new GLTFLoader().loadAsync(url), make = () => { const anchor = new THREE.Group(), root = clone(asset.scene); root.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } }); anchor.add(root); return { anchor, update() {} }; };
+  clips = asset.animations; return { player: make(), opponent: make() };
+}
 async function reset() {
-  warriors = await loadWarriors(GLB); scrubbers.clear();
+  warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB); scrubbers.clear();
   player.clear(); opponent.clear(); player.add(warriors.player.anchor); opponent.add(warriors.opponent.anchor);
   P = fighter(player, 0, TARGET.z + SWORD.reach + .85); O = fighter(opponent, TARGET.x, TARGET.z);
   cam = { yaw: 0, started: false, desired: new THREE.Vector3(), aim: new THREE.Vector3() };
 }
 // Scrub any clip on either rig with a harness-owned mixer; the game's own mixer is untouched and never updated afterwards.
 function scrub(group, name, t) {
-  const root = group.children[0];
+  const root = group.children[0]; if (!clips.some(c => c.name === name)) return; // inspected sources may carry no clips
   if (!scrubbers.has(root)) { const mixer = new THREE.AnimationMixer(root); scrubbers.set(root, { mixer, actions: new Map(clips.map(c => [c.name, mixer.clipAction(c)])) }); }
   const { mixer, actions } = scrubbers.get(root);
   for (const [n, a] of actions) if (n !== name) a.stop();
@@ -176,7 +183,7 @@ const api = {
     return cells(4, 3, 480, 480, 1, i => {
       if (!DETAILS[i]) return false; const [caption, clip, t, node, distance, az, el] = DETAILS[i];
       scrub(player, clip, t); player.updateWorldMatrix(true, true);
-      const object = player.getObjectByName(node), target = node === 'SwordDrawn' ? object.localToWorld(new THREE.Vector3(0, .45, 0)) : object.getWorldPosition(new THREE.Vector3());
+      const object = player.getObjectByName(node) || player.getObjectByName('Head'), target = object.name === 'SwordDrawn' ? object.localToWorld(new THREE.Vector3(0, .45, 0)) : object.getWorldPosition(new THREE.Vector3());
       camera.fov = 30; camera.position.set(target.x + Math.sin(az) * Math.cos(el) * distance, target.y + Math.sin(el) * distance, target.z + Math.cos(az) * Math.cos(el) * distance); camera.lookAt(target);
       renderer.render(studio, camera); return `${caption}  ${clip} t=${t.toFixed(2)}`;
     });
@@ -265,8 +272,8 @@ function loop(now) {
 }
 for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => setMode(button.dataset.mode));
 try {
-  const asset = await new GLTFLoader().loadAsync(GLB); clips = asset.animations;
-  for (const name of [...CLIPS, ...COMBAT_CLIPS]) { const o = document.createElement('option'); o.textContent = o.value = name; select.append(o); }
+  const asset = await new GLTFLoader().loadAsync(SRC || GLB); clips = asset.animations;
+  for (const name of clips.length ? [...CLIPS, ...COMBAT_CLIPS] : []) { const o = document.createElement('option'); o.textContent = o.value = name; select.append(o); }
   await setMode('studio'); api.loaded = true; status(`Ready · ${clips.length} clips · sequence ${(SEQUENCE_TICKS / 60).toFixed(1)}s`); requestAnimationFrame(loop);
 } catch (error) { api.error = String(error); status(api.error); throw error; }
 </script>

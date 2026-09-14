@@ -13,7 +13,7 @@ const commit = execSync('git rev-parse --short HEAD').toString().trim();
 const label = option('label') || commit, against = option('against');
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}character-preview.html`;
+const url = `${server.resolvedUrls.local[0]}character-preview.html${option('src') ? `?src=${encodeURIComponent(option('src'))}` : ''}`;
 if (args.includes('--serve')) { console.log(`Character preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
 const dir = `artifacts/character/${label}`; await fs.mkdir(dir, { recursive: true });
@@ -36,6 +36,9 @@ try {
   }
   await save('inspection-turntable.png', await page.evaluate(() => __preview.turntable()));
   await save('details.png', await page.evaluate(() => __preview.details()));
+  if (option('src')) { // raw source inspection: no clips, no lock sequence, no stats
+    if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
+  }
   await save('clips.png', await page.evaluate(() => __preview.clipSheet()));
   for (const orientation of ['portrait', 'landscape']) for (const moment of ['ready', 'attack'])
     await save(`gameplay-${orientation}-${moment}.png`, await page.evaluate(([o, m]) => __preview.lockStill(o, m), [orientation, moment]));
