@@ -181,8 +181,10 @@ gate green on every commit.
 Reproducible build: `blender -b -P scripts/character/parts.py` (writes `src/assets/source/parts/level1.glb` and the skin maps +
 `manifest.json`; committed) → `npm run build:warrior` → `node scripts/bake-blades.mjs` → `npm run quality`.
 
-Remaining in this lane: motion pass from Quaternius UAL2 [Standard] (CC0; owner to place the zip at
-`artifacts/source/animations2.zip`) — non-contact clips inside the contract, attack clips prepared as flagged candidates for
-combat review; then the bronze crested helmet as the first higher-tier helmet slot. Requests to the lead in
+Since then (same branch): equipment-slot draws (one skinned mesh per slot × material, `extras.slot`); Guard replaced by the
+CC0 UAL2 `Sword_Block` raise-and-hold retimed to 1 s (Parry/BlockImpact derive from its hold; blade paths unchanged); UAL2
+attack candidates prepared as an opt-in build (`WARRIOR_UAL2_ATTACKS=1`, fails 3/71 on contact geometry → combat review,
+REQUESTS.md #6). Remaining: equipment items from Quaternius Modular Character Outfits – Fantasy (CC0, rigged to this body;
+owner download pending), starting with the bronze crested helmet slot. Requests to the lead in
 `artifacts/character/REQUESTS.md` (GAME_SPEC art-direction text, equipment-slot contract, N8AO, Guard clip duration).
 Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `npm run quality` → deploy.

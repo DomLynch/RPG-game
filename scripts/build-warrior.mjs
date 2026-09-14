@@ -39,9 +39,8 @@ const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#6b1a1e'
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshStandardMaterial({ name: 'Skin', roughness: 1 });
 body.material = skin;
-for (const mesh of [body, base.scene.getObjectByName('Eyes'), base.scene.getObjectByName('Eyebrows')]) { mesh.geometry.morphAttributes = {}; mesh.morphTargetInfluences = []; mesh.morphTargetDictionary = {}; }
+for (const mesh of [body, base.scene.getObjectByName('Eyes')]) { mesh.geometry.morphAttributes = {}; mesh.morphTargetInfluences = []; mesh.morphTargetDictionary = {}; }
 base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .35 });
-base.scene.getObjectByName('Eyebrows').material = new T.MeshStandardMaterial({ name: 'Eyebrows', color: '#2a1e16', roughness: .85 });
 const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
 const parts = new Map([steel, trim, leather, heraldry, cloth, hair].map(m => [m, []]));
 const boneIndex = name => {
@@ -101,6 +100,9 @@ function shell(rings, material, bone, z = 0) {
   for (const buffer of hairJson.buffers) buffer.uri = 'data:application/octet-stream;base64,' + (await fs.readFile(path.join(hairDir, buffer.uri))).toString('base64');
   const asset = await loader.parseAsync(JSON.stringify(hairJson), ''); asset.scene.updateMatrixWorld(true);
   asset.scene.traverse(o => { if (o.isMesh) add(o.geometry.clone().applyMatrix4(o.matrixWorld), hair, 'Head'); });
+  // Eyebrows ride the head rigidly too: one draw with the hair instead of their own skinned mesh.
+  const eyebrows = base.scene.getObjectByName('Eyebrows'); eyebrows.geometry.morphAttributes = {};
+  add(eyebrows.geometry.clone().applyMatrix4(eyebrows.matrixWorld), hair, 'Head'); eyebrows.removeFromParent();
 }
 // Authored parts from scripts/character/parts.py: meshes in this same unscaled rest space, rigid to extras.bone,
 // merged into the per-material skinned draws exactly like the primitives above. No parts → identical output.
