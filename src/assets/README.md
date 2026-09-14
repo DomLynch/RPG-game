@@ -92,3 +92,13 @@ Infinite-Level_02_Disp_NoSmoothUV-4096.jpg 937dea3ab1adea46…); the licence fil
 `artifacts/source/lps/`. Nothing of that scan's face shape or identity is used — the patch is mirrored and tiled as texture grain.
 Attribution: "Infinite, 3D Head Scan by Lee Perry-Smith, CC BY 3.0". The `Face` material carries KHR_materials_specular
 (factor 0.5) and the cards `KHR_materials_specular` 0.3 — both load as MeshPhysicalMaterial in the runtime with no code change.
+
+Realistic head pass 3 (character lane, 2026-09-14, demo builds only): the front of the face is a photograph projected onto the
+head — a synthetic portrait (no real person) generated with FLUX.1 Krea-dev via its public Hugging Face Space
+(`artifacts/source/face/portrait_seed11.png`, prompt and seed in `scripts/character/head.py`; FLUX.1 outputs carry no licence
+restriction on use), landmarked with MediaPipe Face Mesh (`scripts/character/landmarks.py`, Apache 2.0, run in a separate venv),
+thin-plate-warped onto measured head landmarks, de-lit, silhouette- and eye-masked, colour-matched and blended into the painted
+skin by facing angle (`head.photo_layer`). Lids are rotated 13°/4° about the eyeball centres before baking. Hair is now fur
+shells (7 offset copies of the scalp with a dotted alpha and per-shell vertex alpha, `hair_shell.png`); brows and lashes stay
+cards on a redrawn curved-strand sheet, alpha-blended. Portrait and landmark files are committed under
+`artifacts/source/face/` so the build is reproducible without network access.

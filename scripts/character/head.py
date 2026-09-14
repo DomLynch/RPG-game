@@ -68,7 +68,7 @@ def separate_head(body, select_only):
 
 # --- baking ------------------------------------------------------------------------------------------------------------
 
-def bake_tiles(obj, kind, sizes, select_only, float_buffer=False, high=None, cage=0.02, samples=1, margin=16, ao_distance=0.35):
+def bake_tiles(obj, kind, sizes, select_only, float_buffer=False, high=None, cage=0.02, samples=1, margin=16, ao_distance=0.35, normal_space='TANGENT'):
     """Bake `kind` once, every material slot of `obj` into its own image: the way to bake a UDIM body to per-tile maps.
     Returns float arrays (rows = v from the bottom, RGBA) in slot order."""
     scene = bpy.context.scene
@@ -77,9 +77,9 @@ def bake_tiles(obj, kind, sizes, select_only, float_buffer=False, high=None, cag
     scene.cycles.samples = samples
     scene.render.bake.margin = margin
     scene.render.bake.use_selected_to_active = high is not None
+    scene.render.bake.normal_space = normal_space
     if high is not None:
         scene.render.bake.cage_extrusion = cage
-        scene.render.bake.normal_space = 'TANGENT'
     if kind == 'AO':
         scene.world = scene.world or bpy.data.worlds.new('bake')
         scene.world.light_settings.distance = ao_distance
@@ -175,6 +175,115 @@ def scan_detail(size):
     return mirror_tile(cpatch, size), mirror_tile(dpatch, size)
 
 
+# --- photographed face by projection ---------------------------------------------------------------------------------
+
+PHOTO = 'artifacts/source/face/portrait_seed11.png'  # FLUX.1-Krea-dev output (synthetic; no real person), landmarks beside it
+
+# MediaPipe index → head-mesh (x, z) in rig space. The mesh side is measured (probe of body_realistic.glb) or derived from
+# the FACE landmarks; the photo side is read from the landmarks JSON. Two eyes × (centre, inner, outer), nose, subnasale,
+# nostrils, mouth (corners, lip line, lip tops), chin, brow (inner, peak, tail), hairline, cheek sides.
+def head_correspondences(F, lid_ring):
+    ex, ez = F['eye_l'].x, F['eye_l'].z
+    n, m = F['nose'], F['mouth']
+    inner, outer = lid_ring  # |x| of the lid opening's inner and outer corners
+    pairs = {
+        'eye_r': ((159, 145), (-ex, ez)), 'eye_l': ((386, 374), (ex, ez)),
+        33: (-outer * 0.92, ez), 133: (-inner * 1.08, ez - 0.001), 362: (inner * 1.08, ez - 0.001), 263: (outer * 0.92, ez),
+        1: (0.0, n.z), 2: (0.0, n.z - 0.016), 98: (-0.016, n.z - 0.011), 327: (0.016, n.z - 0.011),
+        61: (-0.024, m.z), 291: (0.024, m.z), 13: (0.0, m.z), 0: (0.0, m.z + 0.011), 17: (0.0, m.z - 0.011),
+        152: (0.0, m.z - 0.056), 199: (0.0, m.z - 0.037),
+        105: (-0.027, ez + 0.016), 334: (0.027, ez + 0.016), 55: (-0.010, ez + 0.012), 285: (0.010, ez + 0.012),
+        46: (-0.055, ez + 0.009), 276: (0.055, ez + 0.009),
+        10: (0.0, ez + 0.076), 234: (-0.077, ez - 0.008), 454: (0.077, ez - 0.008),
+    }
+    return pairs
+
+
+def tps_fit(src, dst):
+    """Thin-plate spline mapping 2D src points onto dst points (both n×2). Returns the solved weights."""
+    n = len(src)
+    d = np.linalg.norm(src[:, None, :] - src[None, :, :], axis=2)
+    K = np.where(d > 0, d * d * np.log(d + 1e-12), 0.0)
+    Pm = np.hstack([np.ones((n, 1)), src])
+    A = np.zeros((n + 3, n + 3))
+    A[:n, :n] = K + np.eye(n) * 1e-6  # a little regularisation: the correspondences are hand-measured
+    A[:n, n:] = Pm
+    A[n:, :n] = Pm.T
+    rhs = np.zeros((n + 3, 2))
+    rhs[:n] = dst
+    return src, np.linalg.solve(A, rhs)
+
+
+def tps_eval(model, q):
+    """Evaluate the spline at q (…×2) → …×2."""
+    src, w = model
+    n = len(src)
+    flat = q.reshape(-1, 2)
+    d = np.linalg.norm(flat[:, None, :] - src[None, :, :], axis=2)
+    U = np.where(d > 0, d * d * np.log(d + 1e-12), 0.0)
+    out = U @ w[:n] + w[n] + flat @ w[n + 1:]
+    return out.reshape(q.shape)
+
+
+def photo_layer(pos, normal_obj, F, lid_ring, size):
+    """The portrait projected onto the face tile: (x, z) of every texel → thin-plate-warped photo pixel; weight from
+    how squarely the surface faces the camera and a soft face oval. Mild de-lighting flattens the studio key."""
+    import json
+    lm = json.load(open(PHOTO.rsplit('.', 1)[0] + '.landmarks.json'))
+    pts = np.array(lm['points'], np.float32)
+    photo = P.load_pixels(PHOTO, 'sRGB')  # rows from the bottom
+    ph, pw = photo.shape[:2]
+    pairs = head_correspondences(F, lid_ring)
+    src, dst = [], []
+    for key, val in pairs.items():
+        if isinstance(val[0], tuple):  # eye centre = midpoint of upper and lower lid landmarks
+            a, b = val[0]
+            px, mesh = (pts[a] + pts[b]) / 2, val[1]
+        else:
+            px, mesh = pts[key], val
+        src.append(mesh); dst.append((px[0], ph - px[1]))  # photo rows counted from the bottom
+    model = tps_fit(np.array(src, np.float64), np.array(dst, np.float64))
+    xz = pos[..., [0, 2]].astype(np.float64)
+    uv = tps_eval(model, xz)
+    u = np.clip(uv[..., 0], 0, pw - 1.001); v = np.clip(uv[..., 1], 0, ph - 1.001)
+    u0, v0 = np.floor(u).astype(int), np.floor(v).astype(int)
+    fu, fv = (u - u0)[..., None], (v - v0)[..., None]
+    sample = (photo[v0, u0] * (1 - fu) * (1 - fv) + photo[v0, u0 + 1] * fu * (1 - fv) + photo[v0 + 1, u0] * (1 - fu) * fv + photo[v0 + 1, u0 + 1] * fu * fv)
+    # The portrait's own silhouette (landmark oval, eroded and feathered) sampled through the same warp: no background.
+    silhouette = P.load_pixels(PHOTO.rsplit('.', 1)[0] + '.mask.png', 'Non-Color')[..., 0]
+    sil = silhouette[v0, u0]
+    # De-light: divide by a wide luminance blur inside the face, keep the mean.
+    ex, ez = F['eye_l'].x, F['eye_l'].z
+    oval = ellipse(pos, (0.0, F['nose'].y + 0.03, ez - 0.02), (0.088, 0.09, 0.108), 0.3)
+    luma = sample @ np.array([0.30, 0.59, 0.11])
+    spots = np.clip(blur(luma, 16) - luma, 0, 1)[..., None]  # small dark marks (freckles, moles): mostly lifted; a few stay
+    sample = sample + spots * 0.85 * sample
+    wide = blur(luma, 32)
+    mean = float((wide * oval).sum() / (oval.sum() + 1e-6))
+    sample = sample * np.clip((mean / (wide + 1e-3)) ** 0.9, 0.6, 1.6)[..., None]  # flatten the studio key almost fully
+    facing = np.clip((-normal_obj[..., 1] + 0.05) / 0.5, 0, 1)  # -y is the camera side; 45° surfaces still take the photo
+    inside = (u > 2) & (u < pw - 3) & (v > 2) & (v < ph - 3)
+    weight = facing * oval * inside * sil
+    return np.clip(sample, 0, 1), weight
+
+
+def close_lids(obj, eye_centres, radius, upper=math.radians(13), lower=math.radians(4)):
+    """Bring the lids down: rotate skin near each eyeball about the eye centre (x axis), so the lid stays on its sphere
+    and never cuts the eye. Full at the lid margin, fading out 18 mm from the eyeball."""
+    for c in eye_centres:
+        for v in obj.data.vertices:
+            d = v.co - c
+            dist = d.length - radius
+            if dist > 0.018 or d.y > 0.004:
+                continue
+            fall = 1 - max(0.0, dist) / 0.018
+            angle = (-upper if d.z > 0 else lower) * fall
+            y, z = d.y, d.z
+            v.co.y = c.y + y * math.cos(angle) - z * math.sin(angle)
+            v.co.z = c.z + y * math.sin(angle) + z * math.cos(angle)
+    obj.data.update()
+
+
 # --- painting by landmark -----------------------------------------------------------------------------------------------
 
 def landmarks(F, pos):
@@ -247,7 +356,7 @@ def scalp_mask(pos, F):
     return scalp * np.clip((pos[..., 2] - (ez - 0.02)) / 0.02, 0, 1)
 
 
-def face_colour(pos, mask, F, ao, detail, size):
+def face_colour(pos, mask, F, ao, detail, size, photo=None):
     """The face's colour: olive Mediterranean base, sub-dermal zones (blood in the nose, cheeks and ears; blue-grey
     beard shadow; warmer forehead), photographed micro-mottle, an old scar, arena dust, a shaved scalp under the cards.
     Brows and lashes are geometry now, so they leave only their shadow here."""
@@ -258,8 +367,18 @@ def face_colour(pos, mask, F, ao, detail, size):
     colour = base * (0.92 + tone * 0.18)
     colour[..., 1] *= 1 + (tone[..., 0] - 0.5) * 0.06
     colour[..., 0] *= 1 + (fbm(size, 42, octaves=(8, 16)) - 0.5) * 0.10
-    colour = colour * (0.55 + 0.45 * np.clip(ao, 0, 1) ** 1.2)[..., None]
+    cavity = np.clip(ao, 0, 1)[..., None] ** 1.2
+    colour = colour * (np.array([0.55, 0.47, 0.44])[None, None, :] * (1 - cavity) + cavity)  # occlusion goes red, not grey: skin
     colour = colour * (1 + (detail - 0.5) * 3.0)  # scan mottle and pores, centred on 1
+    if photo is not None:  # the portrait owns the front of the face; painted features only fill in where it fades
+        sample, w = photo
+        core = w > 0.8  # match the photo's skin statistics to the painted skin so the two meet without a step
+        gain = (colour[core].mean(axis=0) / (sample[core].mean(axis=0) + 1e-6)) if core.any() else np.ones(3)
+        sample = np.clip(sample * gain[None, None, :], 0, 1)
+        colour = colour * (1 - w[..., None]) + sample * (np.array([0.55, 0.47, 0.44])[None, None, :] * (1 - cavity) * 0.5 + 0.5 + cavity * 0.5) * w[..., None]
+        keep = 1 - w
+    else:
+        keep = np.ones(pos.shape[:2], np.float32)
     # Zones.
     forehead = np.clip((pos[..., 2] - (ez + 0.035)) / 0.02, 0, 1) * front
     colour *= 1 + forehead[..., None] * np.array([0.03, 0.02, -0.04])[None, None, :]
@@ -267,27 +386,28 @@ def face_colour(pos, mask, F, ao, detail, size):
     for sx in (1, -1):
         flush = np.maximum(flush, ellipse(pos, (sx * (ex + 0.015), ey + 0.02, ez - 0.045), (0.035, 0.03, 0.03), 0.9) * 0.6)
         flush = np.maximum(flush, ellipse(pos, (sx * F['ear_x'], ey + 0.07, ez), (0.02, 0.03, 0.035), 0.8) * 0.8)
+    flush = flush * keep
     colour[..., 0] *= 1 + flush * 0.12
     colour[..., 1] *= 1 - flush * 0.03
     colour[..., 2] *= 1 - flush * 0.10
     for sx in (1, -1):
         socket = ellipse(pos, (sx * ex, ey + 0.004, ez + 0.006), (0.03, 0.022, 0.02), 0.6)
-        colour *= (1 - socket[..., None] * np.array([0.08, 0.14, 0.18])[None, None, :] * front[..., None])
-        brow = ellipse(pos, (sx * 0.031, ey - 0.006, ez + 0.027), (0.024, 0.02, 0.005), 0.6) * front
+        colour *= (1 - socket[..., None] * np.array([0.08, 0.14, 0.18])[None, None, :] * (front * keep)[..., None])
+        brow = ellipse(pos, (sx * 0.031, ey - 0.006, ez + 0.027), (0.024, 0.02, 0.005), 0.6) * front * keep
         colour *= (1 - brow * 0.22)[..., None]  # the shadow under the brow cards
         lash = ellipse(pos, (sx * ex, ey - 0.012, ez + 0.011), (0.017, 0.012, 0.0014), 0.5)
-        colour *= 1 - (lash * 0.6 * front)[..., None]
+        colour *= 1 - (lash * 0.6 * front * keep)[..., None]
     ears = np.maximum(ellipse(pos, (F['ear_x'], ey + 0.07, ez), (0.025, 0.035, 0.04), 0.6), ellipse(pos, (-F['ear_x'], ey + 0.07, ez), (0.025, 0.035, 0.04), 0.6))
     colour *= (1 - ears * 0.10)[..., None]
     # Lips: a man's — barely rosier than the skin, a defined border, darker at the mouth line.
     lips = ellipse(pos, (m.x, m.y, m.z), (0.027, 0.014, 0.011), 0.4)
     inner = ellipse(pos, (m.x, m.y, m.z), (0.0245, 0.013, 0.0095), 0.4)
     lip_colour = np.array([0.50, 0.27, 0.23])[None, None, :]
-    colour = colour * (1 - (lips * 0.30 * front)[..., None]) + lip_colour * (lips * 0.30 * front)[..., None]
-    colour *= (1 - (lips - inner) * 0.18 * front)[..., None]
-    colour *= (1 - groove(xz, arc(m.x - 0.025, m.x + 0.025, m.z, -0.001), 0.0009, 0.45) * front)[..., None]
+    colour = colour * (1 - (lips * 0.30 * front * keep)[..., None]) + lip_colour * (lips * 0.30 * front * keep)[..., None]
+    colour *= (1 - (lips - inner) * 0.18 * front * keep)[..., None]
+    colour *= (1 - groove(xz, arc(m.x - 0.025, m.x + 0.025, m.z, -0.001), 0.0009, 0.45) * front * keep)[..., None]
     # Beard shadow with stubble grain; a cool cast.
-    beard = beard_mask(pos, F, size)
+    beard = beard_mask(pos, F, size) * keep
     grain = np.repeat(np.repeat((np.random.default_rng(62).random((size // 2, size // 2)) < 0.30).astype(np.float32), 2, 0), 2, 1)
     colour *= (1 - beard * (0.14 + grain * 0.42))[..., None]
     colour *= 1 - (beard * 0.08)[..., None] * np.array([0.3, 0.05, -0.4])[None, None, :]
@@ -295,17 +415,17 @@ def face_colour(pos, mask, F, ao, detail, size):
     rng = np.random.default_rng(67)
     for _ in range(4):
         px, pz = rng.uniform(-0.05, 0.05), rng.uniform(c.z + 0.02, ez + 0.06)
-        colour *= (1 - ellipse(pos, (px, ey, pz), (0.0012, 0.02, 0.0012), 0.6) * 0.45 * front)[..., None]
+        colour *= (1 - ellipse(pos, (px, ey, pz), (0.0012, 0.02, 0.0012), 0.6) * 0.45 * front * keep)[..., None]
     for k in range(60):
         t = k / 60
-        sc = ellipse(pos, (ex + 0.02 - t * 0.03, ey - 0.03 + t * 0.012, ez + 0.045 - t * 0.075), (0.0028, 0.01, 0.0028), 0.8)
+        sc = ellipse(pos, (ex + 0.02 - t * 0.03, ey - 0.03 + t * 0.012, ez + 0.045 - t * 0.075), (0.0028, 0.01, 0.0028), 0.8) * keep
         colour = colour * (1 - sc[..., None] * 0.35) + np.array([0.62, 0.42, 0.34])[None, None, :] * (sc * 0.35)[..., None]
     # Sweat-dirt at the temples, faint.
     streak = fbm(size, 65, octaves=(16, 256))
     temples = np.maximum(ellipse(pos, (ex + 0.045, ey + 0.03, ez + 0.02), (0.012, 0.02, 0.045), 0.9), ellipse(pos, (-(ex + 0.045), ey + 0.03, ez + 0.02), (0.012, 0.02, 0.045), 0.9))
     colour *= (1 - temples * np.clip((streak - 0.58) * 6, 0, 1) * 0.08 * front)[..., None]
     # Shaved scalp under the hair cards, feathered hairline.
-    scalp = scalp_mask(pos, F)
+    scalp = scalp_mask(pos, F) * (1 - (1 - keep) * 0.7)  # the photo already carries the buzz cut at the hairline
     dense = (np.random.default_rng(64).random((size, size)) < 0.75).astype(np.float32)
     colour *= (1 - scalp * (0.50 + dense * 0.22))[..., None]
     colour *= 1 - (scalp * 0.1)[..., None] * np.array([0, 0.3, 0.6])[None, None, :]
@@ -380,43 +500,61 @@ def clean_normal(n):
 
 # --- cards -------------------------------------------------------------------------------------------------------------
 
-def card_texture(size=512):
-    """One RGBA strand sheet, eight 64-px columns: 0-3 hair clumps, 4-5 brow hairs, 6-7 a lash fan (root at the left)."""
+def card_texture(size=1024):
+    """One RGBA strand sheet, eight 128-px columns: 0-3 hair clumps, 4-5 brow hairs, 6-7 a lash fan (root at the left).
+    Strands are quadratic curves, tapered from a 2.5-px root to a sub-pixel tip, with soft anti-aliased alpha — the
+    difference between hair and a marker stroke once the card is mip-mapped."""
     rng = np.random.default_rng(70)
     rgba = np.zeros((size, size, 4), np.float32)
     col_w = size // 8
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
-    dark = np.array([0.26, 0.18, 0.12])  # sRGB values as written: dark brown, not the black a linear 0.07 becomes
-    def strand(x0, x1, y0, y1, width, tint, alpha=1.0, taper=True):
-        # a straight tapered line from (x0,y0) root to (x1,y1) tip in pixel space
-        ax, ay, bx, by = x0, y0, x1, y1
-        abx, aby = bx - ax, by - ay
-        t = np.clip(((xx - ax) * abx + (yy - ay) * aby) / (abx * abx + aby * aby + 1e-6), 0, 1)
-        d = np.sqrt((xx - (ax + t * abx)) ** 2 + (yy - (ay + t * aby)) ** 2)
-        w = width * ((1 - 0.75 * t) if taper else 1)
-        a = np.clip((w - d) / 0.8, 0, 1) * alpha
-        light = 0.85 + 0.35 * t  # lighter toward the tip
+    dark = np.array([0.24, 0.165, 0.11])
+
+    def strand(p0, p1, p2, root_w, tip_w, tint, y_range=None):
+        # quadratic Bézier p0→p2 via p1, rasterised as a chain of 18 segments; alpha soft over 1 px, tapered
+        bx0 = min(p0[0], p1[0], p2[0]) - 6; bx1 = max(p0[0], p1[0], p2[0]) + 6
+        by0 = min(p0[1], p1[1], p2[1]) - 6; by1 = max(p0[1], p1[1], p2[1]) + 6
+        x0, x1 = int(max(bx0, 0)), int(min(bx1, size)); y0, y1 = int(max(by0, 0)), int(min(by1, size))
+        if x1 <= x0 or y1 <= y0:
+            return
+        X, Y = xx[y0:y1, x0:x1], yy[y0:y1, x0:x1]
+        best = np.full(X.shape, 1e9, np.float32); best_t = np.zeros(X.shape, np.float32)
+        ts = np.linspace(0, 1, 19)
+        pts = [((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0], (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]) for t in ts]
+        for (ax, ay), (bx, by), t in zip(pts[:-1], pts[1:], ts[:-1]):
+            abx, aby = bx - ax, by - ay
+            u = np.clip(((X - ax) * abx + (Y - ay) * aby) / (abx * abx + aby * aby + 1e-6), 0, 1)
+            d = np.sqrt((X - (ax + u * abx)) ** 2 + (Y - (ay + u * aby)) ** 2)
+            closer = d < best
+            best = np.where(closer, d, best); best_t = np.where(closer, t + u / 18, best_t)
+        w = root_w + (tip_w - root_w) * best_t
+        a = np.clip((w / 2 + 0.5 - best), 0, 1)
+        light = 0.8 + 0.5 * best_t  # tips catch the light
         for ch in range(3):
-            rgba[..., ch] = rgba[..., ch] * (1 - a) + tint[ch] * light * a
-        rgba[..., 3] = np.maximum(rgba[..., 3], a)
-    for col in range(4):  # hair: a loose clump, root at the bottom (v=0), tip at the top; open enough that mips cut it
+            rgba[y0:y1, x0:x1, ch] = rgba[y0:y1, x0:x1, ch] * (1 - a) + tint[ch] * light * a
+        rgba[y0:y1, x0:x1, 3] = np.maximum(rgba[y0:y1, x0:x1, 3], a)
+
+    for col in range(4):  # hair: a clump, root at v=0, tips at the top, gently splayed
         x_base = col * col_w
-        for _ in range(15):
-            x0 = x_base + rng.uniform(6, col_w - 6)
-            x1 = x0 + rng.uniform(-10, 10)
-            y1 = rng.uniform(size * 0.5, size * 0.98)
-            strand(x0, x1, rng.uniform(0, size * 0.06), y1, rng.uniform(1.4, 2.4), dark * rng.uniform(0.7, 1.9) * np.array([1.0, rng.uniform(0.9, 1.0), rng.uniform(0.8, 1.0)]))
-    for col in (4, 5):  # brows: small cards, so the column must stay dense enough to survive mip averaging
+        for _ in range(34):
+            x0 = x_base + rng.uniform(14, col_w - 14)
+            top = rng.uniform(size * 0.55, size * 0.97)
+            drift = rng.uniform(-40, 40)
+            strand((x0, rng.uniform(0, size * 0.05)), (x0 + drift * 0.4, top * 0.55), (x0 + drift, top), rng.uniform(2.2, 3.2), 0.5,
+                   dark * rng.uniform(0.7, 1.8) * np.array([1.0, rng.uniform(0.9, 1.0), rng.uniform(0.8, 1.0)]))
+    for col in (4, 5):  # brows: fewer, finer, all leaning the same way like real brow hair
         x_base = col * col_w
-        for _ in range(24):
-            x0 = x_base + rng.uniform(4, col_w - 4)
-            strand(x0, x0 + rng.uniform(-6, 6), rng.uniform(0, size * 0.1), rng.uniform(size * 0.6, size * 0.95), rng.uniform(2.4, 3.2), dark * rng.uniform(0.9, 1.4))
-    for col in (6, 7):  # lashes: root at the column's left edge, fanning right, repeated down the column
+        for _ in range(30):
+            x0 = x_base + rng.uniform(10, col_w - 10)
+            top = rng.uniform(size * 0.5, size * 0.92)
+            lean = rng.uniform(10, 30)
+            strand((x0, rng.uniform(0, size * 0.08)), (x0 + lean * 0.5, top * 0.5), (x0 + lean, top), rng.uniform(1.8, 2.6), 0.4, dark * rng.uniform(0.6, 1.2))
+    for col in (6, 7):  # lashes: root at the left edge of the column, curling right and up, repeated down the column
         x_base = col * col_w
-        for k in range(90):
-            y0 = k * size / 90 + rng.uniform(-2, 2)
-            strand(x_base + 1, x_base + col_w * rng.uniform(0.45, 0.95), y0, y0 + rng.uniform(-8, 8), rng.uniform(2.6, 3.6), dark * 0.7, taper=False)
-    # Colour under the transparent texels is the hair colour too, so filtering never drags black into the strand edges.
+        for k in range(70):
+            y0 = k * size / 70 + rng.uniform(-3, 3)
+            reach = col_w * rng.uniform(0.5, 0.95)
+            strand((x_base + 2, y0), (x_base + reach * 0.55, y0 - rng.uniform(4, 14)), (x_base + reach, y0 - rng.uniform(16, 34)), rng.uniform(2.0, 2.8), 0.4, dark * 0.6)
     empty = rgba[..., 3] < 0.02
     rgba[empty, :3] = dark
     return rgba
@@ -534,6 +672,78 @@ def hair_cards(head, F, rng_seed=71):
     return mesh.build('hair_cards')
 
 
+def hair_shells(head, F, layers=7, spacing=0.0032):
+    """A buzz cut as fur shells: the scalp polygons copied `layers` times, each pushed out along the normal, one dotted
+    alpha texture in the head's own UV layout, and a vertex-colour alpha that thins the outer shells so the crop tapers.
+    Reads as dense short hair from every angle at any distance; no card silhouettes."""
+    import bmesh
+    me = head.data
+    scalp_polys = []
+    for poly in me.polygons:
+        c = poly.center
+        if scalp_mask(np.array([[[c.x, c.y, c.z]]], np.float32), F)[0, 0] > 0.25:
+            scalp_polys.append(poly.index)
+    keep = set(scalp_polys)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.faces.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context='FACES')
+    base = bpy.data.meshes.new('scalp')
+    bm.to_mesh(base)
+    bm.free()
+    verts, faces, uvs, colours, normals = [], [], [], [], []
+    src_uv = base.uv_layers.active.data
+    ez = F['eye_l'].z
+    full_normals = []
+    for v in base.vertices:  # normals of the whole head, not of the cut-out: the scalp's centre seam must not split
+        ok, loc, nrm, _ = head.closest_point_on_mesh(v.co)
+        full_normals.append(nrm.normalized() if ok else v.normal.copy())
+    for layer in range(layers):
+        off = spacing * (layer + 1)
+        t = layer / (layers - 1)
+        shade = 0.55 + 0.45 * t  # roots dark, tips lit
+        start = len(verts)
+        for v, nrm in zip(base.vertices, full_normals):
+            height = min(1.0, max(0.0, (v.co.z - (ez + 0.03)) / 0.09))  # 0 at the temples, 1 on top: the fade
+            alpha = (1.0 - 0.92 * t ** 0.9) * (0.35 + 0.65 * height)  # outer shells keep fewer dots; sides shorter
+            verts.append(v.co + nrm * off)
+            normals.append(nrm.copy())
+            colours.append((shade, shade, shade, alpha))
+        for poly in base.polygons:
+            faces.append(tuple(start + i for i in poly.vertices))
+            for li in poly.loop_indices:
+                uvs.append((start + base.loops[li].vertex_index, tuple(src_uv[li].uv)))
+    out = bpy.data.meshes.new('hair_shells')
+    out.from_pydata([tuple(v) for v in verts], [], faces)
+    out.update()
+    uv = out.uv_layers.new(name='UVMap')
+    per_vertex = dict(uvs)
+    for poly in out.polygons:
+        for li in poly.loop_indices:
+            uv.data[li].uv = per_vertex[out.loops[li].vertex_index]
+    col = out.color_attributes.new(name='Col', type='FLOAT_COLOR', domain='POINT')
+    for i, c in enumerate(colours):
+        col.data[i].color = c
+    out.normals_split_custom_set_from_vertices([tuple(n) for n in normals])
+    obj = bpy.data.objects.new('hair_shells', out)
+    bpy.context.collection.objects.link(obj)
+    print(f'HAIR shells={layers} faces={len(faces)}')
+    return obj
+
+
+def shell_texture(pos, F, size=1024):
+    """Dotted alpha for the fur shells in the face tile's layout: hairs as 1-2 px dots wherever the scalp is, denser on
+    top, feathering out at the hairline; dark brown with a little variation."""
+    rng = np.random.default_rng(73)
+    scalp = scalp_mask(pos, F)
+    dots = (rng.random((size, size)) < 0.30).astype(np.float32)
+    dots = np.maximum(dots, np.roll(dots, 1, 1) * 0.6)  # slightly elongated
+    alpha = dots * np.clip((scalp - 0.12) / 0.7, 0, 1)  # feathered hairline
+    tone = 0.6 + 0.9 * rng.random((size, size, 1))
+    colour = np.array([0.26, 0.18, 0.12])[None, None, :] * tone
+    return np.concatenate([np.clip(colour, 0, 1), alpha[..., None]], axis=2).astype(np.float32)
+
+
 def brow_cards(head, F, rng_seed=72):
     """Two rows of single-hair cards along each brow ridge: heavy and upward at the nose, sweeping outward and down
     toward the temple."""
@@ -542,11 +752,11 @@ def brow_cards(head, F, rng_seed=72):
     mesh = CardMesh()
     count = 0
     for sx in (1, -1):
-        for row, dz in ((0, 0.0009), (1, -0.0012)):
-            for k in range(36):
-                t = (k + rng.uniform(0.1, 0.9)) / 36
+        for row, dz in ((0, 0.0),):
+            for k in range(22):
+                t = (k + rng.uniform(0.1, 0.9)) / 22
                 x = sx * (0.011 + 0.043 * t)
-                z = ez + 0.021 + 0.013 * math.sin(math.pi * t ** 0.85) + dz
+                z = ez + 0.010 + 0.011 * math.sin(math.pi * t ** 0.85) + dz  # on the brow bone, where the portrait's brow is
                 hit, loc, nrm, _ = head.ray_cast(Vector((x, ey - 0.12, z)), Vector((0, 1, 0)))
                 if not hit:
                     continue
@@ -593,11 +803,14 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     pos_face, pos_body = bake_tiles(body, 'POSITION', [size, size], select_only, float_buffer=True)
     pos_face, mask_face = pos_face[..., :3], pos_face[..., 3] > 0.5
     pos_body, mask_body = pos_body[..., :3], pos_body[..., 3] > 0.5
+    normal_obj = bake_tiles(body, 'NORMAL', [size, size // 4], select_only, normal_space='OBJECT')[0][..., :3] * 2 - 1
     detail_colour, detail_height = scan_detail(size)
+    lid_ring = F['lid_ring']
+    photo = photo_layer(pos_face, normal_obj, F, lid_ring, size) if os.path.exists(PHOTO) else None
     height = height_map(pos_face, mask_face, F, detail_height, size)
     displace_high(high, height, select_only)
     nrm_face, nrm_body = [clean_normal(n[..., :3]) for n in bake_tiles(body, 'NORMAL', [size, size], select_only, high=high, samples=8, margin=8)]
-    colour_face = face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size)
+    colour_face = face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size, photo)
     colour_body = body_colour(pos_body, mask_body, P.upsample(ao_body, size), detail_colour, size)
     rough_face = face_roughness(pos_face[::2, ::2], F, detail_colour[::2, ::2], size // 2)
     rough_body = np.clip(0.66 + (detail_colour[::2, ::2, 0] - 0.5) * 0.3, 0.4, 0.95)
@@ -616,7 +829,8 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     eye = bpy.data.objects['eye_L']
     eye_centre = sum((v.co for v in eye.data.vertices), Vector()) / len(eye.data.vertices)
     eye_radius = max((v.co - eye_centre).length for v in eye.data.vertices)
-    hair = tag(hair_cards(head, F), 'hair_cards', 'HairCards', bone='Head', slot='Hair')
+    hair = tag(hair_shells(head, F), 'hair_shells', 'HairShell', bone='Head', slot='Hair')
+    maps['HairShell'] = {'baseColor': save_png_rgba(os.path.join(materials_out, 'hair_shell.png'), shell_texture(pos_face[::2, ::2], F, size // 2))}
     brows = tag(brow_cards(head, F), 'brow_cards', 'BrowCards', bone='Head', slot='Face')
     lashes = tag(lash_cards(head, F, eye_radius), 'lash_cards', 'BrowCards', bone='Head', slot='Face')
     maps['BrowCards'] = dict(maps['HairCards'])  # same sheet, sharper cut-off in the build

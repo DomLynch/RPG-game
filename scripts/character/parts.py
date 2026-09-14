@@ -107,10 +107,15 @@ def realistic_body():
     eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
     if eye_l.x < eye_r.x:
         eye_l, eye_r = eye_r, eye_l
+    eye_radius = max((v.co - eye_l).length for v in eyes[0].data.vertices)
+    for mesh_obj in (hbm, HIGH):  # a fighter's eyes are not wide open: bring the lids down before any bake
+        HEADMOD.close_lids(mesh_obj, [eye_l, eye_r], eye_radius)
+    ring = [v.co for v in hbm.data.vertices if abs((v.co - eye_l).length - eye_radius) < 0.004 and v.co.y < eye_l.y + 0.01]
+    lid_ring = (min(abs(c.x) for c in ring), max(abs(c.x) for c in ring)) if ring else (eye_l.x - 0.018, eye_l.x + 0.022)
     face = [v.co for v in hbm.data.vertices if v.co.z > eye_l.z - 0.12 and v.co.z < eye_l.z + 0.16]
     nose = min(face, key=lambda c: c.y)  # most forward point of the face
     print(f'FACE eye_l={tuple(round(v, 3) for v in eye_l)} nose={tuple(round(v, 3) for v in nose)}')
-    FACE = {'eye_l': eye_l, 'eye_r': eye_r, 'nose': nose.copy(), 'ear_x': max(abs(c.x) for c in face),
+    FACE = {'eye_l': eye_l, 'eye_r': eye_r, 'nose': nose.copy(), 'ear_x': max(abs(c.x) for c in face), 'lid_ring': lid_ring,
             'mouth': Vector((0, nose.y + 0.012, nose.z - 0.038)), 'chin': Vector((0, nose.y + 0.02, nose.z - 0.085))}
     for e, side in zip(eyes, ('L', 'R')):
         tag(e, f'eye_{side}', 'Eyes', bone='Head', slot='Eyes')
@@ -815,7 +820,7 @@ if not proof:
     manifest_path = os.path.join(materials_out, 'manifest_realistic.json' if realistic else 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
-    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0)] if realistic else []
+    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] if realistic else []
     for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale

@@ -59,5 +59,9 @@
  "BrowCards": {
   "baseColor": "hair_cards.png",
   "normalScale": 1.0
+ },
+ "HairShell": {
+  "baseColor": "hair_shell.png",
+  "normalScale": 1.0
  }
 }

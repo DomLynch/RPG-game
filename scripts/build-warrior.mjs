@@ -50,8 +50,9 @@ const eyesMaterial = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .3 })
 // brows and lashes as an alpha cut-out (no sorting, works in the shadow pass).
 const face = new T.MeshPhysicalMaterial({ name: 'Face', roughness: 1, specularIntensity: 0.5 });
 const hairCards = new T.MeshPhysicalMaterial({ name: 'HairCards', roughness: .9, specularIntensity: .3, alphaTest: .35, side: T.DoubleSide }); // 0.35: loose strands survive mip averaging
-const browCards = new T.MeshPhysicalMaterial({ name: 'BrowCards', roughness: .9, specularIntensity: .3, alphaTest: .5, side: T.DoubleSide }); // dense columns: a sharper cut keeps hairs, not bands
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial, face, hairCards, browCards].map(m => [m, []]));
+const browCards = new T.MeshPhysicalMaterial({ name: 'BrowCards', roughness: .9, specularIntensity: .3, transparent: true, alphaTest: .04, side: T.DoubleSide }); // small cards over opaque skin: blended, so hair tips stay soft
+const hairShell = new T.MeshPhysicalMaterial({ name: 'HairShell', roughness: .9, specularIntensity: .25, alphaTest: .5, side: T.DoubleSide, vertexColors: true }); // fur shells: dot alpha × per-shell vertex alpha
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial, face, hairCards, browCards, hairShell].map(m => [m, []]));
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -71,7 +72,7 @@ function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = '') {
     g.setAttribute('skinWeight', new T.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 ? 0 : 1), 4));
   }
   // Every bucket merges into one draw: keep only the attributes the game reads so authored and primitive parts agree.
-  for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'uv1', 'skinIndex', 'skinWeight'].includes(name)) g.deleteAttribute(name);
+  for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'uv1', 'skinIndex', 'skinWeight'].includes(name) && !(name === 'color' && material.vertexColors)) g.deleteAttribute(name);
   withAoUv(g);
   parts.get(material).push(g);
 }
