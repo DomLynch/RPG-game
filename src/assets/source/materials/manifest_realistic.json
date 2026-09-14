@@ -1,0 +1,49 @@
+{
+ "Skin": {
+  "baseColor": "skin_color_r.jpg",
+  "normal": "skin_normal_r.jpg",
+  "metallicRoughness": "skin_orm_r.jpg",
+  "normalScale": 0.8,
+  "occlusion": "ao_body_r.jpg"
+ },
+ "Ranger": {
+  "baseColor": "ranger_color_r.jpg",
+  "normal": "ranger_normal_r.jpg",
+  "metallicRoughness": "ranger_orm_r.jpg",
+  "normalScale": 1.0
+ },
+ "Bronze": {
+  "baseColor": "bronze_color_r.jpg",
+  "normal": "bronze_normal_r.jpg",
+  "metallicRoughness": "bronze_orm_r.jpg",
+  "normalScale": 0.7
+ },
+ "Hair": {
+  "baseColor": "hair_color_r.jpg",
+  "normal": "hair_normal_r.jpg",
+  "normalScale": 0.6
+ },
+ "Gambeson": {
+  "occlusion": "ao_body_r.jpg",
+  "occlusionTexCoord": 1,
+  "normal": "gambeson_normal_r.jpg",
+  "normalScale": 1.0
+ },
+ "Leather": {
+  "occlusion": "ao_body_r.jpg",
+  "occlusionTexCoord": 1
+ },
+ "Heraldry": {
+  "occlusion": "ao_body_r.jpg",
+  "occlusionTexCoord": 1
+ },
+ "Steel": {
+  "occlusion": "ao_body_r.jpg",
+  "occlusionTexCoord": 1
+ },
+ "Eyes": {
+  "baseColor": "eye_color_r.jpg",
+  "metallicRoughness": "eye_orm_r.jpg",
+  "normalScale": 0.5
+ }
+}

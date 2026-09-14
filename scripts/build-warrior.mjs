@@ -14,6 +14,7 @@ globalThis.FileReader = class {
   async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); }
 };
 const source = 'artifacts/source';
+const realistic = process.env.WARRIOR_BODY === 'realistic'; // Blender Studio body instead of the CC0 stylised one
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
 const json = JSON.parse(await fs.readFile(path.join(baseDir, 'Superhero_Male_FullBody.gltf'), 'utf8'));
 // The foundation supplies topology and weights. Our covered warrior needs none of its face/hair textures.
@@ -44,7 +45,8 @@ base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name:
 const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
 const ranger = new T.MeshStandardMaterial({ name: 'Ranger', roughness: 1 }); // CC0 outfit-pack items; maps from the manifest
 const bronze = new T.MeshStandardMaterial({ name: 'Bronze', roughness: 1, metalness: 1 });
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze].map(m => [m, []]));
+const eyesMaterial = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .3 });
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial].map(m => [m, []]));
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -103,7 +105,8 @@ function shell(rings, material, bone, z = 0) {
   g.computeVertexNormals(); add(g, material, bone);
 }
 // Level-1 kit and every later tier come from authored parts (below). Buzzed hair from the CC0 pack sits on the head.
-{
+if (realistic) { body.visible = false; base.scene.getObjectByName('Eyes').removeFromParent(); base.scene.getObjectByName('Eyebrows').removeFromParent(); }
+else {
   const hairDir = path.join(source, 'base/Universal Base Characters[Standard]/Hairstyles/Rigged to Head Bone/glTF (Godot -Unreal)');
   const hairJson = JSON.parse(await fs.readFile(path.join(hairDir, 'Hair_Buzzed.gltf'), 'utf8'));
   hairJson.images = []; hairJson.textures = []; hairJson.materials = hairJson.materials.map(m => ({ name: m.name }));
@@ -117,7 +120,8 @@ function shell(rings, material, bone, z = 0) {
 // Authored parts from scripts/character/parts.py: meshes in this same unscaled rest space, rigid to extras.bone,
 // merged into the per-material skinned draws exactly like the primitives above. No parts → identical output.
 const partsDir = process.env.WARRIOR_PARTS || 'src/assets/source/parts';
-for (const file of (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb')).sort()) {
+const partFiles = (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb') && (realistic ? f !== 'level1.glb' : !f.includes('realistic'))).sort();
+for (const file of partFiles) {
   const glb = await fs.readFile(path.join(partsDir, file)), part = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
   part.scene.updateMatrixWorld(true);
   part.scene.traverse(o => {
@@ -411,7 +415,7 @@ await fs.mkdir('src/assets',{recursive:true});
 // { baseColor, metallicRoughness, normal, normalScale } image files in that directory. Listed materials replace the
 // procedural maps below; unlisted ones keep them. No manifest → identical output.
 const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials';
-const manifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest.json'), 'utf8').catch(() => '{}'));
+const manifest = JSON.parse(await fs.readFile(path.join(materialsDir, realistic ? 'manifest_realistic.json' : 'manifest.json'), 'utf8').catch(() => '{}'));
 const authored = new Map(), files = new Map(); // one object per file so a map shared by several materials is embedded once
 for (const [name, maps] of Object.entries(manifest)) {
   const entry = { normalScale: maps.normalScale, occlusionTexCoord: maps.occlusionTexCoord ?? 0 };
@@ -423,7 +427,7 @@ for (const [name, maps] of Object.entries(manifest)) {
   authored.set(name, entry);
 }
 const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
-authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
+if (!realistic) authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
 const finished = finishMaterials(Buffer.from(result), authored);
 await fs.writeFile('src/assets/warrior.glb', finished);
 console.log(`Warrior: ${finished.byteLength} bytes; ${clips.map(a=>a.name).join(', ')}`);

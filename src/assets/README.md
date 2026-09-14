@@ -71,3 +71,11 @@ Helmet slot (character lane, 2026-09-14): `src/assets/source/items/helmet_bronze
 helm shelled from the head mesh (so it inherits the head's skin weights), projected onto a smooth dome with cheek guards, nasal
 and neck guard, plus a horsehair crest on the Heraldry surface. Its bronze maps (`bronze_*.jpg`, 512) are procedural. Demo
 builds only (`WARRIOR_ITEMS=helmet_bronze`); a helmet hides the `Hair` slot. Hair is now its own slot draw for that reason.
+
+Realistic body (character lane, 2026-09-14, demo builds `WARRIOR_BODY=realistic`): Blender Studio Human Base Meshes Bundle v1.0.0
+(CC0, https://download.blender.org/demo/asset-bundles/human-base-meshes/, SHA-256 46a912c0524072ac3b78c35d5d2471df7b8df102394a050ca8cd7184e3393648,
+retrieved 2026-09-14) — `GEO-body_male_realistic` and its eyes, appended by `scripts/character/parts.py --body realistic`, scaled
+to the rig, arms raised rigidly from A to the rig's T rest, weighted from the CC0 body by nearest surface. The bundle ships no
+textures: skin colour is painted procedurally by landmark from a baked position map (brows, lips, flush, stubble, buzz cut),
+the multires sculpt is baked high→low into the normal map with pores added, eyes are painted the same way. Outputs carry the
+`_r` suffix (`body_realistic.glb`, `level1_realistic.glb`, `manifest_realistic.json`, `*_r.jpg`).

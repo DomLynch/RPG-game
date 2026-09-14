@@ -19,8 +19,11 @@ BASE = f'{SOURCE}/Godot - UE/Superhero_Male_FullBody.gltf'
 TEXTURES = f'{SOURCE}/Textures'
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 proof = '--proof' in args
+realistic = '--body' in args and args[args.index('--body') + 1] == 'realistic'
+HBM = 'artifacts/source/human-base-meshes/human_base_meshes_bundle.blend'
 out = args[args.index('--proof') + 1] if proof else 'src/assets/source/parts'
 materials_out = 'src/assets/source/materials'
+SUFFIX = '_r' if realistic else ''
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -31,6 +34,84 @@ for o in [o for o in bpy.data.objects if o.type == 'MESH' and o is not body]:
     bpy.data.objects.remove(o, do_unlink=True)
 while len(body.data.uv_layers) > 1:  # the source carries an empty second UV set; TEXCOORD_1 is ours (occlusion)
     body.data.uv_layers.remove(body.data.uv_layers[1])
+
+
+def realistic_body():
+    """Replace the stylised CC0 body with Blender Studio's realistic male (CC0): appended, scaled to the rig, its A-pose
+    arms raised rigidly into the rig's T rest, then weighted from the CC0 body by nearest surface."""
+    global body
+    from mathutils import Matrix
+    with bpy.data.libraries.load(HBM, link=False) as (src, dst):
+        dst.objects = [n for n in src.objects if n in ('GEO-body_male_realistic', 'GEO-body_male_realistic.eye.L', 'GEO-body_male_realistic.eye.R')]
+    hbm = bpy.data.objects['GEO-body_male_realistic']
+    eyes = [bpy.data.objects[n] for n in ('GEO-body_male_realistic.eye.L', 'GEO-body_male_realistic.eye.R')]
+    global HIGH
+    HIGH = hbm.copy()  # keeps the bundle's multires sculpt for a high→low normal bake
+    HIGH.data = hbm.data.copy()
+    HIGH.name = 'BodyHigh'
+    bpy.context.collection.objects.link(HIGH)
+    for m in HIGH.modifiers:
+        if m.type == 'MULTIRES':
+            m.levels = m.render_levels = m.total_levels
+    for o in [hbm] + eyes:
+        bpy.context.collection.objects.link(o)
+        o.data = o.data.copy()  # the two eyes share a mesh; transforms can only be applied to single-user data
+        o.modifiers.clear()
+    bpy.context.view_layer.update()  # world matrices (eyes are parented, body sits in a lineup) exist only after this
+    for o in eyes + [hbm, HIGH]:
+        world = o.matrix_world.copy()
+        o.parent = None
+        o.matrix_world = world
+    bpy.context.view_layer.update()
+    # Scale, centre and ground: match the CC0 body's height; feet on the floor; x centred.
+    cc0_top = max(v.co.z for v in body.data.vertices)
+    world_verts = [hbm.matrix_world @ v.co for v in hbm.data.vertices]
+    top, floor = max(v.z for v in world_verts), min(v.z for v in world_verts)
+    cx = (max(v.x for v in world_verts) + min(v.x for v in world_verts)) / 2
+    scale = cc0_top / (top - floor)
+    fit = Matrix.Translation((-cx * scale, 0, -floor * scale)) @ Matrix.Scale(scale, 4)
+    for o in [hbm, HIGH] + eyes:
+        o.matrix_world = fit @ o.matrix_world
+        select_only([o])
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    # A-pose → T rest: raise each arm rigidly about the rig's shoulder joint, blending in across the shoulder.
+    for mesh_obj in (hbm, HIGH):  # the high copy's base verts must follow the same raise; multires offsets are relative
+        for side, sgn in (('l', 1), ('r', -1)):
+            pivot = joint(f'upperarm_{side}')
+            arm = [v for v in mesh_obj.data.vertices if v.co.x * sgn > pivot.x * sgn - 0.06 and v.co.z > pivot.z - 0.75]
+            hand_z = min(v.co.z for v in arm)
+            hand_x = max(abs(v.co.x) for v in arm)
+            angle = math.atan2(pivot.z - hand_z, hand_x - abs(pivot.x))
+            for v in arm:
+                blend = min(1.0, max(0.0, (abs(v.co.x) - (abs(pivot.x) - 0.03)) / 0.09))
+                a = angle * blend
+                dx, dz = v.co.x - pivot.x, v.co.z - pivot.z
+                v.co.x = pivot.x + dx * math.cos(a) - sgn * dz * math.sin(a)
+                v.co.z = pivot.z + sgn * dx * math.sin(a) + dz * math.cos(a)
+        mesh_obj.data.update()
+    # Weights from the CC0 body at rest, both now in T.
+    select_only([body, hbm])
+    bpy.ops.object.data_transfer(data_type='VGROUP_WEIGHTS', vert_mapping='POLYINTERP_NEAREST', layers_select_src='ALL', layers_select_dst='NAME', use_create=True)
+    for poly in hbm.data.polygons:
+        poly.use_smooth = True
+    arm_mod = hbm.modifiers.new('Armature', 'ARMATURE')
+    arm_mod.object = armature
+    hbm.name = 'Body'
+    global FACE
+    eye_l = sum((v.co for v in eyes[0].data.vertices), Vector()) / len(eyes[0].data.vertices)
+    eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
+    if eye_l.x < eye_r.x:
+        eye_l, eye_r = eye_r, eye_l
+    face = [v.co for v in hbm.data.vertices if v.co.z > eye_l.z - 0.12 and v.co.z < eye_l.z + 0.16]
+    nose = min(face, key=lambda c: c.y)  # most forward point of the face
+    print(f'FACE eye_l={tuple(round(v, 3) for v in eye_l)} nose={tuple(round(v, 3) for v in nose)}')
+    FACE = {'eye_l': eye_l, 'eye_r': eye_r, 'nose': nose.copy(), 'ear_x': max(abs(c.x) for c in face),
+            'mouth': Vector((0, nose.y + 0.012, nose.z - 0.038)), 'chin': Vector((0, nose.y + 0.02, nose.z - 0.085))}
+    for e, side in zip(eyes, ('L', 'R')):
+        tag(e, f'eye_{side}', 'Eyes', bone='Head', slot='Eyes')
+    bpy.data.objects.remove(body, do_unlink=True)
+    body = hbm
+    return [tag(hbm, 'Body', 'Skin', slot='Skin')] + eyes
 
 
 def joint(name):
@@ -54,7 +135,7 @@ def tag(obj, name, material, bone=None, slot=None):
     either a rigid bone or carries skin weights."""
     obj.name = name
     obj['material'] = material
-    obj['slot'] = slot or slot_for(name)
+    obj['slot'] = slot if slot is not None else slot_for(name)
     if bone:
         obj['bone'] = bone
     return obj
@@ -384,6 +465,7 @@ def fbm(size, seed, octaves=(8, 16, 32, 64)):
 
 def save_jpeg(name, rgb, colorspace):
     """rgb: float array h×w×3 in the image's own colour space convention (linear floats for sRGB images)."""
+    name = name.replace('@2k', SUFFIX + '@2k') if '@2k' in name else name + SUFFIX
     h, w = rgb.shape[:2]
     img = bpy.data.images.new(name, w, h, alpha=False)
     img.colorspace_settings.name = colorspace
@@ -458,6 +540,157 @@ def bake_folds(part, name, size=1024, scale=0.09, strength=0.012):
     return px.reshape(size, size, 4)[:, :, :3]
 
 
+def bake_position(obj, size=2048):
+    """Object-space position of every texel in `obj`'s UV layout: the map that lets features be painted by landmark."""
+    scene = bpy.context.scene
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = 1
+    scene.render.bake.margin = 16
+    scene.render.bake.use_selected_to_active = False
+    img = bpy.data.images.new(f'{obj.name}_pos', size, size, float_buffer=True)
+    mat = bpy.data.materials.new(f'{obj.name}_posbake')
+    mat.use_nodes = True
+    node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    node.image = img
+    mat.node_tree.nodes.active = node
+    previous = [m for m in obj.data.materials]
+    obj.data.materials.clear()
+    obj.data.materials.append(mat)
+    select_only([obj])
+    bpy.ops.object.bake(type='POSITION', use_clear=True)
+    obj.data.materials.clear()
+    for m in previous:
+        obj.data.materials.append(m)
+    px = np.empty(size * size * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(size, size, 4)
+    return px[:, :, :3], px[:, :, 3] > 0.5
+
+
+def ellipse(pos, centre, radii, softness=0.35):
+    d = np.sqrt(((pos - np.array(centre)[None, None, :]) / np.array(radii)[None, None, :]) ** 2).sum(axis=2) if False else np.sqrt((((pos - np.array(centre)[None, None, :]) / np.array(radii)[None, None, :]) ** 2).sum(axis=2))
+    return np.clip((1 + softness - d) / softness, 0, 1)
+
+
+def face_paint(colour, pos, mask, size):
+    """Paint the face by landmark on the realistic body's colour map: brows, lips, flush, sockets, stubble."""
+    f = FACE
+    ex, ey, ez = (f['eye_l'].x, f['eye_l'].y, f['eye_l'].z)
+    front = np.clip((f['nose'].y + 0.09 - pos[..., 1]) / 0.03, 0, 1)  # face-facing texels only
+    noise = fbm(size, 61, octaves=(64, 128))
+    # Brows: two tapered arcs of hair strokes above the eyes, denser toward the nose.
+    strokes = fbm(size, 63, octaves=(256,))  # fine, directional-looking grain
+    for sx in (1, -1):
+        taper = np.clip(1 - (sx * pos[..., 0] - ex) / 0.03, 0.35, 1)  # thinner toward the temple
+        brow = ellipse(pos, (sx * (ex + 0.004), ey - 0.006, ez + 0.026), (0.027, 0.02, 0.0042), 0.6) * taper
+        colour *= 1 - (brow * (0.35 + strokes * 0.6) * 0.85 * front)[..., None]
+    # Eye sockets and lids: a little depth, and a warm shadow.
+    for sx in (1, -1):
+        socket = ellipse(pos, (sx * ex, ey + 0.004, ez + 0.006), (0.03, 0.022, 0.02), 0.6)
+        colour *= (1 - socket[..., None] * np.array([0.10, 0.16, 0.22])[None, None, :] * front[..., None])
+    # Lips.
+    m = f['mouth']
+    lips = ellipse(pos, (m.x, m.y, m.z), (0.027, 0.014, 0.011), 0.4)
+    colour = colour * (1 - lips[..., None] * 0.55 * front[..., None]) + np.array([0.42, 0.16, 0.14])[None, None, :] * (lips * 0.55 * front)[..., None]
+    # Blood flush: nose, cheeks, ears.
+    n = f['nose']
+    flush = ellipse(pos, (n.x, n.y, n.z), (0.02, 0.02, 0.025), 0.8)
+    for sx in (1, -1):
+        flush = np.maximum(flush, ellipse(pos, (sx * (ex + 0.015), ey + 0.02, ez - 0.045), (0.035, 0.03, 0.03), 0.9) * 0.6)
+        flush = np.maximum(flush, ellipse(pos, (sx * f['ear_x'], ey + 0.07, ez), (0.02, 0.03, 0.035), 0.8) * 0.8)
+    colour[..., 0] *= 1 + flush * 0.10
+    colour[..., 2] *= 1 - flush * 0.10
+    # Stubble: jaw, chin and upper lip, front half of the head.
+    c = f['chin']
+    jaw = np.clip((m.z - 0.008 - pos[..., 2]) / 0.02, 0, 1) * np.clip((pos[..., 2] - (c.z - 0.045)) / 0.02, 0, 1) * front
+    lip = ellipse(pos, (m.x, m.y - 0.002, m.z + 0.018), (0.03, 0.015, 0.009), 0.4) * front
+    grain = (np.random.default_rng(62).random((size, size)) < 0.45).astype(np.float32)
+    colour *= (1 - np.maximum(jaw, lip * 0.8) * grain * 0.30)[..., None]
+    # Buzz cut: dense dark stubble over the scalp with a feathered hairline (no hair shell, no hard polygon edge).
+    hairline = ez + 0.076 - np.clip(pos[..., 1] - ey + 0.02, 0, None) * 0.55
+    scalp = np.clip((pos[..., 2] - hairline) / 0.02, 0, 1)
+    scalp = np.maximum(scalp, np.clip((pos[..., 1] - (ey + 0.075)) / 0.02, 0, 1) * np.clip((pos[..., 2] - (ez + 0.005)) / 0.02, 0, 1))
+    scalp *= np.clip((pos[..., 2] - (ez - 0.02)) / 0.02, 0, 1)
+    dense = (np.random.default_rng(64).random((size, size)) < 0.75).astype(np.float32)
+    colour *= (1 - scalp * (0.55 + dense * 0.25))[..., None]
+    colour *= 1 - (scalp * 0.1)[..., None] * np.array([0, 0.3, 0.6])[None, None, :]  # a cool cast to the shaved scalp
+    return np.clip(colour, 0, 1)
+
+
+def eye_maps(eye, size=512):
+    """Iris, pupil and sclera painted from the eye's own object-space positions: the iris faces -y (forward)."""
+    pos, mask = bake_position(eye, size)
+    c = sum((v.co for v in eye.data.vertices), Vector()) / len(eye.data.vertices)  # the bake's alpha is not an island mask
+    centre = np.array([c.x, c.y, c.z], dtype=np.float32)
+    d = pos - centre[None, None, :]
+    r = np.linalg.norm(d, axis=2) + 1e-6
+    forward = -d[..., 1] / r  # 1 at the front pole
+    angle = np.arccos(np.clip(forward, -1, 1))
+    iris = np.clip((0.42 - angle) / 0.03, 0, 1)
+    pupil = np.clip((0.16 - angle) / 0.02, 0, 1)
+    theta = np.arctan2(d[..., 2], d[..., 0])
+    fibres = 0.5 + 0.5 * np.sin(theta * 48) * np.sin(theta * 7)
+    ring = np.clip((angle - 0.36) / 0.06, 0, 1)
+    iris_colour = np.array([0.20, 0.12, 0.06])[None, None, :] * (0.7 + fibres[..., None] * 0.6) * (1 - ring[..., None] * 0.6)
+    sclera = np.array([0.66, 0.62, 0.58])[None, None, :] * (0.85 + 0.15 * (1 - np.clip((angle - 0.5) / 0.9, 0, 1)))[..., None]
+    lid = np.clip((d[..., 2] / r - 0.15) / 0.5, 0, 1)  # the upper lid shades the top of the eyeball
+    sclera *= (1 - lid * 0.45)[..., None]
+    veins = fbm(size, 71, octaves=(32, 64, 128))
+    sclera[..., 1:] *= 1 - np.clip((veins - 0.62) * 4, 0, 1)[..., None] * 0.35
+    colour = sclera * (1 - iris[..., None]) + iris_colour * iris[..., None]
+    colour *= (1 - pupil[..., None] * 0.97)
+    rough = np.full((size, size), 0.18, np.float32)
+    orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
+    return {'baseColor': save_jpeg('eye_color', colour, 'sRGB'), 'metallicRoughness': save_jpeg('eye_orm', orm, 'Non-Color')}
+
+
+def scalp_hair():
+    """Cropped hair on the realistic head: a scalp shell cut from the head above the hairline, with the CC0 hair maps."""
+    f = FACE
+    ez, ey = f['eye_l'].z, f['eye_l'].y
+    def keep(p):
+        if p.z < ez - 0.02:
+            return False
+        front_line = ez + 0.078 - max(0.0, (p.y - ey + 0.02)) * 0.6  # hairline rises at the temples
+        return p.z > front_line or (p.y > ey + 0.075 and p.z > ez + 0.005)
+    hair = extract('hair', 'Hair', keep, lift=0.002, thickness=0.003)
+    hair['slot'] = 'Hair'
+    return hair
+
+
+def bake_high_normal(low, high, size=2048, cage=0.02):
+    """Tangent normal map of `high`'s surface detail onto `low`'s UV layout (multires sculpt → game mesh)."""
+    scene = bpy.context.scene
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = 8
+    scene.render.bake.margin = 8
+    scene.render.bake.use_selected_to_active = True
+    scene.render.bake.cage_extrusion = cage
+    scene.render.bake.normal_space = 'TANGENT'
+    img = bpy.data.images.new(f'{low.name}_hi', size, size)
+    mat = bpy.data.materials.new(f'{low.name}_hibake')
+    mat.use_nodes = True
+    node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    node.image = img
+    mat.node_tree.nodes.active = node
+    previous = [m for m in low.data.materials]
+    low.data.materials.clear()
+    low.data.materials.append(mat)
+    high.hide_render = high.hide_viewport = False
+    select_only([low, high])
+    bpy.ops.object.bake(type='NORMAL', use_clear=True)
+    scene.render.bake.use_selected_to_active = False
+    low.data.materials.clear()
+    for m in previous:
+        low.data.materials.append(m)
+    high.hide_render = True
+    px = np.empty(size * size * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    return px.reshape(size, size, 4)[:, :, :3]
+
+
 def bake_ao(size=1024, distance=0.35):
     """Cycles ambient occlusion of the bare body in its own UV layout, at rest. Cloth and leather cut from the body share
     that layout, so one bake serves the skin (multiplied in) and every extracted piece (as a glTF occlusion map)."""
@@ -524,6 +757,28 @@ def pore_normal(normal, seed=31, strength=0.35):
     out[..., 0] = np.clip(out[..., 0] - gx * strength, 0, 1)
     out[..., 1] = np.clip(out[..., 1] + gy * strength, 0, 1)
     return out
+
+
+def skin_maps_procedural(size=2048):
+    """Skin for the realistic body, which ships without textures: a warm base with subtle tone variation, veins and
+    blotching in the low noise, the baked occlusion as cavity, dust and grit as before, pores in the normal."""
+    os.makedirs(materials_out, exist_ok=True)
+    base = np.array([0.46, 0.32, 0.245])[None, None, :]  # linear; a Mediterranean tone under arena sun, not orange
+    tone = fbm(size, 41, octaves=(4, 8, 16, 32))[..., None]
+    colour = base * (0.86 + tone * 0.28)
+    colour[..., 0] *= 1 + (fbm(size, 42, octaves=(8, 16)) - 0.5) * 0.12  # blood flush variation
+    colour[..., 2] *= 1 - (fbm(size, 43, octaves=(16, 32)) - 0.5) * 0.10
+    ao_full = upsample(AO, size) if AO.shape[0] != size else AO
+    colour = colour * (0.40 + 0.60 * np.clip(ao_full, 0, 1) ** 1.5)[..., None]
+    dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.42) * 2.4, 0, 1)[..., None]
+    colour = colour * (1 - dust * 0.45) + np.array([0.20, 0.19, 0.18])[None, None, :] * dust * 0.45
+    pos, mask = bake_position(body, size)
+    colour = face_paint(colour, pos, mask, size)
+    normal = pore_normal(bake_high_normal(body, HIGH, size), strength=0.5)  # sculpted lids, folds and knuckles + pores
+    r = size // 2
+    rough = np.clip(0.62 + (fbm(r, 8) - 0.5) * 0.3 + dust[::2, ::2, 0] * 0.2, 0.35, 0.95)
+    orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
+    return {'baseColor': save_two_sizes('skin_color', colour, 'sRGB'), 'normal': save_two_sizes('skin_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('skin_orm', orm, 'Non-Color')}
 
 
 def skin_maps():
@@ -614,21 +869,27 @@ def ranger_maps():
 if proof:
     export_kit([proof_ring()], os.path.join(out, 'proof_ring.glb'), skins=False)
 else:
+    body_parts = realistic_body() if realistic else []
+    if realistic:
+        HIGH.hide_render = True  # only the game mesh occludes itself
     AO = bake_ao()  # bare body only: every later piece would occlude it
     kit = level1_kit()
+    if realistic:
+        export_kit(body_parts, os.path.join(out, 'body_realistic.glb'))  # hair is painted on the skin (buzz cut)
     tunic = next(o for o in kit if o.name == 'tunic')
     GAMBESON_NORMAL = save_jpeg('gambeson_normal', bake_folds(tunic, 'tunic'), 'Non-Color')
-    export_kit(kit, os.path.join(out, 'level1.glb'))
+    export_kit(kit, os.path.join(out, 'level1_realistic.glb' if realistic else 'level1.glb'))
     export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
     helm, crest = bronze_helmet()
     export_kit([helm], 'src/assets/source/items/helmet_bronze.glb')   # a poor gladiator's first helm: plain
     export_kit([crest], 'src/assets/source/items/crest_red.glb')      # the crest is a later, extravagant reward
 if not proof:
     import json
-    manifest_path = os.path.join(materials_out, 'manifest.json')
+    manifest_path = os.path.join(materials_out, 'manifest_realistic.json' if realistic else 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
-    for name, maps, scale in [('Skin', skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)]:
+    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5)] if realistic else []
+    for name, maps, scale in [('Skin', skin_maps_procedural() if realistic else skin_maps(), 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale
         print(f'MAPS {name} {maps}')

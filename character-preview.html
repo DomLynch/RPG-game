@@ -171,7 +171,7 @@ const CLIP_SHEET = [['Idle', .35], ['Walk', .35], ['Jog', .35], ['Run', .35], ['
 
 // Close-ups for the audit and for every before/after: [caption, clip, t, node, distance, azimuth, elevation]. Studio rig, fov 30.
 const DETAILS = [
-  ['head front', 'Armed', 0, 'Head', .9, .25, .1], ['head 3/4', 'Armed', 0, 'Head', .9, 1.1, .15], ['neck / back of helm', 'Armed', 0, 'neck_01', .9, 2.9, .3],
+  ['head front', 'Armed', 0, 'Head', .9, .25, .1], ['eyes', 'Armed', 0, 'Head', .42, .15, .02], ['head 3/4', 'Armed', 0, 'Head', .9, 1.1, .15], ['neck / back of helm', 'Armed', 0, 'neck_01', .9, 2.9, .3],
   ['shoulder armed', 'Armed', 0, 'upperarm_r', 1.1, .9, .35], ['armpit heavy wind-up', 'Heavy', .2, 'upperarm_r', 1.1, -.7, .3], ['shoulders guard', 'Guard', .5, 'spine_03', 1.4, .5, .25],
   ['grip armed', 'Armed', 0, 'hand_r', .9, -1.4, .35], ['grip attack contact', 'Attack', 14 / 40, 'hand_r', .8, .8, .3], ['sword', 'Armed', 0, 'SwordDrawn', 1.6, .6, .2],
   ['feet strafe', 'StrafeLeft', .35, 'foot_l', 1.1, .6, .45], ['feet armed', 'Armed', 0, 'foot_r', 1.5, .4, .55], ['hips / scabbard', 'Armed', 0, 'pelvis', 1.3, 2.6, .2],
@@ -181,10 +181,11 @@ const api = {
   reset,
   async details() {
     await reset(); stage(studio); opponent.visible = false; renderer.toneMappingExposure = 1; player.position.set(0, 0, 0); player.rotation.y = 0;
-    return cells(4, 3, 480, 480, 1, i => {
+    return cells(4, Math.ceil(DETAILS.length / 4), 480, 480, 1, i => {
       if (!DETAILS[i]) return false; const [caption, clip, t, node, distance, az, el] = DETAILS[i];
       scrub(player, clip, t); player.updateWorldMatrix(true, true);
       const object = player.getObjectByName(node) || player.getObjectByName('Head'), target = object.name === 'SwordDrawn' ? object.localToWorld(new THREE.Vector3(0, .45, 0)) : object.getWorldPosition(new THREE.Vector3());
+      if (caption === 'eyes') target.add(new THREE.Vector3(0, .05, .07).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion()))); // eye level, not the skull base
       camera.fov = 30; camera.position.set(target.x + Math.sin(az) * Math.cos(el) * distance, target.y + Math.sin(el) * distance, target.z + Math.cos(az) * Math.cos(el) * distance); camera.lookAt(target);
       renderer.render(studio, camera); return `${caption}  ${clip} t=${t.toFixed(2)}`;
     });
