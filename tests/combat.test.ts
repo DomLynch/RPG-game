@@ -75,6 +75,8 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   assert.match(practiceHint({ ...hit, result: 'hurt', resultAge: 3, resultDamage: 14, resultCounter: true }), /Countered · −14/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 12.5, resultPerfect: true }), /Perfect block · −13 stamina/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 25, resultPerfect: false }), /^Blocked · −25 stamina/);
+  const countering = project({ ...hit.duel, fighters: [{ ...hit.duel.fighters[0], counterWindow: 12 }, hit.duel.fighters[1]] }, hit.ai);
+  assert.match(practiceHint({ ...countering, result: 'blocked', resultAge: 3, resultDamage: 25, resultPerfect: false }), /heavy to counter/);
   for (const [result, text] of [['blocked', /Blocked/], ['parried', /Parried! The warden/], ['dodged', /Evaded/], ['broken', /Guard broken/], ['enemyBlocked', /Warden blocked/], ['enemyBroken', /Guard shattered/], ['enemyParried', /turned aside/], ['enemyDodged', /rolled clear/], ['miss', /Miss/]] as const) assert.match(practiceHint({ ...hit, result, resultAge: 3 }), text);
   assert.doesNotMatch(practiceHint({ ...hit, result: 'enemyParried', resultAge: 3 }), /^Parried/, 'the warden parrying must not read as the player parrying');
 });

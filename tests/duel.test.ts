@@ -377,6 +377,33 @@ test('rear hit: striking inside the target\'s rear arc earns a modest damage and
   assert.equal(both.fighters[0].health, 100 - Math.round(light.damage * RULES.counter.damage * RULES.rear.damage), 'counter and rear multiply');
 });
 
+test('guard counter: a heavy thrown straight out of a block is fast and armoured; any attack or a stagger closes the window; a parry punish outranks it', () => {
+  const blocked = run(stepDuel(duel(), [hold(), idle()]), RULES.perfectBlock + 1, hold());   // a settled guard: an ordinary block
+  const after = run({ ...blocked, fighters: [blocked.fighters[0], { ...blocked.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, 1, hold(), idle());
+  assert.ok(types(after).includes('Blocked')); assert.equal(after.fighters[0].counterWindow, RULES.guardCounter);
+  const counter = stepDuel(after, [act('heavy', { guard: true }), idle()]);
+  assert.equal(counter.fighters[0].move, 'heavy_counter'); assert.equal(counter.fighters[0].counterWindow, 0); assert.equal(counter.fighters[0].stamina, 100 - light.staminaDamage - MOVES.heavy_counter.stamina);
+  assert.equal(MOVES.heavy_counter.windup, MOVES.heavy_riposte.windup, 'shares the fast heavy path');
+  // Armoured against a light from its early wind-up, and it still lands.
+  let trade = { ...counter, fighters: [counter.fighters[0], { ...counter.fighters[1], phase: 'ready' as const, age: 0, move: null }] } as Duel;
+  trade = stepDuel(trade, [idle(), idle()]); trade = run(stepDuel(trade, [idle(), act('light')]), light.windup);
+  assert.ok(types(trade).includes('Hit') && trade.fighters[0].health < 100, 'the light connects');
+  assert.equal(trade.fighters[0].phase, 'attack', 'but does not interrupt the guard counter');
+  trade = run(trade, MOVES.heavy_counter.windup - trade.fighters[0].age);
+  assert.ok(types(trade).includes('Hit') && trade.fighters[1].health < 100 - MOVES.heavy_counter.damage + 1, 'the counter lands');
+  // The window expires; a light in the window is an ordinary light; a stagger or any attack consumes it.
+  assert.equal(stepDuel(run(after, RULES.guardCounter, hold()), [act('heavy', { guard: true }), idle()]).fighters[0].move, 'heavy_overhead');
+  assert.equal(stepDuel(after, [act('light', { guard: true }), idle()]).fighters[0].move, 'light_right');
+  assert.equal(stepDuel(after, [act('light', { guard: true }), idle()]).fighters[0].counterWindow, 0);
+  const struck = stepDuel({ ...after, fighters: [{ ...after.fighters[0], phase: 'ready' }, { ...after.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left', landed: false }] } as Duel, [idle(), idle()]);
+  assert.equal(struck.fighters[0].counterWindow, 0, 'being staggered closes the window');
+  // A parry's punish window outranks it, and a perfect block opens it too.
+  const parried = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], counterWindow: 10, punish: 30 }, duel().fighters[1]] } as Duel, [act('heavy'), idle()]);
+  assert.equal(parried.fighters[0].move, 'heavy_riposte');
+  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: RULES.parry }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  assert.equal(perfect.events.find(e => e.type === 'Blocked')?.perfect, true); assert.equal(perfect.fighters[0].counterWindow, RULES.guardCounter);
+});
+
 test('buffered input: one action queued in the last ticks of a committed move fires when ready, expires, and clears on cancellation', () => {
   let d = run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT - RULES.bufferWindow);
   d = stepDuel(d, [act('heavy'), idle()]);
