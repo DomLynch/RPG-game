@@ -25,7 +25,7 @@ export type Fighter = {
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number };
 export type EventType = 'ActionStarted' | 'AttackStarted' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; location?: HitLocation; heading?: number; ticks?: number };
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; location?: HitLocation; heading?: number; ticks?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
 export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: 100, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, buffer: null });
@@ -196,7 +196,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if (guarding && def.vsGuard) {
       spend(j, def.vsGuard.staminaDamage); wound(def.damage, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: def.damage, location, heading: a.body.heading }); stagger(def.vsGuard.stagger);
     } else if (guarding && !breaks && d.stamina >= blockCost) {
-      spend(j, blockCost); events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move });
+      // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half.
+      const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost;
+      spend(j, cost); events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect });
     } else {
       const damage = Math.round(def.damage * R.location[location]);
       if (guarding) { spend(j, d.stamina); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading }); stagger(def.stagger); }
