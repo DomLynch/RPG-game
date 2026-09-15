@@ -755,8 +755,7 @@ def skin_variation(colour, pos):
     forearm = np.clip((ax - elbow + 0.02) / 0.06, 0, 1)                       # elbow outwards, hands included
     upper_arm = np.clip((ax - (elbow - 0.22)) / 0.10, 0, 1) * (1 - forearm)  # partly
     shin = np.clip((knee + 0.03 - z) / 0.06, 0, 1) * np.clip((z - 0.04) / 0.04, 0, 1) * (ax < elbow - 0.2)
-    shoulders = np.clip((z - (neck - 0.20)) / 0.08, 0, 1) * np.clip(((neck - 0.07) - z) / 0.03, 0, 1) * (ax < elbow - 0.05)  # shoulder tops and traps; stops below the head tile's neck
-    sun = np.clip(forearm + 0.45 * upper_arm + 0.7 * shin + 0.6 * shoulders, 0, 1)
+    sun = np.clip(forearm + 0.45 * upper_arm + 0.7 * shin, 0, 1)  # no sun on the shoulder tops: its edge would sit on the head tile's boundary at the base of the neck
     sun = sun * (0.85 + 0.15 * P.fbm(pos.shape[0], 43, octaves=(4, 8)))  # uneven, like real sun
     tan = np.array([0.88, 0.81, 0.72])[None, None, :]  # darker and warmer; blue drops most
     colour = colour * (1 - sun[..., None] * 0.55) + colour * tan * (sun[..., None] * 0.55)
@@ -786,9 +785,12 @@ def body_colour(pos, mask, ao, detail, size):
     colour, sun = skin_variation(colour, pos)
     dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.45) * 2.4, 0, 1)[..., None]
     colour = colour * (1 - dust * 0.22) + np.array([0.30, 0.28, 0.25])[None, None, :] * dust * 0.22
-    if SKIN_TONE is not None:  # the unsunned skin's median lands on the scanned neck's, shading and dust included, so the two tiles meet at the collar
-        plain = mask & (sun < 0.1)
-        colour = colour * (SKIN_TONE / np.median(colour[plain if plain.sum() > 1000 else mask], axis=0))[None, None, :]
+    global BODY_NORM
+    if SKIN_TONE is not None:  # the unsunned skin's median lands on the scanned neck's, shading and dust included
+        if BODY_NORM is None:  # the body tile sets the factor; the head tile's neck reuses it, so the two tiles meet at the collar on the same tone
+            plain = mask & (sun < 0.1)
+            BODY_NORM = SKIN_TONE / np.median(colour[plain if plain.sum() > 1000 else mask], axis=0)
+        colour = colour * BODY_NORM[None, None, :]
     return np.clip(colour, 0, 1)
 
 
@@ -1219,6 +1221,7 @@ KT_GLB = 'artifacts/source/keentools/01a0a0ab-aa11-7be1-9b43-2221309c04b9.glb'
 SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painted body and neck stub take it as their base
 NECK_DROP_KT = 0.99  # the scanned head is cut this far below eye level IN SCAN UNITS (≈10 cm at the eye-spacing scale): just under the jaw, where the skin weights are all neck and head (lower, the base body's clavicle weights tear the seam in pose)
 SCALE = None       # scan units → metres, set by keentools_skin_tone
+BODY_NORM = None   # the body tile's tone normalisation, reused by the head tile's neck
 NECK_Z = None      # the cut height in rig space, set by keentools_skin_tone
 KT = None         # (object, images, slot_names) once imported
 
@@ -1264,7 +1267,7 @@ def keentools_skin_tone(eye_l, eye_r, crown_z):
     mid = (cents[0] + cents[1]) / 2
     kt_top = max(v.co.z for p in mesh.polygons if p.material_index == 0 for v in [mesh.vertices[i] for i in p.vertices])
     eye_scale = abs(eye_l.x - eye_r.x) / abs(cents[0].x - cents[1].x)
-    scale = (crown_z - (eye_l.z + eye_r.z) / 2) / (kt_top - mid.z)  # by head height: by eye spacing the head came out a size small
+    scale = 1.10 * (crown_z - (eye_l.z + eye_r.z) / 2) / (kt_top - mid.z)  # by head height, then +10% (owner's call, 2026-09-15: a heroic read at the phone camera)
     SCALE = scale
     NECK_Z = (eye_l.z + eye_r.z) / 2 - NECK_DROP_KT * scale
     print(f'KEENTOOLS head scale by height {scale:.4f} (by eye spacing it would be {eye_scale:.4f}, {scale / eye_scale:.2f}x); cut {NECK_DROP_KT * scale * 100:.1f} cm below the eyes')
@@ -1374,7 +1377,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         if neck_z < v.co.z < neck_z + 0.10 and abs(v.co.x - neck_c.x) < 0.02:
             k = int((v.co.z - neck_z) / 0.003)
             front[k] = min(front.get(k, 1e9), v.co.y)
-    chin_k = next((k for k in sorted(front) if k + 1 in front and k + 2 in front and front[k + 1] > front[k] - 1e-4 and front[k + 2] > front[k] - 1e-4 and k > 2), max(front))
+    window = int(0.4 * scale / 0.003)  # the chin tip is the most forward point in the 0.4 scan-unit band above the cut (the mouth starts ~0.55 up)
+    chin_k = min((k for k in front if k <= window), key=lambda k: front[k])
     chin_z = neck_z + chin_k * 0.003
     band = min(0.05, max(0.015, chin_z - neck_z - 0.008))  # the blend must end under the chin: any higher and it draws the lips in over the teeth
     print(f'KEENTOOLS collar band {band * 100:.1f} cm (chin {(chin_z - neck_z) * 100:.1f} cm above the cut)')
@@ -1402,7 +1406,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     head.vertex_groups.remove(head.vertex_groups['neck_blend'])  # not a bone
     zone = head.vertex_groups.new(name='hair_zone')  # above the nape hairline (eye level and up), for the crown fill
     for v in head.data.vertices:
-        h = (v.co.z - (rig_mid.z - 0.54 * scale)) / (0.3 * scale)  # the nape hairline of a buzz cut: about the ear lobes (scan units, so it follows the head's size)
+        h = (v.co.z - (neck_z + 0.01)) / 0.02  # hair right down to the collar at the back, like the photographed sides; the seam fade then draws one continuous nape hairline
         if h > 0:
             zone.add([v.index], min(1.0, h), 'REPLACE')
     hair_zone = bake_attribute(head, 'hair_zone', select_only, size)
@@ -1424,7 +1428,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         return px.reshape(h, w, 4)[:, :, :3]
     colour = pixels(images[0])
     colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
-    dark = (colour.max(axis=2) < 0.06) | (coverage < 0.45)  # black, or seen only at a grazing angle: the crown, the back
+    dark = (colour.max(axis=2) < 0.06) | (coverage < 0.6)  # black, or seen at more than ~53° from every camera (a smear): the crown, the back
     filled = crown_fill(colour, dark, size, hair_zone)
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
@@ -1476,7 +1480,7 @@ def crown_fill(colour, dark, size, hair_zone):
     hair's own tone (buzz-cut grain on top) where the head is above the hairline, the skin tone below it (the nape), by
     the baked `hair_zone` map."""
     filled = fill_margin(colour, ~dark, steps=400)
-    reach = blur((~dark).astype(np.float32), 16)  # 1 on the photograph, fading to 0 across the boundary
+    reach = blur((~dark).astype(np.float32), 32)  # 1 on the photograph, fading to 0 across the boundary
     lum = colour.mean(axis=2)
     band = (~dark) & (reach < 0.9) & (reach > 0.3) & (hair_zone > 0.5) & (lum < 0.16)  # photographed hair next to the black
     hair = np.median(colour[band], axis=0) * 1.1 if band.sum() > 500 else np.array([0.06, 0.046, 0.036])  # a little scalp shows through a buzz cut
@@ -1486,7 +1490,7 @@ def crown_fill(colour, dark, size, hair_zone):
     hair_synth = hair[None, None, :] * (0.72 + 0.56 * grain)[..., None] * (1 - 0.35 * (dots > 0.62))[..., None]
     skin_synth = skin[None, None, :] * (0.92 + 0.16 * grain)[..., None]
     synth = hair_synth * hair_zone[..., None] + skin_synth * (1 - hair_zone[..., None])
-    w = np.clip(1 - reach * 1.6, 0, 1)[..., None] * dark[..., None]
+    w = np.clip(1 - reach * 1.3, 0, 1)[..., None] * dark[..., None]
     print(f'KEENTOOLS crown fill: hair tone {np.round(hair, 3)} from {int(band.sum())} texels')
     return filled * (1 - w) + synth * w
 
