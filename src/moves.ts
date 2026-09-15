@@ -1,20 +1,22 @@
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
 // The engine (duel.ts) reads this table; nothing here may depend on rendering, clocks or browser state.
-export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'riposte' | 'kick';
+export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'riposte' | 'heavy_riposte' | 'kick';
 export type Direction = 'right' | 'left' | 'overhead' | 'thrust' | 'low';
 export type Timing = { windup: number; active: number; recovery: number };
 export const total = (t: Timing): number => t.windup + t.active + t.recovery;
 
 // Baked blade trajectories: one immutable table per (authored clip, timing). scripts/bake-blades.mjs samples the rig at these
 // timings; tests assert the shipped rig still agrees. `source` is the contact time inside the clip; `clip` is the rig animation.
-export type PathId = 'light_right' | 'light_left' | 'light_right_chain' | 'light_left_chain' | 'heavy_overhead' | 'riposte';
+export type PathId = 'light_right' | 'light_left' | 'light_right_chain' | 'light_left_chain' | 'heavy_overhead' | 'heavy_overhead_chain' | 'riposte' | 'heavy_riposte';
 export const PATHS: Record<PathId, Timing & { clip: 'Attack' | 'Return' | 'Heavy' | 'Riposte'; source: number }> = {
   light_right: { clip: 'Attack', source: 18 / 66, windup: 14, active: 5, recovery: 21 },
   light_left: { clip: 'Return', source: 1 - 18 / 66, windup: 14, active: 5, recovery: 21 },
   light_right_chain: { clip: 'Attack', source: 18 / 66, windup: 12, active: 5, recovery: 17 },
   light_left_chain: { clip: 'Return', source: 1 - 18 / 66, windup: 12, active: 5, recovery: 17 },
   heavy_overhead: { clip: 'Heavy', source: .48, windup: 32, active: 5, recovery: 31 },
+  heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 22, active: 5, recovery: 31 },
   riposte: { clip: 'Riposte', source: .34, windup: 12, active: 5, recovery: 19 },
+  heavy_riposte: { clip: 'Heavy', source: .48, windup: 20, active: 5, recovery: 25 },
 };
 
 export type MoveDef = Timing & {
@@ -41,7 +43,7 @@ export type MoveDef = Timing & {
 
 const light = (id: 'light_right' | 'light_left', direction: Direction): MoveDef => ({
   id, direction, path: id, chainPath: `${id}_chain`, chained: { windup: 12, active: 5, recovery: 17 },
-  chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right'] },
+  chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the opposite cut chains fast; a heavy finisher winds up quicker
   windup: 14, active: 5, recovery: 21, damage: 25, stamina: 20, staminaDamage: 25, stagger: 24, poise: 0, poiseFrom: 0,
   breaksGuard: false, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null,
 });
@@ -49,7 +51,7 @@ export const MOVES: Record<MoveId, MoveDef> = {
   light_right: light('light_right', 'right'),
   light_left: light('light_left', 'left'),
   heavy_overhead: {
-    id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: null, chained: null, chain: null,
+    id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: 'heavy_overhead_chain', chained: { windup: 22, active: 5, recovery: 31 }, chain: null,
     windup: 32, active: 5, recovery: 31, damage: 38, stamina: 35, staminaDamage: 0, stagger: 24, poise: 24, poiseFrom: 24,
     breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 10, reach: 1.9, vsGuard: null,
   },
@@ -57,6 +59,11 @@ export const MOVES: Record<MoveId, MoveDef> = {
     id: 'riposte', direction: 'thrust', path: 'riposte', chainPath: null, chained: null, chain: null,
     windup: 12, active: 5, recovery: 19, damage: 40, stamina: 20, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
     breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null,
+  },
+  heavy_riposte: {   // the heavy answer to a successful parry: slower and costlier than the thrust, but it breaks a guard raised in panic
+    id: 'heavy_riposte', direction: 'overhead', path: 'heavy_riposte', chainPath: null, chained: null, chain: null,
+    windup: 20, active: 5, recovery: 25, damage: 48, stamina: 35, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
+    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.9, vsGuard: null,
   },
   kick: {
     id: 'kick', direction: 'low', path: null, chainPath: null, chained: null, chain: null,
@@ -70,6 +77,7 @@ export const RULES = {
   // Backstep: a short positional evade with no invulnerability. speed 1 = walking pace, so 12 ticks travel 0.6 m; its tail can be
   // cancelled into an attack, and holding the dodge control converts it into a roll for the price difference.
   backstep: { ticks: 12, speed: 1, cost: 10, cancelFrom: 8 },
+  dodgeAttackWindow: 2,   // a light started this soon after an evade (or from a backstep's tail) uses its chained timing
   parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: false,
   regen: .4, regenDelay: 60, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,

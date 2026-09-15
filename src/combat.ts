@@ -25,7 +25,7 @@ export type Practice = {
   health: number; playerHealth: number; stamina: number; enemyStamina: number; exhausted: boolean;
   wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; reaction: number;
 };
-const clipOf = (move: MoveId | null): Attack => move === 'light_left' ? 'return' : move === 'heavy_overhead' ? 'heavy' : move === 'riposte' ? 'riposte' : 'light';
+const clipOf = (move: MoveId | null): Attack => move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' ? 'heavy' : move === 'riposte' ? 'riposte' : 'light';
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = { Hit: ['hit', 'hurt'], AttackMissed: ['miss', 'dodged'], Blocked: ['blocked', 'enemyBlocked'], Parried: ['parried', 'enemyParried'], GuardBroken: ['broken', 'enemyBroken'], Dodged: ['dodged', 'enemyDodged'] };
 export function project(duel: Duel, ai: AiState, previous?: Practice): Practice {
@@ -68,7 +68,7 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
   return { pose, progress: Math.min(1, f.age / Math.max(1, duration)), attack, contact };
 }
 
-const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', riposte: 'riposte', kick: 'kick' };
+const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', riposte: 'riposte', heavy_riposte: 'heavy riposte', kick: 'kick' };
 export function practiceHint(s: Practice): string {
   const me = s.duel.fighters[0];
   if (!s.playerHealth) return 'You fell. Rematch and try another defence.';

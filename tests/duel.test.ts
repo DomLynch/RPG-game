@@ -295,6 +295,36 @@ test('chain: the opposite cut follows fast inside the window; same side, expired
   assert.equal(total(light.chained!), total(PATHS.light_left_chain));
 });
 
+test('chain grammar: a heavy inside a light\'s window winds up faster; a light out of an evade is a fast dodge-attack', () => {
+  const afterLight = run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT);
+  assert.ok(afterLight.fighters[0].chain > 0);
+  const finisher = stepDuel(afterLight, [act('heavy'), idle()]);
+  assert.equal(finisher.fighters[0].move, 'heavy_overhead'); assert.equal(finisher.fighters[0].chained, true);
+  assert.equal(total(heavy.chained!), total(PATHS.heavy_overhead_chain)); assert.equal(heavy.chained!.windup, 22);
+  const late = stepDuel(run(afterLight, light.chain!.window), [act('heavy'), idle()]);
+  assert.equal(late.fighters[0].chained, false, 'outside the window a heavy is the full wind-up');
+  assert.ok(types(run(finisher, heavy.chained!.windup)).includes('Hit'), 'the chained heavy lands at its own contact tick');
+  const guarded = run(stepDuel(duel(), [idle(), hold()]), RULES.parry + 2, idle(), hold());
+  const chainedBreak = run(stepDuel({ ...guarded, fighters: [{ ...guarded.fighters[0], chain: 10, lastMove: 'light_right' }, guarded.fighters[1]] } as Duel, [act('heavy'), hold()]), heavy.chained!.windup, idle(), hold());
+  assert.ok(types(chainedBreak).includes('GuardBroken'), 'a chained heavy still breaks a guard');
+  // Dodge-attack: from a backstep's tail, or within dodgeAttackWindow ticks after a roll or backstep ends.
+  const fromStep = stepDuel(run(stepDuel(duel(1.2), [act('backstep'), idle()]), RULES.backstep.cancelFrom), [act('light'), idle()]);
+  assert.equal(fromStep.fighters[0].chained, true); assert.equal(fromStep.fighters[0].move, 'light_right');
+  const rolled = run(stepDuel(duel(2.2), [act('dodge'), idle()]), RULES.roll);
+  assert.equal(rolled.fighters[0].phase, 'ready'); assert.equal(rolled.fighters[0].evaded, RULES.dodgeAttackWindow);
+  assert.equal(stepDuel(rolled, [act('light'), idle()]).fighters[0].chained, true, 'a light straight out of a roll is quick');
+  assert.equal(stepDuel(run(rolled, RULES.dodgeAttackWindow), [act('light'), idle()]).fighters[0].chained, false, 'wait longer and it is an ordinary cut');
+  assert.equal(stepDuel(rolled, [act('heavy'), idle()]).fighters[0].chained, false, 'only lights come out of an evade quickly');
+  // Riposte choice during the punish window: light = thrust (40), heavy = heavy riposte (48, breaks guard).
+  const punishing = { ...duel(), fighters: [{ ...duel().fighters[0], punish: 60 }, duel().fighters[1]] } as Duel;
+  assert.equal(stepDuel(punishing, [act('light'), idle()]).fighters[0].move, 'riposte');
+  const heavyRip = stepDuel(punishing, [act('heavy'), idle()]);
+  assert.equal(heavyRip.fighters[0].move, 'heavy_riposte'); assert.equal(heavyRip.fighters[0].stamina, 100 - MOVES.heavy_riposte.stamina); assert.equal(heavyRip.fighters[0].punish, 0);
+  assert.equal(run(heavyRip, MOVES.heavy_riposte.windup).fighters[1].health, 100 - MOVES.heavy_riposte.damage);
+  const ripGuard = run(stepDuel({ ...guarded, fighters: [{ ...guarded.fighters[0], punish: 60 }, guarded.fighters[1]] } as Duel, [act('heavy'), hold()]), MOVES.heavy_riposte.windup, idle(), hold());
+  assert.ok(types(ripGuard).includes('GuardBroken'));
+});
+
 test('buffered input: one action queued in the last ticks of a committed move fires when ready, expires, and clears on cancellation', () => {
   let d = run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT - RULES.bufferWindow);
   d = stepDuel(d, [act('heavy'), idle()]);
