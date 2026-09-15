@@ -137,3 +137,9 @@ so they follow the size; collar blend eased (smoothstep) and kept under the chin
 the body tone is taller than the geometric collar; the scan gets a roughness map (matte at the collar) and borrows our neck's
 normals along its bottom ring. Thumb — swung onto its bone chain and stretched ≤1.12× towards the rig's longer thumb. Wrist
 wraps — their own `Wrap` material with a procedural leather-strip map (worn edges, stitch line; `wrap_*.jpg`, 256²).
+
+v25 (2026-09-15): head +10% over the height match (owner's call). The crown fill treats anything seen at more than ~53° from every
+camera as un-photographed and paints hair right down to the collar at the back, so the seam fade draws one nape hairline instead of
+two photographed "tails" beside a filled centre. Both skin tiles share one tone normalisation (`BODY_NORM`), and the shoulder-top
+sun zone is gone — its edge sat on the head tile's boundary. `character-preview.html` follows the combat lane's export clean-up
+(`DEFENCE`/`KICK` rebuilt from `RULES`/`MOVES`).
