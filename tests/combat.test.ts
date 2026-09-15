@@ -71,6 +71,8 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   assert.ok(chained.chain > 0); assert.match(practiceHint(chained), /Light again/);
   assert.match(practiceHint(ready()), /Hold guard/); assert.match(practiceHint(stepPractice(ready(), { ...idle(), guard: true }, passive)), /Guarding/);
   const hurt = { ...hit, result: 'hurt' as const, resultAge: 3, resultDamage: 38 }; assert.match(practiceHint(hurt), /Hit taken · −38/);
+  assert.match(practiceHint({ ...hit, result: 'hit', resultAge: 3, resultDamage: 14, resultCounter: true }), /Counter right cut hit · −14/);
+  assert.match(practiceHint({ ...hit, result: 'hurt', resultAge: 3, resultDamage: 14, resultCounter: true }), /Countered · −14/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 12.5, resultPerfect: true }), /Perfect block · −13 stamina/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 25, resultPerfect: false }), /^Blocked · −25 stamina/);
   for (const [result, text] of [['blocked', /Blocked/], ['parried', /Parried! The warden/], ['dodged', /Evaded/], ['broken', /Guard broken/], ['enemyBlocked', /Warden blocked/], ['enemyBroken', /Guard shattered/], ['enemyParried', /turned aside/], ['enemyDodged', /rolled clear/], ['miss', /Miss/]] as const) assert.match(practiceHint({ ...hit, result, resultAge: 3 }), text);
@@ -155,5 +157,6 @@ test('a parry then a light produces the riposte the browser gate expects, then a
   s = stepPractice(s, act('kick'));
   assert.equal(s.phase, 'kick');
   s = tick(s, MOVES.kick.windup);
-  assert.equal(s.health, 100 - MOVES.riposte.damage - MOVES.kick.damage);
+  // The warden's re-engagement can start a tick either side of the kick's contact, so the kick lands clean or as a counter-hit.
+  assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(100 - MOVES.riposte.damage - s.health), `kick dealt ${100 - MOVES.riposte.damage - s.health}`);
 });

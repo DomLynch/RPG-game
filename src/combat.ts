@@ -18,7 +18,7 @@ export type LegacyPhase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'b
 export type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged' | 'broken' | 'kicked' | 'enemyBlocked' | 'enemyBroken' | 'enemyParried' | 'enemyDodged' | 'enemyKicked';
 // Practice = the duel plus a read-only view in the vocabulary the renderer and HUD already speak. Never write to the view.
 export type Practice = {
-  duel: Duel; ai: AiState; events: CombatEvent[]; result: Result; resultAge: number; resultDamage: number; resultPerfect: boolean;
+  duel: Duel; ai: AiState; events: CombatEvent[]; result: Result; resultAge: number; resultDamage: number; resultPerfect: boolean; resultCounter: boolean;
   fighter: State; enemy: State; finish: Finish | null;
   phase: LegacyPhase; age: number; attack: Attack; chain: number; threat: boolean; threatMove: MoveId | null;
   enemyPhase: LegacyPhase; enemyAge: number; enemyAttacking: boolean; enemyMode: AiMode;
@@ -30,16 +30,16 @@ const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move 
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = { Hit: ['hit', 'hurt'], AttackMissed: ['miss', 'dodged'], Blocked: ['blocked', 'enemyBlocked'], Parried: ['parried', 'enemyParried'], GuardBroken: ['broken', 'enemyBroken'], Dodged: ['dodged', 'enemyDodged'] };
 export function project(duel: Duel, ai: AiState, previous?: Practice): Practice {
   const [p, w] = duel.fighters;
-  let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0, resultDamage = previous?.resultDamage ?? 0, resultPerfect = previous?.resultPerfect ?? false;
+  let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0, resultDamage = previous?.resultDamage ?? 0, resultPerfect = previous?.resultPerfect ?? false, resultCounter = previous?.resultCounter ?? false;
   for (const event of duel.events) {
     const pair = RESULTS[event.type];
     if (!pair) continue;
     result = event.type === 'Hit' && event.move === 'kick' ? (event.actor === 0 ? 'kicked' : 'enemyKicked') : pair[event.actor];
-    resultAge = 0; resultDamage = event.damage ?? event.stamina ?? 0; resultPerfect = !!event.perfect;   // the renderer keys on 'blocked'; perfection rides alongside
+    resultAge = 0; resultDamage = event.damage ?? event.stamina ?? 0; resultPerfect = !!event.perfect; resultCounter = !!event.counter || !!event.rear;   // the renderer keys on 'blocked'; perfection rides alongside
   }
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, result, resultAge, resultDamage, resultPerfect, fighter: p.body, enemy: w.body, finish: duel.finish,
+    duel, ai, events: duel.events, result, resultAge, resultDamage, resultPerfect, resultCounter, fighter: p.body, enemy: w.body, finish: duel.finish,
     phase: legacyPhase(p), age: p.age, attack: clipOf(p.lastMove), chain: p.chain,
     threat: w.phase === 'attack' && !w.landed && w.age < wardenTiming!.windup + wardenTiming!.active, threatMove: w.phase === 'attack' ? w.move : null,
     enemyPhase: legacyPhase(w), enemyAge: w.age, enemyAttacking: w.phase === 'attack', enemyMode: w.phase === 'guard' ? 'guard' : ai.mode,
@@ -81,7 +81,7 @@ export function practiceHint(s: Practice): string {
   if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
   if (s.result !== 'none' && s.resultAge < 120) {
     const name = me.chained ? 'follow-up' : NAMES[me.lastMove ?? 'light_right'];
-    return { kicked: 'Kick connected · press the opening', hit: `Clean ${name} hit · −${s.resultDamage}`, miss: 'Miss — close the distance and face the warden.', hurt: `Hit taken · −${s.resultDamage}`, blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultDamage)} stamina`, parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening', enemyParried: 'Your strike was turned aside — recover!', enemyDodged: 'The warden rolled clear.', enemyKicked: `Kicked · −${s.resultDamage}` }[s.result];
+    return { kicked: 'Kick connected · press the opening', hit: `${s.resultCounter ? 'Counter' : 'Clean'} ${name} hit · −${s.resultDamage}`, miss: 'Miss — close the distance and face the warden.', hurt: `${s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}`, blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultDamage)} stamina`, parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening', enemyParried: 'Your strike was turned aside — recover!', enemyDodged: 'The warden rolled clear.', enemyKicked: `Kicked · −${s.resultDamage}` }[s.result];
   }
   if (s.phase === 'guard') return me.parrying ? 'Parry window open' : 'Guarding · release to recover stamina';
   if (me.exposed) return 'Parry missed · guard down for a moment';
