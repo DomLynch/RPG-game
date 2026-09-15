@@ -1378,9 +1378,13 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     # (profile measured 2026-09-15: lips at -0.51…-0.66, chin tip -0.75, underside -0.85, cut -0.99 below eye level), so
     # the geometric band is 0.10 units and the texture fade 0.14 — detecting the chin from the profile found the lip once
     band = 0.10 * scale
-    print(f'KEENTOOLS collar band {band * 100:.1f} cm')
+    # the scan's jaw runs as a near-vertical wall from the lip crease to the cut (front y recedes 7 mm over 2.7 cm), and the
+    # short collar turned it into a shelf under the chin that read as a cut just below the lips. On the front, below the chin
+    # tip (-0.78), the blend now runs over 0.21 units so the underside curves back to the throat the way a jaw does
+    front_band, front_from = 0.145 * scale, rig_mid.z - 0.80 * scale  # the chin wall stays to -0.85, then the underside turns back to the throat over the last 1.8 cm (a 0.21 band pulled the chin tip into a beak)
+    print(f'KEENTOOLS collar band {band * 100:.1f} cm; jaw underside band {front_band * 100:.1f} cm below the chin tip')
     for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
-        neck_blend(o, neck_only, neck_z, neck_c, band=band)
+        neck_blend(o, neck_only, neck_z, neck_c, band=band, front_band=front_band, front_from=front_from)
     bpy.data.objects.remove(neck_only, do_unlink=True)
     cut_above(weights_from, neck_z + 0.0015, select_only)  # our head goes; our neck ends just inside the scan's collar
     fade_vg = head.vertex_groups.new(name='seam_fade')  # the texture's fade to the body tone: taller than the geometric collar, still under the chin
@@ -1511,7 +1515,7 @@ def crown_fill(colour, dark, size, hair_zone):
     return filled * (1 - w) + synth * w
 
 
-def neck_blend(obj, target, neck_z, axis, band=0.06, lift=0.0002):
+def neck_blend(obj, target, neck_z, axis, band=0.06, lift=0.0002, front_band=None, front_from=None):
     """The stub's lowest `band` metres slide radially onto `target`'s neck (ray from the neck axis through each vertex),
     so the silhouette runs straight into the body. The blend eases in and out (smoothstep), so the collar leaves the
     ring with our neck's own slope — a linear blend tilted the whole band and it caught the light as a stripe. Leaves
@@ -1520,7 +1524,10 @@ def neck_blend(obj, target, neck_z, axis, band=0.06, lift=0.0002):
     inv = target.matrix_world.inverted()
     hits = misses = 0
     for v in obj.data.vertices:
-        t = min(1.0, max(0.0, (v.co.z - neck_z) / band))
+        b = band
+        if front_band is not None and v.normal.y < -0.3 and (front_from is None or v.co.z < front_from):
+            b = front_band  # the jaw's underside: a long, gentle turn back to the throat instead of a shelf under the chin
+        t = min(1.0, max(0.0, (v.co.z - neck_z) / b))
         w = 1 - t * t * (3 - 2 * t)
         if w <= 0:
             continue
