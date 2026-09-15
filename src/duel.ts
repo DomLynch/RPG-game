@@ -5,12 +5,12 @@ import { advance, initialState, TARGET, wrapAngle, type Input, type State } from
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
 export type Phase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead';
-export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'kick' | 'dodge' | 'backstep' | 'parry';
+export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'thrust' | 'kick' | 'dodge' | 'backstep' | 'parry';
 export type Intent = {
   move: Input;                  // camera-relative stick/keys
   action: Action | null;        // edge-triggered request for this tick; one is buffered late in a committed action
   guard: boolean;               // level: guard button held
-  heavyHeld?: boolean;          // level: heavy button still held (charges a plain heavy)
+  held?: boolean;               // level: the attack control is still held (a chambered swing waits; a charging one charges)
   guardDirection?: Direction;   // used only when RULES.directionalGuard is on
   lock: boolean;                // face the opponent while ready and during attack wind-up
   cancel?: boolean;             // input cancellation: drop any buffered action
@@ -58,6 +58,7 @@ function chooseMove(f: Fighter, action: Action): MoveId {
   if (action === 'heavy') return f.punish > 0 ? 'heavy_riposte' : f.counterWindow > 0 ? 'heavy_counter' : 'heavy_overhead';
   if (action === 'kick') return 'kick';
   if (f.punish > 0) return 'riposte';
+  if (action === 'thrust') return 'thrust';
   if (action === 'light_left' || action === 'light_right') return action;
   return f.lastMove === 'light_right' ? 'light_left' : 'light_right';
 }
@@ -67,7 +68,7 @@ export function legal(f: Fighter, action: Action): boolean {
   const standing = f.phase === 'ready' || f.phase === 'guard';   // a guard yields to any action; it never eats an input
   const stepping = f.phase === 'backstep', stepTail = stepping && f.age >= RULES.backstep.cancelFrom;   // a backstep's tail cancels into a swing
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= MOVES[chooseMove(f, action)].stamina);
-  if (action === 'heavy') return (standing || stepTail) && f.stamina >= MOVES[chooseMove(f, action)].stamina;
+  if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= MOVES[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= MOVES.kick.stamina;
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
@@ -102,7 +103,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       next.phase = 'attack'; next.age = 0; next.move = 'kick'; next.chained = false; next.landed = false; next.chain = 0; next.lastMove = 'kick'; spend(i, MOVES.kick.stamina);
       if (intent.lock) next.body = { ...me.body, heading: aim(me.body, foe.body) };
       events.push({ tick, type: 'AttackStarted', actor: i, move: 'kick' });
-    } else if (isLight(action) || action === 'heavy') {
+    } else if (isLight(action) || action === 'heavy' || action === 'thrust') {
       if (me.phase === 'sheathed') { next.phase = 'draw'; next.age = 0; events.push({ tick, type: 'ActionStarted', actor: i, action: 'draw' }); }
       else {
         const id = chooseMove(me, action!), def = MOVES[id];
@@ -136,11 +137,12 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (next.phase === 'roll' || next.phase === 'backstep') next.evaded = R.dodgeAttackWindow;
       next.phase = 'ready'; next.age = 0; next.guardDirection = null; next.parrying = false;
     }
-    // Charge: a held plain heavy pauses at the charge point (age is rewound each tick) until release or the maximum; a long enough hold charges the swing.
-    if (next.phase === 'attack' && next.move === 'heavy_overhead' && !next.chained && next.age === R.charge.at + 1 && intents[i].heavyHeld && next.charge < R.charge.max) {
-      next.age = R.charge.at; next.charge++;
-      if (next.charge === 1) events.push({ tick, type: 'Charging', actor: i, move: next.move });
-      if (next.charge === R.charge.min) { next.charged = true; events.push({ tick, type: 'Charged', actor: i, move: next.move }); }
+    // Chamber: a held swing pauses at its chamber tick (age is rewound each tick) until release or the maximum; a charging move held long enough becomes the charged swing.
+    const chamber = next.phase === 'attack' && next.move !== null && !next.chained ? MOVES[next.move].chamber : null;
+    if (chamber !== null && next.age === chamber + 1 && intents[i].held && next.charge < R.charge.max) {
+      next.age = chamber; next.charge++;
+      if (next.charge === 1) events.push({ tick, type: 'Charging', actor: i, move: next.move! });
+      if (MOVES[next.move!].charges && next.charge === R.charge.min) { next.charged = true; events.push({ tick, type: 'Charged', actor: i, move: next.move! }); }
     }
     if (next.phase === 'attack' && next.move && next.age < timing(next).windup) {
       // Wind-up: controlled turning toward the opponent and the move's lunge; a kick lunges too, so a backstep cannot walk out of a point-blank kick.
@@ -210,9 +212,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (chip) { wound(chip, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
     } else {
       const damage = Math.round(def.damage * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
-      if (guarding) { spend(j, d.stamina); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading, charged }); stagger(baseStun); }
+      if (guarding) { spend(j, R.breakCost); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading, charged }); stagger(baseStun); }
       else {
-        const poised = d.phase === 'attack' && d.move !== null && ((d.charge > 0 && d.age < timing(d).windup + timing(d).active) || (MOVES[d.move].poise >= def.stagger && d.age >= MOVES[d.move].poiseFrom && d.age < timing(d).windup + timing(d).active));   // a charging or charged heavy has hyper-armour
+        const poised = d.phase === 'attack' && d.move !== null && ((d.charge > 0 && MOVES[d.move].charges && d.age < timing(d).windup + timing(d).active) || (MOVES[d.move].poise >= def.stagger && d.age >= MOVES[d.move].poiseFrom && d.age < timing(d).windup + timing(d).active));   // a charging or charged heavy has hyper-armour
         // Counter-hit and rear-hit multiply the clean hit; they never apply through a guard or a parry.
         const counter = d.phase === 'attack' || (d.phase === 'roll' && d.age > R.safeEnd);
         const rear = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) > Math.PI - R.rear.arc / 2;

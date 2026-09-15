@@ -1,10 +1,11 @@
-import { swipeAction } from './gestures.ts';
+import { FLICK_THRESHOLD, swipeAction, type Flick } from './gestures.ts';
+import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordRematch, saveTrial } from './trial.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILES, type Action, type CombatEvent } from './combat.ts';
+import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILES, RULES, type Action, type CombatEvent } from './combat.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 
@@ -32,7 +33,7 @@ const combatStatus = element('combat-status');
 const runButton = element<HTMLButtonElement>('run-button');
 const joystick = element('joystick');
 const gesturePad = element('gesture-pad');
-let gestureMode = false, gestureId: number | null = null, gestureX = 0, gestureY = 0, gestureUsed = false;
+let gestureId: number | null = null, gestureX = 0, gestureY = 0, gestureUsed = false;
 const stick = element('stick');
 const input = element<HTMLInputElement>('fighter-name');
 const storage: StoragePort = { getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value) };
@@ -45,7 +46,18 @@ function persist() {
   element('save-status').textContent = saveProfile(storage, profile) ? 'Guest · saved on this device' : 'Storage unavailable · name will not be saved';
 }
 persist();
-let practice = initialPractice(), state = practice.fighter, previous = state, accumulator = 0, locked = true;
+// Control-scheme trial: the right thumb is buttons (v0) or the weapon disc in one of three grammars; the scorecard is per scheme.
+const trial = loadTrial(storage);
+let scheme = trial.scheme, recorded = false;
+const disc = () => scheme !== 'buttons';   // any weapon-disc or field grammar: the attack buttons give way
+const touchMark = element('touch-mark');
+const DISC: Record<Flick, Action> = { left: 'light_left', right: 'light_right', up: 'thrust', down: 'heavy' };
+function applyScheme() {
+  element('actions').dataset.gestures = scheme === 'field' ? 'field' : String(disc());
+  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(disc())); lastHud = '';
+}
+// The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
+let matchSeed = 731, practice = initialPractice(matchSeed), state = practice.fighter, previous = state, accumulator = 0, locked = true;
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
 let action: Action | null = null, guard = false, guardId: number | null = null, cancel = false, assetsReady = false, graphicsLost = false, lastHud = '';
 let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(window.location?.search ?? ''), frameEvents: CombatEvent[] = [];
@@ -53,7 +65,7 @@ let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(win
 const HOLD_MS = 150;
 let dodgeHeld: { since: number; rolled: boolean } | null = null;
 // Heavy control: the press swings at once; keeping it held charges the swing (the simulation owns the timing).
-let heavyHeld = false;
+let held = false;
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 function updateHud() {
   const hint = practiceHint(practice), controlsReady = assetsReady && !graphicsLost;
@@ -72,7 +84,8 @@ function updateHud() {
   kickButton.setAttribute('aria-disabled',String(!controlsReady || !ok[2]));
   combatStatus.dataset.threat = String(practice.threat); combatStatus.dataset.move = practice.threatMove ?? '';
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
-  gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '← Light → · ↑ Heavy · ↓ Dodge';
+  gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : scheme === 'flick' ? '← Cut → · ↑ Thrust · ↓ Heavy' : scheme === 'drag' ? 'Drag to load · release to strike' : 'Drag · release · hold ↓ to charge';
+  element('field-help').hidden = scheme !== 'field' || practice.phase === 'sheathed' || !practice.health || !practice.playerHealth;
   gesturePad.setAttribute('aria-disabled', String(!controlsReady));
   gesturePad.hidden = !practice.health || !practice.playerHealth;
   attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Light'; attackButton.setAttribute('aria-label', attackButton.textContent);
@@ -88,7 +101,6 @@ function updateHud() {
 }
 function request(next: Action) { if (!paused() && assetsReady && accepts(practice, next)) action = next; }
 function requestKick() { request('kick'); }
-function requestRoll() { request('dodge'); }
 function pressDodge(now: number) { if (dodgeHeld) return; dodgeHeld = { since: now, rolled: false }; request('backstep'); }
 function releaseDodge() { dodgeHeld = null; if (action === 'backstep') action = null; }
 function requestParry() { request('parry'); }
@@ -97,7 +109,7 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; heavyHeld = false;
+  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; held = false; touchMark.hidden = true;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -105,7 +117,7 @@ element('name-form').addEventListener('submit', event => {
   event.preventDefault(); profile.name = cleanName(input.value); persist(); welcome.hidden = true; clearInput(); canvas.focus();
 });
 element('name-button').addEventListener('click', () => { clearInput(); input.value = profile.name; welcome.hidden = false; input.focus(); });
-element('journal-button').addEventListener('click', () => { clearInput(); journal.showModal(); });
+element('journal-button').addEventListener('click', () => { clearInput(); element('scorecard').textContent = formatCard(trial); journal.showModal(); });
 element('mobile-name').addEventListener('click', () => { journal.close(); element('name-button').click(); });
 element('close-journal').addEventListener('click', () => journal.close());
 journal.addEventListener('close', clearInput);
@@ -119,12 +131,13 @@ window.addEventListener('keydown', event => {
   }
   if (event.code === 'KeyF' && !event.repeat) { event.preventDefault(); requestStrike(); }
   if (event.code === 'KeyC' && !event.repeat) { event.preventDefault(); requestKick(); }
-  if (event.code === 'KeyG' && !event.repeat) { event.preventDefault(); heavyHeld = true; requestStrike(true); }
+  if (event.code === 'KeyG' && !event.repeat) { event.preventDefault(); held = true; requestStrike(true); }
+  if (event.code === 'KeyT' && !event.repeat) { event.preventDefault(); held = true; request('thrust'); }
   if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); }
   if (event.code === 'KeyQ') { event.preventDefault(); keys.add(event.code); if (!event.repeat) requestParry(); }
   if (event.code === 'KeyR' && !event.repeat) element('recenter-button').click();
 });
-window.addEventListener('keyup', event => { keys.delete(event.code); if (event.code === 'KeyE') releaseDodge(); if (event.code === 'KeyG') heavyHeld = false; });
+window.addEventListener('keyup', event => { keys.delete(event.code); if (event.code === 'KeyE') releaseDodge(); if (event.code === 'KeyG' || event.code === 'KeyT') held = false; });
 function setRun(value: boolean) { run = value; runButton.setAttribute('aria-pressed', String(value)); }
 runButton.addEventListener('pointerdown', event => { if (!paused()) { runButton.setPointerCapture(event.pointerId); setRun(true); } });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) runButton.addEventListener(name, () => setRun(false));
@@ -135,11 +148,11 @@ attackButton.addEventListener('pointerdown', event => { if (event.button === 0) 
 kickButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestKick(); } });
 kickButton.addEventListener('pointercancel', () => { if (action === 'kick') action = null; });
 kickButton.addEventListener('keydown', event => { if (['Space','Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestKick(); } });
-heavyButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); heavyButton.setPointerCapture(event.pointerId); heavyHeld = true; requestStrike(true); } });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) heavyButton.addEventListener(name, event => { heavyHeld = false; if (name !== 'pointerup' && action === 'heavy') action = null; void event; });
-heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); heavyHeld = true; requestStrike(true); } });
-heavyButton.addEventListener('keyup', () => { heavyHeld = false; });
-heavyButton.addEventListener('blur', () => { heavyHeld = false; });
+heavyButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); heavyButton.setPointerCapture(event.pointerId); held = true; requestStrike(true); } });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) heavyButton.addEventListener(name, event => { held = false; if (name !== 'pointerup' && action === 'heavy') action = null; void event; });
+heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); held = true; requestStrike(true); } });
+heavyButton.addEventListener('keyup', () => { held = false; });
+heavyButton.addEventListener('blur', () => { held = false; });
 attackButton.addEventListener('pointercancel', () => { if (action === 'light') action = null; });
 attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
 dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); dodgeButton.setPointerCapture(event.pointerId); pressDodge(performance.now()); } });
@@ -157,30 +170,34 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) guardBu
 guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); guard = true; if (!event.repeat) requestParry(); } });
 guardButton.addEventListener('keyup', () => { guard = false; });
 guardButton.addEventListener('blur', () => { guard = false; if (action === 'parry') action = null; });
-resetButton.addEventListener('click', () => { clearInput(); practice = initialPractice(); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+resetButton.addEventListener('click', () => { clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
-element('controls-mode').addEventListener('click', () => {
-  clearInput(); gestureMode = !gestureMode; element('actions').dataset.gestures = String(gestureMode);
-  element('controls-mode').textContent = gestureMode ? 'Controls: swipes (trial)' : 'Controls: buttons';
-  element('controls-mode').setAttribute('aria-pressed', String(gestureMode));
-});
-gesturePad.addEventListener('pointerdown', event => {
-  if (!gestureMode || paused() || !assetsReady || event.button !== 0 || gestureId !== null) return;
-  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false; gesturePad.setPointerCapture(gestureId);
+element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
+applyScheme();
+// One stroke grammar for the weapon disc and the invisible field: the stroke's direction chooses the attack; in every grammar but v1
+// the thumb staying down loads the swing (held = chambered, and charges a heavy in v3/v4); returning to the origin before release feints.
+function beginStroke(event: PointerEvent, surface: HTMLElement) {
+  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false;
   if (practice.phase === 'sheathed') { requestStrike(); gestureUsed = true; }
-});
-gesturePad.addEventListener('pointermove', event => {
-  if (event.pointerId !== gestureId || gestureUsed || paused()) return;
-  const action = swipeAction(event.clientX-gestureX,event.clientY-gestureY);
-  if (!action) return;
-  event.preventDefault(); gestureUsed = true;
-  request(action);
-});
-gesturePad.addEventListener('keydown', event => { if (!gestureMode || event.repeat) return; if (['Enter','Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.code)) { event.preventDefault(); if (event.code === 'ArrowDown') requestRoll(); else requestStrike(event.code === 'ArrowUp'); } });
-for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => {
-  if ((event as PointerEvent).pointerId === gestureId) { if (name !== 'pointerup') action = null; gestureId = null; }
-});
+  if (scheme === 'field') { touchMark.hidden = false; touchMark.style.transform = `translate(${gestureX}px, ${gestureY}px)`; }   // the field shows itself only under the thumb
+  try { surface.setPointerCapture(gestureId); } catch { /* capture is a convenience: a pointer the browser will not capture still strokes */ }
+}
+function moveStroke(event: PointerEvent) {
+  if (paused()) return;
+  const dx = event.clientX - gestureX, dy = event.clientY - gestureY;
+  if (gestureUsed) { if (held && Math.hypot(dx, dy) < FLICK_THRESHOLD / 2) { held = false; requestParry(); } return; }
+  const flick = swipeAction(dx, dy);
+  if (!flick) return;
+  event.preventDefault(); gestureUsed = true; held = scheme !== 'flick';
+  request(DISC[flick]);
+}
+function endStroke(cancelled: boolean) { if (cancelled) action = null; gestureId = null; held = false; touchMark.hidden = true; }
+gesturePad.addEventListener('pointerdown', event => { if (disc() && scheme !== 'field' && !paused() && assetsReady && event.button === 0 && gestureId === null) beginStroke(event, gesturePad); });
+gesturePad.addEventListener('pointermove', event => { if (event.pointerId === gestureId) moveStroke(event); });
+gesturePad.addEventListener('keydown', event => { if (!disc() || event.repeat) return; const flick = ({ ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' } as Record<string, Flick>)[event.code]; if (flick || event.code === 'Enter' || event.code === 'Space') { event.preventDefault(); held = scheme !== 'flick'; request(flick ? DISC[flick] : 'light'); } });
+gesturePad.addEventListener('keyup', () => { held = false; });
+for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name !== 'pointerup'); });
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
   const x = (event.clientX - rect.left - rect.width / 2) / 42;
@@ -236,13 +253,17 @@ for (const id of ['camera-button', 'mobile-camera']) element(id).addEventListene
 });
 element('recenter-button').addEventListener('click', () => view.recenter());
 canvas.addEventListener('pointerdown', event => {
-  if (paused() || orbitId !== null || event.button !== 0) return;
+  if (paused() || event.button !== 0) return;
+  // v4: the right half of the arena is the invisible attack field; the left half still orbits the camera.
+  if (scheme === 'field' && assetsReady && gestureId === null && event.clientX >= innerWidth / 2) { canvas.focus(); beginStroke(event, canvas); return; }
+  if (orbitId !== null) return;
   canvas.focus(); orbitId = event.pointerId; orbitX = event.clientX; orbitY = event.clientY; canvas.setPointerCapture(orbitId);
 });
 canvas.addEventListener('pointermove', event => {
+  if (event.pointerId === gestureId) { moveStroke(event); return; }
   if (orbitId === event.pointerId && !locked && !paused()) { view.orbit(event.clientX - orbitX, event.clientY - orbitY); orbitX = event.clientX; orbitY = event.clientY; }
 });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(name, event => { if ((event as PointerEvent).pointerId === orbitId) orbitId = null; });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name !== 'pointerup'); if ((event as PointerEvent).pointerId === orbitId) orbitId = null; });
 let last = performance.now(), reportAt = last, frames: number[] = [], frameId = 0;
 document.addEventListener('visibilitychange', () => { last = performance.now(); frames = []; reportAt = last; });
 function frame(now: number) {
@@ -256,9 +277,12 @@ function frame(now: number) {
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= STEP) {
       previous = state;
-      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || keys.has('KeyQ')), heavyHeld: assetsReady && heavyHeld, lock: locked, cancel }, PROFILES[difficulty]);
+      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || keys.has('KeyQ')), held: assetsReady && held, lock: locked, cancel }, PROFILES[difficulty]);
       feedback.update(practice.events); frameEvents.push(...practice.events);
       action = null; cancel = false; state = practice.fighter; accumulator -= STEP;
+      const me = practice.duel.fighters[0];
+      if (held && scheme === 'drag' && me.move === 'heavy_overhead' && me.charge >= RULES.charge.min - 1) held = false;   // v2 loads and releases but never charges
+      if (practice.finish && !recorded) { recorded = true; recordFight(trial, scheme, practice.finish.victim === 1, practice.duel.tick, 100 - practice.health, 100 - practice.playerHealth); saveTrial(storage, trial); }
     }
   } else { accumulator = 0; previous = state; }
   const alpha = accumulator / STEP;

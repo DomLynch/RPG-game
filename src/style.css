@@ -44,10 +44,13 @@
 }
 
 #gesture-pad{display:none}.actions{touch-action:none}
+#touch-mark{position:fixed;left:-32px;top:-32px;width:64px;height:64px;border-radius:50%;border:1px solid #f0e3c966;box-shadow:0 0 0 1px #0004,inset 0 0 12px #f0e3c922;pointer-events:none;z-index:5}
+.field-help{display:none}
+.scorecard{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;margin:.6em 0;color:#d9c9a6}
 @media(max-width:900px),(pointer:coarse){
- .actions[data-gestures=true] #attack-button,.actions[data-gestures=true] #heavy-button,.actions[data-gestures=true] #dodge-button{display:none}
+ .actions[data-gestures=true] #attack-button,.actions[data-gestures=true] #heavy-button,.actions[data-gestures=field] #attack-button,.actions[data-gestures=field] #heavy-button{display:none}
+ .actions[data-gestures=field] .field-help:not([hidden]){display:block;grid-column:1/-1;grid-row:1;font:12px/1.4 Arial;color:#f0e3c9;text-shadow:0 1px 2px #000;max-width:170px;text-align:center}
  .actions[data-gestures=true] #gesture-pad{display:block;grid-column:1/-1;grid-row:1;width:148px;height:100px;font:13px/1.7 Arial;padding:18px!important;color:#f0e3c9;border-color:#c6af78;background:#172329a8}
- .actions[data-gestures=true] #guard-button{grid-column:1/-1;width:148px}
 }
 
 @media(max-width:900px),(pointer:coarse){#kick-button{grid-column:1/-1;grid-row:3;justify-self:end;width:70px;height:44px;min-height:44px;border-radius:22px;font-size:0;background:#283233a6}.actions[data-gestures="true"] #kick-button{grid-row:auto}}

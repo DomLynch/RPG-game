@@ -25,7 +25,7 @@ export type Practice = {
   health: number; playerHealth: number; stamina: number; enemyStamina: number; exhausted: boolean;
   wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; reaction: number;
 };
-const clipOf = (move: MoveId | null): Attack => move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' ? 'heavy' : move === 'riposte' ? 'riposte' : 'light';
+const clipOf = (move: MoveId | null): Attack => move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' ? 'heavy' : move === 'riposte' || move === 'thrust' ? 'riposte' : 'light';
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = { Hit: ['hit', 'hurt'], AttackMissed: ['miss', 'dodged'], Blocked: ['blocked', 'enemyBlocked'], Parried: ['parried', 'enemyParried'], GuardBroken: ['broken', 'enemyBroken'], Dodged: ['dodged', 'enemyDodged'] };
 export function project(duel: Duel, ai: AiState, previous?: Practice): Practice {
@@ -68,14 +68,14 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
   return { pose, progress: Math.min(1, f.age / Math.max(1, duration)), attack, contact };
 }
 
-const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', riposte: 'riposte', heavy_riposte: 'heavy riposte', heavy_counter: 'guard counter', kick: 'kick' };
+const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', heavy_riposte: 'heavy riposte', heavy_counter: 'guard counter', kick: 'kick' };
 export function practiceHint(s: Practice): string {
   const me = s.duel.fighters[0];
   if (!s.playerHealth) return 'You fell. Rematch and try another defence.';
   if (!s.health) return 'Warden defeated. Ready for a rematch?';
   if (s.phase === 'sheathed') return 'Draw your sword. The warden will counterattack.';
   if (s.phase === 'draw') return 'Drawing longsword…';
-  if (me.phase === 'attack' && me.charge) return me.charged ? 'Charged · breaks a guard' : 'Charging… keep holding';
+  if (me.phase === 'attack' && me.charge) return !MOVES[me.move!].charges ? 'Chambered · release to strike · back to centre to feint' : me.charged ? 'Charged · breaks a guard' : 'Charging… keep holding';
   if (s.threat) return s.threatMove === 'heavy_overhead' ? (s.duel.fighters[1].charge ? 'Incoming strike — charged heavy: a guard will break · roll or parry the release!' : 'Incoming strike — heavy: guard takes chip · parry or roll') : 'Incoming strike — roll or time your guard!';
   if (me.exhausted) return 'Exhausted · walk it off until your stamina returns';
   if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return 'Warden guarding · heavy or close-range kick';

@@ -184,10 +184,11 @@ const api = {
   async details(list = DETAILS) {
     await reset(); stage(studio); opponent.visible = false; renderer.toneMappingExposure = 1; player.position.set(0, 0, 0); player.rotation.y = 0;
     return cells(4, Math.ceil(list.length / 4), 480, 480, 1, i => {
-      if (!list[i]) return false; const [caption, clip, t, node, distance, az, el] = list[i];
+      if (!list[i]) return false; const [caption, clip, t, node, distance, az, el, offset] = list[i];
       scrub(player, clip, t); player.updateWorldMatrix(true, true);
       const object = player.getObjectByName(node) || player.getObjectByName('Head'), target = object.name === 'SwordDrawn' ? object.localToWorld(new THREE.Vector3(0, .45, 0)) : object.getWorldPosition(new THREE.Vector3());
       if (caption === 'eyes') target.add(new THREE.Vector3(0, .05, .07).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion()))); // eye level, not the skull base
+      if (offset) target.add(new THREE.Vector3(...offset).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion()))); // optional aim offset in the fighter's frame (x right, y up, z forward)
       camera.fov = 30; camera.position.set(target.x + Math.sin(az) * Math.cos(el) * distance, target.y + Math.sin(el) * distance, target.z + Math.cos(az) * Math.cos(el) * distance); camera.lookAt(target);
       renderer.render(studio, camera); return `${caption}  ${clip} t=${t.toFixed(2)}`;
     });

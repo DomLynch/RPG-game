@@ -154,10 +154,27 @@ of a toe pad and a heel block. Below the hairline only texels no camera saw at a
 photographed at a grazing angle and stays); the crown/back keep the stricter rule. The fill's growth is short (48 texels) and
 the skin synth carries the surrounding photographed tone, so no streaks.
 
-v28 (2026-09-15): `head.chin_boss` — the reconstruction's chin was flat (profile in scan units below eye level: lips −0.51…−0.66,
+v28 (2026-09-15, superseded by v30): `head.chin_boss` — the reconstruction's chin was flat (profile in scan units below eye level: lips −0.51…−0.66,
 crease −0.69, chin only 0.011 ahead of the crease at −0.75) where the portraits show a strong rounded chin. A smooth boss
 centred at −0.80, ~15 mm at the tip, 0.21 units wide, pushed along one forward-and-down direction below the lip crease only
 (per-vertex normals tear the open lip boundary), applied before the neck cut so the bake source and the phone mesh share it.
+
+v29 (2026-09-15): the pale band at the nape (issue #22) was the portraits' grey backdrop leaking through the projection at the
+back-centre, where the ±90° cameras see the head at a grazing angle; those texels are now treated as un-photographed like the
+crown (a baked `back` mask gates it), and the collar band at the back takes the scan's own 64-sample occlusion with the body's
+occlusion curve. Island edge texels take interior colours before the gutter fill. The borrowed collar normals are off
+(`HEAD_COLLAR_NORMALS=1` re-enables them); they did not help.
+
+v30 (2026-09-15): `head.chin_extend` replaces the chin boss — the boss under the lip read as a pout, and borrowing the base
+head's outline tore the mouth. The band from the chin tip down to just above the collar moves forward and down (~13 mm at the
+chin's underside), nothing above the tip, so the collar still meets the neck; and the profile itself is corrected along y only
+(the scan's lower lip sat 1 mm ahead of its upper lip and of the chin — a pout from the front): lower lip back 2.6 mm, upper
+lip forward 1.3 mm, chin tip forward 5.2 mm, the open lip boundary moving as one.
+
+v31 (2026-09-15, interim): the chin pushes (v28 boss, v30 jaw extension and lip profile) are off — `HEAD_CHIN=1` re-enables
+`chin_extend` for experiments. In profile every one of them looked wrong: the scan never captured the jaw (the five portraits
+cover it only at a grazing angle), and pushing vertices cannot invent the shape. The fix is either two extra portraits from ~45°
+below for a new KeenTools job, or the base body's jaw stitched on below the lip crease. The v29 nape fix ships.
 
 ## Combat audio (audio lane, 2026-09-15)
 `src/assets/audio/sprite.m4a` (AAC-LC 96 kb/s, Apple AudioToolbox encoder via ffmpeg `aac_at`, for Safari) and `sprite.ogg`
