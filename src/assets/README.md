@@ -175,3 +175,14 @@ v31 (2026-09-15, interim): the chin pushes (v28 boss, v30 jaw extension and lip 
 `chin_extend` for experiments. In profile every one of them looked wrong: the scan never captured the jaw (the five portraits
 cover it only at a grazing angle), and pushing vertices cannot invent the shape. The fix is either two extra portraits from ~45°
 below for a new KeenTools job, or the base body's jaw stitched on below the lip crease. The v29 nape fix ships.
+
+## Combat audio (audio lane, 2026-09-15)
+`src/assets/audio/sprite.m4a` (AAC-LC 96 kb/s, Apple AudioToolbox encoder via ffmpeg `aac_at`, for Safari) and `sprite.ogg`
+(Opus 64 kb/s VBR via ffmpeg `libopus`, for Chrome/Android) are one 19.1 s audio sprite of 46 cues, entirely original
+procedural Foley rendered by `node scripts/build-audio.mjs` — deterministic Node DSP (seeded noise, inharmonic modal iron
+resonators, pitch-dropping body thumps, swept-filter air), no recordings, no downloads, no third-party sample, no AI
+generator, no licence. The generated `src/audio/manifest.ts` maps cue → variants → [start, duration]. Rebuild:
+`node scripts/build-audio.mjs` from the repository root (needs ffmpeg on PATH). Cues: whoosh_light/heavy, draw,
+hit_flesh/heavy/kick, block, block_perfect, parry, guard_break, charge, kill, 2–5 seeded variants each. Evidence per
+iteration under `artifacts/audio/<label>/` (rendered by `scripts/audio-preview.mjs`). The pre-sprite synthesised layers
+remain in `src/feedback.ts` as the fallback until the sprite has decoded.
