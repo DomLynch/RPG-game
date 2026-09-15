@@ -6,11 +6,12 @@ import { createFeedback } from '../src/feedback.ts';
 // Minimal Web Audio stand-in: enough surface for unlock/quiet/play to run without a browser.
 class FakeContext {
   static last: FakeContext | undefined; static made = 0;
-  state = 'suspended'; resumed = 0; sampleRate = 48000; currentTime = 0; destination = {};
+  state = 'suspended'; resumed = 0; sampleRate = 48000; currentTime = 0; destination = {}; sources = 0;
   constructor() { FakeContext.made++; FakeContext.last = this; }
-  createGain() { return { gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() { return this; }, disconnect() {} }; }
+  node() { const param = () => ({ value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }); return { gain: param(), frequency: param(), Q: param(), playbackRate: param(), threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(), type: '', curve: null, buffer: null, connect() { return this; }, disconnect() {}, start() {}, stop() {}, onended: null }; }
+  createGain() { return this.node(); } createBiquadFilter() { return this.node(); } createOscillator() { return this.node(); } createWaveShaper() { return this.node(); } createDynamicsCompressor() { return this.node(); } createConvolver() { return this.node(); }
   createBuffer(_c: number, length: number) { return { getChannelData: () => new Float32Array(length) }; }
-  createBufferSource(): never { throw new Error('play must not reach the graph while the context is not running'); }
+  createBufferSource() { if (this.state !== 'running') throw new Error('play must not reach the graph while the context is not running'); this.sources++; return this.node(); }
   resume() { this.resumed++; this.state = 'running'; return Promise.resolve(); }
   suspend() { this.state = 'suspended'; return Promise.resolve(); }
 }
@@ -44,6 +45,18 @@ test('unlock resumes an interrupted context (iOS after a call or app switch), an
   feedback.unlock(); assert.equal(context.resumed, 2, 'interrupted: resumed'); assert.equal(context.state, 'running');
   feedback.quiet(); assert.equal(context.state, 'suspended');
   feedback.unlock(); assert.equal(context.resumed, 3, 'suspended: resumed');
+}));
+
+test('quiet() silences the page: no cue reaches the graph until the next unlock, then cues play again', () => withFakeAudio(undefined, () => {
+  const feedback = createFeedback(); feedback.unlock();
+  const context = FakeContext.last!;
+  feedback.update([{ tick: 1, type: 'Hit', actor: 0 } as never]);
+  assert.ok(context.sources > 0, 'a running context plays the (fallback) hit');
+  const before = context.sources; feedback.quiet();
+  feedback.update([{ tick: 2, type: 'Parried', actor: 0 } as never]);
+  assert.equal(context.sources, before, 'suspended: nothing scheduled, nothing thrown');
+  feedback.unlock(); feedback.update([{ tick: 3, type: 'Blocked', actor: 0 } as never]);
+  assert.ok(context.sources > before, 'resumed: cues play again');
 }));
 
 test('the shell unlocks audio on the events WebKit treats as user activation, not only pointerdown', () => {

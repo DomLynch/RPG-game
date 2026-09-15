@@ -1,9 +1,10 @@
 import type { StoragePort } from './profile.ts';
 
 // Control-scheme trial: which right-thumb control the owner is testing, and a per-scheme scorecard kept in the browser.
-export type Scheme = 'buttons' | 'flick' | 'drag' | 'charge';
-export const SCHEMES: Scheme[] = ['buttons', 'flick', 'drag', 'charge'];
-export const LABELS: Record<Scheme, string> = { buttons: 'buttons', flick: 'disc · flick (v1)', drag: 'disc · drag & release (v2)', charge: 'disc · drag & release · hold to charge (v3)' };
+// v4 (an invisible right-half gesture field) was built, tried by the owner and dropped on 2026-09-15; a stored 'field' falls back to buttons.
+export type Scheme = 'buttons' | 'flick' | 'drag' | 'charge' | 'cluster' | 'sectors';
+export const SCHEMES: Scheme[] = ['buttons', 'flick', 'drag', 'charge', 'cluster', 'sectors'];
+export const LABELS: Record<Scheme, string> = { buttons: 'buttons', flick: 'disc · flick (v1)', drag: 'disc · drag & release (v2)', charge: 'disc · drag & release · hold to charge (v3)', cluster: 'thumb cluster · round buttons (v5)', sectors: 'segmented disc · tap a sector (v6)' };
 export type Tally = { fights: number; wins: number; rematches: number; ticks: number; dealt: number; taken: number };
 export type Trial = { scheme: Scheme; card: Partial<Record<Scheme, Tally>> };
 const KEY = 'frankendom.controls.v1';
