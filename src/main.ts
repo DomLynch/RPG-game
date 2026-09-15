@@ -49,11 +49,12 @@ persist();
 // Control-scheme trial: the right thumb is buttons (v0) or the weapon disc in one of three grammars; the scorecard is per scheme.
 const trial = loadTrial(storage);
 let scheme = trial.scheme, recorded = false;
-const disc = () => scheme !== 'buttons';
+const disc = () => scheme !== 'buttons';   // any weapon-disc or field grammar: the attack buttons give way
+const touchMark = element('touch-mark');
 const DISC: Record<Flick, Action> = { left: 'light_left', right: 'light_right', up: 'thrust', down: 'heavy' };
 function applyScheme() {
-  element('actions').dataset.gestures = String(disc());
-  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(disc()));
+  element('actions').dataset.gestures = scheme === 'field' ? 'field' : String(disc());
+  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(disc())); lastHud = '';
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 let matchSeed = 731, practice = initialPractice(matchSeed), state = practice.fighter, previous = state, accumulator = 0, locked = true;
@@ -84,6 +85,7 @@ function updateHud() {
   combatStatus.dataset.threat = String(practice.threat); combatStatus.dataset.move = practice.threatMove ?? '';
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
   gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : scheme === 'flick' ? '← Cut → · ↑ Thrust · ↓ Heavy' : scheme === 'drag' ? 'Drag to load · release to strike' : 'Drag · release · hold ↓ to charge';
+  element('field-help').hidden = scheme !== 'field' || practice.phase === 'sheathed' || !practice.health || !practice.playerHealth;
   gesturePad.setAttribute('aria-disabled', String(!controlsReady));
   gesturePad.hidden = !practice.health || !practice.playerHealth;
   attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Light'; attackButton.setAttribute('aria-label', attackButton.textContent);
@@ -107,7 +109,7 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; held = false;
+  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; held = false; touchMark.hidden = true;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -173,26 +175,28 @@ element('difficulty').addEventListener('click', () => { const levels = Object.ke
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
 applyScheme();
-gesturePad.addEventListener('pointerdown', event => {
-  if (!disc() || paused() || !assetsReady || event.button !== 0 || gestureId !== null) return;
-  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false; gesturePad.setPointerCapture(gestureId);
+// One stroke grammar for the weapon disc and the invisible field: the stroke's direction chooses the attack; in every grammar but v1
+// the thumb staying down loads the swing (held = chambered, and charges a heavy in v3/v4); returning to the origin before release feints.
+function beginStroke(event: PointerEvent, surface: HTMLElement) {
+  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false; surface.setPointerCapture(gestureId);
   if (practice.phase === 'sheathed') { requestStrike(); gestureUsed = true; }
-});
-gesturePad.addEventListener('pointermove', event => {
-  if (event.pointerId !== gestureId || paused()) return;
+  if (scheme === 'field') { touchMark.hidden = false; touchMark.style.transform = `translate(${gestureX}px, ${gestureY}px)`; }   // the field shows itself only under the thumb
+}
+function moveStroke(event: PointerEvent) {
+  if (paused()) return;
   const dx = event.clientX - gestureX, dy = event.clientY - gestureY;
-  // Drag grammars: the stroke loads the swing (held = chambered); returning to the centre before release feints it.
   if (gestureUsed) { if (held && Math.hypot(dx, dy) < FLICK_THRESHOLD / 2) { held = false; requestParry(); } return; }
   const flick = swipeAction(dx, dy);
   if (!flick) return;
   event.preventDefault(); gestureUsed = true; held = scheme !== 'flick';
   request(DISC[flick]);
-});
+}
+function endStroke(cancelled: boolean) { if (cancelled) action = null; gestureId = null; held = false; touchMark.hidden = true; }
+gesturePad.addEventListener('pointerdown', event => { if (disc() && scheme !== 'field' && !paused() && assetsReady && event.button === 0 && gestureId === null) beginStroke(event, gesturePad); });
+gesturePad.addEventListener('pointermove', event => { if (event.pointerId === gestureId) moveStroke(event); });
 gesturePad.addEventListener('keydown', event => { if (!disc() || event.repeat) return; const flick = ({ ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' } as Record<string, Flick>)[event.code]; if (flick || event.code === 'Enter' || event.code === 'Space') { event.preventDefault(); held = scheme !== 'flick'; request(flick ? DISC[flick] : 'light'); } });
 gesturePad.addEventListener('keyup', () => { held = false; });
-for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => {
-  if ((event as PointerEvent).pointerId === gestureId) { if (name !== 'pointerup') action = null; gestureId = null; held = false; }
-});
+for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name !== 'pointerup'); });
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
   const x = (event.clientX - rect.left - rect.width / 2) / 42;
@@ -248,13 +252,17 @@ for (const id of ['camera-button', 'mobile-camera']) element(id).addEventListene
 });
 element('recenter-button').addEventListener('click', () => view.recenter());
 canvas.addEventListener('pointerdown', event => {
-  if (paused() || orbitId !== null || event.button !== 0) return;
+  if (paused() || event.button !== 0) return;
+  // v4: the right half of the arena is the invisible attack field; the left half still orbits the camera.
+  if (scheme === 'field' && assetsReady && gestureId === null && event.clientX >= innerWidth / 2) { canvas.focus(); beginStroke(event, canvas); return; }
+  if (orbitId !== null) return;
   canvas.focus(); orbitId = event.pointerId; orbitX = event.clientX; orbitY = event.clientY; canvas.setPointerCapture(orbitId);
 });
 canvas.addEventListener('pointermove', event => {
+  if (event.pointerId === gestureId) { moveStroke(event); return; }
   if (orbitId === event.pointerId && !locked && !paused()) { view.orbit(event.clientX - orbitX, event.clientY - orbitY); orbitX = event.clientX; orbitY = event.clientY; }
 });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(name, event => { if ((event as PointerEvent).pointerId === orbitId) orbitId = null; });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name !== 'pointerup'); if ((event as PointerEvent).pointerId === orbitId) orbitId = null; });
 let last = performance.now(), reportAt = last, frames: number[] = [], frameId = 0;
 document.addEventListener('visibilitychange', () => { last = performance.now(); frames = []; reportAt = last; });
 function frame(now: number) {

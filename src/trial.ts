@@ -1,9 +1,9 @@
 import type { StoragePort } from './profile.ts';
 
 // Control-scheme trial: which right-thumb control the owner is testing, and a per-scheme scorecard kept in the browser.
-export type Scheme = 'buttons' | 'flick' | 'drag' | 'charge';
-export const SCHEMES: Scheme[] = ['buttons', 'flick', 'drag', 'charge'];
-export const LABELS: Record<Scheme, string> = { buttons: 'buttons', flick: 'disc · flick (v1)', drag: 'disc · drag & release (v2)', charge: 'disc · drag & release · hold to charge (v3)' };
+export type Scheme = 'buttons' | 'flick' | 'drag' | 'charge' | 'field';
+export const SCHEMES: Scheme[] = ['buttons', 'flick', 'drag', 'charge', 'field'];
+export const LABELS: Record<Scheme, string> = { buttons: 'buttons', flick: 'disc · flick (v1)', drag: 'disc · drag & release (v2)', charge: 'disc · drag & release · hold to charge (v3)', field: 'invisible field · flick, hold to load, back to feint (v4)' };
 export type Tally = { fights: number; wins: number; rematches: number; ticks: number; dealt: number; taken: number };
 export type Trial = { scheme: Scheme; card: Partial<Record<Scheme, Tally>> };
 const KEY = 'frankendom.controls.v1';
