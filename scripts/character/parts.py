@@ -247,15 +247,19 @@ def align_arms(mesh_obj):
         axis_b, axis_r = (tip_b - base_j).normalized(), (thumb - base_j).normalized()
         swing = axis_b.rotation_difference(axis_r)
         thumb_len = (tip_b - base_j).length
+        stretch = min(1.12, (thumb - base_j).length / max(1e-6, thumb_len))  # the rig's thumb chain is longer than the body's thumb: meet it part way, never a freak thumb
         for v in verts:
             d = v.co - base_j
             along_t = d.dot(axis_b)
             if along_t < -0.01 or along_t > thumb_len + 0.03 or (d - axis_b * along_t).length > 0.024:
                 continue
             blend = min(1.0, max(0.0, along_t / 0.03))
-            v.co = base_j + Quaternion().slerp(swing, blend) @ d
+            d = Quaternion().slerp(swing, blend) @ d
+            along_r = d.dot(axis_r)
+            d = d + axis_r * (along_r * (stretch - 1) * blend)
+            v.co = base_j + d
         mesh_obj.data.update()
-        print(f'ALIGN ARMS {side}: thumb swung {math.degrees(swing.angle):.1f}°')
+        print(f'ALIGN ARMS {side}: thumb swung {math.degrees(swing.angle):.1f}°, stretched {stretch:.2f}x')
 
 
 SLOTS = {'tunic': 'Body', 'baldric': 'Body', 'belt': 'Body', 'studs': 'Body', 'skirt': 'Legs', 'kilt': 'Legs',
@@ -460,7 +464,7 @@ def level1_kit():
     # Forearm wraps: seven narrow overlapping leather turns from the wrist to mid-forearm, each hugging the arm's taper.
     for elbow, hand, side in [(elbow_l, hand_l, 1), (elbow_r, hand_r, -1)]:
         for k in range(7):
-            kit.append(ring_strip(f'wrap_{"l" if side > 0 else "r"}_{k}', 'Leather', elbow, hand, 0.93 - k * 0.055, 0.06, lift=0.003 + (k % 2) * 0.002, probe_radius=0.1, max_reach=0.09, rows_n=3))
+            kit.append(ring_strip(f'wrap_{"l" if side > 0 else "r"}_{k}', 'Wrap', elbow, hand, 0.93 - k * 0.055, 0.06, lift=0.003 + (k % 2) * 0.002, probe_radius=0.1, max_reach=0.09, rows_n=3))
     # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare.
     for foot, ball, side in [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
         name = 'l' if side > 0 else 'r'
@@ -569,6 +573,28 @@ def bronze_helmet():
     select_only([crest])
     bpy.ops.object.transform_apply(scale=True, rotation=True, location=True)
     return [helm, tag(crest, 'crest_red', 'Heraldry', bone='Head', slot='Crest')]
+
+
+def wrap_maps():
+    """Wrist wraps at 256: a leather strip seen across its width (v), worn pale along both edges, a stitch line inside each
+    edge, grain along the turn (u). Tiles 4× around the arm like every ring strip."""
+    size = 256
+    v = (np.arange(size) / size)[:, None] * np.ones((1, size))
+    grain = fbm(size, 31, octaves=(2, 4, 8, 16))
+    streak = fbm(size, 32, octaves=(1, 2, 4))  # low along v (rows), so it reads as lengthwise grain once tiled around
+    edge = np.clip((0.09 - np.minimum(v, 1 - v)) / 0.06, 0, 1) * (0.6 + 0.4 * grain)
+    stitch = (np.abs(np.minimum(v, 1 - v) - 0.14) < 0.012) * ((np.arange(size)[None, :] // 6) % 2 == 0)
+    base = np.array([0.20, 0.13, 0.09])[None, None, :] * (0.85 + 0.30 * grain)[..., None] * (0.9 + 0.2 * streak)[..., None]
+    worn = np.array([0.40, 0.29, 0.20])[None, None, :]
+    colour = base * (1 - edge[..., None] * 0.7) + worn * (edge[..., None] * 0.7)
+    colour = colour * (1 - stitch[..., None] * 0.5) + np.array([0.30, 0.24, 0.17])[None, None, :] * stitch[..., None] * 0.5
+    rough = np.clip(0.82 - edge * 0.25 + grain * 0.1, 0.4, 0.95)
+    orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
+    height = grain * 0.5 - np.clip((0.05 - np.minimum(v, 1 - v)) / 0.05, 0, 1) * 1.5 - stitch * 0.6
+    gy, gx = np.gradient(height)
+    n = np.stack([-gx * 10, gy * 10, np.ones_like(gx)], axis=2)
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    return {'baseColor': save_jpeg('wrap_color', colour, 'sRGB'), 'normal': save_jpeg('wrap_normal', n * 0.5 + 0.5, 'Non-Color'), 'metallicRoughness': save_jpeg('wrap_orm', orm, 'Non-Color')}
 
 
 def bronze_maps():
@@ -960,14 +986,13 @@ else:
             eye_l_o, eye_r_o = bpy.data.objects['eye_L'], bpy.data.objects['eye_R']
             el = sum((v.co for v in eye_l_o.data.vertices), Vector()) / len(eye_l_o.data.vertices)
             er = sum((v.co for v in eye_r_o.data.vertices), Vector()) / len(eye_r_o.data.vertices)
-            HEADMOD.keentools_skin_tone(el, er)  # the body is painted to match the scan
-            FACE['kt_neck_z'] = (el.z + er.z) / 2 - HEADMOD.NECK_DROP
+            HEADMOD.keentools_skin_tone(el, er, max(v.co.z for v in body.data.vertices))  # the body is painted to match the scan; the scan is sized to the base body's crown
+            FACE['kt_neck_z'] = HEADMOD.NECK_Z
         REAL = HEADMOD.build(body, HIGH, FACE, armature, select_only, save_two_sizes, save_jpeg, materials_out, tag)  # bare body: bakes first
         AO, HEAD, body = REAL['ao_body'], REAL['head'], REAL['body']
         body_parts = REAL['parts'] + [o for o in body_parts if o.name.startswith('eye_')]
         if use_kt:
-            crown_z = max(v.co.z for v in HEAD.data.vertices)  # the base head's crown: the scan is sized to the body's own head height
-            kt_parts, kt_maps, neck_z, neck_c = HEADMOD.keentools_head(HEAD, el, er, armature, select_only, tag, save_jpeg, save_two_sizes, materials_out, crown_z=crown_z)
+            kt_parts, kt_maps, neck_z, neck_c = HEADMOD.keentools_head(HEAD, el, er, armature, select_only, tag, save_jpeg, save_two_sizes, materials_out)
             REAL['maps'].update(kt_maps)
             body_parts = [o for o in body_parts if o.name not in ('hair_shells', 'brow_cards', 'eye_L', 'eye_R')] + kt_parts
     else:
@@ -989,7 +1014,7 @@ if not proof:
     ao_file = os.path.basename(occlusion_map())
     extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
     # the Studio sculpt's muscle relief is subtle: amplified in the shader (Skin normalScale 1.6 for the realistic build)
-    for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 1.6 if realistic else 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)] + extra:
+    for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 1.6 if realistic else 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Wrap', wrap_maps(), 1.0), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale
         print(f'MAPS {name} {maps}')

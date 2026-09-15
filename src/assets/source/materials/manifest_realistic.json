@@ -68,6 +68,7 @@
  "Photo": {
   "baseColor": "kt_face_color_r.jpg",
   "normal": "kt_face_normal_r.jpg",
+  "metallicRoughness": "kt_face_orm_r.jpg",
   "normalScale": 0.8
  },
  "PhotoEyes": {
@@ -77,5 +78,11 @@
  "PhotoTeeth": {
   "baseColor": "kt_teeth_color_r.jpg",
   "normalScale": 0.8
+ },
+ "Wrap": {
+  "baseColor": "wrap_color_r.jpg",
+  "normal": "wrap_normal_r.jpg",
+  "metallicRoughness": "wrap_orm_r.jpg",
+  "normalScale": 1.0
  }
 }
