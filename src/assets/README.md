@@ -191,3 +191,10 @@ generator, no licence. The generated `src/audio/manifest.ts` maps cue → varian
 hit_flesh/heavy/kick, block, block_perfect, parry, guard_break, charge, kill, 2–5 seeded variants each. Evidence per
 iteration under `artifacts/audio/<label>/` (rendered by `scripts/audio-preview.mjs`). The pre-sprite synthesised layers
 remain in `src/feedback.ts` as the fallback until the sprite has decoded.
+
+v33 (2026-09-15): the chin. The eight-view scan's chin tip sits level with the lip crease and the wall below it ran straight to
+the collar, where a short blend left a shelf — it read as a cut under the lips. `head.chin_strong` (owner's call: a strong,
+longer chin) moves the chin zone (0.74–0.90 scan units below eye level, front-facing, broad) down by up to 7.6 mm and forward
+by up to 11.4 mm, zero at the lip crease and above and zero again at the collar ring; the collar blend on the front runs
+over 1.8 cm below the chin wall so the underside turns back to the throat. The texture fade at the collar is 1 cm — the
+underside keeps its photographed stubble. `HEAD_CHIN=0` leaves the scan untouched.

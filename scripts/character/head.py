@@ -1325,8 +1325,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     for o in (head, kt_eye_l, kt_eye_r, teeth):
         o.data.transform(M)
         o.data.update()
-    if os.environ.get('HEAD_CHIN', '0') == '1':  # off: every push on a jaw the scan never captured looked wrong in profile (v28–v30); the fix is jaw coverage in the scan or the base body's jaw
-        chin_extend(head, rig_mid, scale)
+    if os.environ.get('HEAD_CHIN', '1') == '1':  # the owner's call (2026-09-15): a stronger, longer chin than the scan's; HEAD_CHIN=0 leaves the scan as is
+        chin_strong(head, rig_mid, scale)
     # shoulders off: keep the head and a neck stub
     neck_z = NECK_Z if NECK_Z is not None else rig_mid.z - NECK_DROP_KT * scale
     bm = bmesh.new()
@@ -1378,13 +1378,17 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     # (profile measured 2026-09-15: lips at -0.51…-0.66, chin tip -0.75, underside -0.85, cut -0.99 below eye level), so
     # the geometric band is 0.10 units and the texture fade 0.14 — detecting the chin from the profile found the lip once
     band = 0.10 * scale
-    print(f'KEENTOOLS collar band {band * 100:.1f} cm')
+    # the scan's jaw runs as a near-vertical wall from the lip crease to the cut (front y recedes 7 mm over 2.7 cm), and the
+    # short collar turned it into a shelf under the chin that read as a cut just below the lips. On the front, below the chin
+    # tip (-0.78), the blend now runs over 0.21 units so the underside curves back to the throat the way a jaw does
+    front_band, front_from = 0.145 * scale, rig_mid.z - 0.80 * scale  # the chin wall stays to -0.85, then the underside turns back to the throat over the last 1.8 cm (a 0.21 band pulled the chin tip into a beak)
+    print(f'KEENTOOLS collar band {band * 100:.1f} cm; jaw underside band {front_band * 100:.1f} cm below the chin tip')
     for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
-        neck_blend(o, neck_only, neck_z, neck_c, band=band)
+        neck_blend(o, neck_only, neck_z, neck_c, band=band, front_band=front_band, front_from=front_from)
     bpy.data.objects.remove(neck_only, do_unlink=True)
     cut_above(weights_from, neck_z + 0.0015, select_only)  # our head goes; our neck ends just inside the scan's collar
     fade_vg = head.vertex_groups.new(name='seam_fade')  # the texture's fade to the body tone: taller than the geometric collar, still under the chin
-    fade_band = 0.14 * scale
+    fade_band = 0.09 * scale  # the eight-view scan photographed the underside of the jaw: keep its stubble, fade only the last centimetre
     for v in head.data.vertices:
         t = min(1.0, max(0.0, (v.co.z - neck_z) / fade_band))
         w = 1 - t * t * (3 - 2 * t)
@@ -1511,7 +1515,7 @@ def crown_fill(colour, dark, size, hair_zone):
     return filled * (1 - w) + synth * w
 
 
-def neck_blend(obj, target, neck_z, axis, band=0.06, lift=0.0002):
+def neck_blend(obj, target, neck_z, axis, band=0.06, lift=0.0002, front_band=None, front_from=None):
     """The stub's lowest `band` metres slide radially onto `target`'s neck (ray from the neck axis through each vertex),
     so the silhouette runs straight into the body. The blend eases in and out (smoothstep), so the collar leaves the
     ring with our neck's own slope — a linear blend tilted the whole band and it caught the light as a stripe. Leaves
@@ -1520,7 +1524,10 @@ def neck_blend(obj, target, neck_z, axis, band=0.06, lift=0.0002):
     inv = target.matrix_world.inverted()
     hits = misses = 0
     for v in obj.data.vertices:
-        t = min(1.0, max(0.0, (v.co.z - neck_z) / band))
+        b = band
+        if front_band is not None and v.normal.y < -0.3 and (front_from is None or v.co.z < front_from):
+            b = front_band  # the jaw's underside: a long, gentle turn back to the throat instead of a shelf under the chin
+        t = min(1.0, max(0.0, (v.co.z - neck_z) / b))
         w = 1 - t * t * (3 - 2 * t)
         if w <= 0:
             continue
@@ -1631,6 +1638,35 @@ def bake_tiles_single(low, high, select_only, size):
     px = np.empty(size * size * 4, np.float32)
     img.pixels.foreach_get(px)
     return clean_normal(px.reshape(size, size, 4)[:, :, :3])
+
+
+def chin_strong(head, rig_mid, scale, down=0.06, forward=0.09):
+    """A stronger, longer chin than the eight-view scan's (its chin tip sits level with the lip crease and the wall below
+    is 2 cm tall; the portraits show a chin ~3 cm tall standing ahead of the lips). Two smooth fields on the front of the
+    lower face, in scan units below eye level: the chin zone (0.74–0.90) moves DOWN by up to `down` (the chin wall gets
+    taller), and FORWARD by up to `forward` (the tip stands ahead of the crease). Both are zero at the lip crease (0.69)
+    and above — the lips do not move (a push that reached the crease read as a pout, v28) — and zero again by 0.95 so
+    the collar and its blend are untouched; the underside between is compressed and turns back more sharply, like a jaw."""
+    head.data.update()
+    sx = 0.30 * scale  # broad, like the portraits' chin — narrower came to a point
+    moved = 0
+    def smooth(a, b, x):
+        t = min(1.0, max(0.0, (x - a) / (b - a)))
+        return t * t * (3 - 2 * t)
+    for v in head.data.vertices:
+        if v.normal.y > -0.1 or abs(v.co.x - rig_mid.x) > 0.5 * scale:
+            continue
+        u = (rig_mid.z - v.co.z) / scale  # scan units below eye level
+        win = smooth(0.70, 0.75, u) * (1 - smooth(0.88, 0.985, u))  # eases out right up to the collar ring, so the underside is one curve, not a ledge
+        if win <= 0:
+            continue
+        lat = math.exp(-((v.co.x - rig_mid.x) / sx) ** 2)
+        dz = down * math.exp(-((u - 0.81) / 0.07) ** 2)
+        dy = forward * math.exp(-((u - 0.81) / 0.07) ** 2)
+        v.co += Vector((0, -dy, -dz)) * (win * lat * scale)
+        moved += 1
+    head.data.update()
+    print(f'KEENTOOLS chin strong: {moved} vertices, down {down * scale * 1000:.1f} mm, forward {forward * scale * 1000:.1f} mm at most')
 
 
 def chin_extend(head, rig_mid, scale, amount=0.10):
