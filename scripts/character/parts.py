@@ -333,7 +333,7 @@ def select_only(objs):
     bpy.context.view_layer.objects.active = objs[0]
 
 
-def extract(name, material, keep, lift=0.012, thickness=0.008, source=None):
+def extract(name, material, keep, lift=0.012, thickness=0.008, source=None, face_keep=None):
     """Clothing cut from the body itself: faces whose centre passes `keep(p)` are kept, lifted off the skin and given
     thickness. Vertex groups (skin weights) and UVs come with the faces, so the piece deforms exactly like the body."""
     select_only([source or body])
@@ -355,7 +355,7 @@ def extract(name, material, keep, lift=0.012, thickness=0.008, source=None):
                 else:
                     hi = mid
             crossings.setdefault(v_in, []).append(lo)
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not all(inside[v] for v in f.verts)], context='FACES')
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not all(inside[v] for v in f.verts) or (face_keep is not None and not face_keep(f))], context='FACES')
     for v, pts in crossings.items():
         if v.is_valid:
             v.co = sum(pts, Vector()) / len(pts)
@@ -510,7 +510,8 @@ def level1_kit():
     # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare.
     for foot, ball, side in [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
         name = 'l' if side > 0 else 'r'
-        kit.append(extract(f'sole_{name}', 'Leather', lambda p, s=side: p.x * s > 0 and p.z < 0.0045, lift=0.0, thickness=0.012))  # the underside only: toes stay bare
+        kit.append(extract(f'sole_{name}', 'Leather', lambda p, s=side: p.x * s > 0 and p.z < 0.03, lift=0.0, thickness=0.007,
+                           face_keep=lambda f: f.normal.z < -0.45))  # one flat sole: every downward face under the foot, arch included; nothing on the toes
         heel = Vector((foot.x, foot.y, 0.012))  # the strap rings run from the heel-top down the foot to the toes
         toe = Vector((ball.x, ball.y - 0.02, 0.012))
         kit.append(ring_strip(f'strap_instep_{name}', 'Leather', heel, toe, 0.42, 0.016, arc=(0, math.pi), lift=0.004, probe_radius=0.08, max_reach=0.075))

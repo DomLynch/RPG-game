@@ -1421,12 +1421,13 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         return px.reshape(h, w, 4)[:, :, :3]
     colour = pixels(images[0])
     colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
-    dark = (colour.max(axis=2) < 0.06) | (coverage < 0.6)  # black, or seen at more than ~53° from every camera (a smear): the crown, the back
+    dark = (colour.max(axis=2) < 0.06) | ((coverage < 0.6) & (hair_zone > 0.5)) | (coverage < 0.3)  # black; the crown and back seen only at a grazing angle (a smear); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
     filled = crown_fill(colour, dark, size, hair_zone)
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
         mottle = (0.92 + P.fbm(size, 41, octaves=(4, 8, 16, 32)) * 0.18)[..., None]  # the painted body's own tone noise, so the band is skin, not paint
-        filled = filled * (1 - fade)[..., None] + (SKIN_TONE[None, None, :] * mottle) * fade[..., None]  # our neck meets it on the same tone, no occlusion on either side
+        target = SKIN_TONE[None, None, :] * mottle
+        filled = filled * (1 - fade)[..., None] + target * fade[..., None]  # our neck meets it on the same tone, no occlusion on either side (a baked occlusion here came out as dark blotches)
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands: their colours spill into the gutters so seams never sample the raw edges
     filled = fill_margin(filled, island, steps=48)
     maps = {'Photo': {'baseColor': save_two_sizes_fn('kt_face_color', filled, 'sRGB')},
@@ -1472,8 +1473,8 @@ def crown_fill(colour, dark, size, hair_zone):
     (`dark`). Growing the boundary inward leaves streaks, so beyond a short feather the fill is flat: the photographed
     hair's own tone (buzz-cut grain on top) where the head is above the hairline, the skin tone below it (the nape), by
     the baked `hair_zone` map."""
-    filled = fill_margin(colour, ~dark, steps=400)
-    reach = blur((~dark).astype(np.float32), 32)  # 1 on the photograph, fading to 0 across the boundary
+    filled = fill_margin(colour, ~dark, steps=48)  # a short growth only: a long one prints the boundary texels as streaks
+    reach = blur((~dark).astype(np.float32), 16)  # 1 on the photograph, fading to 0 across the boundary
     lum = colour.mean(axis=2)
     band = (~dark) & (reach < 0.9) & (reach > 0.3) & (hair_zone > 0.5) & (lum < 0.16)  # photographed hair next to the black
     hair = np.median(colour[band], axis=0) * 1.1 if band.sum() > 500 else np.array([0.06, 0.046, 0.036])  # a little scalp shows through a buzz cut
@@ -1481,9 +1482,10 @@ def crown_fill(colour, dark, size, hair_zone):
     grain = P.fbm(size, 7, octaves=(size // 8, size // 4, size // 2))
     dots = P.fbm(size, 8, octaves=(size // 2, size))
     hair_synth = hair[None, None, :] * (0.72 + 0.56 * grain)[..., None] * (1 - 0.35 * (dots > 0.62))[..., None]
-    skin_synth = skin[None, None, :] * (0.92 + 0.16 * grain)[..., None]
+    local = blur(blur(fill_margin(colour, ~dark, steps=400), 32), 8)  # the photographed skin's own tone carried in (no streaks at this blur), so the under-chin and nape match their surroundings
+    skin_synth = local * (0.92 + 0.16 * grain)[..., None]
     synth = hair_synth * hair_zone[..., None] + skin_synth * (1 - hair_zone[..., None])
-    w = np.clip(1 - reach * 1.3, 0, 1)[..., None] * dark[..., None]
+    w = np.clip(1 - reach * 1.6, 0, 1)[..., None] * dark[..., None]
     print(f'KEENTOOLS crown fill: hair tone {np.round(hair, 3)} from {int(band.sum())} texels')
     return filled * (1 - w) + synth * w
 
