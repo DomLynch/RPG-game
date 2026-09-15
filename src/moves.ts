@@ -78,7 +78,8 @@ export const RULES = {
   // cancelled into an attack, and holding the dodge control converts it into a roll for the price difference.
   backstep: { ticks: 12, speed: 1, cost: 10, cancelFrom: 8 },
   dodgeAttackWindow: 2,   // a light started this soon after an evade (or from a backstep's tail) uses its chained timing
-  parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: false,
+  // perfectBlock: a block in the first ticks of a held guard costs perfectBlockCost of the normal price.
+  parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, perfectBlock: 3, perfectBlockCost: .5, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: false,
   regen: .4, regenDelay: 60, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,
   bufferWindow: 10, bufferTtl: 11, stepInFrom: 3, turnStart: .3, turnWindup: .25,

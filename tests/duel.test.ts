@@ -79,6 +79,25 @@ test('held guard blocks a facing light for stamina; a guard from behind or witho
   assert.equal(distant.fighters[0].stamina, 100, 'guarding prevents regeneration and costs nothing without contact');
 });
 
+test('perfect block: a guard raised just in time pays half; a settled guard pays full; a parry window never counts', () => {
+  const incoming = (guardAge: number, parrying = false) => stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: guardAge, parrying }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  for (const age of [RULES.parry, RULES.parry + RULES.perfectBlock - 2]) {
+    const d = incoming(age);
+    assert.equal(d.fighters[0].stamina, 100 - light.staminaDamage * RULES.perfectBlockCost, `guard age ${age}`);
+    const blocked = d.events.find(e => e.type === 'Blocked')!;
+    assert.equal(blocked.perfect, true); assert.equal(blocked.stamina, light.staminaDamage * RULES.perfectBlockCost);
+  }
+  const settled = incoming(RULES.parry + RULES.perfectBlock);
+  assert.equal(settled.fighters[0].stamina, 100 - light.staminaDamage); assert.equal(settled.events.find(e => e.type === 'Blocked')!.perfect, false);
+  // A live parry window parries instead; a fresh press that outlives its window is exposed, never a perfect block.
+  assert.ok(types(incoming(RULES.parry - 2, true)).includes('Parried'));
+  const fresh = run(stepDuel(duel(), [act('parry', { guard: true }), idle()]), RULES.parry, hold());
+  assert.equal(fresh.fighters[0].phase, 'ready'); assert.ok(fresh.fighters[0].exposed > 0);
+  // Composes with a guard profile.
+  const shielded = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: RULES.parry, guardProfile: { costScale: .5 } }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  assert.equal(shielded.fighters[0].stamina, 100 - light.staminaDamage * .5 * RULES.perfectBlockCost);
+});
+
 test('parry succeeds only inside the fresh-press window, staggers the attacker and opens one stronger riposte', () => {
   const attackerAt = (d: Duel, age: number) => ({ ...d, fighters: [d.fighters[0], { ...d.fighters[1], phase: 'attack' as const, move: 'light_left' as const, age, chained: false, landed: false, lastMove: 'light_left' as const }] } as Duel);
   const contact = light.windup;

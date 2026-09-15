@@ -24,7 +24,7 @@ test('legacy constant views stay equal to the move data the simulation actually 
   assert.equal(RULES.bufferWindow, 10); assert.equal(RULES.bufferTtl, 11); assert.equal(RULES.parryRecovery, 8); assert.equal(RULES.feintCost, 10);
   for (const path of Object.values(PATHS)) assert.equal(path.active, 5);
   for (const move of Object.values(MOVES)) assert.equal(move.windup + move.active + move.recovery, total(move));
-  assert.equal(MOVES.heavy_riposte.damage, 48); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2);
+  assert.equal(MOVES.heavy_riposte.damage, 48); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2); assert.equal(RULES.perfectBlock, 3); assert.equal(RULES.perfectBlockCost, .5);
 });
 
 test('the projection mirrors both fighters: phases, resources, threat, results and warden reaction for the renderer', () => {
@@ -71,6 +71,8 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   assert.ok(chained.chain > 0); assert.match(practiceHint(chained), /Light again/);
   assert.match(practiceHint(ready()), /Hold guard/); assert.match(practiceHint(stepPractice(ready(), { ...idle(), guard: true }, passive)), /Guarding/);
   const hurt = { ...hit, result: 'hurt' as const, resultAge: 3, resultDamage: 38 }; assert.match(practiceHint(hurt), /Hit taken · −38/);
+  assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 12.5, resultPerfect: true }), /Perfect block · −13 stamina/);
+  assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 25, resultPerfect: false }), /^Blocked · −25 stamina/);
   for (const [result, text] of [['blocked', /Blocked/], ['parried', /Parried! The warden/], ['dodged', /Evaded/], ['broken', /Guard broken/], ['enemyBlocked', /Warden blocked/], ['enemyBroken', /Guard shattered/], ['enemyParried', /turned aside/], ['enemyDodged', /rolled clear/], ['miss', /Miss/]] as const) assert.match(practiceHint({ ...hit, result, resultAge: 3 }), text);
   assert.doesNotMatch(practiceHint({ ...hit, result: 'enemyParried', resultAge: 3 }), /^Parried/, 'the warden parrying must not read as the player parrying');
 });
