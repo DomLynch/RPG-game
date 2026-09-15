@@ -66,8 +66,8 @@ export function scriptExchange(): Exchange {
   intents[1].guard = false;
   rest(40);
   // death: a charged heavy on the staggered, wounded warden.
-  intents[0].heavyHeld = true; press(0, 'heavy');
-  until(() => seen('Charged', 0)); intents[0].heavyHeld = false;
+  intents[0].held = true; press(0, 'heavy');
+  until(() => seen('Charged', 0)); intents[0].held = false;
   until(() => seen('Killed', 0)); beat('death');
   for (let i = 0; i < RULES.death; i++) step();   // let the fall play out
   return { ticks, beats, length: duel.tick };
@@ -80,6 +80,7 @@ export const CUE_PROBES: { name: string; events: CombatEvent[] }[] = [
   { name: 'swing-light', events: [at('AttackStarted', { move: 'light_right' })] },
   { name: 'swing-heavy', events: [at('AttackStarted', { move: 'heavy_overhead' })] },
   { name: 'swing-kick', events: [at('AttackStarted', { move: 'kick' })] },
+  { name: 'swing-thrust', events: [at('AttackStarted', { move: 'thrust' })] },
   { name: 'attack-active', events: [at('AttackActive', { move: 'light_right' })] },
   { name: 'charging', events: [at('Charging', { move: 'heavy_overhead' })] },
   { name: 'charged', events: [at('Charged', { move: 'heavy_overhead' })] },
@@ -87,6 +88,7 @@ export const CUE_PROBES: { name: string; events: CombatEvent[] }[] = [
   { name: 'hit-heavy', events: [at('Hit', { target: 1, move: 'heavy_overhead', damage: 18, location: 'torso' })] },
   { name: 'hit-riposte', events: [at('Hit', { target: 1, move: 'riposte', damage: 24, location: 'torso' })] },
   { name: 'hit-kick', events: [at('Hit', { target: 1, move: 'kick', damage: 4, location: 'torso' })] },
+  { name: 'hit-thrust', events: [at('Hit', { target: 1, move: 'thrust', damage: 14, location: 'torso' })] },
   { name: 'blocked', events: [at('Blocked', { target: 1, move: 'light_right', stamina: 25, perfect: false })] },
   { name: 'blocked-perfect', events: [at('Blocked', { target: 1, move: 'light_right', stamina: 12.5, perfect: true })] },
   { name: 'parried', events: [at('Parried', { target: 1, move: 'light_right' })] },

@@ -3,8 +3,8 @@
   "seed": 731,
   "rate": 48000,
   "path": "sprite, formats tried in order [\"opus\",\"aac\"]",
-  "generated": "2026-09-15T17:25:54.867Z",
-  "revision": "16fd5fb",
+  "generated": "2026-09-15T17:29:51.926Z",
+  "revision": "a1e0185",
   "dirty": true,
   "exchange": {
     "lengthTicks": 932,
@@ -153,6 +153,13 @@
       "onsetMs": 8,
       "lengthMs": 172
     },
+    "events/swing-thrust": {
+      "lufsIntegrated": -24.3,
+      "lufsMomentaryMax": -24.2,
+      "peakDbfs": -8.1,
+      "onsetMs": 8,
+      "lengthMs": 173
+    },
     "events/attack-active": {
       "lufsIntegrated": null,
       "lufsMomentaryMax": null,
@@ -201,6 +208,13 @@
       "peakDbfs": -4.4,
       "onsetMs": 6,
       "lengthMs": 255
+    },
+    "events/hit-thrust": {
+      "lufsIntegrated": -23.5,
+      "lufsMomentaryMax": -23.5,
+      "peakDbfs": -4.2,
+      "onsetMs": 6,
+      "lengthMs": 309
     },
     "events/blocked": {
       "lufsIntegrated": -26.1,

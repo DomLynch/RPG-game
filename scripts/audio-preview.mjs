@@ -118,6 +118,8 @@ ${rows.join('\n')}
 ## Payload
 Shipped audio assets (src/assets/audio): ${assets.raw} B raw · ${assets.gzip} B gzip${baseline ? ` (baseline ${baseline.assets.raw} B raw · ${baseline.assets.gzip} B gzip; Δ ${assets.gzip - baseline.assets.gzip} B gzip)` : ''}. Lane budget: ≤ 1.0 MB gzip.
 
+Determinism: single-cue renders are byte-identical run to run; the exchange can differ by ±1 LSB in a handful of samples (Chromium's threaded convolution for the room), so its figures are stable but its hash is not.
+
 ## Phone check
 Not part of this render — the owner listens on the handset (device, silent switch on/off) and records the note here.
 `;

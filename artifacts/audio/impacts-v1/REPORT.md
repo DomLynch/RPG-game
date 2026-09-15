@@ -1,6 +1,6 @@
 # Combat audio render — impacts-v1
 
-Revision 16fd5fb (dirty tree) · seed 731 · 48000 Hz mono · audio path: sprite, formats tried in order ["opus","aac"] · rendered 2026-09-15T17:25:54.867Z through Chromium OfflineAudioContext via `node scripts/audio-preview.mjs --label impacts-v1`.
+Revision a1e0185 (dirty tree) · seed 731 · 48000 Hz mono · audio path: sprite, formats tried in order ["opus","aac"] · rendered 2026-09-15T17:29:51.926Z through Chromium OfflineAudioContext via `node scripts/audio-preview.mjs --label impacts-v1`.
 
 ## Exchange (932 ticks = 15.53 s, render 17.53 s): `exchange.wav`
 | beat | tick | time | events on that tick |
@@ -29,6 +29,7 @@ LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows ac
 | swing-light | -24.3 | -24.2 | -8.1 | 8 | 173 | +27.1 |
 | swing-heavy | -21.8 | -20.7 | -6.7 | 9 | 334 | +29.6 |
 | swing-kick | -27.4 | -27.3 | -10.9 | 8 | 172 | +24 |
+| swing-thrust | -24.3 | -24.2 | -8.1 | 8 | 173 |  |
 | attack-active | — | — | — | — | 0 | — |
 | charging | — | — | — | — | 0 | — |
 | charged | -20.8 | -19.7 | -10.8 | 8 | 567 | +18.6 |
@@ -36,6 +37,7 @@ LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows ac
 | hit-heavy | -22.7 | -20.6 | -4.1 | 6 | 436 | +18.1 |
 | hit-riposte | -22.7 | -20.6 | -4.1 | 6 | 436 | +18.1 |
 | hit-kick | -24.2 | -24.2 | -4.4 | 6 | 255 | +16.6 |
+| hit-thrust | -23.5 | -23.5 | -4.2 | 6 | 309 |  |
 | blocked | -26.1 | -23.4 | -4.5 | 6 | 319 | +12.4 |
 | blocked-perfect | -24 | -24 | -4.1 | 6 | 330 | +14.5 |
 | parried | -19.5 | -18.2 | -4.4 | 6 | 424 | +18.8 |
@@ -53,6 +55,8 @@ LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows ac
 
 ## Payload
 Shipped audio assets (src/assets/audio): 395117 B raw · 360942 B gzip (baseline 0 B raw · 0 B gzip; Δ 360942 B gzip). Lane budget: ≤ 1.0 MB gzip.
+
+Determinism: single-cue renders are byte-identical run to run; the exchange can differ by ±1 LSB in a handful of samples (Chromium's threaded convolution for the room), so its figures are stable but its hash is not.
 
 ## Phone check
 Not part of this render — the owner listens on the handset (device, silent switch on/off) and records the note here.
