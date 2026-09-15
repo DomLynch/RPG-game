@@ -1,0 +1,122 @@
+// Combat audio evidence harness. Renders the fixed scripted exchange (src/audio/exchange.ts) through the real
+// createFeedback in a headless Chromium OfflineAudioContext — the same Web Audio implementation phones run — to
+// artifacts/audio/<label>/: exchange.wav, one WAV per cue probe, a BS.1770 loudness table and a report. Same script,
+// same seed, every iteration, so BEFORE/AFTER is like-for-like. Usage: node scripts/audio-preview.mjs [--label name] [--seed n]
+import { chromium } from 'playwright';
+import { createServer } from 'vite';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import { gzipSync } from 'node:zlib';
+import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
+
+const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
+const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), RATE = 48000, TAIL = 2, PROBE_AT = .05, PROBE_LENGTH = 1.2;
+const out = path.join('artifacts', 'audio', label);
+await fs.mkdir(path.join(out, 'events'), { recursive: true });
+
+// --- the exchange: ticks → seconds; the render runs TAIL seconds past the last tick so decays finish.
+const exchange = scriptExchange();
+const cues = exchange.ticks.map(({ tick, events }) => ({ t: tick / 60, events }));
+const seconds = exchange.length / 60 + TAIL;
+
+// --- Chromium page served by the Vite dev server, so /src/feedback.ts and any asset it imports resolve exactly as in the game.
+const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'error', server: { host: '127.0.0.1', port: 0, strictPort: false }, optimizeDeps: { noDiscovery: true, include: [] } });
+await server.listen();
+const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const rendered = {};
+try {
+  const page = await browser.newPage();
+  page.on('pageerror', e => { throw e; });
+  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; window.harness = { createFeedback };</script>` }));
+  await page.goto(`${origin}/harness`);
+  await page.waitForFunction(() => !!window.harness, null, { timeout: 20000 });
+  const render = (cues, seconds) => page.evaluate(async ({ cues, seconds, rate, seed }) => {
+    const context = new OfflineAudioContext(1, Math.ceil(seconds * rate), rate);
+    let now = 0;
+    const feedback = window.harness.createFeedback({ context, now: () => now, seed });
+    feedback.unlock();
+    for (const { t, events } of cues) { now = t; feedback.update(events); }
+    const data = (await context.startRendering()).getChannelData(0);
+    // 16-bit PCM, transferred as base64 (Float32 arrays do not serialise through evaluate).
+    const pcm = new Int16Array(data.length); for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
+    const bytes = new Uint8Array(pcm.buffer); let text = ''; for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(text);
+  }, { cues, seconds, rate: RATE, seed });
+  rendered.exchange = new Int16Array(Buffer.from(await render(cues, seconds), 'base64').buffer);
+  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = new Int16Array(Buffer.from(await render([{ t: PROBE_AT, events: probe.events }], PROBE_LENGTH), 'base64').buffer);
+} finally { await browser.close(); await server.close(); }
+
+// --- WAV out.
+function wav(pcm) {
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0); header.writeUInt32LE(36 + pcm.byteLength, 4); header.write('WAVE', 8); header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22); header.writeUInt32LE(RATE, 24); header.writeUInt32LE(RATE * 2, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
+  header.write('data', 36); header.writeUInt32LE(pcm.byteLength, 40);
+  return Buffer.concat([header, Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength)]);
+}
+for (const [name, pcm] of Object.entries(rendered)) { if (pcm.some(v => v)) await fs.writeFile(path.join(out, `${name}.wav`), wav(pcm)); else await fs.rm(path.join(out, `${name}.wav`), { force: true }); }   // silent probes ship as a table row, not a blank file
+
+// --- Loudness: ITU-R BS.1770-4 (K-weighting at 48 kHz, 400 ms blocks, 100 ms hop, −70 LUFS absolute and −10 LU relative gates), mono.
+const biquad = (x, [b0, b1, b2, a1, a2]) => { const y = new Float64Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0; for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; } return y; };
+const dB = v => v > 0 ? 20 * Math.log10(v) : -Infinity;
+function measure(pcm, cueAt) {
+  const x = Float64Array.from(pcm, v => v / 32768);
+  const k = biquad(biquad(x, [1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, 0.73248077421585]), [1, -2, 1, -1.99004745483398, 0.99007225036621]);
+  const block = Math.round(.4 * RATE), hop = Math.round(.1 * RATE), blocks = [];
+  for (let start = 0; start + block <= k.length; start += hop) { let sum = 0; for (let i = start; i < start + block; i++) sum += k[i] * k[i]; blocks.push(sum / block); }
+  if (k.length < block) { let sum = 0; for (const v of k) sum += v * v; blocks.push(sum / k.length); }
+  const loud = z => -.691 + 10 * Math.log10(z), mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+  const absolute = blocks.filter(z => loud(z) > -70), momentary = blocks.length ? loud(Math.max(...blocks)) : -Infinity;
+  const gate = absolute.length ? loud(mean(absolute)) - 10 : -Infinity, gated = absolute.filter(z => loud(z) > gate);
+  const integrated = gated.length ? loud(mean(gated)) : -Infinity;
+  let peak = 0, first = -1, last = -1; const floor = 10 ** (-60 / 20);
+  for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > peak) peak = a; if (a > floor) { if (first < 0) first = i; last = i; } }
+  const round = v => Number.isFinite(v) ? Math.round(v * 10) / 10 : null;
+  return { lufsIntegrated: round(integrated), lufsMomentaryMax: round(momentary), peakDbfs: round(dB(peak)), onsetMs: first < 0 ? null : Math.round((first / RATE - cueAt) * 1000), lengthMs: first < 0 ? 0 : Math.round((last - first) / RATE * 1000) };
+}
+const loudness = Object.fromEntries(Object.entries(rendered).map(([name, pcm]) => [name, measure(pcm, name === 'exchange' ? cues[0].t : PROBE_AT)]));
+
+// --- Payload: the shipped audio assets, raw and gzip; delta against the committed baseline when this is not the baseline.
+async function payload(dir) {
+  let raw = 0, gzip = 0;
+  try { for (const entry of await fs.readdir(dir, { withFileTypes: true })) { if (entry.isDirectory()) { const c = await payload(path.join(dir, entry.name)); raw += c.raw; gzip += c.gzip; } else { const bytes = await fs.readFile(path.join(dir, entry.name)); raw += bytes.length; gzip += gzipSync(bytes).length; } } } catch { /* no audio assets yet */ }
+  return { raw, gzip };
+}
+const assets = await payload(path.join('src', 'assets', 'audio'));
+const baseline = label === 'baseline' ? null : await fs.readFile(path.join('artifacts', 'audio', 'baseline', 'loudness.json'), 'utf8').then(JSON.parse).catch(() => null);
+const git = (cmd) => { try { return execSync(cmd, { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
+const receipt = { label, seed, rate: RATE, generated: new Date().toISOString(), revision: git('git rev-parse --short HEAD'), dirty: git('git status --porcelain') !== '', exchange: { lengthTicks: exchange.length, seconds, beats: exchange.beats }, assets, loudness };
+await fs.writeFile(path.join(out, 'loudness.json'), JSON.stringify(receipt, null, 2));
+
+// --- Report.
+const fmt = v => v === null || v === undefined ? '—' : String(v);
+const delta = (name, key) => baseline?.loudness?.[name] ? (loudness[name][key] === null || baseline.loudness[name][key] === null ? '—' : `${loudness[name][key] - baseline.loudness[name][key] > 0 ? '+' : ''}${Math.round((loudness[name][key] - baseline.loudness[name][key]) * 10) / 10}`) : '';
+const rows = Object.entries(loudness).filter(([name]) => name !== 'exchange').map(([name, m]) => `| ${name.slice(7)} | ${fmt(m.lufsIntegrated)} | ${fmt(m.lufsMomentaryMax)} | ${fmt(m.peakDbfs)} | ${fmt(m.onsetMs)} | ${fmt(m.lengthMs)} |${baseline ? ` ${delta(name, 'lufsIntegrated')} |` : ''}`);
+const report = `# Combat audio render — ${label}
+
+Revision ${receipt.revision}${receipt.dirty ? ' (dirty tree)' : ''} · seed ${seed} · ${RATE} Hz mono · rendered ${receipt.generated} through Chromium OfflineAudioContext via \`node scripts/audio-preview.mjs --label ${label}\`.
+
+## Exchange (${exchange.length} ticks = ${(exchange.length / 60).toFixed(2)} s, render ${seconds.toFixed(2)} s): \`exchange.wav\`
+| beat | tick | time | events on that tick |
+|---|---|---|---|
+${exchange.beats.map(b => `| ${b.name} | ${b.tick} | ${(b.tick / 60).toFixed(2)} s | ${b.events.join(', ') || '(no event: movement emits none)'} |`).join('\n')}
+
+Exchange loudness: integrated ${fmt(loudness.exchange.lufsIntegrated)} LUFS · momentary max ${fmt(loudness.exchange.lufsMomentaryMax)} LUFS · peak ${fmt(loudness.exchange.peakDbfs)} dBFS.
+
+## Per-cue renders: \`events/<name>.wav\` (one synthetic event at ${PROBE_AT * 1000} ms, ${PROBE_LENGTH} s render)
+LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows across iterations, not against broadcast targets). Onset = first sample above −60 dBFS relative to the cue tick; length = audible span above −60 dBFS. "—" = silent: the module answers no cue for that event.
+
+| cue | LUFS-I | LUFS-M max | peak dBFS | onset ms | length ms |${baseline ? ' Δ LUFS-I vs baseline |' : ''}
+|---|---|---|---|---|---|${baseline ? '---|' : ''}
+${rows.join('\n')}
+
+## Payload
+Shipped audio assets (src/assets/audio): ${assets.raw} B raw · ${assets.gzip} B gzip${baseline ? ` (baseline ${baseline.assets.raw} B raw · ${baseline.assets.gzip} B gzip; Δ ${assets.gzip - baseline.assets.gzip} B gzip)` : ''}. Lane budget: ≤ 1.0 MB gzip.
+
+## Phone check
+Not part of this render — the owner listens on the handset (device, silent switch on/off) and records the note here.
+`;
+await fs.writeFile(path.join(out, 'REPORT.md'), report);
+console.log(report);
