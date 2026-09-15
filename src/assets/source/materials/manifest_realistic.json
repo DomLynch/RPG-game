@@ -3,7 +3,7 @@
   "baseColor": "skin_color_r.jpg",
   "normal": "skin_normal_r.jpg",
   "metallicRoughness": "skin_orm_r.jpg",
-  "normalScale": 0.8,
+  "normalScale": 1.6,
   "occlusion": "ao_body_r.jpg"
  },
  "Ranger": {
