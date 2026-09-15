@@ -1,0 +1,205 @@
+
+> frankendom@0.1.0 quality
+> eslint src && npm test && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser
+
+
+> frankendom@0.1.0 test
+> node --test tests/*.test.ts
+
+✔ the warden reacts only after its reaction delay: no defensive input can answer an attack it has not yet noticed (1.623666ms)
+✔ an unblockable swing it cannot parry or roll is answered with a backstep out of reach (0.481208ms)
+✔ the warden uses the same combat API: its attacks cost stamina, obey range and resolve through the same contact rules (7.413542ms)
+✔ a passive opponent sees a readable opener: at easy and normal the first attack is always a heavy; hard also pressures with lights (147.582375ms)
+✔ against a settled guard the warden holds its heavy to the charge that breaks it, and releases as soon as it is charged (1.648084ms)
+✔ the warden punishes a whiff with a light and kicks or breaks a standing guard (6.176875ms)
+✔ parry frequency follows the profile: a light-spamming player is parried at hard and never by a profile without parries (83.861375ms)
+✔ the warden never idles out of reach: a stationary guarding fighter is attacked at least every eight seconds at every level (49.694916ms)
+✔ the warden moves with seeded, bounded decisions, stays in the arena and waits for the player to draw (12.587541ms)
+✔ the warden reads only committed state: identical duels decide identically, and pending player input changes nothing (0.277042ms)
+✔ difficulty changes outcomes through reaction, defence and aggression, not through different rules (95.497458ms)
+✔ a landed blow earns a punish window: the warden never counter-attacks the instant its stagger ends (0.268792ms)
+✔ the scripted exchange lands every beat in order and is reproducible (13.208291ms)
+✔ every event type the exchange emits has a cue probe, and probe names are unique (2.832166ms)
+✔ a hosted feedback schedules cues at the scripted time and ignores the offline context state (21.229959ms)
+✔ the noise bed is seeded: the same seed fills the same buffer, another seed does not (32.619958ms)
+✔ events map to material cues, impacts before air, at most four per tick, and unmapped events stay silent (0.277167ms)
+✔ variant rotation is seeded, never repeats the last variant, and reaches every variant (0.115666ms)
+✔ the sprite manifest is well-formed and the shipped audio stays inside the lane budget (6.372125ms)
+✔ with a decoded sprite, cues play sprite regions on pooled voices; past the cap the soonest-ending voice is stolen (2.187541ms)
+✔ a duel reseeds on its draw, so the same fight rolls the same variants and pitches (7.211166ms)
+✔ finite blade distance handles crossing, parallel, endpoints and degenerate segments (0.659375ms)
+✔ blade contact rejects empty space inside the old broad cone and targets behind the fighter (1.796708ms)
+✔ a moving target crossing the blade within a tick cannot tunnel through it (0.079834ms)
+✔ locked armed footwork faces the opponent while moving laterally; sweep damage resolves once (0.921875ms)
+✔ a miss is reported only after follow-through closes, and late contact still hits once (2.470792ms)
+✔ upright blade regions produce deterministic lethal-location data without renderer bones (0.248333ms)
+✔ all edge angles and orbit positions keep camera inside scenery (24.413125ms)
+✔ locked camera frames both capsules at boundary and near contact in portrait and landscape (14.304625ms)
+✔ duel camera frames a moving opponent anywhere in the arena (6.926875ms)
+✔ gaits blend continuously, stay normalized and settle to idle at rest (5.671083ms)
+✔ shipped skinned warrior has finite poses, grounded walk and bounded running flight (1869.666291ms)
+✔ two fighters share geometry but have independent animated bones (87.360791ms)
+✔ combat clips and both sword attachments are present and produce finite animated poses (93.202334ms)
+✔ the exported blade crosses the target at the simulation contact frame (91.33175ms)
+✔ roll and guard keep the shipped body finite, above the floor and within a compact silhouette (633.371166ms)
+✔ swing easing remains monotone and preserves the authored contact pose (0.399916ms)
+✔ return, heavy and riposte authored blades agree with their contact ticks (86.810625ms)
+✔ baked collision paths match the shipped blade throughout every active strike (85.756625ms)
+✔ authored strafe loops close cleanly and alternate grounded feet (90.607792ms)
+✔ authored kick plants its support foot and extends towards its contact range (82.873208ms)
+✔ defence presentation follows confirmed contacts and yields immediately to new actions (0.257083ms)
+✔ block recoil and parry visibly redirect the shipped blade and recover their guard pose (86.571334ms)
+✔ legacy constant views stay equal to the move data the simulation actually uses (18.039209ms)
+✔ the projection mirrors both fighters: phases, resources, threat, results and warden reaction for the renderer (2.191958ms)
+✔ the warden threat flag and move drive the incoming warning; the projection exposes what it will do (12.967167ms)
+✔ hints prioritise defeat, drawing, threats, exhaustion, warden guard, chains, then expiring notices (9.820542ms)
+✔ control gating: actions are accepted when legal or late in a committed move, never after defeat or while exhausted (1.578167ms)
+✔ defeat freezes the fight and a fresh practice restores everything; the debug readout stays a pure function of state (0.59075ms)
+✔ seeded practice replays are identical, never mutate the previous state, and keep both fighters bounded and apart (943.40375ms)
+✔ a parry then a light produces the riposte the browser gate expects, then a close kick lands (0.325584ms)
+✔ attack phases: nothing lands before the active window, a hit resolves once, a whiff is reported when the window closes (35.444458ms)
+✔ drawing takes its full time, cannot damage, and holds the fighter still like every committed action (0.600292ms)
+✔ range and facing produce real misses; lock turns during wind-up but never snaps around (1.540708ms)
+✔ enough clean hits kill; death freezes both fighters and rejects every input (2.717875ms)
+✔ held guard blocks a facing light for stamina; a guard from behind or without stamina is broken (0.735084ms)
+✔ perfect block: a guard raised just in time pays half; a settled guard pays full; a parry window never counts (1.204917ms)
+✔ parry succeeds only inside the fresh-press window, staggers the attacker and opens one stronger riposte (0.614042ms)
+✔ a fresh parry that meets nothing leaves the fighter exposed: guard is refused until the exposure ends (0.470208ms)
+✔ a guard yields to any action: attacks start the same tick from a held guard (0.467ms)
+✔ feint: a fresh guard press early in a wind-up abandons the swing into a parry window for a price (4.49825ms)
+✔ guard profile: a shield is data — block cost, arc, window and stopping heavies come from the fighter, defaults from RULES (1.6695ms)
+✔ the feint mind-game: a raised guard answers the feint, and a kick opens it (2.321166ms)
+✔ directional guard, when enabled, only stops cuts from the matching side (0.482292ms)
+✔ roll: bounded invulnerability, one cost, locked direction, no cancel from an attack, cannot be spammed (0.445708ms)
+✔ backstep: 0.6 m straight back, still facing, 10 stamina, no invulnerability, cancels into a swing late, holds into a roll (0.612875ms)
+✔ stamina: costs at commitment, delayed regeneration, no regeneration while guarding, sprint drain, exhaustion and recovery (2.485791ms)
+✔ chain: the opposite cut follows fast inside the window; same side, expired window or a chained cut start fresh (1.211042ms)
+✔ chain grammar: a heavy inside a light's window winds up faster; a light out of an evade is a fast dodge-attack (1.209291ms)
+✔ counter-hit: a clean hit on a committed swing or a roll's tail lands harder and staggers longer; never through a guard or parry (1.205042ms)
+✔ rear hit: striking inside the target's rear arc earns a modest damage and stagger bonus, stacking with a counter (0.788792ms)
+✔ guard counter: a heavy thrown straight out of a block is fast and armoured; any attack or a stagger closes the window; a parry punish outranks it (0.683541ms)
+✔ charged heavy: holding Heavy pauses the wind-up with hyper-armour; a long enough hold multiplies the swing; early release is a plain heavy (1.460542ms)
+✔ buffered input: one action queued in the last ticks of a committed move fires when ready, expires, and clears on cancellation (2.080458ms)
+✔ interrupts: a hit stops a wind-up; a heavy past its poise point trades through a light and still lands (0.736875ms)
+✔ a guard takes a plain heavy for chip and stamina without staggering; a charged heavy, an empty stamina bar or a kick breaks it; a perfect block stops the chip (1.25275ms)
+✔ wounds slow regeneration for a while, refresh without stacking, and only come from unblocked cuts (0.921125ms)
+✔ events: every outcome is reported exactly once per contact and the stream is deterministic (215.054667ms)
+✔ the same intent sequence replays to the same duel; inputs never mutate the previous state; resources stay bounded (270.296375ms)
+✔ unlock creates one context inside the gesture and opts into an iOS playback audio session (39.907375ms)
+✔ unlock resumes an interrupted context (iOS after a call or app switch), and leaves a running one alone (4.964875ms)
+✔ quiet() silences the page: no cue reaches the graph until the next unlock, then cues play again (1.856792ms)
+✔ the shell unlocks audio on the events WebKit treats as user activation, not only pointerdown (0.337917ms)
+✔ gesture trial distinguishes deliberate attacks from jitter, diagonals and invalid input (0.528334ms)
+✔ graphics restoration resumes one loop, clears inputs and preserves the current fight (4.194708ms)
+✔ a shader error during context loss pauses and then recovers rather than killing the loop (0.619458ms)
+✔ unrestored or failed graphics have a manual reload path, with real failures reported (1.097458ms)
+✔ repeated and reordered GPU events never multiply the animation loop or recovery timer (2.085667ms)
+✔ ordinary render failures are not swallowed as recoverable GPU loss (0.502583ms)
+✔ a late draw press buffers one attack, and focus loss cancels it (1.482458ms)
+✔ mobile outer-stick sprint stops on cancellation and menu opening pauses combat (1.321417ms)
+✔ menu sound and camera controls stay synchronized with desktop controls (0.447792ms)
+✔ swipe trial fires once per gesture and clears on cancellation, pause and mode change (2.217166ms)
+✔ dodge control: a tap is an instant backstep, a hold grows it into a roll, and interruption releases it (3.981417ms)
+✔ heavy control: a held key charges the swing and release lets it fly (1.482417ms)
+✔ kick input spends once and clears on pointer cancellation or graphics interruption (2.335375ms)
+✔ combat buttons stay DOM hit targets during cooldown so repeated touches are consumed (23.309958ms)
+✔ page declares double-tap suppression without restricting pinch zoom (0.420667ms)
+✔ production CSP permits one explicit HTTPS ingest origin, not a wildcard (1.438917ms)
+✔ monitoring is disabled without a DSN and excludes high-volume integrations (3.188542ms)
+✔ real SDK sends error and release but strips guest identity and request details (54.749291ms)
+✔ guest identity and name survive loading a new session (2.822208ms)
+✔ broken, wrong-version, mistyped or blocked storage cannot break entry (0.37375ms)
+✔ names remove controls, trim and enforce a short visible identity (0.186542ms)
+✔ one second walks three metres; diagonals cannot move faster (1.666833ms)
+✔ sprint, analog input and camera-relative movement have explicit behavior (0.205375ms)
+✔ idle does not mutate caller state and rejects non-finite inputs (1.104666ms)
+✔ seeded randomized input replay stays bounded, separated and reproducible (17.358958ms)
+✔ sustained input cannot leave arena or enter the target (4.146959ms)
+✔ heading interpolation takes short path across wraparound (0.134334ms)
+ℹ tests 110
+ℹ suites 0
+ℹ pass 110
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3439.903
+
+> frankendom@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 358 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                       7.89 kB │ gzip:   3.20 kB
+dist/assets/sprite-CYyJAomj.ogg     160.62 kB
+dist/assets/sprite-CWffT_Xp.m4a     234.49 kB
+dist/assets/warrior-BH7nYJSu.glb  5,852.82 kB
+dist/assets/index-Dgrr0ya2.css       15.02 kB │ gzip:   3.98 kB
+dist/assets/index-BR6zB6xN.js       719.08 kB │ gzip: 191.48 kB
+
+✓ built in 143ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+found 0 vulnerabilities
+All fight-ready assets: 6989956 bytes raw; 3826173 bytes gzip. Budget PASS.
+
+> frankendom@0.1.0 test:browser
+> node scripts/browser-check.mjs
+
+{
+  "url": "http://127.0.0.1:49533",
+  "physicalPhone": false,
+  "errors": [],
+  "graphicsRestored": true,
+  "afterRestore": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Draw your sword. The warden will counterattack.",
+    "health": 100,
+    "enemy": 100,
+    "stamina": 100
+  },
+  "guardAfterTellMs": 480.1999999284744,
+  "parry": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Parried! The warden is open.",
+    "health": 100,
+    "enemy": 100,
+    "stamina": 100
+  },
+  "riposte": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Clean riposte hit · −24",
+    "health": 100,
+    "enemy": 76,
+    "stamina": 80
+  },
+  "kick": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Kick connected · press the opening",
+    "health": 100,
+    "enemy": 72,
+    "stamina": 62.60000000000011
+  },
+  "bloodModes": [
+    "red",
+    "dark",
+    "off",
+    "red"
+  ],
+  "swipeDeltas": [
+    0,
+    35
+  ],
+  "unsupportedGPU": "Explicit fallback message and disabled combat; expected initialization error captured with telemetry blocked",
+  "passed": true
+}

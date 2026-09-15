@@ -1,0 +1,304 @@
+{
+  "label": "impacts-v1",
+  "seed": 731,
+  "rate": 48000,
+  "path": "sprite, formats tried in order [\"opus\",\"aac\"]",
+  "generated": "2026-09-15T17:25:54.867Z",
+  "revision": "16fd5fb",
+  "dirty": true,
+  "exchange": {
+    "lengthTicks": 932,
+    "seconds": 17.53333333333333,
+    "beats": [
+      {
+        "name": "walk",
+        "tick": 1,
+        "events": []
+      },
+      {
+        "name": "draw",
+        "tick": 102,
+        "events": [
+          "ActionStarted(draw)"
+        ]
+      },
+      {
+        "name": "light",
+        "tick": 159,
+        "events": [
+          "AttackActive(light_right)",
+          "Hit(light_right)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "light",
+        "tick": 198,
+        "events": [
+          "AttackActive(light_left)",
+          "Hit(light_left)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "heavy",
+        "tick": 253,
+        "events": [
+          "AttackActive(heavy_overhead)",
+          "Hit(heavy_overhead)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "guard",
+        "tick": 414,
+        "events": [
+          "ActionStarted(guard)"
+        ]
+      },
+      {
+        "name": "block",
+        "tick": 435,
+        "events": [
+          "AttackActive(light_right)",
+          "Blocked(light_right)"
+        ]
+      },
+      {
+        "name": "parry",
+        "tick": 475,
+        "events": [
+          "AttackActive(light_left)",
+          "Parried(light_left)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "riposte",
+        "tick": 493,
+        "events": [
+          "AttackActive(riposte)",
+          "Hit(riposte)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "hit taken",
+        "tick": 532,
+        "events": [
+          "AttackActive(light_right)",
+          "Hit(light_right)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "kick",
+        "tick": 608,
+        "events": [
+          "AttackActive(kick)",
+          "StaminaExhausted",
+          "Hit(kick)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "death",
+        "tick": 788,
+        "events": [
+          "AttackActive(heavy_overhead)",
+          "Killed(heavy_overhead)",
+          "Hit(heavy_overhead)",
+          "Staggered"
+        ]
+      }
+    ]
+  },
+  "assets": {
+    "raw": 395117,
+    "gzip": 360942
+  },
+  "loudness": {
+    "exchange": {
+      "lufsIntegrated": -20.8,
+      "lufsMomentaryMax": -14.2,
+      "peakDbfs": -3.5,
+      "onsetMs": 7,
+      "lengthMs": 11930
+    },
+    "events/draw": {
+      "lufsIntegrated": -22.4,
+      "lufsMomentaryMax": -22.1,
+      "peakDbfs": -7.1,
+      "onsetMs": 7,
+      "lengthMs": 385
+    },
+    "events/swing-light": {
+      "lufsIntegrated": -24.3,
+      "lufsMomentaryMax": -24.2,
+      "peakDbfs": -8.1,
+      "onsetMs": 8,
+      "lengthMs": 173
+    },
+    "events/swing-heavy": {
+      "lufsIntegrated": -21.8,
+      "lufsMomentaryMax": -20.7,
+      "peakDbfs": -6.7,
+      "onsetMs": 9,
+      "lengthMs": 334
+    },
+    "events/swing-kick": {
+      "lufsIntegrated": -27.4,
+      "lufsMomentaryMax": -27.3,
+      "peakDbfs": -10.9,
+      "onsetMs": 8,
+      "lengthMs": 172
+    },
+    "events/attack-active": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/charging": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/charged": {
+      "lufsIntegrated": -20.8,
+      "lufsMomentaryMax": -19.7,
+      "peakDbfs": -10.8,
+      "onsetMs": 8,
+      "lengthMs": 567
+    },
+    "events/hit-light": {
+      "lufsIntegrated": -23.5,
+      "lufsMomentaryMax": -23.5,
+      "peakDbfs": -4.2,
+      "onsetMs": 6,
+      "lengthMs": 309
+    },
+    "events/hit-heavy": {
+      "lufsIntegrated": -22.7,
+      "lufsMomentaryMax": -20.6,
+      "peakDbfs": -4.1,
+      "onsetMs": 6,
+      "lengthMs": 436
+    },
+    "events/hit-riposte": {
+      "lufsIntegrated": -22.7,
+      "lufsMomentaryMax": -20.6,
+      "peakDbfs": -4.1,
+      "onsetMs": 6,
+      "lengthMs": 436
+    },
+    "events/hit-kick": {
+      "lufsIntegrated": -24.2,
+      "lufsMomentaryMax": -24.2,
+      "peakDbfs": -4.4,
+      "onsetMs": 6,
+      "lengthMs": 255
+    },
+    "events/blocked": {
+      "lufsIntegrated": -26.1,
+      "lufsMomentaryMax": -23.4,
+      "peakDbfs": -4.5,
+      "onsetMs": 6,
+      "lengthMs": 319
+    },
+    "events/blocked-perfect": {
+      "lufsIntegrated": -24,
+      "lufsMomentaryMax": -24,
+      "peakDbfs": -4.1,
+      "onsetMs": 6,
+      "lengthMs": 330
+    },
+    "events/parried": {
+      "lufsIntegrated": -19.5,
+      "lufsMomentaryMax": -18.2,
+      "peakDbfs": -4.4,
+      "onsetMs": 6,
+      "lengthMs": 424
+    },
+    "events/guard-broken": {
+      "lufsIntegrated": -24.2,
+      "lufsMomentaryMax": -21.9,
+      "peakDbfs": -3.3,
+      "onsetMs": 6,
+      "lengthMs": 397
+    },
+    "events/guard": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/parry-attempt": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/feint": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/roll": {
+      "lufsIntegrated": -28.4,
+      "lufsMomentaryMax": -28.3,
+      "peakDbfs": -11.8,
+      "onsetMs": 8,
+      "lengthMs": 171
+    },
+    "events/backstep": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/dodged": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/missed": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/staggered": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/exhausted": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0
+    },
+    "events/killed": {
+      "lufsIntegrated": -20.2,
+      "lufsMomentaryMax": -17.5,
+      "peakDbfs": -3.8,
+      "onsetMs": 6,
+      "lengthMs": 490
+    }
+  }
+}

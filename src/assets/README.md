@@ -158,3 +158,14 @@ v28 (2026-09-15): `head.chin_boss` — the reconstruction's chin was flat (profi
 crease −0.69, chin only 0.011 ahead of the crease at −0.75) where the portraits show a strong rounded chin. A smooth boss
 centred at −0.80, ~15 mm at the tip, 0.21 units wide, pushed along one forward-and-down direction below the lip crease only
 (per-vertex normals tear the open lip boundary), applied before the neck cut so the bake source and the phone mesh share it.
+
+## Combat audio (audio lane, 2026-09-15)
+`src/assets/audio/sprite.m4a` (AAC-LC 96 kb/s, Apple AudioToolbox encoder via ffmpeg `aac_at`, for Safari) and `sprite.ogg`
+(Opus 64 kb/s VBR via ffmpeg `libopus`, for Chrome/Android) are one 19.1 s audio sprite of 46 cues, entirely original
+procedural Foley rendered by `node scripts/build-audio.mjs` — deterministic Node DSP (seeded noise, inharmonic modal iron
+resonators, pitch-dropping body thumps, swept-filter air), no recordings, no downloads, no third-party sample, no AI
+generator, no licence. The generated `src/audio/manifest.ts` maps cue → variants → [start, duration]. Rebuild:
+`node scripts/build-audio.mjs` from the repository root (needs ffmpeg on PATH). Cues: whoosh_light/heavy, draw,
+hit_flesh/heavy/kick, block, block_perfect, parry, guard_break, charge, kill, 2–5 seeded variants each. Evidence per
+iteration under `artifacts/audio/<label>/` (rendered by `scripts/audio-preview.mjs`). The pre-sprite synthesised layers
+remain in `src/feedback.ts` as the fallback until the sprite has decoded.

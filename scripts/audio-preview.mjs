@@ -1,7 +1,8 @@
 // Combat audio evidence harness. Renders the fixed scripted exchange (src/audio/exchange.ts) through the real
 // createFeedback in a headless Chromium OfflineAudioContext — the same Web Audio implementation phones run — to
 // artifacts/audio/<label>/: exchange.wav, one WAV per cue probe, a BS.1770 loudness table and a report. Same script,
-// same seed, every iteration, so BEFORE/AFTER is like-for-like. Usage: node scripts/audio-preview.mjs [--label name] [--seed n]
+// same seed, every iteration, so BEFORE/AFTER is like-for-like. Usage: node scripts/audio-preview.mjs [--label name] [--seed n] [--fallback]
+// (--fallback renders the synth path the game uses until the sprite has decoded.)
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import fs from 'node:fs/promises';
@@ -11,7 +12,7 @@ import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), RATE = 48000, TAIL = 2, PROBE_AT = .05, PROBE_LENGTH = 1.2;
+const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 2, PROBE_AT = .05, PROBE_LENGTH = 1.2;
 const out = path.join('artifacts', 'audio', label);
 await fs.mkdir(path.join(out, 'events'), { recursive: true });
 
@@ -25,27 +26,29 @@ const server = await createServer({ configFile: false, appType: 'custom', logLev
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
-const rendered = {};
+const rendered = {}; let path_ = '';
 try {
   const page = await browser.newPage();
   page.on('pageerror', e => { throw e; });
-  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; window.harness = { createFeedback };</script>` }));
+  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; import { spriteFormats } from '/src/audio/sprite.ts'; window.harness = { createFeedback, spriteFormats };</script>` }));
   await page.goto(`${origin}/harness`);
   await page.waitForFunction(() => !!window.harness, null, { timeout: 20000 });
-  const render = (cues, seconds) => page.evaluate(async ({ cues, seconds, rate, seed }) => {
+  const render = (cues, seconds) => page.evaluate(async ({ cues, seconds, rate, seed, fallback }) => {
     const context = new OfflineAudioContext(1, Math.ceil(seconds * rate), rate);
     let now = 0;
-    const feedback = window.harness.createFeedback({ context, now: () => now, seed });
-    feedback.unlock();
+    const feedback = window.harness.createFeedback({ context, now: () => now, seed, ...(fallback ? { sprite: null } : {}) });
+    feedback.unlock(); const decoded = await feedback.ready();
     for (const { t, events } of cues) { now = t; feedback.update(events); }
     const data = (await context.startRendering()).getChannelData(0);
     // 16-bit PCM, transferred as base64 (Float32 arrays do not serialise through evaluate).
     const pcm = new Int16Array(data.length); for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
     const bytes = new Uint8Array(pcm.buffer); let text = ''; for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    return btoa(text);
-  }, { cues, seconds, rate: RATE, seed });
-  rendered.exchange = new Int16Array(Buffer.from(await render(cues, seconds), 'base64').buffer);
-  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = new Int16Array(Buffer.from(await render([{ t: PROBE_AT, events: probe.events }], PROBE_LENGTH), 'base64').buffer);
+    return { pcm: btoa(text), decoded };
+  }, { cues, seconds, rate: RATE, seed, fallback });
+  const pcm = async (...args) => { const { pcm, decoded } = await render(...args); if (!fallback && !decoded) throw new Error('sprite did not decode in Chromium; rerun with --fallback to render the synth path'); return new Int16Array(Buffer.from(pcm, 'base64').buffer); };
+  path_ = fallback ? 'synth fallback (--fallback)' : `sprite, formats tried in order ${JSON.stringify(await page.evaluate(() => window.harness.spriteFormats()))}`;
+  rendered.exchange = await pcm(cues, seconds);
+  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events }], PROBE_LENGTH);
 } finally { await browser.close(); await server.close(); }
 
 // --- WAV out.
@@ -87,7 +90,7 @@ async function payload(dir) {
 const assets = await payload(path.join('src', 'assets', 'audio'));
 const baseline = label === 'baseline' ? null : await fs.readFile(path.join('artifacts', 'audio', 'baseline', 'loudness.json'), 'utf8').then(JSON.parse).catch(() => null);
 const git = (cmd) => { try { return execSync(cmd, { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
-const receipt = { label, seed, rate: RATE, generated: new Date().toISOString(), revision: git('git rev-parse --short HEAD'), dirty: git('git status --porcelain') !== '', exchange: { lengthTicks: exchange.length, seconds, beats: exchange.beats }, assets, loudness };
+const receipt = { label, seed, rate: RATE, path: path_, generated: new Date().toISOString(), revision: git('git rev-parse --short HEAD'), dirty: git('git status --porcelain') !== '', exchange: { lengthTicks: exchange.length, seconds, beats: exchange.beats }, assets, loudness };
 await fs.writeFile(path.join(out, 'loudness.json'), JSON.stringify(receipt, null, 2));
 
 // --- Report.
@@ -96,7 +99,7 @@ const delta = (name, key) => baseline?.loudness?.[name] ? (loudness[name][key] =
 const rows = Object.entries(loudness).filter(([name]) => name !== 'exchange').map(([name, m]) => `| ${name.slice(7)} | ${fmt(m.lufsIntegrated)} | ${fmt(m.lufsMomentaryMax)} | ${fmt(m.peakDbfs)} | ${fmt(m.onsetMs)} | ${fmt(m.lengthMs)} |${baseline ? ` ${delta(name, 'lufsIntegrated')} |` : ''}`);
 const report = `# Combat audio render — ${label}
 
-Revision ${receipt.revision}${receipt.dirty ? ' (dirty tree)' : ''} · seed ${seed} · ${RATE} Hz mono · rendered ${receipt.generated} through Chromium OfflineAudioContext via \`node scripts/audio-preview.mjs --label ${label}\`.
+Revision ${receipt.revision}${receipt.dirty ? ' (dirty tree)' : ''} · seed ${seed} · ${RATE} Hz mono · audio path: ${path_} · rendered ${receipt.generated} through Chromium OfflineAudioContext via \`node scripts/audio-preview.mjs --label ${label}\`.
 
 ## Exchange (${exchange.length} ticks = ${(exchange.length / 60).toFixed(2)} s, render ${seconds.toFixed(2)} s): \`exchange.wav\`
 | beat | tick | time | events on that tick |
