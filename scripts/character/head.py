@@ -1370,24 +1370,17 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     neck_only.data = weights_from.data.copy()
     bpy.context.collection.objects.link(neck_only)
     cut_above(neck_only, neck_z + 0.0015, select_only)
-    # the chin: going up from the cut, the profile's front-most point comes forward until the chin tip, then recedes into
-    # the lip crease (the lips further up stick out even more, so "most forward" alone finds the mouth)
-    front = {}
-    for v in head.data.vertices:
-        if neck_z < v.co.z < neck_z + 0.10 and abs(v.co.x - neck_c.x) < 0.02:
-            k = int((v.co.z - neck_z) / 0.003)
-            front[k] = min(front.get(k, 1e9), v.co.y)
-    window = int(0.4 * scale / 0.003)  # the chin tip is the most forward point in the 0.4 scan-unit band above the cut (the mouth starts ~0.55 up)
-    chin_k = min((k for k in front if k <= window), key=lambda k: front[k])
-    chin_z = neck_z + chin_k * 0.003
-    band = min(0.05, max(0.015, chin_z - neck_z - 0.008))  # the blend must end under the chin: any higher and it draws the lips in over the teeth
-    print(f'KEENTOOLS collar band {band * 100:.1f} cm (chin {(chin_z - neck_z) * 100:.1f} cm above the cut)')
+    # the collar blend must stay under the chin: on this scan the chin's underside is 0.14 scan units above the cut
+    # (profile measured 2026-09-15: lips at -0.51…-0.66, chin tip -0.75, underside -0.85, cut -0.99 below eye level), so
+    # the geometric band is 0.10 units and the texture fade 0.14 — detecting the chin from the profile found the lip once
+    band = 0.10 * scale
+    print(f'KEENTOOLS collar band {band * 100:.1f} cm')
     for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
         neck_blend(o, neck_only, neck_z, neck_c, band=band)
     bpy.data.objects.remove(neck_only, do_unlink=True)
     cut_above(weights_from, neck_z + 0.0015, select_only)  # our head goes; our neck ends just inside the scan's collar
     fade_vg = head.vertex_groups.new(name='seam_fade')  # the texture's fade to the body tone: taller than the geometric collar, still under the chin
-    fade_band = min(0.045, max(band, chin_z - neck_z - 0.004))
+    fade_band = 0.14 * scale
     for v in head.data.vertices:
         t = min(1.0, max(0.0, (v.co.z - neck_z) / fade_band))
         w = 1 - t * t * (3 - 2 * t)

@@ -143,3 +143,8 @@ camera as un-photographed and paints hair right down to the collar at the back, 
 two photographed "tails" beside a filled centre. Both skin tiles share one tone normalisation (`BODY_NORM`), and the shoulder-top
 sun zone is gone — its edge sat on the head tile's boundary. `character-preview.html` follows the combat lane's export clean-up
 (`DEFENCE`/`KICK` rebuilt from `RULES`/`MOVES`).
+
+v26 (2026-09-15): the collar blend under the jaw is a fixed 0.10 scan units (the profile-based chin finder had picked the lip and
+the blend flattened the chin); the texture fade 0.14. `parts.align_legs` lays each leg onto its bones the way `align_arms` does
+the arms — the Studio body stood ~5 cm ahead of the rig at the knee and ~11 cm at the ankle, so the ankle joint hinged behind the
+foot. The sandal's ankle strap is a strap again (3.5 cm, the wraps' leather).
