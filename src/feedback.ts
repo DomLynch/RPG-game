@@ -7,10 +7,14 @@ export function createFeedback() {
     if (!enabled || typeof AudioContext === 'undefined') return;
     if (!context) {
       try { context = new AudioContext(); } catch { enabled = false; return; } master = context.createGain(); master.gain.value = .22; master.connect(context.destination);
+      // iOS mutes "ambient" web audio under the ringer switch; a playback session plays like a game does (Safari 17+).
+      const session = typeof navigator === 'undefined' ? undefined : (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+      if (session) try { session.type = 'playback'; } catch { /* unsupported value on older WebKit */ }
       noise = context.createBuffer(1, context.sampleRate * .3, context.sampleRate);
       const data = noise.getChannelData(0); for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     }
-    if (context.state === 'suspended') void context.resume().catch(() => {});
+    // iOS also parks the context in 'interrupted' after calls, Siri or an app switch; resume from any non-running state.
+    if (context.state !== 'running') void context.resume().catch(() => {});
   }
   function play(kind: 'swing' | 'hit' | 'steel' | 'parry') {
     if (!enabled || !context || !master || !noise || context.state !== 'running') return;

@@ -11,8 +11,9 @@ import { createScene } from './scene.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('world');
 const feedback = createFeedback();
-window.addEventListener('pointerdown', () => feedback.unlock());
-window.addEventListener('keydown', () => feedback.unlock());
+// WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
+// preventDefault on pointerdown, which suppresses click. Listen to the whole family so the first tap unlocks on iOS.
+for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(type, () => feedback.unlock(), { passive: true });
 for (const id of ['sound-button', 'mobile-sound']) element(id).addEventListener('click', () => { const enabled = feedback.toggle(); for (const target of ['sound-button', 'mobile-sound']) { element(target).textContent = enabled ? 'Sound on' : 'Sound off'; element(target).setAttribute('aria-pressed', String(enabled)); } });
 const welcome = element('welcome');
 const journal = element<HTMLDialogElement>('journal');
