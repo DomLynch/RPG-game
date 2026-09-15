@@ -143,59 +143,28 @@ test('swipe trial fires once per gesture and clears on cancellation, pause and m
   assert.equal(app.element('stamina').value,100);
 });
 
-test('weapon disc grammars: flick strikes at once; drag loads and releases without charging; drag with hold charges; back to centre feints', () => {
-  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  const pad = app.element('gesture-pad'), me = () => app.rendered.duel.fighters[0];
-  const pointer = (type: string, x: number, y: number, id = 1) => pad.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y }));
-  const cycle = (n: number) => { for (let i = 0; i < n; i++) app.element('controls-mode').click(); };
-  // The live warden is part of the harness: wait for a quiet moment before each stroke so its swings never confound the player's state.
-  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
-  cycle(2); settle(); assert.match(app.element('controls-mode').textContent, /drag & release \(v2\)/);
-  // v2: the down-stroke loads a heavy and holds it at the chamber; a long hold releases itself before the charge; release swings.
-  pointer('pointerdown', 60, 60); pointer('pointermove', 60, 100); app.tick();
-  assert.equal(me().move, 'heavy_overhead'); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().age, MOVES.heavy_overhead.chamber!, 'held at the chamber');
-  for (let i = 0; i < 40; i++) app.tick(); assert.ok(me().age > MOVES.heavy_overhead.chamber!, 'v2 lets go by itself'); assert.equal(me().charged, false, 'and never charges');
-  pointer('pointerup', 60, 100); for (let i = 0; i < 80; i++) app.tick(); settle();
-  // v2 feint: load a cut, return to the centre before releasing → the swing is cancelled into a guard.
-  pointer('pointerdown', 60, 60); pointer('pointermove', 100, 60); app.tick(); assert.equal(me().move, 'light_right'); for (let i = 0; i < 4; i++) app.tick();
-  pointer('pointermove', 62, 60); app.tick(); assert.equal(me().phase, 'guard', 'back to centre feints'); pointer('pointerup', 62, 60); for (let i = 0; i < 60; i++) app.tick();
-  // v3: the same down-stroke held long enough charges.
-  cycle(1); assert.match(app.element('controls-mode').textContent, /hold to charge \(v3\)/); settle();
-  pointer('pointerdown', 60, 60); pointer('pointermove', 60, 100); app.tick(); for (let i = 0; i < 48; i++) app.tick();
-  assert.equal(me().charged, true, 'v3 charges on a long hold'); pointer('pointerup', 60, 100); for (let i = 0; i < 80; i++) app.tick();
-  // The scheme persists on this device and the cycle returns to buttons.
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'charge'); cycle(3); assert.equal(app.element('controls-mode').textContent, 'Controls: buttons');
-});
 
-test('v5 thumb cluster: round buttons incl. a Stab button that thrusts and holds; v6 segmented disc: a tap toward a sector attacks, the thumb staying down charges', () => {
+test('the thumb cluster is the mobile layout: round buttons incl. a Stab button that thrusts and holds; Controls swaps to the flick disc and back', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   const me = () => app.rendered.duel.fighters[0], actions = app.element('actions');
-  const press = (el: Element, type: string, x = 0, y = 0, id = 5) => el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y }));
+  const press = (el: Element, type: string, id = 5) => el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: 0, clientY: 0 }));
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
-  for (let i = 0; i < 4; i++) app.element('controls-mode').click(); app.tick();
-  assert.match(app.element('controls-mode').textContent, /thumb cluster .* \(v5\)/); assert.equal(actions.dataset.gestures, 'cluster');
+  assert.equal(app.element('controls-mode').textContent, 'Controls: thumb cluster'); assert.equal(actions.dataset.gestures, 'cluster');
   const thrust = app.element('thrust-button'); assert.equal(thrust.hidden, false); assert.equal(app.element('attack-button').dataset.mobile, 'Slash'); assert.equal(app.element('kick-button').hidden, false);
   settle(); press(thrust, 'pointerdown'); app.tick(); assert.equal(me().move, 'thrust');
-  for (let i = 0; i < 12; i++) app.tick(); assert.equal(me().age, MOVES.thrust.chamber!, 'held Stab loads the thrust'); press(thrust, 'pointerup'); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > MOVES.thrust.chamber!, 'released, it goes'); for (let i = 0; i < 60; i++) app.tick();
-  // v6: the pad's centre is (54, 54) in the harness (108-square rect); a tap toward a sector is that attack.
-  app.element('controls-mode').click(); app.tick(); assert.match(app.element('controls-mode').textContent, /segmented disc .* \(v6\)/); assert.equal(actions.dataset.gestures, 'sectors');
-  assert.equal(app.element('kick-button').hidden, true, 'v6 kicks from the disc'); assert.equal(app.element('sectors').hidden, false); assert.equal(thrust.hidden, true, 'the cluster button is only for v5');
-  const pad = app.element('gesture-pad');
-  for (const [x, y, expect] of [[54, 14, 'thrust'], [14, 54, 'light_right'], [94, 54, 'heavy_overhead'], [54, 94, 'kick']] as const) {
-    settle(); press(pad, 'pointerdown', x, y); app.tick(); assert.equal(me().move, expect, `sector at ${x},${y}`); press(pad, 'pointerup', x, y); for (let i = 0; i < 70; i++) app.tick();
-  }
-  settle(); const stamina = Number(app.element('stamina').value); press(pad, 'pointerdown', 54, 58); app.tick(); assert.equal(Number(app.element('stamina').value), stamina, 'the dead zone in the middle does nothing'); press(pad, 'pointerup', 54, 58);
-  settle(); press(pad, 'pointerdown', 94, 54); app.tick(); for (let i = 0; i < 48; i++) app.tick(); assert.equal(me().charged, true, 'a held heavy sector charges'); press(pad, 'pointerup', 94, 54);
+  for (let i = 0; i < 12; i++) app.tick(); assert.equal(me().age, MOVES.thrust.chamber!, 'held Stab loads the thrust'); press(thrust, 'pointerup'); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > MOVES.thrust.chamber!, 'released, it goes');
+  app.element('controls-mode').click(); app.tick(); assert.equal(app.element('controls-mode').textContent, 'Controls: weapon disc · flick'); assert.equal(actions.dataset.gestures, 'flick'); assert.equal(thrust.hidden, true, 'Stab is a cluster button');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'flick'); app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
 });
 
 
 test('the scorecard tallies fights, wins, rematches and damage per scheme', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until the warden wins
-  assert.ok(app.rendered.finish, 'the fight ends'); const card = () => JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.buttons;
+  assert.ok(app.rendered.finish, 'the fight ends'); const card = () => JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.cluster;
   assert.equal(card().fights, 1); assert.equal(card().wins, 0); assert.equal(card().taken, 100); assert.ok(card().ticks > 600);
   app.element('reset-button').click(); app.tick(); assert.equal(card().rematches, 1); assert.equal(card().fights, 1, 'a rematch is not a fight until it ends');
-  app.element('journal-button').click(); assert.match(app.element('scorecard').textContent, /^buttons — 1 fights · 0 won · 1 rematches/);
+  app.element('journal-button').click(); assert.match(app.element('scorecard').textContent, /^thumb cluster — 1 fights · 0 won · 1 rematches/);
 });
 
 test('dodge control: a tap is an instant backstep, a hold grows it into a roll, and interruption releases it', () => {
@@ -254,10 +223,9 @@ test('a tap that ends before the next tick still lands: only pointercancel withd
   settle(); tap(app.element('heavy-button')); app.tick(); assert.equal(me().move, 'heavy_overhead', 'a same-frame heavy tap lands'); for (let i = 0; i < 70; i++) app.tick();
   settle(); tap(app.element('dodge-button')); app.tick(); assert.equal(me().phase, 'backstep', 'a same-frame step tap lands'); for (let i = 0; i < 20; i++) app.tick();
   settle(); tap(app.element('guard-button')); app.tick(); assert.equal(me().phase, 'guard', 'a same-frame guard tap opens the parry window'); assert.equal(me().parrying, true); for (let i = 0; i < 40; i++) app.tick();
-  app.element('controls-mode').click(); app.tick();   // v1 disc
+  settle(); tap(app.element('thrust-button')); app.tick(); assert.equal(me().move, 'thrust', 'a same-frame Stab tap lands'); for (let i = 0; i < 50; i++) app.tick();
+  app.element('controls-mode').click(); app.tick();   // the flick disc
   const pad = app.element('gesture-pad'); settle(); press(pad, 'pointerdown', 60, 60); press(pad, 'pointermove', 60, 20); press(pad, 'pointerup', 60, 20); press(pad, 'lostpointercapture', 60, 20); app.tick();
   assert.equal(me().move, 'thrust', 'a same-frame flick lands'); for (let i = 0; i < 50; i++) app.tick();
   settle(); press(pad, 'pointerdown', 60, 60); press(pad, 'pointermove', 100, 60); press(pad, 'pointercancel', 100, 60); app.tick(); assert.notEqual(me().phase, 'attack', 'a cancelled pointer withdraws the press');
-  for (let i = 0; i < 4; i++) app.element('controls-mode').click(); app.tick();   // v5 cluster
-  settle(); tap(app.element('thrust-button')); app.tick(); assert.equal(me().move, 'thrust', 'a same-frame Stab tap lands');
 });
