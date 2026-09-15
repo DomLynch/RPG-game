@@ -66,3 +66,11 @@
 - Gate green (82/82), triangle count < 60k, budget < 5 MB gzip, blade paths unchanged, seam invisible in `neck front`/`neck side`.
 - Ship end to end (PR → merge → deploy → live hash check) and report revisions for MacBook / GitHub trunk / live, the review
   folder, and an honest list of what is still short.
+
+## Open defects after v27 (tracked here; owner-visible)
+- **Nape collar band** — a pale strip between the nape hairline and the neck in `humanoid-v27/chin-feet-audit.png` ("nape" and
+  "neck side" cells), most visible under the studio rim light, faint at the phone camera. Cause: the collar band is painted flat
+  `SKIN_TONE` with no occlusion, while the neck below carries baked occlusion. Tried and reverted (2026-09-15): a Cycles AO bake
+  into the band (blotchy at 16 samples, dark under the jaw) and a 35% blend toward the local blurred tone (went grey). Next lever:
+  bake AO at 64+ samples and apply it only at the back (`hair_zone`-gated), or paint the band from the body tile's neck texels.
+- **Under-chin fill streaks** — faint radial streaks in the "under chin" cell where no camera saw; only visible from below.
