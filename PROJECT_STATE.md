@@ -222,3 +222,7 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 
 ## Souls slice D — guard counter — 2026-09-15
 - `Fighter.counterWindow` set to RULES.guardCounter (20) on every Blocked; `chooseMove('heavy')` → `heavy_counter` while open (punish → heavy riposte outranks); cleared by any attack start and by stagger. New move reuses the heavy riposte path/timing (no extra bake). Hint appends "· heavy to counter" while the window is open; journal line updated. Tests 93→94; mutations 4/4 caught after fixing a vacuous trade scenario (the warden had still been recovering from its blocked swing, so the poise check never ran).
+
+## Souls slice E — charged heavy — 2026-09-15
+- RULES.charge {at 10, min 12, max 40, damage 1.5, stagger 1.5}; `Intent.heavyHeld` level; `Fighter.charge/charged`; the wind-up section rewinds age to the charge point while held (Charging event once); hyper-armour while charging; charged multipliers on Hit and GuardBroken. Input: Heavy button/G hold → `heavyHeld`; release/cancel/GPU loss clear it. Overlay shows `charge n` / CHARGED. Tests 94→96 (hold/early release/long hold/max auto-release/hyper-armour with counter-hit/feint from charge/no charge for chained-riposte heavies; entry-point hold via the real main.ts with a `rendered` capture added to the harness). Mutations 7/7 caught incl. the input layer.
+- Slice complete: I, A(+soft B), D, E all live. Next per plan: phone playtest, then C (thrust) and G (poise/posture).

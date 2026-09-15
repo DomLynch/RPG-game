@@ -54,7 +54,7 @@ export const MOVES: Record<MoveId, MoveDef> = {
   heavy_overhead: {
     id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: 'heavy_overhead_chain', chained: { windup: 22, active: 5, recovery: 31 }, chain: null,
     windup: 32, active: 5, recovery: 31, damage: 18, stamina: 35, staminaDamage: 0, stagger: 24, poise: 24, poiseFrom: 24,
-    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 10, reach: 1.9, vsGuard: null,
+    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 11, reach: 1.9, vsGuard: null,   // feintable through the charge point, so a charge can be a bait
   },
   riposte: {
     id: 'riposte', direction: 'thrust', path: 'riposte', chainPath: null, chained: null, chain: null,
@@ -92,6 +92,9 @@ export const RULES = {
   // Rear hit: a modest bonus for striking inside the target's rear arc; a true backstab is earned later under stricter conditions.
   counter: { damage: 1.25, stagger: 1.5 }, rear: { arc: Math.PI / 2, damage: 1.15, stagger: 1.25 },
   guardCounter: 20,   // ticks after a block in which Heavy becomes the guard counter; any attack consumes the window
+  // Charged heavy: holding Heavy pauses the plain heavy's wind-up at `at` with hyper-armour; releasing after `min` held ticks (or at `max`)
+  // swings for the multiplied damage and stagger. Only the plain heavy charges.
+  charge: { at: 10, min: 12, max: 40, damage: 1.5, stagger: 1.5 },
   bufferWindow: 10, bufferTtl: 11, stepInFrom: 3, turnStart: .3, turnWindup: .25,
   location: { head: 1, torso: 1, legs: 1 } as Record<'head' | 'torso' | 'legs', number>,
 } as const;
