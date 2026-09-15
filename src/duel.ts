@@ -1,11 +1,11 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
-import { MOVES, RULES, total, type Direction, type MoveId, type Timing } from './moves.ts';
+import { MOVES, RULES, total, type Direction, type GuardProfile, type MoveId, type Timing } from './moves.ts';
 import { advance, initialState, TARGET, wrapAngle, type Input, type State } from './sim.ts';
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
-export type Phase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'guard' | 'hurt' | 'dead';
-export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'kick' | 'dodge' | 'parry';
+export type Phase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead';
+export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'kick' | 'dodge' | 'backstep' | 'parry';
 export type Intent = {
   move: Input;                  // camera-relative stick/keys
   action: Action | null;        // edge-triggered request for this tick; one is buffered late in a committed action
@@ -19,35 +19,42 @@ export type Fighter = {
   body: State; health: number; stamina: number; rest: number; exhausted: boolean; wound: number; woundSite: HitLocation;
   phase: Phase; age: number; move: MoveId | null; chained: boolean; landed: boolean;
   chain: number; lastMove: MoveId | null; parryCooldown: number; punish: number; stun: number;
-  guardDirection: Direction | null; parrying: boolean; exposed: number; buffer: { action: Action; ttl: number } | null;
+  guardDirection: Direction | null; parrying: boolean; exposed: number; evaded: number; buffer: { action: Action; ttl: number } | null;
+  guardProfile?: Partial<GuardProfile>;   // shield/loadout overrides; absent = the longsword defaults in RULES
 };
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number };
 export type EventType = 'ActionStarted' | 'AttackStarted' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'guard' | 'parry'; damage?: number; location?: HitLocation; heading?: number; ticks?: number };
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; location?: HitLocation; heading?: number; ticks?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
-export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: 100, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, guardDirection: null, parrying: false, exposed: 0, buffer: null });
+export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: 100, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, buffer: null });
 export const initialDuel = (): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
 export const timing = (f: Fighter): Timing => f.chained && f.move ? MOVES[f.move].chained! : MOVES[f.move!];
-export const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
+const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
+export const guardOf = (f: Fighter, R: typeof RULES = RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, stopsHeavy: false, ...f.guardProfile });
+// A swing may be feinted (cancelled into a fresh guard) only in its first ticks and only for a price.
+export const feintable = (f: Fighter, R: typeof RULES = RULES): boolean => f.phase === 'attack' && f.move !== null && f.age < MOVES[f.move].feintUntil && f.stamina >= R.feintCost;
 // Ticks a committed phase lasts; null for phases that end on input.
-export function phaseLength(f: Fighter): number | null {
+function phaseLength(f: Fighter): number | null {
   if (f.phase === 'draw') return RULES.draw;
   if (f.phase === 'attack') return total(timing(f));
   if (f.phase === 'roll') return RULES.roll;
+  if (f.phase === 'backstep') return RULES.backstep.ticks;
   if (f.phase === 'hurt' || f.phase === 'dead') return f.stun;
   return null;
 }
+// The tail of every committed phase accepts one queued action, so a press as you come out of a swing, a draw, a roll or a
+// stagger is never lost. Death has no tail.
 export function inBufferWindow(f: Fighter): boolean {
-  const length = (f.phase === 'attack' || f.phase === 'draw') ? phaseLength(f)! : 0;
-  return length > 0 && f.age >= length - RULES.bufferWindow;
+  const length = f.phase === 'dead' ? null : phaseLength(f);
+  return length !== null && f.age >= length - RULES.bufferWindow;
 }
-export function chooseMove(f: Fighter, action: Action): MoveId {
-  if (action === 'heavy') return 'heavy_overhead';
+function chooseMove(f: Fighter, action: Action): MoveId {
+  if (action === 'heavy') return f.punish > 0 ? 'heavy_riposte' : 'heavy_overhead';
   if (action === 'kick') return 'kick';
   if (f.punish > 0) return 'riposte';
   if (action === 'light_left' || action === 'light_right') return action;
@@ -56,16 +63,19 @@ export function chooseMove(f: Fighter, action: Action): MoveId {
 // Whether a fighter may start `action` right now; the same test the HUD uses to show enabled controls.
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted) return false;
-  if (isLight(action)) return f.phase === 'sheathed' || (f.phase === 'ready' && f.stamina >= MOVES[chooseMove(f, action)].stamina);
-  if (action === 'heavy') return f.phase === 'ready' && f.stamina >= MOVES.heavy_overhead.stamina;
-  if (action === 'kick') return (f.phase === 'ready' || f.phase === 'guard') && f.stamina >= MOVES.kick.stamina;
-  if (action === 'dodge') return (f.phase === 'ready' || f.phase === 'guard') && f.stamina >= RULES.rollCost;
-  return f.phase === 'ready' && !f.exposed;
+  const standing = f.phase === 'ready' || f.phase === 'guard';   // a guard yields to any action; it never eats an input
+  const stepping = f.phase === 'backstep', stepTail = stepping && f.age >= RULES.backstep.cancelFrom;   // a backstep's tail cancels into a swing
+  if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= MOVES[chooseMove(f, action)].stamina);
+  if (action === 'heavy') return (standing || stepTail) && f.stamina >= MOVES[chooseMove(f, action)].stamina;
+  if (action === 'kick') return standing && f.stamina >= MOVES.kick.stamina;
+  if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
+  if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
+  return (f.phase === 'ready' && !f.exposed) || feintable(f);
 }
 
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
   const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters;
-  const fighters = before.map(f => ({ ...f, age: f.age + 1, wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), punish: Math.max(0, f.punish - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
+  const fighters = before.map(f => ({ ...f, age: f.age + 1, wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), punish: Math.max(0, f.punish - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events };
   const spend = (i: Side, cost: number) => {
     const f = fighters[i]; f.stamina = Math.max(0, f.stamina - cost); f.rest = R.regenDelay;
@@ -81,37 +91,48 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (action) next.buffer = null;
     const face = (limit: number) => { if (intent.lock) next.body = { ...next.body, heading: next.body.heading + Math.max(-limit, Math.min(limit, wrapAngle(aim(next.body, foe.body) - next.body.heading))) }; };
     if (action === 'dodge') {
-      // Direction locks at the press; without movement, roll away from the opponent.
+      // Direction locks at the press; without movement, roll away from the opponent. A roll grown out of a backstep pays the difference.
       const moving = Math.hypot(intent.move.x, intent.move.z) > .1;
       next.body = { ...me.body, heading: moving ? advance(me.body, intent.move, foe.body).heading : aim(me.body, foe.body) + Math.PI };
-      next.phase = 'roll'; next.age = 0; spend(i, R.rollCost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'roll' });
+      next.phase = 'roll'; next.age = 0; spend(i, me.phase === 'backstep' ? R.rollCost - R.backstep.cost : R.rollCost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'roll' });
+    } else if (action === 'backstep') {
+      next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
     } else if (action === 'kick') {
       next.phase = 'attack'; next.age = 0; next.move = 'kick'; next.chained = false; next.landed = false; next.chain = 0; next.lastMove = 'kick'; spend(i, MOVES.kick.stamina);
       if (intent.lock) next.body = { ...me.body, heading: aim(me.body, foe.body) };
       events.push({ tick, type: 'AttackStarted', actor: i, move: 'kick' });
-    } else if ((action === 'parry' || intent.guard) && me.phase === 'ready' && !me.exhausted && !me.exposed) {
-      const fresh = action === 'parry' && !me.parryCooldown;
-      next.phase = 'guard'; next.age = fresh ? 0 : R.parry; next.guardDirection = intent.guardDirection ?? null; next.parrying = fresh;
-      if (fresh) next.parryCooldown = R.parryCooldown;
-      events.push({ tick, type: 'ActionStarted', actor: i, action: fresh ? 'parry' : 'guard' });
     } else if (isLight(action) || action === 'heavy') {
       if (me.phase === 'sheathed') { next.phase = 'draw'; next.age = 0; events.push({ tick, type: 'ActionStarted', actor: i, action: 'draw' }); }
       else {
         const id = chooseMove(me, action!), def = MOVES[id];
-        next.chained = !!def.chained && me.chain > 0 && me.lastMove !== null && !!MOVES[me.lastMove].chain?.follow.includes(id);
-        next.phase = 'attack'; next.age = 0; next.move = id; next.landed = false; next.chain = 0; next.lastMove = id; next.punish = 0; spend(i, def.stamina);
+        // Chained timing: a listed follow-up inside the chain window, or a light out of an evade (dodge-attack).
+        const follows = me.chain > 0 && me.lastMove !== null && !!MOVES[me.lastMove].chain?.follow.includes(id);
+        next.chained = !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep')));
+        next.phase = 'attack'; next.age = 0; next.move = id; next.landed = false; next.chain = 0; next.lastMove = id; next.punish = 0; next.parrying = false; next.guardDirection = null; spend(i, def.stamina);
         events.push({ tick, type: 'AttackStarted', actor: i, move: id });
       }
       face(R.turnStart);
+    } else if (action === 'parry' && feintable(me, R)) {
+      // Feint: the swing already paid for is abandoned into a guard; a fresh press still opens its parry window.
+      const fresh = !me.parryCooldown;
+      next.phase = 'guard'; next.age = fresh ? 0 : guardOf(me, R).window; next.move = null; next.guardDirection = intent.guardDirection ?? null; next.parrying = fresh; spend(i, R.feintCost);
+      if (fresh) next.parryCooldown = R.parryCooldown;
+      events.push({ tick, type: 'ActionStarted', actor: i, action: 'feint' });
+    } else if ((action === 'parry' || intent.guard) && me.phase === 'ready' && !me.exhausted && !me.exposed) {
+      const fresh = action === 'parry' && !me.parryCooldown;
+      next.phase = 'guard'; next.age = fresh ? 0 : guardOf(me, R).window; next.guardDirection = intent.guardDirection ?? null; next.parrying = fresh;
+      if (fresh) next.parryCooldown = R.parryCooldown;
+      events.push({ tick, type: 'ActionStarted', actor: i, action: fresh ? 'parry' : 'guard' });
     }
   }
   // 2. Committed phases expire, then movement resolves in index order against the other body.
   for (const i of [0, 1] as const) {
-    const next = fighters[i], intent = intents[i], foe = fighters[1 - i].body, length = phaseLength(next);
-    // A parry attempt that met nothing may leave the fighter exposed (R.parryRecovery ticks, 0 = off); a punish window proves it connected.
-    if (next.phase === 'guard' && next.age >= R.parry && next.parrying) { next.parrying = false; if (R.parryRecovery > 0 && !next.punish) { next.phase = 'ready'; next.age = 0; next.exposed = R.parryRecovery; } }
-    if ((length !== null && next.age >= length && next.phase !== 'dead') || (next.phase === 'guard' && !intent.guard && next.age >= R.parry)) {
+    const next = fighters[i], intent = intents[i], foe = fighters[1 - i].body, length = phaseLength(next), window = guardOf(next, R).window;
+    // A parry attempt that met nothing leaves the fighter exposed for R.parryRecovery ticks (0 = off); a punish window proves it connected.
+    if (next.phase === 'guard' && next.age >= window && next.parrying) { next.parrying = false; if (R.parryRecovery > 0 && !next.punish) { next.phase = 'ready'; next.age = 0; next.exposed = R.parryRecovery; } }
+    if ((length !== null && next.age >= length && next.phase !== 'dead') || (next.phase === 'guard' && !intent.guard && next.age >= window)) {
       if (next.phase === 'attack' && !next.chained && next.move && MOVES[next.move].chain) next.chain = MOVES[next.move].chain!.window;
+      if (next.phase === 'roll' || next.phase === 'backstep') next.evaded = R.dodgeAttackWindow;
       next.phase = 'ready'; next.age = 0; next.guardDirection = null; next.parrying = false;
     }
     if (next.phase === 'attack' && next.move && next.age < timing(next).windup) {
@@ -121,6 +142,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (lunge && next.age > R.stepInFrom) next.body = advance(next.body, { x: Math.sin(next.body.heading) * lunge, z: Math.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe);
     } else if (next.phase === 'roll') {
       next.body = advance(next.body, { x: Math.sin(next.body.heading), z: Math.cos(next.body.heading), yaw: 0, run: true }, foe);
+    } else if (next.phase === 'backstep') {
+      // Straight back along the facing, still facing the opponent: no turn, no invulnerability, just distance.
+      next.body = { ...advance(next.body, { x: -Math.sin(next.body.heading) * R.backstep.speed, z: -Math.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe), heading: next.body.heading };
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
       const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
       const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe);
@@ -151,8 +175,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     }
     if (!location) continue;
     A.landed = true;
-    const facing = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) <= R.guardArc;
+    const g = guardOf(d, R), facing = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) <= g.arc;
     const guarding = d.phase === 'guard' && facing && (!R.directionalGuard || !d.guardDirection || d.guardDirection === def.direction);
+    const breaks = def.breaksGuard && !g.stopsHeavy, blockCost = def.staminaDamage * g.costScale;
     const stagger = (ticks: number) => {
       D.phase = D.health ? 'hurt' : 'dead'; D.age = 0; D.stun = D.health ? ticks : R.death; D.buffer = null;
       events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun });
@@ -165,13 +190,15 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (!D.health) { finish = { victim: j, location: location!, move: a.move!, heading: a.body.heading }; events.push({ tick, type: 'Killed', actor: i, target: j, move: a.move!, location: location!, heading: a.body.heading }); }
     };
     if (d.phase === 'roll' && d.age >= R.safeStart && d.age <= R.safeEnd) events.push({ tick, type: 'Dodged', actor: j, target: i, move: a.move });
-    else if (guarding && d.age < R.parry && def.parryable) {
+    else if (guarding && d.age < g.window && def.parryable) {
       A.phase = 'hurt'; A.age = 0; A.stun = R.parryStun; A.buffer = null; D.punish = R.parryStun;
       events.push({ tick, type: 'Parried', actor: j, target: i, move: a.move }, { tick, type: 'Staggered', actor: i, ticks: R.parryStun });
     } else if (guarding && def.vsGuard) {
       spend(j, def.vsGuard.staminaDamage); wound(def.damage, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: def.damage, location, heading: a.body.heading }); stagger(def.vsGuard.stagger);
-    } else if (guarding && !def.breaksGuard && d.stamina >= def.staminaDamage) {
-      spend(j, def.staminaDamage); events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move });
+    } else if (guarding && !breaks && d.stamina >= blockCost) {
+      // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half.
+      const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost;
+      spend(j, cost); events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect });
     } else {
       const damage = Math.round(def.damage * R.location[location]);
       if (guarding) { spend(j, d.stamina); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading }); stagger(def.stagger); }
@@ -186,4 +213,3 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   return { tick, fighters, finish, events };
 }
 
-export const pathFor = (f: Fighter) => f.move && f.move !== 'kick' ? (f.chained ? MOVES[f.move].chainPath : MOVES[f.move].path) : null;
