@@ -377,6 +377,64 @@ test('rear hit: striking inside the target\'s rear arc earns a modest damage and
   assert.equal(both.fighters[0].health, 100 - Math.round(light.damage * RULES.counter.damage * RULES.rear.damage), 'counter and rear multiply');
 });
 
+test('guard counter: a heavy thrown straight out of a block is fast and armoured; any attack or a stagger closes the window; a parry punish outranks it', () => {
+  const blocked = run(stepDuel(duel(), [hold(), idle()]), RULES.perfectBlock + 1, hold());   // a settled guard: an ordinary block
+  const after = run({ ...blocked, fighters: [blocked.fighters[0], { ...blocked.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, 1, hold(), idle());
+  assert.ok(types(after).includes('Blocked')); assert.equal(after.fighters[0].counterWindow, RULES.guardCounter);
+  const counter = stepDuel(after, [act('heavy', { guard: true }), idle()]);
+  assert.equal(counter.fighters[0].move, 'heavy_counter'); assert.equal(counter.fighters[0].counterWindow, 0); assert.equal(counter.fighters[0].stamina, 100 - light.staminaDamage - MOVES.heavy_counter.stamina);
+  assert.equal(MOVES.heavy_counter.windup, MOVES.heavy_riposte.windup, 'shares the fast heavy path');
+  // Armoured against a light from its early wind-up, and it still lands.
+  let trade = { ...counter, fighters: [counter.fighters[0], { ...counter.fighters[1], phase: 'ready' as const, age: 0, move: null }] } as Duel;
+  trade = stepDuel(trade, [idle(), idle()]); trade = run(stepDuel(trade, [idle(), act('light')]), light.windup);
+  assert.ok(types(trade).includes('Hit') && trade.fighters[0].health < 100, 'the light connects');
+  assert.equal(trade.fighters[0].phase, 'attack', 'but does not interrupt the guard counter');
+  trade = run(trade, MOVES.heavy_counter.windup - trade.fighters[0].age);
+  assert.ok(types(trade).includes('Hit') && trade.fighters[1].health < 100 - MOVES.heavy_counter.damage + 1, 'the counter lands');
+  // The window expires; a light in the window is an ordinary light; a stagger or any attack consumes it.
+  assert.equal(stepDuel(run(after, RULES.guardCounter, hold()), [act('heavy', { guard: true }), idle()]).fighters[0].move, 'heavy_overhead');
+  assert.equal(stepDuel(after, [act('light', { guard: true }), idle()]).fighters[0].move, 'light_right');
+  assert.equal(stepDuel(after, [act('light', { guard: true }), idle()]).fighters[0].counterWindow, 0);
+  const struck = stepDuel({ ...after, fighters: [{ ...after.fighters[0], phase: 'ready' }, { ...after.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left', landed: false }] } as Duel, [idle(), idle()]);
+  assert.equal(struck.fighters[0].counterWindow, 0, 'being staggered closes the window');
+  // A parry's punish window outranks it, and a perfect block opens it too.
+  const parried = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], counterWindow: 10, punish: 30 }, duel().fighters[1]] } as Duel, [act('heavy'), idle()]);
+  assert.equal(parried.fighters[0].move, 'heavy_riposte');
+  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: RULES.parry }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  assert.equal(perfect.events.find(e => e.type === 'Blocked')?.perfect, true); assert.equal(perfect.fighters[0].counterWindow, RULES.guardCounter);
+});
+
+test('charged heavy: holding Heavy pauses the wind-up with hyper-armour; a long enough hold multiplies the swing; early release is a plain heavy', () => {
+  const C = RULES.charge, heldIntent = { ...idle(), heavyHeld: true };
+  const d = run(stepDuel(duel(), [act('heavy', { heavyHeld: true }), idle()]), C.at + 3, heldIntent);
+  assert.equal(d.fighters[0].age, C.at, 'the wind-up holds at the charge point'); assert.equal(d.fighters[0].charge, 3); assert.equal(d.fighters[0].charged, false);
+  assert.ok(run(stepDuel(duel(), [act('heavy', { heavyHeld: true }), idle()]), C.at + 1, heldIntent).events.some(e => e.type === 'Charging'));
+  // Early release: an ordinary heavy from the charge point.
+  const early = run(d, heavy.windup - C.at + 1);
+  assert.equal(early.fighters[0].charged, false); assert.equal(early.fighters[1].health, 100 - heavy.damage); assert.equal(early.fighters[1].stun, heavy.stagger);
+  // Long hold: charged. Damage and stagger multiplied; guard break also multiplied.
+  let held = run(stepDuel(duel(), [act('heavy', { heavyHeld: true }), idle()]), C.at + C.min, heldIntent);
+  assert.equal(held.fighters[0].charged, true); assert.equal(held.fighters[0].age, C.at);
+  held = run(held, heavy.windup - C.at);   // exactly to the contact tick
+  const hit = held.events.find(e => e.type === 'Hit')!;
+  assert.equal(hit.charged, true); assert.equal(held.fighters[1].health, 100 - Math.round(heavy.damage * C.damage)); assert.equal(held.fighters[1].stun, Math.round(heavy.stagger * C.stagger));
+  // Maximum charge releases by itself.
+  const maxed = run(stepDuel(duel(), [act('heavy', { heavyHeld: true }), idle()]), C.at + C.max + 2, heldIntent);
+  assert.equal(maxed.fighters[0].charge, C.max); assert.equal(maxed.fighters[0].age, C.at + 2, 'the swing continues at maximum charge even while held');
+  // Hyper-armour while charging: a light lands (as a counter-hit) but does not interrupt; a feint is still possible from the charge.
+  let armour = run(stepDuel(duel(), [act('heavy', { heavyHeld: true }), idle()]), C.at + 2, heldIntent);
+  armour = run(stepDuel(armour, [heldIntent, act('light')]), light.windup, heldIntent);
+  assert.ok(types(armour).includes('Hit')); assert.equal(armour.fighters[0].phase, 'attack'); assert.equal(armour.fighters[0].age, C.at, 'still charging');
+  assert.equal(armour.fighters[0].health, 100 - Math.round(light.damage * RULES.counter.damage), 'but the light was a counter-hit');
+  const feint = stepDuel(run(stepDuel(duel(), [act('heavy', { heavyHeld: true }), idle()]), C.at + 5, heldIntent), [act('parry', { guard: true }), idle()]);
+  assert.equal(feint.fighters[0].phase, 'guard'); assert.equal(feint.fighters[0].parrying, true);
+  // Only the plain heavy charges: chained, riposte and guard-counter heavies ignore the hold.
+  const chainedHeavy = run(stepDuel(run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT), [act('heavy', { heavyHeld: true }), idle()]), C.at + 3, heldIntent);
+  assert.equal(chainedHeavy.fighters[0].charge, 0); assert.equal(chainedHeavy.fighters[0].age, C.at + 3);
+  const rip = run(stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], punish: 30 }, duel().fighters[1]] } as Duel, [act('heavy', { heavyHeld: true }), idle()]), C.at + 3, heldIntent);
+  assert.equal(rip.fighters[0].move, 'heavy_riposte'); assert.equal(rip.fighters[0].charge, 0);
+});
+
 test('buffered input: one action queued in the last ticks of a committed move fires when ready, expires, and clears on cancellation', () => {
   let d = run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT - RULES.bufferWindow);
   d = stepDuel(d, [act('heavy'), idle()]);
