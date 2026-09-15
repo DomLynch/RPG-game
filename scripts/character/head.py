@@ -1323,6 +1323,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     for o in (head, kt_eye_l, kt_eye_r, teeth):
         o.data.transform(M)
         o.data.update()
+    chin_boss(head, rig_mid, scale)
     # shoulders off: keep the head and a neck stub
     neck_z = NECK_Z if NECK_Z is not None else rig_mid.z - NECK_DROP_KT * scale
     bm = bmesh.new()
@@ -1582,6 +1583,31 @@ def bake_tiles_single(low, high, select_only, size):
     px = np.empty(size * size * 4, np.float32)
     img.pixels.foreach_get(px)
     return clean_normal(px.reshape(size, size, 4)[:, :, :3])
+
+
+def chin_boss(head, rig_mid, scale, amount=0.12):
+    """The reconstruction's chin is flat: its profile (scan units below eye level) has the lips at -0.51…-0.66, the lip
+    crease at -0.69 and the chin only 0.011 ahead of the crease at -0.75, where the portraits show a strong rounded chin.
+    A smooth boss gives it back: centred at -0.80, ~9 mm deep, 0.2 wide, pushed along one forward-and-down direction
+    (per-vertex normals tear the open lip boundary), and fading to nothing by the lip crease so the mouth is untouched.
+    Before the neck cut, so the bake source and the phone mesh share it."""
+    head.data.update()
+    zc, xc = rig_mid.z - 0.80 * scale, rig_mid.x
+    sz, sx = 0.10 * scale, 0.21 * scale
+    lip = rig_mid.z - 0.70 * scale  # nothing above the crease
+    push = Vector((0, -1, -0.25)).normalized()
+    moved = 0
+    for v in head.data.vertices:
+        if v.co.z > lip or v.normal.y > -0.2:  # below the crease, front of the jaw only
+            continue
+        g = math.exp(-((v.co.z - zc) / sz) ** 2 - ((v.co.x - xc) / sx) ** 2)
+        g *= min(1.0, (lip - v.co.z) / (0.04 * scale))  # eases in just under the crease
+        d = amount * g * scale
+        if d > 1e-5:
+            v.co += push * d
+            moved += 1
+    head.data.update()
+    print(f'KEENTOOLS chin boss: {moved} vertices, {amount * scale * 1000:.1f} mm at the tip')
 
 
 def cut_above(obj, z, select_only):
