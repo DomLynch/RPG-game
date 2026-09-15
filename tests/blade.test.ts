@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { bladeContact, segmentDistance } from '../src/blade.ts';
 import { SWORD, initialPractice, stepPractice, PROFILES, type Intent } from '../src/combat.ts';
 import { createFighter, stepDuel } from '../src/duel.ts';
+import { MOVES } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 const actor = { x:0,z:0,heading:0,distance:0 };
 test('finite blade distance handles crossing, parallel, endpoints and degenerate segments', () => {
@@ -32,7 +33,7 @@ test('locked armed footwork faces the opponent while moving laterally; sweep dam
   assert.ok(Math.abs(next.fighters[0].body.heading-Math.atan2(next.fighters[1].body.x-next.fighters[0].body.x,next.fighters[1].body.z-next.fighters[0].body.z))<.1);
   let fight=stepDuel(s,[{...idle(),action:'light'},{...idle(),lock:false}]); let hits=0;
   for(let i=0;i<SWORD.recovery;i++){fight=stepDuel(fight,[idle(),{...idle(),lock:false}]);hits+=fight.events.filter(e=>e.type==='Hit').length;}
-  assert.equal(hits,1);assert.equal(fight.fighters[1].health,75);
+  assert.equal(hits,1);assert.equal(fight.fighters[1].health,100-MOVES.light_right.damage);
 });
 
 test('a miss is reported only after follow-through closes, and late contact still hits once', () => {
@@ -48,11 +49,11 @@ test('a miss is reported only after follow-through closes, and late contact stil
   const late=arena(1.4); late.fighters[1]={...late.fighters[1],phase:'attack',move:'light_left',age:SWORD.contact-1,lastMove:'light_left'};
   let s=late; let hit=false;
   for(let i=0;i<5;i++){s=stepDuel(s,[{...idle(),move:{x:0,z:-.5,yaw:0,run:false}},idle()]);hit||=s.events.some(e=>e.type==='Hit'&&e.actor===1);}
-  assert.ok(hit);assert.equal(s.fighters[0].health,75);assert.ok(s.fighters[1].landed);
+  assert.ok(hit);assert.equal(s.fighters[0].health,100-MOVES.light_left.damage);assert.ok(s.fighters[1].landed);
 });
 
 test('upright blade regions produce deterministic lethal-location data without renderer bones', () => {
-  const weak=arena(1.2); weak.fighters[1]={...weak.fighters[1],health:25};
+  const weak=arena(1.2); weak.fighters[1]={...weak.fighters[1],health:MOVES.light_right.damage};
   let s=stepDuel(weak,[{...idle(),action:'light'},idle()]);
   for(let i=0;i<25;i++)s=stepDuel(s,[idle(),idle()]);
   assert.equal(s.fighters[1].health,0);assert.equal(s.finish?.victim,1);assert.equal(s.finish?.move,'light_right');

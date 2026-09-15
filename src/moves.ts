@@ -1,4 +1,5 @@
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
+// Damage is tuned for a Souls-length duel: AI vs AI at normal runs ~9 clean hits / ~35 s (light 11, heavy 18, riposte 24, heavy riposte 30, kick 4).
 // The engine (duel.ts) reads this table; nothing here may depend on rendering, clocks or browser state.
 export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'riposte' | 'heavy_riposte' | 'kick';
 export type Direction = 'right' | 'left' | 'overhead' | 'thrust' | 'low';
@@ -44,7 +45,7 @@ export type MoveDef = Timing & {
 const light = (id: 'light_right' | 'light_left', direction: Direction): MoveDef => ({
   id, direction, path: id, chainPath: `${id}_chain`, chained: { windup: 12, active: 5, recovery: 17 },
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the opposite cut chains fast; a heavy finisher winds up quicker
-  windup: 14, active: 5, recovery: 21, damage: 25, stamina: 20, staminaDamage: 25, stagger: 24, poise: 0, poiseFrom: 0,
+  windup: 14, active: 5, recovery: 21, damage: 11, stamina: 20, staminaDamage: 25, stagger: 24, poise: 0, poiseFrom: 0,
   breaksGuard: false, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null,
 });
 export const MOVES: Record<MoveId, MoveDef> = {
@@ -52,22 +53,22 @@ export const MOVES: Record<MoveId, MoveDef> = {
   light_left: light('light_left', 'left'),
   heavy_overhead: {
     id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: 'heavy_overhead_chain', chained: { windup: 22, active: 5, recovery: 31 }, chain: null,
-    windup: 32, active: 5, recovery: 31, damage: 38, stamina: 35, staminaDamage: 0, stagger: 24, poise: 24, poiseFrom: 24,
+    windup: 32, active: 5, recovery: 31, damage: 18, stamina: 35, staminaDamage: 0, stagger: 24, poise: 24, poiseFrom: 24,
     breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 10, reach: 1.9, vsGuard: null,
   },
   riposte: {
     id: 'riposte', direction: 'thrust', path: 'riposte', chainPath: null, chained: null, chain: null,
-    windup: 12, active: 5, recovery: 19, damage: 40, stamina: 20, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
+    windup: 12, active: 5, recovery: 19, damage: 24, stamina: 20, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
     breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null,
   },
   heavy_riposte: {   // the heavy answer to a successful parry: slower and costlier than the thrust, but it breaks a guard raised in panic
     id: 'heavy_riposte', direction: 'overhead', path: 'heavy_riposte', chainPath: null, chained: null, chain: null,
-    windup: 20, active: 5, recovery: 25, damage: 48, stamina: 35, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
+    windup: 20, active: 5, recovery: 25, damage: 30, stamina: 35, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
     breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.9, vsGuard: null,
   },
   kick: {
     id: 'kick', direction: 'low', path: null, chainPath: null, chained: null, chain: null,
-    windup: 18, active: 1, recovery: 25, damage: 8, stamina: 25, staminaDamage: 15, stagger: 18, poise: 0, poiseFrom: 0,
+    windup: 18, active: 1, recovery: 25, damage: 4, stamina: 25, staminaDamage: 15, stagger: 18, poise: 0, poiseFrom: 0,
     breaksGuard: false, parryable: false, knockback: 6, stepIn: .55, feintUntil: 0, reach: 1.2, vsGuard: { stagger: 36, staminaDamage: 45 },
   },
 };
