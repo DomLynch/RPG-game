@@ -966,7 +966,8 @@ else:
         AO, HEAD, body = REAL['ao_body'], REAL['head'], REAL['body']
         body_parts = REAL['parts'] + [o for o in body_parts if o.name.startswith('eye_')]
         if use_kt:
-            kt_parts, kt_maps, neck_z, neck_c = HEADMOD.keentools_head(HEAD, el, er, armature, select_only, tag, save_jpeg, save_two_sizes, materials_out)
+            crown_z = max(v.co.z for v in HEAD.data.vertices)  # the base head's crown: the scan is sized to the body's own head height
+            kt_parts, kt_maps, neck_z, neck_c = HEADMOD.keentools_head(HEAD, el, er, armature, select_only, tag, save_jpeg, save_two_sizes, materials_out, crown_z=crown_z)
             REAL['maps'].update(kt_maps)
             body_parts = [o for o in body_parts if o.name not in ('hair_shells', 'brow_cards', 'eye_L', 'eye_R')] + kt_parts
     else:
@@ -987,7 +988,8 @@ if not proof:
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
     extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
-    for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 1.6 if realistic else 0.8),  # the Studio sculpt's muscle relief is subtle: amplified in the shader ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)] + extra:
+    # the Studio sculpt's muscle relief is subtle: amplified in the shader (Skin normalScale 1.6 for the realistic build)
+    for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 1.6 if realistic else 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale
         print(f'MAPS {name} {maps}')
