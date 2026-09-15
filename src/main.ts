@@ -105,7 +105,9 @@ function updateHud() {
 function request(next: Action) { if (!paused() && assetsReady && accepts(practice, next)) action = next; }
 function requestKick() { request('kick'); }
 function pressDodge(now: number) { if (dodgeHeld) return; dodgeHeld = { since: now, rolled: false }; request('backstep'); }
-function releaseDodge() { dodgeHeld = null; if (action === 'backstep') action = null; }
+// Releasing a control only drops its held level; a queued press survives until the next tick consumes it. Only a cancelled pointer
+// (pointercancel, focus loss) withdraws the press: lostpointercapture follows every ordinary pointerup and must not eat a quick tap.
+function releaseDodge(cancelled = false) { dodgeHeld = null; if (cancelled && action === 'backstep') action = null; }
 function requestParry() { request('parry'); }
 function requestStrike(isHeavy = false) { request(isHeavy ? 'heavy' : 'light'); }
 let run = false, stickRun = false, moveId: number | null = null, orbitId: number | null = null;
@@ -152,28 +154,28 @@ kickButton.addEventListener('pointerdown', event => { if (event.button === 0) { 
 kickButton.addEventListener('pointercancel', () => { if (action === 'kick') action = null; });
 kickButton.addEventListener('keydown', event => { if (['Space','Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestKick(); } });
 heavyButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); heavyButton.setPointerCapture(event.pointerId); held = true; requestStrike(true); } });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) heavyButton.addEventListener(name, event => { held = false; if (name !== 'pointerup' && action === 'heavy') action = null; void event; });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) heavyButton.addEventListener(name, () => { held = false; if (name === 'pointercancel' && action === 'heavy') action = null; });
 heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); held = true; requestStrike(true); } });
 heavyButton.addEventListener('keyup', () => { held = false; });
 heavyButton.addEventListener('blur', () => { held = false; });
 thrustButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); thrustButton.setPointerCapture(event.pointerId); held = true; request('thrust'); } });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) thrustButton.addEventListener(name, () => { held = false; if (name !== 'pointerup' && action === 'thrust') action = null; });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) thrustButton.addEventListener(name, () => { held = false; if (name === 'pointercancel' && action === 'thrust') action = null; });
 thrustButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); held = true; request('thrust'); } });
 thrustButton.addEventListener('keyup', () => { held = false; });
 thrustButton.addEventListener('blur', () => { held = false; });
 attackButton.addEventListener('pointercancel', () => { if (action === 'light') action = null; });
 attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
 dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); dodgeButton.setPointerCapture(event.pointerId); pressDodge(performance.now()); } });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) dodgeButton.addEventListener(name, releaseDodge);
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) dodgeButton.addEventListener(name, () => releaseDodge(name === 'pointercancel'));
 dodgeButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); } });
-dodgeButton.addEventListener('keyup', releaseDodge);
-dodgeButton.addEventListener('blur', releaseDodge);
+dodgeButton.addEventListener('keyup', () => releaseDodge());
+dodgeButton.addEventListener('blur', () => releaseDodge(true));
 guardButton.addEventListener('pointerdown', event => {
   if (event.button !== 0 || paused() || guardId !== null) return;
   event.preventDefault(); guardId = event.pointerId; guardButton.setPointerCapture(guardId); guard = true; requestParry();
 });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) guardButton.addEventListener(name, event => {
-  if ((event as PointerEvent).pointerId === guardId) { guardId = null; guard = false; if (name !== 'pointerup' && action === 'parry') action = null; }
+  if ((event as PointerEvent).pointerId === guardId) { guardId = null; guard = false; if (name === 'pointercancel' && action === 'parry') action = null; }
 });
 guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); guard = true; if (!event.repeat) requestParry(); } });
 guardButton.addEventListener('keyup', () => { guard = false; });
@@ -213,7 +215,7 @@ gesturePad.addEventListener('pointerdown', event => { if (paused() || !assetsRea
 gesturePad.addEventListener('pointermove', event => { if (event.pointerId === gestureId && disc()) moveStroke(event); });
 gesturePad.addEventListener('keydown', event => { if (!disc() || event.repeat) return; const flick = ({ ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' } as Record<string, Flick>)[event.code]; if (flick || event.code === 'Enter' || event.code === 'Space') { event.preventDefault(); held = scheme !== 'flick'; request(flick ? DISC[flick] : 'light'); } });
 gesturePad.addEventListener('keyup', () => { held = false; });
-for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name !== 'pointerup'); });
+for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name === 'pointercancel'); });
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
   const x = (event.clientX - rect.left - rect.width / 2) / 42;
