@@ -1325,7 +1325,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     for o in (head, kt_eye_l, kt_eye_r, teeth):
         o.data.transform(M)
         o.data.update()
-    chin_extend(head, rig_mid, scale)  # the scan's flat chin: the jaw's underside carried forward and down
+    if os.environ.get('HEAD_CHIN', '0') == '1':  # off: every push on a jaw the scan never captured looked wrong in profile (v28–v30); the fix is jaw coverage in the scan or the base body's jaw
+        chin_extend(head, rig_mid, scale)
     # shoulders off: keep the head and a neck stub
     neck_z = NECK_Z if NECK_Z is not None else rig_mid.z - NECK_DROP_KT * scale
     bm = bmesh.new()

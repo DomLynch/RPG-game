@@ -170,3 +170,8 @@ head's outline tore the mouth. The band from the chin tip down to just above the
 chin's underside), nothing above the tip, so the collar still meets the neck; and the profile itself is corrected along y only
 (the scan's lower lip sat 1 mm ahead of its upper lip and of the chin — a pout from the front): lower lip back 2.6 mm, upper
 lip forward 1.3 mm, chin tip forward 5.2 mm, the open lip boundary moving as one.
+
+v31 (2026-09-15, interim): the chin pushes (v28 boss, v30 jaw extension and lip profile) are off — `HEAD_CHIN=1` re-enables
+`chin_extend` for experiments. In profile every one of them looked wrong: the scan never captured the jaw (the five portraits
+cover it only at a grazing angle), and pushing vertices cannot invent the shape. The fix is either two extra portraits from ~45°
+below for a new KeenTools job, or the base body's jaw stitched on below the lip crease. The v29 nape fix ships.
