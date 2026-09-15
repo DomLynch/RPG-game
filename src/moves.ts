@@ -33,7 +33,8 @@ export type MoveDef = Timing & {
   stagger: number;                // hurt ticks dealt by a clean hit
   poise: number;                  // incoming stagger shrugged off between poiseFrom and the end of the active window
   poiseFrom: number;
-  breaksGuard: boolean;           // cannot be blocked: a standing guard is broken instead
+  breaksGuard: boolean;           // cannot be blocked: a standing guard is broken instead (a charged heavy always breaks)
+  chip: number;                   // fraction of damage that passes through an ordinary block (a perfect block stops it all)
   parryable: boolean;
   knockback: number;              // defender shove ticks on a clean hit
   stepIn: number;                 // wind-up lunge speed (fraction of walking speed) from RULES.stepInFrom until contact
@@ -46,35 +47,35 @@ const light = (id: 'light_right' | 'light_left', direction: Direction): MoveDef 
   id, direction, path: id, chainPath: `${id}_chain`, chained: { windup: 12, active: 5, recovery: 17 },
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the opposite cut chains fast; a heavy finisher winds up quicker
   windup: 14, active: 5, recovery: 21, damage: 11, stamina: 20, staminaDamage: 25, stagger: 24, poise: 0, poiseFrom: 0,
-  breaksGuard: false, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null,
+  breaksGuard: false, chip: 0, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null,
 });
 export const MOVES: Record<MoveId, MoveDef> = {
   light_right: light('light_right', 'right'),
   light_left: light('light_left', 'left'),
   heavy_overhead: {
     id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: 'heavy_overhead_chain', chained: { windup: 22, active: 5, recovery: 31 }, chain: null,
-    windup: 32, active: 5, recovery: 31, damage: 18, stamina: 35, staminaDamage: 0, stagger: 24, poise: 24, poiseFrom: 24,
-    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 11, reach: 1.9, vsGuard: null,   // feintable through the charge point, so a charge can be a bait
+    windup: 32, active: 5, recovery: 31, damage: 18, stamina: 35, staminaDamage: 40, stagger: 24, poise: 24, poiseFrom: 24,
+    breaksGuard: false, chip: .4, parryable: true, knockback: 4, stepIn: .55, feintUntil: 11, reach: 1.9, vsGuard: null,   // a guard takes it for chip and 40 stamina; only the charged swing breaks a guard. Feintable through the charge point
   },
   riposte: {
     id: 'riposte', direction: 'thrust', path: 'riposte', chainPath: null, chained: null, chain: null,
     windup: 12, active: 5, recovery: 19, damage: 24, stamina: 20, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
-    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null,
+    breaksGuard: true, chip: 0, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null,
   },
   heavy_riposte: {   // the heavy answer to a successful parry: slower and costlier than the thrust, but it breaks a guard raised in panic
     id: 'heavy_riposte', direction: 'overhead', path: 'heavy_riposte', chainPath: null, chained: null, chain: null,
     windup: 20, active: 5, recovery: 25, damage: 30, stamina: 35, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
-    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.9, vsGuard: null,
+    breaksGuard: true, chip: 0, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.9, vsGuard: null,
   },
   heavy_counter: {   // guard counter: a heavy thrown straight out of a block. Fast and armoured against lights; shares the heavy riposte's baked path and timing.
     id: 'heavy_counter', direction: 'overhead', path: 'heavy_riposte', chainPath: null, chained: null, chain: null,
     windup: 20, active: 5, recovery: 25, damage: 20, stamina: 30, staminaDamage: 0, stagger: 30, poise: 24, poiseFrom: 4,
-    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.9, vsGuard: null,
+    breaksGuard: true, chip: 0, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.9, vsGuard: null,
   },
   kick: {
     id: 'kick', direction: 'low', path: null, chainPath: null, chained: null, chain: null,
     windup: 18, active: 1, recovery: 25, damage: 4, stamina: 25, staminaDamage: 15, stagger: 18, poise: 0, poiseFrom: 0,
-    breaksGuard: false, parryable: false, knockback: 6, stepIn: .55, feintUntil: 0, reach: 1.2, vsGuard: { stagger: 36, staminaDamage: 45 },
+    breaksGuard: false, chip: 0, parryable: false, knockback: 6, stepIn: .55, feintUntil: 0, reach: 1.2, vsGuard: { stagger: 36, staminaDamage: 45 },
   },
 };
 
@@ -93,8 +94,9 @@ export const RULES = {
   counter: { damage: 1.25, stagger: 1.5 }, rear: { arc: Math.PI / 2, damage: 1.15, stagger: 1.25 },
   guardCounter: 20,   // ticks after a block in which Heavy becomes the guard counter; any attack consumes the window
   // Charged heavy: holding Heavy pauses the plain heavy's wind-up at `at` with hyper-armour; releasing after `min` held ticks (or at `max`)
-  // swings for the multiplied damage and stagger. Only the plain heavy charges.
-  charge: { at: 10, min: 12, max: 40, damage: 1.5, stagger: 1.5 },
+  // swings for the multiplied damage and stagger and breaks a standing guard. Only the plain heavy charges. A tap (< at ticks) never
+  // holds; a press must last at + min ticks (0.67 s) to charge, so a deliberate hold and a quick press are different swings.
+  charge: { at: 10, min: 30, max: 54, damage: 1.5, stagger: 1.5 },
   bufferWindow: 10, bufferTtl: 11, stepInFrom: 3, turnStart: .3, turnWindup: .25,
   location: { head: 1, torso: 1, legs: 1 } as Record<'head' | 'torso' | 'legs', number>,
 } as const;

@@ -25,7 +25,7 @@ export type Fighter = {
 };
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number };
-export type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
+export type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
 export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; location?: HitLocation; heading?: number; ticks?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
@@ -140,7 +140,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (next.phase === 'attack' && next.move === 'heavy_overhead' && !next.chained && next.age === R.charge.at + 1 && intents[i].heavyHeld && next.charge < R.charge.max) {
       next.age = R.charge.at; next.charge++;
       if (next.charge === 1) events.push({ tick, type: 'Charging', actor: i, move: next.move });
-      if (next.charge >= R.charge.min) next.charged = true;
+      if (next.charge === R.charge.min) { next.charged = true; events.push({ tick, type: 'Charged', actor: i, move: next.move }); }
     }
     if (next.phase === 'attack' && next.move && next.age < timing(next).windup) {
       // Wind-up: controlled turning toward the opponent and the move's lunge; a kick lunges too, so a backstep cannot walk out of a point-blank kick.
@@ -184,14 +184,14 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     A.landed = true;
     const g = guardOf(d, R), facing = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) <= g.arc;
     const guarding = d.phase === 'guard' && facing && (!R.directionalGuard || !d.guardDirection || d.guardDirection === def.direction);
-    const breaks = def.breaksGuard && !g.stopsHeavy, blockCost = def.staminaDamage * g.costScale;
+    const breaks = (def.breaksGuard || charged) && !g.stopsHeavy, blockCost = def.staminaDamage * g.costScale;
     const stagger = (ticks: number) => {
       D.phase = D.health ? 'hurt' : 'dead'; D.age = 0; D.stun = D.health ? ticks : R.death; D.buffer = null; D.counterWindow = 0;
       events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun });
     };
-    const wound = (damage: number, knockback: number) => {
+    const wound = (damage: number, knockback: number, mark = !!def.path) => {
       D.health = Math.max(0, D.health - damage);
-      if (def.path) { D.wound = R.wound; D.woundSite = location!; }
+      if (mark) { D.wound = R.wound; D.woundSite = location!; }
       const away = aim(d.body, a.body) + Math.PI;
       for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: Math.sin(away), z: Math.cos(away), yaw: 0, run: false }, A.body), heading: D.body.heading };
       if (!D.health) { finish = { victim: j, location: location!, move: a.move!, heading: a.body.heading }; events.push({ tick, type: 'Killed', actor: i, target: j, move: a.move!, location: location!, heading: a.body.heading }); }
@@ -203,9 +203,11 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if (guarding && def.vsGuard) {
       spend(j, def.vsGuard.staminaDamage); wound(def.damage, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: def.damage, location, heading: a.body.heading }); stagger(def.vsGuard.stagger);
     } else if (guarding && !breaks && d.stamina >= blockCost) {
-      // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half.
-      const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost;
-      spend(j, cost); D.counterWindow = R.guardCounter; events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect });   // a block opens the guard-counter window
+      // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half and stops the chip.
+      const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost, chip = perfect ? 0 : Math.round(def.damage * def.chip * R.location[location]);
+      spend(j, cost); D.counterWindow = R.guardCounter;   // a block opens the guard-counter window
+      events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect, ...(chip ? { damage: chip } : {}) });
+      if (chip) { wound(chip, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
     } else {
       const damage = Math.round(def.damage * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
       if (guarding) { spend(j, d.stamina); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading, charged }); stagger(baseStun); }
