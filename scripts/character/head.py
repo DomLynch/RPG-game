@@ -1638,20 +1638,31 @@ def chin_extend(head, rig_mid, scale, amount=0.10):
     the chin's underside, nothing above the tip, so the lips and crease are untouched and the collar still meets the neck."""
     head.data.update()
     tip, under, floor = rig_mid.z - 0.76 * scale, rig_mid.z - 0.86 * scale, rig_mid.z - 0.95 * scale
+    lower_lip, upper_lip = rig_mid.z - 0.63 * scale, rig_mid.z - 0.52 * scale
     push = Vector((0, -1, -0.6)).normalized()
     sx = 0.22 * scale
     moved = 0
     for v in head.data.vertices:
-        if v.co.z > tip or v.co.z < floor or v.normal.y > -0.05:
+        if v.co.z < floor or v.normal.y > -0.05 or abs(v.co.x - rig_mid.x) > 0.5 * scale:
             continue
-        g = math.exp(-((v.co.z - under) / (0.07 * scale)) ** 2 - ((v.co.x - rig_mid.x) / sx) ** 2)
-        g *= min(1.0, (tip - v.co.z) / (0.03 * scale)) * min(1.0, (v.co.z - floor) / (0.04 * scale))  # eases in below the tip, out above the collar
-        d = amount * g * scale
-        if d > 1e-5:
-            v.co += push * d
+        lat = math.exp(-((v.co.x - rig_mid.x) / sx) ** 2)
+        d = Vector((0, 0, 0))
+        if v.co.z <= tip:  # the jaw's underside, forward and down
+            g = math.exp(-((v.co.z - under) / (0.07 * scale)) ** 2) * lat
+            g *= min(1.0, (tip - v.co.z) / (0.03 * scale)) * min(1.0, (v.co.z - floor) / (0.04 * scale))  # eases in below the tip, out above the collar
+            d += push * (amount * g * scale)
+        # the profile itself: the scan's lower lip sits 1 mm ahead of its upper lip and of the chin, which reads as a pout
+        # from the front — the lower lip goes back 2.5 mm, the upper lip and the chin tip come forward, all along y only so
+        # the open lip boundary moves as one
+        prof = (-0.020 * math.exp(-((v.co.z - lower_lip) / (0.035 * scale)) ** 2)   # negative: back (+y)
+                + 0.010 * math.exp(-((v.co.z - upper_lip) / (0.03 * scale)) ** 2)
+                + 0.040 * math.exp(-((v.co.z - (rig_mid.z - 0.77 * scale)) / (0.05 * scale)) ** 2))
+        d += Vector((0, -prof * lat * scale, 0))
+        if d.length > 1e-5:
+            v.co += d
             moved += 1
     head.data.update()
-    print(f'KEENTOOLS chin extend: {moved} vertices, {amount * scale * 1000:.1f} mm at the underside')
+    print(f'KEENTOOLS chin extend: {moved} vertices, {amount * scale * 1000:.1f} mm at the underside; lower lip back {0.020 * scale * 1000:.1f} mm, chin tip forward {0.040 * scale * 1000:.1f} mm')
 
 
 def cut_above(obj, z, select_only):

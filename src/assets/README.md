@@ -167,4 +167,6 @@ occlusion curve. Island edge texels take interior colours before the gutter fill
 
 v30 (2026-09-15): `head.chin_extend` replaces the chin boss — the boss under the lip read as a pout, and borrowing the base
 head's outline tore the mouth. The band from the chin tip down to just above the collar moves forward and down (~13 mm at the
-chin's underside), nothing above the tip, so the lips and crease are untouched and the collar still meets the neck.
+chin's underside), nothing above the tip, so the collar still meets the neck; and the profile itself is corrected along y only
+(the scan's lower lip sat 1 mm ahead of its upper lip and of the chin — a pout from the front): lower lip back 2.6 mm, upper
+lip forward 1.3 mm, chin tip forward 5.2 mm, the open lip boundary moving as one.
