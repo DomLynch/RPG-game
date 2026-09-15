@@ -1,18 +1,37 @@
-# Frankendom — working title
+# Frankendom: Origins
 
 ## The promise
 My fighter, my build: I return between duels to develop a recognisable character, refine a chosen set of skills, and earn equipment that changes my tactics and appearance; the next fight tests the fighter I have shaped.
 
-Browser-first, short competitive 1v1 encounters within a persistent medieval fantasy RPG. MMORPG-style character identity and progression do not imply an open world or MMO infrastructure in the prototype.
+Browser-first, short competitive 1v1 encounters within a persistent Mythic Arena RPG. MMORPG-style character identity and progression do not imply an open world or MMO infrastructure in the prototype.
+
+## Setting
+A ruined arena at the edge of worlds, where champions and creatures from dead civilisations are pulled in to fight.
+
+The arena is the entire framing device. It explains 1v1 duels, crowd and reputation, gear earned in blood, creatures in the pit, brutal deaths and a fighter's permanent record. There is no overworld. Different arenas are the same 18 m combat circle dressed differently (Greek marble, Roman sand, Norse timber, underground goblin pit, Gothic blood arena).
+
+## Pitch
+Mythic Arena RPG. Build a fighter across hundreds of battles. Collect weapons, armour, scars and trophies from warriors and creatures drawn from lost civilisations. Every fight changes your reputation; every opponent fights differently.
+
+Comparable: For Honor proves the appetite for multi-culture melee duels; Shadow Fight 4 is the mobile incumbent. Frankendom's differentiation is a browser link into a duel in seconds, on a phone, with a persistent scarred fighter and visible history. The concept alone is not the differentiator; the access model and the fighter's history are.
+
+## Simplicity rule
+Built for a phone and for a player who reads nothing. Anyone must understand the whole game in 30 seconds:
+- One fighter. One arena. One opponent at a time.
+- Four principal controls: Light, Heavy, Guard, Dodge (tap Guard just before impact to parry). Depth comes from contextual rules — hold, timing, state — never from a fifth memorised button.
+- Five stats. Three things to collect. No hidden systems.
+- If a feature needs a tooltip to be understood, it is cut or moved to NOT NOW.
 
 ## Art direction
-Grounded proportions, practical armour, steel, worn leather, weathered stone, restrained heraldry and natural cinematic lighting. No punk, neon, cartoon proportions or oversized novelty weapons.
+Tone: ancient, brutal, ceremonial, supernatural. Grounded human proportions. Exaggerate poses for readability on a 6-inch screen, never proportions.
 
-Visual references, researched 2026-09-13 (inspiration only; no game assets copied):
-- Elder Scrolls Online, One Tamriel: grounded fantasy places and duel framing. https://www.elderscrollsonline.com/en-us/updates/update/onetamriel
-- Black Desert, original Warrior: conventional longsword, believable metal armour and restrained character silhouette. Exclude its extreme awakening effects. https://blackdesert.pearlabyss.com/Console/en-us/Game/Classes?_classType=0
+Materials rule (coherence comes from what is absent): bronze, iron, bone, leather, stone, ash, blood. No polished fantasy plate, no saturated colours, no glow, no cartoon proportions, no oversized novelty weapons. Worn metal must still respond to light: "no polish" does not mean flat. Mixed civilisations stay one world because they share this palette.
 
-These define a direction, not a promise of native AAA fidelity on a mobile browser. The initial Phase 0A used capsule proxies and an original geometric environment. After owner movement feedback, the authorized character pass uses a CC0 Quaternius humanoid foundation with original armour and four coherent movement clips. Capsules remain only as a loading/failure fallback. This art pass does not waive the remaining hardware/usability gate.
+Readable brutality over spectacle binds every visual: if an effect obscures either fighter's pose, timing, weapon or footwork, it is too large.
+
+Visual references (inspiration only; no game assets copied): Ryse: Son of Rome for Roman arena and bronze/iron kit; 300 for Greek bronze and restrained colour; Gladiator for arena ceremony, crowd and sand; For Honor for multi-culture melee silhouettes. The earlier Elder Scrolls Online and Black Desert references are retired.
+
+These define a direction, not a promise of native AAA fidelity on a mobile browser. Phase 0A used capsule proxies; the first character pass used a CC0 Quaternius humanoid with original plate armour; character pass v1 (2026-09-14, PROJECT_STATE) replaced that plate knight with the whole CC0 body and a level-1 gladiatorial kit on the same skeleton, holding the animation and blade-path contract. Capsules remain only as a loading/failure fallback. No art pass waives the hardware/usability gate.
 
 ## Product defaults
 - One persistent fighter. Start as a neutral longsword wielder. No classes in the initial combat test.
@@ -21,6 +40,38 @@ These define a direction, not a promise of native AAA fidelity on a mobile brows
 - Phase 0A identity is device-local, with a saved guest ID and chosen name. Explicit warning if storage fails. No fabricated levels, currency, inventory, match history or D1 analytics.
 - Before a real progression/retention test, server-owned character state with persistent guest credentials and optional account recovery. Clearing browser credentials or private browsing can lose guest access; local storage alone is not recovery.
 - No artificial retention incentives in the first rematch test.
+
+## Your fighter: Origins
+Players are human fighters with an Origin. In v1 an Origin is a visual and equipment family on the shared skeleton, not a separate species: it sets starting silhouette, armour family, weapon family and idle/salute style. It changes how you look and what you start with, not how strong you are.
+
+Initial Origins: Hoplite (bronze, spear, shield, disciplined), Northman (fur, axe, aggression), Pitborn (bone, crude iron, dirty fighting), Nightborn (gothic, vampiric, elegant), Imperial (Roman, gladiatorial, sword and shield), Wildblood (wolf, totem, barbarian). All human, one skeleton. Playable monsters come later, if ever: different body shapes multiply animation, hitbox and balance work.
+
+## Opponents: every species alters gameplay
+An opponent that does not change how the fight is played is a reskin and is not added. Each is a distinct silhouette and fighting style that exercises an existing mechanic:
+- Hoplite — shield and spear: get around the guard; teaches guard-break timing, angles and closing distance.
+- Orc — never stops swinging: teaches stamina management and parry.
+- Goblin — small, fast, feints, never guards: teaches reading the tell.
+- Vampire — parries everything: teaches restraint and baiting.
+- Berserker — big hits, shrugs off stagger: teaches dodge and punishing recovery.
+- Werewolf — lunges, never guards: teaches pre-emptive strikes and spacing.
+- Cyclops — huge and slow, one weak spot: teaches locational hits as the win condition.
+
+Roster order: Human → Hoplite → Orc → Goblin on the shared humanoid skeleton with reproportioning. Cyclops, Werewolf and Minotaur are marquee content after the game works: a scaled human with one eye reads as cheap, and large opponents break the locked camera framing, hit capsules and tell readability that are tuned for equal-height fighters. Public-domain folklore and mythology only; no trademarked bestiaries.
+
+## Collect
+Collection loops: combat (weapons/builds), visual (armour/trophies/scars), achievement (titles/records). No power grind. Three layers only — no rarity, upgrade or gem multipliers.
+- Weapons are the primary gameplay collectible: each is a distinct move set, reach, timing profile and guard type (longsword first; spear, sword and shield, axe, daggers, mace later). Armour and relics modify the weapon archetype; they do not create new combat systems.
+- Trophies from defeated creatures are worn visibly (cyclops eye, wolf pelt, orc tusk, vampire fang) so opponents read a fighter's history before the fight. Locational wounds leave persistent scars. The fight record is public.
+- The mythology expands the collection fantasy; it must not expand the underlying combat system uncontrollably.
+
+## Stats
+Stats: STR / DEX / VIG / END / POISE, 50 points, no stat touches timing.
+- Strength: damage and guard pressure. Dexterity: stamina efficiency and weapon requirements. Vigor: health pool. Endurance: stamina pool and regeneration. Poise: stagger resistance.
+- Everyone has 50 points, forever. More builds can be unlocked; more points cannot. Free early respecs. Provisional example builds: 15/8/10/10/7 and 6/16/8/13/7.
+- Rule: no stat changes attack, parry, roll or wind-up timing. Timing constants are global per weapon so learned tells stay valid and online balance stays tractable. Stats become data with stable IDs when equipment gameplay is authorized, per the architecture rules below.
+
+## Deaths
+Where the blade lands decides the death: head, neck, waist. Lethal outcomes are locational and earned — the simulation's blade contact location, attack type and direction select the finish. Gore is presentation driven by simulation events and never affects the fight. A gore toggle and a dark/desaturated blood mode ship with it so clips remain shareable. Tone is grounded and brutal (real weapons, real wounds), not cartoon stylisation.
 
 ## Controls and camera
 - Landscape is the preferred phone layout; portrait remains operable. Desktop keyboard/mouse supported.
@@ -59,7 +110,7 @@ Provisional progression gate: >=6 of 10 distinct losing testers independently op
 - Deploy static 0A via isolated Nginx virtual host, HTTPS, atomic release symlink, source revision receipt, rollback to previous release. No new daemon required.
 
 ## NOT NOW — known and deliberately deferred
-Full combat validation until gate 0A passes; multiple weapons/classes; full RPG progression until combat is worth repeating; open world; PvE campaign; guilds; chat; trading; crafting; auction house; matchmaking ladders; monetisation; leaderboards; speculative backend/frameworks; full rollback implementation.
+Full combat validation until gate 0A passes; multiple weapons/classes; full RPG progression until combat is worth repeating; open world; PvE campaign; guilds; chat; trading; crafting; auction house; matchmaking ladders; monetisation; leaderboards; speculative backend/frameworks; full rollback implementation; seasons and seasonal history (live-ops, backend and content velocity); species as player; non-humanoid rigs; additional combat systems beyond the current light/heavy/guard/parry/dodge/stamina/locational-contact set; a character creator.
 
 Blood Duels: undefined, deferred, and no economy/stakes implementation authorized. No real-money wagering.
 
@@ -132,3 +183,6 @@ Design principles adopted with the slice (owner + external review, 2026-09-15):
 Slice A — counter-hit and rear hit. A clean hit on a fighter committed to a swing (any phase of it) or in the vulnerable tail of a roll deals ×1.25 and staggers ×1.5; a clean hit inside the target's rear 90° arc deals ×1.15 and staggers ×1.25; the two multiply. Neither applies through a guard, a parry or a perfect block. The ×2 rear-arc backstab was rejected as latency/facing cheese; an earned critical (staggered/broken/exhausted target + behind + suitable attack) is deferred.
 Slice D — guard counter. A block (perfect or not) opens a 20-tick window in which Heavy becomes `heavy_counter`: 20/5/25 on the heavy riposte's baked path, 20 damage, 30 stamina, 30 stagger, breaks guard, poise from tick 4 so a light cannot interrupt it. Any attack consumes the window; a stagger closes it; a parry's punish window outranks it. Blocking is now a decision: spend the opening or reset.
 Slice E — charged heavy. Holding Heavy pauses a plain heavy's wind-up at tick 10 (the blade stays raised; the same clip pose holds, so no new animation) with hyper-armour: lights land as counter-hits but do not interrupt. Releasing after ≥12 held ticks — or automatically at 40 — swings for ×1.5 damage and ×1.5 stagger (guard breaks included). Early release is an ordinary heavy. A feint is still possible from the charge (`feintUntil` 11), so a charge can bait a guard. Chained, riposte and guard-counter heavies never charge.
+
+## Owner decisions — Origins direction (2026-09-13/14, recorded 2026-09-15)
+Title: Frankendom: Origins. Setting line, pitch, simplicity rule, art direction with the materials rule, Origins list, roster order, collection loops and the five-stat model adopted as written above. Art direction changed while cheap; the retired ESO/Black Desert references and "medieval plate" language no longer bind any lane. The character lane's request #1 (stale art-direction text) is closed by this section. The next engineering deliverable remains one polished exchange — approach, strike, block, parry, counter — ahead of any roster or weapon expansion.
