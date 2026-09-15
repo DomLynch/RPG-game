@@ -83,7 +83,9 @@ export function practiceHint(s: Practice): string {
     const name = me.chained ? 'follow-up' : NAMES[me.lastMove ?? 'light_right'];
     return { kicked: 'Kick connected · press the opening', hit: `Clean ${name} hit · −${s.resultDamage}`, miss: 'Miss — close the distance and face the warden.', hurt: `Hit taken · −${s.resultDamage}`, blocked: `Blocked · −${RULES.blockCost} stamina`, parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening', enemyParried: 'Your strike was turned aside — recover!', enemyDodged: 'The warden rolled clear.', enemyKicked: `Kicked · −${s.resultDamage}` }[s.result];
   }
-  return s.phase === 'guard' ? 'Guarding · release to recover stamina' : 'Hold guard to block · tap just before impact to parry';
+  if (s.phase === 'guard') return me.parrying ? 'Parry window open' : 'Guarding · release to recover stamina';
+  if (me.exposed) return 'Parry missed · guard down for a moment';
+  return 'Hold guard to block · tap just before impact to parry';
 }
 
 // Debug overlay text: developer readout of the simulation, never a source of truth for presentation or rules.

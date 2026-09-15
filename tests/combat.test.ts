@@ -76,14 +76,18 @@ test('control gating: actions are accepted when legal or late in a committed mov
   assert.equal(canStrike(s), true); assert.equal(canDefend(s), true);
   for (const action of ['light', 'heavy', 'kick', 'dodge', 'parry'] as const) assert.equal(accepts(s, action), true);
   const swinging = stepPractice(s, act('light'), passive);
-  for (const action of ['light', 'heavy', 'kick', 'dodge', 'parry'] as const) assert.equal(accepts(swinging, action), false);
+  for (const action of ['light', 'heavy', 'kick', 'dodge'] as const) assert.equal(accepts(swinging, action), false);
+  assert.equal(accepts(swinging, 'parry'), true, 'only the feint is open at the start of a swing');
   const late = tick(swinging, SWORD.recovery - RULES.bufferWindow, idle(), passive);
   for (const action of ['light', 'heavy', 'kick', 'dodge', 'parry'] as const) assert.equal(accepts(late, action), true);
   const drawing = tick(stepPractice(initialPractice(), act('light')), RULES.draw - 2);
   assert.equal(accepts(drawing, 'light'), true); assert.equal(accepts(drawing, 'heavy'), false, 'heavy cannot be queued from a draw');
   assert.equal(accepts({ ...s, health: 0 }, 'light'), false); assert.equal(canStrike({ ...s, playerHealth: 0, duel: { ...s.duel, fighters: [{ ...s.duel.fighters[0], health: 0 }, s.duel.fighters[1]] } }), false);
   const guarding = stepPractice(s, { ...idle(), guard: true }, passive);
-  assert.equal(accepts(guarding, 'kick'), true); assert.equal(accepts(guarding, 'dodge'), true); assert.equal(accepts(guarding, 'light'), false);
+  assert.equal(accepts(guarding, 'kick'), true); assert.equal(accepts(guarding, 'dodge'), true); assert.equal(accepts(guarding, 'light'), true, 'a guard yields to an attack');
+  const winding = stepPractice(s, act('light'), passive);
+  assert.equal(accepts(winding, 'parry'), true, 'the guard control lights up during the feint window'); assert.equal(accepts(winding, 'light'), false);
+  assert.equal(accepts(tick(winding, MOVES.light_right.feintUntil, idle(), passive), 'parry'), false, 'and goes dark once the swing is committed');
   assert.equal(canStrike(initialPractice()), true, 'a light draws the sword');
 });
 
