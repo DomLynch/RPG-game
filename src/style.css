@@ -44,10 +44,10 @@
 }
 
 #gesture-pad{display:none}.actions{touch-action:none}
+.scorecard{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;margin:.6em 0;color:#d9c9a6}
 @media(max-width:900px),(pointer:coarse){
- .actions[data-gestures=true] #attack-button,.actions[data-gestures=true] #heavy-button,.actions[data-gestures=true] #dodge-button{display:none}
+ .actions[data-gestures=true] #attack-button,.actions[data-gestures=true] #heavy-button{display:none}
  .actions[data-gestures=true] #gesture-pad{display:block;grid-column:1/-1;grid-row:1;width:148px;height:100px;font:13px/1.7 Arial;padding:18px!important;color:#f0e3c9;border-color:#c6af78;background:#172329a8}
- .actions[data-gestures=true] #guard-button{grid-column:1/-1;width:148px}
 }
 
 @media(max-width:900px),(pointer:coarse){#kick-button{grid-column:1/-1;grid-row:3;justify-self:end;width:70px;height:44px;min-height:44px;border-radius:22px;font-size:0;background:#283233a6}.actions[data-gestures="true"] #kick-button{grid-row:auto}}

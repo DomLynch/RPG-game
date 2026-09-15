@@ -7,7 +7,9 @@ import * as gestures from '../src/gestures.ts';
 import * as feedback from '../src/feedback.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
+import { MOVES } from '../src/moves.ts';
 import * as profile from '../src/profile.ts';
+import * as trial from '../src/trial.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -30,8 +32,9 @@ function boot() {
   const view = { yaw: 0, recenter() {}, lowerResolution() {}, orbit() {}, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(_state: unknown, _locked: boolean, _dt: number, practice: combat.Practice) { rendered = practice; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
-  const storage = { getItem: () => JSON.stringify({ version: 1, id: 'test', name: 'Tester' }), setItem() {} };
-  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester' })]]);
+  const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
+  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './trial.ts': trial, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++ },
@@ -39,7 +42,7 @@ function boot() {
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, get rendered() { return rendered!; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
+  return { element, errors, callbacks, timers, storage, get rendered() { return rendered!; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -128,7 +131,8 @@ test('swipe trial fires once per gesture and clears on cancellation, pause and m
   for(let i=0;i<45;i++)app.tick();
   assert.equal(app.element('stamina').value,100);
   pointer('pointerdown',60,60);pointer('pointermove',60,20);pointer('pointermove',60,0);app.tick();
-  assert.equal(app.element('stamina').value,65,'one upward swipe spends one heavy cost');
+  assert.equal(app.element('stamina').value,75,'one upward flick is one thrust');assert.equal(app.rendered.duel.fighters[0].move,'thrust');
+  for(let i=0;i<12;i++)app.tick();assert.ok(app.rendered.duel.fighters[0].age>MOVES.thrust.chamber!,'v1 flick never chambers even while the thumb stays down');
   pointer('pointercancel',60,0);for(let i=0;i<80;i++)app.tick();
   app.element('reset-button').click();app.tick();app.key('KeyF');for(let i=0;i<45;i++)app.tick();
   pointer('pointerdown',60,60);pointer('pointermove',100,60);pointer('pointercancel',100,60);app.tick();
@@ -137,6 +141,39 @@ test('swipe trial fires once per gesture and clears on cancellation, pause and m
   assert.equal(app.element('stamina').value,100);
   app.element('controls-mode').click();app.element('close-journal').click();pointer('pointermove',120,60);app.tick();
   assert.equal(app.element('stamina').value,100);
+});
+
+test('weapon disc grammars: flick strikes at once; drag loads and releases without charging; drag with hold charges; back to centre feints', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const pad = app.element('gesture-pad'), me = () => app.rendered.duel.fighters[0];
+  const pointer = (type: string, x: number, y: number, id = 1) => pad.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y }));
+  const cycle = (n: number) => { for (let i = 0; i < n; i++) app.element('controls-mode').click(); };
+  // The live warden is part of the harness: wait for a quiet moment before each stroke so its swings never confound the player's state.
+  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
+  cycle(2); settle(); assert.match(app.element('controls-mode').textContent, /drag & release \(v2\)/);
+  // v2: the down-stroke loads a heavy and holds it at the chamber; a long hold releases itself before the charge; release swings.
+  pointer('pointerdown', 60, 60); pointer('pointermove', 60, 100); app.tick();
+  assert.equal(me().move, 'heavy_overhead'); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().age, MOVES.heavy_overhead.chamber!, 'held at the chamber');
+  for (let i = 0; i < 40; i++) app.tick(); assert.ok(me().age > MOVES.heavy_overhead.chamber!, 'v2 lets go by itself'); assert.equal(me().charged, false, 'and never charges');
+  pointer('pointerup', 60, 100); for (let i = 0; i < 80; i++) app.tick(); settle();
+  // v2 feint: load a cut, return to the centre before releasing → the swing is cancelled into a guard.
+  pointer('pointerdown', 60, 60); pointer('pointermove', 100, 60); app.tick(); assert.equal(me().move, 'light_right'); for (let i = 0; i < 4; i++) app.tick();
+  pointer('pointermove', 62, 60); app.tick(); assert.equal(me().phase, 'guard', 'back to centre feints'); pointer('pointerup', 62, 60); for (let i = 0; i < 60; i++) app.tick();
+  // v3: the same down-stroke held long enough charges.
+  cycle(1); assert.match(app.element('controls-mode').textContent, /hold to charge \(v3\)/); settle();
+  pointer('pointerdown', 60, 60); pointer('pointermove', 60, 100); app.tick(); for (let i = 0; i < 48; i++) app.tick();
+  assert.equal(me().charged, true, 'v3 charges on a long hold'); pointer('pointerup', 60, 100); for (let i = 0; i < 80; i++) app.tick();
+  // The scheme persists on this device and the cycle returns to buttons.
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'charge'); cycle(1); assert.equal(app.element('controls-mode').textContent, 'Controls: buttons');
+});
+
+test('the scorecard tallies fights, wins, rematches and damage per scheme', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until the warden wins
+  assert.ok(app.rendered.finish, 'the fight ends'); const card = () => JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.buttons;
+  assert.equal(card().fights, 1); assert.equal(card().wins, 0); assert.equal(card().taken, 100); assert.ok(card().ticks > 600);
+  app.element('reset-button').click(); app.tick(); assert.equal(card().rematches, 1); assert.equal(card().fights, 1, 'a rematch is not a fight until it ends');
+  app.element('journal-button').click(); assert.match(app.element('scorecard').textContent, /^buttons — 1 fights · 0 won · 1 rematches/);
 });
 
 test('dodge control: a tap is an instant backstep, a hold grows it into a roll, and interruption releases it', () => {

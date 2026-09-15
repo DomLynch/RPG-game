@@ -43,6 +43,9 @@ test('the warden reacts only after its reaction delay: no defensive input can an
   const plain = answers({});
   assert.ok(plain.includes('parry') && plain.includes('dodge') && plain.includes('block'), `a plain heavy is parried, rolled or blocked for chip: ${plain.join(' ')}`);
   assert.ok(!answers({ charge: 1 }).includes('block'), 'a charging heavy will break a guard: never blocked');
+  assert.ok(answers({ move: 'light_right', lastMove: 'light_right', charge: 2 }).includes('block'), 'a chambered light is only a bait: still blockable');
+  const baited = arena(); baited.fighters[0] = { ...baited.fighters[0], phase: 'attack', move: 'light_right', age: PROFILES.hard.reaction + 3, lastMove: 'light_right', charge: 2 };
+  assert.equal(decide(baited, 1, { ...initialAi(), mode: 'circle', decision: 500, wait: 500, plan: 'block' }, PROFILES.hard).ai.plan, 'block', 'and a planned block is kept');
   assert.ok(!answers({}, MOVES.heavy_overhead.staminaDamage - 1).includes('block'), 'a block it cannot pay for is never planned');
   // A block already planned is dropped the moment the heavy is seen to charge.
   const seen = arena(); seen.fighters[0] = { ...seen.fighters[0], phase: 'attack', move: 'heavy_overhead', age: PROFILES.hard.reaction + 5, lastMove: 'heavy_overhead', charge: 2 };
@@ -84,23 +87,23 @@ test('against a settled guard the warden holds its heavy to the charge that brea
   const guardedArena = () => { const d = arena(1.5); d.fighters[0] = { ...d.fighters[0], phase: 'guard', age: 30 }; return d; };
   const fresh = (seed: number): AiState => ({ ...initialAi(seed), mode: 'approach', decision: 500, wait: 0, next: 'heavy' });
   // How often the guard is charged through follows aggression: at normal some heavies at a guard are plain, at hard nearly all are held.
-  const holds = (level: keyof typeof PROFILES) => [...Array(40).keys()].map(seed => decide(guardedArena(), 1, fresh(seed + 1), PROFILES[level])).filter(w => (assert.equal(w.intent.action, 'heavy'), w.intent.heavyHeld)).length;
+  const holds = (level: keyof typeof PROFILES) => [...Array(40).keys()].map(seed => decide(guardedArena(), 1, fresh(seed + 1), PROFILES[level])).filter(w => (assert.equal(w.intent.action, 'heavy'), w.intent.held)).length;
   assert.ok(holds('normal') >= 8 && holds('normal') <= 26, `normal holds ${holds('normal')}/40`); assert.ok(holds('hard') > holds('easy'), `hard ${holds('hard')} > easy ${holds('easy')}`);
   let d = guardedArena(), ai = fresh(1); let first = decide(d, 1, ai, PROFILES.normal);
-  for (let seed = 2; !first.intent.heavyHeld; seed++) { ai = fresh(seed); first = decide(d, 1, ai, PROFILES.normal); }
-  ai = first.ai; assert.equal(first.intent.action, 'heavy'); assert.equal(first.intent.heavyHeld, true, 'a heavy at a guard is thrown held');
+  for (let seed = 2; !first.intent.held; seed++) { ai = fresh(seed); first = decide(d, 1, ai, PROFILES.normal); }
+  ai = first.ai; assert.equal(first.intent.action, 'heavy'); assert.equal(first.intent.held, true, 'a heavy at a guard is thrown held');
   d = stepDuel(d, [hold(), first.intent]);
   let charged = 0, released = 0;
   for (let i = 0; i < 120 && d.fighters[1].phase === 'attack'; i++) {
     const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai;
-    if (d.fighters[1].charge < RULES.charge.min) assert.equal(w.intent.heavyHeld, true, `held while charging (charge ${d.fighters[1].charge})`); else released++;
+    if (d.fighters[1].charge < RULES.charge.min) assert.equal(w.intent.held, true, `held while charging (charge ${d.fighters[1].charge})`); else released++;
     d = stepDuel(d, [hold(), w.intent]); charged += d.events.filter(e => e.type === 'Charged' && e.actor === 1).length;
   }
   assert.equal(charged, 1, 'the hold reaches the charge'); assert.ok(released > 0, 'and lets go once charged'); assert.ok(d.events.length >= 0);
   assert.equal(d.fighters[1].phase, 'ready'); assert.ok(!decide(d, 1, ai, PROFILES.normal).ai.hold, 'the hold ends with the swing');
   // Against an unguarded opponent the same heavy is a plain, faster swing.
   const open = decide({ ...arena(1.5) }, 1, { ...initialAi(), mode: 'approach', decision: 500, wait: 0, next: 'heavy' }, PROFILES.normal).intent;
-  assert.equal(open.action, 'heavy'); assert.equal(!!open.heavyHeld, false);
+  assert.equal(open.action, 'heavy'); assert.equal(!!open.held, false);
 });
 
 test('the warden punishes a whiff with a light and kicks or breaks a standing guard', () => {
