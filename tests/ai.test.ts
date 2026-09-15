@@ -81,10 +81,14 @@ test('a passive opponent sees a readable opener: at easy and normal the first at
 });
 
 test('against a settled guard the warden holds its heavy to the charge that breaks it, and releases as soon as it is charged', () => {
-  let d = arena(1.5); d.fighters[0] = { ...d.fighters[0], phase: 'guard', age: 30 };
-  let ai: AiState = { ...initialAi(), mode: 'approach', decision: 500, wait: 0, next: 'heavy' };
-  const first = decide(d, 1, ai, PROFILES.normal); ai = first.ai;
-  assert.equal(first.intent.action, 'heavy'); assert.equal(first.intent.heavyHeld, true, 'a heavy at a guard is thrown held');
+  const guardedArena = () => { const d = arena(1.5); d.fighters[0] = { ...d.fighters[0], phase: 'guard', age: 30 }; return d; };
+  const fresh = (seed: number): AiState => ({ ...initialAi(seed), mode: 'approach', decision: 500, wait: 0, next: 'heavy' });
+  // How often the guard is charged through follows aggression: at normal some heavies at a guard are plain, at hard nearly all are held.
+  const holds = (level: keyof typeof PROFILES) => [...Array(40).keys()].map(seed => decide(guardedArena(), 1, fresh(seed + 1), PROFILES[level])).filter(w => (assert.equal(w.intent.action, 'heavy'), w.intent.heavyHeld)).length;
+  assert.ok(holds('normal') >= 8 && holds('normal') <= 26, `normal holds ${holds('normal')}/40`); assert.ok(holds('hard') > holds('easy'), `hard ${holds('hard')} > easy ${holds('easy')}`);
+  let d = guardedArena(), ai = fresh(1); let first = decide(d, 1, ai, PROFILES.normal);
+  for (let seed = 2; !first.intent.heavyHeld; seed++) { ai = fresh(seed); first = decide(d, 1, ai, PROFILES.normal); }
+  ai = first.ai; assert.equal(first.intent.action, 'heavy'); assert.equal(first.intent.heavyHeld, true, 'a heavy at a guard is thrown held');
   d = stepDuel(d, [hold(), first.intent]);
   let charged = 0, released = 0;
   for (let i = 0; i < 120 && d.fighters[1].phase === 'attack'; i++) {

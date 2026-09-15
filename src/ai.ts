@@ -82,7 +82,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); next.next = null;
       // A less aggressive warden sometimes baits instead: a visible guard the player must open with a heavy or a kick.
       if ((best === 'heavy' || best === 'light') && !guarded && roll() < (1 - profile.aggression) * .6) { next.mode = 'guard'; next.decision = 36 + Math.floor(roll() * 45); intent.guard = true; return { intent, ai: next }; }
-      next.hold = best === 'heavy' && guarded;
+      next.hold = best === 'heavy' && guarded && roll() < profile.aggression - .25;   // a guard is charged through 20/40/60 % of the time by level; the rest are plain heavies the guard can take for chip
       return { intent: { ...intent, action, heavyHeld: next.hold }, ai: next };
     }
   }
