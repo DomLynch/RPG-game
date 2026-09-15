@@ -24,6 +24,7 @@ test('legacy constant views stay equal to the move data the simulation actually 
   assert.equal(RULES.bufferWindow, 10); assert.equal(RULES.bufferTtl, 11); assert.equal(RULES.parryRecovery, 8); assert.equal(RULES.feintCost, 10);
   for (const path of Object.values(PATHS)) assert.equal(path.active, 5);
   for (const move of Object.values(MOVES)) assert.equal(move.windup + move.active + move.recovery, total(move));
+  assert.equal(MOVES.heavy_riposte.damage, 48); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2);
 });
 
 test('the projection mirrors both fighters: phases, resources, threat, results and warden reaction for the renderer', () => {
