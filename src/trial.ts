@@ -1,10 +1,11 @@
 import type { StoragePort } from './profile.ts';
 
 // Control-scheme trial: which right-thumb control the owner is testing, and a per-scheme scorecard kept in the browser.
-// v4 (an invisible right-half gesture field) was built, tried by the owner and dropped on 2026-09-15; a stored 'field' falls back to buttons.
-export type Scheme = 'buttons' | 'flick' | 'drag' | 'charge' | 'cluster' | 'sectors';
-export const SCHEMES: Scheme[] = ['buttons', 'flick', 'drag', 'charge', 'cluster', 'sectors'];
-export const LABELS: Record<Scheme, string> = { buttons: 'buttons', flick: 'disc · flick (v1)', drag: 'disc · drag & release (v2)', charge: 'disc · drag & release · hold to charge (v3)', cluster: 'thumb cluster · round buttons (v5)', sectors: 'segmented disc · tap a sector (v6)' };
+// The owner locked in the thumb cluster (v5) on 2026-09-16 after trying the square grid, three weapon-disc grammars, an invisible
+// field and a segmented disc; the flick disc (v1) stays as the one alternative. Any other stored scheme falls back to the cluster.
+export type Scheme = 'cluster' | 'flick';
+export const SCHEMES: Scheme[] = ['cluster', 'flick'];
+export const LABELS: Record<Scheme, string> = { cluster: 'thumb cluster', flick: 'weapon disc · flick' };
 export type Tally = { fights: number; wins: number; rematches: number; ticks: number; dealt: number; taken: number };
 export type Trial = { scheme: Scheme; card: Partial<Record<Scheme, Tally>> };
 const KEY = 'frankendom.controls.v1';
@@ -13,10 +14,10 @@ const isTally = (t: unknown): t is Tally => typeof t === 'object' && t !== null 
 export function loadTrial(storage: StoragePort): Trial {
   try {
     const value = JSON.parse(storage.getItem(KEY) || 'null');
-    const scheme: Scheme = SCHEMES.includes(value?.scheme) ? value.scheme : 'buttons', card: Trial['card'] = {};
+    const scheme: Scheme = SCHEMES.includes(value?.scheme) ? value.scheme : 'cluster', card: Trial['card'] = {};
     for (const s of SCHEMES) if (isTally(value?.card?.[s])) card[s] = value.card[s];
     return { scheme, card };
-  } catch { return { scheme: 'buttons', card: {} }; }
+  } catch { return { scheme: 'cluster', card: {} }; }
 }
 export function saveTrial(storage: StoragePort, trial: Trial): boolean {
   try { storage.setItem(KEY, JSON.stringify(trial)); return true; } catch { return false; }
