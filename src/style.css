@@ -43,13 +43,26 @@
   .mobile-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}.mobile-tools button{backdrop-filter:none}.mobile-tools p,.mobile-tools output{grid-column:1/-1;font:12px/1.7 Arial;color:#c5ceca;margin:0}.mobile-tools output{font-size:11px;color:#aeb9b6}
 }
 
-#gesture-pad{display:none}.actions{touch-action:none}
-#touch-mark{position:fixed;left:-32px;top:-32px;width:64px;height:64px;border-radius:50%;border:1px solid #f0e3c966;box-shadow:0 0 0 1px #0004,inset 0 0 12px #f0e3c922;pointer-events:none;z-index:5}
-.field-help{display:none}
+#gesture-pad,#thrust-button{display:none}.actions{touch-action:none}
 .scorecard{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;margin:.6em 0;color:#d9c9a6}
 @media(max-width:900px),(pointer:coarse){
- .actions[data-gestures=true] #attack-button,.actions[data-gestures=true] #heavy-button,.actions[data-gestures=field] #attack-button,.actions[data-gestures=field] #heavy-button{display:none}
- .actions[data-gestures=field] .field-help:not([hidden]){display:block;grid-column:1/-1;grid-row:1;font:12px/1.4 Arial;color:#f0e3c9;text-shadow:0 1px 2px #000;max-width:170px;text-align:center}
+ .actions[data-gestures=true] #attack-button,.actions[data-gestures=true] #heavy-button,.actions[data-gestures=sectors] #attack-button,.actions[data-gestures=sectors] #heavy-button{display:none}
+ /* v5 thumb cluster: round targets sized by how often they are needed, curved around the right thumb's rest. */
+ .actions[data-gestures=cluster]{display:block;position:relative;width:176px;height:200px}
+ .actions[data-gestures=cluster] button{position:absolute;border-radius:50%;padding:0!important;min-height:0!important;box-shadow:0 0 0 1px #0004}
+ .actions[data-gestures=cluster] #thrust-button:not([hidden]){display:block;width:50px;height:50px;left:88px;top:0}
+ .actions[data-gestures=cluster] #attack-button{width:66px;height:66px;left:12px;top:38px}
+ .actions[data-gestures=cluster] #heavy-button{width:50px;height:50px;left:120px;top:54px}
+ .actions[data-gestures=cluster] #kick-button{width:40px;height:40px;min-height:0;left:75px;top:99px;border-radius:50%;font-size:0;background:#283233a6}
+ .actions[data-gestures=cluster] #dodge-button{width:56px;height:56px;left:5px;top:138px}
+ .actions[data-gestures=cluster] #guard-button{width:64px;height:64px;left:107px;top:133px}
+ .actions[data-gestures=cluster] #reset-button{left:0;top:70px;width:176px;height:56px;border-radius:16px}
+ .actions[data-gestures=cluster] #camera-button,.actions[data-gestures=cluster] #run-button,.actions[data-gestures=cluster] #recenter-button{display:none}
+ /* v6 segmented disc: the pad is a circle; the sector labels sit over it. */
+ .actions[data-gestures=sectors] #gesture-pad{display:block;grid-column:1/-1;grid-row:1;width:150px;height:150px;border-radius:50%;padding:0!important;color:#f0e3c9;border-color:#c6af78;background:conic-gradient(from 45deg,#172329a8 0 25%,#1e2c33b0 0 50%,#172329a8 0 75%,#1e2c33b0 0)}
+ .actions[data-gestures=sectors]{position:relative}
+ .sectors{display:none}.actions[data-gestures=sectors] .sectors:not([hidden]){display:block;position:absolute;left:0;top:0;width:150px;height:150px;pointer-events:none;font:12px Arial;color:#f0e3c9;text-shadow:0 1px 2px #000}
+ .sectors span{position:absolute;transform:translate(-50%,-50%)}.sectors span:nth-child(1){left:50%;top:16%}.sectors span:nth-child(2){left:20%;top:50%}.sectors span:nth-child(3){left:80%;top:50%}.sectors span:nth-child(4){left:50%;top:84%}
  .actions[data-gestures=true] #gesture-pad{display:block;grid-column:1/-1;grid-row:1;width:148px;height:100px;font:13px/1.7 Arial;padding:18px!important;color:#f0e3c9;border-color:#c6af78;background:#172329a8}
 }
 

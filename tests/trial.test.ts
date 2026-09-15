@@ -11,7 +11,7 @@ test('the control trial survives storage that is missing, corrupt or hostile, an
   const storage = memory(), trial = loadTrial(storage); trial.scheme = 'charge'; recordFight(trial, 'charge', true, 1800, 100, 43); recordRematch(trial, 'charge');
   assert.equal(saveTrial(storage, trial), true); assert.deepEqual(loadTrial(storage), trial);
   assert.equal(saveTrial({ getItem: () => null, setItem: () => { throw Error('quota'); } }, trial), false);
-  assert.equal(SCHEMES.length, 5); for (const s of SCHEMES) assert.ok(LABELS[s]);
+  assert.equal(SCHEMES.length, 6); for (const s of SCHEMES) assert.ok(LABELS[s]);
 });
 
 test('the scorecard reads as one line per played scheme with average duel length in seconds', () => {
