@@ -178,9 +178,10 @@ applyScheme();
 // One stroke grammar for the weapon disc and the invisible field: the stroke's direction chooses the attack; in every grammar but v1
 // the thumb staying down loads the swing (held = chambered, and charges a heavy in v3/v4); returning to the origin before release feints.
 function beginStroke(event: PointerEvent, surface: HTMLElement) {
-  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false; surface.setPointerCapture(gestureId);
+  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false;
   if (practice.phase === 'sheathed') { requestStrike(); gestureUsed = true; }
   if (scheme === 'field') { touchMark.hidden = false; touchMark.style.transform = `translate(${gestureX}px, ${gestureY}px)`; }   // the field shows itself only under the thumb
+  try { surface.setPointerCapture(gestureId); } catch { /* capture is a convenience: a pointer the browser will not capture still strokes */ }
 }
 function moveStroke(event: PointerEvent) {
   if (paused()) return;
