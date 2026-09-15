@@ -1,9 +1,9 @@
 {
-  "label": "impacts-v1",
+  "label": "impacts-v2",
   "seed": 731,
   "rate": 48000,
   "path": "sprite, formats tried in order [\"opus\",\"aac\"]",
-  "generated": "2026-09-15T18:20:25.891Z",
+  "generated": "2026-09-15T18:21:28.056Z",
   "revision": "86ea4c3",
   "dirty": true,
   "exchange": {
@@ -114,57 +114,57 @@
     ]
   },
   "assets": {
-    "raw": 395117,
-    "gzip": 360942
+    "raw": 401403,
+    "gzip": 370656
   },
   "loudness": {
     "exchange": {
-      "lufsIntegrated": -20.8,
-      "lufsMomentaryMax": -14.2,
-      "peakDbfs": -3.5,
-      "onsetMs": 7,
-      "lengthMs": 11930,
-      "lufsPhone": -22.2
+      "lufsIntegrated": -18.8,
+      "lufsMomentaryMax": -12.4,
+      "peakDbfs": -3.1,
+      "onsetMs": 6,
+      "lengthMs": 12046,
+      "lufsPhone": -19.7
     },
     "events/draw": {
-      "lufsIntegrated": -22.4,
-      "lufsMomentaryMax": -22.1,
-      "peakDbfs": -7.1,
-      "onsetMs": 7,
-      "lengthMs": 385,
-      "lufsPhone": -22.4
+      "lufsIntegrated": -19.4,
+      "lufsMomentaryMax": -18.9,
+      "peakDbfs": -6.9,
+      "onsetMs": 6,
+      "lengthMs": 433,
+      "lufsPhone": -19.5
     },
     "events/swing-light": {
-      "lufsIntegrated": -24.3,
-      "lufsMomentaryMax": -24.2,
-      "peakDbfs": -8.1,
-      "onsetMs": 8,
-      "lengthMs": 173,
-      "lufsPhone": -24.3
+      "lufsIntegrated": -23.1,
+      "lufsMomentaryMax": -23,
+      "peakDbfs": -7.7,
+      "onsetMs": 7,
+      "lengthMs": 174,
+      "lufsPhone": -23.2
     },
     "events/swing-heavy": {
-      "lufsIntegrated": -21.8,
-      "lufsMomentaryMax": -20.7,
-      "peakDbfs": -6.7,
-      "onsetMs": 9,
-      "lengthMs": 334,
-      "lufsPhone": -21.9
+      "lufsIntegrated": -21.1,
+      "lufsMomentaryMax": -20.1,
+      "peakDbfs": -6.5,
+      "onsetMs": 8,
+      "lengthMs": 335,
+      "lufsPhone": -21.5
     },
     "events/swing-kick": {
-      "lufsIntegrated": -27.4,
-      "lufsMomentaryMax": -27.3,
-      "peakDbfs": -10.9,
-      "onsetMs": 8,
-      "lengthMs": 172,
-      "lufsPhone": -27.4
-    },
-    "events/swing-thrust": {
-      "lufsIntegrated": -24.3,
-      "lufsMomentaryMax": -24.2,
-      "peakDbfs": -8.1,
+      "lufsIntegrated": -26.1,
+      "lufsMomentaryMax": -26,
+      "peakDbfs": -10.4,
       "onsetMs": 8,
       "lengthMs": 173,
-      "lufsPhone": -24.3
+      "lufsPhone": -26.2
+    },
+    "events/swing-thrust": {
+      "lufsIntegrated": -23.1,
+      "lufsMomentaryMax": -23,
+      "peakDbfs": -7.7,
+      "onsetMs": 7,
+      "lengthMs": 174,
+      "lufsPhone": -23.2
     },
     "events/attack-active": {
       "lufsIntegrated": null,
@@ -183,84 +183,84 @@
       "lufsPhone": null
     },
     "events/charged": {
-      "lufsIntegrated": -20.8,
-      "lufsMomentaryMax": -19.7,
-      "peakDbfs": -10.8,
-      "onsetMs": 8,
-      "lengthMs": 567,
-      "lufsPhone": -20.8
+      "lufsIntegrated": -17.7,
+      "lufsMomentaryMax": -15.9,
+      "peakDbfs": -10.3,
+      "onsetMs": 7,
+      "lengthMs": 595,
+      "lufsPhone": -17.8
     },
     "events/hit-light": {
-      "lufsIntegrated": -23.5,
-      "lufsMomentaryMax": -23.5,
-      "peakDbfs": -4.2,
+      "lufsIntegrated": -23.6,
+      "lufsMomentaryMax": -20.7,
+      "peakDbfs": -4.7,
       "onsetMs": 6,
-      "lengthMs": 309,
-      "lufsPhone": -27.9
+      "lengthMs": 365,
+      "lufsPhone": -21.8
     },
     "events/hit-heavy": {
-      "lufsIntegrated": -22.7,
-      "lufsMomentaryMax": -20.6,
-      "peakDbfs": -4.1,
+      "lufsIntegrated": -19.2,
+      "lufsMomentaryMax": -17.2,
+      "peakDbfs": -4.4,
       "onsetMs": 6,
-      "lengthMs": 436,
-      "lufsPhone": -30.7
+      "lengthMs": 426,
+      "lufsPhone": -23
     },
     "events/hit-riposte": {
-      "lufsIntegrated": -22.7,
-      "lufsMomentaryMax": -20.6,
-      "peakDbfs": -4.1,
+      "lufsIntegrated": -19.2,
+      "lufsMomentaryMax": -17.2,
+      "peakDbfs": -4.4,
       "onsetMs": 6,
-      "lengthMs": 436,
-      "lufsPhone": -30.7
+      "lengthMs": 426,
+      "lufsPhone": -23
     },
     "events/hit-kick": {
-      "lufsIntegrated": -24.2,
-      "lufsMomentaryMax": -24.2,
-      "peakDbfs": -4.4,
+      "lufsIntegrated": -21.6,
+      "lufsMomentaryMax": -21.6,
+      "peakDbfs": -4.8,
       "onsetMs": 6,
-      "lengthMs": 255,
-      "lufsPhone": -36.6
+      "lengthMs": 304,
+      "lufsPhone": -23.2
     },
     "events/hit-thrust": {
-      "lufsIntegrated": -23.5,
-      "lufsMomentaryMax": -23.5,
-      "peakDbfs": -4.2,
+      "lufsIntegrated": -23.6,
+      "lufsMomentaryMax": -20.7,
+      "peakDbfs": -4.7,
       "onsetMs": 6,
-      "lengthMs": 309,
-      "lufsPhone": -27.9
+      "lengthMs": 365,
+      "lufsPhone": -21.8
     },
     "events/blocked": {
-      "lufsIntegrated": -26.1,
-      "lufsMomentaryMax": -23.4,
-      "peakDbfs": -4.5,
+      "lufsIntegrated": -23.4,
+      "lufsMomentaryMax": -20.7,
+      "peakDbfs": -4.6,
       "onsetMs": 6,
-      "lengthMs": 319,
-      "lufsPhone": -26.3
+      "lengthMs": 388,
+      "lufsPhone": -24.5
     },
     "events/blocked-perfect": {
-      "lufsIntegrated": -24,
-      "lufsMomentaryMax": -24,
-      "peakDbfs": -4.1,
-      "onsetMs": 6,
-      "lengthMs": 330,
-      "lufsPhone": -24
-    },
-    "events/parried": {
-      "lufsIntegrated": -19.5,
-      "lufsMomentaryMax": -18.2,
+      "lufsIntegrated": -22,
+      "lufsMomentaryMax": -22,
       "peakDbfs": -4.4,
       "onsetMs": 6,
-      "lengthMs": 424,
-      "lufsPhone": -19.5
+      "lengthMs": 365,
+      "lufsPhone": -22.8
+    },
+    "events/parried": {
+      "lufsIntegrated": -16.9,
+      "lufsMomentaryMax": -15.6,
+      "peakDbfs": -4.1,
+      "onsetMs": 6,
+      "lengthMs": 484,
+      "lufsPhone": -17.2
     },
     "events/guard-broken": {
-      "lufsIntegrated": -24.2,
-      "lufsMomentaryMax": -21.9,
-      "peakDbfs": -3.3,
+      "lufsIntegrated": -19.6,
+      "lufsMomentaryMax": -18,
+      "peakDbfs": -4,
       "onsetMs": 6,
-      "lengthMs": 397,
-      "lufsPhone": -29.3
+      "lengthMs": 460,
+      "lufsPhone": -22.1
     },
     "events/guard": {
       "lufsIntegrated": null,
@@ -287,12 +287,12 @@
       "lufsPhone": null
     },
     "events/roll": {
-      "lufsIntegrated": -28.4,
-      "lufsMomentaryMax": -28.3,
-      "peakDbfs": -11.8,
+      "lufsIntegrated": -27.1,
+      "lufsMomentaryMax": -27,
+      "peakDbfs": -11.3,
       "onsetMs": 8,
-      "lengthMs": 171,
-      "lufsPhone": -28.4
+      "lengthMs": 173,
+      "lufsPhone": -27.2
     },
     "events/backstep": {
       "lufsIntegrated": null,
@@ -335,12 +335,12 @@
       "lufsPhone": null
     },
     "events/killed": {
-      "lufsIntegrated": -20.2,
-      "lufsMomentaryMax": -17.5,
-      "peakDbfs": -3.8,
+      "lufsIntegrated": -17.5,
+      "lufsMomentaryMax": -14.4,
+      "peakDbfs": -3.4,
       "onsetMs": 6,
-      "lengthMs": 490,
-      "lufsPhone": -33.3
+      "lengthMs": 613,
+      "lufsPhone": -20.4
     }
   }
 }

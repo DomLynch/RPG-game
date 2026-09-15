@@ -12,7 +12,7 @@ import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 2, PROBE_AT = .05, PROBE_LENGTH = 1.2;
+const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 2, PROBE_AT = .05, PROBE_LENGTH = 1.2;
 const out = path.join('artifacts', 'audio', label);
 await fs.mkdir(path.join(out, 'events'), { recursive: true });
 
@@ -77,7 +77,19 @@ function measure(pcm, cueAt) {
   let peak = 0, first = -1, last = -1; const floor = 10 ** (-60 / 20);
   for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > peak) peak = a; if (a > floor) { if (first < 0) first = i; last = i; } }
   const round = v => Number.isFinite(v) ? Math.round(v * 10) / 10 : null;
-  return { lufsIntegrated: round(integrated), lufsMomentaryMax: round(momentary), peakDbfs: round(dB(peak)), onsetMs: first < 0 ? null : Math.round((first / RATE - cueAt) * 1000), lengthMs: first < 0 ? 0 : Math.round((last - first) / RATE * 1000) };
+  return { lufsIntegrated: round(integrated), lufsMomentaryMax: round(momentary), peakDbfs: round(dB(peak)), onsetMs: first < 0 ? null : Math.round((first / RATE - cueAt) * 1000), lengthMs: first < 0 ? 0 : Math.round((last - first) / RATE * 1000), lufsPhone: round(phoneLoudness(x)) };
+}
+// Phone band: a handset speaker reproduces little below ~300 Hz, so this is the integrated loudness of what it can actually play (4th-order high-pass at 300 Hz).
+function phoneLoudness(x) {
+  const w = 2 * Math.PI * 300 / RATE, c = Math.cos(w), alpha = Math.sin(w) / (2 * Math.SQRT1_2), a0 = 1 + alpha;   // RBJ Butterworth high-pass, applied twice
+  const hp = [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - alpha) / a0];
+  const y = biquad(biquad(x, hp), hp);
+  const k = biquad(biquad(y, [1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, 0.73248077421585]), [1, -2, 1, -1.99004745483398, 0.99007225036621]);
+  const block = Math.round(.4 * RATE), hop = Math.round(.1 * RATE), blocks = [];
+  for (let start = 0; start + block <= k.length; start += hop) { let sum = 0; for (let i = start; i < start + block; i++) sum += k[i] * k[i]; blocks.push(sum / block); }
+  const loud = z => -.691 + 10 * Math.log10(z), mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+  const absolute = blocks.filter(z => loud(z) > -70), gate = absolute.length ? loud(mean(absolute)) - 10 : -Infinity, gated = absolute.filter(z => loud(z) > gate);
+  return gated.length ? loud(mean(gated)) : -Infinity;
 }
 const loudness = Object.fromEntries(Object.entries(rendered).map(([name, pcm]) => [name, measure(pcm, name === 'exchange' ? cues[0].t : PROBE_AT)]));
 
@@ -88,7 +100,7 @@ async function payload(dir) {
   return { raw, gzip };
 }
 const assets = await payload(path.join('src', 'assets', 'audio'));
-const baseline = label === 'baseline' ? null : await fs.readFile(path.join('artifacts', 'audio', 'baseline', 'loudness.json'), 'utf8').then(JSON.parse).catch(() => null);
+const baseline = label === against ? null : await fs.readFile(path.join('artifacts', 'audio', against, 'loudness.json'), 'utf8').then(JSON.parse).catch(() => null);
 const git = (cmd) => { try { return execSync(cmd, { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
 const receipt = { label, seed, rate: RATE, path: path_, generated: new Date().toISOString(), revision: git('git rev-parse --short HEAD'), dirty: git('git status --porcelain') !== '', exchange: { lengthTicks: exchange.length, seconds, beats: exchange.beats }, assets, loudness };
 await fs.writeFile(path.join(out, 'loudness.json'), JSON.stringify(receipt, null, 2));
@@ -96,7 +108,7 @@ await fs.writeFile(path.join(out, 'loudness.json'), JSON.stringify(receipt, null
 // --- Report.
 const fmt = v => v === null || v === undefined ? '—' : String(v);
 const delta = (name, key) => baseline?.loudness?.[name] ? (loudness[name][key] === null || baseline.loudness[name][key] === null ? '—' : `${loudness[name][key] - baseline.loudness[name][key] > 0 ? '+' : ''}${Math.round((loudness[name][key] - baseline.loudness[name][key]) * 10) / 10}`) : '';
-const rows = Object.entries(loudness).filter(([name]) => name !== 'exchange').map(([name, m]) => `| ${name.slice(7)} | ${fmt(m.lufsIntegrated)} | ${fmt(m.lufsMomentaryMax)} | ${fmt(m.peakDbfs)} | ${fmt(m.onsetMs)} | ${fmt(m.lengthMs)} |${baseline ? ` ${delta(name, 'lufsIntegrated')} |` : ''}`);
+const rows = Object.entries(loudness).filter(([name]) => name !== 'exchange').map(([name, m]) => `| ${name.slice(7)} | ${fmt(m.lufsIntegrated)} | ${fmt(m.lufsPhone)} | ${fmt(m.lufsMomentaryMax)} | ${fmt(m.peakDbfs)} | ${fmt(m.onsetMs)} | ${fmt(m.lengthMs)} |${baseline ? ` ${delta(name, 'lufsIntegrated')} | ${delta(name, 'lufsPhone')} |` : ''}`);
 const report = `# Combat audio render — ${label}
 
 Revision ${receipt.revision}${receipt.dirty ? ' (dirty tree)' : ''} · seed ${seed} · ${RATE} Hz mono · audio path: ${path_} · rendered ${receipt.generated} through Chromium OfflineAudioContext via \`node scripts/audio-preview.mjs --label ${label}\`.
@@ -106,13 +118,13 @@ Revision ${receipt.revision}${receipt.dirty ? ' (dirty tree)' : ''} · seed ${se
 |---|---|---|---|
 ${exchange.beats.map(b => `| ${b.name} | ${b.tick} | ${(b.tick / 60).toFixed(2)} s | ${b.events.join(', ') || '(no event: movement emits none)'} |`).join('\n')}
 
-Exchange loudness: integrated ${fmt(loudness.exchange.lufsIntegrated)} LUFS · momentary max ${fmt(loudness.exchange.lufsMomentaryMax)} LUFS · peak ${fmt(loudness.exchange.peakDbfs)} dBFS.
+Exchange loudness: integrated ${fmt(loudness.exchange.lufsIntegrated)} LUFS · phone band (> 300 Hz) ${fmt(loudness.exchange.lufsPhone)} LUFS · momentary max ${fmt(loudness.exchange.lufsMomentaryMax)} LUFS · peak ${fmt(loudness.exchange.peakDbfs)} dBFS.
 
 ## Per-cue renders: \`events/<name>.wav\` (one synthetic event at ${PROBE_AT * 1000} ms, ${PROBE_LENGTH} s render)
-LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows across iterations, not against broadcast targets). Onset = first sample above −60 dBFS relative to the cue tick; length = audible span above −60 dBFS. "—" = silent: the module answers no cue for that event.
+LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows across iterations, not against broadcast targets). Phone = the same measure after a 300 Hz high-pass: what a handset speaker can play. Onset = first sample above −60 dBFS relative to the cue tick; length = audible span above −60 dBFS. "—" = silent: the module answers no cue for that event.
 
-| cue | LUFS-I | LUFS-M max | peak dBFS | onset ms | length ms |${baseline ? ' Δ LUFS-I vs baseline |' : ''}
-|---|---|---|---|---|---|${baseline ? '---|' : ''}
+| cue | LUFS-I | phone LUFS | LUFS-M max | peak dBFS | onset ms | length ms |${baseline ? ` Δ LUFS-I vs ${against} | Δ phone vs ${against} |` : ''}
+|---|---|---|---|---|---|---|${baseline ? '---|---|' : ''}
 ${rows.join('\n')}
 
 ## Payload
