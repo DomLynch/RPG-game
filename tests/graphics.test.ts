@@ -161,6 +161,10 @@ test('heavy control: a held key charges the swing and release lets it fly', () =
   assert.equal(me().move, 'heavy_overhead'); assert.ok(me().charge > 0, `holding G charges: charge=${me().charge}`); assert.equal(me().age, 10, 'the wind-up holds at the charge point');
   app.release('KeyG'); for (let i = 0; i < 6; i++) app.tick();
   assert.ok(me().age > 10, 'released: the swing continues');
+  // A quick press is a plain heavy: released before the charge point, it never holds.
+  for (let i = 0; i < 80; i++) app.tick();
+  app.key('KeyG'); for (let i = 0; i < 4; i++) app.tick(); app.release('KeyG'); for (let i = 0; i < 12; i++) app.tick();
+  assert.equal(me().move, 'heavy_overhead'); assert.equal(me().charge, 0, 'a tap never charges'); assert.ok(me().age > 10);
 });
 
 test('kick input spends once and clears on pointer cancellation or graphics interruption',()=>{

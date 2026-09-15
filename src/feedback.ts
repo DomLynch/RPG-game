@@ -16,16 +16,16 @@ export function createFeedback() {
     // iOS also parks the context in 'interrupted' after calls, Siri or an app switch; resume from any non-running state.
     if (context.state !== 'running') void context.resume().catch(() => {});
   }
-  function play(kind: 'swing' | 'hit' | 'steel' | 'parry') {
+  function play(kind: 'swing' | 'hit' | 'steel' | 'parry' | 'charged') {
     if (!enabled || !context || !master || !noise || context.state !== 'running') return;
-    const time = context.currentTime, duration = kind === 'swing' ? .16 : .24;
+    const time = context.currentTime, duration = kind === 'swing' ? .16 : kind === 'charged' ? .3 : .24;
     const air = context.createBufferSource(), filter = context.createBiquadFilter(), gain = context.createGain();
     air.buffer = noise; filter.type = 'bandpass'; filter.frequency.value = kind === 'swing' ? 900 : 1800; filter.Q.value = .7;
     gain.gain.setValueAtTime(.001, time); gain.gain.exponentialRampToValueAtTime(kind === 'swing' ? .35 : .7, time + .008); gain.gain.exponentialRampToValueAtTime(.001, time + duration);
     air.connect(filter).connect(gain).connect(master); air.start(time); air.stop(time + duration);
     air.onended = () => { air.disconnect(); filter.disconnect(); gain.disconnect(); };
     if (kind === 'swing') return;
-    for (const frequency of kind === 'hit' ? [95, 173] : kind === 'parry' ? [940, 1491, 2273] : [620, 1037, 1613]) {
+    for (const frequency of kind === 'hit' ? [95, 173] : kind === 'parry' ? [940, 1491, 2273] : kind === 'charged' ? [131, 196] : [620, 1037, 1613]) {
       const tone = context.createOscillator(), envelope = context.createGain();
       tone.frequency.value = frequency; envelope.gain.setValueAtTime(.18, time); envelope.gain.exponentialRampToValueAtTime(.001, time + duration);
       tone.connect(envelope).connect(master); tone.start(time); tone.stop(time + duration);
@@ -41,6 +41,7 @@ export function createFeedback() {
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) play('hit');
       else if (events.some(e => e.type === 'Parried')) play('parry');
       else if (events.some(e => e.type === 'Blocked')) play('steel');
+      else if (events.some(e => e.type === 'Charged')) play('charged');   // the hold has become the guard-breaking swing
       else if (events.some(e => e.type === 'AttackStarted' || (e.type === 'ActionStarted' && (e.action === 'draw' || e.action === 'roll')))) play('swing');
     },
   };
