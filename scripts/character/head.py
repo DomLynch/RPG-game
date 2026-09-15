@@ -1249,7 +1249,7 @@ def keentools_skin_tone(eye_l, eye_r):
     return SKIN_TONE
 
 
-def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_jpeg_fn, save_two_sizes_fn, materials_out, size=2048):
+def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_jpeg_fn, save_two_sizes_fn, materials_out, size=2048, crown_z=None):
     """Bring the KeenTools head (Head, EyeLeft, EyeRight, Teeth; 4K textures) onto the rig: scaled by eye spacing,
     eyes aligned to the base eyes, shoulders cut off, skin weights from the body by nearest surface, head decimated for
     the phone with a normal map baked from the full mesh, textures resampled, the untextured crown filled from its
@@ -1274,7 +1274,12 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     if eye_l.x < eye_r.x:  # the rig names its eyes from the viewer's side; match by position, never by name
         eye_l, eye_r = eye_r, eye_l
     cl, cr = centroid(kt_eye_l), centroid(kt_eye_r)
-    scale = (eye_l.x - eye_r.x) / (cl.x - cr.x)
+    eye_scale = (eye_l.x - eye_r.x) / (cl.x - cr.x)
+    # Size by head height, not eye spacing: the base eyes are narrow-set, and by their spacing the scan came out ~0.195 m
+    # crown-to-chin on a 1.8 m body (nine heads tall). Eye level to crown is well defined on both heads.
+    kt_top = max(v.co.z for v in head.data.vertices)
+    scale = (crown_z - (eye_l.z + eye_r.z) / 2) / (kt_top - (cl.z + cr.z) / 2) if crown_z is not None else eye_scale
+    print(f'KEENTOOLS head scale by height {scale:.4f} (by eye spacing it would be {eye_scale:.4f}, {scale / eye_scale:.2f}x)')
     kt_mid = (cl + cr) / 2
     rig_mid = (eye_l + eye_r) / 2
     M = Matrix.Translation(rig_mid) @ Matrix.Scale(scale, 4) @ Matrix.Translation(-kt_mid)
