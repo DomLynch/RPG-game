@@ -33,9 +33,9 @@ export const initialDuel = (): Duel => ({ tick: 0, fighters: [createFighter(init
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
 export const timing = (f: Fighter): Timing => f.chained && f.move ? MOVES[f.move].chained! : MOVES[f.move!];
-export const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
+const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
 // Ticks a committed phase lasts; null for phases that end on input.
-export function phaseLength(f: Fighter): number | null {
+function phaseLength(f: Fighter): number | null {
   if (f.phase === 'draw') return RULES.draw;
   if (f.phase === 'attack') return total(timing(f));
   if (f.phase === 'roll') return RULES.roll;
@@ -46,7 +46,7 @@ export function inBufferWindow(f: Fighter): boolean {
   const length = (f.phase === 'attack' || f.phase === 'draw') ? phaseLength(f)! : 0;
   return length > 0 && f.age >= length - RULES.bufferWindow;
 }
-export function chooseMove(f: Fighter, action: Action): MoveId {
+function chooseMove(f: Fighter, action: Action): MoveId {
   if (action === 'heavy') return 'heavy_overhead';
   if (action === 'kick') return 'kick';
   if (f.punish > 0) return 'riposte';
@@ -186,4 +186,3 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   return { tick, fighters, finish, events };
 }
 
-export const pathFor = (f: Fighter) => f.move && f.move !== 'kick' ? (f.chained ? MOVES[f.move].chainPath : MOVES[f.move].path) : null;
