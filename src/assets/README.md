@@ -127,3 +127,13 @@ Shipped fighter (2026-09-14): the Blender Studio body with the reconstructed hea
 writes it; `WARRIOR_BODY=classic` rebuilds the CC0 stylised body. The "demo builds only" notes above describe how the passes were
 staged, not the current default. Shipped budget: 5.80 MB GLB (3.25 MB gzip), 59.8k skinned triangles per fighter, 1K face and
 body maps (2K authored copies stay in `src/assets/source/materials/*@2k.jpg`).
+
+Polish pass v24 (character lane, 2026-09-15): eyes — the scan's eye texture gets its sclera lifted towards a cool white in the
+ring around the detected iris and the iris mid-tones a little (`head.eye_colour`), and `PhotoEyes` a modest clearcoat for a
+catch-light. Body skin — `head.skin_variation` keys sun (forearms and hands, shins, shoulder tops) and blood (elbows, knuckles,
+knees) on the rig's joints in the baked position map, before the median match, so the overall tone and the collar still meet the
+scan. Head — sized by eye-level-to-crown against the base body (1.16×), the cut under the jaw and the hairline now in scan units
+so they follow the size; collar blend eased (smoothstep) and kept under the chin tip found from the profile; the texture fade to
+the body tone is taller than the geometric collar; the scan gets a roughness map (matte at the collar) and borrows our neck's
+normals along its bottom ring. Thumb — swung onto its bone chain and stretched ≤1.12× towards the rig's longer thumb. Wrist
+wraps — their own `Wrap` material with a procedural leather-strip map (worn edges, stitch line; `wrap_*.jpg`, 256²).

@@ -744,6 +744,35 @@ def face_roughness(pos, F, detail, size):
     return np.clip(rough, 0.3, 0.95)
 
 
+def skin_variation(colour, pos):
+    """A body is not one tone. Sun: forearms and hands, shins, shoulder tops and nape darker and warmer than the torso and
+    the insides of the arms. Blood: knees, elbows and knuckles a touch redder. Keyed on the rig's joints in the baked
+    position map, so it lands on the body wherever the mesh is; applied before the median match, so the overall tone is
+    unchanged and the neck seam still meets the scan."""
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    ax = np.abs(x)
+    elbow, hand, knee, neck = abs(P.elbow_l.x), abs(P.hand_l.x), P.calf_l.z, P.neck.z
+    forearm = np.clip((ax - elbow + 0.02) / 0.06, 0, 1)                       # elbow outwards, hands included
+    upper_arm = np.clip((ax - (elbow - 0.22)) / 0.10, 0, 1) * (1 - forearm)  # partly
+    shin = np.clip((knee + 0.03 - z) / 0.06, 0, 1) * np.clip((z - 0.04) / 0.04, 0, 1) * (ax < elbow - 0.2)
+    shoulders = np.clip((z - (neck - 0.20)) / 0.08, 0, 1) * np.clip(((neck - 0.07) - z) / 0.03, 0, 1) * (ax < elbow - 0.05)  # shoulder tops and traps; stops below the head tile's neck
+    sun = np.clip(forearm + 0.45 * upper_arm + 0.7 * shin + 0.6 * shoulders, 0, 1)
+    sun = sun * (0.85 + 0.15 * P.fbm(pos.shape[0], 43, octaves=(4, 8)))  # uneven, like real sun
+    tan = np.array([0.88, 0.81, 0.72])[None, None, :]  # darker and warmer; blue drops most
+    colour = colour * (1 - sun[..., None] * 0.55) + colour * tan * (sun[..., None] * 0.55)
+    def blush(cx, cy, cz, r):
+        return np.exp(-(((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) / (2 * r * r)))
+    blood = np.zeros_like(sun)
+    for side in (1, -1):
+        e, h, k = P.elbow_l if side > 0 else P.elbow_r, P.hand_l if side > 0 else P.hand_r, P.calf_l if side > 0 else P.calf_r
+        blood += blush(e.x, e.y + 0.03, e.z, 0.045)                        # elbow point (back of the joint)
+        blood += blush(h.x + side * 0.06, h.y - 0.01, h.z + 0.01, 0.035)   # knuckles
+        blood += blush(k.x, k.y - 0.04, k.z, 0.05)                         # kneecap (front)
+    blood = np.clip(blood, 0, 1) * 0.5
+    colour = colour * (1 + blood[..., None] * np.array([0.10, -0.02, -0.05])[None, None, :])
+    return colour, sun
+
+
 def body_colour(pos, mask, ao, detail, size):
     """Body tiles: the same skin, dustier, with the scan mottle at half strength."""
     fbm = P.fbm
@@ -754,10 +783,12 @@ def body_colour(pos, mask, ao, detail, size):
     colour[..., 0] *= 1 + (fbm(size, 42, octaves=(8, 16)) - 0.5) * 0.10
     colour = colour * (0.55 + 0.45 * np.clip(ao, 0, 1) ** 1.2)[..., None]
     colour = colour * (1 + (detail - 0.5) * 2.0)
+    colour, sun = skin_variation(colour, pos)
     dust = np.clip((fbm(size, 1, octaves=(4, 8, 16, 64)) - 0.45) * 2.4, 0, 1)[..., None]
     colour = colour * (1 - dust * 0.22) + np.array([0.30, 0.28, 0.25])[None, None, :] * dust * 0.22
-    if SKIN_TONE is not None:  # the finished skin's median lands on the scanned neck's, shading and dust included
-        colour = colour * (SKIN_TONE / np.median(colour[mask], axis=0))[None, None, :]
+    if SKIN_TONE is not None:  # the unsunned skin's median lands on the scanned neck's, shading and dust included, so the two tiles meet at the collar
+        plain = mask & (sun < 0.1)
+        colour = colour * (SKIN_TONE / np.median(colour[plain if plain.sum() > 1000 else mask], axis=0))[None, None, :]
     return np.clip(colour, 0, 1)
 
 
@@ -1186,7 +1217,9 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
 
 KT_GLB = 'artifacts/source/keentools/01a0a0ab-aa11-7be1-9b43-2221309c04b9.glb'
 SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painted body and neck stub take it as their base
-NECK_DROP = 0.10  # the scanned head is cut this far below eye level: just under the jaw, where the skin weights are all neck and head (lower, the base body's clavicle weights tear the seam in pose)
+NECK_DROP_KT = 0.99  # the scanned head is cut this far below eye level IN SCAN UNITS (≈10 cm at the eye-spacing scale): just under the jaw, where the skin weights are all neck and head (lower, the base body's clavicle weights tear the seam in pose)
+SCALE = None       # scan units → metres, set by keentools_skin_tone
+NECK_Z = None      # the cut height in rig space, set by keentools_skin_tone
 KT = None         # (object, images, slot_names) once imported
 
 
@@ -1216,10 +1249,11 @@ def keentools_import():
     return KT
 
 
-def keentools_skin_tone(eye_l, eye_r):
-    """Median linear colour of the scan's neck band (11.5–16 cm below the eyes, once scaled to the rig), so the painted
-    body can be matched to the photographed head before it is painted."""
-    global SKIN_TONE
+def keentools_skin_tone(eye_l, eye_r, crown_z):
+    """Median linear colour of the scan's neck band (the stub's height, once scaled to the rig), so the painted body can be
+    matched to the photographed head before it is painted. Also fixes the scan's scale (eye level → crown against the base
+    head's, `SCALE`) and the height of the cut under the jaw (`NECK_Z`), which everything downstream shares."""
+    global SKIN_TONE, SCALE, NECK_Z
     kt, images, _ = keentools_import()
     mesh = kt.data
     eye_slots = [i for i in (1, 2) if i < len(mesh.materials)]
@@ -1227,9 +1261,14 @@ def keentools_skin_tone(eye_l, eye_r):
     for slot in eye_slots:
         vs = {v for p in mesh.polygons if p.material_index == slot for v in p.vertices}
         cents.append(sum((mesh.vertices[v].co for v in vs), Vector()) / len(vs))
-    scale = abs(eye_l.x - eye_r.x) / abs(cents[0].x - cents[1].x)
     mid = (cents[0] + cents[1]) / 2
-    lo, hi = mid.z - 0.16 / scale, mid.z - 0.115 / scale
+    kt_top = max(v.co.z for p in mesh.polygons if p.material_index == 0 for v in [mesh.vertices[i] for i in p.vertices])
+    eye_scale = abs(eye_l.x - eye_r.x) / abs(cents[0].x - cents[1].x)
+    scale = (crown_z - (eye_l.z + eye_r.z) / 2) / (kt_top - mid.z)  # by head height: by eye spacing the head came out a size small
+    SCALE = scale
+    NECK_Z = (eye_l.z + eye_r.z) / 2 - NECK_DROP_KT * scale
+    print(f'KEENTOOLS head scale by height {scale:.4f} (by eye spacing it would be {eye_scale:.4f}, {scale / eye_scale:.2f}x); cut {NECK_DROP_KT * scale * 100:.1f} cm below the eyes')
+    lo, hi = mid.z - NECK_DROP_KT - 0.45, mid.z - NECK_DROP_KT  # the stub's band, in scan units
     uv = mesh.uv_layers.active.data
     w, h = images[0].size
     px = np.empty(w * h * 4, np.float32)
@@ -1249,7 +1288,7 @@ def keentools_skin_tone(eye_l, eye_r):
     return SKIN_TONE
 
 
-def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_jpeg_fn, save_two_sizes_fn, materials_out, size=2048, crown_z=None):
+def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_jpeg_fn, save_two_sizes_fn, materials_out, size=2048):
     """Bring the KeenTools head (Head, EyeLeft, EyeRight, Teeth; 4K textures) onto the rig: scaled by eye spacing,
     eyes aligned to the base eyes, shoulders cut off, skin weights from the body by nearest surface, head decimated for
     the phone with a normal map baked from the full mesh, textures resampled, the untextured crown filled from its
@@ -1274,12 +1313,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     if eye_l.x < eye_r.x:  # the rig names its eyes from the viewer's side; match by position, never by name
         eye_l, eye_r = eye_r, eye_l
     cl, cr = centroid(kt_eye_l), centroid(kt_eye_r)
-    eye_scale = (eye_l.x - eye_r.x) / (cl.x - cr.x)
-    # Size by head height, not eye spacing: the base eyes are narrow-set, and by their spacing the scan came out ~0.195 m
-    # crown-to-chin on a 1.8 m body (nine heads tall). Eye level to crown is well defined on both heads.
-    kt_top = max(v.co.z for v in head.data.vertices)
-    scale = (crown_z - (eye_l.z + eye_r.z) / 2) / (kt_top - (cl.z + cr.z) / 2) if crown_z is not None else eye_scale
-    print(f'KEENTOOLS head scale by height {scale:.4f} (by eye spacing it would be {eye_scale:.4f}, {scale / eye_scale:.2f}x)')
+    scale = SCALE if SCALE is not None else (eye_l.x - eye_r.x) / (cl.x - cr.x)  # keentools_skin_tone sized it by head height
     kt_mid = (cl + cr) / 2
     rig_mid = (eye_l + eye_r) / 2
     M = Matrix.Translation(rig_mid) @ Matrix.Scale(scale, 4) @ Matrix.Translation(-kt_mid)
@@ -1287,7 +1321,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         o.data.transform(M)
         o.data.update()
     # shoulders off: keep the head and a neck stub
-    neck_z = rig_mid.z - NECK_DROP
+    neck_z = NECK_Z if NECK_Z is not None else rig_mid.z - NECK_DROP_KT * scale
     bm = bmesh.new()
     bm.from_mesh(head.data)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_center_median().z < neck_z - 0.03], context='FACES')
@@ -1318,30 +1352,57 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         dec.use_collapse_triangulate = True
         select_only([o])
         bpy.ops.object.modifier_apply(modifier='Decimate')
-    # the stub's lower band slides onto our neck so the silhouette runs straight into the body: aimed at a copy of our
-    # head already cut to the neck, so the rays never meet our chin
     ring = [v.co for v in head.data.vertices if v.co.z < neck_z + 0.012]  # the stub's bottom edge: the neck axis
     neck_c = sum(ring, Vector()) / max(1, len(ring))
-    neck_only = weights_from.copy()
-    neck_only.data = weights_from.data.copy()
-    bpy.context.collection.objects.link(neck_only)
-    cut_above(neck_only, neck_z + 0.0015, select_only)
-    for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
-        neck_blend(o, neck_only, neck_z, neck_c)
-    bpy.data.objects.remove(neck_only, do_unlink=True)
-    # weights from the fitted body (the base head, whose tile carries the neck; not the headless torso) — after the
-    # blend, so the collar deforms exactly like the neck it sits on — then the rig
+    # weights from the fitted body (the base head, whose tile carries the neck; not the headless torso), then the rig
     for o in (head, kt_eye_l, kt_eye_r, teeth):
         select_only([weights_from, o])
         bpy.ops.object.data_transfer(data_type='VGROUP_WEIGHTS', vert_mapping='POLYINTERP_NEAREST', layers_select_src='ALL', layers_select_dst='NAME', use_create=True)
         arm = o.modifiers.new('Armature', 'ARMATURE')
         arm.object = armature
+    # the stub's lower band slides onto our neck so the silhouette runs straight into the body: aimed at a copy of our
+    # head already cut to the neck, so the rays never meet our chin. (Drawing our neck out to the scan's collar instead
+    # flares it under the jaw — the scan is wider there.)
+    neck_only = weights_from.copy()
+    neck_only.data = weights_from.data.copy()
+    bpy.context.collection.objects.link(neck_only)
+    cut_above(neck_only, neck_z + 0.0015, select_only)
+    # the chin: going up from the cut, the profile's front-most point comes forward until the chin tip, then recedes into
+    # the lip crease (the lips further up stick out even more, so "most forward" alone finds the mouth)
+    front = {}
+    for v in head.data.vertices:
+        if neck_z < v.co.z < neck_z + 0.10 and abs(v.co.x - neck_c.x) < 0.02:
+            k = int((v.co.z - neck_z) / 0.003)
+            front[k] = min(front.get(k, 1e9), v.co.y)
+    chin_k = next((k for k in sorted(front) if k + 1 in front and k + 2 in front and front[k + 1] > front[k] - 1e-4 and front[k + 2] > front[k] - 1e-4 and k > 2), max(front))
+    chin_z = neck_z + chin_k * 0.003
+    band = min(0.05, max(0.015, chin_z - neck_z - 0.008))  # the blend must end under the chin: any higher and it draws the lips in over the teeth
+    print(f'KEENTOOLS collar band {band * 100:.1f} cm (chin {(chin_z - neck_z) * 100:.1f} cm above the cut)')
+    for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
+        neck_blend(o, neck_only, neck_z, neck_c, band=band)
+    bpy.data.objects.remove(neck_only, do_unlink=True)
     cut_above(weights_from, neck_z + 0.0015, select_only)  # our head goes; our neck ends just inside the scan's collar
-    seam = bake_attribute(head, 'neck_blend', select_only, size)  # where the stub fades into the body, in texture space
+    fade_vg = head.vertex_groups.new(name='seam_fade')  # the texture's fade to the body tone: taller than the geometric collar, still under the chin
+    fade_band = min(0.045, max(band, chin_z - neck_z - 0.004))
+    for v in head.data.vertices:
+        t = min(1.0, max(0.0, (v.co.z - neck_z) / fade_band))
+        w = 1 - t * t * (3 - 2 * t)
+        if w > 0:
+            fade_vg.add([v.index], w, 'REPLACE')
+    seam = bake_attribute(head, 'seam_fade', select_only, size)  # where the stub fades into the body, in texture space
+    head.vertex_groups.remove(head.vertex_groups['seam_fade'])
+    # the collar's shading: at a mesh edge the vertex normals only know the faces above, so the stub's bottom ring lit
+    # differently from the neck it sits on and printed a line. Its normals now come from our neck, fading out up the band.
+    dt = head.modifiers.new('CollarNormals', 'DATA_TRANSFER')
+    dt.object, dt.use_loop_data, dt.data_types_loops, dt.loop_mapping = weights_from, True, {'CUSTOM_NORMAL'}, 'NEAREST_POLYNOR'
+    dt.vertex_group, dt.mix_mode, dt.mix_factor = 'neck_blend', 'REPLACE', 1.0
+    select_only([head])
+    bpy.ops.object.modifier_move_to_index(modifier='CollarNormals', index=0)
+    bpy.ops.object.modifier_apply(modifier='CollarNormals')
     head.vertex_groups.remove(head.vertex_groups['neck_blend'])  # not a bone
     zone = head.vertex_groups.new(name='hair_zone')  # above the nape hairline (eye level and up), for the crown fill
     for v in head.data.vertices:
-        h = (v.co.z - (rig_mid.z - 0.055)) / 0.03  # the nape hairline of a buzz cut: about the ear lobes
+        h = (v.co.z - (rig_mid.z - 0.54 * scale)) / (0.3 * scale)  # the nape hairline of a buzz cut: about the ear lobes (scan units, so it follows the head's size)
         if h > 0:
             zone.add([v.index], min(1.0, h), 'REPLACE')
     hair_zone = bake_attribute(head, 'hair_zone', select_only, size)
@@ -1365,9 +1426,10 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
     dark = (colour.max(axis=2) < 0.06) | (coverage < 0.45)  # black, or seen only at a grazing angle: the crown, the back
     filled = crown_fill(colour, dark, size, hair_zone)
+    fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
-        fade = np.clip(seam * 1.25, 0, 1)  # fully flat for the lowest centimetre, so the edge carries none of the photograph's lighting
-        filled = filled * (1 - fade)[..., None] + SKIN_TONE[None, None, :] * fade[..., None]  # our neck meets it on the same flat tone, no occlusion on either side
+        mottle = (0.92 + P.fbm(size, 41, octaves=(4, 8, 16, 32)) * 0.18)[..., None]  # the painted body's own tone noise, so the band is skin, not paint
+        filled = filled * (1 - fade)[..., None] + (SKIN_TONE[None, None, :] * mottle) * fade[..., None]  # our neck meets it on the same tone, no occlusion on either side
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands: their colours spill into the gutters so seams never sample the raw edges
     filled = fill_margin(filled, island, steps=48)
     maps = {'Photo': {'baseColor': save_two_sizes_fn('kt_face_color', filled, 'sRGB')},
@@ -1375,6 +1437,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
             'PhotoTeeth': {'baseColor': save_jpeg_fn('kt_teeth_color', P.downsample(pixels(images[3]), max(1, images[3].size[0] // 512)), 'sRGB')}}
     normal = bake_tiles_single(head, full, select_only, size)
     maps['Photo']['normal'] = save_two_sizes_fn('kt_face_normal', normal, 'Non-Color')
+    rough = 0.62 + 0.38 * fade  # the photographed skin's sheen, going fully matte where the collar meets the body's matte skin
+    maps['Photo']['metallicRoughness'] = save_jpeg_fn('kt_face_orm', np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2), 'Non-Color')
     bpy.data.objects.remove(full, do_unlink=True)
     if kt not in (head, kt_eye_l, kt_eye_r, teeth) and kt.name in bpy.data.objects:  # the original object survives the split as one of the pieces
         bpy.data.objects.remove(kt, do_unlink=True)
@@ -1427,14 +1491,17 @@ def crown_fill(colour, dark, size, hair_zone):
     return filled * (1 - w) + synth * w
 
 
-def neck_blend(obj, target, neck_z, axis, band=0.05, lift=0.0004):
+def neck_blend(obj, target, neck_z, axis, band=0.06, lift=0.0002):
     """The stub's lowest `band` metres slide radially onto `target`'s neck (ray from the neck axis through each vertex),
-    so the silhouette runs straight into the body. Leaves the weights in a 'neck_blend' vertex group."""
+    so the silhouette runs straight into the body. The blend eases in and out (smoothstep), so the collar leaves the
+    ring with our neck's own slope — a linear blend tilted the whole band and it caught the light as a stripe. Leaves
+    the weights in a 'neck_blend' vertex group (the seam fade and the borrowed normals key on it)."""
     vg = obj.vertex_groups.new(name='neck_blend')
     inv = target.matrix_world.inverted()
     hits = misses = 0
     for v in obj.data.vertices:
-        w = min(1.0, 1 - (v.co.z - neck_z) / band)
+        t = min(1.0, max(0.0, (v.co.z - neck_z) / band))
+        w = 1 - t * t * (3 - 2 * t)
         if w <= 0:
             continue
         vg.add([v.index], w, 'REPLACE')
@@ -1450,7 +1517,7 @@ def neck_blend(obj, target, neck_z, axis, band=0.05, lift=0.0004):
         else:
             misses += 1
     obj.data.update()
-    print(f'NECK BLEND {obj.name}: {hits} hits, {misses} misses; target matrix identity={target.matrix_world == Matrix.Identity(4)}')
+    print(f'NECK BLEND {obj.name}: {hits} hits, {misses} misses')
 
 
 def bake_attribute(obj, group, select_only, size, margin=8):
