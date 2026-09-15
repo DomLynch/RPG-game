@@ -19,7 +19,7 @@ export type Fighter = {
   body: State; health: number; stamina: number; rest: number; exhausted: boolean; wound: number; woundSite: HitLocation;
   phase: Phase; age: number; move: MoveId | null; chained: boolean; landed: boolean;
   chain: number; lastMove: MoveId | null; parryCooldown: number; punish: number; stun: number;
-  guardDirection: Direction | null; parrying: boolean; exposed: number; evaded: number; buffer: { action: Action; ttl: number } | null;
+  guardDirection: Direction | null; parrying: boolean; exposed: number; evaded: number; counterWindow: number; buffer: { action: Action; ttl: number } | null;
   guardProfile?: Partial<GuardProfile>;   // shield/loadout overrides; absent = the longsword defaults in RULES
 };
 export type Side = 0 | 1;
@@ -28,7 +28,7 @@ export type EventType = 'ActionStarted' | 'AttackStarted' | 'AttackActive' | 'At
 export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; location?: HitLocation; heading?: number; ticks?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
-export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: 100, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, buffer: null });
+export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: 100, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, buffer: null });
 export const initialDuel = (): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
@@ -54,7 +54,7 @@ export function inBufferWindow(f: Fighter): boolean {
   return length !== null && f.age >= length - RULES.bufferWindow;
 }
 function chooseMove(f: Fighter, action: Action): MoveId {
-  if (action === 'heavy') return f.punish > 0 ? 'heavy_riposte' : 'heavy_overhead';
+  if (action === 'heavy') return f.punish > 0 ? 'heavy_riposte' : f.counterWindow > 0 ? 'heavy_counter' : 'heavy_overhead';
   if (action === 'kick') return 'kick';
   if (f.punish > 0) return 'riposte';
   if (action === 'light_left' || action === 'light_right') return action;
@@ -75,7 +75,7 @@ export function legal(f: Fighter, action: Action): boolean {
 
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
   const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters;
-  const fighters = before.map(f => ({ ...f, age: f.age + 1, wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), punish: Math.max(0, f.punish - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
+  const fighters = before.map(f => ({ ...f, age: f.age + 1, wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), punish: Math.max(0, f.punish - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events };
   const spend = (i: Side, cost: number) => {
     const f = fighters[i]; f.stamina = Math.max(0, f.stamina - cost); f.rest = R.regenDelay;
@@ -108,7 +108,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         // Chained timing: a listed follow-up inside the chain window, or a light out of an evade (dodge-attack).
         const follows = me.chain > 0 && me.lastMove !== null && !!MOVES[me.lastMove].chain?.follow.includes(id);
         next.chained = !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep')));
-        next.phase = 'attack'; next.age = 0; next.move = id; next.landed = false; next.chain = 0; next.lastMove = id; next.punish = 0; next.parrying = false; next.guardDirection = null; spend(i, def.stamina);
+        next.phase = 'attack'; next.age = 0; next.move = id; next.landed = false; next.chain = 0; next.lastMove = id; next.punish = 0; next.counterWindow = 0; next.parrying = false; next.guardDirection = null; spend(i, def.stamina);
         events.push({ tick, type: 'AttackStarted', actor: i, move: id });
       }
       face(R.turnStart);
@@ -179,7 +179,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const guarding = d.phase === 'guard' && facing && (!R.directionalGuard || !d.guardDirection || d.guardDirection === def.direction);
     const breaks = def.breaksGuard && !g.stopsHeavy, blockCost = def.staminaDamage * g.costScale;
     const stagger = (ticks: number) => {
-      D.phase = D.health ? 'hurt' : 'dead'; D.age = 0; D.stun = D.health ? ticks : R.death; D.buffer = null;
+      D.phase = D.health ? 'hurt' : 'dead'; D.age = 0; D.stun = D.health ? ticks : R.death; D.buffer = null; D.counterWindow = 0;
       events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun });
     };
     const wound = (damage: number, knockback: number) => {
@@ -198,7 +198,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if (guarding && !breaks && d.stamina >= blockCost) {
       // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half.
       const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost;
-      spend(j, cost); events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect });
+      spend(j, cost); D.counterWindow = R.guardCounter; events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect });   // a block opens the guard-counter window
     } else {
       const damage = Math.round(def.damage * R.location[location]);
       if (guarding) { spend(j, d.stamina); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading }); stagger(def.stagger); }

@@ -1,7 +1,7 @@
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
 // Damage is tuned for a Souls-length duel: AI vs AI at normal runs ~9 clean hits / ~35 s (light 11, heavy 18, riposte 24, heavy riposte 30, kick 4).
 // The engine (duel.ts) reads this table; nothing here may depend on rendering, clocks or browser state.
-export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'riposte' | 'heavy_riposte' | 'kick';
+export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'riposte' | 'heavy_riposte' | 'heavy_counter' | 'kick';
 export type Direction = 'right' | 'left' | 'overhead' | 'thrust' | 'low';
 export type Timing = { windup: number; active: number; recovery: number };
 export const total = (t: Timing): number => t.windup + t.active + t.recovery;
@@ -66,6 +66,11 @@ export const MOVES: Record<MoveId, MoveDef> = {
     windup: 20, active: 5, recovery: 25, damage: 30, stamina: 35, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
     breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.9, vsGuard: null,
   },
+  heavy_counter: {   // guard counter: a heavy thrown straight out of a block. Fast and armoured against lights; shares the heavy riposte's baked path and timing.
+    id: 'heavy_counter', direction: 'overhead', path: 'heavy_riposte', chainPath: null, chained: null, chain: null,
+    windup: 20, active: 5, recovery: 25, damage: 20, stamina: 30, staminaDamage: 0, stagger: 30, poise: 24, poiseFrom: 4,
+    breaksGuard: true, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.9, vsGuard: null,
+  },
   kick: {
     id: 'kick', direction: 'low', path: null, chainPath: null, chained: null, chain: null,
     windup: 18, active: 1, recovery: 25, damage: 4, stamina: 25, staminaDamage: 15, stagger: 18, poise: 0, poiseFrom: 0,
@@ -86,6 +91,7 @@ export const RULES = {
   // Counter-hit: a clean hit on a fighter committed to a swing, or in the vulnerable tail of a roll, lands harder and staggers longer.
   // Rear hit: a modest bonus for striking inside the target's rear arc; a true backstab is earned later under stricter conditions.
   counter: { damage: 1.25, stagger: 1.5 }, rear: { arc: Math.PI / 2, damage: 1.15, stagger: 1.25 },
+  guardCounter: 20,   // ticks after a block in which Heavy becomes the guard counter; any attack consumes the window
   bufferWindow: 10, bufferTtl: 11, stepInFrom: 3, turnStart: .3, turnWindup: .25,
   location: { head: 1, torso: 1, legs: 1 } as Record<'head' | 'torso' | 'legs', number>,
 } as const;

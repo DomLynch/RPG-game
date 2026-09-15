@@ -25,7 +25,7 @@ export type Practice = {
   health: number; playerHealth: number; stamina: number; enemyStamina: number; exhausted: boolean;
   wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; reaction: number;
 };
-const clipOf = (move: MoveId | null): Attack => move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' ? 'heavy' : move === 'riposte' ? 'riposte' : 'light';
+const clipOf = (move: MoveId | null): Attack => move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' ? 'heavy' : move === 'riposte' ? 'riposte' : 'light';
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = { Hit: ['hit', 'hurt'], AttackMissed: ['miss', 'dodged'], Blocked: ['blocked', 'enemyBlocked'], Parried: ['parried', 'enemyParried'], GuardBroken: ['broken', 'enemyBroken'], Dodged: ['dodged', 'enemyDodged'] };
 export function project(duel: Duel, ai: AiState, previous?: Practice): Practice {
@@ -68,7 +68,7 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
   return { pose, progress: Math.min(1, f.age / Math.max(1, duration)), attack, contact };
 }
 
-const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', riposte: 'riposte', heavy_riposte: 'heavy riposte', kick: 'kick' };
+const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', riposte: 'riposte', heavy_riposte: 'heavy riposte', heavy_counter: 'guard counter', kick: 'kick' };
 export function practiceHint(s: Practice): string {
   const me = s.duel.fighters[0];
   if (!s.playerHealth) return 'You fell. Rematch and try another defence.';
@@ -81,7 +81,7 @@ export function practiceHint(s: Practice): string {
   if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
   if (s.result !== 'none' && s.resultAge < 120) {
     const name = me.chained ? 'follow-up' : NAMES[me.lastMove ?? 'light_right'];
-    return { kicked: 'Kick connected · press the opening', hit: `${s.resultCounter ? 'Counter' : 'Clean'} ${name} hit · −${s.resultDamage}`, miss: 'Miss — close the distance and face the warden.', hurt: `${s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}`, blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultDamage)} stamina`, parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening', enemyParried: 'Your strike was turned aside — recover!', enemyDodged: 'The warden rolled clear.', enemyKicked: `Kicked · −${s.resultDamage}` }[s.result];
+    return { kicked: 'Kick connected · press the opening', hit: `${s.resultCounter ? 'Counter' : 'Clean'} ${name} hit · −${s.resultDamage}`, miss: 'Miss — close the distance and face the warden.', hurt: `${s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}`, blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultDamage)} stamina${me.counterWindow > 0 ? ' · heavy to counter' : ''}`, parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · recover your stamina', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening', enemyParried: 'Your strike was turned aside — recover!', enemyDodged: 'The warden rolled clear.', enemyKicked: `Kicked · −${s.resultDamage}` }[s.result];
   }
   if (s.phase === 'guard') return me.parrying ? 'Parry window open' : 'Guarding · release to recover stamina';
   if (me.exposed) return 'Parry missed · guard down for a moment';
