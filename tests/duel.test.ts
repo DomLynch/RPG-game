@@ -70,7 +70,7 @@ test('held guard blocks a facing light for stamina; a guard from behind or witho
   assert.equal(blocked.fighters[0].health, 100); assert.equal(blocked.fighters[0].stamina, 100 - light.staminaDamage); assert.equal(blocked.fighters[0].wound, 0);
   assert.deepEqual(types(blocked), ['AttackActive', 'Blocked']);
   const behind = incoming(stepDuel(duel(1.2, 0), [hold(), idle()]));
-  assert.equal(behind.fighters[0].health, 100 - light.damage); assert.ok(types(behind).includes('Hit'));
+  assert.equal(behind.fighters[0].health, 100 - Math.round(light.damage * RULES.rear.damage), 'a hit from behind also earns the rear bonus'); assert.ok(behind.events.find(e => e.type === 'Hit')?.rear);
   const weak = { ...duel(), fighters: [{ ...duel().fighters[0], stamina: 24 }, duel().fighters[1]] } as Duel;
   const broken = incoming(stepDuel(weak, [hold(), idle()]));
   assert.equal(broken.fighters[0].health, 100 - light.damage); assert.equal(broken.fighters[0].stamina, 0); assert.equal(broken.fighters[0].exhausted, true); assert.equal(broken.fighters[0].phase, 'hurt');
@@ -234,7 +234,8 @@ test('roll: bounded invulnerability, one cost, locked direction, no cancel from 
   for (const [age, safe] of [[RULES.safeStart - 2, false], [RULES.safeStart - 1, true], [RULES.safeEnd - 1, true], [RULES.safeEnd, false]] as const) {
     const d = { ...duel(), fighters: [{ ...duel().fighters[0], phase: 'roll' as const, age }, { ...duel().fighters[1], phase: 'attack' as const, move: 'light_left' as const, age: light.windup - 1, lastMove: 'light_left' as const }] } as Duel;
     const after = stepDuel(d, [idle(), idle()]);
-    assert.equal(after.fighters[0].health, safe ? 100 : 100 - light.damage, `roll age ${age + 1}`);
+    const expected = safe ? 100 : age + 1 > RULES.safeEnd ? 100 - Math.round(light.damage * RULES.counter.damage) : 100 - light.damage;   // the tail of a roll is a counter-hit
+    assert.equal(after.fighters[0].health, expected, `roll age ${age + 1}`);
     if (safe) assert.ok(types(after).includes('Dodged'));
   }
   assert.equal(stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], stamina: 29 }, duel().fighters[1]] }, [act('dodge'), idle()]).fighters[0].phase, 'ready');
@@ -344,6 +345,38 @@ test('chain grammar: a heavy inside a light\'s window winds up faster; a light o
   assert.ok(types(ripGuard).includes('GuardBroken'));
 });
 
+test('counter-hit: a clean hit on a committed swing or a roll\'s tail lands harder and staggers longer; never through a guard or parry', () => {
+  const light11 = light.damage, counterDmg = Math.round(light11 * RULES.counter.damage), counterStun = Math.round(light.stagger * RULES.counter.stagger);
+  // Target mid wind-up (a slower heavy started first), attacker's light lands at its own contact tick.
+  let d = stepDuel(duel(), [idle(), act('heavy')]); d = run(stepDuel(d, [act('light'), idle()]), light.windup);
+  const hit = d.events.find(e => e.type === 'Hit')!;
+  assert.equal(hit.counter, true); assert.equal(hit.damage, counterDmg); assert.equal(d.fighters[1].health, 100 - counterDmg); assert.equal(d.fighters[1].stun, counterStun);
+  // Target in recovery (whiff punish) is also a counter; a ready target is not.
+  const whiff = run(stepDuel(duel(light.reach + 1), [idle(), act('light')]), light.windup + light.active + 1);   // the swing has whiffed; the punish lands in its recovery
+  const punish = run(stepDuel({ ...whiff, fighters: [{ ...whiff.fighters[0], body: { ...whiff.fighters[0].body, z: whiff.fighters[1].body.z + 1.2 } }, whiff.fighters[1]] } as Duel, [act('light'), idle()]), light.windup);
+  assert.equal(punish.events.find(e => e.type === 'Hit')?.counter, true);
+  const plain = run(stepDuel(duel(), [act('light'), idle()]), light.windup);
+  assert.equal(plain.events.find(e => e.type === 'Hit')?.counter, false); assert.equal(plain.fighters[1].health, 100 - light11); assert.equal(plain.fighters[1].stun, light.stagger);
+  // Roll tail counts, the invulnerable window does not exist to be countered, and a guard or parry never yields a counter.
+  const tail = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'roll', age: RULES.safeEnd + 2 }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [idle(), idle()]);
+  assert.equal(tail.events.find(e => e.type === 'Hit')?.counter, true); assert.equal(tail.fighters[0].health, 100 - counterDmg);
+  const guarded = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: 12 }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  assert.ok(types(guarded).includes('Blocked')); assert.equal(guarded.fighters[0].stamina, 100 - light.staminaDamage);
+  // Kicks and heavies use the same rule.
+  const kicked = run(stepDuel(duel(1.05), [act('kick'), act('heavy')]), kick.windup);
+  assert.equal(kicked.events.find(e => e.type === 'Hit')?.damage, Math.round(kick.damage * RULES.counter.damage));
+});
+
+test('rear hit: striking inside the target\'s rear arc earns a modest damage and stagger bonus, stacking with a counter', () => {
+  const turned = (heading: number) => run(stepDuel({ ...duel(1.2, heading), fighters: [duel(1.2, heading).fighters[0], duel().fighters[1]] } as Duel, [idle(), act('light')]), light.windup);
+  const behind = turned(0), side = turned(Math.PI / 2 + .3), front = turned(Math.PI);
+  assert.equal(behind.events.find(e => e.type === 'Hit')?.rear, true); assert.equal(behind.fighters[0].health, 100 - Math.round(light.damage * RULES.rear.damage)); assert.equal(behind.fighters[0].stun, Math.round(light.stagger * RULES.rear.stagger));
+  assert.equal(side.events.find(e => e.type === 'Hit')?.rear, false, 'just outside the 90° rear arc is a normal hit');
+  assert.equal(front.fighters[0].health, 100 - light.damage);
+  const both = run(stepDuel({ ...duel(1.0, 0), fighters: [{ ...duel(1.0, 0).fighters[0], phase: 'attack', move: 'heavy_overhead', age: 2, lastMove: 'heavy_overhead' }, duel().fighters[1]] } as Duel, [{ ...idle(), lock: false }, act('light')]), light.windup);
+  assert.equal(both.fighters[0].health, 100 - Math.round(light.damage * RULES.counter.damage * RULES.rear.damage), 'counter and rear multiply');
+});
+
 test('buffered input: one action queued in the last ticks of a committed move fires when ready, expires, and clears on cancellation', () => {
   let d = run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT - RULES.bufferWindow);
   d = stepDuel(d, [act('heavy'), idle()]);
@@ -396,9 +429,9 @@ test('interrupts: a hit stops a wind-up; a heavy past its poise point trades thr
   armoured = run(armoured, heavy.poiseFrom - light.windup - 1);
   armoured = stepDuel(armoured, [idle(), act('light')]);
   armoured = run(armoured, light.windup);
-  assert.equal(armoured.fighters[0].health, 100 - light.damage); assert.equal(armoured.fighters[0].phase, 'attack', 'poise absorbs the stagger, not the damage');
+  assert.equal(armoured.fighters[0].health, 100 - Math.round(light.damage * RULES.counter.damage), 'a light on a winding-up heavy is a counter-hit'); assert.equal(armoured.fighters[0].phase, 'attack', 'poise absorbs the stagger, not the damage');
   armoured = run(armoured, heavy.windup - (armoured.fighters[0].age));
-  assert.equal(armoured.fighters[1].health, 100 - heavy.damage, 'the heavy still lands');
+  assert.equal(armoured.fighters[1].health, 100 - Math.round(heavy.damage * RULES.counter.damage), 'the heavy still lands, as a counter on the recovering light');
   let soft = stepDuel(duel(), [act('heavy'), idle()]);
   soft = stepDuel(soft, [idle(), act('light')]);
   soft = run(soft, light.windup);

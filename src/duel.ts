@@ -25,7 +25,7 @@ export type Fighter = {
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number };
 export type EventType = 'ActionStarted' | 'AttackStarted' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; location?: HitLocation; heading?: number; ticks?: number };
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; location?: HitLocation; heading?: number; ticks?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
 export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: 100, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, buffer: null });
@@ -204,9 +204,13 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (guarding) { spend(j, d.stamina); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading }); stagger(def.stagger); }
       else {
         const poised = d.phase === 'attack' && d.move !== null && MOVES[d.move].poise >= def.stagger && d.age >= MOVES[d.move].poiseFrom && d.age < timing(d).windup + timing(d).active;
+        // Counter-hit and rear-hit multiply the clean hit; they never apply through a guard or a parry.
+        const counter = d.phase === 'attack' || (d.phase === 'roll' && d.age > R.safeEnd);
+        const rear = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) > Math.PI - R.rear.arc / 2;
+        const dealt = Math.round(damage * (counter ? R.counter.damage : 1) * (rear ? R.rear.damage : 1)), stun = Math.round(def.stagger * (counter ? R.counter.stagger : 1) * (rear ? R.rear.stagger : 1));
         if (!def.path) spend(j, def.staminaDamage);
-        wound(damage, poised ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage, location, heading: a.body.heading });
-        if (!poised || !D.health) stagger(def.stagger);
+        wound(dealt, poised ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: dealt, location, heading: a.body.heading, counter, rear });
+        if (!poised || !D.health) stagger(stun);
       }
     }
   }
