@@ -1,8 +1,8 @@
-// Deliberately no tap/hold ambiguity: guard/parry keeps its immediate dedicated control.
-// Horizontal strokes choose the cut's side; the simulation owns what a side means.
-export function swipeAction(dx: number, dy: number): 'light_left' | 'light_right' | 'heavy' | 'dodge' | null {
-  if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.max(Math.abs(dx),Math.abs(dy)) < 28) return null;
-  if (Math.abs(dx) > Math.abs(dy)*1.25) return dx < 0 ? 'light_left' : 'light_right';
-  if (Math.abs(dy) > Math.abs(dx)*1.25) return dy < 0 ? 'heavy' : 'dodge';
-  return null;
+// The weapon disc reads intent, not the blade: a stroke's direction selects an authored attack; the simulation executes it.
+// Diagonals resolve to the nearest axis (diagonal cuts are a later slice). Guard, step and kick keep their own controls.
+export type Flick = 'left' | 'right' | 'up' | 'down';
+export const FLICK_THRESHOLD = 28;
+export function swipeAction(dx: number, dy: number): Flick | null {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.max(Math.abs(dx), Math.abs(dy)) < FLICK_THRESHOLD) return null;
+  return Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
 }

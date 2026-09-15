@@ -25,7 +25,7 @@ test('legacy constant views stay equal to the move data the simulation actually 
   for (const path of Object.values(PATHS)) assert.equal(path.active, 5);
   for (const move of Object.values(MOVES)) assert.equal(move.windup + move.active + move.recovery, total(move));
   // A quick press is a plain heavy and a deliberate hold is the charged one: the press must last ≥ 0.6 s to charge and the hold releases itself by ~1.1 s.
-  assert.ok(RULES.charge.at + RULES.charge.min >= 36 && RULES.charge.at + RULES.charge.min <= 45, `charge press ${RULES.charge.at + RULES.charge.min} ticks`); assert.ok(RULES.charge.at + RULES.charge.max <= 66);
+  assert.ok(MOVES.heavy_overhead.chamber! + RULES.charge.min >= 36 && MOVES.heavy_overhead.chamber! + RULES.charge.min <= 45, `charge press ${MOVES.heavy_overhead.chamber! + RULES.charge.min} ticks`); assert.ok(MOVES.heavy_overhead.chamber! + RULES.charge.max <= 66);
   assert.equal(MOVES.heavy_overhead.breaksGuard, false); assert.ok(MOVES.heavy_overhead.chip > 0 && MOVES.heavy_overhead.staminaDamage >= 35, 'a guard takes a plain heavy for chip and real stamina');
   assert.equal(MOVES.heavy_riposte.damage, 30); assert.equal(MOVES.light_right.damage, 11); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2); assert.equal(RULES.perfectBlock, 3); assert.equal(RULES.perfectBlockCost, .5);
 });
