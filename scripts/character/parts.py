@@ -94,6 +94,7 @@ def realistic_body():
         mesh_obj.data.update()
     for mesh_obj in (hbm, HIGH):
         align_arms(mesh_obj)
+        align_legs(mesh_obj)
     HEADMOD.split_tiles(hbm)   # head → its own `Face` tile and material; body tiles → one atlas
     HEADMOD.face_group(HIGH)   # the sculpt copy keeps UDIM UVs; the face group limits the displacement
     # Weights from the CC0 body at rest, both now in T.
@@ -170,6 +171,47 @@ def joint(name):
 
 def bone_tail(name):
     return armature.data.bones[name].tail_local.copy()
+
+
+def align_legs(mesh_obj):
+    """Lay each leg onto its bones. The Studio body stands ~5 cm forward of the CC0 rig at the knee and ~11 cm at the
+    ankle, so the ankle joint sat at the mesh's heel and every foot rotation hinged behind the foot (a broken-looking
+    ankle in the walk). The leg's smoothed slice centreline (x and y, per cm of height) is translated onto the bone line
+    hip → knee → ankle, blended in below the hip; the foot below the ankle moves rigidly with the ankle's offset."""
+    verts = mesh_obj.data.vertices
+    for side, sgn in (('l', 1), ('r', -1)):
+        hip, knee, ankle = joint(f'thigh_{side}'), joint(f'calf_{side}'), joint(f'foot_{side}')
+        def bone_at(z):
+            a, b = (knee, hip) if z >= knee.z else (ankle, knee)
+            t = (z - a.z) / max(1e-6, b.z - a.z)
+            return a.lerp(b, min(1.0, max(0.0, t)))
+        bins = {}
+        for v in verts:
+            if v.co.x * sgn > 0.02 and ankle.z - 0.005 < v.co.z < hip.z:
+                bins.setdefault(round(v.co.z * 100), []).append(v.co.copy())
+        raw = {k: sum(c, Vector()) / len(c) for k, c in bins.items()}
+        keys = sorted(raw)
+        centres = {}
+        for k in keys:
+            near = [(raw[q], math.exp(-((q - k) / 2.0) ** 2)) for q in keys if abs(q - k) <= 3]
+            centres[k] = sum((c * w for c, w in near), Vector()) / sum(w for _, w in near)
+        def mesh_at(z):
+            k = max(keys[0], min(keys[-1], z * 100))
+            lo = max(q for q in keys if q <= k); hi = min(q for q in keys if q >= k)
+            return centres[lo] if lo == hi else centres[lo].lerp(centres[hi], (k - lo) / (hi - lo))
+        moved = 0
+        for v in verts:
+            if v.co.x * sgn <= 0.02 or v.co.z > hip.z + 0.06:
+                continue
+            z = max(ankle.z, min(hip.z, v.co.z))  # the foot takes the ankle's offset
+            blend = min(1.0, max(0.0, (hip.z + 0.06 - v.co.z) / 0.14))
+            d = bone_at(z) - mesh_at(z)
+            v.co.x += d.x * blend
+            v.co.y += d.y * blend
+            moved += 1
+        mesh_obj.data.update()
+        d_ankle = bone_at(ankle.z) - mesh_at(ankle.z)
+        print(f'ALIGN LEGS {side}: ankle offset ({d_ankle.x * 100:+.1f}, {d_ankle.y * 100:+.1f}) cm, knee ({(bone_at(knee.z) - mesh_at(knee.z)).y * 100:+.1f}) cm, {moved} verts')
 
 
 def align_arms(mesh_obj):
@@ -473,7 +515,7 @@ def level1_kit():
         toe = Vector((ball.x, ball.y - 0.02, 0.012))
         kit.append(ring_strip(f'strap_instep_{name}', 'Leather', heel, toe, 0.42, 0.016, arc=(0, math.pi), lift=0.004, probe_radius=0.08, max_reach=0.075))
         kit.append(ring_strip(f'strap_toe_{name}', 'Leather', heel, toe, 0.80, 0.012, arc=(0, math.pi), lift=0.004, probe_radius=0.08, max_reach=0.07))
-        kit.append(ring_strip(f'strap_ankle_{name}', 'Leather', Vector((foot.x, foot.y, 0)), Vector((foot.x, foot.y, 0.2)), 0.42, 0.06, lift=0.004, probe_radius=0.08, max_reach=0.075))
+        kit.append(ring_strip(f'strap_ankle_{name}', 'Wrap', Vector((foot.x, foot.y, 0)), Vector((foot.x, foot.y, 0.2)), 0.44, 0.035, lift=0.004, probe_radius=0.08, max_reach=0.075, rows_n=2))  # a strap, not a boot cuff; the wraps' leather
     # Kilt strips over the hips, dyed cloth (the Heraldry surface): each strip follows the hip and thigh surface down
     # from the belt, so it curves with the body instead of hanging as a flat plank.
     top, bottom = Vector((0, pelvis.y, pelvis.z - 0.02)), Vector((0, pelvis.y, pelvis.z - 0.30))
