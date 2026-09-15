@@ -94,7 +94,7 @@ export function describe(s: Practice, difficulty = 'normal'): string {
     if (f.phase !== 'attack' || !f.move) return f.phase === 'hurt' ? `hurt ${f.age}/${f.stun}` : f.phase === 'guard' ? `guard ${f.age}${f.age < RULES.parry ? ' PARRY' : ''}` : f.phase === 'roll' ? `roll ${f.age}/${RULES.roll}${f.age >= RULES.safeStart && f.age <= RULES.safeEnd ? ' safe' : ''}` : `${f.phase} ${f.age}`;
     const t = timing(f), cells: string[] = Array.from({ length: total(t) }, (_, k) => k < t.windup ? '·' : k < t.windup + t.active ? '#' : '-');
     if (f.age < cells.length) cells[f.age] = '|';
-    return `${f.move}${f.chained ? '+' : ''} ${f.age}/${total(t)} ${cells.join('')}${f.landed ? ' landed' : ''}`;
+    return `${f.move}${f.chained ? '+' : ''} ${f.age}/${total(t)} ${cells.join('')}${f.landed ? ' landed' : ''}${f.charge ? ` charge ${f.charge}${f.charged ? ' CHARGED' : ''}` : ''}`;
   };
   const fighter = (name: string, f: Fighter) => `${name}: hp ${f.health} st ${f.stamina.toFixed(0)}${f.exhausted ? ' EXH' : ''} rest ${f.rest} wound ${f.wound}\n  ${bar(f)}\n  chain ${f.chain} punish ${f.punish} parryCd ${f.parryCooldown} buf ${f.buffer ? `${f.buffer.action}:${f.buffer.ttl}` : '-'} pos ${f.body.x.toFixed(2)},${f.body.z.toFixed(2)} hd ${f.body.heading.toFixed(2)}`;
   const [p, w] = s.duel.fighters;

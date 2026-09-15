@@ -51,6 +51,8 @@ let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(win
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
 const HOLD_MS = 150;
 let dodgeHeld: { since: number; rolled: boolean } | null = null;
+// Heavy control: the press swings at once; keeping it held charges the swing (the simulation owns the timing).
+let heavyHeld = false;
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 function updateHud() {
   const hint = practiceHint(practice), controlsReady = assetsReady && !graphicsLost;
@@ -94,7 +96,7 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null;
+  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; heavyHeld = false;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -116,12 +118,12 @@ window.addEventListener('keydown', event => {
   }
   if (event.code === 'KeyF' && !event.repeat) { event.preventDefault(); requestStrike(); }
   if (event.code === 'KeyC' && !event.repeat) { event.preventDefault(); requestKick(); }
-  if (event.code === 'KeyG' && !event.repeat) { event.preventDefault(); requestStrike(true); }
+  if (event.code === 'KeyG' && !event.repeat) { event.preventDefault(); heavyHeld = true; requestStrike(true); }
   if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); }
   if (event.code === 'KeyQ') { event.preventDefault(); keys.add(event.code); if (!event.repeat) requestParry(); }
   if (event.code === 'KeyR' && !event.repeat) element('recenter-button').click();
 });
-window.addEventListener('keyup', event => { keys.delete(event.code); if (event.code === 'KeyE') releaseDodge(); });
+window.addEventListener('keyup', event => { keys.delete(event.code); if (event.code === 'KeyE') releaseDodge(); if (event.code === 'KeyG') heavyHeld = false; });
 function setRun(value: boolean) { run = value; runButton.setAttribute('aria-pressed', String(value)); }
 runButton.addEventListener('pointerdown', event => { if (!paused()) { runButton.setPointerCapture(event.pointerId); setRun(true); } });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) runButton.addEventListener(name, () => setRun(false));
@@ -132,9 +134,11 @@ attackButton.addEventListener('pointerdown', event => { if (event.button === 0) 
 kickButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestKick(); } });
 kickButton.addEventListener('pointercancel', () => { if (action === 'kick') action = null; });
 kickButton.addEventListener('keydown', event => { if (['Space','Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestKick(); } });
-heavyButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestStrike(true); } });
-heavyButton.addEventListener('pointercancel', () => { if (action === 'heavy') action = null; });
-heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(true); } });
+heavyButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); heavyButton.setPointerCapture(event.pointerId); heavyHeld = true; requestStrike(true); } });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) heavyButton.addEventListener(name, event => { heavyHeld = false; if (name !== 'pointerup' && action === 'heavy') action = null; void event; });
+heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); heavyHeld = true; requestStrike(true); } });
+heavyButton.addEventListener('keyup', () => { heavyHeld = false; });
+heavyButton.addEventListener('blur', () => { heavyHeld = false; });
 attackButton.addEventListener('pointercancel', () => { if (action === 'light') action = null; });
 attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
 dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); dodgeButton.setPointerCapture(event.pointerId); pressDodge(performance.now()); } });
@@ -251,7 +255,7 @@ function frame(now: number) {
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= STEP) {
       previous = state;
-      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || keys.has('KeyQ')), lock: locked, cancel }, PROFILES[difficulty]);
+      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || keys.has('KeyQ')), heavyHeld: assetsReady && heavyHeld, lock: locked, cancel }, PROFILES[difficulty]);
       feedback.update(practice.events); frameEvents.push(...practice.events);
       action = null; cancel = false; state = practice.fighter; accumulator -= STEP;
     }

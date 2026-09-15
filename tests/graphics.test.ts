@@ -26,9 +26,10 @@ function boot() {
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0;
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
+  let rendered: combat.Practice | undefined;
   const view = { yaw: 0, recenter() {}, lowerResolution() {}, orbit() {}, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
-    render() { renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
+    render(_state: unknown, _locked: boolean, _dt: number, practice: combat.Practice) { rendered = practice; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const storage = { getItem: () => JSON.stringify({ version: 1, id: 'test', name: 'Tester' }), setItem() {} };
   const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
@@ -38,7 +39,7 @@ function boot() {
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
+  return { element, errors, callbacks, timers, get rendered() { return rendered!; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -151,6 +152,15 @@ test('dodge control: a tap is an instant backstep, a hold grows it into a roll, 
   app.release('KeyE'); for (let i = 0; i < 200; i++) app.tick();
   app.key('KeyE'); app.lose(); app.restore(); for (let i = 0; i < 20; i++) app.tick();
   assert.ok(app.element('stamina').value >= 90 - 1e-9, 'a graphics interruption releases the held control before it can roll');
+});
+
+test('heavy control: a held key charges the swing and release lets it fly', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  app.key('KeyG'); for (let i = 0; i < 30; i++) app.tick();
+  const me = () => app.rendered.duel.fighters[0];
+  assert.equal(me().move, 'heavy_overhead'); assert.ok(me().charge > 0, `holding G charges: charge=${me().charge}`); assert.equal(me().age, 10, 'the wind-up holds at the charge point');
+  app.release('KeyG'); for (let i = 0; i < 6; i++) app.tick();
+  assert.ok(me().age > 10, 'released: the swing continues');
 });
 
 test('kick input spends once and clears on pointer cancellation or graphics interruption',()=>{
