@@ -1300,18 +1300,19 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     keep = head.vertex_groups.new(name='decimate')  # the level bottom edge survives the collapse
     keep.add([v.index for v in head.data.vertices if v.co.z > neck_z + 0.003], 1.0, 'REPLACE')
     dec = head.modifiers.new('Decimate', 'DECIMATE')
-    dec.ratio = 0.34
+    dec.ratio = 0.28
     dec.use_collapse_triangulate = True
     dec.vertex_group = 'decimate'
     dec.vertex_group_factor = 1.0
     select_only([head])
     bpy.ops.object.modifier_apply(modifier='Decimate')
     head.vertex_groups.remove(head.vertex_groups['decimate'])
-    dec = teeth.modifiers.new('Decimate', 'DECIMATE')  # the scan's teeth are far denser than a phone mouth needs
-    dec.ratio = 0.15
-    dec.use_collapse_triangulate = True
-    select_only([teeth])
-    bpy.ops.object.modifier_apply(modifier='Decimate')
+    for o, ratio in ((teeth, 0.06), (kt_eye_l, 0.5), (kt_eye_r, 0.5)):  # the scan's teeth and eyes are far denser than a phone needs
+        dec = o.modifiers.new('Decimate', 'DECIMATE')
+        dec.ratio = ratio
+        dec.use_collapse_triangulate = True
+        select_only([o])
+        bpy.ops.object.modifier_apply(modifier='Decimate')
     # the stub's lower band slides onto our neck so the silhouette runs straight into the body: aimed at a copy of our
     # head already cut to the neck, so the rays never meet our chin
     ring = [v.co for v in head.data.vertices if v.co.z < neck_z + 0.012]  # the stub's bottom edge: the neck axis
@@ -1360,7 +1361,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     dark = (colour.max(axis=2) < 0.06) | (coverage < 0.45)  # black, or seen only at a grazing angle: the crown, the back
     filled = crown_fill(colour, dark, size, hair_zone)
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
-        filled = filled * (1 - seam * 0.85)[..., None] + SKIN_TONE[None, None, :] * (seam * 0.85)[..., None]  # our neck meets it on the same flat tone, no occlusion on either side
+        fade = np.clip(seam * 1.25, 0, 1)  # fully flat for the lowest centimetre, so the edge carries none of the photograph's lighting
+        filled = filled * (1 - fade)[..., None] + SKIN_TONE[None, None, :] * fade[..., None]  # our neck meets it on the same flat tone, no occlusion on either side
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands: their colours spill into the gutters so seams never sample the raw edges
     filled = fill_margin(filled, island, steps=48)
     maps = {'Photo': {'baseColor': save_two_sizes_fn('kt_face_color', filled, 'sRGB')},
