@@ -1388,15 +1388,25 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         if w > 0:
             fade_vg.add([v.index], w, 'REPLACE')
     seam = bake_attribute(head, 'seam_fade', select_only, size)  # where the stub fades into the body, in texture space
+    back_vg = head.vertex_groups.new(name='back')  # the nape: vertices facing backward, for the collar's occlusion
+    head.data.update()
+    for v in head.data.vertices:
+        b = min(1.0, max(0.0, (v.normal.y - 0.1) / 0.5))
+        if b > 0:
+            back_vg.add([v.index], b, 'REPLACE')
+    back = bake_attribute(head, 'back', select_only, size)
+    head.vertex_groups.remove(head.vertex_groups['back'])
+    ao_kt = P.upsample(bake_ao_single(head, select_only, size // 2, samples=64), size)  # the scan's own occlusion, body present
     head.vertex_groups.remove(head.vertex_groups['seam_fade'])
     # the collar's shading: at a mesh edge the vertex normals only know the faces above, so the stub's bottom ring lit
     # differently from the neck it sits on and printed a line. Its normals now come from our neck, fading out up the band.
-    dt = head.modifiers.new('CollarNormals', 'DATA_TRANSFER')
-    dt.object, dt.use_loop_data, dt.data_types_loops, dt.loop_mapping = weights_from, True, {'CUSTOM_NORMAL'}, 'NEAREST_POLYNOR'
-    dt.vertex_group, dt.mix_mode, dt.mix_factor = 'neck_blend', 'REPLACE', 1.0
-    select_only([head])
-    bpy.ops.object.modifier_move_to_index(modifier='CollarNormals', index=0)
-    bpy.ops.object.modifier_apply(modifier='CollarNormals')
+    if os.environ.get('HEAD_COLLAR_NORMALS', '0') == '1':  # experiment: borrowed normals along the ring (off: they lit the band as a pale strip at the nape)
+        dt = head.modifiers.new('CollarNormals', 'DATA_TRANSFER')
+        dt.object, dt.use_loop_data, dt.data_types_loops, dt.loop_mapping = weights_from, True, {'CUSTOM_NORMAL'}, 'NEAREST_POLYNOR'
+        dt.vertex_group, dt.mix_mode, dt.mix_factor = 'neck_blend', 'REPLACE', 1.0
+        select_only([head])
+        bpy.ops.object.modifier_move_to_index(modifier='CollarNormals', index=0)
+        bpy.ops.object.modifier_apply(modifier='CollarNormals')
     head.vertex_groups.remove(head.vertex_groups['neck_blend'])  # not a bone
     zone = head.vertex_groups.new(name='hair_zone')  # above the nape hairline (eye level and up), for the crown fill
     for v in head.data.vertices:
@@ -1422,15 +1432,20 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         return px.reshape(h, w, 4)[:, :, :3]
     colour = pixels(images[0])
     colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
-    dark = (colour.max(axis=2) < 0.06) | ((coverage < 0.6) & (hair_zone > 0.5)) | (coverage < 0.3)  # black; the crown and back seen only at a grazing angle (a smear); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
+    dark = (colour.max(axis=2) < 0.06) | ((coverage < 0.6) & ((hair_zone > 0.5) | (back > 0.3))) | (coverage < 0.3)  # black; the crown, back and nape seen only at a grazing angle (a smear, or the portrait's grey backdrop); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
     filled = crown_fill(colour, dark, size, hair_zone)
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
         mottle = (0.92 + P.fbm(size, 41, octaves=(4, 8, 16, 32)) * 0.18)[..., None]  # the painted body's own tone noise, so the band is skin, not paint
         target = SKIN_TONE[None, None, :] * mottle
-        filled = filled * (1 - fade)[..., None] + target * fade[..., None]  # our neck meets it on the same tone, no occlusion on either side (a baked occlusion here came out as dark blotches)
-    island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands: their colours spill into the gutters so seams never sample the raw edges
-    filled = fill_margin(filled, island, steps=48)
+        filled = filled * (1 - fade)[..., None] + target * fade[..., None]  # our neck meets it on the same tone
+        # at the nape the flat band read pale under a rim light: darken it with the scan's own occlusion (64 samples,
+        # lightly blurred, bounded to 0.7), only where the head faces backward and only within the fade
+        occl = 1 - (1 - (0.55 + 0.45 * np.clip(blur(ao_kt, 4), 0, 1) ** 1.2)) * back * fade  # the painted body's own occlusion curve
+        filled = filled * occl[..., None]
+    island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
+    core = blur(island.astype(np.float32), 4) > 0.98  # their interiors: the outermost texels straddle the raw (white) gutter and printed a pale strip along the collar ring
+    filled = fill_margin(filled, core, steps=64)  # interior colours spill outward over the edge texels and into the gutters
     maps = {'Photo': {'baseColor': save_two_sizes_fn('kt_face_color', filled, 'sRGB')},
             'PhotoEyes': {'baseColor': save_jpeg_fn('kt_eye_color', eye_colour(P.downsample(pixels(images[1]), max(1, images[1].size[0] // 512))), 'sRGB')},
             'PhotoTeeth': {'baseColor': save_jpeg_fn('kt_teeth_color', P.downsample(pixels(images[3]), max(1, images[3].size[0] // 512)), 'sRGB')}}
@@ -1556,6 +1571,34 @@ def bake_attribute(obj, group, select_only, size, margin=8):
     img.pixels.foreach_get(px)
     bpy.data.images.remove(img)
     return np.clip(px.reshape(size, size, 4)[:, :, 0], 0, 1)
+
+
+def bake_ao_single(obj, select_only, size, samples=64):
+    """Cycles ambient occlusion of `obj` in its own UV space, everything else in the scene occluding, as a float map."""
+    scene = bpy.context.scene
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = samples
+    scene.render.bake.margin = 8
+    scene.render.bake.use_selected_to_active = False
+    img = bpy.data.images.new('kt_ao', size, size)
+    mat = bpy.data.materials.new('kt_ao_bake')
+    mat.use_nodes = True
+    node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    node.image = img
+    mat.node_tree.nodes.active = node
+    saved = [m for m in obj.data.materials]
+    obj.data.materials.clear()
+    obj.data.materials.append(mat)
+    select_only([obj])
+    bpy.ops.object.bake(type='AO', use_clear=True)
+    obj.data.materials.clear()
+    for m in saved:
+        obj.data.materials.append(m)
+    px = np.empty(size * size * 4, np.float32)
+    img.pixels.foreach_get(px)
+    bpy.data.images.remove(img)
+    return px.reshape(size, size, 4)[:, :, 0]
 
 
 def bake_tiles_single(low, high, select_only, size):

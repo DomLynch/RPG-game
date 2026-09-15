@@ -68,7 +68,7 @@
   folder, and an honest list of what is still short.
 
 ## Open defects after v27 (tracked here; owner-visible)
-- **Nape collar band** — a pale strip between the nape hairline and the neck in `humanoid-v27/chin-feet-audit.png` ("nape" and
+- **Nape collar band — FIXED in v29 (issue #22).** Root cause was not occlusion: the portraits' grey backdrop leaked through the KeenTools projection at the back-centre (grazing views from the ±90° cameras) and sat exactly on the collar band. Grazing views at the nape are now treated as un-photographed like the crown. Original note: a pale strip between the nape hairline and the neck in `humanoid-v27/chin-feet-audit.png` ("nape" and
   "neck side" cells), most visible under the studio rim light, faint at the phone camera. Cause: the collar band is painted flat
   `SKIN_TONE` with no occlusion, while the neck below carries baked occlusion. Tried and reverted (2026-09-15): a Cycles AO bake
   into the band (blotchy at 16 samples, dark under the jaw) and a 35% blend toward the local blurred tone (went grey). Next lever:
