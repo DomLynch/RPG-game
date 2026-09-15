@@ -1325,8 +1325,6 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     for o in (head, kt_eye_l, kt_eye_r, teeth):
         o.data.transform(M)
         o.data.update()
-    if os.environ.get('HEAD_CHIN', '1') == '1':  # the owner's call (2026-09-15): a stronger, longer chin than the scan's; HEAD_CHIN=0 leaves the scan as is
-        chin_strong(head, rig_mid, scale)
     # shoulders off: keep the head and a neck stub
     neck_z = NECK_Z if NECK_Z is not None else rig_mid.z - NECK_DROP_KT * scale
     bm = bmesh.new()
@@ -1385,6 +1383,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     print(f'KEENTOOLS collar band {band * 100:.1f} cm; jaw underside band {front_band * 100:.1f} cm below the chin tip')
     for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
         neck_blend(o, neck_only, neck_z, neck_c, band=band, front_band=front_band, front_from=front_from)
+        if os.environ.get('HEAD_CHIN', '1') == '1':  # after the collar blend, so the lowered chin is not pulled back onto the neck outline
+            chin_strong(o, rig_mid, scale)
     bpy.data.objects.remove(neck_only, do_unlink=True)
     cut_above(weights_from, neck_z + 0.0015, select_only)  # our head goes; our neck ends just inside the scan's collar
     fade_vg = head.vertex_groups.new(name='seam_fade')  # the texture's fade to the body tone: taller than the geometric collar, still under the chin
@@ -1640,30 +1640,30 @@ def bake_tiles_single(low, high, select_only, size):
     return clean_normal(px.reshape(size, size, 4)[:, :, :3])
 
 
-def chin_strong(head, rig_mid, scale, down=0.06, forward=0.09):
-    """A stronger, longer chin than the eight-view scan's (its chin tip sits level with the lip crease and the wall below
-    is 2 cm tall; the portraits show a chin ~3 cm tall standing ahead of the lips). Two smooth fields on the front of the
-    lower face, in scan units below eye level: the chin zone (0.74–0.90) moves DOWN by up to `down` (the chin wall gets
-    taller), and FORWARD by up to `forward` (the tip stands ahead of the crease). Both are zero at the lip crease (0.69)
-    and above — the lips do not move (a push that reached the crease read as a pout, v28) — and zero again by 0.95 so
-    the collar and its blend are untouched; the underside between is compressed and turns back more sharply, like a jaw."""
+def chin_strong(head, rig_mid, scale, down=0.18, forward=0.09):
+    """A strong, LONGER chin (the owner's sketch, 2026-09-15: the jaw's bottom edge a good 2.5 cm lower at the centre,
+    rising to the jaw corners — a U). Two smooth fields on the front of the lower face, in scan units below eye level:
+    the chin's bottom (peak 0.90) moves DOWN by up to `down` at the centre, tapering to the sides, and the chin zone
+    (peak 0.85) FORWARD by up to `forward`. Both are zero at the lip crease (0.69) and above — the lips do not move — and
+    zero at the collar ring (0.99), which stays where our neck meets it: the underside between runs up and back from the
+    lowered chin to the throat, as a jaw does. Applied after the collar blend so the blend does not pull the chin back."""
     head.data.update()
-    sx = 0.30 * scale  # broad, like the portraits' chin — narrower came to a point
+    sx_down, sx_fwd = 0.38 * scale, 0.30 * scale
     moved = 0
     def smooth(a, b, x):
         t = min(1.0, max(0.0, (x - a) / (b - a)))
         return t * t * (3 - 2 * t)
     for v in head.data.vertices:
-        if v.normal.y > -0.1 or abs(v.co.x - rig_mid.x) > 0.5 * scale:
+        if v.normal.y > -0.05 or abs(v.co.x - rig_mid.x) > 0.6 * scale:
             continue
         u = (rig_mid.z - v.co.z) / scale  # scan units below eye level
-        win = smooth(0.70, 0.75, u) * (1 - smooth(0.88, 0.985, u))  # eases out right up to the collar ring, so the underside is one curve, not a ledge
+        win = smooth(0.70, 0.76, u) * (1 - smooth(0.955, 0.99, u))
         if win <= 0:
             continue
-        lat = math.exp(-((v.co.x - rig_mid.x) / sx) ** 2)
-        dz = down * math.exp(-((u - 0.81) / 0.07) ** 2)
-        dy = forward * math.exp(-((u - 0.81) / 0.07) ** 2)
-        v.co += Vector((0, -dy, -dz)) * (win * lat * scale)
+        dx = v.co.x - rig_mid.x
+        dz = down * math.exp(-((u - 0.90) / 0.09) ** 2) * math.exp(-(dx / sx_down) ** 2)
+        dy = forward * math.exp(-((u - 0.85) / 0.08) ** 2) * math.exp(-(dx / sx_fwd) ** 2)
+        v.co += Vector((0, -dy, -dz)) * (win * scale)
         moved += 1
     head.data.update()
     print(f'KEENTOOLS chin strong: {moved} vertices, down {down * scale * 1000:.1f} mm, forward {forward * scale * 1000:.1f} mm at most')
