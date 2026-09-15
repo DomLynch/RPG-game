@@ -45,7 +45,8 @@ function persist() {
   element('save-status').textContent = saveProfile(storage, profile) ? 'Guest · saved on this device' : 'Storage unavailable · name will not be saved';
 }
 persist();
-let practice = initialPractice(), state = practice.fighter, previous = state, accumulator = 0, locked = true;
+// The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
+let matchSeed = 731, practice = initialPractice(matchSeed), state = practice.fighter, previous = state, accumulator = 0, locked = true;
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
 let action: Action | null = null, guard = false, guardId: number | null = null, cancel = false, assetsReady = false, graphicsLost = false, lastHud = '';
 let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(window.location?.search ?? ''), frameEvents: CombatEvent[] = [];
@@ -157,7 +158,7 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) guardBu
 guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); guard = true; if (!event.repeat) requestParry(); } });
 guardButton.addEventListener('keyup', () => { guard = false; });
 guardButton.addEventListener('blur', () => { guard = false; if (action === 'parry') action = null; });
-resetButton.addEventListener('click', () => { clearInput(); practice = initialPractice(); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+resetButton.addEventListener('click', () => { clearInput(); matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => {
