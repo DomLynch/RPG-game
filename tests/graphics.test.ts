@@ -177,3 +177,11 @@ test('kick input spends once and clears on pointer cancellation or graphics inte
   app.tick();assert.equal(app.element('stamina').value,cancel==='none'?75:100);
  }
 });
+
+test('the first match meets the fixed warden and every rematch a differently seeded one', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); app.tick();
+  assert.equal(app.rendered.ai.seed, 731, 'the browser gate relies on the first warden');
+  app.element('reset-button').click(); app.tick(); const second = app.rendered.ai.seed;
+  app.element('reset-button').click(); app.tick(); const third = app.rendered.ai.seed;
+  assert.ok(second !== 731 && third !== second, `seeds 731 → ${second} → ${third}`);
+});
