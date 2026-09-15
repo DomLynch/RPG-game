@@ -41,6 +41,7 @@ function boot() {
   return { element, errors, callbacks, timers, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
+    release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
     lose() { lost = true; const event = new Event('webglcontextlost', { cancelable: true }); element('world').dispatchEvent(event); assert.ok(event.defaultPrevented); },
     restore() { lost = false; failDraw = false; element('world').dispatchEvent(new Event('webglcontextrestored')); },
     failDraw(lose = true) { failDraw = true; loseDuringDraw = lose; }, failRebuild() { failRebuild = true; },
@@ -135,6 +136,21 @@ test('swipe trial fires once per gesture and clears on cancellation, pause and m
   assert.equal(app.element('stamina').value,100);
   app.element('controls-mode').click();app.element('close-journal').click();pointer('pointermove',120,60);app.tick();
   assert.equal(app.element('stamina').value,100);
+});
+
+test('dodge control: a tap is an instant backstep, a hold grows it into a roll, and interruption releases it', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  assert.equal(app.element('stamina').value, 100);
+  app.key('KeyE'); app.tick(); app.release('KeyE');
+  assert.equal(app.element('stamina').value, 90, 'the press itself is a backstep');
+  for (let i = 0; i < 60; i++) app.tick();
+  assert.ok(app.element('stamina').value >= 90, 'a released tap never becomes a roll');
+  for (let i = 0; i < 120; i++) app.tick();
+  app.key('KeyE'); for (let i = 0; i < 12; i++) app.tick();
+  assert.ok(app.element('stamina').value <= 70.5, `holding past 150 ms rolled: ${app.element('stamina').value}`);
+  app.release('KeyE'); for (let i = 0; i < 200; i++) app.tick();
+  app.key('KeyE'); app.lose(); app.restore(); for (let i = 0; i < 20; i++) app.tick();
+  assert.ok(app.element('stamina').value >= 90 - 1e-9, 'a graphics interruption releases the held control before it can roll');
 });
 
 test('kick input spends once and clears on pointer cancellation or graphics interruption',()=>{

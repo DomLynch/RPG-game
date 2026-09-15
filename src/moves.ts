@@ -67,6 +67,9 @@ export const MOVES: Record<MoveId, MoveDef> = {
 
 export const RULES = {
   draw: 42, roll: 36, safeStart: 4, safeEnd: 20, rollCost: 30,
+  // Backstep: a short positional evade with no invulnerability. speed 1 = walking pace, so 12 ticks travel 0.6 m; its tail can be
+  // cancelled into an attack, and holding the dodge control converts it into a roll for the price difference.
+  backstep: { ticks: 12, speed: 1, cost: 10, cancelFrom: 8 },
   parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: false,
   regen: .4, regenDelay: 60, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,

@@ -48,10 +48,13 @@ let practice = initialPractice(), state = practice.fighter, previous = state, ac
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
 let action: Action | null = null, guard = false, guardId: number | null = null, cancel = false, assetsReady = false, graphicsLost = false, lastHud = '';
 let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(window.location?.search ?? ''), frameEvents: CombatEvent[] = [];
+// Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
+const HOLD_MS = 150;
+let dodgeHeld: { since: number; rolled: boolean } | null = null;
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 function updateHud() {
   const hint = practiceHint(practice), controlsReady = assetsReady && !graphicsLost;
-  const ok = (['light', 'heavy', 'kick', 'dodge', 'parry'] as const).map(a => accepts(practice, a));
+  const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(a => accepts(practice, a) || (a === 'backstep' && accepts(practice, 'dodge')));
   const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}`;
   if (key === lastHud) return;
   lastHud = key;
@@ -82,14 +85,16 @@ function updateHud() {
 }
 function request(next: Action) { if (!paused() && assetsReady && accepts(practice, next)) action = next; }
 function requestKick() { request('kick'); }
-function requestDodge() { request('dodge'); }
+function requestRoll() { request('dodge'); }
+function pressDodge(now: number) { if (dodgeHeld) return; dodgeHeld = { since: now, rolled: false }; request('backstep'); }
+function releaseDodge() { dodgeHeld = null; if (action === 'backstep') action = null; }
 function requestParry() { request('parry'); }
 function requestStrike(isHeavy = false) { request(isHeavy ? 'heavy' : 'light'); }
 let run = false, stickRun = false, moveId: number | null = null, orbitId: number | null = null;
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; action = null; cancel = true;
+  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -112,11 +117,11 @@ window.addEventListener('keydown', event => {
   if (event.code === 'KeyF' && !event.repeat) { event.preventDefault(); requestStrike(); }
   if (event.code === 'KeyC' && !event.repeat) { event.preventDefault(); requestKick(); }
   if (event.code === 'KeyG' && !event.repeat) { event.preventDefault(); requestStrike(true); }
-  if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); requestDodge(); }
+  if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); }
   if (event.code === 'KeyQ') { event.preventDefault(); keys.add(event.code); if (!event.repeat) requestParry(); }
   if (event.code === 'KeyR' && !event.repeat) element('recenter-button').click();
 });
-window.addEventListener('keyup', event => keys.delete(event.code));
+window.addEventListener('keyup', event => { keys.delete(event.code); if (event.code === 'KeyE') releaseDodge(); });
 function setRun(value: boolean) { run = value; runButton.setAttribute('aria-pressed', String(value)); }
 runButton.addEventListener('pointerdown', event => { if (!paused()) { runButton.setPointerCapture(event.pointerId); setRun(true); } });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) runButton.addEventListener(name, () => setRun(false));
@@ -132,9 +137,11 @@ heavyButton.addEventListener('pointercancel', () => { if (action === 'heavy') ac
 heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(true); } });
 attackButton.addEventListener('pointercancel', () => { if (action === 'light') action = null; });
 attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
-dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestDodge(); } });
-dodgeButton.addEventListener('pointercancel', () => { if (action === 'dodge') action = null; });
-dodgeButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestDodge(); } });
+dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); dodgeButton.setPointerCapture(event.pointerId); pressDodge(performance.now()); } });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) dodgeButton.addEventListener(name, releaseDodge);
+dodgeButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); } });
+dodgeButton.addEventListener('keyup', releaseDodge);
+dodgeButton.addEventListener('blur', releaseDodge);
 guardButton.addEventListener('pointerdown', event => {
   if (event.button !== 0 || paused() || guardId !== null) return;
   event.preventDefault(); guardId = event.pointerId; guardButton.setPointerCapture(guardId); guard = true; requestParry();
@@ -165,7 +172,7 @@ gesturePad.addEventListener('pointermove', event => {
   event.preventDefault(); gestureUsed = true;
   request(action);
 });
-gesturePad.addEventListener('keydown', event => { if (!gestureMode || event.repeat) return; if (['Enter','Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.code)) { event.preventDefault(); if (event.code === 'ArrowDown') requestDodge(); else requestStrike(event.code === 'ArrowUp'); } });
+gesturePad.addEventListener('keydown', event => { if (!gestureMode || event.repeat) return; if (['Enter','Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.code)) { event.preventDefault(); if (event.code === 'ArrowDown') requestRoll(); else requestStrike(event.code === 'ArrowUp'); } });
 for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => {
   if ((event as PointerEvent).pointerId === gestureId) { if (name !== 'pointerup') action = null; gestureId = null; }
 });
@@ -238,6 +245,7 @@ function frame(now: number) {
   const elapsed = (now - last) / 1000; last = now;
   const dt = Math.min(elapsed, 0.1);
   if (!paused()) {
+    if (dodgeHeld && !dodgeHeld.rolled && now - dodgeHeld.since >= HOLD_MS) { dodgeHeld.rolled = true; request('dodge'); }
     accumulator += dt;
     const x = moveX + Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
