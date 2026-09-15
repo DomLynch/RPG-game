@@ -148,3 +148,8 @@ v26 (2026-09-15): the collar blend under the jaw is a fixed 0.10 scan units (the
 the blend flattened the chin); the texture fade 0.14. `parts.align_legs` lays each leg onto its bones the way `align_arms` does
 the arms — the Studio body stood ~5 cm ahead of the rig at the knee and ~11 cm at the ankle, so the ankle joint hinged behind the
 foot. The sandal's ankle strap is a strap again (3.5 cm, the wraps' leather).
+
+v27 (2026-09-15): the sandal sole is every downward-facing face under the foot (arch included, 7 mm) — one flat sole instead
+of a toe pad and a heel block. Below the hairline only texels no camera saw at all are re-painted (the under-chin stubble is
+photographed at a grazing angle and stays); the crown/back keep the stricter rule. The fill's growth is short (48 texels) and
+the skin synth carries the surrounding photographed tone, so no streaks.
