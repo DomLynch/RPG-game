@@ -21,6 +21,7 @@ test('legacy constant views stay equal to the move data the simulation actually 
   assert.equal(ATTACKS.heavy.recovery, 68); assert.equal(ATTACKS.heavy.damage, 38); assert.equal(ATTACKS.heavy.cost, 35); assert.equal(ATTACKS.riposte.damage, 40);
   assert.equal(MOVES.kick.windup, 18); assert.equal(total(MOVES.kick), 44); assert.equal(MOVES.kick.damage, 8); assert.equal(MOVES.kick.stamina, 25);
   assert.equal(RULES.roll, RULES.roll); assert.equal(RULES.parry, 10); assert.equal(RULES.parryStun, 90); assert.equal(RULES.wound, 240);
+  assert.equal(RULES.bufferWindow, 10); assert.equal(RULES.bufferTtl, 11); assert.equal(RULES.parryRecovery, 8); assert.equal(RULES.feintCost, 10);
   for (const path of Object.values(PATHS)) assert.equal(path.active, 5);
   for (const move of Object.values(MOVES)) assert.equal(move.windup + move.active + move.recovery, total(move));
 });

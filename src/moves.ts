@@ -70,7 +70,7 @@ export const RULES = {
   parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: false,
   regen: .4, regenDelay: 60, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,
-  bufferWindow: 8, bufferTtl: 9, stepInFrom: 3, turnStart: .3, turnWindup: .25,
+  bufferWindow: 10, bufferTtl: 11, stepInFrom: 3, turnStart: .3, turnWindup: .25,
   location: { head: 1, torso: 1, legs: 1 } as Record<'head' | 'torso' | 'legs', number>,
 } as const;
 
