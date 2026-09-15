@@ -164,7 +164,25 @@ test('weapon disc grammars: flick strikes at once; drag loads and releases witho
   pointer('pointerdown', 60, 60); pointer('pointermove', 60, 100); app.tick(); for (let i = 0; i < 48; i++) app.tick();
   assert.equal(me().charged, true, 'v3 charges on a long hold'); pointer('pointerup', 60, 100); for (let i = 0; i < 80; i++) app.tick();
   // The scheme persists on this device and the cycle returns to buttons.
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'charge'); cycle(1); assert.equal(app.element('controls-mode').textContent, 'Controls: buttons');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'charge'); cycle(2); assert.equal(app.element('controls-mode').textContent, 'Controls: buttons');
+});
+
+test('v4 invisible field: the right half of the arena takes the same strokes, the left half still orbits, the mark shows only under the thumb', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const world = app.element('world'), mark = app.element('touch-mark'), me = () => app.rendered.duel.fighters[0];
+  const pointer = (type: string, x: number, y: number, id = 3) => world.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y }));
+  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
+  for (let i = 0; i < 4; i++) app.element('controls-mode').click(); app.tick();
+  assert.match(app.element('controls-mode').textContent, /invisible field .* \(v4\)/); assert.equal(app.element('actions').dataset.gestures, 'field'); assert.equal(app.element('field-help').hidden, false);
+  settle(); const stamina = () => Number(app.element('stamina').value);
+  // Right half (innerWidth is 375 in the harness): an upward stroke is a thrust; the mark appears at the touch and goes with it.
+  pointer('pointerdown', 300, 400); assert.equal(mark.hidden, false); pointer('pointermove', 300, 360); app.tick();
+  assert.equal(me().move, 'thrust'); pointer('pointerup', 300, 360); assert.equal(mark.hidden, true); for (let i = 0; i < 60; i++) app.tick(); settle();
+  // Hold loads and, held long enough, charges the heavy; back toward the origin feints a cut.
+  pointer('pointerdown', 300, 400); pointer('pointermove', 300, 440); app.tick(); for (let i = 0; i < 48; i++) app.tick(); assert.equal(me().charged, true, 'v4 charges on a long hold'); pointer('pointerup', 300, 440); for (let i = 0; i < 80; i++) app.tick(); settle();
+  pointer('pointerdown', 300, 400); pointer('pointermove', 340, 400); app.tick(); assert.equal(me().move, 'light_right'); for (let i = 0; i < 4; i++) app.tick(); pointer('pointermove', 302, 400); app.tick(); assert.equal(me().phase, 'guard', 'back to the origin feints'); pointer('pointerup', 302, 400); for (let i = 0; i < 60; i++) app.tick(); settle();
+  // Left half: no attack, the mark stays hidden (that touch orbits the camera).
+  const before = stamina(); pointer('pointerdown', 60, 400, 4); assert.equal(mark.hidden, true); pointer('pointermove', 60, 360, 4); app.tick(); assert.equal(stamina(), before, 'the left half never attacks'); pointer('pointerup', 60, 360, 4);
 });
 
 test('the scorecard tallies fights, wins, rematches and damage per scheme', () => {
