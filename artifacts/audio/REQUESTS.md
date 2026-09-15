@@ -23,3 +23,7 @@ Both fighters currently wear the level-1 kit (linen, leather, iron studs) and ca
 flesh/leather and `Blocked` to iron-on-iron without extra data. When armour slots become data, `Hit`/`GuardBroken`
 should carry the struck material (`material: 'flesh' | 'leather' | 'iron' | 'bronze'`) for the target's `location`.
 Status: not needed yet; recorded so the loadout schema includes it.
+
+## Evidence policy (owner, 2026-09-15)
+Rendered WAVs stay out of git (`artifacts/` is ignored; the harness regenerates them in seconds). Only `REPORT.md`,
+`loudness.json` and `quality.log` per iteration are force-added. WAVs reach the owner as attachments.
