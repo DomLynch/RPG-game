@@ -224,6 +224,39 @@ test('roll: bounded invulnerability, one cost, locked direction, no cancel from 
   assert.ok(away.fighters[0].body.z > TARGET.z + 2.5, 'default roll retreats'); assert.ok(Math.hypot(away.fighters[0].body.x, away.fighters[0].body.z) <= RADIUS + 1e-9);
 });
 
+test('backstep: 0.6 m straight back, still facing, 10 stamina, no invulnerability, cancels into a swing late, holds into a roll', () => {
+  const start = duel(1.2), before = start.fighters[0].body;
+  let d = stepDuel(start, [act('backstep', { lock: true }), idle()]);
+  assert.equal(d.fighters[0].phase, 'backstep'); assert.equal(d.fighters[0].stamina, 100 - RULES.backstep.cost); assert.deepEqual(types(d), ['ActionStarted']); assert.equal(d.events[0].action, 'backstep');
+  d = run(d, RULES.backstep.ticks - 1, { ...idle(), lock: true });
+  assert.equal(d.fighters[0].phase, 'backstep');
+  d = stepDuel(d, [{ ...idle(), lock: true }, idle()]);
+  assert.equal(d.fighters[0].phase, 'ready');
+  assert.ok(Math.abs(d.fighters[0].body.z - before.z - .6) < 1e-6, `travelled ${(d.fighters[0].body.z - before.z).toFixed(3)} m`); assert.ok(Math.abs(d.fighters[0].body.x - before.x) < 1e-9);
+  assert.equal(d.fighters[0].body.heading, before.heading, 'still facing the opponent');
+  assert.equal(d.fighters[0].stamina, 100 - RULES.backstep.cost, 'paid once');
+  // No invulnerability: a blade reaching the body during a backstep lands.
+  const struck = stepDuel({ ...duel(1.0), fighters: [{ ...duel().fighters[0], phase: 'backstep', age: RULES.safeStart + 1 }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [idle(), idle()]);
+  assert.equal(struck.fighters[0].health, 75); assert.ok(!types(struck).includes('Dodged'));
+  // Cannot spam without stamina; stays inside the arena.
+  assert.equal(stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], stamina: 9 }, duel().fighters[1]] }, [act('backstep'), idle()]).fighters[0].phase, 'ready');
+  const edge = { ...duel(), fighters: [{ ...duel().fighters[0], body: { x: 0, z: RADIUS - .2, heading: Math.PI, distance: 0 } }, duel().fighters[1]] } as Duel;
+  assert.ok(Math.hypot(0, run(stepDuel(edge, [act('backstep'), idle()]), RULES.backstep.ticks).fighters[0].body.z) <= RADIUS + 1e-9);
+  // The tail cancels into a swing; earlier presses are queued and fire at the cancel point.
+  const tail = run(stepDuel(duel(1.2), [act('backstep'), idle()]), RULES.backstep.cancelFrom - 1);
+  assert.equal(legal(tail.fighters[0], 'light'), false);
+  const queued = stepDuel(tail, [act('light'), idle()]);
+  assert.equal(queued.fighters[0].phase, 'backstep'); assert.equal(queued.fighters[0].buffer?.action, 'light');
+  const swung = stepDuel(queued, [idle(), idle()]);
+  assert.equal(swung.fighters[0].phase, 'attack', 'the queued light fires the first tick the tail allows it');
+  assert.equal(stepDuel(run(stepDuel(duel(1.2), [act('backstep'), idle()]), RULES.backstep.cancelFrom), [act('heavy'), idle()]).fighters[0].move, 'heavy_overhead');
+  // Holding the control: the step grows into a roll for the price difference, facing away like any roll.
+  const held = stepDuel(run(stepDuel(duel(1.2), [act('backstep'), idle()]), 8), [act('dodge'), idle()]);
+  assert.equal(held.fighters[0].phase, 'roll'); assert.equal(held.fighters[0].stamina, 100 - RULES.rollCost);
+  assert.equal(stepDuel(run(stepDuel({ ...duel(1.2), fighters: [{ ...duel().fighters[0], stamina: 30 }, duel().fighters[1]] }, [act('backstep'), idle()]), 8), [act('dodge'), idle()]).fighters[0].phase, 'roll', 'the conversion needs only the difference');
+  assert.equal(stepDuel(run(stepDuel({ ...duel(1.2), fighters: [{ ...duel().fighters[0], stamina: 25 }, duel().fighters[1]] }, [act('backstep'), idle()]), 8), [act('dodge'), idle()]).fighters[0].phase, 'backstep', 'and is refused without it');
+});
+
 test('stamina: costs at commitment, delayed regeneration, no regeneration while guarding, sprint drain, exhaustion and recovery', () => {
   let d = stepDuel(duel(4), [act('light'), idle()]);
   assert.equal(d.fighters[0].stamina, 80); assert.equal(d.fighters[0].rest, RULES.regenDelay);
@@ -370,7 +403,7 @@ test('events: every outcome is reported exactly once per contact and the stream 
   const counts: Record<string, number> = {};
   let seed = 909, d = initialDuel();
   const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
-  const pick = (): Action | null => { const r = random(); return r < .03 ? 'light' : r < .04 ? 'heavy' : r < .05 ? 'kick' : r < .06 ? 'dodge' : r < .08 ? 'parry' : null; };
+  const pick = (): Action | null => { const r = random(); return r < .04 ? 'light' : r < .05 ? 'heavy' : r < .06 ? 'kick' : r < .07 ? 'dodge' : r < .08 ? 'backstep' : r < .10 ? 'parry' : null; };
   const held = [false, false];   // guard is a held input: it toggles occasionally rather than flickering every tick
   for (let i = 0; i < 16000; i++) {
     if (!d.fighters[0].health || !d.fighters[1].health || i % 1500 === 0) d = { ...duel(1.2), tick: d.tick };
@@ -388,7 +421,7 @@ test('the same intent sequence replays to the same duel; inputs never mutate the
   const play = () => {
     let seed = 4242, d = initialDuel();
     const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
-    const pick = (): Action | null => { const r = random(); return r < .08 ? 'light' : r < .11 ? 'heavy' : r < .13 ? 'kick' : r < .16 ? 'dodge' : r < .19 ? 'parry' : null; };
+    const pick = (): Action | null => { const r = random(); return r < .08 ? 'light' : r < .11 ? 'heavy' : r < .13 ? 'kick' : r < .16 ? 'dodge' : r < .18 ? 'backstep' : r < .21 ? 'parry' : null; };
     for (let i = 0; i < 12000; i++) {
       if (!d.fighters[0].health || !d.fighters[1].health) d = { ...initialDuel(), fighters: [{ ...initialDuel().fighters[0], phase: 'ready' }, initialDuel().fighters[1]] };
       const before = structuredClone(d); Object.freeze(d); Object.freeze(d.fighters); d.fighters.forEach(f => { Object.freeze(f); Object.freeze(f.body); });

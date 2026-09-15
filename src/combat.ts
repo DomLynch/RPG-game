@@ -14,7 +14,7 @@ const clipSpec = (path: PathId, move: MoveId) => ({ contact: PATHS[path].windup,
 export const ATTACKS = { light: clipSpec('light_right', 'light_right'), return: clipSpec('light_left_chain', 'light_left'), heavy: clipSpec('heavy_overhead', 'heavy_overhead'), riposte: clipSpec('riposte', 'riposte') } as const;
 export type Attack = keyof typeof ATTACKS;
 
-export type LegacyPhase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'guard' | 'hurt' | 'dead' | 'kick';
+export type LegacyPhase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead' | 'kick';
 export type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged' | 'broken' | 'kicked' | 'enemyBlocked' | 'enemyBroken' | 'enemyParried' | 'enemyDodged' | 'enemyKicked';
 // Practice = the duel plus a read-only view in the vocabulary the renderer and HUD already speak. Never write to the view.
 export type Practice = {
@@ -59,10 +59,10 @@ export const canDefend = (s: Practice): boolean => s.health > 0 && s.playerHealt
 export const accepts = (s: Practice, action: Action): boolean => s.health > 0 && s.playerHealth > 0 && (legal(s.duel.fighters[0], action) || (inBufferWindow(s.duel.fighters[0]) && !(action === 'heavy' && s.phase === 'draw')));
 
 // Presentation helper: which clip, how far through it, and where its contact pose sits. Animation observes; it never decides.
-export type Pose = Exclude<LegacyPhase, 'hurt' | 'dead'> | 'hit' | 'death';
+export type Pose = Exclude<LegacyPhase, 'hurt' | 'dead' | 'backstep'> | 'hit' | 'death';
 export function actorPose(s: Practice, side: Side): { pose: Pose; progress: number; attack: Attack; contact: number } {
   const f = s.duel.fighters[side], phase = legacyPhase(f), attack = clipOf(f.lastMove);
-  const pose: Pose = phase === 'dead' ? 'death' : phase === 'hurt' ? 'hit' : phase;
+  const pose: Pose = phase === 'dead' ? 'death' : phase === 'hurt' ? 'hit' : phase === 'backstep' ? 'ready' : phase;   // a backstep is armed footwork; travel direction drives the walk
   const duration = phase === 'attack' || phase === 'kick' ? total(timing(f)) : phase === 'draw' ? RULES.draw : phase === 'roll' ? RULES.roll : phase === 'hurt' || phase === 'dead' ? f.stun : 1;
   const contact = phase === 'attack' || phase === 'kick' ? timing(f).windup / duration : ATTACKS[attack].contact / ATTACKS[attack].recovery;
   return { pose, progress: Math.min(1, f.age / Math.max(1, duration)), attack, contact };

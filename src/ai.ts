@@ -54,7 +54,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       if (M.phase === 'ready') { if (estimate <= RULES.parry - 2) { intent.action = 'parry'; intent.guard = true; } }
       else intent.guard = M.age < RULES.parry || estimate <= 3;
     } else if (next.plan === 'dodge' && M.stamina >= RULES.rollCost && estimate <= RULES.safeEnd - 2 && estimate >= RULES.safeStart) intent.action = 'dodge';
-    else if (next.plan === 'evade') intent.move = { x: -Math.sin(facing), z: -Math.cos(facing), yaw: 0, run: false };   // back away at a walk, still facing the blade
+    else if (next.plan === 'evade') { if (legal(M, 'backstep')) intent.action = 'backstep'; else intent.move = { x: -Math.sin(facing), z: -Math.cos(facing), yaw: 0, run: false }; }   // step out of reach, still facing the blade
     else intent.guard = true;
     return { intent, ai: next };
   }

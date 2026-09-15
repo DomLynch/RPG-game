@@ -41,6 +41,8 @@ test('the projection mirrors both fighters: phases, resources, threat, results a
   assert.equal(kicked.result, 'kicked'); assert.equal(kicked.health, 92); assert.equal(kicked.phase, 'kick');
   const drawn = stepPractice(initialPractice(), act('light'));
   assert.equal(drawn.phase, 'draw'); assert.equal(actorPose(drawn, 0).pose, 'draw');
+  const stepping = stepPractice(ready(), act('backstep'), passive);
+  assert.equal(stepping.phase, 'backstep'); assert.equal(actorPose(stepping, 0).pose, 'ready', 'a backstep presents as armed footwork'); assert.equal(accepts(stepping, 'dodge'), true); assert.equal(accepts(stepping, 'backstep'), false);
 });
 
 test('the warden threat flag and move drive the incoming warning; the projection exposes what it will do', () => {

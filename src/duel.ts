@@ -4,8 +4,8 @@ import { advance, initialState, TARGET, wrapAngle, type Input, type State } from
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
-export type Phase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'guard' | 'hurt' | 'dead';
-export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'kick' | 'dodge' | 'parry';
+export type Phase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead';
+export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'kick' | 'dodge' | 'backstep' | 'parry';
 export type Intent = {
   move: Input;                  // camera-relative stick/keys
   action: Action | null;        // edge-triggered request for this tick; one is buffered late in a committed action
@@ -25,7 +25,7 @@ export type Fighter = {
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number };
 export type EventType = 'ActionStarted' | 'AttackStarted' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'guard' | 'parry' | 'feint'; damage?: number; location?: HitLocation; heading?: number; ticks?: number };
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; location?: HitLocation; heading?: number; ticks?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
 export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: 100, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, guardDirection: null, parrying: false, exposed: 0, buffer: null });
@@ -43,6 +43,7 @@ function phaseLength(f: Fighter): number | null {
   if (f.phase === 'draw') return RULES.draw;
   if (f.phase === 'attack') return total(timing(f));
   if (f.phase === 'roll') return RULES.roll;
+  if (f.phase === 'backstep') return RULES.backstep.ticks;
   if (f.phase === 'hurt' || f.phase === 'dead') return f.stun;
   return null;
 }
@@ -63,10 +64,12 @@ function chooseMove(f: Fighter, action: Action): MoveId {
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted) return false;
   const standing = f.phase === 'ready' || f.phase === 'guard';   // a guard yields to any action; it never eats an input
-  if (isLight(action)) return f.phase === 'sheathed' || (standing && f.stamina >= MOVES[chooseMove(f, action)].stamina);
-  if (action === 'heavy') return standing && f.stamina >= MOVES.heavy_overhead.stamina;
+  const stepping = f.phase === 'backstep', stepTail = stepping && f.age >= RULES.backstep.cancelFrom;   // a backstep's tail cancels into a swing
+  if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= MOVES[chooseMove(f, action)].stamina);
+  if (action === 'heavy') return (standing || stepTail) && f.stamina >= MOVES.heavy_overhead.stamina;
   if (action === 'kick') return standing && f.stamina >= MOVES.kick.stamina;
-  if (action === 'dodge') return standing && f.stamina >= RULES.rollCost;
+  if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
+  if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
   return (f.phase === 'ready' && !f.exposed) || feintable(f);
 }
 
@@ -88,10 +91,12 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (action) next.buffer = null;
     const face = (limit: number) => { if (intent.lock) next.body = { ...next.body, heading: next.body.heading + Math.max(-limit, Math.min(limit, wrapAngle(aim(next.body, foe.body) - next.body.heading))) }; };
     if (action === 'dodge') {
-      // Direction locks at the press; without movement, roll away from the opponent.
+      // Direction locks at the press; without movement, roll away from the opponent. A roll grown out of a backstep pays the difference.
       const moving = Math.hypot(intent.move.x, intent.move.z) > .1;
       next.body = { ...me.body, heading: moving ? advance(me.body, intent.move, foe.body).heading : aim(me.body, foe.body) + Math.PI };
-      next.phase = 'roll'; next.age = 0; spend(i, R.rollCost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'roll' });
+      next.phase = 'roll'; next.age = 0; spend(i, me.phase === 'backstep' ? R.rollCost - R.backstep.cost : R.rollCost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'roll' });
+    } else if (action === 'backstep') {
+      next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
     } else if (action === 'kick') {
       next.phase = 'attack'; next.age = 0; next.move = 'kick'; next.chained = false; next.landed = false; next.chain = 0; next.lastMove = 'kick'; spend(i, MOVES.kick.stamina);
       if (intent.lock) next.body = { ...me.body, heading: aim(me.body, foe.body) };
@@ -134,6 +139,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (lunge && next.age > R.stepInFrom) next.body = advance(next.body, { x: Math.sin(next.body.heading) * lunge, z: Math.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe);
     } else if (next.phase === 'roll') {
       next.body = advance(next.body, { x: Math.sin(next.body.heading), z: Math.cos(next.body.heading), yaw: 0, run: true }, foe);
+    } else if (next.phase === 'backstep') {
+      // Straight back along the facing, still facing the opponent: no turn, no invulnerability, just distance.
+      next.body = { ...advance(next.body, { x: -Math.sin(next.body.heading) * R.backstep.speed, z: -Math.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe), heading: next.body.heading };
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
       const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
       const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe);

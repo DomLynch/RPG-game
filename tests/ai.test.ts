@@ -46,6 +46,15 @@ test('the warden reacts only after its reaction delay: no defensive input can an
   assert.ok(![...answers].some(a => a.startsWith('block')));
 });
 
+test('an unblockable swing it cannot parry or roll is answered with a backstep out of reach', () => {
+  const d = arena(1.6); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'heavy_overhead', age: PROFILES.hard.reaction, lastMove: 'heavy_overhead' };
+  d.fighters[1] = { ...d.fighters[1], stamina: 25, parryCooldown: 20 };
+  const { intent, ai } = decide(d, 1, { ...initialAi(), mode: 'circle', decision: 500, wait: 500 }, { ...PROFILES.hard, parry: 0, dodge: 0 });
+  assert.equal(ai.plan, 'evade'); assert.equal(intent.action, 'backstep');
+  const after = stepDuel(d, [idle(), intent]);
+  assert.equal(after.fighters[1].phase, 'backstep');
+});
+
 test('the warden uses the same combat API: its attacks cost stamina, obey range and resolve through the same contact rules', () => {
   const { events, duel } = play(PROFILES.normal, 600, () => idle());
   const first = wardenAttacks(events)[0];
