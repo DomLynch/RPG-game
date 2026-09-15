@@ -1371,7 +1371,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands: their colours spill into the gutters so seams never sample the raw edges
     filled = fill_margin(filled, island, steps=48)
     maps = {'Photo': {'baseColor': save_two_sizes_fn('kt_face_color', filled, 'sRGB')},
-            'PhotoEyes': {'baseColor': save_jpeg_fn('kt_eye_color', P.downsample(pixels(images[1]), max(1, images[1].size[0] // 512)), 'sRGB')},
+            'PhotoEyes': {'baseColor': save_jpeg_fn('kt_eye_color', eye_colour(P.downsample(pixels(images[1]), max(1, images[1].size[0] // 512))), 'sRGB')},
             'PhotoTeeth': {'baseColor': save_jpeg_fn('kt_teeth_color', P.downsample(pixels(images[3]), max(1, images[3].size[0] // 512)), 'sRGB')}}
     normal = bake_tiles_single(head, full, select_only, size)
     maps['Photo']['normal'] = save_two_sizes_fn('kt_face_normal', normal, 'Non-Color')
@@ -1381,6 +1381,29 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     parts = [tag(head, 'kt_head', 'Photo', slot='Face'), tag(kt_eye_l, 'kt_eye_l', 'PhotoEyes', slot='Eyes'), tag(kt_eye_r, 'kt_eye_r', 'PhotoEyes', slot='Eyes'), tag(teeth, 'kt_teeth', 'PhotoTeeth', slot='Face')]
     print(f'KEENTOOLS head scale={scale:.4f} neck_z={neck_z:.3f} neck_c=({neck_c.x:.3f}, {neck_c.y:.3f}) head faces={len(head.data.polygons)} eyes={len(kt_eye_l.data.polygons)} teeth={len(teeth.data.polygons)}')
     return parts, maps, neck_z, neck_c
+
+
+def eye_colour(px):
+    """The scan's eye texture is the photograph on the ball: under the brow the sclera reads grey and the iris flat. The
+    iris is found as the dark, saturated blob at the centre; the ring around it up to ~1.9 iris radii is the sclera, lifted
+    towards a cool white (skin at the corners and lashes excluded by saturation and darkness); the iris mid-tones get a
+    small lift, the pupil none."""
+    h, w = px.shape[:2]
+    mx, mn = px.max(axis=2), px.min(axis=2)
+    sat = (mx - mn) / np.maximum(mx, 1e-4)
+    ys, xs = np.mgrid[0:h, 0:w]
+    blob = (sat > 0.35) & (mx > 0.06) & (mx < 0.35)  # the iris: coloured but dark, near the centre (the lids lie further out)
+    blob &= (np.abs(xs - w / 2) < w * 0.17) & (np.abs(ys - h / 2) < h * 0.17)
+    cy, cx = ys[blob].mean(), xs[blob].mean()
+    r_iris = math.sqrt(blob.sum() / math.pi)
+    r = np.hypot(ys - cy, xs - cx)
+    ring = np.clip((r - r_iris * 1.0) / (r_iris * 0.12), 0, 1) * np.clip((r_iris * 2.4 - r) / (r_iris * 0.4), 0, 1)
+    sclera = ring * np.clip((0.44 - sat) / 0.12, 0, 1) * np.clip((mx - 0.22) / 0.12, 0, 1)  # paler and greyer than skin; not lashes
+    iris = np.clip((r_iris * 0.95 - r) / (r_iris * 0.1), 0, 1) * np.clip((mx - 0.06) / 0.06, 0, 1)  # inside the ring, not the pupil
+    out = px * (1 + 0.08 * iris)[..., None]
+    out = out * (1 - 0.4 * sclera)[..., None] + np.array([0.78, 0.79, 0.82])[None, None, :] * (0.4 * sclera)[..., None]
+    print(f'KEENTOOLS eye colour: iris at ({cx:.0f}, {cy:.0f}) r={r_iris:.0f}px, sclera {int((sclera > 0.5).sum())} texels')
+    return np.clip(out, 0, 1)
 
 
 def crown_fill(colour, dark, size, hair_zone):

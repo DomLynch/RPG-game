@@ -54,7 +54,7 @@ const browCards = new T.MeshPhysicalMaterial({ name: 'BrowCards', roughness: .9,
 const hairShell = new T.MeshPhysicalMaterial({ name: 'HairShell', roughness: .9, specularIntensity: .25, alphaTest: .42, side: T.DoubleSide, vertexColors: true }); // fur shells: dot alpha × per-shell vertex alpha
 // Photogrammetry head (KeenTools reconstruction of the owner's portraits): its own textures, skin specular, wet eyes.
 const photo = new T.MeshPhysicalMaterial({ name: 'Photo', roughness: .62, specularIntensity: .5 });
-const photoEyes = new T.MeshPhysicalMaterial({ name: 'PhotoEyes', roughness: .2, clearcoat: .6, clearcoatRoughness: .15 });
+const photoEyes = new T.MeshPhysicalMaterial({ name: 'PhotoEyes', roughness: .25, clearcoat: .5, clearcoatRoughness: .1 }); // wet cornea: a small catch-light without the room washing the iris grey
 const photoTeeth = new T.MeshStandardMaterial({ name: 'PhotoTeeth', roughness: .4 });
 const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth].map(m => [m, []]));
 const boneIndex = name => {
