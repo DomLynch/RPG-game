@@ -210,7 +210,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (chip) { wound(chip, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
     } else {
       const damage = Math.round(def.damage * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
-      if (guarding) { spend(j, d.stamina); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading, charged }); stagger(baseStun); }
+      if (guarding) { spend(j, R.breakCost); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading, charged }); stagger(baseStun); }
       else {
         const poised = d.phase === 'attack' && d.move !== null && ((d.charge > 0 && d.age < timing(d).windup + timing(d).active) || (MOVES[d.move].poise >= def.stagger && d.age >= MOVES[d.move].poiseFrom && d.age < timing(d).windup + timing(d).active));   // a charging or charged heavy has hyper-armour
         // Counter-hit and rear-hit multiply the clean hit; they never apply through a guard or a parry.

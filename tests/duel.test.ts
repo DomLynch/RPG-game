@@ -505,7 +505,7 @@ test('a guard takes a plain heavy for chip and stamina without staggering; a cha
   const event = blocked.events.find(e => e.type === 'Blocked')!; assert.equal(event.damage, chip); assert.equal(event.stamina, heavy.staminaDamage); assert.equal(blocked.fighters[1].counterWindow, RULES.guardCounter, 'a blocked heavy opens the guard counter');
   const heldIntent = { ...idle(), heavyHeld: true };
   const charged = run(run(stepDuel(guarded, [act('heavy', { heavyHeld: true }), hold()]), RULES.charge.at + RULES.charge.min, heldIntent, hold()), heavy.windup - RULES.charge.at, idle(), hold());
-  assert.equal(charged.fighters[1].health, 100 - Math.round(heavy.damage * RULES.charge.damage)); assert.equal(charged.fighters[1].stamina, 0); assert.equal(charged.fighters[1].stun, Math.round(heavy.stagger * RULES.charge.stagger));
+  assert.equal(charged.fighters[1].health, 100 - Math.round(heavy.damage * RULES.charge.damage)); assert.equal(charged.fighters[1].stamina, 100 - RULES.breakCost, 'a break costs breakCost, not the whole bar'); assert.equal(charged.fighters[1].exhausted, false); assert.ok(charged.fighters[1].stamina >= RULES.rollCost, 'enough left to roll clear'); assert.equal(charged.fighters[1].stun, Math.round(heavy.stagger * RULES.charge.stagger));
   assert.ok(charged.events.find(e => e.type === 'GuardBroken')?.charged, 'a charged heavy breaks a standing guard');
   const starved = run(stepDuel({ ...guarded, fighters: [guarded.fighters[0], { ...guarded.fighters[1], stamina: heavy.staminaDamage - 1 }] } as Duel, [act('heavy'), hold()]), heavy.windup, idle(), hold());
   assert.equal(starved.fighters[1].health, 100 - heavy.damage); assert.ok(types(starved).includes('GuardBroken'), 'without the stamina to pay, the guard breaks');
