@@ -39,7 +39,9 @@ export function createFeedback(host?: FeedbackHost) {
   function build(context: BaseAudioContext) {
     master = context.createGain(); master.gain.value = 1; master.connect(context.destination);
     const ceiling = context.createWaveShaper(); ceiling.curve = softCeiling(); ceiling.connect(master);
-    bus = context.createDynamicsCompressor(); bus.threshold.value = -14; bus.knee.value = 8; bus.ratio.value = 4; bus.attack.value = .003; bus.release.value = .12; bus.connect(ceiling);
+    // Glue and density: the compressor leans on stacked hits and the makeup pushes the mix into the ceiling, which is what makes impacts read as big on a small speaker.
+    const makeup = context.createGain(); makeup.gain.value = 1.35; makeup.connect(ceiling);
+    bus = context.createDynamicsCompressor(); bus.threshold.value = -20; bus.knee.value = 10; bus.ratio.value = 5; bus.attack.value = .002; bus.release.value = .15; bus.connect(makeup);
     const room = context.createConvolver(); room.buffer = courtyard(context); room.connect(bus);
     for (let i = 0; i < VOICES; i++) { const gain = context.createGain(), send = context.createGain(); gain.connect(bus); gain.connect(send); send.connect(room); send.gain.value = 0; voices.push({ source: null, gain, send, until: 0 }); }
     noise = context.createBuffer(1, context.sampleRate * .3, context.sampleRate);
@@ -98,9 +100,9 @@ function softCeiling(): Float32Array<ArrayBuffer> {
   for (let i = 0; i < curve.length; i++) { const x = (i / 512) - 1; curve[i] = limit * Math.tanh(x / limit); }
   return curve;
 }
-// Courtyard: a short stone-walled decay, darkening as it fades. Built once from seeded noise; ConvolverNode normalises it.
+// Courtyard: a stone-walled decay, darkening as it fades. Built once from seeded noise; ConvolverNode normalises it.
 function courtyard(context: BaseAudioContext): AudioBuffer {
-  const seconds = .55, buffer = context.createBuffer(1, Math.round(context.sampleRate * seconds), context.sampleRate), data = buffer.getChannelData(0), r = seeded(97);
+  const seconds = .8, buffer = context.createBuffer(1, Math.round(context.sampleRate * seconds), context.sampleRate), data = buffer.getChannelData(0), r = seeded(97);
   let low = 0;
   for (let i = 0; i < data.length; i++) { const t = i / data.length, k = .12 + .5 * t; low += (r() * 2 - 1 - low) * (1 - k); data[i] = low * Math.exp(-6.9 * t) * (i < 240 ? i / 240 : 1); }
   return buffer;
