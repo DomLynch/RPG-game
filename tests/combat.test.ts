@@ -18,13 +18,13 @@ const passive = { ...PROFILES.easy, aggression: 0, parry: 0, dodge: 0, pressure:
 test('legacy constant views stay equal to the move data the simulation actually uses', () => {
   assert.equal(SWORD.contact, MOVES.light_right.windup); assert.equal(SWORD.recovery, total(MOVES.light_right)); assert.equal(SWORD.recovery, 40); assert.equal(SWORD.contact, 14);
   assert.equal(ATTACKS.return.contact, PATHS.light_left_chain.windup); assert.equal(ATTACKS.return.recovery, total(PATHS.light_left_chain)); assert.equal(ATTACKS.return.recovery, 34);
-  assert.equal(ATTACKS.heavy.recovery, 68); assert.equal(ATTACKS.heavy.damage, 38); assert.equal(ATTACKS.heavy.cost, 35); assert.equal(ATTACKS.riposte.damage, 40);
-  assert.equal(MOVES.kick.windup, 18); assert.equal(total(MOVES.kick), 44); assert.equal(MOVES.kick.damage, 8); assert.equal(MOVES.kick.stamina, 25);
+  assert.equal(ATTACKS.heavy.recovery, 68); assert.equal(ATTACKS.heavy.damage, 18); assert.equal(ATTACKS.heavy.cost, 35); assert.equal(ATTACKS.riposte.damage, 24);
+  assert.equal(MOVES.kick.windup, 18); assert.equal(total(MOVES.kick), 44); assert.equal(MOVES.kick.damage, 4); assert.equal(MOVES.kick.stamina, 25);
   assert.equal(RULES.roll, RULES.roll); assert.equal(RULES.parry, 10); assert.equal(RULES.parryStun, 90); assert.equal(RULES.wound, 240);
   assert.equal(RULES.bufferWindow, 10); assert.equal(RULES.bufferTtl, 11); assert.equal(RULES.parryRecovery, 8); assert.equal(RULES.feintCost, 10);
   for (const path of Object.values(PATHS)) assert.equal(path.active, 5);
   for (const move of Object.values(MOVES)) assert.equal(move.windup + move.active + move.recovery, total(move));
-  assert.equal(MOVES.heavy_riposte.damage, 48); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2); assert.equal(RULES.perfectBlock, 3); assert.equal(RULES.perfectBlockCost, .5);
+  assert.equal(MOVES.heavy_riposte.damage, 30); assert.equal(MOVES.light_right.damage, 11); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2); assert.equal(RULES.perfectBlock, 3); assert.equal(RULES.perfectBlockCost, .5);
 });
 
 test('the projection mirrors both fighters: phases, resources, threat, results and warden reaction for the renderer', () => {
@@ -34,12 +34,12 @@ test('the projection mirrors both fighters: phases, resources, threat, results a
   let s = stepPractice(ready(), act('light'), passive);
   assert.equal(s.phase, 'attack'); assert.equal(s.attack, 'light'); assert.equal(s.stamina, 80);
   s = tick(s, SWORD.contact, idle(), passive);
-  assert.equal(s.health, 75); assert.equal(s.result, 'hit'); assert.equal(s.resultAge, 0); assert.equal(s.resultDamage, 25); assert.equal(s.enemyPhase, 'hurt');
+  assert.equal(s.health, 100 - MOVES.light_right.damage); assert.equal(s.result, 'hit'); assert.equal(s.resultAge, 0); assert.equal(s.resultDamage, MOVES.light_right.damage); assert.equal(s.enemyPhase, 'hurt');
   assert.equal(s.reaction, SWORD.reaction); assert.equal(s.enemyWound, RULES.wound);
   assert.ok(s.events.some(e => e.type === 'Hit'));
   s = tick(s, 1, idle(), passive); assert.equal(s.reaction, SWORD.reaction - 1); assert.equal(s.resultAge, 1);
   const kicked = tick(stepPractice(ready(1.05), act('kick'), passive), MOVES.kick.windup, idle(), passive);
-  assert.equal(kicked.result, 'kicked'); assert.equal(kicked.health, 92); assert.equal(kicked.phase, 'kick');
+  assert.equal(kicked.result, 'kicked'); assert.equal(kicked.health, 100 - MOVES.kick.damage); assert.equal(kicked.phase, 'kick');
   const drawn = stepPractice(initialPractice(), act('light'));
   assert.equal(drawn.phase, 'draw'); assert.equal(actorPose(drawn, 0).pose, 'draw');
   const stepping = stepPractice(ready(), act('backstep'), passive);
@@ -59,7 +59,7 @@ test('the warden threat flag and move drive the incoming warning; the projection
 
 test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chains, then expiring notices', () => {
   const hit = tick(stepPractice(ready(), act('light'), passive), SWORD.contact, idle(), passive);
-  assert.match(practiceHint(hit), /Clean right cut hit · −25/);
+  assert.match(practiceHint(hit), new RegExp(`Clean right cut hit · −${MOVES.light_right.damage}`));
   assert.doesNotMatch(practiceHint(tick(hit, 120, idle(), passive)), /Clean/);
   const guarding = { ...hit, duel: { ...hit.duel, fighters: [hit.duel.fighters[0], { ...hit.duel.fighters[1], phase: 'guard' as const, age: 12 }] } } as Practice;
   assert.match(practiceHint({ ...guarding, enemyMode: 'guard', reaction: 0, enemyAttacking: false }), /Warden guarding/);
@@ -99,7 +99,7 @@ test('control gating: actions are accepted when legal or late in a committed mov
 
 test('defeat freezes the fight and a fresh practice restores everything; the debug readout stays a pure function of state', () => {
   let s = ready();
-  s = project({ ...s.duel, fighters: [{ ...s.duel.fighters[0], health: 25 }, { ...s.duel.fighters[1], phase: 'attack', move: 'light_left', age: SWORD.contact - 1, lastMove: 'light_left' }] }, s.ai);
+  s = project({ ...s.duel, fighters: [{ ...s.duel.fighters[0], health: MOVES.light_left.damage }, { ...s.duel.fighters[1], phase: 'attack', move: 'light_left', age: SWORD.contact - 1, lastMove: 'light_left' }] }, s.ai);
   const fallen = stepPractice(s, idle(), passive);
   assert.equal(fallen.playerHealth, 0); assert.equal(fallen.phase, 'dead'); assert.equal(fallen.finish?.victim, 0); assert.equal(canStrike(fallen), false); assert.equal(canDefend(fallen), false);
   assert.ok(fallen.events.some(e => e.type === 'Killed' && e.target === 0));
@@ -135,7 +135,7 @@ test('seeded practice replays are identical, never mutate the previous state, an
   const stationary = tick(initialPractice(), 600); assert.deepEqual(stationary.enemy, initialPractice().enemy, 'a sheathed player is never approached');
 });
 
-test('a parry then a light produces the riposte the browser gate expects: warden 100 → 60, then a close kick → 52', () => {
+test('a parry then a light produces the riposte the browser gate expects, then a close kick lands', () => {
   let s = ready();
   for (let i = 0; i < 900 && !(s.threat && s.threatMove === 'heavy_overhead'); i++) s = stepPractice(s, idle());
   assert.equal(s.threatMove, 'heavy_overhead');
@@ -148,12 +148,12 @@ test('a parry then a light produces the riposte the browser gate expects: warden
   s = stepPractice(s, act('light'));
   assert.equal(s.attack, 'riposte');
   s = tick(s, ATTACKS.riposte.contact);
-  assert.equal(s.health, 60);
+  assert.equal(s.health, 100 - MOVES.riposte.damage);
   // Mirror scripts/browser-check.mjs: 600 ms after the counter tap, hold forward for 240 ms, then kick.
   s = tick(s, 36 - ATTACKS.riposte.contact);
   s = tick(s, 14, { ...idle(), move: { x: 0, z: -1, yaw: 0, run: false } });
   s = stepPractice(s, act('kick'));
   assert.equal(s.phase, 'kick');
   s = tick(s, MOVES.kick.windup);
-  assert.equal(s.health, 52);
+  assert.equal(s.health, 100 - MOVES.riposte.damage - MOVES.kick.damage);
 });

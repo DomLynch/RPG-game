@@ -35,9 +35,9 @@ try {
  receipt.parry=await snapshot();assert.match(receipt.parry.status,/Parried/);await touch('touchEnd');
  await page.waitForTimeout(60);await page.screenshot({path:'artifacts/browser-parry.png'});
  await page.getByRole('button',{name:'Light attack',exact:true}).tap();await page.waitForTimeout(350);
- receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,60);await page.screenshot({path:'artifacts/browser-riposte.png'});
+ receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,76);await page.screenshot({path:'artifacts/browser-riposte.png'});
  await page.waitForTimeout(600);await page.keyboard.down('KeyW');await page.waitForTimeout(240);await page.keyboard.up('KeyW');
- await page.getByRole('button',{name:'Kick',exact:true}).tap();await page.waitForTimeout(335);receipt.kick=await snapshot();assert.equal(receipt.kick.enemy,52);
+ await page.getByRole('button',{name:'Kick',exact:true}).tap();await page.waitForTimeout(335);receipt.kick=await snapshot();assert.equal(receipt.kick.enemy,72);
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
  const paused=await snapshot();await page.waitForTimeout(300);assert.deepEqual(await snapshot(),paused);
  for(const mode of ['red','dark','off'])await page.getByRole('button',{name:'Blood: '+mode,exact:true}).tap();receipt.bloodModes=['red','dark','off','red'];
