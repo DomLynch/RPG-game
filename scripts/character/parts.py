@@ -222,7 +222,7 @@ def align_arms(mesh_obj):
         hand = [v for v in verts if v.co.x * sgn > abs(wrist.x) + 0.005 and (v.co - wrist).length < 0.25]
         far = sorted(hand, key=lambda v: -abs(v.co.x))[:60]
         finger_b = (sum((v.co for v in far), Vector()) / len(far) - wrist).normalized()
-        base = [v for v in hand if abs(v.co.x) < abs(wrist.x) + 0.08]
+        base = [v for v in hand if abs(v.co.x) < abs(wrist.x) + 0.13]  # the thumb tip lies ~12 cm out; it is the vertex farthest off the finger axis
         thumb_tip = max(base, key=lambda v: ((v.co - wrist) - (v.co - wrist).dot(finger_b) * finger_b).length)
         thumb_b = (thumb_tip.co - wrist).normalized()
         finger_r, thumb_r = (tip - wrist).normalized(), (thumb - wrist).normalized()
@@ -240,6 +240,22 @@ def align_arms(mesh_obj):
             rot = Quaternion().slerp(q, t)
             v.co = pivot + rot @ (v.co - pivot)
         mesh_obj.data.update()
+        # (3) the thumb's own abduction: the frame match puts the body's thumb in the rig's thumb plane but keeps its
+        # angle from the fingers; swing the thumb about its base joint onto the rig's thumb bone
+        base_j = joint(f'thumb_01_{side}')
+        tip_b = thumb_tip.co.copy()  # the vertex was already carried by the hand rotation above
+        axis_b, axis_r = (tip_b - base_j).normalized(), (thumb - base_j).normalized()
+        swing = axis_b.rotation_difference(axis_r)
+        thumb_len = (tip_b - base_j).length
+        for v in verts:
+            d = v.co - base_j
+            along_t = d.dot(axis_b)
+            if along_t < -0.01 or along_t > thumb_len + 0.03 or (d - axis_b * along_t).length > 0.024:
+                continue
+            blend = min(1.0, max(0.0, along_t / 0.03))
+            v.co = base_j + Quaternion().slerp(swing, blend) @ d
+        mesh_obj.data.update()
+        print(f'ALIGN ARMS {side}: thumb swung {math.degrees(swing.angle):.1f}°')
 
 
 SLOTS = {'tunic': 'Body', 'baldric': 'Body', 'belt': 'Body', 'studs': 'Body', 'skirt': 'Legs', 'kilt': 'Legs',
@@ -280,8 +296,24 @@ def extract(name, material, keep, lift=0.012, thickness=0.008, source=None):
     bm = bmesh.new()
     bm.from_mesh(part.data)
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)  # weld UV-seam splits so only the real cut counts as a boundary
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not all(keep(v.co) for v in f.verts)], context='FACES')
-    smooth_boundary(bm)
+    inside = {v: keep(v.co) for v in bm.verts}
+    crossings = {}  # for every edge the cut crosses: where exactly, by bisection — the hem then lies on the cut itself
+    for e in bm.edges:
+        a, b = e.verts
+        if inside[a] != inside[b]:
+            v_in, lo, hi = (a, a.co.copy(), b.co.copy()) if inside[a] else (b, b.co.copy(), a.co.copy())
+            for _ in range(12):
+                mid = (lo + hi) / 2
+                if keep(mid):
+                    lo = mid
+                else:
+                    hi = mid
+            crossings.setdefault(v_in, []).append(lo)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not all(inside[v] for v in f.verts)], context='FACES')
+    for v, pts in crossings.items():
+        if v.is_valid:
+            v.co = sum(pts, Vector()) / len(pts)
+    smooth_boundary(bm, passes=3, factor=0.5)  # only the last of the mesh's stair-steps; the curve itself is the cut
     bm.to_mesh(part.data)
     bm.free()
     ao_uv = part.data.uv_layers.new(name='ao')  # TEXCOORD_1 → the body's baked occlusion, same layout as the skin atlas
@@ -329,7 +361,7 @@ def transfer_weights(part):
     return part
 
 
-def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=28, lift=0.004, thickness=0.004, probe_radius=0.2, max_reach=None, rows_n=1):
+def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=28, lift=0.004, thickness=0.004, probe_radius=0.2, max_reach=None, rows_n=1, bow=0.0):
     """A strap that hugs the body: probe points around the limb axis a→b at parameter t, snap each to the nearest skin,
     and stitch a strip `width` wide along the axis. Weights come from the body; the strap has its own UVs."""
     axis = (b - a).normalized()
@@ -350,6 +382,8 @@ def ring_strip(name, material, a, b, t, width, arc=(0.0, 2 * math.pi), segments=
             centre = a + (b - a) * tt
             radial = u * math.cos(th) + v * math.sin(th)
             surface, normal = nearest_surface(centre + radial * probe_radius)
+            if bow:  # an open strip curls away from the body along its middle, a hanging cloth fold instead of a flat plank
+                surface = surface + normal * (bow * math.sin(math.pi * i / segments))
             if max_reach and (surface - centre).length > max_reach:  # snapped to another limb: stay on this one
                 surface, normal = centre + radial * max_reach * 0.7, radial
             row.append(bm.verts.new(surface + normal * lift))
@@ -443,8 +477,8 @@ def level1_kit():
         ang = (i + 0.5) / 11 * math.pi * 2 - math.pi / 2  # ring_strip's angle 0 is +x; start at the front
         half = 0.13
         length = 0.25 + ((i * 7) % 5) * 0.012  # a worn, uneven hem
-        kit.append(ring_strip(f'kilt_{i}', 'Heraldry', top, bottom, 0.0, length, arc=(ang - half, ang + half), segments=3,
-                              lift=0.026, thickness=0.005, probe_radius=0.16, max_reach=0.19, rows_n=7))
+        kit.append(ring_strip(f'kilt_{i}', 'Heraldry', top, bottom, 0.0, length, arc=(ang - half, ang + half), segments=5,
+                              lift=0.026, thickness=0.005, probe_radius=0.16, max_reach=0.19, rows_n=7, bow=0.012))
     # Iron studs along the baldric and belt: the kit's only metal, skinned like the leather beneath it.
     studs = []
     axis_u = n.cross(Vector((0, 0, 1))).normalized()
