@@ -41,7 +41,7 @@ try {
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
  const paused=await snapshot();await page.waitForTimeout(300);assert.deepEqual(await snapshot(),paused);
  for(const mode of ['red','dark','off'])await page.getByRole('button',{name:'Blood: '+mode,exact:true}).tap();receipt.bloodModes=['red','dark','off','red'];
- await page.getByRole('button',{name:'Controls: buttons',exact:true}).tap();await page.getByRole('button',{name:'Close journal'}).tap();
+ await page.getByRole('button',{name:'Controls: thumb cluster',exact:true}).tap();await page.getByRole('button',{name:'Close journal'}).tap();
  await page.waitForFunction(()=>document.querySelector('#heavy-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#combat-status').textContent.startsWith('Incoming'));
  // Observe each actual DOM value transition. End-of-action balances include regeneration and cannot prove exact cost.
  await page.evaluate(()=>{window.__staminaDeltas=[];const meter=document.querySelector('#stamina');window.__staminaObserver=new MutationObserver(records=>{for(let i=0;i<records.length;i++){const old=Number(records[i].oldValue),next=Number(i+1<records.length?records[i+1].oldValue:meter.getAttribute('value'));window.__staminaDeltas.push(old-next);}});window.__staminaObserver.observe(meter,{attributes:true,attributeOldValue:true,attributeFilter:['value']});});
@@ -50,9 +50,9 @@ try {
  receipt.swipeDeltas=await page.evaluate(()=>{window.__staminaObserver.disconnect();return window.__staminaDeltas;});assert.deepEqual(receipt.swipeDeltas.filter(d=>d>1).map(d=>Math.round(d*1e6)/1e6),[35]);
  await page.screenshot({path:'artifacts/browser-swipes.png'});
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
- // The Controls button cycles buttons → disc v1 → v2 → v3 → buttons; the stroke above ran on v1. Walk the cycle back and record the labels seen.
- receipt.controls=[];for(let i=0;i<6;i++){const label=await page.locator('#controls-mode').textContent();receipt.controls.push(label);if(label==='Controls: buttons')break;await page.locator('#controls-mode').tap();}
- assert.deepEqual(receipt.controls,['Controls: disc · flick (v1)','Controls: disc · drag & release (v2)','Controls: disc · drag & release · hold to charge (v3)','Controls: thumb cluster · round buttons (v5)','Controls: segmented disc · tap a sector (v6)','Controls: buttons']);
+ // Controls swaps the thumb cluster and the flick disc; the stroke above ran on the disc. Walk back and record the labels seen.
+ receipt.controls=[];for(let i=0;i<3;i++){const label=await page.locator('#controls-mode').textContent();receipt.controls.push(label);if(label==='Controls: thumb cluster')break;await page.locator('#controls-mode').tap();}
+ assert.deepEqual(receipt.controls,['Controls: weapon disc · flick','Controls: thumb cluster']);
  await page.getByRole('button',{name:'Close journal'}).tap();
  for(const size of [{width:393,height:852},{width:844,height:390}]){await page.setViewportSize(size);const s=await snapshot();assert.equal(s.scale,1);assert.equal(s.overflow,false);const boxes=await page.locator('.actions button:visible').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().toJSON()));for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,'overlapping controls');}}
  assert.deepEqual(receipt.errors,[]);
