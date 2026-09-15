@@ -46,9 +46,11 @@ function phaseLength(f: Fighter): number | null {
   if (f.phase === 'hurt' || f.phase === 'dead') return f.stun;
   return null;
 }
+// The tail of every committed phase accepts one queued action, so a press as you come out of a swing, a draw, a roll or a
+// stagger is never lost. Death has no tail.
 export function inBufferWindow(f: Fighter): boolean {
-  const length = (f.phase === 'attack' || f.phase === 'draw') ? phaseLength(f)! : 0;
-  return length > 0 && f.age >= length - RULES.bufferWindow;
+  const length = f.phase === 'dead' ? null : phaseLength(f);
+  return length !== null && f.age >= length - RULES.bufferWindow;
 }
 function chooseMove(f: Fighter, action: Action): MoveId {
   if (action === 'heavy') return 'heavy_overhead';

@@ -284,6 +284,18 @@ test('buffered input: one action queued in the last ticks of a committed move fi
   starved = stepDuel(starved, [act('heavy'), idle()]);
   starved = run(starved, RULES.bufferTtl + 1);
   assert.equal(starved.fighters[0].phase, 'ready'); assert.equal(starved.fighters[0].buffer, null, 'an unaffordable queued action expires');
+  // Roll and stagger tails queue too: a press as you come out of an evade or a hit is never lost.
+  let rolling = run(stepDuel(duel(2.2), [act('dodge'), idle()]), RULES.roll - 3);
+  rolling = stepDuel(rolling, [act('light'), idle()]);
+  assert.equal(rolling.fighters[0].buffer?.action, 'light');
+  rolling = run(rolling, 3);
+  assert.equal(rolling.fighters[0].phase, 'attack', 'the queued light fires on the first ready tick after the roll');
+  let hurt = { ...duel(2.2), fighters: [{ ...duel().fighters[0], phase: 'hurt' as const, age: 20, stun: 24 }, duel().fighters[1]] } as Duel;
+  hurt = stepDuel(hurt, [act('heavy'), idle()]);
+  assert.equal(hurt.fighters[0].buffer?.action, 'heavy');
+  assert.equal(run(hurt, 4).fighters[0].move, 'heavy_overhead', 'the queued heavy fires as the stagger ends');
+  const freshStagger = stepDuel({ ...duel(2.2), fighters: [{ ...duel().fighters[0], phase: 'hurt' as const, age: 2, stun: 24 }, duel().fighters[1]] } as Duel, [act('heavy'), idle()]);
+  assert.equal(freshStagger.fighters[0].buffer, null, 'too early in the stagger to queue');
   let parry = run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT - 4);
   parry = run(stepDuel(parry, [act('parry', { guard: true }), idle()]), 4, hold());
   assert.equal(parry.fighters[0].phase, 'guard'); assert.equal(parry.fighters[0].parrying, true, 'a queued parry opens its window on the first ready tick');
