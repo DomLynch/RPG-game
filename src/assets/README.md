@@ -175,3 +175,8 @@ v31 (2026-09-15, interim): the chin pushes (v28 boss, v30 jaw extension and lip 
 `chin_extend` for experiments. In profile every one of them looked wrong: the scan never captured the jaw (the five portraits
 cover it only at a grazing angle), and pushing vertices cannot invent the shape. The fix is either two extra portraits from ~45°
 below for a new KeenTools job, or the base body's jaw stitched on below the lip crease. The v29 nape fix ships.
+
+v32 (2026-09-15): re-scan. Three more synthetic portraits from below (`artifacts/source/face/gpt/jaw_a.png` front from ~40°
+below, `jaw_b.png` three-quarter from below, `jaw_c.png` chin raised) joined the five, and KeenTools reconstructed a head
+with a real chin and jaw angle: `artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb` (SHA-256 recorded
+below; one billed job, 2026-09-15). The coverage mask knows the three low cameras. No chin pushes.

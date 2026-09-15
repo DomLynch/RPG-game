@@ -1217,7 +1217,7 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
 
 # --- KeenTools reconstructed head (photogrammetry from the owner's five portraits) ----------------------------------
 
-KT_GLB = 'artifacts/source/keentools/01a0a0ab-aa11-7be1-9b43-2221309c04b9.glb'
+KT_GLB = 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb'  # eight portraits: the five plus three from below for the jaw (2026-09-15)
 SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painted body and neck stub take it as their base
 NECK_DROP_KT = 0.99  # the scanned head is cut this far below eye level IN SCAN UNITS (≈10 cm at the eye-spacing scale): just under the jaw, where the skin weights are all neck and head (lower, the base body's clavicle weights tear the seam in pose)
 SCALE = None       # scan units → metres, set by keentools_skin_tone
@@ -1419,6 +1419,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     hair_zone = bake_attribute(head, 'hair_zone', select_only, size)
     head.vertex_groups.remove(head.vertex_groups['hair_zone'])
     cams = [Vector((math.sin(math.radians(a)), -math.cos(math.radians(a)), 0)) for a in (0, 35, -35, 90, -90)]  # the five portraits
+    cams += [Vector((math.sin(math.radians(a)) * math.cos(math.radians(e)), -math.cos(math.radians(a)) * math.cos(math.radians(e)), -math.sin(math.radians(e))))
+             for a, e in ((0, 40), (-45, 40), (0, 15))]  # the three jaw portraits, from below (camera elevation e: the direction the surface must face)
     cover = head.vertex_groups.new(name='coverage')  # how squarely the best photograph saw each vertex
     head.data.update()
     for v in head.data.vertices:
