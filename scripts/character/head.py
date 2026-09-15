@@ -1222,6 +1222,7 @@ SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painte
 NECK_DROP_KT = 0.99  # the scanned head is cut this far below eye level IN SCAN UNITS (≈10 cm at the eye-spacing scale): just under the jaw, where the skin weights are all neck and head (lower, the base body's clavicle weights tear the seam in pose)
 SCALE = None       # scan units → metres, set by keentools_skin_tone
 BODY_NORM = None   # the body tile's tone normalisation, reused by the head tile's neck
+SCALE_HEIGHT = None  # the scan's scale before the owner's +10%
 NECK_Z = None      # the cut height in rig space, set by keentools_skin_tone
 KT = None         # (object, images, slot_names) once imported
 
@@ -1256,7 +1257,7 @@ def keentools_skin_tone(eye_l, eye_r, crown_z):
     """Median linear colour of the scan's neck band (the stub's height, once scaled to the rig), so the painted body can be
     matched to the photographed head before it is painted. Also fixes the scan's scale (eye level → crown against the base
     head's, `SCALE`) and the height of the cut under the jaw (`NECK_Z`), which everything downstream shares."""
-    global SKIN_TONE, SCALE, NECK_Z
+    global SKIN_TONE, SCALE, NECK_Z, SCALE_HEIGHT
     kt, images, _ = keentools_import()
     mesh = kt.data
     eye_slots = [i for i in (1, 2) if i < len(mesh.materials)]
@@ -1268,6 +1269,7 @@ def keentools_skin_tone(eye_l, eye_r, crown_z):
     kt_top = max(v.co.z for p in mesh.polygons if p.material_index == 0 for v in [mesh.vertices[i] for i in p.vertices])
     eye_scale = abs(eye_l.x - eye_r.x) / abs(cents[0].x - cents[1].x)
     scale = 1.10 * (crown_z - (eye_l.z + eye_r.z) / 2) / (kt_top - mid.z)  # by head height, then +10% (owner's call, 2026-09-15: a heroic read at the phone camera)
+    SCALE_HEIGHT = scale / 1.10  # the size at which the scan's head matches the base head's height — the base head is a target at that size
     SCALE = scale
     NECK_Z = (eye_l.z + eye_r.z) / 2 - NECK_DROP_KT * scale
     print(f'KEENTOOLS head scale by height {scale:.4f} (by eye spacing it would be {eye_scale:.4f}, {scale / eye_scale:.2f}x); cut {NECK_DROP_KT * scale * 100:.1f} cm below the eyes')
@@ -1323,7 +1325,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     for o in (head, kt_eye_l, kt_eye_r, teeth):
         o.data.transform(M)
         o.data.update()
-    chin_boss(head, rig_mid, scale)
+    chin_extend(head, rig_mid, scale)  # the scan's flat chin: the jaw's underside carried forward and down
     # shoulders off: keep the head and a neck stub
     neck_z = NECK_Z if NECK_Z is not None else rig_mid.z - NECK_DROP_KT * scale
     bm = bmesh.new()
@@ -1628,29 +1630,28 @@ def bake_tiles_single(low, high, select_only, size):
     return clean_normal(px.reshape(size, size, 4)[:, :, :3])
 
 
-def chin_boss(head, rig_mid, scale, amount=0.12):
-    """The reconstruction's chin is flat: its profile (scan units below eye level) has the lips at -0.51…-0.66, the lip
-    crease at -0.69 and the chin only 0.011 ahead of the crease at -0.75, where the portraits show a strong rounded chin.
-    A smooth boss gives it back: centred at -0.80, ~9 mm deep, 0.2 wide, pushed along one forward-and-down direction
-    (per-vertex normals tear the open lip boundary), and fading to nothing by the lip crease so the mouth is untouched.
-    Before the neck cut, so the bake source and the phone mesh share it."""
+def chin_extend(head, rig_mid, scale, amount=0.10):
+    """The reconstruction's chin is flat (profile in scan units below eye level: lips −0.51…−0.66, crease −0.69, chin
+    tip −0.75 only 0.011 ahead of the crease, underside −0.85, cut −0.99) where the portraits show a strong chin. Two
+    things did not work: a boss under the lip read as a pout, and borrowing the base head's outline tore the mouth. This
+    extends the jaw instead: the band from the chin tip down to just above the collar moves forward and down, most at
+    the chin's underside, nothing above the tip, so the lips and crease are untouched and the collar still meets the neck."""
     head.data.update()
-    zc, xc = rig_mid.z - 0.80 * scale, rig_mid.x
-    sz, sx = 0.10 * scale, 0.21 * scale
-    lip = rig_mid.z - 0.70 * scale  # nothing above the crease
-    push = Vector((0, -1, -0.25)).normalized()
+    tip, under, floor = rig_mid.z - 0.76 * scale, rig_mid.z - 0.86 * scale, rig_mid.z - 0.95 * scale
+    push = Vector((0, -1, -0.6)).normalized()
+    sx = 0.22 * scale
     moved = 0
     for v in head.data.vertices:
-        if v.co.z > lip or v.normal.y > -0.2:  # below the crease, front of the jaw only
+        if v.co.z > tip or v.co.z < floor or v.normal.y > -0.05:
             continue
-        g = math.exp(-((v.co.z - zc) / sz) ** 2 - ((v.co.x - xc) / sx) ** 2)
-        g *= min(1.0, (lip - v.co.z) / (0.04 * scale))  # eases in just under the crease
+        g = math.exp(-((v.co.z - under) / (0.07 * scale)) ** 2 - ((v.co.x - rig_mid.x) / sx) ** 2)
+        g *= min(1.0, (tip - v.co.z) / (0.03 * scale)) * min(1.0, (v.co.z - floor) / (0.04 * scale))  # eases in below the tip, out above the collar
         d = amount * g * scale
         if d > 1e-5:
             v.co += push * d
             moved += 1
     head.data.update()
-    print(f'KEENTOOLS chin boss: {moved} vertices, {amount * scale * 1000:.1f} mm at the tip')
+    print(f'KEENTOOLS chin extend: {moved} vertices, {amount * scale * 1000:.1f} mm at the underside')
 
 
 def cut_above(obj, z, select_only):

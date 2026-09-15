@@ -154,7 +154,7 @@ of a toe pad and a heel block. Below the hairline only texels no camera saw at a
 photographed at a grazing angle and stays); the crown/back keep the stricter rule. The fill's growth is short (48 texels) and
 the skin synth carries the surrounding photographed tone, so no streaks.
 
-v28 (2026-09-15): `head.chin_boss` — the reconstruction's chin was flat (profile in scan units below eye level: lips −0.51…−0.66,
+v28 (2026-09-15, superseded by v30): `head.chin_boss` — the reconstruction's chin was flat (profile in scan units below eye level: lips −0.51…−0.66,
 crease −0.69, chin only 0.011 ahead of the crease at −0.75) where the portraits show a strong rounded chin. A smooth boss
 centred at −0.80, ~15 mm at the tip, 0.21 units wide, pushed along one forward-and-down direction below the lip crease only
 (per-vertex normals tear the open lip boundary), applied before the neck cut so the bake source and the phone mesh share it.
@@ -164,3 +164,7 @@ back-centre, where the ±90° cameras see the head at a grazing angle; those tex
 crown (a baked `back` mask gates it), and the collar band at the back takes the scan's own 64-sample occlusion with the body's
 occlusion curve. Island edge texels take interior colours before the gutter fill. The borrowed collar normals are off
 (`HEAD_COLLAR_NORMALS=1` re-enables them); they did not help.
+
+v30 (2026-09-15): `head.chin_extend` replaces the chin boss — the boss under the lip read as a pout, and borrowing the base
+head's outline tore the mouth. The band from the chin tip down to just above the collar moves forward and down (~13 mm at the
+chin's underside), nothing above the tip, so the lips and crease are untouched and the collar still meets the neck.
