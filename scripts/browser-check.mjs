@@ -51,8 +51,8 @@ try {
  await page.screenshot({path:'artifacts/browser-swipes.png'});
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
  // The Controls button cycles buttons → disc v1 → v2 → v3 → buttons; the stroke above ran on v1. Walk the cycle back and record the labels seen.
- receipt.controls=[];for(let i=0;i<5;i++){const label=await page.locator('#controls-mode').textContent();receipt.controls.push(label);if(label==='Controls: buttons')break;await page.locator('#controls-mode').tap();}
- assert.deepEqual(receipt.controls,['Controls: disc · flick (v1)','Controls: disc · drag & release (v2)','Controls: disc · drag & release · hold to charge (v3)','Controls: invisible field · flick, hold to load, back to feint (v4)','Controls: buttons']);
+ receipt.controls=[];for(let i=0;i<6;i++){const label=await page.locator('#controls-mode').textContent();receipt.controls.push(label);if(label==='Controls: buttons')break;await page.locator('#controls-mode').tap();}
+ assert.deepEqual(receipt.controls,['Controls: disc · flick (v1)','Controls: disc · drag & release (v2)','Controls: disc · drag & release · hold to charge (v3)','Controls: thumb cluster · round buttons (v5)','Controls: segmented disc · tap a sector (v6)','Controls: buttons']);
  await page.getByRole('button',{name:'Close journal'}).tap();
  for(const size of [{width:393,height:852},{width:844,height:390}]){await page.setViewportSize(size);const s=await snapshot();assert.equal(s.scale,1);assert.equal(s.overflow,false);const boxes=await page.locator('.actions button:visible').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().toJSON()));for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,'overlapping controls');}}
  assert.deepEqual(receipt.errors,[]);

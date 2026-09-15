@@ -49,11 +49,12 @@ persist();
 // Control-scheme trial: the right thumb is buttons (v0) or the weapon disc in one of three grammars; the scorecard is per scheme.
 const trial = loadTrial(storage);
 let scheme = trial.scheme, recorded = false;
-const disc = () => scheme !== 'buttons';   // any weapon-disc or field grammar: the attack buttons give way
-const touchMark = element('touch-mark');
+const disc = () => scheme === 'flick' || scheme === 'drag' || scheme === 'charge';   // the stroke grammars share the weapon disc
+const layout = () => disc() ? 'true' : scheme === 'buttons' ? 'false' : scheme;   // actions layout: 'false' buttons · 'true' disc · 'cluster' · 'sectors'
+const thrustButton = element<HTMLButtonElement>('thrust-button');
 const DISC: Record<Flick, Action> = { left: 'light_left', right: 'light_right', up: 'thrust', down: 'heavy' };
 function applyScheme() {
-  element('actions').dataset.gestures = scheme === 'field' ? 'field' : String(disc());
+  element('actions').dataset.gestures = layout();
   element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(disc())); lastHud = '';
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
@@ -80,15 +81,17 @@ function updateHud() {
   combatStatus.textContent = hint;
   element('stamina-label').dataset.mobile = practice.exhausted ? 'Stamina · exhausted' : practice.wound ? 'Stamina · wound' : 'Stamina';
   stamina.setAttribute('aria-label',practice.exhausted ? 'Stamina — exhausted: no attacks or guard until it recovers' : practice.wound ? 'Stamina — wounded: recovery reduced 20 percent' : 'Stamina');
-  kickButton.hidden = practice.phase === 'sheathed' || practice.phase === 'draw' || !practice.health || !practice.playerHealth;
+  kickButton.hidden = practice.phase === 'sheathed' || practice.phase === 'draw' || !practice.health || !practice.playerHealth || scheme === 'sectors';   // v6 kicks from the disc's bottom sector
   kickButton.setAttribute('aria-disabled',String(!controlsReady || !ok[2]));
   combatStatus.dataset.threat = String(practice.threat); combatStatus.dataset.move = practice.threatMove ?? '';
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
   gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : scheme === 'flick' ? '← Cut → · ↑ Thrust · ↓ Heavy' : scheme === 'drag' ? 'Drag to load · release to strike' : 'Drag · release · hold ↓ to charge';
-  element('field-help').hidden = scheme !== 'field' || practice.phase === 'sheathed' || !practice.health || !practice.playerHealth;
+  if (scheme === 'sectors') gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '';
+  element('sectors').hidden = scheme !== 'sectors' || practice.phase === 'sheathed' || !practice.health || !practice.playerHealth;
   gesturePad.setAttribute('aria-disabled', String(!controlsReady));
   gesturePad.hidden = !practice.health || !practice.playerHealth;
-  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Light'; attackButton.setAttribute('aria-label', attackButton.textContent);
+  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : scheme === 'cluster' ? 'Slash' : 'Light'; attackButton.setAttribute('aria-label', attackButton.textContent);
+  thrustButton.hidden = scheme !== 'cluster' || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
   attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
   const ended = !practice.health || !practice.playerHealth;
@@ -109,7 +112,7 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; held = false; touchMark.hidden = true;
+  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; held = false;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -153,6 +156,11 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) heavyBu
 heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); held = true; requestStrike(true); } });
 heavyButton.addEventListener('keyup', () => { held = false; });
 heavyButton.addEventListener('blur', () => { held = false; });
+thrustButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); thrustButton.setPointerCapture(event.pointerId); held = true; request('thrust'); } });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) thrustButton.addEventListener(name, () => { held = false; if (name !== 'pointerup' && action === 'thrust') action = null; });
+thrustButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); held = true; request('thrust'); } });
+thrustButton.addEventListener('keyup', () => { held = false; });
+thrustButton.addEventListener('blur', () => { held = false; });
 attackButton.addEventListener('pointercancel', () => { if (action === 'light') action = null; });
 attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
 dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); dodgeButton.setPointerCapture(event.pointerId); pressDodge(performance.now()); } });
@@ -180,7 +188,6 @@ applyScheme();
 function beginStroke(event: PointerEvent, surface: HTMLElement) {
   event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false;
   if (practice.phase === 'sheathed') { requestStrike(); gestureUsed = true; }
-  if (scheme === 'field') { touchMark.hidden = false; touchMark.style.transform = `translate(${gestureX}px, ${gestureY}px)`; }   // the field shows itself only under the thumb
   try { surface.setPointerCapture(gestureId); } catch { /* capture is a convenience: a pointer the browser will not capture still strokes */ }
 }
 function moveStroke(event: PointerEvent) {
@@ -192,9 +199,18 @@ function moveStroke(event: PointerEvent) {
   event.preventDefault(); gestureUsed = true; held = scheme !== 'flick';
   request(DISC[flick]);
 }
-function endStroke(cancelled: boolean) { if (cancelled) action = null; gestureId = null; held = false; touchMark.hidden = true; }
-gesturePad.addEventListener('pointerdown', event => { if (disc() && scheme !== 'field' && !paused() && assetsReady && event.button === 0 && gestureId === null) beginStroke(event, gesturePad); });
-gesturePad.addEventListener('pointermove', event => { if (event.pointerId === gestureId) moveStroke(event); });
+function endStroke(cancelled: boolean) { if (cancelled) action = null; gestureId = null; held = false; }
+// v6: the disc is four sectors — tap toward one to attack (↑ thrust · ← slash · → heavy · ↓ kick); the thumb staying down loads or charges it.
+const SECTORS: Record<Flick, Action> = { up: 'thrust', left: 'light', right: 'heavy', down: 'kick' };
+function tapSector(event: PointerEvent) {
+  event.preventDefault(); gestureId = event.pointerId; gestureUsed = true;
+  if (practice.phase === 'sheathed') { requestStrike(); return; }
+  const rect = gesturePad.getBoundingClientRect(), flick = swipeAction(event.clientX - rect.left - rect.width / 2, event.clientY - rect.top - rect.height / 2);
+  if (flick) { held = true; request(SECTORS[flick]); }
+  try { gesturePad.setPointerCapture(gestureId); } catch { /* as above */ }
+}
+gesturePad.addEventListener('pointerdown', event => { if (paused() || !assetsReady || event.button !== 0 || gestureId !== null) return; if (disc()) beginStroke(event, gesturePad); else if (scheme === 'sectors') tapSector(event); });
+gesturePad.addEventListener('pointermove', event => { if (event.pointerId === gestureId && disc()) moveStroke(event); });
 gesturePad.addEventListener('keydown', event => { if (!disc() || event.repeat) return; const flick = ({ ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' } as Record<string, Flick>)[event.code]; if (flick || event.code === 'Enter' || event.code === 'Space') { event.preventDefault(); held = scheme !== 'flick'; request(flick ? DISC[flick] : 'light'); } });
 gesturePad.addEventListener('keyup', () => { held = false; });
 for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name !== 'pointerup'); });
@@ -253,17 +269,13 @@ for (const id of ['camera-button', 'mobile-camera']) element(id).addEventListene
 });
 element('recenter-button').addEventListener('click', () => view.recenter());
 canvas.addEventListener('pointerdown', event => {
-  if (paused() || event.button !== 0) return;
-  // v4: the right half of the arena is the invisible attack field; the left half still orbits the camera.
-  if (scheme === 'field' && assetsReady && gestureId === null && event.clientX >= innerWidth / 2) { canvas.focus(); beginStroke(event, canvas); return; }
-  if (orbitId !== null) return;
+  if (paused() || orbitId !== null || event.button !== 0) return;
   canvas.focus(); orbitId = event.pointerId; orbitX = event.clientX; orbitY = event.clientY; canvas.setPointerCapture(orbitId);
 });
 canvas.addEventListener('pointermove', event => {
-  if (event.pointerId === gestureId) { moveStroke(event); return; }
   if (orbitId === event.pointerId && !locked && !paused()) { view.orbit(event.clientX - orbitX, event.clientY - orbitY); orbitX = event.clientX; orbitY = event.clientY; }
 });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name !== 'pointerup'); if ((event as PointerEvent).pointerId === orbitId) orbitId = null; });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(name, event => { if ((event as PointerEvent).pointerId === orbitId) orbitId = null; });
 let last = performance.now(), reportAt = last, frames: number[] = [], frameId = 0;
 document.addEventListener('visibilitychange', () => { last = performance.now(); frames = []; reportAt = last; });
 function frame(now: number) {
