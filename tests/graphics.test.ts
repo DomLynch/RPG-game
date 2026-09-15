@@ -15,7 +15,7 @@ import * as trial from '../src/trial.ts';
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
-  style = { setProperty() {} }; dataset = {}; attributes = new Map<string, string>(); children: Element[] = [];
+  style = { props: new Map<string, string>(), setProperty(k: string, v: string) { this.props.set(k, v); }, getPropertyValue(k: string) { return this.props.get(k) ?? ''; } } as { props: Map<string, string>; setProperty(k: string, v: string): void; getPropertyValue(k: string): string; transform?: string }; dataset: Record<string, string> = {}; attributes = new Map<string, string>(); children: Element[] = [];
   setAttribute(key: string, value: string) { this.attributes.set(key, value); }
   append(child: Element) { this.children.push(child); }
   setPointerCapture() {}
@@ -244,4 +244,18 @@ test('the stick never stays pushed: a release delivered outside the pad, a touch
   // A stuck id must not lock the pad: a new touch takes it over and its own release clears it.
   joystick.dispatchEvent(at('pointerdown', 20, 54, 4)); joystick.dispatchEvent(at('pointerdown', 88, 54, 5)); assert.equal(pushed(), true);
   joystick.dispatchEvent(at('pointerup', 88, 54, 5)); assert.equal(pushed(), false, 'the newest touch owns the stick');
+});
+
+test('the HUD shows both posture bars and flags a bar near breaking', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const mine = app.element('posture'), theirs = app.element('target-posture');
+  assert.equal(Number(mine.value), 0); assert.equal(Number(theirs.value), 0); assert.equal(mine.dataset.critical, 'false');
+  // Land lights until the warden's bar has moved (the harness warden blocks or takes them; either fills it).
+  for (let i = 0; i < 1200 && Number(theirs.value) === 0; i++) { if (app.rendered.duel.fighters[0].phase === 'ready') app.key('KeyF'); app.tick(); }
+  assert.ok(Number(theirs.value) > 0, `warden posture ${theirs.value}`);
+  assert.equal(theirs.style.getPropertyValue('--fill'), `${Number(theirs.value)}%`);
+  assert.equal(theirs.dataset.critical, String(Number(theirs.value) >= 70));
+  // Hold guard into the warden's heavies until our own bar is near breaking: the HUD must flag it.
+  for (let i = 0; i < 3000 && Number(mine.value) < 70; i++) { app.key('KeyQ'); app.tick(); }
+  assert.ok(Number(mine.value) >= 70, `own posture ${mine.value}`); assert.equal(mine.dataset.critical, 'true', 'a bar at 70 % or more is flagged');
 });

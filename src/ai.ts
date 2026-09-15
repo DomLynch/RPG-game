@@ -41,15 +41,15 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (!next.wait && !next.next && canAct) next.next = roll() < profile.pressure ? 'light' : 'heavy';
   // Below the stamina floor it recovers by circling just outside the player's light reach; it only backs right off
   // when very low or freshly hit. Guarding stops regeneration, so it is a choice made with stamina in hand.
-  const low = M.stamina < profile.discipline;
+  const low = M.stamina < profile.discipline, shaky = M.posture >= RULES.posture.max * .7;   // near a posture break it gives ground so the bar drains
   if (!next.decision) {
     const r = roll();
     next.decision = 36 + Math.floor(r * 45); next.side = next.seed & 1 ? 1 : -1;
-    next.mode = low ? (gap < 1.7 || M.stamina < RULES.rollCost ? 'retreat' : 'circle') : gap > 1.4 ? 'approach' : gap < 1 ? 'retreat' : r < .33 ? 'guard' : 'circle';
+    next.mode = low || shaky ? (gap < 1.7 || M.stamina < RULES.rollCost ? 'retreat' : 'circle') : gap > 1.4 ? 'approach' : gap < 1 ? 'retreat' : r < .33 ? 'guard' : 'circle';
   }
-  if (gap > 2.5 || (!low && gap > 1.9)) next.mode = 'approach';
-  if (tick < next.retreatUntil || (low && gap < 1.2)) next.mode = 'retreat';
-  else if (low && next.mode === 'retreat' && gap >= 1.9) next.mode = 'circle';
+  if (gap > 2.5 || (!low && !shaky && gap > 1.9)) next.mode = 'approach';
+  if (tick < next.retreatUntil || ((low || shaky) && gap < 1.2)) next.mode = 'retreat';
+  else if ((low || shaky) && next.mode === 'retreat' && gap >= 1.9) next.mode = 'circle';
   if (canAct && noticed && next.plan !== 'ignore') {
     const estimate = timing(F).windup - F.age + next.jitter;
     next.scores = { [next.plan!]: 1, estimate };
@@ -69,6 +69,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     const inReach = (id: keyof typeof MOVES) => gap <= MOVES[id].reach - .1 && legal(M, id === 'heavy_overhead' ? 'heavy' : id === 'kick' ? 'kick' : 'light');
     const r = roll();
     const scores: Record<string, number> = {
+      critical: M.critical > 0 && inReach('heavy_overhead') ? 1.6 : 0,   // a broken posture is finished with the critical, not a riposte
       punish: opening && inReach('light_right') ? 1.5 : 0,
       chain: M.chain > 0 && inReach('light_right') && r < profile.aggression ? 1.2 : 0,
       kick: guarded && inReach('kick') && r < .5 ? 1.1 : 0,
@@ -79,7 +80,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     next.scores = scores;
     const [best, score] = Object.entries(scores).sort((x, y) => y[1] - x[1])[0];
     if (score > 0) {
-      const action: Action = best === 'kick' ? 'kick' : best === 'heavy' ? 'heavy' : 'light';
+      const action: Action = best === 'kick' ? 'kick' : best === 'heavy' || best === 'critical' ? 'heavy' : 'light';
       next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); next.next = null;
       // A less aggressive warden sometimes baits instead: a visible guard the player must open with a heavy or a kick.
       if ((best === 'heavy' || best === 'light') && !guarded && roll() < (1 - profile.aggression) * .6) { next.mode = 'guard'; next.decision = 36 + Math.floor(roll() * 45); intent.guard = true; return { intent, ai: next }; }

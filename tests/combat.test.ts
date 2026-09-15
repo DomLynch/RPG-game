@@ -79,6 +79,11 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   const hurt = { ...hit, result: 'hurt' as const, resultAge: 3, resultDamage: 38 }; assert.match(practiceHint(hurt), /Hit taken · −38/);
   assert.match(practiceHint({ ...hit, result: 'hit', resultAge: 3, resultDamage: 14, resultCounter: true }), /Counter right cut hit · −14/);
   assert.match(practiceHint({ ...hit, result: 'hurt', resultAge: 3, resultDamage: 14, resultCounter: true }), /Countered · −14/);
+  assert.match(practiceHint({ ...hit, result: 'enemyPostureBroken', resultAge: 3 }), /Warden staggering · Heavy for the critical/);
+  assert.match(practiceHint({ ...hit, result: 'postureBroken', resultAge: 3 }), /Your posture broke/);
+  assert.match(practiceHint({ ...hit, result: 'none', posture: 75 }), /Your posture is breaking/); assert.match(practiceHint({ ...hit, result: 'none', enemyPosture: 75 }), /Warden near a posture break/);
+  assert.match(practiceHint({ ...hit, result: 'none', duel: { ...hit.duel, fighters: [{ ...hit.duel.fighters[0], critical: 30, phase: 'ready' as const }, hit.duel.fighters[1]] } }), /^Posture broken — Heavy for the critical/);
+  assert.match(describe({ ...hit, duel: { ...hit.duel, fighters: [{ ...hit.duel.fighters[0], posture: 42, critical: 7 }, hit.duel.fighters[1]] } }), /po 42 CRIT 7/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 12.5, resultPerfect: true }), /Perfect block · −13 stamina$/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 25, resultPerfect: false }), /^Blocked · −25 stamina$/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 7, resultStamina: 40, resultPerfect: false }), /^Blocked · −40 stamina · −7 chip$/);

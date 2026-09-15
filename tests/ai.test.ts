@@ -186,3 +186,14 @@ test('a landed blow earns a punish window: the warden never counter-attacks the 
   }
   assert.ok(staggerEnd > 0 && nextAttack > staggerEnd + 30, `warden attacked ${nextAttack - staggerEnd} ticks after recovering`);
 });
+
+test('posture: a shaky warden gives ground so its bar drains, and finishes a broken player with the critical rather than a riposte', () => {
+  const shaky = arena(1.3); shaky.fighters[1] = { ...shaky.fighters[1], posture: RULES.posture.max * .8 };
+  const play = (start: Duel) => { const modes = new Set<string>(); let d = start, ai = { ...initialAi(), decision: 0, wait: 500 }; for (let i = 0; i < 45; i++) { const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai; modes.add(ai.mode); d = stepDuel(d, [idle(), w.intent]); } return { modes, gap: Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x, d.fighters[0].body.z - d.fighters[1].body.z) }; };
+  const near = play(shaky), calm = play(arena(1.3));
+  assert.ok(near.gap > 1.3 && !near.modes.has('approach') && (near.modes.has('retreat') || near.modes.has('circle')), `near a break it gives ground while the bar is high: gap ${near.gap.toFixed(2)} modes ${[...near.modes].join(' ')}`);   // 45 ticks: 80 → 71, still shaky
+  assert.ok(calm.gap < near.gap, `with a clear bar it stays closer: ${calm.gap.toFixed(2)} vs ${near.gap.toFixed(2)}`);
+  const broken = arena(1.5); broken.fighters[0] = { ...broken.fighters[0], phase: 'hurt', stun: RULES.posture.stun, age: PROFILES.normal.reaction + 1 }; broken.fighters[1] = { ...broken.fighters[1], critical: RULES.posture.stun, punish: RULES.posture.stun };
+  const w = decide(broken, 1, { ...initialAi(), decision: 500, wait: 500 }, PROFILES.normal);
+  assert.equal(w.intent.action, 'heavy', 'Heavy in the critical window'); assert.equal(stepDuel(broken, [idle(), w.intent]).fighters[1].move, 'critical');
+});

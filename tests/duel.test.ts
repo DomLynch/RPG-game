@@ -54,7 +54,8 @@ test('range and facing produce real misses; lock turns during wind-up but never 
 test('enough clean hits kill; death freezes both fighters and rejects every input', () => {
   let d = duel();
   for (let i = 0; i < Math.ceil(100 / light.damage); i++) {
-    d = { ...d, fighters: [{ ...d.fighters[0], stamina: 100, exhausted: false, body: { x: d.fighters[1].body.x, z: d.fighters[1].body.z + 1.2, heading: Math.PI, distance: 0 } }, { ...d.fighters[1], phase: 'ready', age: 0 }] };
+    // Clean lights only: the warden's posture is reset each swing so a posture break never turns the lights into ripostes.
+    d = { ...d, fighters: [{ ...d.fighters[0], stamina: 100, exhausted: false, punish: 0, critical: 0, body: { x: d.fighters[1].body.x, z: d.fighters[1].body.z + 1.2, heading: Math.PI, distance: 0 } }, { ...d.fighters[1], phase: 'ready', age: 0, posture: 0 }] };
     d = run(stepDuel(d, [act('light'), idle()]), LIGHT);
   }
   assert.equal(d.fighters[1].health, 0); assert.equal(d.fighters[1].phase, 'dead'); assert.equal(d.finish?.victim, 1); assert.equal(d.finish?.move, Math.ceil(100 / light.damage) % 2 ? 'light_right' : 'light_left', 'the single button alternates sides');
@@ -622,4 +623,47 @@ test('thrust: longest reach, fully blockable, a riposte in the punish window; a 
   assert.equal(stepDuel(lightChamber, [act('parry', { guard: true }), idle()]).fighters[0].phase, 'guard', 'a chambered light is feintable');
   assert.equal(run(lightChamber, light.windup - light.chamber!).fighters[1].health, 100 - light.damage, 'released, it lands as a plain light');
   for (const id of ['riposte', 'heavy_riposte', 'heavy_counter', 'kick'] as const) assert.equal(MOVES[id].chamber, null, `${id} never chambers`);
+});
+
+test('posture: blocks, clean hits and being parried fill it; it drains while standing; full = a break with a long stagger and a critical window', () => {
+  const P = RULES.posture;
+  // A block puts the move's posture on the blocker; a perfect block takes half; a clean hit puts it on the victim.
+  const guarded = run(stepDuel(duel(), [idle(), hold()]), RULES.parry + 2, idle(), hold());
+  const blocked = run(stepDuel(guarded, [act('heavy'), hold()]), heavy.windup, idle(), hold());
+  assert.equal(blocked.fighters[1].posture, heavy.posture, 'a blocked heavy puts its full posture on the blocker');
+  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', age: RULES.parry }] } as Duel, [idle(), hold()]);
+  assert.ok(Math.abs(perfect.fighters[1].posture - light.posture * P.perfect) < 1e-9, 'a perfect block takes half the posture');
+  const hit = run(stepDuel(duel(), [act('light'), idle()]), light.windup);
+  assert.ok(Math.abs(hit.fighters[1].posture - light.posture) < 1e-9, 'a clean hit puts the move\'s posture on the victim');
+  // Being parried shakes the attacker.
+  const parried = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', age: 2 }] } as Duel, [idle(), hold()]);
+  assert.ok(types(parried).includes('Parried')); assert.equal(parried.fighters[0].posture, P.parry);
+  // Drain: standing fighters lose decay per tick; a staggered one does not.
+  const standing = run({ ...duel(), fighters: [{ ...duel().fighters[0], posture: 50 }, duel().fighters[1]] } as Duel, 10);
+  assert.ok(Math.abs(standing.fighters[0].posture - (50 - 10 * P.decay)) < 1e-9);
+  const stunned = run({ ...duel(), fighters: [{ ...duel().fighters[0], posture: 50, phase: 'hurt', stun: 30 }, duel().fighters[1]] } as Duel, 10);
+  assert.equal(stunned.fighters[0].posture, 50, 'no drain while staggered');
+  // Break: the hit that fills the bar staggers for posture.stun, resets the bar and opens the other side's critical window.
+  const nearly = { ...duel(), fighters: [duel().fighters[0], { ...duel().fighters[1], posture: P.max - light.posture + 1 + light.windup * P.decay }] } as Duel;   // the bar drains through the wind-up
+  const broken = run(stepDuel(nearly, [act('light'), idle()]), light.windup);
+  const brk = broken.events.find(e => e.type === 'PostureBroken')!;
+  assert.ok(brk, 'PostureBroken fires'); assert.equal(brk.actor, 0); assert.equal(brk.target, 1); assert.equal(brk.ticks, P.stun);
+  assert.equal(broken.fighters[1].posture, 0); assert.equal(broken.fighters[1].phase, 'hurt'); assert.equal(broken.fighters[1].stun, P.stun, 'the posture stagger outlasts the hit stagger');
+  assert.equal(broken.fighters[0].critical, P.stun); assert.equal(broken.fighters[0].punish, P.stun);
+  // In the window Heavy is the critical: unparryable, 40 damage, armoured; Light is the ordinary riposte. Starting any attack consumes the window.
+  const ready = { ...broken, fighters: [{ ...broken.fighters[0], phase: 'ready', age: 0, stamina: 100 }, broken.fighters[1]] } as Duel;
+  const crit = stepDuel(ready, [act('heavy'), idle()]);
+  assert.equal(crit.fighters[0].move, 'critical'); assert.equal(crit.fighters[0].critical, 0); assert.equal(crit.fighters[0].punish, 0);
+  const landed = run(crit, MOVES.critical.windup);
+  assert.equal(landed.fighters[1].health, 100 - light.damage - MOVES.critical.damage, 'the critical lands for twice a heavy (after the light that broke the posture)'); assert.equal(MOVES.critical.parryable, false); assert.ok(MOVES.critical.poise > 0);
+  assert.equal(stepDuel(ready, [act('light'), idle()]).fighters[0].move, 'riposte');
+  const expired = run(ready, P.stun + 1);
+  assert.equal(stepDuel(expired, [act('heavy'), idle()]).fighters[0].move, 'heavy_overhead', 'after the window a heavy is a heavy');
+  // A guard break resets the victim's posture: that break was the payoff.
+  const held = { ...guarded, fighters: [guarded.fighters[0], { ...guarded.fighters[1], posture: 60 }] } as Duel;
+  const gb = run(run(stepDuel(held, [act('heavy', { held: true }), hold()]), heavy.chamber! + RULES.charge.min, { ...idle(), held: true }, hold()), heavy.windup - heavy.chamber!, idle(), hold());
+  assert.ok(types(gb).includes('GuardBroken')); assert.equal(gb.fighters[1].posture, 0);
+  // Posture never shakes the dead, and the critical itself puts no posture on its victim.
+  assert.equal(MOVES.critical.posture, 0);
+  for (const id of ['light_right', 'thrust', 'heavy_overhead', 'kick', 'riposte', 'heavy_riposte', 'heavy_counter'] as const) assert.ok(MOVES[id].posture > 0, `${id} carries posture`);
 });
