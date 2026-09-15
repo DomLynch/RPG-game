@@ -198,3 +198,10 @@ longer chin) moves the chin zone (0.74–0.90 scan units below eye level, front-
 by up to 11.4 mm, zero at the lip crease and above and zero again at the collar ring; the collar blend on the front runs
 over 1.8 cm below the chin wall so the underside turns back to the throat. The texture fade at the collar is 1 cm — the
 underside keeps its photographed stubble. `HEAD_CHIN=0` leaves the scan untouched.
+
+v34 (2026-09-15): the owner's sketch — the jaw's bottom edge a good 2.5 cm lower at the centre, rising to the jaw corners.
+`head.chin_strong` now runs after the collar blend (so the blend cannot pull the chin back onto the neck outline) and moves
+the chin's bottom (peak 0.90 scan units below eye level) down by up to 23 mm at the centre, tapering to the sides, plus the
+forward push; zero at the lip crease and at the collar ring, so the underside runs up and back from the lowered chin to the
+throat. Cost: the photographed stubble under the chin stretches over the longer surface (visible from below, not at the
+phone camera).
