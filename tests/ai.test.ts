@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi, type AiState } from '../src/ai.ts';
 import { createFighter, idleIntent, initialDuel, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, PROFILES, type AiProfile } from '../src/moves.ts';
+import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: true });
@@ -39,11 +39,14 @@ test('the warden reacts only after its reaction delay: no defensive input can an
       }
     }
   }
-  const d = arena(); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'heavy_overhead', age: PROFILES.hard.reaction, lastMove: 'heavy_overhead' };
-  const answers = new Set<string>();
-  for (let k = 1; k < 40; k++) { const { intent, ai } = decide(d, 1, { ...initialAi((k * 2654435761) >>> 0), mode: 'circle', decision: 500, wait: 500 }, PROFILES.hard); answers.add(`${ai.plan}:${intent.action ?? ''}:${intent.guard}`); }
-  assert.ok([...answers].some(a => a.startsWith('parry')) && [...answers].some(a => a.startsWith('dodge')), `once noticed, a heavy is answered by a parry or a roll, never a plain block: ${[...answers].join(' ')}`);
-  assert.ok(![...answers].some(a => a.startsWith('block')));
+  const answers = (extra: object, stamina = 100) => { const d = arena(); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'heavy_overhead', age: PROFILES.hard.reaction, lastMove: 'heavy_overhead', ...extra }; d.fighters[1] = { ...d.fighters[1], stamina }; const set = new Set<string>(); for (let k = 1; k < 40; k++) set.add(decide(d, 1, { ...initialAi((k * 2654435761) >>> 0), mode: 'circle', decision: 500, wait: 500 }, PROFILES.hard).ai.plan!); return [...set]; };
+  const plain = answers({});
+  assert.ok(plain.includes('parry') && plain.includes('dodge') && plain.includes('block'), `a plain heavy is parried, rolled or blocked for chip: ${plain.join(' ')}`);
+  assert.ok(!answers({ charge: 1 }).includes('block'), 'a charging heavy will break a guard: never blocked');
+  assert.ok(!answers({}, MOVES.heavy_overhead.staminaDamage - 1).includes('block'), 'a block it cannot pay for is never planned');
+  // A block already planned is dropped the moment the heavy is seen to charge.
+  const seen = arena(); seen.fighters[0] = { ...seen.fighters[0], phase: 'attack', move: 'heavy_overhead', age: PROFILES.hard.reaction + 5, lastMove: 'heavy_overhead', charge: 2 };
+  assert.notEqual(decide(seen, 1, { ...initialAi(), mode: 'circle', decision: 500, wait: 500, plan: 'block' }, PROFILES.hard).ai.plan, 'block');
 });
 
 test('an unblockable swing it cannot parry or roll is answered with a backstep out of reach', () => {
@@ -77,6 +80,25 @@ test('a passive opponent sees a readable opener: at easy and normal the first at
   assert.ok(hard.some(e => e.move === 'light_right' || e.move === 'light_left'));
 });
 
+test('against a settled guard the warden holds its heavy to the charge that breaks it, and releases as soon as it is charged', () => {
+  let d = arena(1.5); d.fighters[0] = { ...d.fighters[0], phase: 'guard', age: 30 };
+  let ai: AiState = { ...initialAi(), mode: 'approach', decision: 500, wait: 0, next: 'heavy' };
+  const first = decide(d, 1, ai, PROFILES.normal); ai = first.ai;
+  assert.equal(first.intent.action, 'heavy'); assert.equal(first.intent.heavyHeld, true, 'a heavy at a guard is thrown held');
+  d = stepDuel(d, [hold(), first.intent]);
+  let charged = 0, released = 0;
+  for (let i = 0; i < 120 && d.fighters[1].phase === 'attack'; i++) {
+    const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai;
+    if (d.fighters[1].charge < RULES.charge.min) assert.equal(w.intent.heavyHeld, true, `held while charging (charge ${d.fighters[1].charge})`); else released++;
+    d = stepDuel(d, [hold(), w.intent]); charged += d.events.filter(e => e.type === 'Charged' && e.actor === 1).length;
+  }
+  assert.equal(charged, 1, 'the hold reaches the charge'); assert.ok(released > 0, 'and lets go once charged'); assert.ok(d.events.length >= 0);
+  assert.equal(d.fighters[1].phase, 'ready'); assert.ok(!decide(d, 1, ai, PROFILES.normal).ai.hold, 'the hold ends with the swing');
+  // Against an unguarded opponent the same heavy is a plain, faster swing.
+  const open = decide({ ...arena(1.5) }, 1, { ...initialAi(), mode: 'approach', decision: 500, wait: 0, next: 'heavy' }, PROFILES.normal).intent;
+  assert.equal(open.action, 'heavy'); assert.equal(!!open.heavyHeld, false);
+});
+
 test('the warden punishes a whiff with a light and kicks or breaks a standing guard', () => {
   // A cut swung facing away whiffs at any distance, leaving the warden in reach to punish the recovery.
   let d = arena(1.2), ai = initialAi(); const moves: string[] = []; let whiffed = false;
@@ -87,7 +109,8 @@ test('the warden punishes a whiff with a light and kicks or breaks a standing gu
   const guarded = play(PROFILES.normal, 1800, () => hold()).events;
   const opener = wardenAttacks(guarded)[0];
   assert.ok(opener && (opener.move === 'heavy_overhead' || opener.move === 'kick'), `standing guard is opened with ${opener?.move}`);
-  assert.ok(wardenAttacks(guarded).some(e => e.move === 'kick'));
+  assert.ok(wardenAttacks(guarded).some(e => e.move === 'kick') || guarded.some(e => e.type === 'Charged' && e.actor === 1), 'a standing guard is kicked or charged through');
+  assert.ok(guarded.some(e => e.type === 'GuardBroken' && e.target === 1), 'and it does get opened');
   const lights = wardenAttacks(guarded).filter(e => e.move === 'light_right' || e.move === 'light_left');
   for (const e of lights) assert.ok(guarded.some(o => o.tick < e.tick && o.tick > e.tick - 60 && ((o.type === 'Hit' && o.actor === 1) || (o.type === 'AttackStarted' && o.actor === 1 && o.move !== 'kick'))), 'a light against a guarding player only punishes a fresh opening or chains');
 });

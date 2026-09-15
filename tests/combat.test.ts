@@ -24,6 +24,9 @@ test('legacy constant views stay equal to the move data the simulation actually 
   assert.equal(RULES.bufferWindow, 10); assert.equal(RULES.bufferTtl, 11); assert.equal(RULES.parryRecovery, 8); assert.equal(RULES.feintCost, 10);
   for (const path of Object.values(PATHS)) assert.equal(path.active, 5);
   for (const move of Object.values(MOVES)) assert.equal(move.windup + move.active + move.recovery, total(move));
+  // A quick press is a plain heavy and a deliberate hold is the charged one: the press must last ≥ 0.6 s to charge and the hold releases itself by ~1.1 s.
+  assert.ok(RULES.charge.at + RULES.charge.min >= 36 && RULES.charge.at + RULES.charge.min <= 45, `charge press ${RULES.charge.at + RULES.charge.min} ticks`); assert.ok(RULES.charge.at + RULES.charge.max <= 66);
+  assert.equal(MOVES.heavy_overhead.breaksGuard, false); assert.ok(MOVES.heavy_overhead.chip > 0 && MOVES.heavy_overhead.staminaDamage >= 35, 'a guard takes a plain heavy for chip and real stamina');
   assert.equal(MOVES.heavy_riposte.damage, 30); assert.equal(MOVES.light_right.damage, 11); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2); assert.equal(RULES.perfectBlock, 3); assert.equal(RULES.perfectBlockCost, .5);
 });
 
@@ -50,7 +53,10 @@ test('the warden threat flag and move drive the incoming warning; the projection
   let s = ready();
   for (let i = 0; i < 600 && !s.threat; i++) s = stepPractice(s, idle());
   assert.equal(s.threat, true); assert.equal(s.threatMove, 'heavy_overhead'); assert.equal(s.enemyAttacking, true);
-  assert.match(practiceHint(s), /Incoming strike/);
+  assert.match(practiceHint(s), /^Incoming strike — heavy: guard takes chip/);   // the browser gate times the tell on 'Incoming strike'
+  assert.match(practiceHint({ ...s, duel: { ...s.duel, fighters: [s.duel.fighters[0], { ...s.duel.fighters[1], charge: 3 }] } }), /^Incoming strike — charged heavy: a guard will break/);
+  const charging = { ...s, duel: { ...s.duel, fighters: [{ ...s.duel.fighters[0], phase: 'attack' as const, move: 'heavy_overhead' as const, charge: 5, charged: false }, s.duel.fighters[1]] } };
+  assert.match(practiceHint(charging), /^Charging/); assert.match(practiceHint({ ...charging, duel: { ...charging.duel, fighters: [{ ...charging.duel.fighters[0], charged: true }, charging.duel.fighters[1]] } }), /^Charged/);
   assert.equal(actorPose(s, 1).pose, 'attack'); assert.equal(actorPose(s, 1).attack, 'heavy');
   assert.ok(Math.abs(actorPose(s, 1).contact - ATTACKS.heavy.contact / ATTACKS.heavy.recovery) < 1e-12);
   while (s.threat) s = stepPractice(s, idle());
@@ -73,10 +79,11 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   const hurt = { ...hit, result: 'hurt' as const, resultAge: 3, resultDamage: 38 }; assert.match(practiceHint(hurt), /Hit taken · −38/);
   assert.match(practiceHint({ ...hit, result: 'hit', resultAge: 3, resultDamage: 14, resultCounter: true }), /Counter right cut hit · −14/);
   assert.match(practiceHint({ ...hit, result: 'hurt', resultAge: 3, resultDamage: 14, resultCounter: true }), /Countered · −14/);
-  assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 12.5, resultPerfect: true }), /Perfect block · −13 stamina/);
-  assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 25, resultPerfect: false }), /^Blocked · −25 stamina/);
+  assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 12.5, resultPerfect: true }), /Perfect block · −13 stamina$/);
+  assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 25, resultPerfect: false }), /^Blocked · −25 stamina$/);
+  assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 7, resultStamina: 40, resultPerfect: false }), /^Blocked · −40 stamina · −7 chip$/);
   const countering = project({ ...hit.duel, fighters: [{ ...hit.duel.fighters[0], counterWindow: 12 }, hit.duel.fighters[1]] }, hit.ai);
-  assert.match(practiceHint({ ...countering, result: 'blocked', resultAge: 3, resultDamage: 25, resultPerfect: false }), /heavy to counter/);
+  assert.match(practiceHint({ ...countering, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 25, resultPerfect: false }), /heavy to counter/);
   for (const [result, text] of [['blocked', /Blocked/], ['parried', /Parried! The warden/], ['dodged', /Evaded/], ['broken', /Guard broken/], ['enemyBlocked', /Warden blocked/], ['enemyBroken', /Guard shattered/], ['enemyParried', /turned aside/], ['enemyDodged', /rolled clear/], ['miss', /Miss/]] as const) assert.match(practiceHint({ ...hit, result, resultAge: 3 }), text);
   assert.doesNotMatch(practiceHint({ ...hit, result: 'enemyParried', resultAge: 3 }), /^Parried/, 'the warden parrying must not read as the player parrying');
 });

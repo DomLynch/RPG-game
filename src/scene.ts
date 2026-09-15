@@ -3,6 +3,7 @@ import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
 import { actorPose, type CombatEvent, type Practice } from './combat.ts';
+import { RULES } from './moves.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
@@ -142,6 +143,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
   const sparkMaterial = new THREE.PointsMaterial({ color: '#ffe4af', map: dropTexture, alphaTest:.02, size: .045, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const sparks = new THREE.Points(sparkGeometry, sparkMaterial); sparks.frustumCulled = false; sparks.visible = false; scene.add(sparks);
+  // Charge glow: a warm light on a fighter holding a heavy, white once the hold has charged. Placeholder for the visual lane's charge VFX.
+  const glows = [0, 1].map(() => { const light = new THREE.PointLight('#ff9a3c', 0, 3, 2); light.castShadow = false; scene.add(light); return light; });
   const splats = Array.from({length:12},()=>{
     const splat = new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshBasicMaterial({color:'#591415',map:splatTexture,transparent:true,opacity:0,depthWrite:false,toneMapped:false}));
     splat.rotation.x=-Math.PI/2; splat.visible=false; scene.add(splat); return {mesh:splat,life:0};
@@ -196,6 +199,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, playerDefence?.pose || mine.pose, playerDefence?.progress ?? mine.progress, mine.attack, mine.contact, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, enemyDefence?.pose || theirs.pose, enemyDefence?.progress ?? theirs.progress, theirs.attack, theirs.contact, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
+      glows.forEach((glow, i) => { const f = practice.duel.fighters[i], at = i ? practice.enemy : state; glow.position.set(at.x, 1.2, at.z); glow.intensity = f.phase === 'attack' && f.charge ? (f.charged ? 8 : 1 + 4 * f.charge / RULES.charge.min) : 0; glow.color.set(f.charged ? '#fff3d0' : '#ff9a3c'); });
       marker.visible = practice.health > 0;
       if (practice.health) opponent.rotation.y = practice.enemy.heading;
       const blend = 1 - Math.exp(-dt * 8);
