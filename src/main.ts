@@ -211,14 +211,18 @@ function moveStick(event: PointerEvent) {
   stickRun = (innerWidth <= 900 || matchMedia('(pointer:coarse)').matches) && length > 1.15;
   stick.style.transform = `translate(${moveX * 34}px, ${moveZ * 34}px)`;
 }
+// The stick must never stay pushed after the thumb has gone: a new touch always takes it over, and its release is honoured wherever the
+// browser delivers it (a pointerup that lands outside the pad when capture was lost, or a touchend with no fingers left on the screen).
+function releaseStick() { moveId = null; stickRun = false; moveX = moveZ = 0; stick.style.transform = ''; }
 joystick.addEventListener('pointerdown', event => {
-  if (moveId !== null || paused()) return;
-  moveId = event.pointerId; joystick.setPointerCapture(moveId); moveStick(event);
+  if (paused()) return;
+  moveId = event.pointerId; try { joystick.setPointerCapture(moveId); } catch { /* the pad still follows this pointer through the window listeners */ } moveStick(event);
 });
 joystick.addEventListener('pointermove', event => { if (event.pointerId === moveId) moveStick(event); });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) joystick.addEventListener(name, event => {
-  if ((event as PointerEvent).pointerId === moveId) { moveId = null; stickRun = false; moveX = moveZ = 0; stick.style.transform = ''; }
-});
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) joystick.addEventListener(name, event => { if ((event as PointerEvent).pointerId === moveId) releaseStick(); });
+for (const name of ['pointerup', 'pointercancel']) window.addEventListener(name, event => { if ((event as PointerEvent).pointerId === moveId) releaseStick(); });
+window.addEventListener('touchend', event => { if (moveId !== null && event.touches.length === 0) releaseStick(); });
+window.addEventListener('touchcancel', event => { if (moveId !== null && event.touches.length === 0) releaseStick(); });
 let view: ReturnType<typeof createScene>;
 try { view = createScene(canvas, status => { element('art-status').textContent = status; assetsReady = status === ''; }); }
 catch {

@@ -42,7 +42,7 @@ function boot() {
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, get rendered() { return rendered!; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
+  return { element, errors, callbacks, timers, storage, window: win, get rendered() { return rendered!; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -228,4 +228,20 @@ test('a tap that ends before the next tick still lands: only pointercancel withd
   const pad = app.element('gesture-pad'); settle(); press(pad, 'pointerdown', 60, 60); press(pad, 'pointermove', 60, 20); press(pad, 'pointerup', 60, 20); press(pad, 'lostpointercapture', 60, 20); app.tick();
   assert.equal(me().move, 'thrust', 'a same-frame flick lands'); for (let i = 0; i < 50; i++) app.tick();
   settle(); press(pad, 'pointerdown', 60, 60); press(pad, 'pointermove', 100, 60); press(pad, 'pointercancel', 100, 60); app.tick(); assert.notEqual(me().phase, 'attack', 'a cancelled pointer withdraws the press');
+});
+
+test('the stick never stays pushed: a release delivered outside the pad, a touchend with no fingers, or a new touch all clear it', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const joystick = app.element('joystick'), stick = app.element('stick'), win = app.window;
+  const at = (type: string, x: number, y: number, id = 2) => Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y });
+  const pushed = () => stick.style.transform !== '';
+  // Lost capture: the finger leaves the pad and the browser delivers pointerup to whatever is under it (here, the window).
+  joystick.dispatchEvent(at('pointerdown', 20, 54)); assert.equal(pushed(), true);
+  win.dispatchEvent(at('pointerup', 300, 300)); assert.equal(pushed(), false, 'a pointerup anywhere releases the stick');
+  // iOS: pointerup never arrives but touchend says no fingers remain.
+  joystick.dispatchEvent(at('pointerdown', 20, 54, 3)); assert.equal(pushed(), true);
+  win.dispatchEvent(Object.assign(new Event('touchend'), { touches: [] })); assert.equal(pushed(), false, 'touchend with no touches releases the stick');
+  // A stuck id must not lock the pad: a new touch takes it over and its own release clears it.
+  joystick.dispatchEvent(at('pointerdown', 20, 54, 4)); joystick.dispatchEvent(at('pointerdown', 88, 54, 5)); assert.equal(pushed(), true);
+  joystick.dispatchEvent(at('pointerup', 88, 54, 5)); assert.equal(pushed(), false, 'the newest touch owns the stick');
 });
