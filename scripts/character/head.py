@@ -835,6 +835,107 @@ def body_hair(pos, mask, seed=11):
     return canvas
 
 
+def body_nails(pos, mask, nrm_obj):
+    """Finger and toe nails as a soft 0–1 mask, plus the lunula (the paler half-moon at the root). The rig's finger bones
+    overshoot the mesh (the thumb by 2 cm), so the tips are found in the position map: per finger a y-band of the hand,
+    its outermost texels; per toe an x-band of the forefoot, its foremost texels. The nail is an oval 7–8 mm behind
+    the tip on the side whose object-space normal faces the nail's way (up, palms down in the rest pose)."""
+    size = pos.shape[0]
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    n_obj = np.stack([P.upsample(nrm_obj[..., c], size) for c in range(3)], axis=2) if nrm_obj.shape[0] != size else nrm_obj
+    nails = np.zeros((size, size), np.float32)
+    lunula = np.zeros((size, size), np.float32)
+    counts = []
+    def oval(centre, along, r_along, r_across, facing):
+        rel = pos - centre[None, None, :]
+        a = rel @ along
+        side = rel - a[..., None] * along[None, None, :]
+        across = np.linalg.norm(side, axis=2)
+        d = (a / r_along) ** 2 + (across / r_across) ** 2
+        m = np.clip((1.15 - d) / 0.3, 0, 1) * ((n_obj @ facing) > 0.3)
+        root = np.clip((0.5 - (a + r_along) / (2 * r_along)) / 0.25, 0, 1)
+        return m, m * root
+    def add(name, m, lu):
+        nonlocal nails, lunula
+        nails, lunula = np.maximum(nails, m), np.maximum(lunula, lu)
+        counts.append(f'{name} {int((m > 0.5).sum())}')
+    hand_z, hx = P.hand_l.z, abs(P.hand_l.x)
+    for sign, side in ((1.0, 'l'), (-1.0, 'r')):
+        hand = mask & (sign * x > hx + 0.09) & (z > hand_z - 0.08) & (z < hand_z + 0.06)
+        if hand.sum() < 500:
+            continue
+        H = pos[hand]
+        thumb_sel = (H[:, 2] < hand_z - 0.025) & (H[:, 1] < 0.015)
+        fingers = H[~thumb_sel]
+        reach = sign * fingers[:, 0]
+        seg = fingers[reach > hx + 0.15]  # the fingers beyond the knuckles: four rods side by side in (y, z)
+        yz = seg[:, 1:3]
+        centre_yz = yz.mean(axis=0)
+        u, sv, vt = np.linalg.svd(yz - centre_yz, full_matrices=False)
+        w2 = vt[0]  # the direction the fingers fan along
+        coord = (yz - centre_yz) @ w2
+        cents = np.array([np.quantile(coord, q) for q in (0.12, 0.38, 0.62, 0.88)])[:, None] * w2[None, :] + centre_yz
+        for _ in range(30):  # k-means, one cluster per finger
+            lab = np.argmin(((yz[:, None, :] - cents[None, :, :]) ** 2).sum(axis=2), axis=1)
+            cents = np.array([yz[lab == k].mean(axis=0) if (lab == k).any() else cents[k] for k in range(4)])
+        w3 = np.array([0.0, w2[0], w2[1]])
+        pal = np.cross(np.array([sign, 0, 0.0]), w3)
+        pal /= np.linalg.norm(pal)
+        near_tip = seg[sign * seg[:, 0] > (sign * seg[:, 0]).max() - 0.02]
+        base = fingers[(reach > hx + 0.115) & (reach < hx + 0.135)]
+        curl = np.sign((near_tip @ pal).mean() - (base @ pal).mean()) if len(base) and len(near_tip) else 1.0  # the fingers curl towards the palm
+        dorsal = -curl * pal
+        for k in range(4):
+            sel = lab == k
+            if sel.sum() < 50:
+                continue
+            r = sign * seg[sel][:, 0]
+            tip = seg[sel][r > r.max() - 0.010]
+            c = tip.mean(axis=0)
+            c = c + dorsal * ((tip @ dorsal).max() - c @ dorsal - 0.001)  # on the dorsal surface, not in the finger's core
+            c = np.array([sign * (r.max() - 0.0075), c[1], c[2]], np.float32)
+            m, lu = oval(c, np.array([sign, 0, 0.0]), 0.0065, 0.0045, dorsal)
+            add(f'finger{k}_{side}', m, lu)
+        th = H[thumb_sel]
+        if len(th) > 30:
+            axis = np.array([sign * 0.75, -0.36, -0.55])
+            axis /= np.linalg.norm(axis)
+            # the thumb's nail faces the back of the hand rolled ~50° towards the index finger's side
+            order = np.argsort(cents @ w2)
+            radial = np.array([0.0, *(cents[order[0]] - cents[order[-1]])])
+            radial = radial if (radial @ np.array([0, 0, 1.0])) < 0 else -radial  # towards the index finger (the lowest finger in this rest pose)
+            radial /= max(1e-6, np.linalg.norm(radial))
+            facing = None
+            for ang in (0.9, -0.9):
+                cand = dorsal * math.cos(ang) + np.cross(axis, dorsal) * math.sin(ang) + axis * (axis @ dorsal) * (1 - math.cos(ang))
+                if facing is None or cand @ radial > facing @ radial:
+                    facing = cand
+            facing /= np.linalg.norm(facing)
+            proj = th @ axis
+            end = th[proj > proj.max() - 0.010]
+            c = end.mean(axis=0)
+            c = (c + facing * ((end @ facing).max() - c @ facing - 0.001) - axis * 0.008).astype(np.float32)
+            m, lu = oval(c, axis, 0.0075, 0.0058, facing)
+            add(f'thumb_{side}', m, lu)
+    for foot in (P.foot_l, P.foot_r):
+        f = np.array(foot, np.float32)
+        region = mask & (z < 0.05) & (np.abs(x - f[0]) < 0.07) & (y < f[1] - 0.10)
+        if region.sum() < 100:
+            continue
+        inner = 1.0 if f[0] > 0 else -1.0  # the big toe is on the inside (towards x = 0)
+        for off, w in zip([-0.030, -0.012, 0.002, 0.016, 0.027], [0.011, 0.007, 0.0065, 0.006, 0.006]):  # big toe → little toe
+            band = region & (np.abs((x - f[0]) * (-inner) - off) < w)
+            if band.sum() < 20:
+                continue
+            tip = y[band].min()
+            end = band & (y < tip + 0.010)
+            centre = np.array([x[end].mean(), tip + 0.007 + w * 0.3, z[end].max() - 0.001], np.float32)  # on the toe's top
+            m, lu = oval(centre, np.array([0, -1.0, 0]), 0.006 + w * 0.3, w * 0.7, np.array([0, 0, 1.0]))
+            add(f'toe{off:+.3f}', m, lu)
+    print('BODY nails (texels over 0.5):', ', '.join(counts))
+    return nails * mask, lunula * mask
+
+
 def body_creases(pos, mask):
     """Skin folds at the back of the elbows and the front of the knees: fine furrows across the joint, a height field."""
     x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
@@ -845,10 +946,19 @@ def body_creases(pos, mask):
     for k in (P.calf_l, P.calf_r):
         d = np.linalg.norm(pos - np.array(k, np.float32)[None, None, :], axis=2)
         h += np.sin((z - k.z) / 0.005) * 0.5 * _smooth(0.06, 0.025, d) * _smooth(0.01, -0.02, y - k.y)  # the front of the knee
+    for side in ('l', 'r'):  # knuckle furrows: a short transverse groove on the back of each finger joint
+        for finger in ('index', 'middle', 'ring', 'pinky', 'thumb'):
+            for seg in ('02', '03'):
+                name = f'{finger}_{seg}_{side}'
+                if name not in P.armature.data.bones:
+                    continue
+                j = np.array(P.joint(name), np.float32)
+                d = np.linalg.norm(pos[..., :2] - j[None, None, :2], axis=2)
+                h -= np.exp(-((d / 0.0025) ** 2)) * 0.8 * (z > j[2] + 0.002) * _smooth(0.012, 0.004, d)
     return h * mask
 
 
-def body_normal(nrm, pos, mask, hair, veins, strength=0.6):
+def body_normal(nrm, pos, mask, hair, veins, strength=0.6, nails=None):
     """The body's normal map: the sculpt bake plus one height field's slopes — 2-texel pores, the joint creases, the
     hair strokes and the veins in slight relief."""
     size = nrm.shape[0]
@@ -856,6 +966,8 @@ def body_normal(nrm, pos, mask, hair, veins, strength=0.6):
     fine = rng.random((size, size)).astype(np.float32)
     fine = (fine + np.roll(fine, 1, 0) + np.roll(fine, 1, 1) + np.roll(np.roll(fine, 1, 0), 1, 1)) / 4
     height = fine * 0.5 + body_creases(pos, mask) * 0.6 + hair * 0.10 + veins * 0.15  # audit 2026-09-16: 0.35 vein relief and 0.9 pores read as mottling on the forearm at the grip camera
+    if nails is not None:
+        height = height * (1 - nails * 0.8) + nails * 1.2  # a smooth raised plate with a bevelled edge
     gy, gx = np.gradient(height)
     out = nrm.copy()
     out[..., 0] = np.clip(out[..., 0] - gx * strength, 0, 1)
@@ -884,8 +996,8 @@ def skin_variation(colour, pos):
     return colour, sun
 
 
-def body_colour(pos, mask, ao, detail, size):
-    """Body tiles: the same skin, dustier, with the scan mottle at half strength."""
+def body_colour(pos, mask, ao, detail, size, nails=None):
+    """Body tiles: the same skin, dustier, with the scan mottle at half strength; veins, hair and (given) nails."""
     fbm = P.fbm
     base = (np.array([0.60, 0.44, 0.31]) if SKIN_TONE is None else SKIN_TONE)[None, None, :]  # matched to the scanned head when there is one
     tone = fbm(size, 41, octaves=(4, 8, 16, 32))[..., None]
@@ -906,6 +1018,10 @@ def body_colour(pos, mask, ao, detail, size):
     veins = body_veins(pos, mask)
     colour = colour * (1 - veins[..., None] * 0.14 * np.array([1.0, 0.85, 0.55])[None, None, :])  # a little darker and bluer
     colour = colour * (1 - body_hair(pos, mask)[..., None] * 0.4)
+    if nails is not None:  # a paler, pinker plate with a pale lunula and a darker rim at the skin fold
+        n, lu = nails
+        rim = np.clip(n * 4, 0, 1) - n
+        colour = colour * (1 + n[..., None] * np.array([0.10, 0.04, 0.02])[None, None, :]) * (1 + lu[..., None] * 0.12) * (1 - np.clip(rim, 0, 1)[..., None] * 0.18)
     return np.clip(colour, 0, 1)
 
 
@@ -1284,7 +1400,7 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     pos_face, pos_body = bake_tiles(body, 'POSITION', [size, size], select_only, float_buffer=True)
     pos_face, mask_face = pos_face[..., :3], pos_face[..., 3] > 0.5
     pos_body, mask_body = pos_body[..., :3], pos_body[..., 3] > 0.5
-    normal_obj = bake_tiles(body, 'NORMAL', [size, size // 4], select_only, normal_space='OBJECT')[0][..., :3] * 2 - 1
+    normal_obj, normal_obj_body = [n[..., :3] * 2 - 1 for n in bake_tiles(body, 'NORMAL', [size, size // 2], select_only, normal_space='OBJECT')]
     detail_colour, detail_height = scan_detail(size)
     lid_ring = F['lid_ring']
     photo = None
@@ -1295,11 +1411,12 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     if os.environ.get('BODY_DUMP'):  # the body tile's inputs, for tuning its paint offline
         np.savez_compressed(os.environ['BODY_DUMP'], pos=pos_body.astype(np.float32), mask=mask_body, ao=ao_body.astype(np.float32), detail=detail_colour.astype(np.float16), nrm=nrm_body.astype(np.float16), pos_face=pos_face.astype(np.float32), mask_face=mask_face, ao_face=ao_face.astype(np.float32),
                             skin_tone=SKIN_TONE, joints=np.array([list(v) for v in (P.pelvis, P.neck, P.head, P.shoulder_l, P.shoulder_r, P.elbow_l, P.elbow_r, P.hand_l, P.hand_r, P.foot_l, P.foot_r, P.calf_l, P.calf_r)], np.float32))
-    colour_body = body_colour(pos_body, mask_body, P.upsample(ao_body, size), detail_colour, size)
+    nails = body_nails(pos_body, mask_body, normal_obj_body)
+    colour_body = body_colour(pos_body, mask_body, P.upsample(ao_body, size), detail_colour, size, nails=nails)
     rough_face = face_roughness(pos_face[::2, ::2], F, detail_colour[::2, ::2], size // 2)
     sun_body = sun_mask(pos_body)
-    rough_body = np.clip(0.72 - 0.17 * sun_body[::2, ::2] + (detail_colour[::2, ::2, 0] - 0.5) * 0.3, 0.4, 0.95)  # a sheen on the sunned limbs, matte torso
-    nrm_body = body_normal(nrm_body, pos_body, mask_body, body_hair(pos_body, mask_body), body_veins(pos_body, mask_body))
+    rough_body = np.clip(0.72 - 0.17 * sun_body[::2, ::2] + (detail_colour[::2, ::2, 0] - 0.5) * 0.3 - 0.35 * nails[0][::2, ::2], 0.3, 0.95)  # a sheen on the sunned limbs, matte torso, glossy nails
+    nrm_body = body_normal(nrm_body, pos_body, mask_body, body_hair(pos_body, mask_body), body_veins(pos_body, mask_body), nails=nails[0])
     def orm(rough):
         return np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
     colour_face, nrm_face = fill_margin(colour_face, mask_face), fill_margin(nrm_face, mask_face)
@@ -1334,7 +1451,7 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     # Lash strips are off: with the lids closed they crossed the opening as a line. Back once placed on the scanned lid edge.
     return {'maps': maps, 'ao_body': ao_body, 'head': head, 'body': rest, 'parts': [head, rest, hair, brows],
             'tiles': {'colour_face': colour_face, 'colour_body': colour_body, 'pos_face': pos_face, 'pos_body': pos_body,
-                      'mask_face': mask_face, 'mask_body': mask_body, 'ao_face': ao_face, 'ao_body': ao_body, 'detail': detail_colour, 'size': size}}
+                      'mask_face': mask_face, 'mask_body': mask_body, 'ao_face': ao_face, 'ao_body': ao_body, 'detail': detail_colour, 'size': size, 'nails': nails}}
 
 
 # --- KeenTools reconstructed head (photogrammetry from the owner's five portraits) ----------------------------------
@@ -1729,7 +1846,7 @@ def neck_tiles(real, neck_z, neck_c, select_only, save_two_sizes, save_jpeg, rea
     style = body_colour(t['pos_face'], t['mask_face'], P.upsample(ao_face, size), t['detail'], size)
     below = np.clip((neck_z + 0.02 - t['pos_face'][..., 2]) / 0.02, 0, 1)[..., None]
     colour_face = t['colour_face'] * (1 - below) + style * below
-    colour_body = body_colour(t['pos_body'], t['mask_body'], P.upsample(ao_body, size), t['detail'], size)  # BODY_NORM is fixed from the first paint: the same tone, occlusion against the scanned head
+    colour_body = body_colour(t['pos_body'], t['mask_body'], P.upsample(ao_body, size), t['detail'], size, nails=t['nails'])  # BODY_NORM is fixed from the first paint: the same paint, collar softened
     lum = np.array([0.30, 0.59, 0.11])
     def tint(colour, pos, mask, ao):
         depth = neck_z - pos[..., 2]
