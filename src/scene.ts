@@ -169,8 +169,12 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     recenter() { yaw = 0; pitch = 0.45; started = false; },
     lowerResolution() { if (ratio > 1) { ratio = 1; renderer.setPixelRatio(ratio); resize(); } },
     restoreGraphics() { this.lowerResolution(); rebuildEnvironment(); },
+    // Debug probe: where the player's blade tip was drawn this frame (world metres), so a frame-by-frame check can see a held or moving pose.
+    bladeTip(): [number, number, number] | null { const drawn = warriors?.player.anchor.getObjectByName('SwordDrawn'); if (!drawn) return null; player.updateWorldMatrix(true, true); const tip = drawn.localToWorld(new THREE.Vector3(0, .86, 0)); return [tip.x, tip.y, tip.z]; },
     // Effects consume the simulation's events for the frame; they never infer contact from animation.
-    render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events) {
+    // `frozen`: the frame loop is in a hit-stop. Effects (sparks, blood, camera kick) keep running on dt; the rigs evaluate their pose for the
+    // frozen tick without advancing their clocks — the one impact pause is the frame loop's.
+    render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events, frozen = false) {
       const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
       if (practice.health===100 && practice.playerHealth===100 && (lastHealth<100 || lastPlayerHealth<100)) { impact=0; for(const splat of splats) splat.life=0; }
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
@@ -193,7 +197,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
         sparkGeometry.attributes.position.needsUpdate = true;
       }
       for(const splat of splats) { splat.life=Math.max(0,splat.life-dt); splat.mesh.visible=splat.life>0; splat.mesh.material.opacity=Math.min(.65,splat.life/4); }
-      const animationDt = impact > 0 && impactDuration-impact < .05 ? 0 : dt;
+      const animationDt = frozen ? 0 : dt;
       const dx = state.x-player.position.x, dz = state.z-player.position.z, ex = practice.enemy.x-opponent.position.x, ez = practice.enemy.z-opponent.position.z;
       const travel = started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       const enemyTravel = started && dt > 0 ? Math.hypot(practice.enemy.x - opponent.position.x, practice.enemy.z - opponent.position.z) / dt : 0;

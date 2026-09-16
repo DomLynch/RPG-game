@@ -53,7 +53,7 @@ Each fighter has a posture bar 0–100 (thin amber bar under the health bar, red
 
 ## 7. Hit impact
 
-**Hit-stop:** a contact tick freezes the simulation while frames keep rendering — block 30 ms · hit 50 · parry 70 · heavy-class hit or guard break 90 · posture break 120 · kill 220. Ticks are never skipped or replayed (a dropped-frame phone still shows the contact pose). **Camera kick:** 2 cm (4.5 cm heavy-class) along the blow's heading, settling in 0.15 s; off under reduced-motion. Sparks, wound decals and blood modes (red/dark/off) are the visual lane's; combat Foley is a procedural sprite driven by the same events.
+**Hit-stop:** a contact tick freezes the simulation while frames keep rendering — block 30 ms (heavy-class block 50) · hit 50 · parry 70 · heavy-class hit or guard break 90 · posture break 120 · kill 220. The frame loop is the one owner of the pause: the frozen frames show the contact tick's own bodies and pose (the rigs evaluate at zero dt; effects keep running), the part of a frame that outlives the pause goes on to the next tick, and ticks are never skipped or replayed (a dropped-frame phone still shows the contact pose). Journal toggle **Hit-stop: on/off** (remembered on the device) for comparison. The scorecard records real active seconds beside simulation seconds. **Camera kick:** 2 cm (4.5 cm heavy-class) along the blow's heading, settling in 0.15 s; off under reduced-motion. Sparks, wound decals and blood modes (red/dark/off) are the visual lane's; combat Foley is a procedural sprite driven by the same events.
 
 ## 8. The warden (AI)
 
