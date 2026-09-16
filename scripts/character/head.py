@@ -1472,6 +1472,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         # lightly blurred, bounded to 0.7), only where the head faces backward and only within the fade
         occl = 1 - (1 - (0.55 + 0.45 * np.clip(blur(ao_kt, 4), 0, 1) ** 1.2)) * back * fade  # the painted body's own occlusion curve
         filled = filled * occl[..., None]
+        RING_TONE = ring_tones(head, filled, neck_z, neck_c, size)  # re-read from the finished band (fade and nape occlusion in): what the neck below must continue
     core = blur(island.astype(np.float32), 4) > 0.98  # their interiors: the outermost texels straddle the raw (white) gutter and printed a pale strip along the collar ring
     filled = fill_margin(filled, core, steps=64)  # interior colours spill outward over the edge texels and into the gutters
     maps = {'Photo': {'baseColor': save_two_sizes_fn('kt_face_color', filled, 'sRGB')},
@@ -1537,8 +1538,8 @@ def crown_fill(colour, dark, size, hair_zone, stubble=None):
     return filled * (1 - w) + synth * w
 
 
-def ring_tones(head, colour, neck_z, neck_c, size, bins=24):
-    """The head texture's median colour in the band 1.2–3 cm above the collar ring, per azimuth bin around the neck axis
+def ring_tones(head, colour, neck_z, neck_c, size, bins=36):
+    """The head texture's median colour in the band 0.4–1.5 cm above the collar ring, per azimuth bin around the neck axis
     (the chin's stubble at the front, the nape's skin at the back, the jaw's sides between), smoothed around the ring."""
     me = head.data
     uv = me.uv_layers.active.data
@@ -1546,7 +1547,7 @@ def ring_tones(head, colour, neck_z, neck_c, size, bins=24):
     for poly in me.polygons:
         for li in poly.loop_indices:
             v = me.vertices[me.loops[li].vertex_index]
-            if not (0.012 < v.co.z - neck_z < 0.03):
+            if not (0.004 < v.co.z - neck_z < 0.015):  # right above the ring (the photograph's own shading there is what the neck must continue; 1.2-3 cm up it was 10% lighter at the front)
                 continue
             u, w = uv[li].uv
             a = math.atan2(v.co.y - neck_c.y, v.co.x - neck_c.x)
@@ -1560,9 +1561,8 @@ def ring_tones(head, colour, neck_z, neck_c, size, bins=24):
             nb = [tones[(i + d) % bins] for d in (-1, 1) if not np.isnan(tones[(i + d) % bins, 0])]
             if nb:
                 tones[i] = np.mean(nb, axis=0)
-    tones = np.nan_to_num(tones, nan=float(np.nanmean(tones)))
-    tones = 0.5 * tones + 0.25 * (np.roll(tones, 1, axis=0) + np.roll(tones, -1, axis=0))
-    print(f'KEENTOOLS ring tones: front {np.round(tones[bins // 4 * 3], 3)} back {np.round(tones[bins // 4], 3)} ({sum(len(a) for a in acc)} samples)')
+    tones = np.nan_to_num(tones, nan=float(np.nanmean(tones)))  # not smoothed around the ring: the stubble's dark front turns into the lit sides within 60°, and a blur left the jaw corners 15% lighter on the neck than on the head
+    print(f'KEENTOOLS ring tones: front {np.round(tones[bins // 4], 3)} back {np.round(tones[bins // 4 * 3], 3)} ({sum(len(a) for a in acc)} samples, {bins} bins)')  # y runs backward: the front is azimuth -90°
     return tones
 
 
@@ -1592,18 +1592,24 @@ def neck_tiles(real, neck_z, neck_c, select_only, save_two_sizes, save_jpeg, rea
     colour_face = t['colour_face'] * (1 - below) + style * below
     colour_body = body_colour(t['pos_body'], t['mask_body'], P.upsample(ao_body, size), t['detail'], size)  # BODY_NORM is fixed from the first paint: the same tone, occlusion against the scanned head
     lum = np.array([0.30, 0.59, 0.11])
-    def tint(colour, pos, mask):
+    def tint(colour, pos, mask, ao):
         depth = neck_z - pos[..., 2]
         w = np.clip(depth / reach, 0, 1)
         w = 1 - w * w * (3 - 2 * w)
         w = np.where(depth > -0.002, w, 1.0) * mask  # everything up to the ring (the head tile above it is cut away)
         az = np.arctan2(pos[..., 1] - neck_c.y, pos[..., 0] - neck_c.x)
-        factor = ring_lookup(RING_TONE, az) / SKIN_TONE[None, None, :]
-        factor = factor * ((factor @ lum) ** -0.4)[..., None]  # the head's hue in full, its (photographed, shadowed) darkness at 60%: a lit neck under a chin, not a dirty one
+        full = ring_lookup(RING_TONE, az) / SKIN_TONE[None, None, :]
+        tempered = full * ((full @ lum) ** -0.4)[..., None]  # the head's hue in full, its (photographed, shadowed) darkness at 60%: a lit neck under a chin, not a dirty one
+        w1 = np.clip((depth - 0.01) / 0.03, 0, 1)
+        w1 = (1 - w1 * w1 * (3 - 2 * w1))[..., None]  # ...but the first centimetre matches the head's band exactly and eases to the tempered tone by 4 cm, so the ring itself is not a step
+        factor = tempered * (full / tempered) ** w1
+        factor = factor / (0.55 + 0.45 * np.clip(P.upsample(ao, pos.shape[0]), 0, 1) ** 1.2)[..., None] ** w1  # and carry no baked occlusion there: the head's band has none (measured: the sides sat 5% darker than the band)
         return np.clip(colour * (1 + (factor - 1) * w[..., None]), 0, 1)
-    colour_face = fill_margin(tint(colour_face, t['pos_face'], t['mask_face']), t['mask_face'])
-    colour_body = tint(colour_body, t['pos_body'], t['mask_body'])
-    soft = np.clip(ao_face ** 1.3, 0, 1)
+    colour_face = fill_margin(tint(colour_face, t['pos_face'], t['mask_face'], ao_face), t['mask_face'])
+    colour_body = tint(colour_body, t['pos_body'], t['mask_body'], ao_body)
+    near = np.clip(1 - (neck_z - t['pos_face'][..., 2] - 0.01) / 0.03, 0, 1)  # the occlusion map too: fully lit at the ring like the head tile, its own by 4 cm
+    near = P.downsample(near[..., None], t['pos_face'].shape[0] // ao_face.shape[0])[..., 0]
+    soft = np.clip(ao_face ** 1.3, 0, 1) * (1 - near) + near
     maps = real['maps']
     maps['Face']['baseColor'] = save_two_sizes('face_color', colour_face, 'sRGB')
     maps['Face']['occlusion'] = save_jpeg('face_ao', np.stack([soft, soft, soft], axis=2), 'Non-Color')
