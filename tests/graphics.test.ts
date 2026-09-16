@@ -7,7 +7,8 @@ import * as gestures from '../src/gestures.ts';
 import * as feedback from '../src/feedback.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
-import { MOVES } from '../src/moves.ts';
+import * as moves from '../src/moves.ts';
+const { MOVES } = moves;
 import * as profile from '../src/profile.ts';
 import * as trial from '../src/trial.ts';
 
@@ -28,13 +29,13 @@ function boot() {
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0;
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
-  let rendered: combat.Practice | undefined;
+  let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   const view = { yaw: 0, recenter() {}, lowerResolution() {}, orbit() {}, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
-    render(_state: unknown, _locked: boolean, _dt: number, practice: combat.Practice) { rendered = practice; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
+    render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester' })]]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './trial.ts': trial, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './trial.ts': trial, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++ },
@@ -42,7 +43,7 @@ function boot() {
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, window: win, get rendered() { return rendered!; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
+  return { element, errors, callbacks, timers, storage, window: win, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; },
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -106,13 +107,17 @@ test('a late draw press buffers one attack, and focus loss cancels it', () => {
 test('mobile outer-stick sprint stops on cancellation and menu opening pauses combat', () => {
   for (const end of ['pointercancel','menu']) {
     const app=boot();app.tick();
-    app.element('joystick').dispatchEvent(Object.assign(new Event('pointerdown'),{pointerId:1,clientX:106,clientY:54}));
+    // Sprint is a deliberate push well past the knob's rim (the stub pad is 108 px: centre 54, rim at 42 px): 120 is 1.57 rims out, 100 only 1.1.
+    app.element('joystick').dispatchEvent(Object.assign(new Event('pointerdown'),{pointerId:1,clientX:108,clientY:54}));   // 1.29 rims: past the old 1.15 threshold, short of the deliberate 1.4
+    for(let i=0;i<10;i++)app.tick(); assert.equal(app.element('stamina').value,100,'a little past the rim is a walk, not a sprint'); assert.equal(app.element('stick').dataset.run,'false');
+    app.element('joystick').dispatchEvent(Object.assign(new Event('pointermove'),{pointerId:1,clientX:120,clientY:54}));
     for(let i=0;i<10;i++)app.tick();
-    const spent=app.element('stamina').value as number;assert.ok(spent<100&&spent>95);
+    const spent=app.element('stamina').value as number;assert.ok(spent<100&&spent>95); assert.equal(app.element('stick').dataset.run,'true','the knob shows the sprint');
     if(end==='menu')app.element('journal-button').click();
     else app.element('joystick').dispatchEvent(Object.assign(new Event('pointercancel'),{pointerId:1}));
-    for(let i=0;i<10;i++)app.tick();assert.equal(app.element('stamina').value,spent);
-    if(end==='menu') { app.element('close-journal').click();for(let i=0;i<10;i++)app.tick();assert.equal(app.element('stamina').value,spent); }
+    // The sprint stopped: no further drain (regeneration resumes at once now that a sprint sets no delay, so the bar may climb).
+    for(let i=0;i<10;i++)app.tick();assert.ok((app.element('stamina').value as number)>=spent,'no drain after the sprint ended'); assert.equal(app.element('stick').dataset.run,'false');
+    if(end==='menu') { const paused=app.element('stamina').value; app.element('close-journal').click();for(let i=0;i<10;i++)app.tick();assert.ok((app.element('stamina').value as number)>=(paused as number)); }
   }
 });
 test('menu sound and camera controls stay synchronized with desktop controls', () => {
@@ -154,7 +159,10 @@ test('the thumb cluster is the mobile layout: round buttons incl. a Stab button 
   settle(); press(thrust, 'pointerdown'); app.tick(); assert.equal(me().move, 'thrust');
   for (let i = 0; i < 12; i++) app.tick(); assert.equal(me().age, MOVES.thrust.chamber!, 'held Stab loads the thrust'); press(thrust, 'pointerup'); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > MOVES.thrust.chamber!, 'released, it goes');
   app.element('controls-mode').click(); app.tick(); assert.equal(app.element('controls-mode').textContent, 'Controls: weapon disc · flick'); assert.equal(actions.dataset.gestures, 'flick'); assert.equal(thrust.hidden, true, 'Stab is a cluster button');
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'flick'); app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'flick'); app.element('controls-mode').click(); app.tick();
+  // v7 guard ring: the same verbs as the cluster (Slash, Stab shown) in the ring geometry; then back to the cluster.
+  assert.equal(actions.dataset.gestures, 'ring'); assert.equal(app.element('controls-mode').textContent, 'Controls: guard ring · v7'); assert.equal(thrust.hidden, false, 'Stab is a ring button too'); assert.equal(app.element('attack-button').dataset.mobile, 'Slash');
+  app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
 });
 
 
@@ -162,7 +170,7 @@ test('the scorecard tallies fights, wins, rematches and damage per scheme', () =
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until the warden wins
   assert.ok(app.rendered.finish, 'the fight ends'); const card = () => JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.cluster;
-  assert.equal(card().fights, 1); assert.equal(card().wins, 0); assert.equal(card().taken, 100); assert.ok(card().ticks > 600);
+  assert.equal(card().fights, 1); assert.equal(card().wins, 0); assert.equal(card().taken, moves.RULES.health); assert.ok(card().ticks > 600);
   app.element('reset-button').click(); app.tick(); assert.equal(card().rematches, 1); assert.equal(card().fights, 1, 'a rematch is not a fight until it ends');
   app.element('journal-button').click(); assert.match(app.element('scorecard').textContent, /^thumb cluster — 1 fights · 0 won · 1 rematches/);
 });
@@ -251,25 +259,33 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
   const mine = app.element('posture'), theirs = app.element('target-posture');
   assert.equal(Number(mine.value), 0); assert.equal(Number(theirs.value), 0); assert.equal(mine.dataset.critical, 'false');
   // Land lights until the warden's bar has moved (the harness warden blocks or takes them; either fills it).
-  for (let i = 0; i < 1200 && Number(theirs.value) === 0; i++) { if (app.rendered.duel.fighters[0].phase === 'ready') app.key('KeyF'); app.tick(); }
+  for (let i = 0; i < 2400 && Number(theirs.value) === 0; i++) { if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let k = 0; k < 45; k++) app.tick(); } if (app.rendered.duel.fighters[0].phase === 'ready') app.key('KeyF'); app.tick(); }
   assert.ok(Number(theirs.value) > 0, `warden posture ${theirs.value}`);
   assert.equal(theirs.style.getPropertyValue('--fill'), `${Number(theirs.value)}%`);
   assert.equal(theirs.dataset.critical, String(Number(theirs.value) >= 70));
-  // Hold guard into the warden's heavies until our own bar is near breaking: the HUD must flag it.
-  for (let i = 0; i < 3000 && Number(mine.value) < 70; i++) { app.key('KeyQ'); app.tick(); }
-  assert.ok(Number(mine.value) >= 70, `own posture ${mine.value}`); assert.equal(mine.dataset.critical, 'true', 'a bar at 70 % or more is flagged');
+  // Keep cutting (blocked cuts fill the warden's bar, parried ones fill ours) until either bar is near breaking: the HUD must flag that bar.
+  let flagged: Element | null = null;
+  for (let i = 0; i < 6000 && !flagged; i++) {
+    if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let k = 0; k < 45; k++) app.tick(); }
+    if (app.rendered.duel.fighters[0].phase === 'ready') app.key('KeyF'); app.tick();
+    if (Number(mine.value) >= 70) flagged = mine; else if (Number(theirs.value) >= 70) flagged = theirs;
+  }
+  assert.ok(flagged, `a bar reached 70 %: own ${mine.value}, warden ${theirs.value}`); assert.equal(flagged!.dataset.critical, 'true', 'a bar at 70 % or more is flagged');
+  assert.equal(mine.dataset.critical, String(Number(mine.value) >= 70)); assert.equal(theirs.dataset.critical, String(Number(theirs.value) >= 70));
 });
 
 test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
-  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90 };
-  const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && (e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '')) ? 'heavy Hit' : e.type;
+  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90, 'heavy Blocked': 50 };
+  const heavyMove = (e: { move?: string; charged?: boolean }) => e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '');
+  const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && heavyMove(e) ? 'heavy Hit' : e.type === 'Blocked' && heavyMove(e) ? 'heavy Blocked' : e.type;
   // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.
   const measured: Record<string, number[]> = {};
   let needTick = true;
-  for (let frame = 0; frame < 5000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2); frame++) {
-    if (needTick) { if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); app.tick(); }
+  for (let frame = 0; frame < 6000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
+    const hitsDone = (measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2;   // then hold guard so a warden heavy is blocked
+    if (needTick) { if (hitsDone) app.key('KeyQ'); else if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); app.tick(); }
     needTick = true;
     if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
     const contacts = app.rendered.events.filter(e => e.type in EXPECT); if (!contacts.length) continue;
@@ -282,7 +298,7 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
   }
   // The loop counts the frame on which the tick finally moves too, hence + 1.
   for (const [type, frames] of Object.entries(measured)) for (const f of frames) assert.equal(f, Math.ceil(EXPECT[type] / 17) + 1, `${type}: ${f} frames on the contact tick for a ${EXPECT[type]} ms stop`);
-  assert.ok((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2, `measured ${JSON.stringify(measured)}`);
+  assert.ok((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1, `measured ${JSON.stringify(measured)}`);
   // Long frames (a phone dropping to 20 fps steps three ticks per frame) must still end on the contact tick, or the frozen pose is never shown.
   // Holding guard is a level, so the same fight unfolds tick for tick whatever the frame length; every contact tick must be rendered in both.
   const contactsRendered = (frameMs: number) => {
@@ -322,4 +338,94 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
   // Same, but the cancel comes from an unrelated control: the buffered heavy survives.
   settle(); app.key('KeyF'); app.tick(); for (let i = 0; i < 32; i++) app.tick(); press(app.element('heavy-button'), 'pointerdown'); app.tick(); assert.equal(me().buffer?.action, 'heavy');
   press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
+});
+
+test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
+  const CONTACT = new Set(['Blocked', 'Hit', 'Parried', 'GuardBroken', 'PostureBroken', 'Killed']);
+  // Stand and get hit: a blow's knockback moves the struck body on the contact tick itself, so a frame that blended back toward the tick before would show a different position.
+  let struck = false, before = app.rendered.fighter;
+  for (let frame = 0; frame < 6000 && !struck; frame++) {
+    before = app.rendered.fighter; app.tick();
+    if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
+    if (app.rendered.events.some(e => (e.type === 'Hit' || e.type === 'GuardBroken') && e.target === 0)) struck = true;
+  }
+  assert.ok(struck, 'the player was struck');
+  const at = tickOf(), body = app.rendered.fighter;
+  assert.ok(Math.hypot(body.x - before.x, body.z - before.z) > .01, 'the blow moved the body on the contact tick');
+  assert.equal(app.renderedFrozen, true, 'the contact frame is rendered frozen');
+  assert.deepEqual([app.renderedBody.x, app.renderedBody.z], [body.x, body.z], 'the contact frame shows the contact tick\'s body, not the tick before');
+  // Until the tick moves every frame shows the contact body; the frozen flag holds while pause time remains (the frame that spends the last of it renders unfrozen with the same body).
+  let frozenFrames = 0, flagged = 0; while (tickOf() === at && frozenFrames < 40) { app.tick(); if (tickOf() === at) { frozenFrames++; if (app.renderedFrozen) flagged++; assert.deepEqual([app.renderedBody.x, app.renderedBody.z], [body.x, body.z], 'every frozen frame shows the same contact body'); } }
+  assert.ok(frozenFrames >= 1 && flagged >= frozenFrames - 1, `frozen for ${frozenFrames} frames, flagged ${flagged}`); assert.equal(app.renderedFrozen, false, 'the resuming frame is not frozen');
+  // Overshoot: a 50 ms Hit stop under 40 ms frames — the second frame spends the last 10 ms of the pause and its remaining 30 ms steps a tick in the same frame.
+  const hitAt = (frameMs: number) => {
+    const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick();
+    for (let frame = 0; frame < 6000; frame++) {
+      if (a.rendered.duel.fighters[0].phase === 'ready' && !a.rendered.finish) a.key('KeyF'); a.tick();
+      if (a.rendered.finish) { a.element('reset-button').click(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); continue; }
+      const kinds = a.rendered.events.filter(e => CONTACT.has(e.type));
+      if (kinds.length === 1 && kinds[0].type === 'Hit' && kinds[0].move !== 'heavy_overhead' && !kinds[0].charged && kinds[0].move !== 'critical' && kinds[0].move !== 'heavy_riposte' && kinds[0].move !== 'heavy_counter') { const t = a.rendered.duel.tick, frames: number[] = []; for (let f = 1; f <= 4; f++) { a.tick(frameMs); frames.push(a.rendered.duel.tick - t); } return frames; }
+    }
+    throw Error('no plain hit found');
+  };
+  assert.deepEqual(hitAt(40), [0, 1, 4, 6], 'frame 2 ends the 50 ms pause with 30 ms to spare and steps one tick (13 ms carried); then 53 ms = 3 ticks, 43 ms = 2 — without the carry it would read 0, 0, 2, 4');
+  // Toggle: off means no pause at all (contacts tick straight through), the label flips, and the choice survives a reload.
+  app.element('hitstop-mode').click();
+  assert.equal(app.element('hitstop-mode').textContent, 'Hit-stop: off'); assert.equal(app.storage.getItem('frankendom.hitstop.v1'), 'off');
+  let paused = 0, contacts = 0;
+  for (let frame = 0; frame < 3000 && contacts < 3; frame++) {
+    if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); const t = tickOf(); app.tick();
+    if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
+    if (app.rendered.events.some(e => CONTACT.has(e.type))) { contacts++; const c = tickOf(); app.tick(); if (tickOf() === c) paused++; assert.equal(app.renderedFrozen, false); }
+    void t;
+  }
+  assert.ok(contacts >= 3, `contacts seen with the pause off: ${contacts}`); assert.equal(paused, 0, 'no contact froze the simulation');
+  const again = boot(); again.storage.setItem('frankendom.hitstop.v1', 'off');
+  const reloaded = boot(); void again; assert.equal(reloaded.element('hitstop-mode').textContent, 'Hit-stop: on', 'a fresh store starts on');
+});
+
+test('controls pass: Slash held chambers the cut, a held strike dragged off its circle becomes a guard press (feint in the window), the held level belongs to its own control, and Step rolls at once when the stick is deflected', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const me = () => app.rendered.duel.fighters[0], light = MOVES.light_right;
+  const at = (type: string, x: number, y: number, id = 6) => Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y });
+  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60 && !me().exposed); i++) app.tick(); };
+  const slash = app.element('attack-button'), heavy = app.element('heavy-button'), step = app.element('dodge-button'), joystick = app.element('joystick');
+  // Slash held: the cut parks at its chamber (charge counts) while the thumb stays down; release lets it fly.
+  settle(); slash.dispatchEvent(at('pointerdown', 54, 54)); app.tick(); assert.ok(me().move?.startsWith('light_'), `a cut: ${me().move}`);   // cuts alternate sides
+  for (let i = 0; i < light.chamber! + 6; i++) app.tick();
+  assert.ok(me().charge >= 4 && me().age === light.chamber, `a held Slash parks at its chamber: age ${me().age}, held ${me().charge}`);
+  slash.dispatchEvent(at('pointerup', 54, 54)); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > light.chamber, 'released, the cut continues');
+  // Drag-off feint: Slash pressed, thumb slides off the circle inside the feint window → the swing is abandoned into a guard press; the guard stays up until the thumb lifts.
+  settle(); slash.dispatchEvent(at('pointerdown', 54, 54, 7)); app.tick(); assert.ok(me().move?.startsWith('light_'));
+  app.tick(); slash.dispatchEvent(at('pointermove', 54, 54, 7)); app.tick(); assert.equal(me().phase, 'attack', 'moving inside the circle changes nothing');
+  slash.dispatchEvent(at('pointermove', 200, 54, 7)); app.tick();
+  assert.equal(me().phase, 'guard', 'off the circle: the cut is feinted into a guard'); assert.ok(app.rendered.events.some(e => e.type === 'ActionStarted' && e.action === 'feint') || me().parrying, 'as a feint');
+  for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().phase, 'guard', 'the guard is held while the thumb stays down off the circle');
+  slash.dispatchEvent(at('pointerup', 200, 54, 7)); for (let i = 0; i < 3; i++) app.tick(); assert.notEqual(me().phase, 'guard', 'lifting the thumb drops the guard');
+  // Held ownership: Heavy held and Slash tapped — releasing Slash must not drop Heavy's charge.
+  settle(); heavy.dispatchEvent(at('pointerdown', 54, 54, 8)); app.tick(); assert.equal(me().move, 'heavy_overhead');
+  slash.dispatchEvent(at('pointerdown', 54, 54, 9)); slash.dispatchEvent(at('pointerup', 54, 54, 9));
+  for (let i = 0; i < MOVES.heavy_overhead.chamber! + 8; i++) app.tick();
+  assert.ok(me().charge >= 6 && me().age === MOVES.heavy_overhead.chamber, `the heavy is still charging after another control's release: age ${me().age}, held ${me().charge}`);
+  heavy.dispatchEvent(at('pointerup', 54, 54, 8)); for (let i = 0; i < 40; i++) app.tick();
+  // Step with the stick deflected rolls on the press itself (no 150 ms wait); with a neutral stick a tap is still a backstep.
+  settle(); joystick.dispatchEvent(at('pointerdown', 20, 54, 2)); app.tick();
+  step.dispatchEvent(at('pointerdown', 54, 54, 10)); app.tick(); assert.equal(me().phase, 'roll', 'deflected stick: the press rolls at once');
+  step.dispatchEvent(at('pointerup', 54, 54, 10)); app.window.dispatchEvent(at('pointerup', 300, 300, 2)); for (let i = 0; i < 60; i++) app.tick();
+  settle(); step.dispatchEvent(at('pointerdown', 54, 54, 11)); app.tick(); assert.equal(me().phase, 'backstep', 'neutral stick: a tap backsteps'); step.dispatchEvent(at('pointerup', 54, 54, 11));
+});
+
+test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-clock (17 ms frames advance ~50 ticks a second instead of ~60), is remembered, and hit-stop stays in milliseconds', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const tickOf = () => app.rendered.duel.tick;
+  const perSecond = () => { const t = tickOf(); for (let i = 0; i < 60; i++) app.tick(1000 / 60); return tickOf() - t; };
+  assert.equal(app.element('tempo-mode').textContent, 'Tempo: 60 Hz');
+  const at60 = perSecond(); assert.ok(at60 >= 58 && at60 <= 61, `60 Hz: ${at60} ticks in a second`);
+  app.element('tempo-mode').click();
+  assert.equal(app.element('tempo-mode').textContent, 'Tempo: 50 Hz'); assert.equal(app.storage.getItem('frankendom.tempo.v1'), '50');
+  const at50 = perSecond(); assert.ok(at50 >= 48 && at50 <= 51, `50 Hz: ${at50} ticks in a second`);
+  // Ticks are the sim's own clock: the fight is identical, only slower. A contact still stops for its ms, not its ticks.
+  app.element('tempo-mode').click(); assert.equal(app.element('tempo-mode').textContent, 'Tempo: 60 Hz'); assert.equal(app.storage.getItem('frankendom.tempo.v1'), '60');
 });

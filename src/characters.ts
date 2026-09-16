@@ -1,7 +1,7 @@
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { ATTACKS, type Attack, type Practice } from './combat.ts';
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, BufferGeometry, BufferAttribute, DoubleSide, Vector3, LoopOnce, type AnimationAction } from 'three';
+import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, BufferGeometry, BufferAttribute, DoubleSide, Vector3, LoopOnce, type AnimationAction, type AnimationClip } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 
@@ -32,6 +32,10 @@ async function loadFighter(url: string) {
   const asset = await new GLTFLoader().loadAsync(url);
   const steel = asset.scene.getObjectByName('Steel');
   if (!(steel instanceof Mesh) || !(steel.material instanceof MeshStandardMaterial) || !steel.material.map || !steel.material.normalMap) throw new Error('Warrior textures did not load');
+  return buildWarriors(asset);
+}
+// Two actors from one parsed asset (textures already checked by the loader; tests build from the parsed rig alone).
+export function buildWarriors(asset: { scene: Group; animations: AnimationClip[] }) {
   const clips = [...CLIPS, ...COMBAT_CLIPS].map(name => {
     const clip = asset.animations.find(a => a.name === name);
     if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
@@ -73,8 +77,9 @@ export async function loadWarriors(url: string, opponentUrl = url) {
     return {
       anchor,
       update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
+        // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
+        // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
         const step = Math.max(0, Math.min(dt, 0.1));
-        if (!step) return;
         speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
         actions.slice(1, 4).forEach(action => action.setEffectiveTimeScale(travelSpeed < 0 ? -1 : 1));
@@ -97,14 +102,14 @@ export async function loadWarriors(url: string, opponentUrl = url) {
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;
-        if (trail.visible) {
+        if (trail.visible && step > 0) {
           anchor.updateWorldMatrix(true, true);
           samples.unshift([.24, .85].map(y => anchor.worldToLocal(drawn.localToWorld(new Vector3(0, y, 0)))));
           if (samples.length > 7) samples.pop();
           let offset = 0;
           for (let i = 1; i < samples.length; i++) for (const point of [samples[i-1][0],samples[i-1][1],samples[i][0],samples[i][0],samples[i-1][1],samples[i][1]]) { point.toArray(ribbonVertices, offset); offset += 3; }
           ribbon.setDrawRange(0, offset / 3); ribbon.attributes.position.needsUpdate = true;
-        } else samples.length = 0;
+        } else if (!trail.visible) samples.length = 0;
       }
     };
   }
