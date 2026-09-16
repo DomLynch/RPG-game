@@ -229,6 +229,13 @@ neck (per-texel azimuth from two baked attributes), and `head.neck_tiles` repain
 their shared occlusion bake, no flat strip, the ring's shadow line under the stub's overlap softened within 1.5 cm — and
 tints them from the ring tone to the body tone over 8 cm (the head's hue in full, its photographed darkness at 60%).
 The `Skin` material is now MeshPhysical with skin-strength specular like `Face`, and the `Face` tile's normal scale
-matches `Skin` (1.6): the two tiles meet on the neck and shaded differently. Not done: the body's overall tone is still
-sampled from the scan's shadowed neck ring, so the torso and limbs read paler than the face under the same light —
-first item of the body pass. `humanoid-v36/neck-before-after.png`, `neck-sheet.png`.
+matches `Skin` (1.6): the two tiles meet on the neck and shaded differently. Measured (`scripts/character/probe_seam.py`,
+the median colour 3–12 mm above vs below the ring per 30°): the step fell from mean 12.1 / max 23.4 to mean 5.4 /
+max 18.4 in 8-bit sRGB; nine of twelve bins are within 4.3. To get there the ring tone is read 0.4–1.5 cm above the
+ring (not higher: the photograph is 10% lighter there at the front), in 36 unsmoothed bins (the stubble's dark front
+turns into the lit sides within 60°), re-read once the band's fade and nape occlusion are in, and the first centimetre
+of neck matches it exactly with no baked occlusion (eased to the tempered tone and the body's own occlusion by 4 cm).
+What remains is the jaw corners, where the tone gradient is steepest, and a faint geometric ridge at the ring (the
+stub sits 0.2 mm outside the neck). Not done: the body's overall tone is still sampled from the scan's shadowed neck
+ring, so the torso and limbs read paler than the face under the same light — first item of the body pass
+(`artifacts/character/BRIEF-body-pass-v36.md`). `humanoid-v36/neck-owner-angles-v35-v36.png`, `neck-sheet.png`.
