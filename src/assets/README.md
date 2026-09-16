@@ -375,7 +375,11 @@ thumb droops 45° below the palm, so the whole hand rolled 45° about the forear
 pinky bones sat 9–21 mm outside their fingers (v41: nearest vertex to the index joints 9/12/14 mm, pinky 14/15/21). The
 match now uses the hand's plane — the direction the fingers fan along (index_01 → pinky_01 on the rig; the principal
 axis of the fingers' spread on the mesh) — and the rotation is 5.8° instead of ~45°; the finger joints sit 3–6 mm from
-the skin and the *_03 weights land on their own fingers. Step (3), the thumb swing, is off (`KIT.thumb_swing`): with
-the palm down the thumb already lies on its bones, and the swing's cylinder caught palm vertices and pulled a spike
-(caught in the rest-pose render). Both fighters rebuilt — the Veteran shares the function. `humanoid-v42/hands-before-after.png`,
+the skin and the *_03 weights land on their own fingers. Step (3), the thumb swing, now moves only the thumb — vertices nearer
+the mesh thumb's axis than the index finger's, eased in over 2.5 cm from the base joint, no stretch (a plain cylinder
+caught palm vertices and pulled a spike; skipping the swing left the thumb bones 3–6 cm off the thumb, which lies level
+beside the index on the relaxed body while the rig's is abducted and droops 45°): 33°, 130 vertices, thumb joints 02/03 now
+10/7 mm from the skin (the leaf tip stays 41 mm out — the rig's thumb chain is 110 mm to the body's 65). Measured
+against the rig, the hand-plane roll went from 44.0° to 14.1° (the fingertip fan of a relaxed hand is not quite the
+knuckle line); index joints 9/12/14 → 6/4/8 mm, pinky 14/15/21 → 4/5/4. Both fighters rebuilt — the Veteran shares the function. `humanoid-v42/hands-before-after.png`,
 `hand-rest-after.png`, `hands-phone-before-after.png`.
