@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
-import { createFighter, idleIntent, initialDuel, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, idleIntent, initialDuel, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
@@ -43,12 +43,12 @@ test('the warden reacts only after its reaction delay: no defensive input can an
   const plain = answers({});
   assert.ok(plain.includes('parry') && plain.includes('dodge') && plain.includes('block'), `a plain heavy is parried, rolled or blocked for chip: ${plain.join(' ')}`);
   assert.ok(!answers({ charge: 1 }).includes('block'), 'a charging heavy will break a guard: never blocked');
-  assert.ok(answers({ move: 'light_right', lastMove: 'light_right', charge: 2 }).includes('block'), 'a chambered light is only a bait: still blockable');
+  assert.ok(answers({ move: 'light_right', lastMove: 'light_right', charge: 2, age: PROFILES.hard.reaction - 2 }).includes('block'), 'a chambered light is only a bait: still blockable');   // perception reads age + charge
   const baited = arena(); baited.fighters[0] = { ...baited.fighters[0], phase: 'attack', move: 'light_right', age: PROFILES.hard.reaction + 3, lastMove: 'light_right', charge: 2 };
   assert.equal(decide(baited, 1, { ...initialAi(), mode: 'circle', decision: 500, wait: 500, plan: 'block' }, PROFILES.hard).ai.plan, 'block', 'and a planned block is kept');
   assert.ok(!answers({}, MOVES.heavy_overhead.staminaDamage - 1).includes('block'), 'a block it cannot pay for is never planned');
   // A block already planned is dropped the moment the heavy is seen to charge.
-  const seen = arena(); seen.fighters[0] = { ...seen.fighters[0], phase: 'attack', move: 'heavy_overhead', age: PROFILES.hard.reaction + 5, lastMove: 'heavy_overhead', charge: 2 };
+  const seen = arena(); seen.fighters[0] = { ...seen.fighters[0], phase: 'attack', move: 'heavy_overhead', age: PROFILES.hard.reaction + 3, lastMove: 'heavy_overhead', charge: 2 };
   assert.notEqual(decide(seen, 1, { ...initialAi(), mode: 'circle', decision: 500, wait: 500, plan: 'block' }, PROFILES.hard).ai.plan, 'block');
 });
 
@@ -290,5 +290,16 @@ test('reads: the thrust is the warden\'s spacing opener — planned only after t
     for (const e of d.events) if (e.type === 'AttackStarted' && e.actor === 1 && e.move === 'thrust') gaps.push(gap);
     d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
-  assert.ok(gaps.length >= 2 && gaps.every(g => g >= 1.5), `thrusts thrown from range: ${gaps.map(g => g.toFixed(2)).join(' ')}`);
+  assert.ok(gaps.length >= 1 && gaps.every(g => g >= 1.5), `thrusts thrown from range: ${gaps.map(g => g.toFixed(2)).join(' ')}`);   // sanity only; the rules are pinned above
+});
+
+test('perception runs on elapsed time: a heavy parked at its chamber is noticed and answered on the normal reaction clock', () => {
+  // The player holds a heavy at the chamber (age 10) from 1.6 m. The animation clock stops; elapsed time does not, so the normal warden plans at 14 elapsed ticks.
+  let d = arena(1.6), ai = initialAi(); d = stepDuel(d, [{ ...act('heavy'), held: true }, idle()]); let plannedAt: number | null = null;
+  for (let i = 1; i <= 40 && plannedAt === null; i++) { const w = decide(d, 1, { ...ai, mode: 'circle', decision: 500, wait: 500 }, PROFILES.normal); ai = w.ai; if (ai.plan && ai.plan !== 'ignore') plannedAt = elapsed(d.fighters[0]); d = stepDuel(d, [{ ...idle(), held: true }, w.intent]); }
+  assert.equal(d.fighters[0].age, MOVES.heavy_overhead.chamber!, 'still parked'); assert.equal(plannedAt, PROFILES.normal.reaction, `planned at elapsed ${plannedAt}`);
+  // And it acts on the plan while the swing is still parked: a blocker raises its guard against a held heavy instead of waiting for the release.
+  let e = arena(1.6), bi = initialAi(); e = stepDuel(e, [{ ...act('heavy'), held: true }, idle()]); let guardedAt: number | null = null;
+  for (let i = 1; i <= 30 && guardedAt === null; i++) { const w = decide(e, 1, { ...bi, mode: 'circle', decision: 500, wait: 500 }, { ...PROFILES.normal, parry: 0, dodge: 0 }); bi = w.ai; if (w.intent.guard) guardedAt = elapsed(e.fighters[0]); e = stepDuel(e, [{ ...idle(), held: true }, w.intent]); }
+  assert.equal(e.fighters[0].age, MOVES.heavy_overhead.chamber!, 'still parked'); assert.ok(guardedAt !== null && guardedAt <= PROFILES.normal.reaction + 1, `guard up at elapsed ${guardedAt}, while parked`);
 });

@@ -308,3 +308,18 @@ test('the Kick button says when the warden is inside its cone', () => {
   for (let i = 0; i < 1500; i++) { app.tick(); seen.add(kick.dataset.reach); assert.equal(kick.dataset.reach, String(gap() <= 1.5), `reach flag follows the gap (${gap().toFixed(2)})`); }
   assert.deepEqual([...seen].sort(), ['false', 'true'], 'both states occur in a fight');
 });
+
+test('a cancelled touch withdraws its press even after the simulation has buffered it, and never another control\'s press', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const me = () => app.rendered.duel.fighters[0];
+  const press = (el: Element, type: string, id = 6) => el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: 0, clientY: 0 }));
+  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
+  // Light, then press Heavy late in its recovery (inside the buffer window), tick so the sim buffers it, then cancel the Heavy touch: no heavy follows.
+  settle(); app.key('KeyF'); app.tick(); assert.equal(me().move, 'light_right');
+  for (let i = 0; i < 32; i++) app.tick(); press(app.element('heavy-button'), 'pointerdown'); app.tick(); assert.ok(me().buffer?.action === 'heavy', `buffered: ${JSON.stringify(me().buffer)}`);
+  press(app.element('heavy-button'), 'pointercancel'); for (let i = 0; i < 20; i++) app.tick();
+  assert.notEqual(me().move, 'heavy_overhead', 'the cancelled heavy never started'); assert.equal(me().buffer, null);
+  // Same, but the cancel comes from an unrelated control: the buffered heavy survives.
+  settle(); app.key('KeyF'); app.tick(); for (let i = 0; i < 32; i++) app.tick(); press(app.element('heavy-button'), 'pointerdown'); app.tick(); assert.equal(me().buffer?.action, 'heavy');
+  press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
+});
