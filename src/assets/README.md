@@ -368,3 +368,14 @@ highlights on the forehead gone matte. `humanoid-v40/face-brightness-before-afte
 v41 (2026-09-16): "10% darker again, more gritty" (owner, on v40 live). `delight` keeps 0.45 of the highlights (was
 0.55) at gain 0.84 (was 0.93); `Photo` roughness .78 / specular .35. Measured: the lit cheek 192 vs the lit shoulder 186
 (+3%; v39 was +16%), the stubbled cheek darker than the shoulder. `humanoid-v41/face-brightness-v40-v41.png`, `phone-v40-v41.png`.
+
+v42 (2026-09-16): the hands hung with the palms facing forward (owner's screenshot; both fighters). `parts.align_arms`
+step (2) matched the body hand's *thumb* direction to the rig's thumb chain — but on the base mesh and on the rig the
+thumb droops 45° below the palm, so the whole hand rolled 45° about the forearm to put it "in plane", and the index and
+pinky bones sat 9–21 mm outside their fingers (v41: nearest vertex to the index joints 9/12/14 mm, pinky 14/15/21). The
+match now uses the hand's plane — the direction the fingers fan along (index_01 → pinky_01 on the rig; the principal
+axis of the fingers' spread on the mesh) — and the rotation is 5.8° instead of ~45°; the finger joints sit 3–6 mm from
+the skin and the *_03 weights land on their own fingers. Step (3), the thumb swing, is off (`KIT.thumb_swing`): with
+the palm down the thumb already lies on its bones, and the swing's cylinder caught palm vertices and pulled a spike
+(caught in the rest-pose render). Both fighters rebuilt — the Veteran shares the function. `humanoid-v42/hands-before-after.png`,
+`hand-rest-after.png`, `hands-phone-before-after.png`.
