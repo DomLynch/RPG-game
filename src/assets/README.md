@@ -291,3 +291,7 @@ than the seen skin's median brightness towards it (55% of the excess survives) a
 before the ring tones are read, so the neck still continues the head; the `Photo` material goes from roughness .62 /
 specular .5 to .72 / .4. After: the lit cheek 9% brighter than the shoulder, the stubbled cheek darker than it; the
 highlights on the forehead gone matte. `humanoid-v40/face-brightness-before-after.png`, `phone-v39-v40.png`.
+
+v41 (2026-09-16): "10% darker again, more gritty" (owner, on v40 live). `delight` keeps 0.45 of the highlights (was
+0.55) at gain 0.84 (was 0.93); `Photo` roughness .78 / specular .35. Measured: the lit cheek 192 vs the lit shoulder 186
+(+3%; v39 was +16%), the stubbled cheek darker than the shoulder. `humanoid-v41/face-brightness-v40-v41.png`, `phone-v40-v41.png`.

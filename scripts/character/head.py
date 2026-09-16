@@ -1875,11 +1875,11 @@ def neck_tiles(real, neck_z, neck_c, select_only, save_two_sizes, save_jpeg, rea
     print(f'KEENTOOLS neck tiles: both tiles repainted below the collar, tinted from the ring tone over {reach * 100:.0f} cm')
 
 
-def delight(colour, unseen, keep=0.55, gain=0.93):
+def delight(colour, unseen, keep=0.45, gain=0.84):
     """Flatten the photograph's baked lighting: everything brighter than the seen skin's median brightness is pulled
     towards it (`keep` of the excess survives — the forehead and cheekbone highlights were the portrait's key light,
     which the arena lights again), then the whole map takes `gain`. Owner's call (2026-09-16): the face read shiny and
-    ~10% brighter than the body it had been matched to."""
+    ~10% brighter than the body it had been matched to; v41: "10% darker again, more gritty" — keep 0.55 → 0.45, gain 0.93 → 0.84."""
     lum = colour @ np.array([0.30, 0.59, 0.11], np.float32)
     seen = ~unseen & (lum > 0.05)
     m = float(np.median(lum[seen])) if seen.sum() > 1000 else float(np.median(lum))

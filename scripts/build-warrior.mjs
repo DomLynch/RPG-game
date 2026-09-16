@@ -54,7 +54,7 @@ const hairCards = new T.MeshPhysicalMaterial({ name: 'HairCards', roughness: .9,
 const browCards = new T.MeshPhysicalMaterial({ name: 'BrowCards', roughness: .9, specularIntensity: .3, transparent: true, alphaTest: .04, side: T.DoubleSide }); // small cards over opaque skin: blended, so hair tips stay soft
 const hairShell = new T.MeshPhysicalMaterial({ name: 'HairShell', roughness: .9, specularIntensity: .25, alphaTest: .42, side: T.DoubleSide, vertexColors: true }); // fur shells: dot alpha × per-shell vertex alpha
 // Photogrammetry head (KeenTools reconstruction of the owner's portraits): its own textures, skin specular, wet eyes.
-const photo = new T.MeshPhysicalMaterial({ name: 'Photo', roughness: .72, specularIntensity: .4 }); // 2026-09-16: .62/.5 read shiny beside the body's skin (roughness map 0.62+, specular .5)
+const photo = new T.MeshPhysicalMaterial({ name: 'Photo', roughness: .78, specularIntensity: .35 }); // 2026-09-16: .62/.5 read shiny beside the body's skin (roughness map 0.62+, specular .5)
 const photoEyes = new T.MeshPhysicalMaterial({ name: 'PhotoEyes', roughness: .25, clearcoat: .5, clearcoatRoughness: .1 }); // wet cornea: a small catch-light without the room washing the iris grey
 const photoTeeth = new T.MeshStandardMaterial({ name: 'PhotoTeeth', roughness: .4 });
 const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth].map(m => [m, []]));
