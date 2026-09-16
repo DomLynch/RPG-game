@@ -27,27 +27,40 @@ export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'par
   if(pose && s.resultAge<duration) return {pose,progress:s.resultAge/duration};
 }
 
-export async function loadWarriors(url: string) {
+type FighterAsset = { scene: Group; animations: AnimationClip[] };
+// One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
+async function loadFighter(url: string) {
   const asset = await new GLTFLoader().loadAsync(url);
   const steel = asset.scene.getObjectByName('Steel');
   if (!(steel instanceof Mesh) || !(steel.material instanceof MeshStandardMaterial) || !steel.material.map || !steel.material.normalMap) throw new Error('Warrior textures did not load');
-  return buildWarriors(asset);
+  return asset;
 }
-// Two actors from one parsed asset (textures already checked by the loader; tests build from the parsed rig alone).
-export function buildWarriors(asset: { scene: Group; animations: AnimationClip[] }) {
-  const clips = [...CLIPS, ...COMBAT_CLIPS].map(name => {
+// The opponent is his own man (opponentUrl) when one is given; with a single GLB both fighters share the geometry and
+// the opponent's Heraldry is recoloured so they are not twins.
+export async function loadWarriors(url: string, opponentUrl = url) {
+  const [hero, enemy] = await Promise.all([loadFighter(url), opponentUrl === url ? undefined : loadFighter(opponentUrl)]);
+  return buildWarriors(hero, enemy);
+}
+function fighterClips(asset: FighterAsset) {
+  return [...CLIPS, ...COMBAT_CLIPS].map(name => {
     const clip = asset.animations.find(a => a.name === name);
     if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
     return clip;
   });
+}
+// Two actors from parsed assets (textures already checked by the loader; tests build from the parsed rig alone): the
+// player from `asset`, the opponent from `opponentAsset` when given, else a recoloured clone of the same asset.
+export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset) {
+  const hero = { asset, clips: fighterClips(asset) }, enemy = opponentAsset ? { asset: opponentAsset, clips: fighterClips(opponentAsset) } : undefined;
   function create(opponent: boolean) {
+    const { asset, clips } = opponent && enemy ? enemy : hero;
     const root = clone(asset.scene), anchor = new Group(); anchor.add(root);
     root.traverse(object => {
       if (!(object instanceof Mesh)) return;
       object.castShadow = object.receiveShadow = true;
       // Only two small actors: avoid culling against a bind-pose box during motion.
       object.frustumCulled = false;
-      if (object.material instanceof MeshStandardMaterial && object.material.name === 'Heraldry' && opponent) {
+      if (object.material instanceof MeshStandardMaterial && object.material.name === 'Heraldry' && opponent && !enemy) {
         object.material = object.material.clone(); object.material.color.set('#663c32');
       }
     });

@@ -799,6 +799,44 @@ def body_veins(pos, mask):
     return np.clip(out, 0, 1) * mask
 
 
+def body_scars(pos, mask):
+    """Old healed cuts on the body tile, a 0–1 mask: a long slash across the right pectoral, a cut across the outside of
+    the left forearm, a nick across the right bicep and a slash down the outside of the right thigh. Limb scars are bands in
+    the limb's cylinder coordinates (as the veins); torso scars are lines in the front plane. Each has a soft core and a
+    faint wider halo, so it reads as scar tissue and not as a painted line."""
+    if not SCARS:
+        return np.zeros(pos.shape[:2], np.float32)
+    out = np.zeros(pos.shape[:2], np.float32)
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    def line(px, pz, ax, az, bx, bz, width, front):  # a segment in the front (x, z) plane, on front-facing skin (y < front)
+        dx, dz = bx - ax, bz - az
+        L = math.hypot(dx, dz)
+        t = np.clip(((px - ax) * dx + (pz - az) * dz) / (L * L), 0, 1)
+        d = np.hypot(px - (ax + t * dx), pz - (az + t * dz))
+        core = np.exp(-(d / width) ** 2) * (1 - _smooth(0.85, 1.0, t)) * (1 - _smooth(0.85, 1.0, 1 - t))
+        return core * _smooth(0.0, 0.02, front - y)
+    def limb(a, b, t0, t1, a0, width_m, tilt):  # a cut across a limb: from angle a0 at t0 to a0 + tilt at t1, width in metres
+        t, r, ang = limb_frame(pos, a, b)
+        along = np.clip((t - t0) / (t1 - t0), 0, 1)
+        da = np.angle(np.exp(1j * (ang - (a0 + tilt * along))))
+        win = _smooth(t0 - 0.03, t0, t) * (1 - _smooth(t1, t1 + 0.03, t))
+        return np.exp(-((da * r) / width_m) ** 2) * win
+    sh_r, nk, pv = P.shoulder_r, P.neck, P.pelvis
+    # right pectoral: from under the right collarbone down and inward, 14 cm (widths in metres: healed cuts are 5-7 mm)
+    out += 1.0 * line(x, z, sh_r.x * 0.75, nk.z - 0.14, sh_r.x * 0.15, nk.z - 0.27, 0.0060, pv.y - 0.02)
+    # right upper arm (the bare sword arm; the exomis covers the left shoulder): a short cut across the outer bicep
+    out += 0.8 * limb(sh_r, P.elbow_r, 0.40, 0.52, -1.2, 0.0050, 0.5)
+    # outside of the left forearm: a cut across the forearm at a third of the way down, angled
+    out += 0.9 * limb(P.elbow_l, P.hand_l, 0.30, 0.55, 0.3, 0.0050, 1.1)
+    # outside of the right thigh: a long slash from the hip down
+    out += 0.9 * limb(P.joint('thigh_r'), P.calf_r, 0.25, 0.60, -2.0, 0.0070, -0.4)
+    core = np.clip(out, 0, 1)
+    halo = np.clip(blur(core, 4) * 2.5, 0, 1) * 0.35
+    result = np.clip(np.maximum(core, halo), 0, 1) * mask
+    print(f'SCARS painted: {int((result > 0.3).sum())} core texels, {int((result > 0.05).sum())} with halo')
+    return result
+
+
 def body_hair(pos, mask, seed=11):
     """Sparse body hair: short dark strokes on the chest's V, the forearms and the shins, drawn in texture space along
     the local downhill direction (where z falls fastest), a little scatter and curl each. Returns a 0–1 canvas."""
@@ -966,6 +1004,8 @@ def body_normal(nrm, pos, mask, hair, veins, strength=0.6, nails=None):
     fine = rng.random((size, size)).astype(np.float32)
     fine = (fine + np.roll(fine, 1, 0) + np.roll(fine, 1, 1) + np.roll(np.roll(fine, 1, 0), 1, 1)) / 4
     height = fine * 0.5 + body_creases(pos, mask) * 0.6 + hair * 0.10 + veins * 0.15  # audit 2026-09-16: 0.35 vein relief and 0.9 pores read as mottling on the forearm at the grip camera
+    if SCARS:
+        height = height + body_scars(pos, mask) * 0.9  # scar tissue stands a little proud of the skin
     if nails is not None:
         height = height * (1 - nails * 0.8) + nails * 1.2  # a smooth raised plate with a bevelled edge
     gy, gx = np.gradient(height)
@@ -1018,6 +1058,13 @@ def body_colour(pos, mask, ao, detail, size, nails=None):
     veins = body_veins(pos, mask)
     colour = colour * (1 - veins[..., None] * 0.14 * np.array([1.0, 0.85, 0.55])[None, None, :])  # a little darker and bluer
     colour = colour * (1 - body_hair(pos, mask)[..., None] * 0.4)
+    if SCARS:  # healed cuts: paler, pinker, hairless tissue with a faint darker halo
+        sc = body_scars(pos, mask)
+        core = np.clip(sc * 1.4 - 0.4, 0, 1)[..., None]
+        halo = np.clip(sc * 3, 0, 1)[..., None] - core
+        pale = colour * np.array([1.26, 1.06, 1.00])[None, None, :]  # lighter, pinker tissue, hairless
+        colour = colour * (1 - core) + pale * core
+        colour = colour * (1 - halo * 0.14)
     if nails is not None:  # a paler, pinker plate with a pale lunula and a darker rim at the skin fold
         n, lu = nails
         rim = np.clip(n * 4, 0, 1) - n
@@ -1416,6 +1463,8 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     rough_face = face_roughness(pos_face[::2, ::2], F, detail_colour[::2, ::2], size // 2)
     sun_body = sun_mask(pos_body)
     rough_body = np.clip(0.72 - 0.17 * sun_body[::2, ::2] + (detail_colour[::2, ::2, 0] - 0.5) * 0.3 - 0.35 * nails[0][::2, ::2], 0.3, 0.95)  # a sheen on the sunned limbs, matte torso, glossy nails
+    if SCARS:
+        rough_body = np.clip(rough_body - 0.25 * np.clip(body_scars(pos_body, mask_body) * 1.4 - 0.4, 0, 1)[::2, ::2], 0.3, 0.95)  # healed tissue is smoother than the skin around it
     nrm_body = body_normal(nrm_body, pos_body, mask_body, body_hair(pos_body, mask_body), body_veins(pos_body, mask_body), nails=nails[0])
     def orm(rough):
         return np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
@@ -1456,7 +1505,35 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
 
 # --- KeenTools reconstructed head (photogrammetry from the owner's five portraits) ----------------------------------
 
-KT_GLB = 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb'  # eight portraits: the five plus three from below for the jaw (2026-09-15)
+# One scan per fighter. `cams` are the portraits' (azimuth, elevation) in degrees — azimuth + = camera on the character's
+# left, elevation + = from below — for the coverage mask; `chin` = the owner's chin push, sketched for the hero's scan
+# only; `hair_lum` = the sRGB luminance below which a texel beside the unseen crown counts as photographed hair (0.16
+# for a dark buzz cut; the blond-grey Veteran's hair measures 0.34 median against 0.66 skin, 2026-09-16); `hair` = how the
+# unphotographed crown is filled: 'buzz' (scalp grain in the hair tone) or 'full' (swept-back strands in the hair's own
+# shadow and highlight tones).
+FIGHTERS = {
+    'hero': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',  # eight portraits: the five plus three from below for the jaw (2026-09-15)
+             'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 40), (-45, 40), (0, 15)), 'chin': True, 'hair_lum': 0.16, 'hair': 'buzz', 'scars': False, 'decimate': 0.28},
+    'veteran': {'kt_glb': 'artifacts/source/keentools/01a0a9a9-c037-70f2-8015-bbd1faf9f823.glb',  # seven portraits (front, ±35, ±90, two from below), 2026-09-16
+                'cams': ((0, 0), (30, 0), (-25, 0), (90, 0), (-90, 0), (0, 28), (-22, 24)), 'chin': True, 'hair_lum': 0.50, 'hair': 'full', 'scars': True, 'decimate': 0.26},  # decimate: helmed, crown stripped — the budget goes to the helm and greaves; chin: his scan's jaw is the same vertical wall the hero's was (tip -0.76, underside -0.88 scan units) — the owner's U applies
+}
+FIGHTER = 'hero'
+KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
+CAMS = FIGHTERS[FIGHTER]['cams']
+CHIN = FIGHTERS[FIGHTER]['chin']
+HAIR_LUM = FIGHTERS[FIGHTER]['hair_lum']
+HAIR = FIGHTERS[FIGHTER]['hair']
+SCARS = FIGHTERS[FIGHTER]['scars']  # old wounds on the body tile (body_scars): a veteran's record, per GAME_SPEC's persistent scars
+DECIMATE = FIGHTERS[FIGHTER]['decimate']  # the scan head's decimate ratio for the phone mesh
+
+
+def select_fighter(name):
+    """Point the scan pipeline at one fighter's portraits and tuning (parts.py --fighter <name>; default hero)."""
+    global FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE
+    f = FIGHTERS[name]
+    FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE = name, f['kt_glb'], f['cams'], f['chin'], f['hair_lum'], f['hair'], f['scars'], f['decimate']
+
+
 SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painted body and neck stub take it as their base
 NECK_DROP_KT = 0.99  # the scanned head is cut this far below eye level IN SCAN UNITS (≈10 cm at the eye-spacing scale): just under the jaw, where the skin weights are all neck and head (lower, the base body's clavicle weights tear the seam in pose)
 SCALE = None       # scan units → metres, set by keentools_skin_tone
@@ -1603,7 +1680,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     keep = head.vertex_groups.new(name='decimate')  # the level bottom edge survives the collapse
     keep.add([v.index for v in head.data.vertices if v.co.z > neck_z + 0.003], 1.0, 'REPLACE')
     dec = head.modifiers.new('Decimate', 'DECIMATE')
-    dec.ratio = 0.28
+    dec.ratio = DECIMATE
     dec.use_collapse_triangulate = True
     dec.vertex_group = 'decimate'
     dec.vertex_group_factor = 1.0
@@ -1650,7 +1727,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
             fade_vg.add([v.index], w, 'REPLACE')
     for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
         neck_blend(o, neck_only, neck_z, neck_c, band=band, front_band=front_band, front_from=front_from)
-        if os.environ.get('HEAD_CHIN', '1') == '1':  # after the collar blend, so the lowered chin is not pulled back onto the neck outline
+        if os.environ.get('HEAD_CHIN', '1' if CHIN else '0') == '1':  # after the collar blend, so the lowered chin is not pulled back onto the neck outline
             chin_strong(o, rig_mid, scale, neck_c, stretch_group=(o is head))
     level_mouth([full, head], rig_mid, scale)  # the tilt measured on the full mesh, the same roll applied to both
     bpy.data.objects.remove(neck_only, do_unlink=True)
@@ -1683,9 +1760,16 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
             zone.add([v.index], min(1.0, h), 'REPLACE')
     hair_zone = bake_attribute(head, 'hair_zone', select_only, size)
     head.vertex_groups.remove(head.vertex_groups['hair_zone'])
-    cams = [Vector((math.sin(math.radians(a)), -math.cos(math.radians(a)), 0)) for a in (0, 35, -35, 90, -90)]  # the five portraits
-    cams += [Vector((math.sin(math.radians(a)) * math.cos(math.radians(e)), -math.cos(math.radians(a)) * math.cos(math.radians(e)), -math.sin(math.radians(e))))
-             for a, e in ((0, 40), (-45, 40), (0, 15))]  # the three jaw portraits, from below (camera elevation e: the direction the surface must face)
+    scalp_vg = head.vertex_groups.new(name='scalp')  # the top and back of the skull above the brow line: where the photographed hair is (not the forehead, temples or nape skin)
+    for v in head.data.vertices:
+        q = max(v.normal.z, v.normal.y)  # facing up or back
+        w = min(1.0, max(0.0, (q - 0.15) / 0.35)) * min(1.0, max(0.0, (v.co.z - (rig_mid.z + 0.03)) / 0.03))
+        if w > 0:
+            scalp_vg.add([v.index], w, 'REPLACE')
+    scalp = bake_attribute(head, 'scalp', select_only, size)
+    head.vertex_groups.remove(head.vertex_groups['scalp'])
+    cams = [Vector((math.sin(math.radians(a)) * math.cos(math.radians(e)), -math.cos(math.radians(a)) * math.cos(math.radians(e)), -math.sin(math.radians(e))))
+            for a, e in CAMS]  # this fighter's portraits (azimuth, elevation from below): the direction the surface must face to have been photographed
     cover = head.vertex_groups.new(name='coverage')  # how squarely the best photograph saw each vertex
     head.data.update()
     for v in head.data.vertices:
@@ -1697,6 +1781,15 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     stretch = bake_attribute(head, 'stretch', select_only, size) if 'stretch' in head.vertex_groups else np.zeros((size, size), np.float32)
     if 'stretch' in head.vertex_groups:
         head.vertex_groups.remove(head.vertex_groups['stretch'])
+    front = None
+    if HAIR == 'full':  # the stretched chin's donor stubble must come from the face: with hair to the nape, the same texture rows hold hair beside the jaw
+        front_vg = head.vertex_groups.new(name='front')
+        for v in head.data.vertices:
+            w = min(1.0, max(0.0, (neck_c.y - v.co.y) / 0.03))  # ahead of the neck axis, as chin_strong picks its vertices
+            if w > 0:
+                front_vg.add([v.index], w, 'REPLACE')
+        front = bake_attribute(head, 'front', select_only, size)
+        head.vertex_groups.remove(head.vertex_groups['front'])
     # textures: resample the 4K head colour to 2K/1K, eyes to 512; fill the untextured crown from its neighbours
     def pixels(img):
         w, h = img.size
@@ -1705,10 +1798,12 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         return px.reshape(h, w, 4)[:, :, :3]
     colour = pixels(images[0])
     colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
-    dark = (colour.max(axis=2) < 0.06) | ((coverage < 0.6) & ((hair_zone > 0.5) | (back > 0.3))) | (coverage < 0.3)  # black; the crown, back and nape seen only at a grazing angle (a smear, or the portrait's grey backdrop); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
-    filled = crown_fill(colour, dark, size, hair_zone)
+    seen_edge = 0.6 + (0.16 * (hair_streaks(size, seed=13) - 0.5) * (scalp > 0.5) if HAIR == 'full' else 0)  # full hair: the photographed tufts end ragged along the strands, not on one coverage iso-line
+    dark = (colour.max(axis=2) < 0.06) | ((coverage < seen_edge) & ((hair_zone > 0.5) | (back > 0.3))) | (coverage < 0.3)  # black; the crown, back and nape seen only at a grazing angle (a smear, or the portrait's grey backdrop); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
+    filled = crown_fill(colour, dark, size, hair_zone, coverage=coverage, scalp=scalp)
+    crown_w = np.clip(1 - blur((~dark).astype(np.float32), 16) * 1.6, 0, 1) * dark * (scalp > 0.5) if HAIR == 'full' else np.zeros((size, size), np.float32)  # where the crown is synthesised strands (crown_fill's own blend weight)
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
-    filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
+    filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size, front=front)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
     filled = delight(filled, dark | (coverage < 0.6))  # the portraits' key light is baked in: the lit cheeks and forehead rendered brighter and shinier than the body
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
@@ -1736,8 +1831,14 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
             'PhotoEyes': {'baseColor': save_jpeg_fn('kt_eye_color', eye_colour(P.downsample(pixels(images[1]), max(1, images[1].size[0] // 512))), 'sRGB')},
             'PhotoTeeth': {'baseColor': save_jpeg_fn('kt_teeth_color', P.downsample(pixels(images[3]), max(1, images[3].size[0] // 512)), 'sRGB')}}
     normal = bake_tiles_single(head, full, select_only, size)
+    if crown_w.any():  # synthesised strands get a little relief across the strand direction, so the crown is not a smooth dome
+        gy, gx = np.gradient(blur(hair_streaks(size), 2))
+        normal = normal.copy()
+        normal[..., 0] = np.clip(normal[..., 0] - gx * 6.0 * crown_w, 0, 1)
+        normal[..., 1] = np.clip(normal[..., 1] + gy * 6.0 * crown_w, 0, 1)
     maps['Photo']['normal'] = save_two_sizes_fn('kt_face_normal', normal, 'Non-Color')
     rough = 0.62 + 0.38 * fade  # the photographed skin's sheen, going fully matte where the collar meets the body's matte skin
+    rough = np.maximum(rough, 0.86 * crown_w)  # hair is matte: no broad skin sheen across the synthesised crown
     maps['Photo']['metallicRoughness'] = save_jpeg_fn('kt_face_orm', np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2), 'Non-Color')
     bpy.data.objects.remove(full, do_unlink=True)
     if kt not in (head, kt_eye_l, kt_eye_r, teeth) and kt.name in bpy.data.objects:  # the original object survives the split as one of the pieces
@@ -1770,20 +1871,55 @@ def eye_colour(px):
     return np.clip(out, 0, 1)
 
 
-def crown_fill(colour, dark, size, hair_zone, stubble=None):
+def _upsample_rect(grid, h, w):
+    """Separable bilinear upsample of an nv×nu grid to h×w (streaks: few rows, many columns → slow along v, fast across u)."""
+    nv, nu = grid.shape
+    rows = np.array([np.interp(np.linspace(0, nu - 1, w), np.arange(nu), grid[i]) for i in range(nv)])
+    return np.array([np.interp(np.linspace(0, nv - 1, h), np.arange(nv), rows[:, j]) for j in range(w)]).T
+
+
+def hair_streaks(size, seed=9):
+    """Strand noise for a full head of swept-back hair: on the scan's UV layout the strands run along v (up from the
+    hairline over the crown, down the back), so the noise is slow along v and fine across u."""
+    rng = np.random.default_rng(seed)
+    total, weight = np.zeros((size, size)), 0
+    for k, (nv, nu) in enumerate(((size // 48, size // 3), (size // 24, size // 2 * 3 // 2), (size // 12, size))):
+        amp = 0.55 ** k
+        total += amp * _upsample_rect(rng.random((nv, nu)), size, size)
+        weight += amp
+    return total / weight
+
+
+def crown_fill(colour, dark, size, hair_zone, stubble=None, coverage=None, scalp=None):
     """The scan photographs the front and sides; the crown and the back of the skull are smeared from grazing views
     (`dark`). Growing the boundary inward leaves streaks, so beyond a short feather the fill is flat: the photographed
-    hair's own tone (buzz-cut grain on top) where the head is above the hairline, the skin tone below it (the nape), by
-    the baked `hair_zone` map."""
+    hair's own tone (buzz-cut grain on top, or swept strands for `HAIR` 'full') where the head is above the hairline, the
+    skin tone below it (the nape), by the baked `hair_zone` map."""
     filled = fill_margin(colour, ~dark, steps=48)  # a short growth only: a long one prints the boundary texels as streaks
     reach = blur((~dark).astype(np.float32), 16)  # 1 on the photograph, fading to 0 across the boundary
     lum = colour.mean(axis=2)
-    band = (~dark) & (reach < 0.9) & (reach > 0.3) & (hair_zone > 0.5) & (lum < 0.16)  # photographed hair next to the black
+    band = (~dark) & (reach < 0.9) & (reach > 0.3) & (hair_zone > 0.5) & (lum < HAIR_LUM)  # photographed hair next to the black (darker than this fighter's skin)
     hair = np.median(colour[band], axis=0) * 1.1 if band.sum() > 500 else np.array([0.06, 0.046, 0.036])  # a little scalp shows through a buzz cut
     skin = SKIN_TONE if SKIN_TONE is not None else np.array([0.50, 0.40, 0.34])
     grain = P.fbm(size, 7, octaves=(size // 8, size // 4, size // 2))
     dots = P.fbm(size, 8, octaves=(size // 2, size))
-    hair_synth = hair[None, None, :] * (0.72 + 0.56 * grain)[..., None] * (1 - 0.35 * (dots > 0.62))[..., None]
+    if HAIR == 'full' and coverage is not None and scalp is not None:
+        # the boundary texels are grazing-angle smears (dark, desaturated roots): read the hair's real shadow and
+        # highlight tones from well-photographed hair on the scalp itself (top/back of the skull above the brows — the
+        # nape and temple skin next to the unseen band read as a rosy highlight) and lay swept strands between them
+        well = (~dark) & (coverage > 0.6) & (scalp > 0.5) & (lum < HAIR_LUM)
+        if well.sum() < 500:
+            well = band
+        lw = lum[well]
+        lo_t, hi_t = np.percentile(lw, 15), np.percentile(lw, 90)
+        lo = np.median(colour[well][lw <= lo_t], axis=0)
+        hi = np.median(colour[well][lw >= hi_t], axis=0)
+        strand = _smooth(0.25, 0.8, hair_streaks(size))[..., None]
+        fine = (0.92 + 0.16 * P.fbm(size, 12, octaves=(size // 2, size)))[..., None]
+        hair_synth = (lo[None, None, :] * (1 - strand) + hi[None, None, :] * strand) * fine
+        print(f'KEENTOOLS crown fill (full hair): shadow {np.round(lo, 3)} highlight {np.round(hi, 3)} from {int(well.sum())} well-seen texels')
+    else:
+        hair_synth = hair[None, None, :] * (0.72 + 0.56 * grain)[..., None] * (1 - 0.35 * (dots > 0.62))[..., None]
     local = blur(blur(fill_margin(colour, ~dark, steps=400), 32), 8)  # the photographed skin's own tone carried in (no streaks at this blur), so the under-chin and nape match their surroundings
     skin_synth = local * (0.92 + 0.16 * grain)[..., None]
     synth = hair_synth * hair_zone[..., None] + skin_synth * (1 - hair_zone[..., None])
@@ -1889,7 +2025,7 @@ def delight(colour, unseen, keep=0.45, gain=0.84):
     return np.clip(colour * factor[..., None], 0, 1)
 
 
-def stretch_refill(colour, ratio, unseen, island, size, patch=64, seed=5):
+def stretch_refill(colour, ratio, unseen, island, size, patch=64, seed=5, front=None):
     """The chin move stretches the photograph over the lowered chin (`ratio` = the local edge stretch, baked): its stubble
     smeared into streaks, and the scan's chin was pale and sparse anyway (seen at a grazing angle) where the portraits
     show dense stubble. Texels stretched by more than 20% are re-covered with the photographed stubble beside them:
@@ -1905,6 +2041,8 @@ def stretch_refill(colour, ratio, unseen, island, size, patch=64, seed=5):
     near = np.zeros_like(zone)
     near[max(0, zy.min() - 80):zy.max() + 80, max(0, zx.min() - 300):zx.max() + 300] = True
     src = near & ~zone & (ratio < 1.05) & ~unseen
+    if front is not None:
+        src &= front > 0.5  # donors from the face only (a fighter with hair to the nape has hair on these rows beside the jaw: it quilted a dark beard under the chin)
     redness = colour[..., 0] - colour[..., 1]
     src &= redness < np.median(redness[src]) + 0.03  # the lower lip borders the zone; its pink is not stubble
     c = np.pad(src.astype(np.int32), ((1, 0), (1, 0))).cumsum(0).cumsum(1)  # box sums: is a source rectangle wholly unstretched skin?

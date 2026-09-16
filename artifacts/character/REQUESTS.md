@@ -38,7 +38,7 @@
 9. **Helmet height vs the locomotion bounds test.** `tests/characters.test.ts` asserts `bounds.max.y < 1.87` for Idle/Walk/Jog/Run,
    written for a bare head. A crested helm on this 1.8 m fighter reaches ~1.91 m. The shipped build (no helmet) still passes; when
    helmet items ship through runtime slots, raise the ceiling to 2.0 (`WARRIOR_ITEMS=ranger,helmet_bronze npm test` shows the one
-   failure). Not changed by this lane without a decision.
+   failure). Not changed by this lane without a decision. **Done 2026-09-16:** ceiling 2.0 with the Veteran's crested helm (`veteran.glb`).
 
 ## 10. Triangle ceiling for the realistic head (2026-09-14)
 `WARRIOR_BODY=realistic` with hair/brow/lash cards measures 54,164 mesh triangles per fighter before the kit's arm re-fit;

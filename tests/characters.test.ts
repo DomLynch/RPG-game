@@ -24,8 +24,10 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 });
 
 // Parse the shipped geometry/rig/clips in Node. Image decoding/CSP is exercised in the browser.
-async function readWarrior() {
-  const bytes = readFileSync(new URL('../src/assets/warrior.glb', import.meta.url));
+// Two fighters ship: the player's warrior.glb and the opponent's veteran.glb (its own head, helm and maps on the same rig).
+const FIGHTERS = ['warrior.glb', 'veteran.glb'] as const;
+async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
+  const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
   const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
@@ -37,13 +39,13 @@ async function readWarrior() {
   return new GLTFLoader().parseAsync(JSON.stringify(json), '');
 }
 
-test('shipped skinned warrior has finite poses, grounded walk and bounded running flight', async () => {
-  const asset = await readWarrior();
+for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight`, async () => {
+  const asset = await readWarrior(file);
   assert.deepEqual(asset.animations.map(a => a.name), [...CLIPS, ...COMBAT_CLIPS]);
   const mixer = new AnimationMixer(asset.scene), point = new Vector3();
   let triangles = 0;
   asset.scene.traverse(o => { if (o instanceof SkinnedMesh) triangles += o.geometry.index!.count / 3; });
-  assert.ok(triangles < 60000, `Per-character triangle count: ${triangles}`); // ceiling raised 40k→60k by the owner, 2026-09-14 (character lane)
+  assert.ok(triangles < 60000, `${file} triangle count: ${triangles}`); // ceiling raised 40k→60k by the owner, 2026-09-14 (character lane)
   for (const clip of asset.animations.filter(a => (CLIPS as readonly string[]).includes(a.name))) {
     assert.ok(clip.tracks.every(t => t.values.every(Number.isFinite)));
     const action = mixer.clipAction(clip).play();
@@ -60,12 +62,36 @@ test('shipped skinned warrior has finite poses, grounded walk and bounded runnin
       });
       assert.ok(bounds.min.y >= -.03, `${clip.name}: underground foot ${bounds.min.y}`);
       assert.ok(bounds.min.y < (clip.name === 'Idle' || clip.name === 'Walk' ? .06 : .32), `${clip.name}: floating ${bounds.min.y}`);
-      assert.ok(bounds.max.y < 1.87 && bounds.max.y > 1.4);
+      assert.ok(bounds.max.y < 2.0 && bounds.max.y > 1.4, `${file} ${clip.name}: height ${bounds.max.y}`); // 1.87 → 2.0 (REQUESTS #9): the Veteran's crested helm reaches ~1.92 m on this 1.8 m body
       // depth 1.6→1.65: the Studio body's feet are real length, so the Jog stride measures 1.605 m toe to toe (2026-09-14)
       assert.ok(bounds.max.x - bounds.min.x < 1.5 && bounds.max.z - bounds.min.z < 1.65, `${clip.name} frame ${frame}: reach ${(bounds.max.x - bounds.min.x).toFixed(2)} × ${(bounds.max.z - bounds.min.z).toFixed(2)}`);
     }
     action.stop();
   }
+});
+
+test('the Veteran carries the warrior\'s clips and sword attachments exactly, so the baked blade paths serve both', async () => {
+  const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
+  assert.deepEqual(veteran.animations.map(a => a.name), hero.animations.map(a => a.name));
+  for (const [i, clip] of hero.animations.entries()) {
+    const other = veteran.animations[i];
+    assert.equal(other.duration, clip.duration, `${clip.name} duration`);
+    assert.deepEqual(other.tracks.map(t => t.name).sort(), clip.tracks.map(t => t.name).sort(), `${clip.name} tracks`);
+    for (const track of clip.tracks) { // every bone track identical: same rig, same motion, so the sim's blade paths are the Veteran's too
+      const twin = other.tracks.find(t => t.name === track.name)!;
+      assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
+      assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
+    }
+  }
+  for (const name of ['SwordSheathed', 'SwordDrawn', 'hand_r']) {
+    const a = hero.scene.getObjectByName(name)!, b = veteran.scene.getObjectByName(name)!;
+    assert.ok(a && b, name);
+    assert.deepEqual(b.position.toArray(), a.position.toArray(), `${name} position`);
+    assert.deepEqual(b.quaternion.toArray(), a.quaternion.toArray(), `${name} rotation`);
+    assert.equal(b.parent?.name, a.parent?.name, `${name} parent`);
+  }
+  const bones = (asset: Awaited<ReturnType<typeof readWarrior>>) => { const names: string[] = []; asset.scene.traverse(o => { if ((o as { isBone?: boolean }).isBone) names.push(o.name); }); return names; };
+  assert.deepEqual(bones(veteran), bones(hero));
 });
 
 test('two fighters share geometry but have independent animated bones', async () => {

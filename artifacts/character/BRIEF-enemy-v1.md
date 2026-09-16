@@ -1,5 +1,11 @@
 # Brief — the first enemy who is not the hero's twin (hand-off to a separate lane)
 
+> Status 2026-09-16: step 1 (head) and step 4 (runtime, `veteran.glb` for the opponent) shipped as `veteran-v1`, named the
+> **Veteran** — GAME_SPEC's Hoplite is shield-and-spear and the sim has neither, so a longsword man in bronze is a visual
+> variant, not roster step 2. Steps 2–3 (heavier build; kit dye, helm + crest, greaves, scars) shipped the same day. Gate notes folded in below were
+> found on review: the budget cap is in `scripts/check-budget.mjs` (raised to 12 MB), the crested helm needs the 1.87 m
+> bounds ceiling raised, `warrior.glb` was hardcoded in the tests/harness/bake, and the crown fill assumed dark hair.
+
 Owner (2026-09-16): the player is done ("perfect"); the opponent is currently the same man recoloured. A separate dev
 does this so the hero lane stays clean. Read `src/assets/README.md` (every pass), `artifacts/character/README.md`
 (harness), `BRIEF-body-pass-v36.md` (how the last passes were judged) and GAME_SPEC.md "Art direction" and "Roster".

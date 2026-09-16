@@ -41,6 +41,8 @@ try {
   }
   await save('inspection-turntable.png', await page.evaluate(() => __preview.turntable()));
   await save('details.png', await page.evaluate(() => __preview.details()));
+  await save('details-opponent.png', await page.evaluate(() => __preview.details(undefined, 'opponent'))); // the Veteran's own close-ups
+  await save('faces.png', await page.evaluate(() => __preview.faces())); // both heads from the portrait angles
   if (option('src')) { // raw source inspection: no clips, no lock sequence, no stats
     if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
   }
@@ -55,12 +57,12 @@ try {
   const video = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, recordVideo: { dir, size: { width: 844, height: 390 } } });
   const player = await open(video); await player.evaluate(() => __preview.play()); const file = player.video(); await video.close();
   await file.saveAs(`${dir}/sequence.webm`); await fs.rm(await file.path(), { force: true }); console.log(`  ${dir}/sequence.webm`);
-  const glb = await fs.readFile('src/assets/warrior.glb');
-  const resources = { label, commit, date: new Date().toISOString().slice(0, 10), glbBytes: glb.length, glbGzip: gzipSync(glb).length, ...stats };
+  const glb = await fs.readFile('src/assets/warrior.glb'), enemy = await fs.readFile('src/assets/veteran.glb').catch(() => null);
+  const resources = { label, commit, date: new Date().toISOString().slice(0, 10), glbBytes: glb.length, glbGzip: gzipSync(glb).length, ...(enemy ? { enemyGlbBytes: enemy.length, enemyGlbGzip: gzipSync(enemy).length } : {}), ...stats };
   await fs.writeFile(`${dir}/stats.json`, JSON.stringify(resources, null, 1));
   const previous = against ? JSON.parse(await fs.readFile(`artifacts/character/${against}/stats.json`, 'utf8')) : null;
   const row = (name, value, unit = '') => { const delta = previous && typeof previous[name] === 'number' ? ` (${value - previous[name] >= 0 ? '+' : ''}${(value - previous[name]).toLocaleString()})` : ''; return `| ${name} | ${value.toLocaleString()}${unit}${delta} |`; };
-  const flat = { glbBytes: resources.glbBytes, glbGzip: resources.glbGzip, meshTriangles: resources.meshTriangles, drawCallsTwoFighters: stats.characterOnly.drawCalls, trianglesRenderedTwoFighters: stats.characterOnly.triangles, textureBytes: resources.textureBytes, bones: resources.bones, textures: stats.textures.length, materials: stats.materials.length, clips: stats.clips.length };
+  const flat = { glbBytes: resources.glbBytes, glbGzip: resources.glbGzip, ...(enemy ? { enemyGlbBytes: resources.enemyGlbBytes, enemyGlbGzip: resources.enemyGlbGzip } : {}), meshTriangles: resources.meshTriangles, drawCallsTwoFighters: stats.characterOnly.drawCalls, trianglesRenderedTwoFighters: stats.characterOnly.triangles, textureBytes: resources.textureBytes, bones: resources.bones, textures: stats.textures.length, materials: stats.materials.length, clips: stats.clips.length };
   if (previous) for (const k of Object.keys(flat)) previous[k] ??= { drawCallsTwoFighters: previous.characterOnly?.drawCalls, trianglesRenderedTwoFighters: previous.characterOnly?.triangles, textures: previous.textures?.length, materials: previous.materials?.length, clips: previous.clips?.length }[k];
   console.log(`\n| resource | ${label}${previous ? ` (Δ vs ${against})` : ''} |\n|---|---|\n${Object.entries(flat).map(([k, v]) => row(k, v)).join('\n')}`);
   console.log(`materials: ${stats.materials.map(m => `${m.name}[${m.maps.join(',')}]`).join(' ')}`);

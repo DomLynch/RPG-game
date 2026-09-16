@@ -23,10 +23,20 @@ TEXTURES = f'{SOURCE}/Textures'
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 proof = '--proof' in args
 realistic = '--body' in args and args[args.index('--body') + 1] == 'realistic'
+FIGHTER = args[args.index('--fighter') + 1] if '--fighter' in args else 'hero'  # whose scan and tuning (head.FIGHTERS); the realistic body only
+if FIGHTER != 'hero' and not realistic:
+    raise SystemExit('--fighter needs --body realistic')
+HEADMOD.select_fighter(FIGHTER)
+VARIANT = ('realistic' if FIGHTER == 'hero' else FIGHTER) if realistic else ''  # parts/manifest file tag: body_<VARIANT>.glb, manifest_<VARIANT>.json
 HBM = 'artifacts/source/human-base-meshes/human_base_meshes_bundle.blend'
 out = args[args.index('--proof') + 1] if proof else 'src/assets/source/parts'
 materials_out = 'src/assets/source/materials'
-SUFFIX = '_r' if realistic else ''
+SUFFIX = ('_r' if FIGHTER == 'hero' else f'_{FIGHTER}') if realistic else ''  # material file suffix; the hero keeps its shipped names
+# What each fighter wears over the shared level-1 cut (GAME_SPEC materials: bronze, iron, bone, leather, stone, ash, blood).
+# The hero's values are the shipped ones. The Veteran: a darker, dirtier undyed tunic and bronze greaves; his pteruges dye
+# and helm are set in build-warrior.mjs (material factor, default items).
+KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'build': False},
+       'veteran': {'linen': (0.40, 0.37, 0.32), 'grime': 0.72, 'greaves': True, 'build': True}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -95,6 +105,8 @@ def realistic_body():
     for mesh_obj in (hbm, HIGH):
         align_arms(mesh_obj)
         align_legs(mesh_obj)
+        if KIT['build']:
+            build_shape(mesh_obj)  # after the limbs sit on their bones: girth scales radially about the bone lines, so the joints stay
     HEADMOD.split_tiles(hbm)   # head → its own `Face` tile and material; body tiles → one atlas
     HEADMOD.face_group(HIGH)   # the sculpt copy keeps UDIM UVs; the face group limits the displacement
     # Weights from the CC0 body at rest, both now in T.
@@ -110,7 +122,7 @@ def realistic_body():
     eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
     if eye_l.x < eye_r.x:
         eye_l, eye_r = eye_r, eye_l
-    if os.environ.get('HEAD_PHOTO', '1') == '1' and os.path.exists(HEADMOD.PHOTO):  # fit the head to the portrait first
+    if os.environ.get('HEAD_PHOTO', '1' if FIGHTER == 'hero' else '0') == '1' and os.path.exists(HEADMOD.PHOTO):  # fit the head to the portrait first (the hero's portrait: another fighter's scan replaces the head anyway)
         pre_face = [v.co for v in hbm.data.vertices if v.co.z > eye_l.z - 0.12 and v.co.z < eye_l.z + 0.16]
         pre_nose = min(pre_face, key=lambda c: c.y)
         pre_radius = max((v.co - eye_l).length for v in eyes[0].data.vertices)
@@ -171,6 +183,54 @@ def joint(name):
 
 def bone_tail(name):
     return armature.data.bones[name].tail_local.copy()
+
+
+def build_shape(mesh_obj):
+    """A heavier fighter's frame (B2 of the body brief, skipped for the hero): girth added radially about each limb's
+    bone line — upper arms +12 %, forearms +14 %, thighs and calves +10 % — fading to nothing at the joints so elbows,
+    wrists, knees and ankles stay where the bones are; the chest +8 % deeper about the spine; shoulders and traps +8 %
+    wider about the midline. Applied to the game mesh and the high sculpt alike before any bake; the kit is cut from
+    this surface afterwards, so it follows."""
+    def fade(t, a, b):  # 0 → 1 across [a, b], smooth
+        u = min(1.0, max(0.0, (t - a) / (b - a)))
+        return u * u * (3 - 2 * u)
+    limbs = []
+    for side in ('l', 'r'):
+        limbs.append((joint(f'upperarm_{side}'), joint(f'lowerarm_{side}'), 0.12))
+        limbs.append((joint(f'lowerarm_{side}'), joint(f'hand_{side}'), 0.14))
+        limbs.append((joint(f'thigh_{side}'), joint(f'calf_{side}'), 0.10))
+        limbs.append((joint(f'calf_{side}'), joint(f'foot_{side}'), 0.10))
+    spine_y = pelvis.y
+    moved = 0
+    for v in mesh_obj.data.vertices:
+        p = v.co
+        if p.z > neck.z - 0.02:  # the neck and head are the scan's business
+            continue
+        d = Vector((0, 0, 0))
+        for a, b, gain in limbs:
+            axis = b - a
+            t = (p - a).dot(axis) / axis.length_squared
+            if t < -0.1 or t > 1.1:
+                continue
+            c = a + axis * t
+            radial = p - c
+            if radial.length > 0.16:  # not this limb (the torso beside the upper arm)
+                continue
+            w = fade(t, -0.02, 0.18) * (1 - fade(t, 0.80, 1.02))
+            d += radial * (gain * w)
+        # chest: deeper, about the spine, between the belt and the collarbones, front and back alike
+        if pelvis.z + 0.12 < p.z < neck.z - 0.04 and abs(p.x) < torso_half_width + 0.04:
+            w = fade(p.z, pelvis.z + 0.12, pelvis.z + 0.24) * (1 - fade(p.z, neck.z - 0.12, neck.z - 0.04))
+            d += Vector((0, (p.y - spine_y) * 0.08 * w, 0))
+        # shoulders and traps: wider about the midline, above the armpits
+        if p.z > shoulder_l.z - 0.10 and abs(p.x) < abs(shoulder_l.x) + 0.10:
+            w = fade(p.z, shoulder_l.z - 0.10, shoulder_l.z - 0.02) * fade(abs(p.x), 0.04, 0.10) * (1 - fade(abs(p.x), abs(shoulder_l.x) + 0.02, abs(shoulder_l.x) + 0.10))
+            d += Vector((p.x * 0.08 * w, 0, 0))
+        if d.length > 1e-6:
+            v.co = p + d
+            moved += 1
+    mesh_obj.data.update()
+    print(f'BUILD {mesh_obj.name}: {moved} vertices heavier')
 
 
 def align_legs(mesh_obj):
@@ -333,7 +393,7 @@ def select_only(objs):
     bpy.context.view_layer.objects.active = objs[0]
 
 
-def extract(name, material, keep, lift=0.012, thickness=0.008, source=None, face_keep=None):
+def extract(name, material, keep, lift=0.012, thickness=0.008, source=None, face_keep=None, rim_only=False):
     """Clothing cut from the body itself: faces whose centre passes `keep(p)` are kept, lifted off the skin and given
     thickness. Vertex groups (skin weights) and UVs come with the faces, so the piece deforms exactly like the body."""
     select_only([source or body])
@@ -372,7 +432,7 @@ def extract(name, material, keep, lift=0.012, thickness=0.008, source=None, face
     lift_mod = part.modifiers.new('Lift', 'DISPLACE')
     lift_mod.strength, lift_mod.mid_level = lift, 0
     shell = part.modifiers.new('Shell', 'SOLIDIFY')
-    shell.thickness, shell.offset, shell.use_rim = thickness, 1, True
+    shell.thickness, shell.offset, shell.use_rim, shell.use_rim_only = thickness, 1, True, rim_only  # rim_only: no inner faces (a plate against the body: half the triangles)
     arm = part.modifiers.new('Armature', 'ARMATURE')
     arm.object = armature
     return tag(part, name, material)
@@ -484,6 +544,43 @@ def along(p, a, b):
     return (p - a).dot(d) / d.length_squared
 
 
+def greaves():
+    """Bronze greaves (a hoplite's shin guards), one per leg: shelled from the shin itself so they fit, from just above
+    the sandal's ankle strap up over the kneecap, wrapping ~120° either side of the front and open behind the calf where
+    a greave springs on. Cylindrical UVs about the shin so the tiled bronze shows no skin-atlas seams. Skin weights come
+    with the faces, so they bend at the knee and ankle with the leg."""
+    out = []
+    for side, knee, ankle in ((1, calf_l, foot_l), (-1, calf_r, foot_r)):
+        name = 'l' if side > 0 else 'r'
+        bottom, top = ankle.z + 0.075, knee.z + 0.035  # clear of the ankle strap (ends ~0.105 above the floor); the kneecap covered
+        axis = knee - ankle
+        def frame(p, knee=knee, ankle=ankle, axis=axis):
+            t = max(0.0, min(1.0, (p - ankle).dot(axis) / axis.length_squared))
+            c = ankle + axis * t
+            return c, math.atan2(abs(p.x - c.x), c.y - p.y)  # angle from the front (−y), 0 at the shin's crest, π at the calf
+        def keep(p, side=side, bottom=bottom, top=top):
+            if p.x * side < 0.02 or p.z < bottom:
+                return False
+            c, ang = frame(p)
+            wrap = math.radians(122)
+            return ang < wrap and p.z < top - 0.03 * (ang / wrap) ** 2  # the top edge peaks over the kneecap and falls to the sides
+        part = extract(f'greave_{name}', 'Bronze', keep, lift=0.006, thickness=0.005, rim_only=True)  # the inside lies against the shin
+        part['slot'] = 'Greaves'
+        dec = part.modifiers.new('Decimate', 'DECIMATE')  # a smooth plate needs none of the shin's density; before the lift/shell so the rim follows
+        dec.ratio, dec.use_collapse_triangulate = 0.5, True
+        select_only([part])
+        bpy.ops.object.modifier_move_to_index(modifier='Decimate', index=0)
+        uv = part.data.uv_layers.active.data
+        for poly in part.data.polygons:
+            for li in poly.loop_indices:
+                p = part.data.vertices[part.data.loops[li].vertex_index].co
+                c, ang = frame(p)
+                signed = math.atan2((p.x - c.x) * side, c.y - p.y)  # −π..π across the front
+                uv[li].uv = ((signed / math.pi + 1) * 1.2, (p.z - bottom) / (top - bottom) * 2.0)
+        out.append(part)
+    return out
+
+
 def level1_kit():
     kit = []
     # Tunic: rough cloth over the torso and the tops of the arms, open at the neck.
@@ -557,54 +654,152 @@ def level1_kit():
     select_only([buckle])
     bpy.ops.object.transform_apply(rotation=True, location=True)
     kit.append(tag(ao_white(buckle), 'buckle', 'Antique brass', bone='pelvis'))
+    if KIT['greaves']:
+        kit += greaves()
     return kit
 
 
 def bronze_helmet():
-    """Helmet slot, tier 2: an open-faced bronze helm shelled from the head itself (so it fits the skull), cheek guards and
-    a nasal, a neck guard behind, and a dyed horsehair crest on the Heraldry surface so the two fighters stay distinct."""
+    """Helmet slot: an open-faced bronze helm in the Chalcidian pattern — a dome sized from the skull itself, a brow rim
+    just above the eyebrows, a nasal, cheek guards hugging the jaw, notches for the ears and a flared neck guard — built
+    as a parametric surface (azimuth about the skull, height) so every edge is an analytic curve, not the triangles of
+    the head it sits on (the earlier shell cut from the decimated scan tore at every opening and cost 13k triangles).
+    Rigid on the Head bone like the crest. The crest is dyed horsehair on the Heraldry surface, so the two fighters stay
+    distinct."""
     skull_source = bpy.data.objects.get('kt_head') or HEAD if realistic else body  # the realistic head is its own object; the scan when present
-    skull = [v.co for v in skull_source.data.vertices if v.co.z > head.z - 0.03 and abs(v.co.x) < 0.12]
-    front_y = min(v.y for v in skull)  # nose tip (-y is the front)
-    def keep(p):
-        if p.z < head.z - 0.02 or (p.y < 0 and p.z < head.z + 0.015):  # below the neck guard; chin stays free
-            return False
-        face = p.y < front_y + 0.075 and head.z + 0.015 < p.z < head.z + 0.128 and abs(p.x) < 0.058
-        nasal = abs(p.x) < 0.013 and p.z > head.z + 0.055
-        return not (face and not nasal)
-    helm = extract('helmet_bronze', 'Bronze', keep, lift=0.0, thickness=0.009, source=skull_source)
-    helm['slot'] = 'Helmet'  # keeps the head's own unique UVs; bronze is a tiled surface
-    # A helm has its own form: project the shell onto a smooth dome (ellipsoid above the brow line, vertical skirt below
-    # for the cheek guards and neck guard). Topology, UVs and weights stay; ears and hairline do not.
-    centre = Vector((0, head.y + 0.006, head.z + 0.088))
-    rx, ry, rz = 0.104, 0.128, 0.118
-    for v in helm.data.vertices:
+    skull = [v.co for v in skull_source.data.vertices if v.co.z > head.z + 0.03]
+    top_z = max(v.z for v in skull)
+    centre = Vector((0, 0, head.z + 0.105))  # the rim rides at the top of the ears
+    band = [v for v in skull if centre.z + 0.02 < v.z < centre.z + 0.05]  # just above the ears: the skull's own width
+    rx = max(abs(v.x) for v in band) + 0.010
+    front_y, back_y = min(v.y for v in band), max(v.y for v in band)  # forehead to the back of the skull at the same height
+    centre.y = (front_y + back_y) / 2
+    ry = (back_y - front_y) / 2 + 0.012
+    rz = top_z - centre.z + 0.012
+    global HELM_RIM_Z
+    HELM_RIM_Z = centre.z
+    print(f'HELM dome rx={rx:.3f} ry={ry:.3f} rz={rz:.3f} centre z={centre.z:.3f} y={centre.y:+.3f}')
+    depth = 0.10  # the skirt below the rim (neck guard length)
+    def bottom(a):  # the skirt's lower edge, as depth below the rim, by |azimuth| in degrees (0 = front)
+        if a < 42:  # the face opening: nothing below the brow arch (the nasal is handled in inside())
+            return -1.0
+        if a <= 78:  # cheek guards: deepest at 60°, rising to the face edge and the ear notch
+            return 0.085 - 0.035 * ((a - 60) / 18) ** 2
+        if a < 110:  # ear notch: open below the rim
+            return 0.004
+        return 0.095 - 0.045 * max(0.0, (135 - a) / 25) ** 2  # neck guard, rising towards the notches
+    def inside(phi, sdepth):  # (azimuth in degrees, depth below the rim; negative above): is this point helm?
+        a = abs(phi)
+        if a < 42:  # the front sector: dome above the brow arch (3 cm above the rim at the centre, 5 mm at the cheek edges), the face opening below it, the nasal bar down the middle
+            if sdepth > -0.030 + 0.025 * (a / 42) ** 2:
+                return a < 6.5 and sdepth < 0.055
+            return True
+        return sdepth <= bottom(a)
+    def place(phi, sdepth):  # the surface point for (azimuth, depth)
+        r = math.radians(phi)
+        if sdepth <= 0:  # dome: an ellipsoid octant profile above the rim
+            t = min(1.0, -sdepth / rz)
+            ring = math.sqrt(max(0.0, 1 - t * t))
+            return centre + Vector((rx * ring * math.sin(r), -ry * ring * math.cos(r), -sdepth))
+        a = abs(phi)
+        flare = 1 + 0.30 * (sdepth / depth) ** 2 * min(1.0, max(0.0, (a - 100) / 40))  # the neck guard stands off the nape
+        hug = 1 - 0.10 * (sdepth / 0.085) * (1 - min(1.0, max(0.0, (a - 70) / 20)))  # cheek guards close on the jaw
+        f = flare * hug
+        return centre + Vector((rx * f * math.sin(r), -ry * f * math.cos(r), -sdepth))
+    cols = 72
+    rows = [-rz * math.cos(math.radians(9 * i)) for i in range(1, 11)] + [depth * k / 10 for k in range(1, 11)]  # 10 dome rows (9° steps below a pole cap) to the rim, 10 skirt rows
+    grid = [[(360 * c / cols - 180, sd) for c in range(cols)] for sd in rows]
+    keep = [[inside(phi, sd) for (phi, sd) in row] for row in grid]
+    bm = bmesh.new()
+    verts = [[bm.verts.new(place(phi, sd)) for (phi, sd) in row] for row in grid]
+    pole = bm.verts.new(centre + Vector((0, 0, rz)))
+    snapped = {}  # outside vertices pulled onto the analytic boundary along their edges to kept neighbours
+    def cross(p_in, p_out):
+        lo, hi = p_in, p_out
+        for _ in range(16):
+            mid = ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2)
+            if inside(*mid):
+                lo = mid
+            else:
+                hi = mid
+        return lo
+    for i, row in enumerate(grid):  # each outside vertex of a kept face moves onto the boundary along ONE grid line towards
+        for j, (phi, sd) in enumerate(row):  # a kept neighbour (vertical first, then across, then diagonal): no averaging, so no vertex lands inside an opening and no quad twists
+            if keep[i][j]:
+                continue
+            for ii, jj in ((i - 1, j), (i + 1, j), (i, (j - 1) % cols), (i, (j + 1) % cols), (i - 1, (j - 1) % cols), (i - 1, (j + 1) % cols), (i + 1, (j - 1) % cols), (i + 1, (j + 1) % cols)):
+                if 0 <= ii < len(grid) and keep[ii][jj]:
+                    q = grid[ii][jj]
+                    q = (q[0] + (360 if q[0] - phi > 180 else -360 if phi - q[0] > 180 else 0), q[1])  # unwrap across the seam
+                    snapped[(i, j)] = cross(q, (phi, sd))
+                    break
+    for (i, j), (phi, sd) in snapped.items():
+        verts[i][j].co = place(phi, sd)
+    faces = []
+    for j in range(cols):  # the pole cap
+        a, b = verts[0][j], verts[0][(j + 1) % cols]
+        if keep[0][j] or keep[0][(j + 1) % cols]:
+            faces.append(bm.faces.new((pole, b, a)))
+    for i in range(len(grid) - 1):
+        for j in range(cols):
+            j2 = (j + 1) % cols
+            if not (keep[i][j] or keep[i][j2] or keep[i + 1][j] or keep[i + 1][j2]):
+                continue
+            quad = (verts[i][j], verts[i][j2], verts[i + 1][j2], verts[i + 1][j])
+            if len({v.co.to_tuple(5) for v in quad}) < 3:
+                continue
+            try:
+                faces.append(bm.faces.new(quad))
+            except ValueError:
+                pass
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
+    bm.faces.ensure_lookup_table()
+    bm.normal_update()
+    if sum(f.normal.dot(f.calc_center_median() - centre) for f in bm.faces) < 0:  # the grid's winding decides once, for the whole surface; never a per-face recalc (it flipped patches next to the openings)
+        bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    # the rim: every open edge turned inward by the metal's thickness, so the openings read as plate, not paper
+    rim_edges = [e for e in bm.edges if e.is_boundary]
+    ext = bmesh.ops.extrude_edge_only(bm, edges=rim_edges)
+    for v in [g for g in ext['geom'] if isinstance(g, bmesh.types.BMVert)]:
         d = v.co - centre
-        if d.z > 0:
-            k = math.sqrt((d.x / rx) ** 2 + (d.y / ry) ** 2 + (d.z / rz) ** 2)
-        else:
-            k = math.sqrt((d.x / rx) ** 2 + (d.y / ry) ** 2)
-            d.z *= k  # keep height on the skirt
-        projected = d / max(k, 1e-6)
-        ear = abs(v.co.x) > 0.06 and head.z + 0.03 < v.co.z < head.z + 0.10
-        if not ear and projected.length < d.length + 0.012:  # never inside the head (ears sit inside the dome anyway)
-            projected = d.normalized() * (d.length + 0.012)
-        v.co = centre + projected
-    # Seamless spherical UVs for the bronze: the skin atlas's islands would print their seams onto the metal.
-    uv = helm.data.uv_layers.active.data
-    for poly in helm.data.polygons:
+        v.co = centre + d * max(0.0, (d.length - 0.006) / d.length)
+    bm.normal_update()
+    rim_faces = [g for g in ext['geom'] if isinstance(g, bmesh.types.BMFace)]
+    for f in rim_faces:  # a rim face should face the opening (away from the plate's outer surface): outward from the centre along the plate is wrong, so orient each by its neighbour
+        n = next((e for e in f.edges if len(e.link_faces) == 2 and any(o is not f and o not in rim_faces for o in e.link_faces)), None)
+        if n is None:
+            continue
+        other = next(o for o in n.link_faces if o is not f)
+        # consistent winding across the shared edge: the edge must run opposite ways in the two faces
+        vs_f, vs_o = [v for v in f.verts], [v for v in other.verts]
+        a, b = n.verts
+        same = (vs_f.index(b) - vs_f.index(a)) % len(vs_f) == (vs_o.index(b) - vs_o.index(a)) % len(vs_o)
+        if same:
+            bmesh.ops.reverse_faces(bm, faces=[f])
+    mesh = bpy.data.meshes.new('helmet_bronze')
+    bm.to_mesh(mesh)
+    bm.free()
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    helm = bpy.data.objects.new('helmet_bronze', mesh)
+    bpy.context.collection.objects.link(helm)
+    # Seamless cylindrical UVs about the skull: the tiled bronze shows no seams.
+    uv = mesh.uv_layers.new(name='UVMap')
+    for poly in mesh.polygons:
         us = []
         for li in poly.loop_indices:
-            d = helm.data.vertices[helm.data.loops[li].vertex_index].co - centre
-            us.append((math.atan2(d.x, d.y) / (2 * math.pi) + 0.5) * 2)
+            d = mesh.vertices[mesh.loops[li].vertex_index].co - centre
+            us.append((math.atan2(d.x, -d.y) / (2 * math.pi) + 0.5) * 2)
         if max(us) - min(us) > 1:  # polygon straddles the wrap
             us = [u + 2 if u < 1 else u for u in us]
         for li, u in zip(poly.loop_indices, us):
-            d = helm.data.vertices[helm.data.loops[li].vertex_index].co - centre
-            uv[li].uv = (u, (d.z + 0.15) / 0.3 * 1.5)
+            d = mesh.vertices[mesh.loops[li].vertex_index].co - centre
+            uv.data[li].uv = (u, (d.z + 0.15) / 0.3 * 1.5)
+    tag(helm, 'helmet_bronze', 'Bronze', bone='Head', slot='Helmet')
+    print(f'HELM {len(mesh.polygons)} faces')
     # Crest: an arc of dyed horsehair over the crown, rigid to the head.
     bpy.ops.mesh.primitive_torus_add(major_radius=0.215, minor_radius=0.052, major_segments=32, minor_segments=8,
-                                     location=head + Vector((0, 0.01, 0.10)), rotation=(0, math.radians(90), 0))
+                                     location=Vector((0, centre.y + 0.01, centre.z + rz - 0.10)), rotation=(0, math.radians(90), 0))
     crest = bpy.context.active_object
     bm = bmesh.new()
     bm.from_mesh(crest.data)  # local space: ring in XY; after the 90° Y rotation local -y is the front, local -x the crown
@@ -619,6 +814,35 @@ def bronze_helmet():
     select_only([crest])
     bpy.ops.object.transform_apply(scale=True, rotation=True, location=True)
     return [helm, tag(crest, 'crest_red', 'Heraldry', bone='Head', slot='Crest')]
+
+
+def strip_crown_under_helm(helm_parts):
+    """A fighter who always wears his helm does not need the skull under it: drop the scan head's faces that lie inside
+    the dome, well above the brow arch (they can never be seen; ~3k triangles)."""
+    from mathutils.kdtree import KDTree
+    kt = bpy.data.objects.get('kt_head')
+    if kt is None or HELM_RIM_Z is None:
+        return
+    helm = helm_parts[0]
+    tree = KDTree(len(helm.data.vertices))
+    for i, v in enumerate(helm.data.vertices):
+        tree.insert(v.co, i)
+    tree.balance()
+    centre = Vector((0, sum(v.co.y for v in helm.data.vertices) / len(helm.data.vertices), HELM_RIM_Z))
+    bm = bmesh.new()
+    bm.from_mesh(kt.data)
+    doomed = []
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if c.z < HELM_RIM_Z + 0.04:  # keep everything up to a centimetre above the face opening's arch (+3 cm): brow, temples, the hair under the rim
+            continue
+        nearest, _, dist = tree.find(c)
+        if dist < 0.04 and (nearest - centre).length - (c - centre).length > 0.001:  # radially inside the plate: hidden (the dome is one surface; nothing behind it shows)
+            doomed.append(f)
+    bmesh.ops.delete(bm, geom=doomed, context='FACES')
+    bm.to_mesh(kt.data)
+    bm.free()
+    print(f'HELM crown stripped: {len(doomed)} head faces under the dome')
 
 
 def wrap_maps():
@@ -662,7 +886,7 @@ def linen_maps(tunic, folds, size=2048):
         slub[r, c:min(size, c + n)] = rng.uniform(0.04, 0.10)
     mottle = fbm(size, 52, octaves=(4, 8, 16, 32))
     fine = fbm(size, 53, octaves=(64, 128, 256))
-    base = np.array([0.52, 0.47, 0.37])[None, None, :] * (0.90 + 0.20 * mottle + weave + slub + 0.06 * (fine - 0.5))[..., None]  # unbleached, greyed linen (0.70/0.64/0.52 rendered as a bedsheet)
+    base = np.array(KIT['linen'])[None, None, :] * (0.90 + 0.20 * mottle + weave + slub + 0.06 * (fine - 0.5))[..., None]  # unbleached, greyed linen (0.70/0.64/0.52 rendered as a bedsheet); per fighter
     stains = np.clip((fbm(size, 55, octaves=(3, 6, 12)) - 0.58) * 5, 0, 1)  # a few old stains
     crease = np.clip((np.abs(folds[..., 0] - 0.5) + np.abs(folds[..., 1] - 0.5)) * 4 - 0.15, 0, 1)  # where the folds bend
     if crease.shape[0] != size:
@@ -673,7 +897,7 @@ def linen_maps(tunic, folds, size=2048):
     dust = np.clip((fbm(size, 54, octaves=(2, 4, 8, 32)) - 0.4) * 1.6, 0, 1)
     grime = np.clip(0.6 * crease + 0.8 * hem * (0.6 + 0.4 * mottle) + 0.7 * np.clip(armpit, 0, 1) + 0.5 * sweat + 0.55 * dust + 0.5 * stains, 0, 1)
     dirt = np.array([0.30, 0.25, 0.18])[None, None, :]
-    colour = base * (1 - grime[..., None] * 0.55) + dirt * (grime[..., None] * 0.55)
+    colour = base * (1 - grime[..., None] * KIT['grime']) + dirt * (grime[..., None] * KIT['grime'])
     inside = np.clip(HEADMOD.blur(mask.astype(np.float32), 4) * 1.0, 0, 1)  # the cut edges: a darker stitched hem band 4-8 texels in
     band = mask & (inside < 0.97)
     stitch = band & (((np.arange(size)[:, None] + np.arange(size)[None, :]) // 5) % 2 == 0)
@@ -989,6 +1213,7 @@ def bake_ao(size=1024, distance=0.35):
 
 AO = None
 HEAD = None  # realistic: the head object (its own material and texture tile)
+HELM_RIM_Z = None  # set by bronze_helmet: the helm's rim height (the top of the ears), for stripping the skull under the dome
 REAL = None
 FITTED = None
 DENSE = None
@@ -1139,20 +1364,26 @@ else:
     else:
         AO = bake_ao()  # bare body only: every later piece would occlude it
     kit = level1_kit()
+    HELM = None
+    if realistic and FIGHTER != 'hero':  # a fighter who fights helmed: the helm first, and the skull under it dropped before the body export
+        HELM = bronze_helmet()
+        strip_crown_under_helm(HELM)
     if realistic:
-        export_kit(body_parts, os.path.join(out, 'body_realistic.glb'))  # head, body, eyes, hair/brow/lash cards
+        export_kit(body_parts, os.path.join(out, f'body_{VARIANT}.glb'))  # head, body, eyes, hair/brow/lash cards
     tunic = next(o for o in kit if o.name == 'tunic')
     folds = bake_folds(tunic, 'tunic')
     GAMBESON_NORMAL = save_jpeg('gambeson_normal', folds, 'Non-Color')
     GAMBESON_MAPS = linen_maps(tunic, folds)  # the tunic's colour and roughness in the same layout
-    export_kit(kit, os.path.join(out, 'level1_realistic.glb' if realistic else 'level1.glb'))
-    export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
-    helm, crest = bronze_helmet()
-    export_kit([helm], 'src/assets/source/items/helmet_bronze.glb')   # a poor gladiator's first helm: plain
-    export_kit([crest], 'src/assets/source/items/crest_red.glb')      # the crest is a later, extravagant reward
+    export_kit(kit, os.path.join(out, f'level1_{VARIANT}.glb' if realistic else 'level1.glb'))
+    ITEM = '' if FIGHTER == 'hero' else f'_{FIGHTER}'  # the helm is shelled from this fighter's own skull: one per head
+    if FIGHTER == 'hero':
+        export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')  # fitted to the shared body: one copy
+    helm, crest = HELM if HELM is not None else bronze_helmet()
+    export_kit([helm], f'src/assets/source/items/helmet_bronze{ITEM}.glb')   # a poor gladiator's first helm: plain
+    export_kit([crest], f'src/assets/source/items/crest_red{ITEM}.glb')      # the crest is a later, extravagant reward
 if not proof:
     import json
-    manifest_path = os.path.join(materials_out, 'manifest_realistic.json' if realistic else 'manifest.json')
+    manifest_path = os.path.join(materials_out, f'manifest_{VARIANT}.json' if realistic else 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
     extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.6), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
