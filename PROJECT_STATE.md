@@ -309,6 +309,6 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 - Evidence: 147/147 tests (new: wall, attrition, stop-hit/whiff, posture pins, warden wall footwork, scaled floor); 12/12 mutations caught; battery green (light spam 5/24); AI-vs-AI normal 11 hits / 21 s. Remaining: 7 process.
 
 ## Slice R — process (audit block 7) — 2026-09-16
-- CI workflow (`quality.yml`) runs the full gate incl. the battery and the Playwright browser gate on pushes/PRs to the live trunk; reference doc reconciled (turn clamps in radians, hard's first opener, perfect block, all block 2–6 numbers, open questions rewritten).
+- CI workflow (`quality.yml`) runs `quality:ci` (lint, tests incl. the battery, build, audit, budget) on pushes/PRs to the live trunk; the Playwright gate needs a real GPU and stays pre-deploy + live (gate prints diagnostics on failure); reference doc reconciled (turn clamps in radians, hard's first opener, perfect block, all block 2–6 numbers, open questions rewritten).
 - The seven-block audit plan is complete: M fairness (`0f40848`), N presentation (`d7b83f5`), O controls (`3a670f3`), P stamina/tempo (`3d16b02`), Q gladiator identity (`67109de`), R process.
 - Next, owner's choice: feel the 50 Hz tempo and decide on the move re-timing (blade re-bake); play the v7 guard ring vs the cluster and let the scorecard decide; the reference's open questions (§11).

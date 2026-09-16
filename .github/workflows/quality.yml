@@ -1,6 +1,8 @@
-# The same gate the release script runs before every deploy, on every push and pull request to the live trunk:
-# lint, the node suites (including the strategy battery — no scripted one-trick player may beat the warden), the build,
-# the dependency audit, the asset budget and the real-browser gate (Playwright/Chromium against the built dist).
+# The release gate minus the real-browser step, on every push and pull request to the live trunk: lint, the node suites
+# (including the strategy battery — no scripted one-trick player may beat the warden), the build, the dependency audit and
+# the asset budget. The Playwright gate needs a real GPU (its parry and kick steps are wall-clock touch timings; software GL
+# stalls the page until the press lands a second late), so it stays in scripts/deploy.sh, which runs it before every deploy
+# and then against the live site.
 name: quality
 on:
   push:
@@ -21,11 +23,4 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run quality
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: browser-gate-receipts
-          path: artifacts/browser-*.png
-          if-no-files-found: ignore
+      - run: npm run quality:ci
