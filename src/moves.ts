@@ -194,10 +194,7 @@ export const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT };
-=======
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: { ...LONGSWORD, id: 'trident', placeholder: true }, cleaver: { ...LONGSWORD, id: 'cleaver', placeholder: true } };   // cleaver: the Pitborn's, on the sword clip family; the weapons lane replaces the data
->>>>>>> origin/opp/pitborn-v1
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: { ...LONGSWORD, id: 'cleaver', placeholder: true } };   // cleaver: the Pitborn's, on the sword clip family; the weapons lane fills it
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
