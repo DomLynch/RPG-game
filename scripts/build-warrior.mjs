@@ -319,8 +319,10 @@ for (const [name, keys] of [
   // where the sword already is — a small raise on the right — and hooks across to the left; the backhand (Return) loads on the left, where
   // the first cut ended, and hooks back to the right. Both recover with a lift over the head down to a low right guard, next to the idle,
   // so the blend back to idle is short. The only sideways travel the eye sees is the cut itself.
-  ['Attack', [[0,[-.15,1.1,0],[-.5,.45,.74]],[.16,[-.28,1.34,.28],[-.35,.45,.82]],[.34,[-.02,1.18,.5],[0,0,1]],[.52,[.24,1.2,.44],[.62,0,.78]],[.7,[.46,1.26,.32],[.86,.08,.5]],[.82,[.4,1.5,.3],[.3,.9,.32]],[.92,[.1,1.48,.3],[-.1,.9,.42]],[1,[-.15,1.1,0],[-.5,.45,.74]]]],
-  ['Return', [[0,[.35,1.2,.25],[.6,.4,.7]],[.16,[.32,1.34,.3],[.32,.42,.85]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.4,1.24,.34],[-.86,.08,.5]],[.82,[-.32,1.5,.3],[-.3,.9,.32]],[.92,[-.05,1.48,.3],[-.2,.9,.4]],[1,[-.15,1.1,0],[-.5,.45,.74]]]]
+  // Owner (2026-09-16): the cut STOPS at the extended pose (arm out, blade level) and comes back along the same arc to guard — no lift over the
+  // head. So after the stop (.7) the keys retrace: mid-arc (.82), the contact pose in front (.92), then the low right guard the swing started from.
+  ['Attack', [[0,[-.15,1.1,0],[-.5,.45,.74]],[.16,[-.28,1.34,.28],[-.35,.45,.82]],[.34,[-.02,1.18,.5],[0,0,1]],[.52,[.24,1.2,.44],[.62,0,.78]],[.7,[.46,1.26,.32],[.86,.08,.5]],[.82,[.24,1.2,.44],[.62,0,.78]],[.92,[-.02,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]],
+  ['Return', [[0,[.35,1.2,.25],[.6,.4,.7]],[.16,[.32,1.34,.3],[.32,.42,.85]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.4,1.24,.34],[-.86,.08,.5]],[.82,[-.14,1.2,.46],[-.62,0,.78]],[.92,[.25,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]]
 ]) {
   const positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
   for (const [phase, position, direction] of keys) {

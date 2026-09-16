@@ -258,7 +258,7 @@ test('a zero-dt update evaluates the pose for the tick without advancing: the co
   assert.ok(ribbon!.geometry.drawRange.count > 0, 'a live frame samples the trail');
 });
 
-test('the cuts are hooks: the blade tip never passes behind the shoulder line in Attack or Return, swings out wide, and never dips low (the retraction lifts back to guard)', async () => {
+test('the cuts are hooks: the blade tip never passes behind the shoulder line in Attack or Return, swings out wide, and never dips low', async () => {
   const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene), drawn = asset.scene.getObjectByName('SwordDrawn')!;
   for (const name of ['Attack', 'Return']) {
     const clip = asset.animations.find(a => a.name === name)!, action = mixer.clipAction(clip).play(); let minZ = Infinity, maxSide = 0, minY = Infinity;
@@ -269,7 +269,7 @@ test('the cuts are hooks: the blade tip never passes behind the shoulder line in
   }
 });
 
-test('one stroke, quantified: the first cut loads on the side the sword rests (the right hip), the sideways travel is almost all in one direction inside the cut, and the retraction is a lift (the tip goes over the head, not back along the arc)', () => {
+test('one stroke, quantified: the first cut loads on the side the sword rests (the right hip), the sideways travel is all one way inside the cut, it stops at the extended pose, and the return retraces the arc at chest height (no lift over the head)', () => {
   // The baked paths are what the simulation sweeps and what the player sees. x < 0 is the fighter's right; the armed idle holds the sword at the right hip.
   for (const [id, loadSide] of [['light_right', -1], ['light_left', 1]] as const) {
     const t = PATHS[id], p = bladePaths[id], x = p.map(f => f[3]), y = p.map(f => f[4]);
@@ -281,9 +281,10 @@ test('one stroke, quantified: the first cut loads on the side the sword rests (t
     // The cut: over a metre of sideways travel, essentially all in one direction.
     const [along, against] = loadSide < 0 ? [cut.toLeft, cut.toRight] : [cut.toRight, cut.toLeft];
     assert.ok(along > 1 && against < .1, `${id}: the cut travels ${along.toFixed(2)} m one way and ${against.toFixed(2)} m back`);
-    // The retraction lifts: the tip peaks over the head, and it never dips.
-    assert.ok(Math.max(...y.slice(t.windup + t.active)) > 1.9, `${id}: the retraction lifts the tip to ${Math.max(...y.slice(t.windup + t.active)).toFixed(2)} m`);
+    // The return retraces the arc at chest height (owner: stop at the extended pose, then the same path back — no lift over the head), and the tip never dips.
+    const [back, onward] = loadSide < 0 ? [retract.toRight, retract.toLeft] : [retract.toLeft, retract.toRight];
+    assert.ok(back > 1 && onward < .8, `${id}: the return travels ${back.toFixed(2)} m back along the arc (and ${onward.toFixed(2)} m onward)`);
+    assert.ok(Math.max(...y.slice(t.windup + t.active)) < 1.7, `${id}: the return stays at chest height, no lift (peak ${Math.max(...y.slice(t.windup + t.active)).toFixed(2)} m)`);
     assert.ok(Math.min(...y) > 1, `${id}: the tip never dips (${Math.min(...y).toFixed(2)} m)`);
-    void retract;
   }
 });
