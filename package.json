@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "test": "node --test tests/*.test.ts",
     "quality": "eslint src && npm test && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
+    "quality:ci": "eslint src && npm test && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs",
     "build:warrior": "node scripts/build-warrior.mjs && node scripts/bake-blades.mjs",
     "test:browser": "node scripts/browser-check.mjs"
   },
