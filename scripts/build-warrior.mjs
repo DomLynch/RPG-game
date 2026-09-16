@@ -312,8 +312,15 @@ for (const [name, keys] of [
   // the front to the other side, a short stop past the target, then a retraction that LIFTS the sword back to guard — never a mirror swing back
   // along the arc (that read as a weave), never behind the shoulder line, never dipping toward the floor. Key phases follow the sim's swing
   // easing: 0–.34 the load, .34 contact in front, .34–.7 the active arc, .7–1 the retraction.
-  ['Attack', [[0,[.18,1.3,.3],[0,0,1]],[.15,[.34,1.26,.16],[.7,.35,.62]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.38,1.24,.34],[-.86,.08,.5]],[.86,[-.02,1.42,.3],[-.15,.85,.5]],[1,[.18,1.3,.3],[0,0,1]]]],
-  ['Return', [[0,[.18,1.3,.3],[0,0,1]],[.15,[-.26,1.26,.18],[-.68,.35,.64]],[.34,[-.02,1.18,.5],[0,0,1]],[.52,[.24,1.2,.44],[.62,0,.78]],[.7,[.44,1.26,.32],[.86,.08,.5]],[.86,[.22,1.42,.3],[.15,.85,.5]],[1,[.18,1.3,.3],[0,0,1]]]]
+  // One stroke only: the load is a small raise with the blade set a little to the side (the tip moves up more than out), the cut is the one
+  // sideways travel (~90° across the front), and the retraction goes straight UP first (tip over the shoulder, azimuth held) and only then
+  // over the head to centre, so no second sideways stroke is ever visible.
+  // The sword rests at the RIGHT hip in the armed idle (rig x < 0 is the fighter's right). So the first cut (Attack, 'light_right') loads
+  // where the sword already is — a small raise on the right — and hooks across to the left; the backhand (Return) loads on the left, where
+  // the first cut ended, and hooks back to the right. Both recover with a lift over the head down to a low right guard, next to the idle,
+  // so the blend back to idle is short. The only sideways travel the eye sees is the cut itself.
+  ['Attack', [[0,[-.15,1.1,0],[-.5,.45,.74]],[.16,[-.28,1.34,.28],[-.35,.45,.82]],[.34,[-.02,1.18,.5],[0,0,1]],[.52,[.24,1.2,.44],[.62,0,.78]],[.7,[.46,1.26,.32],[.86,.08,.5]],[.82,[.4,1.5,.3],[.3,.9,.32]],[.92,[.1,1.48,.3],[-.1,.9,.42]],[1,[-.15,1.1,0],[-.5,.45,.74]]]],
+  ['Return', [[0,[.35,1.2,.25],[.6,.4,.7]],[.16,[.32,1.34,.3],[.32,.42,.85]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.4,1.24,.34],[-.86,.08,.5]],[.82,[-.32,1.5,.3],[-.3,.9,.32]],[.92,[-.05,1.48,.3],[-.2,.9,.4]],[1,[-.15,1.1,0],[-.5,.45,.74]]]]
 ]) {
   const positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
   for (const [phase, position, direction] of keys) {
