@@ -151,7 +151,7 @@ export type AiProfile = {
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
-export type WeaponId = 'longsword' | 'trident';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver';
 export type Material = 'iron' | 'bronze' | 'wood';
 export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true };
 export const LONGSWORD: Weapon = { id: 'longsword', moves: MOVES, paths: PATHS, guard: 'blade', material: 'iron', reach: MOVES.thrust.reach };
@@ -195,6 +195,9 @@ export const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
 };
 export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach };
 export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT };
+=======
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: { ...LONGSWORD, id: 'trident', placeholder: true }, cleaver: { ...LONGSWORD, id: 'cleaver', placeholder: true } };   // cleaver: the Pitborn's, on the sword clip family; the weapons lane replaces the data
+>>>>>>> origin/opp/pitborn-v1
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
@@ -202,4 +205,23 @@ export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   easy: { reaction: 24, accuracy: .5, parry: .1, dodge: .1, aggression: .45, pressure: 0, discipline: 60, lapse: .45 },
   normal: { reaction: 14, accuracy: .75, parry: .3, dodge: .2, aggression: .65, pressure: 0, discipline: 50, lapse: .3 },
   hard: { reaction: 10, accuracy: .95, parry: .6, dodge: .35, aggression: .85, pressure: .5, discipline: 40, lapse: .1 },   // 167 ms: hard is decisions and feints, not input-reading (was 7)
+};
+export type Level = keyof typeof PROFILES;
+// An opponent is data a duel is set up from: the weapon he carries, his body scale (the blade sweep's hit capsule and regions
+// follow it; the renderer picks his GLB by id), his health, his poise and his own profile per level — the same easy/normal/hard toggle
+// modulates every opponent. The Veteran is the warden as shipped; `initialDuel()` with no argument is still exactly him.
+// poise: a plain clean hit dealing less than this damage never staggers him (it still wounds and builds posture); heavies,
+// counter-hits, stop-hits, rear hits and charged blows always do. 0 = staggered by everything, the human default.
+export type OpponentId = 'veteran' | 'pitborn';
+export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile> };
+export const OPPONENTS: Record<OpponentId, Opponent> = {
+  veteran: { id: 'veteran', weapon: 'longsword', scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },
+  // The pit brute: relentless light chains (aggression, pressure), a low parry rate, slower to notice, a low discipline floor so he
+  // swings himself hot; poise 16 — a plain cut (14) or stab (11) never stops him, a heavy (18) or any counter does.
+  // Health 190: with the Veteran's brain driving the hero he took 150 in ~22 s (probe, 24 seeds); the brute is meant to take more killing than a man.
+  pitborn: { id: 'pitborn', weapon: 'cleaver', scale: 1.13, health: 190, poise: 16, profiles: {
+    easy: { reaction: 28, accuracy: .5, parry: .05, dodge: .05, aggression: .6, pressure: .6, discipline: 30, lapse: .45 },
+    normal: { reaction: 18, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .3 },
+    hard: { reaction: 14, accuracy: .9, parry: .3, dodge: .2, aggression: .95, pressure: .75, discipline: 20, lapse: .1 },
+  } },
 };
