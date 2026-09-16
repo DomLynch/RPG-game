@@ -72,13 +72,17 @@ test('the warden uses the same combat API: its attacks cost stamina, obey range 
   assert.ok(!wardenAttacks(d.events).length && d.fighters[1].stamina === 100, 'out of reach it closes distance instead of swinging at air');
 });
 
-test('a passive opponent sees a readable opener: at easy and normal the first attack is always a heavy; hard also pressures with lights', () => {
+test('a passive opponent sees a readable opener: at easy and normal the first attack is always a heavy, later ones heavy or thrust; hard also pressures with lights', () => {
+  let thrusts = 0, openers = 0;
   for (const level of ['easy', 'normal'] as const) for (const seed of [731, 1, 99, 4242]) {
     const { events } = play(PROFILES[level], 2400, () => idle(), arena(), seed);
     const attacks = wardenAttacks(events).filter(e => e.move !== 'kick');
     assert.ok(attacks.length >= 3, `${level} seed ${seed} attacked ${attacks.length} times`);
-    assert.ok(attacks.every(e => e.move === 'heavy_overhead'), `${level} seed ${seed}: ${attacks.map(e => e.move).join(' ')}`);
+    assert.equal(attacks[0].move, 'heavy_overhead', `${level} seed ${seed}: the first opener is the readable heavy`);
+    assert.ok(attacks.every(e => e.move === 'heavy_overhead' || e.move === 'thrust'), `${level} seed ${seed}: ${attacks.map(e => e.move).join(' ')}`);
+    thrusts += attacks.filter(e => e.move === 'thrust').length; openers += attacks.length - 1;
   }
+  assert.ok(thrusts / openers >= .15 && thrusts / openers <= .55, `thrusts are a real but minority opener: ${thrusts}/${openers}`);
   const hard = wardenAttacks(play(PROFILES.hard, 3600, () => idle()).events);
   assert.ok(hard.some(e => e.move === 'light_right' || e.move === 'light_left'));
 });
@@ -229,10 +233,11 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   // Only a plain heavy can charge (a chained follow-up after a punish light never does), so judge the charge rate on plain heavies.
   const plainHeavies = late.filter(e => e.move === 'heavy_overhead' && e.m.chain === 0).length, held = turtle.log.filter(e => e.type === 'Charging' && e.actor === 1 && e.move === 'heavy_overhead' && e.read.turtle).length;
   assert.ok(plainHeavies === 0 || held / plainHeavies >= .5, `plain heavies at a turtle are charged: ${held}/${plainHeavies}`);
-  // At hard the boosted charge chance reaches 1: every plain heavy thrown at a read roller is held (a turtle at hard is kicked, so use the roller).
+  // The charge boost itself, over 40 seeds from the same state: a heavy thrown at an unguarded opponent is held only with a roller read, and then most of the time.
   const roller = (dd: Duel) => (dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 0 && dd.fighters[0].phase === 'ready' ? act('dodge') : idle());
-  const hardRoll = watch(PROFILES.hard, 3000, roller), hardPlain = starts(hardRoll.log).filter(e => e.read.roller && e.move === 'heavy_overhead' && e.m.chain === 0).length, hardHeld = hardRoll.log.filter(e => e.type === 'Charging' && e.actor === 1 && e.move === 'heavy_overhead' && e.read.roller).length;
-  assert.ok(hardPlain >= 2 && hardHeld === hardPlain, `hard holds every plain heavy against a roller: ${hardHeld}/${hardPlain}`);
+  const heldShare = (habits: Partial<Habits>) => { const throws = [...Array(40).keys()].map(seed => decide(arena(1.5), 1, { ...initialAi(seed + 1), mode: 'approach', decision: 500, wait: 0, next: 'heavy', habits: { ticks: 600, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, attacks: 0, ...habits } }, PROFILES.normal).intent).filter(i => i.action === 'heavy'); return { thrown: throws.length, held: throws.filter(i => i.held).length }; };
+  const calm = heldShare({}), vsRoller = heldShare({ attacks: 5, rolls: 3 });
+  assert.ok(calm.thrown >= 20 && calm.held === 0, `no read, no guard: a heavy is never held (${calm.held}/${calm.thrown})`); assert.ok(vsRoller.thrown >= 20 && vsRoller.held / vsRoller.thrown >= .65, `with a roller read most heavies are held: ${vsRoller.held}/${vsRoller.thrown}`);
   // Spammer: cuts whenever ready. Normal parries 30 % of noticed swings; doubled it plans a parry for most of a spammer's cuts.
   let plansAfter = 0, parriesAfter = 0, d = arena(), ai = initialAi();
   for (let i = 0; i < 3000; i++) {
@@ -243,12 +248,14 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   }
   assert.ok(readOpponent(ai.habits).spammer, 'spammer read'); assert.ok(plansAfter >= 8, `enough plans after the read: ${plansAfter}`);
   assert.ok(parriesAfter / plansAfter >= .45, `parry plans after the read: ${parriesAfter}/${plansAfter}`);
-  // Roller: roll the moment the warden swings. Only after the read does the warden start a swing while the player is in a roll's tail, and hold heavies although nobody is guarding.
-  const rolled = watch(PROFILES.normal, 3000, roller);
+  // Roller: a panic roller — rolls every 70 ticks whether or not a swing is coming, and at every swing. Only after the read does the warden start a swing while the
+  // player is in a roll's tail (it is free to, because those rolls were not answers to its own swings), and hold heavies although nobody is guarding.
+  const panic = (dd: Duel) => (dd.fighters[0].phase === 'ready' && ((dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 0) || dd.tick % 70 === 0) ? act('dodge') : idle());
+  const rolled = watch(PROFILES.normal, 3000, panic);
   assert.ok(readOpponent(rolled.habits).roller, 'roller read');
   const tailStarts = starts(rolled.log).filter(e => e.f.phase === 'roll' && e.f.age >= RULES.safeEnd);
-  assert.ok(tailStarts.some(e => e.read.roller) && !tailStarts.some(e => !e.read.roller), `tail punishes only after the read: ${tailStarts.filter(e => e.read.roller).length} after, ${tailStarts.filter(e => !e.read.roller).length} before`);
-  assert.ok(rolled.log.some(e => e.type === 'Charging' && e.actor === 1 && e.move === 'heavy_overhead' && e.read.roller), 'heavies are held against a roller');
+  const tailAfter = tailStarts.filter(e => e.read.roller).length, tailBefore = tailStarts.filter(e => !e.read.roller).length;   // a scheduled swing can coincide with a roll by chance; the punish makes it systematic
+  assert.ok(tailAfter >= 5 && tailAfter >= 5 * tailBefore, `tail punishes come with the read: ${tailAfter} after, ${tailBefore} before`);
   // Parrier: press parry as each swing starts. Lights get held as baits only once the read fires; before it no light is ever held.
   const parrier = watch(PROFILES.hard, 3600, dd => (dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 4 && dd.fighters[0].phase === 'ready' ? { ...act('parry'), guard: true } : idle()));
   assert.ok(readOpponent(parrier.habits).parryHappy, 'parry-happy read');
@@ -256,4 +263,32 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   assert.ok(baits.some(e => e.read.parryHappy) && !baits.some(e => !e.read.parryHappy), `baited lights only after the read: ${baits.length}`);
   // A neutral player triggers no read at all.
   assert.deepEqual(readOpponent(watch(PROFILES.normal, 2400, () => idle()).habits), { parryHappy: false, turtle: false, roller: false, spammer: false });
+});
+
+test('reads: the thrust is the warden\'s spacing opener — planned only after the first heavy, thrown from beyond cutting range, stepped back to when too close, never into a guard', () => {
+  const fresh = (seed: number, extra: Partial<AiState>): AiState => ({ ...initialAi(seed), mode: 'approach', decision: 500, wait: 0, next: null, ...extra });
+  // Seeds are spread with a multiplicative hash: consecutive small seeds give near-identical first draws from the LCG.
+  const planned = (level: keyof typeof PROFILES, attacks: number) => [...Array(40).keys()].map(seed => decide(arena(2.4), 1, fresh(((seed + 1) * 2654435761) >>> 0, { habits: { ...initialAi().habits, attacks } }), PROFILES[level]).ai.next);
+  for (const level of ['easy', 'normal', 'hard'] as const) {
+    assert.ok(!planned(level, 0).includes('thrust'), `${level}: no thrust before the first heavy has shown the timing`);
+    const share = planned(level, 1).filter(n => n === 'thrust').length;
+    assert.ok(share >= (level === 'hard' ? 3 : 8) && share <= 22, `${level}: thrust is a minority opener: ${share}/40`);
+  }
+  // Spacing: with a thrust planned and the opponent inside cutting range the warden steps back rather than swinging; from thrust range it throws; into a guard it never does.
+  const close = decide(arena(1.2), 1, fresh(1, { next: 'thrust' }), PROFILES.normal);
+  const towards = { x: arena(1.2).fighters[0].body.x - TARGET.x, z: arena(1.2).fighters[0].body.z - TARGET.z };
+  assert.equal(close.intent.action, null); assert.equal(close.ai.mode, 'retreat'); assert.ok((close.intent.move!.x * towards.x + close.intent.move!.z * towards.z) < 0, 'it moves away from the player');
+  const ranged = decide(arena(1.7), 1, fresh(1, { next: 'thrust' }), PROFILES.normal);
+  assert.equal(ranged.intent.action, 'thrust'); assert.equal(stepDuel(arena(1.7), [idle(), ranged.intent]).fighters[1].move, 'thrust');
+  const g = arena(1.85); g.fighters[0] = { ...g.fighters[0], phase: 'guard', age: 30 };   // beyond heavy reach, inside thrust reach: only the thrust could be thrown, and it must not be
+  assert.equal(decide(g, 1, fresh(1, { next: 'thrust' }), PROFILES.normal).intent.action, null, 'never into a standing guard');
+  // In a fight: a player who guards for 1.5 s then opens for 1.5 s sees thrusts, all from 1.5 m or further.
+  let d = arena(2.4), ai = initialAi(); const gaps: number[] = [];
+  for (let i = 0; i < 4800; i++) {
+    const gap = Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x, d.fighters[0].body.z - d.fighters[1].body.z);
+    const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai; d = stepDuel(d, [{ ...idle(), guard: Math.floor(d.tick / 90) % 2 === 0 }, w.intent]);
+    for (const e of d.events) if (e.type === 'AttackStarted' && e.actor === 1 && e.move === 'thrust') gaps.push(gap);
+    d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+  }
+  assert.ok(gaps.length >= 2 && gaps.every(g => g >= 1.5), `thrusts thrown from range: ${gaps.map(g => g.toFixed(2)).join(' ')}`);
 });
