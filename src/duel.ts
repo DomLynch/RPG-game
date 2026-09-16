@@ -23,20 +23,26 @@ export type Fighter = {
   posture: number; critical: number;   // posture 0..RULES.posture.max; critical = ticks left in which Heavy is the critical on a broken opponent
   guardDirection: Direction | null; parrying: boolean; exposed: number; evaded: number; counterWindow: number; charge: number; charged: boolean; buffer: { action: Action; ttl: number } | null;
   guardProfile?: Partial<GuardProfile>;   // shield/loadout overrides; absent = the longsword defaults in RULES
+  postureRest: number;   // ticks left before posture drains again (a gain pauses the drain)
+  maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
+  attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
+  stall: number;   // ticks the current attack's clock stands still (a thrust that met nothing hangs at full extension)
 };
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
 export type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; location?: HitLocation; heading?: number; ticks?: number; posture?: number };
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; walled?: boolean; location?: HitLocation; heading?: number; ticks?: number; posture?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
-export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: RULES.health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null });
+export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: RULES.health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0 });
 export const initialDuel = (): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
+// At the ring wall with the given direction pointing out of the ring: the wall is behind a step that way.
+export const walled = (body: State, dx: number, dz: number): boolean => Math.hypot(body.x, body.z) >= RADIUS - RULES.wall.edge && body.x * dx + body.z * dz > 0;
 // Ticks since the current phase began. `age` is the animation clock (a chambered swing rewinds it); `charge` counts the parked ticks,
 // so age + charge is monotonic elapsed time — what perception and reaction delays must read.
 export const elapsed = (f: Fighter): number => f.age + f.charge;
@@ -83,13 +89,13 @@ export function legal(f: Fighter, action: Action): boolean {
 
 // Every attack starts through one door: the transient modifiers of the previous action (charge, punish/critical windows, guard
 // counter, parry state) are reset here and nowhere else, so no swing inherits the last one's bonuses.
-function beginAttack(f: Fighter, id: MoveId, chained: boolean): void {
-  f.phase = 'attack'; f.age = 0; f.move = id; f.chained = chained; f.landed = false; f.chain = 0; f.lastMove = id;
+function beginAttack(f: Fighter, id: MoveId, chained: boolean, foe: State): void {
+  f.phase = 'attack'; f.age = 0; f.move = id; f.chained = chained; f.landed = false; f.chain = 0; f.lastMove = id; f.attackFrom = { x: f.body.x, z: f.body.z, gap: distance(f.body, foe) }; f.stall = 0;
   f.punish = 0; f.critical = 0; f.counterWindow = 0; f.charge = 0; f.charged = false; f.parrying = false; f.guardDirection = null;
 }
 export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES = RULES): Duel {
   const tick = duel.tick + 1, events: CombatEvent[] = [], before = duel.fighters;
-  const fighters = before.map(f => ({ ...f, age: f.age + 1, wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' ? f.posture : Math.max(0, f.posture - R.posture.decay), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
+  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - R.posture.decay), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events };
   const spend = (i: Side, cost: number) => {
     const f = fighters[i]; f.stamina = Math.max(0, f.stamina - cost); f.rest = R.regenDelay;
@@ -109,10 +115,12 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       const moving = Math.hypot(intent.move.x, intent.move.z) > .1;
       next.body = { ...me.body, heading: moving ? advance(me.body, intent.move, foe.body).heading : aim(me.body, foe.body) + Math.PI };
       next.phase = 'roll'; next.age = 0; spend(i, me.phase === 'backstep' ? R.rollCost - R.backstep.cost : R.rollCost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'roll' });
+    } else if (action === 'backstep' && walled(me.body, -Math.sin(me.body.heading), -Math.cos(me.body.heading))) {
+      // Cornered: the wall is at the back, there is nowhere to step. The press is simply refused (a roll still works).
     } else if (action === 'backstep') {
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
     } else if (action === 'kick') {
-      beginAttack(next, 'kick', false); spend(i, MOVES.kick.stamina);
+      beginAttack(next, 'kick', false, foe.body); spend(i, MOVES.kick.stamina);
       if (intent.lock) next.body = { ...me.body, heading: aim(me.body, foe.body) };
       events.push({ tick, type: 'AttackStarted', actor: i, move: 'kick' });
     } else if (isLight(action) || action === 'heavy' || action === 'thrust') {
@@ -121,7 +129,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         const id = chooseMove(me, action!), def = MOVES[id];
         // Chained timing: a listed follow-up inside the chain window, or a light out of an evade (dodge-attack).
         const follows = me.chain > 0 && me.lastMove !== null && !!MOVES[me.lastMove].chain?.follow.includes(id);
-        beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep')))); spend(i, def.stamina);
+        beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep'))), foe.body); spend(i, def.stamina);
         events.push({ tick, type: 'AttackStarted', actor: i, move: id });
       }
       face(R.turnStart);
@@ -171,7 +179,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // Straight back along the facing, still facing the opponent: no turn, no invulnerability, just distance.
       next.body = { ...advance(next.body, { x: -Math.sin(next.body.heading) * R.backstep.speed, z: -Math.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe), heading: next.body.heading };
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
-      const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
+      const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1) * (next.legWound ? R.attrition.legSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
       const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe);
       // Sprinting drains without the action delay: no regeneration on a sprinting tick, and it resumes the tick the sprint stops (an action's
       // regenDelay is for actions; a sprint that reset it every tick starved the bar for a second after every dash).
@@ -180,7 +188,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (intent.lock && next.phase !== 'sheathed' && !intent.move.run) next.body = { ...next.body, heading: aim(next.body, foe) };
     }
     // Regeneration: full while standing ready; a raised guard regenerates at half rate (it used to stop it, which made blocking a stamina trap).
-    if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard')) next.stamina = Math.min(100, next.stamina + R.regen * (next.wound ? R.woundRegen : 1) * (next.phase === 'guard' ? R.guardRegen : 1));
+    if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard')) next.stamina = Math.min(next.maxStamina, next.stamina + R.regen * (next.wound ? R.woundRegen : 1) * (next.phase === 'guard' ? R.guardRegen : 1));
     if (next.exhausted && next.stamina >= R.exhaustRecover) next.exhausted = false;
   }
   // Symmetric separation: both may have stepped into the other's old position; push them apart by equal halves.
@@ -204,7 +212,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (pathId) {
       if (a.age < t.windup || a.age >= t.windup + t.active) continue;
       location = bladeImpact(pathId, a.age - 1, a.age, before[i].body, a.body, before[j].body, d.body);
-      if (!location && a.age === t.windup + t.active - 1) events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });
+      // A miss is reported once, as the window closes. A thrust that meets nothing overextends: its clock hangs at full extension for `whiff` ticks
+      // (the window-closing tick repeats while stalled, so the report is keyed on the stall not having started).
+      if (!location && a.age === t.windup + t.active - 1 && before[i].stall === 0) { events.push({ tick, type: 'AttackMissed', actor: i, move: a.move }); if (a.move === 'thrust') A.stall = R.stopHit.whiff; }
     } else {
       if (a.age !== t.windup) continue;
       if (distance(a.body, d.body) <= def.reach && Math.abs(wrapAngle(aim(a.body, d.body) - a.body.heading)) < R.kickArc) location = 'torso';
@@ -216,24 +226,34 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const guarding = d.phase === 'guard' && facing && (!R.directionalGuard || !d.guardDirection || d.guardDirection === def.direction);
     const breaks = (def.breaksGuard || charged) && !g.stopsHeavy, blockCost = def.staminaDamage * g.costScale;
     const stagger = (ticks: number) => {
-      D.phase = D.health ? 'hurt' : 'dead'; D.age = 0; D.stun = D.health ? ticks : R.death; D.buffer = null; D.counterWindow = 0;
-      events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun });
+      const wall = walledHit ? R.wall.stagger : 0;
+      D.phase = D.health ? 'hurt' : 'dead'; D.age = 0; D.stun = D.health ? ticks + wall : R.death; D.buffer = null; D.counterWindow = 0;
+      events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun, ...(walledHit ? { walled: true } : {}) });
+      if (walledHit) shake(j, R.wall.posture);
     };
     // Posture: `amount` on the target; at the maximum the target's posture breaks — a long stagger and a critical window for the other side.
     const shake = (target: Side, amount: number) => {
       const T = fighters[target], O = fighters[1 - target];
       if (!T.health || amount <= 0) return;
-      T.posture = Math.min(R.posture.max, T.posture + amount);
+      T.posture = Math.min(R.posture.max, T.posture + amount); T.postureRest = R.posture.hold;
       if (T.posture < R.posture.max) return;
       T.posture = 0; T.phase = 'hurt'; T.age = 0; T.stun = Math.max(T.stun, R.posture.stun); T.buffer = null; T.counterWindow = 0; T.charge = 0; T.charged = false;
       O.punish = R.posture.stun; O.critical = R.posture.stun;
       events.push({ tick, type: 'PostureBroken', actor: (1 - target) as Side, target, ticks: R.posture.stun });
     };
+    let walledHit = false;
     const wound = (damage: number, knockback: number, mark = !!def.path) => {
       D.health = Math.max(0, D.health - damage);
-      if (mark) { D.wound = R.wound; D.woundSite = location!; }
+      if (mark) {
+        D.wound = R.wound; D.woundSite = location!;
+        // Attrition: a blade wound costs part of the bar's ceiling for the rest of the duel; a leg wound slows the walk.
+        D.maxStamina = Math.max(R.attrition.floor, D.maxStamina - R.attrition.stamina); D.stamina = Math.min(D.stamina, D.maxStamina);
+        if (location === 'legs') D.legWound = true;
+      }
       const away = aim(d.body, a.body) + Math.PI;
       for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: Math.sin(away), z: Math.cos(away), yaw: 0, run: false }, A.body), heading: D.body.heading };
+      // The ring wall: knockback that ends against the wall is a second impact — extra stagger and posture (kicks shove; see stagger()).
+      walledHit = knockback > 0 && D.health > 0 && walled(D.body, Math.sin(away), Math.cos(away));
       if (!D.health) { finish = finish ? { ...finish, draw: true } : { victim: j, location: location!, move: a.move!, heading: a.body.heading }; events.push({ tick, type: 'Killed', actor: i, target: j, move: a.move!, location: location!, heading: a.body.heading }); }
     };
     if (d.phase === 'roll' && d.age >= R.safeStart && d.age <= R.safeEnd) events.push({ tick, type: 'Dodged', actor: j, target: i, move: a.move });
@@ -260,10 +280,14 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         const poised = d.phase === 'attack' && d.move !== null && ((MOVES[d.move].charges && (d.charged || (d.charge > 0 && d.age === MOVES[d.move].chamber)) && d.age < timing(d).windup + timing(d).active) || (MOVES[d.move].poise >= def.stagger && d.age >= MOVES[d.move].poiseFrom && d.age < timing(d).windup + timing(d).active));
         // Counter-hit and rear-hit multiply the clean hit; they never apply through a guard or a parry.
         const counter = d.phase === 'attack' || (d.phase === 'roll' && d.age > R.safeEnd);
+        // The thrust is the stop-hit: into a swing, or into an opponent walking onto the point, it lands harder than a cut's counter-hit.
+        // Walking onto the point: since the thrust started, the target has come at least stopHit.walk closer to where it started from (its own steps; the lunge does not count).
+        const advancing = (d.phase === 'ready' || d.phase === 'guard') && a.attackFrom !== null && distance(d.body, { ...d.body, x: a.attackFrom.x, z: a.attackFrom.z }) < a.attackFrom.gap - R.stopHit.walk;
+        const stop = a.move === 'thrust' && (counter || advancing);
         const rear = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) > Math.PI - R.rear.arc / 2;
-        const dealt = Math.round(damage * (counter ? R.counter.damage : 1) * (rear ? R.rear.damage : 1)), stun = Math.round(baseStun * (counter ? R.counter.stagger : 1) * (rear ? R.rear.stagger : 1));
+        const dealt = Math.round(damage * (stop ? R.stopHit.damage : counter ? R.counter.damage : 1) * (rear ? R.rear.damage : 1)), stun = Math.round(baseStun * (stop ? R.stopHit.stagger : counter ? R.counter.stagger : 1) * (rear ? R.rear.stagger : 1));
         if (!def.path) spend(j, def.staminaDamage);
-        wound(dealt, poised ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: dealt, location, heading: a.body.heading, counter, rear, charged });
+        wound(dealt, poised ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: dealt, location, heading: a.body.heading, counter: counter || stop, rear, charged, ...(stop ? { stop: true } : {}) });
         if (!poised || !D.health) stagger(stun);
         shake(j, def.posture * (counter ? R.counter.damage : 1));
       }

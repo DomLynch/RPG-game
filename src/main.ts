@@ -108,6 +108,7 @@ function updateHud() {
   health.value = practice.health; element('health-value').textContent = `${practice.health} / ${RULES.health}`;
   playerHealth.value = practice.playerHealth; element('player-health-value').textContent = `${practice.playerHealth} / ${RULES.health}`;
   for (const [meter, value, max] of [[health, practice.health, RULES.health], [playerHealth, practice.playerHealth, RULES.health], [stamina, practice.stamina, 100]] as const) meter.style.setProperty('--fill', `${value / max * 100}%`);
+  stamina.style.setProperty('--max', `${practice.maxStamina}%`); stamina.dataset.leg = String(practice.legWound);   // attrition: the lost ceiling is shaded; a leg wound marks the bar
   stamina.value = practice.stamina; element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
   for (const [id, value] of [['posture', practice.posture], ['target-posture', practice.enemyPosture]] as const) { const meter = element<HTMLMeterElement>(id); meter.value = value; meter.style.setProperty('--fill', `${value}%`); meter.dataset.critical = String(value >= 70); }
   combatStatus.textContent = hint;
