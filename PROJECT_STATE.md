@@ -298,3 +298,8 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 ## Slice O — controls pass (audit block 4) — 2026-09-16
 - Slash sends held; per-control held ownership (`holders` set, owner of the current swing); drag-off feint on Slash/Heavy/Stab; Kick 44 px + cluster re-laid 176×210; Step rolls at once with a deflected stick; v7 guard ring scheme (`ring`) with the gate walking all three schemes and checking ≥ 44 px targets and no overlaps (Slash-in-ring excepted).
 - Evidence: graphics tests (held Slash chambers, drag-off feint + release, held ownership, deflected-stick roll vs neutral backstep, scheme cycle incl. ring); trial test (3 schemes); 8/8 mutations caught; screenshots `artifacts/cluster-v44.png`, `artifacts/ring-v7.png`.
+
+## Slice P — stamina and tempo (audit block 5) — 2026-09-16
+- Sprint: deliberate 1.4-rim push, lit knob, no regen-delay reset. Regen 40/s after .75 s; guard regenerates at half rate; block costs 15/20/30; health 150 (`RULES.health` everywhere); journal Tempo 60/50 Hz toggle. Spammer read re-swept (11 swings / 8 ticks → light spam 7/24 at normal).
+- Measured AI-vs-AI (24 seeds): normal 12 hits / 24 s median, hard 13 / 27.6 s, easy 12 / 22.9 s — the 8–15 target met at every level (at health 100 with the new regen it was 8 / 16 s).
+- Evidence: 141/141 tests (tests parameterised on `RULES.health`; new tuning-pins test; stamina test rewritten for guard/sprint regen; tempo toggle test); 10/10 mutations caught; browser gate updated (riposte = HP − 24). Remaining: 6 gladiator identity, 7 process.

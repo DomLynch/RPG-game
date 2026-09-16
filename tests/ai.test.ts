@@ -5,6 +5,7 @@ import { createFighter, elapsed, idleIntent, initialDuel, stepDuel, type Duel, t
 import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
+const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
 const idle = (): Intent => ({ ...idleIntent(), lock: true });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
 const hold = (): Intent => ({ ...idle(), guard: true });
@@ -21,7 +22,7 @@ function play(profile: AiProfile, ticks: number, player: (d: Duel) => Intent, st
     travelled += Math.hypot(d.fighters[1].body.x - before.x, d.fighters[1].body.z - before.z);
     events.push(...d.events); modes.add(ai.mode);
     // Keep the observation fight alive on both sides without touching the warden's decisions or resources.
-    if (immortal) d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+    if (immortal) d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
   return { duel: d, ai, events, modes, travelled };
 }
@@ -79,7 +80,9 @@ test('a passive opponent sees a readable opener: at easy and normal the first at
     const attacks = wardenAttacks(events).filter(e => e.move !== 'kick');
     assert.ok(attacks.length >= 3, `${level} seed ${seed} attacked ${attacks.length} times`);
     assert.equal(attacks[0].move, 'heavy_overhead', `${level} seed ${seed}: the first opener is the readable heavy`);
-    assert.ok(attacks.every(e => e.move === 'heavy_overhead' || e.move === 'thrust'), `${level} seed ${seed}: ${attacks.map(e => e.move).join(' ')}`);
+    // The immortal observation fight resets health but not posture, so a passive player's posture eventually breaks; the break's window is finished with the
+    // critical, or with the riposte when the warden cannot afford a heavy — the only other moves allowed.
+    assert.ok(attacks.every(e => e.move === 'heavy_overhead' || e.move === 'thrust' || e.move === 'critical' || e.move === 'riposte'), `${level} seed ${seed}: ${attacks.map(e => e.move).join(' ')}`);
     thrusts += attacks.filter(e => e.move === 'thrust').length; openers += attacks.length - 1;
   }
   assert.ok(thrusts / openers >= .15 && thrusts / openers <= .55, `thrusts are a real but minority opener: ${thrusts}/${openers}`);
@@ -208,8 +211,8 @@ test('reads: habits become reads only with evidence, at the documented threshold
   assert.equal(readOpponent(h({ attacks: 1, parries: 1 })).parryHappy, false, 'one swing is not evidence'); assert.equal(readOpponent(h({ attacks: 2, parries: 1 })).parryHappy, true, 'two exchanges, half parried'); assert.equal(readOpponent(h({ attacks: 4, parries: 1 })).parryHappy, false);
   assert.equal(readOpponent(h({ ticks: 179, guard: 179 })).turtle, false); assert.equal(readOpponent(h({ ticks: 180, guard: 81 })).turtle, true); assert.equal(readOpponent(h({ ticks: 180, guard: 80 })).turtle, false);
   assert.equal(readOpponent(h({ attacks: 5, rolls: 2 })).roller, true); assert.equal(readOpponent(h({ attacks: 5, rolls: 1 })).roller, false);
-  assert.equal(readOpponent(h({ lights: 7, heavies: 2 })).spammer, true); assert.equal(readOpponent(h({ lights: 6, heavies: 2 })).spammer, false, 'nine swings needed'); assert.equal(readOpponent(h({ lights: 6, heavies: 3 })).spammer, false);
-  assert.equal(readOpponent(h({ lights: 6, thrusts: 3 })).spammer, false, 'thrusts are a mix, not spam'); assert.equal(readOpponent(h({ lights: 7, thrusts: 2 })).spammer, true);
+  assert.equal(readOpponent(h({ lights: 8, heavies: 3 })).spammer, true); assert.equal(readOpponent(h({ lights: 8, heavies: 2 })).spammer, false, 'eleven swings needed'); assert.equal(readOpponent(h({ lights: 7, heavies: 4 })).spammer, false);
+  assert.equal(readOpponent(h({ lights: 7, thrusts: 4 })).spammer, false, 'thrusts are a mix, not spam'); assert.equal(readOpponent(h({ lights: 8, thrusts: 3 })).spammer, true);
 });
 
 test('the warden adapts: a turtle is kicked and charged through more; a light-spammer is parried more; a roller sees delayed swings and tail punishes; a parrier gets baited lights', () => {
@@ -220,7 +223,7 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
       const read = readOpponent(ai.habits), before = d.fighters[0], mine = d.fighters[1];
       const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [player(d), w.intent]);
       for (const e of d.events) log.push({ tick: d.tick, type: e.type, move: e.move, actor: e.actor, read, f: before, m: mine });
-      d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+      d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
     }
     return { log, habits: ai.habits };
   };
@@ -248,7 +251,7 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
     if (spam && d.fighters[0].phase === 'attack' && d.fighters[0].age === PROFILES.normal.reaction && w.ai.plan && !ai.plan) plansAtReaction++;
     if (planned && readOpponent(ai.habits).spammer) { plansAfter++; if (w.ai.plan === 'parry') parriesAfter++; }
     ai = w.ai; d = stepDuel(d, [d.fighters[0].phase === 'ready' ? act('light') : idle(), w.intent]);
-    d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+    d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
   assert.ok(readOpponent(ai.habits).spammer, 'spammer read'); assert.ok(plansAfter >= 8, `enough plans after the read: ${plansAfter}`); assert.equal(plansAtReaction, 0, 'after the read no cut is first planned at the slow reaction');
   assert.ok(parriesAfter / plansAfter >= .45, `parry plans after the read: ${parriesAfter}/${plansAfter}`);
@@ -292,7 +295,7 @@ test('reads: the thrust is the warden\'s spacing opener — planned only after t
     const gap = Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x, d.fighters[0].body.z - d.fighters[1].body.z);
     const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai; d = stepDuel(d, [{ ...idle(), guard: Math.floor(d.tick / 90) % 2 === 0 }, w.intent]);
     for (const e of d.events) if (e.type === 'AttackStarted' && e.actor === 1 && e.move === 'thrust') gaps.push(gap);
-    d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+    d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
   assert.ok(gaps.length >= 1 && gaps.every(g => g >= 1.5), `thrusts thrown from range: ${gaps.map(g => g.toFixed(2)).join(' ')}`);   // sanity only; the rules are pinned above
 });
@@ -310,7 +313,7 @@ test('perception runs on elapsed time: a heavy parked at its chamber is noticed 
 
 test('fairness pass: the warden uses its own tools against pressure — the guard counter after a block, the punish of a whiffed parry, a guard walk (never a slow opener, never a standing wait) into a read spammer, and feints at a parrier', () => {
   const state = (o: Partial<AiState>): AiState => ({ ...initialAi(5), mode: 'approach', decision: 500, wait: 500, ...o });
-  const spam: Partial<Habits> = { ticks: 600, lights: 9, heavies: 0, thrusts: 0, attacks: 6, guard: 0, parries: 0, rolls: 0 };
+  const spam: Partial<Habits> = { ticks: 600, lights: 12, heavies: 0, thrusts: 0, attacks: 6, guard: 0, parries: 0, rolls: 0 };
   // Guard counter: a warden inside its counter window with the player in reach throws the heavy (heavy_counter is what the sim makes of a Heavy pressed in that window).
   const countering = arena(1.4); countering.fighters[1] = { ...countering.fighters[1], phase: 'guard', counterWindow: RULES.guardCounter - 2 };
   const counter = decide(countering, 1, state({}), PROFILES.normal);
@@ -365,7 +368,7 @@ test('a kick is never guarded or parried: with its dodge share the warden rolls 
 test('habits are counted from what the player actually threw: a thrust is a thrust, not a cut — and no profile reacts faster than a human can', () => {
   // Three thrusts from thrust range, then a cut: the counts land in the right bins (ripostes, counters and kicks are never habits).
   let d = arena(1.9), ai = initialAi(2), thrown = 0;
-  for (let i = 0; i < 600; i++) { const w = decide(d, 1, ai, PROFILES.easy); ai = w.ai; const p = d.fighters[0].phase === 'ready' && thrown < 3 && i % 90 === 0 ? (thrown++, act('thrust')) : idle(); d = stepDuel(d, [p, w.intent]); d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] }; }
+  for (let i = 0; i < 600; i++) { const w = decide(d, 1, ai, PROFILES.easy); ai = w.ai; const p = d.fighters[0].phase === 'ready' && thrown < 3 && i % 90 === 0 ? (thrown++, act('thrust')) : idle(); d = stepDuel(d, [p, w.intent]); d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] }; }
   assert.equal(ai.habits.thrusts, 3, `thrusts counted: ${JSON.stringify(ai.habits)}`); assert.equal(ai.habits.lights, 0, 'and not as lights');
   // Reaction floors: 10 ticks (167 ms) is about the fastest a human notices a tell; the honest clock never goes under it. Reads may anticipate, reactions may not.
   assert.ok(PROFILES.hard.reaction >= 10, `hard reacts in ${PROFILES.hard.reaction} ticks`); assert.ok(PROFILES.normal.reaction > PROFILES.hard.reaction && PROFILES.easy.reaction > PROFILES.normal.reaction);

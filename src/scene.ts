@@ -151,7 +151,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     splat.rotation.x=-Math.PI/2; splat.visible=false; scene.add(splat); return {mesh:splat,life:0};
   });
   let bloodMode: 'red' | 'dark' | 'off' = 'red', splatIndex=0, impactDuration=.18, impactHeading=0, flesh=false;
-  let impact = 0, lastHealth = 100, lastPlayerHealth = 100;
+  let impact = 0, lastHealth: number = RULES.health, lastPlayerHealth: number = RULES.health;
   const desired = new THREE.Vector3(), look = new THREE.Vector3(), aim = new THREE.Vector3(0, 1, 0);
   let yaw = 0, pitch = 0.45, heading = Math.PI, started = false;
   // Camera kick: a blow nudges the camera a few centimetres along the blow's heading and it settles in ~0.15 s. Small on purpose
@@ -176,7 +176,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     // frozen tick without advancing their clocks — the one impact pause is the frame loop's.
     render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events, frozen = false) {
       const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
-      if (practice.health===100 && practice.playerHealth===100 && (lastHealth<100 || lastPlayerHealth<100)) { impact=0; for(const splat of splats) splat.life=0; }
+      if (practice.health===RULES.health && practice.playerHealth===RULES.health && (lastHealth<RULES.health || lastPlayerHealth<RULES.health)) { impact=0; for(const splat of splats) splat.life=0; }
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;
