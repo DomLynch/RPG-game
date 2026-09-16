@@ -1,6 +1,6 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
-import { inBufferWindow, initialDuel, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
+import { inBufferWindow, initialDuel, legal, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
 import { MOVES, PATHS, PROFILES, RULES, total, type AiProfile, type MoveId, type PathId } from './moves.ts';
 import type { State } from './sim.ts';
 export { PROFILES, RULES, MOVES } from './moves.ts';
@@ -79,7 +79,7 @@ export function practiceHint(s: Practice): string {
   if (s.phase === 'sheathed') return 'Draw your sword. The warden will counterattack.';
   if (s.phase === 'draw') return 'Drawing longsword…';
   if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken — Heavy for the critical!';
-  if (me.phase === 'attack' && me.charge) return !MOVES[me.move!].charges ? 'Chambered · release to strike · back to centre to feint' : me.charged ? 'Charged · breaks a guard' : 'Charging… keep holding';
+  if (me.phase === 'attack' && me.charge) return !movesOf(me)[me.move!].charges ? 'Chambered · release to strike · back to centre to feint' : me.charged ? 'Charged · breaks a guard' : 'Charging… keep holding';
   if (s.threat) return s.threatMove === 'heavy_overhead' ? (s.duel.fighters[1].charge ? 'Incoming strike — charged heavy: a guard will break · roll or parry the release!' : 'Incoming strike — heavy: guard takes chip · parry or roll') : s.threatMove === 'thrust' ? 'Incoming strike — thrust: fast and long · block it or step aside' : 'Incoming strike — roll or time your guard!';
   if (me.exhausted) return 'Exhausted · walk it off until your stamina returns';
   if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return 'Warden guarding · heavy or close-range kick';

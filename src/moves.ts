@@ -9,7 +9,8 @@ export const total = (t: Timing): number => t.windup + t.active + t.recovery;
 // Baked blade trajectories: one immutable table per (authored clip, timing). scripts/bake-blades.mjs samples the rig at these
 // timings; tests assert the shipped rig still agrees. `source` is the contact time inside the clip; `clip` is the rig animation.
 export type PathId = 'light_right' | 'light_left' | 'light_right_chain' | 'light_left_chain' | 'heavy_overhead' | 'heavy_overhead_chain' | 'thrust' | 'riposte' | 'heavy_riposte';
-export const PATHS: Record<PathId, Timing & { clip: 'Attack' | 'Return' | 'Heavy' | 'Riposte'; source: number }> = {
+export type PathSpec = Timing & { clip: 'Attack' | 'Return' | 'Heavy' | 'Riposte'; source: number };
+export const PATHS: Record<PathId, PathSpec> = {
   // The cut: a horizontal arc (UAL2 Sword_Regular_A right-to-left, _B the backhand) with a real swing — 20 ticks of tell (333 ms) and an
   // 8-tick sweep. It was 14/5/21 (233 ms, under human reaction) on a fast diagonal flick: the owner read it as "too quick and shallow".
   light_right: { clip: 'Attack', source: .34, windup: 20, active: 8, recovery: 22 },
@@ -146,6 +147,17 @@ export type AiProfile = {
   discipline: number;  // stamina floor below which it retreats and recovers
   lapse: number;       // 0..1 chance a noticed swing gets no answer at all (a human does not react to every cut they see; the AI would)
 };
+// A weapon is data a fighter carries: its move table, its blade paths (baked per weapon by scripts/bake-blades.mjs from
+// scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
+// Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
+// not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
+export type WeaponId = 'longsword' | 'trident';
+export type Material = 'iron' | 'bronze' | 'wood';
+export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true };
+export const LONGSWORD: Weapon = { id: 'longsword', moves: MOVES, paths: PATHS, guard: 'blade', material: 'iron', reach: MOVES.thrust.reach };
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: { ...LONGSWORD, id: 'trident', placeholder: true } };
+export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
+
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.
   easy: { reaction: 24, accuracy: .5, parry: .1, dodge: .1, aggression: .45, pressure: 0, discipline: 60, lapse: .45 },

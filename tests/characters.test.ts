@@ -187,7 +187,7 @@ test('baked collision paths match the shipped blade throughout every active stri
     for(let age=spec.windup-1;age<=spec.windup+spec.active;age++) {
       mixer.setTime(swingProgress(age/length,spec.windup/length,spec.source)*clip.duration);asset.scene.updateMatrixWorld(true);
       const actual=[.18,.86].flatMap(y=>blade.localToWorld(new Vector3(0,y,0)).toArray());
-      assert.ok(actual.every((v,i)=>Math.abs(v-bladePose(kind,age)[i])<.00002),`${kind} tick ${age}`);
+      assert.ok(actual.every((v,i)=>Math.abs(v-bladePose('longsword',kind,age)[i])<.00002),`${kind} tick ${age}`);
     }
     action.stop();
   }
@@ -272,7 +272,7 @@ test('the cuts are hooks: the blade tip never passes behind the shoulder line in
 test('one stroke, quantified: the first cut loads on the side the sword rests (the right hip), the sideways travel is all one way inside the cut, it stops at the extended pose, and the return retraces the arc at chest height (no lift over the head)', () => {
   // The baked paths are what the simulation sweeps and what the player sees. x < 0 is the fighter's right; the armed idle holds the sword at the right hip.
   for (const [id, loadSide] of [['light_right', -1], ['light_left', 1]] as const) {
-    const t = PATHS[id], p = bladePaths[id], x = p.map(f => f[3]), y = p.map(f => f[4]);
+    const t = PATHS[id], p = bladePaths.longsword[id], x = p.map(f => f[3]), y = p.map(f => f[4]);
     const travel = (a: number, b: number) => { let toLeft = 0, toRight = 0; for (let i = a + 1; i <= b; i++) { const d = x[i] - x[i - 1]; if (d > 0) toLeft += d; else toRight -= d; } return { toLeft, toRight }; };
     const load = travel(0, t.windup - 6), cut = travel(t.windup - 6, t.windup + t.active), retract = travel(t.windup + t.active, p.length - 1);
     // Load: the tip stays on its own side and barely moves sideways (a raise, not a swing across the body).
