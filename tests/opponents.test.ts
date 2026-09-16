@@ -28,6 +28,28 @@ test('on trunk nothing changes: initialDuel() is the Veteran — the longsword, 
   assert.equal(WEAPONS.cleaver.placeholder, true); assert.equal(WEAPONS.cleaver.moves, MOVES); assert.deepEqual(bladePaths.cleaver, bladePaths.longsword);
 });
 
+// The goblin (opponent 4, character lane): his data entry and the knife slot are in; his fight identity (feints, no guard, darting) waits on the
+// AI knobs the combat lane owns (artifacts/goblin/REQUESTS.md), so this pins the seam only — no fairness battery is asserted for him yet.
+test('the goblin is set up from his data: the knife slot (the longsword\'s data until the weapons lane ships it), 0.78× scale, 100 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes', () => {
+  const G = OPPONENTS.goblin, [hero, goblin] = initialDuel(G).fighters;
+  assert.deepEqual(hero, initialDuel().fighters[0]);
+  assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .78); assert.equal(goblin.health, 100); assert.equal(goblin.maxHealth, 100); assert.equal(goblin.poise, 0);
+  assert.equal(WEAPONS.knife.placeholder, true); assert.equal(WEAPONS.knife.moves, MOVES); assert.deepEqual(bladePaths.knife, bladePaths.longsword);
+  for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.parry, 0, `${level}: he never parries`); assert.ok(p.dodge >= .3 && p.reaction <= PROFILES[level].reaction, `${level}: dodges, reacts fast`); }
+  // The capsule follows his height: a blade level at 1.40 m is a head hit on a man and passes over the goblin; at 1.13 m (1.45 × 0.78) it finds his head where a man takes it in the chest.
+  bladePaths.probe = { flat: [[-.5, 1.4, 0, .5, 1.4, 0], [-.5, 1.4, 0, .5, 1.4, 0]], low: [[-.5, 1.13, 0, .5, 1.13, 0], [-.5, 1.13, 0, .5, 1.13, 0]] };
+  const o: State = { x: 0, z: 0, heading: 0, distance: 0 };
+  try { assert.equal(bladeImpact('probe', 'flat', 0, 1, o, o, o, o, G.scale), null); assert.equal(bladeImpact('probe', 'low', 0, 1, o, o, o, o, G.scale), 'head'); assert.equal(bladeImpact('probe', 'low', 0, 1, o, o, o, o), 'torso'); }
+  finally { delete bladePaths.probe; }
+  const lengths: number[] = [];
+  for (let s = 1; s <= 12; s++) {
+    let d = ring(G, 1.6), a = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), b = initialAi((s * 2654435761) >>> 0);
+    for (let i = 0; i < 7200 && !d.finish; i++) { const x = decide(d, 0, a, PROFILES.normal), y = decide(d, 1, b, G.profiles.normal); a = x.ai; b = y.ai; d = stepDuel(d, [x.intent, y.intent]); }
+    assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
+  }
+  console.log(`goblin AI vs AI (provisional profile, longsword data): median ${(lengths.sort((x, y) => x - y)[6] / 60).toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[11] / 60).toFixed(1)} s`);
+});
+
 test('the Pitborn is set up from his data: the cleaver slot, 1.13× scale, 190 health and poise 16 on the warden side; the hero is unchanged', () => {
   const [hero, brute] = initialDuel(P).fighters;
   assert.deepEqual(hero, initialDuel().fighters[0]);

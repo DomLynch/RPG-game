@@ -55,6 +55,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset)
   function create(opponent: boolean) {
     const { asset, clips } = opponent && enemy ? enemy : hero;
     const root = clone(asset.scene), anchor = new Group(); anchor.add(root);
+    // A re-proportioned fighter's walk cycle covers less ground than a man's (build-warrior.mjs writes `stride`, root scale × leg scale, on
+    // the rig node): his locomotion clips play faster by that so the feet keep planting at the simulation's travel speed. A man's is 1.
+    let stride = 1; asset.scene.traverse(o => { if (typeof o.userData.stride === 'number' && o.userData.stride > 0) stride = o.userData.stride; });
     root.traverse(object => {
       if (!(object instanceof Mesh)) return;
       object.castShadow = object.receiveShadow = true;
@@ -89,8 +92,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset)
         actions.slice(1, 4).forEach(action => action.setEffectiveTimeScale(travelSpeed < 0 ? -1 : 1));
         const weights = gaitWeights(speed);
         if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-weights[0], side = Math.min(1,Math.abs(lateral)); weights.fill(0,1); weights[14] = movement*(1-side); weights[lateral < 0 ? 15 : 16] = movement*side; }
-        actions[14].setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/1.7));
-        for (const i of [15,16]) actions[i].setEffectiveTimeScale(Math.max(.25,speed/ .75));
+        actions[14].setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
+        for (const i of [15,16]) actions[i].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
         const combatIndex = pose === 'block' ? 18 : pose === 'parry' ? 19 : pose === 'deflected' ? 20 : pose === 'kick' ? 17 : pose === 'attack' ? attack === 'return' ? 11 : attack === 'heavy' ? 12 : attack === 'riposte' ? 13 : 5 : pose === 'hit' ? 6 : pose === 'death' ? 7 : pose === 'draw' ? 8 : pose === 'roll' ? 9 : pose === 'guard' ? 10 : -1;
         const armed = pose !== 'sheathed';
         if (armed) { weights[4] = weights[0]; weights[0] = 0; }

@@ -37,9 +37,13 @@ SUFFIX = ('_r' if FIGHTER == 'hero' else f'_{FIGHTER}') if realistic else ''  # 
 # and helm are set in build-warrior.mjs (material factor, default items).
 # The Pitborn (opponent 3, the first creature): no tunic — a rag sash over the left shoulder, a crude iron belt, rag kilt, rope
 # wraps, bare feet, no helm; `brute` doubles the frame's shoulder and chest gains and thickens the neck; tusks are cut on the scan head.
-KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': True},
-       'veteran': {'linen': (0.40, 0.37, 0.32), 'grime': 0.72, 'greaves': True, 'build': True, 'bare': False, 'brute': False, 'helm': True},
-       'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
+# The goblin (opponent 4, the pit-runner): a filthy rag tunic on the shared cut, the baldric as his one scavenged leather scrap, a thin leather belt,
+# rag wraps, bare feet, no helm, no frame gains (a wiry small man — his proportions are the rig's, in build-warrior.mjs BUILD.goblin); long torn
+# ears cut on the scan head; his trophies (bone necklace, one iron bracer) are rigid pieces in build-warrior.mjs.
+KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': True, 'barefoot': False, 'ears': False},
+       'veteran': {'linen': (0.40, 0.37, 0.32), 'grime': 0.72, 'greaves': True, 'build': True, 'bare': False, 'brute': False, 'helm': True, 'barefoot': False, 'ears': False},
+       'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False, 'barefoot': True, 'ears': False},
+       'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -665,8 +669,8 @@ def level1_kit():
     for elbow, hand, side in [(elbow_l, hand_l, 1), (elbow_r, hand_r, -1)]:
         for k in range(7):
             kit.append(ring_strip(f'wrap_{"l" if side > 0 else "r"}_{k}', 'Wrap', elbow, hand, 0.93 - k * 0.055, 0.06, lift=0.003 + (k % 2) * 0.002, probe_radius=0.1, max_reach=0.09, rows_n=3))
-    # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare. The brute fights barefoot.
-    for foot, ball, side in [] if KIT['bare'] else [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
+    # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare. The brute and the goblin fight barefoot.
+    for foot, ball, side in [] if KIT['barefoot'] else [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
         name = 'l' if side > 0 else 'r'
         kit.append(extract(f'sole_{name}', 'Leather', lambda p, s=side: p.x * s > 0 and p.z < 0.03, lift=0.0, thickness=0.007,
                            face_keep=lambda f: f.normal.z < -0.45))  # one flat sole: every downward face under the foot, arch included; nothing on the toes
@@ -913,6 +917,56 @@ def tusks(head_obj, eye_l, eye_r):
         bpy.ops.object.shade_smooth()
         out.append(tag(obj, me.name, 'Bone', bone='Head', slot='Face'))
         print(f'TUSK {side}: base {tuple(round(c, 3) for c in base)} mouth_z {mouth_z:.3f}')
+    return out
+
+
+def ears(head_obj, eye_l, eye_r):
+    """The goblin's long ears: two flattened cones rooted where the scan's own ears sit (a ray from beside the head at the ear canal's
+    height, a little behind the eye plane), pointing up, out and back, riding rigid on the Head bone like the tusks. They wear the
+    scan head's own photo tile: every vertex is mapped to one patch of cheek skin (the tile's texel under the eye, walked a few texels
+    along the ear) so the colour is the face's, whatever the skin correction did. The scan's small human ears stay under their roots."""
+    eyes = (eye_l + eye_r) / 2
+    m = head_obj.matrix_world
+    inv = m.inverted()
+    # the cheek patch the ears borrow their colour from: the closest surface point below the left eye, and its face's first UV
+    ok, cheek, _, face_index = head_obj.closest_point_on_mesh(inv @ Vector((-0.045, eyes.y - 0.012, eyes.z - 0.045)))
+    uv_layer = head_obj.data.uv_layers[0].data
+    poly = head_obj.data.polygons[face_index]
+    cheek_uv = sum((uv_layer[i].uv for i in poly.loop_indices), Vector((0.0, 0.0))) / len(poly.loop_indices)
+    out = []
+    for side in (-1, 1):
+        origin = inv @ Vector((side * 0.35, eyes.y + 0.072, eyes.z - 0.006))  # beside the head at the ear canal
+        hit, loc, normal, _ = head_obj.ray_cast(origin, (inv.to_3x3() @ Vector((-side, 0, 0))).normalized())
+        if not hit:
+            print(f'EAR {side}: no head surface found, skipped')
+            continue
+        base = m @ loc
+        n = (m.to_3x3() @ normal).normalized()
+        bm = bmesh.new()
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=12, radius1=0.031, radius2=0.0025, depth=0.125)
+        for v in bm.verts:
+            t = (v.co.z + 0.0625) / 0.125  # 0 root → 1 tip
+            v.co.y *= 0.36 + 0.14 * t  # a leaf, not a spike: thin, thinnest at the root where it meets the skull
+            v.co.x *= 1.0 + 0.35 * t * (1 - t)  # widest a third of the way up
+        uv = bm.loops.layers.uv.new('UVMap')
+        for f in bm.faces:
+            for loop in f.loops:
+                t = (loop.vert.co.z + 0.0625) / 0.125
+                loop[uv].uv = cheek_uv + Vector((0.006 * t, 0.004 * math.sin(t * 9)))  # a short walk over the cheek texels: mottling, not one flat texel
+        me = bpy.data.meshes.new(f'ear_{"l" if side > 0 else "r"}')
+        bm.to_mesh(me)
+        bm.free()
+        obj = bpy.data.objects.new(me.name, me)
+        bpy.context.scene.collection.objects.link(obj)
+        axis = Vector((side * 0.62, 0.30, 0.74)).normalized()  # up, out and back (owner: "long ears")
+        obj.rotation_mode = 'QUATERNION'
+        obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(axis)
+        obj.location = base - n * 0.014 + axis * (0.0625 - 0.010)  # cone centre: the root 14 mm inside the skull, ~11 of the 12.5 cm showing
+        select_only([obj])
+        bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
+        bpy.ops.object.shade_smooth()
+        out.append(tag(obj, me.name, 'Photo', bone='Head', slot='Face'))
+        print(f'EAR {side}: base {tuple(round(c, 3) for c in base)} cheek uv {tuple(round(c, 4) for c in cheek_uv)}')
     return out
 
 
@@ -1522,6 +1576,8 @@ else:
         strip_crown_under_helm(HELM)
     if realistic and use_kt and KIT['brute']:
         body_parts += tusks(bpy.data.objects['kt_head'], el, er)
+    if realistic and use_kt and KIT['ears']:
+        body_parts += ears(bpy.data.objects['kt_head'], el, er)
     if realistic:
         export_kit(body_parts, os.path.join(out, f'body_{VARIANT}.glb'))  # head, body, eyes, hair/brow/lash cards
     tunic = next(o for o in kit if o.name == 'tunic')

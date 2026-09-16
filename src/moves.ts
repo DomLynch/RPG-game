@@ -151,7 +151,7 @@ export type AiProfile = {
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
-export type WeaponId = 'longsword' | 'trident' | 'cleaver';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'knife';
 export type Material = 'iron' | 'bronze' | 'wood';
 export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true };
 export const LONGSWORD: Weapon = { id: 'longsword', moves: MOVES, paths: PATHS, guard: 'blade', material: 'iron', reach: MOVES.thrust.reach };
@@ -194,7 +194,7 @@ export const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: { ...LONGSWORD, id: 'cleaver', placeholder: true } };   // cleaver: the Pitborn's, on the sword clip family; the weapons lane replaces the data
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: { ...LONGSWORD, id: 'cleaver', placeholder: true }, knife: { ...LONGSWORD, id: 'knife', placeholder: true } };   // cleaver: the Pitborn's; knife: the goblin's short hooked knife — both on the sword clip family, the longsword's data until the weapons lane replaces it (the goblin's timings: artifacts/character/BRIEF-goblin.md)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
@@ -209,7 +209,7 @@ export type Level = keyof typeof PROFILES;
 // modulates every opponent. The Veteran is the warden as shipped; `initialDuel()` with no argument is still exactly him.
 // poise: a plain clean hit dealing less than this damage never staggers him (it still wounds and builds posture); heavies,
 // counter-hits, stop-hits, rear hits and charged blows always do. 0 = staggered by everything, the human default.
-export type OpponentId = 'veteran' | 'pitborn';
+export type OpponentId = 'veteran' | 'pitborn' | 'goblin';
 export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile> };
 export const OPPONENTS: Record<OpponentId, Opponent> = {
   veteran: { id: 'veteran', weapon: 'longsword', scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },
@@ -220,5 +220,15 @@ export const OPPONENTS: Record<OpponentId, Opponent> = {
     easy: { reaction: 28, accuracy: .5, parry: .05, dodge: .05, aggression: .6, pressure: .6, discipline: 30, lapse: .45 },
     normal: { reaction: 18, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .3 },
     hard: { reaction: 14, accuracy: .9, parry: .3, dodge: .2, aggression: .95, pressure: .75, discipline: 20, lapse: .1 },
+  } },
+  // The goblin (opponent 4, the pit-runner): small, fast, mean — 0.78× a man (his measured standing height; the rig is re-proportioned, not
+  // shrunk: build-warrior.mjs BUILD.goblin), 100 health, poise 0 (anything staggers him). Reaction fast, parry 0 (he never parries), the dodge
+  // share high, a low discipline floor. PROVISIONAL, character lane: the fight identity the brief asks for — feint rate, a guard share of zero,
+  // back-steps after landing, constant circling, fast stamina regen — needs knobs ai.ts/duel.ts do not have yet (artifacts/goblin/REQUESTS.md);
+  // the combat lane owns these numbers and the fairness battery for him. The knife is the longsword's data until the weapons lane ships it.
+  goblin: { id: 'goblin', weapon: 'knife', scale: .78, health: 100, poise: 0, profiles: {
+    easy: { reaction: 18, accuracy: .55, parry: 0, dodge: .3, aggression: .55, pressure: .3, discipline: 35, lapse: .4 },
+    normal: { reaction: 10, accuracy: .8, parry: 0, dodge: .5, aggression: .7, pressure: .5, discipline: 25, lapse: .2 },
+    hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .6, aggression: .8, pressure: .6, discipline: 20, lapse: .08 },
   } },
 };
