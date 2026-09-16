@@ -308,11 +308,12 @@ function reachArm(side, target, leg = false) {
 for (const [name, keys] of [
   ['Heavy', [[0,[.18,1.3,.3],[0,0,1]],[.28,[.2,1.65,-.08],[0,1,-.4]],[.48,[.04,1.13,.43],[0,0,1]],[.64,[.28,.98,.35],[.3,-.6,.7]],[1,[.18,1.3,.3],[0,0,1]]]],
   ['Riposte', [[0,[.18,1.3,.3],[0,0,1]],[.2,[.15,1.25,.05],[0,0,1]],[.34,[.02,1.23,.48],[0,0,1]],[.55,[.04,1.2,.48],[0,0,1]],[1,[.18,1.3,.3],[0,0,1]]]],
-  // Key phases follow the sim's swing easing: 0–.34 is the wind-up (cocked out to one side: the tell), .34 the contact in front, .34–.7 the
-  // active sweep across to the other side, .7–1 the recovery back to rest. The whole arc stays in front of the shoulder line (hand z ≥ .2,
-  // blade pointing sideways-forward): a cut is swung past the front of the body, never wound up behind the back (owner, 2026-09-16).
-  ['Attack', [[0,[.18,1.3,.3],[0,0,1]],[.15,[.44,1.24,.22],[.88,.18,.42]],[.34,[.25,1.18,.5],[0,0,1]],[.5,[-.12,1.2,.46],[-.6,0,.8]],[.7,[-.45,1.22,.28],[-.92,.02,.38]],[1,[.18,1.3,.3],[0,0,1]]]],
-  ['Return', [[0,[.18,1.3,.3],[0,0,1]],[.15,[-.34,1.22,.24],[-.86,.16,.48]],[.34,[-.02,1.18,.5],[0,0,1]],[.5,[.22,1.2,.44],[.6,0,.8]],[.7,[.5,1.24,.26],[.9,.02,.42]],[1,[.18,1.3,.3],[0,0,1]]]]
+  // A cut is a hook with a sword (owner, 2026-09-16): a short load from guard on one side (blade lifted, not swung out), one power arc through
+  // the front to the other side, a short stop past the target, then a retraction that LIFTS the sword back to guard — never a mirror swing back
+  // along the arc (that read as a weave), never behind the shoulder line, never dipping toward the floor. Key phases follow the sim's swing
+  // easing: 0–.34 the load, .34 contact in front, .34–.7 the active arc, .7–1 the retraction.
+  ['Attack', [[0,[.18,1.3,.3],[0,0,1]],[.15,[.34,1.26,.16],[.7,.35,.62]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.38,1.24,.34],[-.86,.08,.5]],[.86,[-.02,1.42,.3],[-.15,.85,.5]],[1,[.18,1.3,.3],[0,0,1]]]],
+  ['Return', [[0,[.18,1.3,.3],[0,0,1]],[.15,[-.26,1.26,.18],[-.68,.35,.64]],[.34,[-.02,1.18,.5],[0,0,1]],[.52,[.24,1.2,.44],[.62,0,.78]],[.7,[.44,1.26,.32],[.86,.08,.5]],[.86,[.22,1.42,.3],[.15,.85,.5]],[1,[.18,1.3,.3],[0,0,1]]]]
 ]) {
   const positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
   for (const [phase, position, direction] of keys) {
