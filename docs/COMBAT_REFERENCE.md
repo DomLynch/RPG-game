@@ -81,6 +81,10 @@ Draw → the warden closes → fight to 0 health → Rematch (new warden seed). 
 
 Measured AI-vs-AI (24 seeds): easy median 36 s / 7 hits · normal 28 s / 6 hits · hard 22 s / 8 hits; no timeouts.
 
+## 9b. Weapons (the slot)
+
+A fighter carries a `weapon` (`src/moves.ts` `WEAPONS`): its move table, its baked blade paths (from `scripts/blade-manifest.json`, one entry per weapon: rig, node, contact segment in metres along the node's Y — `extras.contact` on the node overrides), the kind of guard it makes (`blade` / `shaft`), its material (audio cues) and the reach the warden reasons with. Every lookup in the simulation, the AI and the HUD goes through the fighter's weapon. Today both fighters carry the **longsword**; the **trident** entry is the longsword's data marked placeholder until the weapons lane lands it. Hit / Blocked / Parried / GuardBroken events carry `weapon` and `material`.
+
 ## 10. Not in the game (decided)
 
 - Weapon families (hammer/spear/axe) — parked until the longsword loop is perfect.

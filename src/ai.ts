@@ -1,5 +1,5 @@
-import { MOVES, RULES, type AiProfile } from './moves.ts';
-import { aim, distance, elapsed, idleIntent, legal, timing, walled, type Action, type Duel, type Intent, type Side } from './duel.ts';
+import { RULES, type AiProfile, type MoveId } from './moves.ts';
+import { aim, distance, elapsed, idleIntent, legal, movesOf, timing, walled, type Action, type Duel, type Intent, type Side } from './duel.ts';
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
 // action `reaction` ticks late, and emits an ordinary Intent that stepDuel judges by the same rules as the player's.
@@ -26,7 +26,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const M = duel.fighters[me], F = duel.fighters[1 - me], tick = duel.tick, next = { ...ai, scores: {} as Record<string, number> }, intent = idleIntent();
   if (!M.health || !F.health || F.phase === 'sheathed' || F.phase === 'draw') return { intent, ai: next };
   const roll = () => { next.seed = lcg(next.seed); return next.seed / 2 ** 32; };
-  const gap = distance(M.body, F.body), facing = aim(M.body, F.body);
+  const gap = distance(M.body, F.body), facing = aim(M.body, F.body), mine = movesOf(M), theirs = movesOf(F);   // each side reads its own weapon's tables
   next.lastGap = gap; next.lastTravel = F.body.distance;   // for the next tick's read of an advancing opponent
   const canAct = M.phase === 'ready' || M.phase === 'guard';
   // Observe the opponent's habits from state edges (age 0 = this tick's start) and read them.
@@ -41,9 +41,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // light held against a parry-happy player is a bait that outlives the parry window. The hold ends with the swing.
   if (M.phase !== 'attack') { next.hold = false; next.feint = false; }
   // A feinted swing: started to draw the parry, cancelled into a guard on the last feintable tick — the parry-happy player's press now meets nothing.
-  if (next.feint && M.phase === 'attack' && M.move && M.age === MOVES[M.move].feintUntil - 1) { next.feint = false; return { intent: { ...intent, action: 'parry', guard: true }, ai: next }; }
+  if (next.feint && M.phase === 'attack' && M.move && M.age === mine[M.move].feintUntil - 1) { next.feint = false; return { intent: { ...intent, action: 'parry', guard: true }, ai: next }; }
   intent.held = next.hold && M.phase === 'attack' && (M.move === 'heavy_overhead' ? M.charge < RULES.charge.min : M.charge < READ.baitHold);
-  const charging = (f: typeof F) => f.phase === 'attack' && f.move !== null && f.charge > 0 && MOVES[f.move].charges;   // a chambered light is a bait, not a guard breaker
+  const charging = (f: typeof F) => f.phase === 'attack' && f.move !== null && f.charge > 0 && movesOf(f)[f.move].charges;   // a chambered light is a bait, not a guard breaker
   // Being hit: back off briefly, then decide afresh (re-engage or keep distance) rather than drifting away.
   if (M.phase === 'hurt' && M.age === 1) { next.retreatUntil = tick + 48; next.decision = 48; next.mode = 'retreat'; next.plan = null; next.next = null; next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); }   // a landed blow earns the player a window; no instant retaliation
   // Perception. An attack is noticed `reaction` ticks after it starts; one response is planned per attack.
@@ -55,11 +55,11 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const noticed = threat && elapsed(F) >= reaction;
   if (!threat) next.plan = null;
   else if (elapsed(F) === reaction) {
-    const r = roll(), inRange = gap <= MOVES[F.move!].reach + .4, unblockable = MOVES[F.move!].breaksGuard || charging(F), affordable = M.stamina >= MOVES[F.move!].staminaDamage;
+    const r = roll(), inRange = gap <= theirs[F.move!].reach + .4, unblockable = theirs[F.move!].breaksGuard || charging(F), affordable = M.stamina >= theirs[F.move!].staminaDamage;
     // A kick cannot be parried and punishes a raised guard, so a guard or a parry is never the answer. With its dodge share the warden rolls
     // (or steps out without the stamina); otherwise it takes the kick — a cheap poke whose point is to open a guard, and a warden that
     // escaped every kick would have no guard left to open (a backstep escapes it as surely as a roll).
-    if (inRange && !MOVES[F.move!].parryable) { next.plan = r < profile.dodge ? (M.stamina >= RULES.rollCost ? 'dodge' : 'evade') : 'ignore'; next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1)); }
+    if (inRange && !theirs[F.move!].parryable) { next.plan = r < profile.dodge ? (M.stamina >= RULES.rollCost ? 'dodge' : 'evade') : 'ignore'; next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1)); }
     else {
     // A lapse: the swing was seen but gets no answer (a cut of 20 ticks is reactable; a human still eats a share of them). Reads sharpen attention:
     // against a read spammer the lapse halves.
@@ -74,8 +74,8 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const opening = (F.phase === 'hurt' && F.age >= profile.reaction) || F.exhausted || F.exposed > 0 || (F.phase === 'attack' && !F.landed && F.age - timing(F).windup - timing(F).active >= profile.reaction) || (reads.roller && F.phase === 'roll' && F.age >= RULES.safeEnd);   // a parry that met nothing is the classic opening
   const guarded = F.phase === 'guard' && F.age >= profile.reaction;
   // Walking onto the point: the opponent moved this tick and the gap closed, from beyond cutting range to inside the thrust's.
-  const advancing = (F.phase === 'ready' || F.phase === 'guard') && F.body.distance > ai.lastTravel && ai.lastGap > gap + .01 && gap < MOVES.thrust.reach - .1 && gap > MOVES.light_right.reach - .1;
-  const pressured = reads.spammer && F.phase === 'ready' && gap <= MOVES.light_right.reach + .1;   // a read spammer standing ready inside cutting range will cut before a slow swing lands
+  const advancing = (F.phase === 'ready' || F.phase === 'guard') && F.body.distance > ai.lastTravel && ai.lastGap > gap + .01 && gap < mine.thrust.reach - .1 && gap > mine.light_right.reach - .1;
+  const pressured = reads.spammer && F.phase === 'ready' && gap <= theirs.light_right.reach + .1;   // a read spammer standing ready inside cutting range will cut before a slow swing lands
   // Movement mode: seeded, bounded decisions; never reads hidden input.
   // Timers pause while staggered: the punish window is measured from recovery, not from the blow.
   if (M.phase !== 'hurt') { next.decision = Math.max(0, next.decision - 1); next.wait = Math.max(0, next.wait - 1); }
@@ -118,7 +118,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // honest, readable attack against a standing opponent, so every difficulty shows the player the parry timing.
   if (canAct && !M.exhausted) {
     // Move reach already includes the wind-up step-in; a small margin keeps swings from whiffing at the edge.
-    const inReach = (id: keyof typeof MOVES) => gap <= MOVES[id].reach - .1 && legal(M, id === 'heavy_overhead' ? 'heavy' : id === 'kick' ? 'kick' : id === 'thrust' ? 'thrust' : 'light');
+    const inReach = (id: MoveId) => gap <= mine[id].reach - .1 && legal(M, id === 'heavy_overhead' ? 'heavy' : id === 'kick' ? 'kick' : id === 'thrust' ? 'thrust' : 'light');
     const r = roll();
     const scores: Record<string, number> = {
       critical: M.critical > 0 && inReach('heavy_overhead') ? 1.6 : 0,   // a broken posture is finished with the critical, not a riposte
@@ -155,7 +155,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (pressured && canAct && !M.exhausted && !threat && !low) intent.guard = true;
   if (next.mode === 'guard' && canAct && !M.exhausted) { intent.guard = true; return { intent, ai: next }; }
   // Closing distance: to cutting range normally; a warden that has decided on a thrust stops just inside thrust reach, so the thrust opens from where a cut cannot reach.
-  const forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? MOVES.thrust.reach - .2 : 1.15) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : 0;
+  const forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : 1.15) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : 0;
   const lateral = next.mode === 'circle' ? next.side * .25 : 0;
   intent.move = { x: Math.sin(facing) * forward + Math.cos(facing) * lateral, z: Math.cos(facing) * forward - Math.sin(facing) * lateral, yaw: 0, run: false };
   return { intent, ai: next };
