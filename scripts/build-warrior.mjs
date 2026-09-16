@@ -154,7 +154,7 @@ for (const file of partFiles) {
 }
 // Equipped items (WARRIOR_ITEMS=ranger,...): src/assets/source/items/<name>.glb, same contract as parts. An item replaces
 // whatever the level-1 kit put in the same slot. Demo builds only until the runtime swaps slots itself.
-const items = process.env.WARRIOR_ITEMS ?? (fighter === 'veteran' ? 'helmet_bronze,crest_red' : ''); // the Veteran fights in his bronze helm and crest by default
+const items = process.env.WARRIOR_ITEMS ?? (fighter === 'veteran' ? 'helmet_bronze' : ''); // the Veteran fights in a plain bronze helm: a poor first opponent (owner, 2026-09-16 — the crest floated, and extravagance is for later, harder men; crest_red_veteran.glb stays built)
 for (const item of items.split(',').filter(Boolean)) {
   const own = `src/assets/source/items/${item}_${fighter}.glb`, file = fighter !== 'hero' && await fs.stat(own).then(() => true, () => false) ? own : `src/assets/source/items/${item}.glb`; // a helm is shelled from its fighter's skull
   const glb = await fs.readFile(file), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');

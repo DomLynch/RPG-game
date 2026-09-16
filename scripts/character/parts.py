@@ -961,25 +961,75 @@ def heraldry_maps(size=512):
 
 
 def bronze_maps():
-    """Worn bronze at 512: warm metal, green-black patina in the low noise, bright scratches, roughness that follows the wear."""
-    size = 512
-    height = fbm(size, 21, octaves=(4, 8, 16, 32, 64))
+    """Aged, hand-hammered bronze at 1024 (tiles 2× around a helm or shin): a dull copper-brown metal, not gold — oxide
+    mottling over the whole surface, shallow round hammer dents whose facets catch the light, corrosion pits, a few deep
+    gouges with dark bottoms and many fine scratches showing bright fresh metal, grey-green patina pooling in the pits and
+    low noise (desaturated: the materials rule). Satin roughness — worn metal must still respond to light, but never as
+    a mirror — rougher in the patina, smoother along the scratches; the patina is dielectric (oxide), the metal metallic."""
+    size = 1024
     rng = np.random.default_rng(22)
-    scratch = np.zeros((size, size), dtype=np.float32)
-    for _ in range(90):
-        x0, y0, a, n = rng.random() * size, rng.random() * size, rng.random() * math.pi, int(15 + rng.random() * 70)
-        xs = (x0 + np.cos(a) * np.arange(n)).astype(int) % size
-        ys = (y0 + np.sin(a) * np.arange(n)).astype(int) % size
-        scratch[ys, xs] = 1
-    cavity = np.clip(1 - height, 0, 1) ** 1.5
-    bronze = np.array([0.42, 0.27, 0.13])[None, None, :]
-    patina = np.array([0.10, 0.17, 0.14])[None, None, :]
-    colour = bronze * (1 - cavity[..., None] * 0.7) + patina * cavity[..., None] * 0.7
-    colour = colour * (1 - scratch[..., None] * 0.35) + np.array([0.72, 0.55, 0.32])[None, None, :] * scratch[..., None] * 0.35
-    rough = np.clip(0.32 + height * 0.45 - scratch * 0.15, 0.2, 0.9)
-    orm = np.stack([np.ones_like(rough), rough, np.ones_like(rough)], axis=2)
-    gy, gx = np.gradient(height - scratch * 0.25)
-    n = np.stack([-gx * 14, gy * 14, np.ones_like(gx)], axis=2)
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+    # hammer marks: overlapping shallow spherical dents, the whole surface worked
+    dents = np.zeros((size, size), np.float32)
+    for _ in range(260):
+        cx, cy, r = rng.random() * size, rng.random() * size, rng.uniform(26, 64)  # broad, shallow facets
+        dx = (xx - cx + size / 2) % size - size / 2  # wrap, so the tile has no seam
+        dy = (yy - cy + size / 2) % size - size / 2
+        d2 = (dx * dx + dy * dy) / (r * r)
+        cap = np.clip(1 - d2, 0, 1)
+        dents -= cap * rng.uniform(0.25, 0.6) * (dents > -1.0)  # each blow deepens, up to a floor
+    dents = np.clip(dents, -1.0, 0)
+    dents = (dents - dents.min()) / max(1e-6, -dents.min())  # 0 = deepest dent floor, 1 = untouched ridge
+    mottle = fbm(size, 21, octaves=(4, 8, 16, 32, 64, 128))
+    fine = fbm(size, 23, octaves=(128, 256, 512))
+    # corrosion pits: small dark holes, denser where the oxide mottle is heavy
+    pits = np.zeros((size, size), np.float32)
+    for _ in range(1100):
+        cx, cy, r = rng.random() * size, rng.random() * size, rng.uniform(1.0, 2.6)
+        x0, y0 = int(cx), int(cy)
+        sl = (slice(max(0, y0 - 5), min(size, y0 + 6)), slice(max(0, x0 - 5), min(size, x0 + 6)))
+        dx, dy = xx[sl] - cx, yy[sl] - cy
+        pits[sl] = np.maximum(pits[sl], np.clip(1 - (dx * dx + dy * dy) / (r * r), 0, 1))
+    pits *= (mottle > 0.42).astype(np.float32) * 0.8 + 0.2
+    # scratches: many fine ones, a few deep gouges
+    scratch = np.zeros((size, size), np.float32)
+    gouge = np.zeros((size, size), np.float32)
+    for k in range(320):
+        x0, y0, a, n = rng.random() * size, rng.random() * size, rng.random() * math.pi, int(20 + rng.random() ** 2 * 220)
+        t = np.arange(n, dtype=np.float32)
+        wob = np.cumsum(rng.normal(0, 0.03, n))  # a hand-drawn line, not a ruler's
+        xs = (x0 + np.cos(a + wob) * t).astype(int) % size
+        ys = (y0 + np.sin(a + wob) * t).astype(int) % size
+        deep = k < 22
+        target = gouge if deep else scratch
+        target[ys, xs] = np.maximum(target[ys, xs], rng.uniform(0.6, 1.0))
+        if deep:  # two texels wide with a soft edge
+            target[(ys + 1) % size, xs] = np.maximum(target[(ys + 1) % size, xs], 0.7)
+            target[ys, (xs + 1) % size] = np.maximum(target[ys, (xs + 1) % size], 0.5)
+    gouge_soft = HEADMOD.blur(gouge, 2)
+    # colour: aged bronze, oxide mottling, patina in the pits and the dents' floors
+    bronze = np.array([0.40, 0.255, 0.125])[None, None, :]
+    dark_oxide = np.array([0.15, 0.10, 0.06])[None, None, :]
+    patina = np.array([0.13, 0.165, 0.135])[None, None, :]
+    bright = np.array([0.62, 0.46, 0.27])[None, None, :]
+    oxide = np.clip((mottle - 0.42) * 2.2, 0, 1) * 0.32 + (1 - dents) * 0.10  # oxide in the low noise and, lightly, the dent floors
+    colour = bronze * (1 - oxide[..., None]) + dark_oxide * oxide[..., None]
+    colour = colour * (0.94 + 0.12 * (fine - 0.5))[..., None]
+    low = np.clip((0.5 - mottle) * 3, 0, 1) * (1 - dents) ** 1.5  # the deepest, least-handled hollows
+    pat_w = np.clip(low * 0.6 + pits * 0.9, 0, 1)
+    colour = colour * (1 - pat_w[..., None]) + patina * pat_w[..., None]
+    colour = colour * (1 - gouge_soft[..., None] * 0.6) + dark_oxide * gouge_soft[..., None] * 0.6  # a gouge's bottom is dark
+    colour = colour * (1 - scratch[..., None] * 0.45) + bright * scratch[..., None] * 0.45  # a scratch shows fresh metal
+    colour = np.clip(colour, 0, 1)
+    # roughness and metalness
+    rough = 0.48 + 0.14 * (mottle - 0.5) + 0.06 * (fine - 0.5) + oxide * 0.14 + pat_w * 0.30 + gouge_soft * 0.2 - scratch * 0.22 - (dents - 0.5) * 0.06
+    rough = np.clip(rough, 0.28, 0.92)
+    metal = np.clip(1.0 - pat_w * 0.55 - oxide * 0.15, 0.3, 1.0)
+    orm = np.stack([np.ones_like(rough), rough, metal], axis=2)
+    # normal: the hammer dents dominate, then pits and gouges, a whisper of the mottle
+    height = dents * 0.55 - pits * 0.45 - gouge_soft * 0.5 - scratch * 0.12 + (mottle - 0.5) * 0.10
+    gy, gx = np.gradient(height)
+    n = np.stack([-gx * 9, gy * 9, np.ones_like(gx)], axis=2)
     n /= np.linalg.norm(n, axis=2, keepdims=True)
     normal = n * 0.5 + 0.5
     return {'baseColor': save_jpeg('bronze_color', colour, 'sRGB'), 'normal': save_jpeg('bronze_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('bronze_orm', orm, 'Non-Color')}
@@ -1388,7 +1438,7 @@ if not proof:
     ao_file = os.path.basename(occlusion_map())
     extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.6), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
     # the Studio sculpt's muscle relief is subtle: amplified in the shader (Skin normalScale 1.6 for the realistic build)
-    for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 1.6 if realistic else 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Wrap', wrap_maps(), 1.0), ('Hair', hair_maps(), 0.6)] + extra:
+    for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 1.6 if realistic else 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 1.0), ('Wrap', wrap_maps(), 1.0), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
         manifest[name]['normalScale'] = scale
         print(f'MAPS {name} {maps}')
