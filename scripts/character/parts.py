@@ -23,10 +23,15 @@ TEXTURES = f'{SOURCE}/Textures'
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 proof = '--proof' in args
 realistic = '--body' in args and args[args.index('--body') + 1] == 'realistic'
+FIGHTER = args[args.index('--fighter') + 1] if '--fighter' in args else 'hero'  # whose scan and tuning (head.FIGHTERS); the realistic body only
+if FIGHTER != 'hero' and not realistic:
+    raise SystemExit('--fighter needs --body realistic')
+HEADMOD.select_fighter(FIGHTER)
+VARIANT = ('realistic' if FIGHTER == 'hero' else FIGHTER) if realistic else ''  # parts/manifest file tag: body_<VARIANT>.glb, manifest_<VARIANT>.json
 HBM = 'artifacts/source/human-base-meshes/human_base_meshes_bundle.blend'
 out = args[args.index('--proof') + 1] if proof else 'src/assets/source/parts'
 materials_out = 'src/assets/source/materials'
-SUFFIX = '_r' if realistic else ''
+SUFFIX = ('_r' if FIGHTER == 'hero' else f'_{FIGHTER}') if realistic else ''  # material file suffix; the hero keeps its shipped names
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -110,7 +115,7 @@ def realistic_body():
     eye_r = sum((v.co for v in eyes[1].data.vertices), Vector()) / len(eyes[1].data.vertices)
     if eye_l.x < eye_r.x:
         eye_l, eye_r = eye_r, eye_l
-    if os.environ.get('HEAD_PHOTO', '1') == '1' and os.path.exists(HEADMOD.PHOTO):  # fit the head to the portrait first
+    if os.environ.get('HEAD_PHOTO', '1' if FIGHTER == 'hero' else '0') == '1' and os.path.exists(HEADMOD.PHOTO):  # fit the head to the portrait first (the hero's portrait: another fighter's scan replaces the head anyway)
         pre_face = [v.co for v in hbm.data.vertices if v.co.z > eye_l.z - 0.12 and v.co.z < eye_l.z + 0.16]
         pre_nose = min(pre_face, key=lambda c: c.y)
         pre_radius = max((v.co - eye_l).length for v in eyes[0].data.vertices)
@@ -1140,19 +1145,21 @@ else:
         AO = bake_ao()  # bare body only: every later piece would occlude it
     kit = level1_kit()
     if realistic:
-        export_kit(body_parts, os.path.join(out, 'body_realistic.glb'))  # head, body, eyes, hair/brow/lash cards
+        export_kit(body_parts, os.path.join(out, f'body_{VARIANT}.glb'))  # head, body, eyes, hair/brow/lash cards
     tunic = next(o for o in kit if o.name == 'tunic')
     folds = bake_folds(tunic, 'tunic')
     GAMBESON_NORMAL = save_jpeg('gambeson_normal', folds, 'Non-Color')
     GAMBESON_MAPS = linen_maps(tunic, folds)  # the tunic's colour and roughness in the same layout
-    export_kit(kit, os.path.join(out, 'level1_realistic.glb' if realistic else 'level1.glb'))
-    export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
+    export_kit(kit, os.path.join(out, f'level1_{VARIANT}.glb' if realistic else 'level1.glb'))
+    ITEM = '' if FIGHTER == 'hero' else f'_{FIGHTER}'  # the helm is shelled from this fighter's own skull: one per head
+    if FIGHTER == 'hero':
+        export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')  # fitted to the shared body: one copy
     helm, crest = bronze_helmet()
-    export_kit([helm], 'src/assets/source/items/helmet_bronze.glb')   # a poor gladiator's first helm: plain
-    export_kit([crest], 'src/assets/source/items/crest_red.glb')      # the crest is a later, extravagant reward
+    export_kit([helm], f'src/assets/source/items/helmet_bronze{ITEM}.glb')   # a poor gladiator's first helm: plain
+    export_kit([crest], f'src/assets/source/items/crest_red{ITEM}.glb')      # the crest is a later, extravagant reward
 if not proof:
     import json
-    manifest_path = os.path.join(materials_out, 'manifest_realistic.json' if realistic else 'manifest.json')
+    manifest_path = os.path.join(materials_out, f'manifest_{VARIANT}.json' if realistic else 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
     extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.6), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []

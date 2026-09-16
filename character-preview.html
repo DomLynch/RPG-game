@@ -35,7 +35,7 @@ import { ATTACKS, MOVES, RULES, SWORD } from '/src/combat.ts'; // DEFENCE/KICK v
 const KICK = { contact: MOVES.kick.windup, recovery: MOVES.kick.windup + MOVES.kick.active + MOVES.kick.recovery }, DEFENCE = { roll: RULES.roll };
 import { TARGET, wrapAngle } from '/src/sim.ts';
 
-const GLB = new URL('/src/assets/warrior.glb', location.href).href;
+const GLB = new URL('/src/assets/warrior.glb', location.href).href, ENEMY = new URL('/src/assets/veteran.glb', location.href).href; // the game's pairing: player, Veteran opponent
 const TICK = 1 / 60, GAME_RATIO = 1.5, LOCK = { portrait: [390, 844], landscape: [844, 390] };
 const canvas = document.getElementById('world'), sheet = document.getElementById('sheet'), ctx = sheet.getContext('2d');
 const status = text => document.getElementById('status').textContent = text;
@@ -123,7 +123,7 @@ async function inspectable(url) {
   clips = asset.animations; return { player: make(), opponent: make() };
 }
 async function reset() {
-  warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB); scrubbers.clear();
+  warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB, ENEMY); scrubbers.clear();
   for (const [name, mode] of swaps) api.swapMaterial(name, mode); // diagnostic overrides survive the reload
   player.clear(); opponent.clear(); player.add(warriors.player.anchor); opponent.add(warriors.opponent.anchor);
   P = fighter(player, 0, TARGET.z + SWORD.reach + .85); O = fighter(opponent, TARGET.x, TARGET.z);
@@ -181,17 +181,33 @@ const DETAILS = [
 const api = {
   loaded: false, error: null, SEQUENCE, ticks: SEQUENCE_TICKS,
   reset,
-  async details(list = DETAILS) {
-    await reset(); stage(studio); opponent.visible = false; renderer.toneMappingExposure = 1; player.position.set(0, 0, 0); player.rotation.y = 0;
-    return cells(4, Math.ceil(list.length / 4), 480, 480, 1, i => {
+  async details(list = DETAILS, who = 'player') { // who: 'player' | 'opponent' — the same close-ups of either fighter, alone at the origin
+    await reset(); stage(studio); const subject = who === 'opponent' ? opponent : player, other = who === 'opponent' ? player : opponent;
+    other.visible = false; renderer.toneMappingExposure = 1; subject.position.set(0, 0, 0); subject.rotation.y = 0;
+    const sheet = await cells(4, Math.ceil(list.length / 4), 480, 480, 1, i => {
       if (!list[i]) return false; const [caption, clip, t, node, distance, az, el, offset] = list[i];
-      scrub(player, clip, t); player.updateWorldMatrix(true, true);
-      const object = player.getObjectByName(node) || player.getObjectByName('Head'), target = object.name === 'SwordDrawn' ? object.localToWorld(new THREE.Vector3(0, .45, 0)) : object.getWorldPosition(new THREE.Vector3());
-      if (caption === 'eyes') target.add(new THREE.Vector3(0, .05, .07).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion()))); // eye level, not the skull base
-      if (offset) target.add(new THREE.Vector3(...offset).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion()))); // optional aim offset in the fighter's frame (x right, y up, z forward)
+      scrub(subject, clip, t); subject.updateWorldMatrix(true, true);
+      const object = subject.getObjectByName(node) || subject.getObjectByName('Head'), target = object.name === 'SwordDrawn' ? object.localToWorld(new THREE.Vector3(0, .45, 0)) : object.getWorldPosition(new THREE.Vector3());
+      if (caption === 'eyes') target.add(new THREE.Vector3(0, .05, .07).applyQuaternion(subject.getWorldQuaternion(new THREE.Quaternion()))); // eye level, not the skull base
+      if (offset) target.add(new THREE.Vector3(...offset).applyQuaternion(subject.getWorldQuaternion(new THREE.Quaternion()))); // optional aim offset in the fighter's frame (x right, y up, z forward)
       camera.fov = 30; camera.position.set(target.x + Math.sin(az) * Math.cos(el) * distance, target.y + Math.sin(el) * distance, target.z + Math.cos(az) * Math.cos(el) * distance); camera.lookAt(target);
-      renderer.render(studio, camera); return `${caption}  ${clip} t=${t.toFixed(2)}`;
+      renderer.render(studio, camera); return `${who}: ${caption}  ${clip} t=${t.toFixed(2)}`;
     });
+    other.visible = true; return sheet;
+  },
+  // Both heads side by side from the portrait angles (front, ±35°, ±90°, from below): the face audit for a new fighter.
+  async faces() {
+    const views = [['front', .0, .08], ['left 35°', .6, .08], ['right 35°', -.6, .08], ['left profile', 1.55, .05], ['right profile', -1.55, .05], ['from below', 0, -.5]];
+    const both = views.flatMap(v => ['player', 'opponent'].map(w => [w, ...v]));
+    await reset(); stage(studio); renderer.toneMappingExposure = 1;
+    const sheet = await cells(4, Math.ceil(both.length / 4), 480, 600, 1, i => {
+      if (!both[i]) return false; const [who, caption, az, el] = both[i], subject = who === 'opponent' ? opponent : player, other = who === 'opponent' ? player : opponent;
+      other.visible = false; subject.visible = true; subject.position.set(0, 0, 0); subject.rotation.y = 0; scrub(subject, 'Armed', 0); subject.updateWorldMatrix(true, true);
+      const target = subject.getObjectByName('Head').getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, .07, .02)), distance = .62;
+      camera.fov = 30; camera.position.set(target.x + Math.sin(az) * Math.cos(el) * distance, target.y + Math.sin(el) * distance, target.z + Math.cos(az) * Math.cos(el) * distance); camera.lookAt(target);
+      renderer.render(studio, camera); return `${who}  ${caption}`;
+    });
+    player.visible = opponent.visible = true; return sheet;
   },
   async moodboard() {
     const { moodboard } = await import('/scripts/character-moodboard.js');

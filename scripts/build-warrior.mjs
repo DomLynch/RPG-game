@@ -15,6 +15,11 @@ globalThis.FileReader = class {
 };
 const source = 'artifacts/source';
 const realistic = process.env.WARRIOR_BODY !== 'classic'; // the Blender Studio body with the reconstructed head ships; WARRIOR_BODY=classic rebuilds the CC0 stylised one
+// WARRIOR_FIGHTER=veteran builds the opponent from scripts/character/parts.py --fighter veteran (its own scan, helm and maps)
+// into src/assets/veteran.glb; the default (hero) is the player's warrior.glb. Same rig, clips and sword: blade paths shared.
+const fighter = process.env.WARRIOR_FIGHTER || 'hero', variant = realistic ? (fighter === 'hero' ? 'realistic' : fighter) : '';
+if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
+const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
 const json = JSON.parse(await fs.readFile(path.join(baseDir, 'Superhero_Male_FullBody.gltf'), 'utf8'));
 // The foundation supplies topology and weights. Our covered warrior needs none of its face/hair textures.
@@ -131,7 +136,7 @@ else {
 // Authored parts from scripts/character/parts.py: meshes in this same unscaled rest space, rigid to extras.bone,
 // merged into the per-material skinned draws exactly like the primitives above. No parts → identical output.
 const partsDir = process.env.WARRIOR_PARTS || 'src/assets/source/parts';
-const partFiles = (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb') && (realistic ? f !== 'level1.glb' : !f.includes('realistic'))).sort();
+const partFiles = (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb') && (variant ? f.endsWith(`_${variant}.glb`) : !/_\w+\.glb$/.test(f))).sort(); // body_<variant>.glb + level1_<variant>.glb; the classic build takes the untagged level1.glb
 for (const file of partFiles) {
   const glb = await fs.readFile(path.join(partsDir, file)), part = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
   part.scene.updateMatrixWorld(true);
@@ -150,7 +155,8 @@ for (const file of partFiles) {
 // Equipped items (WARRIOR_ITEMS=ranger,...): src/assets/source/items/<name>.glb, same contract as parts. An item replaces
 // whatever the level-1 kit put in the same slot. Demo builds only until the runtime swaps slots itself.
 for (const item of (process.env.WARRIOR_ITEMS || '').split(',').filter(Boolean)) {
-  const glb = await fs.readFile(`src/assets/source/items/${item}.glb`), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
+  const own = `src/assets/source/items/${item}_${fighter}.glb`, file = fighter !== 'hero' && await fs.stat(own).then(() => true, () => false) ? own : `src/assets/source/items/${item}.glb`; // a helm is shelled from its fighter's skull
+  const glb = await fs.readFile(file), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
   asset.scene.updateMatrixWorld(true);
   const slots = new Set(); asset.scene.traverse(o => { if (o.isMesh) slots.add(o.userData.slot); });
   if (slots.has('Helmet')) slots.add('Hair'); // a helmet covers the hair
@@ -426,7 +432,7 @@ await fs.mkdir('src/assets',{recursive:true});
 // { baseColor, metallicRoughness, normal, normalScale } image files in that directory. Listed materials replace the
 // procedural maps below; unlisted ones keep them. No manifest → identical output.
 const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials';
-const manifest = JSON.parse(await fs.readFile(path.join(materialsDir, realistic ? 'manifest_realistic.json' : 'manifest.json'), 'utf8').catch(() => '{}'));
+const manifest = JSON.parse(await fs.readFile(path.join(materialsDir, variant ? `manifest_${variant}.json` : 'manifest.json'), 'utf8').catch(() => '{}'));
 const authored = new Map(), files = new Map(); // one object per file so a map shared by several materials is embedded once
 for (const [name, maps] of Object.entries(manifest)) {
   const entry = { normalScale: maps.normalScale, occlusionTexCoord: maps.occlusionTexCoord ?? 0 };
@@ -440,8 +446,8 @@ for (const [name, maps] of Object.entries(manifest)) {
 const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
 if (!realistic) authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
 const finished = finishMaterials(Buffer.from(result), authored);
-await fs.writeFile('src/assets/warrior.glb', finished);
-console.log(`Warrior: ${finished.byteLength} bytes; ${clips.map(a=>a.name).join(', ')}`);
+await fs.writeFile(output, finished);
+console.log(`${fighter === 'hero' ? 'Warrior' : fighter} → ${output}: ${finished.byteLength} bytes; ${clips.map(a=>a.name).join(', ')}`);
 
 // Original seamless surface maps, baked into the GLB. Deterministic; no external image service.
 function png(width, height, pixel) {

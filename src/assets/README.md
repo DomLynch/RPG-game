@@ -181,6 +181,31 @@ below, `jaw_b.png` three-quarter from below, `jaw_c.png` chin raised) joined the
 with a real chin and jaw angle: `artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb` (SHA-256 recorded
 below; one billed job, 2026-09-15). The coverage mask knows the three low cameras. No chin pushes.
 
+## The Veteran — the opponent (character lane, 2026-09-16)
+
+`src/assets/veteran.glb` is the opponent: a second man on the same rig, clips and sword as the player's `warrior.glb`
+(`tests/characters.test.ts` asserts every bone track and the sword attachments are identical, so the baked blade paths serve
+both). `src/scene.ts` loads it for the opponent through `loadWarriors(player, opponent)`; with one URL the runtime still
+recolours the opponent's Heraldry, with two it does not. Source: seven synthetic portraits of an older man (GPT-generated, no
+real person; `artifacts/source/face/veteran/{front,left35,right35,left90,right90,below_front,below_right}.png`, 1254²) →
+KeenTools Cloud (`scripts/create-head.mjs`, one billed job, 2026-09-16; cameras estimated at 0°, +27°, -22°, +61°, -66°,
+and two from 27° / 22° below) → `artifacts/source/keentools/01a0a9a9-c037-70f2-8015-bbd1faf9f823.glb` (SHA-256
+036ae4fc81b5feb3…, untracked like the hero's). The pipeline is the hero's, parametrised: `head.FIGHTERS` holds each
+fighter's scan, portrait cameras (coverage mask), chin push (hero only — his scan's jaw needed it, this one has two low
+portraits and a closed mouth, so `level_mouth` also skips) and hair; `parts.py --fighter veteran` writes
+`body_veteran.glb` / `level1_veteran.glb`, `*_veteran.jpg` maps and `manifest_veteran.json`, and its own
+`helmet_bronze_veteran.glb` / `crest_red_veteran.glb` (the helm is shelled from the skull); `WARRIOR_FIGHTER=veteran
+node scripts/build-warrior.mjs` assembles `veteran.glb`. The hero's outputs are byte-identical before and after (checked).
+`HEAD_PHOTO` defaults off for a non-hero fighter: the photo fit targets the hero's portrait and the scan replaces the head.
+Crown: the hero's fill assumed a dark buzz cut (hair = texels darker than 0.16); this man is blond-grey (hair 0.34 median
+against 0.66 skin), so `hair_lum` is per fighter and `hair: 'full'` fills the unphotographed crown with swept strands —
+shadow and highlight tones read from well-photographed hair on the geometric scalp (top/back above the brows; the nape and
+temple skin next to the band read as a rosy highlight when sampled), the photographed tufts ending ragged along the strands
+rather than on one coverage iso-line, matte (roughness ≥ 0.86) with a strand normal so the crown is not a smooth dome.
+Body and kit are the hero's level-1 set for now (skin re-toned to this face by `keentools_skin_tone`); kit, greaves, helmet
+and scars are the next pass. Review: `artifacts/character/veteran-v1/` (`faces.png` both heads from the portrait angles,
+`details-opponent.png`, turntable, phone stills). Budget cap 5 → 12 MB gzip (owner, 2026-09-16); dist is 7.96 MB.
+
 ## Combat audio (audio lane, 2026-09-15)
 `src/assets/audio/sprite.m4a` (AAC-LC 96 kb/s, Apple AudioToolbox encoder via ffmpeg `aac_at`, for Safari) and `sprite.ogg`
 (Opus 64 kb/s VBR via ffmpeg `libopus`, for Chrome/Android) are one 19.1 s audio sprite of 46 cues, entirely original

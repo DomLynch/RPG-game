@@ -115,7 +115,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   const opponent = capsule(TARGET.x, TARGET.z, new THREE.MeshStandardMaterial({ color: '#6d5447', roughness: 0.8, metalness: 0.25 }));
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   assetStatus('Loading warriors…');
-  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href).then(loaded => {
+  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, new URL('./assets/veteran.glb', import.meta.url).href).then(loaded => { // the player, and the Veteran as the opponent
     warriors = loaded;
     for (const proxy of [player, opponent]) {
       proxy.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
