@@ -55,8 +55,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (!threat) next.plan = null;
   else if (elapsed(F) === reaction) {
     const r = roll(), inRange = gap <= MOVES[F.move!].reach + .4, unblockable = MOVES[F.move!].breaksGuard || charging(F), affordable = M.stamina >= MOVES[F.move!].staminaDamage;
-    // A kick cannot be parried and punishes a raised guard, so the only answers are a roll or distance.
-    if (inRange && !MOVES[F.move!].parryable) { next.plan = M.stamina >= RULES.rollCost ? 'dodge' : 'evade'; next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1)); }
+    // A kick cannot be parried and punishes a raised guard, so a guard or a parry is never the answer. With its dodge share the warden rolls
+    // (or steps out without the stamina); otherwise it takes the kick — a cheap poke whose point is to open a guard, and a warden that
+    // escaped every kick would have no guard left to open (a backstep escapes it as surely as a roll).
+    if (inRange && !MOVES[F.move!].parryable) { next.plan = r < profile.dodge ? (M.stamina >= RULES.rollCost ? 'dodge' : 'evade') : 'ignore'; next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1)); }
     else {
     const parryChance = reads.spammer ? Math.min(READ.parryCap, 1 - profile.dodge, profile.parry * READ.parryBoost) : profile.parry;   // a cut-only player is parried more (never by a profile that cannot parry; rolls keep their share)
     // A swing that cannot reach is ignored. A guard stops what it can afford; a charged heavy or a riposte calls for a timed parry, a roll or distance.

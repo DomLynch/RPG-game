@@ -206,21 +206,27 @@ test('guard profile: a shield is data — block cost, arc, window and stopping h
   assert.ok(types(lateParry).includes('Parried'), 'a 16-tick window still parries at tick 14');
 });
 
-test('the feint mind-game: a raised guard answers the feint; the kick that would open it is answered by a roll, never a block', () => {
-  // A blocking opponent (no parry, no roll) raises its guard as soon as it notices the heavy.
-  const blocker = { ...PROFILES.hard, reaction: 7, parry: 0, dodge: 0 };   // a quick blocker: the feint must land inside the heavy's feint window
-  let d = duel(1.1), ai = initialAi(); const seen: string[] = [];
-  const step = (intent: Intent) => { const w = decide(d, 1, ai, blocker); ai = w.ai; d = stepDuel(d, [intent, w.intent]); seen.push(...d.events.map(e => `${e.type}:${e.actor}${e.action ? ':' + e.action : ''}${e.move ? ':' + e.move : ''}`)); };
-  step(act('heavy'));
-  for (let i = 0; i < heavy.feintUntil - 2; i++) step(idle());
-  assert.equal(d.fighters[1].phase, 'guard', 'the opponent has raised its guard against the heavy');
-  step(act('parry', { guard: true }));
-  assert.ok(seen.includes('ActionStarted:0:feint'));
-  // The kick is the answer to a raised guard — and the warden knows it: it never keeps guarding into a kick, it rolls or gives ground.
-  step(act('kick', { guard: true }));
-  for (let i = 0; i < kick.windup; i++) step(idle());
-  assert.ok(seen.includes('ActionStarted:1:roll') || seen.includes('ActionStarted:1:backstep'), `the warden answers the kick with a roll or a step, never a block: ${seen.join(' ')}`);
-  assert.ok(!seen.includes('Hit:0:kick'), 'so the kick does not land on a guard');
+test('the feint mind-game: a raised guard answers the feint; the kick that opens it is taken through the guard by a blocker and rolled by a dodger — never blocked or parried', () => {
+  // A blocking opponent (no parry, no roll) raises its guard as soon as it notices the heavy; a dodger has the roll.
+  const play = (dodge: number) => {
+    const profile = { ...PROFILES.hard, reaction: 7, parry: 0, dodge };   // a quick blocker: the feint must land inside the heavy's feint window
+    let d = duel(1.1), ai = initialAi(); const seen: string[] = [];
+    const step = (intent: Intent) => { const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [intent, w.intent]); seen.push(...d.events.map(e => `${e.type}:${e.actor}${e.action ? ':' + e.action : ''}${e.move ? ':' + e.move : ''}`)); };
+    step(act('heavy'));
+    for (let i = 0; i < heavy.feintUntil - 2; i++) step(idle());
+    assert.equal(d.fighters[1].phase, 'guard', 'the opponent has raised its guard against the heavy');
+    step(act('parry', { guard: true }));
+    assert.ok(seen.includes('ActionStarted:0:feint'));
+    // The kick is the answer to a raised guard. The warden never guards or parries it; with its dodge share it rolls, otherwise the guard is opened.
+    step(act('kick', { guard: true }));
+    for (let i = 0; i < kick.windup; i++) step(idle());
+    return { seen, d };
+  };
+  const blocker = play(0);
+  assert.ok(blocker.seen.includes('Hit:0:kick'), `the kick opens the blocker's guard: ${blocker.seen.join(' ')}`); assert.equal(blocker.d.fighters[1].phase, 'hurt', 'and staggers it');
+  assert.ok(!blocker.seen.includes('ActionStarted:1:parry'), 'no parry press at a kick');
+  const dodger = play(1);
+  assert.ok(dodger.seen.includes('ActionStarted:1:roll'), `the dodger rolls the kick: ${dodger.seen.join(' ')}`); assert.ok(!dodger.seen.includes('Hit:0:kick'), 'and it does not land');
 });
 
 test('directional guard, when enabled, only stops cuts from the matching side', () => {

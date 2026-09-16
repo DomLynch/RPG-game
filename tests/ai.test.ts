@@ -350,10 +350,16 @@ test('fairness pass: the warden uses its own tools against pressure — the guar
   assert.equal(closeAtCalm.filter(w => w.intent.action === 'kick').length, 0, 'no kick at an unguarded, unread player');
 });
 
-test('a kick is never guarded: the warden rolls it with the stamina to spare and steps out of it without', () => {
-  const kick = (stamina: number) => { const d = arena(1.1); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'kick', lastMove: 'kick', age: PROFILES.normal.reaction }; d.fighters[1] = { ...d.fighters[1], stamina }; return decide(d, 1, { ...initialAi(3), mode: 'approach', decision: 500, wait: 500 }, PROFILES.normal).ai.plan; };
-  assert.equal(kick(100), 'dodge'); assert.equal(kick(RULES.rollCost - 1), 'evade');
-  for (let seed = 1; seed <= 30; seed++) { const d = arena(1.1); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'kick', lastMove: 'kick', age: PROFILES.normal.reaction }; assert.notEqual(decide(d, 1, { ...initialAi(seed), mode: 'approach', decision: 500, wait: 500 }, PROFILES.normal).ai.plan, 'block', `seed ${seed} guards a kick`); }
+test('a kick is never guarded or parried: with its dodge share the warden rolls it (steps out without the stamina), otherwise it takes the poke', () => {
+  const plans = (profile: AiProfile, stamina: number) => [...Array(200).keys()].map(seed => { const d = arena(1.1); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'kick', lastMove: 'kick', age: profile.reaction }; d.fighters[1] = { ...d.fighters[1], stamina }; return decide(d, 1, { ...initialAi(((seed + 1) * 2654435761) >>> 0), mode: 'approach', decision: 500, wait: 500 }, profile).ai.plan; });   // spread seeds: neighbours share their first draw
+  assert.ok(PROFILES.easy.reaction >= MOVES.kick.windup, 'easy cannot notice a kick before it lands'); assert.ok(!plans(PROFILES.easy, 100).some(p => p), 'so it never plans against one');
+  for (const level of ['normal', 'hard'] as const) {
+    const rich = plans(PROFILES[level], 100), poor = plans(PROFILES[level], RULES.rollCost - 1);
+    assert.ok(!rich.some(p => p === 'block' || p === 'parry') && !poor.some(p => p === 'block' || p === 'parry'), `${level} never guards or parries a kick`);
+    const escapes = rich.filter(p => p === 'dodge').length / rich.length;
+    assert.ok(Math.abs(escapes - PROFILES[level].dodge) < .08, `${level} rolls a kick with its dodge share: ${escapes} vs ${PROFILES[level].dodge}`); assert.ok(rich.some(p => p === 'ignore'), 'and takes the rest');
+    assert.ok(!poor.some(p => p === 'dodge') && poor.some(p => p === 'evade'), `${level} steps out when it cannot roll`);
+  }
 });
 
 test('habits are counted from what the player actually threw: a thrust is a thrust, not a cut — and no profile reacts faster than a human can', () => {

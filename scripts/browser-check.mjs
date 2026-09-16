@@ -38,7 +38,11 @@ try {
  receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,76);await page.screenshot({path:'artifacts/browser-riposte.png'});
  await page.waitForTimeout(600);await page.keyboard.down('KeyW');await page.waitForTimeout(240);await page.keyboard.up('KeyW');
  await page.waitForFunction(()=>document.querySelector('#kick-button').dataset.reach==='true',null,{timeout:1500});   // the kick's cone is short: wait until the HUD says it can land rather than on a fixed clock
- await page.getByRole('button',{name:'Kick',exact:true}).tap();await page.waitForTimeout(335);receipt.kick=await snapshot();assert.ok([72,71].includes(receipt.kick.enemy),`kick landed clean (72) or as a counter on the warden's wind-up (71): ${receipt.kick.enemy}`);
+ await page.getByRole('button',{name:'Kick',exact:true}).tap();await page.waitForTimeout(335);receipt.kick=await snapshot();
+ // The warden may escape a kick (a roll with its dodge share, or it is already stepping back after the riposte), so the receipt is either
+ // the landed kick or the escape the HUD reported — never an unthrown kick.
+ receipt.kickEscaped=!([72,71].includes(receipt.kick.enemy)) && /rolled clear|Miss —/.test(receipt.kick.status);
+ assert.ok([72,71].includes(receipt.kick.enemy) || receipt.kickEscaped,`kick landed clean (72), as a counter on the warden's wind-up (71), or was escaped: ${receipt.kick.enemy} · ${receipt.kick.status}`);
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
  const paused=await snapshot();await page.waitForTimeout(300);assert.deepEqual(await snapshot(),paused);
  for(const mode of ['red','dark','off'])await page.getByRole('button',{name:'Blood: '+mode,exact:true}).tap();receipt.bloodModes=['red','dark','off','red'];
