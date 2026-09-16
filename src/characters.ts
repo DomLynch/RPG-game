@@ -99,7 +99,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset)
           const target = (weights[i] || 0) * (1 - fade) + Number(i === combatIndex) * fade;
           const activeBlade = pose === 'attack' && progress >= contact-1/ATTACKS[attack].recovery && progress <= contact+4/ATTACKS[attack].recovery;
           a.setEffectiveWeight(activeBlade ? Number(i === combatIndex) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
-          if (i === combatIndex) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, attack === 'return' ? 1 - 18 / 66 : attack === 'heavy' ? .48 : attack === 'riposte' ? .34 : 18 / 66) : progress)) * clips[i].duration;
+          if (i === combatIndex) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, attack === 'heavy' ? .48 : .34) : progress)) * clips[i].duration;
         });
         drawn.visible = armed && (pose !== 'draw' || progress >= .29); sheathed.visible = !drawn.visible;
         mixer.update(step);

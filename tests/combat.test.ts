@@ -17,13 +17,13 @@ const tick = (s: Practice, n: number, intent = idle(), profile = PROFILES.normal
 const passive = { ...PROFILES.easy, aggression: 0, parry: 0, dodge: 0, pressure: 0 };
 
 test('legacy constant views stay equal to the move data the simulation actually uses', () => {
-  assert.equal(SWORD.contact, MOVES.light_right.windup); assert.equal(SWORD.recovery, total(MOVES.light_right)); assert.equal(SWORD.recovery, 40); assert.equal(SWORD.contact, 14);
-  assert.equal(ATTACKS.return.contact, PATHS.light_left_chain.windup); assert.equal(ATTACKS.return.recovery, total(PATHS.light_left_chain)); assert.equal(ATTACKS.return.recovery, 34);
+  assert.equal(SWORD.contact, MOVES.light_right.windup); assert.equal(SWORD.recovery, total(MOVES.light_right)); assert.equal(SWORD.recovery, 50); assert.equal(SWORD.contact, 20);   // the cut: 20 / 8 / 22 since the horizontal re-time
+  assert.equal(ATTACKS.return.contact, PATHS.light_left_chain.windup); assert.equal(ATTACKS.return.recovery, total(PATHS.light_left_chain)); assert.equal(ATTACKS.return.recovery, 42);   // chained cut 16 / 8 / 18
   assert.equal(ATTACKS.heavy.recovery, 68); assert.equal(ATTACKS.heavy.damage, 18); assert.equal(ATTACKS.heavy.cost, 35); assert.equal(ATTACKS.riposte.damage, 24);
   assert.equal(MOVES.kick.windup, 18); assert.equal(total(MOVES.kick), 44); assert.equal(MOVES.kick.damage, 4); assert.equal(MOVES.kick.stamina, 25);
   assert.equal(RULES.roll, RULES.roll); assert.equal(RULES.parry, 10); assert.equal(RULES.parryStun, 90); assert.equal(RULES.wound, 240);
   assert.equal(RULES.bufferWindow, 10); assert.equal(RULES.bufferTtl, 11); assert.equal(RULES.parryRecovery, 8); assert.equal(RULES.feintCost, 10);
-  for (const path of Object.values(PATHS)) assert.equal(path.active, 5);
+  for (const [id, path] of Object.entries(PATHS)) assert.equal(path.active, id.startsWith('light') ? 8 : 5, `${id} active window`);   // the cuts sweep 8 ticks; everything else 5
   for (const move of Object.values(MOVES)) assert.equal(move.windup + move.active + move.recovery, total(move));
   // A quick press is a plain heavy and a deliberate hold is the charged one: the press must last ≥ 0.6 s to charge and the hold releases itself by ~1.1 s.
   assert.ok(MOVES.heavy_overhead.chamber! + RULES.charge.min >= 36 && MOVES.heavy_overhead.chamber! + RULES.charge.min <= 45, `charge press ${MOVES.heavy_overhead.chamber! + RULES.charge.min} ticks`); assert.ok(MOVES.heavy_overhead.chamber! + RULES.charge.max <= 66);

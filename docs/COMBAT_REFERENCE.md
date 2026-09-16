@@ -26,7 +26,7 @@ Input rules: one edge-triggered action per tick plus held levels (guard, heavy/t
 
 | Move | Ticks (ms to contact) | Dmg | Stamina | Stagger | Reach | Notes |
 |---|---|---|---|---|---|---|
-| Light cut (R/L) | 14 / 5 / 21 (233 ms) | 11 | 20 | 24 | 1.65 (lands ≤ 1.75) | chains: opposite cut or heavy within 18 ticks → chained timing 12/5/17 (heavy 22/5/31); posture 20; block costs the defender 15 |
+| Light cut (R/L) | 20 / 8 / 22 (333 ms tell, 133 ms sweep) | 11 | 20 | 24 | 1.65 (lands ≤ 1.75) | a horizontal arc at chest height (~85° across the front; Slash alternates right-to-left and the backhand); chains: opposite cut or heavy within 18 ticks → chained timing 16/8/18 (heavy 22/5/31); posture 20; block costs the defender 15; feintable to tick 10; hold = chambered at tick 9 |
 | Thrust | 16 / 5 / 21 (267 ms) | 14 | 25 | 20 | 2.0 (lunge at walking pace, lands from 2.0) | fully blockable (no chip); posture 16; **the stop-hit**: into a swing, or into an opponent who has walked ≥ 0.3 m onto the point since it started, ×1.5 damage and ×1.75 stagger (a cut's counter-hit is ×1.25 / ×1.5); a thrust that meets nothing hangs 10 ticks at full extension before recovering |
 | Heavy overhead | 32 / 5 / 31 (533 ms) | 18 | 35 | 24 | 1.9 (lands ≤ 2.2) | hyper-armour from tick 24; guard takes it for **40 % chip (7) + 30 stamina**; posture 32; hold to **charge** |
 | Charged heavy | held 30–54 ticks at tick 10 | 27 (×1.5) | 35 | 36 (×1.5) | 1.9 | hyper-armour while held; **breaks a guard** |
@@ -60,11 +60,13 @@ Each fighter has a posture bar 0–100 (thin amber bar under the health bar, red
 
 Uses the same combat API and rules; reads only committed state; notices a fresh action `reaction` ticks late; every decision is seeded and bounded.
 
-| Profile | reaction | accuracy | parry | dodge | aggression | pressure (lights) | stamina floor |
-|---|---|---|---|---|---|---|---|
-| easy | 24 ticks (400 ms) | .50 | .10 | .10 | .45 | 0 | 60 |
-| normal | 14 (233 ms) | .75 | .30 | .20 | .65 | 0 | 50 |
-| hard | 10 (167 ms) | .95 | .60 | .35 | .85 | .50 | 40 |
+| Profile | reaction | accuracy | parry | dodge | aggression | pressure (lights) | stamina floor | lapse |
+|---|---|---|---|---|---|---|---|---|
+| easy | 24 ticks (400 ms) | .50 | .10 | .10 | .45 | 0 | 60 | .45 |
+| normal | 14 (233 ms) | .75 | .30 | .20 | .65 | 0 | 50 | .30 |
+| hard | 10 (167 ms) | .95 | .60 | .35 | .85 | .50 | 40 | .10 |
+
+*lapse*: the share of noticed swings that get no answer at all — a human does not react to every cut they see, and with a 333 ms cut the warden would. A read spammer halves it.
 
 - **Defence plan per noticed swing:** a kick (unparryable, built to break a guard) is never guarded or parried — with the profile's dodge share it is rolled (stepped out of without the stamina), otherwise taken. Anything else: parry (if off cooldown) → roll (if ≥ 30 stamina) → block if affordable and blockable → evade/backstep. A charged heavy or a riposte is never blocked; a planned block is dropped the tick a heavy is seen charging. A chambered light is treated as a bait (still blockable). Timing jitter scales with (1 − accuracy).
 - **Offence (utility scores):** critical 1.6 in a posture-break window · guard counter 1.4 (a heavy inside the 20-tick window a block opens) · punish 1.5 (a light into a stagger, exhaustion, a whiffed swing's recovery or a whiffed parry's exposure) · chain 1.2 · kick 1.1 (vs a standing guard, 50 %) · heavy 1.0 vs a guard / 0.8 as the scheduled opener · light / thrust 0.8 as scheduled openers. Below the stamina floor only punishes are allowed. Cadence: after each attack it waits 45–105 ticks × (1.6 − aggression).

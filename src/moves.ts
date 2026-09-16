@@ -10,10 +10,12 @@ export const total = (t: Timing): number => t.windup + t.active + t.recovery;
 // timings; tests assert the shipped rig still agrees. `source` is the contact time inside the clip; `clip` is the rig animation.
 export type PathId = 'light_right' | 'light_left' | 'light_right_chain' | 'light_left_chain' | 'heavy_overhead' | 'heavy_overhead_chain' | 'thrust' | 'riposte' | 'heavy_riposte';
 export const PATHS: Record<PathId, Timing & { clip: 'Attack' | 'Return' | 'Heavy' | 'Riposte'; source: number }> = {
-  light_right: { clip: 'Attack', source: 18 / 66, windup: 14, active: 5, recovery: 21 },
-  light_left: { clip: 'Return', source: 1 - 18 / 66, windup: 14, active: 5, recovery: 21 },
-  light_right_chain: { clip: 'Attack', source: 18 / 66, windup: 12, active: 5, recovery: 17 },
-  light_left_chain: { clip: 'Return', source: 1 - 18 / 66, windup: 12, active: 5, recovery: 17 },
+  // The cut: a horizontal arc (UAL2 Sword_Regular_A right-to-left, _B the backhand) with a real swing — 20 ticks of tell (333 ms) and an
+  // 8-tick sweep. It was 14/5/21 (233 ms, under human reaction) on a fast diagonal flick: the owner read it as "too quick and shallow".
+  light_right: { clip: 'Attack', source: .34, windup: 20, active: 8, recovery: 22 },
+  light_left: { clip: 'Return', source: .34, windup: 20, active: 8, recovery: 22 },
+  light_right_chain: { clip: 'Attack', source: .34, windup: 16, active: 8, recovery: 18 },
+  light_left_chain: { clip: 'Return', source: .34, windup: 16, active: 8, recovery: 18 },
   heavy_overhead: { clip: 'Heavy', source: .48, windup: 32, active: 5, recovery: 31 },
   heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 22, active: 5, recovery: 31 },
   thrust: { clip: 'Riposte', source: .34, windup: 16, active: 5, recovery: 21 },
@@ -48,10 +50,10 @@ export type MoveDef = Timing & {
 };
 
 const light = (id: 'light_right' | 'light_left', direction: Direction): MoveDef => ({
-  id, direction, path: id, chainPath: `${id}_chain`, chained: { windup: 12, active: 5, recovery: 17 },
+  id, direction, path: id, chainPath: `${id}_chain`, chained: { windup: 16, active: 8, recovery: 18 },
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the opposite cut chains fast; a heavy finisher winds up quicker
-  windup: 14, active: 5, recovery: 21, damage: 11, stamina: 20, staminaDamage: 15, stagger: 24, poise: 0, poiseFrom: 0,
-  breaksGuard: false, chip: 0, parryable: true, knockback: 4, stepIn: .55, feintUntil: 7, reach: 1.65, vsGuard: null, posture: 20, chamber: 6, charges: false,
+  windup: 20, active: 8, recovery: 22, damage: 11, stamina: 20, staminaDamage: 15, stagger: 24, poise: 0, poiseFrom: 0,
+  breaksGuard: false, chip: 0, parryable: true, knockback: 4, stepIn: .4, feintUntil: 10, reach: 1.65, vsGuard: null, posture: 20, chamber: 9, charges: false,   // stepIn .4 over 20 ticks ≈ the old .55 over 14: the same lunge
 });
 export const MOVES: Record<MoveId, MoveDef> = {
   light_right: light('light_right', 'right'),
@@ -142,10 +144,11 @@ export type AiProfile = {
   aggression: number;  // 0..1 scales attack cadence
   pressure: number;    // 0..1 chance a non-punish attack is a light rather than a heavy
   discipline: number;  // stamina floor below which it retreats and recovers
+  lapse: number;       // 0..1 chance a noticed swing gets no answer at all (a human does not react to every cut they see; the AI would)
 };
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.
-  easy: { reaction: 24, accuracy: .5, parry: .1, dodge: .1, aggression: .45, pressure: 0, discipline: 60 },
-  normal: { reaction: 14, accuracy: .75, parry: .3, dodge: .2, aggression: .65, pressure: 0, discipline: 50 },
-  hard: { reaction: 10, accuracy: .95, parry: .6, dodge: .35, aggression: .85, pressure: .5, discipline: 40 },   // 167 ms: hard is decisions and feints, not input-reading (was 7)
+  easy: { reaction: 24, accuracy: .5, parry: .1, dodge: .1, aggression: .45, pressure: 0, discipline: 60, lapse: .45 },
+  normal: { reaction: 14, accuracy: .75, parry: .3, dodge: .2, aggression: .65, pressure: 0, discipline: 50, lapse: .3 },
+  hard: { reaction: 10, accuracy: .95, parry: .6, dodge: .35, aggression: .85, pressure: .5, discipline: 40, lapse: .1 },   // 167 ms: hard is decisions and feints, not input-reading (was 7)
 };

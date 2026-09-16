@@ -203,8 +203,10 @@ test('guard profile: a shield is data — block cost, arc, window and stopping h
   const behind = withGuard({ arc: Math.PI }); behind.fighters[0] = { ...behind.fighters[0], body: { ...behind.fighters[0].body, heading: 0 } };
   assert.ok(types(incoming(behind)).includes('Blocked'), 'a full-circle arc blocks from behind');
   const wide = duel(); wide.fighters[0] = { ...wide.fighters[0], guardProfile: { window: 16 } };
-  const lateParry = run(stepDuel({ ...wide, fighters: [wide.fighters[0], { ...wide.fighters[1], phase: 'attack', move: 'light_left', age: 0, lastMove: 'light_left' }] } as Duel, [act('parry', { guard: true }), idle()]), light.windup - 1, hold());
-  assert.ok(types(lateParry).includes('Parried'), 'a 16-tick window still parries at tick 14');
+  // Press so that contact falls on the window's 15th tick: inside a 16-tick window, outside the default 10.
+  let lateParry = { ...wide, fighters: [wide.fighters[0], { ...wide.fighters[1], phase: 'attack', move: 'light_left', age: 0, lastMove: 'light_left' }] } as Duel;
+  lateParry = run(lateParry, light.windup - 15, idle(), idle()); lateParry = stepDuel(lateParry, [act('parry', { guard: true }), idle()]); lateParry = run(lateParry, 14, hold(), idle());
+  assert.ok(types(lateParry).includes('Parried'), 'a 16-tick window still parries at its tick 15');
 });
 
 test('the feint mind-game: a raised guard answers the feint; the kick that opens it is taken through the guard by a blocker and rolled by a dodger — never blocked or parried', () => {
@@ -296,13 +298,13 @@ test('backstep: 0.6 m straight back, still facing, 10 stamina, no invulnerabilit
 test('stamina: costs at commitment, delayed regeneration, half-rate regeneration while guarding, sprint drain without the delay, exhaustion and recovery', () => {
   let d = stepDuel(duel(4), [act('light'), idle()]);
   assert.equal(d.fighters[0].stamina, 80); assert.equal(d.fighters[0].rest, RULES.regenDelay);
-  d = run(d, LIGHT);
-  assert.equal(d.fighters[0].stamina, 80, 'no regeneration until the delay passes');
-  d = run(d, RULES.regenDelay - LIGHT);
-  assert.ok(Math.abs(d.fighters[0].stamina - 80 - RULES.regen) < 1e-9, 'first regeneration tick lands as the delay ends');
+  d = run(d, LIGHT - 1);
+  assert.equal(d.fighters[0].stamina, 80, 'no regeneration during the action (the delay is shorter than the cut now, but a swinging fighter never regenerates)');
+  d = run(d, 1);
+  assert.ok(Math.abs(d.fighters[0].stamina - 80 - RULES.regen) < 1e-9, 'the first tick back in ready regenerates: the delay has passed');
   // A raised guard regenerates at half rate once the delay has passed (it used to stop regeneration): after 200 ticks of guarding, 80 + (200 − LIGHT − delay) × regen / 2, capped.
   const guarded = run(stepDuel(duel(4), [act('light'), idle()]), 100, hold());
-  const guardTicks = 100 - RULES.regenDelay;   // the delay runs from the light's start; the guard is up by the time it ends
+  const guardTicks = 100 - Math.max(RULES.regenDelay, LIGHT - 1);   // no regeneration while the cut runs; the guard is up (and the delay over) from the tick it ends
   assert.ok(Math.abs(guarded.fighters[0].stamina - (80 + guardTicks * RULES.regen * RULES.guardRegen)) <= RULES.regen, `guard regenerates at half rate: ${guarded.fighters[0].stamina}`);
   assert.ok(guarded.fighters[0].stamina > 80 && guarded.fighters[0].stamina < 100, 'slower than standing, faster than nothing');
   const sprint = run(duel(4), 30, { ...idle(), move: { x: 0, z: 1, yaw: 0, run: true } });
@@ -374,7 +376,7 @@ test('counter-hit: a clean hit on a committed swing or a roll\'s tail lands hard
   const hit = d.events.find(e => e.type === 'Hit')!;
   assert.equal(hit.counter, true); assert.equal(hit.damage, counterDmg); assert.equal(d.fighters[1].health, HP - counterDmg); assert.equal(d.fighters[1].stun, counterStun);
   // Target in recovery (whiff punish) is also a counter; a ready target is not.
-  const whiff = run(stepDuel(duel(light.reach + 1), [idle(), act('light')]), light.windup + light.active + 1);   // the swing has whiffed; the punish lands in its recovery
+  const whiff = run(stepDuel(duel(light.reach + 1), [idle(), act('light')]), light.windup + light.active - 1);   // the swing has just whiffed; the punish lands inside its recovery
   const punish = run(stepDuel({ ...whiff, fighters: [{ ...whiff.fighters[0], body: { ...whiff.fighters[0].body, z: whiff.fighters[1].body.z + 1.2 } }, whiff.fighters[1]] } as Duel, [act('light'), idle()]), light.windup);
   assert.equal(punish.events.find(e => e.type === 'Hit')?.counter, true);
   const plain = run(stepDuel(duel(), [act('light'), idle()]), light.windup);
@@ -406,10 +408,10 @@ test('guard counter: a heavy thrown straight out of a block is fast and armoured
   const counter = stepDuel(after, [act('heavy', { guard: true }), idle()]);
   assert.equal(counter.fighters[0].move, 'heavy_counter'); assert.equal(counter.fighters[0].counterWindow, 0); assert.equal(counter.fighters[0].stamina, 100 - light.staminaDamage - MOVES.heavy_counter.stamina);
   assert.equal(MOVES.heavy_counter.windup, MOVES.heavy_riposte.windup, 'shares the fast heavy path');
-  // Armoured against a light from its early wind-up, and it still lands.
+  // Armoured against a fast attack from its early wind-up, and that attack still lands (a thrust: 16 ticks, inside the counter's 20; a cut is 20 now and would trade after).
   let trade = { ...counter, fighters: [counter.fighters[0], { ...counter.fighters[1], phase: 'ready' as const, age: 0, move: null }] } as Duel;
-  trade = stepDuel(trade, [idle(), idle()]); trade = run(stepDuel(trade, [idle(), act('light')]), light.windup);
-  assert.ok(types(trade).includes('Hit') && trade.fighters[0].health < HP, 'the light connects');
+  trade = stepDuel(trade, [idle(), idle()]); trade = run(stepDuel(trade, [idle(), act('thrust')]), MOVES.thrust.windup);
+  assert.ok(types(trade).includes('Hit') && trade.fighters[0].health < HP, 'the thrust connects');
   assert.equal(trade.fighters[0].phase, 'attack', 'but does not interrupt the guard counter');
   trade = run(trade, MOVES.heavy_counter.windup - trade.fighters[0].age);
   assert.ok(types(trade).includes('Hit') && trade.fighters[1].health < HP - MOVES.heavy_counter.damage + 1, 'the counter lands');
@@ -571,8 +573,8 @@ test('wounds slow regeneration for a while, refresh without stacking, and only c
   assert.equal(expired.fighters[1].wound, 0); assert.ok(Math.abs(expired.fighters[1].stamina - 40 - RULES.regen) < 1e-9);
   const again = run(stepDuel({ ...d, fighters: [{ ...d.fighters[0], phase: 'ready', age: 0 }, { ...d.fighters[1], phase: 'ready', wound: 100 }] }, [act('light'), idle()]), light.windup);
   assert.equal(again.fighters[1].wound, RULES.wound, 'refreshes to the full duration, no stacking');
-  let parried = run(stepDuel(duel(), [act('light'), idle()]), 5);
-  parried = run(stepDuel(parried, [idle(), act('parry', { guard: true })]), light.windup - 6, idle(), hold());
+  let parried = run(stepDuel(duel(), [act('light'), idle()]), light.windup - 9);
+  parried = run(stepDuel(parried, [idle(), act('parry', { guard: true })]), 8, idle(), hold());   // pressed 9 ticks before contact: inside the 10-tick window
   assert.ok(types(parried).includes('Parried')); assert.equal(parried.fighters[1].wound, 0);
   const blocked = run(stepDuel(duel(), [act('light'), hold()]), light.windup, idle(), hold());
   assert.ok(types(blocked).includes('Blocked')); assert.equal(blocked.fighters[1].wound, 0);
@@ -724,7 +726,7 @@ test('correctness pass: elapsed perception, bounded chamber lunge, attack-start 
   // The warden's light starts while the heavy is parked; the heavy is released `h` ticks later. Still parked at contact → armoured; released uncharged and
   // met before its poise tick → interrupted; released charged → armoured.
   const metWhile = (h: number, preHold = 2) => { let d = run(stepDuel(duel(), [act('heavy', { held: true }), idle()]), heavy.chamber! + preHold, heldIntent); d = stepDuel(d, [heldIntent, act('light')]); for (let i = 1; i <= light.windup; i++) d = stepDuel(d, [i <= h ? heldIntent : idle(), idle()]); return d.fighters[0].phase; };   // through the light's contact tick
-  assert.equal(metWhile(light.windup), 'attack', 'armoured while parked'); assert.equal(metWhile(6), 'hurt', 'a short hold released uncharged is a plain heavy: interruptible before its poise tick');
+  assert.equal(metWhile(light.windup), 'attack', 'armoured while parked'); assert.equal(metWhile(8), 'hurt', 'a short hold released uncharged is a plain heavy: interruptible before its poise tick (released 8 ticks in, the cut meets it at age 22 < 24)');
   assert.equal(metWhile(6, RULES.charge.min), 'attack', 'armoured when charged, even after release');
   // Draw: both fall on the same tick.
   const trade = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], health: 5, phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], health: 5, phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }] } as Duel, [idle(), idle()]);
