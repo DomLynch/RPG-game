@@ -42,11 +42,11 @@ const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
-const steel = new T.MeshStandardMaterial({ name: 'Steel', color: '#767a7c', metalness: 0.85, roughness: 0.55 }); // iron, not chrome
+const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : '#767a7c', metalness: 0.85, roughness: fighter === 'pitborn' ? 0.78 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
 const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
 const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: 0.8 });
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
@@ -67,7 +67,13 @@ const hairShell = new T.MeshPhysicalMaterial({ name: 'HairShell', roughness: .9,
 const photo = new T.MeshPhysicalMaterial({ name: 'Photo', roughness: .78, specularIntensity: .35 }); // 2026-09-16: .62/.5 read shiny beside the body's skin (roughness map 0.62+, specular .5)
 const photoEyes = new T.MeshPhysicalMaterial({ name: 'PhotoEyes', roughness: .25, clearcoat: .5, clearcoatRoughness: .1 }); // wet cornea: a small catch-light without the room washing the iris grey
 const photoTeeth = new T.MeshStandardMaterial({ name: 'PhotoTeeth', roughness: .4 });
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth].map(m => [m, []]));
+const bone = new T.MeshStandardMaterial({ name: 'Bone', color: '#b3a073', roughness: .58 }); // yellowed ivory, not chalk: the tusks
+const boneWorn = new T.MeshStandardMaterial({ name: 'BoneWorn', color: '#6e5d45', roughness: .72 }); // the lashed plates: old bone gone dark, pulled toward the leather (owner, 2026-09-16: "a bit darker, or the leather colour") // the Pitborn's tusks and plates (materials rule: bone)
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth, bone, boneWorn].map(m => [m, []]));
+// Per-fighter frame (moves.ts OPPONENTS.scale must match `scale`; tests/characters.test.ts checks the shipped height against it): the whole
+// rig is scaled, so every clip, the hand's sword and the baked blade paths follow. `hunch` bends bones forward by degrees in every clip
+// (a constant post-rotation about each bone's own rest sideways axis) — the brute's forward-hunched spine, head thrust out to look at you.
+const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] }, pitborn: { scale: 1.13, hunch: [['spine_02', 7], ['spine_03', 7], ['neck_01', -7], ['Head', -6]] } }[fighter] ?? { scale: 1, hunch: [] };
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -112,6 +118,14 @@ function knee(x, bone) {
   const shape = new T.Shape(); shape.moveTo(0,.076); shape.lineTo(.064,.035); shape.lineTo(.072,-.015); shape.lineTo(0,-.078); shape.lineTo(-.072,-.015); shape.lineTo(-.064,.035); shape.closePath();
   const g = new T.ExtrudeGeometry(shape,{depth:.025,bevelEnabled:true,bevelSize:.012,bevelThickness:.012,bevelSegments:2,steps:1});
   add(g,steel,bone,x,.55,.025);
+}
+// The Pitborn's bone plates (owner's brief: lashed at shoulder and forearm): rigid ellipsoids on the left shoulder cap and down the
+// upper arm, two along the sword forearm. Iron knee plates wait for a kit pass in parts.py (the classic-body knee() primitive read as boxes).
+if (fighter === 'pitborn') {
+  const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  const shoulder = at('upperarm_l'), elbow = at('lowerarm_l'), wrist = at('hand_r'), elbowR = at('lowerarm_r');
+  for (let i = 0; i < 3; i++) { const p = new T.Vector3().lerpVectors(shoulder, elbow, .04 + i * .16); plate(p.x + .012, p.y + .045 - i * .012, p.z + .01, .074 - i * .008, .024, .06, boneWorn, 'upperarm_l'); }
+  for (let i = 0; i < 2; i++) { const p = new T.Vector3().lerpVectors(elbowR, wrist, .30 + i * .28); plate(p.x, p.y, p.z + .028, .03, .058, .02, boneWorn, 'lowerarm_r'); }
 }
 // Peaked closed sallet: elliptical rings give it a forged silhouette, tapered neck and brow.
 function shell(rings, material, bone, z = 0) {
@@ -159,7 +173,7 @@ for (const file of partFiles) {
 }
 // Equipped items (WARRIOR_ITEMS=ranger,...): src/assets/source/items/<name>.glb, same contract as parts. An item replaces
 // whatever the level-1 kit put in the same slot. Demo builds only until the runtime swaps slots itself.
-const items = process.env.WARRIOR_ITEMS ?? (fighter === 'veteran' ? 'helmet_bronze' : ''); // the Veteran fights in a plain bronze helm: a poor first opponent (owner, 2026-09-16 — the crest floated, and extravagance is for later, harder men; crest_red_veteran.glb stays built)
+const items = process.env.WARRIOR_ITEMS ?? (fighter === 'veteran' ? 'helmet_bronze' : ''); // the Pitborn fights bareheaded (his tusks and brow are the silhouette) // the Veteran fights in a plain bronze helm: a poor first opponent (owner, 2026-09-16 — the crest floated, and extravagance is for later, harder men; crest_red_veteran.glb stays built)
 for (const item of items.split(',').filter(Boolean)) {
   const own = `src/assets/source/items/${item}_${fighter}.glb`, file = fighter !== 'hero' && await fs.stat(own).then(() => true, () => false) ? own : `src/assets/source/items/${item}.glb`; // a helm is shelled from its fighter's skull
   const glb = await fs.readFile(file), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
@@ -462,8 +476,23 @@ if (weaponNode) { // the weapon's clips, authored on this rig after every sword 
   const { tridentClips } = await import('./build-weapon.mjs');
   clips.push(...tridentClips({ T, base, skeleton, poseMixer, clips, reachArm, weapon: weaponNode }));
 }
+// The hunch: for each named bone, its rest-pose sideways axis in its own frame; every quaternion key of every clip is post-rotated about it.
+if (BUILD.hunch.length) {
+  // Rest-pose frames come from the bind matrices (the exported node transforms are left exactly as the hero build leaves them).
+  const bind = name => new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert();
+  const facing = new T.Vector3().subVectors(new T.Vector3().setFromMatrixPosition(bind('ball_l')), new T.Vector3().setFromMatrixPosition(bind('foot_l'))).setY(0).normalize();
+  const sideways = new T.Vector3(0, 1, 0).cross(facing).normalize();   // bending forward = rotating about the fighter's left-right axis
+  for (const [name, degrees] of BUILD.hunch) {
+    if (!skeleton.bones.some(x => x.name === name)) throw new Error(`hunch: no bone ${name}`);
+    const local = sideways.clone().applyQuaternion(new T.Quaternion().setFromRotationMatrix(bind(name)).invert()).normalize();
+    const delta = new T.Quaternion().setFromAxisAngle(local, degrees * Math.PI / 180), q = new T.Quaternion();
+    let keys = 0;
+    for (const clip of clips) for (const track of clip.tracks) if (track.name === `${name}.quaternion`) for (let i = 0; i < track.values.length; i += 4) { q.fromArray(track.values, i).multiply(delta); q.toArray(track.values, i); keys++; }
+    console.log(`  hunch ${name} ${degrees}° over ${keys} keys`);
+  }
+}
 base.scene.name='Ashcourt warrior';
-base.scene.scale.set(.9,.97,.97); base.scene.position.y=.025;
+base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);
 const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
 await fs.mkdir('src/assets',{recursive:true});

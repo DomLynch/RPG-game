@@ -3,7 +3,7 @@ import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { RULES, type WeaponId } from './moves.ts';
+import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
@@ -21,7 +21,9 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
   };
 }
 
-export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: string) => void = () => {}) {
+// One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
+const OPPONENT_GLB: Record<OpponentId, string> = { veteran: new URL('./assets/veteran.glb', import.meta.url).href, pitborn: new URL('./assets/pitborn.glb', import.meta.url).href };
+export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: string) => void = () => {}, opponentId: OpponentId = 'veteran') {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
@@ -115,9 +117,9 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   const opponent = capsule(TARGET.x, TARGET.z, new THREE.MeshStandardMaterial({ color: '#6d5447', roughness: 0.8, metalness: 0.25 }));
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   assetStatus('Loading warriors…');
-  // The player, and the Veteran as the opponent; each rig plays the clips of the weapon the simulation gives that side (duel.ts initialDuel).
-  const weapons = initialPractice().duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
-  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, new URL('./assets/veteran.glb', import.meta.url).href, weapons).then(loaded => {
+  // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
+  const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
+  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, OPPONENT_GLB[opponentId], weapons).then(loaded => {
     warriors = loaded;
     for (const proxy of [player, opponent]) {
       proxy.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
@@ -179,7 +181,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     // frozen tick without advancing their clocks — the one impact pause is the frame loop's.
     render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events, frozen = false) {
       const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
-      if (practice.health===RULES.health && practice.playerHealth===RULES.health && (lastHealth<RULES.health || lastPlayerHealth<RULES.health)) { impact=0; for(const splat of splats) splat.life=0; }
+      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { impact=0; for(const splat of splats) splat.life=0; }   // a fresh match: both bars full again
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;

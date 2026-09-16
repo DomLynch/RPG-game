@@ -16,6 +16,7 @@ const label = option('label') || commit, against = option('against');
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
 const query = new URLSearchParams(); for (const key of ['src', 'enemy']) if (option(key)) query.set(key, option(key));
+const enemyFile = (option('enemy') || '/src/assets/veteran.glb').replace(/^\//, '');   // the opponent GLB on disk, for the resource table
 const url = `${server.resolvedUrls.local[0]}character-preview.html${query.size ? `?${query}` : ''}`;
 if (args.includes('--serve')) { console.log(`Character preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
@@ -50,7 +51,7 @@ try {
       await save(`weapon-lock-${orientation}-${role}.png`, await page.evaluate(([o, r, t]) => __preview.weaponLock(o, r, t), [orientation, role, t]));
     await save('exchange.png', await page.evaluate(() => __preview.weaponExchange()));
     await save('exchange-zoom.png', await page.evaluate(() => __preview.weaponExchange('phoneLandscape', 15, 2)));
-    const weapon = await page.evaluate(() => __preview.weaponStats()), enemyFile = (option('enemy') || '/src/assets/veteran.glb').replace(/^\//, ''), enemy = await fs.readFile(enemyFile);
+    const weapon = await page.evaluate(() => __preview.weaponStats()), enemy = await fs.readFile(enemyFile);
     const stats = { label, commit, date: new Date().toISOString().slice(0, 10), enemyGlb: enemyFile, enemyGlbBytes: enemy.length, enemyGlbGzip: gzipSync(enemy).length, ...weapon };
     await fs.writeFile(`${dir}/stats.json`, JSON.stringify(stats, null, 1));
     const previous = against ? JSON.parse(await fs.readFile(`artifacts/weapons/${against}/stats.json`, 'utf8')) : null;
@@ -77,7 +78,7 @@ try {
   const video = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, recordVideo: { dir, size: { width: 844, height: 390 } } });
   const player = await open(video); await player.evaluate(() => __preview.play()); const file = player.video(); await video.close();
   await file.saveAs(`${dir}/sequence.webm`); await fs.rm(await file.path(), { force: true }); console.log(`  ${dir}/sequence.webm`);
-  const glb = await fs.readFile('src/assets/warrior.glb'), enemy = await fs.readFile('src/assets/veteran.glb').catch(() => null);
+  const glb = await fs.readFile('src/assets/warrior.glb'), enemy = await fs.readFile(enemyFile).catch(() => null);
   const resources = { label, commit, date: new Date().toISOString().slice(0, 10), glbBytes: glb.length, glbGzip: gzipSync(glb).length, ...(enemy ? { enemyGlbBytes: enemy.length, enemyGlbGzip: gzipSync(enemy).length } : {}), ...stats };
   await fs.writeFile(`${dir}/stats.json`, JSON.stringify(resources, null, 1));
   const previous = against ? JSON.parse(await fs.readFile(`artifacts/character/${against}/stats.json`, 'utf8')) : null;

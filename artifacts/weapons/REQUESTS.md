@@ -72,3 +72,9 @@ defender's guard kind on `Blocked` / `GuardBroken` (request 2, last bullet) befo
   the default. `artifacts/weapons/trident-v4-short/weapon-turntable.png`. A/B/C remain as `WEAPON_VARIANT` options.
 - The trident is held two-handed in every clip (the brief's contract). A one-handed carry for idle / walk / strafe / hit / death was
   offered and not taken; the 13-clip set is complete either way.
+
+## For the weapons lane — the Pitborn's cleaver (2026-09-16, from the opponent seam, PR #81)
+`WeaponId 'cleaver'` exists as a longsword placeholder; `OPPONENTS.pitborn.weapon = 'cleaver'` already. The full contract (mesh, `WeaponDrawn`
++ `extras.contact`, own `material` value, `WARRIOR_FIGHTER=pitborn WARRIOR_WEAPON=cleaver` hook, manifest entry baked from `src/assets/pitborn.glb`,
+heavier stamina / longer heavy recovery, re-run `tests/opponents.test.ts`) is in `artifacts/character/BRIEF-pitborn.md` § Weapon. Sword clip
+family only — no new move set; the renderer already plays it, so unlike the trident it is visible in-game the moment the data lands.
