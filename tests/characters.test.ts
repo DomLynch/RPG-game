@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { PATHS, total } from '../src/moves.ts';
+import { bladePaths } from '../src/blade-paths.ts';
 import { CLIPS, COMBAT_CLIPS, buildWarriors, gaitWeights, swingProgress, defenceReaction } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
@@ -265,5 +266,24 @@ test('the cuts are hooks: the blade tip never passes behind the shoulder line in
     action.stop(); mixer.uncacheClip(clip);
     assert.ok(minZ >= 0, `${name}: the tip goes ${(-minZ).toFixed(2)} m behind the body`); assert.ok(maxSide > .9, `${name}: the tip swings out to the side (${maxSide.toFixed(2)} m)`);
     assert.ok(minY >= 1, `${name}: the tip dips to ${minY.toFixed(2)} m (a cut stays at chest height; the retraction lifts, it never drags the blade back low)`);
+  }
+});
+
+test('one stroke, quantified: the first cut loads on the side the sword rests (the right hip), the sideways travel is almost all in one direction inside the cut, and the retraction is a lift (the tip goes over the head, not back along the arc)', () => {
+  // The baked paths are what the simulation sweeps and what the player sees. x < 0 is the fighter's right; the armed idle holds the sword at the right hip.
+  for (const [id, loadSide] of [['light_right', -1], ['light_left', 1]] as const) {
+    const t = PATHS[id], p = bladePaths[id], x = p.map(f => f[3]), y = p.map(f => f[4]);
+    const travel = (a: number, b: number) => { let toLeft = 0, toRight = 0; for (let i = a + 1; i <= b; i++) { const d = x[i] - x[i - 1]; if (d > 0) toLeft += d; else toRight -= d; } return { toLeft, toRight }; };
+    const load = travel(0, t.windup - 6), cut = travel(t.windup - 6, t.windup + t.active), retract = travel(t.windup + t.active, p.length - 1);
+    // Load: the tip stays on its own side and barely moves sideways (a raise, not a swing across the body).
+    assert.ok(Math.sign(x[t.windup - 6]) === loadSide, `${id}: the load sits on the ${loadSide < 0 ? 'right' : 'left'} (tip x ${x[t.windup - 6].toFixed(2)})`);
+    assert.ok(load.toLeft + load.toRight < .4, `${id}: the load travels ${(load.toLeft + load.toRight).toFixed(2)} m sideways — that is a stroke, not a raise`);
+    // The cut: over a metre of sideways travel, essentially all in one direction.
+    const [along, against] = loadSide < 0 ? [cut.toLeft, cut.toRight] : [cut.toRight, cut.toLeft];
+    assert.ok(along > 1 && against < .1, `${id}: the cut travels ${along.toFixed(2)} m one way and ${against.toFixed(2)} m back`);
+    // The retraction lifts: the tip peaks over the head, and it never dips.
+    assert.ok(Math.max(...y.slice(t.windup + t.active)) > 1.9, `${id}: the retraction lifts the tip to ${Math.max(...y.slice(t.windup + t.active)).toFixed(2)} m`);
+    assert.ok(Math.min(...y) > 1, `${id}: the tip never dips (${Math.min(...y).toFixed(2)} m)`);
+    void retract;
   }
 });
