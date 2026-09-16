@@ -64,8 +64,16 @@ let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(win
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
 const HOLD_MS = 150;
 let dodgeHeld: { since: number; rolled: boolean } | null = null;
-// Heavy control: the press swings at once; keeping it held charges the swing (the simulation owns the timing).
-let held = false;
+// Strike controls: the press swings at once; keeping it held charges (Heavy), loads (Stab) or chambers (Slash) the swing — the simulation owns
+// the timing. The held level belongs to the control that raised it: releasing one never drops another's. Dragging a held strike off its
+// circle turns the press into a guard press (a feint inside the wind-up's feint window, a parry or a raised guard after it) until it lifts.
+type Strike = 'light' | 'heavy' | 'thrust';
+const holders = new Set<Strike>(); let dragGuard = false;
+const ownerOf = (move: string | null): Strike | null => move === 'heavy_overhead' ? 'heavy' : move === 'thrust' ? 'thrust' : move?.startsWith('light_') ? 'light' : null;
+// The held level the simulation sees: during a swing, whether the control that threw it is still down; otherwise whether any strike control is.
+const held = () => { const f = practice.duel.fighters[0], owner = f.phase === 'attack' ? ownerOf(f.move) : null; return owner ? holders.has(owner) : holders.size > 0; };
+function hold(by: Strike) { holders.add(by); }
+function unhold(by: Strike) { holders.delete(by); }
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
 // pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
@@ -107,8 +115,8 @@ function updateHud() {
   gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '← Cut → · ↑ Thrust · ↓ Heavy';
   gesturePad.setAttribute('aria-disabled', String(!controlsReady));
   gesturePad.hidden = !practice.health || !practice.playerHealth;
-  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : scheme === 'cluster' ? 'Slash' : 'Light'; attackButton.setAttribute('aria-label', attackButton.textContent);
-  thrustButton.hidden = scheme !== 'cluster' || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
+  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : disc() ? 'Light' : 'Slash'; attackButton.setAttribute('aria-label', attackButton.textContent);
+  thrustButton.hidden = disc() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
   attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
   const ended = !practice.health || !practice.playerHealth;
@@ -121,7 +129,10 @@ function updateHud() {
 }
 function request(next: Action) { if (!paused() && assetsReady && accepts(practice, next)) action = next; }
 function requestKick() { request('kick'); }
-function pressDodge(now: number) { if (dodgeHeld) return; dodgeHeld = { since: now, rolled: false }; request('backstep'); }
+// Step: a tap is a backstep, a hold (150 ms) becomes a roll. With the stick already deflected (or a movement key down) the intent is a roll in
+// that direction, so it rolls at once: the invulnerability arrives with the press, not 150 ms later.
+const moving = () => moveX !== 0 || moveZ !== 0 || ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].some(k => keys.has(k));
+function pressDodge(now: number) { if (dodgeHeld) return; const roll = moving(); dodgeHeld = { since: now, rolled: roll }; request(roll ? 'dodge' : 'backstep'); }
 // Releasing a control only drops its held level; a queued press survives until the next tick consumes it. Only a cancelled pointer
 // (pointercancel, focus loss) withdraws the press: lostpointercapture follows every ordinary pointerup and must not eat a quick tap.
 // A press the simulation has already taken into its buffer is withdrawn there too (`cancel`), but only if that control owns the
@@ -135,7 +146,7 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; held = false; hitStop = 0;
+  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; holders.clear(); dragGuard = false; hitStop = 0;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -157,35 +168,49 @@ window.addEventListener('keydown', event => {
   }
   if (event.code === 'KeyF' && !event.repeat) { event.preventDefault(); requestStrike(); }
   if (event.code === 'KeyC' && !event.repeat) { event.preventDefault(); requestKick(); }
-  if (event.code === 'KeyG' && !event.repeat) { event.preventDefault(); held = true; requestStrike(true); }
-  if (event.code === 'KeyT' && !event.repeat) { event.preventDefault(); held = true; request('thrust'); }
+  if (event.code === 'KeyG' && !event.repeat) { event.preventDefault(); hold('heavy'); requestStrike(true); }
+  if (event.code === 'KeyT' && !event.repeat) { event.preventDefault(); hold('thrust'); request('thrust'); }
   if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); }
   if (event.code === 'KeyQ') { event.preventDefault(); keys.add(event.code); if (!event.repeat) requestParry(); }
   if (event.code === 'KeyR' && !event.repeat) element('recenter-button').click();
 });
-window.addEventListener('keyup', event => { keys.delete(event.code); if (event.code === 'KeyE') releaseDodge(); if (event.code === 'KeyG' || event.code === 'KeyT') held = false; });
+window.addEventListener('keyup', event => { keys.delete(event.code); if (event.code === 'KeyE') releaseDodge(); if (event.code === 'KeyG') unhold('heavy'); if (event.code === 'KeyT') unhold('thrust'); });
 function setRun(value: boolean) { run = value; runButton.setAttribute('aria-pressed', String(value)); }
 runButton.addEventListener('pointerdown', event => { if (!paused()) { runButton.setPointerCapture(event.pointerId); setRun(true); } });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) runButton.addEventListener(name, () => setRun(false));
 runButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); setRun(true); } });
 runButton.addEventListener('keyup', () => setRun(false));
 runButton.addEventListener('blur', () => setRun(false));
-attackButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestStrike(); } });
+// A strike button with pointer capture: press = strike (held while down); the pointer leaving the circle while down = guard press (drag-off feint).
+function strikeControl(button: HTMLButtonElement, name: Strike, start: () => void) {
+  let id: number | null = null, dragged = false;
+  const radius = () => { const r = button.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 + 6 }; };   // 6 px of slack before a press counts as dragged off
+  button.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || id !== null) return;
+    event.preventDefault(); id = event.pointerId; dragged = false;
+    try { button.setPointerCapture(id); } catch { /* capture is a convenience: an uncaptured press still strikes */ }
+    hold(name); start();
+  });
+  button.addEventListener('pointermove', event => {
+    if (event.pointerId !== id || dragged) return;
+    const c = radius(); if (Math.hypot(event.clientX - c.x, event.clientY - c.y) <= c.r) return;
+    dragged = true; unhold(name); dragGuard = true; requestParry();   // off the circle: the swing is abandoned into a guard press
+  });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, event => {
+    if ((event as PointerEvent).pointerId !== id) return;
+    id = null; unhold(name); if (dragged) { dragged = false; dragGuard = false; }
+    if (type === 'pointercancel') withdraw(name);
+  });
+  button.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); hold(name); start(); } });
+  button.addEventListener('keyup', () => unhold(name));
+  button.addEventListener('blur', () => unhold(name));
+}
+strikeControl(attackButton, 'light', () => requestStrike());
 kickButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestKick(); } });
 kickButton.addEventListener('pointercancel', () => withdraw('kick'));
 kickButton.addEventListener('keydown', event => { if (['Space','Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestKick(); } });
-heavyButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); heavyButton.setPointerCapture(event.pointerId); held = true; requestStrike(true); } });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) heavyButton.addEventListener(name, () => { held = false; if (name === 'pointercancel') withdraw('heavy'); });
-heavyButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); held = true; requestStrike(true); } });
-heavyButton.addEventListener('keyup', () => { held = false; });
-heavyButton.addEventListener('blur', () => { held = false; });
-thrustButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); thrustButton.setPointerCapture(event.pointerId); held = true; request('thrust'); } });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) thrustButton.addEventListener(name, () => { held = false; if (name === 'pointercancel') withdraw('thrust'); });
-thrustButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); held = true; request('thrust'); } });
-thrustButton.addEventListener('keyup', () => { held = false; });
-thrustButton.addEventListener('blur', () => { held = false; });
-attackButton.addEventListener('pointercancel', () => withdraw('light'));
-attackButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestStrike(); } });
+strikeControl(heavyButton, 'heavy', () => requestStrike(true));
+strikeControl(thrustButton, 'thrust', () => request('thrust'));
 dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); dodgeButton.setPointerCapture(event.pointerId); pressDodge(performance.now()); } });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) dodgeButton.addEventListener(name, () => releaseDodge(name === 'pointercancel'));
 dodgeButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); } });
@@ -310,7 +335,7 @@ function frame(now: number) {
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= STEP) {
       previous = state;
-      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || keys.has('KeyQ')), held: assetsReady && held, lock: locked, cancel }, PROFILES[difficulty]);
+      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, PROFILES[difficulty]);
       feedback.update(practice.events); frameEvents.push(...practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;

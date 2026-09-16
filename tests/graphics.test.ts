@@ -154,7 +154,10 @@ test('the thumb cluster is the mobile layout: round buttons incl. a Stab button 
   settle(); press(thrust, 'pointerdown'); app.tick(); assert.equal(me().move, 'thrust');
   for (let i = 0; i < 12; i++) app.tick(); assert.equal(me().age, MOVES.thrust.chamber!, 'held Stab loads the thrust'); press(thrust, 'pointerup'); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > MOVES.thrust.chamber!, 'released, it goes');
   app.element('controls-mode').click(); app.tick(); assert.equal(app.element('controls-mode').textContent, 'Controls: weapon disc · flick'); assert.equal(actions.dataset.gestures, 'flick'); assert.equal(thrust.hidden, true, 'Stab is a cluster button');
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'flick'); app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'flick'); app.element('controls-mode').click(); app.tick();
+  // v7 guard ring: the same verbs as the cluster (Slash, Stab shown) in the ring geometry; then back to the cluster.
+  assert.equal(actions.dataset.gestures, 'ring'); assert.equal(app.element('controls-mode').textContent, 'Controls: guard ring · v7'); assert.equal(thrust.hidden, false, 'Stab is a ring button too'); assert.equal(app.element('attack-button').dataset.mobile, 'Slash');
+  app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
 });
 
 
@@ -370,4 +373,35 @@ test('hit-stop presentation: the frozen frames show the contact tick itself (bod
   assert.ok(contacts >= 3, `contacts seen with the pause off: ${contacts}`); assert.equal(paused, 0, 'no contact froze the simulation');
   const again = boot(); again.storage.setItem('frankendom.hitstop.v1', 'off');
   const reloaded = boot(); void again; assert.equal(reloaded.element('hitstop-mode').textContent, 'Hit-stop: on', 'a fresh store starts on');
+});
+
+test('controls pass: Slash held chambers the cut, a held strike dragged off its circle becomes a guard press (feint in the window), the held level belongs to its own control, and Step rolls at once when the stick is deflected', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const me = () => app.rendered.duel.fighters[0], light = MOVES.light_right;
+  const at = (type: string, x: number, y: number, id = 6) => Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y });
+  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60 && !me().exposed); i++) app.tick(); };
+  const slash = app.element('attack-button'), heavy = app.element('heavy-button'), step = app.element('dodge-button'), joystick = app.element('joystick');
+  // Slash held: the cut parks at its chamber (charge counts) while the thumb stays down; release lets it fly.
+  settle(); slash.dispatchEvent(at('pointerdown', 54, 54)); app.tick(); assert.ok(me().move?.startsWith('light_'), `a cut: ${me().move}`);   // cuts alternate sides
+  for (let i = 0; i < light.chamber! + 6; i++) app.tick();
+  assert.ok(me().charge >= 4 && me().age === light.chamber, `a held Slash parks at its chamber: age ${me().age}, held ${me().charge}`);
+  slash.dispatchEvent(at('pointerup', 54, 54)); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > light.chamber, 'released, the cut continues');
+  // Drag-off feint: Slash pressed, thumb slides off the circle inside the feint window → the swing is abandoned into a guard press; the guard stays up until the thumb lifts.
+  settle(); slash.dispatchEvent(at('pointerdown', 54, 54, 7)); app.tick(); assert.ok(me().move?.startsWith('light_'));
+  app.tick(); slash.dispatchEvent(at('pointermove', 54, 54, 7)); app.tick(); assert.equal(me().phase, 'attack', 'moving inside the circle changes nothing');
+  slash.dispatchEvent(at('pointermove', 200, 54, 7)); app.tick();
+  assert.equal(me().phase, 'guard', 'off the circle: the cut is feinted into a guard'); assert.ok(app.rendered.events.some(e => e.type === 'ActionStarted' && e.action === 'feint') || me().parrying, 'as a feint');
+  for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().phase, 'guard', 'the guard is held while the thumb stays down off the circle');
+  slash.dispatchEvent(at('pointerup', 200, 54, 7)); for (let i = 0; i < 3; i++) app.tick(); assert.notEqual(me().phase, 'guard', 'lifting the thumb drops the guard');
+  // Held ownership: Heavy held and Slash tapped — releasing Slash must not drop Heavy's charge.
+  settle(); heavy.dispatchEvent(at('pointerdown', 54, 54, 8)); app.tick(); assert.equal(me().move, 'heavy_overhead');
+  slash.dispatchEvent(at('pointerdown', 54, 54, 9)); slash.dispatchEvent(at('pointerup', 54, 54, 9));
+  for (let i = 0; i < MOVES.heavy_overhead.chamber! + 8; i++) app.tick();
+  assert.ok(me().charge >= 6 && me().age === MOVES.heavy_overhead.chamber, `the heavy is still charging after another control's release: age ${me().age}, held ${me().charge}`);
+  heavy.dispatchEvent(at('pointerup', 54, 54, 8)); for (let i = 0; i < 40; i++) app.tick();
+  // Step with the stick deflected rolls on the press itself (no 150 ms wait); with a neutral stick a tap is still a backstep.
+  settle(); joystick.dispatchEvent(at('pointerdown', 20, 54, 2)); app.tick();
+  step.dispatchEvent(at('pointerdown', 54, 54, 10)); app.tick(); assert.equal(me().phase, 'roll', 'deflected stick: the press rolls at once');
+  step.dispatchEvent(at('pointerup', 54, 54, 10)); app.window.dispatchEvent(at('pointerup', 300, 300, 2)); for (let i = 0; i < 60; i++) app.tick();
+  settle(); step.dispatchEvent(at('pointerdown', 54, 54, 11)); app.tick(); assert.equal(me().phase, 'backstep', 'neutral stick: a tap backsteps'); step.dispatchEvent(at('pointerup', 54, 54, 11));
 });
