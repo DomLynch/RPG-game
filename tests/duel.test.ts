@@ -763,3 +763,70 @@ test('slice P tuning pins: 40 stamina/s after .75 s, a guard at half rate, block
   assert.equal(RULES.health, 150, 'measured AI-vs-AI at normal: 12 hits / 24 s median (the 8–15 target); at 100 it was 7–8 hits / 16 s');
   assert.ok(MOVES.light_right.staminaDamage < MOVES.light_right.stamina, 'blocking a cut costs the blocker less than the cut cost the attacker');
 });
+
+test('gladiator identity (slice Q): the ring wall hits back — knockback that meets the wall adds stagger and posture, and a cornered fighter cannot backstep (a roll still works)', () => {
+  // Two fighters on the ring's north edge: the victim (index 0) stands 0.1 m inside the wall with the wall at its back; the attacker faces it from inside.
+  const edge = (gapFromWall: number): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: RADIUS - gapFromWall, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ x: 0, z: RADIUS - gapFromWall - 1.2, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
+  const swing = (d: Duel) => run(stepDuel(d, [idle(), act('light')]), light.windup, idle(), idle());
+  const walled = swing(edge(.1)), open = swing(duel());
+  const wh = walled.events.find(e => e.type === 'Hit')!, oh = open.events.find(e => e.type === 'Hit')!;
+  assert.ok(wh && oh && wh.target === 0 && oh.target === 0);
+  const ws = walled.events.find(e => e.type === 'Staggered')!, os = open.events.find(e => e.type === 'Staggered')!;
+  assert.equal(ws.walled, true); assert.equal(os.walled, undefined);
+  assert.equal(ws.ticks, os.ticks! + RULES.wall.stagger, 'the wall adds its stagger');
+  assert.equal(walled.fighters[0].posture, open.fighters[0].posture + RULES.wall.posture, 'and its posture');
+  assert.ok(Math.hypot(walled.fighters[0].body.x, walled.fighters[0].body.z) >= RADIUS - RULES.wall.edge, 'pinned on the wall');
+  // Cornered: with the wall at the back a backstep is refused; a roll is not; with the wall in front (back to the centre) the backstep is free.
+  const cornered = edge(.1);
+  assert.equal(stepDuel(cornered, [act('backstep'), idle()]).fighters[0].phase, 'ready', 'no backstep into the wall');
+  assert.equal(stepDuel(cornered, [act('dodge'), idle()]).fighters[0].phase, 'roll', 'a roll is still an answer');
+  const facingWall = { ...cornered, fighters: [{ ...cornered.fighters[0], body: { ...cornered.fighters[0].body, heading: 0 } }, cornered.fighters[1]] } as Duel;
+  assert.equal(stepDuel(facingWall, [act('backstep'), idle()]).fighters[0].phase, 'backstep', 'away from the wall the backstep is free');
+  assert.equal(stepDuel(duel(), [act('backstep'), idle()]).fighters[0].phase, 'backstep', 'mid-ring too');
+});
+
+test('gladiator identity (slice Q): attrition — every blade wound takes stamina off the ceiling for the duel (floor 40), a kick does not, and a leg wound slows the walk', () => {
+  const cut = run(stepDuel(duel(), [act('light'), idle()]), light.windup);
+  assert.equal(cut.fighters[1].maxStamina, 100 - RULES.attrition.stamina); assert.equal(cut.fighters[1].wound, RULES.wound);
+  // The bar never regenerates past the new ceiling.
+  const rested = run({ ...cut, fighters: [cut.fighters[0], { ...cut.fighters[1], phase: 'ready', stamina: 90, rest: 0 }] } as Duel, 200, idle(), idle());
+  assert.equal(rested.fighters[1].stamina, 100 - RULES.attrition.stamina, 'regeneration stops at the ceiling');
+  let d = duel(); for (let i = 0; i < 12; i++) { d = run(stepDuel({ ...d, fighters: [{ ...d.fighters[0], phase: 'ready', stamina: 100 }, { ...d.fighters[1], phase: 'ready', health: HP, posture: 0 }] } as Duel, [act('light'), idle()]), LIGHT); }
+  assert.equal(d.fighters[1].maxStamina, RULES.attrition.floor, 'the ceiling has a floor');
+  const kicked = run(stepDuel(duel(1.1), [act('kick'), idle()]), kick.windup);
+  assert.ok(kicked.events.some(e => e.type === 'Hit' && e.move === 'kick')); assert.equal(kicked.fighters[1].maxStamina, 100, 'a kick leaves no wound');
+  // A leg wound: the walk slows to legSpeed.
+  const legged = { ...duel(3), fighters: [duel(3).fighters[0], { ...duel(3).fighters[1], legWound: true }] } as Duel, sound = duel(3);
+  const walk = (dd: Duel) => run(dd, 20, idle(), { ...idle(), move: { x: 1, z: 0, yaw: 0, run: false } }).fighters[1].body.distance;
+  assert.ok(Math.abs(walk(legged) / walk(sound) - RULES.attrition.legSpeed) < .02, `leg wound slows the walk: ${walk(legged).toFixed(3)} vs ${walk(sound).toFixed(3)}`);
+});
+
+test('gladiator identity (slice Q): the thrust is the stop-hit — into a swing or an opponent walking onto the point it lands at stopHit rates (a cut only counters), and a thrust that meets nothing overextends', () => {
+  const thrust = MOVES.thrust;
+  // Into a swing: the target has started a heavy; the thrust lands during its wind-up (before the heavy's poise tick).
+  const intoSwing = (attack: 'thrust' | 'light') => { let d = stepDuel(duel(1.5), [idle(), act('heavy')]); d = stepDuel(d, [act(attack), idle()]); return run(d, MOVES[attack === 'thrust' ? 'thrust' : 'light_right'].windup, idle(), idle()); };
+  const ts = intoSwing('thrust').events.find(e => e.type === 'Hit')!, ls = intoSwing('light').events.find(e => e.type === 'Hit')!;
+  assert.ok(ts && ls, 'both land');
+  assert.equal(ts.stop, true); assert.equal(ts.damage, Math.round(thrust.damage * RULES.stopHit.damage)); assert.equal(intoSwing('thrust').events.find(e => e.type === 'Staggered')!.ticks, Math.round(thrust.stagger * RULES.stopHit.stagger));
+  assert.equal(ls.stop, undefined); assert.equal(ls.counter, true); assert.equal(ls.damage, Math.round(light.damage * RULES.counter.damage), 'a cut is the ordinary counter-hit');
+  // Onto the point: the target walks in through the wind-up (from 1.9 m; the thrust reaches 2.0).
+  const walker: Intent = { ...idle(), move: { x: 0, z: -1, yaw: 0, run: false } };
+  const onto = run(stepDuel(duel(1.9), [idle(), act('thrust')]), thrust.windup, walker, idle());
+  const oh = onto.events.find(e => e.type === 'Hit')!; assert.ok(oh, 'lands on the walker'); assert.equal(oh.stop, true, 'the walker is stop-hit');
+  const standing = run(stepDuel(duel(1.9), [idle(), act('thrust')]), thrust.windup, idle(), idle());
+  assert.equal(standing.events.find(e => e.type === 'Hit')!.stop, undefined, 'a standing target is not');
+  // Overextension: a whiffed thrust is back in `ready` stopHit.whiff ticks later than its own timing says.
+  const whiff = (id: 'thrust' | 'light') => { let d = stepDuel(duel(4), [act(id), idle()]); let ticks = 1; while (d.fighters[0].phase === 'attack' && ticks < 200) { d = stepDuel(d, [idle(), idle()]); ticks++; } return { ticks, missed: types(d).includes('AttackMissed') || true }; };
+  assert.equal(whiff('light').ticks, total(light) + 1, 'a cut whiffs on its own timing (the count includes the starting tick)'); assert.equal(whiff('thrust').ticks, total(thrust) + 1 + RULES.stopHit.whiff, 'a whiffed thrust hangs `whiff` ticks longer');
+});
+
+test('gladiator identity (slice Q): posture pins — a gain pauses the drain for posture.hold ticks, then it drains at .2, a parry puts 25 on the attacker, cut 20 / heavy 32 / thrust 16 (swept to ~one break per two duels at normal)', () => {
+  assert.deepEqual([RULES.posture.decay, RULES.posture.hold, RULES.posture.parry], [.2, 45, 25]);
+  assert.deepEqual([MOVES.light_right.posture, MOVES.heavy_overhead.posture, MOVES.thrust.posture], [20, 32, 16]);
+  const blocked = run(stepDuel(duel(), [act('light'), hold()]), light.windup, idle(), hold());
+  const gained = blocked.fighters[1].posture; assert.ok(gained > 0);
+  const held = run(blocked, RULES.posture.hold - 1, idle(), idle());
+  assert.equal(held.fighters[1].posture, gained, 'no drain while the hold runs');
+  const draining = run(held, 20, idle(), idle());
+  assert.ok(Math.abs(draining.fighters[1].posture - (gained - 20 * RULES.posture.decay)) < 1e-9 + RULES.posture.decay, `then it drains at .2 a tick: ${draining.fighters[1].posture}`);
+});

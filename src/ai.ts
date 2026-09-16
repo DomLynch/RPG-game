@@ -1,5 +1,5 @@
 import { MOVES, RULES, type AiProfile } from './moves.ts';
-import { aim, distance, elapsed, idleIntent, legal, timing, type Action, type Duel, type Intent, type Side } from './duel.ts';
+import { aim, distance, elapsed, idleIntent, legal, timing, walled, type Action, type Duel, type Intent, type Side } from './duel.ts';
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
 // action `reaction` ticks late, and emits an ordinary Intent that stepDuel judges by the same rules as the player's.
@@ -10,7 +10,7 @@ export type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 // tail punishes, a light-spammer gets parried more. Reads need evidence first, so the first exchanges are always the honest ones.
 export type Habits = { ticks: number; guard: number; parries: number; rolls: number; lights: number; heavies: number; thrusts: number; attacks: number };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; spammer: boolean };
-export const THRUST_SHARE = .35;   // share of the warden's non-light openers that are thrusts, once the first (always a heavy) has shown the parry timing
+export const THRUST_SHARE = .2;   // share of the warden's non-light openers that are thrusts, once the first (always a heavy) has shown the parry timing; the thrust's real job is the stop-hit
 export const READ = { feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 export const readOpponent = (h: Habits): Reads => ({
   parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
@@ -18,8 +18,8 @@ export const readOpponent = (h: Habits): Reads => ({
   roller: h.attacks >= READ.after && h.rolls / h.attacks >= READ.roll,
   spammer: h.lights + h.heavies + h.thrusts >= READ.swings && h.lights / (h.lights + h.heavies + h.thrusts) >= READ.lightShare,   // cuts only: a player mixing in thrusts or heavies is not a spammer
 });
-export type AiState = { seed: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; habits: Habits; scores: Record<string, number> };
-export const initialAi = (seed = 731): AiState => ({ seed, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0 }, scores: {} });
+export type AiState = { seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; habits: Habits; scores: Record<string, number> };
+export const initialAi = (seed = 731): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0 }, scores: {} });
 const lcg = (seed: number) => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 
 export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): { intent: Intent; ai: AiState } {
@@ -27,6 +27,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (!M.health || !F.health || F.phase === 'sheathed' || F.phase === 'draw') return { intent, ai: next };
   const roll = () => { next.seed = lcg(next.seed); return next.seed / 2 ** 32; };
   const gap = distance(M.body, F.body), facing = aim(M.body, F.body);
+  next.lastGap = gap; next.lastTravel = F.body.distance;   // for the next tick's read of an advancing opponent
   const canAct = M.phase === 'ready' || M.phase === 'guard';
   // Observe the opponent's habits from state edges (age 0 = this tick's start) and read them.
   const h = next.habits = { ...ai.habits, ticks: ai.habits.ticks + 1 };
@@ -69,6 +70,8 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // Openings: a stagger, exhaustion, the recovery of a swing that missed — and, against a roller, the tail of a roll. A landed hit is not an opening: it staggered me.
   const opening = (F.phase === 'hurt' && F.age >= profile.reaction) || F.exhausted || F.exposed > 0 || (F.phase === 'attack' && !F.landed && F.age - timing(F).windup - timing(F).active >= profile.reaction) || (reads.roller && F.phase === 'roll' && F.age >= RULES.safeEnd);   // a parry that met nothing is the classic opening
   const guarded = F.phase === 'guard' && F.age >= profile.reaction;
+  // Walking onto the point: the opponent moved this tick and the gap closed, from beyond cutting range to inside the thrust's.
+  const advancing = (F.phase === 'ready' || F.phase === 'guard') && F.body.distance > ai.lastTravel && ai.lastGap > gap + .01 && gap < MOVES.thrust.reach - .1 && gap > MOVES.light_right.reach - .1;
   const pressured = reads.spammer && F.phase === 'ready' && gap <= MOVES.light_right.reach + .1;   // a read spammer standing ready inside cutting range will cut before a slow swing lands
   // Movement mode: seeded, bounded decisions; never reads hidden input.
   // Timers pause while staggered: the punish window is measured from recovery, not from the blow.
@@ -81,7 +84,8 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (pressured && next.next === 'heavy') next.next = 'light';   // a heavy planned against a read spammer becomes a cut: the 32-tick swing would be cut first (and never left the warden waiting in guard for a cut that does not come)
   // Below the stamina floor it recovers by circling just outside the player's light reach; it only backs right off
   // when very low or freshly hit. Guarding stops regeneration, so it is a choice made with stamina in hand.
-  const low = M.stamina < profile.discipline, shaky = M.posture >= RULES.posture.max * .7;   // near a posture break it gives ground so the bar drains
+  // The stamina floor is a share of the bar's current ceiling: attrition wounds lower the ceiling, and a floor above it would leave the warden circling for ever.
+  const floor = profile.discipline * M.maxStamina / 100, low = M.stamina < floor, shaky = M.posture >= RULES.posture.max * .7;   // near a posture break it gives ground so the bar drains
   if (!next.decision) {
     const r = roll();
     next.decision = 36 + Math.floor(r * 45); next.side = next.seed & 1 ? 1 : -1;
@@ -90,7 +94,11 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (gap > 2.5 || (!low && !shaky && gap > 1.9)) next.mode = 'approach';
   if (tick < next.retreatUntil || ((low || shaky) && gap < 1.2)) next.mode = 'retreat';
   else if ((low || shaky) && next.mode === 'retreat' && gap >= 1.9) next.mode = 'circle';
-  if (next.next === 'thrust' && canAct && !threat && gap < MOVES.light_right.reach - .1) next.mode = 'retreat';   // a thrust is thrown from outside cutting range: step back to it first
+  // The ring wall. A retreat that would put its own back to the wall becomes a circle along it, on the side that leads inward; a player with
+  // the wall at their back is pressed straight (no circling: the wall is doing the cutting off).
+  const myBack = walled(M.body, -Math.sin(facing), -Math.cos(facing)), theirBack = walled(F.body, Math.sin(facing), Math.cos(facing));
+  if (next.mode === 'retreat' && myBack) { next.mode = 'circle'; next.side = (M.body.x * Math.cos(facing) - M.body.z * Math.sin(facing)) > 0 ? -1 : 1; }   // lateral toward the centre
+  if (next.mode === 'circle' && theirBack && !low && !shaky) next.mode = 'approach';
   if (canAct && noticed && next.plan !== 'ignore') {
     const estimate = timing(F).windup - F.age + next.jitter;
     next.scores = { [next.plan!]: 1, estimate };
@@ -117,16 +125,19 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       kick: (guarded || reads.parryHappy) && inReach('kick') && r < .5 + (reads.turtle || reads.parryHappy ? READ.kickBoost : 0) ? 1.1 + (reads.turtle ? READ.kickBoost : 0) : 0,   // a turtle is kicked more; a kick goes through a parry window, so a parrier is kicked too
       heavy: guarded && inReach('heavy_overhead') ? 1 : next.next === 'heavy' && !threat && !pressured && inReach('heavy_overhead') ? .8 : 0,   // never a slow opener into a ready spammer: the cut lands first
       light: next.next === 'light' && !threat && !guarded && inReach('light_right') ? .8 : 0,
-      thrust: next.next === 'thrust' && !threat && !guarded && gap >= MOVES.light_right.reach - .1 && inReach('thrust') ? .8 : 0,   // the spacing opener: from where a cut cannot reach; blockable, so never into a standing guard
+      // The thrust: a stop-hit into an opponent walking onto the point (it lands at 1.5× and staggers longer), or the scheduled opener from wherever it
+      // stands; blockable, so never into a standing guard.
+      thrust: !threat && !guarded && inReach('thrust') && next.next !== null && (advancing || next.next === 'thrust') ? (advancing ? .9 : .8) : 0,   // on the cadence only: an attack that is due anyway becomes the stop-hit when the opponent is walking in
     };
-    if (M.stamina < profile.discipline) for (const key of ['chain', 'kick', 'heavy', 'light', 'thrust']) scores[key] = 0;   // stamina discipline: only punishes below the floor
+    if (low) for (const key of ['chain', 'kick', 'heavy', 'light', 'thrust']) scores[key] = 0;   // stamina discipline: only punishes below the floor
     next.scores = scores;
     const [best, score] = Object.entries(scores).sort((x, y) => y[1] - x[1])[0];
     if (score > 0) {
       const action: Action = best === 'kick' ? 'kick' : best === 'heavy' || best === 'critical' || best === 'counter' ? 'heavy' : best === 'thrust' ? 'thrust' : 'light';
       next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); next.next = null;
       // A less aggressive warden sometimes baits instead: a visible guard the player must open with a heavy or a kick.
-      if ((best === 'heavy' || best === 'light' || best === 'thrust') && !guarded && roll() < (1 - profile.aggression) * .6) { next.mode = 'guard'; next.decision = 36 + Math.floor(roll() * 45); intent.guard = true; return { intent, ai: next }; }
+      // The stop-hit is never traded for a bait: the moment is now.
+      if ((best === 'heavy' || best === 'light' || (best === 'thrust' && !advancing)) && !guarded && roll() < (1 - profile.aggression) * .6) { next.mode = 'guard'; next.decision = 36 + Math.floor(roll() * 45); intent.guard = true; return { intent, ai: next }; }
       // A guard is charged through 20/40/60 % of the time by level (more against a turtle or a roller, whose answer a charge outlasts); a
       // parry-happy player has lights held past the parry window as baits.
       const chargeChance = profile.aggression - .25 + (reads.turtle || reads.roller || reads.parryHappy ? READ.chargeBoost : 0);

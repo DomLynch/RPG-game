@@ -17,7 +17,8 @@ Input rules: one edge-triggered action per tick plus held levels (guard, heavy/t
 ## 3. Fighter state
 
 - **Health** 150 (a duel of 8–15 blows: measured 12 hits / 24 s median AI-vs-AI at normal). **Stamina** 100, regen ⅔/tick (40/s) after a 45-tick (0.75 s) rest; a raised guard regenerates at half rate; a sprint drains 0.2/tick with no regeneration on sprinting ticks and none of the rest delay (it resumes the tick the sprint stops); at 0 → **exhausted** (no attacks or guard, move at 70 % speed) until back to 20.
-- **Posture** 0–100 (see §7). **Wound**: a landed blade hit marks a wound for 240 ticks, during which stamina regen is ×0.8.
+- **Posture** 0–100 (see §6). **Wound**: a landed blade hit marks a wound for 240 ticks, during which stamina regen is ×0.8 — and **attrition**: every blade wound takes 8 off the wounded fighter's stamina ceiling for the rest of the duel (floor 40; the lost part of the bar is shaded), and a leg wound slows walking to 85 %.
+- **The ring wall** (radius 8.55 m): knockback that ends against the wall is a second impact — +12 ticks of stagger and +15 posture (a kick shoves); a fighter with the wall at their back cannot backstep (a roll still works). The warden never retreats into the wall (it circles inward along it) and presses a player pinned on it.
 - **Phases:** sheathed → draw (42 ticks) → ready · guard · attack · backstep · roll · hurt (stagger) · dead (144-tick death).
 - Turning: a swing snaps 30 % toward the target at start and tracks 25 % through the wind-up; movement is 3 m/s walk, 5.2 m/s sprint (on the phone: a deliberate push 1.4 rims past the stick's edge, the knob lights when sprinting), sprint costs 0.2 stamina/tick.
 
@@ -25,9 +26,9 @@ Input rules: one edge-triggered action per tick plus held levels (guard, heavy/t
 
 | Move | Ticks (ms to contact) | Dmg | Stamina | Stagger | Reach | Notes |
 |---|---|---|---|---|---|---|
-| Light cut (R/L) | 14 / 5 / 21 (233 ms) | 11 | 20 | 24 | 1.65 (lands ≤ 1.75) | chains: opposite cut or heavy within 18 ticks → chained timing 12/5/17 (heavy 22/5/31); posture 18; block costs the defender 25 |
-| Thrust | 16 / 5 / 21 (267 ms) | 14 | 25 | 20 | 2.0 (lunge at walking pace, lands from 2.0) | fully blockable (no chip); posture 14; the spacing tool |
-| Heavy overhead | 32 / 5 / 31 (533 ms) | 18 | 35 | 24 | 1.9 (lands ≤ 2.2) | hyper-armour from tick 24; guard takes it for **40 % chip (7) + 40 stamina**; posture 30; hold to **charge** |
+| Light cut (R/L) | 14 / 5 / 21 (233 ms) | 11 | 20 | 24 | 1.65 (lands ≤ 1.75) | chains: opposite cut or heavy within 18 ticks → chained timing 12/5/17 (heavy 22/5/31); posture 20; block costs the defender 15 |
+| Thrust | 16 / 5 / 21 (267 ms) | 14 | 25 | 20 | 2.0 (lunge at walking pace, lands from 2.0) | fully blockable (no chip); posture 16; **the stop-hit**: into a swing, or into an opponent who has walked ≥ 0.3 m onto the point since it started, ×1.5 damage and ×1.75 stagger (a cut's counter-hit is ×1.25 / ×1.5); a thrust that meets nothing hangs 10 ticks at full extension before recovering |
+| Heavy overhead | 32 / 5 / 31 (533 ms) | 18 | 35 | 24 | 1.9 (lands ≤ 2.2) | hyper-armour from tick 24; guard takes it for **40 % chip (7) + 30 stamina**; posture 32; hold to **charge** |
 | Charged heavy | held 30–54 ticks at tick 10 | 27 (×1.5) | 35 | 36 (×1.5) | 1.9 | hyper-armour while held; **breaks a guard** |
 | Riposte (Light in a punish window) | 12 / 5 / 19 (200 ms) | 24 | 20 | 24 | 1.65 | breaks guard; no posture of its own (the parry already put 35 on the attacker) |
 | Heavy riposte (Heavy in a punish window) | 20 / 5 / 25 (333 ms) | 30 | 35 | 24 | 1.9 | breaks guard; no posture of its own (as the riposte) |
@@ -49,7 +50,7 @@ Counter-hit: a clean hit on a fighter committed to a swing (any phase) or in the
 
 ## 6. Posture (Sekiro-style)
 
-Each fighter has a posture bar 0–100 (thin amber bar under the health bar, red at ≥ 70 %). It fills from: blocked hits (the move's posture: cut 18 · thrust 14 · heavy 30 · kick 24 · riposte-family 20–30; a perfect block takes half), clean hits on you (×1.25 on a counter-hit), and **being parried (+35 on the attacker)**. It drains 0.2/tick (12/s) whenever you are not staggered. **Full = posture break:** the bar resets, you stagger 90 ticks, and the opponent gets a 90-tick **critical window** in which Heavy is the *critical* (40, unparryable). A guard break resets the victim's posture (that was the payoff). Measured: at normal ~3 breaks per 24 AI-vs-AI duels, at hard 14 (4 critical kills).
+Each fighter has a posture bar 0–100 (thin amber bar under the health bar, red at ≥ 70 %). It fills from: blocked hits (the move's posture: cut 20 · thrust 16 · heavy 32 · kick 24 · guard counter 30; the ripostes add none — the parry already did; a perfect block takes half), clean hits on you (×1.25 on a counter-hit), **being parried (+25 on the attacker)**, and being driven into the ring wall (+15). It drains 0.2/tick (12/s) whenever you are not staggered — but every gain pauses the drain for 45 ticks, so a run of blocks adds up. **Full = posture break:** the bar resets, you stagger 90 ticks, and the opponent gets a 90-tick **critical window** in which Heavy is the *critical* (40, unparryable). A guard break resets the victim's posture (that was the payoff). Measured (slice Q sweep): at normal ~10 breaks per 24 AI-vs-AI duels — about one per two duels, the target — at hard ~1.
 
 ## 7. Hit impact
 

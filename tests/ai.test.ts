@@ -82,10 +82,12 @@ test('a passive opponent sees a readable opener: at easy and normal the first at
     assert.equal(attacks[0].move, 'heavy_overhead', `${level} seed ${seed}: the first opener is the readable heavy`);
     // The immortal observation fight resets health but not posture, so a passive player's posture eventually breaks; the break's window is finished with the
     // critical, or with the riposte when the warden cannot afford a heavy — the only other moves allowed.
-    assert.ok(attacks.every(e => e.move === 'heavy_overhead' || e.move === 'thrust' || e.move === 'critical' || e.move === 'riposte'), `${level} seed ${seed}: ${attacks.map(e => e.move).join(' ')}`);
+    // …and the break's window is followed up (a punish light into the long stagger). Judge the openers: attacks not within 120 ticks after a critical or riposte.
+    let finisherAt = -999; const openersOnly = attacks.filter(e => { if (e.move === 'critical' || e.move === 'riposte') { finisherAt = e.tick; return false; } return e.tick - finisherAt > 120; });
+    assert.ok(openersOnly.every(e => e.move === 'heavy_overhead' || e.move === 'thrust'), `${level} seed ${seed}: ${attacks.map(e => e.move).join(' ')}`);
     thrusts += attacks.filter(e => e.move === 'thrust').length; openers += attacks.length - 1;
   }
-  assert.ok(thrusts / openers >= .15 && thrusts / openers <= .55, `thrusts are a real but minority opener: ${thrusts}/${openers}`);
+  assert.ok(thrusts / openers >= .07 && thrusts / openers <= .35, `thrusts are a real but minority opener (20 % of non-light openers; the thrust's job is the stop-hit): ${thrusts}/${openers}`);
   const hard = wardenAttacks(play(PROFILES.hard, 3600, () => idle()).events);
   assert.ok(hard.some(e => e.move === 'light_right' || e.move === 'light_left'));
 });
@@ -257,7 +259,9 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   assert.ok(parriesAfter / plansAfter >= .45, `parry plans after the read: ${parriesAfter}/${plansAfter}`);
   // Roller: a panic roller — rolls every 70 ticks whether or not a swing is coming, and at every swing. Only after the read does the warden start a swing while the
   // player is in a roll's tail (it is free to, because those rolls were not answers to its own swings), and hold heavies although nobody is guarding.
-  const panic = (dd: Duel) => (dd.fighters[0].phase === 'ready' && ((dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 0) || dd.tick % 70 === 0) ? act('dodge') : idle());
+  // Rolls go toward the ring's centre: a roller that always rolled away would end up pinned on the wall (slice Q), which is a different lesson.
+  const inward = (dd: Duel): Intent['move'] => { const b = dd.fighters[0].body, r = Math.hypot(b.x, b.z) || 1; return { x: -b.x / r, z: -b.z / r, yaw: 0, run: false }; };
+  const panic = (dd: Duel) => (dd.fighters[0].phase === 'ready' && ((dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 0) || dd.tick % 70 === 0) ? { ...act('dodge'), move: inward(dd) } : idle());
   const rolled = watch(PROFILES.normal, 3000, panic);
   assert.ok(readOpponent(rolled.habits).roller, 'roller read');
   const tailStarts = starts(rolled.log).filter(e => e.f.phase === 'roll' && e.f.age >= RULES.safeEnd);
@@ -272,19 +276,18 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   assert.deepEqual(readOpponent(watch(PROFILES.normal, 2400, () => idle()).habits), { parryHappy: false, turtle: false, roller: false, spammer: false });
 });
 
-test('reads: the thrust is the warden\'s spacing opener — planned only after the first heavy, thrown from beyond cutting range, stepped back to when too close, never into a guard', () => {
+test('the thrust: a minority opener planned only after the first heavy, thrown from wherever it stands (no walk-back), never into a guard — and the stop-hit into an opponent walking onto the point', () => {
   const fresh = (seed: number, extra: Partial<AiState>): AiState => ({ ...initialAi(seed), mode: 'approach', decision: 500, wait: 0, next: null, ...extra });
   // Seeds are spread with a multiplicative hash: consecutive small seeds give near-identical first draws from the LCG.
   const planned = (level: keyof typeof PROFILES, attacks: number) => [...Array(40).keys()].map(seed => decide(arena(2.4), 1, fresh(((seed + 1) * 2654435761) >>> 0, { habits: { ...initialAi().habits, attacks } }), PROFILES[level]).ai.next);
   for (const level of ['easy', 'normal', 'hard'] as const) {
     assert.ok(!planned(level, 0).includes('thrust'), `${level}: no thrust before the first heavy has shown the timing`);
     const share = planned(level, 1).filter(n => n === 'thrust').length;
-    assert.ok(share >= (level === 'hard' ? 3 : 8) && share <= 22, `${level}: thrust is a minority opener: ${share}/40`);
+    assert.ok(share >= (level === 'hard' ? 2 : 4) && share <= 16, `${level}: thrust is a minority opener: ${share}/40`);
   }
-  // Spacing: with a thrust planned and the opponent inside cutting range the warden steps back rather than swinging; from thrust range it throws; into a guard it never does.
+  // No walk-back: with a thrust planned the warden throws it from wherever it stands, close or at range; into a guard it never does.
   const close = decide(arena(1.2), 1, fresh(1, { next: 'thrust' }), PROFILES.normal);
-  const towards = { x: arena(1.2).fighters[0].body.x - TARGET.x, z: arena(1.2).fighters[0].body.z - TARGET.z };
-  assert.equal(close.intent.action, null); assert.equal(close.ai.mode, 'retreat'); assert.ok((close.intent.move!.x * towards.x + close.intent.move!.z * towards.z) < 0, 'it moves away from the player');
+  assert.equal(close.intent.action, 'thrust', 'thrown from inside cutting range too'); assert.notEqual(close.ai.mode, 'retreat', 'no stepping back to thrust range');
   const ranged = decide(arena(1.7), 1, fresh(1, { next: 'thrust' }), PROFILES.normal);
   assert.equal(ranged.intent.action, 'thrust'); assert.equal(stepDuel(arena(1.7), [idle(), ranged.intent]).fighters[1].move, 'thrust');
   const g = arena(1.85); g.fighters[0] = { ...g.fighters[0], phase: 'guard', age: 30 };   // beyond heavy reach, inside thrust reach: only the thrust could be thrown, and it must not be
@@ -297,7 +300,13 @@ test('reads: the thrust is the warden\'s spacing opener — planned only after t
     for (const e of d.events) if (e.type === 'AttackStarted' && e.actor === 1 && e.move === 'thrust') gaps.push(gap);
     d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
-  assert.ok(gaps.length >= 1 && gaps.every(g => g >= 1.5), `thrusts thrown from range: ${gaps.map(g => g.toFixed(2)).join(' ')}`);   // sanity only; the rules are pinned above
+  assert.ok(gaps.length >= 1, `thrusts are thrown: ${gaps.map(g => g.toFixed(2)).join(' ')}`);   // sanity only; the rules are pinned above
+  // The stop-hit: with an attack due (cadence expired) and the opponent walking in from 2.2 m, the attack becomes the thrust and lands as a stop-hit.
+  const walker = (): Intent => ({ ...idle(), move: { x: 0, z: -1, yaw: 0, run: false } });   // keeps walking onto the point
+  let s = arena(2.2), sa: AiState = fresh(3, { wait: 0, next: null, habits: { ...initialAi().habits, attacks: 1 } }); const stops: string[] = [];
+  for (let i = 0; i < 90; i++) { const w = decide(s, 1, sa, PROFILES.normal); sa = w.ai; s = stepDuel(s, [walker(), w.intent]); for (const e of s.events) { if (e.type === 'AttackStarted' && e.actor === 1) stops.push(e.move!); if (e.type === 'Hit' && e.actor === 1 && e.stop) stops.push('STOP'); } }
+  assert.ok(stops[0] === 'thrust' && stops.includes('STOP'), `the walker is stop-hit: ${stops.join(' ')}`);
+  const stopHit = s.events.find(e => e.type === 'Hit' && e.stop) ?? null; void stopHit;
 });
 
 test('perception runs on elapsed time: a heavy parked at its chamber is noticed and answered on the normal reaction clock', () => {
@@ -373,4 +382,30 @@ test('habits are counted from what the player actually threw: a thrust is a thru
   // Reaction floors: 10 ticks (167 ms) is about the fastest a human notices a tell; the honest clock never goes under it. Reads may anticipate, reactions may not.
   assert.ok(PROFILES.hard.reaction >= 10, `hard reacts in ${PROFILES.hard.reaction} ticks`); assert.ok(PROFILES.normal.reaction > PROFILES.hard.reaction && PROFILES.easy.reaction > PROFILES.normal.reaction);
   assert.ok(READ.anticipate < PROFILES.hard.reaction, 'anticipation is faster than any reaction, which is the point of a read');
+});
+
+test('the ring wall in the warden\'s footwork: a retreat that would put its back to the wall becomes a circle inward, and a player pinned on the wall is pressed straight', () => {
+  // Warden on the ring's edge with the player inside: told to retreat (just hit), it must not walk into the wall.
+  const edge = (): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: RADIUS - 1.5, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ x: 0, z: RADIUS - .15, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
+  // Fighter 1 (the warden) sits 0.15 m inside the wall; its foe is inward, so it faces the centre with the wall at its back.
+  const w = decide(edge(), 1, { ...initialAi(5), mode: 'retreat', retreatUntil: 500, decision: 500, wait: 500 }, PROFILES.normal);
+  assert.equal(w.ai.mode, 'circle', 'no retreat into the wall');
+  const outward = w.intent.move!.x * edge().fighters[1].body.x + w.intent.move!.z * edge().fighters[1].body.z;
+  assert.ok(outward <= 1e-9, `does not push outward: ${JSON.stringify(w.intent.move)}`);
+  // The mirror: the player has the wall at their back (warden inside); a warden that would otherwise circle presses straight in.
+  const pinned = (): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: RADIUS - .15, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ x: 0, z: RADIUS - 1.5, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
+  const press = decide(pinned(), 1, { ...initialAi(5), mode: 'circle', decision: 500, wait: 500 }, PROFILES.normal);
+  assert.equal(press.ai.mode, 'approach', 'a pinned player is pressed'); assert.ok(press.intent.move!.z > 0, 'straight at them');
+  // Mid-ring nothing changes: a retreat is a retreat.
+  const mid = decide(arena(1.2), 1, { ...initialAi(5), mode: 'retreat', retreatUntil: 500, decision: 500, wait: 500 }, PROFILES.normal);
+  assert.equal(mid.ai.mode, 'retreat');
+});
+
+test('attrition and the stamina floor: a warden whose ceiling has been cut below its discipline floor still fights (the floor is a share of the ceiling), never circles for ever', () => {
+  const worn = arena(1.2); worn.fighters[1] = { ...worn.fighters[1], maxStamina: 44, stamina: 44 };
+  const state = { ...initialAi(5), mode: 'approach' as const, decision: 500, wait: 0, next: 'light' as const };
+  const w = decide(worn, 1, state, PROFILES.normal);
+  assert.ok(w.intent.action !== null || w.ai.mode === 'guard', `a full (if lowered) bar is not "low": ${w.intent.action} ${w.ai.mode} ${JSON.stringify(w.ai.scores)}`);
+  const empty = arena(1.2); empty.fighters[1] = { ...empty.fighters[1], maxStamina: 44, stamina: 10 };
+  assert.equal(decide(empty, 1, state, PROFILES.normal).intent.action, null, 'below the scaled floor it still holds back');
 });
