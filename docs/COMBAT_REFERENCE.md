@@ -26,7 +26,7 @@ Input rules: one edge-triggered action per tick plus held levels (guard, heavy/t
 
 | Move | Ticks (ms to contact) | Dmg | Stamina | Stagger | Reach | Notes |
 |---|---|---|---|---|---|---|
-| Light cut (R/L) | 20 / 8 / 22 (333 ms tell, 133 ms sweep) | 11 | 20 | 24 | 1.65 (lands ≤ 1.75) | a horizontal arc at chest height (~85° across the front; Slash alternates right-to-left and the backhand); chains: opposite cut or heavy within 18 ticks → chained timing 16/8/18 (heavy 22/5/31); posture 20; block costs the defender 15; feintable to tick 10; hold = chambered at tick 9 |
+| Light cut (R/L) | 20 / 8 / 22 (333 ms tell, 133 ms sweep) | 11 | 20 | 24 | 1.65 (lands ≤ 1.75) | a horizontal arc at chest height (~70° across the front, never behind the body; Slash alternates right-to-left and the backhand); chains: opposite cut or heavy within 18 ticks → chained timing 16/8/18 (heavy 22/5/31); posture 20; block costs the defender 15; feintable to tick 10; hold = chambered at tick 9 |
 | Thrust | 16 / 5 / 21 (267 ms) | 14 | 25 | 20 | 2.0 (lunge at walking pace, lands from 2.0) | fully blockable (no chip); posture 16; **the stop-hit**: into a swing, or into an opponent who has walked ≥ 0.3 m onto the point since it started, ×1.5 damage and ×1.75 stagger (a cut's counter-hit is ×1.25 / ×1.5); a thrust that meets nothing hangs 10 ticks at full extension before recovering |
 | Heavy overhead | 32 / 5 / 31 (533 ms) | 18 | 35 | 24 | 1.9 (lands ≤ 2.2) | hyper-armour from tick 24; guard takes it for **40 % chip (7) + 30 stamina**; posture 32; hold to **charge** |
 | Charged heavy | held 30–54 ticks at tick 10 | 27 (×1.5) | 35 | 36 (×1.5) | 1.9 | hyper-armour while held; **breaks a guard** |
