@@ -326,14 +326,33 @@ def align_arms(mesh_obj):
         finger_b = (sum((v.co for v in far), Vector()) / len(far) - wrist).normalized()
         base = [v for v in hand if abs(v.co.x) < abs(wrist.x) + 0.13]  # the thumb tip lies ~12 cm out; it is the vertex farthest off the finger axis
         thumb_tip = max(base, key=lambda v: ((v.co - wrist) - (v.co - wrist).dot(finger_b) * finger_b).length)
-        thumb_b = (thumb_tip.co - wrist).normalized()
-        finger_r, thumb_r = (tip - wrist).normalized(), (thumb - wrist).normalized()
-        def frame(f, t):
-            n = f.cross(t).normalized()
-            return Matrix((f, n.cross(f), n)).transposed()  # columns: finger, in-palm, palm normal
-        R = frame(finger_r, thumb_r) @ frame(finger_b, thumb_b).inverted()
+        finger_r = (tip - wrist).normalized()
+        # the hand's plane: the direction the fingers fan along (index → pinky). The thumb is NOT in that plane — on the
+        # base mesh and on the rig's thumb chain it droops 45° below the palm — so matching thumb directions rolled the
+        # whole hand 45° about the forearm and the palms faced forward when the arms hung (owner, 2026-09-16)
+        spread_r = (joint(f'pinky_01_{side}') - joint(f'index_01_{side}')).normalized()
+        fingers = [v.co - wrist for v in hand if (v.co - wrist).dot(finger_b) > 0.11]
+        perp = [d - d.dot(finger_b) * finger_b for d in fingers]
+        c = sum(perp, Vector()) / len(perp)
+        cov = [0.0] * 6
+        for d in perp:
+            e = d - c
+            for i, term in enumerate((e.x * e.x, e.y * e.y, e.z * e.z, e.x * e.y, e.x * e.z, e.y * e.z)):
+                cov[i] += term
+        # principal axis of the fingers' spread (in the plane perpendicular to the finger direction): power iteration
+        M = Matrix(((cov[0], cov[3], cov[4]), (cov[3], cov[1], cov[5]), (cov[4], cov[5], cov[2])))
+        spread_b = Vector((0, 1, 0)) - finger_b * finger_b.y
+        for _ in range(30):
+            spread_b = (M @ spread_b).normalized()
+        spread_b = (spread_b - spread_b.dot(finger_b) * finger_b).normalized()
+        if spread_b.dot(spread_r) < 0:
+            spread_b = -spread_b
+        def frame(f, s):
+            n = f.cross(s).normalized()
+            return Matrix((f, n.cross(f), n)).transposed()  # columns: finger, across the palm, palm normal
+        R = frame(finger_r, spread_r) @ frame(finger_b, spread_b).inverted()
         q = R.to_quaternion()
-        print(f'ALIGN ARMS {side}: hand rotation {math.degrees(q.angle):.1f}° about {tuple(round(c, 2) for c in q.axis)}; finger dir body {tuple(round(c, 2) for c in finger_b)} rig {tuple(round(c, 2) for c in finger_r)}')
+        print(f'ALIGN ARMS {side}: hand rotation {math.degrees(q.angle):.1f}° about {tuple(round(c, 2) for c in q.axis)}; finger dir body {tuple(round(c, 2) for c in finger_b)} rig {tuple(round(c, 2) for c in finger_r)}; spread body {tuple(round(c, 2) for c in spread_b)} rig {tuple(round(c, 2) for c in spread_r)}')
         for v in verts:
             if v.co.x * sgn <= abs(elbow.x) or v.co.z < shoulder.z - 0.3:
                 continue
@@ -345,23 +364,33 @@ def align_arms(mesh_obj):
         # (3) the thumb's own abduction: the frame match puts the body's thumb in the rig's thumb plane but keeps its
         # angle from the fingers; swing the thumb about its base joint onto the rig's thumb bone
         base_j = joint(f'thumb_01_{side}')
-        tip_b = thumb_tip.co.copy()  # the vertex was already carried by the hand rotation above
+        # the mesh thumb's tip, found after the hand rotation on the rig's thumb side: the vertex farthest off the finger
+        # axis towards the rig's thumb (the plain farthest-off-axis vertex sat on the pinky side once the hand plane was
+        # matched, and a 98° swing then tore the hand)
+        thumb_r = (thumb - wrist).normalized()
+        thumb_perp = (thumb_r - thumb_r.dot(finger_r) * finger_r).normalized()
+        def thumb_score(v):
+            d = v.co - wrist
+            return (d - d.dot(finger_r) * finger_r).dot(thumb_perp)
+        thumb_tip = max((v for v in hand if abs(v.co.x) < abs(wrist.x) + 0.13), key=thumb_score)
+        tip_b = thumb_tip.co.copy()
         axis_b, axis_r = (tip_b - base_j).normalized(), (thumb - base_j).normalized()
         swing = axis_b.rotation_difference(axis_r)
         thumb_len = (tip_b - base_j).length
         stretch = min(1.12, (thumb - base_j).length / max(1e-6, thumb_len))  # the rig's thumb chain is longer than the body's thumb: meet it part way, never a freak thumb
-        for v in verts:
-            d = v.co - base_j
-            along_t = d.dot(axis_b)
-            if along_t < -0.01 or along_t > thumb_len + 0.03 or (d - axis_b * along_t).length > 0.024:
-                continue
-            blend = min(1.0, max(0.0, along_t / 0.03))
-            d = Quaternion().slerp(swing, blend) @ d
-            along_r = d.dot(axis_r)
-            d = d + axis_r * (along_r * (stretch - 1) * blend)
-            v.co = base_j + d
-        mesh_obj.data.update()
-        print(f'ALIGN ARMS {side}: thumb swung {math.degrees(swing.angle):.1f}°, stretched {stretch:.2f}x')
+        if KIT.get('thumb_swing', False):  # off since the hand plane is matched (2026-09-16): with the palm down the thumb already sits on its bones, and the swing's cylinder caught palm vertices and pulled a spike
+            for v in verts:
+                d = v.co - base_j
+                along_t = d.dot(axis_b)
+                if along_t < -0.01 or along_t > thumb_len + 0.03 or (d - axis_b * along_t).length > 0.024:
+                    continue
+                blend = min(1.0, max(0.0, along_t / 0.03))
+                d = Quaternion().slerp(swing, blend) @ d
+                along_r = d.dot(axis_r)
+                d = d + axis_r * (along_r * (stretch - 1) * blend)
+                v.co = base_j + d
+            mesh_obj.data.update()
+        print(f'ALIGN ARMS {side}: thumb swing {math.degrees(swing.angle):.1f}° (applied: {KIT.get("thumb_swing", False)}), stretch {stretch:.2f}x')
 
 
 SLOTS = {'tunic': 'Body', 'baldric': 'Body', 'belt': 'Body', 'studs': 'Body', 'skirt': 'Legs', 'kilt': 'Legs',
