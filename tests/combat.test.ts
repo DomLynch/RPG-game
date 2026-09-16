@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
+import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
 import { PATHS, total } from '../src/moves.ts';
+import { movesOf } from '../src/duel.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
 const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
@@ -60,7 +61,8 @@ test('the warden threat flag and move drive the incoming warning; the projection
   const charging = { ...s, duel: { ...s.duel, fighters: [{ ...s.duel.fighters[0], phase: 'attack' as const, move: 'heavy_overhead' as const, charge: 5, charged: false }, s.duel.fighters[1]] } };
   assert.match(practiceHint(charging), /^Charging/); assert.match(practiceHint({ ...charging, duel: { ...charging.duel, fighters: [{ ...charging.duel.fighters[0], charged: true }, charging.duel.fighters[1]] } }), /^Charged/);
   assert.equal(actorPose(s, 1).pose, 'attack'); assert.equal(actorPose(s, 1).attack, 'heavy');
-  assert.ok(Math.abs(actorPose(s, 1).contact - ATTACKS.heavy.contact / ATTACKS.heavy.recovery) < 1e-12);
+  const theirs = attackSpecs(s.duel.fighters[1].weapon);   // the warden's own weapon's timing (the Veteran fights with the trident)
+  assert.ok(Math.abs(actorPose(s, 1).contact - theirs.heavy.contact / theirs.heavy.recovery) < 1e-12);
   while (s.threat) s = stepPractice(s, idle());
   assert.ok(['hurt', 'ready', 'attack'].includes(s.phase));
 });
@@ -117,7 +119,8 @@ test('control gating: actions are accepted when legal or late in a committed mov
 
 test('defeat freezes the fight and a fresh practice restores everything; the debug readout stays a pure function of state', () => {
   let s = ready();
-  s = project({ ...s.duel, fighters: [{ ...s.duel.fighters[0], health: MOVES.light_left.damage }, { ...s.duel.fighters[1], phase: 'attack', move: 'light_left', age: SWORD.contact - 1, lastMove: 'light_left' }] }, s.ai);
+  const cut = movesOf(s.duel.fighters[1]).light_left;   // the warden's own left cut (the trident's sweep): its damage and contact tick
+  s = project({ ...s.duel, fighters: [{ ...s.duel.fighters[0], health: cut.damage }, { ...s.duel.fighters[1], phase: 'attack', move: 'light_left', age: cut.windup - 1, lastMove: 'light_left' }] }, s.ai);
   const fallen = stepPractice(s, idle(), passive);
   assert.equal(fallen.playerHealth, 0); assert.equal(fallen.phase, 'dead'); assert.equal(fallen.finish?.victim, 0); assert.equal(canStrike(fallen), false); assert.equal(canDefend(fallen), false);
   assert.ok(fallen.events.some(e => e.type === 'Killed' && e.target === 0));
@@ -127,6 +130,20 @@ test('defeat freezes the fight and a fresh practice restores everything; the deb
   const text = describe(fallen, 'hard');
   assert.match(text, /you: hp 0/); assert.match(text, new RegExp(`warden: hp ${HP}`)); assert.match(text, /ai hard/); assert.equal(describe(fallen, 'hard'), text);
   assert.match(describe(stepPractice(ready(), act('heavy'), passive)), /heavy_overhead 0\/68 \|/);
+});
+
+test('the thrust plays its own clip role; a chained thrust and the riposte play the riposte\'s (the second thrust, from half-withdrawn); a fighter\'s specs are its weapon\'s', () => {
+  const s = ready(), me = s.duel.fighters[0], w = s.duel.fighters[1];
+  const pose = (f: typeof me, side: 0 | 1, over: Partial<typeof me>) => actorPose({ ...s, duel: { ...s.duel, fighters: side === 0 ? [{ ...f, ...over }, w] : [me, { ...f, ...over }] } }, side);
+  assert.equal(pose(me, 0, { phase: 'attack', move: 'thrust', lastMove: 'thrust', chained: false, age: 3 }).attack, 'thrust');
+  assert.equal(pose(me, 0, { phase: 'attack', move: 'riposte', lastMove: 'riposte', chained: false, age: 3 }).attack, 'riposte');
+  assert.equal(pose(w, 1, { phase: 'attack', move: 'thrust', lastMove: 'thrust', chained: false, age: 3 }).attack, 'thrust');
+  assert.equal(pose(w, 1, { phase: 'attack', move: 'thrust', lastMove: 'thrust', chained: true, age: 3 }).attack, 'riposte', 'the trident\'s second thrust (the sword\'s stab never chains)');
+  // Standing, each side's default contact fraction comes from its own weapon's tables (the trident's sweep is 22/54, the cut 20/50).
+  const theirs = attackSpecs(w.weapon), mine = attackSpecs(me.weapon);
+  assert.ok(Math.abs(actorPose(s, 1).contact - theirs.light.contact / theirs.light.recovery) < 1e-12); assert.ok(Math.abs(actorPose(s, 0).contact - mine.light.contact / mine.light.recovery) < 1e-12);
+  assert.deepEqual([mine.light.contact, mine.light.recovery, theirs.light.contact, theirs.light.recovery], [20, 50, 22, 54]);
+  assert.deepEqual([mine.thrust.source, mine.heavy.source, theirs.heavy.source], [.34, .48, .48]);
 });
 
 test('seeded practice replays are identical, never mutate the previous state, and keep both fighters bounded and apart', () => {

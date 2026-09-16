@@ -371,7 +371,7 @@ function frame(now: number) {
     pauseGraphics(); return;
   }
   updateHud();
-  if (debug) { const d = element('debug'); d.textContent = describe(practice, difficulty); d.dataset.frozen = String(hitStop > 0); d.dataset.tick = String(practice.duel.tick); d.dataset.tip = (view.bladeTip?.() ?? []).map(v => v.toFixed(4)).join(','); }   // frame probe: frozen flag, tick and drawn blade tip
+  if (debug) { const d = element('debug'); d.textContent = describe(practice, difficulty); d.dataset.frozen = String(hitStop > 0); d.dataset.tick = String(practice.duel.tick); d.dataset.tip = (view.bladeTip?.() ?? []).map(v => v.toFixed(4)).join(','); d.dataset.clips = view.playing?.() ?? ''; }   // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)], p95 = sorted[Math.floor(sorted.length * 0.95)];

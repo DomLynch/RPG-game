@@ -3,7 +3,7 @@
 Open requests from the weapons lane (branch `weapons/trident-v1`). Each names the lane that owns the change. Nothing here is
 implemented by the weapons lane; the trident's rig, clips, data, bake and tests land without any of it, unused on trunk.
 
-## 1. Combat + render lanes — a fighter's weapon on screen (blocks the trident being *seen*)
+## 1. Combat + render lanes — a fighter's weapon on screen — **DONE (slice V, combat lane, 2026-09-16)**: `characters.ts` plays roles from `WEAPON_CLIPS`, keeps `WeaponDrawn` in hand, trails `extras.contact`; `veteran.glb` is the trident Veteran (the duplicate `veteran-trident.glb` is gone; `WARRIOR_FIGHTER=veteran` defaults to the trident).
 
 The simulation already fights with the trident's tables (`WEAPONS.trident`, `bladePaths.trident`). The presentation does not follow
 the weapon yet:
@@ -41,7 +41,7 @@ Needed, in the order that keeps trunk green at every step:
    sword attachments exactly" must then compare bones and the *shared* clips only — the trident Veteran has more clips and no sword
    meshes. That test is the character/combat lanes' file.
 
-## 2. Combat lane — the trident's fight (GAMEPLAY CHANGE, needs review before the flip)
+## 2. Combat lane — the trident's fight — **DONE (slice V)**: flipped in `initialDuel`; reaches kept as measured; `minReach` 1 m (from the thrust's start gap: bodies stand no closer than .85, so a contact-gap rule could never fire); shaft guard `{ costScale 1.15, heavyBreaks }`; the sweep trips a roll in its first half (the kick is rolled as before); stance `Weapon.fight { thrustShare .6, close 1.4 }` + kick/backstep inside the point. The defender's guard kind on Blocked/GuardBroken (audio) is still open — one field, not yet needed by a cue.
 
 `initialDuel` still gives the opponent the longsword. To flip: `createFighter(..., 'trident')` for side 1, after reviewing:
 
