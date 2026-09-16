@@ -19,7 +19,7 @@ const types = (d: Duel) => d.events.map(e => e.type);
 
 test('attack phases: nothing lands before the active window, a hit resolves once, a whiff is reported when the window closes', () => {
   let d = stepDuel(duel(), [act('light'), idle()]);
-  assert.equal(d.fighters[0].phase, 'attack'); assert.equal(d.fighters[0].move, 'light_right'); assert.equal(d.fighters[0].stamina, 80);
+  assert.equal(d.fighters[0].phase, 'attack'); assert.equal(d.fighters[0].move, 'light_right'); assert.equal(d.fighters[0].stamina, 100 - light.stamina);
   assert.deepEqual(types(d), ['AttackStarted']);
   d = run(d, light.windup - 1); assert.equal(d.fighters[1].health, HP);
   d = stepDuel(d, [idle(), idle()]);
@@ -297,15 +297,15 @@ test('backstep: 0.6 m straight back, still facing, 10 stamina, no invulnerabilit
 
 test('stamina: costs at commitment, delayed regeneration, half-rate regeneration while guarding, sprint drain without the delay, exhaustion and recovery', () => {
   let d = stepDuel(duel(4), [act('light'), idle()]);
-  assert.equal(d.fighters[0].stamina, 80); assert.equal(d.fighters[0].rest, RULES.regenDelay);
+  assert.equal(d.fighters[0].stamina, 100 - light.stamina); assert.equal(d.fighters[0].rest, RULES.regenDelay);
   d = run(d, LIGHT - 1);
-  assert.equal(d.fighters[0].stamina, 80, 'no regeneration during the action (the delay is shorter than the cut now, but a swinging fighter never regenerates)');
+  assert.equal(d.fighters[0].stamina, 100 - light.stamina, 'no regeneration during the action (the delay is shorter than the cut now, but a swinging fighter never regenerates)');
   d = run(d, 1);
-  assert.ok(Math.abs(d.fighters[0].stamina - 80 - RULES.regen) < 1e-9, 'the first tick back in ready regenerates: the delay has passed');
+  assert.ok(Math.abs(d.fighters[0].stamina - (100 - light.stamina) - RULES.regen) < 1e-9, 'the first tick back in ready regenerates: the delay has passed');
   // A raised guard regenerates at half rate once the delay has passed (it used to stop regeneration): after 200 ticks of guarding, 80 + (200 − LIGHT − delay) × regen / 2, capped.
   const guarded = run(stepDuel(duel(4), [act('light'), idle()]), 100, hold());
   const guardTicks = 100 - Math.max(RULES.regenDelay, LIGHT - 1);   // no regeneration while the cut runs; the guard is up (and the delay over) from the tick it ends
-  assert.ok(Math.abs(guarded.fighters[0].stamina - (80 + guardTicks * RULES.regen * RULES.guardRegen)) <= RULES.regen, `guard regenerates at half rate: ${guarded.fighters[0].stamina}`);
+  assert.ok(Math.abs(guarded.fighters[0].stamina - ((100 - light.stamina) + guardTicks * RULES.regen * RULES.guardRegen)) <= RULES.regen, `guard regenerates at half rate: ${guarded.fighters[0].stamina}`);
   assert.ok(guarded.fighters[0].stamina > 80 && guarded.fighters[0].stamina < 100, 'slower than standing, faster than nothing');
   const sprint = run(duel(4), 30, { ...idle(), move: { x: 0, z: 1, yaw: 0, run: true } });
   assert.equal(sprint.fighters[0].rest, 1, 'a sprint never sets the action delay: only the sprinting tick itself goes without regeneration');

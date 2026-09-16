@@ -28,7 +28,7 @@ test('legacy constant views stay equal to the move data the simulation actually 
   // A quick press is a plain heavy and a deliberate hold is the charged one: the press must last ≥ 0.6 s to charge and the hold releases itself by ~1.1 s.
   assert.ok(MOVES.heavy_overhead.chamber! + RULES.charge.min >= 36 && MOVES.heavy_overhead.chamber! + RULES.charge.min <= 45, `charge press ${MOVES.heavy_overhead.chamber! + RULES.charge.min} ticks`); assert.ok(MOVES.heavy_overhead.chamber! + RULES.charge.max <= 66);
   assert.equal(MOVES.heavy_overhead.breaksGuard, false); assert.ok(MOVES.heavy_overhead.chip > 0 && MOVES.heavy_overhead.staminaDamage >= 25, 'a guard takes a plain heavy for chip and real stamina');
-  assert.equal(MOVES.heavy_riposte.damage, 30); assert.equal(MOVES.light_right.damage, 11); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2); assert.equal(RULES.perfectBlock, 3); assert.equal(RULES.perfectBlockCost, .5);
+  assert.equal(MOVES.heavy_riposte.damage, 30); assert.equal(MOVES.light_right.damage, 14); assert.equal(MOVES.thrust.damage, 11); assert.equal(MOVES.light_right.stamina, 25); assert.equal(MOVES.thrust.stamina, 20); assert.ok(MOVES.thrust.damage < MOVES.light_right.damage && MOVES.light_right.damage < MOVES.heavy_overhead.damage, 'damage follows the tell: stab (267 ms) < cut (333 ms) < heavy (533 ms)'); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2); assert.equal(RULES.perfectBlock, 3); assert.equal(RULES.perfectBlockCost, .5);
 });
 
 test('the projection mirrors both fighters: phases, resources, threat, results and warden reaction for the renderer', () => {
@@ -36,7 +36,7 @@ test('the projection mirrors both fighters: phases, resources, threat, results a
   assert.equal(start.phase, 'sheathed'); assert.equal(start.enemyPhase, 'ready'); assert.equal(start.health, HP); assert.equal(start.playerHealth, HP); assert.equal(start.stamina, 100); assert.equal(start.result, 'none'); assert.equal(start.finish, null);
   assert.deepEqual(start.fighter, start.duel.fighters[0].body); assert.deepEqual(start.enemy, start.duel.fighters[1].body);
   let s = stepPractice(ready(), act('light'), passive);
-  assert.equal(s.phase, 'attack'); assert.equal(s.attack, 'light'); assert.equal(s.stamina, 80);
+  assert.equal(s.phase, 'attack'); assert.equal(s.attack, 'light'); assert.equal(s.stamina, 100 - MOVES.light_right.stamina);
   s = tick(s, SWORD.contact, idle(), passive);
   assert.equal(s.health, HP - MOVES.light_right.damage); assert.equal(s.result, 'hit'); assert.equal(s.resultAge, 0); assert.equal(s.resultDamage, MOVES.light_right.damage); assert.equal(s.enemyPhase, 'hurt');
   assert.equal(s.reaction, SWORD.reaction); assert.equal(s.enemyWound, RULES.wound);
