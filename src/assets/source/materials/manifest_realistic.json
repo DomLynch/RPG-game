@@ -51,7 +51,7 @@
   "normal": "face_normal_r.jpg",
   "metallicRoughness": "face_orm_r.jpg",
   "occlusion": "face_ao_r.jpg",
-  "normalScale": 1.0
+  "normalScale": 1.6
  },
  "HairCards": {
   "baseColor": "hair_cards.png",
