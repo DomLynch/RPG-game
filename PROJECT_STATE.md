@@ -307,3 +307,8 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 ## Slice Q — gladiator identity (audit block 6) — 2026-09-16
 - Ring wall (stagger/posture on wall impacts, no backstep when cornered, warden footwork), attrition wounds (stamina ceiling −8 per wound, leg wound 85 % speed, AI floor scaled to the ceiling), thrust as the stop-hit (×1.5/×1.75 into a swing or a 0.3 m walk-in; whiff hangs 10 ticks; AI share 20 %, cadence-gated, no walk-back), posture retune (gain pauses drain 45 ticks; 20/32/16, parry 25) swept to ~one break per two duels at normal.
 - Evidence: 147/147 tests (new: wall, attrition, stop-hit/whiff, posture pins, warden wall footwork, scaled floor); 12/12 mutations caught; battery green (light spam 5/24); AI-vs-AI normal 11 hits / 21 s. Remaining: 7 process.
+
+## Slice R — process (audit block 7) — 2026-09-16
+- CI workflow (`quality.yml`) runs the full gate incl. the battery and the Playwright browser gate on pushes/PRs to the live trunk; reference doc reconciled (turn clamps in radians, hard's first opener, perfect block, all block 2–6 numbers, open questions rewritten).
+- The seven-block audit plan is complete: M fairness (`0f40848`), N presentation (`d7b83f5`), O controls (`3a670f3`), P stamina/tempo (`3d16b02`), Q gladiator identity (`67109de`), R process.
+- Next, owner's choice: feel the 50 Hz tempo and decide on the move re-timing (blade re-bake); play the v7 guard ring vs the cluster and let the scorecard decide; the reference's open questions (§11).

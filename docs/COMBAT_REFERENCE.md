@@ -20,7 +20,7 @@ Input rules: one edge-triggered action per tick plus held levels (guard, heavy/t
 - **Posture** 0–100 (see §6). **Wound**: a landed blade hit marks a wound for 240 ticks, during which stamina regen is ×0.8 — and **attrition**: every blade wound takes 8 off the wounded fighter's stamina ceiling for the rest of the duel (floor 40; the lost part of the bar is shaded), and a leg wound slows walking to 85 %.
 - **The ring wall** (radius 8.55 m): knockback that ends against the wall is a second impact — +12 ticks of stagger and +15 posture (a kick shoves); a fighter with the wall at their back cannot backstep (a roll still works). The warden never retreats into the wall (it circles inward along it) and presses a player pinned on it.
 - **Phases:** sheathed → draw (42 ticks) → ready · guard · attack · backstep · roll · hurt (stagger) · dead (144-tick death).
-- Turning: a swing snaps 30 % toward the target at start and tracks 25 % through the wind-up; movement is 3 m/s walk, 5.2 m/s sprint (on the phone: a deliberate push 1.4 rims past the stick's edge, the knob lights when sprinting), sprint costs 0.2 stamina/tick.
+- Turning (locked on): a swing turns up to 0.3 rad (17°) toward the target at its start and up to 0.25 rad (14°) per tick through the wind-up (a kick does not track); movement is 3 m/s walk, 5.2 m/s sprint (on the phone: a deliberate push 1.4 rims past the stick's edge, the knob lights when sprinting), sprint costs 0.2 stamina/tick.
 
 ## 4. Moves (ticks: wind-up / active / recovery)
 
@@ -30,7 +30,7 @@ Input rules: one edge-triggered action per tick plus held levels (guard, heavy/t
 | Thrust | 16 / 5 / 21 (267 ms) | 14 | 25 | 20 | 2.0 (lunge at walking pace, lands from 2.0) | fully blockable (no chip); posture 16; **the stop-hit**: into a swing, or into an opponent who has walked ≥ 0.3 m onto the point since it started, ×1.5 damage and ×1.75 stagger (a cut's counter-hit is ×1.25 / ×1.5); a thrust that meets nothing hangs 10 ticks at full extension before recovering |
 | Heavy overhead | 32 / 5 / 31 (533 ms) | 18 | 35 | 24 | 1.9 (lands ≤ 2.2) | hyper-armour from tick 24; guard takes it for **40 % chip (7) + 30 stamina**; posture 32; hold to **charge** |
 | Charged heavy | held 30–54 ticks at tick 10 | 27 (×1.5) | 35 | 36 (×1.5) | 1.9 | hyper-armour while held; **breaks a guard** |
-| Riposte (Light in a punish window) | 12 / 5 / 19 (200 ms) | 24 | 20 | 24 | 1.65 | breaks guard; no posture of its own (the parry already put 35 on the attacker) |
+| Riposte (Light in a punish window) | 12 / 5 / 19 (200 ms) | 24 | 20 | 24 | 1.65 | breaks guard; no posture of its own (the parry already put 25 on the attacker) |
 | Heavy riposte (Heavy in a punish window) | 20 / 5 / 25 (333 ms) | 30 | 35 | 24 | 1.9 | breaks guard; no posture of its own (as the riposte) |
 | Guard counter (Heavy ≤ 20 ticks after a block) | 20 / 5 / 25 | 20 | 30 | 30 | 1.9 | armoured from tick 4; breaks guard; posture 30 |
 | Critical (Heavy in a posture-break window) | 20 / 5 / 25 | 40 | 25 | 40 | 1.9 | **unparryable**, armoured, breaks guard |
@@ -42,7 +42,7 @@ Counter-hit: a clean hit on a fighter committed to a swing (any phase) or in the
 
 ## 5. Defence
 
-- **Guard (hold):** blocks a facing (±60°) blade hit for the move's block cost (light 15, thrust 20, heavy 30 + 7 chip). A block opens a 20-tick **guard-counter** window. A **perfect block** (guard raised within the 3 ticks after the parry window closes) costs half and takes no chip. A guard **breaks** — full damage, −60 stamina, stagger — only to a charged heavy, a riposte-family swing, a kick, or when you cannot pay the block cost.
+- **Guard (hold):** blocks a facing (±60°) blade hit for the move's block cost (light 15, thrust 20, heavy 30 + 7 chip). A block opens a 20-tick **guard-counter** window. A **perfect block** — a guard that has just settled: contact in the first 3 ticks after the parry window closes (i.e. a press held ~10–13 ticks before the blow) — costs half and takes no chip. A guard **breaks** — full damage, −60 stamina, stagger — only to a charged heavy, a riposte-family swing, a kick, or when you cannot pay the block cost.
 - **Parry (tap):** a fresh guard press opens a 10-tick (167 ms) window; a parryable swing meeting it staggers the attacker 90 ticks (1.5 s) and gives you a **punish window** (Light = riposte 24, Heavy = heavy riposte 30). A *released* tap that meets nothing leaves you **exposed** for 8 ticks (guard down); a press still **held** past the window becomes the standing guard with no hole (its first 3 ticks a perfect block). Parry cooldown 30 ticks.
 - **Feint:** a guard tap inside your own wind-up (light ≤ 7, thrust ≤ 9, heavy ≤ 11 ticks — i.e. through the chamber) cancels the swing into a fresh guard/parry window for 10 stamina.
 - **Backstep (tap Step):** 12 ticks, 10 stamina, no i-frames, its tail (from tick 8) cancels into a swing (a cut out of it uses chained timing = dodge-attack). **Roll (hold Step ≥ 150 ms, or swipe down):** 36 ticks, 30 stamina, i-frames ticks 4–20, vulnerable tail after.
@@ -68,7 +68,7 @@ Uses the same combat API and rules; reads only committed state; notices a fresh 
 
 - **Defence plan per noticed swing:** a kick (unparryable, built to break a guard) is never guarded or parried — with the profile's dodge share it is rolled (stepped out of without the stamina), otherwise taken. Anything else: parry (if off cooldown) → roll (if ≥ 30 stamina) → block if affordable and blockable → evade/backstep. A charged heavy or a riposte is never blocked; a planned block is dropped the tick a heavy is seen charging. A chambered light is treated as a bait (still blockable). Timing jitter scales with (1 − accuracy).
 - **Offence (utility scores):** critical 1.6 in a posture-break window · guard counter 1.4 (a heavy inside the 20-tick window a block opens) · punish 1.5 (a light into a stagger, exhaustion, a whiffed swing's recovery or a whiffed parry's exposure) · chain 1.2 · kick 1.1 (vs a standing guard, 50 %) · heavy 1.0 vs a guard / 0.8 as the scheduled opener · light / thrust 0.8 as scheduled openers. Below the stamina floor only punishes are allowed. Cadence: after each attack it waits 45–105 ticks × (1.6 − aggression).
-- **Openers:** the first attack is always the heavy (the readable parry lesson). After that, non-light openers are heavy 65 % / **thrust 35 %**; a thrust is thrown only from beyond cutting range (≥ 1.55 m) — the warden steps back to thrust range first — and never into a guard. Hard also pressures with lights (50 %).
+- **Openers:** at easy and normal the first attack is always the heavy (the readable parry lesson); hard pressures with lights from the start (50 %), so its first attack may be a cut. After the first heavy, non-light openers are heavy 80 % / **thrust 20 %**, thrown from wherever it stands (no walk-back) and never into a guard; the thrust's real job is the stop-hit — an attack that is due becomes the thrust when you are walking in.
 - **Guard handling:** vs a settled guard it kicks (50 %) or throws a heavy; the heavy is **held to the charge** 20 / 40 / 60 % of the time by level (the rest are plain heavies a guard takes for chip). A less aggressive warden sometimes baits with a visible guard instead of swinging.
 - **Movement:** approaches to 1.15 m, retreats when < 1 m or freshly hit (48 ticks), circles just outside cut range when low on stamina or when its posture is ≥ 70 % (gives ground to drain the bar), never drifts beyond 2.5 m.
 - **Adaptation (reads):** it counts your habits from state edges and forms a read only with evidence (after two exchanges): **parry-happy** (parry presses on ≥ 50 % of its swings) → 70 % cut openers, 70 % of them held 12 ticks (past your 10-tick window) as baits, one in six feinted into a guard press on the last feintable tick, kicks lead inside kick reach, +40 % charged heavies; **turtle** (guarding ≥ 45 % after 3 s) → kick chance .5 → .8, score 1.1 → 1.4, +40 % charge-through; **roller** (rolls on ≥ 40 %) → heavies held even with no guard up, swings into the roll's tail; **spammer** (≥ 70 % cuts of ≥ 9 swings; thrusts and heavies count against it) → its cuts are *anticipated* (planned 7 ticks in, not at the profile reaction — the only way a 14-tick cut can be parried), parry chance ×2 (capped at .85 and at 1 − dodge so it keeps rolling), and while the spammer stands ready inside cutting range the warden guard-walks in (blocks, keeps closing, guard-counters) instead of throwing a 32-tick heavy into cuts. The debug overlay prints `habits … reads …`.
@@ -89,10 +89,14 @@ Measured AI-vs-AI (24 seeds): easy median 36 s / 7 hits · normal 28 s / 6 hits 
 
 ## 11. Numbers most worth a second opinion
 
-1. Posture: cut 18 / heavy 30 / parry 35 with 12/s drain — breaks are rare at normal (3 per 24 duels). Too rare, or right for a "reward for pressure"?
+(Updated after the seven audit blocks, 2026-09-16. Items answered by the blocks are marked.)
+
+1. Posture: cut 20 / heavy 32 / thrust 16 / parry 25, drain 12/s paused 45 ticks after any gain — ~one break per two duels at normal, ~1 per 24 at hard (block 6). Is hard right to almost never break?
 2. Charged heavy at 27 + guard break (−60 stamina + stagger) vs a plain heavy's 7 chip — is the read (0.5 s hold, glow) fair on a phone?
-3. The 8-tick exposed hole after a *released* parry tap that meets nothing (a held press has none).
-4. Thrust share 35 % and the step-back-to-range behaviour (costs ~5 s of duel time at normal).
-5. Hit-stop lengths (30–220 ms) against the "readable brutality" rule.
-6. Warden reads: thresholds (2 exchanges / 3 s / 9 swings) and whether adaptation should be visible to the player beyond the debug overlay.
-7. Duel length: 6–8 hits / 22–36 s at AI-vs-AI vs the 8–15 hit target.
+3. Answered (block 2): a held Guard has no hole; the 8-tick exposure applies only to a released tap.
+4. Answered (block 6): thrust share 20 %, no walk-back; the thrust is the stop-hit (×1.5 / ×1.75 into a swing or a 0.3 m walk-in). Is 1.5 too strong a deterrent to walking in?
+5. Hit-stop lengths (30–220 ms; blocked heavy 50) against the "readable brutality" rule — the journal's Hit-stop on/off toggle exists for the comparison (block 3).
+6. Warden reads: thresholds (2 exchanges / 3 s / 11 swings, cuts anticipated at 8 ticks) — a cut-only player wins 5–7 of 24 at normal, 0 at hard (blocks 2, 5). Should adaptation be visible beyond the debug overlay?
+7. Answered (block 5): health 150 + 40/s regen → 11–13 hits / 21–24 s at AI-vs-AI, inside the 8–15 target. The 50 Hz tempo toggle is there to feel a slower tempo before any re-timing of the moves (which needs a blade re-bake).
+8. Attrition (block 6): −8 stamina ceiling per blade wound (floor 40), leg wound 85 % walk — enough to be felt without deciding the duel?
+9. The ring wall (block 6): +12 stagger / +15 posture on a wall impact, no backstep when cornered — AI-vs-AI never touches it; only a human who backs off does.

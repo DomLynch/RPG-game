@@ -1,0 +1,31 @@
+# The same gate the release script runs before every deploy, on every push and pull request to the live trunk:
+# lint, the node suites (including the strategy battery — no scripted one-trick player may beat the warden), the build,
+# the dependency audit, the asset budget and the real-browser gate (Playwright/Chromium against the built dist).
+name: quality
+on:
+  push:
+    branches: [codex/01a09a76/task-1]
+  pull_request:
+    branches: [codex/01a09a76/task-1]
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run quality
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-gate-receipts
+          path: artifacts/browser-*.png
+          if-no-files-found: ignore
