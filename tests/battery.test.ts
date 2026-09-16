@@ -3,8 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, PROFILES, RULES, type AiProfile, type Opponent } from '../src/moves.ts';
+import { createFighter, elapsed, idleIntent, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { OPPONENTS, PROFILES, RULES, type AiProfile, type Opponent } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: true });
@@ -27,7 +27,7 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   // Perfect-information parry: press exactly so the window covers contact, and kick anything that is not parryable.
   // The press is timed on the tell (elapsed ticks since the swing started), the way a human reads it: a held swing that parks at its chamber
   // draws the press early and meets nothing, which is what a bait is for.
-  'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = MOVES[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return act('parry', { guard: true }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
+  'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = movesOf(w)[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return act('parry', { guard: true }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
 };
 // `opponent` picks who stands in the ring (moves.ts OPPONENTS): the same battery is the fairness gate for every man on the roster.
 export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES) {
@@ -48,9 +48,11 @@ export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, 
   }
   return rows;
 }
-test('no simple strategy dominates the warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit', () => {
+// The Veteran as shipped (the trident since slice V) and the same man with the longsword: the sword warden is the AI every other opponent starts from, so it stays gated.
+const WARDENS: [string, Opponent][] = [[`${OPPONENTS.veteran.id} (${OPPONENTS.veteran.weapon})`, OPPONENTS.veteran], ...(OPPONENTS.veteran.weapon === 'longsword' ? [] : [['veteran (longsword)', { ...OPPONENTS.veteran, weapon: 'longsword' as const }] as [string, Opponent]])];
+for (const [who, opponent] of WARDENS) test(`no simple strategy dominates the ${who} warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit`, () => {
   for (const [level, cap] of [['normal', .5], ['hard', .35]] as const) {
-    const rows = battery(level);
+    const rows = battery(level, 24, 7200, opponent);
     const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');
     for (const [name, r] of Object.entries(rows)) {
       // The perfect-information parry is mastery, not an exploit: it may win, but the warden's baits, feints and kicks must still land on it.
@@ -59,6 +61,6 @@ test('no simple strategy dominates the warden: wins ≤ 50 % at normal, ≤ 35 %
       // two thirds of the fights. (Cap 6 → 8 with the slice-P regen — 40/s means the script always has the 30 stamina to roll; the old number leaned on its starvation.)
       assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
     }
-    console.log(`battery ${level}\n  ${table}`);
+    console.log(`battery ${who} ${level}\n  ${table}`);
   }
 });

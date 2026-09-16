@@ -83,7 +83,17 @@ Measured AI-vs-AI (24 seeds): easy median 36 s / 7 hits · normal 28 s / 6 hits 
 
 ## 9b. Weapons (the slot)
 
-A fighter carries a `weapon` (`src/moves.ts` `WEAPONS`): its move table, its baked blade paths (from `scripts/blade-manifest.json`, one entry per weapon: rig, node, contact segment in metres along the node's Y — `extras.contact` on the node overrides), the kind of guard it makes (`blade` / `shaft`), its material (audio cues) and the reach the warden reasons with. Every lookup in the simulation, the AI and the HUD goes through the fighter's weapon. Today both fighters carry the **longsword**; the **trident** entry is the longsword's data marked placeholder until the weapons lane lands it. Hit / Blocked / Parried / GuardBroken events carry `weapon` and `material`.
+A fighter carries a `weapon` (`src/moves.ts` `WEAPONS`): its move table, its baked blade paths (from `scripts/blade-manifest.json`, one entry per weapon: rig, node, contact segment in metres along the node's Y — `extras.contact` on the node overrides), the kind of guard it makes (`blade` / `shaft`), its material (audio cues) and the reach the warden reasons with. Every lookup in the simulation, the AI and the HUD goes through the fighter's weapon. Hit / Blocked / Parried / GuardBroken events carry `weapon` and `material`.
+
+The player carries the **longsword**; the Veteran carries the **trident** (slice V, 2026-09-16 — `initialDuel` gives side 1 `'trident'`; the renderer plays each rig's clips by role from `characters.ts` `WEAPON_CLIPS`). The trident's fight, all data in `TRIDENT_MOVES` / `TRIDENT_PATHS`:
+
+| move | tell / active / recovery (ticks) | damage | stamina | lands to (measured) | notes |
+|---|---|---|---|---|---|
+| Slash = low sweep | 22 / 8 / 24 (chained 18 / 8 / 20) | 12 | 25 | 1.75 m | one clip both sides; **trips a roll in its first half** (`direction: 'low'` blade on a roller with age < 18) |
+| Stab = thrust | 16 / 5 / 23 | 12 | 22 | 2.25 m | chains into a second, faster thrust (12 / 5 / 19); **`minReach` 1 m: started inside 1 m it meets nothing** (bodies stand no closer than .85) |
+| Heavy = the pin | 34 / 5 / 33 | 20 | 38 | 2.15 m | chip .5 |
+
+The **shaft guard** (`Weapon.guardProfile` → `Fighter.guardProfile`): every block costs ×1.15, and a plain overhead heavy **breaks** it (`heavyBreaks`), where the blade guard only breaks to a charged one. The warden's **stance** (`Weapon.fight`): the trident opens with the thrust 60 % of the time (sword 20 %), closes to 1.4 m for a sweep or the pin (sword 1.15), never thrusts from inside 1 m — there it kicks (not into a swing, and not inside the window a landed blow earned the player), or backsteps out when it has no kick to give — and never raises the shaft to a plain heavy (it rolls, parries or steps out, as to a charged one). Balance guard: `tests/battery.test.ts` runs every scripted strategy against both the trident warden (live) and the longsword warden.
 
 ## 10. Not in the game (decided)
 

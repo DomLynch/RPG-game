@@ -20,10 +20,11 @@ function land(o: Opponent, player: Intent, opponent: (d: Duel) => Intent = idle)
   throw new Error('no hit landed');
 }
 
-test('on trunk nothing changes: initialDuel() is the Veteran — the longsword, a man\'s scale, health and poise, the shipped PROFILES — and the cleaver slot borrows the longsword until the weapons lane fills it', () => {
+test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, health and poise, the shipped PROFILES; the hero the longsword — and the cleaver slot borrows the longsword until the weapons lane fills it', () => {
   assert.deepEqual(initialDuel(), initialDuel(OPPONENTS.veteran));
   const [hero, warden] = initialDuel().fighters;
-  for (const f of [hero, warden]) { assert.equal(f.weapon, 'longsword'); assert.equal(f.scale, 1); assert.equal(f.poise, 0); assert.equal(f.health, RULES.health); assert.equal(f.maxHealth, RULES.health); }
+  assert.equal(hero.weapon, 'longsword'); assert.equal(warden.weapon, 'trident');
+  for (const f of [hero, warden]) { assert.equal(f.scale, 1); assert.equal(f.poise, 0); assert.equal(f.health, RULES.health); assert.equal(f.maxHealth, RULES.health); }
   assert.equal(OPPONENTS.veteran.profiles, PROFILES);
   assert.equal(WEAPONS.cleaver.placeholder, true); assert.equal(WEAPONS.cleaver.moves, MOVES); assert.deepEqual(bladePaths.cleaver, bladePaths.longsword);
 });
