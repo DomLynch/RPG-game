@@ -15,7 +15,7 @@
     "enemy": 100,
     "stamina": 100
   },
-  "guardAfterTellMs": 467.09999990463257,
+  "guardAfterTellMs": 500.09999990463257,
   "parry": {
     "scale": 1,
     "overflow": false,
@@ -38,7 +38,7 @@
     "status": "Kick connected · press the opening",
     "health": 100,
     "enemy": 72,
-    "stamina": 62.60000000000011
+    "stamina": 63.800000000000125
   },
   "bloodModes": [
     "red",

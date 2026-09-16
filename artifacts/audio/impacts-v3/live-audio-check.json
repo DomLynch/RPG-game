@@ -1,0 +1,22 @@
+{
+ "bundle": "index-DI6Yey-L.js",
+ "sprites": [
+  "/assets/sprite-C0AX3jHT.ogg",
+  "/assets/sprite-fdKKsYbd.m4a"
+ ],
+ "manifestSeconds": null,
+ "contextState": "running",
+ "sampleRate": 48000,
+ "decoded": {
+  "sprite-C0AX3jHT.ogg": {
+   "seconds": 20.57,
+   "channels": 1,
+   "peak": 0.942
+  },
+  "sprite-fdKKsYbd.m4a": {
+   "seconds": 20.59,
+   "channels": 1,
+   "peak": 0.908
+  }
+ }
+}
