@@ -50,7 +50,7 @@ Goal: a fighter's frame under the heroic head, rig untouched.
 - Files: `parts.py` (`level1_kit`, `bronze_maps`-style map builders), `build-warrior.mjs` materials. Budget: each new
   map at 512 or 1K, measured with `check-budget`.
 
-### B4 — hands and feet polish (last)
+### B4 — hands and feet polish (last) — SHIPPED v39 (2026-09-16; little toe nail and wrist-wrap close-up edges left)
 - Nails (a lighter, glossier oval per fingertip in `skin_color` + roughness), knuckle creases in the normal, toe
   separation shading. Close-up only; skip if the budget is tight.
 

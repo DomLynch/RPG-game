@@ -271,3 +271,15 @@ normal scale 1.5. Audit (1×): the first linen (0.70/0.64/0.52, 2-texel weave at
 printed grid; a heraldry stitch line tiled across the under-skirt as rows of rivets (dropped); leather creases at 0.25
 tiled as corduroy on the soles. Budget 4.40 MB gzip. `humanoid-v38/kit-before-after.png`, `kit-sheet.png`,
 `phone-v37-v38.png`, `details.png`.
+
+v39 (2026-09-16, body pass B4 — hands and feet): `head.body_nails` paints finger and toe nails — a paler, pinker,
+glossier oval (roughness −0.35, a raised plate with a bevel in the normal, a pale lunula, a darker rim) 7–8 mm behind
+each tip on the side whose object-space normal faces the nail's way. The rig's finger bones overshoot the mesh (the
+thumb by 2 cm), so the tips come from the position map: the fingers beyond the knuckles are four rods in (y, z) —
+k-means, one cluster each, tip = the outermost texels; the back of the hand is the side the fingers curl away from;
+the thumb's nail faces that rolled ~50° towards the index side; the toes are five x-bands of the forefoot, nail on each
+band's top at its foremost point. `body_creases` adds a transverse furrow on the back of each finger joint. Audit: the
+first placement (from the bones) painted nothing — 0 texels per finger, caught by the per-nail texel count now printed
+(`BODY nails`); the second sat the ovals in the fingers' cores, 6 mm under the skin. The little toe's nail is still
+missing (its band finds no top-facing texels) — noted, not visible at the game camera. `humanoid-v39/hands-feet-sheet.png`,
+`feet-before-after.png`. Also noted for later: the wrist wraps' ring strips read as torn at very close range.
