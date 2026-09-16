@@ -402,3 +402,14 @@ wood; no image maps. The 13 clips are original, authored offline on the same CC0
 both arms are re-solved onto the shaft with build-warrior's two-bone reach, as Heavy / Riposte / Kick were. Checked 2026-09-16:
 neither UAL1 nor UAL2 Standard (43 clips each) has a spear, polearm or staff clip, so nothing was retargeted from a library and no
 Mixamo / KayKit / MoCap Online clip was downloaded. Silhouette variants and evidence: `artifacts/weapons/REPORT.md`.
+
+## Weapons (weapons lane, 2026-09-16) — the cleaver
+
+`src/assets/weapons/cleaver/`: `cleaver.glb` (the part alone) and `veteran-cleaver.glb` (the Veteran's rig carrying it, for the Pitborn
+until `pitborn.glb` ships; the sword's 21 clips, `Heavy` re-keyed as a diagonal hack). Built by `scripts/build-weapon.mjs` through
+`build-warrior.mjs` (`WARRIOR_FIGHTER=veteran WARRIOR_WEAPON=cleaver [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=…`), then `node scripts/bake-blades.mjs`.
+
+Provenance: **original project work, no new third-party asset, texture or licence.** The blade is a procedural loft (a swept centreline
+and a width envelope, wedge section) and the furniture Three.js primitives; the materials are procedural (pitted iron, dark wood; no
+image maps). The re-keyed `Heavy` is original, on the same CC0 rig and the same authored-key grammar as the sword's Heavy / Riposte /
+Attack / Return recorded above. Evidence and the three silhouettes: `artifacts/weapons/REPORT.md`.

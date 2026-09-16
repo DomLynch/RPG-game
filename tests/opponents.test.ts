@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { createFighter, idleIntent, initialDuel, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, idleIntent, initialDuel, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type Opponent } from '../src/moves.ts';
 import { TARGET, type State } from '../src/sim.ts';
 import { STRATEGIES, battery } from './battery.test.ts';
@@ -25,7 +25,7 @@ test('on trunk nothing changes: initialDuel() is the Veteran — the longsword, 
   const [hero, warden] = initialDuel().fighters;
   for (const f of [hero, warden]) { assert.equal(f.weapon, 'longsword'); assert.equal(f.scale, 1); assert.equal(f.poise, 0); assert.equal(f.health, RULES.health); assert.equal(f.maxHealth, RULES.health); }
   assert.equal(OPPONENTS.veteran.profiles, PROFILES);
-  assert.equal(WEAPONS.cleaver.placeholder, true); assert.equal(WEAPONS.cleaver.moves, MOVES); assert.deepEqual(bladePaths.cleaver, bladePaths.longsword);
+  assert.equal(WEAPONS.cleaver.placeholder, undefined, 'the cleaver is real data (weapons lane)'); assert.notEqual(WEAPONS.cleaver.moves, MOVES); assert.ok(bladePaths.cleaver.thrust.length, 'baked from its own rig');
 });
 
 test('the Pitborn is set up from his data: the cleaver slot, 1.13× scale, 190 health and poise 16 on the warden side; the hero is unchanged', () => {
@@ -68,7 +68,7 @@ const whiffPunisher = (d: Duel): Intent => {
   const w = d.fighters[1], p = d.fighters[0];
   if (p.phase !== 'ready') return idle();
   if (w.phase === 'attack' && w.age <= 4 && !w.landed && w.move !== 'kick') return act('backstep');
-  if (w.phase === 'attack' && w.move && !w.landed && w.age >= MOVES[w.move].windup + MOVES[w.move].active && gap(d) <= 1.7) return act('light');
+  if (w.phase === 'attack' && w.move && !w.landed && w.age >= movesOf(w)[w.move].windup + movesOf(w)[w.move].active && gap(d) <= 1.7) return act('light');   // the warden's OWN weapon's timings (the cleaver's chop is live longer than the sword's cut)
   if (w.exhausted && gap(d) <= 1.7) return act('heavy');
   return idle();
 };

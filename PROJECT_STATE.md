@@ -346,3 +346,18 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 - Pitborn data (provisional, combat-owned): 1.13×, health 190, poise 16, normal `{reaction 18, parry .15, aggression .8, pressure .7, discipline 25}`. Probe (24 seeds): battery caps hold at normal and hard; a held guard is broken in every fight (median 72 ticks, 23/24 inside 6 s); the off-line whiff punisher wins 6/24 — the best honest script; AI-vs-AI (Veteran brain vs him) median 26.4 s. Discipline 15 made the punisher win 17/24 (rejected); accuracy is not a lever; a literal `StaminaExhausted` never fires at 40/s regen — the whiff window is the weakness.
 - Evidence: 163/163 tests (new tests/opponents.test.ts: 7; battery takes an opponent and records first guard break), quality gate green incl. the browser gate. Veteran default byte-for-byte unchanged (`initialDuel()` deep-equals `initialDuel(OPPONENTS.veteran)`).
 - Next (part 2, character lane): `pitborn.glb` from the KeenTools scan `01a0ab5b…` (7 owner portraits in `artifacts/source/face/pitborn/`), 1.13× hunched build, tusks, bone/iron kit; budget cap up from 12 MB as needed; per-fighter scale in tests/characters.test.ts.
+
+## Cleaver v1 — the weapons lane — 2026-09-16
+- Branch `weapons/cleaver-v1` (stacked on #80 trident + #81 Pitborn seam). The Pitborn's cleaver: "a fat scythe-type cleaver, wider and
+  the same length as the longsword" (owner). A procedural single-edged loft (0.19 m belly toward a hooked tip, 0.20 m forward sweep, 615
+  triangles, no textures; silhouettes A/B/C for the owner's pick) under `hand_r` as `WeaponDrawn` (contact = the edge .14–.86). It rides
+  the **sword's clip family** — same 21 clips, same order; only `Heavy` is re-keyed on its rig as a diagonal hack so the edge leads
+  (edge·motion .95 vs the sword's .68) — so the renderer needs nothing and `scene.ts`'s Pitborn GLB line is the only wire left
+  (REQUESTS §5). `build-warrior.mjs` takes a per-weapon `{ part, clips, keys }` table; default output byte-identical.
+- Data: `WEAPONS.cleaver` real (was #81's placeholder): the chop (17, chip .2), the back of the cleaver (the backhand leads with the
+  spine: 9 dmg, posture 34 — a hammer), the hack (26, chip .5, posture 42), the poke (7). Lunges equal the sword's and `reach` follows the
+  sword's spacing convention because the Pitborn's fairness battery is the gate: whiff punisher 4/24 normal · 6/24 hard (≥ 4), 6/24
+  stalls per level — both flagged for combat review. The whiff-punisher script now reads the warden's own weapon table (it read the
+  longsword's).
+- Evidence: tests/weapons.test.ts +3 (rig + clip set + edge segment; edge-leading per cut; reach and lunge parity with the sword),
+  169/169; `artifacts/weapons/REPORT.md` (cleaver section), sheets under `artifacts/weapons/cleaver-v3/`, `cleaver-B/`, `cleaver-C/`.

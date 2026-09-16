@@ -2,6 +2,7 @@
   "_comment": "One entry per weapon: the rig that carries it, the node whose local Y runs along the striking part, and the contact segment (metres along that Y) the simulation sweeps. If the node carries extras.contact = { from, to } in the GLB it overrides `contact` here. The weapons lane adds an entry per weapon; scripts/bake-blades.mjs writes src/blade-paths.ts keyed by weapon.",
   "weapons": [
     { "weapon": "longsword", "glb": "src/assets/warrior.glb", "node": "SwordDrawn", "contact": [0.18, 0.86] },
-    { "weapon": "trident", "glb": "src/assets/weapons/trident/veteran-trident.glb", "node": "WeaponDrawn", "contact": [0.76, 1.22] }
+    { "weapon": "trident", "glb": "src/assets/weapons/trident/veteran-trident.glb", "node": "WeaponDrawn", "contact": [0.76, 1.22] },
+    { "weapon": "cleaver", "glb": "src/assets/weapons/cleaver/veteran-cleaver.glb", "node": "WeaponDrawn", "contact": [0.14, 0.86] }
   ]
 }
