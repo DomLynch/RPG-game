@@ -35,7 +35,7 @@ import { ATTACKS, MOVES, RULES, SWORD } from '/src/combat.ts'; // DEFENCE/KICK v
 const KICK = { contact: MOVES.kick.windup, recovery: MOVES.kick.windup + MOVES.kick.active + MOVES.kick.recovery }, DEFENCE = { roll: RULES.roll };
 import { TARGET, wrapAngle } from '/src/sim.ts';
 
-const GLB = new URL('/src/assets/warrior.glb', location.href).href, ENEMY = new URL('/src/assets/veteran.glb', location.href).href; // the game's pairing: player, Veteran opponent
+const GLB = new URL('/src/assets/warrior.glb', location.href).href, ENEMY = new URL(new URLSearchParams(location.search).get('enemy') || '/src/assets/veteran.glb', location.href).href; // the game's pairing: player, and the Veteran unless ?enemy= names another roster man
 const TICK = 1 / 60, GAME_RATIO = 1.5, LOCK = { portrait: [390, 844], landscape: [844, 390] };
 const canvas = document.getElementById('world'), sheet = document.getElementById('sheet'), ctx = sheet.getContext('2d');
 const status = text => document.getElementById('status').textContent = text;

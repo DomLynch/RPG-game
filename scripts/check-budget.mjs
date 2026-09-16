@@ -9,5 +9,5 @@ async function size(path) {
   return { raw, gzip };
 }
 const bytes = await size('dist');
-if (bytes.gzip >= 12_000_000) throw new Error(`Shell exceeds 12 MB: ${bytes.gzip}`); // 5 → 12 MB gzip on the owner's instruction (2026-09-16): two full fighters ship; the phone frame-time gate stays the real limit
+if (bytes.gzip >= 16_000_000) throw new Error(`Shell exceeds 16 MB: ${bytes.gzip}`); // 5 → 12 → 16 MB gzip on the owner's instruction (2026-09-16, "expand as needed, not excessive"): three full fighters ship, two load per duel; the phone frame-time gate stays the real limit
 console.log(`All fight-ready assets: ${bytes.raw} bytes raw; ${bytes.gzip} bytes gzip. Budget PASS.`);

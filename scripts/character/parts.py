@@ -35,8 +35,11 @@ SUFFIX = ('_r' if FIGHTER == 'hero' else f'_{FIGHTER}') if realistic else ''  # 
 # What each fighter wears over the shared level-1 cut (GAME_SPEC materials: bronze, iron, bone, leather, stone, ash, blood).
 # The hero's values are the shipped ones. The Veteran: a darker, dirtier undyed tunic and bronze greaves; his pteruges dye
 # and helm are set in build-warrior.mjs (material factor, default items).
-KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'build': False},
-       'veteran': {'linen': (0.40, 0.37, 0.32), 'grime': 0.72, 'greaves': True, 'build': True}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
+# The Pitborn (opponent 3, the first creature): no tunic — a rag sash over the left shoulder, a crude iron belt, rag kilt, rope
+# wraps, bare feet, no helm; `brute` doubles the frame's shoulder and chest gains and thickens the neck; tusks are cut on the scan head.
+KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': True},
+       'veteran': {'linen': (0.40, 0.37, 0.32), 'grime': 0.72, 'greaves': True, 'build': True, 'bare': False, 'brute': False, 'helm': True},
+       'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -201,10 +204,17 @@ def build_shape(mesh_obj):
         limbs.append((joint(f'thigh_{side}'), joint(f'calf_{side}'), 0.10))
         limbs.append((joint(f'calf_{side}'), joint(f'foot_{side}'), 0.10))
     spine_y = pelvis.y
+    brute = 2.0 if KIT['brute'] else 1.0  # the pit brute: shoulders and chest at twice the Veteran's gain, and a thick neck
     moved = 0
     for v in mesh_obj.data.vertices:
         p = v.co
         if p.z > neck.z - 0.02:  # the neck and head are the scan's business
+            continue
+        # brute neck: girth about the vertical through the neck bone, from the traps up to where the scan takes over
+        if KIT['brute'] and p.z > shoulder_l.z - 0.04 and abs(p.x) < 0.11 and (Vector((p.x, p.y - neck.y, 0))).length < 0.11:
+            w = fade(p.z, shoulder_l.z - 0.04, shoulder_l.z + 0.04)
+            v.co = p + Vector((p.x, p.y - neck.y, 0)) * (0.16 * w)
+            moved += 1
             continue
         d = Vector((0, 0, 0))
         for a, b, gain in limbs:
@@ -221,11 +231,11 @@ def build_shape(mesh_obj):
         # chest: deeper, about the spine, between the belt and the collarbones, front and back alike
         if pelvis.z + 0.12 < p.z < neck.z - 0.04 and abs(p.x) < torso_half_width + 0.04:
             w = fade(p.z, pelvis.z + 0.12, pelvis.z + 0.24) * (1 - fade(p.z, neck.z - 0.12, neck.z - 0.04))
-            d += Vector((0, (p.y - spine_y) * 0.08 * w, 0))
+            d += Vector((0, (p.y - spine_y) * 0.08 * brute * w, 0))
         # shoulders and traps: wider about the midline, above the armpits
         if p.z > shoulder_l.z - 0.10 and abs(p.x) < abs(shoulder_l.x) + 0.10:
             w = fade(p.z, shoulder_l.z - 0.10, shoulder_l.z - 0.02) * fade(abs(p.x), 0.04, 0.10) * (1 - fade(abs(p.x), abs(shoulder_l.x) + 0.02, abs(shoulder_l.x) + 0.10))
-            d += Vector((p.x * 0.08 * w, 0, 0))
+            d += Vector((p.x * 0.08 * brute * w, 0, 0))
         if d.length > 1e-6:
             v.co = p + d
             moved += 1
@@ -629,23 +639,34 @@ def level1_kit():
         return p.x < -0.03 and p.z > neck.z - 0.15 - (p.x + 0.03) * 1.1 and p.y < 0.06
     def armhole_left(p):
         return along(p, shoulder_l, elbow_l) > 0.22 and p.z < shoulder_l.z + 0.05
-    kit.append(extract('tunic', 'Gambeson', lambda p: abs(p.x) < torso_half_width + 0.07 and pelvis.z - 0.03 < p.z < neckline(p)
-                       and not bare_right(p) and not armhole_left(p) and (p - shoulder_r).length > 0.09, lift=0.010, thickness=0.007))
+    if KIT['bare']:
+        # A rag sash: one band of cloth from the left shoulder down across the chest to the right hip, the torso otherwise bare.
+        def sash(p):
+            t = (p.z - (pelvis.z + 0.02)) / (shoulder_l.z - pelvis.z - 0.02)  # 0 at the right hip, 1 at the left shoulder
+            return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < 0.08 and abs(p.x) < torso_half_width + 0.06
+        kit.append(extract('tunic', 'Gambeson', sash, lift=0.010, thickness=0.007))
+    else:
+        kit.append(extract('tunic', 'Gambeson', lambda p: abs(p.x) < torso_half_width + 0.07 and pelvis.z - 0.03 < p.z < neckline(p)
+                           and not bare_right(p) and not armhole_left(p) and (p - shoulder_r).length > 0.09, lift=0.010, thickness=0.007))
     # Under-skirt: dyed cloth over hips and upper thighs, so the strips above it never show skin between them.
     kit.append(extract('skirt', 'Heraldry', lambda p: abs(p.x) < 0.24 and pelvis.z - 0.25 < p.z < pelvis.z + 0.01, lift=0.014, thickness=0.005))
     # Baldric: a leather loop around the torso, over the left shoulder and under the right arm, hugging the body.
     centre = Vector((0.0, pelvis.y, pelvis.z + 0.37))
     n = Vector((0.66, 0.0, 0.75)).normalized()  # the loop's plane leans from the right hip up to the left shoulder
-    kit.append(ring_strip('baldric', 'Leather', centre - n * 0.025, centre + n * 0.025, 0.0, 0.05, segments=44,
-                          lift=0.017, thickness=0.005, probe_radius=0.30, max_reach=0.34))
-    # Belt around the hips.
-    kit.append(extract('belt', 'Leather', lambda p: in_torso(p) and pelvis.z + 0.005 < p.z < pelvis.z + 0.055, lift=0.024, thickness=0.007))
+    if not KIT['bare']:
+        kit.append(ring_strip('baldric', 'Leather', centre - n * 0.025, centre + n * 0.025, 0.0, 0.05, segments=44,
+                              lift=0.017, thickness=0.005, probe_radius=0.30, max_reach=0.34))
+    # Belt around the hips: leather, or the brute's crude iron band (Steel is the build's dull iron), taller and thicker.
+    if KIT['bare']:
+        kit.append(extract('belt', 'Steel', lambda p: in_torso(p) and pelvis.z - 0.005 < p.z < pelvis.z + 0.075, lift=0.026, thickness=0.010))
+    else:
+        kit.append(extract('belt', 'Leather', lambda p: in_torso(p) and pelvis.z + 0.005 < p.z < pelvis.z + 0.055, lift=0.024, thickness=0.007))
     # Forearm wraps: seven narrow overlapping leather turns from the wrist to mid-forearm, each hugging the arm's taper.
     for elbow, hand, side in [(elbow_l, hand_l, 1), (elbow_r, hand_r, -1)]:
         for k in range(7):
             kit.append(ring_strip(f'wrap_{"l" if side > 0 else "r"}_{k}', 'Wrap', elbow, hand, 0.93 - k * 0.055, 0.06, lift=0.003 + (k % 2) * 0.002, probe_radius=0.1, max_reach=0.09, rows_n=3))
-    # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare.
-    for foot, ball, side in [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
+    # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare. The brute fights barefoot.
+    for foot, ball, side in [] if KIT['bare'] else [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
         name = 'l' if side > 0 else 'r'
         kit.append(extract(f'sole_{name}', 'Leather', lambda p, s=side: p.x * s > 0 and p.z < 0.03, lift=0.0, thickness=0.007,
                            face_keep=lambda f: f.normal.z < -0.45))  # one flat sole: every downward face under the foot, arch included; nothing on the toes
@@ -851,6 +872,48 @@ def bronze_helmet():
     select_only([crest])
     bpy.ops.object.transform_apply(scale=True, rotation=True, location=True)
     return [helm, tag(crest, 'crest_red', 'Heraldry', bone='Head', slot='Crest')]
+
+
+def tusks(head_obj, eye_l, eye_r):
+    """The Pitborn's two lower tusks: ivory cones rising from the lower-lip corners, angled up, out and a little forward.
+    The mouth line sits ~1.1 eye-spacings below the eye line (anthropometry; the scan is cut under the jaw, so the chin
+    is not a safe landmark); each tusk is rooted a few millimetres inside the lip surface (found by a ray from in front
+    of the face) so it grows out of the flesh, and rides rigid on the Head bone like the crest. Materials rule: bone."""
+    eyes = (eye_l + eye_r) / 2
+    spacing = abs(eye_l.x - eye_r.x)
+    m = head_obj.matrix_world
+    mouth_z = eyes.z - 1.1 * spacing
+    out = []
+    for side in (-1, 1):
+        x = side * 0.42 * spacing
+        origin = m.inverted() @ Vector((x, eyes.y - 0.30, mouth_z - 0.012))  # the lower lip, just inside the mouth corner
+        hit, loc, normal, _ = head_obj.ray_cast(origin, (m.inverted().to_3x3() @ Vector((0, 1, 0))).normalized())
+        if not hit:
+            print(f'TUSK {side}: no lip surface found, skipped')
+            continue
+        base = m @ loc
+        n = (m.to_3x3() @ normal).normalized()
+        bm = bmesh.new()
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=0.0068, radius2=0.0015, depth=0.040)
+        # local Z runs along the cone; bend it: the tip curls outward
+        for v in bm.verts:
+            t = (v.co.z + 0.020) / 0.040  # 0 base → 1 tip
+            v.co.x += side * 0.009 * t * t
+        me = bpy.data.meshes.new(f'tusk_{"l" if side > 0 else "r"}')
+        bm.to_mesh(me)
+        bm.free()
+        obj = bpy.data.objects.new(me.name, me)
+        bpy.context.scene.collection.objects.link(obj)
+        axis = Vector((side * 0.30, -0.12, 1.0)).normalized()  # up, a little out, barely forward: it rises against the upper lip, not away from the face
+        obj.rotation_mode = 'QUATERNION'
+        obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(axis)
+        obj.location = base - n * 0.010 + axis * 0.016  # cone centre: the root a centimetre inside the lower lip, ~26 of the 40 mm showing
+        select_only([obj])
+        bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
+        bpy.ops.object.shade_smooth()
+        out.append(tag(obj, me.name, 'Bone', bone='Head', slot='Face'))
+        print(f'TUSK {side}: base {tuple(round(c, 3) for c in base)} mouth_z {mouth_z:.3f}')
+    return out
 
 
 def strip_crown_under_helm(helm_parts):
@@ -1454,9 +1517,11 @@ else:
         AO = bake_ao()  # bare body only: every later piece would occlude it
     kit = level1_kit()
     HELM = None
-    if realistic and FIGHTER != 'hero':  # a fighter who fights helmed: the helm first, and the skull under it dropped before the body export
+    if realistic and FIGHTER != 'hero' and KIT['helm']:  # a fighter who fights helmed: the helm first, and the skull under it dropped before the body export
         HELM = bronze_helmet()
         strip_crown_under_helm(HELM)
+    if realistic and use_kt and KIT['brute']:
+        body_parts += tusks(bpy.data.objects['kt_head'], el, er)
     if realistic:
         export_kit(body_parts, os.path.join(out, f'body_{VARIANT}.glb'))  # head, body, eyes, hair/brow/lash cards
     tunic = next(o for o in kit if o.name == 'tunic')
@@ -1467,9 +1532,10 @@ else:
     ITEM = '' if FIGHTER == 'hero' else f'_{FIGHTER}'  # the helm is shelled from this fighter's own skull: one per head
     if FIGHTER == 'hero':
         export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')  # fitted to the shared body: one copy
-    helm, crest = HELM if HELM is not None else bronze_helmet()
-    export_kit([helm], f'src/assets/source/items/helmet_bronze{ITEM}.glb')   # a poor gladiator's first helm: plain
-    export_kit([crest], f'src/assets/source/items/crest_red{ITEM}.glb')      # the crest is a later, extravagant reward
+    if KIT['helm']:
+        helm, crest = HELM if HELM is not None else bronze_helmet()
+        export_kit([helm], f'src/assets/source/items/helmet_bronze{ITEM}.glb')   # a poor gladiator's first helm: plain
+        export_kit([crest], f'src/assets/source/items/crest_red{ITEM}.glb')      # the crest is a later, extravagant reward
 if not proof:
     import json
     manifest_path = os.path.join(materials_out, f'manifest_{VARIANT}.json' if realistic else 'manifest.json')

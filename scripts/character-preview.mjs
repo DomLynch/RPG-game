@@ -13,7 +13,10 @@ const commit = execSync('git rev-parse --short HEAD').toString().trim();
 const label = option('label') || commit, against = option('against');
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}character-preview.html${option('src') ? `?src=${encodeURIComponent(option('src'))}` : ''}`;
+// --enemy <glb path>: the opponent to stand in (default the Veteran) — the same captures of another roster man, e.g. src/assets/pitborn.glb.
+const enemyFile = option('enemy') || 'src/assets/veteran.glb';
+const query = new URLSearchParams({ ...(option('src') ? { src: option('src') } : {}), ...(option('enemy') ? { enemy: `/${enemyFile}` } : {}) }).toString();
+const url = `${server.resolvedUrls.local[0]}character-preview.html${query ? `?${query}` : ''}`;
 if (args.includes('--serve')) { console.log(`Character preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
 const dir = `artifacts/character/${label}`; await fs.mkdir(dir, { recursive: true });
@@ -57,7 +60,7 @@ try {
   const video = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, recordVideo: { dir, size: { width: 844, height: 390 } } });
   const player = await open(video); await player.evaluate(() => __preview.play()); const file = player.video(); await video.close();
   await file.saveAs(`${dir}/sequence.webm`); await fs.rm(await file.path(), { force: true }); console.log(`  ${dir}/sequence.webm`);
-  const glb = await fs.readFile('src/assets/warrior.glb'), enemy = await fs.readFile('src/assets/veteran.glb').catch(() => null);
+  const glb = await fs.readFile('src/assets/warrior.glb'), enemy = await fs.readFile(enemyFile).catch(() => null);
   const resources = { label, commit, date: new Date().toISOString().slice(0, 10), glbBytes: glb.length, glbGzip: gzipSync(glb).length, ...(enemy ? { enemyGlbBytes: enemy.length, enemyGlbGzip: gzipSync(enemy).length } : {}), ...stats };
   await fs.writeFile(`${dir}/stats.json`, JSON.stringify(resources, null, 1));
   const previous = against ? JSON.parse(await fs.readFile(`artifacts/character/${against}/stats.json`, 'utf8')) : null;
