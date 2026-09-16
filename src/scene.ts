@@ -8,13 +8,14 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
-  const back = locked ? Math.max(6, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);
+  // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
+  const back = locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);
   let x = state.x + Math.sin(yaw) * back, z = state.z + Math.cos(yaw) * back;
   // Camera stays inside the colonnade even when the fighter reaches the arena edge.
   const radius = Math.hypot(x, z);
   if (radius > 11.5) { x *= 11.5 / radius; z *= 11.5 / radius; }
   return {
-    x, y: locked ? Math.max(4.7, distance * 1.3) : 1 + 7.5 * Math.sin(pitch), z,
+    x, y: locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch), z,
     lookX: locked ? (state.x + target.x) / 2 : state.x,
     lookZ: locked ? (state.z + target.z) / 2 : state.z,
   };
@@ -213,7 +214,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
         yaw += wrapAngle(lockYaw - yaw) * blend;
       }
       const cameraTarget = cameraPose(state, yaw, pitch, locked, practice.enemy);
-      look.set(cameraTarget.lookX, 1, cameraTarget.lookZ); desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+      look.set(cameraTarget.lookX, locked ? 0.8 : 1, cameraTarget.lookZ); desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
       heading += wrapAngle(state.heading - heading) * blend;
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading = state.heading;
       player.rotation.y = heading;
