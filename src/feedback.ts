@@ -40,7 +40,7 @@ export function createFeedback(host?: FeedbackHost) {
     master = context.createGain(); master.gain.value = 1; master.connect(context.destination);
     const ceiling = context.createWaveShaper(); ceiling.curve = softCeiling(); ceiling.connect(master);
     // Glue and density: the compressor leans on stacked hits and the makeup pushes the mix into the ceiling, which is what makes impacts read as big on a small speaker.
-    const makeup = context.createGain(); makeup.gain.value = 1.35; makeup.connect(ceiling);
+    const makeup = context.createGain(); makeup.gain.value = 2.1; makeup.connect(ceiling);   // +6.4 dB: restores the 4 dB of codec headroom baked into the sprite, plus glue
     bus = context.createDynamicsCompressor(); bus.threshold.value = -20; bus.knee.value = 10; bus.ratio.value = 5; bus.attack.value = .002; bus.release.value = .15; bus.connect(makeup);
     const room = context.createConvolver(); room.buffer = courtyard(context); room.connect(bus);
     for (let i = 0; i < VOICES; i++) { const gain = context.createGain(), send = context.createGain(); gain.connect(bus); gain.connect(send); send.connect(room); send.gain.value = 0; voices.push({ source: null, gain, send, until: 0 }); }
