@@ -77,7 +77,7 @@ export function practiceHint(s: Practice): string {
   if (s.phase === 'draw') return 'Drawing longsword…';
   if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken — Heavy for the critical!';
   if (me.phase === 'attack' && me.charge) return !MOVES[me.move!].charges ? 'Chambered · release to strike · back to centre to feint' : me.charged ? 'Charged · breaks a guard' : 'Charging… keep holding';
-  if (s.threat) return s.threatMove === 'heavy_overhead' ? (s.duel.fighters[1].charge ? 'Incoming strike — charged heavy: a guard will break · roll or parry the release!' : 'Incoming strike — heavy: guard takes chip · parry or roll') : 'Incoming strike — roll or time your guard!';
+  if (s.threat) return s.threatMove === 'heavy_overhead' ? (s.duel.fighters[1].charge ? 'Incoming strike — charged heavy: a guard will break · roll or parry the release!' : 'Incoming strike — heavy: guard takes chip · parry or roll') : s.threatMove === 'thrust' ? 'Incoming strike — thrust: fast and long · block it or step aside' : 'Incoming strike — roll or time your guard!';
   if (me.exhausted) return 'Exhausted · walk it off until your stamina returns';
   if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return 'Warden guarding · heavy or close-range kick';
   if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';

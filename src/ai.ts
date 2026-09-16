@@ -10,6 +10,7 @@ export type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 // tail punishes, a light-spammer gets parried more. Reads need evidence first, so the first exchanges are always the honest ones.
 export type Habits = { ticks: number; guard: number; parries: number; rolls: number; lights: number; heavies: number; attacks: number };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; spammer: boolean };
+export const THRUST_SHARE = .35;   // share of the warden's non-light openers that are thrusts, once the first (always a heavy) has shown the parry timing
 export const READ = { after: 3, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 6, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3 } as const;
 export const readOpponent = (h: Habits): Reads => ({
   parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
@@ -17,7 +18,7 @@ export const readOpponent = (h: Habits): Reads => ({
   roller: h.attacks >= READ.after && h.rolls / h.attacks >= READ.roll,
   spammer: h.lights + h.heavies >= READ.swings && h.lights / (h.lights + h.heavies) >= READ.lightShare,
 });
-export type AiState = { seed: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | null; plan: AiPlan | null; jitter: number; retreatUntil: number; hold: boolean; habits: Habits; scores: Record<string, number> };
+export type AiState = { seed: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; jitter: number; retreatUntil: number; hold: boolean; habits: Habits; scores: Record<string, number> };
 export const initialAi = (seed = 731): AiState => ({ seed, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, jitter: 0, retreatUntil: 0, hold: false, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, attacks: 0 }, scores: {} });
 const lcg = (seed: number) => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 
@@ -48,7 +49,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (!threat) next.plan = null;
   else if (F.age === profile.reaction) {
     const r = roll(), inRange = gap <= MOVES[F.move!].reach + .4, unblockable = MOVES[F.move!].breaksGuard || charging(F), affordable = M.stamina >= MOVES[F.move!].staminaDamage;
-    const parryChance = reads.spammer ? Math.min(READ.parryCap, profile.parry * READ.parryBoost) : profile.parry;   // a light-spammer is parried more (never by a profile that cannot parry)
+    const parryChance = reads.spammer ? Math.min(READ.parryCap, 1 - profile.dodge, profile.parry * READ.parryBoost) : profile.parry;   // a cut-only player is parried more (never by a profile that cannot parry; rolls keep their share)
     // A swing that cannot reach is ignored. A guard stops what it can afford; a charged heavy or a riposte calls for a timed parry, a roll or distance.
     next.plan = !inRange ? 'ignore' : r < parryChance && !M.parryCooldown ? 'parry' : r < parryChance + profile.dodge && M.stamina >= RULES.rollCost ? 'dodge' : unblockable ? (M.stamina >= RULES.rollCost ? 'dodge' : !M.parryCooldown ? 'parry' : 'evade') : affordable ? 'block' : 'evade';
     next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
@@ -60,7 +61,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // Timers pause while staggered: the punish window is measured from recovery, not from the blow.
   if (M.phase !== 'hurt') { next.decision = Math.max(0, next.decision - 1); next.wait = Math.max(0, next.wait - 1); }
   // When the cadence timer expires the warden commits to the kind of attack it will close in for.
-  if (!next.wait && !next.next && canAct) next.next = roll() < profile.pressure ? 'light' : 'heavy';
+  // The first opener is always the heavy (the readable parry lesson); after that the warden also opens with the thrust — a faster tell
+  // (16 ticks to the heavy's 32) with the longest reach, so it is the spacing opener from just outside cutting range.
+  if (!next.wait && !next.next && canAct) next.next = roll() < profile.pressure ? 'light' : h.attacks > 0 && roll() < THRUST_SHARE ? 'thrust' : 'heavy';
   // Below the stamina floor it recovers by circling just outside the player's light reach; it only backs right off
   // when very low or freshly hit. Guarding stops regeneration, so it is a choice made with stamina in hand.
   const low = M.stamina < profile.discipline, shaky = M.posture >= RULES.posture.max * .7;   // near a posture break it gives ground so the bar drains
@@ -72,6 +75,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (gap > 2.5 || (!low && !shaky && gap > 1.9)) next.mode = 'approach';
   if (tick < next.retreatUntil || ((low || shaky) && gap < 1.2)) next.mode = 'retreat';
   else if ((low || shaky) && next.mode === 'retreat' && gap >= 1.9) next.mode = 'circle';
+  if (next.next === 'thrust' && canAct && !threat && gap < MOVES.light_right.reach - .1) next.mode = 'retreat';   // a thrust is thrown from outside cutting range: step back to it first
   if (canAct && noticed && next.plan !== 'ignore') {
     const estimate = timing(F).windup - F.age + next.jitter;
     next.scores = { [next.plan!]: 1, estimate };
@@ -88,7 +92,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // honest, readable attack against a standing opponent, so every difficulty shows the player the parry timing.
   if (canAct && !M.exhausted) {
     // Move reach already includes the wind-up step-in; a small margin keeps swings from whiffing at the edge.
-    const inReach = (id: keyof typeof MOVES) => gap <= MOVES[id].reach - .1 && legal(M, id === 'heavy_overhead' ? 'heavy' : id === 'kick' ? 'kick' : 'light');
+    const inReach = (id: keyof typeof MOVES) => gap <= MOVES[id].reach - .1 && legal(M, id === 'heavy_overhead' ? 'heavy' : id === 'kick' ? 'kick' : id === 'thrust' ? 'thrust' : 'light');
     const r = roll();
     const scores: Record<string, number> = {
       critical: M.critical > 0 && inReach('heavy_overhead') ? 1.6 : 0,   // a broken posture is finished with the critical, not a riposte
@@ -97,15 +101,16 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       kick: guarded && inReach('kick') && r < .5 + (reads.turtle ? READ.kickBoost : 0) ? 1.1 + (reads.turtle ? READ.kickBoost : 0) : 0,   // a turtle is kicked more
       heavy: guarded && inReach('heavy_overhead') ? 1 : next.next === 'heavy' && !threat && inReach('heavy_overhead') ? .8 : 0,
       light: next.next === 'light' && !threat && !guarded && inReach('light_right') ? .8 : 0,
+      thrust: next.next === 'thrust' && !threat && !guarded && gap >= MOVES.light_right.reach - .1 && inReach('thrust') ? .8 : 0,   // the spacing opener: from where a cut cannot reach; blockable, so never into a standing guard
     };
-    if (M.stamina < profile.discipline) for (const key of ['chain', 'kick', 'heavy', 'light']) scores[key] = 0;   // stamina discipline: only punishes below the floor
+    if (M.stamina < profile.discipline) for (const key of ['chain', 'kick', 'heavy', 'light', 'thrust']) scores[key] = 0;   // stamina discipline: only punishes below the floor
     next.scores = scores;
     const [best, score] = Object.entries(scores).sort((x, y) => y[1] - x[1])[0];
     if (score > 0) {
-      const action: Action = best === 'kick' ? 'kick' : best === 'heavy' || best === 'critical' ? 'heavy' : 'light';
+      const action: Action = best === 'kick' ? 'kick' : best === 'heavy' || best === 'critical' ? 'heavy' : best === 'thrust' ? 'thrust' : 'light';
       next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); next.next = null;
       // A less aggressive warden sometimes baits instead: a visible guard the player must open with a heavy or a kick.
-      if ((best === 'heavy' || best === 'light') && !guarded && roll() < (1 - profile.aggression) * .6) { next.mode = 'guard'; next.decision = 36 + Math.floor(roll() * 45); intent.guard = true; return { intent, ai: next }; }
+      if ((best === 'heavy' || best === 'light' || best === 'thrust') && !guarded && roll() < (1 - profile.aggression) * .6) { next.mode = 'guard'; next.decision = 36 + Math.floor(roll() * 45); intent.guard = true; return { intent, ai: next }; }
       // A guard is charged through 20/40/60 % of the time by level (more against a turtle or a roller, whose answer a charge outlasts); a
       // parry-happy player has lights held past the parry window as baits.
       const chargeChance = profile.aggression - .25 + (reads.turtle || reads.roller || reads.parryHappy ? READ.chargeBoost : 0);
@@ -114,7 +119,8 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     }
   }
   if (next.mode === 'guard' && canAct && !M.exhausted) { intent.guard = true; return { intent, ai: next }; }
-  const forward = next.mode === 'approach' && gap > 1.15 ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : 0;
+  // Closing distance: to cutting range normally; a warden that has decided on a thrust stops just inside thrust reach, so the thrust opens from where a cut cannot reach.
+  const forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? MOVES.thrust.reach - .2 : 1.15) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : 0;
   const lateral = next.mode === 'circle' ? next.side * .25 : 0;
   intent.move = { x: Math.sin(facing) * forward + Math.cos(facing) * lateral, z: Math.cos(facing) * forward - Math.sin(facing) * lateral, yaw: 0, run: false };
   return { intent, ai: next };

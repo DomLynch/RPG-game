@@ -54,6 +54,7 @@ test('the warden threat flag and move drive the incoming warning; the projection
   for (let i = 0; i < 600 && !s.threat; i++) s = stepPractice(s, idle());
   assert.equal(s.threat, true); assert.equal(s.threatMove, 'heavy_overhead'); assert.equal(s.enemyAttacking, true);
   assert.match(practiceHint(s), /^Incoming strike — heavy: guard takes chip/);   // the browser gate times the tell on 'Incoming strike'
+  assert.match(practiceHint({ ...s, threatMove: 'thrust' }), /^Incoming strike — thrust: fast and long/);
   assert.match(practiceHint({ ...s, duel: { ...s.duel, fighters: [s.duel.fighters[0], { ...s.duel.fighters[1], charge: 3 }] } }), /^Incoming strike — charged heavy: a guard will break/);
   const charging = { ...s, duel: { ...s.duel, fighters: [{ ...s.duel.fighters[0], phase: 'attack' as const, move: 'heavy_overhead' as const, charge: 5, charged: false }, s.duel.fighters[1]] } };
   assert.match(practiceHint(charging), /^Charging/); assert.match(practiceHint({ ...charging, duel: { ...charging.duel, fighters: [{ ...charging.duel.fighters[0], charged: true }, charging.duel.fighters[1]] } }), /^Charged/);
