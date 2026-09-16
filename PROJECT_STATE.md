@@ -294,3 +294,7 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 ## Slice N — presentation correctness (audit block 3) — 2026-09-16
 - One impact-pause owner (main's hit-stop; scene's own 50 ms animation pause removed; rigs evaluate at dt 0), contact tick's bodies on the frozen frames, overshoot carried into the next tick, blocked heavy 50 ms, journal Hit-stop on/off (persisted), real seconds on the scorecard, `?debug` frame probe (`#debug` data-frozen/tick/tip).
 - Evidence: graphics tests (contact body + frozen flag, overshoot 0/1/4/6 under 40 ms frames, heavy Blocked 50, toggle off = no pause + persisted), characters test (zero-dt pose evaluation, no frozen trail samples), trial test (real seconds). Mutations: 8/9 caught in node; the scene's animation clock has no node harness and is checked by the live frame probe.
+
+## Slice O — controls pass (audit block 4) — 2026-09-16
+- Slash sends held; per-control held ownership (`holders` set, owner of the current swing); drag-off feint on Slash/Heavy/Stab; Kick 44 px + cluster re-laid 176×210; Step rolls at once with a deflected stick; v7 guard ring scheme (`ring`) with the gate walking all three schemes and checking ≥ 44 px targets and no overlaps (Slash-in-ring excepted).
+- Evidence: graphics tests (held Slash chambers, drag-off feint + release, held ownership, deflected-stick roll vs neutral backstep, scheme cycle incl. ring); trial test (3 schemes); 8/8 mutations caught; screenshots `artifacts/cluster-v44.png`, `artifacts/ring-v7.png`.
