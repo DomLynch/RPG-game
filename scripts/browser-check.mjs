@@ -6,14 +6,18 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0,strictPort:true}});
 const url=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
+// This gate needs a real GPU: its parry/kick steps are wall-clock touch timings, and software GL (SwiftShader, CI runners) stalls the page's
+// thread until the press lands a second late. It runs locally before every deploy (scripts/deploy.sh) and against the live site; CI runs quality:ci.
 const browser=await chromium.launch({headless:true,executablePath:chromium.executablePath()});
 const receipt={url,physicalPhone:false,errors:[]};
 await fs.mkdir('artifacts',{recursive:true});
 try {
  const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:2});page.setDefaultTimeout(12000);
+ page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')receipt.console=[...(receipt.console||[]).slice(-19),m.text().slice(0,300)];});   // diagnostics for a failing run: what the page said
+ receipt.diagnose=async()=>{try{receipt.state={art:await page.locator('#art-status').textContent(),attack:await page.locator('#attack-button').getAttribute('aria-disabled'),welcomeHidden:await page.evaluate(()=>document.querySelector('#welcome')?.hidden)};}catch(e){receipt.state=String(e).slice(0,200);}};
  await page.route('**/*sentry.io/**',route=>route.abort()); // Deliberate GPU failure checks must not create production incidents.
  page.on('pageerror',e=>receipt.errors.push(String(e)));
- await page.goto(url);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false');await page.getByRole('button',{name:'Enter the courtyard'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='');
+ await page.goto(url);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false');await page.getByRole('button',{name:'Enter the courtyard'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL; a load wait, not a behaviour wait
  const cdp=await page.context().newCDPSession(page);
  const center=async id=>{const b=await page.locator('#'+id).boundingBox();assert.ok(b,id);return{x:b.x+b.width/2,y:b.y+b.height/2}};
  const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
@@ -74,4 +78,4 @@ try {
  } finally {await unsupported.close();}
  receipt.passed=true;
  console.log(JSON.stringify(receipt,null,2));
-} finally {await fs.writeFile(process.env.BROWSER_RECEIPT||'artifacts/browser-check.json',JSON.stringify(receipt,null,2));await browser.close();if(server)await new Promise(resolve=>server.httpServer.close(resolve));}
+} catch(error){if(receipt.diagnose)await receipt.diagnose();delete receipt.diagnose;console.error('browser gate failed:',JSON.stringify({state:receipt.state,errors:receipt.errors,console:receipt.console},null,1));throw error;} finally {delete receipt.diagnose;await fs.writeFile(process.env.BROWSER_RECEIPT||'artifacts/browser-check.json',JSON.stringify(receipt,null,2));await browser.close();if(server)await new Promise(resolve=>server.httpServer.close(resolve));}
