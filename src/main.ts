@@ -5,7 +5,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILES, type Action, type CombatEvent } from './combat.ts';
+import { initialPractice, stepPractice, practiceHint, accepts, describe, OPPONENTS, PROFILES, type Action, type CombatEvent, type OpponentId } from './combat.ts';
 import { RULES } from './moves.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
@@ -58,7 +58,9 @@ function applyScheme() {
   element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(disc())); lastHud = '';
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
-let matchSeed = 731, practice = initialPractice(matchSeed), state = practice.fighter, previous = state, accumulator = 0, locked = true;
+// Who stands opposite: the Veteran unless the URL names another (`?opponent=pitborn` — the harness and a dev look; the ladder will set this from profile.ladder).
+const opponent = OPPONENTS[/[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1] as OpponentId] ?? OPPONENTS.veteran;
+let matchSeed = 731, practice = initialPractice(matchSeed, opponent), state = practice.fighter, previous = state, accumulator = 0, locked = true;
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
 let action: Action | null = null, guard = false, guardId: number | null = null, cancel = false, assetsReady = false, graphicsLost = false, lastHud = '';
 let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(window.location?.search ?? ''), frameEvents: CombatEvent[] = [];
@@ -105,9 +107,10 @@ function updateHud() {
   const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}`;
   if (key === lastHud) return;
   lastHud = key;
-  health.value = practice.health; element('health-value').textContent = `${practice.health} / ${RULES.health}`;
-  playerHealth.value = practice.playerHealth; element('player-health-value').textContent = `${practice.playerHealth} / ${RULES.health}`;
-  for (const [meter, value, max] of [[health, practice.health, RULES.health], [playerHealth, practice.playerHealth, RULES.health], [stamina, practice.stamina, 100]] as const) meter.style.setProperty('--fill', `${value / max * 100}%`);
+  health.max = practice.enemyMaxHealth; playerHealth.max = practice.maxHealth;   // an opponent may carry more than a man (moves.ts `Opponent.health`)
+  health.value = practice.health; element('health-value').textContent = `${practice.health} / ${practice.enemyMaxHealth}`;
+  playerHealth.value = practice.playerHealth; element('player-health-value').textContent = `${practice.playerHealth} / ${practice.maxHealth}`;
+  for (const [meter, value, max] of [[health, practice.health, practice.enemyMaxHealth], [playerHealth, practice.playerHealth, practice.maxHealth], [stamina, practice.stamina, 100]] as const) meter.style.setProperty('--fill', `${value / max * 100}%`);
   stamina.style.setProperty('--max', `${practice.maxStamina}%`); stamina.dataset.leg = String(practice.legWound);   // attrition: the lost ceiling is shaded; a leg wound marks the bar
   stamina.value = practice.stamina; element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
   for (const [id, value] of [['posture', practice.posture], ['target-posture', practice.enemyPosture]] as const) { const meter = element<HTMLMeterElement>(id); meter.value = value; meter.style.setProperty('--fill', `${value}%`); meter.dataset.critical = String(value >= 70); }
@@ -233,7 +236,7 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) guardBu
 guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); guard = true; if (!event.repeat) requestParry(); } });
 guardButton.addEventListener('keyup', () => { guard = false; });
 guardButton.addEventListener('blur', () => { guard = false; if (action === 'parry') action = null; });
-resetButton.addEventListener('click', () => { clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+resetButton.addEventListener('click', () => { clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
@@ -281,7 +284,7 @@ for (const name of ['pointerup', 'pointercancel']) window.addEventListener(name,
 window.addEventListener('touchend', event => { if (moveId !== null && event.touches.length === 0) releaseStick(); });
 window.addEventListener('touchcancel', event => { if (moveId !== null && event.touches.length === 0) releaseStick(); });
 let view: ReturnType<typeof createScene>;
-try { view = createScene(canvas, status => { element('art-status').textContent = status; assetsReady = status === ''; }); }
+try { view = createScene(canvas, status => { element('art-status').textContent = status; assetsReady = status === ''; }, opponent.id); }
 catch {
   element('performance').textContent = '3D unavailable';
   message.hidden = false; message.textContent = 'The courtyard needs WebGL 2. Try an up-to-date browser with hardware acceleration enabled.';
@@ -346,7 +349,7 @@ function frame(now: number) {
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= step()) {
       previous = state;
-      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, PROFILES[difficulty]);
+      practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, opponent.profiles[difficulty]);
       feedback.update(practice.events); frameEvents.push(...practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;

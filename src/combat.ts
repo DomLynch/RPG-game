@@ -1,9 +1,10 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
-import { MOVES, PATHS, PROFILES, RULES, total, type AiProfile, type MoveId, type PathId } from './moves.ts';
+import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, type AiProfile, type MoveId, type Opponent, type PathId } from './moves.ts';
 import type { State } from './sim.ts';
-export { PROFILES, RULES, MOVES } from './moves.ts';
+export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
+export type { Opponent, OpponentId, Level } from './moves.ts';
 export type { Intent, Action, CombatEvent, Duel, Fighter } from './duel.ts';
 export type { AiProfile } from './moves.ts';
 
@@ -20,6 +21,7 @@ export type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 
 export type Practice = {
   duel: Duel; ai: AiState; events: CombatEvent[]; result: Result; resultAge: number; resultDamage: number; resultStamina: number; resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultWalled: boolean;
   maxStamina: number; enemyMaxStamina: number; legWound: boolean;   // attrition: the bars' ceilings this duel and a slowing leg wound
+  maxHealth: number; enemyMaxHealth: number;   // the health bars' ceilings (an opponent may carry more than a man)
   fighter: State; enemy: State; finish: Finish | null;
   phase: LegacyPhase; age: number; attack: Attack; chain: number; threat: boolean; threatMove: MoveId | null;
   enemyPhase: LegacyPhase; enemyAge: number; enemyAttacking: boolean; enemyMode: AiMode;
@@ -41,7 +43,7 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
   }
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultWalled, maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, fighter: p.body, enemy: w.body, finish: duel.finish,
+    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultWalled, maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth, fighter: p.body, enemy: w.body, finish: duel.finish,
     phase: legacyPhase(p), age: p.age, attack: clipOf(p.lastMove), chain: p.chain,
     threat: w.phase === 'attack' && !w.landed && w.age < wardenTiming!.windup + wardenTiming!.active, threatMove: w.phase === 'attack' ? w.move : null,
     enemyPhase: legacyPhase(w), enemyAge: w.age, enemyAttacking: w.phase === 'attack', enemyMode: w.phase === 'guard' ? 'guard' : ai.mode,
@@ -50,7 +52,7 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
     reaction: w.phase === 'hurt' || w.phase === 'dead' ? Math.max(0, w.stun - w.age) : 0,
   };
 }
-export const initialPractice = (seed = 731): Practice => project(initialDuel(), initialAi(seed));
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran): Practice => project(initialDuel(opponent), initialAi(seed));
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);
   return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current);
