@@ -208,8 +208,8 @@ test('reads: habits become reads only with evidence, at the documented threshold
   assert.equal(readOpponent(h({ attacks: 1, parries: 1 })).parryHappy, false, 'one swing is not evidence'); assert.equal(readOpponent(h({ attacks: 2, parries: 1 })).parryHappy, true, 'two exchanges, half parried'); assert.equal(readOpponent(h({ attacks: 4, parries: 1 })).parryHappy, false);
   assert.equal(readOpponent(h({ ticks: 179, guard: 179 })).turtle, false); assert.equal(readOpponent(h({ ticks: 180, guard: 81 })).turtle, true); assert.equal(readOpponent(h({ ticks: 180, guard: 80 })).turtle, false);
   assert.equal(readOpponent(h({ attacks: 5, rolls: 2 })).roller, true); assert.equal(readOpponent(h({ attacks: 5, rolls: 1 })).roller, false);
-  assert.equal(readOpponent(h({ lights: 5, heavies: 1 })).spammer, true); assert.equal(readOpponent(h({ lights: 4, heavies: 1 })).spammer, false, 'six swings needed'); assert.equal(readOpponent(h({ lights: 4, heavies: 2 })).spammer, false);
-  assert.equal(readOpponent(h({ lights: 4, thrusts: 2 })).spammer, false, 'thrusts are a mix, not spam'); assert.equal(readOpponent(h({ lights: 5, thrusts: 1 })).spammer, true);
+  assert.equal(readOpponent(h({ lights: 7, heavies: 2 })).spammer, true); assert.equal(readOpponent(h({ lights: 6, heavies: 2 })).spammer, false, 'nine swings needed'); assert.equal(readOpponent(h({ lights: 6, heavies: 3 })).spammer, false);
+  assert.equal(readOpponent(h({ lights: 6, thrusts: 3 })).spammer, false, 'thrusts are a mix, not spam'); assert.equal(readOpponent(h({ lights: 7, thrusts: 2 })).spammer, true);
 });
 
 test('the warden adapts: a turtle is kicked and charged through more; a light-spammer is parried more; a roller sees delayed swings and tail punishes; a parrier gets baited lights', () => {

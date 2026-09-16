@@ -48,7 +48,7 @@ function persist() {
 persist();
 // Control-scheme trial: the right thumb is buttons (v0) or the weapon disc in one of three grammars; the scorecard is per scheme.
 const trial = loadTrial(storage);
-let scheme = trial.scheme, recorded = false;
+let scheme = trial.scheme, recorded = false, activeMs = 0;   // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
 const disc = () => scheme === 'flick';
 const thrustButton = element<HTMLButtonElement>('thrust-button');
 const DISC: Record<Flick, Action> = { left: 'light_left', right: 'light_right', up: 'thrust', down: 'heavy' };
@@ -69,14 +69,19 @@ let held = false;
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
 // pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
+// This is the one owner of the impact pause: the renderer is told the sim is frozen and holds its combat animation (effects run on),
+// the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
 const KICK_LANDS = 1.5;
 const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, Killed: 220 };
-const HEAVY_HIT = 90;
-let hitStop = 0;
+const HEAVY_HIT = 90, HEAVY_BLOCK = 50;   // a heavy-class contact stops longer whether it lands or is blocked
+const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
+const HITSTOP_KEY = 'frankendom.hitstop.v1';
+let hitStop = 0, hitStopOn = storage.getItem(HITSTOP_KEY) !== 'off';
 function stopFor(events: CombatEvent[]): number {
+  if (!hitStopOn) return 0;
   let ms = 0;
-  for (const e of events) { const base = HIT_STOP[e.type] ?? 0; if (!base) continue; const heavy = e.type === 'Hit' && (e.charged || e.move === 'heavy_overhead' || e.move === 'heavy_riposte' || e.move === 'heavy_counter' || e.move === 'critical'); ms = Math.max(ms, heavy ? HEAVY_HIT : base); }
+  for (const e of events) { const base = HIT_STOP[e.type] ?? 0; if (!base) continue; const heavy = !!e.charged || HEAVY_MOVES.has(e.move ?? ''); ms = Math.max(ms, e.type === 'Hit' && heavy ? HEAVY_HIT : e.type === 'Blocked' && heavy ? HEAVY_BLOCK : base); }
   return ms;
 }
 function updateHud() {
@@ -196,7 +201,7 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) guardBu
 guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); guard = true; if (!event.repeat) requestParry(); } });
 guardButton.addEventListener('keyup', () => { guard = false; });
 guardButton.addEventListener('blur', () => { guard = false; if (action === 'parry') action = null; });
-resetButton.addEventListener('click', () => { clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+resetButton.addEventListener('click', () => { clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
@@ -253,6 +258,9 @@ catch {
 }
 let bloodMode = 0;
 element('blood-mode').addEventListener('click', () => { bloodMode=(bloodMode+1)%3; const mode=(['red','dark','off'] as const)[bloodMode]; view.setBloodMode(mode); element('blood-mode').textContent=`Blood: ${mode}`; });
+const showHitStop = () => { element('hitstop-mode').textContent = `Hit-stop: ${hitStopOn ? 'on' : 'off'}`; element('hitstop-mode').setAttribute('aria-pressed', String(hitStopOn)); };
+element('hitstop-mode').addEventListener('click', () => { hitStopOn = !hitStopOn; hitStop = 0; try { storage.setItem(HITSTOP_KEY, hitStopOn ? 'on' : 'off'); } catch { /* a full store just loses the preference */ } showHitStop(); });
+showHitStop();
 function graphicsFailure() {
   message.hidden = false; message.textContent = 'Graphics could not recover. Reload to return to the courtyard. ';
   const reload = document.createElement('button'); reload.textContent = 'Reload game';
@@ -295,7 +303,9 @@ function frame(now: number) {
   const dt = Math.min(elapsed, 0.1);
   if (!paused()) {
     if (dodgeHeld && !dodgeHeld.rolled && now - dodgeHeld.since >= HOLD_MS) { dodgeHeld.rolled = true; request('dodge'); }
-    if (hitStop > 0) hitStop = Math.max(0, hitStop - elapsed * 1000); else accumulator += dt;   // the accumulator was emptied at the contact tick
+    // The pause spends the frame's time first; whatever the frame has left after the pause ends goes on to the simulation (no discarded time).
+    if (hitStop > 0) { const spent = Math.min(hitStop, elapsed * 1000); hitStop -= spent; if (!hitStop) accumulator += Math.max(0, dt - spent / 1000); } else accumulator += dt;
+    activeMs += elapsed * 1000;
     const x = moveX + Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= STEP) {
@@ -306,13 +316,15 @@ function frame(now: number) {
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;
       if (action) sent = action;
       action = null; cancel = false; state = practice.fighter; accumulator -= STEP;
-      if (practice.finish && !recorded) { recorded = true; recordFight(trial, scheme, practice.finish.victim === 1 && !practice.finish.draw, practice.duel.tick, 100 - practice.health, 100 - practice.playerHealth); saveTrial(storage, trial); }
-      const stop = stopFor(practice.events); if (stop) { hitStop = stop; accumulator = 0; }   // freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows
+      if (practice.finish && !recorded) { recorded = true; recordFight(trial, scheme, practice.finish.victim === 1 && !practice.finish.draw, practice.duel.tick, 100 - practice.health, 100 - practice.playerHealth, Math.round(activeMs)); saveTrial(storage, trial); }
+      // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
+      // contact tick's bodies (previous = state), not a blend back toward the tick before it.
+      const stop = stopFor(practice.events); if (stop) { hitStop = stop; accumulator = 0; previous = state; }
     }
   } else { accumulator = 0; previous = state; }
   const alpha = accumulator / STEP;
   try {
-    view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, paused() ? 0 : dt, practice, frameEvents);
+    view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, paused() ? 0 : dt, practice, frameEvents, hitStop > 0);
     frameEvents = [];
   } catch (error) {
     // Loss can happen inside a draw, before the browser delivers its context-lost event.
@@ -320,7 +332,7 @@ function frame(now: number) {
     pauseGraphics(); return;
   }
   updateHud();
-  if (debug) element('debug').textContent = describe(practice, difficulty);
+  if (debug) { const d = element('debug'); d.textContent = describe(practice, difficulty); d.dataset.frozen = String(hitStop > 0); d.dataset.tick = String(practice.duel.tick); d.dataset.tip = (view.bladeTip?.() ?? []).map(v => v.toFixed(4)).join(','); }   // frame probe: frozen flag, tick and drawn blade tip
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)], p95 = sorted[Math.floor(sorted.length * 0.95)];

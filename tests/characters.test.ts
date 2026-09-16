@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { PATHS, total } from '../src/moves.ts';
-import { CLIPS, COMBAT_CLIPS, gaitWeights, swingProgress, defenceReaction } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, buildWarriors, gaitWeights, swingProgress, defenceReaction } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -205,4 +205,28 @@ test('block recoil and parry visibly redirect the shipped blade and recover thei
   mixer.setTime(.35);asset.scene.updateMatrixWorld(true);assert.ok(blade.localToWorld(new Vector3(0,.86,0)).distanceTo(start)>.08,name+' must move blade');
   mixer.setTime(.99999);asset.scene.updateMatrixWorld(true);assert.ok(blade.localToWorld(new Vector3(0,.86,0)).distanceTo(start)<.005,name+' recovers');action.stop();
  }
+});
+
+test('a zero-dt update evaluates the pose for the tick without advancing: the contact pose is applied on the freeze frame, and no trail sample is taken', async () => {
+  const { player } = buildWarriors(await readWarrior());
+  const drawn = player.anchor.getObjectByName('SwordDrawn')!, tip = () => { player.anchor.updateMatrixWorld(true); return drawn.localToWorld(new Vector3(0, .86, 0)).toArray(); };
+  const close = (a: number[], b: number[], eps = 1e-6) => a.every((v, i) => Math.abs(v - b[i]) < eps);
+  // Draw, then stand ready so the sword hand settles; the blade sits somewhere definite.
+  for (let i = 0; i < 30; i++) player.update(0, 1 / 60, 'draw', Math.min(1, i / 20));
+  for (let i = 0; i < 60; i++) player.update(0, 1 / 60, 'ready', 1);
+  const rest = tip();
+  // The contact tick arrives while the frame loop is frozen: dt 0 with the swing's contact progress must move the blade to the contact pose at once.
+  player.update(0, 0, 'attack', .35, 'light', .35);
+  const frozen = tip();
+  assert.ok(!close(frozen, rest, 1e-3), 'the contact pose is applied at dt 0 (an early return would leave the resting blade)');
+  // Repeating the frozen frame changes nothing; a normal frame at the same progress lands on the same pose (dt only advances what progress does not drive).
+  player.update(0, 0, 'attack', .35, 'light', .35);
+  assert.ok(close(tip(), frozen), 'a repeated frozen frame holds the pose');
+  // The trail ribbon only samples on frames that advance: frozen frames at a trailing progress leave it empty; one live frame fills it.
+  const ribbon = player.anchor.children.find(c => c !== player.anchor.children[0]) as { geometry: { drawRange: { count: number } } } | undefined;
+  assert.ok(ribbon, 'the trail mesh hangs off the anchor');
+  player.update(0, 0, 'attack', .4, 'light', .35); player.update(0, 0, 'attack', .4, 'light', .35);
+  const drawn3 = ribbon!.geometry.drawRange.count; assert.ok(!(Number.isFinite(drawn3) && drawn3 > 0), `no trail geometry from frozen frames (draw range ${drawn3})`);
+  player.update(0, 1 / 60, 'attack', .4, 'light', .35); player.update(0, 1 / 60, 'attack', .42, 'light', .35);
+  assert.ok(ribbon!.geometry.drawRange.count > 0, 'a live frame samples the trail');
 });
