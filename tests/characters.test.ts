@@ -256,3 +256,13 @@ test('a zero-dt update evaluates the pose for the tick without advancing: the co
   player.update(0, 1 / 60, 'attack', .4, 'light', .35); player.update(0, 1 / 60, 'attack', .42, 'light', .35);
   assert.ok(ribbon!.geometry.drawRange.count > 0, 'a live frame samples the trail');
 });
+
+test('the cuts are swung past the front of the body: the blade tip never passes behind the shoulder line in Attack or Return (the wind-up cocks out to the side, not behind the back)', async () => {
+  const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene), drawn = asset.scene.getObjectByName('SwordDrawn')!;
+  for (const name of ['Attack', 'Return']) {
+    const clip = asset.animations.find(a => a.name === name)!, action = mixer.clipAction(clip).play(); let minZ = Infinity, maxSide = 0;
+    for (let i = 0; i <= 60; i++) { mixer.setTime(clip.duration * i / 60); asset.scene.updateMatrixWorld(true); const tip = drawn.localToWorld(new Vector3(0, .86, 0)); minZ = Math.min(minZ, tip.z); maxSide = Math.max(maxSide, Math.abs(tip.x)); }
+    action.stop(); mixer.uncacheClip(clip);
+    assert.ok(minZ >= 0, `${name}: the tip goes ${(-minZ).toFixed(2)} m behind the body`); assert.ok(maxSide > .9, `${name}: the tip swings out to the side (${maxSide.toFixed(2)} m)`);
+  }
+});
