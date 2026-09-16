@@ -377,20 +377,28 @@ def align_arms(mesh_obj):
         axis_b, axis_r = (tip_b - base_j).normalized(), (thumb - base_j).normalized()
         swing = axis_b.rotation_difference(axis_r)
         thumb_len = (tip_b - base_j).length
-        stretch = min(1.12, (thumb - base_j).length / max(1e-6, thumb_len))  # the rig's thumb chain is longer than the body's thumb: meet it part way, never a freak thumb
-        if KIT.get('thumb_swing', False):  # off since the hand plane is matched (2026-09-16): with the palm down the thumb already sits on its bones, and the swing's cylinder caught palm vertices and pulled a spike
-            for v in verts:
-                d = v.co - base_j
-                along_t = d.dot(axis_b)
-                if along_t < -0.01 or along_t > thumb_len + 0.03 or (d - axis_b * along_t).length > 0.024:
-                    continue
-                blend = min(1.0, max(0.0, along_t / 0.03))
-                d = Quaternion().slerp(swing, blend) @ d
-                along_r = d.dot(axis_r)
-                d = d + axis_r * (along_r * (stretch - 1) * blend)
-                v.co = base_j + d
-            mesh_obj.data.update()
-        print(f'ALIGN ARMS {side}: thumb swing {math.degrees(swing.angle):.1f}° (applied: {KIT.get("thumb_swing", False)}), stretch {stretch:.2f}x')
+        # the body's relaxed thumb lies level beside the index finger; the rig's is abducted and droops 45°. Swing only the
+        # thumb: vertices nearer the mesh thumb's axis than the index finger's (a plain cylinder caught palm vertices and
+        # pulled a spike, 2026-09-16), eased in over the first 2.5 cm from the base joint, no stretch
+        i_a, i_b = joint(f'index_01_{side}'), bone_tail(f'index_04_leaf_{side}')
+        i_axis = (i_b - i_a).normalized()
+        moved_thumb = 0
+        for v in verts:
+            d = v.co - base_j
+            along_t = d.dot(axis_b)
+            if along_t < -0.005 or along_t > thumb_len + 0.02:
+                continue
+            r_thumb = (d - axis_b * along_t).length
+            di = v.co - i_a
+            r_index = (di - i_axis * di.dot(i_axis)).length
+            if r_thumb > 0.022 or r_thumb > r_index:
+                continue
+            t = min(1.0, max(0.0, along_t / 0.025))
+            blend = t * t * (3 - 2 * t)
+            v.co = base_j + Quaternion().slerp(swing, blend) @ d
+            moved_thumb += 1
+        mesh_obj.data.update()
+        print(f'ALIGN ARMS {side}: thumb swung {math.degrees(swing.angle):.1f}° over {moved_thumb} vertices (mesh thumb {thumb_len * 1000:.0f} mm, rig chain {(thumb - base_j).length * 1000:.0f} mm, no stretch)')
 
 
 SLOTS = {'tunic': 'Body', 'baldric': 'Body', 'belt': 'Body', 'studs': 'Body', 'skirt': 'Legs', 'kilt': 'Legs',
