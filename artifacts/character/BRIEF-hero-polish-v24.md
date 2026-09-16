@@ -73,7 +73,7 @@
   `SKIN_TONE` with no occlusion, while the neck below carries baked occlusion. Tried and reverted (2026-09-15): a Cycles AO bake
   into the band (blotchy at 16 samples, dark under the jaw) and a 35% blend toward the local blurred tone (went grey). Next lever:
   bake AO at 64+ samples and apply it only at the back (`hair_zone`-gated), or paint the band from the body tile's neck texels.
-- **Under-chin fill streaks** — faint radial streaks in the "under chin" cell where no camera saw; only visible from below.
+- **Under-chin fill streaks — FIXED in v35.** The streaks were the normal-map bake failing where `chin_strong`'s facing test had moved one mesh and not the other; the stretched chin texture is now re-covered by `stretch_refill` (quilted, squeezed stubble). Original note: faint radial streaks in the "under chin" cell where no camera saw; only visible from below.
 - **Jaw/chin in profile — OPEN, the real blocker for 9/10.** The KeenTools scan has no jaw: chin tip 1.4 mm ahead of the lip
   crease, jaw a flat plane to the throat. v28 (boss under the lip) read as a pout; v29/v30 (base-outline borrow, jaw extension +
   lip profile) tore the mouth / still read wrong in profile; v31 ships the scan's own jaw untouched. Next: (a) two extra portraits

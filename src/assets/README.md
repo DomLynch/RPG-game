@@ -205,3 +205,18 @@ the chin's bottom (peak 0.90 scan units below eye level) down by up to 23 mm at 
 forward push; zero at the lip crease and at the collar ring, so the underside runs up and back from the lowered chin to the
 throat. Cost: the photographed stubble under the chin stretches over the longer surface (visible from below, not at the
 phone camera).
+
+v35 (2026-09-16): the mouth levelled and the stretched chin re-covered. `head.level_mouth`: the scan's mouth was quirked —
+one corner 1.8 mm lower than the other (−1.9° across 55 mm, a smirk); the lip slab (0.34–0.78 scan units below eye level,
+ahead of the eye plane) rolls about the forward axis through the corners' midpoint by the opposite angle, measured on the
+full mesh and applied to both, so the normal map still lines up; the exported corners read −0.2°. `head.chin_strong` now
+picks its vertices by position (ahead of the neck axis) instead of by facing — the facing test had skipped down-facing
+underside vertices on one mesh and not the other, which scalloped the chin's edge and left the normal-map bake with no
+twin to find there (streaks under the chin, in v34 too). It also records the real stretch (each vertex's longest edge
+against its old length, max 2.55×) and `head.stretch_refill` re-covers texels stretched by more than 20% with the
+photographed stubble beside them: unstretched, seen, non-lip 64-texel patches from similar rows of the texture, each
+squeezed vertically by the local stretch so the grain comes back to the photograph's density on the moved mesh, quilted
+under a raised-cosine window with their tones smoothed; the underside's last texture rows above the collar (the scan saw
+it at a grazing angle: only ~20 rows) carry the smooth tone alone. The collar's texture fade is computed from the heights
+before the chin is lowered and is 3 mm ahead of the neck axis (the throat sits in the jaw's shadow), so the lowered chin
+tip is no longer painted flat. Result: a rounded, uniformly stubbled chin like the portraits' (`humanoid-v35/chin-mouth-v34-v35.png`).

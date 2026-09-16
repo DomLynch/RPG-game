@@ -1381,19 +1381,21 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     # tip (-0.78), the blend now runs over 0.21 units so the underside curves back to the throat the way a jaw does
     front_band, front_from = 0.145 * scale, rig_mid.z - 0.80 * scale  # the chin wall stays to -0.85, then the underside turns back to the throat over the last 1.8 cm (a 0.21 band pulled the chin tip into a beak)
     print(f'KEENTOOLS collar band {band * 100:.1f} cm; jaw underside band {front_band * 100:.1f} cm below the chin tip')
-    for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
-        neck_blend(o, neck_only, neck_z, neck_c, band=band, front_band=front_band, front_from=front_from)
-        if os.environ.get('HEAD_CHIN', '1') == '1':  # after the collar blend, so the lowered chin is not pulled back onto the neck outline
-            chin_strong(o, rig_mid, scale)
-    bpy.data.objects.remove(neck_only, do_unlink=True)
-    cut_above(weights_from, neck_z + 0.0015, select_only)  # our head goes; our neck ends just inside the scan's collar
     fade_vg = head.vertex_groups.new(name='seam_fade')  # the texture's fade to the body tone: taller than the geometric collar, still under the chin
     fade_band = 0.09 * scale  # the eight-view scan photographed the underside of the jaw: keep its stubble, fade only the last centimetre
-    for v in head.data.vertices:
-        t = min(1.0, max(0.0, (v.co.z - neck_z) / fade_band))
+    for v in head.data.vertices:  # from the heights before the chin is lowered: the lowered chin tip is not part of the collar (painted flat, it read as a pale patch under the chin)
+        b = fade_band * (0.3 if v.co.y < neck_c.y - 0.02 else 1.0)  # ahead of the neck axis the collar sits in the jaw's shadow, and the scan's whole (short) underside lay within the band: a short fade there, so the lowered underside keeps its stubble
+        t = min(1.0, max(0.0, (v.co.z - neck_z) / b))
         w = 1 - t * t * (3 - 2 * t)
         if w > 0:
             fade_vg.add([v.index], w, 'REPLACE')
+    for o in (head, full):  # the bake source too, so the normal map still lines up at the neck
+        neck_blend(o, neck_only, neck_z, neck_c, band=band, front_band=front_band, front_from=front_from)
+        if os.environ.get('HEAD_CHIN', '1') == '1':  # after the collar blend, so the lowered chin is not pulled back onto the neck outline
+            chin_strong(o, rig_mid, scale, neck_c, stretch_group=(o is head))
+    level_mouth([full, head], rig_mid, scale)  # the tilt measured on the full mesh, the same roll applied to both
+    bpy.data.objects.remove(neck_only, do_unlink=True)
+    cut_above(weights_from, neck_z + 0.0015, select_only)  # our head goes; our neck ends just inside the scan's collar
     seam = bake_attribute(head, 'seam_fade', select_only, size)  # where the stub fades into the body, in texture space
     back_vg = head.vertex_groups.new(name='back')  # the nape: vertices facing backward, for the collar's occlusion
     head.data.update()
@@ -1433,6 +1435,9 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
             cover.add([v.index], min(1.0, q), 'REPLACE')
     coverage = bake_attribute(head, 'coverage', select_only, size)
     head.vertex_groups.remove(head.vertex_groups['coverage'])
+    stretch = bake_attribute(head, 'stretch', select_only, size) if 'stretch' in head.vertex_groups else np.zeros((size, size), np.float32)
+    if 'stretch' in head.vertex_groups:
+        head.vertex_groups.remove(head.vertex_groups['stretch'])
     # textures: resample the 4K head colour to 2K/1K, eyes to 512; fill the untextured crown from its neighbours
     def pixels(img):
         w, h = img.size
@@ -1443,6 +1448,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
     dark = (colour.max(axis=2) < 0.06) | ((coverage < 0.6) & ((hair_zone > 0.5) | (back > 0.3))) | (coverage < 0.3)  # black; the crown, back and nape seen only at a grazing angle (a smear, or the portrait's grey backdrop); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
     filled = crown_fill(colour, dark, size, hair_zone)
+    island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
+    filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
         mottle = (0.92 + P.fbm(size, 41, octaves=(4, 8, 16, 32)) * 0.18)[..., None]  # the painted body's own tone noise, so the band is skin, not paint
@@ -1452,7 +1459,6 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         # lightly blurred, bounded to 0.7), only where the head faces backward and only within the fade
         occl = 1 - (1 - (0.55 + 0.45 * np.clip(blur(ao_kt, 4), 0, 1) ** 1.2)) * back * fade  # the painted body's own occlusion curve
         filled = filled * occl[..., None]
-    island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
     core = blur(island.astype(np.float32), 4) > 0.98  # their interiors: the outermost texels straddle the raw (white) gutter and printed a pale strip along the collar ring
     filled = fill_margin(filled, core, steps=64)  # interior colours spill outward over the edge texels and into the gutters
     maps = {'Photo': {'baseColor': save_two_sizes_fn('kt_face_color', filled, 'sRGB')},
@@ -1493,7 +1499,7 @@ def eye_colour(px):
     return np.clip(out, 0, 1)
 
 
-def crown_fill(colour, dark, size, hair_zone):
+def crown_fill(colour, dark, size, hair_zone, stubble=None):
     """The scan photographs the front and sides; the crown and the back of the skull are smeared from grazing views
     (`dark`). Growing the boundary inward leaves streaks, so beyond a short feather the fill is flat: the photographed
     hair's own tone (buzz-cut grain on top) where the head is above the hairline, the skin tone below it (the nape), by
@@ -1510,9 +1516,80 @@ def crown_fill(colour, dark, size, hair_zone):
     local = blur(blur(fill_margin(colour, ~dark, steps=400), 32), 8)  # the photographed skin's own tone carried in (no streaks at this blur), so the under-chin and nape match their surroundings
     skin_synth = local * (0.92 + 0.16 * grain)[..., None]
     synth = hair_synth * hair_zone[..., None] + skin_synth * (1 - hair_zone[..., None])
+    if stubble is not None:  # sparse dark grain over skin, like the photographed stubble beside it
+        stubble_synth = skin_synth * (1 - 0.55 * (dots > 0.55))[..., None] * (0.9 + 0.2 * grain)[..., None]
+        synth = synth * (1 - stubble[..., None]) + stubble_synth * stubble[..., None]
     w = np.clip(1 - reach * 1.6, 0, 1)[..., None] * dark[..., None]
     print(f'KEENTOOLS crown fill: hair tone {np.round(hair, 3)} from {int(band.sum())} texels')
     return filled * (1 - w) + synth * w
+
+
+def stretch_refill(colour, ratio, unseen, island, size, patch=64, seed=5):
+    """The chin move stretches the photograph over the lowered chin (`ratio` = the local edge stretch, baked): its stubble
+    smeared into streaks, and the scan's chin was pale and sparse anyway (seen at a grazing angle) where the portraits
+    show dense stubble. Texels stretched by more than 20% are re-covered with the photographed stubble beside them:
+    unstretched, seen, non-lip patches from similar rows of the texture (the stubble's lie changes down the face), each
+    squeezed vertically by the local stretch so that, spread over the moved mesh, the grain comes back to the
+    photograph's density. Quilted under a raised-cosine window, half overlapping; the patches' own tones smoothed across
+    them; a feather at the zone's edge. (Keeping the photograph's own tone under new grain stretched the dark patch under
+    the lip into a strip down the chin; carrying the tone in from the sides went blotchy.)"""
+    zone = ratio > 1.2
+    if zone.sum() < 200:
+        return colour
+    zy, zx = np.nonzero(zone)
+    near = np.zeros_like(zone)
+    near[max(0, zy.min() - 80):zy.max() + 80, max(0, zx.min() - 300):zx.max() + 300] = True
+    src = near & ~zone & (ratio < 1.05) & ~unseen
+    redness = colour[..., 0] - colour[..., 1]
+    src &= redness < np.median(redness[src]) + 0.03  # the lower lip borders the zone; its pink is not stubble
+    c = np.pad(src.astype(np.int32), ((1, 0), (1, 0))).cumsum(0).cumsum(1)  # box sums: is a source rectangle wholly unstretched skin?
+    def box_full(y, x, h, w):
+        return y + h < size and x + w < size and c[y + h, x + w] - c[y, x + w] - c[y + h, x] + c[y, x] == h * w
+    sy, sx = np.nonzero(src)
+    hf = colour  # whole patches: the stubble and its skin
+    rng = np.random.default_rng(seed)
+    quilt = np.zeros_like(colour)
+    wsum = np.zeros(colour.shape[:2], np.float32)
+    win1 = np.hanning(patch + 2)[1:-1]
+    win = np.outer(win1, win1)[..., None]
+    step = patch // 2
+    tiles = misses = 0
+    for y in range(max(0, zy.min() - patch), min(size - patch, zy.max() + 1) + 1, step):
+        for x in range(max(0, zx.min() - patch), min(size - patch, zx.max() + 1) + 1, step):
+            tz = zone[y:y + patch, x:x + patch]
+            if not tz.any():
+                continue
+            r = float(np.clip(ratio[y:y + patch, x:x + patch][tz].mean(), 1.0, 4.0))
+            h = int(round(patch * r))
+            cand = rng.choice(len(sy), 60)
+            pick = next((k for k in cand if abs(int(sy[k]) - y) < 120 and box_full(sy[k], sx[k], h, patch)), None)
+            if pick is None:
+                pick = next((k for k in cand if box_full(sy[k], sx[k], h, patch)), None)
+            if pick is None:
+                misses += 1
+                continue
+            block = hf[sy[pick]:sy[pick] + h, sx[pick]:sx[pick] + patch]
+            if h != patch:  # squeeze the rows by the stretch (box average between rounded row bounds)
+                cs = np.concatenate([np.zeros((1, patch, 3), np.float32), block.cumsum(axis=0)], axis=0)
+                bounds = np.round(np.linspace(0, h, patch + 1)).astype(int)
+                block = (cs[bounds[1:]] - cs[bounds[:-1]]) / np.maximum(1, bounds[1:] - bounds[:-1])[:, None, None]
+            quilt[y:y + patch, x:x + patch] += block * win
+            wsum[y:y + patch, x:x + patch] += win[..., 0]
+            tiles += 1
+    quilt /= np.maximum(wsum, 1e-3)[..., None]
+    cov = (wsum > 0).astype(np.float32)[..., None]  # blurs normalised over the tiled area, so its border does not darken them
+    tone16 = blur(quilt * cov, 16) / np.maximum(blur(cov, 16), 1e-3)
+    tone64 = blur(quilt * cov, 64) / np.maximum(blur(cov, 64), 1e-3)
+    synth = np.clip(quilt - tone16 + tone64, 0, 1)  # the sources' own tone, smoothed across the patches
+    # the chin's underside owns only a few texture rows above the collar ring (the scan saw it at a grazing angle), each
+    # spread over millimetres of mesh: at the island's edge the grain would print as streaks, so the last rows carry the
+    # smooth tone only, with no feather against the gutter
+    edge = zone & (blur(island.astype(np.float32), 8) < 0.99)
+    synth = np.where(edge[..., None], np.clip(tone64, 0, 1), synth)
+    w = np.clip(blur(zone.astype(np.float32), 8) * 1.2, 0, 1)
+    w = np.maximum(w, edge.astype(np.float32))[..., None]
+    print(f'KEENTOOLS stretch refill: {int(zone.sum())} texels over {tiles} tiles ({misses} without a source) from {len(sy)} unstretched texels')
+    return colour * (1 - w) + synth * w
 
 
 def neck_blend(obj, target, neck_z, axis, band=0.06, lift=0.0002, front_band=None, front_from=None):
@@ -1640,7 +1717,66 @@ def bake_tiles_single(low, high, select_only, size):
     return clean_normal(px.reshape(size, size, 4)[:, :, :3])
 
 
-def chin_strong(head, rig_mid, scale, down=0.18, forward=0.09):
+def level_mouth(objs, rig_mid, scale):
+    """The scan's mouth is quirked: one corner sits ~2 mm lower than the other (−2.1° across 55 mm). The mouth zone
+    (0.40–0.72 scan units below eye level, the front of the face) rolls about the forward axis through the mouth's centre by
+    the opposite angle, so the corners level; the texture rides with the vertices. Eases to nothing at the zone's edges."""
+    head = objs[0]  # measured here (the undecimated mesh keeps the lip opening as one loop)
+    head.data.update()
+    # the mouth corners: the lateral extremes of the lip opening's boundary (an open hole) inside the zone
+    bm = bmesh.new()
+    bm.from_mesh(head.data)
+    cand = {v for v in bm.verts if any(e.is_boundary for e in v.link_edges)}
+    loops, seen = [], set()  # the lip opening is the largest boundary loop whose centre lies in the mouth zone; decimation leaves tiny holes that must not be mistaken for its corners
+    for v in cand:
+        if v in seen:
+            continue
+        loop, stack = [], [v]
+        while stack:
+            w = stack.pop()
+            if w in seen:
+                continue
+            seen.add(w)
+            loop.append(w)
+            stack += [e.other_vert(w) for e in w.link_edges if e.is_boundary and e.other_vert(w) in cand and e.other_vert(w) not in seen]
+        loops.append(loop)
+    def in_zone(loop):
+        c = sum((w.co for w in loop), Vector()) / len(loop)
+        return 0.40 < (rig_mid.z - c.z) / scale < 0.75 and abs(c.x - rig_mid.x) < 0.25 * scale and c.y < rig_mid.y - 0.2 * scale
+    mouth_loops = [l for l in loops if in_zone(l)]
+    rim = max(mouth_loops, key=len) if mouth_loops else []
+    if len(rim) < 30:
+        bm.free()
+        print(f'KEENTOOLS level mouth: no lip opening found (largest loop {len(rim)}), skipped')
+        return
+    lv, rv = max(rim, key=lambda v: v.co.x), min(rim, key=lambda v: v.co.x)
+    left, right, li, ri = lv.co.copy(), rv.co.copy(), lv.index, rv.index
+    bm.free()
+    tilt = math.atan2(left.z - right.z, left.x - right.x)
+    centre = (left + right) / 2
+    drop_mm = (left.z - right.z) * 1000
+    rot = Matrix.Rotation(tilt, 4, 'Y')  # a roll about Y by +tilt lifts the low corner (checked numerically: -tilt doubled the quirk)
+    def smooth(a, b, x):
+        t = min(1.0, max(0.0, (x - a) / (b - a)))
+        return t * t * (3 - 2 * t)
+    moved = 0
+    for o in objs:
+        for v in o.data.vertices:
+            u = (rig_mid.z - v.co.z) / scale
+            dx = abs(v.co.x - rig_mid.x) / scale
+            fwd = (rig_mid.y - v.co.y) / scale  # forward of the eye plane (y runs backward): the whole lip slab rolls, the cheeks ease out, the ears stay
+            w = smooth(0.34, 0.42, u) * (1 - smooth(0.70, 0.78, u)) * (1 - smooth(0.40, 0.50, dx)) * smooth(-0.45, -0.05, fwd)
+            if w <= 0:
+                continue
+            target = centre + rot @ (v.co - centre)
+            v.co = v.co.lerp(target, w)
+            moved += 1
+        o.data.update()
+    left2, right2 = head.data.vertices[li].co, head.data.vertices[ri].co  # the same corners, re-read
+    print(f'KEENTOOLS level mouth: corners were {math.degrees(tilt):+.1f}° off level ({drop_mm:+.1f} mm); {moved} vertices rolled across {len(objs)} meshes; now {math.degrees(math.atan2(left2.z - right2.z, left2.x - right2.x)):+.1f}°')
+
+
+def chin_strong(head, rig_mid, scale, axis, down=0.18, forward=0.09, stretch_group=False):
     """A strong, LONGER chin (the owner's sketch, 2026-09-15: the jaw's bottom edge a good 2.5 cm lower at the centre,
     rising to the jaw corners — a U). Two smooth fields on the front of the lower face, in scan units below eye level:
     the chin's bottom (peak 0.90) moves DOWN by up to `down` at the centre, tapering to the sides, and the chin zone
@@ -1648,16 +1784,19 @@ def chin_strong(head, rig_mid, scale, down=0.18, forward=0.09):
     zero at the collar ring (0.99), which stays where our neck meets it: the underside between runs up and back from the
     lowered chin to the throat, as a jaw does. Applied after the collar blend so the blend does not pull the chin back."""
     head.data.update()
-    sx_down, sx_fwd = 0.38 * scale, 0.30 * scale
+    sx_down, sx_fwd = 0.38 * scale, 0.30 * scale  # the U (v34, accepted): 1.7 cm lower at the centre and 3 cm out
+    before = [v.co.copy() for v in head.data.vertices] if stretch_group else None
     moved = 0
     def smooth(a, b, x):
         t = min(1.0, max(0.0, (x - a) / (b - a)))
         return t * t * (3 - 2 * t)
     for v in head.data.vertices:
-        if v.normal.y > -0.05 or abs(v.co.x - rig_mid.x) > 0.6 * scale:
+        if abs(v.co.x - rig_mid.x) > 0.6 * scale:
             continue
         u = (rig_mid.z - v.co.z) / scale  # scan units below eye level
-        win = smooth(0.70, 0.76, u) * (1 - smooth(0.955, 0.99, u))
+        # ahead of the neck axis only, by position (a facing test skipped the underside's down-facing vertices on one
+        # mesh and not the other: a scalloped chin edge and a normal map that could not find its high-poly twin there)
+        win = smooth(0.70, 0.76, u) * (1 - smooth(0.955, 0.99, u)) * smooth(0.0, 0.03, axis.y - v.co.y)
         if win <= 0:
             continue
         dx = v.co.x - rig_mid.x
@@ -1666,6 +1805,22 @@ def chin_strong(head, rig_mid, scale, down=0.18, forward=0.09):
         v.co += Vector((0, -dy, -dz)) * (win * scale)
         moved += 1
     head.data.update()
+    if before is not None:  # where the move stretched the photograph: the longest edge at each vertex against its old length
+        ratio = np.ones(len(before), np.float32)
+        for e in head.data.edges:
+            a, b = e.vertices
+            old_len = (before[a] - before[b]).length
+            if old_len < 1e-7:
+                continue
+            r = (head.data.vertices[a].co - head.data.vertices[b].co).length / old_len
+            ratio[a], ratio[b] = max(ratio[a], r), max(ratio[b], r)
+        vg = head.vertex_groups.new(name='stretch')  # (ratio - 1) / 4: 0 = unstretched, 1 = five times longer
+        marked = 0
+        for i, r in enumerate(ratio):
+            if r > 1.02:
+                vg.add([i], min(1.0, (r - 1) / 4), 'REPLACE')
+                marked += 1
+        print(f'KEENTOOLS chin strong: {marked} vertices stretched (max {ratio.max():.2f}x, {int((ratio > 1.3).sum())} over 1.3x)')
     print(f'KEENTOOLS chin strong: {moved} vertices, down {down * scale * 1000:.1f} mm, forward {forward * scale * 1000:.1f} mm at most')
 
 
