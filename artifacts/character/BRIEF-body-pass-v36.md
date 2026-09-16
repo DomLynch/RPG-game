@@ -41,7 +41,7 @@ Goal: a fighter's frame under the heroic head, rig untouched.
   (`tests/characters.test.ts` stride depth 1.65 may need a look if the legs thicken).
 - Acceptance: turntable 0/90/180° reads as an athlete; no kit clipping in `sequence.png`; blade paths byte-identical.
 
-### B3 — kit materials (third)
+### B3 — kit materials (third) — SHIPPED v38 (2026-09-16)
 - Exomis: linen weave (procedural 512, warp/weft + slub), grime at the hem and armpit, a hem with thickness (a
   `ring_strip` band) and a frayed alpha edge; folds normal re-baked after B2.
 - Pteruges: leather grain, dye variation per strip, worn edges, the red desaturated 20% (the runtime recolours the
