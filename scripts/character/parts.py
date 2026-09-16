@@ -886,7 +886,7 @@ def tusks(head_obj, eye_l, eye_r):
     out = []
     for side in (-1, 1):
         x = side * 0.42 * spacing
-        origin = m.inverted() @ Vector((x, eyes.y - 0.30, mouth_z - 0.012))  # the lower lip, just inside the mouth corner
+        origin = m.inverted() @ Vector((x, eyes.y - 0.30, mouth_z - 0.020))  # the lower lip, just inside the mouth corner (v2 rooted at the lip seam; 8 mm lower so the lip wraps it)
         hit, loc, normal, _ = head_obj.ray_cast(origin, (m.inverted().to_3x3() @ Vector((0, 1, 0))).normalized())
         if not hit:
             print(f'TUSK {side}: no lip surface found, skipped')
@@ -907,7 +907,7 @@ def tusks(head_obj, eye_l, eye_r):
         axis = Vector((side * 0.30, -0.12, 1.0)).normalized()  # up, a little out, barely forward: it rises against the upper lip, not away from the face
         obj.rotation_mode = 'QUATERNION'
         obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(axis)
-        obj.location = base - n * 0.010 + axis * 0.016  # cone centre: the root a centimetre inside the lower lip, ~26 of the 40 mm showing
+        obj.location = base - n * 0.012 + axis * 0.015  # cone centre: the root 12 mm inside the lower lip, ~25 of the 40 mm showing
         select_only([obj])
         bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
         bpy.ops.object.shade_smooth()
