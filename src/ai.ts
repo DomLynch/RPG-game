@@ -11,7 +11,7 @@ export type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 export type Habits = { ticks: number; guard: number; parries: number; rolls: number; lights: number; heavies: number; thrusts: number; attacks: number };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; spammer: boolean };
 export const THRUST_SHARE = .35;   // share of the warden's non-light openers that are thrusts, once the first (always a heavy) has shown the parry timing
-export const READ = { feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 9, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 7, baitShare: .7 } as const;   // swings 9 / anticipate 7: a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
+export const READ = { feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 export const readOpponent = (h: Habits): Reads => ({
   parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
   turtle: h.ticks >= READ.guardTicks && h.guard / h.ticks >= READ.guardShare,

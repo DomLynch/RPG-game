@@ -51,7 +51,9 @@ test('no simple strategy dominates the warden: wins ≤ 50 % at normal, ≤ 35 %
     for (const [name, r] of Object.entries(rows)) {
       // The perfect-information parry is mastery, not an exploit: it may win, but the warden's baits, feints and kicks must still land on it.
       if (name !== 'perfect parry') assert.ok(r.wins / 24 <= cap, `${level} · ${name} wins ${r.wins}/24 (cap ${cap * 100} %)\n  ${table}`);
-      assert.ok(r.untouched <= (name === 'perfect parry' ? 6 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);   // the script also rolls every kick on its first tick, which no thumb does
+      // The perfect-information script parries everything parryable and rolls every kick on its first ready tick (no thumb does): the warden must still land on it in
+      // two thirds of the fights. (Cap 6 → 8 with the slice-P regen — 40/s means the script always has the 30 stamina to roll; the old number leaned on its starvation.)
+      assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
     }
     console.log(`battery ${level}\n  ${table}`);
   }

@@ -16,10 +16,10 @@ Input rules: one edge-triggered action per tick plus held levels (guard, heavy/t
 
 ## 3. Fighter state
 
-- **Health** 100. **Stamina** 100, regen 0.4/tick (24/s) after a 60-tick (1 s) rest; guarding stops regen; at 0 → **exhausted** (no attacks or guard, move at 70 % speed) until back to 20.
+- **Health** 150 (a duel of 8–15 blows: measured 12 hits / 24 s median AI-vs-AI at normal). **Stamina** 100, regen ⅔/tick (40/s) after a 45-tick (0.75 s) rest; a raised guard regenerates at half rate; a sprint drains 0.2/tick with no regeneration on sprinting ticks and none of the rest delay (it resumes the tick the sprint stops); at 0 → **exhausted** (no attacks or guard, move at 70 % speed) until back to 20.
 - **Posture** 0–100 (see §7). **Wound**: a landed blade hit marks a wound for 240 ticks, during which stamina regen is ×0.8.
 - **Phases:** sheathed → draw (42 ticks) → ready · guard · attack · backstep · roll · hurt (stagger) · dead (144-tick death).
-- Turning: a swing snaps 30 % toward the target at start and tracks 25 % through the wind-up; movement is 1 m/s walk, sprint costs 0.2 stamina/tick.
+- Turning: a swing snaps 30 % toward the target at start and tracks 25 % through the wind-up; movement is 3 m/s walk, 5.2 m/s sprint (on the phone: a deliberate push 1.4 rims past the stick's edge, the knob lights when sprinting), sprint costs 0.2 stamina/tick.
 
 ## 4. Moves (ticks: wind-up / active / recovery)
 
@@ -41,7 +41,7 @@ Counter-hit: a clean hit on a fighter committed to a swing (any phase) or in the
 
 ## 5. Defence
 
-- **Guard (hold):** blocks a facing (±60°) blade hit for the move's block cost (light 25, thrust 25, heavy 40 + 7 chip). A block opens a 20-tick **guard-counter** window. A **perfect block** (guard raised within the 3 ticks after the parry window closes) costs half and takes no chip. A guard **breaks** — full damage, −60 stamina, stagger — only to a charged heavy, a riposte-family swing, a kick, or when you cannot pay the block cost.
+- **Guard (hold):** blocks a facing (±60°) blade hit for the move's block cost (light 15, thrust 20, heavy 30 + 7 chip). A block opens a 20-tick **guard-counter** window. A **perfect block** (guard raised within the 3 ticks after the parry window closes) costs half and takes no chip. A guard **breaks** — full damage, −60 stamina, stagger — only to a charged heavy, a riposte-family swing, a kick, or when you cannot pay the block cost.
 - **Parry (tap):** a fresh guard press opens a 10-tick (167 ms) window; a parryable swing meeting it staggers the attacker 90 ticks (1.5 s) and gives you a **punish window** (Light = riposte 24, Heavy = heavy riposte 30). A *released* tap that meets nothing leaves you **exposed** for 8 ticks (guard down); a press still **held** past the window becomes the standing guard with no hole (its first 3 ticks a perfect block). Parry cooldown 30 ticks.
 - **Feint:** a guard tap inside your own wind-up (light ≤ 7, thrust ≤ 9, heavy ≤ 11 ticks — i.e. through the chamber) cancels the swing into a fresh guard/parry window for 10 stamina.
 - **Backstep (tap Step):** 12 ticks, 10 stamina, no i-frames, its tail (from tick 8) cancels into a swing (a cut out of it uses chained timing = dodge-attack). **Roll (hold Step ≥ 150 ms, or swipe down):** 36 ticks, 30 stamina, i-frames ticks 4–20, vulnerable tail after.

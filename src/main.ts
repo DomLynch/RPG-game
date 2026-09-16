@@ -3,9 +3,10 @@ import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordRematch, sav
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
-import { STEP, wrapAngle } from './sim.ts';
+import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILES, type Action, type CombatEvent } from './combat.ts';
+import { RULES } from './moves.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 
@@ -62,7 +63,7 @@ let matchSeed = 731, practice = initialPractice(matchSeed), state = practice.fig
 let action: Action | null = null, guard = false, guardId: number | null = null, cancel = false, assetsReady = false, graphicsLost = false, lastHud = '';
 let difficulty: keyof typeof PROFILES = 'normal', debug = /[?&]debug\b/.test(window.location?.search ?? ''), frameEvents: CombatEvent[] = [];
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
-const HOLD_MS = 150;
+const HOLD_MS = 150, SPRINT_PUSH = 1.4;
 let dodgeHeld: { since: number; rolled: boolean } | null = null;
 // Strike controls: the press swings at once; keeping it held charges (Heavy), loads (Stab) or chambers (Slash) the swing — the simulation owns
 // the timing. The held level belongs to the control that raised it: releasing one never drops another's. Dragging a held strike off its
@@ -84,7 +85,12 @@ const KICK_LANDS = 1.5;
 const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, Killed: 220 };
 const HEAVY_HIT = 90, HEAVY_BLOCK = 50;   // a heavy-class contact stops longer whether it lands or is blocked
 const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
-const HITSTOP_KEY = 'frankendom.hitstop.v1';
+const HITSTOP_KEY = 'frankendom.hitstop.v1', TEMPO_KEY = 'frankendom.tempo.v1';
+// Tempo: the simulation is written in ticks; stepping it at 50 Hz instead of 60 plays the same fight a fifth slower in wall-clock (wind-ups,
+// windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
+// re-timing of the moves (which needs the blade paths re-baked).
+let tempoHz: 60 | 50 = storage.getItem(TEMPO_KEY) === '50' ? 50 : 60;
+const step = () => 1 / tempoHz;
 let hitStop = 0, hitStopOn = storage.getItem(HITSTOP_KEY) !== 'off';
 function stopFor(events: CombatEvent[]): number {
   if (!hitStopOn) return 0;
@@ -99,9 +105,9 @@ function updateHud() {
   const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}`;
   if (key === lastHud) return;
   lastHud = key;
-  health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
-  playerHealth.value = practice.playerHealth; element('player-health-value').textContent = `${practice.playerHealth} / 100`;
-  for (const [meter, value] of [[health, practice.health], [playerHealth, practice.playerHealth], [stamina, practice.stamina]] as const) meter.style.setProperty('--fill', `${value}%`);
+  health.value = practice.health; element('health-value').textContent = `${practice.health} / ${RULES.health}`;
+  playerHealth.value = practice.playerHealth; element('player-health-value').textContent = `${practice.playerHealth} / ${RULES.health}`;
+  for (const [meter, value, max] of [[health, practice.health, RULES.health], [playerHealth, practice.playerHealth, RULES.health], [stamina, practice.stamina, 100]] as const) meter.style.setProperty('--fill', `${value / max * 100}%`);
   stamina.value = practice.stamina; element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
   for (const [id, value] of [['posture', practice.posture], ['target-posture', practice.enemyPosture]] as const) { const meter = element<HTMLMeterElement>(id); meter.value = value; meter.style.setProperty('--fill', `${value}%`); meter.dataset.critical = String(value >= 70); }
   combatStatus.textContent = hint;
@@ -148,7 +154,7 @@ const keys = new Set<string>();
 function clearInput() {
   gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; holders.clear(); dragGuard = false; hitStop = 0;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
-  stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
+  stick.style.transform = ''; stick.dataset.run = 'false'; runButton.setAttribute('aria-pressed', 'false');
 }
 element('name-form').addEventListener('submit', event => {
   event.preventDefault(); profile.name = cleanName(input.value); persist(); welcome.hidden = true; clearInput(); canvas.focus();
@@ -257,12 +263,13 @@ function moveStick(event: PointerEvent) {
   const z = (event.clientY - rect.top - rect.height / 2) / 42;
   const length = Math.hypot(x, z), scale = Math.max(1, length);
   moveX = length < 0.12 ? 0 : x / scale; moveZ = length < 0.12 ? 0 : z / scale;
-  stickRun = (innerWidth <= 900 || matchMedia('(pointer:coarse)').matches) && length > 1.15;
-  stick.style.transform = `translate(${moveX * 34}px, ${moveZ * 34}px)`;
+  // Sprint is a deliberate push well past the knob's rim (the rim is length 1; 1.4 is ~17 px beyond it), and the knob shows it.
+  stickRun = (innerWidth <= 900 || matchMedia('(pointer:coarse)').matches) && length > SPRINT_PUSH;
+  stick.style.transform = `translate(${moveX * 34}px, ${moveZ * 34}px)`; stick.dataset.run = String(stickRun);
 }
 // The stick must never stay pushed after the thumb has gone: a new touch always takes it over, and its release is honoured wherever the
 // browser delivers it (a pointerup that lands outside the pad when capture was lost, or a touchend with no fingers left on the screen).
-function releaseStick() { moveId = null; stickRun = false; moveX = moveZ = 0; stick.style.transform = ''; }
+function releaseStick() { moveId = null; stickRun = false; moveX = moveZ = 0; stick.style.transform = ''; stick.dataset.run = 'false'; }
 joystick.addEventListener('pointerdown', event => {
   if (paused()) return;
   moveId = event.pointerId; try { joystick.setPointerCapture(moveId); } catch { /* the pad still follows this pointer through the window listeners */ } moveStick(event);
@@ -283,6 +290,9 @@ catch {
 }
 let bloodMode = 0;
 element('blood-mode').addEventListener('click', () => { bloodMode=(bloodMode+1)%3; const mode=(['red','dark','off'] as const)[bloodMode]; view.setBloodMode(mode); element('blood-mode').textContent=`Blood: ${mode}`; });
+const showTempo = () => { element('tempo-mode').textContent = `Tempo: ${tempoHz} Hz`; element('tempo-mode').setAttribute('aria-pressed', String(tempoHz === 50)); };
+element('tempo-mode').addEventListener('click', () => { tempoHz = tempoHz === 60 ? 50 : 60; accumulator = 0; try { storage.setItem(TEMPO_KEY, String(tempoHz)); } catch { /* a full store just loses the preference */ } showTempo(); });
+showTempo();
 const showHitStop = () => { element('hitstop-mode').textContent = `Hit-stop: ${hitStopOn ? 'on' : 'off'}`; element('hitstop-mode').setAttribute('aria-pressed', String(hitStopOn)); };
 element('hitstop-mode').addEventListener('click', () => { hitStopOn = !hitStopOn; hitStop = 0; try { storage.setItem(HITSTOP_KEY, hitStopOn ? 'on' : 'off'); } catch { /* a full store just loses the preference */ } showHitStop(); });
 showHitStop();
@@ -333,21 +343,21 @@ function frame(now: number) {
     activeMs += elapsed * 1000;
     const x = moveX + Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
-    while (accumulator >= STEP) {
+    while (accumulator >= step()) {
       previous = state;
       practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, PROFILES[difficulty]);
       feedback.update(practice.events); frameEvents.push(...practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;
       if (action) sent = action;
-      action = null; cancel = false; state = practice.fighter; accumulator -= STEP;
-      if (practice.finish && !recorded) { recorded = true; recordFight(trial, scheme, practice.finish.victim === 1 && !practice.finish.draw, practice.duel.tick, 100 - practice.health, 100 - practice.playerHealth, Math.round(activeMs)); saveTrial(storage, trial); }
+      action = null; cancel = false; state = practice.fighter; accumulator -= step();
+      if (practice.finish && !recorded) { recorded = true; recordFight(trial, scheme, practice.finish.victim === 1 && !practice.finish.draw, practice.duel.tick, RULES.health - practice.health, RULES.health - practice.playerHealth, Math.round(activeMs)); saveTrial(storage, trial); }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
       const stop = stopFor(practice.events); if (stop) { hitStop = stop; accumulator = 0; previous = state; }
     }
   } else { accumulator = 0; previous = state; }
-  const alpha = accumulator / STEP;
+  const alpha = accumulator / step();
   try {
     view.render({ ...state, x: previous.x + (state.x - previous.x) * alpha, z: previous.z + (state.z - previous.z) * alpha, heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha }, locked, paused() ? 0 : dt, practice, frameEvents, hitStop > 0);
     frameEvents = [];

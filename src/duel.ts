@@ -32,7 +32,7 @@ export type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charge
 export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; location?: HitLocation; heading?: number; ticks?: number; posture?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
-export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: 100, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null });
+export const createFighter = (body: State, phase: Phase): Fighter => ({ body, health: RULES.health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null });
 export const initialDuel = (): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
@@ -173,11 +173,14 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
       const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
       const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe);
-      if (run && moved.distance > next.body.distance) spend(i, R.sprintCost);
+      // Sprinting drains without the action delay: no regeneration on a sprinting tick, and it resumes the tick the sprint stops (an action's
+      // regenDelay is for actions; a sprint that reset it every tick starved the bar for a second after every dash).
+      if (run && moved.distance > next.body.distance) { next.stamina = Math.max(0, next.stamina - R.sprintCost); next.rest = Math.max(next.rest, 1); if (!next.stamina && !next.exhausted) { next.exhausted = true; events.push({ tick, type: 'StaminaExhausted', actor: i }); } }
       next.body = moved;
       if (intent.lock && next.phase !== 'sheathed' && !intent.move.run) next.body = { ...next.body, heading: aim(next.body, foe) };
     }
-    if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed')) next.stamina = Math.min(100, next.stamina + R.regen * (next.wound ? R.woundRegen : 1));
+    // Regeneration: full while standing ready; a raised guard regenerates at half rate (it used to stop it, which made blocking a stamina trap).
+    if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard')) next.stamina = Math.min(100, next.stamina + R.regen * (next.wound ? R.woundRegen : 1) * (next.phase === 'guard' ? R.guardRegen : 1));
     if (next.exhausted && next.stamina >= R.exhaustRecover) next.exhausted = false;
   }
   // Symmetric separation: both may have stepped into the other's old position; push them apart by equal halves.

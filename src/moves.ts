@@ -50,7 +50,7 @@ export type MoveDef = Timing & {
 const light = (id: 'light_right' | 'light_left', direction: Direction): MoveDef => ({
   id, direction, path: id, chainPath: `${id}_chain`, chained: { windup: 12, active: 5, recovery: 17 },
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the opposite cut chains fast; a heavy finisher winds up quicker
-  windup: 14, active: 5, recovery: 21, damage: 11, stamina: 20, staminaDamage: 25, stagger: 24, poise: 0, poiseFrom: 0,
+  windup: 14, active: 5, recovery: 21, damage: 11, stamina: 20, staminaDamage: 15, stagger: 24, poise: 0, poiseFrom: 0,
   breaksGuard: false, chip: 0, parryable: true, knockback: 4, stepIn: .55, feintUntil: 7, reach: 1.65, vsGuard: null, posture: 18, chamber: 6, charges: false,
 });
 export const MOVES: Record<MoveId, MoveDef> = {
@@ -58,14 +58,14 @@ export const MOVES: Record<MoveId, MoveDef> = {
   light_left: light('light_left', 'left'),
   heavy_overhead: {
     id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: 'heavy_overhead_chain', chained: { windup: 22, active: 5, recovery: 31 }, chain: null,
-    windup: 32, active: 5, recovery: 31, damage: 18, stamina: 35, staminaDamage: 40, stagger: 24, poise: 24, poiseFrom: 24,
+    windup: 32, active: 5, recovery: 31, damage: 18, stamina: 35, staminaDamage: 30, stagger: 24, poise: 24, poiseFrom: 24,
     breaksGuard: false, chip: .4, parryable: true, knockback: 4, stepIn: .55, feintUntil: 11, reach: 1.9, vsGuard: null, posture: 30, chamber: 10, charges: true,   // a guard takes it for chip and 40 stamina; only the charged swing breaks a guard. Feintable through the charge point
   },
   // Thrust: a lunge (stepIn 1 = walking pace) that lands from 2.0 m in 16 ticks, where a cut needs 1.75 m and a heavy 32 ticks; fully
   // blockable, so it is the spacing and counter-hit tool, not the guard opener.
   thrust: {
     id: 'thrust', direction: 'thrust', path: 'thrust', chainPath: null, chained: null, chain: null,
-    windup: 16, active: 5, recovery: 21, damage: 14, stamina: 25, staminaDamage: 25, stagger: 20, poise: 0, poiseFrom: 0,
+    windup: 16, active: 5, recovery: 21, damage: 14, stamina: 25, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0,
     breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: 1, feintUntil: 9, reach: 2, vsGuard: null, posture: 14, chamber: 8, charges: false,
   },
   riposte: {
@@ -97,6 +97,7 @@ export const MOVES: Record<MoveId, MoveDef> = {
 };
 
 export const RULES = {
+  health: 150,                    // a duel of 8–15 blows (the owner's target): 150 with the 40/s regeneration measured 10 hits / 38 s at normal in review
   draw: 42, roll: 36, safeStart: 4, safeEnd: 20, rollCost: 30,
   // Backstep: a short positional evade with no invulnerability. speed 1 = walking pace, so 12 ticks travel 0.6 m; its tail can be
   // cancelled into an attack, and holding the dodge control converts it into a roll for the price difference.
@@ -105,7 +106,7 @@ export const RULES = {
   // perfectBlock: a block in the first ticks of a held guard costs perfectBlockCost of the normal price.
   // breakCost: a broken guard loses this much stamina (not all of it): from a full bar the defender keeps one roll to escape the follow-up.
   parry: 10, parryCooldown: 30, parryStun: 90, parryRecovery: 8, feintCost: 10, blockCost: 25, breakCost: 60, perfectBlock: 3, perfectBlockCost: .5, guardSpeed: .35, guardArc: Math.PI / 3, directionalGuard: false,
-  regen: .4, regenDelay: 60, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,
+  regen: 2 / 3, regenDelay: 45, guardRegen: .5, sprintCost: .2, exhaustRecover: 20, exhaustedSpeed: .7,   // 40 stamina/s after .75 s; a raised guard regenerates at half rate
   wound: 240, woundRegen: .8, death: 144, kickArc: Math.PI / 4,
   // Counter-hit: a clean hit on a fighter committed to a swing, or in the vulnerable tail of a roll, lands harder and staggers longer.
   // Rear hit: a modest bonus for striking inside the target's rear arc; a true backstab is earned later under stricter conditions.

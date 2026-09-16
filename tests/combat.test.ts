@@ -4,6 +4,7 @@ import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, canDefend, 
 import { PATHS, total } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
+const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
 // Practice is the renderer/HUD view over the duel; these tests cover the projection, hints, control gating and replays.
 const idle = (): Intent => ({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
 const act = (action: Intent['action'], extra: Partial<Intent> = {}): Intent => ({ ...idle(), action, ...extra });
@@ -26,23 +27,23 @@ test('legacy constant views stay equal to the move data the simulation actually 
   for (const move of Object.values(MOVES)) assert.equal(move.windup + move.active + move.recovery, total(move));
   // A quick press is a plain heavy and a deliberate hold is the charged one: the press must last ≥ 0.6 s to charge and the hold releases itself by ~1.1 s.
   assert.ok(MOVES.heavy_overhead.chamber! + RULES.charge.min >= 36 && MOVES.heavy_overhead.chamber! + RULES.charge.min <= 45, `charge press ${MOVES.heavy_overhead.chamber! + RULES.charge.min} ticks`); assert.ok(MOVES.heavy_overhead.chamber! + RULES.charge.max <= 66);
-  assert.equal(MOVES.heavy_overhead.breaksGuard, false); assert.ok(MOVES.heavy_overhead.chip > 0 && MOVES.heavy_overhead.staminaDamage >= 35, 'a guard takes a plain heavy for chip and real stamina');
+  assert.equal(MOVES.heavy_overhead.breaksGuard, false); assert.ok(MOVES.heavy_overhead.chip > 0 && MOVES.heavy_overhead.staminaDamage >= 25, 'a guard takes a plain heavy for chip and real stamina');
   assert.equal(MOVES.heavy_riposte.damage, 30); assert.equal(MOVES.light_right.damage, 11); assert.equal(MOVES.heavy_overhead.chained!.windup, 22); assert.equal(RULES.dodgeAttackWindow, 2); assert.equal(RULES.perfectBlock, 3); assert.equal(RULES.perfectBlockCost, .5);
 });
 
 test('the projection mirrors both fighters: phases, resources, threat, results and warden reaction for the renderer', () => {
   const start = initialPractice();
-  assert.equal(start.phase, 'sheathed'); assert.equal(start.enemyPhase, 'ready'); assert.equal(start.health, 100); assert.equal(start.playerHealth, 100); assert.equal(start.stamina, 100); assert.equal(start.result, 'none'); assert.equal(start.finish, null);
+  assert.equal(start.phase, 'sheathed'); assert.equal(start.enemyPhase, 'ready'); assert.equal(start.health, HP); assert.equal(start.playerHealth, HP); assert.equal(start.stamina, 100); assert.equal(start.result, 'none'); assert.equal(start.finish, null);
   assert.deepEqual(start.fighter, start.duel.fighters[0].body); assert.deepEqual(start.enemy, start.duel.fighters[1].body);
   let s = stepPractice(ready(), act('light'), passive);
   assert.equal(s.phase, 'attack'); assert.equal(s.attack, 'light'); assert.equal(s.stamina, 80);
   s = tick(s, SWORD.contact, idle(), passive);
-  assert.equal(s.health, 100 - MOVES.light_right.damage); assert.equal(s.result, 'hit'); assert.equal(s.resultAge, 0); assert.equal(s.resultDamage, MOVES.light_right.damage); assert.equal(s.enemyPhase, 'hurt');
+  assert.equal(s.health, HP - MOVES.light_right.damage); assert.equal(s.result, 'hit'); assert.equal(s.resultAge, 0); assert.equal(s.resultDamage, MOVES.light_right.damage); assert.equal(s.enemyPhase, 'hurt');
   assert.equal(s.reaction, SWORD.reaction); assert.equal(s.enemyWound, RULES.wound);
   assert.ok(s.events.some(e => e.type === 'Hit'));
   s = tick(s, 1, idle(), passive); assert.equal(s.reaction, SWORD.reaction - 1); assert.equal(s.resultAge, 1);
   const kicked = tick(stepPractice(ready(1.05), act('kick'), passive), MOVES.kick.windup, idle(), passive);
-  assert.equal(kicked.result, 'kicked'); assert.equal(kicked.health, 100 - MOVES.kick.damage); assert.equal(kicked.phase, 'kick');
+  assert.equal(kicked.result, 'kicked'); assert.equal(kicked.health, HP - MOVES.kick.damage); assert.equal(kicked.phase, 'kick');
   const drawn = stepPractice(initialPractice(), act('light'));
   assert.equal(drawn.phase, 'draw'); assert.equal(actorPose(drawn, 0).pose, 'draw');
   const stepping = stepPractice(ready(), act('backstep'), passive);
@@ -122,9 +123,9 @@ test('defeat freezes the fight and a fresh practice restores everything; the deb
   assert.ok(fallen.events.some(e => e.type === 'Killed' && e.target === 0));
   const later = tick(fallen, 200, act('heavy', { move: { x: 1, z: 1, yaw: 0, run: true }, guard: true }));
   assert.deepEqual(later.fighter, fallen.fighter); assert.equal(later.health, fallen.health); assert.equal(later.playerHealth, 0);
-  const reset = initialPractice(); assert.equal(reset.playerHealth, 100); assert.equal(reset.stamina, 100); assert.equal(reset.health, 100); assert.equal(reset.phase, 'sheathed'); assert.equal(reset.finish, null);
+  const reset = initialPractice(); assert.equal(reset.playerHealth, HP); assert.equal(reset.stamina, 100); assert.equal(reset.health, HP); assert.equal(reset.phase, 'sheathed'); assert.equal(reset.finish, null);
   const text = describe(fallen, 'hard');
-  assert.match(text, /you: hp 0/); assert.match(text, /warden: hp 100/); assert.match(text, /ai hard/); assert.equal(describe(fallen, 'hard'), text);
+  assert.match(text, /you: hp 0/); assert.match(text, new RegExp(`warden: hp ${HP}`)); assert.match(text, /ai hard/); assert.equal(describe(fallen, 'hard'), text);
   assert.match(describe(stepPractice(ready(), act('heavy'), passive)), /heavy_overhead 0\/68 \|/);
 });
 
@@ -142,7 +143,8 @@ test('seeded practice replays are identical, never mutate the previous state, an
       assert.deepEqual(s, before);
       for (const actor of [next.enemy, next.fighter]) assert.ok(Math.hypot(actor.x, actor.z) <= RADIUS + 1e-8);
       assert.ok(Math.hypot(next.enemy.x - next.fighter.x, next.enemy.z - next.fighter.z) >= .85 - 1e-8);
-      for (const value of [next.health, next.playerHealth, next.stamina, next.enemyStamina]) assert.ok(Number.isFinite(value) && value >= 0 && value <= 100);
+      for (const value of [next.health, next.playerHealth]) assert.ok(Number.isFinite(value) && value >= 0 && value <= HP);
+      for (const value of [next.stamina, next.enemyStamina]) assert.ok(Number.isFinite(value) && value >= 0 && value <= 100);
       s = next;
     }
     return s;
@@ -160,12 +162,12 @@ test('a parry then a light produces the riposte the browser gate expects, then a
   s = tick(s, windup - s.enemyAge - 6, idle());
   s = stepPractice(s, act('parry', { guard: true }));
   while (s.result !== 'parried' && s.threat) s = stepPractice(s, { ...idle(), guard: true });
-  assert.equal(s.result, 'parried'); assert.equal(s.playerHealth, 100);
+  assert.equal(s.result, 'parried'); assert.equal(s.playerHealth, HP);
   s = tick(s, RULES.parry + 1, { ...idle(), guard: true }); s = stepPractice(s, idle());
   s = stepPractice(s, act('light'));
   assert.equal(s.attack, 'riposte');
   s = tick(s, ATTACKS.riposte.contact);
-  assert.equal(s.health, 100 - MOVES.riposte.damage);
+  assert.equal(s.health, HP - MOVES.riposte.damage);
   // Mirror scripts/browser-check.mjs: 600 ms after the counter tap, hold forward for 240 ms, then kick.
   s = tick(s, 36 - ATTACKS.riposte.contact);
   s = tick(s, 14, { ...idle(), move: { x: 0, z: -1, yaw: 0, run: false } });
@@ -173,5 +175,5 @@ test('a parry then a light produces the riposte the browser gate expects, then a
   assert.equal(s.phase, 'kick');
   s = tick(s, MOVES.kick.windup);
   // The warden's re-engagement can start a tick either side of the kick's contact, so the kick lands clean or as a counter-hit.
-  assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(100 - MOVES.riposte.damage - s.health), `kick dealt ${100 - MOVES.riposte.damage - s.health}`);
+  assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(HP - MOVES.riposte.damage - s.health), `kick dealt ${HP - MOVES.riposte.damage - s.health}`);
 });
