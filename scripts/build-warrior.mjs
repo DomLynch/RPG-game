@@ -18,6 +18,10 @@ const realistic = process.env.WARRIOR_BODY !== 'classic'; // the Blender Studio 
 // WARRIOR_FIGHTER=veteran builds the opponent from scripts/character/parts.py --fighter veteran (its own scan, helm and maps)
 // into src/assets/veteran.glb; the default (hero) is the player's warrior.glb. Same rig, clips and sword: blade paths shared.
 const fighter = process.env.WARRIOR_FIGHTER || 'hero', variant = realistic ? (fighter === 'hero' ? 'realistic' : fighter) : '';
+// WARRIOR_WEAPON=trident (weapons lane, scripts/build-weapon.mjs): the fighter carries that weapon instead of the sword — no scabbard, the
+// sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
+// the weapon's own clips join the set. Default: the longsword, byte-identical output.
+const weaponId = process.env.WARRIOR_WEAPON || 'longsword';
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
 const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
@@ -172,10 +176,12 @@ for (const item of items.split(',').filter(Boolean)) {
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
-add(bladeGeometry(-.33, .33, .06, .026, .12).rotateZ(Math.PI), leather, 'pelvis', -.24, .79, -.13, -.19);
-add(new T.CylinderGeometry(.031, .031, .03, 12), trim, 'pelvis', -.24, .79 + .30, -.13, -.19);
-add(new T.TorusGeometry(.036, .007, 6, 18).rotateX(Math.PI / 2), leather, 'pelvis', -.24, .79 + .26, -.13, -.19); // belt loop holding the scabbard
-add(new T.CylinderGeometry(.008, .016, .05, 10), trim, 'pelvis', -.24, .79 - .30, -.13, -.19);
+if (weaponId === 'longsword') {
+  add(bladeGeometry(-.33, .33, .06, .026, .12).rotateZ(Math.PI), leather, 'pelvis', -.24, .79, -.13, -.19);
+  add(new T.CylinderGeometry(.031, .031, .03, 12), trim, 'pelvis', -.24, .79 + .30, -.13, -.19);
+  add(new T.TorusGeometry(.036, .007, 6, 18).rotateX(Math.PI / 2), leather, 'pelvis', -.24, .79 + .26, -.13, -.19); // belt loop holding the scabbard
+  add(new T.CylinderGeometry(.008, .016, .05, 10), trim, 'pelvis', -.24, .79 - .30, -.13, -.19);
+}
 // Separate sword nodes allow a presentation-only transfer from scabbard to hand.
 // Diamond-section blade: a centre ridge that catches the key light, tapering to a point. Length and tip stay where the
 // bake samples them (local y .18 and .86 on the SwordDrawn node); only the look changes.
@@ -207,6 +213,14 @@ const sheathWorld = new T.Matrix4().compose(new T.Vector3(-.16,1.22,-.13),new T.
 sheathed.applyMatrix4(base.scene.getObjectByName('pelvis').matrixWorld.clone().invert().multiply(sheathWorld));
 const drawn = sword('SwordDrawn',base.scene.getObjectByName('hand_r'));
 drawn.position.set(0,.08,.015); drawn.rotation.x = Math.PI / 2;
+let weaponNode = null;
+if (weaponId !== 'longsword') {
+  const { trident } = await import('./build-weapon.mjs');
+  if (weaponId !== 'trident') throw new Error(`WARRIOR_WEAPON=${weaponId}: no such weapon (scripts/build-weapon.mjs)`);
+  sheathed.clear(); drawn.clear(); // the loader still finds SwordSheathed/SwordDrawn; they carry nothing
+  weaponNode = trident({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
+  base.scene.getObjectByName('hand_r').add(weaponNode); weaponNode.position.copy(drawn.position); weaponNode.rotation.copy(drawn.rotation);
+}
 for (const [material, geometries] of parts) {
   const slots = [...new Set(geometries.map(g => g.userData.slot))].sort();
   for (const slot of slots) {
@@ -442,6 +456,10 @@ if (process.env.WARRIOR_UAL2_ATTACKS) {
     ...(process.env.WARRIOR_UAL2_ATTACKS === 'lights' ? [] : [strike('Heavy', [[library2, 'Sword_Regular_C']], 1, .48), strike('Riposte', [[library2, 'Sword_Dash']], 1, .34)]),
   ];
   for (const c of candidates) clips[clips.findIndex(k => k.name === c.name)] = c;
+}
+if (weaponNode) { // the weapon's clips, authored on this rig after every sword clip exists (they borrow the body loops and the two-hand grip)
+  const { tridentClips } = await import('./build-weapon.mjs');
+  clips.push(...tridentClips({ T, base, skeleton, poseMixer, clips, reachArm, weapon: weaponNode }));
 }
 base.scene.name='Ashcourt warrior';
 base.scene.scale.set(.9,.97,.97); base.scene.position.y=.025;

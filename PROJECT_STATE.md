@@ -321,3 +321,23 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 ## Slice U — the weapon slot seam — 2026-09-16
 - `Weapon`/`WEAPONS`/`weaponOf` (moves.ts), `Fighter.weapon` + `movesOf` (duel.ts), AI reads own/their tables, blade paths keyed by weapon from `scripts/blade-manifest.json`, contact events carry weapon + material. Trident = longsword placeholder; both fighters longsword on trunk.
 - Evidence: 156/156 tests (new tests/weapons.test.ts: 5); 7/7 mutations caught; quality gate green. Weapons lane brief can land on it: add a manifest entry + a `WEAPONS.trident` table + clips on the Veteran rig; flip `initialDuel`'s opponent to 'trident' with combat review.
+
+## Trident v1 — the weapons lane — 2026-09-16
+- Branch `weapons/trident-v1` from trunk 86189a5 (slice U). The Veteran's short trident: a rigid part under `hand_r` (`WeaponDrawn`,
+  `extras.contact` on the tines, 652 triangles, no textures) and 13 original clips on the rig (`Trident_Idle/Walk/StrafeLeft/StrafeRight/
+  Thrust/ThrustChain/Sweep/High/Guard/BlockImpact/Deflected/Hit/Death`), all two-handed; built by `scripts/build-weapon.mjs` through
+  `build-warrior.mjs` (`WARRIOR_WEAPON=trident`, default output byte-identical) into `src/assets/weapons/trident/veteran-trident.glb`
+  (not imported by the runtime: the bundle is unchanged until the render lane switches the opponent).
+- Data: `WEAPONS.trident` is real (`TRIDENT_MOVES` / `TRIDENT_PATHS`, guard `shaft`, material `bronze`), baked from its own rig via
+  `scripts/blade-manifest.json`. Slash = low sweep, Stab = thrust (chains into a second thrust), Heavy = the overhead pin. Measured
+  against a standing target with the owner's pick (variant `short`: B's wide fork on a 60% stick, 1.42 m, brown shaft; the thrust reaches
+  by driving the rear arm to full extension): thrust lands to 2.25 m (sword stab 2.0), sweep 1.75 (cut 1.7), pin 2.15 (heavy 2.2);
+  every `reach` is that number (tests assert ±0.1 m). All numbers provisional — GAMEPLAY CHANGE for combat review; nothing changes on trunk (`initialDuel`
+  still longsword vs longsword).
+- Harness: `scripts/character-preview.mjs --weapons [--enemy <glb>]` — weapon turntable, on-rig close-ups, clip sheet, 393×852 /
+  852×393 lock stills, a 6 s scripted exchange, a cost table; baseline and three passes under `artifacts/weapons/` (REPORT.md).
+- Evidence: tests/weapons.test.ts 8 tests (rig + contact segment + clip set, clips agree with the data's contact keys, reach frontier);
+  quality gate per the PR. Requests to other lanes in `artifacts/weapons/REQUESTS.md`: the renderer's per-weapon clip list and weapon
+  node (the trident is not visible in the game until then), the combat flip and review, a rule for "weak inside the point" (the sim
+  sweeps the tines from the wind-up pose, so a thrust lands from 0.4 m like the sword's), the shaft guard profile. Silhouette picked
+  by the owner 2026-09-16 (`short`); A/B/C remain as `WEAPON_VARIANT` options.

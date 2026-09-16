@@ -384,3 +384,21 @@ beside the index on the relaxed body while the rig's is abducted and droops 45°
 against the rig, the hand-plane roll went from 44.0° to 14.1° (the fingertip fan of a relaxed hand is not quite the
 knuckle line); index joints 9/12/14 → 6/4/8 mm, pinky 14/15/21 → 4/5/4. Both fighters rebuilt — the Veteran shares the function. `humanoid-v42/hands-before-after.png`,
 `hand-rest-after.png`, `hands-phone-before-after.png`.
+
+## Weapons (weapons lane, 2026-09-16) — the trident
+
+`src/assets/weapons/trident/`: `trident.glb` (the part alone) and `veteran-trident.glb` (the Veteran carrying it, every sword
+clip plus 13 `Trident_*` clips). Built by `scripts/build-weapon.mjs` through `scripts/build-warrior.mjs` (`WARRIOR_FIGHTER=veteran
+WARRIOR_WEAPON=trident [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=src/assets/weapons/trident/veteran-trident.glb`), then
+`node scripts/bake-blades.mjs` (the manifest entry samples `WeaponDrawn.extras.contact`, the tines).
+
+Owner's pick (2026-09-16): variant `short` — a fat, wide fork on a stick 60% as long (1.42 m butt to tip, 0.86 m shaft), brown ash.
+
+Provenance: **original project work, no new third-party asset, texture or licence.** The geometry is Three.js primitives (ash shaft,
+bronze butt cap / socket / crossbar / three tines, two leather grips); the materials are procedural — the bronze uses the Veteran's
+approved museum-bronze values (0.62/0.545/0.415, roughness .63, metalness .80), the leather is the sword's, the ash is a flat dark
+wood; no image maps. The 13 clips are original, authored offline on the same CC0 rig: the body comes from the already-shipped clips
+(Sword_Idle → Armed, ArmedWalk, StrafeLeft/Right, Hit_Chest, Death01 — CC0 Quaternius UAL1/UAL2 retargets recorded above) and
+both arms are re-solved onto the shaft with build-warrior's two-bone reach, as Heavy / Riposte / Kick were. Checked 2026-09-16:
+neither UAL1 nor UAL2 Standard (43 clips each) has a spear, polearm or staff clip, so nothing was retargeted from a library and no
+Mixamo / KayKit / MoCap Online clip was downloaded. Silhouette variants and evidence: `artifacts/weapons/REPORT.md`.
