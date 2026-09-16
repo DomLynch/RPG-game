@@ -3,7 +3,7 @@
 //   node scripts/character-preview.mjs --label baseline      capture into artifacts/character/<label>/
 //   node scripts/character-preview.mjs --against baseline    also print deltas against that label's stats
 //   node scripts/character-preview.mjs --serve               keep a dev server up for manual review
-//   node scripts/character-preview.mjs --weapons --label baseline [--enemy /src/assets/weapons/trident/veteran-trident.glb]
+//   node scripts/character-preview.mjs --weapons --label live [--enemy /src/assets/veteran.glb]   (the shipped Veteran carries the trident)
 //                                                            weapons lane evidence into artifacts/weapons/<label>/ (the opponent's weapon)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';

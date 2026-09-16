@@ -7,7 +7,9 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { PATHS, total } from '../src/moves.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, buildWarriors, gaitWeights, swingProgress, defenceReaction } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { WEAPONS, type WeaponId } from '../src/moves.ts';
+import { initialDuel } from '../src/duel.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -27,6 +29,8 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 // Parse the shipped geometry/rig/clips in Node. Image decoding/CSP is exercised in the browser.
 // Two fighters ship: the player's warrior.glb and the opponent's veteran.glb (its own head, helm and maps on the same rig).
 const FIGHTERS = ['warrior.glb', 'veteran.glb'] as const;
+// The weapon each shipped rig carries is the simulation's word (duel.ts initialDuel): the player's longsword, the Veteran's trident.
+const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': initialDuel().fighters[0].weapon, 'veteran.glb': initialDuel().fighters[1].weapon };
 async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
@@ -41,8 +45,10 @@ async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
 }
 
 for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight`, async () => {
-  const asset = await readWarrior(file);
-  assert.deepEqual(asset.animations.map(a => a.name), [...CLIPS, ...COMBAT_CLIPS]);
+  const asset = await readWarrior(file), names = asset.animations.map(a => a.name);
+  // The sword set is the base of every rig; a rig carries every clip its weapon's role table names, and nothing plays by position.
+  assert.deepEqual(names.slice(0, CLIPS.length + COMBAT_CLIPS.length), [...CLIPS, ...COMBAT_CLIPS]);
+  for (const role of ROLES) assert.ok(names.includes(clipFor(WEAPON_OF[file], role)), `${file} carries ${clipFor(WEAPON_OF[file], role)} for ${role}`);
   const mixer = new AnimationMixer(asset.scene), point = new Vector3();
   let triangles = 0;
   asset.scene.traverse(o => { if (o instanceof SkinnedMesh) triangles += o.geometry.index!.count / 3; });
@@ -71,28 +77,78 @@ for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded wa
   }
 });
 
-test('the Veteran carries the warrior\'s clips and sword attachments exactly, so the baked blade paths serve both', async () => {
+test('the Veteran is the warrior\'s rig: same bones, the shared clips identical track for track, and either the sword nodes or a WeaponDrawn with a contact segment', async () => {
   const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
-  assert.deepEqual(veteran.animations.map(a => a.name), hero.animations.map(a => a.name));
-  for (const [i, clip] of hero.animations.entries()) {
-    const other = veteran.animations[i];
+  const shared = hero.animations.filter(clip => veteran.animations.some(v => v.name === clip.name)).map(c => c.name);
+  assert.deepEqual(shared, [...CLIPS, ...COMBAT_CLIPS], 'the sword set is shared');
+  for (const clip of hero.animations) {
+    const other = veteran.animations.find(v => v.name === clip.name)!;
     assert.equal(other.duration, clip.duration, `${clip.name} duration`);
     assert.deepEqual(other.tracks.map(t => t.name).sort(), clip.tracks.map(t => t.name).sort(), `${clip.name} tracks`);
-    for (const track of clip.tracks) { // every bone track identical: same rig, same motion, so the sim's blade paths are the Veteran's too
+    for (const track of clip.tracks) { // every bone track identical: same rig, same motion, so a sword blade path would be the Veteran's too
       const twin = other.tracks.find(t => t.name === track.name)!;
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
       assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
     }
   }
-  for (const name of ['SwordSheathed', 'SwordDrawn', 'hand_r']) {
-    const a = hero.scene.getObjectByName(name)!, b = veteran.scene.getObjectByName(name)!;
-    assert.ok(a && b, name);
-    assert.deepEqual(b.position.toArray(), a.position.toArray(), `${name} position`);
-    assert.deepEqual(b.quaternion.toArray(), a.quaternion.toArray(), `${name} rotation`);
-    assert.equal(b.parent?.name, a.parent?.name, `${name} parent`);
-  }
   const bones = (asset: Awaited<ReturnType<typeof readWarrior>>) => { const names: string[] = []; asset.scene.traverse(o => { if ((o as { isBone?: boolean }).isBone) names.push(o.name); }); return names; };
   assert.deepEqual(bones(veteran), bones(hero));
+  // The weapon on each rig, the way the renderer looks for it: the hero's sword hangs under hand_r; the Veteran's trident is a WeaponDrawn
+  // node under hand_r with its contact segment (the tines) in extras, and the sword nodes carry nothing.
+  for (const [asset, weapon] of [[hero, WEAPON_OF['warrior.glb']], [veteran, WEAPON_OF['veteran.glb']]] as const) {
+    const weaponNode = asset.scene.getObjectByName('WeaponDrawn'), drawn = asset.scene.getObjectByName('SwordDrawn')!, sheathed = asset.scene.getObjectByName('SwordSheathed')!;
+    assert.ok(drawn && sheathed, 'the sword nodes exist on every rig');
+    if (weapon === 'longsword') { assert.equal(weaponNode, undefined); assert.equal(drawn.parent?.name, 'hand_r'); assert.ok(drawn.children.length > 0, 'the sword hangs under SwordDrawn'); }
+    else {
+      assert.ok(weaponNode, 'WeaponDrawn'); assert.equal(weaponNode!.parent?.name, 'hand_r');
+      const contact = weaponNode!.userData.contact as { from: number; to: number };
+      assert.ok(contact && contact.to > contact.from && contact.from > 0, `extras.contact ${JSON.stringify(contact)}`);
+      assert.equal(drawn.children.length + sheathed.children.length, 0, 'the sword nodes carry nothing');
+    }
+  }
+});
+
+test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from', async () => {
+  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb') } as const;
+  for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
+    const names = rigs[weapon].animations.map(a => a.name);
+    for (const role of ROLES) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);
+    // What the renderer plays for a path is what scripts/bake-blades.mjs sampled for it (PathSpec.clip), so the trail and the sim agree.
+    const paths = WEAPONS[weapon].paths, played: Record<string, Role> = { light_right: 'Attack', light_right_chain: 'Attack', light_left: 'Return', light_left_chain: 'Return', heavy_overhead: 'Heavy', heavy_overhead_chain: 'Heavy', heavy_riposte: 'Heavy', thrust: 'Thrust', riposte: 'Riposte' };
+    for (const [path, role] of Object.entries(played)) assert.equal(clipFor(weapon, role), paths[path as keyof typeof paths].clip, `${weapon} ${path}: renderer plays ${clipFor(weapon, role)}, bake sampled ${paths[path as keyof typeof paths].clip}`);
+  }
+  assert.deepEqual(Object.keys(WEAPON_CLIPS).sort(), Object.keys(WEAPONS).sort(), 'every weapon the sim knows has a clip table');
+});
+
+test('the renderer builds a trident fighter without throwing, keeps the weapon in hand through every pose, and its trail samples the contact segment', async () => {
+  const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
+  const { player, opponent } = buildWarriors(hero, veteran, ['longsword', 'trident']);
+  const weapon = opponent.anchor.getObjectByName('WeaponDrawn')!, contact = weapon.userData.contact as { from: number; to: number };
+  assert.ok(weapon, 'the opponent carries WeaponDrawn');
+  for (const [pose, attack] of [['sheathed', 'light'], ['ready', 'light'], ['attack', 'light'], ['attack', 'return'], ['attack', 'heavy'], ['attack', 'thrust'], ['attack', 'riposte'], ['guard', 'light'], ['block', 'light'], ['parry', 'light'], ['deflected', 'light'], ['hit', 'light'], ['roll', 'light'], ['kick', 'light'], ['death', 'light']] as const) {
+    for (let i = 0; i < 12; i++) opponent.update(0, 1 / 60, pose, i / 11, attack, .4);
+    assert.ok(weapon.visible, `${pose}/${attack}: the trident stays in hand`);
+    opponent.anchor.updateMatrixWorld(true);
+    const tip = weapon.localToWorld(new Vector3(0, contact.to, 0)).toArray();
+    assert.ok(tip.every(Number.isFinite) && Math.hypot(...tip) < 4, `${pose}/${attack}: finite tines ${tip.map(v => v.toFixed(2))}`);
+  }
+  // A sword rig asked to fight with the trident has no such clips: the renderer says so instead of playing the wrong ones.
+  assert.throws(() => buildWarriors(hero, hero, ['longsword', 'trident']), /Warrior is missing Trident_Idle/);
+  assert.throws(() => buildWarriors(hero, undefined, ['longsword', 'trident']), /one weapon/);
+  // The trail: the ribbon's first live sample spans the contact segment (from → to) on the weapon node, not the sword's blade constants.
+  const ribbon = opponent.anchor.children.find(c => c !== opponent.anchor.children[0]) as { geometry: { attributes: { position: { array: Float32Array } }, drawRange: { count: number } } };
+  for (let i = 0; i < 30; i++) opponent.update(0, 1 / 60, 'ready', 1);
+  opponent.update(0, 1 / 60, 'attack', .4, 'light', .35); opponent.update(0, 1 / 60, 'attack', .42, 'light', .35);
+  assert.ok(ribbon.geometry.drawRange.count > 0, 'a live swing frame samples the trail');
+  opponent.anchor.updateMatrixWorld(true);
+  const local = (y: number) => opponent.anchor.worldToLocal(weapon.localToWorld(new Vector3(0, y, 0))).toArray();
+  const v = ribbon.geometry.attributes.position.array, first = [v[0], v[1], v[2]], second = [v[3], v[4], v[5]];   // [newest.from, newest.to, ...] per the ribbon's vertex order
+  const near = (a: number[], b: number[]) => a.every((x, i) => Math.abs(x - b[i]) < 1e-4);
+  assert.ok(near(first, local(contact.from)) && near(second, local(contact.to)), `the trail spans ${contact.from}–${contact.to} m along the weapon: got ${first.map(x => x.toFixed(3))} / ${second.map(x => x.toFixed(3))}`);
+  // The hero is untouched by the table: his sword still swaps sheathed/drawn.
+  const drawn = player.anchor.getObjectByName('SwordDrawn')!, sheathed = player.anchor.getObjectByName('SwordSheathed')!;
+  player.update(0, 1 / 60, 'sheathed', 0); assert.ok(sheathed.visible && !drawn.visible);
+  player.update(0, 1 / 60, 'ready', 1); assert.ok(drawn.visible && !sheathed.visible);
 });
 
 test('two fighters share geometry but have independent animated bones', async () => {

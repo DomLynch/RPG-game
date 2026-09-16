@@ -186,8 +186,9 @@ test('dodge control: a tap is an instant backstep, a hold grows it into a roll, 
   app.key('KeyE'); for (let i = 0; i < 12; i++) app.tick();
   assert.ok(app.element('stamina').value <= 70.5, `holding past 150 ms rolled: ${app.element('stamina').value}`);
   app.release('KeyE'); for (let i = 0; i < 200; i++) app.tick();
-  app.key('KeyE'); app.lose(); app.restore(); for (let i = 0; i < 20; i++) app.tick();
-  assert.ok(app.element('stamina').value >= 90 - 1e-9, 'a graphics interruption releases the held control before it can roll');
+  app.key('KeyE'); app.lose(); app.restore();
+  let rolled = false; for (let i = 0; i < 20; i++) { app.tick(); rolled ||= app.rendered.duel.fighters[0].phase === 'roll'; }   // the fighter's phase, not the bar: the warden may have wounded the ceiling by now
+  assert.ok(!rolled, 'a graphics interruption releases the held control before it can roll');
 });
 
 test('heavy control: a held key charges the swing and release lets it fly', () => {

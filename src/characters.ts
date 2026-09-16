@@ -1,12 +1,25 @@
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
-import { ATTACKS, type Attack, type Practice } from './combat.ts';
+import { attackSpecs, type Attack, type Practice } from './combat.ts';
+import type { WeaponId } from './moves.ts';
 import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, BufferGeometry, BufferAttribute, DoubleSide, Vector3, LoopOnce, type AnimationAction, type AnimationClip } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
+// The renderer plays roles, never clip positions. The sword's roles are its clip names (the shipped warrior.glb set) plus Thrust: the
+// sword thrusts with its Riposte clip. Each weapon maps roles to its own clips; an unlisted role plays the clip of its own name (the
+// body clips are shared, and a two-handed weapon's fighter starts armed, so Draw never plays for him).
+export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | 'Thrust';
+export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, 'Thrust'];
+export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
+  longsword: { Thrust: 'Riposte' },
+  // One sweep clip cuts both ways (the sim's path is the same either side); no parry clip: a shaft has no blade to turn, so a parry shows the block.
+  trident: { Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },
+};
+export const clipFor = (weapon: WeaponId, role: Role): string => WEAPON_CLIPS[weapon][role] ?? role;
+const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected'];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
   speed = Number.isFinite(speed) ? Math.max(0, speed) : 0;
@@ -37,23 +50,28 @@ async function loadFighter(url: string) {
 }
 // The opponent is his own man (opponentUrl) when one is given; with a single GLB both fighters share the geometry and
 // the opponent's Heraldry is recoloured so they are not twins.
-export async function loadWarriors(url: string, opponentUrl = url) {
+export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const [hero, enemy] = await Promise.all([loadFighter(url), opponentUrl === url ? undefined : loadFighter(opponentUrl)]);
-  return buildWarriors(hero, enemy);
+  return buildWarriors(hero, enemy, weapons);
 }
-function fighterClips(asset: FighterAsset) {
-  return [...CLIPS, ...COMBAT_CLIPS].map(name => {
-    const clip = asset.animations.find(a => a.name === name);
+// The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
+function fighterClips(asset: FighterAsset, weapon: WeaponId): Record<Role, AnimationClip> {
+  const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>();
+  for (const role of ROLES) {
+    const name = clipFor(weapon, role), clip = asset.animations.find(a => a.name === name);
     if (!clip?.tracks.length || !Number.isFinite(clip.duration) || clip.duration <= 0) throw new Error(`Warrior is missing ${name}`);
-    return clip;
-  });
+    clips[role] = used.has(clip) ? clip.clone() : clip; used.add(clip);
+  }
+  return clips;
 }
 // Two actors from parsed assets (textures already checked by the loader; tests build from the parsed rig alone): the
-// player from `asset`, the opponent from `opponentAsset` when given, else a recoloured clone of the same asset.
-export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset) {
-  const hero = { asset, clips: fighterClips(asset) }, enemy = opponentAsset ? { asset: opponentAsset, clips: fighterClips(opponentAsset) } : undefined;
+// player from `asset`, the opponent from `opponentAsset` when given, else a recoloured clone of the same asset. `weapons` names
+// what each carries (the simulation's word, duel.ts): it picks the clips, the swing's contact key and the striking part the trail follows.
+export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
+  const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0]) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1]) } : undefined;
+  if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
   function create(opponent: boolean) {
-    const { asset, clips } = opponent && enemy ? enemy : hero;
+    const { asset, clips, weapon } = opponent && enemy ? enemy : hero, specs = attackSpecs(weapon);
     const root = clone(asset.scene), anchor = new Group(); anchor.add(root);
     root.traverse(object => {
       if (!(object instanceof Mesh)) return;
@@ -65,12 +83,15 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset)
       }
     });
     const mixer = new AnimationMixer(root);
-    const actions: AnimationAction[] = clips.map(clip => mixer.clipAction(clip).play());
-    actions.forEach((a, i) => a.setEffectiveWeight(i === 0 ? 1 : 0));
-    const sheathed = root.getObjectByName('SwordSheathed')!, drawn = root.getObjectByName('SwordDrawn')!;
-    if (!sheathed || !drawn) throw new Error('Warrior sword attachments are missing');
-    [...actions.slice(5,14),...actions.slice(17)].forEach(action => { action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; });
-    if (opponent) actions[0].time = clips[0].duration * 0.4;
+    const actions = {} as Record<Role, AnimationAction>;
+    for (const role of ROLES) { actions[role] = mixer.clipAction(clips[role]).play(); actions[role].setEffectiveWeight(role === 'Idle' ? 1 : 0); }
+    // The weapon on the rig: a WeaponDrawn node (a two-handed weapon, always in hand: no sheathed/drawn swap) or the sword's two nodes.
+    // The trail follows the striking part: the node's own contact segment (extras.contact, metres along its Y) or the sword's blade.
+    const weaponNode = root.getObjectByName('WeaponDrawn'), sheathed = root.getObjectByName('SwordSheathed'), drawn = root.getObjectByName('SwordDrawn');
+    if (!weaponNode && !(sheathed && drawn)) throw new Error('Warrior weapon attachments are missing');
+    const blade = weaponNode ?? drawn!, contactSegment = weaponNode?.userData.contact as { from: number; to: number } | undefined, segment = contactSegment ? [contactSegment.from, contactSegment.to] : [.24, .85];
+    for (const role of ONE_SHOT) { const action = actions[role]; action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; }
+    if (opponent) actions.Idle.time = clips.Idle.duration * 0.4;
     mixer.update(0);
     const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
     ribbon.setAttribute('position', new BufferAttribute(ribbonVertices, 3));
@@ -80,35 +101,38 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset)
     let speed = 0;
     return {
       anchor,
+      // The clip carrying most of the pose right now (the debug probe's word for what the rig is doing): `role:clip`.
+      playing(): string { let best: Role = 'Idle'; for (const role of ROLES) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}`; },
       update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
         // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
         // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
         const step = Math.max(0, Math.min(dt, 0.1));
         speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
-        actions.slice(1, 4).forEach(action => action.setEffectiveTimeScale(travelSpeed < 0 ? -1 : 1));
-        const weights = gaitWeights(speed);
-        if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-weights[0], side = Math.min(1,Math.abs(lateral)); weights.fill(0,1); weights[14] = movement*(1-side); weights[lateral < 0 ? 15 : 16] = movement*side; }
-        actions[14].setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/1.7));
-        for (const i of [15,16]) actions[i].setEffectiveTimeScale(Math.max(.25,speed/ .75));
-        const combatIndex = pose === 'block' ? 18 : pose === 'parry' ? 19 : pose === 'deflected' ? 20 : pose === 'kick' ? 17 : pose === 'attack' ? attack === 'return' ? 11 : attack === 'heavy' ? 12 : attack === 'riposte' ? 13 : 5 : pose === 'hit' ? 6 : pose === 'death' ? 7 : pose === 'draw' ? 8 : pose === 'roll' ? 9 : pose === 'guard' ? 10 : -1;
+        for (const role of ['Walk', 'Jog', 'Run'] as const) actions[role].setEffectiveTimeScale(travelSpeed < 0 ? -1 : 1);
+        const gait = gaitWeights(speed), weights: Partial<Record<Role, number>> = { Idle: gait[0], Walk: gait[1], Jog: gait[2], Run: gait[3] };
+        if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)); weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side; }
+        actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/1.7));
+        for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/ .75));
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'draw' ? 'Draw' : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
-        if (armed) { weights[4] = weights[0]; weights[0] = 0; }
-        actions.forEach((a, i) => {
-          const fade = combatIndex < 0 ? 0 : ['draw','guard','block','parry','deflected'].includes(pose) ? 1 : Math.min(1, progress * 12, pose === 'death' ? 1 : (1 - progress) * 10);
-          const target = (weights[i] || 0) * (1 - fade) + Number(i === combatIndex) * fade;
-          const activeBlade = pose === 'attack' && progress >= contact-1/ATTACKS[attack].recovery && progress <= contact+4/ATTACKS[attack].recovery;
-          a.setEffectiveWeight(activeBlade ? Number(i === combatIndex) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
-          if (i === combatIndex) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, attack === 'heavy' ? .48 : .34) : progress)) * clips[i].duration;
-        });
-        drawn.visible = armed && (pose !== 'draw' || progress >= .29); sheathed.visible = !drawn.visible;
+        if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
+        for (const role of ROLES) {
+          const a = actions[role];
+          const fade = combatRole === null ? 0 : ['draw','guard','block','parry','deflected'].includes(pose) ? 1 : Math.min(1, progress * 12, pose === 'death' ? 1 : (1 - progress) * 10);
+          const target = (weights[role] || 0) * (1 - fade) + Number(role === combatRole) * fade;
+          const activeBlade = pose === 'attack' && progress >= contact-1/specs[attack].recovery && progress <= contact+4/specs[attack].recovery;
+          a.setEffectiveWeight(activeBlade ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
+          if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specs[attack].source) : progress)) * clips[role].duration;
+        }
+        if (!weaponNode) { drawn!.visible = armed && (pose !== 'draw' || progress >= .29); sheathed!.visible = !drawn!.visible; }
         mixer.update(step);
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;
         if (trail.visible && step > 0) {
           anchor.updateWorldMatrix(true, true);
-          samples.unshift([.24, .85].map(y => anchor.worldToLocal(drawn.localToWorld(new Vector3(0, y, 0)))));
+          samples.unshift(segment.map(y => anchor.worldToLocal(blade.localToWorld(new Vector3(0, y, 0)))));
           if (samples.length > 7) samples.pop();
           let offset = 0;
           for (let i = 1; i < samples.length; i++) for (const point of [samples[i-1][0],samples[i-1][1],samples[i][0],samples[i][0],samples[i-1][1],samples[i][1]]) { point.toArray(ribbonVertices, offset); offset += 3; }

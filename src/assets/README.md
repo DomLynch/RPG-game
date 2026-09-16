@@ -387,9 +387,9 @@ knuckle line); index joints 9/12/14 → 6/4/8 mm, pinky 14/15/21 → 4/5/4. Both
 
 ## Weapons (weapons lane, 2026-09-16) — the trident
 
-`src/assets/weapons/trident/`: `trident.glb` (the part alone) and `veteran-trident.glb` (the Veteran carrying it, every sword
+`src/assets/weapons/trident/`: `trident.glb` (the part alone). Since slice V the shipped `veteran.glb` IS the Veteran carrying it (every sword
 clip plus 13 `Trident_*` clips). Built by `scripts/build-weapon.mjs` through `scripts/build-warrior.mjs` (`WARRIOR_FIGHTER=veteran
-WARRIOR_WEAPON=trident [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=src/assets/weapons/trident/veteran-trident.glb`), then
+node scripts/build-warrior.mjs` — the trident is the Veteran's default weapon; `[WEAPON_VARIANT=A|B|C]` picks a silhouette), then
 `node scripts/bake-blades.mjs` (the manifest entry samples `WeaponDrawn.extras.contact`, the tines).
 
 Owner's pick (2026-09-16): variant `short` — a fat, wide fork on a stick 60% as long (1.42 m butt to tip, 0.86 m shaft), brown ash.

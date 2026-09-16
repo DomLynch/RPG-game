@@ -3,13 +3,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
+import { createFighter, elapsed, idleIntent, initialDuel, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { PROFILES, RULES, type AiProfile, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: true });
 const act = (action: Intent['action'], extra: Partial<Intent> = {}): Intent => ({ ...idle(), action, ...extra });
-const arena = (): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1.2, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
+// The warden carries what the live duel gives it (the Veteran's trident since slice V); the longsword warden stays gated too — it is the AI every other opponent starts from.
+const LIVE_WEAPON = initialDuel().fighters[1].weapon;
+const arena = (weapon: WeaponId): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1.2, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', weapon)], finish: null, events: [] });
 const gap = (d: Duel) => Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x, d.fighters[0].body.z - d.fighters[1].body.z);
 const W = (d: Duel) => d.fighters[1], P = (d: Duel) => d.fighters[0];
 const ready = (d: Duel) => P(d).phase === 'ready';
@@ -27,14 +29,14 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   // Perfect-information parry: press exactly so the window covers contact, and kick anything that is not parryable.
   // The press is timed on the tell (elapsed ticks since the swing started), the way a human reads it: a held swing that parks at its chamber
   // draws the press early and meets nothing, which is what a bait is for.
-  'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = MOVES[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return act('parry', { guard: true }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
+  'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = movesOf(w)[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return act('parry', { guard: true }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
 };
-export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200) {
+export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, weapon: WeaponId = LIVE_WEAPON) {
   const rows: Record<string, { wins: number; losses: number; stalls: number; untouched: number; taken: number; landed: number }> = {};
   for (const [name, strategy] of Object.entries(STRATEGIES)) {
     const row = rows[name] = { wins: 0, losses: 0, stalls: 0, untouched: 0, taken: 0, landed: 0 };
     for (let s = 1; s <= seeds; s++) {
-      let d = arena(), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0;
+      let d = arena(weapon), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0;
       for (let i = 0; i < ticks && !d.finish; i++) {
         const w = decide(d, 1, ai, PROFILES[level] as AiProfile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
         // Damage taken: a hit, a broken guard, or chip through a block — a turtle that dies to chip was touched.
@@ -46,9 +48,9 @@ export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200) 
   }
   return rows;
 }
-test('no simple strategy dominates the warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit', () => {
+for (const weapon of [LIVE_WEAPON, 'longsword'].filter((w, i, a) => a.indexOf(w) === i) as WeaponId[]) test(`no simple strategy dominates the ${weapon} warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit`, () => {
   for (const [level, cap] of [['normal', .5], ['hard', .35]] as const) {
-    const rows = battery(level);
+    const rows = battery(level, 24, 7200, weapon);
     const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');
     for (const [name, r] of Object.entries(rows)) {
       // The perfect-information parry is mastery, not an exploit: it may win, but the warden's baits, feints and kicks must still land on it.
@@ -57,6 +59,6 @@ test('no simple strategy dominates the warden: wins ≤ 50 % at normal, ≤ 35 %
       // two thirds of the fights. (Cap 6 → 8 with the slice-P regen — 40/s means the script always has the 30 stamina to roll; the old number leaned on its starvation.)
       assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
     }
-    console.log(`battery ${level}\n  ${table}`);
+    console.log(`battery ${weapon} ${level}\n  ${table}`);
   }
 });
