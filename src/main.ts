@@ -67,6 +67,16 @@ let dodgeHeld: { since: number; rolled: boolean } | null = null;
 // Heavy control: the press swings at once; keeping it held charges the swing (the simulation owns the timing).
 let held = false;
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
+// Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
+// pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
+const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, Killed: 220 };
+const HEAVY_HIT = 90;
+let hitStop = 0;
+function stopFor(events: CombatEvent[]): number {
+  let ms = 0;
+  for (const e of events) { const base = HIT_STOP[e.type] ?? 0; if (!base) continue; const heavy = e.type === 'Hit' && (e.charged || e.move === 'heavy_overhead' || e.move === 'heavy_riposte' || e.move === 'heavy_counter' || e.move === 'critical'); ms = Math.max(ms, heavy ? HEAVY_HIT : base); }
+  return ms;
+}
 function updateHud() {
   const hint = practiceHint(practice), controlsReady = assetsReady && !graphicsLost;
   const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(a => accepts(practice, a) || (a === 'backstep' && accepts(practice, 'dodge')));
@@ -112,7 +122,7 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; held = false;
+  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; held = false; hitStop = 0;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -277,7 +287,7 @@ function frame(now: number) {
   const dt = Math.min(elapsed, 0.1);
   if (!paused()) {
     if (dodgeHeld && !dodgeHeld.rolled && now - dodgeHeld.since >= HOLD_MS) { dodgeHeld.rolled = true; request('dodge'); }
-    accumulator += dt;
+    if (hitStop > 0) hitStop = Math.max(0, hitStop - elapsed * 1000); else accumulator += dt;   // the accumulator was emptied at the contact tick
     const x = moveX + Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     const z = moveZ + Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= STEP) {
@@ -286,6 +296,7 @@ function frame(now: number) {
       feedback.update(practice.events); frameEvents.push(...practice.events);
       action = null; cancel = false; state = practice.fighter; accumulator -= STEP;
       if (practice.finish && !recorded) { recorded = true; recordFight(trial, scheme, practice.finish.victim === 1, practice.duel.tick, 100 - practice.health, 100 - practice.playerHealth); saveTrial(storage, trial); }
+      const stop = stopFor(practice.events); if (stop) { hitStop = stop; accumulator = 0; }   // freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows
     }
   } else { accumulator = 0; previous = state; }
   const alpha = accumulator / STEP;

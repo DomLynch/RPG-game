@@ -153,6 +153,10 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   let impact = 0, lastHealth = 100, lastPlayerHealth = 100;
   const desired = new THREE.Vector3(), look = new THREE.Vector3(), aim = new THREE.Vector3(0, 1, 0);
   let yaw = 0, pitch = 0.45, heading = Math.PI, started = false;
+  // Camera kick: a blow nudges the camera a few centimetres along the blow's heading and it settles in ~0.15 s. Small on purpose
+  // (readable brutality: nothing may obscure a pose); off when the viewer prefers reduced motion. Placeholder for the visual lane's impact pass.
+  const stillCamera = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let kick = 0, kickHeading = 0;
   let ratio = Math.min(devicePixelRatio, 1.5);
   const resize = () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); };
   resize(); window.addEventListener('resize', resize);
@@ -168,6 +172,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events) {
       const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
       if (practice.health===100 && practice.playerHealth===100 && (lastHealth<100 || lastPlayerHealth<100)) { impact=0; for(const splat of splats) splat.life=0; }
+      if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;
         const kick=blow?.move==='kick'; flesh=hurt && !kick && bloodMode!=='off';
@@ -213,6 +218,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading = state.heading;
       player.rotation.y = heading;
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
+      if (kick > 0) { camera.position.x += Math.sin(kickHeading) * kick; camera.position.z += Math.cos(kickHeading) * kick; kick = Math.max(0, kick - dt * .3); }
       camera.lookAt(aim); started = true;
       renderer.render(scene, camera);
     }

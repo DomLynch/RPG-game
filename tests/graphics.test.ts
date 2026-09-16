@@ -259,3 +259,44 @@ test('the HUD shows both posture bars and flags a bar near breaking', () => {
   for (let i = 0; i < 3000 && Number(mine.value) < 70; i++) { app.key('KeyQ'); app.tick(); }
   assert.ok(Number(mine.value) >= 70, `own posture ${mine.value}`); assert.equal(mine.dataset.critical, 'true', 'a bar at 70 % or more is flagged');
 });
+
+test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const tickOf = () => app.rendered.duel.tick, me = () => app.rendered.duel.fighters[0];
+  const EXPECT: Record<string, number> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, 'heavy Hit': 90 };
+  const kind = (e: { type: string; move?: string; charged?: boolean }) => e.type === 'Hit' && (e.charged || ['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'].includes(e.move ?? '')) ? 'heavy Hit' : e.type;
+  // Both fighters' contacts count. The player spams cuts; the warden answers with blocks, parries and its own heavies.
+  const measured: Record<string, number[]> = {};
+  let needTick = true;
+  for (let frame = 0; frame < 5000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2); frame++) {
+    if (needTick) { if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); app.tick(); }
+    needTick = true;
+    if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
+    const contacts = app.rendered.events.filter(e => e.type in EXPECT); if (!contacts.length) continue;
+    const longest = contacts.map(kind).sort((a, b) => EXPECT[b] - EXPECT[a])[0];
+    const at = tickOf(), renders = app.renders; let frozen = 0;
+    while (tickOf() === at && frozen < 40) { app.tick(); frozen++; }
+    assert.ok(app.renders > renders, 'frames were rendered during the stop');
+    (measured[longest] ??= []).push(frozen);
+    needTick = false;   // the frame that resumed may itself carry the next contact: examine it before ticking again
+  }
+  // The loop counts the frame on which the tick finally moves too, hence + 1.
+  for (const [type, frames] of Object.entries(measured)) for (const f of frames) assert.equal(f, Math.ceil(EXPECT[type] / 17) + 1, `${type}: ${f} frames on the contact tick for a ${EXPECT[type]} ms stop`);
+  assert.ok((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2, `measured ${JSON.stringify(measured)}`);
+  // Long frames (a phone dropping to 20 fps steps three ticks per frame) must still end on the contact tick, or the frozen pose is never shown.
+  // Holding guard is a level, so the same fight unfolds tick for tick whatever the frame length; every contact tick must be rendered in both.
+  const contactsRendered = (frameMs: number) => {
+    const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); a.key('KeyQ');
+    const ticks = new Set<number>(); let guard = 0, biggestJump = 0, prev = a.rendered.duel.tick;
+    while (a.rendered.duel.tick < 1500 && guard++ < 6000) { a.tick(frameMs); const t = a.rendered.duel.tick; biggestJump = Math.max(biggestJump, t - prev); prev = t; if (a.rendered.events.some(e => e.type in EXPECT)) ticks.add(t); }
+    return { ticks, biggestJump };
+  };
+  const smooth = contactsRendered(17), dropped = contactsRendered(51);
+  assert.ok(smooth.ticks.size >= 3, `contacts in 1500 ticks: ${smooth.ticks.size}`); assert.deepEqual([...dropped.ticks], [...smooth.ticks], 'every contact tick is the last tick of its frame, even at three ticks per frame');
+  // A 17 ms frame legitimately steps 2 ticks now and then (17 > 16.67) and a 51 ms frame 4; a stop that left time in the accumulator would add a whole tick or two on top.
+  assert.ok(smooth.biggestJump <= 2 && dropped.biggestJump <= 4, `no catch-up jump after a stop: ${smooth.biggestJump} / ${dropped.biggestJump} ticks in one frame`);
+  // Determinism: the freeze delays wall-clock only; quiet frames map one to one onto ticks.
+  for (let i = 0; i < 200 && (app.rendered.threat || me().phase !== 'ready'); i++) app.tick();
+  const before = tickOf(); let quiet = 0; for (let i = 0; i < 30; i++) { app.tick(17); if (!app.rendered.events.some(e => e.type in EXPECT)) quiet++; }
+  assert.ok(tickOf() - before >= quiet - 1, `${quiet} quiet frames advanced ${tickOf() - before} ticks`);
+});
