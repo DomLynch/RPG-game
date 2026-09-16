@@ -13,7 +13,7 @@ try {
  const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:2});page.setDefaultTimeout(12000);
  await page.route('**/*sentry.io/**',route=>route.abort()); // Deliberate GPU failure checks must not create production incidents.
  page.on('pageerror',e=>receipt.errors.push(String(e)));
- await page.goto(url);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false');await page.getByRole('button',{name:'Enter the courtyard'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='');
+ await page.goto(url);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false');await page.getByRole('button',{name:'Enter the courtyard'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL; a load wait, not a behaviour wait
  const cdp=await page.context().newCDPSession(page);
  const center=async id=>{const b=await page.locator('#'+id).boundingBox();assert.ok(b,id);return{x:b.x+b.width/2,y:b.y+b.height/2}};
  const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
