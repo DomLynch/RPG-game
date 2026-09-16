@@ -283,3 +283,11 @@ first placement (from the bones) painted nothing — 0 texels per finger, caught
 (`BODY nails`); the second sat the ovals in the fingers' cores, 6 mm under the skin. The little toe's nail is still
 missing (its band finds no top-facing texels) — noted, not visible at the game camera. `humanoid-v39/hands-feet-sheet.png`,
 `feet-before-after.png`. Also noted for later: the wrist wraps' ring strips read as torn at very close range.
+
+v40 (2026-09-16): the face read shiny and brighter than the body it had been matched to (owner's screenshot). Cause:
+the portraits' key light is baked into the scan's texture (lit cheekbones and forehead), and the arena lights it again;
+measured in the harness the lit cheek was 16% brighter than the lit shoulder. `head.delight` pulls everything brighter
+than the seen skin's median brightness towards it (55% of the excess survives) and takes the whole map to 0.93 —
+before the ring tones are read, so the neck still continues the head; the `Photo` material goes from roughness .62 /
+specular .5 to .72 / .4. After: the lit cheek 9% brighter than the shoulder, the stubbled cheek darker than it; the
+highlights on the forehead gone matte. `humanoid-v40/face-brightness-before-after.png`, `phone-v39-v40.png`.
