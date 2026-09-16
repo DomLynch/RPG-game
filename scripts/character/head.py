@@ -1516,6 +1516,8 @@ FIGHTERS = {
              'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 40), (-45, 40), (0, 15)), 'chin': True, 'hair_lum': 0.16, 'hair': 'buzz', 'scars': False, 'decimate': 0.28},
     'veteran': {'kt_glb': 'artifacts/source/keentools/01a0a9a9-c037-70f2-8015-bbd1faf9f823.glb',  # seven portraits (front, ±35, ±90, two from below), 2026-09-16
                 'cams': ((0, 0), (30, 0), (-25, 0), (90, 0), (-90, 0), (0, 28), (-22, 24)), 'chin': True, 'hair_lum': 0.50, 'hair': 'full', 'scars': True, 'decimate': 0.26},  # decimate: helmed, crown stripped — the budget goes to the helm and greaves; chin: his scan's jaw is the same vertical wall the hero's was (tip -0.76, underside -0.88 scan units) — the owner's U applies
+    'pitborn': {'kt_glb': 'artifacts/source/keentools/01a0ab5b-b143-7531-ad79-6de9bacbf0fa.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16
+                'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84)},  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
@@ -1625,6 +1627,7 @@ def keentools_skin_tone(eye_l, eye_r, crown_z):
     lum = np.array([0.30, 0.59, 0.11])
     face_tone = np.median(face, axis=0) if len(face) > 500 else neck_tone
     SKIN_TONE = face_tone * (neck_tone @ lum) / (face_tone @ lum)  # the face's hue at the neck band's brightness (the lit cheek itself renders near white; the body painted to the neck band alone read pink-grey beside the face)
+    SKIN_TONE = SKIN_TONE * np.array(FIGHTERS[FIGHTER].get('skin_mul', (1.0, 1.0, 1.0)))  # per-fighter correction: the Pitborn's neck band is lit paler and warmer than his grey-green cheeks
     print(f'KEENTOOLS skin tone {np.round(SKIN_TONE, 3)}: hue of {len(face)} cheek/forehead texels {np.round(face_tone, 3)}, brightness of the neck band {np.round(neck_tone, 3)} ({len(samples)} texels; values are sRGB-encoded, as Blender pixels are)')
     return SKIN_TONE
 

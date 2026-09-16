@@ -56,7 +56,7 @@ An opponent that does not change how the fight is played is a reskin and is not 
 - Werewolf — lunges, never guards: teaches pre-emptive strikes and spacing.
 - Cyclops — huge and slow, one weak spot: teaches locational hits as the win condition.
 
-Roster order: Human → Hoplite → Orc → Goblin on the shared humanoid skeleton with reproportioning. Cyclops, Werewolf and Minotaur are marquee content after the game works: a scaled human with one eye reads as cheap, and large opponents break the locked camera framing, hit capsules and tell readability that are tuned for equal-height fighters. Public-domain folklore and mythology only; no trademarked bestiaries.
+Roster order: Human → Hoplite → Orc → Goblin on the shared humanoid skeleton with reproportioning. The Orc ships as **the Pitborn** (owner, 2026-09-16: an orc-blooded pit brute; the Origin of that name above is renamed when Origins are built). Cyclops, Werewolf and Minotaur are marquee content after the game works: a scaled human with one eye reads as cheap, and large opponents break the locked camera framing, hit capsules and tell readability that are tuned for equal-height fighters. Public-domain folklore and mythology only; no trademarked bestiaries.
 
 ## Collect
 Collection loops: combat (weapons/builds), visual (armour/trophies/scars), achievement (titles/records). No power grind. Three layers only — no rarity, upgrade or gem multipliers.

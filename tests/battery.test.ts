@@ -4,12 +4,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
 import { createFighter, elapsed, idleIntent, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
+import { MOVES, OPPONENTS, PROFILES, RULES, type AiProfile, type Opponent } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: true });
 const act = (action: Intent['action'], extra: Partial<Intent> = {}): Intent => ({ ...idle(), action, ...extra });
-const arena = (): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1.2, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
+const arena = (o: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1.2, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', o.weapon, o.scale, o.poise, o.health)], finish: null, events: [] });
 const gap = (d: Duel) => Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x, d.fighters[0].body.z - d.fighters[1].body.z);
 const W = (d: Duel) => d.fighters[1], P = (d: Duel) => d.fighters[0];
 const ready = (d: Duel) => P(d).phase === 'ready';
@@ -29,14 +29,16 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   // draws the press early and meets nothing, which is what a bait is for.
   'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = MOVES[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return act('parry', { guard: true }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
 };
-export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200) {
-  const rows: Record<string, { wins: number; losses: number; stalls: number; untouched: number; taken: number; landed: number }> = {};
-  for (const [name, strategy] of Object.entries(STRATEGIES)) {
-    const row = rows[name] = { wins: 0, losses: 0, stalls: 0, untouched: 0, taken: 0, landed: 0 };
+// `opponent` picks who stands in the ring (moves.ts OPPONENTS): the same battery is the fairness gate for every man on the roster.
+export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES) {
+  const rows: Record<string, { wins: number; losses: number; stalls: number; untouched: number; taken: number; landed: number; firstBreak: number[] }> = {};
+  for (const [name, strategy] of Object.entries(strategies)) {
+    const row = rows[name] = { wins: 0, losses: 0, stalls: 0, untouched: 0, taken: 0, landed: 0, firstBreak: [] };
     for (let s = 1; s <= seeds; s++) {
-      let d = arena(), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0;
+      let d = arena(opponent), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0, broke = false;
       for (let i = 0; i < ticks && !d.finish; i++) {
-        const w = decide(d, 1, ai, PROFILES[level] as AiProfile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
+        const w = decide(d, 1, ai, opponent.profiles[level] as AiProfile); ai = w.ai; d = stepDuel(d, [strategy(d), w.intent]);
+        if (!broke && d.events.some(e => e.type === 'GuardBroken' && e.target === 0)) { broke = true; row.firstBreak.push(d.tick); }   // the tick the player's guard first broke this fight
         // Damage taken: a hit, a broken guard, or chip through a block — a turtle that dies to chip was touched.
         for (const e of d.events) { const hurt = e.type === 'Hit' || e.type === 'GuardBroken' || (e.type === 'Blocked' && (e.damage ?? 0) > 0); if (hurt && e.target === 0) taken++; if (hurt && e.target === 1) landed++; }
       }
