@@ -66,8 +66,9 @@ const hairShell = new T.MeshPhysicalMaterial({ name: 'HairShell', roughness: .9,
 const photo = new T.MeshPhysicalMaterial({ name: 'Photo', roughness: .78, specularIntensity: .35 }); // 2026-09-16: .62/.5 read shiny beside the body's skin (roughness map 0.62+, specular .5)
 const photoEyes = new T.MeshPhysicalMaterial({ name: 'PhotoEyes', roughness: .25, clearcoat: .5, clearcoatRoughness: .1 }); // wet cornea: a small catch-light without the room washing the iris grey
 const photoTeeth = new T.MeshStandardMaterial({ name: 'PhotoTeeth', roughness: .4 });
-const bone = new T.MeshStandardMaterial({ name: 'Bone', color: '#b3a073', roughness: .58 }); // yellowed ivory, not chalk // the Pitborn's tusks and plates (materials rule: bone)
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth, bone].map(m => [m, []]));
+const bone = new T.MeshStandardMaterial({ name: 'Bone', color: '#b3a073', roughness: .58 }); // yellowed ivory, not chalk: the tusks
+const boneWorn = new T.MeshStandardMaterial({ name: 'BoneWorn', color: '#6e5d45', roughness: .72 }); // the lashed plates: old bone gone dark, pulled toward the leather (owner, 2026-09-16: "a bit darker, or the leather colour") // the Pitborn's tusks and plates (materials rule: bone)
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth, bone, boneWorn].map(m => [m, []]));
 // Per-fighter frame (moves.ts OPPONENTS.scale must match `scale`; tests/characters.test.ts checks the shipped height against it): the whole
 // rig is scaled, so every clip, the hand's sword and the baked blade paths follow. `hunch` bends bones forward by degrees in every clip
 // (a constant post-rotation about each bone's own rest sideways axis) — the brute's forward-hunched spine, head thrust out to look at you.
@@ -122,8 +123,8 @@ function knee(x, bone) {
 if (fighter === 'pitborn') {
   const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
   const shoulder = at('upperarm_l'), elbow = at('lowerarm_l'), wrist = at('hand_r'), elbowR = at('lowerarm_r');
-  for (let i = 0; i < 3; i++) { const p = new T.Vector3().lerpVectors(shoulder, elbow, .04 + i * .16); plate(p.x + .012, p.y + .045 - i * .012, p.z + .01, .074 - i * .008, .024, .06, bone, 'upperarm_l'); }
-  for (let i = 0; i < 2; i++) { const p = new T.Vector3().lerpVectors(elbowR, wrist, .30 + i * .28); plate(p.x, p.y, p.z + .028, .03, .058, .02, bone, 'lowerarm_r'); }
+  for (let i = 0; i < 3; i++) { const p = new T.Vector3().lerpVectors(shoulder, elbow, .04 + i * .16); plate(p.x + .012, p.y + .045 - i * .012, p.z + .01, .074 - i * .008, .024, .06, boneWorn, 'upperarm_l'); }
+  for (let i = 0; i < 2; i++) { const p = new T.Vector3().lerpVectors(elbowR, wrist, .30 + i * .28); plate(p.x, p.y, p.z + .028, .03, .058, .02, boneWorn, 'lowerarm_r'); }
 }
 // Peaked closed sallet: elliptical rings give it a forged silhouette, tapered neck and brow.
 function shell(rings, material, bone, z = 0) {
