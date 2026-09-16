@@ -1,11 +1,11 @@
 {
  "label": "veteran-v1",
- "commit": "0671ad8",
+ "commit": "2870ed4",
  "date": "2026-09-16",
- "glbBytes": 6336960,
- "glbGzip": 3572984,
- "enemyGlbBytes": 6708900,
- "enemyGlbGzip": 3963995,
+ "glbBytes": 6230732,
+ "glbGzip": 3507227,
+ "enemyGlbBytes": 6594896,
+ "enemyGlbGzip": 3886904,
  "meshes": [
   {
    "name": "mesh_0",
@@ -99,7 +99,7 @@
   },
   {
    "name": "Wrap",
-   "triangles": 6212,
+   "triangles": 6228,
    "material": "Wrap"
   },
   {
@@ -528,7 +528,7 @@
   "ball_r",
   "ball_leaf_r"
  ],
- "meshTriangles": 58302,
+ "meshTriangles": 58318,
  "clips": [
   {
    "name": "Idle",
@@ -557,8 +557,8 @@
   },
   {
    "name": "Attack",
-   "duration": 1.533,
-   "tracks": 65
+   "duration": 1,
+   "tracks": 66
   },
   {
    "name": "Hit",
@@ -587,8 +587,8 @@
   },
   {
    "name": "Return",
-   "duration": 1.533,
-   "tracks": 65
+   "duration": 1,
+   "tracks": 66
   },
   {
    "name": "Heavy",
@@ -638,7 +638,7 @@
  ],
  "characterOnly": {
   "drawCalls": 84,
-  "triangles": 235114,
+  "triangles": 235194,
   "fighters": 2
  }
 }

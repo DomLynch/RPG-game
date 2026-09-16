@@ -1061,9 +1061,9 @@ def bronze_maps():
     colour = colour * 0.78 + grey * 0.22  # faded: a fifth of the way to grey, so the metal never reads as new
     colour = np.clip(colour, 0, 1)
     # roughness and metalness
-    rough = 0.54 + 0.12 * (mottle - 0.5) + 0.05 * (fine - 0.5) + oxide * 0.10 + pat_w * 0.20 + gouge_soft * 0.15 - scratch * 0.18 - (dents - 0.5) * 0.05  # satin: a soft broad sheen with a gradient, no hot spots
-    rough = np.clip(rough, 0.36, 0.9)
-    metal = np.clip(0.86 - pat_w * 0.30 - oxide * 0.10 + scratch * 0.14, 0.4, 1.0)  # metal under a thin patina skin: reflects like metal, dulled where the oxide sits
+    rough = 0.63 + 0.12 * (mottle - 0.5) + 0.05 * (fine - 0.5) + oxide * 0.10 + pat_w * 0.18 + gouge_soft * 0.15 - scratch * 0.16 - (dents - 0.5) * 0.05  # dull satin: the sheen spread wide and dim (owner, 2026-09-16: at 0.54 the dome carried a bright hot spot that read as plastic)
+    rough = np.clip(rough, 0.46, 0.92)
+    metal = np.clip(0.80 - pat_w * 0.30 - oxide * 0.10 + scratch * 0.14, 0.4, 0.96)  # metal under a thin patina skin: reflects like metal, dulled where the oxide sits (0.62 read as clay, 0.86 as plastic)
     orm = np.stack([np.ones_like(rough), rough, metal], axis=2)
     # normal: the hammer dents dominate, then pits and gouges, a whisper of the mottle
     height = dents * 0.55 - pits * 0.35 - gouge_soft * 0.4 - scratch * 0.08 + (mottle - 0.5) * 0.10
