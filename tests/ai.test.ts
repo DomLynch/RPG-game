@@ -312,11 +312,11 @@ test('the thrust: a minority opener planned only after the first heavy, thrown f
 test('perception runs on elapsed time: a heavy parked at its chamber is noticed and answered on the normal reaction clock', () => {
   // The player holds a heavy at the chamber (age 10) from 1.6 m. The animation clock stops; elapsed time does not, so the normal warden plans at 14 elapsed ticks.
   let d = arena(1.6), ai = initialAi(); d = stepDuel(d, [{ ...act('heavy'), held: true }, idle()]); let plannedAt: number | null = null;
-  for (let i = 1; i <= 40 && plannedAt === null; i++) { const w = decide(d, 1, { ...ai, mode: 'circle', decision: 500, wait: 500 }, PROFILES.normal); ai = w.ai; if (ai.plan && ai.plan !== 'ignore') plannedAt = elapsed(d.fighters[0]); d = stepDuel(d, [{ ...idle(), held: true }, w.intent]); }
+  for (let i = 1; i <= 40 && plannedAt === null; i++) { const w = decide(d, 1, { ...ai, mode: 'circle', decision: 500, wait: 500 }, { ...PROFILES.normal, lapse: 0 }); ai = w.ai; if (ai.plan && ai.plan !== 'ignore') plannedAt = elapsed(d.fighters[0]); d = stepDuel(d, [{ ...idle(), held: true }, w.intent]); }
   assert.equal(d.fighters[0].age, MOVES.heavy_overhead.chamber!, 'still parked'); assert.equal(plannedAt, PROFILES.normal.reaction, `planned at elapsed ${plannedAt}`);
   // And it acts on the plan while the swing is still parked: a blocker raises its guard against a held heavy instead of waiting for the release.
   let e = arena(1.6), bi = initialAi(); e = stepDuel(e, [{ ...act('heavy'), held: true }, idle()]); let guardedAt: number | null = null;
-  for (let i = 1; i <= 30 && guardedAt === null; i++) { const w = decide(e, 1, { ...bi, mode: 'circle', decision: 500, wait: 500 }, { ...PROFILES.normal, parry: 0, dodge: 0 }); bi = w.ai; if (w.intent.guard) guardedAt = elapsed(e.fighters[0]); e = stepDuel(e, [{ ...idle(), held: true }, w.intent]); }
+  for (let i = 1; i <= 30 && guardedAt === null; i++) { const w = decide(e, 1, { ...bi, mode: 'circle', decision: 500, wait: 500 }, { ...PROFILES.normal, parry: 0, dodge: 0, lapse: 0 }); bi = w.ai; if (w.intent.guard) guardedAt = elapsed(e.fighters[0]); e = stepDuel(e, [{ ...idle(), held: true }, w.intent]); }
   assert.equal(e.fighters[0].age, MOVES.heavy_overhead.chamber!, 'still parked'); assert.ok(guardedAt !== null && guardedAt <= PROFILES.normal.reaction + 1, `guard up at elapsed ${guardedAt}, while parked`);
 });
 

@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, idleIntent, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, idleIntent, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
@@ -25,7 +25,9 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   'turtle and punish': d => (P(d).punish > 0 || P(d).critical > 0 || P(d).counterWindow > 0 ? (ready(d) || P(d).phase === 'guard' ? act('heavy', { guard: true }) : { ...idle(), guard: true }) : { ...idle(), guard: true }),
   'roll and punish': d => (swingStart(d) && ready(d) && P(d).stamina >= RULES.rollCost ? act('dodge') : ready(d) && W(d).phase === 'hurt' ? act('light') : idle()),
   // Perfect-information parry: press exactly so the window covers contact, and kick anything that is not parryable.
-  'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = MOVES[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - w.age === RULES.parry - 2 && !P(d).parryCooldown) return act('parry', { guard: true }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
+  // The press is timed on the tell (elapsed ticks since the swing started), the way a human reads it: a held swing that parks at its chamber
+  // draws the press early and meets nothing, which is what a bait is for.
+  'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = MOVES[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return act('parry', { guard: true }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
 };
 export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200) {
   const rows: Record<string, { wins: number; losses: number; stalls: number; untouched: number; taken: number; landed: number }> = {};

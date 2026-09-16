@@ -2,7 +2,7 @@ import { bladePaths } from './blade-paths.ts';
 import type { State } from './sim.ts';
 
 // Preserve the authored contact pose while sharpening the release through contact.
-export function swingProgress(progress: number, contact = .35, sourceContact = 18 / 66): number {
+export function swingProgress(progress: number, contact = .35, sourceContact = .34): number {
   const keys = [[0, 0], [contact * .7, sourceContact * .44], [contact, sourceContact], [contact + .16, sourceContact + (1 - sourceContact) * .56], [1, 1]];
   const p = Math.max(0, Math.min(1, progress));
   for (let i = 1; i < keys.length; i++) if (p <= keys[i][0]) {

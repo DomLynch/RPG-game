@@ -302,9 +302,16 @@ function reachArm(side, target, leg = false) {
   aimBone(upper,lower,start.clone().addScaledVector(direction,along).addScaledVector(bend,Math.sqrt(Math.max(0,a*a-along*along))));
   aimBone(lower,hand,start.clone().addScaledVector(direction,distance));
 }
+// The cuts are authored the same way (owner, 2026-09-16: the library flick read as "too quick and shallow"): Attack is a horizontal
+// right-to-left arc at chest height — cocked out to the right, the tip crossing the front at the contact key (.34), out to the left — and
+// Return is the backhand, left to right. Their keys replace the retargeted Sword_Attack and its time-reversed clone below.
 for (const [name, keys] of [
   ['Heavy', [[0,[.18,1.3,.3],[0,0,1]],[.28,[.2,1.65,-.08],[0,1,-.4]],[.48,[.04,1.13,.43],[0,0,1]],[.64,[.28,.98,.35],[.3,-.6,.7]],[1,[.18,1.3,.3],[0,0,1]]]],
-  ['Riposte', [[0,[.18,1.3,.3],[0,0,1]],[.2,[.15,1.25,.05],[0,0,1]],[.34,[.02,1.23,.48],[0,0,1]],[.55,[.04,1.2,.48],[0,0,1]],[1,[.18,1.3,.3],[0,0,1]]]]
+  ['Riposte', [[0,[.18,1.3,.3],[0,0,1]],[.2,[.15,1.25,.05],[0,0,1]],[.34,[.02,1.23,.48],[0,0,1]],[.55,[.04,1.2,.48],[0,0,1]],[1,[.18,1.3,.3],[0,0,1]]]],
+  // Key phases follow the sim's swing easing: 0–.34 is the wind-up (cocked out to one side: the tell), .34 the contact in front, .34–.7 the
+  // active sweep across to the other side, .7–1 the recovery back to rest.
+  ['Attack', [[0,[.18,1.3,.3],[0,0,1]],[.15,[.42,1.22,-.05],[.85,.25,-.45]],[.34,[.25,1.18,.5],[0,0,1]],[.5,[-.12,1.2,.46],[-.6,0,.8]],[.7,[-.45,1.22,.25],[-.95,.02,.1]],[1,[.18,1.3,.3],[0,0,1]]]],
+  ['Return', [[0,[.18,1.3,.3],[0,0,1]],[.15,[-.32,1.2,.05],[-.85,.2,-.4]],[.34,[-.02,1.18,.5],[0,0,1]],[.5,[.22,1.2,.44],[.6,0,.8]],[.7,[.5,1.24,.2],[.95,.02,.15]],[1,[.18,1.3,.3],[0,0,1]]]]
 ]) {
   const positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
   for (const [phase, position, direction] of keys) {
@@ -322,7 +329,8 @@ for (const [name, keys] of [
     for (const bone of skeleton.bones) values.get(bone.name).push(...bone.quaternion.toArray());
     poseMixer.stopAllAction();
   }
-  clips.push(new T.AnimationClip(name,1,[new T.VectorKeyframeTrack('pelvis.position',keys.map(k=>k[0]),positions),...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',keys.map(k=>k[0]),values.get(b.name)))]));
+  const authored = new T.AnimationClip(name,1,[new T.VectorKeyframeTrack('pelvis.position',keys.map(k=>k[0]),positions),...skeleton.bones.map(b => new T.QuaternionKeyframeTrack(b.name+'.quaternion',keys.map(k=>k[0]),values.get(b.name)))]);
+  const slot = clips.findIndex(c => c.name === name); if (slot >= 0) clips[slot] = authored; else clips.push(authored);
 }
 // Armed locomotion keeps the sword ready; original lateral steps are authored on the same rig.
 const armedWalk=clips.find(c=>c.name==='Walk').clone();armedWalk.name='ArmedWalk';
@@ -375,7 +383,7 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
  const times=[0,.12,.35,.65,1],positions=[],values=new Map(skeleton.bones.map(b=>[b.name,[]]));
  for(const phase of times) {
   const source=clips.find(c=>c.name===(name==='Deflected' ? (phase===1 ? 'Armed' : 'Attack') : 'Guard'));
-  poseMixer.clipAction(source).play();poseMixer.setTime(name==='Deflected' && phase<1 ? source.duration*18/66 : source.name==='Guard' ? source.duration-1e-4 : 0);base.scene.updateMatrixWorld(true);
+  poseMixer.clipAction(source).play();poseMixer.setTime(name==='Deflected' && phase<1 ? source.duration*.34 : source.name==='Guard' ? source.duration-1e-4 : 0);   // Deflected starts from the cut's contact pose (the authored Attack's contact key is .34)base.scene.updateMatrixWorld(true);
   const wave=Math.sin(Math.PI*phase),hand=base.scene.getObjectByName('hand_r'),goal=hand.getWorldPosition(new T.Vector3()),orientation=hand.getWorldQuaternion(new T.Quaternion());
   const delta=name==='BlockImpact' ? new T.Vector3(.05,0,-.20) : name==='Parry' ? new T.Vector3(-.22,.04,.04) : new T.Vector3(.27,.12,-.10);
   base.scene.getObjectByName('spine_01').rotation.x-=wave*(name==='BlockImpact' ? .07 : .03);
@@ -416,11 +424,11 @@ if (process.env.WARRIOR_UAL2_ATTACKS) {
     clip.duration = duration; console.log(`  candidate ${name}: ${sources.map(x => x[1]).join('+')} hit at ${hit.toFixed(2)}s (tip z ${best.toFixed(2)}) → key ${key.toFixed(3)}s of ${duration}s`);
     return clip;
   };
+  // WARRIOR_UAL2_ATTACKS=lights takes only the cuts (the authored Heavy and Riposte stay: the owner likes them); any other value takes all four.
   const candidates = [
     strike('Attack', [[library2, 'Sword_Regular_A'], [library2, 'Sword_Regular_A_Rec']], 1.533, 18 / 66),
     strike('Return', [[library2, 'Sword_Regular_B'], [library2, 'Sword_Regular_B_Rec']], 1.533, 1 - 18 / 66),
-    strike('Heavy', [[library2, 'Sword_Regular_C']], 1, .48),
-    strike('Riposte', [[library2, 'Sword_Dash']], 1, .34),
+    ...(process.env.WARRIOR_UAL2_ATTACKS === 'lights' ? [] : [strike('Heavy', [[library2, 'Sword_Regular_C']], 1, .48), strike('Riposte', [[library2, 'Sword_Dash']], 1, .34)]),
   ];
   for (const c of candidates) clips[clips.findIndex(k => k.name === c.name)] = c;
 }

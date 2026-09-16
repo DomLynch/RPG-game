@@ -129,7 +129,7 @@ test('combat clips and both sword attachments are present and produce finite ani
 test('the exported blade crosses the target at the simulation contact frame', async () => {
   const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene);
   const clip = asset.animations.find(a => a.name === 'Attack')!;
-  mixer.clipAction(clip).play(); mixer.setTime(clip.duration * swingProgress(SWORD.contact / SWORD.recovery));
+  mixer.clipAction(clip).play(); mixer.setTime(clip.duration * swingProgress(SWORD.contact / SWORD.recovery, SWORD.contact / SWORD.recovery));
   asset.scene.updateMatrixWorld(true);
   const tip = asset.scene.getObjectByName('SwordDrawn')!.localToWorld(new Vector3(0, .86, 0));
   assert.ok(tip.z > .9 && tip.z <= SWORD.reach + .1 && Math.abs(tip.x) < .45 && tip.y > .6 && tip.y < 2, `Contact tip: ${tip.toArray()}`);
@@ -162,12 +162,12 @@ test('roll and guard keep the shipped body finite, above the floor and within a 
 test('swing easing remains monotone and preserves the authored contact pose', () => {
   let previous = 0;
   for (let i = 0; i <= 1000; i++) { const p = swingProgress(i / 1000); assert.ok(p >= previous && p <= 1); previous = p; }
-  assert.ok(Math.abs(swingProgress(SWORD.contact / SWORD.recovery) - 18 / 66) < 1e-8);
+  assert.ok(Math.abs(swingProgress(SWORD.contact / SWORD.recovery, SWORD.contact / SWORD.recovery) - .34) < 1e-8, 'the cut meets at its authored contact key');
 });
 
 test('return, heavy and riposte authored blades agree with their contact ticks', async () => {
   const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene);
-  for (const [kind,name,source] of [['return','Return',1-18/66],['heavy','Heavy',.48],['riposte','Riposte',.34]] as const) {
+  for (const [kind,name,source] of [['light','Attack',.34],['return','Return',.34],['heavy','Heavy',.48],['riposte','Riposte',.34]] as const) {
     const spec = ATTACKS[kind], clip = asset.animations.find(a => a.name === name)!;
     const action = mixer.clipAction(clip).play();
     mixer.setTime(clip.duration * swingProgress(spec.contact/spec.recovery,spec.contact/spec.recovery,source));
