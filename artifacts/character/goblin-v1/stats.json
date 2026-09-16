@@ -1,11 +1,11 @@
 {
  "label": "goblin-v1",
- "commit": "89c91fe",
+ "commit": "89e1efb",
  "date": "2026-09-16",
  "glbBytes": 6236132,
  "glbGzip": 3508125,
- "enemyGlbBytes": 5818668,
- "enemyGlbGzip": 3256769,
+ "enemyGlbBytes": 5826232,
+ "enemyGlbGzip": 3264111,
  "meshes": [
   {
    "name": "mesh_0",

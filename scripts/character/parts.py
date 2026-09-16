@@ -942,8 +942,21 @@ def ears(head_obj, eye_l, eye_r):
             continue
         base = m @ loc
         n = (m.to_3x3() @ normal).normalized()
+        # the scan's own small ear would show beside the goblin's: flatten its pinna against the skull (the skull's side is a ray at the
+        # temple, above and in front of the ear), 92 % of whatever stands proud of it, so it hides under the new ear's root
+        hit, temple, _, _ = head_obj.ray_cast(inv @ Vector((side * 0.35, eyes.y + 0.03, eyes.z + 0.035)), (inv.to_3x3() @ Vector((-side, 0, 0))).normalized())
+        skull_x = (m @ temple).x if hit else base.x - side * 0.018
+        flattened = 0
+        for v in head_obj.data.vertices:
+            w = m @ v.co
+            excess = side * w.x - (side * skull_x - 0.004)
+            if excess > 0 and abs(w.z - base.z) < 0.045 and abs(w.y - base.y) < 0.032:
+                w.x -= side * excess * 0.92
+                v.co = inv @ w
+                flattened += 1
+        print(f'EAR {side}: skull side x {skull_x:.3f}, pinna rim x {base.x:.3f}, {flattened} vertices flattened')
         bm = bmesh.new()
-        bmesh.ops.create_cone(bm, cap_ends=True, segments=12, radius1=0.031, radius2=0.0025, depth=0.125)
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=12, radius1=0.036, radius2=0.0025, depth=0.125)
         for v in bm.verts:
             t = (v.co.z + 0.0625) / 0.125  # 0 root → 1 tip
             v.co.y *= 0.36 + 0.14 * t  # a leaf, not a spike: thin, thinnest at the root where it meets the skull
@@ -961,7 +974,7 @@ def ears(head_obj, eye_l, eye_r):
         axis = Vector((side * 0.62, 0.30, 0.74)).normalized()  # up, out and back (owner: "long ears")
         obj.rotation_mode = 'QUATERNION'
         obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(axis)
-        obj.location = base - n * 0.014 + axis * (0.0625 - 0.010)  # cone centre: the root 14 mm inside the skull, ~11 of the 12.5 cm showing
+        obj.location = base - n * 0.014 + axis * (0.0625 - 0.010) + Vector((0, 0.012, -0.008))  # cone centre: the root 14 mm inside the skull, 12 mm behind and 8 mm below the canal (the base covers the flattened pinna), ~11 of the 12.5 cm showing
         select_only([obj])
         bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
         bpy.ops.object.shade_smooth()

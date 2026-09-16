@@ -66,7 +66,14 @@ Reach follows the bake (the brief's ~1.3 m).
 AI knobs (feint rate, guard share 0, back-step after landing, circling, per-opponent stamina regen), the knife mesh and its data, the
 camera at close range against a 1.36 m man, voice/foley.
 
+## Head pass (same night, after the first faces sheet)
+The portraits' grey backdrop had been projected onto the crown at grazing angles and the fill treated it as photographed — a pale cap with a
+hard edge. `head.FIGHTERS.goblin.backdrop_cool`: a cool texel (blue ≥ 85 % of red; skin and stubble run .6–.7) above the hairline is marked
+unseen so the fill covers it (per fighter — grey hair is cool too); `hair_lum .42` so the fill's tone is the photographed stubble (lum ~.32),
+not its shadows. The scan's own pinnae are flattened against the skull (92 % of what stands proud of the temple's skull line, `parts.ears()`)
+and the goblin ear is rooted 12 mm behind and 8 mm below the canal with a wider base to cover them.
+
 ## Open on the character side (owner's eye first)
-The scan's small human ears remain under the goblin ears (a wedge cut of the scan there is the fix); the ears are smooth cones (torn
-notch, thicker lobe next); the scalp's side band reads darker than the crown (the photos' lighting; hair_lum); the bracer reads
-leather-brown rather than rusted iron at phone size (its own 1K rust maps would fix it); the necklace finger sits on his right, small.
+The flattened pinna still shows as a slightly pinker flat patch behind the ear in profile (recolour it from the cheek, or cut it); the ears
+are smooth cones (torn notch, thicker lobe next); the bracer reads leather-brown rather than rusted iron at phone size (its own 1K rust maps
+would fix it); the necklace finger sits on his right, small.
