@@ -35,8 +35,9 @@ import { ATTACKS, MOVES, RULES, SWORD } from '/src/combat.ts'; // DEFENCE/KICK v
 const KICK = { contact: MOVES.kick.windup, recovery: MOVES.kick.windup + MOVES.kick.active + MOVES.kick.recovery }, DEFENCE = { roll: RULES.roll };
 import { TARGET, wrapAngle } from '/src/sim.ts';
 
-const GLB = new URL('/src/assets/warrior.glb', location.href).href, ENEMY = new URL(new URLSearchParams(location.search).get('enemy') || '/src/assets/veteran.glb', location.href).href; // the game's pairing: player, and the Veteran unless ?enemy= names another roster man
-const TICK = 1 / 60, GAME_RATIO = 1.5, LOCK = { portrait: [390, 844], landscape: [844, 390] };
+const PARAMS = new URLSearchParams(location.search);
+const GLB = new URL('/src/assets/warrior.glb', location.href).href, ENEMY = new URL(PARAMS.get('enemy') || '/src/assets/veteran.glb', location.href).href; // the game's pairing: player, Veteran opponent (?enemy=<glb> reviews another opponent build, e.g. the weapons lane's)
+const TICK = 1 / 60, GAME_RATIO = 1.5, LOCK = { portrait: [390, 844], landscape: [844, 390], phone: [393, 852], phoneLandscape: [852, 393] };
 const canvas = document.getElementById('world'), sheet = document.getElementById('sheet'), ctx = sheet.getContext('2d');
 const status = text => document.getElementById('status').textContent = text;
 
@@ -69,7 +70,7 @@ const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
 
 // Fighters: the game's loader and update() contract. Phases mirror src/scene.ts render() → update() mapping.
 const player = new THREE.Group(), opponent = new THREE.Group();
-let warriors, clips = [], scrubbers = new Map(), swaps = new Map();
+let warriors, clips = [], enemyClips = [], enemyAsset, scrubbers = new Map(), swaps = new Map(); // enemyClips: the opponent's own clip list (a weapon build carries clips the player's rig does not)
 const phaseOf = name => {
   const [kind, attack = 'light'] = name.split(':');
   if (kind === 'attack') return { pose: 'attack', attack, duration: ATTACKS[attack].recovery, contact: ATTACKS[attack].contact / ATTACKS[attack].recovery };
@@ -117,13 +118,14 @@ const SEQUENCE_TICKS = SEQUENCE.reduce((n, [t]) => n + t, 0);
 function* sequence() { for (const [ticks, p, o] of SEQUENCE) for (let i = 0; i < ticks; i++) yield [p, o]; }
 
 // ?src=<url> inspects any glTF/GLB (a raw source, a single part) in the same rigs; update() is a no-op for it.
-const SRC = new URLSearchParams(location.search).get('src');
+const SRC = PARAMS.get('src');
 async function inspectable(url) {
   const asset = await new GLTFLoader().loadAsync(url), make = () => { const anchor = new THREE.Group(), root = clone(asset.scene); root.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } }); anchor.add(root); return { anchor, update() {} }; };
   clips = asset.animations; return { player: make(), opponent: make() };
 }
 async function reset() {
   warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB, ENEMY); scrubbers.clear();
+  enemyClips = SRC ? clips : (enemyAsset ??= await new GLTFLoader().loadAsync(ENEMY)).animations;
   for (const [name, mode] of swaps) api.swapMaterial(name, mode); // diagnostic overrides survive the reload
   player.clear(); opponent.clear(); player.add(warriors.player.anchor); opponent.add(warriors.opponent.anchor);
   P = fighter(player, 0, TARGET.z + SWORD.reach + .85); O = fighter(opponent, TARGET.x, TARGET.z);
@@ -131,15 +133,17 @@ async function reset() {
 }
 // Scrub any clip on either rig with a harness-owned mixer; the game's own mixer is untouched and never updated afterwards.
 function scrub(group, name, t) {
-  const root = group.children[0]; if (!clips.some(c => c.name === name)) return; // inspected sources may carry no clips
-  if (!scrubbers.has(root)) { const mixer = new THREE.AnimationMixer(root); scrubbers.set(root, { mixer, actions: new Map(clips.map(c => [c.name, mixer.clipAction(c)])) }); }
+  const root = group.children[0], list = group === opponent ? enemyClips : clips; if (!list.some(c => c.name === name)) return; // inspected sources may carry no clips
+  if (!scrubbers.has(root)) { const mixer = new THREE.AnimationMixer(root); scrubbers.set(root, { mixer, actions: new Map(list.map(c => [c.name, mixer.clipAction(c)])) }); }
   const { mixer, actions } = scrubbers.get(root);
   for (const [n, a] of actions) if (n !== name) a.stop();
   const action = actions.get(name); action.play(); action.paused = true; action.time = Math.min(t, .999999) * action.getClip().duration; mixer.update(0);
   const armed = !CLIPS.includes(name) && !(name === 'Draw' && t < .29);
-  const drawn = root.getObjectByName('SwordDrawn'), sheathed = root.getObjectByName('SwordSheathed'); // absent on raw sources
-  if (drawn) drawn.visible = armed; if (sheathed) sheathed.visible = !armed;
+  const drawn = root.getObjectByName('SwordDrawn'), sheathed = root.getObjectByName('SwordSheathed'), weapon = root.getObjectByName('WeaponDrawn'); // absent on raw sources
+  if (drawn) drawn.visible = armed; if (sheathed) sheathed.visible = !armed; if (weapon) weapon.visible = true; // a fighter who starts armed never stows his weapon
 }
+// The weapon a rig carries: the weapons lane's WeaponDrawn (extras.contact = the striking segment in metres along local Y) or the longsword.
+function weaponOf(group) { const root = group.children[0], node = root.getObjectByName('WeaponDrawn') || root.getObjectByName('SwordDrawn'); const c = node?.userData?.contact; return node ? { node, contact: c ? [c.from, c.to] : [.18, .86] } : null; }
 function stage(scene) { scene.add(player, opponent); }
 function frame(w, h, ratio) { renderer.setPixelRatio(ratio); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 function lockCamera() { camera.fov = 51; camera.position.copy(cam.desired); camera.lookAt(cam.aim); }
@@ -181,13 +185,72 @@ const DETAILS = [
 const api = {
   loaded: false, error: null, SEQUENCE, ticks: SEQUENCE_TICKS,
   reset,
+  // Weapons lane views (node scripts/character-preview.mjs --weapons [--enemy <glb>]): the opponent's weapon alone, in his hands, its
+  // clips, the brief's phone lock camera and one scripted exchange — the same captures for the longsword baseline and every weapon after it.
+  weaponRoles() { // role → the opponent's clip: a weapon build carries its own set (Trident_*); the baseline Veteran uses the sword's
+    const trident = enemyClips.some(c => c.name === 'Trident_Idle');
+    return trident ? { idle: 'Trident_Idle', approach: 'Trident_Walk', strafeLeft: 'Trident_StrafeLeft', strafeRight: 'Trident_StrafeRight', thrust: 'Trident_Thrust', chain: 'Trident_ThrustChain', sweep: 'Trident_Sweep', high: 'Trident_High', guard: 'Trident_Guard', impact: 'Trident_BlockImpact', deflected: 'Trident_Deflected', hit: 'Trident_Hit', death: 'Trident_Death' }
+      : { idle: 'Armed', approach: 'ArmedWalk', strafeLeft: 'StrafeLeft', strafeRight: 'StrafeRight', thrust: 'Riposte', chain: 'Riposte', sweep: 'Attack', high: 'Heavy', guard: 'Guard', impact: 'BlockImpact', deflected: 'Deflected', hit: 'Hit', death: 'Death' };
+  },
+  async weaponTurntable() { // the weapon alone, upright at the origin, eight azimuths (rig units: the fighter's .9/.97 scale is not applied)
+    await reset(); stage(studio); player.visible = opponent.visible = false; renderer.toneMappingExposure = 1;
+    const w = weaponOf(opponent); if (!w) throw new Error('the opponent carries no weapon node');
+    const solo = w.node.clone(true); solo.position.set(0, 0, 0); solo.quaternion.identity(); solo.scale.set(1, 1, 1); solo.traverse(o => { o.visible = true; });
+    const holder = new THREE.Group(); holder.add(solo); studio.add(holder); holder.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(solo), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+    holder.position.set(-mid.x, 1 - mid.y, -mid.z); const d = Math.max(size.x, size.y, size.z) * 1.35;
+    const out = cells(4, 2, 480, 720, 1, i => { const a = i * Math.PI / 4; camera.fov = 35; camera.position.set(Math.sin(a) * d, 1.05, Math.cos(a) * d); camera.lookAt(0, 1, 0); renderer.render(studio, camera); return `${w.node.name} ${i * 45}°  ${size.y.toFixed(2)} m, contact ${w.contact[0]}–${w.contact[1]} m`; });
+    studio.remove(holder); player.visible = opponent.visible = true; return out;
+  },
+  async weaponOnRig() { // attachment and grip in idle, walk, strafes and guard; the contact pose of every attack
+    const r = this.weaponRoles(), node = weaponOf(opponent)?.node.name || 'SwordDrawn';
+    return this.details([
+      ['weapon in hand', r.idle, 0, node, 1.7, .6, .2], ['head', r.idle, 0, node, 1.0, .6, .25], ['rear grip', r.idle, 0, 'hand_r', .8, .9, .3], ['front grip', r.idle, 0, 'hand_l', .8, -.7, .45],
+      ['walk', r.approach, .35, 'spine_03', 2.2, .7, .2], ['strafe left', r.strafeLeft, .35, 'spine_03', 2.2, .7, .2], ['strafe right', r.strafeRight, .35, 'spine_03', 2.2, .7, .2], ['guard', r.guard, 1, 'spine_03', 2.0, .5, .25],
+      ['thrust contact', r.thrust, .34, 'spine_03', 2.6, 1.2, .2], ['chain contact', r.chain, .34, 'spine_03', 2.6, 1.2, .2], ['sweep contact', r.sweep, .34, 'spine_03', 2.6, .8, .35], ['high contact', r.high, .48, 'spine_03', 2.6, .8, .2],
+    ], 'opponent');
+  },
+  async weaponClips() { // the opponent's clip set at its key fractions (contact keys .34 / .48 as the sword's)
+    const r = this.weaponRoles(), list = [[r.idle, 0], [r.idle, .5], [r.approach, .25], [r.approach, .75], [r.strafeLeft, .35], [r.strafeRight, .35], [r.guard, .5], [r.guard, 1],
+      [r.thrust, .18], [r.thrust, .34], [r.thrust, .55], [r.chain, .34], [r.sweep, .15], [r.sweep, .34], [r.sweep, .5], [r.high, .28], [r.high, .48], [r.high, .64],
+      [r.impact, .35], [r.deflected, .35], [r.hit, .35], [r.death, .5], [r.death, .95]];
+    await reset(); stage(studio); player.visible = false; opponent.visible = true; renderer.toneMappingExposure = 1; opponent.position.set(0, 0, 0); opponent.rotation.y = 0;
+    const out = cells(8, Math.ceil(list.length / 8), 360, 480, 1, i => { if (!list[i]) return false; const [name, t] = list[i]; scrub(opponent, name, t); studioCamera(false, Math.PI / 6); renderer.render(studio, camera); return `${name} t=${t}`; });
+    player.visible = true; return out;
+  },
+  async weaponLock(orientation = 'phone', role = 'idle', t = 0) { // the game's lock camera at the brief's phone sizes, the opponent posed by his own clip
+    await reset(); stage(arena); opponent.visible = player.visible = true; renderer.toneMappingExposure = 1.3; settle(30);
+    const [w, h] = LOCK[orientation], name = this.weaponRoles()[role];
+    return cells(1, 1, w, h, GAME_RATIO, () => { scrub(opponent, name, t); lockCamera(); renderer.render(arena, camera); return `lock ${w}×${h} @${GAME_RATIO}  ${name} t=${t}`; });
+  },
+  async weaponExchange(orientation = 'phoneLandscape', every = 15, zoom = 1) { // 6 s (360 ticks): approach, thrust, chain, sweep, high, guard, block impact, deflected, hit, death; the player is the game's rig, the opponent his own clips
+    const r = this.weaponRoles(), ROLES = [['approach', 40, 'armedwalk', 'ready'], ['thrust', 42, 'ready', 'guard'], ['chain', 34, 'ready', 'guard'], ['sweep', 50, 'ready', 'guard'], ['high', 68, 'ready', 'guard'],
+      ['guard', 30, 'guard', 'attack:light'], ['impact', 24, 'block', 'attack:light'], ['deflected', 36, 'deflected', 'attack:riposte'], ['hit', 20, 'hit', 'attack:light'], ['death', 16, 'death', 'attack:light']];
+    await reset(); stage(arena); opponent.visible = player.visible = true; renderer.toneMappingExposure = 1.3;
+    const [w, h] = LOCK[orientation], total = ROLES.reduce((n, x) => n + x[1], 0), frames = Math.ceil(total / every), cols = 6;
+    const run = (function* () { for (const [role, ticks, oppPhase, playerPhase] of ROLES) for (let i = 0; i < ticks; i++) yield [role, i / ticks, oppPhase, playerPhase]; })();
+    let n = 0, current = run.next();
+    const pose = ([role, progress, oppPhase, playerPhase]) => { tick(playerPhase, oppPhase); const name = r[role], clip = enemyClips.find(c => c.name === name); scrub(opponent, name, role === 'approach' && clip ? (n * TICK / clip.duration) % 1 : progress); };
+    return cells(cols, Math.ceil(frames / cols), w, h, 1, i => {
+      while (!current.done && n < i * every) { pose(current.value); current = run.next(); n++; }
+      if (current.done) return false;
+      const [role, progress] = current.value; pose(current.value); current = run.next(); n++;
+      lockCamera(); renderer.render(arena, camera); return `t=${((n - 1) / 60).toFixed(2)}s  ${role} · ${r[role]} ${(progress * 100).toFixed(0)}%`;
+    }, zoom);
+  },
+  async weaponStats() { // the weapon node's own cost and the opponent's clip list
+    await reset(); const w = weaponOf(opponent); if (!w) return null;
+    let triangles = 0; const materials = new Set(); w.node.traverse(o => { if (o.isMesh) { const g = o.geometry; triangles += (g.index ? g.index.count : g.attributes.position.count) / 3; materials.add(o.material.name); } });
+    w.node.updateWorldMatrix(true, true); const box = new THREE.Box3().setFromObject(w.node), size = box.getSize(new THREE.Vector3());
+    return { node: w.node.name, triangles, materials: [...materials], contact: w.contact, extentMetres: +Math.max(size.x, size.y, size.z).toFixed(3), clips: enemyClips.map(c => c.name) };
+  },
   async details(list = DETAILS, who = 'player') { // who: 'player' | 'opponent' — the same close-ups of either fighter, alone at the origin
     await reset(); stage(studio); const subject = who === 'opponent' ? opponent : player, other = who === 'opponent' ? player : opponent;
     other.visible = false; renderer.toneMappingExposure = 1; subject.position.set(0, 0, 0); subject.rotation.y = 0;
     const sheet = await cells(4, Math.ceil(list.length / 4), 480, 480, 1, i => {
       if (!list[i]) return false; const [caption, clip, t, node, distance, az, el, offset] = list[i];
       scrub(subject, clip, t); subject.updateWorldMatrix(true, true);
-      const object = subject.getObjectByName(node) || subject.getObjectByName('Head'), target = object.name === 'SwordDrawn' ? object.localToWorld(new THREE.Vector3(0, .45, 0)) : object.getWorldPosition(new THREE.Vector3());
+      const object = subject.getObjectByName(node) || subject.getObjectByName('Head'), w = object.name === 'SwordDrawn' || object.name === 'WeaponDrawn' ? weaponOf(subject) : null, target = w ? object.localToWorld(new THREE.Vector3(0, (w.contact[0] + w.contact[1]) / 2, 0)) : object.getWorldPosition(new THREE.Vector3());
       if (caption === 'eyes') target.add(new THREE.Vector3(0, .05, .07).applyQuaternion(subject.getWorldQuaternion(new THREE.Quaternion()))); // eye level, not the skull base
       if (offset) target.add(new THREE.Vector3(...offset).applyQuaternion(subject.getWorldQuaternion(new THREE.Quaternion()))); // optional aim offset in the fighter's frame (x right, y up, z forward)
       camera.fov = 30; camera.position.set(target.x + Math.sin(az) * Math.cos(el) * distance, target.y + Math.sin(el) * distance, target.z + Math.cos(az) * Math.cos(el) * distance); camera.lookAt(target);

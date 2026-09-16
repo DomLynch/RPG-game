@@ -327,3 +327,22 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 - Pitborn data (provisional, combat-owned): 1.13×, health 190, poise 16, normal `{reaction 18, parry .15, aggression .8, pressure .7, discipline 25}`. Probe (24 seeds): battery caps hold at normal and hard; a held guard is broken in every fight (median 72 ticks, 23/24 inside 6 s); the off-line whiff punisher wins 6/24 — the best honest script; AI-vs-AI (Veteran brain vs him) median 26.4 s. Discipline 15 made the punisher win 17/24 (rejected); accuracy is not a lever; a literal `StaminaExhausted` never fires at 40/s regen — the whiff window is the weakness.
 - Evidence: 163/163 tests (new tests/opponents.test.ts: 7; battery takes an opponent and records first guard break), quality gate green incl. the browser gate. Veteran default byte-for-byte unchanged (`initialDuel()` deep-equals `initialDuel(OPPONENTS.veteran)`).
 - Next (part 2, character lane): `pitborn.glb` from the KeenTools scan `01a0ab5b…` (7 owner portraits in `artifacts/source/face/pitborn/`), 1.13× hunched build, tusks, bone/iron kit; budget cap up from 12 MB as needed; per-fighter scale in tests/characters.test.ts.
+## Trident v1 — the weapons lane — 2026-09-16
+- Branch `weapons/trident-v1` from trunk 86189a5 (slice U). The Veteran's short trident: a rigid part under `hand_r` (`WeaponDrawn`,
+  `extras.contact` on the tines, 652 triangles, no textures) and 13 original clips on the rig (`Trident_Idle/Walk/StrafeLeft/StrafeRight/
+  Thrust/ThrustChain/Sweep/High/Guard/BlockImpact/Deflected/Hit/Death`), all two-handed; built by `scripts/build-weapon.mjs` through
+  `build-warrior.mjs` (`WARRIOR_WEAPON=trident`, default output byte-identical) into `src/assets/weapons/trident/veteran-trident.glb`
+  (not imported by the runtime: the bundle is unchanged until the render lane switches the opponent).
+- Data: `WEAPONS.trident` is real (`TRIDENT_MOVES` / `TRIDENT_PATHS`, guard `shaft`, material `bronze`), baked from its own rig via
+  `scripts/blade-manifest.json`. Slash = low sweep, Stab = thrust (chains into a second thrust), Heavy = the overhead pin. Measured
+  against a standing target with the owner's pick (variant `short`: B's wide fork on a 60% stick, 1.42 m, brown shaft; the thrust reaches
+  by driving the rear arm to full extension): thrust lands to 2.25 m (sword stab 2.0), sweep 1.75 (cut 1.7), pin 2.15 (heavy 2.2);
+  every `reach` is that number (tests assert ±0.1 m). All numbers provisional — GAMEPLAY CHANGE for combat review; nothing changes on trunk (`initialDuel`
+  still longsword vs longsword).
+- Harness: `scripts/character-preview.mjs --weapons [--enemy <glb>]` — weapon turntable, on-rig close-ups, clip sheet, 393×852 /
+  852×393 lock stills, a 6 s scripted exchange, a cost table; baseline and three passes under `artifacts/weapons/` (REPORT.md).
+- Evidence: tests/weapons.test.ts 8 tests (rig + contact segment + clip set, clips agree with the data's contact keys, reach frontier);
+  quality gate per the PR. Requests to other lanes in `artifacts/weapons/REQUESTS.md`: the renderer's per-weapon clip list and weapon
+  node (the trident is not visible in the game until then), the combat flip and review, a rule for "weak inside the point" (the sim
+  sweeps the tines from the wind-up pose, so a thrust lands from 0.4 m like the sword's), the shaft guard profile. Silhouette picked
+  by the owner 2026-09-16 (`short`); A/B/C remain as `WEAPON_VARIANT` options.
