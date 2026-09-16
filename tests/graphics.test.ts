@@ -100,7 +100,7 @@ test('a late draw press buffers one attack, and focus loss cancels it', () => {
     app.key('KeyF');
     if (interrupt) { app.lose(); app.restore(); }
     for (let i = 0; i < 14; i++) app.tick();
-    assert.equal(app.element('stamina').value, interrupt ? 100 : 80);
+    assert.equal(app.element('stamina').value, interrupt ? 100 : 100 - MOVES.light_right.stamina);
   }
 });
 
@@ -136,7 +136,7 @@ test('swipe trial fires once per gesture and clears on cancellation, pause and m
   for(let i=0;i<45;i++)app.tick();
   assert.equal(app.element('stamina').value,100);
   pointer('pointerdown',60,60);pointer('pointermove',60,20);pointer('pointermove',60,0);app.tick();
-  assert.equal(app.element('stamina').value,75,'one upward flick is one thrust');assert.equal(app.rendered.duel.fighters[0].move,'thrust');
+  assert.equal(app.element('stamina').value,100-MOVES.thrust.stamina,'one upward flick is one thrust');assert.equal(app.rendered.duel.fighters[0].move,'thrust');
   for(let i=0;i<12;i++)app.tick();assert.ok(app.rendered.duel.fighters[0].age>MOVES.thrust.chamber!,'v1 flick never chambers even while the thumb stays down');
   pointer('pointercancel',60,0);for(let i=0;i<80;i++)app.tick();
   app.element('reset-button').click();app.tick();app.key('KeyF');for(let i=0;i<45;i++)app.tick();

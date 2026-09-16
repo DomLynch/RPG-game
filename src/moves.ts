@@ -52,7 +52,7 @@ export type MoveDef = Timing & {
 const light = (id: 'light_right' | 'light_left', direction: Direction): MoveDef => ({
   id, direction, path: id, chainPath: `${id}_chain`, chained: { windup: 16, active: 8, recovery: 18 },
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the opposite cut chains fast; a heavy finisher winds up quicker
-  windup: 20, active: 8, recovery: 22, damage: 11, stamina: 20, staminaDamage: 15, stagger: 24, poise: 0, poiseFrom: 0,
+  windup: 20, active: 8, recovery: 22, damage: 14, stamina: 25, staminaDamage: 15, stagger: 24, poise: 0, poiseFrom: 0,   // 14 for 25 stamina: the cut's tell (333 ms) is longer than the stab's, so it pays and costs more (owner, 2026-09-16); ladder stab 11 < cut 14 < heavy 18
   breaksGuard: false, chip: 0, parryable: true, knockback: 4, stepIn: .4, feintUntil: 10, reach: 1.65, vsGuard: null, posture: 20, chamber: 9, charges: false,   // stepIn .4 over 20 ticks ≈ the old .55 over 14: the same lunge
 });
 export const MOVES: Record<MoveId, MoveDef> = {
@@ -67,7 +67,7 @@ export const MOVES: Record<MoveId, MoveDef> = {
   // blockable, so it is the spacing and counter-hit tool, not the guard opener.
   thrust: {
     id: 'thrust', direction: 'thrust', path: 'thrust', chainPath: null, chained: null, chain: null,
-    windup: 16, active: 5, recovery: 21, damage: 14, stamina: 25, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0,
+    windup: 16, active: 5, recovery: 21, damage: 11, stamina: 20, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0,   // 11 clean for 20 stamina (14 counter, 17 as the stop-hit): the fastest tell, the longest reach
     breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: 1, feintUntil: 9, reach: 2, vsGuard: null, posture: 16, chamber: 8, charges: false,
   },
   riposte: {
