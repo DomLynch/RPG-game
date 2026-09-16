@@ -30,6 +30,11 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   const page = await open(context);
   console.log(`Capturing ${label} (${commit}) →`);
+  if (option('details')) { // --details 'caption:Clip:t:node:dist:az:el;…' [--who opponent] → one custom close-up sheet, nothing else
+    const list = option('details').split(';').map(part => { const [caption, clip, t, node, dist, az, el] = part.split(':'); return [caption, clip, +t, node, +dist, +az, +el]; });
+    await save(`details-${option('who') || 'player'}-custom.png`, await page.evaluate(([l, w]) => __preview.details(l, w), [list, option('who') || 'player']));
+    if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
+  }
   if (option('sheet')) { // --sheet 'Clip:0,.25,.5;Other:.1' → one key-frame sheet of the loaded source, nothing else
     const list = option('sheet').split(';').flatMap(part => { const [name, ts] = part.split(':'); return ts.split(',').map(t => [name.trim(), +t]); });
     await save('sheet.png', await page.evaluate(l => __preview.clipSheet(l), list));
