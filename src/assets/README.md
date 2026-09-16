@@ -242,8 +242,9 @@ hero's outputs stay byte-identical.
   the relief was halved and the dents broadened. Colour, owner's reference (a museum Corinthian helm, 2026-09-16): the
   copper-red read as fake; a grey-yellow pass went dark olive, a matte pale pass went clay. Shipped: pale greige-tan
   (0.62/0.545/0.415) faded a fifth of the way to grey, oxide and patina in the same key, metalness 0.86 under the thin
-  patina skin (0.56 where it pools), satin roughness 0.36–0.9 — metal that reflects softly, never a hot spot; pits at
-  half density, scratches quiet.
+  patina skin (0.56 where it pools), satin roughness 0.36–0.9; pits at half density, scratches quiet. Then (owner, the
+  same evening): the dome still carried one bright hot spot that read as plastic — roughness base 0.54 → 0.63 (0.46–0.92),
+  metalness 0.86 → 0.80: the sheen spread wide and dim, still metal (0.62 had read as clay).
 - Scars (`head.body_scars`, `FIGHTERS[...]['scars']`): four healed cuts on the body tile — a 14 cm slash across the bare
   right pectoral, a cut across the outer right bicep, one across the outside of the left forearm, a long slash down the
   outside of the right thigh — 5–7 mm wide (the first pass at 2.6 mm vanished into the 1K map), paler and pinker tissue,
