@@ -1466,7 +1466,7 @@ FIGHTERS = {
     'hero': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',  # eight portraits: the five plus three from below for the jaw (2026-09-15)
              'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 40), (-45, 40), (0, 15)), 'chin': True, 'hair_lum': 0.16, 'hair': 'buzz'},
     'veteran': {'kt_glb': 'artifacts/source/keentools/01a0a9a9-c037-70f2-8015-bbd1faf9f823.glb',  # seven portraits (front, ±35, ±90, two from below), 2026-09-16
-                'cams': ((0, 0), (30, 0), (-25, 0), (90, 0), (-90, 0), (0, 28), (-22, 24)), 'chin': False, 'hair_lum': 0.50, 'hair': 'full'},
+                'cams': ((0, 0), (30, 0), (-25, 0), (90, 0), (-90, 0), (0, 28), (-22, 24)), 'chin': True, 'hair_lum': 0.50, 'hair': 'full'},  # chin: his scan's jaw is the same vertical wall the hero's was (tip -0.76, underside -0.88 scan units) — the owner's U applies
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
@@ -1730,6 +1730,15 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     stretch = bake_attribute(head, 'stretch', select_only, size) if 'stretch' in head.vertex_groups else np.zeros((size, size), np.float32)
     if 'stretch' in head.vertex_groups:
         head.vertex_groups.remove(head.vertex_groups['stretch'])
+    front = None
+    if HAIR == 'full':  # the stretched chin's donor stubble must come from the face: with hair to the nape, the same texture rows hold hair beside the jaw
+        front_vg = head.vertex_groups.new(name='front')
+        for v in head.data.vertices:
+            w = min(1.0, max(0.0, (neck_c.y - v.co.y) / 0.03))  # ahead of the neck axis, as chin_strong picks its vertices
+            if w > 0:
+                front_vg.add([v.index], w, 'REPLACE')
+        front = bake_attribute(head, 'front', select_only, size)
+        head.vertex_groups.remove(head.vertex_groups['front'])
     # textures: resample the 4K head colour to 2K/1K, eyes to 512; fill the untextured crown from its neighbours
     def pixels(img):
         w, h = img.size
@@ -1743,7 +1752,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     filled = crown_fill(colour, dark, size, hair_zone, coverage=coverage, scalp=scalp)
     crown_w = np.clip(1 - blur((~dark).astype(np.float32), 16) * 1.6, 0, 1) * dark * (scalp > 0.5) if HAIR == 'full' else np.zeros((size, size), np.float32)  # where the crown is synthesised strands (crown_fill's own blend weight)
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
-    filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
+    filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size, front=front)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
     filled = delight(filled, dark | (coverage < 0.6))  # the portraits' key light is baked in: the lit cheeks and forehead rendered brighter and shinier than the body
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
@@ -1965,7 +1974,7 @@ def delight(colour, unseen, keep=0.45, gain=0.84):
     return np.clip(colour * factor[..., None], 0, 1)
 
 
-def stretch_refill(colour, ratio, unseen, island, size, patch=64, seed=5):
+def stretch_refill(colour, ratio, unseen, island, size, patch=64, seed=5, front=None):
     """The chin move stretches the photograph over the lowered chin (`ratio` = the local edge stretch, baked): its stubble
     smeared into streaks, and the scan's chin was pale and sparse anyway (seen at a grazing angle) where the portraits
     show dense stubble. Texels stretched by more than 20% are re-covered with the photographed stubble beside them:
@@ -1981,6 +1990,8 @@ def stretch_refill(colour, ratio, unseen, island, size, patch=64, seed=5):
     near = np.zeros_like(zone)
     near[max(0, zy.min() - 80):zy.max() + 80, max(0, zx.min() - 300):zx.max() + 300] = True
     src = near & ~zone & (ratio < 1.05) & ~unseen
+    if front is not None:
+        src &= front > 0.5  # donors from the face only (a fighter with hair to the nape has hair on these rows beside the jaw: it quilted a dark beard under the chin)
     redness = colour[..., 0] - colour[..., 1]
     src &= redness < np.median(redness[src]) + 0.03  # the lower lip borders the zone; its pink is not stubble
     c = np.pad(src.astype(np.int32), ((1, 0), (1, 0))).cumsum(0).cumsum(1)  # box sums: is a source rectangle wholly unstretched skin?
