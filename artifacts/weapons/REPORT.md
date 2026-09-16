@@ -18,7 +18,25 @@ Branch `weapons/trident-v1` from trunk 86189a5 (the weapon-slot seam, PR #79). C
 - `character-preview.html` / `scripts/character-preview.mjs` — the weapon view (`?enemy=`, per-rig clip lists, weapon turntable, on-rig
   close-ups, the brief's 393×852 / 852×393 lock stills, a 6 s scripted exchange, a cost table).
 
-## Measurements
+## Owner's pick (2026-09-16): variant `short` — B's fat, wide fork on a 60% stick, brown shaft
+
+Shaft 1.44 → 0.86 m (1.42 m butt to tip), the same 0.46 m tines / 0.22 m spread as B, the ash now `#64452f` (the earlier `#3b2d22`
+read black). The tines' contact segment moves to 0.76–1.22 m along the node. The thrust keeps its reach on the short pole by
+driving the rear arm to full extension (the classic short-spear thrust); every clip re-keyed to the shorter grips.
+
+| | trident-v2 (A, 2.0 m) | trident-v4-short (owner's pick) | sword |
+|---|---|---|---|
+| thrust lands to | 2.3 m | **2.25 m** | 2.0 m |
+| sweep lands to | 1.95 m | **1.75 m** | 1.7 m (cut) |
+| pin lands to | 2.25 m | **2.15 m** | 2.2 m (heavy) |
+| thrust tip at contact (fighter-local z) | 1.49 | 1.36 | 1.14 |
+| weapon extent (rig units) | 1.68 m | 1.21 m | 0.84 m |
+| opponent GLB gzip | 3,951,971 | 3,952,084 | 3,887,706 (baseline) |
+
+`TRIDENT_MOVES` reaches are these measured numbers (thrust 2.25, sweep 1.75, pin 2.15; tests assert ±0.1 m). Sheets: `trident-v4-short/`.
+Variants A/B/C stay in `build-weapon.mjs` (`WEAPON_VARIANT=A|B|C`) for comparison; `short` is the default.
+
+## Measurements (variant A, superseded by the pick above)
 
 | | baseline (Veteran, longsword) | trident-v2 (variant A) | Δ |
 |---|---|---|---|

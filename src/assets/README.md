@@ -392,6 +392,8 @@ clip plus 13 `Trident_*` clips). Built by `scripts/build-weapon.mjs` through `sc
 WARRIOR_WEAPON=trident [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=src/assets/weapons/trident/veteran-trident.glb`), then
 `node scripts/bake-blades.mjs` (the manifest entry samples `WeaponDrawn.extras.contact`, the tines).
 
+Owner's pick (2026-09-16): variant `short` — a fat, wide fork on a stick 60% as long (1.42 m butt to tip, 0.86 m shaft), brown ash.
+
 Provenance: **original project work, no new third-party asset, texture or licence.** The geometry is Three.js primitives (ash shaft,
 bronze butt cap / socket / crossbar / three tines, two leather grips); the materials are procedural — the bronze uses the Veteran's
 approved museum-bronze values (0.62/0.545/0.415, roughness .63, metalness .80), the leather is the sword's, the ash is a flat dark

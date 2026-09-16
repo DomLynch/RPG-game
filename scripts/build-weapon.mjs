@@ -10,12 +10,15 @@ import * as T from 'three';
 
 // Silhouette variants for the owner's pick (2026-09-16): tine length / spread and shaft length. Rig units (the fighter's .9/.97
 // scale applies on export). `butt` and `socket` are metres along local Y from the rear hand (y 0 = the rear grip's centre).
+// `fore` is the front grip's centre along the shaft (the rear grip is at 0).
 export const VARIANTS = {
-  A: { name: 'A · balanced: 1.9 m, 0.40 m tines, 0.16 m spread', butt: -.35, socket: 1.15, tines: .40, side: .34, spread: .16 },
-  B: { name: 'B · wide fork: 1.9 m, 0.46 m tines, 0.22 m spread', butt: -.35, socket: 1.09, tines: .46, side: .40, spread: .22 },
-  C: { name: 'C · long shaft: 2.05 m, 0.30 m tines, 0.13 m spread', butt: -.45, socket: 1.30, tines: .30, side: .26, spread: .13 },
+  A: { name: 'A · balanced: 2.0 m, 0.40 m tines, 0.16 m spread', butt: -.35, fore: .55, socket: 1.15, tines: .40, side: .34, spread: .16 },
+  B: { name: 'B · wide fork: 2.0 m, 0.46 m tines, 0.22 m spread', butt: -.35, fore: .55, socket: 1.09, tines: .46, side: .40, spread: .22 },
+  C: { name: 'C · long shaft: 2.15 m, 0.30 m tines, 0.13 m spread', butt: -.45, fore: .55, socket: 1.30, tines: .30, side: .26, spread: .13 },
+  // The owner's pick (2026-09-16): B's fat, wide fork on a stick 60% as long (shaft 1.44 → 0.86 m; 1.42 m butt to tip), brown shaft.
+  short: { name: 'short · owner\'s pick: B\'s wide fork, 60% shaft (1.42 m)', butt: -.20, fore: .40, socket: .66, tines: .46, side: .40, spread: .22 },
 };
-export const DEFAULT_VARIANT = 'A';
+export const DEFAULT_VARIANT = 'short';
 
 // The trident: ash shaft with a bronze butt cap, two leather grips (rear at the hand, front on the shaft), a bronze socket, a
 // crossbar and three tines — the centre one longest, the outer two leaning out. Museum bronze (the Veteran's approved helm
@@ -23,7 +26,7 @@ export const DEFAULT_VARIANT = 'A';
 export function trident({ T: three = T, withAoUv = g => g, leather, variant = DEFAULT_VARIANT } = {}) {
   const v = VARIANTS[variant] ?? VARIANTS[DEFAULT_VARIANT];
   const bronze = new three.MeshStandardMaterial({ name: 'TridentBronze', color: new three.Color(0.62, 0.545, 0.415), roughness: .63, metalness: .8 });
-  const ash = new three.MeshStandardMaterial({ name: 'Ash', color: '#3b2d22', roughness: .88 }); // dark oiled ash, no sheen
+  const ash = new three.MeshStandardMaterial({ name: 'Ash', color: '#64452f', roughness: .86 }); // brown oiled ash (owner: "brown shaft" — #3b2d22 read black), no sheen
   const wrap = leather ?? new three.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: .8 });
   const group = new three.Group(); group.name = 'WeaponDrawn';
   const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
@@ -32,7 +35,7 @@ export function trident({ T: three = T, withAoUv = g => g, leather, variant = DE
   piece(cyl(.019, .019, v.butt, v.butt + .04), bronze);                                   // butt cap
   piece(cyl(.015, .0175, v.butt + .04, v.socket), ash, 0, 0, 0, 10);                        // shaft, tapering to the head
   piece(cyl(.0185, .0185, -.11, .11), wrap);                                                // rear grip (the hand)
-  piece(cyl(.0185, .0185, .44, .66), wrap);                                                 // front grip
+  piece(cyl(.0185, .0185, v.fore - .11, v.fore + .11), wrap);                                // front grip
   piece(cyl(.021, .026, v.socket - .02, crossbar), bronze);                                 // socket
   piece(new three.BoxGeometry(v.spread + .04, .026, .026), bronze, crossbar);                // crossbar
   for (const x of [-1, 1]) piece(new three.SphereGeometry(.016, 10, 8), bronze, crossbar, x * (v.spread + .04) / 2);
@@ -115,8 +118,10 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
   // A loop: the body clip sampled at n frames with one constant grip; the last key repeats the first so it joins seamlessly.
   const loop = (name, body, duration, n, grip, wrap = true) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })));
   // The rest grip: rear hand at the right hip, tines forward and a little up at the opponent's chest, front hand a forearm along the shaft.
-  const REST = { r: [.24, -.30, .16], dir: [-.10, .20, .97], l: .40, spine: [.12, 0] };
-  const GUARD = { r: [.26, -.22, .26], dir: [-.78, .45, .43], l: .55, spine: [-.05, 0] }; // the shaft across the body: a guard of wood
+  // Grips along the shaft (`l`) fit the short trident (front grip at .40; the socket at .66): at full extension the rear hand drives
+  // up to the front one, the classic spear thrust, so the tines go as far as the long trident's did.
+  const REST = { r: [.26, -.30, .10], dir: [-.10, .18, .97], l: .40, spine: [.12, 0] };
+  const GUARD = { r: [.26, -.22, .26], dir: [-.78, .45, .43], l: .46, spine: [-.05, 0] }; // the shaft across the body: a guard of wood
   const out = [
     loop('Trident_Idle', 'Armed', 1.667, 8, REST),
     loop('Trident_Walk', 'ArmedWalk', 1.333, 8, REST),
@@ -126,49 +131,49 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
     // tines at the opponent's chest (~1.2 m up) from ~1.4 m in front (the sword's stab reaches 1.14).
     make('Trident_Thrust', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .18, body: ['Armed', 0], r: [.28, -.30, -.30], dir: [-.03, .13, 1], l: .48, spine: [.22, 0] },
-      { t: .34, body: ['Armed', 0], r: [.24, -.22, -.04], dir: [0, .09, 1], l: .56, spine: [-.12, .06] },
-      { t: .55, body: ['Armed', 0], r: [.24, -.22, -.04], dir: [0, .09, 1], l: .56, spine: [-.12, .06] },
+      { t: .18, body: ['Armed', 0], r: [.28, -.30, -.32], dir: [-.03, .13, 1], l: .44, spine: [.22, 0] },
+      { t: .34, body: ['Armed', 0], r: [.20, -.12, .44], dir: [0, .06, 1], l: .22, spine: [-.14, .08] },   // the short spear's thrust: the rear arm drives out to full extension, the front hand just ahead of it
+      { t: .55, body: ['Armed', 0], r: [.20, -.12, .44], dir: [0, .06, 1], l: .22, spine: [-.14, .08] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     make('Trident_ThrustChain', 1, [ // the second thrust: half withdrawn, out again
-      { t: 0, body: ['Armed', 0], r: [.26, -.27, -.20], dir: [-.02, .11, 1], l: .50, spine: [.10, 0] },
-      { t: .34, body: ['Armed', 0], r: [.24, -.22, -.02], dir: [0, .09, 1], l: .56, spine: [-.14, .06] },
-      { t: .6, body: ['Armed', 0], r: [.24, -.22, -.02], dir: [0, .09, 1], l: .56, spine: [-.14, .06] },
+      { t: 0, body: ['Armed', 0], r: [.26, -.24, .00], dir: [-.02, .11, 1], l: .34, spine: [.10, 0] },
+      { t: .34, body: ['Armed', 0], r: [.20, -.12, .46], dir: [0, .06, 1], l: .22, spine: [-.16, .08] },
+      { t: .6, body: ['Armed', 0], r: [.20, -.12, .46], dir: [0, .06, 1], l: .22, spine: [-.16, .08] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // Low sweep: the tines swing across the front at knee height, right to left; contact in front at .34.
     make('Trident_Sweep', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .15, body: ['Armed', 0], r: [.30, -.40, -.18], dir: [.58, -.24, .78], l: .44, spine: [.28, 0] },
-      { t: .34, body: ['Armed', 0], r: [.10, -.46, -.08], dir: [.02, -.30, .95], l: .44, spine: [0, .05] },
-      { t: .5, body: ['Armed', 0], r: [-.06, -.44, -.04], dir: [-.52, -.24, .82], l: .44, spine: [-.25, .05] },
-      { t: .7, body: ['Armed', 0], r: [.06, -.38, -.02], dir: [-.30, .05, .95], l: .42, spine: [-.12, 0] },
+      { t: .15, body: ['Armed', 0], r: [.34, -.40, -.10], dir: [.66, -.26, .70], l: .38, spine: [.28, 0] },
+      { t: .34, body: ['Armed', 0], r: [.10, -.40, .26], dir: [-.06, -.30, .95], l: .34, spine: [-.04, .06] },
+      { t: .5, body: ['Armed', 0], r: [-.10, -.40, .16], dir: [-.60, -.24, .76], l: .36, spine: [-.28, .06] },
+      { t: .7, body: ['Armed', 0], r: [.06, -.38, -.02], dir: [-.30, .05, .95], l: .40, spine: [-.12, 0] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
-    // Overhead pin: raised over the head, driven down into the torso (tines at ~1.0 m from ~1.3 m out); contact at .48 like the sword's heavy.
+    // Overhead pin: raised over the head, driven down into the torso (tines at ~1.0 m from ~1.2 m out); contact at .48 like the sword's heavy.
     make('Trident_High', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .28, body: ['Armed', 0], r: [.22, .28, -.30], dir: [-.06, .84, .54], l: .46, spine: [.15, -.08] },
-      { t: .48, body: ['Armed', 0], r: [.18, -.04, -.24], dir: [0, -.12, .99], l: .52, spine: [-.08, .12] },
-      { t: .64, body: ['Armed', 0], r: [.16, -.18, -.16], dir: [0, -.24, .97], l: .52, spine: [-.08, .14] },
+      { t: .28, body: ['Armed', 0], r: [.22, .28, -.30], dir: [-.06, .84, .54], l: .42, spine: [.15, -.08] },
+      { t: .48, body: ['Armed', 0], r: [.20, -.04, .12], dir: [0, -.12, .99], l: .40, spine: [-.08, .14] },
+      { t: .64, body: ['Armed', 0], r: [.18, -.18, .16], dir: [0, -.24, .97], l: .40, spine: [-.08, .16] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     make('Trident_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
     // Block impact: the guard takes the blow on the shaft and gives — hands shoved back, chest folds — then settles.
     make('Trident_BlockImpact', 1, [
       { t: 0, body: ['Armed', 0], ...GUARD },
-      { t: .12, body: ['Armed', 0], r: [.22, -.24, .10], dir: [-.78, .45, .43], l: .55, spine: [-.05, .08] },
-      { t: .35, body: ['Armed', 0], r: [.24, -.23, .16], dir: [-.78, .45, .43], l: .55, spine: [-.05, .05] },
+      { t: .12, body: ['Armed', 0], r: [.22, -.24, .10], dir: [-.78, .45, .43], l: .46, spine: [-.05, .08] },
+      { t: .35, body: ['Armed', 0], r: [.24, -.23, .16], dir: [-.78, .45, .43], l: .46, spine: [-.05, .05] },
       { t: .65, body: ['Armed', 0], ...GUARD },
       { t: 1, body: ['Armed', 0], ...GUARD },
     ]),
     // Deflected: the thrust is turned aside — tines knocked out to the right and up, the line lost — then the rest grip again.
     make('Trident_Deflected', 1, [
-      { t: 0, body: ['Armed', 0], r: [.16, -.30, -.12], dir: [0, .02, 1], l: .56, spine: [-.12, .06] },
-      { t: .12, body: ['Armed', 0], r: [.28, -.22, -.08], dir: [.48, .28, .83], l: .50, spine: [.10, 0] },
-      { t: .35, body: ['Armed', 0], r: [.34, -.16, -.14], dir: [.62, .36, .70], l: .46, spine: [.24, -.04] },
-      { t: .65, body: ['Armed', 0], r: [.26, -.30, -.06], dir: [.20, .20, .96], l: .42, spine: [.16, 0] },
+      { t: 0, body: ['Armed', 0], r: [.20, -.12, .44], dir: [0, .06, 1], l: .22, spine: [-.14, .08] },
+      { t: .12, body: ['Armed', 0], r: [.28, -.20, .16], dir: [.48, .28, .83], l: .30, spine: [.10, 0] },
+      { t: .35, body: ['Armed', 0], r: [.34, -.16, -.06], dir: [.62, .36, .70], l: .36, spine: [.24, -.04] },
+      { t: .65, body: ['Armed', 0], r: [.26, -.30, -.02], dir: [.20, .20, .96], l: .40, spine: [.16, 0] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     loop('Trident_Hit', 'Hit', .333, 4, REST, false),                        // the flinch keeps the pole level (yaw only)

@@ -46,11 +46,11 @@ Needed, in the order that keeps trunk green at every step:
 `initialDuel` still gives the opponent the longsword. To flip: `createFighter(..., 'trident')` for side 1, after reviewing:
 
 - **Every number in `TRIDENT_MOVES` / `TRIDENT_PATHS`** (`src/moves.ts`). Provisional. Measured against a standing target
-  (tests/weapons.test.ts): thrust lands to **2.3 m** (sword stab 2.0), sweep to 1.95 (cut 1.7), pin to 2.25 (heavy 2.2). If 2.3 is
-  too much, `thrust.stepIn` .8 gives ~2.15; the clip's extension is fixed by the bake, the lunge is data.
+  (tests/weapons.test.ts) with the owner's short trident: thrust lands to **2.25 m** (sword stab 2.0), sweep to 1.75 (cut 1.7),
+  pin to 2.15 (heavy 2.2). If 2.25 is too much, `thrust.stepIn` .8 gives ~2.1; the clip's extension is fixed by the bake, the lunge is data.
 - **Weak inside the point — a rule, not a number.** `bladeImpact` sweeps the tines from the wind-up pose into the first active tick,
-  so a thrust lands from 0.4 m exactly like the sword's. Proposal: a per-move `minReach` (thrust ~0.9 m: the tines' root at the
-  contact key is 1.09 m out) below which the thrust reports `AttackMissed`, or sweep only from the first active tick for thrusts.
+  so a thrust lands from 0.4 m exactly like the sword's. Proposal: a per-move `minReach` (thrust ~0.8 m: the tines' root at the
+  contact key is 0.90 m out) below which the thrust reports `AttackMissed`, or sweep only from the first active tick for thrusts.
 - **Shaft guard.** `Weapon.guard = 'shaft'` is a tag today. Proposal for the Veteran's `guardProfile`: `{ costScale: 1.15,
   stopsHeavy: false }` — blocks lights and thrusts at a higher stamina price, and a heavy overhead (the pin's counterpart) breaks it.
   If the *defender's* guard kind should reach the audio lane, add it to `Blocked` / `GuardBroken` events (today they carry the
@@ -68,7 +68,7 @@ defender's guard kind on `Blocked` / `GuardBroken` (request 2, last bullet) befo
 
 ## 4. Owner
 
-- **Pick the silhouette**: `artifacts/weapons/trident-v2/weapon-turntable.png` (A, default), `variant-B/` (wide fork),
-  `variant-C/` (long shaft, short head). Same triangles (652), same bytes; only `WEAPON_VARIANT` changes.
+- ~~Pick the silhouette~~ **Picked (2026-09-16): B's fat, wide fork on a stick 60% as long, brown shaft** — variant `short`,
+  the default. `artifacts/weapons/trident-v4-short/weapon-turntable.png`. A/B/C remain as `WEAPON_VARIANT` options.
 - The trident is held two-handed in every clip (the brief's contract). A one-handed carry for idle / walk / strafe / hit / death was
   offered and not taken; the 13-clip set is complete either way.

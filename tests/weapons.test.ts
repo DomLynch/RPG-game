@@ -102,7 +102,7 @@ test('the trident rig carries WeaponDrawn with a contact segment on the tines (t
   const asset = await readRig(TRIDENT_GLB), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
   assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
   const contact = weapon.userData.contact as { from: number; to: number };
-  assert.ok(contact && contact.to > contact.from && contact.from > 1, `extras.contact = the tines, not the shaft: ${JSON.stringify(contact)}`);
+  assert.ok(contact && contact.to > contact.from && contact.to - contact.from < .6 && contact.from > .5, `extras.contact = the tines (a head, not the shaft): ${JSON.stringify(contact)}`);
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: [number, number] }[] };
   const entry = manifest.weapons.find(w => w.weapon === 'trident')!;
   assert.deepEqual([entry.glb, entry.node], [TRIDENT_GLB, 'WeaponDrawn']);
@@ -119,7 +119,8 @@ test('the trident rig carries WeaponDrawn with a contact segment on the tines (t
 
 test('the trident\'s authored clips agree with the data\'s contact ticks: at each path\'s contact key the tines are out in front, at the height the move means (chest for thrusts, knee for the sweep, torso for the pin)', async () => {
   const asset = await readRig(TRIDENT_GLB), mixer = new AnimationMixer(asset.scene), weapon = asset.scene.getObjectByName('WeaponDrawn')!, contact = weapon.userData.contact as { from: number; to: number };
-  const bands: Record<string, [number, number, number]> = { thrust: [1.3, 1.0, 1.4], riposte: [1.3, 1.0, 1.4], light_right: [1.2, .3, .7], light_left: [1.2, .3, .7], light_right_chain: [1.2, .3, .7], light_left_chain: [1.2, .3, .7], heavy_overhead: [1.2, .55, 1.1], heavy_overhead_chain: [1.2, .55, 1.1], heavy_riposte: [1.2, .55, 1.1] };
+  // [min tip z, min tip y, max tip y]: the sword's own contact tips are 1.10–1.14 out (bake), so the trident's must be at least the sword's.
+  const bands: Record<string, [number, number, number]> = { thrust: [1.25, 1.0, 1.4], riposte: [1.25, 1.0, 1.4], light_right: [1.1, .4, .75], light_left: [1.1, .4, .75], light_right_chain: [1.1, .4, .75], light_left_chain: [1.1, .4, .75], heavy_overhead: [1.15, .6, 1.1], heavy_overhead_chain: [1.15, .6, 1.1], heavy_riposte: [1.15, .6, 1.1] };
   for (const [path, spec] of Object.entries(TRIDENT_PATHS)) {
     const clip = asset.animations.find(c => c.name === spec.clip)!, action = mixer.clipAction(clip).play(), n = total(spec);
     mixer.setTime(clip.duration * swingProgress(spec.windup / n, spec.windup / n, spec.source)); asset.scene.updateMatrixWorld(true);
@@ -130,7 +131,7 @@ test('the trident\'s authored clips agree with the data\'s contact ticks: at eac
   }
 });
 
-test('the fight the trident gives (real tables): its thrust lands from 2.1 m where the longsword\'s whiffs, and the AI-facing reach of every move sits within 0.1 m of where it really lands', () => {
+test('the fight the trident gives (real tables): its thrust lands from 2.1 m where the longsword\'s whiffs (a short pole, driven to full arm extension), and the AI-facing reach of every move sits within 0.1 m of where it really lands', () => {
   const landsFrom = (weapon: 'longsword' | 'trident', move: 'thrust' | 'light_right' | 'heavy_overhead', gap: number) => {
     const m = WEAPONS[weapon].moves[move], action = move === 'thrust' ? 'thrust' : move === 'heavy_overhead' ? 'heavy' : 'light';
     return run(stepDuel(duel(gap, weapon), [act(action), idle()]), m.windup + m.active + 1).events;
