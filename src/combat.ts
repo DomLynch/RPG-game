@@ -71,6 +71,7 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
 const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick' };
 export function practiceHint(s: Practice): string {
   const me = s.duel.fighters[0];
+  if (s.finish?.draw) return 'You both fell. Rematch?';
   if (!s.playerHealth) return 'You fell. Rematch and try another defence.';
   if (!s.health) return 'Warden defeated. Ready for a rematch?';
   if (s.phase === 'sheathed') return 'Draw your sword. The warden will counterattack.';

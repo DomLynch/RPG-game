@@ -1,5 +1,5 @@
 import { MOVES, RULES, type AiProfile } from './moves.ts';
-import { aim, distance, idleIntent, legal, timing, type Action, type Duel, type Intent, type Side } from './duel.ts';
+import { aim, distance, elapsed, idleIntent, legal, timing, type Action, type Duel, type Intent, type Side } from './duel.ts';
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
 // action `reaction` ticks late, and emits an ordinary Intent that stepDuel judges by the same rules as the player's.
@@ -45,9 +45,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (M.phase === 'hurt' && M.age === 1) { next.retreatUntil = tick + 48; next.decision = 48; next.mode = 'retreat'; next.plan = null; next.next = null; next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); }   // a landed blow earns the player a window; no instant retaliation
   // Perception. An attack is noticed `reaction` ticks after it starts; one response is planned per attack.
   const threat = F.phase === 'attack' && !F.landed && F.move !== null && F.age < timing(F).windup + timing(F).active;   // a swing is a threat until its active window closes
-  const noticed = threat && F.age >= profile.reaction;
+  // Perception runs on elapsed time, not the animation clock: a swing parked at its chamber is still a swing that started `reaction` ticks ago.
+  const noticed = threat && elapsed(F) >= profile.reaction;
   if (!threat) next.plan = null;
-  else if (F.age === profile.reaction) {
+  else if (elapsed(F) === profile.reaction) {
     const r = roll(), inRange = gap <= MOVES[F.move!].reach + .4, unblockable = MOVES[F.move!].breaksGuard || charging(F), affordable = M.stamina >= MOVES[F.move!].staminaDamage;
     const parryChance = reads.spammer ? Math.min(READ.parryCap, 1 - profile.dodge, profile.parry * READ.parryBoost) : profile.parry;   // a cut-only player is parried more (never by a profile that cannot parry; rolls keep their share)
     // A swing that cannot reach is ignored. A guard stops what it can afford; a charged heavy or a riposte calls for a timed parry, a roll or distance.

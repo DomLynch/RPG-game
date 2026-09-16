@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFighter, idleIntent, initialDuel, legal, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, idleIntent, initialDuel, legal, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PATHS, PROFILES, RULES, total, type GuardProfile } from '../src/moves.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -671,4 +671,43 @@ test('posture: blocks, clean hits and being parried fill it; it drains while sta
 test('kick lands: the lunge carries the short cone to a standing target 1.5 m away, which is what the HUD reach flag promises', () => {
   const lands = (gap: number) => run(stepDuel(duel(gap), [act('kick'), { ...idle(), lock: true }]), kick.windup + kick.active).fighters[1].health < 100;
   assert.ok(lands(1.5), 'lands from 1.5 m'); assert.ok(!lands(1.7), 'not from 1.7 m');
+});
+
+test('correctness pass: elapsed perception, bounded chamber lunge, attack-start reset, discounted block affordability, armour scope, draws', () => {
+  const heldIntent = { ...idle(), held: true };
+  // elapsed(): the animation clock rewinds at the chamber, elapsed time does not.
+  const parked = run(stepDuel(duel(6), [act('heavy', { held: true }), idle()]), heavy.chamber! + 20, heldIntent);
+  assert.equal(parked.fighters[0].age, heavy.chamber!); assert.equal(elapsed(parked.fighters[0]), heavy.chamber! + 20);
+  // A parked swing does not keep lunging: holding to the maximum travels no further than a tap does.
+  const travel = (held: boolean) => { let d = stepDuel(duel(6), [act('heavy', { held }), idle()]); const z0 = d.fighters[0].body.z; d = run(d, heavy.windup + (held ? RULES.charge.max : 0), { ...idle(), held }); return z0 - d.fighters[0].body.z; };
+  assert.ok(Math.abs(travel(true) - travel(false)) < 1e-9, `lunge tap ${travel(false).toFixed(3)} m vs max hold ${travel(true).toFixed(3)} m`);
+  // Every attack starts clean: a kick after a charged heavy is a plain 4-damage kick; a light after a parry window is the riposte but the next light is plain.
+  let k = run(stepDuel(duel(6), [act('heavy', { held: true }), idle()]), RULES.charge.max + total(heavy) + 2, heldIntent);
+  k = { ...k, fighters: [{ ...k.fighters[0], body: { ...k.fighters[1].body, z: k.fighters[1].body.z + 1.05, heading: Math.PI } }, { ...k.fighters[1], phase: 'ready', age: 0 }] } as Duel;
+  assert.equal(k.fighters[0].phase, 'ready'); k = run(stepDuel(k, [act('kick'), idle()]), kick.windup);
+  const kh = k.events.find(e => e.type === 'Hit')!; assert.equal(kh.damage, kick.damage); assert.ok(!kh.charged, 'a kick never inherits the charge');
+  for (const id of ['punish', 'critical', 'counterWindow', 'charge'] as const) assert.equal(stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], punish: 30, critical: 30, counterWindow: 10, charge: 5, charged: true }, duel().fighters[1]] } as Duel, [act('kick'), idle()]).fighters[0][id], 0, `${id} reset by a kick start`);
+  // Perfect block: the discounted price is what must be affordable.
+  const perfectAt = (stamina: number) => stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', age: RULES.parry, stamina }] } as Duel, [idle(), hold()]);
+  assert.ok(types(perfectAt(15)).includes('Blocked'), 'a perfect block costing 12.5 is affordable at 15'); assert.equal(perfectAt(15).fighters[1].stamina, 2.5);
+  assert.ok(types(perfectAt(12)).includes('GuardBroken'), 'not at 12'); assert.ok(types(perfectAt(12.5)).includes('Blocked'), 'exactly affordable at 12.5');
+  // Hyper-armour: while parked at the chamber and when charged, not after a short uncharged hold has been released.
+  // The warden's light starts while the heavy is parked; the heavy is released `h` ticks later. Still parked at contact → armoured; released uncharged and
+  // met before its poise tick → interrupted; released charged → armoured.
+  const metWhile = (h: number, preHold = 2) => { let d = run(stepDuel(duel(), [act('heavy', { held: true }), idle()]), heavy.chamber! + preHold, heldIntent); d = stepDuel(d, [heldIntent, act('light')]); for (let i = 1; i <= light.windup; i++) d = stepDuel(d, [i <= h ? heldIntent : idle(), idle()]); return d.fighters[0].phase; };   // through the light's contact tick
+  assert.equal(metWhile(light.windup), 'attack', 'armoured while parked'); assert.equal(metWhile(6), 'hurt', 'a short hold released uncharged is a plain heavy: interruptible before its poise tick');
+  assert.equal(metWhile(6, RULES.charge.min), 'attack', 'armoured when charged, even after release');
+  // Draw: both fall on the same tick.
+  const trade = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], health: 5, phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], health: 5, phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }] } as Duel, [idle(), idle()]);
+  assert.equal(trade.fighters[0].health, 0); assert.equal(trade.fighters[1].health, 0); assert.equal(trade.finish?.draw, true); assert.equal(trade.events.filter(e => e.type === 'Killed').length, 2);
+});
+
+test('side symmetry: movement resolves against the start-of-tick bodies, so swapping the fighters swaps the result exactly', () => {
+  // Both advance into contact from 0.9 m; the mirrored duel (fighters and inputs swapped) must end in the mirrored positions.
+  const mirror = (d: Duel): Duel => ({ ...d, fighters: [d.fighters[1], d.fighters[0]], events: [] });
+  const towards = (d: Duel, i: 0 | 1): Intent => { const f = d.fighters[i], o = d.fighters[1 - i]; const dx = o.body.x - f.body.x, dz = o.body.z - f.body.z, n = Math.hypot(dx, dz); return { ...idle(), lock: false, move: { x: dx / n, z: dz / n, yaw: 0, run: false } }; };
+  let a = duel(.9), b = mirror(duel(.9));
+  for (let i = 0; i < 20; i++) { a = stepDuel(a, [towards(a, 0), towards(a, 1)]); b = stepDuel(b, [towards(b, 0), towards(b, 1)]); }
+  for (const k of ['x', 'z'] as const) { assert.ok(Math.abs(a.fighters[0].body[k] - b.fighters[1].body[k]) < 1e-9, `fighter 0 ${k}: ${a.fighters[0].body[k]} vs mirrored ${b.fighters[1].body[k]}`); assert.ok(Math.abs(a.fighters[1].body[k] - b.fighters[0].body[k]) < 1e-9, `fighter 1 ${k}`); }
+  assert.ok(Math.hypot(a.fighters[0].body.x - a.fighters[1].body.x, a.fighters[0].body.z - a.fighters[1].body.z) >= .85 - 1e-6, 'bodies never overlap after separation');
 });
