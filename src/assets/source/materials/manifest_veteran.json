@@ -16,7 +16,7 @@
   "baseColor": "bronze_color_veteran.jpg",
   "normal": "bronze_normal_veteran.jpg",
   "metallicRoughness": "bronze_orm_veteran.jpg",
-  "normalScale": 0.7
+  "normalScale": 1.0
  },
  "Wrap": {
   "baseColor": "wrap_color_veteran.jpg",

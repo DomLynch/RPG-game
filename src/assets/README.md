@@ -226,11 +226,20 @@ hero's outputs stay byte-identical.
   guard flaring off the nape; 72 × 20 (azimuth × height) grid, outside vertices of kept faces moved onto the analytic
   boundary along one grid line (averaging two twisted quads and flipped their normals), the whole surface oriented once
   from the grid's winding (a per-face recalc flipped patches beside the openings), open edges extruded 6 mm inward as a
-  rim; 1.3k faces, rigid on the Head bone like the crest. `WARRIOR_FIGHTER=veteran` builds with `helmet_bronze,crest_red`
-  by default (`WARRIOR_ITEMS` overrides). `strip_crown_under_helm` drops the scan head's faces radially inside the dome
+  rim; 1.3k faces, rigid on the Head bone like the crest. `WARRIOR_FIGHTER=veteran` builds with `helmet_bronze` by default
+  (`WARRIOR_ITEMS` overrides). Owner's call after the first live look (2026-09-16): no crest — it floated, and the first
+  opponent is a poor veteran; extravagant gear is for the later, harder men (`crest_red_veteran.glb` stays built). `strip_crown_under_helm` drops the scan head's faces radially inside the dome
   above 4 cm over the rim (hidden for a fighter who always fights helmed: 1.1k faces), and his head decimates at 0.26
   (`FIGHTERS[...]['decimate']`; the hero stays 0.28) so the Veteran ships at 59.5k skinned triangles under the 60k cap.
   `tests/characters.test.ts` locomotion ceiling 1.87 → 2.0 m (REQUESTS #9): the crest reaches ~1.92 m.
+- Bronze (`parts.bronze_maps`, shared by helm and greaves; the hero's shipped GLB carries no bronze): the 512 tile of flat
+  gold with thin scratch lines read as cheap under the arena environment (owner). Now 1024, aged and hand-hammered: broad
+  shallow dents whose facets catch the light (260 overlapping spherical caps, wrapped so the tile has no seam), corrosion
+  pits denser in the oxide, 22 dark-bottomed gouges and 300 fine hand-drawn scratches showing fresh metal, oxide mottling
+  over a dull copper-brown base (0.40/0.255/0.125 — bronze, not gold), grey-green patina pooling in pits and hollows
+  (desaturated, per the materials rule), satin roughness 0.28–0.92 (rougher in the patina, smoother along scratches), the
+  patina dielectric. Manifest normalScale 0.7 → 1.0. First attempt (520 deep dents, ×22 normal) read as cratered rock;
+  the relief was halved and the dents broadened.
 - Scars (`head.body_scars`, `FIGHTERS[...]['scars']`): four healed cuts on the body tile — a 14 cm slash across the bare
   right pectoral, a cut across the outer right bicep, one across the outside of the left forearm, a long slash down the
   outside of the right thigh — 5–7 mm wide (the first pass at 2.6 mm vanished into the 1K map), paler and pinker tissue,

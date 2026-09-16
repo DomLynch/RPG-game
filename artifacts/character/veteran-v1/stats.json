@@ -1,11 +1,11 @@
 {
  "label": "veteran-v1",
- "commit": "0140192",
+ "commit": "1abe75e",
  "date": "2026-09-16",
  "glbBytes": 6336960,
  "glbGzip": 3572984,
- "enemyGlbBytes": 6464944,
- "enemyGlbGzip": 3690523,
+ "enemyGlbBytes": 6839840,
+ "enemyGlbGzip": 4095696,
  "meshes": [
   {
    "name": "mesh_0",
@@ -637,8 +637,8 @@
   }
  ],
  "characterOnly": {
-  "drawCalls": 86,
-  "triangles": 235498,
+  "drawCalls": 84,
+  "triangles": 235114,
   "fighters": 2
  }
 }
