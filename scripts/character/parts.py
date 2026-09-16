@@ -1037,6 +1037,8 @@ else:
         if use_kt:
             kt_parts, kt_maps, neck_z, neck_c = HEADMOD.keentools_head(HEAD, el, er, armature, select_only, tag, save_jpeg, save_two_sizes, materials_out)
             REAL['maps'].update(kt_maps)
+            HEADMOD.neck_tiles(REAL, neck_z, neck_c, select_only, save_two_sizes, save_jpeg)  # the neck continues the scanned head's tone; occlusion re-baked against the scanned head
+            AO = REAL['ao_body']
             body_parts = [o for o in body_parts if o.name not in ('hair_shells', 'brow_cards', 'eye_L', 'eye_R')] + kt_parts
     else:
         AO = bake_ao()  # bare body only: every later piece would occlude it
@@ -1055,7 +1057,7 @@ if not proof:
     manifest_path = os.path.join(materials_out, 'manifest_realistic.json' if realistic else 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
-    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.0), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
+    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.6), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
     # the Studio sculpt's muscle relief is subtle: amplified in the shader (Skin normalScale 1.6 for the realistic build)
     for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 1.6 if realistic else 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 0.7), ('Wrap', wrap_maps(), 1.0), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}

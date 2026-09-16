@@ -38,7 +38,7 @@ const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', meta
 const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: 0.8 });
 const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#6b1a1e', roughness: 0.92, side: T.DoubleSide }); // dyed cloth; the runtime recolours the opponent's
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
-const skin = new T.MeshStandardMaterial({ name: 'Skin', roughness: 1 });
+const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
 for (const mesh of [body, base.scene.getObjectByName('Eyes')]) { mesh.geometry.morphAttributes = {}; mesh.morphTargetInfluences = []; mesh.morphTargetDictionary = {}; }
 base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .35 });

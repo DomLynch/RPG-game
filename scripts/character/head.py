@@ -1212,7 +1212,9 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     brows = tag(brow_cards(head, F, dense=photo is None, count=0 if photo is not None else None), 'brow_cards', 'BrowCards', bone='Head', slot='Face')
     maps['BrowCards'] = dict(maps['HairCards'])  # same sheet, sharper cut-off in the build
     # Lash strips are off: with the lids closed they crossed the opening as a line. Back once placed on the scanned lid edge.
-    return {'maps': maps, 'ao_body': ao_body, 'head': head, 'body': rest, 'parts': [head, rest, hair, brows]}
+    return {'maps': maps, 'ao_body': ao_body, 'head': head, 'body': rest, 'parts': [head, rest, hair, brows],
+            'tiles': {'colour_face': colour_face, 'colour_body': colour_body, 'pos_face': pos_face, 'pos_body': pos_body,
+                      'mask_face': mask_face, 'mask_body': mask_body, 'ao_face': ao_face, 'ao_body': ao_body, 'detail': detail_colour, 'size': size}}
 
 
 # --- KeenTools reconstructed head (photogrammetry from the owner's five portraits) ----------------------------------
@@ -1222,6 +1224,7 @@ SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painte
 NECK_DROP_KT = 0.99  # the scanned head is cut this far below eye level IN SCAN UNITS (≈10 cm at the eye-spacing scale): just under the jaw, where the skin weights are all neck and head (lower, the base body's clavicle weights tear the seam in pose)
 SCALE = None       # scan units → metres, set by keentools_skin_tone
 BODY_NORM = None   # the body tile's tone normalisation, reused by the head tile's neck
+RING_TONE = None   # the photographed head's tone arriving at the collar, per azimuth around the neck (bins × RGB): what the neck below continues
 SCALE_HEIGHT = None  # the scan's scale before the owner's +10%
 NECK_Z = None      # the cut height in rig space, set by keentools_skin_tone
 KT = None         # (object, images, slot_names) once imported
@@ -1453,7 +1456,17 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
         mottle = (0.92 + P.fbm(size, 41, octaves=(4, 8, 16, 32)) * 0.18)[..., None]  # the painted body's own tone noise, so the band is skin, not paint
-        target = SKIN_TONE[None, None, :] * mottle
+        global RING_TONE
+        RING_TONE = ring_tones(head, filled, neck_z, neck_c, size)  # the head's own tone just above the band, around the neck
+        az_c, az_s = head.vertex_groups.new(name='az_c'), head.vertex_groups.new(name='az_s')
+        for v in head.data.vertices:
+            a = math.atan2(v.co.y - neck_c.y, v.co.x - neck_c.x)
+            az_c.add([v.index], (math.cos(a) + 1) / 2, 'REPLACE')
+            az_s.add([v.index], (math.sin(a) + 1) / 2, 'REPLACE')
+        az_tex = np.arctan2(bake_attribute(head, 'az_s', select_only, size) * 2 - 1, bake_attribute(head, 'az_c', select_only, size) * 2 - 1)
+        head.vertex_groups.remove(head.vertex_groups['az_c'])
+        head.vertex_groups.remove(head.vertex_groups['az_s'])
+        target = ring_lookup(RING_TONE, az_tex) * mottle  # the band flattens to the head's own tone at that side of the neck (a flat body tone printed a step at the collar); the neck below picks the same tone up
         filled = filled * (1 - fade)[..., None] + target * fade[..., None]  # our neck meets it on the same tone
         # at the nape the flat band read pale under a rim light: darken it with the scan's own occlusion (64 samples,
         # lightly blurred, bounded to 0.7), only where the head faces backward and only within the fade
@@ -1522,6 +1535,81 @@ def crown_fill(colour, dark, size, hair_zone, stubble=None):
     w = np.clip(1 - reach * 1.6, 0, 1)[..., None] * dark[..., None]
     print(f'KEENTOOLS crown fill: hair tone {np.round(hair, 3)} from {int(band.sum())} texels')
     return filled * (1 - w) + synth * w
+
+
+def ring_tones(head, colour, neck_z, neck_c, size, bins=24):
+    """The head texture's median colour in the band 1.2–3 cm above the collar ring, per azimuth bin around the neck axis
+    (the chin's stubble at the front, the nape's skin at the back, the jaw's sides between), smoothed around the ring."""
+    me = head.data
+    uv = me.uv_layers.active.data
+    acc = [[] for _ in range(bins)]
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            v = me.vertices[me.loops[li].vertex_index]
+            if not (0.012 < v.co.z - neck_z < 0.03):
+                continue
+            u, w = uv[li].uv
+            a = math.atan2(v.co.y - neck_c.y, v.co.x - neck_c.x)
+            acc[int((a + math.pi) / (2 * math.pi) * bins) % bins].append(colour[int(w * size) % size, int(u * size) % size])
+    tones = np.array([np.median(a, axis=0) if len(a) >= 5 else [np.nan] * 3 for a in acc], np.float32)
+    for _ in range(bins):  # empty bins take their neighbours'
+        bad = np.isnan(tones[:, 0])
+        if not bad.any():
+            break
+        for i in np.nonzero(bad)[0]:
+            nb = [tones[(i + d) % bins] for d in (-1, 1) if not np.isnan(tones[(i + d) % bins, 0])]
+            if nb:
+                tones[i] = np.mean(nb, axis=0)
+    tones = np.nan_to_num(tones, nan=float(np.nanmean(tones)))
+    tones = 0.5 * tones + 0.25 * (np.roll(tones, 1, axis=0) + np.roll(tones, -1, axis=0))
+    print(f'KEENTOOLS ring tones: front {np.round(tones[bins // 4 * 3], 3)} back {np.round(tones[bins // 4], 3)} ({sum(len(a) for a in acc)} samples)')
+    return tones
+
+
+def ring_lookup(tones, az):
+    """`tones` (bins × RGB) interpolated circularly at azimuth `az` (an array, radians)."""
+    bins = len(tones)
+    f = (az + math.pi) / (2 * math.pi) * bins - 0.5
+    i0 = np.floor(f).astype(int)
+    t = (f - i0)[..., None]
+    return tones[i0 % bins] * (1 - t) + tones[(i0 + 1) % bins] * t
+
+
+def neck_tiles(real, neck_z, neck_c, select_only, save_two_sizes, save_jpeg, reach=0.08):
+    """After the scanned head is placed: the neck below the collar continues the head's tone. Both tiles are repainted
+    below the ring with their shared occlusion bake (no flat band at the collar any more — it printed a pale strip) and
+    tinted from the head's ring tone at their side of the neck (`RING_TONE`) to the body's tone over `reach` metres down,
+    so the collar is a gradient, not a step."""
+    t = real['tiles']
+    size = t['size']
+    def collar_soft(ao, pos):  # the base head's own occlusion, but not the line its neck printed where the stub now overlaps it: within 1.5 cm of the ring nothing darker than the local average
+        near = np.clip(1 - (neck_z - pos[..., 2]) / 0.015, 0, 1)
+        near = P.downsample(near[..., None], pos.shape[0] // ao.shape[0])[..., 0]
+        return ao * (1 - near) + np.maximum(ao, blur(ao, 16)) * near
+    ao_face, ao_body = collar_soft(t['ao_face'], t['pos_face']), collar_soft(t['ao_body'], t['pos_body'])  # the one bake both tiles share (re-baking against the scanned head lit the shoulders differently and printed the tile split)
+    style = body_colour(t['pos_face'], t['mask_face'], P.upsample(ao_face, size), t['detail'], size)
+    below = np.clip((neck_z + 0.02 - t['pos_face'][..., 2]) / 0.02, 0, 1)[..., None]
+    colour_face = t['colour_face'] * (1 - below) + style * below
+    colour_body = body_colour(t['pos_body'], t['mask_body'], P.upsample(ao_body, size), t['detail'], size)  # BODY_NORM is fixed from the first paint: the same tone, occlusion against the scanned head
+    lum = np.array([0.30, 0.59, 0.11])
+    def tint(colour, pos, mask):
+        depth = neck_z - pos[..., 2]
+        w = np.clip(depth / reach, 0, 1)
+        w = 1 - w * w * (3 - 2 * w)
+        w = np.where(depth > -0.002, w, 1.0) * mask  # everything up to the ring (the head tile above it is cut away)
+        az = np.arctan2(pos[..., 1] - neck_c.y, pos[..., 0] - neck_c.x)
+        factor = ring_lookup(RING_TONE, az) / SKIN_TONE[None, None, :]
+        factor = factor * ((factor @ lum) ** -0.4)[..., None]  # the head's hue in full, its (photographed, shadowed) darkness at 60%: a lit neck under a chin, not a dirty one
+        return np.clip(colour * (1 + (factor - 1) * w[..., None]), 0, 1)
+    colour_face = fill_margin(tint(colour_face, t['pos_face'], t['mask_face']), t['mask_face'])
+    colour_body = tint(colour_body, t['pos_body'], t['mask_body'])
+    soft = np.clip(ao_face ** 1.3, 0, 1)
+    maps = real['maps']
+    maps['Face']['baseColor'] = save_two_sizes('face_color', colour_face, 'sRGB')
+    maps['Face']['occlusion'] = save_jpeg('face_ao', np.stack([soft, soft, soft], axis=2), 'Non-Color')
+    maps['Skin']['baseColor'] = save_two_sizes('skin_color', colour_body, 'sRGB')
+    real['ao_body'] = ao_body  # the shared occlusion map follows
+    print(f'KEENTOOLS neck tiles: both tiles repainted below the collar, tinted from the ring tone over {reach * 100:.0f} cm')
 
 
 def stretch_refill(colour, ratio, unseen, island, size, patch=64, seed=5):

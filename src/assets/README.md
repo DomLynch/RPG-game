@@ -220,3 +220,15 @@ under a raised-cosine window with their tones smoothed; the underside's last tex
 it at a grazing angle: only ~20 rows) carry the smooth tone alone. The collar's texture fade is computed from the heights
 before the chin is lowered and is 3 mm ahead of the neck axis (the throat sits in the jaw's shadow), so the lowered chin
 tip is no longer painted flat. Result: a rounded, uniformly stubbled chin like the portraits' (`humanoid-v35/chin-mouth-v34-v35.png`).
+
+v36 (2026-09-16): the neck continues the head. The collar was a step: the head's band flattened to the scan's neck-ring
+tone (`SKIN_TONE`, sampled in the photograph's shadow) and the body tile below carried a pale 2.5 cm strip of the same
+flat tone. Now `head.ring_tones` reads the head texture's median colour 1.2–3 cm above the ring in 24 azimuth bins (chin
+stubble at the front, nape skin at the back, jaw sides between), the head's band flattens to that tone at its side of the
+neck (per-texel azimuth from two baked attributes), and `head.neck_tiles` repaints both body tiles below the ring —
+their shared occlusion bake, no flat strip, the ring's shadow line under the stub's overlap softened within 1.5 cm — and
+tints them from the ring tone to the body tone over 8 cm (the head's hue in full, its photographed darkness at 60%).
+The `Skin` material is now MeshPhysical with skin-strength specular like `Face`, and the `Face` tile's normal scale
+matches `Skin` (1.6): the two tiles meet on the neck and shaded differently. Not done: the body's overall tone is still
+sampled from the scan's shadowed neck ring, so the torso and limbs read paler than the face under the same light —
+first item of the body pass. `humanoid-v36/neck-before-after.png`, `neck-sheet.png`.
