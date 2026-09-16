@@ -123,7 +123,13 @@ sword's. Pitborn fairness battery with the real cleaver: whiff punisher 4/24 nor
 `cleaver-v3/` (turntable, on-rig, clips, phone lock stills, exchange), `cleaver-B/`, `cleaver-C/` (turntables), `cleaver-v0/`,
 `cleaver-v1/` (the rejected shapes).
 
+## On the Pitborn's own body (trunk after #81 part 2)
+`pitborn-cleaver.glb` (his 1.13× hunched body + the cleaver; 5,545,020 bytes, gzip 3,073,283): `cleaver-pitborn/` sheets. Edge-leading on
+his rig: chop .79, back −.75, hack .93. Baked from HIS rig the frontier grows 13 % (chop 1.85, hack 2.4, poke 2.2) and the whiff punisher
+goes 0/24 — so the shipped bake stays at 1.0× (`veteran-cleaver.glb`, the bake source), as the Pitborn's sword is simulated today; the
+scale decision is the combat lane's with these numbers (REQUESTS §6).
+
 ## Not done / risks
-- The Pitborn still borrows `veteran.glb` in `scene.ts` (REQUESTS §5: one line). The bake is at scale 1.0 (REQUESTS §6).
+- The shipped `pitborn.glb` still carries the sword: the character lane's build flag + one test relaxation (REQUESTS §5), or the GLB map line.
 - Normal-level whiff punisher is exactly at the gate's floor; 6/24 stalls — combat review.
 - No sheathed cleaver, no draw (he starts armed). No parry-clip concerns: the sword's Parry plays.

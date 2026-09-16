@@ -77,38 +77,45 @@ defender's guard kind on `Blocked` / `GuardBroken` (request 2, last bullet) befo
 
 # Cleaver (the Pitborn's) — requests, 2026-09-16
 
-## 5. Opponent / combat lane — one line makes the Pitborn carry it today
-`src/scene.ts` `OPPONENT_GLB.pitborn` → `src/assets/weapons/cleaver/veteran-cleaver.glb` (it borrows `veteran.glb` now). Nothing else:
-the cleaver rides the **sword's clip family** (same 21 clips, same order, same names; only `Heavy` is re-keyed on that rig), so the
-renderer's fixed clip list and positional actions already play it, `WeaponDrawn` renders by default, and the trail's `SwordDrawn`
-lookup finds the same axis (an empty node with the sword's transform, same length). Verified in the harness at 852×393 / 393×852.
-`WEAPONS.cleaver` is real data now (was the longsword placeholder from #81) — `?opponent=pitborn` fights with it as soon as this
-branch lands, so the Pitborn's fairness battery (`tests/opponents.test.ts`) is the gate and it passes: **whiff punisher 4/24 at
-normal, 6/24 at hard** (the gate is ≥ 4). Two things for review, not hidden: normal sits ON the floor, and **6/24 duels stall** at
-both levels (neither man dies in 2 min; the placeholder had 0 stalls) — the cleaver's longer recoveries make the AI more cautious.
-Also fixed in that file: the whiff-punisher script timed its punish from the LONGSWORD's table (`MOVES[w.move]`) — it now reads the
-warden's own weapon (`movesOf(w)`), which every future weapon needs.
+## 5. Character lane — put the cleaver in the shipped Pitborn (`src/assets/pitborn.glb`)
+Trunk's Pitborn (#81 part 2) is his own body, loaded directly by `scene.ts`. The cleaver on that body is built and proven:
+`src/assets/weapons/cleaver/pitborn-cleaver.glb` (`WARRIOR_FIGHTER=pitborn WARRIOR_WEAPON=cleaver`, 5.5 MB, sheets in
+`artifacts/weapons/cleaver-pitborn/`). Two ways to ship it, both one line:
+- **(a) recommended:** add `WARRIOR_WEAPON=cleaver` to the Pitborn's build command so `pitborn.glb` itself carries it (no second body
+  file in the bundle), and relax `tests/characters.test.ts` "the Pitborn is the warrior's rig…" (line ~109) so **`Heavy`'s arm tracks
+  may differ** (the cleaver re-keys that one clip) and the sword nodes may be **empty groups** (they keep the sword's transform; the
+  loader and the trail still find them). Everything else in that test holds: same clip list and order, same durations, hunch, scale.
+- (b) `src/scene.ts` `OPPONENT_GLB.pitborn` → the `pitborn-cleaver.glb` file as-is.
+Nothing else: the cleaver rides the sword's clip family, `WeaponDrawn` renders by default, the trail's `SwordDrawn` lookup finds the
+same axis. `WEAPONS.cleaver` is real data now — `?opponent=pitborn` already fights with it; the fairness battery is the gate (§6).
 
-## 6. Combat review — the cleaver's numbers (`CLEAVER_MOVES` / `CLEAVER_PATHS`, all provisional)
-- **What the single edge does to the sword's moves** (measured from the bake, `artifacts/weapons/tools/edge-check.mjs`): the forehand
-  cut leads with the edge → **the chop** (17 dmg, chip .2); the backhand leads with the spine → **the back of the cleaver**, a hammer
-  (9 dmg, posture 34, staminaDamage 30, stagger 32 — a distinct move for free); the overhead re-keyed as a **diagonal hack** so the edge
-  leads (edge·motion .95 vs the sword's .68; 26 dmg, chip .5, posture 42); the thrust is a **poke** (7 dmg). Timings 22/8/26,
-  36/6/36, 18/5/26.
-- **Lunges equal the sword's** (stepIn scaled by wind-up: .36 / .48 / .87) — with the sword's stepIn the longer tells walked his chops
-  through the player's 12-tick backstep and the whiff punisher went 0/24. **Reach = the sword's spacing estimates** (1.65 / 1.9 / 2.0),
-  not the measured frontier (1.7 / 2.2 / 2.05): with measured reaches the AI hung out of punish range (6 → 10 stalls). Both are yours to
-  revisit; the tests pin them so a change is deliberate.
-- **Scale.** The bake is from the Veteran's rig at 1.0. #81 scales the target capsule for the Pitborn's 1.13, not the attacker's blade
-  path. If `pitborn.glb` ships exported at 1.13, re-bake from it (the manifest entry's `glb`) and his reach grows ~13 %; if the scale is
-  runtime-only, decide whether `bladeImpact` should scale the attacker's table by his `Fighter.scale`.
-- The sim sweeps the node's axis; the blade's 0.20 m forward bend is presentation only (as the sword's diamond section is).
+## 6. Combat review — the cleaver's numbers and the scale question
+- `CLEAVER_MOVES` / `CLEAVER_PATHS`, all provisional. **What the single edge does** (measured, `artifacts/weapons/tools/edge-check.mjs`):
+  the forehand cut leads with the edge → **the chop** (17 dmg, chip .2); the backhand leads with the spine → **the back of the cleaver**,
+  a hammer (9 dmg, posture 34, staminaDamage 30, stagger 32); the overhead re-keyed as a **diagonal hack** so the edge leads (edge·motion
+  .95 vs the sword's .68; 26 dmg, chip .5, posture 42); the thrust a **poke** (7). Timings 22/8/26, 36/6/36, 18/5/26.
+- **The gate passes at the floor:** whiff punisher **4/24 normal · 6/24 hard** (≥ 4); **6/24 stalls** per level (placeholder: 0). Two facts
+  the tests pin so a change is deliberate: **lunges equal the sword's** (stepIn scaled by wind-up: .36 / .48 / .87 — with the sword's
+  stepIn the longer tells walked chops through the 12-tick backstep, punisher 0/24) and **reach = the sword's spacing estimates**
+  (1.65 / 1.9 / 2.0, not the measured 1.7 / 2.2 / 2.05 — measured reaches made the AI hang out of punish range, 10 stalls).
+- Fixed in `tests/opponents.test.ts`: the whiff-punisher script timed from the *longsword's* table; now `movesOf(w)`.
+- **Scale — your decision, with numbers.** The manifest bakes the cleaver from a 1.0× rig (`veteran-cleaver.glb`, the bake source only),
+  as the Pitborn's sword is simulated today (the longsword table is 1.0× though his rendered sword is 1.13×). Baked from his own rig
+  (`pitborn-cleaver.glb`, 1.13×): chop lands to **1.85** (1.7), hack **2.4** (2.2), poke **2.2** (2.05) and the whiff punisher goes
+  **0/24** — a 12-tick backstep no longer escapes a bigger man. Options: keep 1.0× tables for every fighter (today's fiction, ~10 cm at
+  the tip), or bake at 1.13× and re-tune his whiff window (backstep length, his stepIn, or `bladeImpact` scaling the attacker's table by
+  `Fighter.scale`). Switching the bake is one manifest line.
 
-## 7. Character lane — part 2 (pitborn.glb)
-Build with `WARRIOR_WEAPON=cleaver` (and `WEAPON_VARIANT` if the owner picks B or C), or he ships with the sword. Then point the
-manifest's cleaver entry at `src/assets/pitborn.glb` and re-bake.
+## 7. Character lane — the Pitborn's build flag
+Whatever §5 decides, the Pitborn rebuild command carries `WARRIOR_WEAPON=cleaver` (and `WEAPON_VARIANT` per the owner's pick) from now
+on, or a rebuild hands him the sword.
 
 ## 8. Owner — pick the cleaver's silhouette
 `artifacts/weapons/cleaver-v3/weapon-turntable.png` (**A**, default: fat scythe, 0.19 m belly out near the hooked tip, 0.20 m
 forward sweep), `cleaver-B/` (broad chopper, 0.17 m, square-cut tip), `cleaver-C/` (long sickle, 0.14 m, 0.28 m bend). All 615
-triangles, no textures; `WEAPON_VARIANT=A|B|C`.
+triangles, no textures; `WEAPON_VARIANT=A|B|C`. On his body: `cleaver-pitborn/weapon-on-rig.png`.
+## For the weapons lane — the Pitborn's cleaver (2026-09-16, from the opponent seam, PR #81)
+`WeaponId 'cleaver'` exists as a longsword placeholder; `OPPONENTS.pitborn.weapon = 'cleaver'` already. The full contract (mesh, `WeaponDrawn`
++ `extras.contact`, own `material` value, `WARRIOR_FIGHTER=pitborn WARRIOR_WEAPON=cleaver` hook, manifest entry baked from `src/assets/pitborn.glb`,
+heavier stamina / longer heavy recovery, re-run `tests/opponents.test.ts`) is in `artifacts/character/BRIEF-pitborn.md` § Weapon. Sword clip
+family only — no new move set; the renderer already plays it, so unlike the trident it is visible in-game the moment the data lands.

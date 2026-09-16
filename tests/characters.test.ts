@@ -5,7 +5,7 @@ import { AnimationMixer, Box3, Vector3, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
-import { PATHS, total } from '../src/moves.ts';
+import { OPPONENTS, PATHS, total } from '../src/moves.ts';
 import { bladePaths } from '../src/blade-paths.ts';
 import { CLIPS, COMBAT_CLIPS, buildWarriors, gaitWeights, swingProgress, defenceReaction } from '../src/characters.ts';
 
@@ -25,8 +25,10 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 });
 
 // Parse the shipped geometry/rig/clips in Node. Image decoding/CSP is exercised in the browser.
-// Two fighters ship: the player's warrior.glb and the opponent's veteran.glb (its own head, helm and maps on the same rig).
-const FIGHTERS = ['warrior.glb', 'veteran.glb'] as const;
+// Three fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig) and the Pitborn (the same rig
+// at OPPONENTS.pitborn.scale with a hunched spine — his ceilings scale with him).
+const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb'] as const;
+const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale };
 async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
@@ -63,9 +65,10 @@ for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded wa
       });
       assert.ok(bounds.min.y >= -.03, `${clip.name}: underground foot ${bounds.min.y}`);
       assert.ok(bounds.min.y < (clip.name === 'Idle' || clip.name === 'Walk' ? .06 : .32), `${clip.name}: floating ${bounds.min.y}`);
-      assert.ok(bounds.max.y < 2.0 && bounds.max.y > 1.4, `${file} ${clip.name}: height ${bounds.max.y}`); // 1.87 → 2.0 (REQUESTS #9): the Veteran's crested helm reaches ~1.92 m on this 1.8 m body
+      const k = SCALE[file];
+      assert.ok(bounds.max.y < 2.0 * k && bounds.max.y > 1.4 * k, `${file} ${clip.name}: height ${bounds.max.y}`); // 1.87 → 2.0 (REQUESTS #9): the Veteran's crested helm reaches ~1.92 m on this 1.8 m body
       // depth 1.6→1.65: the Studio body's feet are real length, so the Jog stride measures 1.605 m toe to toe (2026-09-14)
-      assert.ok(bounds.max.x - bounds.min.x < 1.5 && bounds.max.z - bounds.min.z < 1.65, `${clip.name} frame ${frame}: reach ${(bounds.max.x - bounds.min.x).toFixed(2)} × ${(bounds.max.z - bounds.min.z).toFixed(2)}`);
+      assert.ok(bounds.max.x - bounds.min.x < 1.5 * k && bounds.max.z - bounds.min.z < 1.65 * k, `${clip.name} frame ${frame}: reach ${(bounds.max.x - bounds.min.x).toFixed(2)} × ${(bounds.max.z - bounds.min.z).toFixed(2)}`);
     }
     action.stop();
   }
@@ -93,6 +96,43 @@ test('the Veteran carries the warrior\'s clips and sword attachments exactly, so
   }
   const bones = (asset: Awaited<ReturnType<typeof readWarrior>>) => { const names: string[] = []; asset.scene.traverse(o => { if ((o as { isBone?: boolean }).isBone) names.push(o.name); }); return names; };
   assert.deepEqual(bones(veteran), bones(hero));
+});
+
+// Standing height of a clip's first frame: the top of every skinned vertex.
+function standingTop(asset: Awaited<ReturnType<typeof readWarrior>>, clipName = 'Idle') {
+  const mixer = new AnimationMixer(asset.scene), clip = asset.animations.find(a => a.name === clipName)!, point = new Vector3(), bounds = new Box3();
+  mixer.clipAction(clip).play(); mixer.setTime(0); asset.scene.updateMatrixWorld(true);
+  asset.scene.traverse(o => { if (!(o instanceof SkinnedMesh)) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 3) { point.fromBufferAttribute(p, i); o.applyBoneTransform(i, point); point.applyMatrix4(o.matrixWorld); bounds.expandByPoint(point); } });
+  return bounds.max.y;
+}
+const HUNCHED = ['spine_02', 'spine_03', 'neck_01', 'Head'];   // scripts/build-warrior.mjs BUILD.pitborn.hunch
+test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunched spine: same clips and timings, every bone track identical except the hunched ones, the sword in the same hand, and he stands taller by his scale less the hunch', async () => {
+  const [hero, brute] = await Promise.all([readWarrior('warrior.glb'), readWarrior('pitborn.glb')]);
+  assert.deepEqual(brute.animations.map(a => a.name), hero.animations.map(a => a.name));
+  let hunchedTracks = 0;
+  for (const [i, clip] of hero.animations.entries()) {
+    const other = brute.animations[i];
+    assert.equal(other.duration, clip.duration, `${clip.name} duration`);
+    assert.deepEqual(other.tracks.map(t => t.name).sort(), clip.tracks.map(t => t.name).sort(), `${clip.name} tracks`);
+    for (const track of clip.tracks) {
+      const twin = other.tracks.find(t => t.name === track.name)!;
+      assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
+      if (HUNCHED.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be hunched`); hunchedTracks++; }
+      else assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
+    }
+  }
+  assert.ok(hunchedTracks >= hero.animations.length * HUNCHED.length * .9, `hunched tracks ${hunchedTracks}`);
+  for (const name of ['SwordSheathed', 'SwordDrawn', 'hand_r']) {
+    const a = hero.scene.getObjectByName(name)!, b = brute.scene.getObjectByName(name)!;
+    assert.ok(a && b, name);
+    assert.deepEqual(b.position.toArray(), a.position.toArray(), `${name} position`); assert.deepEqual(b.quaternion.toArray(), a.quaternion.toArray(), `${name} rotation`); assert.equal(b.parent?.name, a.parent?.name, `${name} parent`);
+  }
+  // The scale is on the rig root, so the simulation's capsule (OPPONENTS.pitborn.scale) and the rendered man agree; the hunch takes a few centimetres off the top.
+  const k = OPPONENTS.pitborn.scale, root = (a: typeof hero) => a.scene.children[0].scale;
+  for (const axis of ['x', 'y', 'z'] as const) assert.ok(Math.abs(root(brute)[axis] / root(hero)[axis] - k) < 1e-3, `root scale ${axis}: ${root(brute)[axis]} / ${root(hero)[axis]}`);
+  const ratio = standingTop(brute) / standingTop(hero);
+  assert.ok(ratio > k - .06 && ratio <= k + .01, `standing height ratio ${ratio.toFixed(3)} for scale ${k} (${standingTop(brute).toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
+  console.log(`pitborn stands ${standingTop(brute).toFixed(3)} m to the hero's ${standingTop(hero).toFixed(3)} (×${ratio.toFixed(3)}, scale ${k}); ${hunchedTracks} hunched tracks`);
 });
 
 test('two fighters share geometry but have independent animated bones', async () => {
