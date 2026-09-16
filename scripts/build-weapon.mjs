@@ -1,0 +1,191 @@
+// Weapons lane. A weapon is a rigid part for the shared rig plus the clips that swing it: pure Three.js geometry under the same
+// materials rule as the sword (worn bronze, dark ash, leather — no new textures), attached under hand_r with SwordDrawn's transform
+// so its local Y runs along the shaft, and `extras.contact = { from, to }` (metres along Y) marks the striking segment the bake
+// samples — the trident's tines, never the shaft. Clips are authored offline on the rig with build-warrior's two-bone reach, as
+// Heavy, Riposte and Kick were: the body comes from the CC0 loops (Armed, ArmedWalk, Strafe*, Hit, Death), both arms are re-solved
+// onto the shaft every key. Timings are data (src/moves.ts WEAPONS.trident); a clip only fixes where the contact key sits (.34 / .48).
+//   build-warrior.mjs, WARRIOR_WEAPON=trident [WEAPON_VARIANT=A|B|C]   the fighter carries the trident and its clips
+//   node scripts/build-weapon.mjs [variant]                            writes the part alone to src/assets/weapons/trident/trident.glb
+import * as T from 'three';
+
+// Silhouette variants for the owner's pick (2026-09-16): tine length / spread and shaft length. Rig units (the fighter's .9/.97
+// scale applies on export). `butt` and `socket` are metres along local Y from the rear hand (y 0 = the rear grip's centre).
+export const VARIANTS = {
+  A: { name: 'A · balanced: 1.9 m, 0.40 m tines, 0.16 m spread', butt: -.35, socket: 1.15, tines: .40, side: .34, spread: .16 },
+  B: { name: 'B · wide fork: 1.9 m, 0.46 m tines, 0.22 m spread', butt: -.35, socket: 1.09, tines: .46, side: .40, spread: .22 },
+  C: { name: 'C · long shaft: 2.05 m, 0.30 m tines, 0.13 m spread', butt: -.45, socket: 1.30, tines: .30, side: .26, spread: .13 },
+};
+export const DEFAULT_VARIANT = 'A';
+
+// The trident: ash shaft with a bronze butt cap, two leather grips (rear at the hand, front on the shaft), a bronze socket, a
+// crossbar and three tines — the centre one longest, the outer two leaning out. Museum bronze (the Veteran's approved helm
+// values: 0.62/0.545/0.415, roughness .63, metalness .80), not the sword's brass furniture, so head and helm read as one metal.
+export function trident({ T: three = T, withAoUv = g => g, leather, variant = DEFAULT_VARIANT } = {}) {
+  const v = VARIANTS[variant] ?? VARIANTS[DEFAULT_VARIANT];
+  const bronze = new three.MeshStandardMaterial({ name: 'TridentBronze', color: new three.Color(0.62, 0.545, 0.415), roughness: .63, metalness: .8 });
+  const ash = new three.MeshStandardMaterial({ name: 'Ash', color: '#3b2d22', roughness: .88 }); // dark oiled ash, no sheen
+  const wrap = leather ?? new three.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: .8 });
+  const group = new three.Group(); group.name = 'WeaponDrawn';
+  const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
+  const cyl = (rTop, rBottom, from, to, segments = 12) => new three.CylinderGeometry(rTop, rBottom, to - from, segments).translate(0, (from + to) / 2, 0);
+  const crossbar = v.socket + .10, tip = crossbar + v.tines;
+  piece(cyl(.019, .019, v.butt, v.butt + .04), bronze);                                   // butt cap
+  piece(cyl(.015, .0175, v.butt + .04, v.socket), ash, 0, 0, 0, 10);                        // shaft, tapering to the head
+  piece(cyl(.0185, .0185, -.11, .11), wrap);                                                // rear grip (the hand)
+  piece(cyl(.0185, .0185, .44, .66), wrap);                                                 // front grip
+  piece(cyl(.021, .026, v.socket - .02, crossbar), bronze);                                 // socket
+  piece(new three.BoxGeometry(v.spread + .04, .026, .026), bronze, crossbar);                // crossbar
+  for (const x of [-1, 1]) piece(new three.SphereGeometry(.016, 10, 8), bronze, crossbar, x * (v.spread + .04) / 2);
+  const tine = (length, lean, x) => { // a tapered, flattened spike: round at the root, a point at the tip
+    const g = new three.CylinderGeometry(.0035, .014, length, 10).translate(0, length / 2, 0).scale(1, 1, .72).rotateZ(lean).translate(x, crossbar, 0);
+    return piece(g, bronze);
+  };
+  tine(v.tines, 0, 0);
+  for (const s of [-1, 1]) tine(v.side, -s * .09, s * v.spread / 2);
+  group.userData.contact = { from: crossbar, to: tip }; // the striking segment: the head's tines
+  group.userData.weapon = 'trident'; group.userData.variant = variant;
+  return group;
+}
+
+// Clip authoring on the fighter's rig. ctx comes from build-warrior.mjs: { T, base, skeleton, poseMixer, clips, reachArm, weapon }.
+// Goals are given in the chest's frame (spine_03: x right, y up, z forward at rest) so the weapon rides the body's own motion —
+// the walk's bob, the hit's flinch, the death's fall. Each key: { t, body: [clip, time], r: [x, y, z] rear-hand goal, dir: shaft
+// direction, l: the front hand's distance along the shaft, spine: [yaw, pitch] added on top of the body pose }.
+export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, reachArm, weapon }) {
+  const bone = name => base.scene.getObjectByName(name);
+  const chest = bone('spine_03'), handR = bone('hand_r'), handL = bone('hand_l');
+  const play = (name, t) => { const clip = clips.find(c => c.name === name); if (!clip) throw new Error(`build-weapon: the rig has no ${name} clip`); poseMixer.clipAction(clip).play(); poseMixer.setTime(Math.min(t, .999999) * clip.duration); base.scene.updateMatrixWorld(true); };
+  const Y = new three.Vector3(0, 1, 0), Z = new three.Vector3(0, 0, 1);
+  // The chest's rest orientation: goals turn with the chest's deviation from it — its yaw only for loops and the flinch (the pole stays
+  // level while he walks or takes a hit), the full rotation for the death (the pole goes down with him).
+  play('Armed', 0); const restChest = chest.getWorldQuaternion(new three.Quaternion());
+  // The right hand already holds a pole correctly (the sword's authored grip: shaft along the weapon node, fingers from Sword_Idle).
+  // The left hand's grip is that grip mirrored across the vertical plane through the shaft: the same hold, on the other side.
+  // Hand frames from their own landmarks — fingers (middle_01) and thumb — so the mirror maps the right hand's frame onto the left's.
+  const basisOf = hand => { const e1 = bone(`middle_01_${hand}`).position.clone().normalize(), t = bone(`thumb_01_${hand}`).position.clone(); const e2 = t.addScaledVector(e1, -t.dot(e1)).normalize(); const e3 = e1.clone().cross(e2); if (hand === 'l') e3.negate(); return new three.Matrix4().makeBasis(e1, e2, e3); };
+  const Br = basisOf('r'), Bl = basisOf('l'), column = (m, i) => new three.Vector3().setFromMatrixColumn(m, i);
+  const shaftR = Y.clone().applyQuaternion(weapon.quaternion), gripR = weapon.position.clone();           // the shaft in hand_r's frame: direction and where it passes
+  const palmSign = Math.sign(gripR.dot(column(Br, 2))) || 1;                                             // the shaft lies on the palm side of the wrist: which way that is
+  const palmR = column(Br, 2).multiplyScalar(palmSign), palmL = column(Bl, 2).multiplyScalar(palmSign);
+  const toLeft = v => v.clone().applyMatrix4(Br.clone().transpose()).applyMatrix4(Bl);                      // right-hand coordinates → the left hand's mirrored frame
+  const shaftL = toLeft(shaftR).normalize(), gripL = toLeft(gripR);
+  const frameFrom = (u1, u2) => { const a = u1.clone().normalize(), b = u2.clone().addScaledVector(a, -u2.dot(a)).normalize(); return new three.Matrix4().makeBasis(a, b, a.clone().cross(b)); };
+  const leftLocal = frameFrom(shaftL, palmL);
+  // Fingers: the right hand's curl (Sword_Idle grips) mirrored onto the left. The rig's mirror convention is found, not assumed: the
+  // sign pattern whose curled fingertips land furthest on the palm side is the mirror.
+  const fingers = ['index', 'middle', 'ring', 'pinky', 'thumb'].flatMap(f => ['01', '02', '03'].map(n => `${f}_${n}`));
+  const mirror = [[1, -1, -1, 1], [-1, 1, -1, 1], [-1, -1, 1, 1]].map(pattern => {
+    play('Armed', 0); for (const f of fingers) { const q = bone(`${f}_r`).quaternion; bone(`${f}_l`).quaternion.set(q.x * pattern[0], q.y * pattern[1], q.z * pattern[2], q.w * pattern[3]); }
+    base.scene.updateMatrixWorld(true); const wrist = handL.getWorldPosition(new three.Vector3()), palm = palmL.clone().applyQuaternion(handL.getWorldQuaternion(new three.Quaternion()));
+    const curl = fingers.filter(f => /_03$/.test(f)).reduce((s, f) => s + bone(`${f}_l`).getWorldPosition(new three.Vector3()).sub(wrist).dot(palm), 0);
+    poseMixer.stopAllAction(); return { pattern, curl };
+  }).sort((a, b) => b.curl - a.curl)[0].pattern;
+  function pose({ body, r, dir, l, spine = [0, 0], roll = 0, follow = 'none' }) {
+    play(body[0], body[1]);
+    if (spine[0]) { bone('pelvis').rotation.y += spine[0] * .35; bone('spine_01').rotation.y += spine[0] * .65; }
+    if (spine[1]) bone('spine_02').rotation.x += spine[1];
+    base.scene.updateMatrixWorld(true);
+    // Goals ride the chest's position in the fighter's own frame (the rig faces +Z; the bladed sword stance twists the chest, so its
+    // yaw is no reference). 'full' turns them with the chest as well — the death, where the pole goes down with him.
+    const frame = follow === 'full' ? chest.getWorldQuaternion(new three.Quaternion()).multiply(restChest.clone().invert()) : new three.Quaternion();
+    const origin = chest.getWorldPosition(new three.Vector3());
+    const goal = origin.clone().add(new three.Vector3(...r).applyQuaternion(frame)), shaft = new three.Vector3(...dir).normalize().applyQuaternion(frame);
+    reachArm('r', goal); base.scene.updateMatrixWorld(true);
+    const orientation = new three.Quaternion().setFromAxisAngle(shaft, roll).multiply(new three.Quaternion().setFromUnitVectors(Y, shaft));
+    handR.quaternion.copy(handR.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientation).multiply(weapon.quaternion.clone().invert()));
+    base.scene.updateMatrixWorld(true);
+    // The left hand: mirror the right's palm normal across the vertical plane through the shaft, orient the hand so its own shaft
+    // direction and palm normal meet the shaft and that mirrored normal, then put its grip point on the shaft `l` metres along.
+    const palmWorld = palmR.clone().applyQuaternion(handR.getWorldQuaternion(new three.Quaternion()));
+    let across = shaft.clone().cross(Y); if (across.length() < .1) across = new three.Vector3(1, 0, 0).applyQuaternion(frame); across.normalize();
+    const mirrored = palmWorld.addScaledVector(across, -2 * palmWorld.dot(across));
+    const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, mirrored).multiply(leftLocal.clone().transpose()));
+    reachArm('l', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL))); base.scene.updateMatrixWorld(true);
+    handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientL));
+    for (const f of fingers) { const q = bone(`${f}_r`).quaternion; bone(`${f}_l`).quaternion.set(q.x * mirror[0], q.y * mirror[1], q.z * mirror[2], q.w * mirror[3]); }
+    base.scene.updateMatrixWorld(true);
+    const values = new Map(skeleton.bones.map(b => [b.name, [...b.quaternion.toArray()]])), position = [...bone('pelvis').position.toArray()];
+    poseMixer.stopAllAction();
+    return { values, position };
+  }
+  const make = (name, duration, keys) => {
+    const times = keys.map(k => k.t), poses = keys.map(pose), positions = poses.flatMap(p => p.position);
+    return new three.AnimationClip(name, duration, [new three.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new three.QuaternionKeyframeTrack(b.name + '.quaternion', times, poses.flatMap(p => p.values.get(b.name))))]);
+  };
+  // A loop: the body clip sampled at n frames with one constant grip; the last key repeats the first so it joins seamlessly.
+  const loop = (name, body, duration, n, grip, wrap = true) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })));
+  // The rest grip: rear hand at the right hip, tines forward and a little up at the opponent's chest, front hand a forearm along the shaft.
+  const REST = { r: [.24, -.30, .16], dir: [-.10, .20, .97], l: .40, spine: [.12, 0] };
+  const GUARD = { r: [.26, -.22, .26], dir: [-.78, .45, .43], l: .55, spine: [-.05, 0] }; // the shaft across the body: a guard of wood
+  const out = [
+    loop('Trident_Idle', 'Armed', 1.667, 8, REST),
+    loop('Trident_Walk', 'ArmedWalk', 1.333, 8, REST),
+    loop('Trident_StrafeLeft', 'StrafeLeft', .8, 6, REST),
+    loop('Trident_StrafeRight', 'StrafeRight', .8, 6, REST),
+    // Thrust: the rear hand drives from behind the hip to the hip, the front arm extends; contact at .34 like the sword's stab, the
+    // tines at the opponent's chest (~1.2 m up) from ~1.4 m in front (the sword's stab reaches 1.14).
+    make('Trident_Thrust', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .18, body: ['Armed', 0], r: [.28, -.30, -.30], dir: [-.03, .13, 1], l: .48, spine: [.22, 0] },
+      { t: .34, body: ['Armed', 0], r: [.24, -.22, -.04], dir: [0, .09, 1], l: .56, spine: [-.12, .06] },
+      { t: .55, body: ['Armed', 0], r: [.24, -.22, -.04], dir: [0, .09, 1], l: .56, spine: [-.12, .06] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    make('Trident_ThrustChain', 1, [ // the second thrust: half withdrawn, out again
+      { t: 0, body: ['Armed', 0], r: [.26, -.27, -.20], dir: [-.02, .11, 1], l: .50, spine: [.10, 0] },
+      { t: .34, body: ['Armed', 0], r: [.24, -.22, -.02], dir: [0, .09, 1], l: .56, spine: [-.14, .06] },
+      { t: .6, body: ['Armed', 0], r: [.24, -.22, -.02], dir: [0, .09, 1], l: .56, spine: [-.14, .06] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // Low sweep: the tines swing across the front at knee height, right to left; contact in front at .34.
+    make('Trident_Sweep', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .15, body: ['Armed', 0], r: [.30, -.40, -.18], dir: [.58, -.24, .78], l: .44, spine: [.28, 0] },
+      { t: .34, body: ['Armed', 0], r: [.10, -.46, -.08], dir: [.02, -.30, .95], l: .44, spine: [0, .05] },
+      { t: .5, body: ['Armed', 0], r: [-.06, -.44, -.04], dir: [-.52, -.24, .82], l: .44, spine: [-.25, .05] },
+      { t: .7, body: ['Armed', 0], r: [.06, -.38, -.02], dir: [-.30, .05, .95], l: .42, spine: [-.12, 0] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // Overhead pin: raised over the head, driven down into the torso (tines at ~1.0 m from ~1.3 m out); contact at .48 like the sword's heavy.
+    make('Trident_High', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .28, body: ['Armed', 0], r: [.22, .28, -.30], dir: [-.06, .84, .54], l: .46, spine: [.15, -.08] },
+      { t: .48, body: ['Armed', 0], r: [.18, -.04, -.24], dir: [0, -.12, .99], l: .52, spine: [-.08, .12] },
+      { t: .64, body: ['Armed', 0], r: [.16, -.18, -.16], dir: [0, -.24, .97], l: .52, spine: [-.08, .14] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    make('Trident_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
+    // Block impact: the guard takes the blow on the shaft and gives — hands shoved back, chest folds — then settles.
+    make('Trident_BlockImpact', 1, [
+      { t: 0, body: ['Armed', 0], ...GUARD },
+      { t: .12, body: ['Armed', 0], r: [.22, -.24, .10], dir: [-.78, .45, .43], l: .55, spine: [-.05, .08] },
+      { t: .35, body: ['Armed', 0], r: [.24, -.23, .16], dir: [-.78, .45, .43], l: .55, spine: [-.05, .05] },
+      { t: .65, body: ['Armed', 0], ...GUARD },
+      { t: 1, body: ['Armed', 0], ...GUARD },
+    ]),
+    // Deflected: the thrust is turned aside — tines knocked out to the right and up, the line lost — then the rest grip again.
+    make('Trident_Deflected', 1, [
+      { t: 0, body: ['Armed', 0], r: [.16, -.30, -.12], dir: [0, .02, 1], l: .56, spine: [-.12, .06] },
+      { t: .12, body: ['Armed', 0], r: [.28, -.22, -.08], dir: [.48, .28, .83], l: .50, spine: [.10, 0] },
+      { t: .35, body: ['Armed', 0], r: [.34, -.16, -.14], dir: [.62, .36, .70], l: .46, spine: [.24, -.04] },
+      { t: .65, body: ['Armed', 0], r: [.26, -.30, -.06], dir: [.20, .20, .96], l: .42, spine: [.16, 0] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    loop('Trident_Hit', 'Hit', .333, 4, REST, false),                        // the flinch keeps the pole level (yaw only)
+    loop('Trident_Death', 'Death', 2.4, 10, { ...REST, follow: 'full' }, false), // the pole goes down with him
+  ];
+  return out;
+}
+
+// Standalone: the part alone (no rig), for the record and the harness turntable.
+if (process.argv[1] && /build-weapon\.mjs$/.test(process.argv[1])) {
+  const fs = await import('node:fs/promises');
+  const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+  globalThis.FileReader ??= class { async readAsArrayBuffer(blob) { this.result = await blob.arrayBuffer(); this.onloadend?.(); } async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); } };
+  const variant = process.argv[2] || DEFAULT_VARIANT, scene = new T.Scene(), part = trident({ variant }); scene.add(part);
+  const glb = await new GLTFExporter().parseAsync(scene, { binary: true });
+  const out = process.env.WEAPON_OUT || 'src/assets/weapons/trident/trident.glb';
+  await fs.mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true }); await fs.writeFile(out, Buffer.from(glb));
+  let triangles = 0; part.traverse(o => { if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+  console.log(`trident ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${VARIANTS[variant].name})`);
+}

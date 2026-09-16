@@ -3,6 +3,8 @@
 //   node scripts/character-preview.mjs --label baseline      capture into artifacts/character/<label>/
 //   node scripts/character-preview.mjs --against baseline    also print deltas against that label's stats
 //   node scripts/character-preview.mjs --serve               keep a dev server up for manual review
+//   node scripts/character-preview.mjs --weapons --label baseline [--enemy /src/assets/weapons/trident/veteran-trident.glb]
+//                                                            weapons lane evidence into artifacts/weapons/<label>/ (the opponent's weapon)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -13,10 +15,11 @@ const commit = execSync('git rev-parse --short HEAD').toString().trim();
 const label = option('label') || commit, against = option('against');
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}character-preview.html${option('src') ? `?src=${encodeURIComponent(option('src'))}` : ''}`;
+const query = new URLSearchParams(); for (const key of ['src', 'enemy']) if (option(key)) query.set(key, option(key));
+const url = `${server.resolvedUrls.local[0]}character-preview.html${query.size ? `?${query}` : ''}`;
 if (args.includes('--serve')) { console.log(`Character preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
-const dir = `artifacts/character/${label}`; await fs.mkdir(dir, { recursive: true });
+const weapons = args.includes('--weapons'), dir = `artifacts/${weapons ? 'weapons' : 'character'}/${label}`; await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const errors = [];
 async function open(context) {
@@ -37,6 +40,23 @@ try {
   }
   if (args.includes('--moodboard')) { // Direction proposal only: swatches and silhouette blockout, no baseline captures.
     for (const [name, data] of Object.entries(await page.evaluate(() => __preview.moodboard()))) await save(`${name}.png`, data);
+    if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
+  }
+  if (weapons) { // Weapons lane evidence: the opponent's weapon alone, in hand, its clips, phone lock stills, the scripted exchange and the cost table.
+    await save('weapon-turntable.png', await page.evaluate(() => __preview.weaponTurntable()));
+    await save('weapon-on-rig.png', await page.evaluate(() => __preview.weaponOnRig()));
+    await save('weapon-clips.png', await page.evaluate(() => __preview.weaponClips()));
+    for (const [orientation, role, t] of [['phone', 'idle', 0], ['phoneLandscape', 'idle', 0], ['phone', 'thrust', .34], ['phoneLandscape', 'thrust', .34], ['phoneLandscape', 'guard', 1]])
+      await save(`weapon-lock-${orientation}-${role}.png`, await page.evaluate(([o, r, t]) => __preview.weaponLock(o, r, t), [orientation, role, t]));
+    await save('exchange.png', await page.evaluate(() => __preview.weaponExchange()));
+    await save('exchange-zoom.png', await page.evaluate(() => __preview.weaponExchange('phoneLandscape', 15, 2)));
+    const weapon = await page.evaluate(() => __preview.weaponStats()), enemyFile = (option('enemy') || '/src/assets/veteran.glb').replace(/^\//, ''), enemy = await fs.readFile(enemyFile);
+    const stats = { label, commit, date: new Date().toISOString().slice(0, 10), enemyGlb: enemyFile, enemyGlbBytes: enemy.length, enemyGlbGzip: gzipSync(enemy).length, ...weapon };
+    await fs.writeFile(`${dir}/stats.json`, JSON.stringify(stats, null, 1));
+    const previous = against ? JSON.parse(await fs.readFile(`artifacts/weapons/${against}/stats.json`, 'utf8')) : null;
+    const row = (name, value) => { const delta = previous && typeof previous[name] === 'number' ? ` (${value - previous[name] >= 0 ? '+' : ''}${(value - previous[name]).toLocaleString()})` : ''; return `| ${name} | ${value.toLocaleString()}${delta} |`; };
+    console.log(`\n| resource | ${label}${previous ? ` (Δ vs ${against})` : ''} |\n|---|---|\n${['enemyGlbBytes', 'enemyGlbGzip', 'triangles', 'extentMetres'].map(k => row(k, stats[k])).join('\n')}`);
+    console.log(`weapon: ${stats.node} contact ${stats.contact.join('–')} m; materials ${stats.materials.join(', ')}; clips (${stats.clips.length}): ${stats.clips.join(', ')}`);
     if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
   }
   await save('inspection-turntable.png', await page.evaluate(() => __preview.turntable()));

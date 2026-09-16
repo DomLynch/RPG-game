@@ -1,0 +1,44 @@
+{
+ "label": "baseline",
+ "commit": "86189a5",
+ "date": "2026-09-16",
+ "enemyGlb": "src/assets/veteran.glb",
+ "enemyGlbBytes": 6600296,
+ "enemyGlbGzip": 3887706,
+ "node": "SwordDrawn",
+ "triangles": 364,
+ "materials": [
+  "Blade",
+  "Antique brass",
+  "Leather",
+  "Steel"
+ ],
+ "contact": [
+  0.18,
+  0.86
+ ],
+ "extentMetres": 0.837,
+ "clips": [
+  "Idle",
+  "Walk",
+  "Jog",
+  "Run",
+  "Armed",
+  "Attack",
+  "Hit",
+  "Death",
+  "Draw",
+  "Roll",
+  "Guard",
+  "Return",
+  "Heavy",
+  "Riposte",
+  "ArmedWalk",
+  "StrafeLeft",
+  "StrafeRight",
+  "Kick",
+  "BlockImpact",
+  "Parry",
+  "Deflected"
+ ]
+}
