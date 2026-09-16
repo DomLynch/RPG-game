@@ -276,3 +276,7 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 - ai.ts: `AiState.next` gains 'thrust'; `THRUST_SHARE` .35 after the first attack; score `thrust` needs `gap ≥ cut reach` and no guard; a planned thrust inside cutting range sets `retreat`; approach stops at thrust reach − .2 when a thrust is planned; spammer parry cap `1 − dodge`. combat.ts: thrust threat hint (keeps the 'Incoming strike' prefix the gate keys on).
 - Test lessons: consecutive small LCG seeds give near-identical first draws — spread test seeds with the golden-ratio hash; a passive player at hard is a punching bag (punish/chain loop starves openers), so opener behaviour is tested from constructed states plus a 'peek' player (guard 1.5 s / open 1.5 s).
 - Evidence: 127/127 tests; 7/7 thrust mutations caught (first-opener gate, kit, range gate, step-back, no-guard, parry cap, hint); duel length above.
+
+## DNA table closed for the sword loop — 2026-09-16
+- Items 1–4 shipped and live (`4507458` posture, `d2ef97c` hit-stop, `ca38941` adaptive warden, `06fced0` thrust opener). Item 5 (momentum/dominance/crowd) proposed as a tug-of-war bar with a posture-break payoff and **rejected by the owner as cheesy — removed from the plan**; GAME_SPEC records the decision so it is not rebuilt. Item 6 (weapon families) parked by the owner until the longsword loop is perfect.
+- Next, owner's choice: phone-playtest tuning pass; the hybrid build/stat layer (data-only margins); online 1v1 on the deterministic sim.
