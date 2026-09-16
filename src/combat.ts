@@ -1,4 +1,4 @@
-import { decide, initialAi, type AiMode, type AiState } from './ai.ts';
+import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
 import { MOVES, PATHS, PROFILES, RULES, total, type AiProfile, type MoveId, type PathId } from './moves.ts';
@@ -103,6 +103,8 @@ export function describe(s: Practice, difficulty = 'normal'): string {
   const fighter = (name: string, f: Fighter) => `${name}: hp ${f.health} st ${f.stamina.toFixed(0)}${f.exhausted ? ' EXH' : ''} po ${f.posture.toFixed(0)}${f.critical ? ` CRIT ${f.critical}` : ''} rest ${f.rest} wound ${f.wound}\n  ${bar(f)}\n  chain ${f.chain} punish ${f.punish} parryCd ${f.parryCooldown} buf ${f.buffer ? `${f.buffer.action}:${f.buffer.ttl}` : '-'} pos ${f.body.x.toFixed(2)},${f.body.z.toFixed(2)} hd ${f.body.heading.toFixed(2)}`;
   const [p, w] = s.duel.fighters;
   const scores = Object.entries(s.ai.scores).map(([k, v]) => `${k}=${typeof v === 'number' ? v.toFixed(2) : v}`).join(' ');
+  const h = s.ai.habits, reads = Object.entries(readOpponent(h)).filter(([, on]) => on).map(([k]) => k).join(',') || '-';
+  const habits = `habits g${h.ticks ? Math.round(h.guard / h.ticks * 100) : 0}% parry ${h.parries}/${h.attacks} roll ${h.rolls}/${h.attacks} L${h.lights} H${h.heavies} reads ${reads}`;
   const recent = s.events.map(e => `${e.type}${e.move ? `(${e.move})` : e.action ? `(${e.action})` : ''}${e.damage ? ` -${e.damage}` : ''}`).join(' ');
-  return `tick ${s.duel.tick} gap ${Math.hypot(p.body.x - w.body.x, p.body.z - w.body.z).toFixed(2)}\n${fighter('you', p)}\n${fighter('warden', w)}\nai ${difficulty}: mode ${s.ai.mode} plan ${s.ai.plan ?? '-'} wait ${s.ai.wait} decide ${s.ai.decision} ${scores}\nresult ${s.result} ${s.resultAge}${recent ? `\nevents ${recent}` : ''}`;
+  return `tick ${s.duel.tick} gap ${Math.hypot(p.body.x - w.body.x, p.body.z - w.body.z).toFixed(2)}\n${fighter('you', p)}\n${fighter('warden', w)}\nai ${difficulty}: mode ${s.ai.mode} plan ${s.ai.plan ?? '-'} wait ${s.ai.wait} decide ${s.ai.decision} ${scores}\n${habits}\nresult ${s.result} ${s.resultAge}${recent ? `\nevents ${recent}` : ''}`;
 }

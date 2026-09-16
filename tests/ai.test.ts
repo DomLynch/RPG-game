@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi, type AiState } from '../src/ai.ts';
+import { READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
 import { createFighter, idleIntent, initialDuel, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -196,4 +196,64 @@ test('posture: a shaky warden gives ground so its bar drains, and finishes a bro
   const broken = arena(1.5); broken.fighters[0] = { ...broken.fighters[0], phase: 'hurt', stun: RULES.posture.stun, age: PROFILES.normal.reaction + 1 }; broken.fighters[1] = { ...broken.fighters[1], critical: RULES.posture.stun, punish: RULES.posture.stun };
   const w = decide(broken, 1, { ...initialAi(), decision: 500, wait: 500 }, PROFILES.normal);
   assert.equal(w.intent.action, 'heavy', 'Heavy in the critical window'); assert.equal(stepDuel(broken, [idle(), w.intent]).fighters[1].move, 'critical');
+});
+
+test('reads: habits become reads only with evidence, at the documented thresholds', () => {
+  const h = (o: Partial<Habits>): Habits => ({ ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, attacks: 0, ...o });
+  assert.deepEqual(readOpponent(h({})), { parryHappy: false, turtle: false, roller: false, spammer: false });
+  assert.equal(readOpponent(h({ attacks: 2, parries: 2 })).parryHappy, false, 'two swings are not evidence'); assert.equal(readOpponent(h({ attacks: 3, parries: 2 })).parryHappy, true);
+  assert.equal(readOpponent(h({ ticks: 179, guard: 179 })).turtle, false); assert.equal(readOpponent(h({ ticks: 180, guard: 81 })).turtle, true); assert.equal(readOpponent(h({ ticks: 180, guard: 80 })).turtle, false);
+  assert.equal(readOpponent(h({ attacks: 5, rolls: 2 })).roller, true); assert.equal(readOpponent(h({ attacks: 5, rolls: 1 })).roller, false);
+  assert.equal(readOpponent(h({ lights: 5, heavies: 1 })).spammer, true); assert.equal(readOpponent(h({ lights: 4, heavies: 1 })).spammer, false, 'six swings needed'); assert.equal(readOpponent(h({ lights: 4, heavies: 2 })).spammer, false);
+});
+
+test('the warden adapts: a turtle is kicked and charged through more; a light-spammer is parried more; a roller sees delayed swings and tail punishes; a parrier gets baited lights', () => {
+  // Manual play that also sees the read at the moment of each decision.
+  const watch = (profile: AiProfile, ticks: number, player: (d: Duel) => Intent, seed = 731) => {
+    let d = arena(), ai = initialAi(seed); const log: { tick: number; type: string; move?: string; actor: number; read: Reads; f: Duel['fighters'][0]; m: Duel['fighters'][1] }[] = [];
+    for (let i = 0; i < ticks; i++) {
+      const read = readOpponent(ai.habits), before = d.fighters[0], mine = d.fighters[1];
+      const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [player(d), w.intent]);
+      for (const e of d.events) log.push({ tick: d.tick, type: e.type, move: e.move, actor: e.actor, read, f: before, m: mine });
+      d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+    }
+    return { log, habits: ai.habits };
+  };
+  const starts = (log: ReturnType<typeof watch>['log']) => log.filter(e => e.type === 'AttackStarted' && e.actor === 1);
+  // Turtle: hold guard. After the read, kicks are the main opener (four in five decisions at point-blank) and heavies are mostly charged.
+  const turtle = watch(PROFILES.normal, 2400, () => hold());
+  assert.ok(readOpponent(turtle.habits).turtle, 'turtle read');
+  const late = starts(turtle.log).filter(e => e.read.turtle), kicks = late.filter(e => e.move === 'kick').length, heavies = late.filter(e => e.move === 'heavy_overhead').length;
+  assert.ok(kicks + heavies >= 6, `enough openers after the read: ${kicks} kicks, ${heavies} heavies`);
+  assert.ok(kicks / (kicks + heavies) >= .6, `kicks lead against a turtle: ${kicks}/${kicks + heavies}`);
+  // Only a plain heavy can charge (a chained follow-up after a punish light never does), so judge the charge rate on plain heavies.
+  const plainHeavies = late.filter(e => e.move === 'heavy_overhead' && e.m.chain === 0).length, held = turtle.log.filter(e => e.type === 'Charging' && e.actor === 1 && e.move === 'heavy_overhead' && e.read.turtle).length;
+  assert.ok(plainHeavies === 0 || held / plainHeavies >= .5, `plain heavies at a turtle are charged: ${held}/${plainHeavies}`);
+  // At hard the boosted charge chance reaches 1: every plain heavy thrown at a read roller is held (a turtle at hard is kicked, so use the roller).
+  const roller = (dd: Duel) => (dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 0 && dd.fighters[0].phase === 'ready' ? act('dodge') : idle());
+  const hardRoll = watch(PROFILES.hard, 3000, roller), hardPlain = starts(hardRoll.log).filter(e => e.read.roller && e.move === 'heavy_overhead' && e.m.chain === 0).length, hardHeld = hardRoll.log.filter(e => e.type === 'Charging' && e.actor === 1 && e.move === 'heavy_overhead' && e.read.roller).length;
+  assert.ok(hardPlain >= 2 && hardHeld === hardPlain, `hard holds every plain heavy against a roller: ${hardHeld}/${hardPlain}`);
+  // Spammer: cuts whenever ready. Normal parries 30 % of noticed swings; doubled it plans a parry for most of a spammer's cuts.
+  let plansAfter = 0, parriesAfter = 0, d = arena(), ai = initialAi();
+  for (let i = 0; i < 3000; i++) {
+    const w = decide(d, 1, ai, PROFILES.normal); const planned = d.fighters[0].phase === 'attack' && d.fighters[0].age === PROFILES.normal.reaction && w.ai.plan && w.ai.plan !== 'ignore';
+    if (planned && readOpponent(ai.habits).spammer) { plansAfter++; if (w.ai.plan === 'parry') parriesAfter++; }
+    ai = w.ai; d = stepDuel(d, [d.fighters[0].phase === 'ready' ? act('light') : idle(), w.intent]);
+    d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+  }
+  assert.ok(readOpponent(ai.habits).spammer, 'spammer read'); assert.ok(plansAfter >= 8, `enough plans after the read: ${plansAfter}`);
+  assert.ok(parriesAfter / plansAfter >= .45, `parry plans after the read: ${parriesAfter}/${plansAfter}`);
+  // Roller: roll the moment the warden swings. Only after the read does the warden start a swing while the player is in a roll's tail, and hold heavies although nobody is guarding.
+  const rolled = watch(PROFILES.normal, 3000, roller);
+  assert.ok(readOpponent(rolled.habits).roller, 'roller read');
+  const tailStarts = starts(rolled.log).filter(e => e.f.phase === 'roll' && e.f.age >= RULES.safeEnd);
+  assert.ok(tailStarts.some(e => e.read.roller) && !tailStarts.some(e => !e.read.roller), `tail punishes only after the read: ${tailStarts.filter(e => e.read.roller).length} after, ${tailStarts.filter(e => !e.read.roller).length} before`);
+  assert.ok(rolled.log.some(e => e.type === 'Charging' && e.actor === 1 && e.move === 'heavy_overhead' && e.read.roller), 'heavies are held against a roller');
+  // Parrier: press parry as each swing starts. Lights get held as baits only once the read fires; before it no light is ever held.
+  const parrier = watch(PROFILES.hard, 3600, dd => (dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 4 && dd.fighters[0].phase === 'ready' ? { ...act('parry'), guard: true } : idle()));
+  assert.ok(readOpponent(parrier.habits).parryHappy, 'parry-happy read');
+  const baits = parrier.log.filter(e => e.type === 'Charging' && e.actor === 1 && e.move !== 'heavy_overhead');
+  assert.ok(baits.some(e => e.read.parryHappy) && !baits.some(e => !e.read.parryHappy), `baited lights only after the read: ${baits.length}`);
+  // A neutral player triggers no read at all.
+  assert.deepEqual(readOpponent(watch(PROFILES.normal, 2400, () => idle()).habits), { parryHappy: false, turtle: false, roller: false, spammer: false });
 });
