@@ -27,3 +27,14 @@ test('names remove controls, trim and enforce a short visible identity', () => {
   assert.equal(cleanName('  '), 'Wanderer');
   assert.equal(cleanName('x'.repeat(100)).length, 24);
 });
+
+test('the ladder rung reached on this device survives reload, and a bad rung is dropped rather than trusted', () => {
+  const store = new Map<string, string>(), storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v); } };
+  const first = loadProfile(storage, () => 'abcdefgh').profile;
+  first.ladder = 'pitborn'; assert.equal(saveProfile(storage, first), true);
+  assert.equal(loadProfile(storage, () => 'x').profile.ladder, 'pitborn');
+  store.set('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'abcdefgh', name: 'A', ladder: 'Not a rung!' }));
+  assert.equal(loadProfile(storage, () => 'x').profile.ladder, undefined);
+  store.set('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'abcdefgh', name: 'A' }));
+  assert.equal(loadProfile(storage, () => 'x').profile.ladder, undefined, 'older profiles without a rung still load');
+});

@@ -9,6 +9,17 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## Opponent ladder — 2026-09-16 (lead/shell)
+Veteran → Pitborn. `src/ladder.ts` (LADDER order, `opponentFor`, `won`, `nextAfter`); the device profile gains an optional validated
+`ladder` rung; `main.ts` picks the opponent from the rung (URL `?opponent=` still overrides for the harness), labels the HUD for a
+non-Veteran, and after a clean win the Rematch button reads "Next: the Pitborn" — pressing it saves the rung and reloads so the next
+rig loads; a loss or draw keeps the rung and offers a rematch (recorded as before). Goblin and Nightborn append to LADDER when they land.
+Evidence: 182/182 gate; a draw-counts-as-win mutation caught; real-browser check (artifacts/ladder-check.mjs, ignored): fresh device
+= ASHCOURT WARDEN/150, rung=pitborn = THE PITBORN/190 on his rig, a loss = "Rematch" with the rung kept, no page errors. The win→Next
+→reload path is covered by the pure rules and the shell wiring, not by a scripted real-browser win. Harness note: the graphics
+harness's default profile id 'test' fails the profile's 8-char rule and always boots a fresh guest; tests that need saved state pass a
+valid id.
+
 ## Origins direction recorded in GAME_SPEC — 2026-09-15
 Docs-only. GAME_SPEC.md now carries the owner-locked title (Frankendom: Origins), setting line, pitch, simplicity rule, art direction with the materials rule (retiring the ESO/Black Desert references), Origins list, opponent roster order, collection loops, five-stat model, locational deaths and NOT NOW additions, written to sit consistently with the 2026-09-15 Souls-slice principles (four principal controls, skill wins mismatches / builds win margins, readable brutality). Closes the character lane's REQUESTS.md #1. No runtime, asset or test change; quality gate on this tree: 94/94 tests, build, 0 vulnerabilities, budget PASS (fight-ready 6.57 MB raw / 3.44 MB gzip against the 5 MB limit — headroom is now ~1.5 MB after character pass v1). Stale uncommitted graphics-test edit from 2026-09-13 was saved to ignored artifacts/stale-graphics-framing-test-2026-09-13.patch and discarded; primary checkout fast-forwarded to the live revision.
 
