@@ -202,9 +202,44 @@ against 0.66 skin), so `hair_lum` is per fighter and `hair: 'full'` fills the un
 shadow and highlight tones read from well-photographed hair on the geometric scalp (top/back above the brows; the nape and
 temple skin next to the band read as a rosy highlight when sampled), the photographed tufts ending ragged along the strands
 rather than on one coverage iso-line, matte (roughness ≥ 0.86) with a strand normal so the crown is not a smooth dome.
-Body and kit are the hero's level-1 set for now (skin re-toned to this face by `keentools_skin_tone`); kit, greaves, helmet
-and scars are the next pass. Review: `artifacts/character/veteran-v1/` (`faces.png` both heads from the portrait angles,
-`details-opponent.png`, turntable, phone stills). Budget cap 5 → 12 MB gzip (owner, 2026-09-16); dist is 7.96 MB.
+Chin: `chin_strong` (the owner's U, v34) runs for him too — his scan's jaw was the same vertical wall the hero's was — and
+`stretch_refill` takes its donor stubble from the face only for full-hair fighters (the rows beside the jaw hold his nape
+hair, which quilted a dark beard under the chin). Review: `artifacts/character/veteran-v1/` (`faces.png` both heads from the
+portrait angles, `details-opponent.png`, `chin-before-after.png`, turntable, phone stills). Budget cap 5 → 12 MB gzip
+(owner, 2026-09-16).
+
+Kit pass (2026-09-16, same day, owner's list): everything the eye uses at the phone camera, per fighter and gated so the
+hero's outputs stay byte-identical.
+- `parts.KIT` per fighter: the Veteran's exomis is a darker undyed linen (0.40/0.37/0.32) with heavier grime (0.72); his
+  pteruges and crest are dark oiled umber (`#3f2e22`, the Heraldry colour factor in build-warrior.mjs) against the hero's
+  madder red. **Heraldry recolour decision:** the runtime tints the opponent's Heraldry only when both fighters share one
+  GLB (`loadWarriors(url)` with a single URL — the twins fallback); with `veteran.glb` the dye is baked and the runtime
+  leaves it alone.
+- Greaves (`parts.greaves`, slot `Greaves`): bronze shin guards shelled from the shin itself, from above the sandal's ankle
+  strap over the kneecap, wrapping 122° either side of the front and open behind the calf, cylindrical UVs so the tiled
+  bronze shows no atlas seams, rim-only shell (`extract(rim_only=True)`: no inner faces) and decimated by half — a smooth
+  plate needs none of the shin's density. Skin weights ride with the faces, so they bend with the leg.
+- Helmet (`parts.bronze_helmet`, rebuilt): the earlier helm was shelled from the decimated scan head — every opening tore
+  along its triangles and it cost 13k triangles. It is now a parametric Chalcidian helm: an ellipsoid dome sized from the
+  skull (width from the band just above the ears, so the ears sit in the notches), a brow rim at the top of the ears, the
+  face opening under a 3 cm brow arch with a nasal bar, cheek guards deepest at 60° hugging the jaw, ear notches, a neck
+  guard flaring off the nape; 72 × 20 (azimuth × height) grid, outside vertices of kept faces moved onto the analytic
+  boundary along one grid line (averaging two twisted quads and flipped their normals), the whole surface oriented once
+  from the grid's winding (a per-face recalc flipped patches beside the openings), open edges extruded 6 mm inward as a
+  rim; 1.3k faces, rigid on the Head bone like the crest. `WARRIOR_FIGHTER=veteran` builds with `helmet_bronze,crest_red`
+  by default (`WARRIOR_ITEMS` overrides). `strip_crown_under_helm` drops the scan head's faces radially inside the dome
+  above 4 cm over the rim (hidden for a fighter who always fights helmed: 1.1k faces), and his head decimates at 0.26
+  (`FIGHTERS[...]['decimate']`; the hero stays 0.28) so the Veteran ships at 59.5k skinned triangles under the 60k cap.
+  `tests/characters.test.ts` locomotion ceiling 1.87 → 2.0 m (REQUESTS #9): the crest reaches ~1.92 m.
+- Scars (`head.body_scars`, `FIGHTERS[...]['scars']`): four healed cuts on the body tile — a 14 cm slash across the bare
+  right pectoral, a cut across the outer right bicep, one across the outside of the left forearm, a long slash down the
+  outside of the right thigh — 5–7 mm wide (the first pass at 2.6 mm vanished into the 1K map), paler and pinker tissue,
+  hairless, a faint darker halo, standing proud in the normal and smoother in the roughness. Close-up detail, like the nails.
+- Build (`parts.build_shape`, `KIT['build']`; B2 of the body brief, skipped for the hero): girth added radially about each
+  limb's bone line after the limbs are laid onto the bones — upper arms +12 %, forearms +14 %, thighs and calves +10 % —
+  fading to nothing at the joints, the chest +8 % deeper about the spine, shoulders and traps +8 % wider; game mesh and
+  high sculpt alike, before any bake. The kit is cut from that surface and the strips probe it, so tunic, belt, wraps,
+  straps and greaves follow without clipping (`build-before-after.png`). 59.4k skinned triangles.
 
 ## Combat audio (audio lane, 2026-09-15)
 `src/assets/audio/sprite.m4a` (AAC-LC 96 kb/s, Apple AudioToolbox encoder via ffmpeg `aac_at`, for Safari) and `sprite.ogg`

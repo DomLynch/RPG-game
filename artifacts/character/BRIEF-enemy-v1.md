@@ -2,7 +2,7 @@
 
 > Status 2026-09-16: step 1 (head) and step 4 (runtime, `veteran.glb` for the opponent) shipped as `veteran-v1`, named the
 > **Veteran** — GAME_SPEC's Hoplite is shield-and-spear and the sim has neither, so a longsword man in bronze is a visual
-> variant, not roster step 2. Steps 2–3 (build, kit, helm, greaves, scars) are the next pass. Gate notes folded in below were
+> variant, not roster step 2. Steps 2–3 (heavier build; kit dye, helm + crest, greaves, scars) shipped the same day. Gate notes folded in below were
 > found on review: the budget cap is in `scripts/check-budget.mjs` (raised to 12 MB), the crested helm needs the 1.87 m
 > bounds ceiling raised, `warrior.glb` was hardcoded in the tests/harness/bake, and the crown fill assumed dark hair.
 

@@ -799,6 +799,44 @@ def body_veins(pos, mask):
     return np.clip(out, 0, 1) * mask
 
 
+def body_scars(pos, mask):
+    """Old healed cuts on the body tile, a 0–1 mask: a long slash across the right pectoral, a cut across the outside of
+    the left forearm, a nick across the right bicep and a slash down the outside of the right thigh. Limb scars are bands in
+    the limb's cylinder coordinates (as the veins); torso scars are lines in the front plane. Each has a soft core and a
+    faint wider halo, so it reads as scar tissue and not as a painted line."""
+    if not SCARS:
+        return np.zeros(pos.shape[:2], np.float32)
+    out = np.zeros(pos.shape[:2], np.float32)
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    def line(px, pz, ax, az, bx, bz, width, front):  # a segment in the front (x, z) plane, on front-facing skin (y < front)
+        dx, dz = bx - ax, bz - az
+        L = math.hypot(dx, dz)
+        t = np.clip(((px - ax) * dx + (pz - az) * dz) / (L * L), 0, 1)
+        d = np.hypot(px - (ax + t * dx), pz - (az + t * dz))
+        core = np.exp(-(d / width) ** 2) * (1 - _smooth(0.85, 1.0, t)) * (1 - _smooth(0.85, 1.0, 1 - t))
+        return core * _smooth(0.0, 0.02, front - y)
+    def limb(a, b, t0, t1, a0, width_m, tilt):  # a cut across a limb: from angle a0 at t0 to a0 + tilt at t1, width in metres
+        t, r, ang = limb_frame(pos, a, b)
+        along = np.clip((t - t0) / (t1 - t0), 0, 1)
+        da = np.angle(np.exp(1j * (ang - (a0 + tilt * along))))
+        win = _smooth(t0 - 0.03, t0, t) * (1 - _smooth(t1, t1 + 0.03, t))
+        return np.exp(-((da * r) / width_m) ** 2) * win
+    sh_r, nk, pv = P.shoulder_r, P.neck, P.pelvis
+    # right pectoral: from under the right collarbone down and inward, 14 cm (widths in metres: healed cuts are 5-7 mm)
+    out += 1.0 * line(x, z, sh_r.x * 0.75, nk.z - 0.14, sh_r.x * 0.15, nk.z - 0.27, 0.0060, pv.y - 0.02)
+    # right upper arm (the bare sword arm; the exomis covers the left shoulder): a short cut across the outer bicep
+    out += 0.8 * limb(sh_r, P.elbow_r, 0.40, 0.52, -1.2, 0.0050, 0.5)
+    # outside of the left forearm: a cut across the forearm at a third of the way down, angled
+    out += 0.9 * limb(P.elbow_l, P.hand_l, 0.30, 0.55, 0.3, 0.0050, 1.1)
+    # outside of the right thigh: a long slash from the hip down
+    out += 0.9 * limb(P.joint('thigh_r'), P.calf_r, 0.25, 0.60, -2.0, 0.0070, -0.4)
+    core = np.clip(out, 0, 1)
+    halo = np.clip(blur(core, 4) * 2.5, 0, 1) * 0.35
+    result = np.clip(np.maximum(core, halo), 0, 1) * mask
+    print(f'SCARS painted: {int((result > 0.3).sum())} core texels, {int((result > 0.05).sum())} with halo')
+    return result
+
+
 def body_hair(pos, mask, seed=11):
     """Sparse body hair: short dark strokes on the chest's V, the forearms and the shins, drawn in texture space along
     the local downhill direction (where z falls fastest), a little scatter and curl each. Returns a 0–1 canvas."""
@@ -966,6 +1004,8 @@ def body_normal(nrm, pos, mask, hair, veins, strength=0.6, nails=None):
     fine = rng.random((size, size)).astype(np.float32)
     fine = (fine + np.roll(fine, 1, 0) + np.roll(fine, 1, 1) + np.roll(np.roll(fine, 1, 0), 1, 1)) / 4
     height = fine * 0.5 + body_creases(pos, mask) * 0.6 + hair * 0.10 + veins * 0.15  # audit 2026-09-16: 0.35 vein relief and 0.9 pores read as mottling on the forearm at the grip camera
+    if SCARS:
+        height = height + body_scars(pos, mask) * 0.9  # scar tissue stands a little proud of the skin
     if nails is not None:
         height = height * (1 - nails * 0.8) + nails * 1.2  # a smooth raised plate with a bevelled edge
     gy, gx = np.gradient(height)
@@ -1018,6 +1058,13 @@ def body_colour(pos, mask, ao, detail, size, nails=None):
     veins = body_veins(pos, mask)
     colour = colour * (1 - veins[..., None] * 0.14 * np.array([1.0, 0.85, 0.55])[None, None, :])  # a little darker and bluer
     colour = colour * (1 - body_hair(pos, mask)[..., None] * 0.4)
+    if SCARS:  # healed cuts: paler, pinker, hairless tissue with a faint darker halo
+        sc = body_scars(pos, mask)
+        core = np.clip(sc * 1.4 - 0.4, 0, 1)[..., None]
+        halo = np.clip(sc * 3, 0, 1)[..., None] - core
+        pale = colour * np.array([1.26, 1.06, 1.00])[None, None, :]  # lighter, pinker tissue, hairless
+        colour = colour * (1 - core) + pale * core
+        colour = colour * (1 - halo * 0.14)
     if nails is not None:  # a paler, pinker plate with a pale lunula and a darker rim at the skin fold
         n, lu = nails
         rim = np.clip(n * 4, 0, 1) - n
@@ -1416,6 +1463,8 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     rough_face = face_roughness(pos_face[::2, ::2], F, detail_colour[::2, ::2], size // 2)
     sun_body = sun_mask(pos_body)
     rough_body = np.clip(0.72 - 0.17 * sun_body[::2, ::2] + (detail_colour[::2, ::2, 0] - 0.5) * 0.3 - 0.35 * nails[0][::2, ::2], 0.3, 0.95)  # a sheen on the sunned limbs, matte torso, glossy nails
+    if SCARS:
+        rough_body = np.clip(rough_body - 0.25 * np.clip(body_scars(pos_body, mask_body) * 1.4 - 0.4, 0, 1)[::2, ::2], 0.3, 0.95)  # healed tissue is smoother than the skin around it
     nrm_body = body_normal(nrm_body, pos_body, mask_body, body_hair(pos_body, mask_body), body_veins(pos_body, mask_body), nails=nails[0])
     def orm(rough):
         return np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
@@ -1464,9 +1513,9 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
 # shadow and highlight tones).
 FIGHTERS = {
     'hero': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',  # eight portraits: the five plus three from below for the jaw (2026-09-15)
-             'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 40), (-45, 40), (0, 15)), 'chin': True, 'hair_lum': 0.16, 'hair': 'buzz'},
+             'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 40), (-45, 40), (0, 15)), 'chin': True, 'hair_lum': 0.16, 'hair': 'buzz', 'scars': False, 'decimate': 0.28},
     'veteran': {'kt_glb': 'artifacts/source/keentools/01a0a9a9-c037-70f2-8015-bbd1faf9f823.glb',  # seven portraits (front, ±35, ±90, two from below), 2026-09-16
-                'cams': ((0, 0), (30, 0), (-25, 0), (90, 0), (-90, 0), (0, 28), (-22, 24)), 'chin': True, 'hair_lum': 0.50, 'hair': 'full'},  # chin: his scan's jaw is the same vertical wall the hero's was (tip -0.76, underside -0.88 scan units) — the owner's U applies
+                'cams': ((0, 0), (30, 0), (-25, 0), (90, 0), (-90, 0), (0, 28), (-22, 24)), 'chin': True, 'hair_lum': 0.50, 'hair': 'full', 'scars': True, 'decimate': 0.26},  # decimate: helmed, crown stripped — the budget goes to the helm and greaves; chin: his scan's jaw is the same vertical wall the hero's was (tip -0.76, underside -0.88 scan units) — the owner's U applies
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
@@ -1474,13 +1523,15 @@ CAMS = FIGHTERS[FIGHTER]['cams']
 CHIN = FIGHTERS[FIGHTER]['chin']
 HAIR_LUM = FIGHTERS[FIGHTER]['hair_lum']
 HAIR = FIGHTERS[FIGHTER]['hair']
+SCARS = FIGHTERS[FIGHTER]['scars']  # old wounds on the body tile (body_scars): a veteran's record, per GAME_SPEC's persistent scars
+DECIMATE = FIGHTERS[FIGHTER]['decimate']  # the scan head's decimate ratio for the phone mesh
 
 
 def select_fighter(name):
     """Point the scan pipeline at one fighter's portraits and tuning (parts.py --fighter <name>; default hero)."""
-    global FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR
+    global FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE
     f = FIGHTERS[name]
-    FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR = name, f['kt_glb'], f['cams'], f['chin'], f['hair_lum'], f['hair']
+    FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE = name, f['kt_glb'], f['cams'], f['chin'], f['hair_lum'], f['hair'], f['scars'], f['decimate']
 
 
 SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painted body and neck stub take it as their base
@@ -1629,7 +1680,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     keep = head.vertex_groups.new(name='decimate')  # the level bottom edge survives the collapse
     keep.add([v.index for v in head.data.vertices if v.co.z > neck_z + 0.003], 1.0, 'REPLACE')
     dec = head.modifiers.new('Decimate', 'DECIMATE')
-    dec.ratio = 0.28
+    dec.ratio = DECIMATE
     dec.use_collapse_triangulate = True
     dec.vertex_group = 'decimate'
     dec.vertex_group_factor = 1.0

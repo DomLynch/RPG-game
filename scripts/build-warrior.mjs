@@ -41,7 +41,7 @@ const steel = new T.MeshStandardMaterial({ name: 'Steel', color: '#767a7c', meta
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
 const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
 const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: 0.8 });
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#6e2622', roughness: 0.92, side: T.DoubleSide }); // madder-dyed leather strips over an undyed map (~0.85 mean), so the worn red the owner asked for; the runtime recolours the opponent's
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
@@ -154,7 +154,8 @@ for (const file of partFiles) {
 }
 // Equipped items (WARRIOR_ITEMS=ranger,...): src/assets/source/items/<name>.glb, same contract as parts. An item replaces
 // whatever the level-1 kit put in the same slot. Demo builds only until the runtime swaps slots itself.
-for (const item of (process.env.WARRIOR_ITEMS || '').split(',').filter(Boolean)) {
+const items = process.env.WARRIOR_ITEMS ?? (fighter === 'veteran' ? 'helmet_bronze,crest_red' : ''); // the Veteran fights in his bronze helm and crest by default
+for (const item of items.split(',').filter(Boolean)) {
   const own = `src/assets/source/items/${item}_${fighter}.glb`, file = fighter !== 'hero' && await fs.stat(own).then(() => true, () => false) ? own : `src/assets/source/items/${item}.glb`; // a helm is shelled from its fighter's skull
   const glb = await fs.readFile(file), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
   asset.scene.updateMatrixWorld(true);
