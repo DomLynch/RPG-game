@@ -26,16 +26,26 @@
  "Gambeson": {
   "occlusion": "ao_body_r.jpg",
   "occlusionTexCoord": 1,
-  "normal": "gambeson_normal_r.jpg",
-  "normalScale": 1.0
+  "baseColor": "gambeson_color_r.jpg",
+  "metallicRoughness": "gambeson_orm_r.jpg",
+  "normalScale": 1.5,
+  "normal": "gambeson_normal_r.jpg"
  },
  "Leather": {
   "occlusion": "ao_body_r.jpg",
-  "occlusionTexCoord": 1
+  "occlusionTexCoord": 1,
+  "baseColor": "leather_color_r.jpg",
+  "normal": "leather_normal_r.jpg",
+  "metallicRoughness": "leather_orm_r.jpg",
+  "normalScale": 1.0
  },
  "Heraldry": {
   "occlusion": "ao_body_r.jpg",
-  "occlusionTexCoord": 1
+  "occlusionTexCoord": 1,
+  "baseColor": "heraldry_color_r.jpg",
+  "normal": "heraldry_normal_r.jpg",
+  "metallicRoughness": "heraldry_orm_r.jpg",
+  "normalScale": 1.0
  },
  "Steel": {
   "occlusion": "ao_body_r.jpg",

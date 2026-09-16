@@ -36,7 +36,7 @@ const steel = new T.MeshStandardMaterial({ name: 'Steel', color: '#767a7c', meta
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
 const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
 const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: 0.8 });
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#6b1a1e', roughness: 0.92, side: T.DoubleSide }); // dyed cloth; the runtime recolours the opponent's
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: '#6e2622', roughness: 0.92, side: T.DoubleSide }); // madder-dyed leather strips over an undyed map (~0.85 mean), so the worn red the owner asked for; the runtime recolours the opponent's
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
@@ -478,7 +478,7 @@ function finishMaterials(glb, authored = new Map()) {
   for(const m of j.materials) {
     const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
     // Authored slots own their channel outright; anything not authored keeps the procedural map below.
-    if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};p.baseColorFactor=[1,1,1,1];}
+    if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};if(m.name!=='Heraldry')p.baseColorFactor=[1,1,1,1];} // Heraldry keeps its dye as the factor: the map is undyed leather and the runtime recolours the opponent's
     if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
     if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
     if(a.occlusion) {a.occlusion.index ??= image(a.occlusion.bytes,a.occlusion.mime); m.occlusionTexture={index:a.occlusion.index,texCoord:a.occlusionTexCoord,strength:1};} // one shared image across materials

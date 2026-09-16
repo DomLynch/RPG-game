@@ -255,3 +255,19 @@ forearm (0.9 pores, 0.35 vein relief); shipped at 0.6 / 0.15 with the vein colou
 `Image.pixels` are raw bytes/255 on both load and save (probed), so every "linear" float in this pipeline is in fact
 sRGB-encoded — self-consistent, and the reason an offline lab that sRGB-encoded on write came out pale. Budget 4.09 MB
 gzip (the owner lifted the 5 MB cap if needed). `humanoid-v37/skin-before-after.png`, `phone-v36-v37.png`, `details.png`.
+
+v38 (2026-09-16, body pass B3 — kit materials): the exomis was a flat khaki with the build's 256-texel linen stretched
+over the whole body atlas (a blurry grid), the pteruges a dark wine slab, the leather a smooth dark blob. `parts.py`
+now authors three material sets: `linen_maps` (2K, in the tunic's own layout via `bake_position` — unbleached greyed
+linen with a 2-texel cross-hatch at 3.5%, slubs, mottle; grime in the fold creases from the baked folds normal, at the
+hem and armpits, a sweat shadow down the chest and back, dust and a few stains; a darker stitched band along the cut
+edges; roughness map), `leather_maps` (512, tileable: full-grain oiled leather, creases at 0.10, pale worn edges along v,
+scuffs; normal and roughness) and `heraldry_maps` (512, tileable, undyed: the dye stays the material's colour factor —
+`build-warrior.mjs` keeps `baseColorFactor` for Heraldry only — so the runtime's opponent recolour still works; dye
+pooling in the low noise, the strips' bottoms scuffed pale; normal and roughness). Pieces cut from the body with
+`Leather`/`Heraldry` (belt, soles, under-skirt) get their atlas UVs ×4 on TEXCOORD_0 so the tiles repeat at strap scale
+(TEXCOORD_1 keeps the atlas for occlusion). Heraldry colour `#6b1a1e` → `#6e2622` under the ~0.85 map. Gambeson folds
+normal scale 1.5. Audit (1×): the first linen (0.70/0.64/0.52, 2-texel weave at 6%) rendered as a bedsheet with a
+printed grid; a heraldry stitch line tiled across the under-skirt as rows of rivets (dropped); leather creases at 0.25
+tiled as corduroy on the soles. Budget 4.40 MB gzip. `humanoid-v38/kit-before-after.png`, `kit-sheet.png`,
+`phone-v37-v38.png`, `details.png`.

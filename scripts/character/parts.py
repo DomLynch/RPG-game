@@ -365,6 +365,9 @@ def extract(name, material, keep, lift=0.012, thickness=0.008, source=None, face
     ao_uv = part.data.uv_layers.new(name='ao')  # TEXCOORD_1 → the body's baked occlusion, same layout as the skin atlas
     for i, loop in enumerate(part.data.uv_layers[0].data):
         ao_uv.data[i].uv = loop.uv
+    if material in ('Leather', 'Heraldry'):  # tileable maps: the atlas layout spread one tile over the whole body — 6× repeats it at strap scale (the occlusion keeps the atlas layout on TEXCOORD_1)
+        for loop in part.data.uv_layers[0].data:
+            loop.uv = loop.uv * 4.0
     part.modifiers.clear()
     lift_mod = part.modifiers.new('Lift', 'DISPLACE')
     lift_mod.strength, lift_mod.mid_level = lift, 0
@@ -638,6 +641,99 @@ def wrap_maps():
     n = np.stack([-gx * 10, gy * 10, np.ones_like(gx)], axis=2)
     n /= np.linalg.norm(n, axis=2, keepdims=True)
     return {'baseColor': save_jpeg('wrap_color', colour, 'sRGB'), 'normal': save_jpeg('wrap_normal', n * 0.5 + 0.5, 'Non-Color'), 'metallicRoughness': save_jpeg('wrap_orm', orm, 'Non-Color')}
+
+
+def linen_maps(tunic, folds, size=2048):
+    """The exomis in its own layout (the body atlas' torso): undyed linen — a fine two-way weave, slubs, low mottling —
+    with the grime of a fighter's only tunic: dark in the fold creases (from the baked folds normal), at the hem and the
+    armpits, a sweat shadow down the chest and the back, dust everywhere; a stitched hem band along the cut edges."""
+    shell = tunic.modifiers.get('Shell')
+    if shell:
+        shell.show_render = shell.show_viewport = False
+    pos, mask = bake_position(tunic, size)
+    if shell:
+        shell.show_render = shell.show_viewport = True
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    rng = np.random.default_rng(51)
+    weave = ((np.arange(size)[:, None] // 2 + np.arange(size)[None, :] // 2) % 2) * 0.035 - 0.0175  # a 2-texel cross-hatch at 3.5%: thread texture up close (6% read as a printed grid; 1-texel vanished in the mips)
+    slub = np.zeros((size, size), np.float32)
+    for _ in range(1400):  # thick threads, a few centimetres long, along the weft
+        r, c, n = rng.integers(size), rng.integers(size), rng.integers(12, 40)
+        slub[r, c:min(size, c + n)] = rng.uniform(0.04, 0.10)
+    mottle = fbm(size, 52, octaves=(4, 8, 16, 32))
+    fine = fbm(size, 53, octaves=(64, 128, 256))
+    base = np.array([0.52, 0.47, 0.37])[None, None, :] * (0.90 + 0.20 * mottle + weave + slub + 0.06 * (fine - 0.5))[..., None]  # unbleached, greyed linen (0.70/0.64/0.52 rendered as a bedsheet)
+    stains = np.clip((fbm(size, 55, octaves=(3, 6, 12)) - 0.58) * 5, 0, 1)  # a few old stains
+    crease = np.clip((np.abs(folds[..., 0] - 0.5) + np.abs(folds[..., 1] - 0.5)) * 4 - 0.15, 0, 1)  # where the folds bend
+    if crease.shape[0] != size:
+        crease = upsample(crease, size)
+    hem = np.clip((pelvis.z + 0.05 - z) / 0.08, 0, 1)
+    armpit = sum(np.exp(-(((x - sh.x * 0.85) ** 2 + (y - sh.y) ** 2 + (z - sh.z + 0.06) ** 2) / (2 * 0.06 ** 2))) for sh in (shoulder_l, shoulder_r))
+    sweat = np.exp(-((x / 0.06) ** 2)) * np.clip((neck.z - 0.12 - z) / 0.25, 0, 1) * np.clip((z - pelvis.z - 0.06) / 0.1, 0, 1)
+    dust = np.clip((fbm(size, 54, octaves=(2, 4, 8, 32)) - 0.4) * 1.6, 0, 1)
+    grime = np.clip(0.6 * crease + 0.8 * hem * (0.6 + 0.4 * mottle) + 0.7 * np.clip(armpit, 0, 1) + 0.5 * sweat + 0.55 * dust + 0.5 * stains, 0, 1)
+    dirt = np.array([0.30, 0.25, 0.18])[None, None, :]
+    colour = base * (1 - grime[..., None] * 0.55) + dirt * (grime[..., None] * 0.55)
+    inside = np.clip(HEADMOD.blur(mask.astype(np.float32), 4) * 1.0, 0, 1)  # the cut edges: a darker stitched hem band 4-8 texels in
+    band = mask & (inside < 0.97)
+    stitch = band & (((np.arange(size)[:, None] + np.arange(size)[None, :]) // 5) % 2 == 0)
+    colour = colour * (1 - band[..., None] * 0.18) * (1 - stitch[..., None] * 0.15)
+    colour = HEADMOD.fill_margin(colour, mask, steps=16)
+    rough = np.clip(0.92 - 0.12 * sweat - 0.05 * grime + 0.04 * (mottle - 0.5), 0.6, 0.98)[::2, ::2]
+    orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
+    return {'baseColor': save_jpeg('gambeson_color', colour, 'sRGB'), 'metallicRoughness': save_jpeg('gambeson_orm', orm, 'Non-Color')}
+
+
+def leather_maps(size=512):
+    """Baldric, belt, sandal soles and straps: dark oiled leather, tileable — full-grain pores, creases across the strap,
+    pale worn edges along v (the ring strips' edges), scuffs. Colour in the map (the material factor is white)."""
+    v = (np.arange(size) / size)[:, None] * np.ones((1, size))
+    grain = fbm(size, 61, octaves=(8, 16, 32, 64, 128))
+    pores = fbm(size, 62, octaves=(128, 256))
+    crease = np.clip(np.sin(np.arange(size)[None, :] / size * 2 * math.pi * 7 + fbm(size, 63, octaves=(2, 4)) * 6) * 0.5 + 0.5 - 0.7, 0, 1) * 3
+    rng = np.random.default_rng(64)
+    scuff = np.zeros((size, size), np.float32)
+    for _ in range(60):
+        r, c, n = rng.integers(size), rng.integers(size), rng.integers(10, 60)
+        scuff[r, c:min(size, c + n)] = rng.uniform(0.3, 0.8)
+    edge = np.clip((0.10 - np.minimum(v, 1 - v)) / 0.08, 0, 1) * (0.6 + 0.4 * grain)
+    base = np.array([0.26, 0.17, 0.11])[None, None, :] * (0.80 + 0.35 * grain + 0.12 * (pores - 0.5))[..., None]
+    worn = np.array([0.46, 0.34, 0.24])[None, None, :]
+    colour = base * (1 - edge[..., None] * 0.6) + worn * (edge[..., None] * 0.6)
+    colour = colour * (1 - crease[..., None] * 0.10) + worn * (scuff[..., None] * 0.35)  # creases at 0.25 tiled as corduroy on the soles
+    rough = np.clip(0.70 - edge * 0.2 + grain * 0.15 + scuff * 0.1, 0.35, 0.95)
+    orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
+    height = grain * 0.6 + pores * 0.3 - crease * 0.35 - np.clip((0.04 - np.minimum(v, 1 - v)) / 0.04, 0, 1) * 1.5
+    gy, gx = np.gradient(height)
+    n = np.stack([-gx * 8, gy * 8, np.ones_like(gx)], axis=2)
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    return {'baseColor': save_jpeg('leather_color', colour, 'sRGB'), 'normal': save_jpeg('leather_normal', n * 0.5 + 0.5, 'Non-Color'), 'metallicRoughness': save_jpeg('leather_orm', orm, 'Non-Color')}
+
+
+def heraldry_maps(size=512):
+    """The pteruges and under-skirt, tileable, undyed: the dye is the material's colour factor (the runtime recolours
+    the opponent's), so this map is light — leather grain, dye pooling in the low noise, the strips' bottom edge scuffed
+    pale, a stitch line along the top, thin lengthwise wear."""
+    v = (np.arange(size) / size)[:, None] * np.ones((1, size))
+    u = np.ones((size, 1)) * (np.arange(size) / size)[None, :]
+    grain = fbm(size, 71, octaves=(8, 16, 32, 64, 128))
+    pool = fbm(size, 72, octaves=(2, 4, 8))
+    streak = fbm(size, 73, octaves=(1, 2, 4, 64))  # lengthwise (v) grain once tiled around
+    rng = np.random.default_rng(74)
+    scuff = np.zeros((size, size), np.float32)
+    for _ in range(50):
+        r, c, n = rng.integers(int(size * 0.6), size), rng.integers(size), rng.integers(8, 40)
+        scuff[r, c:min(size, c + n)] = rng.uniform(0.3, 0.7)
+    bottom = np.clip((v - 0.90) / 0.08, 0, 1) * (0.5 + 0.5 * grain)
+    value = 0.72 + 0.26 * grain + 0.12 * (streak - 0.5) - 0.30 * pool + 0.35 * bottom + 0.3 * scuff
+    colour = np.clip(np.stack([value, value * 0.96, value * 0.92], axis=2), 0, 1)  # (a stitch line at v=0.06 tiled across the under-skirt as rows of rivets: dropped)
+    rough = np.clip(0.78 - bottom * 0.15 + grain * 0.12 - pool * 0.1, 0.4, 0.95)
+    orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
+    height = grain * 0.5 + streak * 0.3 - np.clip((v - 0.96) / 0.04, 0, 1) * 1.5
+    gy, gx = np.gradient(height)
+    n = np.stack([-gx * 8, gy * 8, np.ones_like(gx)], axis=2)
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    return {'baseColor': save_jpeg('heraldry_color', colour, 'sRGB'), 'normal': save_jpeg('heraldry_normal', n * 0.5 + 0.5, 'Non-Color'), 'metallicRoughness': save_jpeg('heraldry_orm', orm, 'Non-Color')}
 
 
 def bronze_maps():
@@ -1046,7 +1142,9 @@ else:
     if realistic:
         export_kit(body_parts, os.path.join(out, 'body_realistic.glb'))  # head, body, eyes, hair/brow/lash cards
     tunic = next(o for o in kit if o.name == 'tunic')
-    GAMBESON_NORMAL = save_jpeg('gambeson_normal', bake_folds(tunic, 'tunic'), 'Non-Color')
+    folds = bake_folds(tunic, 'tunic')
+    GAMBESON_NORMAL = save_jpeg('gambeson_normal', folds, 'Non-Color')
+    GAMBESON_MAPS = linen_maps(tunic, folds)  # the tunic's colour and roughness in the same layout
     export_kit(kit, os.path.join(out, 'level1_realistic.glb' if realistic else 'level1.glb'))
     export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')
     helm, crest = bronze_helmet()
@@ -1064,8 +1162,11 @@ if not proof:
         manifest[name]['normalScale'] = scale
         print(f'MAPS {name} {maps}')
     manifest['Skin']['occlusion'] = ao_file
-    for name in ['Gambeson', 'Leather', 'Heraldry', 'Steel']:  # procedural colour, baked occlusion via TEXCOORD_1
+    for name in ['Gambeson', 'Leather', 'Heraldry', 'Steel']:  # baked occlusion via TEXCOORD_1; Steel keeps the build's procedural colour
         manifest[name] = {'occlusion': ao_file, 'occlusionTexCoord': 1}
+    for name, maps in (('Gambeson', GAMBESON_MAPS), ('Leather', leather_maps()), ('Heraldry', heraldry_maps())):  # authored kit materials (body pass B3)
+        manifest[name].update({k: os.path.basename(v) for k, v in maps.items()})
+        manifest[name]['normalScale'] = 1.0
     manifest['Gambeson']['normal'] = os.path.basename(GAMBESON_NORMAL)  # baked folds in the tunic's own layout
-    manifest['Gambeson']['normalScale'] = 1.0
+    manifest['Gambeson']['normalScale'] = 1.5  # the folds read flat at 1.0 once the cloth had a real colour map
     json.dump(manifest, open(manifest_path, 'w'), indent=1)
