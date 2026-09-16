@@ -744,21 +744,133 @@ def face_roughness(pos, F, detail, size):
     return np.clip(rough, 0.3, 0.95)
 
 
-def skin_variation(colour, pos):
-    """A body is not one tone. Sun: forearms and hands, shins, shoulder tops and nape darker and warmer than the torso and
-    the insides of the arms. Blood: knees, elbows and knuckles a touch redder. Keyed on the rig's joints in the baked
-    position map, so it lands on the body wherever the mesh is; applied before the median match, so the overall tone is
-    unchanged and the neck seam still meets the scan."""
+def _smooth(a, b, x):
+    t = np.clip((x - a) / (b - a), 0, 1)
+    return t * t * (3 - 2 * t)
+
+
+def sun_mask(pos):
+    """Where the sun reaches a man in an exomis: forearms and hands, shins, the tops of the shoulders and nape, the
+    open V of the chest; the upper arms and thighs partly. Keyed on the rig's joints in the baked position map."""
     x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
     ax = np.abs(x)
-    elbow, hand, knee, neck = abs(P.elbow_l.x), abs(P.hand_l.x), P.calf_l.z, P.neck.z
-    forearm = np.clip((ax - elbow + 0.02) / 0.06, 0, 1)                       # elbow outwards, hands included
-    upper_arm = np.clip((ax - (elbow - 0.22)) / 0.10, 0, 1) * (1 - forearm)  # partly
-    shin = np.clip((knee + 0.03 - z) / 0.06, 0, 1) * np.clip((z - 0.04) / 0.04, 0, 1) * (ax < elbow - 0.2)
-    sun = np.clip(forearm + 0.45 * upper_arm + 0.7 * shin, 0, 1)  # no sun on the shoulder tops: its edge would sit on the head tile's boundary at the base of the neck
-    sun = sun * (0.85 + 0.15 * P.fbm(pos.shape[0], 43, octaves=(4, 8)))  # uneven, like real sun
-    tan = np.array([0.88, 0.81, 0.72])[None, None, :]  # darker and warmer; blue drops most
-    colour = colour * (1 - sun[..., None] * 0.55) + colour * tan * (sun[..., None] * 0.55)
+    elbow, knee = abs(P.elbow_l.x), P.calf_l.z
+    forearm = _smooth(elbow - 0.02, elbow + 0.04, ax)                                   # elbow outwards, hands included
+    upper_arm = _smooth(elbow - 0.24, elbow - 0.10, ax) * (1 - forearm)
+    legs = ax < elbow - 0.2
+    shin = _smooth(knee + 0.05, knee - 0.02, z) * _smooth(0.03, 0.08, z) * legs
+    thigh = _smooth(knee + 0.30, knee + 0.12, z) * _smooth(knee - 0.02, knee + 0.06, z) * legs
+    nape_shoulders = _smooth(P.neck.z - 0.12, P.neck.z - 0.02, z) * (ax < 0.25)
+    chest_v = _smooth(P.neck.z - 0.22, P.neck.z - 0.08, z) * _smooth(0.14, 0.06, ax) * (y < 0)  # y runs backward
+    sun = np.clip(forearm + 0.5 * upper_arm + 0.8 * shin + 0.25 * thigh + 0.6 * nape_shoulders + 0.45 * chest_v, 0, 1)
+    return sun * (0.85 + 0.15 * P.fbm(pos.shape[0], 43, octaves=(4, 8)))  # uneven, like real sun
+
+
+def limb_frame(pos, a, b):
+    """Cylinder coordinates about the joint segment a→b: t along it (0 at a, 1 at b), radius, angle around it."""
+    a, b = np.array(a, np.float32), np.array(b, np.float32)
+    axis = b - a
+    length = float(np.linalg.norm(axis))
+    axis = axis / length
+    rel = pos - a[None, None, :]
+    t = (rel @ axis) / length
+    radial = rel - t[..., None] * length * axis[None, None, :]
+    r = np.linalg.norm(radial, axis=2)
+    e1 = np.cross(axis, np.array([0, 0, 1.0]))
+    e1 /= np.linalg.norm(e1)
+    e2 = np.cross(e1, axis)
+    return t, r, np.arctan2(radial @ e1, radial @ e2)
+
+
+def body_veins(pos, mask):
+    """Forearm and hand-back veins: four wandering curves per arm in the forearm's cylinder coordinates, thicker at
+    the elbow, ending at the knuckles. A soft 0–1 mask."""
+    out = np.zeros(pos.shape[:2], np.float32)
+    rng = np.random.default_rng(7)
+    for e, h in ((P.elbow_l, P.hand_l), (P.elbow_r, P.hand_r)):
+        t, r, ang = limb_frame(pos, e, h)
+        win = _smooth(0.12, 0.25, t) * (1 - _smooth(1.15, 1.35, t))
+        for k in range(4):
+            a0 = rng.uniform(-0.9, 0.9) + (0 if k % 2 else math.pi)
+            wobble = 0.5 * np.sin(t * 6.0 + rng.uniform(0, 6)) + 0.25 * np.sin(t * 13.0 + rng.uniform(0, 6))
+            da = np.angle(np.exp(1j * (ang - a0 - wobble)))
+            width = 0.0016 * (1.2 - 0.6 * t)
+            out += np.exp(-((da * r) / width) ** 2) * win * rng.uniform(0.6, 1.0)
+    return np.clip(out, 0, 1) * mask
+
+
+def body_hair(pos, mask, seed=11):
+    """Sparse body hair: short dark strokes on the chest's V, the forearms and the shins, drawn in texture space along
+    the local downhill direction (where z falls fastest), a little scatter and curl each. Returns a 0–1 canvas."""
+    size = pos.shape[0]
+    rng = np.random.default_rng(seed)
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    ax = np.abs(x)
+    elbow, hand, knee = abs(P.elbow_l.x), abs(P.hand_l.x), P.calf_l.z
+    chest = _smooth(P.neck.z - 0.30, P.neck.z - 0.12, z) * _smooth(0.16, 0.05, ax) * (y < -0.02) * (z < P.neck.z - 0.03)
+    forearm = _smooth(elbow - 0.01, elbow + 0.05, ax) * (1 - _smooth(hand - 0.02, hand + 0.02, ax))
+    shin = _smooth(knee + 0.04, knee - 0.03, z) * _smooth(0.05, 0.10, z) * (ax < elbow - 0.2)
+    density = (0.45 * chest + 0.6 * forearm + 0.35 * shin) * mask
+    gz_y, gz_x = np.gradient(z)
+    canvas = np.zeros((size, size), np.float32)
+    ys, xs = np.nonzero(density > 0.05)
+    if len(ys) == 0:  # the head tile's neck: no hair zones
+        return canvas
+    for i in rng.choice(len(ys), int(len(ys) * 0.012)):
+        py, px = int(ys[i]), int(xs[i])
+        if rng.random() > density[py, px]:
+            continue
+        dy, dx = -gz_y[py, px], -gz_x[py, px]
+        norm = math.hypot(dy, dx)
+        if norm < 1e-6:
+            continue
+        a = math.atan2(dy / norm, dx / norm) + rng.normal(0, 0.35)
+        length = rng.uniform(4, 9)
+        curl = rng.normal(0, 0.06)
+        for step in range(int(length)):
+            a += curl
+            cy, cx = int(round(py + math.sin(a) * step)), int(round(px + math.cos(a) * step))
+            if 0 <= cy < size and 0 <= cx < size and mask[cy, cx]:
+                canvas[cy, cx] = max(canvas[cy, cx], 0.6 + 0.4 * (1 - step / length))
+    return canvas
+
+
+def body_creases(pos, mask):
+    """Skin folds at the back of the elbows and the front of the knees: fine furrows across the joint, a height field."""
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    h = np.zeros(pos.shape[:2], np.float32)
+    for e in (P.elbow_l, P.elbow_r):
+        d = np.linalg.norm(pos - np.array(e, np.float32)[None, None, :], axis=2)
+        h += np.sin((x - e.x) / 0.004) * 0.5 * _smooth(0.05, 0.02, d) * _smooth(-0.01, 0.02, y - e.y)  # the back of the joint (y runs backward)
+    for k in (P.calf_l, P.calf_r):
+        d = np.linalg.norm(pos - np.array(k, np.float32)[None, None, :], axis=2)
+        h += np.sin((z - k.z) / 0.005) * 0.5 * _smooth(0.06, 0.025, d) * _smooth(0.01, -0.02, y - k.y)  # the front of the knee
+    return h * mask
+
+
+def body_normal(nrm, pos, mask, hair, veins, strength=0.6):
+    """The body's normal map: the sculpt bake plus one height field's slopes — 2-texel pores, the joint creases, the
+    hair strokes and the veins in slight relief."""
+    size = nrm.shape[0]
+    rng = np.random.default_rng(31)
+    fine = rng.random((size, size)).astype(np.float32)
+    fine = (fine + np.roll(fine, 1, 0) + np.roll(fine, 1, 1) + np.roll(np.roll(fine, 1, 0), 1, 1)) / 4
+    height = fine * 0.5 + body_creases(pos, mask) * 0.6 + hair * 0.10 + veins * 0.15  # audit 2026-09-16: 0.35 vein relief and 0.9 pores read as mottling on the forearm at the grip camera
+    gy, gx = np.gradient(height)
+    out = nrm.copy()
+    out[..., 0] = np.clip(out[..., 0] - gx * strength, 0, 1)
+    out[..., 1] = np.clip(out[..., 1] + gy * strength, 0, 1)
+    return out
+
+
+def skin_variation(colour, pos):
+    """A body is not one tone. Sun (`sun_mask`): darker and warmer where it reaches. Blood: knees, elbows and knuckles
+    a touch redder. Keyed on the rig's joints in the baked position map, so it lands on the body wherever the mesh is;
+    applied before the median match, so the overall tone is unchanged and the neck seam still meets the scan."""
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    sun = sun_mask(pos)
+    tan = np.array([0.86, 0.78, 0.68])[None, None, :]  # darker and warmer; blue drops most
+    colour = colour * (1 - sun[..., None] * 0.7) + colour * tan * (sun[..., None] * 0.7)
     def blush(cx, cy, cz, r):
         return np.exp(-(((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) / (2 * r * r)))
     blood = np.zeros_like(sun)
@@ -791,6 +903,9 @@ def body_colour(pos, mask, ao, detail, size):
             plain = mask & (sun < 0.1)
             BODY_NORM = SKIN_TONE / np.median(colour[plain if plain.sum() > 1000 else mask], axis=0)
         colour = colour * BODY_NORM[None, None, :]
+    veins = body_veins(pos, mask)
+    colour = colour * (1 - veins[..., None] * 0.14 * np.array([1.0, 0.85, 0.55])[None, None, :])  # a little darker and bluer
+    colour = colour * (1 - body_hair(pos, mask)[..., None] * 0.4)
     return np.clip(colour, 0, 1)
 
 
@@ -1177,16 +1292,21 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
     displace_high(high, height, select_only)
     nrm_face, nrm_body = [clean_normal(n[..., :3]) for n in bake_tiles(body, 'NORMAL', [size, size], select_only, high=high, samples=8, margin=8)]
     colour_face = face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size, photo)
+    if os.environ.get('BODY_DUMP'):  # the body tile's inputs, for tuning its paint offline
+        np.savez_compressed(os.environ['BODY_DUMP'], pos=pos_body.astype(np.float32), mask=mask_body, ao=ao_body.astype(np.float32), detail=detail_colour.astype(np.float16), nrm=nrm_body.astype(np.float16), pos_face=pos_face.astype(np.float32), mask_face=mask_face, ao_face=ao_face.astype(np.float32),
+                            skin_tone=SKIN_TONE, joints=np.array([list(v) for v in (P.pelvis, P.neck, P.head, P.shoulder_l, P.shoulder_r, P.elbow_l, P.elbow_r, P.hand_l, P.hand_r, P.foot_l, P.foot_r, P.calf_l, P.calf_r)], np.float32))
     colour_body = body_colour(pos_body, mask_body, P.upsample(ao_body, size), detail_colour, size)
     rough_face = face_roughness(pos_face[::2, ::2], F, detail_colour[::2, ::2], size // 2)
-    rough_body = np.clip(0.66 + (detail_colour[::2, ::2, 0] - 0.5) * 0.3, 0.4, 0.95)
+    sun_body = sun_mask(pos_body)
+    rough_body = np.clip(0.72 - 0.17 * sun_body[::2, ::2] + (detail_colour[::2, ::2, 0] - 0.5) * 0.3, 0.4, 0.95)  # a sheen on the sunned limbs, matte torso
+    nrm_body = body_normal(nrm_body, pos_body, mask_body, body_hair(pos_body, mask_body), body_veins(pos_body, mask_body))
     def orm(rough):
         return np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
     colour_face, nrm_face = fill_margin(colour_face, mask_face), fill_margin(nrm_face, mask_face)
     maps = {
         'Face': {'baseColor': save_two_sizes('face_color', colour_face, 'sRGB'), 'normal': save_two_sizes('face_normal', nrm_face, 'Non-Color'),
                  'metallicRoughness': save_jpeg('face_orm', orm(rough_face), 'Non-Color')},
-        'Skin': {'baseColor': save_two_sizes('skin_color', colour_body, 'sRGB'), 'normal': save_two_sizes('skin_normal', P.pore_normal(nrm_body, strength=0.3), 'Non-Color'),
+        'Skin': {'baseColor': save_two_sizes('skin_color', colour_body, 'sRGB'), 'normal': save_two_sizes('skin_normal', nrm_body, 'Non-Color'),
                  'metallicRoughness': save_jpeg('skin_orm', orm(rough_body), 'Non-Color')},
         'HairCards': {'baseColor': save_png_rgba(os.path.join(materials_out, 'hair_cards.png'), card_texture())},
     }
@@ -1291,8 +1411,27 @@ def keentools_skin_tone(eye_l, eye_r, crown_z):
             samples.append(px[min(h - 1, int((1 - v) * h)), min(w - 1, int(u * w))])
     samples = np.array(samples)
     samples = samples[samples.max(axis=1) > 0.06]  # skip un-photographed texels
-    SKIN_TONE = np.median(samples, axis=0)
-    print(f'KEENTOOLS skin tone (linear) {np.round(SKIN_TONE, 3)} from {len(samples)} neck texels')
+    neck_tone = np.median(samples, axis=0)
+    # the body's tone comes from the lit face, not the neck band under the jaw (photographed in the chin's shadow: the
+    # body painted to it read paler and pinker than the face under the same light). Cheekbones and forehead, forward-facing.
+    ys = [p.center.y for p in mesh.polygons if p.material_index == 0]
+    fwd = -1.0 if (mid.y - min(ys)) < (max(ys) - mid.y) else 1.0  # the nose is nearer the eyes than the back of the skull
+    face = []
+    for p in mesh.polygons:
+        if p.material_index != 0 or p.normal.y * fwd < 0.35:
+            continue
+        dz, dx = p.center.z - mid.z, abs(p.center.x - mid.x)
+        if not ((-0.42 < dz < -0.20 and 0.22 < dx < 0.55) or (0.25 < dz < 0.60 and dx < 0.40)):  # cheekbones (above the beard line) and forehead
+            continue
+        for li in p.loop_indices:
+            u, v = uv[li].uv
+            face.append(px[min(h - 1, int((1 - v) * h)), min(w - 1, int(u * w))])
+    face = np.array(face)
+    face = face[face.max(axis=1) > 0.06]
+    lum = np.array([0.30, 0.59, 0.11])
+    face_tone = np.median(face, axis=0) if len(face) > 500 else neck_tone
+    SKIN_TONE = face_tone * (neck_tone @ lum) / (face_tone @ lum)  # the face's hue at the neck band's brightness (the lit cheek itself renders near white; the body painted to the neck band alone read pink-grey beside the face)
+    print(f'KEENTOOLS skin tone {np.round(SKIN_TONE, 3)}: hue of {len(face)} cheek/forehead texels {np.round(face_tone, 3)}, brightness of the neck band {np.round(neck_tone, 3)} ({len(samples)} texels; values are sRGB-encoded, as Blender pixels are)')
     return SKIN_TONE
 
 

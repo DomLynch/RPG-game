@@ -239,3 +239,19 @@ What remains is the jaw corners, where the tone gradient is steepest, and a fain
 stub sits 0.2 mm outside the neck). Not done: the body's overall tone is still sampled from the scan's shadowed neck
 ring, so the torso and limbs read paler than the face under the same light — first item of the body pass
 (`artifacts/character/BRIEF-body-pass-v36.md`). `humanoid-v36/neck-owner-angles-v35-v36.png`, `neck-sheet.png`.
+
+v37 (2026-09-16, body pass B1 — skin): the body read as one pale, waxy, pink-grey tone beside the photographic head.
+Measured in the harness (`skin match` view, the lit shoulder vs the stubbled cheek): R/G 1.12 vs 1.16, B/G 0.91 vs 0.87
+— desaturated, not paler. Changes, all in `head.py`: the body tone (`keentools_skin_tone`) is the lit face's hue
+(median of forward-facing cheekbone/forehead texels) at the neck band's brightness — the lit cheek itself renders
+near white, so its brightness is not the albedo; `sun_mask` now reaches the shoulder tops and nape, the chest's open V
+and the thighs a little, at 0.7 of a warmer tan; `body_veins` (four wandering curves per forearm in the limb's cylinder
+coordinates, to the knuckles), `body_hair` (short dark strokes drawn down the chest V, forearms and shins along the
+local downhill direction in texture space) and `body_creases` (furrows at the back of the elbows and the front of the
+knees) go into the colour and into one height field whose slopes join the sculpt normal (`body_normal`, 2-texel pores
+included — the old `pore_normal` pass is gone); roughness 0.72 on the torso, 0.55 on the sunned limbs. Rendered:
+shoulder R/G 1.16 / B/G 0.86 — the cheek's numbers. Audit: at the grip camera the first pass read as mottling on the
+forearm (0.9 pores, 0.35 vein relief); shipped at 0.6 / 0.15 with the vein colour at 0.14. Note on colour spaces: Blender's
+`Image.pixels` are raw bytes/255 on both load and save (probed), so every "linear" float in this pipeline is in fact
+sRGB-encoded — self-consistent, and the reason an offline lab that sRGB-encoded on write came out pale. Budget 4.09 MB
+gzip (the owner lifted the 5 MB cap if needed). `humanoid-v37/skin-before-after.png`, `phone-v36-v37.png`, `details.png`.

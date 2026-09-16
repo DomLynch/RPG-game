@@ -16,7 +16,7 @@ Judge every pass in `details.png` close-ups, `inspection-turntable.png` and the 
 
 ## The passes
 
-### B1 — skin tone and skin detail (first; most visible)
+### B1 — skin tone and skin detail (first; most visible) — SHIPPED v37 (2026-09-16)
 Goal: torso and limbs read as the same man as the head under the studio and arena light.
 - Tone: sample `SKIN_TONE` from the head texture's lit cheek/forehead texels (high `coverage`, not the scan's shadowed
   neck ring, which is what `keentools_skin_tone` reads today and why the body is paler). Keep `RING_TONE` for the collar.
@@ -29,7 +29,7 @@ Goal: torso and limbs read as the same man as the head under the studio and aren
   `skin_orm`. No geometry. Check the collar (`neck-sheet.png` views) still blends after the tone change.
 - Acceptance: face and forearm side by side in `details.png` read as one skin; no seam in `neck front`/`neck side`.
 
-### B2 — athletic build (second)
+### B2 — athletic build (second) — SKIPPED: the owner likes the build (2026-09-16)
 Goal: a fighter's frame under the heroic head, rig untouched.
 - Region scales keyed on the rig's joints (as `skin_variation` keys on them), applied to `hbm` and `HIGH` before any
   bake, before `align_arms`/`align_legs`: shoulders/traps +8% width, deltoids and upper arms +12% girth, forearms
