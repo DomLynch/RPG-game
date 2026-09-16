@@ -331,12 +331,14 @@ test('a cancelled touch withdraws its press even after the simulation has buffer
   const press = (el: Element, type: string, id = 6) => el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: 0, clientY: 0 }));
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
   // Light, then press Heavy late in its recovery (inside the buffer window), tick so the sim buffers it, then cancel the Heavy touch: no heavy follows.
-  settle(); app.key('KeyF'); app.tick(); assert.equal(me().move, 'light_right');
-  for (let i = 0; i < 32; i++) app.tick(); press(app.element('heavy-button'), 'pointerdown'); app.tick(); assert.ok(me().buffer?.action === 'heavy', `buffered: ${JSON.stringify(me().buffer)}`);
+  // Inside the buffer window at the end of the cut (a cut thrown inside a chain window uses the shorter chained timing).
+  const late = () => { const t = me().chained ? MOVES.light_right.chained! : MOVES.light_right; return t.windup + t.active + t.recovery - 8; };
+  settle(); app.key('KeyF'); app.tick(); assert.ok(me().move?.startsWith('light_'));
+  for (let i = 0, n = late(); i < n; i++) app.tick(); press(app.element('heavy-button'), 'pointerdown'); app.tick(); assert.ok(me().buffer?.action === 'heavy', `buffered: ${JSON.stringify(me().buffer)}`);
   press(app.element('heavy-button'), 'pointercancel'); for (let i = 0; i < 20; i++) app.tick();
   assert.notEqual(me().move, 'heavy_overhead', 'the cancelled heavy never started'); assert.equal(me().buffer, null);
   // Same, but the cancel comes from an unrelated control: the buffered heavy survives.
-  settle(); app.key('KeyF'); app.tick(); for (let i = 0; i < 32; i++) app.tick(); press(app.element('heavy-button'), 'pointerdown'); app.tick(); assert.equal(me().buffer?.action, 'heavy');
+  settle(); app.key('KeyF'); app.tick(); for (let i = 0, n = late(); i < n; i++) app.tick(); press(app.element('heavy-button'), 'pointerdown'); app.tick(); assert.equal(me().buffer?.action, 'heavy');
   press(app.element('kick-button'), 'pointercancel', 7); for (let i = 0; i < 20; i++) app.tick(); assert.equal(me().move, 'heavy_overhead', 'another control\'s cancel does not touch it');
 });
 

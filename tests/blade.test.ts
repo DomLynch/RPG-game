@@ -43,7 +43,7 @@ test('a miss is reported only after follow-through closes, and late contact stil
   miss=stepPractice(miss,{...idle(),action:'light'},quiet);
   for(let i=0;i<SWORD.contact;i++)miss=stepPractice(miss,idle(),quiet);
   assert.equal(miss.result,'none');
-  for(let i=0;i<4;i++)miss=stepPractice(miss,idle(),quiet);
+  for(let i=0;i<MOVES.light_right.active-1;i++)miss=stepPractice(miss,idle(),quiet);   // the miss is reported as the active window closes
   assert.equal(miss.result,'miss');
   // A target on the edge of reach is still swept during the follow-through ticks after the contact tick.
   const late=arena(1.4); late.fighters[1]={...late.fighters[1],phase:'attack',move:'light_left',age:SWORD.contact-1,lastMove:'light_left'};
