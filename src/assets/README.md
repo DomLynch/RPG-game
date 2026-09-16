@@ -239,7 +239,11 @@ hero's outputs stay byte-identical.
   over a dull copper-brown base (0.40/0.255/0.125 — bronze, not gold), grey-green patina pooling in pits and hollows
   (desaturated, per the materials rule), satin roughness 0.28–0.92 (rougher in the patina, smoother along scratches), the
   patina dielectric. Manifest normalScale 0.7 → 1.0. First attempt (520 deep dents, ×22 normal) read as cratered rock;
-  the relief was halved and the dents broadened.
+  the relief was halved and the dents broadened. Colour, owner's reference (a museum Corinthian helm, 2026-09-16): the
+  copper-red read as fake; a grey-yellow pass went dark olive, a matte pale pass went clay. Shipped: pale greige-tan
+  (0.62/0.545/0.415) faded a fifth of the way to grey, oxide and patina in the same key, metalness 0.86 under the thin
+  patina skin (0.56 where it pools), satin roughness 0.36–0.9 — metal that reflects softly, never a hot spot; pits at
+  half density, scratches quiet.
 - Scars (`head.body_scars`, `FIGHTERS[...]['scars']`): four healed cuts on the body tile — a 14 cm slash across the bare
   right pectoral, a cut across the outer right bicep, one across the outside of the left forearm, a long slash down the
   outside of the right thigh — 5–7 mm wide (the first pass at 2.6 mm vanished into the 1K map), paler and pinker tissue,

@@ -990,7 +990,7 @@ def bronze_maps():
         sl = (slice(max(0, y0 - 5), min(size, y0 + 6)), slice(max(0, x0 - 5), min(size, x0 + 6)))
         dx, dy = xx[sl] - cx, yy[sl] - cy
         pits[sl] = np.maximum(pits[sl], np.clip(1 - (dx * dx + dy * dy) / (r * r), 0, 1))
-    pits *= (mottle > 0.42).astype(np.float32) * 0.8 + 0.2
+    pits *= ((mottle > 0.42).astype(np.float32) * 0.8 + 0.2) * 0.55  # sparse, quiet
     # scratches: many fine ones, a few deep gouges
     scratch = np.zeros((size, size), np.float32)
     gouge = np.zeros((size, size), np.float32)
@@ -1008,28 +1008,30 @@ def bronze_maps():
             target[ys, (xs + 1) % size] = np.maximum(target[ys, (xs + 1) % size], 0.5)
     gouge_soft = HEADMOD.blur(gouge, 2)
     # colour: aged bronze, oxide mottling, patina in the pits and the dents' floors
-    bronze = np.array([0.40, 0.255, 0.125])[None, None, :]
-    dark_oxide = np.array([0.15, 0.10, 0.06])[None, None, :]
-    patina = np.array([0.13, 0.165, 0.135])[None, None, :]
-    bright = np.array([0.62, 0.46, 0.27])[None, None, :]
+    bronze = np.array([0.62, 0.545, 0.415])[None, None, :]  # museum bronze: pale greige-tan (owner's reference, 2026-09-16 — the copper-red read as fake, a grey pass as dark olive, a matte pass as clay)
+    dark_oxide = np.array([0.40, 0.345, 0.265])[None, None, :]
+    patina = np.array([0.46, 0.475, 0.415])[None, None, :]
+    bright = np.array([0.78, 0.71, 0.57])[None, None, :]
     oxide = np.clip((mottle - 0.42) * 2.2, 0, 1) * 0.32 + (1 - dents) * 0.10  # oxide in the low noise and, lightly, the dent floors
     colour = bronze * (1 - oxide[..., None]) + dark_oxide * oxide[..., None]
     colour = colour * (0.94 + 0.12 * (fine - 0.5))[..., None]
     low = np.clip((0.5 - mottle) * 3, 0, 1) * (1 - dents) ** 1.5  # the deepest, least-handled hollows
     pat_w = np.clip(low * 0.6 + pits * 0.9, 0, 1)
     colour = colour * (1 - pat_w[..., None]) + patina * pat_w[..., None]
-    colour = colour * (1 - gouge_soft[..., None] * 0.6) + dark_oxide * gouge_soft[..., None] * 0.6  # a gouge's bottom is dark
-    colour = colour * (1 - scratch[..., None] * 0.45) + bright * scratch[..., None] * 0.45  # a scratch shows fresh metal
+    colour = colour * (1 - gouge_soft[..., None] * 0.45) + dark_oxide * gouge_soft[..., None] * 0.45  # a gouge's bottom is darker
+    colour = colour * (1 - scratch[..., None] * 0.25) + bright * scratch[..., None] * 0.25  # a scratch shows fresher metal, quietly
+    grey = (colour @ np.array([0.30, 0.59, 0.11]))[..., None] * np.ones_like(colour)
+    colour = colour * 0.78 + grey * 0.22  # faded: a fifth of the way to grey, so the metal never reads as new
     colour = np.clip(colour, 0, 1)
     # roughness and metalness
-    rough = 0.48 + 0.14 * (mottle - 0.5) + 0.06 * (fine - 0.5) + oxide * 0.14 + pat_w * 0.30 + gouge_soft * 0.2 - scratch * 0.22 - (dents - 0.5) * 0.06
-    rough = np.clip(rough, 0.28, 0.92)
-    metal = np.clip(1.0 - pat_w * 0.55 - oxide * 0.15, 0.3, 1.0)
+    rough = 0.54 + 0.12 * (mottle - 0.5) + 0.05 * (fine - 0.5) + oxide * 0.10 + pat_w * 0.20 + gouge_soft * 0.15 - scratch * 0.18 - (dents - 0.5) * 0.05  # satin: a soft broad sheen with a gradient, no hot spots
+    rough = np.clip(rough, 0.36, 0.9)
+    metal = np.clip(0.86 - pat_w * 0.30 - oxide * 0.10 + scratch * 0.14, 0.4, 1.0)  # metal under a thin patina skin: reflects like metal, dulled where the oxide sits
     orm = np.stack([np.ones_like(rough), rough, metal], axis=2)
     # normal: the hammer dents dominate, then pits and gouges, a whisper of the mottle
-    height = dents * 0.55 - pits * 0.45 - gouge_soft * 0.5 - scratch * 0.12 + (mottle - 0.5) * 0.10
+    height = dents * 0.55 - pits * 0.35 - gouge_soft * 0.4 - scratch * 0.08 + (mottle - 0.5) * 0.10
     gy, gx = np.gradient(height)
-    n = np.stack([-gx * 9, gy * 9, np.ones_like(gx)], axis=2)
+    n = np.stack([-gx * 7, gy * 7, np.ones_like(gx)], axis=2)
     n /= np.linalg.norm(n, axis=2, keepdims=True)
     normal = n * 0.5 + 0.5
     return {'baseColor': save_jpeg('bronze_color', colour, 'sRGB'), 'normal': save_jpeg('bronze_normal', normal, 'Non-Color'), 'metallicRoughness': save_jpeg('bronze_orm', orm, 'Non-Color')}

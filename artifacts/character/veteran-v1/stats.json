@@ -1,11 +1,11 @@
 {
  "label": "veteran-v1",
- "commit": "1abe75e",
+ "commit": "0671ad8",
  "date": "2026-09-16",
  "glbBytes": 6336960,
  "glbGzip": 3572984,
- "enemyGlbBytes": 6839840,
- "enemyGlbGzip": 4095696,
+ "enemyGlbBytes": 6708900,
+ "enemyGlbGzip": 3963995,
  "meshes": [
   {
    "name": "mesh_0",
