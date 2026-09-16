@@ -47,6 +47,7 @@ export type MoveDef = Timing & {
   chamber: number | null;         // wind-up tick at which a held swing pauses (the load is the tell); null = a press always swings through
   charges: boolean;               // a chamber held for RULES.charge.min ticks becomes the charged swing (multiplied, breaks a guard)
   reach: number;                  // AI range estimate for swords; the actual cone for kicks
+  minReach?: number;              // a blow started inside this gap meets nothing (a pole's point: the tines drive past the target); absent = 0
   vsGuard: { stagger: number; staminaDamage: number } | null;  // kick against a standing guard
 };
 
@@ -135,7 +136,7 @@ export const RULES = {
 } as const;
 
 // Per-fighter guard overrides (a shield is data, not code): defaults come from RULES at resolution time.
-export type GuardProfile = { costScale: number; arc: number; window: number; stopsHeavy: boolean };
+export type GuardProfile = { costScale: number; arc: number; window: number; stopsHeavy: boolean; heavyBreaks: boolean };   // heavyBreaks: a plain overhead heavy breaks this guard (a shaft has no blade to catch it on)
 
 export type AiProfile = {
   reaction: number;    // ticks before a fresh opponent action is noticed
@@ -153,15 +154,18 @@ export type AiProfile = {
 // not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
 export type WeaponId = 'longsword' | 'trident' | 'cleaver';
 export type Material = 'iron' | 'bronze' | 'wood';
-export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true };
-export const LONGSWORD: Weapon = { id: 'longsword', moves: MOVES, paths: PATHS, guard: 'blade', material: 'iron', reach: MOVES.thrust.reach };
+export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true;
+  guardProfile?: Partial<GuardProfile>;   // how this weapon's guard takes a blow (absent = the longsword defaults in RULES)
+  fight: { thrustShare: number; close: number };   // the warden's stance with it: share of non-cut openers that are thrusts (the first is always a heavy); the gap it closes to for a cut or a heavy
+};
+export const LONGSWORD: Weapon = { id: 'longsword', moves: MOVES, paths: PATHS, guard: 'blade', material: 'iron', reach: MOVES.thrust.reach, fight: { thrustShare: .2, close: 1.15 } };   // the thrust's real job is the stop-hit, so it is a minority opener
 
 // ── Trident (weapons lane, 2026-09-16): the Veteran's short trident, a different fight from the longsword — reach and thrusts, weak
-// inside the point. Rig: src/assets/weapons/trident/veteran-trident.glb (WeaponDrawn, contact = the tines). The move ids keep the
+// inside the point. Rig: src/assets/veteran.glb, built with WARRIOR_WEAPON=trident (WeaponDrawn, contact = the tines). The move ids keep the
 // game's button grammar: Slash = the low sweep (one clip, both sides), Stab = the thrust (it chains into a second thrust), Heavy =
-// the overhead pin; riposte / counter / critical ride the thrust-chain and pin paths. Every number below is PROVISIONAL and a
-// GAMEPLAY CHANGE for combat review (artifacts/weapons/REQUESTS.md); the clips only fix where the contact key sits (.34, pin .48).
-// Nothing here is used on trunk until combat review flips the opponent's weapon in initialDuel.
+// the overhead pin; riposte / counter / critical ride the thrust-chain and pin paths. The clips only fix where the contact key sits
+// (.34, pin .48). LIVE since slice V (combat review 2026-09-16): initialDuel gives the Veteran this table; the reaches are the measured
+// landing frontiers (tests/weapons.test.ts, ±0.1 m) and the balance is pinned by the battery (tests/battery.test.ts).
 export const TRIDENT_PATHS: Record<PathId, PathSpec> = {
   light_right: { clip: 'Trident_Sweep', source: .34, windup: 22, active: 8, recovery: 24 },        // low sweep: a 1.9 m pole tells longer than a cut
   light_left: { clip: 'Trident_Sweep', source: .34, windup: 22, active: 8, recovery: 24 },
@@ -186,14 +190,16 @@ export const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
   // on the stab's 16-tick tell and lunge, and chains into a second, faster thrust; parryable and fully blockable, as the stab is.
   // "Weak inside the point" is NOT in these numbers: the sim sweeps the tines from the wind-up pose, so a thrust lands from 0.4 m
   // like the sword's — a whiff inside ~1 m needs a rule (artifacts/weapons/REQUESTS.md), which is the combat lane's call.
-  thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 16, follow: ['thrust'] }, windup: 16, active: 5, recovery: 23, damage: 12, stamina: 22, staminaDamage: 22, stagger: 20, stepIn: 1, reach: 2.25, posture: 16, chamber: 8 },
+  thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 16, follow: ['thrust'] }, windup: 16, active: 5, recovery: 23, damage: 12, stamina: 22, staminaDamage: 22, stagger: 20, stepIn: 1, reach: 2.25, minReach: 1, posture: 16, chamber: 8 },   // minReach: a thrust started inside 1 m (bodies stand no closer than .85) drives the point past the target and meets nothing; the sweep and the kick have no such hole
   riposte: { ...MOVES.riposte, windup: 12, active: 5, recovery: 19, reach: 2.1 },
   heavy_riposte: { ...MOVES.heavy_riposte, windup: 22, active: 5, recovery: 27, reach: 2.15 },
   heavy_counter: { ...MOVES.heavy_counter, windup: 22, active: 5, recovery: 27, reach: 2.15 },
   critical: { ...MOVES.critical, windup: 22, active: 5, recovery: 27, reach: 2.15 },
   kick: MOVES.kick,
 };
-export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach };
+// Slice V (combat review, 2026-09-16): the shaft guard pays 15 % more for every block and a plain overhead heavy breaks it (the blade guard
+// only breaks to a charged one); the Veteran opens with the thrust three times in five and closes to sweep range, not the sword's cutting range.
+export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .6, close: 1.4 } };
 
 // ── Cleaver (weapons lane, 2026-09-16): the Pitborn's. "A fat scythe-type cleaver, wider and the same length as the longsword" (owner):
 // it rides the LONGSWORD'S CLIP FAMILY (Attack / Return / Heavy / Riposte on its own rig, src/assets/weapons/cleaver/veteran-cleaver.glb,
@@ -229,8 +235,11 @@ export const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, windup: 22, active: 6, recovery: 29, damage: 46, reach: 1.9 },
   kick: MOVES.kick,
 };
-export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLEAVER_PATHS, guard: 'blade', material: 'iron', reach: CLEAVER_MOVES.thrust.reach };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER };
+export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLEAVER_PATHS, guard: 'blade', material: 'iron', reach: CLEAVER_MOVES.thrust.reach, fight: { thrustShare: .1, close: 1.15 } };   // the poke is a rare opener (one non-cut opener in ten); he closes to the sword's cutting range for his chops
+// ON THE SHELF (the lanes' split, 2026-09-16): the weapons lane delivers a weapon unused; the combat lane puts it in the fight. The
+// cleaver's flip is `cleaver: CLEAVER` here plus its manifest entry (artifacts/weapons/REQUESTS.md §5); until then the Pitborn's slot
+// borrows the longsword exactly as before.
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: { ...LONGSWORD, id: 'cleaver', placeholder: true } };
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
@@ -248,7 +257,7 @@ export type Level = keyof typeof PROFILES;
 export type OpponentId = 'veteran' | 'pitborn';
 export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile> };
 export const OPPONENTS: Record<OpponentId, Opponent> = {
-  veteran: { id: 'veteran', weapon: 'longsword', scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },
+  veteran: { id: 'veteran', weapon: 'trident', scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },   // the trident since slice V (2026-09-16)
   // The pit brute: relentless light chains (aggression, pressure), a low parry rate, slower to notice, a low discipline floor so he
   // swings himself hot; poise 16 — a plain cut (14) or stab (11) never stops him, a heavy (18) or any counter does.
   // Health 190: with the Veteran's brain driving the hero he took 150 in ~22 s (probe, 24 seeds); the brute is meant to take more killing than a man.

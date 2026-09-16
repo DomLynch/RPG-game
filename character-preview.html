@@ -124,8 +124,9 @@ async function inspectable(url) {
   clips = asset.animations; return { player: make(), opponent: make() };
 }
 async function reset() {
-  warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB, ENEMY); scrubbers.clear();
+  // The opponent plays the clips of the weapon his rig carries (a WeaponDrawn build = the trident set), as the game's renderer does for the sim's weapon.
   enemyClips = SRC ? clips : (enemyAsset ??= await new GLTFLoader().loadAsync(ENEMY)).animations;
+  warriors = SRC ? await inspectable(SRC) : await loadWarriors(GLB, ENEMY, ['longsword', enemyClips.some(c => c.name === 'Trident_Idle') ? 'trident' : 'longsword']); scrubbers.clear();
   for (const [name, mode] of swaps) api.swapMaterial(name, mode); // diagnostic overrides survive the reload
   player.clear(); opponent.clear(); player.add(warriors.player.anchor); opponent.add(warriors.opponent.anchor);
   P = fighter(player, 0, TARGET.z + SWORD.reach + .85); O = fighter(opponent, TARGET.x, TARGET.z);

@@ -1,5 +1,5 @@
-import { RULES, type AiProfile, type MoveId } from './moves.ts';
-import { aim, distance, elapsed, idleIntent, legal, movesOf, timing, walled, type Action, type Duel, type Intent, type Side } from './duel.ts';
+import { RULES, type AiProfile, type MoveId, LONGSWORD, weaponOf } from './moves.ts';
+import { aim, distance, elapsed, idleIntent, legal, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
 // action `reaction` ticks late, and emits an ordinary Intent that stepDuel judges by the same rules as the player's.
@@ -10,7 +10,7 @@ export type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 // tail punishes, a light-spammer gets parried more. Reads need evidence first, so the first exchanges are always the honest ones.
 export type Habits = { ticks: number; guard: number; parries: number; rolls: number; lights: number; heavies: number; thrusts: number; attacks: number };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; spammer: boolean };
-export const THRUST_SHARE = .2;   // share of the warden's non-light openers that are thrusts, once the first (always a heavy) has shown the parry timing; the thrust's real job is the stop-hit
+export const THRUST_SHARE = LONGSWORD.fight.thrustShare;   // the sword's share of non-light openers that are thrusts (each weapon carries its own in `fight`); the thrust's real job is the stop-hit
 export const READ = { feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 export const readOpponent = (h: Habits): Reads => ({
   parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
@@ -26,7 +26,8 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const M = duel.fighters[me], F = duel.fighters[1 - me], tick = duel.tick, next = { ...ai, scores: {} as Record<string, number> }, intent = idleIntent();
   if (!M.health || !F.health || F.phase === 'sheathed' || F.phase === 'draw') return { intent, ai: next };
   const roll = () => { next.seed = lcg(next.seed); return next.seed / 2 ** 32; };
-  const gap = distance(M.body, F.body), facing = aim(M.body, F.body), mine = movesOf(M), theirs = movesOf(F);   // each side reads its own weapon's tables
+  const gap = distance(M.body, F.body), facing = aim(M.body, F.body), mine = movesOf(M), theirs = movesOf(F), fight = weaponOf(M.weapon).fight;   // each side reads its own weapon's tables
+  const inside = gap < (mine.thrust.minReach ?? 0);   // inside a pole's point: the thrust meets nothing here; the answer is the kick, then a step back out
   next.lastGap = gap; next.lastTravel = F.body.distance;   // for the next tick's read of an advancing opponent
   const canAct = M.phase === 'ready' || M.phase === 'guard';
   // Observe the opponent's habits from state edges (age 0 = this tick's start) and read them.
@@ -55,7 +56,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const noticed = threat && elapsed(F) >= reaction;
   if (!threat) next.plan = null;
   else if (elapsed(F) === reaction) {
-    const r = roll(), inRange = gap <= theirs[F.move!].reach + .4, unblockable = theirs[F.move!].breaksGuard || charging(F), affordable = M.stamina >= theirs[F.move!].staminaDamage;
+    const r = roll(), inRange = gap <= theirs[F.move!].reach + .4, unblockable = theirs[F.move!].breaksGuard || charging(F) || (guardOf(M).heavyBreaks && theirs[F.move!].direction === 'overhead'), affordable = M.stamina >= theirs[F.move!].staminaDamage;
     // A kick cannot be parried and punishes a raised guard, so a guard or a parry is never the answer. With its dodge share the warden rolls
     // (or steps out without the stamina); otherwise it takes the kick — a cheap poke whose point is to open a guard, and a warden that
     // escaped every kick would have no guard left to open (a backstep escapes it as surely as a roll).
@@ -83,7 +84,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // The first opener is always the heavy (the readable parry lesson); after that the warden also opens with the thrust — a faster tell
   // (16 ticks to the heavy's 32) with the longest reach, so it is the spacing opener from just outside cutting range.
   // A read parrier sees mostly cuts (held past the parry window as baits, or feinted), not the heavy whose long tell is what they are parrying.
-  if (!next.wait && !next.next && canAct) next.next = roll() < (reads.parryHappy ? Math.max(profile.pressure, READ.baitShare) : profile.pressure) ? 'light' : h.attacks > 0 && roll() < THRUST_SHARE ? 'thrust' : 'heavy';
+  if (!next.wait && !next.next && canAct) next.next = roll() < (reads.parryHappy ? Math.max(profile.pressure, READ.baitShare) : profile.pressure) ? 'light' : h.attacks > 0 && roll() < fight.thrustShare ? 'thrust' : 'heavy';
   if (pressured && next.next === 'heavy') next.next = 'light';   // a heavy planned against a read spammer becomes a cut: the 32-tick swing would be cut first (and never left the warden waiting in guard for a cut that does not come)
   // Below the stamina floor it recovers by circling just outside the player's light reach; it only backs right off
   // when very low or freshly hit. Guarding stops regeneration, so it is a choice made with stamina in hand.
@@ -118,14 +119,14 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // honest, readable attack against a standing opponent, so every difficulty shows the player the parry timing.
   if (canAct && !M.exhausted) {
     // Move reach already includes the wind-up step-in; a small margin keeps swings from whiffing at the edge.
-    const inReach = (id: MoveId) => gap <= mine[id].reach - .1 && legal(M, id === 'heavy_overhead' ? 'heavy' : id === 'kick' ? 'kick' : id === 'thrust' ? 'thrust' : 'light');
+    const inReach = (id: MoveId) => gap <= mine[id].reach - .1 && gap >= (mine[id].minReach ?? 0) + .1 && legal(M, id === 'heavy_overhead' ? 'heavy' : id === 'kick' ? 'kick' : id === 'thrust' ? 'thrust' : 'light');
     const r = roll();
     const scores: Record<string, number> = {
       critical: M.critical > 0 && inReach('heavy_overhead') ? 1.6 : 0,   // a broken posture is finished with the critical, not a riposte
       counter: M.counterWindow > 0 && inReach('heavy_overhead') ? 1.4 : 0,   // a block opens the guard counter: the designed answer to cut pressure
       punish: opening && inReach('light_right') ? 1.5 : 0,
       chain: M.chain > 0 && inReach('light_right') && r < profile.aggression ? 1.2 : 0,
-      kick: (guarded || reads.parryHappy) && inReach('kick') && r < .5 + (reads.turtle || reads.parryHappy ? READ.kickBoost : 0) ? 1.1 + (reads.turtle ? READ.kickBoost : 0) : 0,   // a turtle is kicked more; a kick goes through a parry window, so a parrier is kicked too
+      kick: inReach('kick') && ((inside && !threat && tick >= next.retreatUntil) || ((guarded || reads.parryHappy) && r < .5 + (reads.turtle || reads.parryHappy ? READ.kickBoost : 0))) ? 1.1 + (reads.turtle ? READ.kickBoost : 0) : 0,   // inside a pole's point the kick is the only blow that lands — not into a swing already in the air, and not inside the window a landed blow earned the player   // a turtle is kicked more; a kick goes through a parry window, so a parrier is kicked too
       heavy: guarded && inReach('heavy_overhead') ? 1 : next.next === 'heavy' && !threat && !pressured && inReach('heavy_overhead') ? .8 : 0,   // never a slow opener into a ready spammer: the cut lands first
       light: next.next === 'light' && !threat && !guarded && inReach('light_right') ? .8 : 0,
       // The thrust: a stop-hit into an opponent walking onto the point (it lands at 1.5× and staggers longer), or the scheduled opener from wherever it
@@ -154,8 +155,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // reach is met, never waited for. Below the stamina floor it steps back out instead.
   if (pressured && canAct && !M.exhausted && !threat && !low) intent.guard = true;
   if (next.mode === 'guard' && canAct && !M.exhausted) { intent.guard = true; return { intent, ai: next }; }
+  // Inside the point with no kick to give (spent, or just thrown): a backstep out to where the pole works, still facing the blade.
+  if (inside && canAct && !threat && legal(M, 'backstep')) return { intent: { ...intent, action: 'backstep' }, ai: next };
   // Closing distance: to cutting range normally; a warden that has decided on a thrust stops just inside thrust reach, so the thrust opens from where a cut cannot reach.
-  const forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : 1.15) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : 0;
+  const forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : fight.close) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : 0;
   const lateral = next.mode === 'circle' ? next.side * .25 : 0;
   intent.move = { x: Math.sin(facing) * forward + Math.cos(facing) * lateral, z: Math.cos(facing) * forward - Math.sin(facing) * lateral, yaw: 0, run: false };
   return { intent, ai: next };

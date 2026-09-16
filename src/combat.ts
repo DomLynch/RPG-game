@@ -1,7 +1,7 @@
 import { decide, initialAi, readOpponent, type AiMode, type AiState } from './ai.ts';
 import type { HitLocation } from './blade.ts';
 import { inBufferWindow, initialDuel, legal, movesOf, stepDuel, timing, type Action, type CombatEvent, type Duel, type Fighter, type Finish, type Intent, type Side } from './duel.ts';
-import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, type AiProfile, type MoveId, type Opponent, type PathId } from './moves.ts';
+import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, weaponOf, type AiProfile, type MoveId, type Opponent, type PathId, type Weapon, type WeaponId } from './moves.ts';
 import type { State } from './sim.ts';
 export { PROFILES, OPPONENTS, RULES, MOVES } from './moves.ts';
 export type { Opponent, OpponentId, Level } from './moves.ts';
@@ -10,16 +10,18 @@ export type { AiProfile } from './moves.ts';
 
 // Legacy constant views. Presentation, the blade bake and older tests read these shapes; the simulation reads moves.ts.
 export const SWORD = { draw: RULES.draw, contact: PATHS.light_right.windup, recovery: total(PATHS.light_right), damage: MOVES.light_right.damage, reach: MOVES.light_right.reach, arc: RULES.guardArc, reaction: MOVES.light_right.stagger, death: RULES.death } as const;
-const clipSpec = (path: PathId, move: MoveId) => ({ contact: PATHS[path].windup, recovery: total(PATHS[path]), damage: MOVES[move].damage, reach: MOVES[move].reach, cost: MOVES[move].stamina });
-// Clip keys: the rig has one authored clip per key; a left cut plays the Return clip whether or not it was chained.
-export const ATTACKS = { light: clipSpec('light_right', 'light_right'), return: clipSpec('light_left_chain', 'light_left'), heavy: clipSpec('heavy_overhead', 'heavy_overhead'), riposte: clipSpec('riposte', 'riposte') } as const;
+const clipSpec = (w: Weapon, path: PathId, move: MoveId) => ({ contact: w.paths[path].windup, recovery: total(w.paths[path]), damage: w.moves[move].damage, reach: w.moves[move].reach, cost: w.moves[move].stamina, source: w.paths[path].source });
+// Clip keys: the renderer plays one role per key (characters.ts maps a role to the weapon's clip); a left cut plays the Return role whether or not it was chained.
+// `source` is where the authored clip's contact key sits, so the swing eases to it at the simulation's contact tick.
+export const attackSpecs = (weapon: WeaponId) => { const w = weaponOf(weapon); return { light: clipSpec(w, 'light_right', 'light_right'), return: clipSpec(w, 'light_left_chain', 'light_left'), heavy: clipSpec(w, 'heavy_overhead', 'heavy_overhead'), riposte: clipSpec(w, 'riposte', 'riposte'), thrust: clipSpec(w, 'thrust', 'thrust') }; };
+export const ATTACKS = attackSpecs('longsword');
 export type Attack = keyof typeof ATTACKS;
 
 export type LegacyPhase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead' | 'kick';
 export type Result = 'none' | 'hit' | 'miss' | 'hurt' | 'blocked' | 'parried' | 'dodged' | 'broken' | 'kicked' | 'postureBroken' | 'enemyBlocked' | 'enemyBroken' | 'enemyParried' | 'enemyDodged' | 'enemyKicked' | 'enemyPostureBroken';
 // Practice = the duel plus a read-only view in the vocabulary the renderer and HUD already speak. Never write to the view.
 export type Practice = {
-  duel: Duel; ai: AiState; events: CombatEvent[]; result: Result; resultAge: number; resultDamage: number; resultStamina: number; resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultWalled: boolean;
+  duel: Duel; ai: AiState; events: CombatEvent[]; result: Result; resultAge: number; resultDamage: number; resultStamina: number; resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultTrip: boolean; resultWalled: boolean;
   maxStamina: number; enemyMaxStamina: number; legWound: boolean;   // attrition: the bars' ceilings this duel and a slowing leg wound
   maxHealth: number; enemyMaxHealth: number;   // the health bars' ceilings (an opponent may carry more than a man)
   fighter: State; enemy: State; finish: Finish | null;
@@ -28,23 +30,24 @@ export type Practice = {
   health: number; playerHealth: number; stamina: number; enemyStamina: number; exhausted: boolean; posture: number; enemyPosture: number;
   wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; reaction: number;
 };
-const clipOf = (move: MoveId | null): Attack => move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' ? 'heavy' : move === 'riposte' || move === 'thrust' ? 'riposte' : 'light';
+// The thrust plays its own role; a chained thrust rides the riposte path (the second thrust, from half-withdrawn), so it plays the riposte's clip.
+const clipOf = (f: Fighter): Attack => { const move = f.lastMove; return move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' ? 'heavy' : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte' : move === 'thrust' ? 'thrust' : 'light'; };
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = { PostureBroken: ['enemyPostureBroken', 'postureBroken'], Hit: ['hit', 'hurt'], AttackMissed: ['miss', 'dodged'], Blocked: ['blocked', 'enemyBlocked'], Parried: ['parried', 'enemyParried'], GuardBroken: ['enemyBroken', 'broken'], Dodged: ['dodged', 'enemyDodged'] };
 export function project(duel: Duel, ai: AiState, previous?: Practice): Practice {
   const [p, w] = duel.fighters;
-  let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0, resultDamage = previous?.resultDamage ?? 0, resultStamina = previous?.resultStamina ?? 0, resultPerfect = previous?.resultPerfect ?? false, resultCounter = previous?.resultCounter ?? false, resultStop = previous?.resultStop ?? false, resultWalled = previous?.resultWalled ?? false;
+  let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0, resultDamage = previous?.resultDamage ?? 0, resultStamina = previous?.resultStamina ?? 0, resultPerfect = previous?.resultPerfect ?? false, resultCounter = previous?.resultCounter ?? false, resultStop = previous?.resultStop ?? false, resultTrip = previous?.resultTrip ?? false, resultWalled = previous?.resultWalled ?? false;
   for (const event of duel.events) {
     const pair = RESULTS[event.type];
     if (!pair) continue;
     result = event.type === 'Hit' && event.move === 'kick' ? (event.actor === 0 ? 'kicked' : 'enemyKicked') : pair[event.actor];
-    resultAge = 0; resultDamage = event.damage ?? 0; resultStamina = event.stamina ?? 0; resultPerfect = !!event.perfect; resultCounter = !!event.counter || !!event.rear; resultStop = !!event.stop;   // the renderer keys on 'blocked'; perfection rides alongside
+    resultAge = 0; resultDamage = event.damage ?? 0; resultStamina = event.stamina ?? 0; resultPerfect = !!event.perfect; resultCounter = !!event.counter || !!event.rear; resultStop = !!event.stop; resultTrip = !!event.trip;   // the renderer keys on 'blocked'; perfection rides alongside
     resultWalled = duel.events.some(e => e.type === 'Staggered' && e.walled && e.actor === event.target);   // the blow drove them into the ring wall
   }
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultWalled, maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth, fighter: p.body, enemy: w.body, finish: duel.finish,
-    phase: legacyPhase(p), age: p.age, attack: clipOf(p.lastMove), chain: p.chain,
+    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth, fighter: p.body, enemy: w.body, finish: duel.finish,
+    phase: legacyPhase(p), age: p.age, attack: clipOf(p), chain: p.chain,
     threat: w.phase === 'attack' && !w.landed && w.age < wardenTiming!.windup + wardenTiming!.active, threatMove: w.phase === 'attack' ? w.move : null,
     enemyPhase: legacyPhase(w), enemyAge: w.age, enemyAttacking: w.phase === 'attack', enemyMode: w.phase === 'guard' ? 'guard' : ai.mode,
     health: w.health, playerHealth: p.health, stamina: p.stamina, enemyStamina: w.stamina, exhausted: p.exhausted, posture: p.posture, enemyPosture: w.posture,
@@ -65,10 +68,10 @@ export const accepts = (s: Practice, action: Action): boolean => s.health > 0 &&
 // Presentation helper: which clip, how far through it, and where its contact pose sits. Animation observes; it never decides.
 export type Pose = Exclude<LegacyPhase, 'hurt' | 'dead' | 'backstep'> | 'hit' | 'death';
 export function actorPose(s: Practice, side: Side): { pose: Pose; progress: number; attack: Attack; contact: number } {
-  const f = s.duel.fighters[side], phase = legacyPhase(f), attack = clipOf(f.lastMove);
+  const f = s.duel.fighters[side], phase = legacyPhase(f), attack = clipOf(f), specs = attackSpecs(f.weapon);
   const pose: Pose = phase === 'dead' ? 'death' : phase === 'hurt' ? 'hit' : phase === 'backstep' ? 'ready' : phase;   // a backstep is armed footwork; travel direction drives the walk
   const duration = phase === 'attack' || phase === 'kick' ? total(timing(f)) : phase === 'draw' ? RULES.draw : phase === 'roll' ? RULES.roll : phase === 'hurt' || phase === 'dead' ? f.stun : 1;
-  const contact = phase === 'attack' || phase === 'kick' ? timing(f).windup / duration : ATTACKS[attack].contact / ATTACKS[attack].recovery;
+  const contact = phase === 'attack' || phase === 'kick' ? timing(f).windup / duration : specs[attack].contact / specs[attack].recovery;
   return { pose, progress: Math.min(1, f.age / Math.max(1, duration)), attack, contact };
 }
 
@@ -88,7 +91,7 @@ export function practiceHint(s: Practice): string {
   if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
   if (s.result !== 'none' && s.resultAge < 120) {
     const name = me.chained ? 'follow-up' : NAMES[me.lastMove ?? 'light_right'];
-    return { kicked: 'Kick connected · press the opening', hit: `${s.resultStop ? 'Stop-hit' : s.resultCounter ? 'Counter' : 'Clean'} ${name} hit · −${s.resultDamage}${s.resultWalled ? ' · into the wall' : ''}`, miss: 'Miss — close the distance and face the warden.', hurt: `${s.resultStop ? 'Stop-hit — you walked onto the point' : s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}${s.resultWalled ? ' · pinned on the wall' : ''}`, blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}${me.counterWindow > 0 ? ' · heavy to counter' : ''}`, parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · a charged heavy or kick goes through a guard', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening', enemyParried: 'Your strike was turned aside — recover!', enemyDodged: 'The warden rolled clear.', enemyKicked: `Kicked · −${s.resultDamage}`, postureBroken: 'Your posture broke — brace for the critical', enemyPostureBroken: 'Warden staggering · Heavy for the critical!' }[s.result];
+    return { kicked: 'Kick connected · press the opening', hit: `${s.resultStop ? 'Stop-hit' : s.resultCounter ? 'Counter' : 'Clean'} ${name} hit · −${s.resultDamage}${s.resultWalled ? ' · into the wall' : ''}`, miss: 'Miss — close the distance and face the warden.', hurt: `${s.resultStop ? 'Stop-hit — you walked onto the point' : s.resultTrip ? 'Swept — a low blade trips a roll' : s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}${s.resultWalled ? ' · pinned on the wall' : ''}`, blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}${me.counterWindow > 0 ? ' · heavy to counter' : ''}`, parried: 'Parried! The warden is open.', dodged: 'Evaded!', broken: 'Guard broken · a charged heavy or kick goes through a guard', enemyBlocked: 'Warden blocked · use a heavy attack or change angle', enemyBroken: 'Guard shattered · press the opening', enemyParried: 'Your strike was turned aside — recover!', enemyDodged: 'The warden rolled clear.', enemyKicked: `Kicked · −${s.resultDamage}`, postureBroken: 'Your posture broke — brace for the critical', enemyPostureBroken: 'Warden staggering · Heavy for the critical!' }[s.result];
   }
   if (s.phase === 'guard') return me.parrying ? 'Parry window open' : 'Guarding · release to recover stamina';
   if (me.exposed) return 'Parry missed · guard down for a moment';

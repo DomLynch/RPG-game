@@ -9,6 +9,17 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## Opponent ladder — 2026-09-16 (lead/shell)
+Veteran → Pitborn. `src/ladder.ts` (LADDER order, `opponentFor`, `won`, `nextAfter`); the device profile gains an optional validated
+`ladder` rung; `main.ts` picks the opponent from the rung (URL `?opponent=` still overrides for the harness), labels the HUD for a
+non-Veteran, and after a clean win the Rematch button reads "Next: the Pitborn" — pressing it saves the rung and reloads so the next
+rig loads; a loss or draw keeps the rung and offers a rematch (recorded as before). Goblin and Nightborn append to LADDER when they land.
+Evidence: 182/182 gate; a draw-counts-as-win mutation caught; real-browser check (artifacts/ladder-check.mjs, ignored): fresh device
+= ASHCOURT WARDEN/150, rung=pitborn = THE PITBORN/190 on his rig, a loss = "Rematch" with the rung kept, no page errors. The win→Next
+→reload path is covered by the pure rules and the shell wiring, not by a scripted real-browser win. Harness note: the graphics
+harness's default profile id 'test' fails the profile's 8-char rule and always boots a fresh guest; tests that need saved state pass a
+valid id.
+
 ## Origins direction recorded in GAME_SPEC — 2026-09-15
 Docs-only. GAME_SPEC.md now carries the owner-locked title (Frankendom: Origins), setting line, pitch, simplicity rule, art direction with the materials rule (retiring the ESO/Black Desert references), Origins list, opponent roster order, collection loops, five-stat model, locational deaths and NOT NOW additions, written to sit consistently with the 2026-09-15 Souls-slice principles (four principal controls, skill wins mismatches / builds win margins, readable brutality). Closes the character lane's REQUESTS.md #1. No runtime, asset or test change; quality gate on this tree: 94/94 tests, build, 0 vulnerabilities, budget PASS (fight-ready 6.57 MB raw / 3.44 MB gzip against the 5 MB limit — headroom is now ~1.5 MB after character pass v1). Stale uncommitted graphics-test edit from 2026-09-13 was saved to ignored artifacts/stale-graphics-framing-test-2026-09-13.patch and discarded; primary checkout fast-forwarded to the live revision.
 
@@ -322,6 +333,10 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 - `Weapon`/`WEAPONS`/`weaponOf` (moves.ts), `Fighter.weapon` + `movesOf` (duel.ts), AI reads own/their tables, blade paths keyed by weapon from `scripts/blade-manifest.json`, contact events carry weapon + material. Trident = longsword placeholder; both fighters longsword on trunk.
 - Evidence: 156/156 tests (new tests/weapons.test.ts: 5); 7/7 mutations caught; quality gate green. Weapons lane brief can land on it: add a manifest entry + a `WEAPONS.trident` table + clips on the Veteran rig; flip `initialDuel`'s opponent to 'trident' with combat review.
 
+## Slice V (combat) — the Veteran fights with the trident — 2026-09-16
+- Renderer plays roles from a per-weapon clip table (`characters.ts` `WEAPON_CLIPS`, `clipFor`), keeps `WeaponDrawn` in hand, trails its `extras.contact`; `combat.ts` `attackSpecs(weapon)`, thrust role; `scene.ts` passes the sim's weapons; `veteran.glb` = the trident Veteran (`WARRIOR_FIGHTER=veteran` now defaults to `WARRIOR_WEAPON=trident`; `src/assets/weapons/trident/veteran-trident.glb` removed, manifest → `veteran.glb`). Gameplay: `OPPONENTS.veteran.weapon = 'trident'` (the opponent seam below); `minReach` 1 m on the thrust (from where it started), shaft guard ×1.15 and broken by a plain overhead, the sweep trips a roll in its first half, `Weapon.fight` stance (thrust share .6, close 1.4, kick/backstep inside the point, no shaft vs heavies).
+- Evidence: 166/166 tests (+ characters 3, weapons 3, combat 1, the old Veteran-parity and trunk-unchanged tests rewritten; battery now gates the trident AND the longsword warden); 17/17 mutations caught; AI-vs-AI duels longer (median 27 s normal vs 23); harness `artifacts/weapons/live/`; game probe `artifacts/live-trident.mjs` (the Veteran plays only Trident_* + body clips). **Character lane:** a Veteran rebuild is `WARRIOR_FIGHTER=veteran node scripts/build-warrior.mjs` (the trident is the default now; `WARRIOR_WEAPON=longsword` would hand him the sword back), then `node scripts/bake-blades.mjs`. **Weapons lane:** iterate the part in `scripts/build-weapon.mjs`, rebuild `veteran.glb`, re-bake; the harness `--enemy` default is `veteran.glb`.
+
 ## Slice V — the opponent seam (Opponent 3: the Pitborn, part 1) — 2026-09-16
 - `Opponent`/`OPPONENTS`/`Level` (moves.ts): weapon, body `scale`, `health`, `poise`, a profile per easy/normal/hard. `initialDuel(opponent = veteran)`, `initialPractice(seed, opponent)`; `Fighter.scale/poise/maxHealth`; the blade sweep's capsule and hit regions scale with the target (blade.ts); a plain clean hit under `poise` damage wounds and builds posture but never staggers or moves him (heavies, counter/stop/rear hits and charged blows always do); HUD bars take their ceilings from the fighters. `WEAPONS.cleaver` = longsword placeholder (the weapons lane's fat cleaver replaces the data). `?opponent=pitborn` picks him at boot until the ladder (lead) sets it; scene.ts maps `OpponentId → GLB` (Pitborn borrows the Veteran's until `pitborn.glb` ships).
 - Pitborn data (provisional, combat-owned): 1.13×, health 190, poise 16, normal `{reaction 18, parry .15, aggression .8, pressure .7, discipline 25}`. Probe (24 seeds): battery caps hold at normal and hard; a held guard is broken in every fight (median 72 ticks, 23/24 inside 6 s); the off-line whiff punisher wins 6/24 — the best honest script; AI-vs-AI (Veteran brain vs him) median 26.4 s. Discipline 15 made the punisher win 17/24 (rejected); accuracy is not a lever; a literal `StaminaExhausted` never fires at 40/s regen — the whiff window is the weakness.
@@ -360,11 +375,11 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
   (edge·motion .95 vs the sword's .68) — so the renderer needs nothing; `pitborn-cleaver.glb` is his own body carrying it, and the
   shipped `pitborn.glb` takes it with the build flag + one test relaxation (REQUESTS §5). Baked at 1.0× like his sword; at his real
   1.13× the chop reaches 1.85 and the whiff punisher goes 0/24 — the scale call is the combat lane's (REQUESTS §6). `build-warrior.mjs` takes a per-weapon `{ part, clips, keys }` table; default output byte-identical.
-- Data: `WEAPONS.cleaver` real (was #81's placeholder): the chop (17, chip .2), the back of the cleaver (the backhand leads with the
-  spine: 9 dmg, posture 34 — a hammer), the hack (26, chip .5, posture 42), the poke (7). Lunges equal the sword's and `reach` follows the
-  sword's spacing convention because the Pitborn's fairness battery is the gate: whiff punisher 4/24 normal · 6/24 hard (≥ 4), 6/24
-  stalls per level — both flagged for combat review. The whiff-punisher script now reads the warden's own weapon table (it read the
-  longsword's).
+- ON THE SHELF (the lanes' split): `CLEAVER` is exported real data — the chop (17, chip .2), the back of the cleaver (the backhand leads
+  with the spine: 9 dmg, posture 34 — a hammer), the hack (26, chip .5, posture 42), the poke (7) — but `WEAPONS.cleaver` still borrows the
+  longsword and there is no manifest entry: the Pitborn is unchanged until the combat lane flips it (REQUESTS §5). Measured for that flip:
+  with lunges equal to the sword's and the sword's reach convention, the Pitborn battery passes 4/24 normal · 6/24 hard with 6/24 stalls at a
+  1.0× bake; at his 1.13× the whiff punisher goes 0/24 (REQUESTS §6). The whiff-punisher script now reads the warden's own weapon table.
 - Evidence: tests/weapons.test.ts +3 (rig + clip set + edge segment; edge-leading per cut; reach and lunge parity with the sword),
   169/169; `artifacts/weapons/REPORT.md` (cleaver section), sheets under `artifacts/weapons/cleaver-v3/`, `cleaver-B/`, `cleaver-C/`.
 

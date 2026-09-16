@@ -130,6 +130,7 @@ goes 0/24 — so the shipped bake stays at 1.0× (`veteran-cleaver.glb`, the bak
 scale decision is the combat lane's with these numbers (REQUESTS §6).
 
 ## Not done / risks
-- The shipped `pitborn.glb` still carries the sword: the character lane's build flag + one test relaxation (REQUESTS §5), or the GLB map line.
+- On the shelf by design: `WEAPONS.cleaver` still borrows the longsword; the flip, manifest entry, bake, body rebuild, battery, rules and
+  deploy are the combat lane's (REQUESTS §5–6).
 - Normal-level whiff punisher is exactly at the gate's floor; 6/24 stalls — combat review.
 - No sheathed cleaver, no draw (he starts armed). No parry-clip concerns: the sword's Parry plays.

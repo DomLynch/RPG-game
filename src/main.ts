@@ -5,10 +5,11 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { initialPractice, stepPractice, practiceHint, accepts, describe, OPPONENTS, PROFILES, type Action, type CombatEvent, type OpponentId } from './combat.ts';
+import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILES, type Action, type CombatEvent } from './combat.ts';
 import { RULES } from './moves.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
+import { opponentFor, won, nextAfter } from './ladder.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('world');
@@ -58,8 +59,9 @@ function applyScheme() {
   element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(disc())); lastHud = '';
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
-// Who stands opposite: the Veteran unless the URL names another (`?opponent=pitborn` — the harness and a dev look; the ladder will set this from profile.ladder).
-const opponent = OPPONENTS[/[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1] as OpponentId] ?? OPPONENTS.veteran;
+// Who stands opposite: the rung this device has reached (profile.ladder), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
+const opponent = opponentFor(profile.ladder, /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]);
+if (opponent.id !== 'veteran') { const label = element('opponent-name'), name = opponent.id.charAt(0).toUpperCase() + opponent.id.slice(1); label.textContent = `THE ${name.toUpperCase()}`; label.dataset.mobile = name; }
 let matchSeed = 731, practice = initialPractice(matchSeed, opponent), state = practice.fighter, previous = state, accumulator = 0, locked = true;
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
 let action: Action | null = null, guard = false, guardId: number | null = null, cancel = false, assetsReady = false, graphicsLost = false, lastHud = '';
@@ -132,6 +134,8 @@ function updateHud() {
   const ended = !practice.health || !practice.playerHealth;
   heavyButton.hidden = ended; heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
   attackButton.hidden = ended; resetButton.hidden = !ended;
+  const next = ended && won(practice.finish) ? nextAfter(opponent.id) : undefined;
+  resetButton.textContent = next ? `Next: ${next.name}` : 'Rematch';
   dodgeButton.setAttribute('aria-disabled', String(!controlsReady || !ok[3]));
   guardButton.setAttribute('aria-disabled', String(!controlsReady || !(ok[4] || practice.phase === 'guard')));
   guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));
@@ -236,7 +240,10 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) guardBu
 guardButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !paused()) { event.preventDefault(); guard = true; if (!event.repeat) requestParry(); } });
 guardButton.addEventListener('keyup', () => { guard = false; });
 guardButton.addEventListener('blur', () => { guard = false; if (action === 'parry') action = null; });
-resetButton.addEventListener('click', () => { clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+resetButton.addEventListener('click', () => {
+  const next = won(practice.finish) ? nextAfter(opponent.id) : undefined;
+  if (next) { profile.ladder = next.id; persist(); location.reload(); return; }   // the next fighter is another rig: a fresh page loads it
+  clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
@@ -371,7 +378,7 @@ function frame(now: number) {
     pauseGraphics(); return;
   }
   updateHud();
-  if (debug) { const d = element('debug'); d.textContent = describe(practice, difficulty); d.dataset.frozen = String(hitStop > 0); d.dataset.tick = String(practice.duel.tick); d.dataset.tip = (view.bladeTip?.() ?? []).map(v => v.toFixed(4)).join(','); }   // frame probe: frozen flag, tick and drawn blade tip
+  if (debug) { const d = element('debug'); d.textContent = describe(practice, difficulty); d.dataset.frozen = String(hitStop > 0); d.dataset.tick = String(practice.duel.tick); d.dataset.tip = (view.bladeTip?.() ?? []).map(v => v.toFixed(4)).join(','); d.dataset.clips = view.playing?.() ?? ''; }   // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)], p95 = sorted[Math.floor(sorted.length * 0.95)];

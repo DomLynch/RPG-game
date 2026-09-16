@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
-import { actorPose, type CombatEvent, type Practice } from './combat.ts';
-import { RULES, type OpponentId } from './moves.ts';
+import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
+import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
@@ -117,7 +117,9 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   const opponent = capsule(TARGET.x, TARGET.z, new THREE.MeshStandardMaterial({ color: '#6d5447', roughness: 0.8, metalness: 0.25 }));
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   assetStatus('Loading warriors…');
-  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, OPPONENT_GLB[opponentId]).then(loaded => { // the player, and the chosen opponent
+  // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
+  const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
+  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, OPPONENT_GLB[opponentId], weapons).then(loaded => {
     warriors = loaded;
     for (const proxy of [player, opponent]) {
       proxy.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
@@ -172,7 +174,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     lowerResolution() { if (ratio > 1) { ratio = 1; renderer.setPixelRatio(ratio); resize(); } },
     restoreGraphics() { this.lowerResolution(); rebuildEnvironment(); },
     // Debug probe: where the player's blade tip was drawn this frame (world metres), so a frame-by-frame check can see a held or moving pose.
-    bladeTip(): [number, number, number] | null { const drawn = warriors?.player.anchor.getObjectByName('SwordDrawn'); if (!drawn) return null; player.updateWorldMatrix(true, true); const tip = drawn.localToWorld(new THREE.Vector3(0, .86, 0)); return [tip.x, tip.y, tip.z]; },
+    playing(): string { return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : ''; },   // debug probe: what each rig plays
+    bladeTip(): [number, number, number] | null { const anchor = warriors?.player.anchor, drawn = anchor?.getObjectByName('WeaponDrawn') ?? anchor?.getObjectByName('SwordDrawn'); if (!drawn) return null; player.updateWorldMatrix(true, true); const tip = drawn.localToWorld(new THREE.Vector3(0, (drawn.userData.contact as { to: number } | undefined)?.to ?? .86, 0)); return [tip.x, tip.y, tip.z]; },
     // Effects consume the simulation's events for the frame; they never infer contact from animation.
     // `frozen`: the frame loop is in a hit-stop. Effects (sparks, blood, camera kick) keep running on dt; the rigs evaluate their pose for the
     // frozen tick without advancing their clocks — the one impact pause is the frame loop's.
