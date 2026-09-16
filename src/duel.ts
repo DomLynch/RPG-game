@@ -27,6 +27,8 @@ export type Fighter = {
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
 export type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
+// Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
+// succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
 export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; location?: HitLocation; heading?: number; ticks?: number; posture?: number };
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
@@ -140,8 +142,10 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   // neither index is privileged; any overlap that produces is split evenly afterwards.
   for (const i of [0, 1] as const) {
     const next = fighters[i], intent = intents[i], foe = before[1 - i].body, length = phaseLength(next), window = guardOf(next, R).window;
-    // A parry attempt that met nothing leaves the fighter exposed for R.parryRecovery ticks (0 = off); a punish window proves it connected.
-    if (next.phase === 'guard' && next.age >= window && next.parrying) { next.parrying = false; if (R.parryRecovery > 0 && !next.punish) { next.phase = 'ready'; next.age = 0; next.exposed = R.parryRecovery; } }
+    // A parry attempt that met nothing: a *released* tap leaves the fighter exposed for R.parryRecovery ticks (0 = off); a guard still
+    // *held* when the window closes simply becomes the standing guard (its first perfectBlock ticks are the perfect block). Holding Guard
+    // therefore always guards — the only gamble in a parry is the tap. A punish window proves the parry connected.
+    if (next.phase === 'guard' && next.age >= window && next.parrying) { next.parrying = false; if (R.parryRecovery > 0 && !next.punish && !intent.guard) { next.phase = 'ready'; next.age = 0; next.exposed = R.parryRecovery; } }
     if ((length !== null && next.age >= length && next.phase !== 'dead') || (next.phase === 'guard' && !intent.guard && next.age >= window)) {
       if (next.phase === 'attack' && !next.chained && next.move && MOVES[next.move].chain) next.chain = MOVES[next.move].chain!.window;
       if (next.phase === 'roll' || next.phase === 'backstep') next.evaded = R.dodgeAttackWindow;
@@ -246,7 +250,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       shake(j, def.posture * (perfect ? R.posture.perfect : 1));
     } else {
       const damage = Math.round(def.damage * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
-      if (guarding) { spend(j, R.breakCost); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: j, target: i, move: a.move, damage, location, heading: a.body.heading, charged }); stagger(baseStun); D.posture = 0; }
+      if (guarding) { spend(j, R.breakCost); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage, location, heading: a.body.heading, charged }); stagger(baseStun); D.posture = 0; }
       else {
         // Hyper-armour: a heavy parked at its chamber, a charged heavy, or any move past its poise point. A short hold that was released
         // uncharged is a plain heavy again (armour from its poise tick only).
