@@ -667,3 +667,8 @@ test('posture: blocks, clean hits and being parried fill it; it drains while sta
   assert.equal(MOVES.critical.posture, 0);
   for (const id of ['light_right', 'thrust', 'heavy_overhead', 'kick', 'riposte', 'heavy_riposte', 'heavy_counter'] as const) assert.ok(MOVES[id].posture > 0, `${id} carries posture`);
 });
+
+test('kick lands: the lunge carries the short cone to a standing target 1.5 m away, which is what the HUD reach flag promises', () => {
+  const lands = (gap: number) => run(stepDuel(duel(gap), [act('kick'), { ...idle(), lock: true }]), kick.windup + kick.active).fighters[1].health < 100;
+  assert.ok(lands(1.5), 'lands from 1.5 m'); assert.ok(!lands(1.7), 'not from 1.7 m');
+});

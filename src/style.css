@@ -60,6 +60,7 @@
  .actions[data-gestures=cluster] #attack-button{width:66px;height:66px;left:12px;top:38px}
  .actions[data-gestures=cluster] #heavy-button{width:50px;height:50px;left:120px;top:54px}
  .actions[data-gestures=cluster] #kick-button{width:40px;height:40px;min-height:0;left:78px;top:93px;border-radius:50%;font-size:0;background:#17232952}
+ .actions[data-gestures=cluster] #kick-button[data-reach=true]{background:#b7a27666;border-color:#e9d9b3a6}
  .actions[data-gestures=cluster] #dodge-button{width:56px;height:56px;left:5px;top:138px}
  .actions[data-gestures=cluster] #guard-button{width:64px;height:64px;left:107px;top:133px}
  .actions[data-gestures=cluster] #reset-button{left:0;top:70px;width:176px;height:56px;border-radius:16px;background:#b7a276c8}

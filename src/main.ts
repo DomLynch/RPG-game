@@ -69,6 +69,8 @@ let held = false;
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
 // pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
+// A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
+const KICK_LANDS = 1.5;
 const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, Killed: 220 };
 const HEAVY_HIT = 90;
 let hitStop = 0;
@@ -80,7 +82,8 @@ function stopFor(events: CombatEvent[]): number {
 function updateHud() {
   const hint = practiceHint(practice), controlsReady = assetsReady && !graphicsLost;
   const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(a => accepts(practice, a) || (a === 'backstep' && accepts(practice, 'dodge')));
-  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}`;
+  const inKickReach = Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z) <= KICK_LANDS;
+  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}`;
   if (key === lastHud) return;
   lastHud = key;
   health.value = practice.health; element('health-value').textContent = `${practice.health} / 100`;
@@ -93,6 +96,7 @@ function updateHud() {
   stamina.setAttribute('aria-label',practice.exhausted ? 'Stamina — exhausted: no attacks or guard until it recovers' : practice.wound ? 'Stamina — wounded: recovery reduced 20 percent' : 'Stamina');
   kickButton.hidden = practice.phase === 'sheathed' || practice.phase === 'draw' || !practice.health || !practice.playerHealth;
   kickButton.setAttribute('aria-disabled',String(!controlsReady || !ok[2]));
+  kickButton.dataset.reach = String(inKickReach);   // a kick has a short cone: the button brightens when it can land
   combatStatus.dataset.threat = String(practice.threat); combatStatus.dataset.move = practice.threatMove ?? '';
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
   gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '← Cut → · ↑ Thrust · ↓ Heavy';

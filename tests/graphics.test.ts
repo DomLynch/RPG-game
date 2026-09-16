@@ -300,3 +300,11 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
   const before = tickOf(); let quiet = 0; for (let i = 0; i < 30; i++) { app.tick(17); if (!app.rendered.events.some(e => e.type in EXPECT)) quiet++; }
   assert.ok(tickOf() - before >= quiet - 1, `${quiet} quiet frames advanced ${tickOf() - before} ticks`);
 });
+
+test('the Kick button says when the warden is inside its cone', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const kick = app.element('kick-button'), gap = () => Math.hypot(app.rendered.fighter.x - app.rendered.enemy.x, app.rendered.fighter.z - app.rendered.enemy.z);
+  const seen = new Set<string>();
+  for (let i = 0; i < 1500; i++) { app.tick(); seen.add(kick.dataset.reach); assert.equal(kick.dataset.reach, String(gap() <= 1.5), `reach flag follows the gap (${gap().toFixed(2)})`); }
+  assert.deepEqual([...seen].sort(), ['false', 'true'], 'both states occur in a fight');
+});
