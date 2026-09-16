@@ -121,7 +121,7 @@ test('the warden punishes a whiff with a light and kicks or breaks a standing gu
   const opener = wardenAttacks(guarded)[0];
   assert.ok(opener && (opener.move === 'heavy_overhead' || opener.move === 'kick'), `standing guard is opened with ${opener?.move}`);
   assert.ok(wardenAttacks(guarded).some(e => e.move === 'kick') || guarded.some(e => e.type === 'Charged' && e.actor === 1), 'a standing guard is kicked or charged through');
-  assert.ok(guarded.some(e => e.type === 'GuardBroken' && e.target === 1), 'and it does get opened');
+  assert.ok(guarded.some(e => e.type === 'GuardBroken' && e.actor === 1 && e.target === 0), 'and it does get opened');
   const lights = wardenAttacks(guarded).filter(e => e.move === 'light_right' || e.move === 'light_left');
   for (const e of lights) assert.ok(guarded.some(o => o.tick < e.tick && o.tick > e.tick - 60 && ((o.type === 'Hit' && o.actor === 1) || (o.type === 'AttackStarted' && o.actor === 1 && o.move !== 'kick'))), 'a light against a guarding player only punishes a fresh opening or chains');
 });
@@ -203,12 +203,13 @@ test('posture: a shaky warden gives ground so its bar drains, and finishes a bro
 });
 
 test('reads: habits become reads only with evidence, at the documented thresholds', () => {
-  const h = (o: Partial<Habits>): Habits => ({ ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, attacks: 0, ...o });
+  const h = (o: Partial<Habits>): Habits => ({ ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, ...o });
   assert.deepEqual(readOpponent(h({})), { parryHappy: false, turtle: false, roller: false, spammer: false });
-  assert.equal(readOpponent(h({ attacks: 2, parries: 2 })).parryHappy, false, 'two swings are not evidence'); assert.equal(readOpponent(h({ attacks: 3, parries: 2 })).parryHappy, true);
+  assert.equal(readOpponent(h({ attacks: 1, parries: 1 })).parryHappy, false, 'one swing is not evidence'); assert.equal(readOpponent(h({ attacks: 2, parries: 1 })).parryHappy, true, 'two exchanges, half parried'); assert.equal(readOpponent(h({ attacks: 4, parries: 1 })).parryHappy, false);
   assert.equal(readOpponent(h({ ticks: 179, guard: 179 })).turtle, false); assert.equal(readOpponent(h({ ticks: 180, guard: 81 })).turtle, true); assert.equal(readOpponent(h({ ticks: 180, guard: 80 })).turtle, false);
   assert.equal(readOpponent(h({ attacks: 5, rolls: 2 })).roller, true); assert.equal(readOpponent(h({ attacks: 5, rolls: 1 })).roller, false);
   assert.equal(readOpponent(h({ lights: 5, heavies: 1 })).spammer, true); assert.equal(readOpponent(h({ lights: 4, heavies: 1 })).spammer, false, 'six swings needed'); assert.equal(readOpponent(h({ lights: 4, heavies: 2 })).spammer, false);
+  assert.equal(readOpponent(h({ lights: 4, thrusts: 2 })).spammer, false, 'thrusts are a mix, not spam'); assert.equal(readOpponent(h({ lights: 5, thrusts: 1 })).spammer, true);
 });
 
 test('the warden adapts: a turtle is kicked and charged through more; a light-spammer is parried more; a roller sees delayed swings and tail punishes; a parrier gets baited lights', () => {
@@ -235,18 +236,21 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   assert.ok(plainHeavies === 0 || held / plainHeavies >= .5, `plain heavies at a turtle are charged: ${held}/${plainHeavies}`);
   // The charge boost itself, over 40 seeds from the same state: a heavy thrown at an unguarded opponent is held only with a roller read, and then most of the time.
   const roller = (dd: Duel) => (dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 0 && dd.fighters[0].phase === 'ready' ? act('dodge') : idle());
-  const heldShare = (habits: Partial<Habits>) => { const throws = [...Array(40).keys()].map(seed => decide(arena(1.5), 1, { ...initialAi(seed + 1), mode: 'approach', decision: 500, wait: 0, next: 'heavy', habits: { ticks: 600, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, attacks: 0, ...habits } }, PROFILES.normal).intent).filter(i => i.action === 'heavy'); return { thrown: throws.length, held: throws.filter(i => i.held).length }; };
+  const heldShare = (habits: Partial<Habits>) => { const throws = [...Array(40).keys()].map(seed => decide(arena(1.5), 1, { ...initialAi(seed + 1), mode: 'approach', decision: 500, wait: 0, next: 'heavy', habits: { ticks: 600, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, ...habits } }, PROFILES.normal).intent).filter(i => i.action === 'heavy'); return { thrown: throws.length, held: throws.filter(i => i.held).length }; };
   const calm = heldShare({}), vsRoller = heldShare({ attacks: 5, rolls: 3 });
   assert.ok(calm.thrown >= 20 && calm.held === 0, `no read, no guard: a heavy is never held (${calm.held}/${calm.thrown})`); assert.ok(vsRoller.thrown >= 20 && vsRoller.held / vsRoller.thrown >= .65, `with a roller read most heavies are held: ${vsRoller.held}/${vsRoller.thrown}`);
-  // Spammer: cuts whenever ready. Normal parries 30 % of noticed swings; doubled it plans a parry for most of a spammer's cuts.
-  let plansAfter = 0, parriesAfter = 0, d = arena(), ai = initialAi();
+  // Spammer: cuts whenever ready. Normal parries 30 % of noticed swings; doubled it plans a parry for most of a spammer's cuts — and a read
+  // spammer's cuts are anticipated (planned at READ.anticipate ticks, not the profile's reaction), which is what makes the parry of a 14-tick cut possible.
+  let plansAfter = 0, parriesAfter = 0, plansAtReaction = 0, d = arena(), ai = initialAi();
   for (let i = 0; i < 3000; i++) {
-    const w = decide(d, 1, ai, PROFILES.normal); const planned = d.fighters[0].phase === 'attack' && d.fighters[0].age === PROFILES.normal.reaction && w.ai.plan && w.ai.plan !== 'ignore';
+    const w = decide(d, 1, ai, PROFILES.normal); const spam = readOpponent(ai.habits).spammer, at = spam ? Math.min(PROFILES.normal.reaction, READ.anticipate) : PROFILES.normal.reaction;
+    const planned = d.fighters[0].phase === 'attack' && d.fighters[0].age === at && w.ai.plan && w.ai.plan !== 'ignore';
+    if (spam && d.fighters[0].phase === 'attack' && d.fighters[0].age === PROFILES.normal.reaction && w.ai.plan && !ai.plan) plansAtReaction++;
     if (planned && readOpponent(ai.habits).spammer) { plansAfter++; if (w.ai.plan === 'parry') parriesAfter++; }
     ai = w.ai; d = stepDuel(d, [d.fighters[0].phase === 'ready' ? act('light') : idle(), w.intent]);
     d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
-  assert.ok(readOpponent(ai.habits).spammer, 'spammer read'); assert.ok(plansAfter >= 8, `enough plans after the read: ${plansAfter}`);
+  assert.ok(readOpponent(ai.habits).spammer, 'spammer read'); assert.ok(plansAfter >= 8, `enough plans after the read: ${plansAfter}`); assert.equal(plansAtReaction, 0, 'after the read no cut is first planned at the slow reaction');
   assert.ok(parriesAfter / plansAfter >= .45, `parry plans after the read: ${parriesAfter}/${plansAfter}`);
   // Roller: a panic roller — rolls every 70 ticks whether or not a swing is coming, and at every swing. Only after the read does the warden start a swing while the
   // player is in a roll's tail (it is free to, because those rolls were not answers to its own swings), and hold heavies although nobody is guarding.
@@ -302,4 +306,62 @@ test('perception runs on elapsed time: a heavy parked at its chamber is noticed 
   let e = arena(1.6), bi = initialAi(); e = stepDuel(e, [{ ...act('heavy'), held: true }, idle()]); let guardedAt: number | null = null;
   for (let i = 1; i <= 30 && guardedAt === null; i++) { const w = decide(e, 1, { ...bi, mode: 'circle', decision: 500, wait: 500 }, { ...PROFILES.normal, parry: 0, dodge: 0 }); bi = w.ai; if (w.intent.guard) guardedAt = elapsed(e.fighters[0]); e = stepDuel(e, [{ ...idle(), held: true }, w.intent]); }
   assert.equal(e.fighters[0].age, MOVES.heavy_overhead.chamber!, 'still parked'); assert.ok(guardedAt !== null && guardedAt <= PROFILES.normal.reaction + 1, `guard up at elapsed ${guardedAt}, while parked`);
+});
+
+test('fairness pass: the warden uses its own tools against pressure — the guard counter after a block, the punish of a whiffed parry, a guard walk (never a slow opener, never a standing wait) into a read spammer, and feints at a parrier', () => {
+  const state = (o: Partial<AiState>): AiState => ({ ...initialAi(5), mode: 'approach', decision: 500, wait: 500, ...o });
+  const spam: Partial<Habits> = { ticks: 600, lights: 9, heavies: 0, thrusts: 0, attacks: 6, guard: 0, parries: 0, rolls: 0 };
+  // Guard counter: a warden inside its counter window with the player in reach throws the heavy (heavy_counter is what the sim makes of a Heavy pressed in that window).
+  const countering = arena(1.4); countering.fighters[1] = { ...countering.fighters[1], phase: 'guard', counterWindow: RULES.guardCounter - 2 };
+  const counter = decide(countering, 1, state({}), PROFILES.normal);
+  assert.equal(counter.intent.action, 'heavy', `guard counter thrown: ${JSON.stringify(counter.ai.scores)}`);
+  // Whiffed parry: an exposed player is an opening, punished with the light even with no cadence pending.
+  const exposed = arena(1.4); exposed.fighters[0] = { ...exposed.fighters[0], phase: 'ready', exposed: 6 };
+  assert.equal(decide(exposed, 1, state({}), PROFILES.normal).intent.action, 'light', 'a parry that met nothing is punished');
+  // Read spammer standing ready in cutting range: the warden guards and keeps walking in (no heavy opener, no standing wait, no stall).
+  const pressed = arena(1.7);
+  const walk = decide(pressed, 1, state({ next: 'heavy', wait: 0, habits: { ...initialAi().habits, ...spam } }), PROFILES.normal);
+  assert.equal(walk.intent.guard, true, 'guards under read pressure'); assert.equal(walk.intent.action, null, 'and does not swing the heavy');
+  assert.ok((walk.intent.move?.z ?? 0) > 0, `keeps closing in guard (the player stands at +z): ${JSON.stringify(walk.intent.move)}`);
+  assert.equal(walk.ai.next, 'light', 'the planned heavy becomes a cut against a spammer');
+  const calm = decide(pressed, 1, state({ next: 'heavy', wait: 0 }), PROFILES.normal);
+  assert.equal(calm.intent.guard, false, 'no read, no pressure guard');
+  // Out of the pressure band the spammer read changes nothing about the walk.
+  const far = decide(arena(2.4), 1, state({ next: 'heavy', wait: 0, habits: { ...initialAi().habits, ...spam } }), PROFILES.normal);
+  assert.equal(far.intent.guard, false); assert.ok((far.intent.move?.z ?? 0) > 0, 'approaches unguarded from range');
+  // Anticipation: a read spammer's cut is planned at READ.anticipate, not the profile reaction — and only cuts (a heavy keeps the honest clock).
+  const cutAt = (age: number, move: 'light_right' | 'heavy_overhead', habits: Partial<Habits> = spam) => { const d = arena(1.2); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move, lastMove: move, age }; return decide(d, 1, state({ habits: { ...initialAi().habits, ...habits } }), PROFILES.normal).ai.plan; };
+  assert.ok(cutAt(READ.anticipate, 'light_right'), 'a read spammer\'s cut is planned early'); assert.equal(cutAt(READ.anticipate, 'light_right', {}), null, 'an unread player\'s cut is not');
+  assert.equal(cutAt(READ.anticipate, 'heavy_overhead'), null, 'the spammer\'s heavy is still noticed on the honest clock'); assert.ok(cutAt(PROFILES.normal.reaction, 'heavy_overhead'));
+  // Feint: a swing flagged as a feint is abandoned into a guard press on its last feintable tick, exactly once.
+  const mid = arena(1.2); mid.fighters[1] = { ...mid.fighters[1], phase: 'attack', move: 'light_right', lastMove: 'light_right', age: MOVES.light_right.feintUntil - 1 };
+  const feinted = decide(mid, 1, state({ feint: true }), PROFILES.normal);
+  assert.equal(feinted.intent.action, 'parry'); assert.equal(feinted.intent.guard, true); assert.equal(feinted.ai.feint, false, 'the flag is spent');
+  const early = { ...mid, fighters: [mid.fighters[0], { ...mid.fighters[1], age: MOVES.light_right.feintUntil - 3 }] } as Duel;
+  assert.equal(decide(early, 1, state({ feint: true }), PROFILES.normal).intent.action, null, 'not before the last feintable tick');
+  // Feints and kicks are only ever aimed at a read parrier: over many throws at a parrier some swings are feints and kicks lead; at an unread player none are feints.
+  const throwsAt = (habits: Partial<Habits>, gap: number) => [...Array(120).keys()].map(seed => decide(arena(gap), 1, { ...state({ next: 'light', wait: 0, seed: seed + 1, habits: { ...initialAi().habits, ...habits } }) }, PROFILES.normal));
+  const parrier: Partial<Habits> = { ticks: 600, attacks: 4, parries: 3 };
+  const cutsAtParrier = throwsAt(parrier, 1.4), cutsAtCalm = throwsAt({}, 1.4);   // outside kick reach: cuts, some feinted, most held as baits
+  assert.ok(cutsAtParrier.filter(w => w.ai.feint).length >= 3, `feints at a parrier: ${cutsAtParrier.filter(w => w.ai.feint).length}`); assert.ok(!cutsAtCalm.some(w => w.ai.feint), 'no feint without the read');
+  assert.ok(cutsAtParrier.filter(w => w.intent.held).length >= 40, `baited lights at a parrier: ${cutsAtParrier.filter(w => w.intent.held).length}`); assert.ok(!cutsAtCalm.some(w => w.intent.held), 'no bait without the read');
+  const closeAtParrier = throwsAt(parrier, 1.05), closeAtCalm = throwsAt({}, 1.05);   // inside kick reach: the kick goes through a parry window
+  assert.ok(closeAtParrier.filter(w => w.intent.action === 'kick').length >= 40, `kicks lead at a parrier: ${closeAtParrier.filter(w => w.intent.action === 'kick').length}`);
+  assert.equal(closeAtCalm.filter(w => w.intent.action === 'kick').length, 0, 'no kick at an unguarded, unread player');
+});
+
+test('a kick is never guarded: the warden rolls it with the stamina to spare and steps out of it without', () => {
+  const kick = (stamina: number) => { const d = arena(1.1); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'kick', lastMove: 'kick', age: PROFILES.normal.reaction }; d.fighters[1] = { ...d.fighters[1], stamina }; return decide(d, 1, { ...initialAi(3), mode: 'approach', decision: 500, wait: 500 }, PROFILES.normal).ai.plan; };
+  assert.equal(kick(100), 'dodge'); assert.equal(kick(RULES.rollCost - 1), 'evade');
+  for (let seed = 1; seed <= 30; seed++) { const d = arena(1.1); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'kick', lastMove: 'kick', age: PROFILES.normal.reaction }; assert.notEqual(decide(d, 1, { ...initialAi(seed), mode: 'approach', decision: 500, wait: 500 }, PROFILES.normal).ai.plan, 'block', `seed ${seed} guards a kick`); }
+});
+
+test('habits are counted from what the player actually threw: a thrust is a thrust, not a cut — and no profile reacts faster than a human can', () => {
+  // Three thrusts from thrust range, then a cut: the counts land in the right bins (ripostes, counters and kicks are never habits).
+  let d = arena(1.9), ai = initialAi(2), thrown = 0;
+  for (let i = 0; i < 600; i++) { const w = decide(d, 1, ai, PROFILES.easy); ai = w.ai; const p = d.fighters[0].phase === 'ready' && thrown < 3 && i % 90 === 0 ? (thrown++, act('thrust')) : idle(); d = stepDuel(d, [p, w.intent]); d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: 100, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: 100, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] }; }
+  assert.equal(ai.habits.thrusts, 3, `thrusts counted: ${JSON.stringify(ai.habits)}`); assert.equal(ai.habits.lights, 0, 'and not as lights');
+  // Reaction floors: 10 ticks (167 ms) is about the fastest a human notices a tell; the honest clock never goes under it. Reads may anticipate, reactions may not.
+  assert.ok(PROFILES.hard.reaction >= 10, `hard reacts in ${PROFILES.hard.reaction} ticks`); assert.ok(PROFILES.normal.reaction > PROFILES.hard.reaction && PROFILES.easy.reaction > PROFILES.normal.reaction);
+  assert.ok(READ.anticipate < PROFILES.hard.reaction, 'anticipation is faster than any reaction, which is the point of a read');
 });
