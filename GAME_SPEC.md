@@ -71,7 +71,7 @@ Stats: STR / DEX / VIG / END / POISE, 50 points, no stat touches timing.
 - Rule: no stat changes attack, parry, roll or wind-up timing. Timing constants are global per weapon so learned tells stay valid and online balance stays tractable. Stats become data with stable IDs when equipment gameplay is authorized, per the architecture rules below.
 
 ## Deaths
-Where the blade lands decides the death: head, neck, waist. Lethal outcomes are locational and earned — the simulation's blade contact location, attack type and direction select the finish. Gore is presentation driven by simulation events and never affects the fight. A gore toggle and a dark/desaturated blood mode ship with it so clips remain shareable. Tone is grounded and brutal (real weapons, real wounds), not cartoon stylisation.
+Where the blade lands decides the death: head, neck, waist. Lethal outcomes are locational and earned — the simulation's blade contact location, attack type and direction select the finish. Gore is presentation driven by simulation events and never affects the fight. A gore toggle and a dark/desaturated blood mode ship with it so clips remain shareable. Tone is grounded and brutal (real weapons, real wounds), not cartoon stylisation. The finisher set, gore upgrades and camera allowance are authorized and specified under "Owner-authorized finishers & gore — 2026-09-17".
 
 ## Controls and camera
 - Landscape is the preferred phone layout; portrait remains operable. Desktop keyboard/mouse supported.
@@ -137,7 +137,7 @@ Buttons stay the baseline. An optional, session-local mobile swipe trial maps ho
 
 The current CC0 source lacks strafe/block-impact clips. Original authored lateral footwork, armed walking, hip/spine anticipation and recoil can improve the prototype without purchases; do not label them motion capture. A coherent licensed motion set remains a candidate for the next quality step, subject to rig, clip and web-distribution review and purchase authorization. The earlier generic retargeting code does not establish Mixamo compatibility.
 
-Keep challenge links and optional shareable replays in the product roadmap after local feel and early authoritative online timing tests. Defer continuous recording, cinematic slow motion, finishers, wounds, ragdolls, cloth, post-processing and renderer migration until each earns its device budget. No virality, 3-second loading, 120Hz, iPhone 12 performance or rollback claims without direct evidence.
+Keep challenge links and optional shareable replays in the product roadmap after local feel and early authoritative online timing tests. Defer continuous recording, cinematic slow motion, ragdolls, cloth, post-processing and renderer migration until each earns its device budget (finishers and wounds left this list by owner authorization, 2026-09-17 and 2026-09-13). No virality, 3-second loading, 120Hz, iPhone 12 performance or rollback claims without direct evidence.
 
 ## Owner-authorized kicks, wounds and blood — 2026-09-13
 Owner explicitly expanded the current combat pass to kicks, wounds and blood/effects, superseding those earlier deferrals. Free CC0 or original work only; no purchases. One immediate compact Kick button (C on desktop) joins the four core actions; no tap/hold delay. Close-range kick costs 25 stamina, contacts at tick 18, recovers at 44, deals 8 damage and opens a guarded opponent more strongly than an unguarded one. No kick wounds or blood.
@@ -147,6 +147,27 @@ Unguarded sword contact wounds either fighter for four seconds, reducing stamina
 First effects layer: reuse 12 spray particles; pool 12 floor splashes fading over 20 seconds, cleared on rematch. Original alpha sprites; blood red/dark/off in the shared menu. Blocks/parries produce steel sparks, kicks blunt dust, cuts blood. Presentation-only impact pause stays brief; no simulation slow motion, camera cuts, FOV punches or lens overlays. Split geometry, detachable heads/limbs, torso cuts and paired fatalities remain the next separately reviewed animation milestone. Do not claim this layer implements dismemberment or full per-limb wounds.
 
 Defensive presentation refinement: confirmed block/parry results select original BlockImpact/Parry/Deflected clips. Their short visual reactions never delay a newly accepted counter or alter simulation timing. A real-browser workflow is part of the required quality/release gate, including exact heavy-swipe cost and graphics restoration.
+
+## Owner-authorized finishers & gore — 2026-09-17
+Owner direction: a kill deserves a closer — the ceremony of a Mortal Kombat finisher, but gritty and realistic under the art direction (weight and finality, never acrobatics; readable brutality over spectacle still binds: nothing may cover a pose the player needs to read). This is the "separately reviewed animation milestone" the 2026-09-13 blood layer deferred; it removes finishers from the roadmap deferral list (wounds stay as authorized 2026-09-13 — no per-limb anatomy, no permanent penalties).
+
+Selection is deterministic: the finisher is a pure function of the `Killed` event (victim, location, move, heading) and the fighters' weapons, chosen after damage is decided, consuming no new simulation state — the same duel replays the same finisher. The simulation is untouched: `RULES.death` (144 ticks), the 220 ms Killed hit-stop, and "death has no tail" all stand. Presentation may hold the corpse and the camera past the window (the duel is over; `finish` is set), but the rematch flow's timing stays data.
+
+v1 set (the victim is the opponent; the player's own death keeps the plain fall until a v2 review):
+- **Split Crown** — heavy overhead to the head: the skull gives, the blade bites deep, the body drops straight down. No bounce.
+- **Run Through** — thrust to the torso: through the body, a held beat as the victim grips the blade, then slides off it.
+- **The Quiet One** — light/return cut to the neck: deliberately underplayed — a stagger, a hand to the throat, a collapse.
+- **Opened** — heavy to the torso: upright for a beat, then folds at the waist.
+- **Hamstrung** — a low killing blow to the legs: knees first, then down.
+- **Execution** — the critical (posture-break) kill: the one ceremonial beat — a held half-second before the blow lands.
+
+Camera: a slow push-in over the death window is authorized — a dolly, not a cut: no camera cuts, no FOV punch, no lens overlay, no simulation slow motion. The frame loop's hit-stop remains the one owner of the impact pause.
+
+Gore upgrades, all built on the existing pooled particles/decals and all governed by the red/dark/off blood mode so clips stay shareable: directional spray along the strike heading in place of the radial puff; a wound-site mark with drips for the four-second wound window; pooling under the corpse that outlives the 20 s splash fade on a kill (cleared on rematch, as today); blood on the blade — the weapon material tints after a kill and stays bloodied until the next fight.
+
+Clip rule: the 21 shipped clip names and durations stay frozen; finisher clips are strictly additive (`Death_*` variants on the victim rigs, killer beats reusing existing attack clips wherever they read), authored offline through the character pipeline (`scripts/build-warrior.mjs`), with `node scripts/bake-blades.mjs` after any GLB/clip change as always. Each opponent rig carries its own variants; the longsword hero's set comes first as the template. Split geometry, detachable heads/limbs and torso cuts are NOT in this milestone — they remain the next separately reviewed step after v1 lands and is judged on the phone.
+
+Budget: the per-fight payload cap rises 9 → 10 MB gzip (`scripts/check-budget.mjs`); 11 MB only with further owner sign-off. Mesh compression (quantization/meshopt, roughly half) is the approved later lever that pays the budget back toward 5–6 MB; it does not gate this milestone.
 
 ## Owner-authorized combat core — 2026-09-14
 Owner brief: a second developer owns core combat as a deterministic, data-driven, input-agnostic simulation that visuals consume and never decide; first target is the single-player 1v1 slice against AI, with no matchmaking, accounts, inventory, progression or networking. The visual developer plugs assets and animations into the same combat state and events later.
