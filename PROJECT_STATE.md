@@ -401,6 +401,6 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
   critical's cost 26 → 20), `WEAPONS.knife` still the placeholder, no manifest entry.
 - Measured on his rig with the knife's timings: slash lands to 1.2 m, stab 1.45, hack 1.55 (a man's sword 1.7 / 2.0 / 2.2; his placeholder
   today swings the man's table). The character lane's reverse-grip suggestion rejected with numbers: on the sword's clips it never lands (0 m
-  at every gap) — it would need its own clips. Owner's pick pending: A sica (default) or C long knife (REQUESTS §11).
+  at every gap) — it would need its own clips. Owner picked A, the sica (2026-09-17); C stays an option (REQUESTS §11).
 - Evidence: tests/weapons.test.ts +4 (193/193 on the merged tree), `artifacts/weapons/REPORT.md` (knife section), sheets `knife-v1/`,
   `knife-B/`, `knife-C/`, `goblin-baseline/`. Hand-off to the combat lane: REQUESTS §9–10.

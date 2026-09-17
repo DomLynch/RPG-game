@@ -156,7 +156,6 @@ unchanged. Built from the character lane's contract (artifacts/goblin/REQUESTS.m
   −0.75) cuts as a rip instead of slapping — no hammer move needed.
 - Edge-leading on his rig: slash .80, hack .92, backhand −.75 (`artifacts/weapons/tools/edge-check.mjs`).
 
-## 11. Owner — pick the knife's silhouette
-`artifacts/weapons/knife-v1/weapon-turntable.png` (**A**, default: the sica — 0.42 m, inward hook, forward grip), `knife-C/` (a straight
-long knife, 0.46 m, clipped point). B (reverse grip) is shown for the record only. 943 triangles, no textures; `WEAPON_VARIANT=A|C`.
-In his hand: `knife-v1/weapon-on-rig.png`.
+## 11. Owner — ~~pick the knife's silhouette~~ **Picked (2026-09-17): A, the sica** — the default; no flag needed.
+`artifacts/weapons/knife-v1/weapon-turntable.png` (0.42 m, inward hook, forward grip). C (straight long knife) stays as a `WEAPON_VARIANT`
+option; B (reverse grip) is the record of a rejected idea. In his hand: `knife-v1/weapon-on-rig.png`.
