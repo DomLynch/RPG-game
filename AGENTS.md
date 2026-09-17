@@ -16,3 +16,4 @@ Read GAME_SPEC.md and PROJECT_STATE.md before work. GAME_SPEC.md is canonical de
 - No purchases or player outreach without explicit authorization. Record licensing before adding third-party assets.
 - Review in two passes: simulation/input correctness, then actual browser/render/persistence behavior.
 - Keep PROJECT_STATE.md current with evidence and remaining validation. Do not write user memories.
+- World & Environment lane owns `src/arena.ts` (`buildArena(scene) → { group, update(dt, events), dispose() }`), `src/assets/arena/**`, `scripts/arena-preview.mjs`, `scripts/build-arena.mjs`, `tests/arena.test.ts`. Contract in arena.ts and its test: nothing solid inside the play circle, nothing inside the camera clamp at fighter height, a boundary ring at the play radius. Lights, fog, tone mapping, camera, post-processing and effects stay in `scene.ts` (lead/presentation).

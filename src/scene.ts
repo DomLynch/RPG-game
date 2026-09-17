@@ -5,6 +5,7 @@ import { defenceReaction, loadWarriors } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
+import { buildArena } from './arena.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
@@ -43,11 +44,9 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   }
   rebuildEnvironment(); scene.environmentIntensity = 0.65;
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
-  const stone = new THREE.MeshStandardMaterial({ color: '#878579', roughness: 0.98 });
-  const darkStone = new THREE.MeshStandardMaterial({ color: '#555b56', roughness: 1 });
   const metal = new THREE.MeshStandardMaterial({ color: '#89949b', metalness: 0.72, roughness: 0.4 });
+  // The target marker's brass is a combat tell (it warms on a threat); the arena has its own materials in arena.ts.
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
-  const cloth = new THREE.MeshStandardMaterial({ color: '#3c514e', roughness: 1, side: THREE.DoubleSide });
   scene.add(new THREE.HemisphereLight('#d2e0e4', '#575c4c', 2.5));
   const sun = new THREE.DirectionalLight('#ffdfad', 3.6);
   sun.position.set(-15, 26, -18);
@@ -61,51 +60,10 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     object.position.set(x, y, z); object.castShadow = true; object.receiveShadow = true; parent.add(object);
     return object;
   }
-  function box(w: number, h: number, d: number, x: number, y: number, z: number, material = stone, parent: THREE.Object3D = scene) {
+  function box(w: number, h: number, d: number, x: number, y: number, z: number, material: THREE.Material, parent: THREE.Object3D = scene) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  // The playable surface is flat. All silhouette/detail architecture is outside it.
-  mesh(new THREE.CylinderGeometry(9.5, 10, 0.5, 80), darkStone, 0, -0.28, 0);
-  mesh(new THREE.CylinderGeometry(9, 9, 0.1, 80), stone, 0, -0.03, 0);
-  const joint = new THREE.MeshStandardMaterial({ color: '#4f514a', roughness: 1 });
-  for (let i = -8; i <= 8; i++) {
-    const length = Math.sqrt(81 - i * i) * 2;
-    box(length, 0.006, 0.015, 0, 0.025, i, joint);
-    for (let j = -8; j <= 8; j += 2) {
-      const x = j + (Math.abs(i) % 2 ? 1 : 0);
-      if (Math.hypot(x, i + 0.5) < 8.6) box(0.015, 0.006, 0.96, x, 0.025, i + 0.5, joint);
-    }
-  }
-  const ringMaterial = new THREE.MeshStandardMaterial({ color: '#bba57b', metalness: 0.35, roughness: 0.7, side: THREE.DoubleSide });
-  for (const radius of [3.3, 8.6]) {
-    const ring = mesh(new THREE.RingGeometry(radius, radius + 0.035, 96), ringMaterial, 0, 0.033, 0);
-    ring.rotation.x = -Math.PI / 2; ring.castShadow = false;
-  }
-  mesh(new THREE.CylinderGeometry(65, 65, 1, 64), new THREE.MeshStandardMaterial({ color: '#555e50', roughness: 1 }), 0, -1.1, 0);
-  // Repeated stone bays give a recognisable, restrained medieval courtyard silhouette.
-  for (let i = 0; i < 18; i++) {
-    const angle = i * Math.PI * 2 / 18;
-    const bay = new THREE.Group(); scene.add(bay);
-    bay.position.set(Math.sin(angle) * 13.3, 0, Math.cos(angle) * 13.3); bay.rotation.y = angle;
-    box(4.55, 1.3, 0.8, 0, 0.45, 0, darkStone, bay);
-    box(0.7, 5.4, 0.9, -2.25, 2.5, 0, stone, bay);
-    box(0.95, 0.25, 1.1, -2.25, 5.2, 0, darkStone, bay);
-    box(4.5, 0.45, 0.8, 0, 4.9, 0, stone, bay);
-    if (i % 3 === 0) {
-      box(0.08, 3.1, 0.08, -1.3, 4, -0.8, brass, bay);
-      box(1.4, 0.07, 0.07, -0.65, 5.25, -0.8, brass, bay);
-      box(1.12, 2.2, 0.035, -0.66, 4.1, -0.8, cloth, bay);
-      box(0.07, 1.2, 0.04, -0.66, 4.2, -0.83, brass, bay);
-      box(0.6, 0.07, 0.04, -0.66, 4.5, -0.83, brass, bay);
-    }
-  }
-  // Distant faceted terrain is atmospheric scenery, not gameplay collision.
-  for (let i = 0; i < 24; i++) {
-    const angle = i * Math.PI * 2 / 24;
-    const height = 9 + (Math.sin(i * 7.31) + 1) * 7;
-    const mountain = mesh(new THREE.ConeGeometry(12 + i % 5, height, 7), darkStone, Math.sin(angle) * 65, height / 2 - 2, Math.cos(angle) * 65);
-    mountain.rotation.y = i; mountain.castShadow = false;
-  }
+  const arena = buildArena(scene);
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group(); scene.add(group); group.position.set(x, 0, z);
     mesh(new THREE.CapsuleGeometry(0.31, 1.12, 6, 14), material, 0, 0.88, 0, group);
@@ -166,7 +124,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   const resize = () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); };
   resize(); window.addEventListener('resize', resize);
   return {
-    renderer, ready,
+    renderer, ready, arena,
     setBloodMode(mode: 'red' | 'dark' | 'off') { bloodMode=mode; for (const splat of splats) { splat.life=0;splat.mesh.visible=false; } if (flesh) { impact=0;sparks.visible=false; } },
     get yaw() { return yaw; },
     orbit(dx: number, dy: number) { yaw -= dx * 0.005; pitch = THREE.MathUtils.clamp(pitch + dy * 0.003, 0.22, 0.9); },
@@ -203,6 +161,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       }
       for(const splat of splats) { splat.life=Math.max(0,splat.life-dt); splat.mesh.visible=splat.life>0; splat.mesh.material.opacity=Math.min(.65,splat.life/4); }
       const animationDt = frozen ? 0 : dt;
+      arena.update(animationDt, events);
       const dx = state.x-player.position.x, dz = state.z-player.position.z, ex = practice.enemy.x-opponent.position.x, ez = practice.enemy.z-opponent.position.z;
       const travel = started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       const enemyTravel = started && dt > 0 ? Math.hypot(practice.enemy.x - opponent.position.x, practice.enemy.z - opponent.position.z) / dt : 0;

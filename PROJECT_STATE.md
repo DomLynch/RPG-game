@@ -9,6 +9,18 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## Arena seam for the world lane — 2026-09-17 (lead)
+The courtyard moved out of `scene.ts` into `src/arena.ts` behind `buildArena(scene)`; `scene.ts` keeps lights, fog, tone
+mapping, camera, the fighters, the target marker (its brass is the threat tell and is no longer shared with the banners) and
+effects. `arena.update(dt, events)` runs each frame (0 dt while frozen) so the lane can hang crowd/banner reactions on the
+event stream; `arena.dispose()` removes it. `tests/arena.test.ts` is the contract: play radius = sim RADIUS, no vertex above
+the floor inside the play circle, no vertex between 0.5 and 6 m inside the camera clamp (11.5 m), a boundary ring at the
+play radius, update/dispose, and a cost baseline (263 meshes = draw calls before merging, 4,424 triangles) — mutations
+placing a pillar in the circle or moving the bays to 11 m are caught. Visual no-op proven at a static settled state:
+0.00 % pixels changed portrait and landscape (artifacts/camera-ab, ignored); the fight-moment capture differs only by camera
+settle timing. Gate 197/197 + browser gate passed. CI (`.github/workflows/quality.yml`, quality:ci on push/PR to trunk) was
+added earlier today by another session (477f2c3) and is green. Brief handed to the owner for the world lane.
+
 ## Opponent ladder — 2026-09-16 (lead/shell)
 Veteran → Pitborn. `src/ladder.ts` (LADDER order, `opponentFor`, `won`, `nextAfter`); the device profile gains an optional validated
 `ladder` rung; `main.ts` picks the opponent from the rung (URL `?opponent=` still overrides for the harness), labels the HUD for a
