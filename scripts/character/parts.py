@@ -43,6 +43,9 @@ SUFFIX = ('_r' if FIGHTER == 'hero' else f'_{FIGHTER}') if realistic else ''  # 
 KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': True, 'barefoot': False, 'ears': False},
        'veteran': {'linen': (0.40, 0.37, 0.32), 'grime': 0.72, 'greaves': True, 'build': True, 'bare': False, 'brute': False, 'helm': True, 'barefoot': False, 'ears': False},
        'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False, 'barefoot': True, 'ears': False},
+       # The Nightborn: black-dyed wool (never pure black — below ~12 % value the folds and occlusion have nothing to shade at phone size), clean,
+       # the base frame (lean), a closed tunic over both shoulders with a standing collar, no helm, no greaves. artifacts/character/BRIEF-nightborn.md.
+       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': False},
        'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -489,6 +492,16 @@ def extract(name, material, keep, lift=0.012, thickness=0.008, source=None, face
     return tag(part, name, material)
 
 
+def budget(part, ratio):
+    """A smooth garment needs none of the skin's density under it: decimate the extracted faces before the lift/shell so the rim
+    follows (the greaves' pattern). Boots and hose over the Studio body's dense feet and legs cost 13k triangles undecimated."""
+    dec = part.modifiers.new('Decimate', 'DECIMATE')
+    dec.ratio, dec.use_collapse_triangulate = ratio, True
+    select_only([part])
+    bpy.ops.object.modifier_move_to_index(modifier='Decimate', index=0)
+    return part
+
+
 def smooth_boundary(bm, passes=24, factor=0.6):
     """Relax the cut edge along itself so a hem reads as cloth, not as the triangle mesh it was cut from."""
     boundary = {v: [e.other_vert(v) for e in v.link_edges if e.is_boundary] for v in bm.verts if any(e.is_boundary for e in v.link_edges)}
@@ -637,12 +650,21 @@ def level1_kit():
     # Tunic: rough cloth over the torso and the tops of the arms, open at the neck.
     # Exomis: a working man's tunic pinned over the LEFT shoulder, the sword arm and right shoulder bare.
     def neckline(p):
-        dip = math.exp(-(p.x / 0.07) ** 2) * (0.07 if p.y < 0 else 0.02)
+        dip = math.exp(-(p.x / 0.07) ** 2) * (0.07 if p.y < 0 else 0.02) * (0.35 if KIT.get('closed', False) else 1.0)  # a closed shirt sits high under its collar
         return neck.z - 0.035 - dip
     def bare_right(p):  # a diagonal from the right armpit up across the right chest and shoulder
         return p.x < -0.03 and p.z > neck.z - 0.15 - (p.x + 0.03) * 1.1 and p.y < 0.06
     def armhole_left(p):
         return along(p, shoulder_l, elbow_l) > 0.22 and p.z < shoulder_l.z + 0.05
+    def armhole_right(p):  # the closed tunic's right sleeve ends where the left one does
+        return along(p, shoulder_r, elbow_r) > 0.22 and p.z < shoulder_r.z + 0.05
+    closed = KIT.get('closed', False)  # a tunic over both shoulders (the Nightborn's), not the exomis
+    def sleeve(p):  # the closed tunic's sleeves: the arm from the shoulder to mid-forearm, where the wraps take over
+        for a, b in ((shoulder_l, hand_l), (shoulder_r, hand_r)):
+            t = along(p, a, b)
+            if -0.02 < t < 0.78 and (p - (a + (b - a) * t)).length < 0.095:
+                return True
+        return False
     if KIT['bare']:
         # A rag sash: one band of cloth from the left shoulder down across the chest to the right hip, the torso otherwise bare.
         def sash(p):
@@ -650,8 +672,18 @@ def level1_kit():
             return -0.05 < t < 1.05 and abs(p.x - (-0.10 + 0.26 * t)) < 0.055 and p.y < 0.08 and abs(p.x) < torso_half_width + 0.06
         kit.append(extract('tunic', 'Gambeson', sash, lift=0.010, thickness=0.007))
     else:
-        kit.append(extract('tunic', 'Gambeson', lambda p: abs(p.x) < torso_half_width + 0.07 and pelvis.z - 0.03 < p.z < neckline(p)
-                           and not bare_right(p) and not armhole_left(p) and (p - shoulder_r).length > 0.09, lift=0.010, thickness=0.007))
+        tunic = extract('tunic', 'Gambeson', lambda p: (abs(p.x) < torso_half_width + 0.07 and pelvis.z - 0.03 < p.z < neckline(p)
+                        and (closed or not armhole_left(p) and not bare_right(p) and (p - shoulder_r).length > 0.09)) or (closed and sleeve(p)), lift=0.010, thickness=0.007)
+        kit.append(budget(tunic, 0.55) if closed else tunic)  # the sleeved shirt covers twice the skin of the exomis; the wool needs half the density
+    if KIT.get('collar', False):
+        # A standing collar: one band of the tunic's wool around the base of the neck, from just under the tunic's neckline up the throat.
+        kit.append(ring_strip('collar', 'Gambeson', neck + Vector((0, 0, -0.05)), neck + Vector((0, 0, 0.11)), 0.42, 0.065, segments=36,
+                              lift=0.009, thickness=0.005, probe_radius=0.14, max_reach=0.12, rows_n=3))
+    if KIT.get('boots', False):
+        # Hose and boots: dark wool over the thighs from under the skirt to the knee, and leather boots from just under the knee over the whole foot.
+        kit.append(budget(extract('hose', 'Gambeson', lambda p: 0.08 < p.z < pelvis.z - 0.16 and p.z > calf_l.z - 0.04, lift=0.006, thickness=0.004), 0.5))
+        for calf, side, name in ((calf_l, 1, 'l'), (calf_r, -1, 'r')):
+            kit.append(budget(extract(f'boot_{name}', 'Leather', lambda p, c=calf, s=side: p.x * s > 0 and p.z < c.z - 0.04, lift=0.008, thickness=0.006), 0.3))  # a boot hides the toes: none of the foot's density
     # Under-skirt: dyed cloth over hips and upper thighs, so the strips above it never show skin between them.
     kit.append(extract('skirt', 'Heraldry', lambda p: abs(p.x) < 0.24 and pelvis.z - 0.25 < p.z < pelvis.z + 0.01, lift=0.014, thickness=0.005))
     # Baldric: a leather loop around the torso, over the left shoulder and under the right arm, hugging the body.
@@ -669,8 +701,8 @@ def level1_kit():
     for elbow, hand, side in [(elbow_l, hand_l, 1), (elbow_r, hand_r, -1)]:
         for k in range(7):
             kit.append(ring_strip(f'wrap_{"l" if side > 0 else "r"}_{k}', 'Wrap', elbow, hand, 0.93 - k * 0.055, 0.06, lift=0.003 + (k % 2) * 0.002, probe_radius=0.1, max_reach=0.09, rows_n=3))
-    # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare. The brute and the goblin fight barefoot.
-    for foot, ball, side in [] if KIT['barefoot'] else [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
+    # Sandals: a thick sole under the foot, straps over the instep and toes, an ankle strap. Toes stay bare. The brute and the goblin fight barefoot; the Nightborn in boots.
+    for foot, ball, side in [] if KIT['barefoot'] or KIT.get('boots', False) else [(foot_l, joint('ball_l'), 1), (foot_r, joint('ball_r'), -1)]:
         name = 'l' if side > 0 else 'r'
         kit.append(extract(f'sole_{name}', 'Leather', lambda p, s=side: p.x * s > 0 and p.z < 0.03, lift=0.0, thickness=0.007,
                            face_keep=lambda f: f.normal.z < -0.45))  # one flat sole: every downward face under the foot, arch included; nothing on the toes

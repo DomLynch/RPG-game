@@ -42,8 +42,8 @@ export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish 
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile ? { guardProfile: weaponOf(weapon).guardProfile } : {}), scale, poise, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0 });
-export const initialDuel = (opponent: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', opponent.weapon, opponent.scale, opponent.poise, opponent.health)], finish: null, events: [] });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0 });
+export const initialDuel = (opponent: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', opponent.weapon, opponent.scale, opponent.poise, opponent.health, opponent.guard)], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -54,7 +54,7 @@ export const walled = (body: State, dx: number, dz: number): boolean => Math.hyp
 export const elapsed = (f: Fighter): number => f.age + f.charge;
 export const timing = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
 const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
-export const guardOf = (f: Fighter, R: typeof RULES = RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, stopsHeavy: false, heavyBreaks: false, ...f.guardProfile });
+export const guardOf = (f: Fighter, R: typeof RULES = RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, ...f.guardProfile });
 // A swing may be feinted (cancelled into a fresh guard) only in its first ticks and only for a price.
 export const feintable = (f: Fighter, R: typeof RULES = RULES): boolean => f.phase === 'attack' && f.move !== null && f.age < movesOf(f)[f.move].feintUntil && f.stamina >= R.feintCost;
 // Ticks a committed phase lasts; null for phases that end on input.
@@ -83,7 +83,10 @@ function chooseMove(f: Fighter, action: Action): MoveId {
 // Whether a fighter may start `action` right now; the same test the HUD uses to show enabled controls.
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted) return false;
-  const standing = f.phase === 'ready' || f.phase === 'guard';   // a guard yields to any action; it never eats an input
+  // A committing parry (the Nightborn's, guard.commits) runs its window, and the exposure it ends in when it met nothing is a real recovery —
+  // the blade is out of line — so no swing comes out of either. A man's parry yields to any action and his exposure only bares his guard.
+  const g = guardOf(f), committed = g.commits && ((f.phase === 'guard' && f.parrying && !f.punish && f.age < g.window) || (f.phase === 'ready' && f.exposed > 0));
+  const standing = (f.phase === 'ready' || f.phase === 'guard') && !committed;   // a guard yields to any action; it never eats an input
   const stepping = f.phase === 'backstep', stepTail = stepping && f.age >= RULES.backstep.cancelFrom;   // a backstep's tail cancels into a swing
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
@@ -155,11 +158,12 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   // 2. Committed phases expire, then movement resolves — both against the other body as it stood at the start of the tick, so
   // neither index is privileged; any overlap that produces is split evenly afterwards.
   for (const i of [0, 1] as const) {
-    const next = fighters[i], intent = intents[i], foe = before[1 - i].body, length = phaseLength(next), window = guardOf(next, R).window;
-    // A parry attempt that met nothing: a *released* tap leaves the fighter exposed for R.parryRecovery ticks (0 = off); a guard still
+    const next = fighters[i], intent = intents[i], foe = before[1 - i].body, length = phaseLength(next), { window, recovery, commits } = guardOf(next, R);
+    // A parry attempt that met nothing: a *released* tap leaves the fighter exposed for the guard's `recovery` ticks (R.parryRecovery unless the man's guard says otherwise; 0 = off); a guard still
     // *held* when the window closes simply becomes the standing guard (its first perfectBlock ticks are the perfect block). Holding Guard
-    // therefore always guards — the only gamble in a parry is the tap. A punish window proves the parry connected.
-    if (next.phase === 'guard' && next.age >= window && next.parrying) { next.parrying = false; if (R.parryRecovery > 0 && !next.punish && !intent.guard) { next.phase = 'ready'; next.age = 0; next.exposed = R.parryRecovery; } }
+    // therefore always guards — the only gamble in a parry is the tap. A punish window proves the parry connected. A committing parry
+    // (guard.commits) has no such refuge: met nothing, it ends exposed whether or not the guard is held.
+    if (next.phase === 'guard' && next.age >= window && next.parrying) { next.parrying = false; if (recovery > 0 && !next.punish && (!intent.guard || commits)) { next.phase = 'ready'; next.age = 0; next.exposed = recovery; } }
     if ((length !== null && next.age >= length && next.phase !== 'dead') || (next.phase === 'guard' && !intent.guard && next.age >= window)) {
       if (next.phase === 'attack' && !next.chained && next.move && movesOf(next)[next.move].chain) next.chain = movesOf(next)[next.move].chain!.window;
       if (next.phase === 'roll' || next.phase === 'backstep') next.evaded = R.dodgeAttackWindow;

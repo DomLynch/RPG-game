@@ -1,0 +1,42 @@
+{
+ "label": "cleaver-pitborn",
+ "commit": "8773e72",
+ "date": "2026-09-16",
+ "enemyGlb": "src/assets/weapons/cleaver/pitborn-cleaver.glb",
+ "enemyGlbBytes": 5545020,
+ "enemyGlbGzip": 3073283,
+ "node": "WeaponDrawn",
+ "triangles": 615,
+ "materials": [
+  "CleaverIron",
+  "Haft"
+ ],
+ "contact": [
+  0.14,
+  0.86
+ ],
+ "extentMetres": 1.02,
+ "clips": [
+  "Idle",
+  "Walk",
+  "Jog",
+  "Run",
+  "Armed",
+  "Attack",
+  "Hit",
+  "Death",
+  "Draw",
+  "Roll",
+  "Guard",
+  "Return",
+  "Heavy",
+  "Riposte",
+  "ArmedWalk",
+  "StrafeLeft",
+  "StrafeRight",
+  "Kick",
+  "BlockImpact",
+  "Parry",
+  "Deflected"
+ ]
+}

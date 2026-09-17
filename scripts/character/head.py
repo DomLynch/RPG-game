@@ -1516,6 +1516,11 @@ FIGHTERS = {
              'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 40), (-45, 40), (0, 15)), 'chin': True, 'hair_lum': 0.16, 'hair': 'buzz', 'scars': False, 'decimate': 0.28},
     'veteran': {'kt_glb': 'artifacts/source/keentools/01a0a9a9-c037-70f2-8015-bbd1faf9f823.glb',  # seven portraits (front, ±35, ±90, two from below), 2026-09-16
                 'cams': ((0, 0), (30, 0), (-25, 0), (90, 0), (-90, 0), (0, 28), (-22, 24)), 'chin': True, 'hair_lum': 0.50, 'hair': 'full', 'scars': True, 'decimate': 0.26},  # decimate: helmed, crown stripped — the budget goes to the helm and greaves; chin: his scan's jaw is the same vertical wall the hero's was (tip -0.76, underside -0.88 scan units) — the owner's U applies
+    # The Nightborn (opponent 5): seven owner portraits (front, from below, from above, ±35, ±90) 2026-09-16 23:13, artifacts/source/face/nightborn/.
+    # kt_glb is a STAND-IN (the hero's scan) until the KeenTools account has credits (the 23:0x job stopped at 402 after the uploads);
+    # re-run scripts/create-head.mjs on the seven and point this at the new GLB. Black hair swept back ('full'), pale grey skin, the throat scar.
+    'nightborn': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',
+                  'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.16, 'hair': 'full', 'scars': True, 'decimate': 0.26},  # decimate: the Veteran's — the budget goes to the sleeves, hose and boots
     'pitborn': {'kt_glb': 'artifacts/source/keentools/01a0ab5b-b143-7531-ad79-6de9bacbf0fa.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16
                 'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84)},  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
     'goblin': {'kt_glb': 'artifacts/source/keentools/01a0ab81-4cff-7871-bac7-adfa28d57d0b.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16 22:33

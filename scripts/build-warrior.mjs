@@ -22,7 +22,7 @@ const fighter = process.env.WARRIOR_FIGHTER || 'hero', variant = realistic ? (fi
 // sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
 // the weapon's own clips join the set. The hero defaults to the longsword (byte-identical output); the Veteran defaults to the trident
 // since slice V (duel.ts initialDuel gives him it), so a plain rebuild never hands him the sword back.
-const weaponId = process.env.WARRIOR_WEAPON || (fighter === 'veteran' ? 'trident' : 'longsword');
+const weaponId = process.env.WARRIOR_WEAPON || (fighter === 'veteran' ? 'trident' : fighter === 'pitborn' ? 'cleaver' : 'longsword');   // each opponent's default is the weapon he fights with (moves.ts OPPONENTS), so a plain rebuild never hands him the sword back
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
 const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
@@ -42,11 +42,11 @@ const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
-const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'goblin' ? '#4a3a2c' : '#767a7c', metalness: fighter === 'goblin' ? 0.6 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'goblin' ? 0.9 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the goblin's one bracer is rust-brown scavenged iron
+const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'nightborn' ? '#3b3b3f' : fighter === 'goblin' ? '#4a3a2c' : '#767a7c', metalness: fighter === 'nightborn' ? 0.7 : fighter === 'goblin' ? 0.6 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'goblin' ? 0.9 : fighter === 'nightborn' ? 0.72 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the goblin's one bracer is rust-brown scavenged iron; the Nightborn's dull dark iron, no hot spot
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
 const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
-const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: 0.8 });
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'goblin' ? '#3a3229' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
+const leather = new T.MeshStandardMaterial({ name: 'Leather', color: fighter === 'nightborn' ? '#2b2320' : '#4a3527', roughness: 0.8 });   // the Nightborn's is black-oiled
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'nightborn' ? '#17151a' : fighter === 'goblin' ? '#3a3229' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
@@ -73,6 +73,8 @@ const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bron
 // Per-fighter frame (moves.ts OPPONENTS.scale must match `scale`; tests/characters.test.ts checks the shipped height against it): the whole
 // rig is scaled, so every clip, the hand's sword and the baked blade paths follow. `hunch` bends bones forward by degrees in every clip
 // (a constant post-rotation about each bone's own rest sideways axis) — the brute's forward-hunched spine, head thrust out to look at you.
+// The Nightborn: a shade taller than a man and the opposite posture to the brute — the same post-rotations with the signs reversed: chest
+// back, chin up (OPPONENTS.nightborn.scale is the measured standing ratio; the hit capsule follows it).
 // The goblin (opponent 4) is a small man RE-PROPORTIONED, not a shrunken one: `bones` scales each named bone about its own joint in its rest
 // frame (y along the bone = its length, x/z its girth), applied through the skin weights of every part before binding — a smooth stretch,
 // no fold at a joint — and the rig's rest positions and inverse binds are rebuilt to match (`reproportion` below). Rotations, hence every
@@ -81,6 +83,7 @@ const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bron
 // measured standing-height ratio — the hit capsule follows the man's height, not the root scale — and tests/characters.test.ts pins it.
 // `stride` (root scale × leg scale) is written to the GLB so the runtime plays his walk at his own pace instead of a man's (characters.ts).
 const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] }, pitborn: { scale: 1.13, hunch: [['spine_02', 7], ['spine_03', 7], ['neck_01', -7], ['Head', -6]] },
+  nightborn: { scale: 1.03, hunch: [['spine_02', -2], ['spine_03', -2], ['Head', -4]] },
   goblin: { scale: .835, hunch: [['spine_02', 9], ['spine_03', 9], ['neck_01', -8], ['Head', -8]], bob: .84, stride: .835 * .84, floor: .12,
     bones: { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l: [1, .84, 1], calf_r: [1, .84, 1],   // short legs
       upperarm_l: [1, 1.16, 1], upperarm_r: [1, 1.16, 1], lowerarm_l: [1, 1.16, 1], lowerarm_r: [1, 1.16, 1],   // long arms (the hands keep their size: the grip and the sword are untouched)
@@ -270,12 +273,12 @@ const sheathWorld = new T.Matrix4().compose(new T.Vector3(-.16,1.22,-.13),new T.
 sheathed.applyMatrix4(base.scene.getObjectByName('pelvis').matrixWorld.clone().invert().multiply(sheathWorld));
 const drawn = sword('SwordDrawn',base.scene.getObjectByName('hand_r'));
 drawn.position.set(0,.08,.015); drawn.rotation.x = Math.PI / 2;
-let weaponNode = null;
+let weaponNode = null, weaponBuild = null;
 if (weaponId !== 'longsword') {
-  const { trident } = await import('./build-weapon.mjs');
-  if (weaponId !== 'trident') throw new Error(`WARRIOR_WEAPON=${weaponId}: no such weapon (scripts/build-weapon.mjs)`);
+  const { WEAPON_BUILDS } = await import('./build-weapon.mjs'); weaponBuild = WEAPON_BUILDS[weaponId];
+  if (!weaponBuild) throw new Error(`WARRIOR_WEAPON=${weaponId}: no such weapon (scripts/build-weapon.mjs)`);
   sheathed.clear(); drawn.clear(); // the loader still finds SwordSheathed/SwordDrawn; they carry nothing
-  weaponNode = trident({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
+  weaponNode = weaponBuild.part({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
   base.scene.getObjectByName('hand_r').add(weaponNode); weaponNode.position.copy(drawn.position); weaponNode.rotation.copy(drawn.rotation);
 }
 // Re-proportion (BUILD.bones): every rest-space geometry in the buckets is moved through its skin weights — for bone b with scale S_b about
@@ -412,7 +415,7 @@ function reachArm(side, target, leg = false) {
 // The cuts are authored the same way (owner, 2026-09-16: the library flick read as "too quick and shallow"): Attack is a horizontal
 // right-to-left arc at chest height — cocked out to the right, the tip crossing the front at the contact key (.34), out to the left — and
 // Return is the backhand, left to right. Their keys replace the retargeted Sword_Attack and its time-reversed clone below.
-for (const [name, keys] of [
+for (const [name, sourceKeys] of [
   ['Heavy', [[0,[.18,1.3,.3],[0,0,1]],[.28,[.2,1.65,-.08],[0,1,-.4]],[.48,[.04,1.13,.43],[0,0,1]],[.64,[.28,.98,.35],[.3,-.6,.7]],[1,[.18,1.3,.3],[0,0,1]]]],
   ['Riposte', [[0,[.18,1.3,.3],[0,0,1]],[.2,[.15,1.25,.05],[0,0,1]],[.34,[.02,1.23,.48],[0,0,1]],[.55,[.04,1.2,.48],[0,0,1]],[1,[.18,1.3,.3],[0,0,1]]]],
   // A cut is a hook with a sword (owner, 2026-09-16): a short load from guard on one side (blade lifted, not swung out), one power arc through
@@ -431,6 +434,7 @@ for (const [name, keys] of [
   ['Attack', [[0,[-.15,1.1,0],[-.5,.45,.74]],[.16,[-.28,1.34,.28],[-.35,.45,.82]],[.34,[-.02,1.18,.5],[0,0,1]],[.52,[.24,1.2,.44],[.62,0,.78]],[.7,[.46,1.26,.32],[.86,.08,.5]],[.82,[.24,1.2,.44],[.62,0,.78]],[.92,[-.02,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]],
   ['Return', [[0,[.35,1.2,.25],[.6,.4,.7]],[.16,[.32,1.34,.3],[.32,.42,.85]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.4,1.24,.34],[-.86,.08,.5]],[.82,[-.14,1.2,.46],[-.62,0,.78]],[.92,[.25,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]]
 ]) {
+  const keys = weaponBuild?.keys?.[name] ?? sourceKeys; // a weapon may re-key a sword clip on its own rig (the cleaver's Heavy is a diagonal hack so its edge leads)
   const positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
   for (const [phase, position, direction] of keys) {
     poseMixer.clipAction(clips.find(c => c.name === 'Armed')).play(); poseMixer.update(0);
@@ -550,9 +554,8 @@ if (process.env.WARRIOR_UAL2_ATTACKS) {
   ];
   for (const c of candidates) clips[clips.findIndex(k => k.name === c.name)] = c;
 }
-if (weaponNode) { // the weapon's clips, authored on this rig after every sword clip exists (they borrow the body loops and the two-hand grip)
-  const { tridentClips } = await import('./build-weapon.mjs');
-  clips.push(...tridentClips({ T, base, skeleton, poseMixer, clips, reachArm, weapon: weaponNode }));
+if (weaponBuild?.clips) { // the weapon's own clips, authored on this rig after every sword clip exists (they borrow the body loops and the two-hand grip)
+  clips.push(...weaponBuild.clips({ T, base, skeleton, poseMixer, clips, reachArm, weapon: weaponNode }));
 }
 // The hunch: for each named bone, its rest-pose sideways axis in its own frame; every quaternion key of every clip is post-rotated about it.
 if (BUILD.hunch.length) {
