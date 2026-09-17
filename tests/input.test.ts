@@ -17,9 +17,15 @@ test('combat buttons stay DOM hit targets during cooldown so repeated touches ar
   visit(source);
 });
 
-test('page declares double-tap suppression without restricting pinch zoom', () => {
+test('page declares double-tap suppression and locks page zoom (owner, 2026-09-17)', () => {
+  // Owner's call, overriding the earlier pinch-zoom accessibility rule: an accidental pinch cost the HUD mid-fight;
+  // the trade (low-vision players cannot zoom the UI) was stated and accepted. iOS Safari ignores the meta, so
+  // main.ts also blocks the gesture itself; this test locks both so the decision is not silently reverted.
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(css.match(/:root\{([^}]+)\}/)![1], /(?:^|;)touch-action:manipulation(?:;|$)/);
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.doesNotMatch(html, /user-scalable\s*=\s*no|maximum-scale\s*=\s*1(?:[,"\s])/);
+  assert.match(html, /user-scalable\s*=\s*no/);
+  assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /gesturestart/);
 });
