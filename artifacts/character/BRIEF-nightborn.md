@@ -212,8 +212,37 @@ today, so he may ship voice-less like the Pitborn.
 Bites, drain, regeneration, transformation, mist, bats, a cloak, night lighting, fangs (no facial rig), red eyes, a circle-share
 knob, a heavy-riposte knob — none of it. A vampire in this game is a duelist who doesn't bleed much.
 
+## What shipped (2026-09-16, branch brief/nightborn-v1 — the owner said "proceed, AAA over the letter of the brief")
+Decisions taken as recommended: poise 0 · per-fight budget gate · hair v1 painted (the fall and the ears wait for the real head) · the
+combat knobs as per-opponent data. Where the code disagreed with the plan, the code won again:
+- **The three knobs were not enough — a fourth was the actual mechanism.** A longer window and an earlier press did nothing on their own
+  because `legal()` lets a guard yield to any action: the AI simply cut out of its own parry at the window's end and the exposure never
+  fired (it was written for a human's tap). So his guard **commits** (`GuardProfile.commits`, data on `OPPONENTS.nightborn.guard`): no
+  action out of a live parry, a parry that met nothing ends exposed whether held or not, and the exposure is a real recovery (no swing
+  out of it either — exposure only bared a man's guard). The hero's and the Veteran's guards are untouched (`commits: false`).
+- **He reads the tell.** The AI estimates contact on the animation clock, which a chambered swing parks; a committing parrier estimates
+  on elapsed time (`ai.ts`), so a held cut or a charged heavy draws his press and lands on the whiff — the bait and the charge are his
+  weaknesses. And they stop working once they are a habit: a **`parker` read** (swings mostly held at the chamber, `READ.parkShare` .5,
+  evidence after 2) makes him wait for the blade to pass its chamber and press on its clock like a man. First baits land; a farm does not
+  (`charged heavy only` went 24/24 → 0/24 with the read; `held lights` 13/24 at hard → 0).
+- **Numbers (provisional, battery-gated):** window 16 (press at cut tick 7–8 at normal — `reaction` is the floor under the press, so
+  normal is 6, hard 5, easy 8), recovery **40** (the feint's own 10-tick guard + ~200 ms for a human to see the whiff + the punish
+  cut's 20-tick tell; 30 was two ticks short even for a script), parry .7/.8, dodge .1/.15, aggression .6/.75, pressure **.45** (a
+  cut-and-thrust man is rolled too easily; enough heavies that a perfect roller gets charged through), discipline 45, lapse .15.
+- **Gate (`tests/opponents.test.ts`, 12/12):** no plain script wins a fight at normal or hard; feint-and-punish is the best honest
+  answer (9/24 normal, 5/24 hard — it must guard what it cannot step out of and punish the recovery of his whiffs: restraint); every
+  script gets hit; AI-vs-AI 24/24 finish, median 21.7 s, the Veteran-brain hero wins 9/24; the tick test pins press ≤ feint window,
+  no cut out of the committed parry, exposure 40, punish inside it.
+- **Body:** `nightborn.glb` 3.26 MB gzip, stands 1.808 m (root scale 1.03 — the Goblin's `reproportion` was uncommitted, so long limbs
+  wait for his merge, REQUESTS § 11.5); posture `spine_02/03 −2°, Head −4°`; kit = closed black tunic with sleeves to mid-forearm,
+  standing collar (`ring_strip`), hose and leather boots (new `KIT` keys `closed/collar/boots`, read with `.get` so no other fighter's
+  line changed), black-oiled leather, dull dark iron. **The head is the hero's scan as a STAND-IN**: KeenTools returned
+  `402 Insufficient credits` after uploading the seven portraits; REQUESTS § 11.1 has the one-command re-run.
+- **Budget gate:** `check-budget.mjs` now measures the per-fight payload (shell + hero + the largest opponent GLB ≤ 9 MB — what
+  `loadWarriors` actually fetches) plus a 32 MB host ceiling for all of dist, instead of a total that had to be raised every fighter.
+
 ## Decisions needed from the owner
-1. Poise 0 (recommended) or a small value — see Fight identity.
-2. Budget: per-fight gate (recommended) vs another raise vs texture sharing.
-3. Hair: painted slicked-back scalp (v1) vs an authored queue on the Head bone.
-4. The three combat knobs as per-opponent data (recommended) — or the Nightborn waits.
+1. ~~Poise~~ taken: 0. 2. ~~Budget~~ taken: per-fight gate. 3. ~~Hair~~ taken: painted v1; the fall + pointed ears (owner-locked by the
+portraits) ship with the real head. 4. ~~Knobs~~ taken: as data, plus `commits` and the `parker` read.
+5. **KeenTools credits** — the only thing between the stand-in head and his own. 6. First look at the stills in
+`artifacts/character/nightborn-v2/` (collar height, sleeve length, hose/boot line, the black's value at 3 m).

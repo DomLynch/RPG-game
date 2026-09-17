@@ -78,3 +78,15 @@ defender's guard kind on `Blocked` / `GuardBroken` (request 2, last bullet) befo
 + `extras.contact`, own `material` value, `WARRIOR_FIGHTER=pitborn WARRIOR_WEAPON=cleaver` hook, manifest entry baked from `src/assets/pitborn.glb`,
 heavier stamina / longer heavy recovery, re-run `tests/opponents.test.ts`) is in `artifacts/character/BRIEF-pitborn.md` § Weapon. Sword clip
 family only — no new move set; the renderer already plays it, so unlike the trident it is visible in-game the moment the data lands.
+
+## For the weapons lane — the Nightborn's estoc (2026-09-16, from the opponent seam, branch brief/nightborn-v1)
+`WeaponId 'estoc'` exists as `{ ...LONGSWORD, id: 'estoc', placeholder: true }` and `WEAPON_CLIPS.estoc = { Thrust: 'Riposte' }` — he
+fights with the longsword's data on the sword clip family, so the swap is the cleaver's shape: own mesh + own tables, no renderer work.
+- Mesh: long, thin, thrust-first blade, black iron guard, wire grip; ≤ 2k tris, one 1K set; `WeaponDrawn` under `hand_r`, `extras.contact`
+  on the last 40 cm. `WARRIOR_FIGHTER=nightborn WARRIOR_WEAPON=estoc node scripts/build-warrior.mjs`; add the GLB to `scripts/blade-manifest.json`,
+  `node scripts/bake-blades.mjs`.
+- Data: per-move `reach` in the sword's conservative spacing convention (1.65 / 1.9 / 2.0 — the cleaver lesson: the measured frontier
+  hangs the AI out of range); `stepIn` equal to the sword's; `fight: { thrustShare: .6, close: 1.15 }` (thrust-first lives here, not in the
+  AI profile); lights a little lighter, the thrust a little heavier than the sword. Add `'steel'` to `Material` for a thin bright cue.
+- Gate: `tests/opponents.test.ts` — the Nightborn's battery (feint-and-punish ≥ 3/24 at normal and the best honest script; nothing else
+  wins; habits read) must stay green after the swap. His guard (`OPPONENTS.nightborn.guard`) rides on top of the weapon's `guardProfile`.
