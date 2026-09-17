@@ -65,3 +65,11 @@ blood modes, controls). Sand generation and the crowd's per-frame matrices are t
 - Lighting values are the lead's; proposal in REQUESTS.md #3. Baked lightmaps are not needed for v1 (contact shade is in vertex colour).
 - Rename (REQUESTS.md #1). Crowd silhouettes are deliberately crude at ≥ 15 m; a second atlas row and seated poses are a v2 item.
 - Names proposed: **The Ashpit** (used provisionally), Worldsedge, The Bonehollow.
+
+## Self-audit (one pass, after the PR opened)
+Found and fixed in the same PR: the banner cut mask sat in the alpha channel only (three.js reads an `alphaMap` from green — the cloths
+rendered as rectangles); a see-through gap above the gate where tier 0's riser was skipped; a UV seam at angle 0 on every riser (the arc
+UV now closes on a whole tile); `dispose()` did not release the instanced buffers (`InstancedMesh.dispose()`). Recaptured; numbers unchanged.
+Frame time in headless Chromium on the owner's Mac: baseline 60 fps · p95 17 ms, arena v1 60 fps · p95 17–18 ms; load 797 → 1072 ms.
+Browser gate on this arena: 3 of 4 runs (the miss was the kick's wall-clock health snapshot, already documented as fragile in
+scripts/browser-check.mjs), then 2 of 2 on the rebased tip.

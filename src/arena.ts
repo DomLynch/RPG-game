@@ -28,12 +28,12 @@ const inGate = (angle: number, r: number, margin = 0) => Math.abs(Math.atan2(Mat
 type Tint = (x: number, y: number, z: number, angle: number) => [number, number, number];
 function band(r0: number, y0: (a: number, s: number) => number, r1: number, y1: (a: number, s: number) => number, tile: number, tint: Tint, skip?: (angle: number) => boolean): THREE.BufferGeometry {
   const n = LAYOUT.segments, position: number[] = [], normal: number[] = [], uv: number[] = [], color: number[] = [], index: number[] = [];
-  const arc = Math.abs(r1 - r0) < 1e-6;   // a riser: unwrap its arc for the UVs so the courses run around the ring
+  const arc = Math.abs(r1 - r0) < 1e-6;   // a riser: unwrap its arc for the UVs so the courses run around the ring and close on a whole tile
   for (let s = 0; s <= n; s++) {
     const a = s / n * TAU, sin = Math.sin(a), cos = Math.cos(a), ya = y0(a, s % n), yb = y1(a, s % n), dr = r1 - r0, dy = yb - ya, l = Math.hypot(dr, dy) || 1;
     for (const [r, y] of [[r0, ya], [r1, yb]]) {
       position.push(r * sin, y, r * cos); normal.push(-dy / l * sin, dr / l, -dy / l * cos);
-      uv.push(...(arc ? [a * r0 / tile, y / tile] : [r * sin / tile, r * cos / tile])); color.push(...tint(r * sin, y, r * cos, a));
+      uv.push(...(arc ? [a / TAU * Math.round(TAU * r0 / tile), y / tile] : [r * sin / tile, r * cos / tile])); color.push(...tint(r * sin, y, r * cos, a));
     }
   }
   for (let s = 0; s < n; s++) { if (skip?.((s + 0.5) / n * TAU)) continue; const A = s * 2, B = A + 1, C = A + 2, D = A + 3; index.push(A, B, C, B, D, C); }
@@ -110,7 +110,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   let inner = wall.outer;
   tiers.forEach((_h, i) => {
     const top = (a: number, s: number) => tierTop(i, a, s), under = i === 0 ? flat(wall.top) : (a: number, s: number) => tierTop(i - 1, a, s), outer = inner + tierDepth + (i === tiers.length - 1 ? 1.9 : 0);
-    stones.push(band(inner, under, inner, top, 2, tierTint, i === 0 ? (a: number) => inGate(a, wall.outer, 0.6) : undefined), band(inner, top, outer, top, 2, tierTint));
+    stones.push(band(inner, under, inner, top, 2, tierTint), band(inner, top, outer, top, 2, tierTint));
     inner = outer;
   });
   const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - tiers[tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
@@ -159,7 +159,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   const bannerAngles = Array.from({ length: 8 }, (_, k) => Math.PI / 8 + k * Math.PI / 4), bannerR = wall.outer - 0.15, bannerTop = wall.top + 3.4;
   for (const a of bannerAngles) { const [x, z] = polar(bannerR, a); irons.push(prop(cylinder(0.035, 0.045, 3.4, 6), x, wall.top + 1.7, z, 0, 1, 1, IRON, wall.top), prop(box(1.3, 0.06, 0.06), x, bannerTop, z, a, 1, 1, IRON, -5)); }
   mesh(mergeGeometries(irons), iron, 'iron');
-  const coalMesh = mesh(mergeGeometries(coals), coal, 'coals', false);
+  mesh(mergeGeometries(coals), coal, 'coals', false);
 
   // Banners: one instanced cloth, swaying about its crossbar. Dried-blood and bone cloths alternate (instance colours; no saturation).
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
@@ -227,8 +227,8 @@ export function buildArena(scene: THREE.Scene): Arena {
   return {
     group, floor, update,
     dispose() {
-      group.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
-      for (const material of materials) material.dispose(); for (const t of Object.values(textures)) t.dispose(); coalMesh.geometry.dispose(); scene.remove(group);
+      group.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); if (object instanceof THREE.InstancedMesh) object.dispose(); });
+      for (const material of materials) material.dispose(); for (const t of Object.values(textures)) t.dispose(); scene.remove(group);
     },
   };
 }

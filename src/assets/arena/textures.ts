@@ -111,12 +111,12 @@ export function crowdAtlas(cell = 128, seed = 23): Pixels {
 }
 const blob = (x: number, y: number, cx: number, cy: number, rx: number, ry: number) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 < 1;
 const bar = (x: number, y: number, cx: number, cy: number, w: number, h: number) => Math.abs(x - cx) < w / 2 && Math.abs(y - cy) < h / 2;
-// A torn banner: alpha only. Ragged hem, frayed sides, a few holes; the cloth colour is the material's.
+// A torn banner: a cut mask. Ragged hem, frayed sides, a few holes; the cloth colour is the material's.
 export function bannerAlpha(width = 128, height = 256, seed = 31): Pixels {
   const hem = fbm(6, 3, seed), holes = fbm(5, 3, seed + 3), fray = fbm(10, 2, seed + 5);
   return pixels(width, height, (u, v) => {
     const torn = v < 0.28 + 0.2 * (hem(u, 0.5) - 0.5) + 0.06 * (fray(u, v) - 0.5), side = Math.min(u, 1 - u) < 0.05 * fray(v, u), hole = holes(u, v) > 0.72 && v < 0.75;
-    return [255, 255, 255, torn || side || hole ? 0 : 255];
+    const a = torn || side || hole ? 0 : 255; return [a, a, a, a];   // three.js reads an alphaMap from the green channel: the mask fills every channel
   });
 }
 // Mean linear luminance of an sRGB pixel buffer: the number the contrast rule is written in.
