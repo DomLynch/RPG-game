@@ -1082,8 +1082,8 @@ def body_colour(pos, mask, ao, detail, size, nails=None):
         colour = colour * (1 + n[..., None] * np.array([0.10, 0.04, 0.02])[None, None, :]) * (1 + lu[..., None] * 0.12) * (1 - np.clip(rim, 0, 1)[..., None] * 0.18)
     if FIGHTERS[FIGHTER].get('pallor'):  # the Nightborn: the body takes the face's drain — skin_mul alone brightened but stayed
         luma = (colour @ np.array([0.30, 0.59, 0.11]))[..., None]  # warm, and a tan body beside the grey-white face read as two people
-        colour = colour * 0.45 + luma * 0.55
-        colour *= np.array([0.97, 1.00, 1.05])[None, None, :]
+        colour = colour * 0.35 + luma * 0.65  # owner 2026-09-17: paler still
+        colour *= np.array([0.96, 1.00, 1.06])[None, None, :]
     return np.clip(colour, 0, 1)
 
 
@@ -1538,7 +1538,7 @@ FIGHTERS = {
     # dark_eyes near-blacks the iris; the pointed ears and the throat scar are parts.py/face_colour on the same flags.
     'nightborn': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',
                   'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.16, 'hair': 'full', 'scars': True, 'decimate': 0.26,  # decimate: the Veteran's — the budget goes to the sleeves, hose and boots
-                  'skin_mul': (1.28, 1.35, 1.50), 'pallor': True, 'dark_eyes': True},  # skin_mul: the hero's olive scan paled and cooled to his brief's grey-white (the Veteran's 0.34-lum hair reads blond-grey; his 0.16 reads black)
+                  'skin_mul': (1.34, 1.42, 1.58), 'pallor': True, 'dark_eyes': True, 'red_eyes': True},  # skin_mul: the hero's olive scan paled and cooled to his brief's grey-white; red_eyes: the owner, 2026-09-17 — the brief's "no red eyes" yielded (a deep ember, no glow)
     'pitborn': {'kt_glb': 'artifacts/source/keentools/01a0ab5b-b143-7531-ad79-6de9bacbf0fa.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16
                 'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84)},  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
     'goblin': {'kt_glb': 'artifacts/source/keentools/01a0ab81-4cff-7871-bac7-adfa28d57d0b.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16 22:33
@@ -1873,8 +1873,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         lum = np.array([0.30, 0.59, 0.11])
         luma = filled @ lum
         skin = (island & ~dark).astype(np.float32)  # photographed skin and features (dark = the unseen crown the fill synthesised)
-        # The blood drained: skin paled and cooled, half the chroma gone; dark features (lashes, brows, hair, nostrils) keep their ink.
-        paled = np.clip((luma[..., None] * 0.55 + filled * 0.45) * 1.16 + 0.02, 0, 1) * np.array([0.96, 1.00, 1.06])[None, None, :]
+        # The blood drained: skin paled and cooled, two-thirds of the chroma gone; dark features (lashes, brows, hair, nostrils) keep their ink.
+        paled = np.clip((luma[..., None] * 0.65 + filled * 0.35) * 1.22 + 0.03, 0, 1) * np.array([0.95, 1.00, 1.07])[None, None, :]  # owner 2026-09-17: paler
         w_skin = np.clip((luma - 0.18) / 0.15, 0, 1) * skin
         filled = filled * (1 - w_skin[..., None]) + paled * w_skin[..., None]
         # Black hair: dark texels above the brow line (photographed buzz AND the fill's synthesised crown strands) go cold black, not brown.
@@ -1889,11 +1889,18 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         stubble = below * fwd * np.clip((luma - 0.10) / 0.10, 0, 1) * np.clip((0.45 - luma) / 0.18, 0, 1) * skin
         smooth = blur(filled, 32)  # 32: the tile is 2048 — blur's downsample needs a divisor (24 crashed the first pass)
         filled = filled * (1 - stubble[..., None] * 0.75) + smooth * (stubble[..., None] * 0.75)
-        # His eyes sit in hollows: the sockets sink (the eyeballs themselves are eye_colour's dark_eyes).
+        # His eyes sit in hollows and the cheeks fall in: gaunt, not just pale (owner 2026-09-17: scarier). The eyeballs themselves
+        # are eye_colour's dark_eyes/red_eyes.
+        pos3 = np.stack([hx, hy, hz], axis=-1)
+        def orb(centre, radii, soft):
+            d = np.sqrt((((pos3 - np.array(centre)[None, None, :]) / np.array(radii)[None, None, :]) ** 2).sum(axis=-1))
+            return np.clip((1 + soft - d) / soft, 0, 1)
         for ev in (eye_l, eye_r):
-            d = np.sqrt((((np.stack([hx, hy, hz], axis=-1) - np.array([ev.x, ev.y, ev.z])[None, None, :]) / np.array([0.030, 0.028, 0.026])[None, None, :]) ** 2).sum(axis=-1))
-            hollow = np.clip((1.55 - d) / 0.55, 0, 1)
-            filled = filled * (1 - hollow[..., None] * np.array([0.16, 0.20, 0.24])[None, None, :])
+            hollow = orb((ev.x, ev.y, ev.z), (0.032, 0.030, 0.028), 0.55)
+            filled = filled * (1 - hollow[..., None] * np.array([0.24, 0.28, 0.32])[None, None, :])
+            sx = 1 if ev.x > 0 else -1
+            cheek = orb((ev.x + sx * 0.030, ev.y + 0.006, ev.z - 0.052), (0.026, 0.024, 0.030), 0.6)  # the hollow under the cheekbone
+            filled = filled * (1 - cheek[..., None] * np.array([0.10, 0.13, 0.16])[None, None, :])
         # A thin old scar across the throat, 2.5 cm under the chin tip (0.78 + 0.20 scan units below the eyes), bowed a little at the middle.
         z_s = rig_mid.z - (0.78 + 0.20) * SCALE
         bow = z_s - 0.006 * np.cos(np.clip(hx / 0.035, -1, 1) * math.pi / 2)
@@ -1945,6 +1952,9 @@ def eye_colour(px):
     if FIGHTERS[FIGHTER].get('dark_eyes'):  # the Nightborn (his brief: dark hollow eyes): the iris sinks toward black, the sclera's lift is halved — no glow, just less light
         out = out * (1 - 0.55 * iris)[..., None]
         out = out * (1 - 0.25 * sclera)[..., None]
+    if FIGHTERS[FIGHTER].get('red_eyes'):  # the owner, 2026-09-17: red eyes — a deep ember iris over the darkened ball (no glow, the pupil stays black)
+        ember = np.array([0.45, 0.06, 0.04])[None, None, :]
+        out = out * (1 - 0.60 * iris)[..., None] + ember * (0.60 * iris)[..., None]
     print(f'KEENTOOLS eye colour: iris at ({cx:.0f}, {cy:.0f}) r={r_iris:.0f}px, sclera {int((sclera > 0.5).sum())} texels')
     return np.clip(out, 0, 1)
 
