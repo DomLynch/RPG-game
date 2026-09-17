@@ -80,8 +80,9 @@ export function sandNormal(size = 512, seed = 7): Pixels {
 // a per-block chamfer, weather streaks, pitting, mottling, soot, a few cracks. One tile = 2 m × 2 m on the wall.
 export function stoneAlbedo(size = 512, seed = 11): Pixels {
   const mottle = fbm(8, 4, seed), soot = fbm(3, 3, seed + 7), grain = fbm(64, 2, seed + 13, 0.6), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), stains = fbm(6, 3, seed + 21), dampF = fbm(3, 3, seed + 17);
-  // Reused stone: each block picks a hue — quarry grey, warm tan, cool slate, faint rose, sand-tinged, dark basalt.
-  const hues: [number, number, number][] = [[1, 1, 1], [1.14, 1.03, 0.86], [0.9, 0.96, 1.06], [1.1, 0.93, 0.85], [1.06, 1.0, 0.8], [0.84, 0.85, 0.88]];
+  // Reused stone: each block picks a hue — quarry grey, warm tan, cool slate, faint rose, sand-tinged, dark basalt (half strength:
+  // the full spread read as patchwork on the phone, owner 2026-09-17).
+  const hues: [number, number, number][] = [[1, 1, 1], [1.07, 1.015, 0.93], [0.95, 0.98, 1.03], [1.05, 0.965, 0.925], [1.03, 1, 0.9], [0.92, 0.925, 0.94]];
   const courseH = Array.from({ length: 5 }, (_, c) => 0.7 + hash(c, 0, seed + 40) * 0.6), cSum = courseH.reduce((a, b) => a + b, 0);
   const courseAt = [0]; for (const h of courseH) courseAt.push(courseAt[courseAt.length - 1] + h / cSum);
   const blocksOf = courseH.map((_h, c) => { const n = 2 + Math.floor(hash(c, 1, seed + 41) * 3), w = Array.from({ length: n }, (_, k) => 0.6 + hash(k, c, seed + 42) * 0.9), s = w.reduce((a, b) => a + b, 0), at = [0]; for (const x of w) at.push(at[at.length - 1] + x / s); return { at, stagger: hash(c, 2, seed + 43) }; });
@@ -94,7 +95,7 @@ export function stoneAlbedo(size = 512, seed = 11): Pixels {
     const drop = hash(biAbove, course + 1, seed + 44) > 0.62 && fy > 0.88 ? 0.78 : 1, recess = proud < 0.3 ? 0.9 : 1;   // proud blocks throw a shadow down; recessed ones sit in shade
     const chamfer = mortar === 1 ? 1 + 0.09 * (0.5 - fx) + 0.11 * (0.5 - fy) : 1;   // worn arris: the sun catches the top-left of each block
     const damaged = block > 0.85 ? 0.82 + 0.3 * (mottle(u * 2, v * 2) - 0.5) : 1;
-    const m = 0.82 + 0.5 * (mottle(u, v) - 0.5) + 0.5 * (block - 0.5), s = Math.max(0, soot(u, v) - 0.62) * 1.3, g = 0.93 + 0.16 * (grain(u, v) - 0.5) + 0.07 * (hash(x, y, seed) - 0.5);
+    const m = 0.82 + 0.5 * (mottle(u, v) - 0.5) + 0.42 * (block - 0.5), s = Math.max(0, soot(u, v) - 0.62) * 1.3, g = 0.93 + 0.16 * (grain(u, v) - 0.5) + 0.07 * (hash(x, y, seed) - 0.5);
     const streak = Math.max(0, stains(u * 3, v * 0.4) - 0.6) * 1.4, pit = hash(x, y, seed + 31) > 0.992 ? 0.72 : 1;
     const damp = Math.max(0, dampF(u, v) - 0.6) * 1.2, speck = hash(x, y, seed + 50), grit = speck > 0.97 ? 1.28 : speck < 0.03 ? 0.74 : 1;   // quartz flecks and dark pits: the grit
     const crack = Math.abs(crackField(u, v) - 0.5) < 0.004 && mortar === 1 && crackMask(u, v) > 0.6 ? 0.6 : 1, k = m * g * mortar * chamfer * drop * recess * damaged * crack * pit * grit * (1 - 0.4 * s) * (1 - 0.3 * streak) * (1 - 0.35 * damp);
