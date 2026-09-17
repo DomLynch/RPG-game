@@ -370,7 +370,7 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 ## Cleaver v1 — the weapons lane — 2026-09-16
 - Branch `weapons/cleaver-v1` (stacked on #80 trident + #81 Pitborn seam). The Pitborn's cleaver: "a fat scythe-type cleaver, wider and
   the same length as the longsword" (owner). A procedural single-edged loft (0.19 m belly toward a hooked tip, 0.20 m forward sweep, 615
-  triangles, no textures; silhouettes A/B/C for the owner's pick) under `hand_r` as `WeaponDrawn` (contact = the edge .14–.86). It rides
+  triangles, no textures; silhouette A picked by the owner 2026-09-17, B/C remain options) under `hand_r` as `WeaponDrawn` (contact = the edge .14–.86). It rides
   the **sword's clip family** — same 21 clips, same order; only `Heavy` is re-keyed on its rig as a diagonal hack so the edge leads
   (edge·motion .95 vs the sword's .68) — so the renderer needs nothing; `pitborn-cleaver.glb` is his own body carrying it, and the
   shipped `pitborn.glb` takes it with the build flag + one test relaxation (REQUESTS §5). Baked at 1.0× like his sword; at his real

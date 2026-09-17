@@ -116,7 +116,6 @@ PR #82 lands the cleaver on the shelf: `WEAPONS.cleaver` still borrows the longs
 Once the flip lands, the Pitborn's rebuild command carries `WARRIOR_WEAPON=cleaver` (and the owner's `WEAPON_VARIANT`), or a rebuild
 hands him the sword back.
 
-## 8. Owner — pick the cleaver's silhouette
-`artifacts/weapons/cleaver-v3/weapon-turntable.png` (**A**, default: fat scythe, 0.19 m belly out near the hooked tip, 0.20 m
-forward sweep), `cleaver-B/` (broad chopper, 0.17 m, square-cut tip), `cleaver-C/` (long sickle, 0.14 m, 0.28 m bend). All 615
-triangles, no textures; `WEAPON_VARIANT=A|B|C`. On his body: `cleaver-pitborn/weapon-on-rig.png`.
+## 8. Owner — ~~pick the cleaver's silhouette~~ **Picked (2026-09-17): A, the fat scythe** — the default; no flag needed.
+`artifacts/weapons/cleaver-v3/weapon-turntable.png` (A: 0.19 m belly out near the hooked tip, 0.20 m forward sweep). B (broad chopper) and
+C (long sickle) stay as `WEAPON_VARIANT` options. On his body: `cleaver-pitborn/weapon-on-rig.png`.
