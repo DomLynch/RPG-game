@@ -134,3 +134,37 @@ scale decision is the combat lane's with these numbers (REQUESTS §6).
   deploy are the combat lane's (REQUESTS §5–6).
 - Normal-level whiff punisher is exactly at the gate's floor; 6/24 stalls — combat review.
 - No sheathed cleaver, no draw (he starts armed). No parry-clip concerns: the sword's Parry plays.
+
+---
+
+# Knife v1 — evidence (weapons lane, 2026-09-17)
+
+Branch `weapons/knife-v1` = `char/goblin-v1` (#86) + `weapons/cleaver-v1` (#82) + the knife. The goblin's short hooked knife: a sica.
+
+## What was built
+- `scripts/build-weapon.mjs` `knife()`: the cleaver's loft at knife scale (22 rings, wedge section, edge on +x), the hook double-edged over its
+  last third; ferrule, greasy wooden grip with a cord wrap, butt cap; procedural scavenged iron / wood / cord; 943 triangles, no textures.
+  Variants A sica (forward grip, default), B reverse-grip hook (`grip: 'reverse'` → `build-warrior` turns the sword transform 180° about
+  its thickness axis), C long knife. `WEAPON_BUILDS.knife` re-keys `Heavy` with the cleaver's diagonal hack.
+- `src/assets/weapons/knife/goblin-knife.glb`: his own rig carrying it (5.8 MB; the sword's 21 clips, Heavy re-keyed).
+- `KNIFE` on the shelf (moves, paths, guard, material, fight); +4 tests.
+
+## Measurements (his rig, hand at 0.81× world scale)
+| | goblin + sword (baseline) | goblin + knife A | B reverse | C long |
+|---|---|---|---|---|
+| opponent GLB gzip | 3,264,111 | 3,262,003 | | |
+| weapon triangles | 364 | 943 | 943 | 943 |
+| weapon extent (rig units) | 0.78 | 0.50 | 0.39 | 0.55 |
+| blade in the world | 0.70 m (a man's sword, scaled) | 0.42 m | 0.30 m | 0.46 m |
+| lands to (sword timings): stab / slash / hack | — | 1.65 / 1.35 / 1.8 | **0 / 0 / 0** | 1.7 / 1.4 / 1.85 |
+| lands to (knife timings): stab / slash / hack | | **1.45 / 1.2 / 1.55** | | |
+
+Edge-leading on his rig (A): slash .80, backhand −.75 (the hook's sharpened back), hack .92.
+
+## Sheets
+`goblin-baseline/` (him with the sword through the weapon view), `knife-v1/` (A: turntable, on-rig, clips, phone lock stills, exchange),
+`knife-B/`, `knife-C/` (turntables).
+
+## Not done / risks
+- On the shelf by design (REQUESTS §9). His knobs, battery, stance and camera are other lanes'.
+- Timings are the character lane's proposal, adopted as-is except the critical's cost (26 → 20).

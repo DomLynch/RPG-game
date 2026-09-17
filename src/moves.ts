@@ -236,9 +236,45 @@ export const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLEAVER_PATHS, guard: 'blade', material: 'iron', reach: CLEAVER_MOVES.thrust.reach, fight: { thrustShare: .1, close: 1.15 } };   // the poke is a rare opener (one non-cut opener in ten); he closes to the sword's cutting range for his chops
+// ── Knife (weapons lane, 2026-09-17): the goblin's short hooked knife — a sica (forward grip, inward hook, double-edged over the hook) on
+// the goblin's own re-proportioned rig, src/assets/weapons/knife/goblin-knife.glb (WeaponDrawn, contact = the blade .12–.52; 0.81× in his
+// hand → a 0.42 m blade). The sword's clip family (only Heavy re-keyed as the diagonal hack, as the cleaver's). Timings are the character
+// lane's proposal (artifacts/character/BRIEF-goblin.md): wind-up ≥ 12 ticks everywhere (the readability rule), feints = the first ~40 % of
+// the wind-up, damage and cost below a sword's. Measured from his rig with these timings (artifacts/weapons/REPORT.md): the slash lands to
+// 1.2 m, the stab 1.45, the hack 1.55 (the sword: 1.7 / 2.0 / 2.2) — `reach` is that frontier; the combat lane sets his stance, his knobs (feint rate, guard share 0, back-step
+// after landing, circling, regen) and the battery. A reverse-grip hook was tried and rejected with numbers: on the sword's clips the blade sits
+// behind the fist and never lands (0 m at every gap) — it would need its own clip set. Every number PROVISIONAL — GAMEPLAY CHANGE.
+export const KNIFE_PATHS: Record<PathId, PathSpec> = {
+  light_right: { clip: 'Attack', source: .34, windup: 14, active: 6, recovery: 16 },
+  light_left: { clip: 'Return', source: .34, windup: 14, active: 6, recovery: 16 },
+  light_right_chain: { clip: 'Attack', source: .34, windup: 12, active: 6, recovery: 14 },
+  light_left_chain: { clip: 'Return', source: .34, windup: 12, active: 6, recovery: 14 },
+  heavy_overhead: { clip: 'Heavy', source: .48, windup: 22, active: 5, recovery: 26 },
+  heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 26 },
+  thrust: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
+  riposte: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
+  heavy_riposte: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 20 },
+};
+const slash = (id: 'light_right' | 'light_left'): MoveDef => ({
+  ...MOVES[id], chained: { windup: 12, active: 6, recovery: 14 }, chain: { window: 14, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'thrust', 'heavy_overhead'] },
+  windup: 14, active: 6, recovery: 16, damage: 10, stamina: 18, staminaDamage: 10, stagger: 18, chip: 0, knockback: 2, stepIn: .4, feintUntil: 6, posture: 14, chamber: 6, reach: 1.2,
+});
+export const KNIFE_MOVES: Record<MoveId, MoveDef> = {
+  light_right: slash('light_right'),
+  light_left: slash('light_left'),   // the backhand: the hook's outer edge is sharpened, so it cuts too (a rip)
+  heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 16, active: 5, recovery: 26 }, windup: 22, active: 5, recovery: 26, damage: 14, stamina: 26, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0, chip: .2, knockback: 3, stepIn: .55, feintUntil: 8, posture: 24, chamber: 7, reach: 1.55 },
+  thrust: { ...MOVES.thrust, windup: 12, active: 4, recovery: 15, damage: 9, stamina: 14, staminaDamage: 12, stagger: 14, knockback: 2, stepIn: 1, feintUntil: 5, posture: 12, chamber: 5, reach: 1.45 },
+  riposte: { ...MOVES.riposte, windup: 12, active: 4, recovery: 15, damage: 18, stamina: 16, feintUntil: 5, reach: 1.2 },
+  heavy_riposte: { ...MOVES.heavy_riposte, windup: 16, active: 5, recovery: 20, damage: 22, stamina: 26, feintUntil: 6, reach: 1.55 },
+  heavy_counter: { ...MOVES.heavy_counter, windup: 16, active: 5, recovery: 20, damage: 16, stamina: 26, feintUntil: 6, posture: 22, reach: 1.55 },
+  critical: { ...MOVES.critical, windup: 16, active: 5, recovery: 20, damage: 30, stamina: 20, reach: 1.55 },   // the brief's table said 26; a sword's critical costs 25 and the knife's must not cost more
+  kick: MOVES.kick,
+};
+export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PATHS, guard: 'blade', material: 'iron', reach: KNIFE_MOVES.thrust.reach, fight: { thrustShare: .4, close: 1.0 } };   // a knife fighter stabs often and closes inside a sword's cutting range — the combat lane's to tune with his knobs
 // The lanes' split (2026-09-16): the weapons lane delivers a weapon unused; the combat lane puts it in the fight. The cleaver is LIVE
 // since slice W (2026-09-17): OPPONENTS.pitborn carries it, baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention — the
 // brute's rendered blade runs ~10 cm past the simulated one, never the other way; a 1.13× bake let no backstep escape him).
+// The knife is ON THE SHELF: its flip is `knife: KNIFE` here plus its manifest entry from the goblin's rig (artifacts/weapons/REQUESTS.md §9).
 export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: { ...LONGSWORD, id: 'estoc', placeholder: true }, knife: { ...LONGSWORD, id: 'knife', placeholder: true } };   // estoc: the Nightborn's thin thrust-first blade, the longsword's data until the weapons lane lands it (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 

@@ -133,7 +133,46 @@ PR #82 lands the cleaver on the shelf: `WEAPONS.cleaver` still borrows the longs
 ## 7. Character lane
 **Done differently:** the Pitborn's build defaults to the cleaver (`build-warrior.mjs`: `WARRIOR_FIGHTER=pitborn` → `cleaver`, as the Veteran → `trident`), so a plain rebuild keeps it; only an explicit `WARRIOR_WEAPON=longsword` hands him the sword back. Variant A unless `WEAPON_VARIANT` says otherwise.
 
-## 8. Owner — pick the cleaver's silhouette
-`artifacts/weapons/cleaver-v3/weapon-turntable.png` (**A**, default: fat scythe, 0.19 m belly out near the hooked tip, 0.20 m
-forward sweep), `cleaver-B/` (broad chopper, 0.17 m, square-cut tip), `cleaver-C/` (long sickle, 0.14 m, 0.28 m bend). All 615
-triangles, no textures; `WEAPON_VARIANT=A|B|C`. On his body: `cleaver-pitborn/weapon-on-rig.png`.
+## 8. Owner — ~~pick the cleaver's silhouette~~ **Picked (2026-09-17): A, the fat scythe** — the default; no flag needed.
+`artifacts/weapons/cleaver-v3/weapon-turntable.png` (A: 0.19 m belly out near the hooked tip, 0.20 m forward sweep). B (broad chopper) and
+C (long sickle) stay as `WEAPON_VARIANT` options. On his body: `cleaver-pitborn/weapon-on-rig.png`.
+
+---
+
+# Knife (the goblin's) — hand-off to the combat lane, 2026-09-17
+
+PR lands the knife on the shelf (the split): `KNIFE` exported, `WEAPONS.knife` still borrows the longsword, no manifest entry, the goblin
+unchanged. Built from the character lane's contract (artifacts/goblin/REQUESTS.md #9) and their proposed timing table
+(artifacts/character/BRIEF-goblin.md).
+
+## 9. Combat lane — the flip
+1. `src/moves.ts`: `WEAPONS.knife` → `KNIFE` (`KNIFE_MOVES` / `KNIFE_PATHS`, guard blade, iron, `fight { thrustShare .4, close 1.0 }`).
+2. `scripts/blade-manifest.json`: `{ "weapon": "knife", "glb": "src/assets/weapons/knife/goblin-knife.glb", "node": "WeaponDrawn",
+   "contact": [0.12, 0.52] }` — HIS rig (re-proportioned, .835 root; the knife is 0.81× in his hand: a 0.42 m blade). Then bake.
+   No scale question here: nothing of his has been tuned yet, and his placeholder sword table today is a MAN's sword at 1.0× — his real
+   sweep is far shorter (below).
+3. Renderer: nothing. `WEAPON_CLIPS.knife = { Thrust: 'Riposte' }` (#86) is right: the sword's clip family on his own clips; only `Heavy`
+   is re-keyed (the diagonal hack, same name).
+4. His body: rebuild `src/assets/goblin.glb` with `WARRIOR_WEAPON=knife` (as #83 did for the trident; `WEAPON_VARIANT` per the owner's
+   pick, A default) and relax the goblin identity test in `tests/characters.test.ts` so `Heavy`'s arm tracks may differ and the sword
+   nodes may be empty; or point `OPPONENT_GLB.goblin` at `goblin-knife.glb` as-is.
+5. Then his knobs (goblin REQUESTS #1–6: feint rate, guard share 0, back-step after landing, circling, regen) and his battery.
+
+## 10. What the numbers do (measured on his rig with the knife's own timings; tests pin the data rules)
+- Landing frontier vs a standing target: **slash 1.2 m, stab 1.45, hack 1.55** (a man's sword: 1.7 / 2.0 / 2.2; his placeholder today
+  swings the man's table). `reach` = that frontier — set his stance from it (`fight.close` 1.0 is a guess).
+- Timings are the brief's table: slash 14/6/16 (chain 12/6/14), stab 12/4/15, hack 22/5/26 (chain 16/5/26), riposte 12/4/15, heavy riposte /
+  counter / critical 16/5/20; every wind-up ≥ 12 (readability rule), `feintUntil` ≈ 40 % of the wind-up (6 / 5 / 8), `chamber` 6 / 5 / 7.
+  Damage 10 / 9 / 14 / 18 / 22 / 16 / 30, stamina 18 / 14 / 26 / 16 / 26 / 26 / 20 (the table's 26 for the critical exceeded a sword's 25;
+  the brief said below a sword's), posture 14 / 12 / 24. Lunges are the sword's stepIn (.4 / 1 / .55) over shorter wind-ups — his whiff
+  window is yours to set.
+- **The reverse-grip hook (the character lane's suggestion) is rejected with numbers**: on the sword's clips the blade sits behind the fist
+  and never lands — 0 m at every gap for every move, edge·motion −0.60 on the slash. It would need its own clip set (reverse-grip slashes
+  are different motions). Variant B stays built (`artifacts/weapons/knife-B/`) as the record.
+- The hook is double-edged over its last third (the outer curve sharpened), so the backhand slash (the sword's Return, spine-leading:
+  −0.75) cuts as a rip instead of slapping — no hammer move needed.
+- Edge-leading on his rig: slash .80, hack .92, backhand −.75 (`artifacts/weapons/tools/edge-check.mjs`).
+
+## 11. Owner — ~~pick the knife's silhouette~~ **Picked (2026-09-17): A, the sica** — the default; no flag needed.
+`artifacts/weapons/knife-v1/weapon-turntable.png` (0.42 m, inward hook, forward grip). C (straight long knife) stays as a `WEAPON_VARIANT`
+option; B (reverse grip) is the record of a rejected idea. In his hand: `knife-v1/weapon-on-rig.png`.
