@@ -1525,6 +1525,14 @@ FIGHTERS = {
                 'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84)},  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
     'goblin': {'kt_glb': 'artifacts/source/keentools/01a0ab81-4cff-7871-bac7-adfa28d57d0b.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16 22:33
                'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.42, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.80, 0.77, 0.78), 'backdrop_cool': True},  # stubbled bald scalp (hair_lum .42: the photographed stubble is lum ~.32 — at .30 the fill took only its shadows and printed a dark band round a pale crown); no helm; skin_mul: v1 body rendered (178,154,125) beside a (143,115,97) cheek — tan and 25–30 % too bright for the grey-brown face; backdrop_cool: the grey backdrop smeared onto the crown
+    # The Executioner (opponent 6): seven GPT portraits (front, ±35, ±90, from below ~25°, from above ~20°), 2026-09-17,
+    # artifacts/source/face/executioner/. kt_glb is a STAND-IN (the hero's scan) until the KeenTools account has credits —
+    # the 22:1x job stopped at 402 AFTER the uploads; resume with
+    # `node scripts/create-head.mjs artifacts/source/keentools --avatar 01a0b094-dcd8-7792-835d-5bdb88f42cf6` and point this at the new GLB.
+    # Masked and hooded in game — the iron half-mask and ragged hood are kit parts (parts.py), so chin is off (the jaw sits
+    # behind iron) and the crown's budget goes to the hood (decimate: the Veteran's helmed value). Dark stubble under the hood.
+    'executioner': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',
+                    'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.14, 'hair': 'buzz', 'scars': False, 'decimate': 0.26},
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
