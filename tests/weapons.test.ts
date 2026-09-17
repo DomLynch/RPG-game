@@ -86,7 +86,7 @@ test('the warden reasons with its own weapon\'s reach: carrying a longer weapon 
 });
 
 // ── The trident (weapons lane, 2026-09-16): its rig, clips, contact segment and the fight it gives.
-import { AnimationMixer, Vector3 } from 'three';
+import { AnimationMixer, Quaternion, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { swingProgress } from '../src/blade.ts';
 import { TRIDENT, TRIDENT_PATHS, total } from '../src/moves.ts';
@@ -156,6 +156,66 @@ test('the fight the trident gives (real tables): its thrust lands from 2.1 m whe
   assert.ok(!landed(inside) && inside.some(e => e.type === 'AttackMissed' && e.move === 'thrust'), 'the trident thrust whiffs inside the point');
   assert.ok(landed(landsFrom('trident', 'thrust', 1.1)) && landed(landsFrom('trident', 'light_right', .9)), 'from 1.1 m it lands; the sweep lands at .9 m');
   assert.equal(weaponOf('trident'), TRIDENT); assert.equal(TRIDENT.reach, TRIDENT.moves.thrust.reach);
+});
+
+// ── The cleaver (weapons lane, 2026-09-16): the Pitborn's, on the longsword's clip family — ON THE SHELF. The weapons lane delivers
+// the part, the rig, the data and the proof; the combat lane flips `WEAPONS.cleaver` to CLEAVER, adds the manifest entry, bakes and
+// reviews the fight (artifacts/weapons/REQUESTS.md §5–6). Until then the Pitborn's slot borrows the longsword, exactly as before.
+import { CLEAVER, CLEAVER_PATHS } from '../src/moves.ts';
+const CLEAVER_GLB = 'src/assets/weapons/cleaver/veteran-cleaver.glb';
+
+test('the cleaver is on the shelf: CLEAVER is real data nothing uses; WEAPONS.cleaver still borrows the longsword; no manifest entry yet (the combat lane\'s flip)', () => {
+  assert.equal(WEAPONS.cleaver.placeholder, true); assert.equal(WEAPONS.cleaver.moves, MOVES); assert.deepEqual(bladePaths.cleaver, bladePaths.longsword);
+  assert.notEqual(CLEAVER.moves, MOVES); assert.notEqual(CLEAVER.paths, PATHS); assert.equal(CLEAVER.id, 'cleaver');
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string }[] };
+  assert.ok(!manifest.weapons.some(w => w.weapon === 'cleaver'), 'no cleaver bake until the flip');
+});
+
+test('the cleaver rig carries WeaponDrawn with its edge as the contact segment, empty sword nodes for the loader, and exactly the sword\'s 21 clips in the sword\'s order — nothing for the renderer to learn; only Heavy is re-keyed', async () => {
+  const asset = await readRig(CLEAVER_GLB), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
+  assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
+  const contact = weapon.userData.contact as { from: number; to: number };
+  assert.ok(contact && Math.abs(contact.to - .86) < .001 && contact.from > .1 && contact.from < .2, `the edge, ferrule to tip, the sword's length: ${JSON.stringify(contact)}`);
+  for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
+  const sword = await readRig('src/assets/warrior.glb');
+  assert.deepEqual(asset.animations.map(c => c.name), sword.animations.map(c => c.name), 'the same clip list as the sword, in the same order');
+  for (const [path, spec] of Object.entries(CLEAVER_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
+  for (const clip of sword.animations) { // every clip is the rig's own, track for track, except the Heavy (the diagonal hack)
+    const twin = asset.animations.find(c => c.name === clip.name)!;
+    const same = clip.tracks.every(t => { const o = twin.tracks.find(x => x.name === t.name)!; return o && o.times.length === t.times.length && Array.from(t.values).every((v, i) => Math.abs(v - o.values[i]) < 1e-6); });
+    assert.equal(same, clip.name !== 'Heavy', `${clip.name} ${clip.name === 'Heavy' ? 'is the cleaver\'s own' : 'is the sword rig\'s'}`);
+  }
+});
+
+test('the cleaver\'s edge leads: over each cut\'s active window the tip moves along the edge side (+x) for the chop and the hack, along the spine for the back-of-the-cleaver; the hack leads with the edge more cleanly than the sword\'s straight overhead', async () => {
+  const lead = async (file: string, node: string) => {
+    const asset = await readRig(file), mixer = new AnimationMixer(asset.scene), blade = asset.scene.getObjectByName(node)!, out: Record<string, number> = {};
+    for (const [kind, spec] of Object.entries(CLEAVER_PATHS)) {
+      if (kind.endsWith('_chain') || kind === 'thrust' || kind === 'riposte') continue;   // a thrust's tip barely moves in its active window: the point leads, not a side
+      const n = total(spec), clip = asset.animations.find(c => c.name === spec.clip)!, action = mixer.clipAction(clip).play();
+      const at = (age: number) => { mixer.setTime(Math.min(.999999, swingProgress(age / n, spec.windup / n, spec.source)) * clip.duration); asset.scene.updateMatrixWorld(true); return { tip: blade.localToWorld(new Vector3(0, .86, 0)), q: blade.getWorldQuaternion(new Quaternion()) }; };
+      const a = at(spec.windup), b = at(spec.windup + spec.active), v = b.tip.clone().sub(a.tip).normalize(), edge = new Vector3(1, 0, 0).applyQuaternion(at(spec.windup + Math.floor(spec.active / 2)).q);
+      out[kind] = edge.dot(v); action.stop(); mixer.uncacheClip(clip);
+    }
+    return out;
+  };
+  const cleaver = await lead(CLEAVER_GLB, 'WeaponDrawn'), sword = await lead('src/assets/warrior.glb', 'SwordDrawn');
+  assert.ok(cleaver.light_right > .6, `the chop leads with the edge: ${cleaver.light_right.toFixed(2)}`);
+  assert.ok(cleaver.light_left < -.6, `the back of the cleaver leads with the spine: ${cleaver.light_left.toFixed(2)}`);
+  assert.ok(cleaver.heavy_overhead > .85 && cleaver.heavy_overhead > sword.heavy_overhead + .15, `the hack leads with the edge (${cleaver.heavy_overhead.toFixed(2)}) more than the sword's overhead (${sword.heavy_overhead.toFixed(2)})`);
+  assert.ok(cleaver.heavy_riposte > .85, `the heavy riposte on the same clip: ${cleaver.heavy_riposte.toFixed(2)}`);
+});
+
+test('the cleaver\'s data keeps the Pitborn\'s whiff window: lunges equal the sword\'s (stepIn × wind-up), reach follows the sword\'s spacing convention, chops hit harder, the poke softer, the back of the cleaver is a hammer', () => {
+  for (const move of ['thrust', 'light_right', 'heavy_overhead'] as const) {
+    const sm = MOVES[move], cm = CLEAVER.moves[move];
+    assert.ok(Math.abs(cm.stepIn * (cm.windup - RULES.stepInFrom) - sm.stepIn * (sm.windup - RULES.stepInFrom)) < .3, `${move}: the same lunge distance as the sword's — the 12-tick backstep must still escape it`);
+    assert.equal(cm.reach, sm.reach, `${move}: the sword's spacing estimate, so the warden spaces the same`);
+    assert.ok(cm.windup >= sm.windup && cm.recovery >= sm.recovery, `${move}: a brute's tell and recovery are no shorter than the sword's`);
+  }
+  assert.ok(CLEAVER.moves.light_right.damage > MOVES.light_right.damage && CLEAVER.moves.heavy_overhead.damage > MOVES.heavy_overhead.damage && CLEAVER.moves.thrust.damage < MOVES.thrust.damage, 'chops hit harder, the poke softer');
+  assert.ok(CLEAVER.moves.light_left.damage < CLEAVER.moves.light_right.damage && CLEAVER.moves.light_left.posture > CLEAVER.moves.light_right.posture, 'the back of the cleaver: a hammer, not a cut');
+  assert.deepEqual([CLEAVER.guard, CLEAVER.material, CLEAVER.fight.thrustShare < LONGSWORD.fight.thrustShare], ['blade', 'iron', true]);
 });
 
 // ── Slice V: the trident's fight — rules the data asked for, and the warden's stance with it ───────────────────────────────────────────

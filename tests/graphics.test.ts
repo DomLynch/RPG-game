@@ -10,6 +10,7 @@ import * as combat from '../src/combat.ts';
 import * as moves from '../src/moves.ts';
 const { MOVES } = moves;
 import * as profile from '../src/profile.ts';
+import * as ladder from '../src/ladder.ts';
 import * as trial from '../src/trial.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
@@ -24,7 +25,7 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
-function boot() {
+function boot(profileExtras: Record<string, unknown> = {}) {
   const elements = new Map<string, Element>(), doc = new EventTarget(), win = new EventTarget();
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0;
@@ -33,9 +34,9 @@ function boot() {
   const view = { yaw: 0, recenter() {}, lowerResolution() {}, orbit() {}, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
-  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester' })]]);
+  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })]]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './trial.ts': trial, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './trial.ts': trial, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++ },
@@ -431,4 +432,22 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
   const at50 = perSecond(); assert.ok(at50 >= 48 && at50 <= 51, `50 Hz: ${at50} ticks in a second`);
   // Ticks are the sim's own clock: the fight is identical, only slower. A contact still stops for its ms, not its ticks.
   app.element('tempo-mode').click(); assert.equal(app.element('tempo-mode').textContent, 'Tempo: 60 Hz'); assert.equal(app.storage.getItem('frankendom.tempo.v1'), '60');
+});
+
+test('the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'pitborn' }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest
+  assert.equal(app.rendered.enemyMaxHealth, 190, 'the Pitborn stands opposite (his health, not a man\'s)');
+  assert.equal(app.element('opponent-name').textContent, 'THE PITBORN');
+  app.key('KeyF'); for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until he wins
+  assert.ok(app.rendered.finish && app.rendered.finish.victim === 0, 'the player fell');
+  assert.equal(app.element('reset-button').textContent, 'Rematch');
+  app.element('reset-button').click(); app.tick();
+  assert.equal(app.reloads, 0, 'a rematch stays on the same rig'); assert.equal(app.rendered.enemyMaxHealth, 190);
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'pitborn', 'progress is untouched by a loss');
+});
+
+test('the ladder: the first rung is the Veteran and his label stays the warden', () => {
+  const app = boot(); app.tick();
+  assert.equal(app.rendered.enemyMaxHealth, 150); assert.equal(app.element('opponent-name').textContent, '');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, undefined);
 });

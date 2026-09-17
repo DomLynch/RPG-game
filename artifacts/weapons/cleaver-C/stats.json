@@ -1,0 +1,42 @@
+{
+ "label": "cleaver-C",
+ "commit": "d361f2e",
+ "date": "2026-09-16",
+ "enemyGlb": "artifacts/weapons/variants/veteran-cleaver-C.glb",
+ "enemyGlbBytes": 6563316,
+ "enemyGlbGzip": 3884079,
+ "node": "WeaponDrawn",
+ "triangles": 615,
+ "materials": [
+  "CleaverIron",
+  "Haft"
+ ],
+ "contact": [
+  0.14,
+  0.86
+ ],
+ "extentMetres": 0.825,
+ "clips": [
+  "Idle",
+  "Walk",
+  "Jog",
+  "Run",
+  "Armed",
+  "Attack",
+  "Hit",
+  "Death",
+  "Draw",
+  "Roll",
+  "Guard",
+  "Return",
+  "Heavy",
+  "Riposte",
+  "ArmedWalk",
+  "StrafeLeft",
+  "StrafeRight",
+  "Kick",
+  "BlockImpact",
+  "Parry",
+  "Deflected"
+ ]
+}
