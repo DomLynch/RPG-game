@@ -5,14 +5,14 @@ import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { createFighter, idleIntent, initialDuel, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type Opponent } from '../src/moves.ts';
+import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
 import { TARGET, type State } from '../src/sim.ts';
 import { STRATEGIES, battery } from './battery.test.ts';
 
 const P = OPPONENTS.pitborn;
 const idle = (): Intent => ({ ...idleIntent(), lock: true }), act = (action: Intent['action']): Intent => ({ ...idle(), action });
-const ring = (o: Opponent, gap = 1.2): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', o.weapon, o.scale, o.poise, o.health)], finish: null, events: [] });
+const ring = (o: Opponent, gap = 1.2): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', o.weapon, o.scale, o.poise, o.health, o.guard)], finish: null, events: [] });
 // Step until the player's blow lands (or 200 ticks): the events of that tick and the duel after it.
 function land(o: Opponent, player: Intent, opponent: (d: Duel) => Intent = idle) {
   let d = ring(o), first = true;
@@ -106,4 +106,90 @@ test('AI vs AI at normal: the Veteran\'s brain in the hero body against the Pitb
   const median = lengths.sort((a, b) => a - b)[12] / 60;
   assert.ok(median >= 25 && median <= 45, `median ${median.toFixed(1)} s (${lengths.map(t => (t / 60).toFixed(0)).join(' ')})`);
   console.log(`pitborn AI vs AI: median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s`);
+});
+
+// ── The Nightborn (opponent 5): the parry is his game, and the parry is how he is beaten — feint it, bait it, or charge past it.
+const N = OPPONENTS.nightborn;
+const isLight = (f: Duel['fighters'][number]) => f.move === 'light_left' || f.move === 'light_right';
+// Feint and punish: open with a cut; the moment his blade comes up while the cut can still be feinted, feint and HOLD the guard (a released
+// tap would bare the player's own guard); when he is exposed, release and hit him. Out of his swings with a backstep, as the whiff punisher.
+export const feintAndPunish = (d: Duel): Intent => {
+  const p = d.fighters[0], w = d.fighters[1], up = p.phase === 'ready' && !p.exposed;
+  const t = w.phase === 'attack' && w.move ? movesOf(w)[w.move] : null, threat = t !== null && !w.landed && w.age < t.windup + t.active && w.move !== 'kick', recovering = t !== null && w.age >= t.windup + t.active;
+  if (w.exposed > 0 && up && gap(d) <= 1.7) return act('light');   // the punish: a cut lands well inside the exposure (a heavy would too, but the feint and the held guard leave no stamina for one)
+  if (w.exposed > 0 && p.phase === 'guard') return idle();
+  if (threat && w.age <= 4 && up) return act('backstep');   // out of his swings while there is time, as the whiff punisher
+  if (threat && (up || p.phase === 'guard')) return { ...idle(), guard: true };   // too late to step: take it on the guard — restraint
+  if (p.phase === 'attack' && isLight(p) && p.age < movesOf(p)[p.move!].feintUntil && w.phase === 'guard' && w.parrying) return act('parry');
+  if (p.phase === 'guard' && w.phase === 'guard' && w.parrying) return { ...idle(), guard: true };
+  if (up && gap(d) <= 1.7 && (w.phase === 'ready' || w.phase === 'hurt' || recovering) && !w.exposed) return act('light');   // open (or punish a whiff's recovery) with the cut his parry wants
+  return idle();
+};
+// Charge past the parry: chamber a heavy and hold it until his parry has come and gone, then release into what is left.
+export const chargePast = (d: Duel): Intent => {
+  const p = d.fighters[0], w = d.fighters[1];
+  if (p.phase === 'attack' && p.move === 'heavy_overhead' && !p.landed) return { ...idle(), held: !(p.charged && (w.phase !== 'guard' || !w.parrying)) };
+  if (p.phase === 'ready' && !p.exposed && gap(d) <= 1.8) return act('heavy', { held: true } as Partial<Intent>);
+  return idle();
+};
+
+test('the Nightborn is set up from his data: the estoc slot (the longsword\'s data until the weapons lane), a man\'s health, no poise, and a guard that commits — a 16-tick parry window and a 30-tick recovery on top of the weapon\'s profile', () => {
+  const d = initialDuel(N), w = d.fighters[1];
+  assert.equal(w.weapon, 'estoc'); assert.ok(WEAPONS.estoc.placeholder); assert.deepEqual(WEAPONS.estoc.moves, MOVES);
+  assert.equal(w.scale, N.scale); assert.equal(w.maxHealth, RULES.health); assert.equal(w.poise, 0);
+  assert.deepEqual(guardOf(w), { costScale: 1, arc: RULES.guardArc, window: 16, recovery: 40, commits: true, stopsHeavy: false, heavyBreaks: false });
+  assert.deepEqual(guardOf(d.fighters[0]), { costScale: 1, arc: RULES.guardArc, window: RULES.parry, recovery: RULES.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false }, 'the hero\'s guard is untouched');
+  assert.deepEqual(guardOf(initialDuel().fighters[1]).commits, false, 'the Veteran\'s parry still yields to any action');
+});
+
+test('the committing parry, tick by tick: his blade comes up inside the feint window of a 20-tick cut, a feint leaves it parrying nothing, no cut comes out of it, and when the window closes he is exposed for 40 ticks with no swing in him — the punish lands clean (a lapse or a block on a given cut is his call; over six seeds the chain must close in most)', () => {
+  const feintUntil = MOVES.light_right.feintUntil; let chains = 0; const presses: number[] = [];
+  for (let seed = 1; seed <= 6; seed++) {
+    let d = ring(N, 1.2), ai = initialAi(seed), pressed = -1, exposedAt = -1, punished = -1;
+    for (let i = 0; i < 900 && punished < 0 && !d.finish; i++) {
+      const w = decide(d, 1, ai, N.profiles.normal); ai = w.ai;
+      d = stepDuel(d, [feintAndPunish(d), w.intent]);
+      const him = d.fighters[1], me = d.fighters[0];
+      if (him.phase === 'guard' && him.parrying && him.age === 0 && me.phase === 'attack' && isLight(me)) { pressed = me.age; presses.push(me.age); exposedAt = -1; }   // a fresh press at one of my cuts
+      if (pressed >= 0 && him.phase === 'guard' && him.parrying && !him.punish) { assert.equal(legal(him, 'light'), false, `tick ${d.tick}: no cut out of a committed parry`); assert.equal(legal(him, 'kick'), false, 'no kick out of it either'); }   // a parry that connected opens its punish window — the riposte is his
+      if (pressed >= 0 && exposedAt < 0 && him.exposed > 0 && him.age === 0) { exposedAt = d.tick; assert.equal(him.exposed, 40); assert.equal(legal(him, 'light'), false, 'no swing while exposed'); assert.equal(legal(him, 'parry'), false, 'no parry while exposed'); }
+      if (exposedAt >= 0 && him.exposed > 0 && d.events.some(e => e.type === 'Hit' && e.actor === 0 && e.target === 1)) { punished = d.tick; assert.ok(punished - exposedAt <= 40, `the punish landed ${punished - exposedAt} ticks into a 40-tick exposure`); }
+    }
+    if (punished > 0) chains++;
+  }
+  assert.ok(presses.length >= 6, `only ${presses.length} presses at cuts over six seeds`);
+  for (const t of presses) assert.ok(t <= feintUntil - 1, `his parry came up at cut tick ${t}: past the feint window (${feintUntil})`);
+  assert.ok(chains >= 4, `feint → whiff → exposed → punished closed in ${chains}/6 seeds`);
+  console.log(`nightborn: parry presses at cut ticks ${presses.join(' ')} (feint window closes at ${feintUntil}); the chain closed in ${chains}/6 seeds`);
+});
+
+test('fight identity — don\'t spam, bait him: the Nightborn passes the fairness battery at normal and hard; the feint-and-punish is the best honest answer at normal and no plain script beats him; a cut-spammer is parried, and a habitual bait or charge stops working once read', () => {
+  for (const [level, cap, floor] of [['normal', .5, 3], ['hard', .35, 1]] as const) {
+    const rows = battery(level, 24, 7200, N, { ...STRATEGIES, 'feint and punish': feintAndPunish, 'charge past the parry': chargePast });
+    const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');
+    for (const [name, r] of Object.entries(rows)) {
+      if (name !== 'perfect parry') assert.ok(r.wins / 24 <= cap, `${level} · ${name} wins ${r.wins}/24 (cap ${cap * 100} %)\n  ${table}`);
+      assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
+    }
+    const answer = rows['feint and punish'];
+    assert.ok(answer.wins >= floor, `${level} · the feint-and-punish wins only ${answer.wins}/24\n  ${table}`);
+    for (const name of ['light spam', 'heavy only', 'thrust from range', 'kick only', 'turtle and punish']) assert.ok(rows[name].wins === 0 || rows[name].wins < answer.wins, `${level} · ${name} wins ${rows[name].wins} ≥ the answer's ${answer.wins}\n  ${table}`);
+    // The habits are read: a script that parks every swing (held lights, a charge every time) gets its first exchanges and then nothing — under the cap, never a farm.
+    for (const name of ['held lights', 'charged heavy only', 'charge past the parry']) assert.ok(rows[name].wins / 24 <= cap, `${level} · ${name} is a farm: ${rows[name].wins}/24\n  ${table}`);
+    console.log(`nightborn battery ${level}\n  ${table}`);
+  }
+});
+
+test('AI vs AI at normal: the Veteran\'s brain in the hero body against the Nightborn finishes every fight, median 18–40 s, and wins some of them — he is beatable by a baiter, not by outlasting', () => {
+  const lengths: number[] = []; let heroWins = 0, exhausted = 0;
+  for (let s = 1; s <= 24; s++) {
+    let d = ring(N, 1.6), hero = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), him = initialAi((s * 2654435761) >>> 0);
+    for (let i = 0; i < 7200 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, him, N.profiles.normal as AiProfile); hero = a.ai; him = b.ai; d = stepDuel(d, [a.intent, b.intent]); if (d.fighters[1].exhausted) exhausted++; }
+    assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick); if (d.finish!.victim === 1) heroWins++;
+  }
+  const median = lengths.sort((a, b) => a - b)[12] / 60;
+  assert.ok(median >= 18 && median <= 40, `median ${median.toFixed(1)} s (${lengths.map(t => (t / 60).toFixed(0)).join(' ')})`);
+  assert.ok(heroWins >= 3, `the hero won ${heroWins}/24`);
+  assert.ok(exhausted <= 24 * 10, `the Nightborn was exhausted on ${exhausted} ticks over 24 fights — he is beaten by wit, not stamina`);
+  console.log(`nightborn AI vs AI: median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s, hero wins ${heroWins}/24`);
 });

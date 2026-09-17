@@ -8,18 +8,19 @@ export type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 // Habits: what the opponent has done this match, counted from committed state edges only. The warden reads them (see `readOpponent`)
 // and adapts — a parry-happy player gets baited swings, a turtle gets kicked and charged through, a roller gets delayed swings and
 // tail punishes, a light-spammer gets parried more. Reads need evidence first, so the first exchanges are always the honest ones.
-export type Habits = { ticks: number; guard: number; parries: number; rolls: number; lights: number; heavies: number; thrusts: number; attacks: number };
-export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; spammer: boolean };
+export type Habits = { ticks: number; guard: number; parries: number; rolls: number; lights: number; heavies: number; thrusts: number; attacks: number; parks: number };
+export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; spammer: boolean; parker: boolean };
 export const THRUST_SHARE = LONGSWORD.fight.thrustShare;   // the sword's share of non-light openers that are thrusts (each weapon carries its own in `fight`); the thrust's real job is the stop-hit
-export const READ = { feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
+export const READ = { feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 export const readOpponent = (h: Habits): Reads => ({
   parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
   turtle: h.ticks >= READ.guardTicks && h.guard / h.ticks >= READ.guardShare,
   roller: h.attacks >= READ.after && h.rolls / h.attacks >= READ.roll,
   spammer: h.lights + h.heavies + h.thrusts >= READ.swings && h.lights / (h.lights + h.heavies + h.thrusts) >= READ.lightShare,   // cuts only: a player mixing in thrusts or heavies is not a spammer
+  parker: h.lights + h.heavies + h.thrusts >= READ.after && h.parks / (h.lights + h.heavies + h.thrusts) >= READ.parkShare,   // swings mostly held at their chamber (baits, charges): the park is a habit, not a read of the moment
 });
 export type AiState = { seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; habits: Habits; scores: Record<string, number> };
-export const initialAi = (seed = 731): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0 }, scores: {} });
+export const initialAi = (seed = 731): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, parks: 0 }, scores: {} });
 const lcg = (seed: number) => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 
 export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): { intent: Intent; ai: AiState } {
@@ -35,6 +36,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (F.phase === 'guard') h.guard++;
   if (F.phase === 'guard' && F.parrying && F.age === 0) h.parries++;
   if (F.phase === 'roll' && F.age === 0) h.rolls++;
+  if (F.phase === 'attack' && F.charge === 1) h.parks++;   // the first tick a swing sat at its chamber
   if (F.phase === 'attack' && F.age === 0 && F.move) { if (F.move === 'heavy_overhead') h.heavies++; else if (F.move === 'thrust') h.thrusts++; else if (F.move === 'light_left' || F.move === 'light_right') h.lights++; }   // ripostes, counters and criticals are earned, not habits
   if (M.phase === 'attack' && M.age === 0 && M.move !== 'kick') h.attacks++;
   const reads = readOpponent(h);
@@ -104,12 +106,20 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (next.mode === 'retreat' && myBack) { next.mode = 'circle'; next.side = (M.body.x * Math.cos(facing) - M.body.z * Math.sin(facing)) > 0 ? -1 : 1; }   // lateral toward the centre
   if (next.mode === 'circle' && theirBack && !low && !shaky) next.mode = 'approach';
   if (canAct && noticed && next.plan !== 'ignore') {
-    const estimate = timing(F).windup - F.age + next.jitter;
+    // Contact is estimated on the animation clock, so a swing parked at its chamber does not draw the press. A committing parrier (the
+    // Nightborn) reads the tell instead — elapsed ticks since the swing began, the way a human does — so a swing held at its chamber draws
+    // his press and meets nothing: the bait and the charge are his weaknesses. Until the park is read as a habit (reads.parker): then he
+    // waits for the blade to pass its chamber and presses on its clock like a man. The first baits land; a habit does not.
+    const commits = guardOf(M).commits, wary = commits && reads.parker, window = guardOf(M).window;
+    const estimate = timing(F).windup - (commits && !wary ? elapsed(F) : F.age) + next.jitter;
+    const moving = !wary || F.age > (theirs[F.move!].chamber ?? -1);
     next.scores = { [next.plan!]: 1, estimate };
     if (next.plan === 'parry') {
       // Press when the window will cover the estimated contact; hold an open window; release a stale standing guard so a fresh press can parry.
-      if (M.phase === 'ready') { if (estimate <= RULES.parry - 2) { intent.action = 'parry'; intent.guard = true; } }
-      else intent.guard = M.age < RULES.parry || estimate <= 3;
+      // The press comes `window − 2` ticks before contact so the window's tail covers it: a man's 10-tick window presses at contact − 8; a longer
+      // window (the Nightborn's 14) presses earlier — inside the player's feint window, which is exactly what makes him baitable.
+      if (M.phase === 'ready') { if (estimate <= window - 2 && moving) { intent.action = 'parry'; intent.guard = true; } }
+      else intent.guard = M.age < window || estimate <= 3;
     } else if (next.plan === 'dodge' && M.stamina >= RULES.rollCost && estimate <= RULES.safeEnd - 2 && estimate >= RULES.safeStart) intent.action = 'dodge';
     else if (next.plan === 'evade') { if (legal(M, 'backstep')) intent.action = 'backstep'; else intent.move = { x: -Math.sin(facing), z: -Math.cos(facing), yaw: 0, run: false }; }   // step out of reach, still facing the blade
     else intent.guard = true;
