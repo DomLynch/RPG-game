@@ -278,11 +278,52 @@ export function knife({ T: three = T, withAoUv = g => g, variant = KNIFE_DEFAULT
   return group;
 }
 
+// ── The estoc (the Nightborn's; his brief §"Weapon: estoc"): a long, thin, thrust-first blade — a stiff square-section rod drawn to
+// a point, no cutting edge — a black iron guard, a wire grip, a faceted pommel. The sword's clip family, NOT re-keyed: every clip is the
+// Nightborn's own (his parity test holds), only the node under hand_r changes. Contact = the last 40 cm (the point is all that matters;
+// a "cut" with an estoc is a whack with a rod, and the data prices it so). Variants for the owner: A the estoc (1.05 m blade, straight
+// cross + a side ring), B the rapier cut (0.95 m, swept ring guard), C the long tuck (1.15 m, plain long cross).
+export const ESTOC_VARIANTS = {
+  A: { name: 'A · estoc: 1.05 m blade, straight cross + side ring', y1: 1.15, cross: .22, ring: .026, width: .020 },
+  B: { name: 'B · rapier cut: 0.95 m blade, swept ring guard', y1: 1.05, cross: .16, ring: .040, width: .018 },
+  C: { name: 'C · long tuck: 1.15 m blade, plain long cross', y1: 1.25, cross: .26, ring: 0, width: .022 },
+};
+export const ESTOC_DEFAULT = 'A';
+export function estoc({ T: three = T, withAoUv = g => g, variant = ESTOC_DEFAULT } = {}) {
+  const v = ESTOC_VARIANTS[variant] ?? ESTOC_VARIANTS[ESTOC_DEFAULT];
+  const steel = new three.MeshStandardMaterial({ name: 'EstocSteel', color: '#b4b8bc', metalness: .9, roughness: .34 });   // bright, a straight pale line at 3 m; roughness keeps it from chroming
+  const black = new three.MeshStandardMaterial({ name: 'BlackIron', color: '#1d1c1f', metalness: .8, roughness: .62 });     // black-oiled iron furniture, his kit's tone
+  const wire = new three.MeshStandardMaterial({ name: 'Wire', color: '#6e7074', metalness: .75, roughness: .5 });           // twisted steel wire over the grip
+  const group = new three.Group(); group.name = 'WeaponDrawn';
+  const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
+  // The blade: a square-section rod (a diamond ring of four points, equal width and thickness — no edge) tapering to the point.
+  const y0 = .10, y1 = v.y1, segments = 16, positions = [], uvs = [];
+  const ring = i => { const t = i / segments, y = y0 + t * (y1 - y0), w = i === segments ? 0 : v.width * (1 - .78 * t) / 2; return [[w, y, 0], [0, y, w], [-w, y, 0], [0, y, -w]]; };
+  for (let i = 0; i < segments; i++) {
+    const a = ring(i), b = ring(i + 1);
+    for (let k = 0; k < 4; k++) { const n = (k + 1) % 4; for (const [p, u, w] of [[a[k], k, i], [a[n], k + 1, i], [b[n], k + 1, i + 1], [a[k], k, i], [b[n], k + 1, i + 1], [b[k], k, i + 1]]) { positions.push(...p); uvs.push(u / 4, w / segments); } }
+  }
+  const g = new three.BufferGeometry(); g.setAttribute('position', new three.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new three.Float32BufferAttribute(uvs, 2)); g.computeVertexNormals();
+  piece(g, steel);
+  const cyl = (rTop, rBottom, from, to, seg = 10) => new three.CylinderGeometry(rTop, rBottom, to - from, seg).translate(0, (from + to) / 2, 0);
+  piece(new three.BoxGeometry(v.cross, .014, .014), black, .098);                                        // the straight cross
+  for (const x of [-1, 1]) piece(new three.SphereGeometry(.011, 8, 6), black, .098, x * v.cross / 2);      // its finials
+  if (v.ring) piece(new three.TorusGeometry(v.ring, .0045, 6, 20).rotateY(Math.PI / 2), black, .098 - v.ring - .004, 0, .006);   // a side ring under the cross (the duelist's finger guard)
+  piece(cyl(.012, .013, .088, .105, 10), black);                                                            // the guard's block
+  piece(cyl(.011, .012, -.11, .088), wire);                                                                // the grip core
+  for (let i = 0; i < 10; i++) piece(new three.TorusGeometry(.0125, .0018, 3, 10).rotateX(Math.PI / 2), wire, -.10 + i * .019);   // the wire's turns (the brief's ≤ 2k tris: ten turns, not fourteen)
+  piece(new three.CylinderGeometry(.017, .013, .026, 8).translate(0, -.123, 0), black);                    // faceted pommel
+  group.userData.contact = { from: +(y1 - .40).toFixed(3), to: y1 };                                       // the last 40 cm: the point
+  group.userData.weapon = 'estoc'; group.userData.variant = variant;
+  return group;
+}
+
 // What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.
 export const WEAPON_BUILDS = {
   trident: { part: trident, clips: tridentClips, keys: {} },
   cleaver: { part: cleaver, clips: null, keys: CLEAVER_KEYS },
   knife: { part: knife, clips: null, keys: CLEAVER_KEYS },   // the same diagonal Heavy: a knife's overhead is a hack too, edge-leading
+  estoc: { part: estoc, clips: null, keys: {} },              // no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
 };
 
 // Standalone: the part alone (no rig), for the record and the harness turntable.
@@ -290,12 +331,12 @@ if (process.argv[1] && /build-weapon\.mjs$/.test(process.argv[1])) {
   const fs = await import('node:fs/promises');
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   globalThis.FileReader ??= class { async readAsArrayBuffer(blob) { this.result = await blob.arrayBuffer(); this.onloadend?.(); } async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); } };
-  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ cleaver: CLEAVER_DEFAULT, knife: KNIFE_DEFAULT }[weapon] ?? DEFAULT_VARIANT);
+  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ cleaver: CLEAVER_DEFAULT, knife: KNIFE_DEFAULT, estoc: ESTOC_DEFAULT }[weapon] ?? DEFAULT_VARIANT);
   const scene = new T.Scene(), part = WEAPON_BUILDS[weapon].part({ variant }); scene.add(part);
   const glb = await new GLTFExporter().parseAsync(scene, { binary: true });
   const out = process.env.WEAPON_OUT || `src/assets/weapons/${weapon}/${weapon}.glb`;
   await fs.mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true }); await fs.writeFile(out, Buffer.from(glb));
   let triangles = 0; part.traverse(o => { if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
-  const names = { cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS }[weapon] ?? VARIANTS;
+  const names = { cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS, estoc: ESTOC_VARIANTS }[weapon] ?? VARIANTS;
   console.log(`${weapon} ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${names[variant].name})`);
 }

@@ -176,3 +176,37 @@ unchanged. Built from the character lane's contract (artifacts/goblin/REQUESTS.m
 ## 11. Owner — ~~pick the knife's silhouette~~ **Picked (2026-09-17): A, the sica** — the default; no flag needed.
 `artifacts/weapons/knife-v1/weapon-turntable.png` (0.42 m, inward hook, forward grip). C (straight long knife) stays as a `WEAPON_VARIANT`
 option; B (reverse grip) is the record of a rejected idea. In his hand: `knife-v1/weapon-on-rig.png`.
+
+---
+
+# Estoc (the Nightborn's) — hand-off to the combat lane, 2026-09-17
+
+On the shelf (the split): `ESTOC` exported, `WEAPONS.estoc` still borrows the longsword, no manifest entry, the Nightborn unchanged.
+Built to his brief's contract (artifacts/character/BRIEF-nightborn.md § "Weapon: estoc").
+
+## 12. Combat lane — the flip
+1. `src/moves.ts`: `WEAPONS.estoc` → `ESTOC` (guard blade, material `'steel'` — the new word in `Material`, for audio's thin bright cue —
+   `fight { thrustShare .7, close 1.15 }`).
+2. `scripts/blade-manifest.json`: `{ "weapon": "estoc", "glb": "src/assets/weapons/estoc/nightborn-estoc.glb", "node": "WeaponDrawn",
+   "contact": [0.75, 1.15] }` — HIS rig (root 1.03 as the character lane shipped it). Then `node scripts/bake-blades.mjs`.
+3. Renderer: nothing. `WEAPON_CLIPS.estoc = { Thrust: 'Riposte' }` is already right — every clip on the estoc rig is byte-identical to
+   nightborn.glb (no re-key: an estoc has no edge to lead with), only the node under `hand_r` changes.
+4. His body: rebuild `src/assets/nightborn.glb` with `WARRIOR_WEAPON=estoc` (`WEAPON_VARIANT` per the owner's pick, A default) and relax his
+   identity test in `tests/characters.test.ts` only for the empty sword nodes — his clips stay identical, so the clip parity holds as is.
+5. Review, battery, deploy — yours (§13).
+
+## 13. What the numbers do (measured on his rig; the tests pin the data rules)
+- The sword's timings, lunges, feint windows and chambers EXACTLY (`ESTOC_PATHS = PATHS`; the cleaver lesson): his whiff window is the
+  sword Veteran's. `reach` = the sword's conservative spacing estimates (1.65 / 1.9 / 2.0), as the brief asked — so he spaces like the
+  sword Veteran did — while the blade is 0.30 m longer: **measured frontier thrust 2.35 m, cut 2.0, heavy 2.5** (sword 2.0 / 1.7 / 2.2).
+  That margin is his: he lands from where the player expects a whiff. If you want him to fight AT his length, widen `reach` deliberately
+  (the trident's slice V did) and re-run the battery; the cleaver stalled when measured reaches made the AI hang out of punish range.
+- The thrust is the weapon: 14 dmg (stab 11), staminaDamage 22, posture 18, and it chains into a second (the riposte path 12/5/19, window
+  14) — "thrusts and short chains". Cuts are whacks with a rod: 9 dmg, chip 0, posture 16; the heavy 15, chip .25. The riposte, his payoff
+  after the parry that meets everything: 26 (sword 24). Riposte-family reaches the sword's.
+- Not measured: his fairness battery and AI-vs-AI (the goblin's knobs landed after this branch; his own stance/guard fields are yours).
+
+## 14. Owner — pick the estoc's silhouette
+`artifacts/weapons/estoc-v1/weapon-turntable.png` (**A**, default: 1.05 m blade, straight cross + side ring), `estoc-B/` (rapier cut:
+0.95 m, swept ring guard), `estoc-C/` (long tuck: 1.15 m, plain long cross). 1,252 / 1,252 / ~1,100 triangles, no textures;
+`WEAPON_VARIANT=A|B|C`. In his hand: `estoc-v1/weapon-on-rig.png`.

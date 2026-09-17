@@ -441,3 +441,13 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
   at every gap) — it would need its own clips. Owner picked A, the sica (2026-09-17); C stays an option (REQUESTS §11).
 - Evidence: tests/weapons.test.ts +4 (193/193 on the merged tree), `artifacts/weapons/REPORT.md` (knife section), sheets `knife-v1/`,
   `knife-B/`, `knife-C/`, `goblin-baseline/`. Hand-off to the combat lane: REQUESTS §9–10.
+
+## Estoc v1 — the weapons lane — 2026-09-17
+- Branch `weapons/estoc-v1` from trunk 9d08824. The Nightborn's estoc: a long, thin, thrust-first square-section blade with no edge,
+  black iron cross + side ring, wire grip — 1,252 triangles, no textures, contact = the last 40 cm (the point); his own rig carries it
+  (`src/assets/weapons/estoc/nightborn-estoc.glb`) with EVERY clip byte-identical to nightborn.glb (nothing re-keyed). On the shelf:
+  `ESTOC` exported (the sword's timings and lunges exactly; cuts weaker, no chip; the thrust stronger and chaining; the riposte his payoff;
+  `fight.thrustShare .7`; material `'steel'`, a new word in `Material` for audio), `WEAPONS.estoc` still the placeholder, no manifest entry.
+- Measured on his rig: the blade lands 0.30 m past the sword everywhere (thrust 2.35, cut 2.0, heavy 2.5); `reach` stays the sword's
+  conservative numbers per his brief, the margin reported for combat review. Owner's pick pending: A estoc (default), B rapier cut, C long
+  tuck (REQUESTS §14). Hand-off: REQUESTS §12–13. Tests: 224/224.
