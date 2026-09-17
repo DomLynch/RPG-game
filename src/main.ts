@@ -9,7 +9,7 @@ import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILE
 import { RULES } from './moves.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
-import { opponentFor, won, nextAfter } from './ladder.ts';
+import { LADDER, opponentFor, won, nextAfter } from './ladder.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('world');
@@ -61,6 +61,16 @@ function applyScheme() {
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 // Who stands opposite: the rung this device has reached (profile.ladder), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
 const opponent = opponentFor(profile.ladder, /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]);
+// Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
+// URL override is dropped so the pick wins. Picking the Veteran is a reset.
+const opponentSelect = element<HTMLSelectElement>('opponent-select');
+for (const rung of LADDER) { const option = document.createElement('option') as HTMLOptionElement; option.value = rung.id; option.textContent = rung.name; opponentSelect.append(option); }
+opponentSelect.value = opponent.id;
+opponentSelect.addEventListener('change', () => {
+  const pick = LADDER.find(rung => rung.id === opponentSelect.value); if (!pick) return;
+  profile.ladder = pick.id; persist();
+  const url = new URL(location.href); url.searchParams.delete('opponent'); location.replace(url.href);
+});
 if (opponent.id !== 'veteran') { const label = element('opponent-name'), name = opponent.id.charAt(0).toUpperCase() + opponent.id.slice(1); label.textContent = `THE ${name.toUpperCase()}`; label.dataset.mobile = name; }
 let matchSeed = 731, practice = initialPractice(matchSeed, opponent), state = practice.fighter, previous = state, accumulator = 0, locked = true;
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.

@@ -86,3 +86,4 @@
 
 /* Combat debug overlay: developer readout of simulation state, presentation-only. */
 .debug{position:fixed;left:8px;top:8px;z-index:6;margin:0;padding:6px 8px;max-width:min(96vw,520px);max-height:60vh;overflow:auto;font:11px/1.35 ui-monospace,Menlo,monospace;color:#e6dcc4;background:#0d1214d9;border:1px solid #c1ad7966;white-space:pre;pointer-events:none}
+.menu-select{display:inline-flex;align-items:center;gap:8px;margin:6px 10px 6px 0;font:12px Arial,sans-serif;color:#c5ceca}.menu-select select{font:13px Arial,sans-serif;color:#eee9df;background:#172329c4;border:1px solid #6b7a78;border-radius:8px;padding:6px 8px;min-height:36px}
