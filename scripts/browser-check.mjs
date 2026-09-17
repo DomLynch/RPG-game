@@ -39,9 +39,9 @@ try {
  receipt.guardAfterTellMs=await page.evaluate(()=>window.__guardAt-window.__tellAt);assert.ok(receipt.guardAfterTellMs>0,'Guard must receive the real touch after the tell');
  await page.waitForFunction(()=>/Parried|Blocked|Hit taken|Guard broken/.test(document.querySelector('#combat-status').textContent),null,{timeout:1500});
  receipt.parry=await snapshot();assert.match(receipt.parry.status,/Parried/);await touch('touchEnd');
- await page.waitForTimeout(60);await page.screenshot({path:'artifacts/browser-parry.png'});
+ await page.waitForTimeout(60);await page.screenshot({path:'artifacts/browser-parry.jpg',type:'jpeg',quality:85});
  await page.getByRole('button',{name:'Light attack',exact:true}).tap();await page.waitForTimeout(350);
- receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,HP-24,'the riposte takes 24');await page.screenshot({path:'artifacts/browser-riposte.png'});
+ receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,HP-24,'the riposte takes 24');await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});
  await page.waitForTimeout(600);await page.keyboard.down('KeyW');await page.waitForTimeout(240);await page.keyboard.up('KeyW');
  await page.waitForFunction(()=>document.querySelector('#kick-button').dataset.reach==='true',null,{timeout:1500});   // the kick's cone is short: wait until the HUD says it can land rather than on a fixed clock
  await page.getByRole('button',{name:'Kick',exact:true}).tap();await page.waitForTimeout(335);receipt.kick=await snapshot();
