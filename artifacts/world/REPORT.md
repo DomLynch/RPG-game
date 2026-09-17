@@ -71,5 +71,5 @@ Found and fixed in the same PR: the banner cut mask sat in the alpha channel onl
 rendered as rectangles); a see-through gap above the gate where tier 0's riser was skipped; a UV seam at angle 0 on every riser (the arc
 UV now closes on a whole tile); `dispose()` did not release the instanced buffers (`InstancedMesh.dispose()`). Recaptured; numbers unchanged.
 Frame time in headless Chromium on the owner's Mac: baseline 60 fps · p95 17 ms, arena v1 60 fps · p95 17–18 ms; load 797 → 1072 ms.
-Browser gate on this arena: 3 of 4 runs (the miss was the kick's wall-clock health snapshot, already documented as fragile in
-scripts/browser-check.mjs), then 2 of 2 on the rebased tip.
+Browser gate on this arena: 3 of 6 runs against trunk's 4 of 4 — traced to the gate's own PNG screenshots pausing the page ~150 ms
+each on this high-entropy frame (REQUESTS.md #0, with the measurements); with JPEG diagnostics 3 of 3. Arena runtime cost is not the cause.

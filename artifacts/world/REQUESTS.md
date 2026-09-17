@@ -1,5 +1,16 @@
 # Requests to the lead (files this lane will not touch)
 
+0. **Browser gate: the two in-window screenshots should be JPEG (`scripts/browser-check.mjs`, lead's).** With this arena the gate passed
+   3 of 6 runs (trunk 4 of 4). Root cause, measured: `page.screenshot()` pauses the page's frame source while Chromium reads back and
+   PNG-encodes the frame; sand and gravel are high-entropy (the parry PNG is 1.07 MB vs 323 KB on trunk), so the encode takes ~150 ms —
+   two stalls of 150 ms land between the riposte and the kick, `main.ts` clamps `dt` to 0.1 s so the simulation loses time, the walk-and-kick
+   timing shifts, and the warden's deterministic decision flips to kicking first ("Kicked · −5", enemy 126). Not a runtime cost: frame
+   pacing through the same window is median 16.7 ms, max 18 ms, zero stalls; the game's own readout is 60 fps · p95 17–18 ms (trunk 17).
+   Bisected across anisotropy, normal map, sky, crowd, shadows, texture size (64² still stalls), mipmaps and canvas textures: only the
+   textured sand matters, and only through the capture. With `{ type: 'jpeg', quality: 85 }` on `browser-parry` and `browser-riposte`
+   the stalls vanish and the gate passed 3 of 3 (kick at 5.29–5.30 s after Draw sword, trunk 5.37). One-line change each; the PNGs are
+   diagnostics, not evidence the gate asserts on. Until it lands, expect the pre-deploy gate to need a re-run on this arena.
+
 1. **Rename the place** (`index.html` `.place`, `#opponent-name`, `data-mobile`; `feedback.ts` reverb comment; PROJECT_STATE). *Ashcourt / The
    Old Keep* is the retired keep. Three names, in preference order, with the eyebrow line each would carry:
    - **The Ashpit** — *at the edge of worlds*. The crowd's word for it: a pit of ash the dead civilisations are pulled into. Reads in one
