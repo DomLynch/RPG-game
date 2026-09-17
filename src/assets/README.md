@@ -427,3 +427,11 @@ Provenance: **original project work, no new third-party asset, texture or licenc
 wedge section, the hook's back sharpened over its last third) and Three.js primitives; procedural materials (scavenged iron, greasy wood,
 cord); no image maps. The re-keyed `Heavy` is the cleaver's original keys on the same CC0 rig. Evidence and the silhouettes:
 `artifacts/weapons/REPORT.md`.
+
+# Arena (world lane, 2026-09-17)
+
+Every arena texture — sand albedo and normal map, ashlar stone, sky dome, crowd silhouette atlas, torn-banner alpha — is generated at load
+by `src/assets/arena/textures.ts` from seeded noise (an integer hash, tileable value noise, stamped pebbles). Original project work; no
+third-party images, models or fonts, nothing downloaded, no licence to record. The geometry in `src/arena.ts` is procedural Three.js
+(`three/addons/utils/BufferGeometryUtils.js` for merging). The same functions run in `tests/arena.test.ts`, so the pixels the test
+measures are the pixels the phone shows. Review captures: `node scripts/arena-preview.mjs --label <name>` → `artifacts/world/<name>/`.
