@@ -12,7 +12,7 @@ const BASE_SEED = 731;
 
 // Combat Foley: the simulation's events pick cues from one decoded sprite (src/audio/manifest.ts, built by
 // scripts/build-audio.mjs); seeded variant rotation and ±5 % pitch keep two hits from ever sounding identical. Voices feed a
-// compressor and a −1 dBFS soft ceiling; a share of each voice goes to a short courtyard reverb. Until the sprite is decoded,
+// compressor and a −1 dBFS soft ceiling; a share of each voice goes to a short arena reverb. Until the sprite is decoded,
 // the original synthesised layers stand in so no event is ever silent.
 export function createFeedback(host?: FeedbackHost) {
   type Voice = { source: AudioBufferSourceNode | null; gain: GainNode; send: GainNode; until: number };
@@ -42,7 +42,7 @@ export function createFeedback(host?: FeedbackHost) {
     // Glue and density: the compressor leans on stacked hits and the makeup pushes the mix into the ceiling, which is what makes impacts read as big on a small speaker.
     const makeup = context.createGain(); makeup.gain.value = 2.1; makeup.connect(ceiling);   // +6.4 dB: restores the 4 dB of codec headroom baked into the sprite, plus glue
     bus = context.createDynamicsCompressor(); bus.threshold.value = -20; bus.knee.value = 10; bus.ratio.value = 5; bus.attack.value = .002; bus.release.value = .15; bus.connect(makeup);
-    const room = context.createConvolver(); room.buffer = courtyard(context); room.connect(bus);
+    const room = context.createConvolver(); room.buffer = arena(context); room.connect(bus);
     for (let i = 0; i < VOICES; i++) { const gain = context.createGain(), send = context.createGain(); gain.connect(bus); gain.connect(send); send.connect(room); send.gain.value = 0; voices.push({ source: null, gain, send, until: 0 }); }
     noise = context.createBuffer(1, context.sampleRate * .3, context.sampleRate);
     const data = noise.getChannelData(0), r = seeded(host?.seed ?? BASE_SEED); for (let i = 0; i < data.length; i++) data[i] = r() * 2 - 1;
@@ -100,8 +100,8 @@ function softCeiling(): Float32Array<ArrayBuffer> {
   for (let i = 0; i < curve.length; i++) { const x = (i / 512) - 1; curve[i] = limit * Math.tanh(x / limit); }
   return curve;
 }
-// Courtyard: a stone-walled decay, darkening as it fades. Built once from seeded noise; ConvolverNode normalises it.
-function courtyard(context: BaseAudioContext): AudioBuffer {
+// Arena: a stone-walled decay, darkening as it fades. Built once from seeded noise; ConvolverNode normalises it.
+function arena(context: BaseAudioContext): AudioBuffer {
   const seconds = .8, buffer = context.createBuffer(1, Math.round(context.sampleRate * seconds), context.sampleRate), data = buffer.getChannelData(0), r = seeded(97);
   let low = 0;
   for (let i = 0; i < data.length; i++) { const t = i / data.length, k = .12 + .5 * t; low += (r() * 2 - 1 - low) * (1 - k); data[i] = low * Math.exp(-6.9 * t) * (i < 240 ? i / 240 : 1); }

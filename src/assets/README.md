@@ -1,4 +1,4 @@
-# Ashcourt warden asset
+# Origins Arena warden asset
 
 Foundation: Quaternius, Universal Base Characters (Standard), Superhero_Male_FullBody.
 https://quaternius.com/packs/universalbasecharacters.html

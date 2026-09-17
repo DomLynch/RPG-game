@@ -18,7 +18,7 @@ try {
  await page.route('**/*sentry.io/**',route=>route.abort()); // Deliberate GPU failure checks must not create production incidents.
  page.on('pageerror',e=>receipt.errors.push(String(e)));
   // The first two waits are load waits (the two rigs are ~13 MB; a slow link to the live site is not a behaviour failure): 90 s, like the rig wait.
- await page.goto(url);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});await page.getByRole('button',{name:'Enter the courtyard'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL; a load wait, not a behaviour wait
+ await page.goto(url);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});await page.getByRole('button',{name:'Enter the arena'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL; a load wait, not a behaviour wait
  const cdp=await page.context().newCDPSession(page);
  const center=async id=>{const b=await page.locator('#'+id).boundingBox();assert.ok(b,id);return{x:b.x+b.width/2,y:b.y+b.height/2}};
  const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
@@ -75,7 +75,7 @@ try {
   await fallback.waitForFunction(()=>document.querySelector('#message').textContent.includes('needs WebGL 2'));
   assert.equal(await fallback.evaluate(()=>document.querySelector('#world').getContext('webgl2')),null);
   assert.equal(await fallback.locator('#attack-button').getAttribute('aria-disabled'),'true');
-  assert.equal(errors.length,1);assert.match(errors[0],/Unable to initialise the WebGL2 courtyard/);receipt.unsupportedGPU='Explicit fallback message and disabled combat; expected initialization error captured with telemetry blocked';
+  assert.equal(errors.length,1);assert.match(errors[0],/Unable to initialise the WebGL2 arena/);receipt.unsupportedGPU='Explicit fallback message and disabled combat; expected initialization error captured with telemetry blocked';
  } finally {await unsupported.close();}
  receipt.passed=true;
  console.log(JSON.stringify(receipt,null,2));

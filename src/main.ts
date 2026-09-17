@@ -304,10 +304,10 @@ let view: ReturnType<typeof createScene>;
 try { view = createScene(canvas, status => { element('art-status').textContent = status; assetsReady = status === ''; }, opponent.id); }
 catch {
   element('performance').textContent = '3D unavailable';
-  message.hidden = false; message.textContent = 'The courtyard needs WebGL 2. Try an up-to-date browser with hardware acceleration enabled.';
+  message.hidden = false; message.textContent = 'The arena needs WebGL 2. Try an up-to-date browser with hardware acceleration enabled.';
   cameraButton.disabled = runButton.disabled = true;
   attackButton.setAttribute('aria-disabled', 'true');
-  throw new Error('Unable to initialise the WebGL2 courtyard');
+  throw new Error('Unable to initialise the WebGL2 arena');
 }
 let bloodMode = 0;
 element('blood-mode').addEventListener('click', () => { bloodMode=(bloodMode+1)%3; const mode=(['red','dark','off'] as const)[bloodMode]; view.setBloodMode(mode); element('blood-mode').textContent=`Blood: ${mode}`; });
@@ -318,7 +318,7 @@ const showHitStop = () => { element('hitstop-mode').textContent = `Hit-stop: ${h
 element('hitstop-mode').addEventListener('click', () => { hitStopOn = !hitStopOn; hitStop = 0; try { storage.setItem(HITSTOP_KEY, hitStopOn ? 'on' : 'off'); } catch { /* a full store just loses the preference */ } showHitStop(); });
 showHitStop();
 function graphicsFailure() {
-  message.hidden = false; message.textContent = 'Graphics could not recover. Reload to return to the courtyard. ';
+  message.hidden = false; message.textContent = 'Graphics could not recover. Reload to return to the arena. ';
   const reload = document.createElement('button'); reload.textContent = 'Reload game';
   reload.addEventListener('click', () => location.reload()); message.append(reload);
 }
