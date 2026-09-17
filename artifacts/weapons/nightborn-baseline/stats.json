@@ -1,0 +1,44 @@
+{
+ "label": "nightborn-baseline",
+ "commit": "9d08824",
+ "date": "2026-09-17",
+ "enemyGlb": "src/assets/nightborn.glb",
+ "enemyGlbBytes": 6057152,
+ "enemyGlbGzip": 3458427,
+ "node": "SwordDrawn",
+ "triangles": 364,
+ "materials": [
+  "Blade",
+  "Antique brass",
+  "Leather",
+  "Steel"
+ ],
+ "contact": [
+  0.18,
+  0.86
+ ],
+ "extentMetres": 0.824,
+ "clips": [
+  "Idle",
+  "Walk",
+  "Jog",
+  "Run",
+  "Armed",
+  "Attack",
+  "Hit",
+  "Death",
+  "Draw",
+  "Roll",
+  "Guard",
+  "Return",
+  "Heavy",
+  "Riposte",
+  "ArmedWalk",
+  "StrafeLeft",
+  "StrafeRight",
+  "Kick",
+  "BlockImpact",
+  "Parry",
+  "Deflected"
+ ]
+}

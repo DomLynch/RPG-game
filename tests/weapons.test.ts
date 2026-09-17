@@ -345,3 +345,42 @@ test('the knife\'s data keeps the goblin\'s brief: every wind-up ≥ 12 ticks (r
   assert.ok(KNIFE.moves.light_right.reach < KNIFE.moves.thrust.reach && KNIFE.moves.thrust.reach < KNIFE.moves.heavy_overhead.reach);
   assert.deepEqual([KNIFE.guard, KNIFE.material, KNIFE.fight.thrustShare > LONGSWORD.fight.thrustShare, KNIFE.fight.close < LONGSWORD.fight.close], ['blade', 'iron', true, true]);
 });
+
+// ── The estoc (weapons lane, 2026-09-17): the Nightborn's — ON THE SHELF. The combat lane flips `WEAPONS.estoc` to ESTOC, adds the manifest
+// entry from src/assets/weapons/estoc/nightborn-estoc.glb (his own rig), bakes, reviews (artifacts/weapons/REQUESTS.md §12–13).
+import { ESTOC, ESTOC_PATHS } from '../src/moves.ts';
+const ESTOC_GLB = 'src/assets/weapons/estoc/nightborn-estoc.glb';
+
+test('the estoc is on the shelf: ESTOC is real data nothing uses; WEAPONS.estoc still borrows the longsword; no manifest entry yet', () => {
+  assert.equal(WEAPONS.estoc.placeholder, true); assert.equal(WEAPONS.estoc.moves, MOVES); assert.deepEqual(bladePaths.estoc, bladePaths.longsword);
+  assert.notEqual(ESTOC.moves, MOVES); assert.equal(ESTOC.paths, PATHS, 'the sword\'s clips at the sword\'s timings: the bake differs only by the point'); assert.equal(ESTOC.id, 'estoc');
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string }[] };
+  assert.ok(!manifest.weapons.some(w => w.weapon === 'estoc'), 'no estoc bake until the flip');
+});
+
+test('the estoc rig is the Nightborn\'s own with WeaponDrawn (a long thin blade, the last 40 cm as the contact segment, ≤ 2k triangles), empty sword nodes, and EVERY clip byte-identical to nightborn.glb — no re-key at all', async () => {
+  const asset = await readRig(ESTOC_GLB), own = await readRig('src/assets/nightborn.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
+  assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
+  const contact = weapon.userData.contact as { from: number; to: number };
+  assert.ok(contact && contact.to > 1.0 && Math.abs(contact.to - contact.from - .4) < .001, `the last 40 cm of a long blade: ${JSON.stringify(contact)}`);
+  let triangles = 0; weapon.traverse(o => { const m = o as { isMesh?: boolean; geometry?: { index: { count: number } | null; attributes: { position: { count: number } } } }; if (m.isMesh && m.geometry) triangles += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
+  assert.ok(triangles > 0 && triangles <= 2000, `≤ 2k triangles (the brief): ${triangles}`);
+  for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
+  assert.deepEqual(asset.animations.map(c => c.name), own.animations.map(c => c.name), 'his clip list, in order');
+  for (const clip of own.animations) {
+    const twin = asset.animations.find(c => c.name === clip.name)!;
+    for (const t of clip.tracks) { const o = twin.tracks.find(x => x.name === t.name)!; assert.ok(o && o.times.length === t.times.length && Array.from(t.values).every((v, i) => Math.abs(v - o.values[i]) < 1e-6), `${clip.name} ${t.name} is the Nightborn's own`); }
+  }
+  assert.ok(Object.values(ESTOC_PATHS).every(spec => ['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip)));
+});
+
+test('the estoc\'s data is the brief\'s: the sword\'s timings and lunges exactly, reach in the sword\'s conservative convention, cuts weaker than the sword\'s with no chip, the thrust a little stronger and chaining, a high thrust share, steel', () => {
+  for (const id of ['light_right', 'light_left', 'heavy_overhead', 'thrust', 'riposte', 'heavy_riposte', 'heavy_counter', 'critical'] as const) {
+    const s = MOVES[id], e = ESTOC.moves[id];
+    assert.deepEqual([e.windup, e.active, e.recovery, e.stepIn, e.feintUntil, e.chamber], [s.windup, s.active, s.recovery, s.stepIn, s.feintUntil, s.chamber], `${id}: the sword's timing, lunge, feint window and chamber`);
+    assert.equal(e.reach, s.reach, `${id}: the sword's spacing estimate (measured frontier is 0.3 m longer — REPORT.md)`);
+  }
+  assert.ok(ESTOC.moves.light_right.damage < MOVES.light_right.damage && ESTOC.moves.light_right.chip === 0 && ESTOC.moves.heavy_overhead.damage < MOVES.heavy_overhead.damage, 'cuts with a rod');
+  assert.ok(ESTOC.moves.thrust.damage > MOVES.thrust.damage && ESTOC.moves.thrust.chain?.follow.includes('thrust') && ESTOC.moves.riposte.damage > MOVES.riposte.damage, 'the thrust is the weapon; the riposte his payoff');
+  assert.deepEqual([ESTOC.guard, ESTOC.material, ESTOC.fight.thrustShare > .5, ESTOC.fight.close], ['blade', 'steel', true, LONGSWORD.fight.close]);
+});
