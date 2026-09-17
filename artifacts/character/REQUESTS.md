@@ -50,17 +50,24 @@ Evidence: `artifacts/character/realistic-v2/stats.json`.
 Brief: `artifacts/character/BRIEF-nightborn.md`. Shipped: the opponent seam (`OPPONENTS.nightborn`, the committing guard), the kit
 (closed black tunic with sleeves, standing collar, hose, boots, black leather, dull iron), posture (`BUILD.nightborn`), `nightborn.glb`,
 tests, the per-fight budget gate.
-1. **The head is a STAND-IN.** `head.FIGHTERS.nightborn.kt_glb` points at the hero's scan: the KeenTools job on the seven portraits
-   (`artifacts/source/face/nightborn/nightborn-01..07.png`, uploaded 2026-09-16 23:0x) stopped at `402 Insufficient credits` after the
-   uploads. Owner: top up at keentools.io, then `set -a; . ./.env.keentools.local; set +a; node scripts/create-head.mjs artifacts/source/keentools
+1. **The head is a STAND-IN — restyled, not replaced (2026-09-17, the no-credits pass, branch `char/nightborn-face-v1`).** The owner
+   declined the €11 KeenTools top-up for now and asked for the free route: the stand-in (the hero's scan) is restyled to the brief on
+   its own texture — `pallor` (skin paled grey-white and cooled on the photographed head AND the body, clean-shaven, sunken sockets),
+   `dark_eyes` (iris toward black, sclera lift halved), black hair (photographed buzz + synthesised crown strands), the throat scar
+   (2.5 cm under the chin tip), pointed ears (`parts.ear_points`, #3 below). `skin_mul` alone only brightened the body — the face is
+   the scan's raw photograph, so the restyle lives in `keentools_head` on `filled`. The KeenTools path stays the upgrade for a UNIQUE
+   face (no likeness to match — the portraits are AI references): top up at keentools.io (~110 cr ≈ €11 for 7 photos + mesh + texture),
+   then `set -a; . ./.env.keentools.local; set +a; node scripts/create-head.mjs artifacts/source/keentools
    artifacts/source/face/nightborn/nightborn-0{1,6,7,2,3,4,5}.png`, point `kt_glb` at the new GLB (cams are already in that upload order),
-   rebuild (`HEAD_KT=1 blender -b -P scripts/character/parts.py -- --body realistic --fighter nightborn && WARRIOR_FIGHTER=nightborn node
-   scripts/build-warrior.mjs`), expect a `skin_mul` pass (pale grey-white: the portraits carry it; `keentools_skin_tone` follows the face).
+   rebuild (`HEAD_KT=1 blender -b --python-exit-code 1 -P scripts/character/parts.py -- --body realistic --fighter nightborn &&
+   WARRIOR_FIGHTER=nightborn node scripts/build-warrior.mjs`) — the restyle flags stay on and will restyle the real scan the same way.
 2. **Hair fall.** The portraits show black hair to the shoulders, swept back; the pipeline paints the scalp (`hair: 'full'`) and grows fur
    shells on it. A hair fall is a new part: an `extract` shell over the back of the scanned head and the nape (two meshes — the KT head and
    the body below the scan cut), `Hair` material dyed black (`hair_maps` × ~0.4). Do it with the real head; rigid on `Head` so nothing sims.
-3. **Pointed ears.** Owner-locked by the portraits. Two small cones rooted at the ear tips, rigid on `Head` — the `tusks()` pattern with the
-   ear positions read from the scan's widest points at eye height. With the real head.
+3. **Pointed ears.** Owner-locked by the portraits. **Done 2026-09-17 on the stand-in head** (`parts.ear_points`, `KIT 'ears': 'points'`):
+   two small 3 cm cones rooted at the helix's top (a ray beside the head above the canal), up and a little out along the pinna's tilt,
+   rigid on `Head`, wearing the face's photo tile by the goblin ears' cheek-texel walk. The human ear stays whole under them. Re-check
+   the root positions if the real scan lands (its ears will sit differently).
 4. **Idle stillness.** Not done: the parity test wants every non-posture track byte-identical, so the plan is a GLB datum `idleScale` (≈.6,
    the Goblin's `stride` pattern) with a one-line read in `characters.ts` (`Idle`/`Armed` action `timeScale`). Renderer lane.
 5. **Reproportion.** Long limbs / narrow shoulders were to come from the Goblin's `reproportion` (uncommitted in his worktree at the time);
