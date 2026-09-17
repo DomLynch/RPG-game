@@ -30,6 +30,7 @@ export type Fighter = {
   stall: number;   // ticks the current attack's clock stands still (a thrust that met nothing hangs at full extension)
   maxHealth: number;   // the bar's ceiling (moves.ts `Opponent.health`; RULES.health for a man)
   scale: number;   // body scale: the hit capsule and its head/torso/legs regions the opponent's blade sweeps (moves.ts `Opponent`)
+  regen: number;   // stamina regeneration multiplier (moves.ts `Opponent.regen`; 1 = a man)
   poise: number;   // a plain clean hit dealing less than this never staggers this fighter (moves.ts `Opponent`); 0 = human
 };
 export type Side = 0 | 1;
@@ -42,8 +43,8 @@ export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish 
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0 });
-export const initialDuel = (opponent: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', opponent.weapon, opponent.scale, opponent.poise, opponent.health, opponent.guard)], finish: null, events: [] });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0 });
+export const initialDuel = (opponent: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', opponent.weapon, opponent.scale, opponent.poise, opponent.health, opponent.guard, opponent.regen ?? 1)], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -198,7 +199,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (intent.lock && next.phase !== 'sheathed' && !intent.move.run) next.body = { ...next.body, heading: aim(next.body, foe) };
     }
     // Regeneration: full while standing ready; a raised guard regenerates at half rate (it used to stop it, which made blocking a stamina trap).
-    if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard')) next.stamina = Math.min(next.maxStamina, next.stamina + R.regen * (next.wound ? R.woundRegen : 1) * (next.phase === 'guard' ? R.guardRegen : 1));
+    if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard')) next.stamina = Math.min(next.maxStamina, next.stamina + R.regen * next.regen * (next.wound ? R.woundRegen : 1) * (next.phase === 'guard' ? R.guardRegen : 1));
     if (next.exhausted && next.stamina >= R.exhaustRecover) next.exhausted = false;
   }
   // Symmetric separation: both may have stepped into the other's old position; push them apart by equal halves.

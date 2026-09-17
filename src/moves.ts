@@ -147,6 +147,12 @@ export type AiProfile = {
   pressure: number;    // 0..1 chance a non-punish attack is a light rather than a heavy
   discipline: number;  // stamina floor below which it retreats and recovers
   lapse: number;       // 0..1 chance a noticed swing gets no answer at all (a human does not react to every cut they see; the AI would)
+  // Fight-identity knobs (slice X, for the goblin; absent = the warden as it always was):
+  feint?: number;      // 0..1 base share of cuts and heavies that are feints against anyone (the read-parrier's 1/6 still applies on top)
+  guard?: number;      // 0..1 share of the guard in its game: the standing guard, the bait guard, the block plan and the guard-walk (0 = never guards: evades or steps back instead)
+  disengage?: number;  // 0..1 chance to hop back out of range right after landing a blow (hit and run)
+  circle?: number;     // 0..1 lateral drift while closing in (0 = walks straight in); it always circles once in range
+  regen?: number;      // stamina regeneration multiplier for this fighter (1 = RULES.regen)
 };
 // A weapon is data a fighter carries: its move table, its blade paths (baked per weapon by scripts/bake-blades.mjs from
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
@@ -257,7 +263,7 @@ export type Level = keyof typeof PROFILES;
 // guard: how this man's guard behaves on top of his weapon's (`Fighter.guardProfile`): the Nightborn's parry window is longer than a man's
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
 export type OpponentId = 'veteran' | 'pitborn' | 'nightborn';
-export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile> };
+export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number };   // regen: stamina regeneration multiplier (a small fighter recovers fast)
 export const OPPONENTS: Record<OpponentId, Opponent> = {
   veteran: { id: 'veteran', weapon: 'trident', scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },   // the trident since slice V (2026-09-16)
   // The pit brute: relentless light chains (aggression, pressure), a low parry rate, slower to notice, a low discipline floor so he

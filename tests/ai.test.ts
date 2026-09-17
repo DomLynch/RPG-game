@@ -410,3 +410,69 @@ test('attrition and the stamina floor: a warden whose ceiling has been cut below
   const empty = arena(1.2); empty.fighters[1] = { ...empty.fighters[1], maxStamina: 44, stamina: 10 };
   assert.equal(decide(empty, 1, state, PROFILES.normal).intent.action, null, 'below the scaled floor it still holds back');
 });
+
+// ── Slice X: fight-identity knobs (for the goblin). Each is optional on AiProfile; absent, the warden is exactly what it was. ───────────────
+const knobs = (over: Partial<AiProfile>): AiProfile => ({ ...PROFILES.normal, ...over });
+const count = (events: Duel['events'], type: string, action?: string) => events.filter(e => e.type === type && e.actor === 1 && (!action || e.action === action)).length;
+
+test('feint knob: a feinting fighter feints anyone (the read-parrier\'s sixth still applies on top); without the knob a passive player is never feinted', () => {
+  const passive = () => idle();
+  const plain = play(PROFILES.normal, 2400, passive), feinter = play(knobs({ feint: 1 }), 2400, passive);
+  assert.equal(count(plain.events, 'ActionStarted', 'feint'), 0, 'today: no feints at a player who never parries');
+  assert.ok(count(feinter.events, 'ActionStarted', 'feint') >= 6, `feint 1: every cut or heavy opener is a feint (${count(feinter.events, 'ActionStarted', 'feint')} feints)`);
+  assert.ok(wardenAttacks(feinter.events).length >= count(feinter.events, 'ActionStarted', 'feint'), 'a feint is a swing that started');
+});
+
+test('guard knob 0: the fighter never stands in guard, never baits with one, never blocks and never guard-walks — it evades or steps back instead; the same seeds with the default guard do all of those', () => {
+  const spammer = (d: Duel) => (d.fighters[0].phase === 'ready' && Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x, d.fighters[0].body.z - d.fighters[1].body.z) <= 1.7 ? act('light') : idle());
+  let guardTicksDefault = 0, guardTicksNone = 0, blocksDefault = 0, blocksNone = 0, evadesNone = 0;
+  for (let s = 1; s <= 12; s++) {
+    for (const [profile, tally] of [[PROFILES.normal, 'default'], [knobs({ guard: 0, parry: 0 }), 'none']] as const) {
+      let d = arena(1.4), ai = initialAi(s * 7919);
+      for (let i = 0; i < 900; i++) {
+        const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [spammer(d), w.intent]);
+        if (tally === 'default') { if (d.fighters[1].phase === 'guard') guardTicksDefault++; if (d.events.some(e => e.type === 'Blocked' && e.actor === 1)) blocksDefault++; }
+        else { if (d.fighters[1].phase === 'guard') guardTicksNone++; if (d.events.some(e => e.type === 'Blocked' && e.actor === 1)) blocksNone++; if (ai.plan === 'evade' || d.events.some(e => e.type === 'ActionStarted' && e.actor === 1 && (e.action === 'backstep' || e.action === 'roll'))) evadesNone++; assert.notEqual(ai.mode, 'guard', `seed ${s} tick ${i}: guard mode`); assert.notEqual(ai.plan, 'block', `seed ${s} tick ${i}: block plan`); }
+        d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+      }
+    }
+  }
+  assert.ok(guardTicksDefault > 200 && blocksDefault > 5, `control: the default warden guards (${guardTicksDefault} ticks) and blocks (${blocksDefault}) a cut-spammer`);
+  assert.equal(guardTicksNone, 0, 'guard 0: not one tick in guard'); assert.equal(blocksNone, 0, 'guard 0: never blocks');
+  assert.ok(evadesNone > 20, `guard 0: it evades instead (${evadesNone})`);
+});
+
+test('disengage knob: after a landed blow the fighter hops back out of range on most of them; without the knob it never steps back after landing', () => {
+  const standing = () => idle();
+  for (const [profile, expectHops] of [[PROFILES.normal, false], [knobs({ disengage: 1 }), true]] as const) {
+    let d = arena(1.3), ai = initialAi(4242), hits = 0, hops = 0, pending = 0;
+    for (let i = 0; i < 3000; i++) {
+      const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [standing(d), w.intent]);
+      if (d.events.some(e => e.type === 'Hit' && e.actor === 1)) { hits++; pending = 60; }
+      if (pending > 0) { pending--; if (d.events.some(e => e.type === 'ActionStarted' && e.actor === 1 && e.action === 'backstep')) { hops++; pending = 0; } }
+      d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
+    }
+    assert.ok(hits >= 8, `it lands (${hits})`);
+    if (expectHops) assert.ok(hops >= hits * .7, `disengage 1: a hop back within a second of most landed blows (${hops}/${hits})`);
+    else assert.equal(hops, 0, `today: no hop back after landing (${hops}/${hits})`);
+  }
+});
+
+test('circle knob: a circler drifts sideways while closing in; the default walks straight', () => {
+  const state = { ...initialAi(5), mode: 'approach' as const, decision: 500, wait: 500, next: null };
+  const move = (profile: AiProfile) => decide(arena(3), 1, state, profile).intent.move;
+  const straight = move(PROFILES.normal), circling = move(knobs({ circle: 1 }));
+  assert.ok(straight.z > 0 && Math.abs(straight.x) < 1e-9, `default: straight in ${JSON.stringify(straight)}`);
+  assert.ok(circling.z > 0 && Math.abs(circling.x) > .2, `circle 1: sideways drift while closing ${JSON.stringify(circling)}`);
+  assert.ok(Math.abs(Math.hypot(circling.x, circling.z) - Math.hypot(straight.x, straight.z)) < .3, 'the drift is added to the same closing speed, not a stop');
+});
+
+test('regen knob: a fighter built with regen 2 refills stamina twice as fast; the default is RULES.regen', () => {
+  const spent = (regen: number) => { const f = createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', 'longsword', 1, 0, RULES.health, undefined, regen); return { ...f, stamina: 20, rest: 0 }; };
+  let d: Duel = { tick: 0, fighters: [spent(1), spent(2)], finish: null, events: [] };
+  for (let i = 0; i < 30; i++) d = stepDuel(d, [idle(), idle()]);
+  const gained = d.fighters.map(f => f.stamina - 20);
+  assert.ok(Math.abs(gained[0] - 30 * RULES.regen) < 1e-6, `a man gains RULES.regen per tick: ${gained[0]}`);
+  assert.ok(Math.abs(gained[1] - 60 * RULES.regen) < 1e-6, `regen 2 gains twice that: ${gained[1]}`);
+  assert.equal(initialDuel().fighters[1].regen, 1, 'the Veteran regenerates as a man');
+});

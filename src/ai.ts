@@ -19,8 +19,8 @@ export const readOpponent = (h: Habits): Reads => ({
   spammer: h.lights + h.heavies + h.thrusts >= READ.swings && h.lights / (h.lights + h.heavies + h.thrusts) >= READ.lightShare,   // cuts only: a player mixing in thrusts or heavies is not a spammer
   parker: h.lights + h.heavies + h.thrusts >= READ.after && h.parks / (h.lights + h.heavies + h.thrusts) >= READ.parkShare,   // swings mostly held at their chamber (baits, charges): the park is a habit, not a read of the moment
 });
-export type AiState = { seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; habits: Habits; scores: Record<string, number> };
-export const initialAi = (seed = 731): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, parks: 0 }, scores: {} });
+export type AiState = { seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; disengageUntil: number; habits: Habits; scores: Record<string, number> };   // disengageUntil: the tick until which a landed blow is followed by a hop back out (profile.disengage)
+export const initialAi = (seed = 731): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, disengageUntil: 0, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, parks: 0 }, scores: {} });
 const lcg = (seed: number) => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 
 export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): { intent: Intent; ai: AiState } {
@@ -31,6 +31,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   const inside = gap < (mine.thrust.minReach ?? 0);   // inside a pole's point: the thrust meets nothing here; the answer is the kick, then a step back out
   next.lastGap = gap; next.lastTravel = F.body.distance;   // for the next tick's read of an advancing opponent
   const canAct = M.phase === 'ready' || M.phase === 'guard';
+  const guardShare = profile.guard ?? 1;   // fight-identity knobs (moves.ts AiProfile): absent = the warden as it always was
+  // Hit and run: a blow that landed this tick earns a hop back out of range (profile.disengage), taken as soon as the swing has recovered.
+  if (profile.disengage && duel.events.some(e => e.type === 'Hit' && e.actor === me) && roll() < profile.disengage) next.disengageUntil = tick + 40;
   // Observe the opponent's habits from state edges (age 0 = this tick's start) and read them.
   const h = next.habits = { ...ai.habits, ticks: ai.habits.ticks + 1 };
   if (F.phase === 'guard') h.guard++;
@@ -69,10 +72,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     const lapse = reads.spammer ? profile.lapse * .5 : profile.lapse;
     const parryChance = reads.spammer ? Math.min(READ.parryCap, 1 - profile.dodge, profile.parry * READ.parryBoost) : profile.parry;   // a cut-only player is parried more (never by a profile that cannot parry; rolls keep their share)
     // A swing that cannot reach is ignored. A guard stops what it can afford; a charged heavy or a riposte calls for a timed parry, a roll or distance.
-    next.plan = !inRange || roll() < lapse ? 'ignore' : r < parryChance && !M.parryCooldown ? 'parry' : r < parryChance + profile.dodge && M.stamina >= RULES.rollCost ? 'dodge' : unblockable ? (M.stamina >= RULES.rollCost ? 'dodge' : !M.parryCooldown ? 'parry' : 'evade') : affordable ? 'block' : 'evade';
+    next.plan = !inRange || roll() < lapse ? 'ignore' : r < parryChance && !M.parryCooldown ? 'parry' : r < parryChance + profile.dodge && M.stamina >= RULES.rollCost ? 'dodge' : unblockable ? (M.stamina >= RULES.rollCost ? 'dodge' : !M.parryCooldown && guardShare > 0 ? 'parry' : 'evade') : affordable && (guardShare >= 1 || roll() < guardShare) ? 'block' : 'evade';
     next.jitter = Math.round((1 - profile.accuracy) * 8 * (roll() * 2 - 1));
     }
-  } else if (noticed && next.plan === 'block' && charging(F)) next.plan = M.stamina >= RULES.rollCost ? 'dodge' : !M.parryCooldown ? 'parry' : 'evade';   // a heavy seen to be charging will break the guard: change the answer
+  } else if (noticed && next.plan === 'block' && charging(F)) next.plan = M.stamina >= RULES.rollCost ? 'dodge' : !M.parryCooldown && guardShare > 0 ? 'parry' : 'evade';   // a heavy seen to be charging will break the guard: change the answer
   // Openings: a stagger, exhaustion, the recovery of a swing that missed — and, against a roller, the tail of a roll. A landed hit is not an opening: it staggered me.
   const opening = (F.phase === 'hurt' && F.age >= profile.reaction) || F.exhausted || F.exposed > 0 || (F.phase === 'attack' && !F.landed && F.age - timing(F).windup - timing(F).active >= profile.reaction) || (reads.roller && F.phase === 'roll' && F.age >= RULES.safeEnd);   // a parry that met nothing is the classic opening
   const guarded = F.phase === 'guard' && F.age >= profile.reaction;
@@ -98,7 +101,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (!next.decision) {
     const r = roll();
     next.decision = 36 + Math.floor(r * 45); next.side = next.seed & 1 ? 1 : -1;
-    next.mode = low || shaky ? (gap < 1.7 || M.stamina < RULES.rollCost ? 'retreat' : 'circle') : gap > 1.4 ? 'approach' : gap < 1 ? 'retreat' : r < .33 ? 'guard' : 'circle';
+    next.mode = low || shaky ? (gap < 1.7 || M.stamina < RULES.rollCost ? 'retreat' : 'circle') : gap > 1.4 ? 'approach' : gap < 1 ? 'retreat' : r < .33 * guardShare ? 'guard' : 'circle';
   }
   if (gap > 2.5 || (!low && !shaky && gap > 1.9)) next.mode = 'approach';
   if (tick < next.retreatUntil || ((low || shaky) && gap < 1.2)) next.mode = 'retreat';
@@ -125,7 +128,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       else intent.guard = M.age < window || estimate <= 3;
     } else if (next.plan === 'dodge' && M.stamina >= RULES.rollCost && estimate <= RULES.safeEnd - 2 && estimate >= RULES.safeStart) intent.action = 'dodge';
     else if (next.plan === 'evade') { if (legal(M, 'backstep')) intent.action = 'backstep'; else intent.move = { x: -Math.sin(facing), z: -Math.cos(facing), yaw: 0, run: false }; }   // step out of reach, still facing the blade
-    else intent.guard = true;
+    else if (guardShare > 0) intent.guard = true;   // a block, or a roll whose moment has not come: wait behind the guard (a guardless fighter waits on his feet)
     return { intent, ai: next };
   }
   // Offence: utility scores over what the opponent is committed to. A light is a punish or a chain; a heavy or kick is the
@@ -154,25 +157,28 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); next.next = null;
       // A less aggressive warden sometimes baits instead: a visible guard the player must open with a heavy or a kick.
       // The stop-hit is never traded for a bait: the moment is now.
-      if ((best === 'heavy' || best === 'light' || (best === 'thrust' && !advancing)) && !guarded && roll() < (1 - profile.aggression) * .6) { next.mode = 'guard'; next.decision = 36 + Math.floor(roll() * 45); intent.guard = true; return { intent, ai: next }; }
+      if ((best === 'heavy' || best === 'light' || (best === 'thrust' && !advancing)) && !guarded && roll() < (1 - profile.aggression) * .6 * guardShare) { next.mode = 'guard'; next.decision = 36 + Math.floor(roll() * 45); intent.guard = true; return { intent, ai: next }; }
       // A guard is charged through 20/40/60 % of the time by level (more against a turtle or a roller, whose answer a charge outlasts); a
       // parry-happy player has lights held past the parry window as baits.
       const chargeChance = profile.aggression - .25 + (reads.turtle || reads.roller || reads.parryHappy ? READ.chargeBoost : 0);
       next.hold = best === 'heavy' ? (guarded || reads.roller || reads.parryHappy) && roll() < chargeChance : best === 'light' && reads.parryHappy && roll() < READ.baitShare;
-      next.feint = reads.parryHappy && (action === 'heavy' || action === 'light') && !next.hold && roll() < READ.feint;   // one swing in six at a parrier is a feint
+      const feintChance = Math.max(profile.feint ?? 0, reads.parryHappy ? READ.feint : 0);   // one swing in six at a parrier is a feint; a feinting fighter (profile.feint) feints anyone
+      next.feint = feintChance > 0 && (action === 'heavy' || action === 'light') && !next.hold && roll() < feintChance;
       return { intent: { ...intent, action, held: next.hold }, ai: next };
     }
   }
   // Against a read cut-spammer the warden walks in guard inside cutting range when it is not swinging: the cuts are blocked (no chip) and
   // every block opens the guard counter above. It keeps closing (a guard walk, at guard speed) so a spammer hovering at the edge of
   // reach is met, never waited for. Below the stamina floor it steps back out instead.
-  if (pressured && canAct && !M.exhausted && !threat && !low) intent.guard = true;
+  if (pressured && canAct && !M.exhausted && !threat && !low && guardShare > 0) intent.guard = true;
   if (next.mode === 'guard' && canAct && !M.exhausted) { intent.guard = true; return { intent, ai: next }; }
   // Inside the point with no kick to give (spent, or just thrown): a backstep out to where the pole works, still facing the blade.
   if (inside && canAct && !threat && legal(M, 'backstep')) return { intent: { ...intent, action: 'backstep' }, ai: next };
+  // Hit and run: the hop back out after a landed blow.
+  if (tick < next.disengageUntil && canAct && !threat && legal(M, 'backstep')) { next.disengageUntil = 0; return { intent: { ...intent, action: 'backstep' }, ai: next }; }
   // Closing distance: to cutting range normally; a warden that has decided on a thrust stops just inside thrust reach, so the thrust opens from where a cut cannot reach.
   const forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : fight.close) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : 0;
-  const lateral = next.mode === 'circle' ? next.side * .25 : 0;
+  const lateral = next.mode === 'circle' ? next.side * .25 : next.mode === 'approach' && forward ? next.side * .25 * (profile.circle ?? 0) : 0;   // a circler drifts sideways while closing in
   intent.move = { x: Math.sin(facing) * forward + Math.cos(facing) * lateral, z: Math.cos(facing) * forward - Math.sin(facing) * lateral, yaw: 0, run: false };
   return { intent, ai: next };
 }
