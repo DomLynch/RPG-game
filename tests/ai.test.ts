@@ -209,10 +209,13 @@ test('posture: a shaky warden gives ground so its bar drains, and finishes a bro
 
 test('reads: habits become reads only with evidence, at the documented thresholds', () => {
   const h = (o: Partial<Habits>): Habits => ({ ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, parks: 0, ...o });
-  assert.deepEqual(readOpponent(h({})), { parryHappy: false, turtle: false, roller: false, spammer: false, parker: false });
+  assert.deepEqual(readOpponent(h({})), { parryHappy: false, turtle: false, roller: false, stepper: false, spammer: false, parker: false, poker: false, kicker: false });
   assert.equal(readOpponent(h({ attacks: 1, parries: 1 })).parryHappy, false, 'one swing is not evidence'); assert.equal(readOpponent(h({ attacks: 2, parries: 1 })).parryHappy, true, 'two exchanges, half parried'); assert.equal(readOpponent(h({ attacks: 4, parries: 1 })).parryHappy, false);
   assert.equal(readOpponent(h({ ticks: 179, guard: 179 })).turtle, false); assert.equal(readOpponent(h({ ticks: 180, guard: 81 })).turtle, true); assert.equal(readOpponent(h({ ticks: 180, guard: 80 })).turtle, false);
   assert.equal(readOpponent(h({ attacks: 5, rolls: 2 })).roller, true); assert.equal(readOpponent(h({ attacks: 5, rolls: 1 })).roller, false);
+  assert.equal(readOpponent(h({ attacks: 5, steps: 2 })).stepper, true); assert.equal(readOpponent(h({ attacks: 5, steps: 1 })).stepper, false, 'a stepper backsteps out of two swings in five');
+  assert.equal(readOpponent(h({ lights: 2, thrusts: 2 })).poker, true); assert.equal(readOpponent(h({ lights: 3, thrusts: 2 })).poker, false, 'a poker thrusts at least half his swings');
+  assert.equal(readOpponent(h({ lights: 2, kicks: 2 })).kicker, true); assert.equal(readOpponent(h({ lights: 3, kicks: 2 })).kicker, false); assert.equal(readOpponent(h({ kicks: 1 })).kicker, false, 'one kick is not evidence');
   assert.equal(readOpponent(h({ lights: 1, parks: 1 })).parker, false, 'one park is not evidence'); assert.equal(readOpponent(h({ lights: 2, parks: 1 })).parker, true, 'two swings, half of them parked'); assert.equal(readOpponent(h({ lights: 3, heavies: 1, parks: 1 })).parker, false);
   assert.equal(readOpponent(h({ lights: 8, heavies: 3 })).spammer, true); assert.equal(readOpponent(h({ lights: 8, heavies: 2 })).spammer, false, 'eleven swings needed'); assert.equal(readOpponent(h({ lights: 7, heavies: 4 })).spammer, false);
   assert.equal(readOpponent(h({ lights: 7, thrusts: 4 })).spammer, false, 'thrusts are a mix, not spam'); assert.equal(readOpponent(h({ lights: 8, thrusts: 3 })).spammer, true);
@@ -274,7 +277,7 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   const baits = parrier.log.filter(e => e.type === 'Charging' && e.actor === 1 && e.move !== 'heavy_overhead');
   assert.ok(baits.some(e => e.read.parryHappy) && !baits.some(e => !e.read.parryHappy), `baited lights only after the read: ${baits.length}`);
   // A neutral player triggers no read at all.
-  assert.deepEqual(readOpponent(watch(PROFILES.normal, 2400, () => idle()).habits), { parryHappy: false, turtle: false, roller: false, spammer: false, parker: false });
+  assert.deepEqual(readOpponent(watch(PROFILES.normal, 2400, () => idle()).habits), { parryHappy: false, turtle: false, roller: false, stepper: false, spammer: false, parker: false, poker: false, kicker: false });
 });
 
 test('the thrust: a minority opener planned only after the first heavy, thrown from wherever it stands (no walk-back), never into a guard — and the stop-hit into an opponent walking onto the point', () => {
@@ -475,4 +478,73 @@ test('regen knob: a fighter built with regen 2 refills stamina twice as fast; th
   assert.ok(Math.abs(gained[0] - 30 * RULES.regen) < 1e-6, `a man gains RULES.regen per tick: ${gained[0]}`);
   assert.ok(Math.abs(gained[1] - 60 * RULES.regen) < 1e-6, `regen 2 gains twice that: ${gained[1]}`);
   assert.equal(initialDuel().fighters[1].regen, 1, 'the Veteran regenerates as a man');
+});
+
+// ── Slice X, second half: the darter's tools (step, interrupt, kick vs escapers, dash, pace) and two general fixes (one step out, chain into the thrust).
+const fresh = (seed: number, over: Partial<AiState> = {}): AiState => ({ ...initialAi(seed), mode: 'approach', decision: 500, wait: 500, next: null, ...over });
+const facing = (gap: number, warden: Partial<ReturnType<typeof createFighter>> = {}, player: Partial<ReturnType<typeof createFighter>> = {}): Duel => { const d = arena(gap); return { ...d, fighters: [{ ...d.fighters[0], ...player }, { ...d.fighters[1], ...warden }] }; };
+const habit = (over: Partial<Habits>): Habits => ({ ...initialAi().habits, ...over });
+
+test('step knob: a kick that a backstep will clear is stepped out of (10 stamina), not rolled (30); a blow the step cannot clear is still rolled; without the knob the roll is the dodge', () => {
+  const kickAt = (gap: number) => facing(gap, {}, { phase: 'attack', move: 'kick', lastMove: 'kick', age: PROFILES.normal.reaction, attackFrom: { x: 0, z: TARGET.z + gap, gap } });
+  const plans = (profile: AiProfile, gap: number) => { const n = { dodge: 0, evade: 0, ignore: 0 }; for (let s = 1; s <= 60; s++) n[decide(kickAt(gap), 1, fresh(s * 7919), profile).ai.plan as keyof typeof n]++; return n; };
+  const stepper = knobs({ step: 1, dodge: 1 }), roller = knobs({ dodge: 1 });
+  assert.equal(plans(roller, 1.15).evade, 0, 'default: never a step');
+  assert.ok(plans(stepper, 1.15).evade === 60, `step 1 at 1.15 m: every answer is the step (${JSON.stringify(plans(stepper, 1.15))})`);
+  assert.ok(plans(stepper, .85).dodge === 60, `step 1 at .85 m (the step cannot clear a 1.2 m kick): the roll (${JSON.stringify(plans(stepper, .85))})`);
+});
+
+test('interrupt knob: a fast fighter cuts INTO a slow tell that his cut beats; without the knob no one attacks into a threat', () => {
+  const heavyAt = facing(1.1, {}, { phase: 'attack', move: 'heavy_overhead', lastMove: 'heavy_overhead', age: 2, attackFrom: { x: 0, z: TARGET.z + 1.1, gap: 1.1 } });
+  assert.equal(decide(heavyAt, 1, fresh(3), knobs({ interrupt: 1 })).intent.action, 'light', 'interrupt 1: the cut goes in (30 ticks of their wind-up left, a 20-tick cut)');
+  assert.equal(decide(heavyAt, 1, fresh(3), PROFILES.normal).intent.action, null, 'default: nothing is thrown into a threat');
+  const lateHeavy = facing(1.1, {}, { phase: 'attack', move: 'heavy_overhead', lastMove: 'heavy_overhead', age: 14, attackFrom: { x: 0, z: TARGET.z + 1.1, gap: 1.1 } });
+  assert.equal(decide(lateHeavy, 1, fresh(3), knobs({ interrupt: 1 })).intent.action, null, 'too late: their heavy lands before the cut would');
+});
+
+test('kick knob: against a read roller or backstepper a kicker kicks (the one blow their timing does not escape); the default only kicks a guard', () => {
+  const vs = (profile: AiProfile, h: Partial<Habits>) => { let kicks = 0; for (let s = 1; s <= 40; s++) if (decide(facing(1.0), 1, fresh(s * 104729, { habits: habit({ attacks: 6, ...h }) }), profile).intent.action === 'kick') kicks++; return kicks; };
+  assert.equal(vs(PROFILES.normal, { rolls: 4 }), 0, 'default: no kick at a roller who is not guarding');
+  assert.ok(vs(knobs({ kick: 1 }), { rolls: 4 }) >= 36, `kick 1 vs a roller: kicked (${vs(knobs({ kick: 1 }), { rolls: 4 })}/40)`);
+  assert.ok(vs(knobs({ kick: 1 }), { steps: 4 }) >= 36, `kick 1 vs a backstepper: kicked (${vs(knobs({ kick: 1 }), { steps: 4 })}/40)`);
+  assert.equal(vs(knobs({ kick: 1 }), {}), 0, 'kick 1 without a read: nothing to answer');
+});
+
+test('dash knob: a darter sprints into an opening from outside reach; the default walks', () => {
+  const whiffed = facing(2.1, {}, { phase: 'attack', move: 'thrust', lastMove: 'thrust', age: 40, landed: false, attackFrom: { x: 0, z: TARGET.z + 2.1, gap: 2.1 } });   // deep in a whiffed thrust's recovery
+  assert.equal(decide(whiffed, 1, fresh(5), knobs({ dash: 1 })).intent.move.run, true, 'dash 1: run');
+  assert.equal(decide(whiffed, 1, fresh(5), PROFILES.normal).intent.move.run, false, 'default: walk');
+});
+
+test('pace: an opponent with speed 1.2 walks, lunges and steps 1.2× as far per tick; a man is unchanged', () => {
+  const walk = (speed: number) => { let d: Duel = { tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 3, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', 'longsword', 1, 0, RULES.health, undefined, 1, speed)], finish: null, events: [] }; const z0 = d.fighters[1].body.z; for (let i = 0; i < 10; i++) d = stepDuel(d, [idle(), { ...idle(), move: { x: 0, z: 1, yaw: 0, run: false } }]); return d.fighters[1].body.z - z0; };
+  assert.ok(Math.abs(walk(1.2) / walk(1) - 1.2) < 1e-6, `walk ${walk(1.2)} vs ${walk(1)}`);
+  const step = (speed: number) => { let d: Duel = { tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 3, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', 'longsword', 1, 0, RULES.health, undefined, 1, speed)], finish: null, events: [] }; const z0 = d.fighters[1].body.z; d = stepDuel(d, [idle(), act('backstep')]); for (let i = 0; i < RULES.backstep.ticks; i++) d = stepDuel(d, [idle(), idle()]); return z0 - d.fighters[1].body.z; };
+  assert.ok(Math.abs(step(1.2) / step(1) - 1.2) < 1e-6, `backstep ${step(1.2)} vs ${step(1)}`);
+  assert.equal(initialDuel().fighters[1].speed, 1, 'the Veteran walks like a man');
+});
+
+test('one step out, then walking: an evade plan takes the backstep only while inside the blow\'s reach and walks back once out — never a chain of backsteps', () => {
+  const heavy = (gap: number) => facing(gap, {}, { phase: 'attack', move: 'heavy_overhead', lastMove: 'heavy_overhead', age: PROFILES.normal.reaction, attackFrom: { x: 0, z: TARGET.z + gap, gap } });   // noticed this tick
+  const evader = knobs({ dodge: 0, parry: 0, guard: 0, lapse: 0 });   // no roll, no parry, no guard: the plan is the evade
+  const inside = decide(heavy(1.5), 1, fresh(2), evader), outside = decide(heavy(2.2), 1, fresh(2), evader);   // 2.2: still in the swing's notice range (reach + .4), past the step's use (reach + .2)
+  assert.equal(inside.ai.plan, 'evade'); assert.equal(inside.intent.action, 'backstep', 'inside the reach: the step');
+  assert.equal(outside.ai.plan, 'evade'); assert.equal(outside.intent.action, null, 'out of reach: no step'); assert.ok(outside.intent.move.z < 0, 'walks back instead');
+});
+
+test('a chain follow-up the cut cannot reach goes as the thrust when the chain allows it (the goblin\'s slash → thrust); a sword cut, whose chain has no thrust, does not', () => {
+  const chained = (weapon: 'longsword' | 'knife', gap: number) => { const d = facing(gap); const w = createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', weapon); return decide({ ...d, fighters: [d.fighters[0], { ...w, chain: 10, lastMove: 'light_right' }] }, 1, fresh(9, { next: 'light' }), { ...PROFILES.normal, aggression: 1 }); };
+  assert.equal(chained('knife', 1.3).intent.action, 'thrust', 'knife at 1.3 m: the slash (1.2) is short, the thrust (1.45) follows');
+  assert.equal(chained('knife', 1.0).intent.action, 'light', 'knife at 1.0 m: the slash follows');
+  assert.notEqual(chained('longsword', 1.75).intent.action, 'thrust', 'a sword cut chains into a cut or a heavy, never the thrust');
+});
+
+test('a fighter with no guard respects a read poker\'s or kicker\'s reach: he hovers at its edge instead of walking onto the point, and goes in on the whiff', () => {
+  const at = (gap: number, reads: Partial<Habits>, profile: AiProfile, player: Partial<ReturnType<typeof createFighter>> = {}) => decide(facing(gap, {}, player), 1, fresh(4, { habits: habit({ attacks: 4, ...reads }) }), profile).intent.move.z;
+  const guardless = knobs({ guard: 0, parry: 0 });
+  assert.ok(at(1.7, { thrusts: 4 }, guardless) <= 0, 'guard 0 vs a poker at 1.7 m (inside the stab): no closing');
+  assert.ok(at(1.7, { thrusts: 4 }, PROFILES.normal) > 0, 'the default warden closes (it can block a stab)');
+  assert.ok(at(1.7, { lights: 4 }, guardless) > 0, 'guard 0 vs a cutter: closes as ever');
+  assert.ok(at(1.7, { thrusts: 4 }, guardless, { phase: 'attack', move: 'thrust', lastMove: 'thrust', age: 40, landed: false, attackFrom: { x: 0, z: TARGET.z + 1.7, gap: 1.7 } }) > 0, 'the whiff is the opening: in he goes');
+  assert.ok(at(1.4, { kicks: 4 }, guardless) <= 0 && at(1.4, { kicks: 4 }, PROFILES.normal) > 0, 'the same respect for a kicker\'s cone plus its lunge');
 });

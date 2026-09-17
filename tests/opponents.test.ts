@@ -5,14 +5,14 @@ import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
 import { TARGET, type State } from '../src/sim.ts';
 import { STRATEGIES, battery } from './battery.test.ts';
 
 const P = OPPONENTS.pitborn;
 const idle = (): Intent => ({ ...idleIntent(), lock: true }), act = (action: Intent['action']): Intent => ({ ...idle(), action });
-const ring = (o: Opponent, gap = 1.2): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', o.weapon, o.scale, o.poise, o.health, o.guard)], finish: null, events: [] });
+const ring = (o: Opponent, gap = 1.2): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), opponentFighter(o, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
 // Step until the player's blow lands (or 200 ticks): the events of that tick and the duel after it.
 function land(o: Opponent, player: Intent, opponent: (d: Duel) => Intent = idle) {
   let d = ring(o), first = true;
@@ -31,11 +31,11 @@ test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, 
 
 // The goblin (opponent 4, character lane): his data entry and the knife slot are in; his fight identity (feints, no guard, darting) waits on the
 // AI knobs the combat lane owns (artifacts/goblin/REQUESTS.md), so this pins the seam only — no fairness battery is asserted for him yet.
-test('the goblin is set up from his data: the knife slot (the longsword\'s data until the weapons lane ships it), 0.78× scale, 100 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes', () => {
+test('the goblin is set up from his data: the knife (live, slice X), 0.78× scale, 100 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes', () => {
   const G = OPPONENTS.goblin, [hero, goblin] = initialDuel(G).fighters;
   assert.deepEqual(hero, initialDuel().fighters[0]);
   assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .78); assert.equal(goblin.health, 100); assert.equal(goblin.maxHealth, 100); assert.equal(goblin.poise, 0);
-  assert.equal(WEAPONS.knife.placeholder, true); assert.equal(WEAPONS.knife.moves, MOVES); assert.deepEqual(bladePaths.knife, bladePaths.longsword);
+  assert.equal(WEAPONS.knife.placeholder, undefined); assert.notEqual(WEAPONS.knife.moves, MOVES); assert.notDeepEqual(bladePaths.knife, bladePaths.longsword, 'baked from his own rig');
   for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.parry, 0, `${level}: he never parries`); assert.ok(p.dodge >= .3 && p.reaction <= PROFILES[level].reaction, `${level}: dodges, reacts fast`); }
   // The capsule follows his height: a blade level at 1.40 m is a head hit on a man and passes over the goblin; at 1.13 m (1.45 × 0.78) it finds his head where a man takes it in the chest.
   bladePaths.probe = { flat: [[-.5, 1.4, 0, .5, 1.4, 0], [-.5, 1.4, 0, .5, 1.4, 0]], low: [[-.5, 1.13, 0, .5, 1.13, 0], [-.5, 1.13, 0, .5, 1.13, 0]] };
@@ -48,7 +48,56 @@ test('the goblin is set up from his data: the knife slot (the longsword\'s data 
     for (let i = 0; i < 7200 && !d.finish; i++) { const x = decide(d, 0, a, PROFILES.normal), y = decide(d, 1, b, G.profiles.normal); a = x.ai; b = y.ai; d = stepDuel(d, [x.intent, y.intent]); }
     assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
   }
-  console.log(`goblin AI vs AI (provisional profile, longsword data): median ${(lengths.sort((x, y) => x - y)[6] / 60).toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[11] / 60).toFixed(1)} s`);
+  console.log(`goblin AI vs AI (12 seeds): median ${(lengths.sort((x, y) => x - y)[6] / 60).toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[11] / 60).toFixed(1)} s`);
+});
+
+// ── The goblin's fight (slice X): feints, no guard, hit and run, a dart into whiffs — and the knife's numbers as the weapons lane shipped them.
+const G = OPPONENTS.goblin;
+// Swings at every tell, feint or not: what the goblin's feints are for.
+const swinger = (d: Duel): Intent => { const w = d.fighters[1]; return d.fighters[0].phase === 'ready' && w.phase === 'attack' && w.age <= 2 && gap(d) <= 1.7 ? act('light') : idle(); };
+// The patient answer: never swings first; steps out of a swing, cuts into the whiff, heavies him when he is spent (the whiff punisher, reading the goblin's own timings).
+const patient = (d: Duel): Intent => { const w = d.fighters[1], p = d.fighters[0]; if (p.phase !== 'ready') return idle();
+  if (w.phase === 'attack' && w.age <= 4 && !w.landed && w.move !== 'kick') return act('backstep');
+  if (w.phase === 'attack' && w.move && !w.landed && w.age >= movesOf(w)[w.move].windup + movesOf(w)[w.move].active && gap(d) <= 1.7) return act('light');
+  if (w.exhausted && gap(d) <= 1.7) return act('heavy'); return idle(); };
+
+test('the goblin is set up as the brief asks: knobs on every level (feints, guard 0, disengage, circle, step, interrupt, kick, dash), regen 1.5 and pace 1.2, the knife live', () => {
+  for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.guard, 0, `${level}: never guards`); assert.equal(p.parry, 0); for (const k of ['feint', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'] as const) assert.ok((p[k] ?? 0) > 0, `${level}: ${k}`); }
+  assert.equal(G.regen, 1.5); assert.equal(G.speed, 1.2); assert.equal(G.weapon, 'knife'); assert.equal(WEAPONS.knife.placeholder, undefined);
+  const [, him] = initialDuel(G).fighters; assert.equal(him.regen, 1.5); assert.equal(him.speed, 1.2);
+});
+
+test('fight identity — read the feint: the goblin passes the fairness battery at normal and hard; the patient whiff punisher is the best honest answer and beats the player who swings at every tell; he never holds a guard and never blocks; every strategy gets touched', () => {
+  for (const [level, cap, floor] of [['normal', .5, 4], ['hard', .35, 1]] as const) {
+    let guardRun = 0, maxGuardRun = 0, blocks = 0;
+    const watched = (strategy: (d: Duel) => Intent) => (d: Duel) => { const g = d.fighters[1]; if (g.phase === 'guard') { guardRun++; maxGuardRun = Math.max(maxGuardRun, guardRun); } else guardRun = 0; if (d.events.some(e => e.type === 'Blocked' && e.actor === 1)) blocks++; return strategy(d); };
+    const scripts = Object.fromEntries(Object.entries({ ...STRATEGIES, 'swings at every feint': swinger, 'patient (whiff punisher)': patient }).map(([n, f]) => [n, watched(f)]));
+    const rows = battery(level, 24, 7200, G, scripts);
+    const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');
+    for (const [name, r] of Object.entries(rows)) {
+      if (name !== 'perfect parry') assert.ok(r.wins / 24 <= cap, `${level} · ${name} wins ${r.wins}/24 (cap ${cap * 100} %)\n  ${table}`);
+      assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
+    }
+    const answer = rows['patient (whiff punisher)'], eager = rows['swings at every feint'];
+    assert.ok(answer.wins >= floor, `${level} · the patient answer wins only ${answer.wins}/24\n  ${table}`);
+    assert.ok(eager.wins < answer.wins, `${level} · swinging at every feint (${eager.wins}) is not punished against patience (${answer.wins})\n  ${table}`);
+    for (const name of ['light spam', 'heavy only', 'kick only', 'turtle and punish', 'thrust from range']) assert.ok(rows[name].wins < Math.max(answer.wins, 1), `${level} · ${name} wins ${rows[name].wins} ≥ the answer's ${answer.wins}\n  ${table}`);
+    // No guard in his game: the only guard phase he ever shows is a feint's parry press (RULES.parry ticks), and nothing is ever blocked by him.
+    assert.ok(maxGuardRun <= RULES.parry, `${level} · a guard held ${maxGuardRun} ticks`); assert.equal(blocks, 0, `${level} · he blocked ${blocks} times`);
+    console.log(`goblin battery ${level}\n  ${table}\n  longest guard phase ${maxGuardRun} ticks (a feint's parry press), blocks ${blocks}`);
+  }
+});
+
+test('AI vs AI at normal: the Veteran\'s brain in the hero body against the goblin finishes every fight, median 25–45 s', () => {
+  const lengths: number[] = [];
+  for (let s = 1; s <= 24; s++) {
+    let d = ring(G, 1.6), hero = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), him = initialAi((s * 2654435761) >>> 0);
+    for (let i = 0; i < 7200 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, him, G.profiles.normal); hero = a.ai; him = b.ai; d = stepDuel(d, [a.intent, b.intent]); }
+    assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
+  }
+  const median = lengths.sort((a, b) => a - b)[12] / 60;
+  assert.ok(median >= 25 && median <= 45, `median ${median.toFixed(1)} s (${lengths.map(t => (t / 60).toFixed(0)).join(' ')})`);
+  console.log(`goblin AI vs AI: median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s`);
 });
 
 test('the Pitborn is set up from his data: the cleaver slot, 1.13× scale, 190 health and poise 16 on the warden side; the hero is unchanged', () => {

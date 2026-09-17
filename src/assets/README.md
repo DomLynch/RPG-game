@@ -419,7 +419,7 @@ Attack / Return recorded above. Evidence and the three silhouettes: `artifacts/w
 
 ## Weapons (weapons lane, 2026-09-17) — the knife
 
-`src/assets/weapons/knife/goblin-knife.glb`: the goblin's own rig (character lane, #86) carrying the sica — a short hooked knife — with the
+Since slice X the shipped `goblin.glb` IS the goblin carrying the sica (`WARRIOR_FIGHTER=goblin` defaults to the knife; the shelf's `goblin-knife.glb` was removed as a byte-identical duplicate). Formerly `src/assets/weapons/knife/goblin-knife.glb`: the goblin's own rig (character lane, #86) carrying the sica — a short hooked knife — with the
 sword's 21 clips, `Heavy` re-keyed as a diagonal hack. Built by `scripts/build-weapon.mjs` through `build-warrior.mjs`
 (`WARRIOR_FIGHTER=goblin WARRIOR_WEAPON=knife [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=…`).
 

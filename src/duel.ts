@@ -31,6 +31,7 @@ export type Fighter = {
   maxHealth: number;   // the bar's ceiling (moves.ts `Opponent.health`; RULES.health for a man)
   scale: number;   // body scale: the hit capsule and its head/torso/legs regions the opponent's blade sweeps (moves.ts `Opponent`)
   regen: number;   // stamina regeneration multiplier (moves.ts `Opponent.regen`; 1 = a man)
+  speed: number;   // pace multiplier: walking, sprinting, the wind-up lunge and the backstep (moves.ts `Opponent.speed`; 1 = a man)
   poise: number;   // a plain clean hit dealing less than this never staggers this fighter (moves.ts `Opponent`); 0 = human
 };
 export type Side = 0 | 1;
@@ -43,8 +44,10 @@ export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish 
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0 });
-export const initialDuel = (opponent: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', opponent.weapon, opponent.scale, opponent.poise, opponent.health, opponent.guard, opponent.regen ?? 1)], finish: null, events: [] });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0 });
+// An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
+export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1);
+export const initialDuel = (opponent: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -183,15 +186,15 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (intent.lock && next.move !== 'kick') next.body = { ...next.body, heading: next.body.heading + Math.max(-R.turnWindup, Math.min(R.turnWindup, wrapAngle(aim(next.body, foe) - next.body.heading))) };
       const lunge = movesOf(next)[next.move].stepIn;
       // A parked swing does not keep lunging: the lunge belongs to the wind-up, and the wind-up is paused.
-      if (lunge && next.age > R.stepInFrom && !parked) next.body = advance(next.body, { x: Math.sin(next.body.heading) * lunge, z: Math.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe);
+      if (lunge && next.age > R.stepInFrom && !parked) next.body = advance(next.body, { x: Math.sin(next.body.heading) * lunge, z: Math.cos(next.body.heading) * lunge, yaw: 0, run: false }, foe, next.speed);
     } else if (next.phase === 'roll') {
-      next.body = advance(next.body, { x: Math.sin(next.body.heading), z: Math.cos(next.body.heading), yaw: 0, run: true }, foe);
+      next.body = advance(next.body, { x: Math.sin(next.body.heading), z: Math.cos(next.body.heading), yaw: 0, run: true }, foe, next.speed);
     } else if (next.phase === 'backstep') {
       // Straight back along the facing, still facing the opponent: no turn, no invulnerability, just distance.
-      next.body = { ...advance(next.body, { x: -Math.sin(next.body.heading) * R.backstep.speed, z: -Math.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe), heading: next.body.heading };
+      next.body = { ...advance(next.body, { x: -Math.sin(next.body.heading) * R.backstep.speed, z: -Math.cos(next.body.heading) * R.backstep.speed, yaw: 0, run: false }, foe, next.speed), heading: next.body.heading };
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
       const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1) * (next.legWound ? R.attrition.legSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
-      const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe);
+      const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe, next.speed);
       // Sprinting drains without the action delay: no regeneration on a sprinting tick, and it resumes the tick the sprint stops (an action's
       // regenDelay is for actions; a sprint that reset it every tick starved the bar for a second after every dash).
       if (run && moved.distance > next.body.distance) { next.stamina = Math.max(0, next.stamina - R.sprintCost); next.rest = Math.max(next.rest, 1); if (!next.stamina && !next.exhausted) { next.exhausted = true; events.push({ tick, type: 'StaminaExhausted', actor: i }); } }

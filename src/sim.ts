@@ -6,13 +6,14 @@ export type Input = { x: number; z: number; yaw: number; run: boolean };
 export const initialState = (): State => ({ x: 0, z: 4, heading: Math.PI, distance: 0 });
 
 // World coordinates only. No renderer, clock, animation, physics or browser state.
-export function advance(state: State, input: Input, target: { x: number; z: number } = TARGET): State {
+// `pace` scales the fighter's speed (moves.ts `Opponent.speed`; 1 = a man): walking, sprinting, the wind-up lunge and the backstep all follow it.
+export function advance(state: State, input: Input, target: { x: number; z: number } = TARGET, pace = 1): State {
   const length = Math.hypot(input.x, input.z);
   if (!length || !Number.isFinite(length) || !Number.isFinite(input.yaw)) return { ...state };
   const scale = Math.min(1, length) / length;
   const dx = (input.x * Math.cos(input.yaw) + input.z * Math.sin(input.yaw)) * scale;
   const dz = (-input.x * Math.sin(input.yaw) + input.z * Math.cos(input.yaw)) * scale;
-  const speed = input.run ? 5.2 : 3;
+  const speed = (input.run ? 5.2 : 3) * pace;
   let x = state.x + dx * speed * STEP;
   let z = state.z + dz * speed * STEP;
   // Resolve against the other fighter, including attack step-in and retreat.

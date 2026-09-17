@@ -3,13 +3,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, idleIntent, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { OPPONENTS, PROFILES, RULES, type AiProfile, type Opponent } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: true });
 const act = (action: Intent['action'], extra: Partial<Intent> = {}): Intent => ({ ...idle(), action, ...extra });
-const arena = (o: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1.2, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', o.weapon, o.scale, o.poise, o.health, o.guard)], finish: null, events: [] });
+const arena = (o: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1.2, heading: Math.PI, distance: 0 }, 'ready'), opponentFighter(o, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
 const gap = (d: Duel) => Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x, d.fighters[0].body.z - d.fighters[1].body.z);
 const W = (d: Duel) => d.fighters[1], P = (d: Duel) => d.fighters[0];
 const ready = (d: Duel) => P(d).phase === 'ready';
