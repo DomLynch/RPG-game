@@ -9,6 +9,22 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## The Nightborn's face — the no-credits pass — 2026-09-17 (nightborn lane)
+The owner spotted the Nightborn shipped with a borrowed face (the stand-in: the hero's KeenTools scan, credits exhausted at 402) and
+declined the €11 top-up for now — "try the free version." The stand-in is RESTYLED to his owner-locked identity on its own texture,
+no new assets, no scan: `head.FIGHTERS.nightborn` gains `skin_mul` (1.28, 1.35, 1.50), `pallor` and `dark_eyes`. The photographed head
+is restyled in `keentools_head` on `filled` (position grids from normalised vertex-group bakes, the az_c/az_s pattern): skin paled
+grey-white and cooled with the dark features keeping their ink, the buzz and the synthesised crown strands gone cold black, the
+photographed stubble melted into the surrounding skin, the eye sockets sunk, a thin old scar across the throat 2.5 cm under the chin
+tip; `eye_colour` takes the iris toward black and halves the sclera lift; `body_colour`'s own pallor block drains the body to match
+(skin_mul alone brightened but stayed warm — tan shoulders beside a grey face). Pointed ears land as geometry: `parts.ear_points`
+(`KIT 'ears': 'points'`), two 3 cm cones on the scan's own helix tops, rigid on `Head`, wearing the face's photo tile — the goblin's
+`ears()` untouched. Not done, by design: the shoulder-length hair fall (REQUESTS #2 — a new part, and at the duel camera the black
+buzz + pale face + black kit already carries him) and the unique KeenTools face (REQUESTS #1, ~€11, the flags restyle the real scan
+the same way). Evidence: `artifacts/character/nightborn-face-v{1,2,3}/` (faces, details, gameplay stills, sequence.webm); v1 exposed
+that the photographed face never took skin_mul, v2 the tan-body mismatch. Gate 224/224 + browser gate; blade paths byte-identical
+(texture-and-ears only: no clip, timing, weapon or sim change); per-fight budget 8.36 / 9 MB.
+
 ## Rename: Origins Arena — 2026-09-17 (lead, owner's call)
 The owner named the place **Origins Arena** (the world lane's three proposals — The Ashpit · Worldsedge · The Bonehollow — are
 declined; REQUESTS #1 closed). *Ashcourt / The Old Keep* is retired everywhere player-facing: the place block reads

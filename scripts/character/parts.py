@@ -45,7 +45,7 @@ KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'b
        'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False, 'barefoot': True, 'ears': False},
        # The Nightborn: black-dyed wool (never pure black — below ~12 % value the folds and occlusion have nothing to shade at phone size), clean,
        # the base frame (lean), a closed tunic over both shoulders with a standing collar, no helm, no greaves. artifacts/character/BRIEF-nightborn.md.
-       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': False},
+       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': 'points'},  # ears 'points': small tips on the scan's own ears (his brief), not the goblin's long ears
        'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -1015,6 +1015,55 @@ def ears(head_obj, eye_l, eye_r):
     return out
 
 
+def ear_points(head_obj, eye_l, eye_r):
+    """The Nightborn's pointed ears (his brief, owner-locked by the portraits): two small cones tipped on the scan's own
+    ears — the human ear stays whole under them, its helix runs out to a point. Each is rooted at the ear's upper rim (a
+    ray from beside the head, ~2.5 cm above the ear canal where ears() roots the goblin's), pointing up and a little out
+    along the pinna's own tilt, rigid on the Head bone, and wears the face's photo tile by the same cheek-texel walk as
+    the goblin's ears, so the point is the face's colour whatever the pallor did."""
+    eyes = (eye_l + eye_r) / 2
+    m = head_obj.matrix_world
+    inv = m.inverted()
+    ok, cheek, _, face_index = head_obj.closest_point_on_mesh(inv @ Vector((-0.045, eyes.y - 0.012, eyes.z - 0.045)))
+    uv_layer = head_obj.data.uv_layers[0].data
+    poly = head_obj.data.polygons[face_index]
+    cheek_uv = sum((uv_layer[i].uv for i in poly.loop_indices), Vector((0.0, 0.0))) / len(poly.loop_indices)
+    out = []
+    for side in (-1, 1):
+        origin = inv @ Vector((side * 0.35, eyes.y + 0.098, eyes.z - 0.010))  # beside the head at the helix's top (the canal sits at +0.072)
+        hit, loc, normal, _ = head_obj.ray_cast(origin, (inv.to_3x3() @ Vector((-side, 0, 0))).normalized())
+        if not hit:
+            print(f'EAR POINT {side}: no head surface found, skipped')
+            continue
+        base = m @ loc
+        n = (m.to_3x3() @ normal).normalized()
+        bm = bmesh.new()
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=0.011, radius2=0.0012, depth=0.030)  # 3 cm: a tip, not a goblin ear
+        for v in bm.verts:
+            t = (v.co.z + 0.015) / 0.030  # 0 root → 1 tip
+            v.co.y *= 0.55 + 0.20 * t  # a soft leaf section, like the helix it continues
+        uv = bm.loops.layers.uv.new('UVMap')
+        for f in bm.faces:
+            for loop in f.loops:
+                t = (loop.vert.co.z + 0.015) / 0.030
+                loop[uv].uv = cheek_uv + Vector((0.004 * t, 0.003 * math.sin(t * 7)))  # a short walk over the cheek texels
+        me = bpy.data.meshes.new(f'earpoint_{"l" if side > 0 else "r"}')
+        bm.to_mesh(me)
+        bm.free()
+        obj = bpy.data.objects.new(me.name, me)
+        bpy.context.scene.collection.objects.link(obj)
+        axis = (n * 0.45 + Vector((0, 0.20, 0.75))).normalized()  # mostly up, a little out along the ear's own tilt
+        obj.rotation_mode = 'QUATERNION'
+        obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(axis)
+        obj.location = base + axis * (0.015 - 0.004)  # cone centre: the root 4 mm inside the helix
+        select_only([obj])
+        bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
+        bpy.ops.object.shade_smooth()
+        out.append(tag(obj, me.name, 'Photo', bone='Head', slot='Face'))
+        print(f'EAR POINT {side}: base {tuple(round(c, 3) for c in base)} cheek uv {tuple(round(c, 4) for c in cheek_uv)}')
+    return out
+
+
 def strip_crown_under_helm(helm_parts):
     """A fighter who always wears his helm does not need the skull under it: drop the scan head's faces that lie inside
     the dome, well above the brow arch (they can never be seen; ~3k triangles)."""
@@ -1622,7 +1671,7 @@ else:
     if realistic and use_kt and KIT['brute']:
         body_parts += tusks(bpy.data.objects['kt_head'], el, er)
     if realistic and use_kt and KIT['ears']:
-        body_parts += ears(bpy.data.objects['kt_head'], el, er)
+        body_parts += (ear_points if KIT['ears'] == 'points' else ears)(bpy.data.objects['kt_head'], el, er)  # 'points': the Nightborn's small tips; True: the goblin's long ears
     if realistic:
         export_kit(body_parts, os.path.join(out, f'body_{VARIANT}.glb'))  # head, body, eyes, hair/brow/lash cards
     tunic = next(o for o in kit if o.name == 'tunic')
