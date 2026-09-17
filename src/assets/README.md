@@ -416,3 +416,14 @@ Provenance: **original project work, no new third-party asset, texture or licenc
 and a width envelope, wedge section) and the furniture Three.js primitives; the materials are procedural (pitted iron, dark wood; no
 image maps). The re-keyed `Heavy` is original, on the same CC0 rig and the same authored-key grammar as the sword's Heavy / Riposte /
 Attack / Return recorded above. Evidence and the three silhouettes: `artifacts/weapons/REPORT.md`.
+
+## Weapons (weapons lane, 2026-09-17) — the knife
+
+`src/assets/weapons/knife/goblin-knife.glb`: the goblin's own rig (character lane, #86) carrying the sica — a short hooked knife — with the
+sword's 21 clips, `Heavy` re-keyed as a diagonal hack. Built by `scripts/build-weapon.mjs` through `build-warrior.mjs`
+(`WARRIOR_FIGHTER=goblin WARRIOR_WEAPON=knife [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=…`).
+
+Provenance: **original project work, no new third-party asset, texture or licence.** A procedural loft (swept centreline, width envelope,
+wedge section, the hook's back sharpened over its last third) and Three.js primitives; procedural materials (scavenged iron, greasy wood,
+cord); no image maps. The re-keyed `Heavy` is the cleaver's original keys on the same CC0 rig. Evidence and the silhouettes:
+`artifacts/weapons/REPORT.md`.

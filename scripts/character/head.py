@@ -1523,6 +1523,8 @@ FIGHTERS = {
                   'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.16, 'hair': 'full', 'scars': True, 'decimate': 0.26},  # decimate: the Veteran's — the budget goes to the sleeves, hose and boots
     'pitborn': {'kt_glb': 'artifacts/source/keentools/01a0ab5b-b143-7531-ad79-6de9bacbf0fa.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16
                 'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84)},  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
+    'goblin': {'kt_glb': 'artifacts/source/keentools/01a0ab81-4cff-7871-bac7-adfa28d57d0b.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16 22:33
+               'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.42, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.80, 0.77, 0.78), 'backdrop_cool': True},  # stubbled bald scalp (hair_lum .42: the photographed stubble is lum ~.32 — at .30 the fill took only its shadows and printed a dark band round a pale crown); no helm; skin_mul: v1 body rendered (178,154,125) beside a (143,115,97) cheek — tan and 25–30 % too bright for the grey-brown face; backdrop_cool: the grey backdrop smeared onto the crown
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
@@ -1807,7 +1809,11 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     colour = pixels(images[0])
     colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
     seen_edge = 0.6 + (0.16 * (hair_streaks(size, seed=13) - 0.5) * (scalp > 0.5) if HAIR == 'full' else 0)  # full hair: the photographed tufts end ragged along the strands, not on one coverage iso-line
-    dark = (colour.max(axis=2) < 0.06) | ((coverage < seen_edge) & ((hair_zone > 0.5) | (back > 0.3))) | (coverage < 0.3)  # black; the crown, back and nape seen only at a grazing angle (a smear, or the portrait's grey backdrop); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
+    dark = (colour.max(axis=2) < 0.06) | ((coverage < seen_edge) & ((hair_zone > 0.5) | (back > 0.3))) | (coverage < 0.3)
+    if FIGHTERS[FIGHTER].get('backdrop_cool'):  # the portraits' neutral backdrop projected onto the crown at grazing angles: a cool texel (blue ≥ 85 % of red) above the hairline is neither skin nor stubble — unseen, so the fill covers it (per fighter: grey hair is cool too)
+        backdrop = (hair_zone > 0.5) & (colour[:, :, 2] >= colour[:, :, 0] * 0.85)   # skin and stubble here run b ≈ .6–.7 r; the backdrop's graded edge ~.9
+        print(f'KEENTOOLS backdrop on the crown: {int((backdrop & ~dark).sum())} cool texels marked unseen')
+        dark = dark | backdrop  # black; the crown, back and nape seen only at a grazing angle (a smear, or the portrait's grey backdrop); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
     filled = crown_fill(colour, dark, size, hair_zone, coverage=coverage, scalp=scalp)
     crown_w = np.clip(1 - blur((~dark).astype(np.float32), 16) * 1.6, 0, 1) * dark * (scalp > 0.5) if HAIR == 'full' else np.zeros((size, size), np.float32)  # where the crown is synthesised strands (crown_fill's own blend weight)
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands

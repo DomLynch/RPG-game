@@ -293,3 +293,59 @@ test('the Veteran\'s stance (slice V): the trident warden opens with the thrust 
   let bladeBlocks = 0; for (let s = 1; s <= 60; s++) { const plan = decide(heavySword, 1, { ...initialAi(s * 104729), mode: 'approach', decision: 500, wait: 500, next: null }, PROFILES.normal).ai.plan; if (plan === 'block') bladeBlocks++; }
   assert.ok(bladeBlocks > 0, 'the blade guard still blocks a plain heavy sometimes');
 });
+
+// ── The knife (weapons lane, 2026-09-17): the goblin's sica — ON THE SHELF, as the cleaver. The combat lane flips `WEAPONS.knife` to KNIFE,
+// adds the manifest entry from src/assets/weapons/knife/goblin-knife.glb (his own re-proportioned rig), bakes, sets his stance and knobs.
+import { KNIFE, KNIFE_PATHS, type MoveId, type PathId } from '../src/moves.ts';
+const KNIFE_GLB = 'src/assets/weapons/knife/goblin-knife.glb';
+
+test('the knife is on the shelf: KNIFE is real data nothing uses; WEAPONS.knife still borrows the longsword; no manifest entry yet', () => {
+  assert.equal(WEAPONS.knife.placeholder, true); assert.equal(WEAPONS.knife.moves, MOVES); assert.deepEqual(bladePaths.knife, bladePaths.longsword);
+  assert.notEqual(KNIFE.moves, MOVES); assert.notEqual(KNIFE.paths, PATHS); assert.equal(KNIFE.id, 'knife');
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string }[] };
+  assert.ok(!manifest.weapons.some(w => w.weapon === 'knife'), 'no knife bake until the flip');
+});
+
+test('the knife rig is the goblin\'s own (re-proportioned, .835 root) carrying WeaponDrawn with a short blade as the contact segment, empty sword nodes, and exactly the goblin\'s clip list; only Heavy is re-keyed', async () => {
+  const asset = await readRig(KNIFE_GLB), goblin = await readRig('src/assets/goblin.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
+  assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
+  const contact = weapon.userData.contact as { from: number; to: number };
+  assert.ok(contact && contact.to < .6 && contact.to > .45 && contact.from > .08 && contact.from < .2, `a short blade: ${JSON.stringify(contact)}`);
+  assert.equal(weapon.userData.grip, 'forward', 'forward grip: the reverse grip never lands on the sword\'s clips');
+  for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
+  assert.deepEqual(asset.animations.map(c => c.name), goblin.animations.map(c => c.name), 'the goblin\'s clip list, in order');
+  const root = (a: Awaited<ReturnType<typeof readRig>>) => a.scene.children[0].scale.x; assert.ok(Math.abs(root(asset) - root(goblin)) < 1e-6, 'his root scale');
+  for (const clip of goblin.animations) { // his own clips, track for track, except the Heavy (the diagonal hack)
+    const twin = asset.animations.find(c => c.name === clip.name)!;
+    const same = clip.tracks.every(t => { const o = twin.tracks.find(x => x.name === t.name)!; return o && o.times.length === t.times.length && Array.from(t.values).every((v, i) => Math.abs(v - o.values[i]) < 1e-6); });
+    assert.equal(same, clip.name !== 'Heavy', `${clip.name} ${clip.name === 'Heavy' ? 'is the knife\'s own' : 'is the goblin\'s'}`);
+  }
+  for (const [path, spec] of Object.entries(KNIFE_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
+});
+
+test('the knife\'s edge leads on the goblin\'s rig: the slash and the hack move along the edge side; the backhand runs along the hook\'s sharpened back', async () => {
+  const asset = await readRig(KNIFE_GLB), mixer = new AnimationMixer(asset.scene), blade = asset.scene.getObjectByName('WeaponDrawn')!, tip = (blade.userData.contact as { to: number }).to, out: Record<string, number> = {};
+  for (const [kind, spec] of Object.entries(KNIFE_PATHS)) {
+    if (kind.endsWith('_chain') || kind === 'thrust' || kind === 'riposte') continue;
+    const n = total(spec), clip = asset.animations.find(c => c.name === spec.clip)!, action = mixer.clipAction(clip).play();
+    const at = (age: number) => { mixer.setTime(Math.min(.999999, swingProgress(age / n, spec.windup / n, spec.source)) * clip.duration); asset.scene.updateMatrixWorld(true); return { tip: blade.localToWorld(new Vector3(0, tip, 0)), q: blade.getWorldQuaternion(new Quaternion()) }; };
+    const a = at(spec.windup), b = at(spec.windup + spec.active), v = b.tip.clone().sub(a.tip).normalize(), edge = new Vector3(1, 0, 0).applyQuaternion(at(spec.windup + Math.floor(spec.active / 2)).q);
+    out[kind] = edge.dot(v); action.stop(); mixer.uncacheClip(clip);
+  }
+  assert.ok(out.light_right > .6, `the slash leads with the edge: ${out.light_right.toFixed(2)}`);
+  assert.ok(out.light_left < -.6, `the backhand leads with the hook's back (sharpened): ${out.light_left.toFixed(2)}`);
+  assert.ok(out.heavy_overhead > .85 && out.heavy_riposte > .85, `the hack leads with the edge: ${out.heavy_overhead.toFixed(2)} / ${out.heavy_riposte.toFixed(2)}`);
+});
+
+test('the knife\'s data keeps the goblin\'s brief: every wind-up ≥ 12 ticks (readability), feints inside the first ~40 % of the wind-up, damage and cost below the sword\'s, reach below the sword\'s and rising from slash to stab to hack', () => {
+  for (const [id, m] of Object.entries(KNIFE.moves)) {
+    if (id === 'kick') continue;
+    assert.ok(m.windup >= 12, `${id} wind-up ${m.windup} ≥ 12`);
+    if (m.feintUntil) assert.ok(m.feintUntil <= Math.ceil(m.windup * .45) && m.feintUntil >= Math.floor(m.windup * .3), `${id} feintUntil ${m.feintUntil} of ${m.windup}`);
+    assert.ok(m.damage <= MOVES[id as MoveId].damage && m.stamina <= MOVES[id as MoveId].stamina, `${id}: no more than a sword's damage and cost`);
+    assert.ok(m.reach < MOVES[id as MoveId].reach, `${id}: shorter than a sword`);
+  }
+  for (const [path, spec] of Object.entries(KNIFE_PATHS)) assert.ok(spec.windup >= 12 && spec.windup <= PATHS[path as PathId].windup && total(spec) < total(PATHS[path as PathId]), `${path}: quicker than the sword, never under 12`);
+  assert.ok(KNIFE.moves.light_right.reach < KNIFE.moves.thrust.reach && KNIFE.moves.thrust.reach < KNIFE.moves.heavy_overhead.reach);
+  assert.deepEqual([KNIFE.guard, KNIFE.material, KNIFE.fight.thrustShare > LONGSWORD.fight.thrustShare, KNIFE.fight.close < LONGSWORD.fight.close], ['blade', 'iron', true, true]);
+});

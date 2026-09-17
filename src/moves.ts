@@ -158,7 +158,7 @@ export type AiProfile = {
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
-export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife';
 export type Material = 'iron' | 'bronze' | 'wood';
 export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true;
   guardProfile?: Partial<GuardProfile>;   // how this weapon's guard takes a blow (absent = the longsword defaults in RULES)
@@ -242,10 +242,46 @@ export const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLEAVER_PATHS, guard: 'blade', material: 'iron', reach: CLEAVER_MOVES.thrust.reach, fight: { thrustShare: .1, close: 1.15 } };   // the poke is a rare opener (one non-cut opener in ten); he closes to the sword's cutting range for his chops
+// ── Knife (weapons lane, 2026-09-17): the goblin's short hooked knife — a sica (forward grip, inward hook, double-edged over the hook) on
+// the goblin's own re-proportioned rig, src/assets/weapons/knife/goblin-knife.glb (WeaponDrawn, contact = the blade .12–.52; 0.81× in his
+// hand → a 0.42 m blade). The sword's clip family (only Heavy re-keyed as the diagonal hack, as the cleaver's). Timings are the character
+// lane's proposal (artifacts/character/BRIEF-goblin.md): wind-up ≥ 12 ticks everywhere (the readability rule), feints = the first ~40 % of
+// the wind-up, damage and cost below a sword's. Measured from his rig with these timings (artifacts/weapons/REPORT.md): the slash lands to
+// 1.2 m, the stab 1.45, the hack 1.55 (the sword: 1.7 / 2.0 / 2.2) — `reach` is that frontier; the combat lane sets his stance, his knobs (feint rate, guard share 0, back-step
+// after landing, circling, regen) and the battery. A reverse-grip hook was tried and rejected with numbers: on the sword's clips the blade sits
+// behind the fist and never lands (0 m at every gap) — it would need its own clip set. Every number PROVISIONAL — GAMEPLAY CHANGE.
+export const KNIFE_PATHS: Record<PathId, PathSpec> = {
+  light_right: { clip: 'Attack', source: .34, windup: 14, active: 6, recovery: 16 },
+  light_left: { clip: 'Return', source: .34, windup: 14, active: 6, recovery: 16 },
+  light_right_chain: { clip: 'Attack', source: .34, windup: 12, active: 6, recovery: 14 },
+  light_left_chain: { clip: 'Return', source: .34, windup: 12, active: 6, recovery: 14 },
+  heavy_overhead: { clip: 'Heavy', source: .48, windup: 22, active: 5, recovery: 26 },
+  heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 26 },
+  thrust: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
+  riposte: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
+  heavy_riposte: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 20 },
+};
+const slash = (id: 'light_right' | 'light_left'): MoveDef => ({
+  ...MOVES[id], chained: { windup: 12, active: 6, recovery: 14 }, chain: { window: 14, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'thrust', 'heavy_overhead'] },
+  windup: 14, active: 6, recovery: 16, damage: 10, stamina: 18, staminaDamage: 10, stagger: 18, chip: 0, knockback: 2, stepIn: .4, feintUntil: 6, posture: 14, chamber: 6, reach: 1.2,
+});
+export const KNIFE_MOVES: Record<MoveId, MoveDef> = {
+  light_right: slash('light_right'),
+  light_left: slash('light_left'),   // the backhand: the hook's outer edge is sharpened, so it cuts too (a rip)
+  heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 16, active: 5, recovery: 26 }, windup: 22, active: 5, recovery: 26, damage: 14, stamina: 26, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0, chip: .2, knockback: 3, stepIn: .55, feintUntil: 8, posture: 24, chamber: 7, reach: 1.55 },
+  thrust: { ...MOVES.thrust, windup: 12, active: 4, recovery: 15, damage: 9, stamina: 14, staminaDamage: 12, stagger: 14, knockback: 2, stepIn: 1, feintUntil: 5, posture: 12, chamber: 5, reach: 1.45 },
+  riposte: { ...MOVES.riposte, windup: 12, active: 4, recovery: 15, damage: 18, stamina: 16, feintUntil: 5, reach: 1.2 },
+  heavy_riposte: { ...MOVES.heavy_riposte, windup: 16, active: 5, recovery: 20, damage: 22, stamina: 26, feintUntil: 6, reach: 1.55 },
+  heavy_counter: { ...MOVES.heavy_counter, windup: 16, active: 5, recovery: 20, damage: 16, stamina: 26, feintUntil: 6, posture: 22, reach: 1.55 },
+  critical: { ...MOVES.critical, windup: 16, active: 5, recovery: 20, damage: 30, stamina: 20, reach: 1.55 },   // the brief's table said 26; a sword's critical costs 25 and the knife's must not cost more
+  kick: MOVES.kick,
+};
+export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PATHS, guard: 'blade', material: 'iron', reach: KNIFE_MOVES.thrust.reach, fight: { thrustShare: .4, close: 1.0 } };   // a knife fighter stabs often and closes inside a sword's cutting range — the combat lane's to tune with his knobs
 // The lanes' split (2026-09-16): the weapons lane delivers a weapon unused; the combat lane puts it in the fight. The cleaver is LIVE
 // since slice W (2026-09-17): OPPONENTS.pitborn carries it, baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention — the
 // brute's rendered blade runs ~10 cm past the simulated one, never the other way; a 1.13× bake let no backstep escape him).
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: { ...LONGSWORD, id: 'estoc', placeholder: true } };   // estoc: the Nightborn's thin thrust-first blade, the longsword's data until the weapons lane lands it (artifacts/character/BRIEF-nightborn.md § Weapon)
+// The knife is ON THE SHELF: its flip is `knife: KNIFE` here plus its manifest entry from the goblin's rig (artifacts/weapons/REQUESTS.md §9).
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: { ...LONGSWORD, id: 'estoc', placeholder: true }, knife: { ...LONGSWORD, id: 'knife', placeholder: true } };   // estoc: the Nightborn's thin thrust-first blade, the longsword's data until the weapons lane lands it (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
@@ -262,7 +298,7 @@ export type Level = keyof typeof PROFILES;
 // counter-hits, stop-hits, rear hits and charged blows always do. 0 = staggered by everything, the human default.
 // guard: how this man's guard behaves on top of his weapon's (`Fighter.guardProfile`): the Nightborn's parry window is longer than a man's
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
-export type OpponentId = 'veteran' | 'pitborn' | 'nightborn';
+export type OpponentId = 'veteran' | 'pitborn' | 'nightborn' | 'goblin';
 export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number };   // regen: stamina regeneration multiplier (a small fighter recovers fast)
 export const OPPONENTS: Record<OpponentId, Opponent> = {
   veteran: { id: 'veteran', weapon: 'trident', scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },   // the trident since slice V (2026-09-16)
@@ -288,5 +324,15 @@ export const OPPONENTS: Record<OpponentId, Opponent> = {
     easy: { reaction: 8, accuracy: .7, parry: .45, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .3 },
     normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .6, pressure: .45, discipline: 45, lapse: .15 },   // pressure .45: enough heavies that a roller is charged through (a cut-and-thrust man rolls too easily)
     hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .75, pressure: .5, discipline: 40, lapse: .05 },
+  } },
+  // The goblin (opponent 4, the pit-runner): small, fast, mean — 0.78× a man (his measured standing height; the rig is re-proportioned, not
+  // shrunk: build-warrior.mjs BUILD.goblin), 100 health, poise 0 (anything staggers him). Reaction fast, parry 0 (he never parries), the dodge
+  // share high, a low discipline floor. PROVISIONAL, character lane: the fight identity the brief asks for — feint rate, a guard share of zero,
+  // back-steps after landing, constant circling, fast stamina regen — needs knobs ai.ts/duel.ts do not have yet (artifacts/goblin/REQUESTS.md);
+  // the combat lane owns these numbers and the fairness battery for him. The knife is the longsword's data until the weapons lane ships it.
+  goblin: { id: 'goblin', weapon: 'knife', scale: .78, health: 100, poise: 0, profiles: {
+    easy: { reaction: 18, accuracy: .55, parry: 0, dodge: .3, aggression: .55, pressure: .3, discipline: 35, lapse: .4 },
+    normal: { reaction: 10, accuracy: .8, parry: 0, dodge: .5, aggression: .7, pressure: .5, discipline: 25, lapse: .2 },
+    hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .6, aggression: .8, pressure: .6, discipline: 20, lapse: .08 },
   } },
 };
