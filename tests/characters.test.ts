@@ -161,10 +161,10 @@ function standingTop(asset: Awaited<ReturnType<typeof readWarrior>>, clipName = 
   return bounds.max.y;
 }
 const HUNCHED = ['spine_02', 'spine_03', 'neck_01', 'Head'];   // scripts/build-warrior.mjs BUILD.pitborn.hunch
-test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunched spine: same clips and timings, every bone track identical except the hunched ones, the sword in the same hand, and he stands taller by his scale less the hunch', async () => {
+test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunched spine: same clips and timings, every bone track identical except the hunched ones and the cleaver\'s re-keyed Heavy (the hack), the cleaver in the sword hand, and he stands taller by his scale less the hunch', async () => {
   const [hero, brute] = await Promise.all([readWarrior('warrior.glb'), readWarrior('pitborn.glb')]);
   assert.deepEqual(brute.animations.map(a => a.name), hero.animations.map(a => a.name));
-  let hunchedTracks = 0;
+  let hunchedTracks = 0, rekeyed = 0;
   for (const [i, clip] of hero.animations.entries()) {
     const other = brute.animations[i];
     assert.equal(other.duration, clip.duration, `${clip.name} duration`);
@@ -173,15 +173,22 @@ test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunche
       const twin = other.tracks.find(t => t.name === track.name)!;
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
       if (HUNCHED.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be hunched`); hunchedTracks++; }
+      else if (clip.name === 'Heavy' && /arm|hand|clavicle|Sword|Weapon/.test(track.name)) { if (!twin.values.every((v, n) => v === track.values[n])) rekeyed++; }   // the cleaver's Heavy is the hack: the arms re-keyed so the edge leads (weapons lane); legs and spine still the sword's
       else assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
     }
   }
   assert.ok(hunchedTracks >= hero.animations.length * HUNCHED.length * .9, `hunched tracks ${hunchedTracks}`);
+  assert.ok(rekeyed >= 2, `the hack re-keys the arms (${rekeyed} arm tracks differ in Heavy)`);
+  // He carries the cleaver where the sword hung: WeaponDrawn under hand_r at the sword's transform, its edge as the contact segment; the sword nodes carry nothing.
   for (const name of ['SwordSheathed', 'SwordDrawn', 'hand_r']) {
     const a = hero.scene.getObjectByName(name)!, b = brute.scene.getObjectByName(name)!;
     assert.ok(a && b, name);
     assert.deepEqual(b.position.toArray(), a.position.toArray(), `${name} position`); assert.deepEqual(b.quaternion.toArray(), a.quaternion.toArray(), `${name} rotation`); assert.equal(b.parent?.name, a.parent?.name, `${name} parent`);
   }
+  const cleaver = brute.scene.getObjectByName('WeaponDrawn')!, sword = hero.scene.getObjectByName('SwordDrawn')!;
+  assert.ok(cleaver && cleaver.parent?.name === 'hand_r', 'WeaponDrawn under hand_r');
+  assert.deepEqual(cleaver.position.toArray(), sword.position.toArray()); assert.deepEqual(cleaver.quaternion.toArray(), sword.quaternion.toArray());
+  assert.deepEqual(cleaver.userData.contact, { from: .14, to: .86 }); assert.equal(brute.scene.getObjectByName('SwordDrawn')!.children.length + brute.scene.getObjectByName('SwordSheathed')!.children.length, 0, 'the sword nodes carry nothing');
   // The scale is on the rig root, so the simulation's capsule (OPPONENTS.pitborn.scale) and the rendered man agree; the hunch takes a few centimetres off the top.
   const k = OPPONENTS.pitborn.scale, root = (a: typeof hero) => a.scene.children[0].scale;
   for (const axis of ['x', 'y', 'z'] as const) assert.ok(Math.abs(root(brute)[axis] / root(hero)[axis] - k) < 1e-3, `root scale ${axis}: ${root(brute)[axis]} / ${root(hero)[axis]}`);

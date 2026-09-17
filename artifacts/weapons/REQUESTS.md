@@ -98,7 +98,7 @@ fights with the longsword's data on the sword clip family, so the swap is the cl
 The split (combat dev, 2026-09-16): the weapons lane delivers a weapon on the shelf, unused; the combat lane puts it in the fight.
 PR #82 lands the cleaver on the shelf: `WEAPONS.cleaver` still borrows the longsword, no manifest entry, the Pitborn unchanged.
 
-## 5. Combat lane — the flip (what #83 did for the trident)
+## 5. Combat lane — the flip — **DONE (slice W, combat lane, 2026-09-17, owner's pick A)**: `WEAPONS.cleaver = CLEAVER`, manifest entry baked from `veteran-cleaver.glb` (1.0×), `pitborn.glb` rebuilt with the cleaver (his build default now), the stale `pitborn-cleaver.glb` removed. Two combat findings: the 6/24 stalls were the AI waiting for ever for a heavy the attrition floor (40) could no longer pay (the hack costs 42) — fixed in ai.ts for every weapon (an unaffordable planned opener becomes a cut); and at hard the whiff punisher went over the 35 % cap (10/24) because discipline 20 let him swing himself empty — his hard discipline is 24 now (punisher 7/24; normal 9/24). Chip .2 on the chop, the hammer backhand and posture 42 on the hack kept as shipped.
 1. `src/moves.ts`: `WEAPONS.cleaver` → `CLEAVER` (exported, real data: `CLEAVER_MOVES` / `CLEAVER_PATHS`, guard blade, iron,
    `fight { thrustShare .1, close 1.15 }`).
 2. `scripts/blade-manifest.json`: `{ "weapon": "cleaver", "glb": <rig>, "node": "WeaponDrawn", "contact": [0.14, 0.86] }` — see §6 for
@@ -131,8 +131,7 @@ PR #82 lands the cleaver on the shelf: `WEAPONS.cleaver` still borrows the longs
 - The sim sweeps the node's axis; the blade's 0.20 m forward bend is presentation only (as the sword's diamond section is).
 
 ## 7. Character lane
-Once the flip lands, the Pitborn's rebuild command carries `WARRIOR_WEAPON=cleaver` (and the owner's `WEAPON_VARIANT`), or a rebuild
-hands him the sword back.
+**Done differently:** the Pitborn's build defaults to the cleaver (`build-warrior.mjs`: `WARRIOR_FIGHTER=pitborn` → `cleaver`, as the Veteran → `trident`), so a plain rebuild keeps it; only an explicit `WARRIOR_WEAPON=longsword` hands him the sword back. Variant A unless `WEAPON_VARIANT` says otherwise.
 
 ## 8. Owner — pick the cleaver's silhouette
 `artifacts/weapons/cleaver-v3/weapon-turntable.png` (**A**, default: fat scythe, 0.19 m belly out near the hooked tip, 0.20 m
