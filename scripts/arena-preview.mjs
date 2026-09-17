@@ -31,11 +31,11 @@ const canvas = document.getElementById('world'), GAME_RATIO = 1.5, TICK = 1 / 60
 // Game renderer settings (src/scene.ts createScene): the lead's, frozen here.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.3;
-const scene = new THREE.Scene(); scene.background = new THREE.Color('#9ca8a6'); scene.fog = new THREE.FogExp2('#9ca8a6', 0.018);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#a9a89c'); scene.fog = new THREE.FogExp2('#a9a89c', 0.018);
 { const pmrem = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment(); scene.environment = pmrem.fromScene(room, 0.04).texture; room.dispose(); pmrem.dispose(); }
-scene.environmentIntensity = 0.65;
-scene.add(new THREE.HemisphereLight('#d2e0e4', '#575c4c', 2.5));
-const sun = new THREE.DirectionalLight('#ffdfad', 3.6); sun.position.set(-15, 26, -18); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+scene.environmentIntensity = 0.45;
+scene.add(new THREE.HemisphereLight('#c9cfc6', '#4a4238', 1.6));
+const sun = new THREE.DirectionalLight('#ffe2b8', 4.2); sun.position.set(-15, 26, -18); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
 Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 70 }); sun.shadow.normalBias = 0.04; scene.add(sun);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
 const t0 = performance.now(), arena = buildArena(scene), buildMs = performance.now() - t0;

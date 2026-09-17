@@ -32,8 +32,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.3;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#9ca8a6');
-  scene.fog = new THREE.FogExp2('#9ca8a6', 0.018);
+  scene.background = new THREE.Color('#a9a89c');
+  scene.fog = new THREE.FogExp2('#a9a89c', 0.018);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
   function rebuildEnvironment() {
     const environment = new RoomEnvironment(), pmrem = new THREE.PMREMGenerator(renderer);
@@ -42,13 +42,13 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       environmentTarget?.dispose(); environmentTarget = target; scene.environment = target.texture;
     } finally { environment.dispose(); pmrem.dispose(); }
   }
-  rebuildEnvironment(); scene.environmentIntensity = 0.65;
+  rebuildEnvironment(); scene.environmentIntensity = 0.45;
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
   const metal = new THREE.MeshStandardMaterial({ color: '#89949b', metalness: 0.72, roughness: 0.4 });
   // The target marker's brass is a combat tell (it warms on a threat); the arena has its own materials in arena.ts.
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
-  scene.add(new THREE.HemisphereLight('#d2e0e4', '#575c4c', 2.5));
-  const sun = new THREE.DirectionalLight('#ffdfad', 3.6);
+  scene.add(new THREE.HemisphereLight('#c9cfc6', '#4a4238', 1.6));
+  const sun = new THREE.DirectionalLight('#ffe2b8', 4.2);
   sun.position.set(-15, 26, -18);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
