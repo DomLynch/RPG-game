@@ -405,9 +405,12 @@ Mixamo / KayKit / MoCap Online clip was downloaded. Silhouette variants and evid
 
 ## Weapons (weapons lane, 2026-09-16) — the cleaver
 
-`src/assets/weapons/cleaver/`: `cleaver.glb` (the part alone) and `veteran-cleaver.glb` (the Veteran's rig carrying it, for the Pitborn
-until `pitborn.glb` ships; the sword's 21 clips, `Heavy` re-keyed as a diagonal hack). Built by `scripts/build-weapon.mjs` through
-`build-warrior.mjs` (`WARRIOR_FIGHTER=veteran WARRIOR_WEAPON=cleaver [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=…`), then `node scripts/bake-blades.mjs`.
+`src/assets/weapons/cleaver/`: `cleaver.glb` (the part alone) and `veteran-cleaver.glb` (the Veteran's 1.0× rig carrying it — the
+**bake source** for the cleaver's blade table, so the brute's simulated blade is a man's and his rendered 1.13× blade runs past it, never
+short of it; the sword's 21 clips, `Heavy` re-keyed as a diagonal hack). Since slice W the shipped `pitborn.glb` IS the Pitborn carrying it:
+`WARRIOR_FIGHTER=pitborn node scripts/build-warrior.mjs` (the cleaver is his default; owner's pick = variant A, `WEAPON_VARIANT=B|C` for the
+others; the bake source is `WARRIOR_FIGHTER=veteran WARRIOR_WEAPON=cleaver WARRIOR_OUT=src/assets/weapons/cleaver/veteran-cleaver.glb`), then
+`node scripts/bake-blades.mjs`.
 
 Provenance: **original project work, no new third-party asset, texture or licence.** The blade is a procedural loft (a swept centreline
 and a width envelope, wedge section) and the furniture Three.js primitives; the materials are procedural (pitted iron, dark wood; no

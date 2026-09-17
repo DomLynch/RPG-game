@@ -208,11 +208,12 @@ test('posture: a shaky warden gives ground so its bar drains, and finishes a bro
 });
 
 test('reads: habits become reads only with evidence, at the documented thresholds', () => {
-  const h = (o: Partial<Habits>): Habits => ({ ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, ...o });
-  assert.deepEqual(readOpponent(h({})), { parryHappy: false, turtle: false, roller: false, spammer: false });
+  const h = (o: Partial<Habits>): Habits => ({ ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, parks: 0, ...o });
+  assert.deepEqual(readOpponent(h({})), { parryHappy: false, turtle: false, roller: false, spammer: false, parker: false });
   assert.equal(readOpponent(h({ attacks: 1, parries: 1 })).parryHappy, false, 'one swing is not evidence'); assert.equal(readOpponent(h({ attacks: 2, parries: 1 })).parryHappy, true, 'two exchanges, half parried'); assert.equal(readOpponent(h({ attacks: 4, parries: 1 })).parryHappy, false);
   assert.equal(readOpponent(h({ ticks: 179, guard: 179 })).turtle, false); assert.equal(readOpponent(h({ ticks: 180, guard: 81 })).turtle, true); assert.equal(readOpponent(h({ ticks: 180, guard: 80 })).turtle, false);
   assert.equal(readOpponent(h({ attacks: 5, rolls: 2 })).roller, true); assert.equal(readOpponent(h({ attacks: 5, rolls: 1 })).roller, false);
+  assert.equal(readOpponent(h({ lights: 1, parks: 1 })).parker, false, 'one park is not evidence'); assert.equal(readOpponent(h({ lights: 2, parks: 1 })).parker, true, 'two swings, half of them parked'); assert.equal(readOpponent(h({ lights: 3, heavies: 1, parks: 1 })).parker, false);
   assert.equal(readOpponent(h({ lights: 8, heavies: 3 })).spammer, true); assert.equal(readOpponent(h({ lights: 8, heavies: 2 })).spammer, false, 'eleven swings needed'); assert.equal(readOpponent(h({ lights: 7, heavies: 4 })).spammer, false);
   assert.equal(readOpponent(h({ lights: 7, thrusts: 4 })).spammer, false, 'thrusts are a mix, not spam'); assert.equal(readOpponent(h({ lights: 8, thrusts: 3 })).spammer, true);
 });
@@ -273,7 +274,7 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   const baits = parrier.log.filter(e => e.type === 'Charging' && e.actor === 1 && e.move !== 'heavy_overhead');
   assert.ok(baits.some(e => e.read.parryHappy) && !baits.some(e => !e.read.parryHappy), `baited lights only after the read: ${baits.length}`);
   // A neutral player triggers no read at all.
-  assert.deepEqual(readOpponent(watch(PROFILES.normal, 2400, () => idle()).habits), { parryHappy: false, turtle: false, roller: false, spammer: false });
+  assert.deepEqual(readOpponent(watch(PROFILES.normal, 2400, () => idle()).habits), { parryHappy: false, turtle: false, roller: false, spammer: false, parker: false });
 });
 
 test('the thrust: a minority opener planned only after the first heavy, thrown from wherever it stands (no walk-back), never into a guard — and the stop-hit into an opponent walking onto the point', () => {

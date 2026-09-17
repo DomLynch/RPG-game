@@ -22,7 +22,7 @@ const fighter = process.env.WARRIOR_FIGHTER || 'hero', variant = realistic ? (fi
 // sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
 // the weapon's own clips join the set. The hero defaults to the longsword (byte-identical output); the Veteran defaults to the trident
 // since slice V (duel.ts initialDuel gives him it), so a plain rebuild never hands him the sword back.
-const weaponId = process.env.WARRIOR_WEAPON || (fighter === 'veteran' ? 'trident' : 'longsword');
+const weaponId = process.env.WARRIOR_WEAPON || (fighter === 'veteran' ? 'trident' : fighter === 'pitborn' ? 'cleaver' : 'longsword');   // each opponent's default is the weapon he fights with (moves.ts OPPONENTS), so a plain rebuild never hands him the sword back
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
 const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
@@ -42,11 +42,11 @@ const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
-const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'goblin' ? '#4a3a2c' : '#767a7c', metalness: fighter === 'goblin' ? 0.6 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'goblin' ? 0.9 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the goblin's one bracer is rust-brown scavenged iron
+const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'nightborn' ? '#3b3b3f' : fighter === 'goblin' ? '#4a3a2c' : '#767a7c', metalness: fighter === 'nightborn' ? 0.7 : fighter === 'goblin' ? 0.6 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'goblin' ? 0.9 : fighter === 'nightborn' ? 0.72 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the goblin's one bracer is rust-brown scavenged iron; the Nightborn's dull dark iron, no hot spot
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
 const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
-const leather = new T.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: 0.8 });
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'goblin' ? '#3a3229' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
+const leather = new T.MeshStandardMaterial({ name: 'Leather', color: fighter === 'nightborn' ? '#2b2320' : '#4a3527', roughness: 0.8 });   // the Nightborn's is black-oiled
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'nightborn' ? '#17151a' : fighter === 'goblin' ? '#3a3229' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
@@ -73,6 +73,8 @@ const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bron
 // Per-fighter frame (moves.ts OPPONENTS.scale must match `scale`; tests/characters.test.ts checks the shipped height against it): the whole
 // rig is scaled, so every clip, the hand's sword and the baked blade paths follow. `hunch` bends bones forward by degrees in every clip
 // (a constant post-rotation about each bone's own rest sideways axis) — the brute's forward-hunched spine, head thrust out to look at you.
+// The Nightborn: a shade taller than a man and the opposite posture to the brute — the same post-rotations with the signs reversed: chest
+// back, chin up (OPPONENTS.nightborn.scale is the measured standing ratio; the hit capsule follows it).
 // The goblin (opponent 4) is a small man RE-PROPORTIONED, not a shrunken one: `bones` scales each named bone about its own joint in its rest
 // frame (y along the bone = its length, x/z its girth), applied through the skin weights of every part before binding — a smooth stretch,
 // no fold at a joint — and the rig's rest positions and inverse binds are rebuilt to match (`reproportion` below). Rotations, hence every
@@ -81,6 +83,7 @@ const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bron
 // measured standing-height ratio — the hit capsule follows the man's height, not the root scale — and tests/characters.test.ts pins it.
 // `stride` (root scale × leg scale) is written to the GLB so the runtime plays his walk at his own pace instead of a man's (characters.ts).
 const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] }, pitborn: { scale: 1.13, hunch: [['spine_02', 7], ['spine_03', 7], ['neck_01', -7], ['Head', -6]] },
+  nightborn: { scale: 1.03, hunch: [['spine_02', -2], ['spine_03', -2], ['Head', -4]] },
   goblin: { scale: .835, hunch: [['spine_02', 9], ['spine_03', 9], ['neck_01', -8], ['Head', -8]], bob: .84, stride: .835 * .84, floor: .12,
     bones: { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l: [1, .84, 1], calf_r: [1, .84, 1],   // short legs
       upperarm_l: [1, 1.16, 1], upperarm_r: [1, 1.16, 1], lowerarm_l: [1, 1.16, 1], lowerarm_r: [1, 1.16, 1],   // long arms (the hands keep their size: the grip and the sword are untouched)

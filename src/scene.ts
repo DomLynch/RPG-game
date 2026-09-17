@@ -22,7 +22,7 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
 }
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
-const OPPONENT_GLB: Record<OpponentId, string> = { veteran: new URL('./assets/veteran.glb', import.meta.url).href, pitborn: new URL('./assets/pitborn.glb', import.meta.url).href, goblin: new URL('./assets/goblin.glb', import.meta.url).href };
+const OPPONENT_GLB: Record<OpponentId, string> = { veteran: new URL('./assets/veteran.glb', import.meta.url).href, pitborn: new URL('./assets/pitborn.glb', import.meta.url).href, nightborn: new URL('./assets/nightborn.glb', import.meta.url).href, goblin: new URL('./assets/goblin.glb', import.meta.url).href };
 export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: string) => void = () => {}, opponentId: OpponentId = 'veteran') {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
