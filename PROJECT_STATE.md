@@ -361,6 +361,27 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
   node (the trident is not visible in the game until then), the combat flip and review, a rule for "weak inside the point" (the sim
   sweeps the tines from the wind-up pose, so a thrust lands from 0.4 m like the sword's), the shaft guard profile. Silhouette picked
   by the owner 2026-09-16 (`short`); A/B/C remain as `WEAPON_VARIANT` options.
+## Slice V — the opponent seam (Opponent 3: the Pitborn, part 1) — 2026-09-16
+- `Opponent`/`OPPONENTS`/`Level` (moves.ts): weapon, body `scale`, `health`, `poise`, a profile per easy/normal/hard. `initialDuel(opponent = veteran)`, `initialPractice(seed, opponent)`; `Fighter.scale/poise/maxHealth`; the blade sweep's capsule and hit regions scale with the target (blade.ts); a plain clean hit under `poise` damage wounds and builds posture but never staggers or moves him (heavies, counter/stop/rear hits and charged blows always do); HUD bars take their ceilings from the fighters. `WEAPONS.cleaver` = longsword placeholder (the weapons lane's fat cleaver replaces the data). `?opponent=pitborn` picks him at boot until the ladder (lead) sets it; scene.ts maps `OpponentId → GLB` (Pitborn borrows the Veteran's until `pitborn.glb` ships).
+- Pitborn data (provisional, combat-owned): 1.13×, health 190, poise 16, normal `{reaction 18, parry .15, aggression .8, pressure .7, discipline 25}`. Probe (24 seeds): battery caps hold at normal and hard; a held guard is broken in every fight (median 72 ticks, 23/24 inside 6 s); the off-line whiff punisher wins 6/24 — the best honest script; AI-vs-AI (Veteran brain vs him) median 26.4 s. Discipline 15 made the punisher win 17/24 (rejected); accuracy is not a lever; a literal `StaminaExhausted` never fires at 40/s regen — the whiff window is the weakness.
+- Evidence: 163/163 tests (new tests/opponents.test.ts: 7; battery takes an opponent and records first guard break), quality gate green incl. the browser gate. Veteran default byte-for-byte unchanged (`initialDuel()` deep-equals `initialDuel(OPPONENTS.veteran)`).
+- Next (part 2, character lane): `pitborn.glb` from the KeenTools scan `01a0ab5b…` (7 owner portraits in `artifacts/source/face/pitborn/`), 1.13× hunched build, tusks, bone/iron kit; budget cap up from 12 MB as needed; per-fighter scale in tests/characters.test.ts.
+
+## Cleaver v1 — the weapons lane — 2026-09-16
+- Branch `weapons/cleaver-v1` (stacked on #80 trident + #81 Pitborn seam). The Pitborn's cleaver: "a fat scythe-type cleaver, wider and
+  the same length as the longsword" (owner). A procedural single-edged loft (0.19 m belly toward a hooked tip, 0.20 m forward sweep, 615
+  triangles, no textures; silhouettes A/B/C for the owner's pick) under `hand_r` as `WeaponDrawn` (contact = the edge .14–.86). It rides
+  the **sword's clip family** — same 21 clips, same order; only `Heavy` is re-keyed on its rig as a diagonal hack so the edge leads
+  (edge·motion .95 vs the sword's .68) — so the renderer needs nothing; `pitborn-cleaver.glb` is his own body carrying it, and the
+  shipped `pitborn.glb` takes it with the build flag + one test relaxation (REQUESTS §5). Baked at 1.0× like his sword; at his real
+  1.13× the chop reaches 1.85 and the whiff punisher goes 0/24 — the scale call is the combat lane's (REQUESTS §6). `build-warrior.mjs` takes a per-weapon `{ part, clips, keys }` table; default output byte-identical.
+- ON THE SHELF (the lanes' split): `CLEAVER` is exported real data — the chop (17, chip .2), the back of the cleaver (the backhand leads
+  with the spine: 9 dmg, posture 34 — a hammer), the hack (26, chip .5, posture 42), the poke (7) — but `WEAPONS.cleaver` still borrows the
+  longsword and there is no manifest entry: the Pitborn is unchanged until the combat lane flips it (REQUESTS §5). Measured for that flip:
+  with lunges equal to the sword's and the sword's reach convention, the Pitborn battery passes 4/24 normal · 6/24 hard with 6/24 stalls at a
+  1.0× bake; at his 1.13× the whiff punisher goes 0/24 (REQUESTS §6). The whiff-punisher script now reads the warden's own weapon table.
+- Evidence: tests/weapons.test.ts +3 (rig + clip set + edge segment; edge-leading per cut; reach and lunge parity with the sword),
+  169/169; `artifacts/weapons/REPORT.md` (cleaver section), sheets under `artifacts/weapons/cleaver-v3/`, `cleaver-B/`, `cleaver-C/`.
 
 ## Slice W — the Pitborn's body (Opponent 3, part 2) — 2026-09-16
 - `src/assets/pitborn.glb` from the pipeline per fighter: `parts.py --fighter pitborn` (KIT `bare`/`brute`/no `helm`: rag sash instead of the tunic, crude iron belt, rag kilt, wraps, barefoot; `build_shape` shoulders and chest at 2× the Veteran's gain plus a thick neck; `tusks()` on the KeenTools head — seven owner portraits, scan `01a0ab5b…`, `skin_mul` (0.74, 0.80, 0.84) because the scan's neck band is lit paler and warmer than the grey-green cheeks) → `WARRIOR_FIGHTER=pitborn build-warrior.mjs` (`BUILD.pitborn`: root scale 1.13 = `OPPONENTS.pitborn.scale`, hunch spine_02/03 +7°, neck_01 −7°, Head −6° post-rotated into every clip's keys about each bone's bind-pose sideways axis; `Bone` material; three bone plates on the left shoulder, two on the sword forearm; blackened `Steel`, undyed `Heraldry`). No helm, so no items.

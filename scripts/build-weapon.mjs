@@ -4,8 +4,10 @@
 // samples — the trident's tines, never the shaft. Clips are authored offline on the rig with build-warrior's two-bone reach, as
 // Heavy, Riposte and Kick were: the body comes from the CC0 loops (Armed, ArmedWalk, Strafe*, Hit, Death), both arms are re-solved
 // onto the shaft every key. Timings are data (src/moves.ts WEAPONS.trident); a clip only fixes where the contact key sits (.34 / .48).
-//   build-warrior.mjs, WARRIOR_WEAPON=trident [WEAPON_VARIANT=A|B|C]   the fighter carries the trident and its clips
-//   node scripts/build-weapon.mjs [variant]                            writes the part alone to src/assets/weapons/trident/trident.glb
+//   build-warrior.mjs, WARRIOR_WEAPON=trident|cleaver [WEAPON_VARIANT=…]   the fighter carries that weapon (and its clips, if it has any)
+//   node scripts/build-weapon.mjs <weapon> [variant]                        writes the part alone to src/assets/weapons/<weapon>/<weapon>.glb
+// Weapons: the trident (own clip set, two-handed) and the Pitborn's CLEAVER (the longsword's clip family — same length — with its own
+// edge-leading Heavy keys; no new clips, so the renderer needs nothing to draw it).
 import * as T from 'three';
 
 // Silhouette variants for the owner's pick (2026-09-16): tine length / spread and shaft length. Rig units (the fighter's .9/.97
@@ -182,15 +184,73 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
   return out;
 }
 
+// ── The cleaver (the Pitborn's, owner 2026-09-16: "a fat scythe-type cleaver, wider and the same length as the longsword").
+// Single-edged: the EDGE is on local +x — the side that leads the sword's forehand cut (measured from the bake: the Attack's tip
+// moves along the node's +x at contact, the Return along −x). So the forehand chops with the edge, the backhand hits with the
+// spine (a cleaver's back is a hammer: its own move, see moves.ts), and the overhead is re-keyed as a diagonal hack (CLEAVER_KEYS)
+// because the sword's straight overhead comes down with the flat. Same length as the sword: blade .10–.86 along Y.
+export const CLEAVER_VARIANTS = {
+  // A blade is a centreline c(t) (its forward sweep toward the edge side, +x) with a width envelope w(t) split 60/40 edge/spine, closing
+  // to a point at the tip. t 0 = root (at the ferrule), 1 = tip. The edge sits on the INSIDE of the bend: a scythe / falx, not a falchion.
+  A: { name: 'A · fat scythe: 0.19 m belly out near the tip, hooked', c: t => .20 * t ** 2.2, w: t => t <= .72 ? .045 + .145 * (t / .72) ** 1.6 : .19 * (1 - (t - .72) / .28) ** .75, split: .58 },
+  B: { name: 'B · broad chopper: 0.17 m, slight bend, square-cut tip', c: t => .06 * t ** 2, w: t => t < .94 ? .05 + .12 * Math.min(1, t / .45) : .17 * (1 - t) / .06, split: 1 },
+  C: { name: 'C · long sickle: 0.14 m, mass at the tip, 0.28 m bend', c: t => .28 * t ** 2, w: t => t <= .78 ? .04 + .10 * (t / .78) ** 1.8 : .14 * (1 - (t - .78) / .22) ** .8, split: .6 },
+};
+export const CLEAVER_DEFAULT = 'A';
+export function cleaver({ T: three = T, withAoUv = g => g, variant = CLEAVER_DEFAULT } = {}) {
+  const v = CLEAVER_VARIANTS[variant] ?? CLEAVER_VARIANTS[CLEAVER_DEFAULT];
+  const iron = new three.MeshStandardMaterial({ name: 'CleaverIron', color: '#4c4946', metalness: .85, roughness: .62 }); // pitted, oiled iron: darker and rougher than the sword's steel, still lights
+  const haft = new three.MeshStandardMaterial({ name: 'Haft', color: '#4a3220', roughness: .9 });                            // dark wood grip
+  const group = new three.Group(); group.name = 'WeaponDrawn';
+  const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
+  // The blade: a loft of wedge rings — sharp on the edge side, a thick spine — along a bent centreline, closing to a point at the tip.
+  const y0 = .10, y1 = .86, segments = 26, positions = [], uvs = [];
+  const ring = i => {
+    const t = i / segments, y = y0 + t * (y1 - y0), th = .014 * (1 - .5 * t), c = v.c(t), w = v.w(t), e = c + v.split * w, sp = c - (1 - v.split) * w, mid = sp + .3 * (e - sp);
+    if (i === segments) return Array.from({ length: 5 }, () => [c, y, 0]);
+    return [[e, y, 0], [mid, y, th * .5], [sp, y, th * .35], [sp, y, -th * .35], [mid, y, -th * .5]];
+  };
+  for (let i = 0; i < segments; i++) {
+    const a = ring(i), b = ring(i + 1);
+    for (let k = 0; k < 5; k++) { const n = (k + 1) % 5; for (const [p, u, w] of [[a[k], k, i], [a[n], k + 1, i], [b[n], k + 1, i + 1], [a[k], k, i], [b[n], k + 1, i + 1], [b[k], k, i + 1]]) { positions.push(...p); uvs.push(u / 5, w / segments); } }
+  }
+  const root = ring(0); for (let k = 1; k < 4; k++) for (const [p, u] of [[root[0], 0], [root[k + 1], k + 1], [root[k], k]]) { positions.push(...p); uvs.push(u / 5, 0); } // the root cap
+  const g = new three.BufferGeometry(); g.setAttribute('position', new three.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new three.Float32BufferAttribute(uvs, 2)); g.computeVertexNormals();
+  piece(g, iron);
+  const cyl = (rTop, rBottom, from, to, seg = 10) => new three.CylinderGeometry(rTop, rBottom, to - from, seg).translate(0, (from + to) / 2, 0);
+  piece(cyl(.021, .021, .07, .115, 12), iron);                       // ferrule at the blade's root
+  piece(cyl(.016, .0175, -.11, .075), haft);                         // the grip
+  piece(cyl(.020, .020, -.125, -.105, 12), iron);                    // butt cap
+  for (const y of [-.06, .0, .05]) for (const z of [-1, 1]) piece(new three.SphereGeometry(.006, 6, 4), iron, y, 0, z * .017); // rivets through the grip
+  group.userData.contact = { from: .14, to: y1 };                    // the edge, ferrule to tip (the sim sweeps the node's axis: the bend is presentation)
+  group.userData.weapon = 'cleaver'; group.userData.variant = variant;
+  return group;
+}
+// The cleaver's Heavy on the sword's authored-key grammar ([phase, hand position, blade direction], build-warrior.mjs): a diagonal
+// hack from high on the fighter's off side, across and down through the front, so the motion at contact runs along the blade's
+// width axis and the EDGE leads (the sword's straight overhead moves along its thickness axis: the flat leads). Contact key at
+// .48 like the sword's Heavy. Its riposte / counter / critical ride the same clip.
+export const CLEAVER_KEYS = {
+  Heavy: [[0, [.18, 1.3, .3], [0, 0, 1]], [.28, [-.30, 1.72, .02], [-.42, .78, .46]], [.48, [.02, 1.22, .42], [.10, -.08, .99]], [.64, [.30, .96, .34], [.62, -.55, .56]], [1, [.18, 1.3, .3], [0, 0, 1]]],
+};
+
+// What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.
+export const WEAPON_BUILDS = {
+  trident: { part: trident, clips: tridentClips, keys: {} },
+  cleaver: { part: cleaver, clips: null, keys: CLEAVER_KEYS },
+};
+
 // Standalone: the part alone (no rig), for the record and the harness turntable.
 if (process.argv[1] && /build-weapon\.mjs$/.test(process.argv[1])) {
   const fs = await import('node:fs/promises');
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   globalThis.FileReader ??= class { async readAsArrayBuffer(blob) { this.result = await blob.arrayBuffer(); this.onloadend?.(); } async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); } };
-  const variant = process.argv[2] || DEFAULT_VARIANT, scene = new T.Scene(), part = trident({ variant }); scene.add(part);
+  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || (weapon === 'cleaver' ? CLEAVER_DEFAULT : DEFAULT_VARIANT);
+  const scene = new T.Scene(), part = WEAPON_BUILDS[weapon].part({ variant }); scene.add(part);
   const glb = await new GLTFExporter().parseAsync(scene, { binary: true });
-  const out = process.env.WEAPON_OUT || 'src/assets/weapons/trident/trident.glb';
+  const out = process.env.WEAPON_OUT || `src/assets/weapons/${weapon}/${weapon}.glb`;
   await fs.mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true }); await fs.writeFile(out, Buffer.from(glb));
   let triangles = 0; part.traverse(o => { if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
-  console.log(`trident ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${VARIANTS[variant].name})`);
+  const names = weapon === 'cleaver' ? CLEAVER_VARIANTS : VARIANTS;
+  console.log(`${weapon} ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${names[variant].name})`);
 }
