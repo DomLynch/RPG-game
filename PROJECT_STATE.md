@@ -9,6 +9,16 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## Rename: Origins Arena — 2026-09-17 (lead, owner's call)
+The owner named the place **Origins Arena** (the world lane's three proposals — The Ashpit · Worldsedge · The Bonehollow — are
+declined; REQUESTS #1 closed). *Ashcourt / The Old Keep* is retired everywhere player-facing: the place block reads
+THE PROVING GROUND / Origins Arena (the eyebrow inherits the retired brand subtitle), the HUD opponent is ARENA WARDEN
+(mobile label "Warden" unchanged; ladder rungs still override dynamically), the brand line and `<title>` carry the locked
+game title **Frankendom: Origins**, and the stale "courtyard" strings ("Enter the arena", the WebGL fallback and recovery
+messages, the loading line, the noscript) now say arena — the browser gate's two matching references and the audio
+reverb's comment/function name (`courtyard` → `arena`, the impulse itself unchanged) moved with them. No runtime,
+asset or behaviour change beyond strings. Gate + browser gate green on the branch.
+
 ## Arena v1 — The Ashpit — 2026-09-17 (world lane)
 The courtyard is replaced behind the lead's seam (`src/arena.ts`, `scene.ts` untouched): a sand-and-gravel pit (owner's call: a
 traditional coliseum floor, no tiles) to a podium wall whose inner face stands outside the camera clamp, a portcullis gate on the far
