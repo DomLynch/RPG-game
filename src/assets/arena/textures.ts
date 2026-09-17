@@ -75,18 +75,31 @@ export function sandNormal(size = 512, seed = 7): Pixels {
     return [128 - 127 * dx / l, 128 - 127 * dy / l, 128 + 127 / l];
   });
 }
-// Ashlar stone: ash-grey blocks in staggered courses with worn mortar, a per-block chamfer (lit top-left, shadowed bottom-right),
-// weather streaks running down, pitting, mottling, soot, a few cracks. One tile = 2 m × 2 m on the wall.
+// Ashlar stone: hand-laid, not robotic (owner). Uneven course heights, 2–4 uneven blocks a course with staggered joints that
+// wander, blocks sitting proud (casting a shadow on the course below) or recessed, a damaged block here and there, worn mortar,
+// a per-block chamfer, weather streaks, pitting, mottling, soot, a few cracks. One tile = 2 m × 2 m on the wall.
 export function stoneAlbedo(size = 512, seed = 11): Pixels {
-  const mottle = fbm(8, 4, seed), soot = fbm(3, 3, seed + 7), grain = fbm(64, 2, seed + 13, 0.6), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), stains = fbm(6, 3, seed + 21), courses = 5, blocks = 3;
+  const mottle = fbm(8, 4, seed), soot = fbm(3, 3, seed + 7), grain = fbm(64, 2, seed + 13, 0.6), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), stains = fbm(6, 3, seed + 21), dampF = fbm(3, 3, seed + 17);
+  // Reused stone: each block picks a hue — quarry grey, warm tan, cool slate, faint rose, sand-tinged, dark basalt.
+  const hues: [number, number, number][] = [[1, 1, 1], [1.14, 1.03, 0.86], [0.9, 0.96, 1.06], [1.1, 0.93, 0.85], [1.06, 1.0, 0.8], [0.84, 0.85, 0.88]];
+  const courseH = Array.from({ length: 5 }, (_, c) => 0.7 + hash(c, 0, seed + 40) * 0.6), cSum = courseH.reduce((a, b) => a + b, 0);
+  const courseAt = [0]; for (const h of courseH) courseAt.push(courseAt[courseAt.length - 1] + h / cSum);
+  const blocksOf = courseH.map((_h, c) => { const n = 2 + Math.floor(hash(c, 1, seed + 41) * 3), w = Array.from({ length: n }, (_, k) => 0.6 + hash(k, c, seed + 42) * 0.9), s = w.reduce((a, b) => a + b, 0), at = [0]; for (const x of w) at.push(at[at.length - 1] + x / s); return { at, stagger: hash(c, 2, seed + 43) }; });
+  const locate = (at: number[], t: number) => { let i = 0; while (i < at.length - 2 && t >= at[i + 1]) i++; return [i, (t - at[i]) / (at[i + 1] - at[i])] as const; };
   return pixels(size, size, (u, v, x, y) => {
-    const course = Math.floor(v * courses), bu = (u + (course % 2) * 0.5 / blocks) * blocks, bv = v * courses, fx = bu - Math.floor(bu), fy = bv - Math.floor(bv), block = hash(Math.floor(bu), course, seed);
-    const wobble = 0.03 + 0.05 * grain(u * 3, v * 3), edge = Math.min(fx, 1 - fx, (fy - 0.02) * 2, (1 - fy) * 2), mortar = edge < wobble ? 0.52 + (edge / wobble) * 0.48 : 1;
+    const [course, fy0] = locate(courseAt, v), { at, stagger } = blocksOf[course], [bi, fx0] = locate(at, (((u + stagger) % 1) + 1) % 1), block = hash(bi, course, seed);
+    const jx = (grain(u * 5, v * 5) - 0.5) * 0.12, fx = Math.min(1, Math.max(0, fx0 + jx * 0.4)), fy = Math.min(1, Math.max(0, fy0 + jx));   // the joints wander
+    const wobble = 0.035 + 0.05 * grain(u * 3, v * 3), edge = Math.min(fx, 1 - fx, (fy - 0.02) * 2, (1 - fy) * 2), mortar = edge < wobble ? 0.5 + (edge / wobble) * 0.5 : 1;
+    const proud = hash(bi, course, seed + 44), above = blocksOf[(course + 1) % blocksOf.length], [biAbove] = locate(above.at, (((u + above.stagger) % 1) + 1) % 1);
+    const drop = hash(biAbove, course + 1, seed + 44) > 0.62 && fy > 0.88 ? 0.78 : 1, recess = proud < 0.3 ? 0.9 : 1;   // proud blocks throw a shadow down; recessed ones sit in shade
     const chamfer = mortar === 1 ? 1 + 0.09 * (0.5 - fx) + 0.11 * (0.5 - fy) : 1;   // worn arris: the sun catches the top-left of each block
-    const m = 0.82 + 0.34 * (mottle(u, v) - 0.5) + 0.36 * (block - 0.5), s = Math.max(0, soot(u, v) - 0.62) * 1.3, g = 0.95 + 0.1 * (grain(u, v) - 0.5) + 0.05 * (hash(x, y, seed) - 0.5);
+    const damaged = block > 0.85 ? 0.82 + 0.3 * (mottle(u * 2, v * 2) - 0.5) : 1;
+    const m = 0.82 + 0.5 * (mottle(u, v) - 0.5) + 0.5 * (block - 0.5), s = Math.max(0, soot(u, v) - 0.62) * 1.3, g = 0.93 + 0.16 * (grain(u, v) - 0.5) + 0.07 * (hash(x, y, seed) - 0.5);
     const streak = Math.max(0, stains(u * 3, v * 0.4) - 0.6) * 1.4, pit = hash(x, y, seed + 31) > 0.992 ? 0.72 : 1;
-    const crack = Math.abs(crackField(u, v) - 0.5) < 0.004 && mortar === 1 && crackMask(u, v) > 0.6 ? 0.6 : 1, k = m * g * mortar * chamfer * crack * pit * (1 - 0.4 * s) * (1 - 0.3 * streak), warm = 1 + 0.06 * (hash(Math.floor(bu), course, seed + 2) - 0.5);
-    return [158 * k * warm, 150 * k, 138 * k / warm];
+    const damp = Math.max(0, dampF(u, v) - 0.6) * 1.2, speck = hash(x, y, seed + 50), grit = speck > 0.97 ? 1.28 : speck < 0.03 ? 0.74 : 1;   // quartz flecks and dark pits: the grit
+    const crack = Math.abs(crackField(u, v) - 0.5) < 0.004 && mortar === 1 && crackMask(u, v) > 0.6 ? 0.6 : 1, k = m * g * mortar * chamfer * drop * recess * damaged * crack * pit * grit * (1 - 0.4 * s) * (1 - 0.3 * streak) * (1 - 0.35 * damp);
+    const [hr, hg, hb] = hues[Math.floor(hash(bi, course, seed + 6) * hues.length)];
+    return [158 * k * hr, 150 * k * hg, 138 * k * hb];
   });
 }
 // The sky: an ash-grey dome, its horizon the scene's fog colour so the dome and the fog meet, with one break of light around the sun.
