@@ -31,10 +31,10 @@ test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, 
 
 // The goblin (opponent 4, character lane): his data entry and the knife slot are in; his fight identity (feints, no guard, darting) waits on the
 // AI knobs the combat lane owns (artifacts/goblin/REQUESTS.md), so this pins the seam only — no fairness battery is asserted for him yet.
-test('the goblin is set up from his data: the knife (live, slice X), 0.78× scale, 100 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes', () => {
+test('the goblin is set up from his data: the knife (live, slice X), 0.78× scale, 120 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes', () => {
   const G = OPPONENTS.goblin, [hero, goblin] = initialDuel(G).fighters;
   assert.deepEqual(hero, initialDuel().fighters[0]);
-  assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .78); assert.equal(goblin.health, 100); assert.equal(goblin.maxHealth, 100); assert.equal(goblin.poise, 0);
+  assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .78); assert.equal(goblin.health, 120); assert.equal(goblin.maxHealth, 120); assert.equal(goblin.poise, 0);
   assert.equal(WEAPONS.knife.placeholder, undefined); assert.notEqual(WEAPONS.knife.moves, MOVES); assert.notDeepEqual(bladePaths.knife, bladePaths.longsword, 'baked from his own rig');
   for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.parry, 0, `${level}: he never parries`); assert.ok(p.dodge >= .3 && p.reaction <= PROFILES[level].reaction, `${level}: dodges, reacts fast`); }
   // The capsule follows his height: a blade level at 1.40 m is a head hit on a man and passes over the goblin; at 1.13 m (1.45 × 0.78) it finds his head where a man takes it in the chest.
@@ -68,7 +68,10 @@ test('the goblin is set up as the brief asks: knobs on every level (feints, guar
 });
 
 test('fight identity — read the feint: the goblin passes the fairness battery at normal and hard; the patient whiff punisher is the best honest answer and beats the player who swings at every tell; he never holds a guard and never blocks; every strategy gets touched', () => {
-  for (const [level, cap, floor] of [['normal', .5, 4], ['hard', .35, 1]] as const) {
+  // Floors: at 100 hp the patient answer won 8/24 at normal; the owner raised him to 120 hp (2026-09-17: rung 3 should be harder than the Pitborn, and it
+  // is — the hero brain now loses 15/24 to him, 8/24 before) and against 120 hp the patient script's slow damage runs out the two-minute clock instead:
+  // it still never loses to him and still beats the swinger, and that is what is pinned.
+  for (const [level, cap, floor] of [['normal', .5, 2], ['hard', .35, 1]] as const) {
     let guardRun = 0, maxGuardRun = 0, blocks = 0;
     const watched = (strategy: (d: Duel) => Intent) => (d: Duel) => { const g = d.fighters[1]; if (g.phase === 'guard') { guardRun++; maxGuardRun = Math.max(maxGuardRun, guardRun); } else guardRun = 0; if (d.events.some(e => e.type === 'Blocked' && e.actor === 1)) blocks++; return strategy(d); };
     const scripts = Object.fromEntries(Object.entries({ ...STRATEGIES, 'swings at every feint': swinger, 'patient (whiff punisher)': patient }).map(([n, f]) => [n, watched(f)]));
@@ -79,7 +82,7 @@ test('fight identity — read the feint: the goblin passes the fairness battery 
       assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
     }
     const answer = rows['patient (whiff punisher)'], eager = rows['swings at every feint'];
-    assert.ok(answer.wins >= floor, `${level} · the patient answer wins only ${answer.wins}/24\n  ${table}`);
+    assert.ok(answer.wins >= floor && answer.losses === 0, `${level} · the patient answer wins ${answer.wins}/24 and loses ${answer.losses}\n  ${table}`);
     assert.ok(eager.wins < answer.wins, `${level} · swinging at every feint (${eager.wins}) is not punished against patience (${answer.wins})\n  ${table}`);
     for (const name of ['light spam', 'heavy only', 'kick only', 'turtle and punish', 'thrust from range']) assert.ok(rows[name].wins < Math.max(answer.wins, 1), `${level} · ${name} wins ${rows[name].wins} ≥ the answer's ${answer.wins}\n  ${table}`);
     // No guard in his game: the only guard phase he ever shows is a feint's parry press (RULES.parry ticks), and nothing is ever blocked by him.
