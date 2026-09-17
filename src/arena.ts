@@ -82,7 +82,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.crowd.wrapS = textures.crowd.wrapT = textures.banner.wrapS = textures.banner.wrapT = THREE.ClampToEdgeWrapping;
   const sand = new THREE.MeshStandardMaterial({ name: 'sand', map: textures.sand, normalMap: textures.sandNormal, normalScale: new THREE.Vector2(0.7, 0.7), color: '#e2ddd6', roughness: 0.96, vertexColors: true });
   const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, color: '#b9b4ab', roughness: 0.93, vertexColors: true });
-  const iron = new THREE.MeshStandardMaterial({ name: 'iron', color: '#2a2623', roughness: 0.6, metalness: 0.78 });
+  const iron = new THREE.MeshStandardMaterial({ name: 'iron', color: '#2a2623', roughness: 0.6, metalness: 0.78, vertexColors: true });
   const coal = new THREE.MeshStandardMaterial({ name: 'coal', color: '#1a1210', emissive: '#ff6a1c', emissiveIntensity: 1.1, roughness: 1 });
   const cloth = new THREE.MeshStandardMaterial({ name: 'cloth', alphaMap: textures.banner, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
   const crowdMaterial = new THREE.MeshBasicMaterial({ name: 'crowd', map: textures.crowd, alphaTest: 0.5, side: THREE.DoubleSide });
@@ -115,9 +115,16 @@ export function buildArena(scene: THREE.Scene): Arena {
   });
   const topTier = (a: number, s: number) => tierTop(tiers.length - 1, a, s), parapetTop = (a: number, s: number) => topTier(a, s) + (parapet.top - tiers[tiers.length - 1]) * (1 - 0.85 * smooth(0.45, 0.75, ruinNoise(a / TAU + 0.31, 0.8))) + (hash(s, 9, 7) - 0.5) * 0.5;
   stones.push(band(parapet.inner, topTier, parapet.inner, parapetTop, 2, tierTint), band(parapet.inner, parapetTop, parapet.outer, parapetTop, 2, tierTint), band(parapet.outer, parapetTop, parapet.outer, flat(0), 2, tierTint));
-  // The gate: posts either side, a lintel, the dark passage behind the bars.
-  for (const side of [-1, 1]) { const a = gate + side * (gateWidth / 2 + 0.35) / wall.inner, [x, z] = polar((wall.inner + wall.outer) / 2, a); stones.push(prop(box(0.7, 3.4, wall.outer - wall.inner + 0.3), x, 1.7, z, a, 1, 2, STONE, 0)); }
-  { const [x, z] = polar((wall.inner + wall.outer) / 2, gate); stones.push(prop(box(gateWidth + 1.4, 0.5, wall.outer - wall.inner + 0.3), x, wall.top - 0.2, z, gate, 1, 2, STONE, wall.top - 0.6)); }
+  // The gate: capped posts either side, a voussoir arch proud of the wall face over the opening, the dark passage behind the bars.
+  for (const side of [-1, 1]) {
+    const a = gate + side * (gateWidth / 2 + 0.35) / wall.inner, [x, z] = polar((wall.inner + wall.outer) / 2, a);
+    stones.push(prop(box(0.7, 3.4, wall.outer - wall.inner + 0.3), x, 1.7, z, a, 1, 2, STONE, 0), prop(box(0.95, 0.3, wall.outer - wall.inner + 0.3), x, 3.55, z, a, 1, 2, STONE, 3.2));
+  }
+  { const [gx, gz] = polar(12.15, gate);   // arch centre: wedges span 11.55–12.75, never inside the camera clamp
+    for (let i = 0; i < 9; i++) {
+      const phi = (i + 0.5) / 9 * Math.PI, lx = Math.cos(phi) * 1.75, ly = 1.3 + Math.sin(phi) * 1.75, key = i === 4 ? 1.18 : 1;
+      stones.push(prop(box(0.55 * key, 0.66 * key, 1.2), gx - lx * Math.cos(gate), ly, gz + lx * Math.sin(gate), new THREE.Euler(0, gate, phi - Math.PI / 2, 'YXZ'), 1, 2, STONE, ly - 0.8));
+    } }
   { const [x, z] = polar(wall.outer + 1.4, gate); stones.push(prop(box(gateWidth, 2.5, 3.2), x, 1.25, z, gate, 1, 2, SOOT, -5)); }
   // Ruined colonnade on the top walkway: a few columns stand whole with their capitals, the rest are broken at random heights or gone.
   for (let i = 0; i < 24; i++) {
@@ -130,13 +137,27 @@ export function buildArena(scene: THREE.Scene): Arena {
   // Rubble: fallen stone in the band between the play circle and the wall (never above 0.5 m: the camera clamp rule), blocks on collapsed
   // tiers, a few bone fragments in the sand.
   for (let i = 0; i < 26; i++) {
-    const a = hash(i, 0, 13) * TAU, rr = 9.9 + hash(i, 1, 13) * 1.45, [x, z] = polar(rr, a), s = 0.16 + hash(i, 2, 13) ** 2 * 0.3, bone = i % 9 === 8;
+    const a = hash(i, 0, 13) * TAU, rr = 9.9 + hash(i, 1, 13) * 1.45, [x, z] = polar(rr, a), s = 0.16 + hash(i, 2, 13) ** 2 * 0.3, bone = i % 4 === 3;
     stones.push(prop(new THREE.SphereGeometry(bone ? 0.09 : s, 7, 5), x, bone ? 0.02 : s * 0.25, z, new THREE.Euler(hash(i, 3, 13) * 3, hash(i, 4, 13) * 3, hash(i, 5, 13)), new THREE.Vector3(1, 0.55, 0.8), 1, bone ? BONE : DARK, -0.2));
   }
   for (let i = 0; i < 40; i++) {
     const a = i / 40 * TAU + 0.04, r = ruin(a); if (r < 0.5) continue;
     const tier = 1 + (i % 3), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments)), s = 0.5 + hash(i, 6, 13) * 0.6;
     stones.push(prop(box(s * 1.4, s * 0.7, s), x, foot + s * 0.32, z, new THREE.Euler(hash(i, 7, 13) * 0.3, a + hash(i, 8, 13), 0), 1, 2, DARK, foot - 0.3));
+  }
+  // Gladiator-pit debris in the moat band (every vertex below 0.5 m: the clamp rule): half-buried boulders, broken column drums
+  // from the colonnade, terracotta amphora shards. The old bones are in the small rubble above.
+  for (let i = 0; i < 5; i++) {
+    const a = 0.5 + i / 5 * TAU + hash(i, 0, 51) * 0.6, rr = 9.6 + hash(i, 1, 51) * 1.5, [x, z] = polar(rr, a), s = 0.55 + hash(i, 2, 51) * 0.35;
+    stones.push(prop(new THREE.SphereGeometry(s, 9, 7), x, 0.46 - s * 0.5, z, hash(i, 4, 51) * TAU, new THREE.Vector3(1, 0.5, 0.85), 2, [0.9, 0.9, 0.88], -0.3));   // yaw only: a tilt would lift the dome past the 0.5 m clamp rule
+  }
+  for (let i = 0; i < 3; i++) {
+    const a = 1.3 + i * 2.1 + hash(i, 0, 53) * 0.5, rr = 10.1 + hash(i, 1, 53) * 1.1, [x, z] = polar(rr, a);
+    stones.push(prop(cylinder(0.3, 0.3, 0.85, 12), x, 0.17, z, new THREE.Euler(Math.PI / 2, a, 0, 'YXZ'), 1, 2, [seg(i + 40), seg(i + 40), seg(i + 40) * 0.98], -0.2));
+  }
+  for (let i = 0; i < 7; i++) {
+    const a = hash(i, 0, 55) * TAU, rr = 9.3 + hash(i, 1, 55) * 1.9, [x, z] = polar(rr, a), s = 0.1 + hash(i, 2, 55) * 0.12;
+    stones.push(prop(new THREE.SphereGeometry(s, 6, 4), x, s * 0.3, z, new THREE.Euler(hash(i, 3, 55) * 3, hash(i, 4, 55) * 3, hash(i, 5, 55) * 2), new THREE.Vector3(1, 0.4, 0.8), 1, [1.5, 0.82, 0.55], -0.1));
   }
   mesh(mergeGeometries(stones), stone, 'stone');
 
@@ -148,9 +169,11 @@ export function buildArena(scene: THREE.Scene): Arena {
     for (let leg = 0; leg < 3; leg++) { const la = leg / 3 * TAU; irons.push(prop(cylinder(0.025, 0.03, 1.05, 6), x + Math.sin(la) * 0.16, y + 0.52, z + Math.cos(la) * 0.16, new THREE.Euler(Math.cos(la) * 0.2, 0, -Math.sin(la) * 0.2), 1, 1, IRON, y)); }
     irons.push(prop(cylinder(0.38, 0.24, 0.32, 14), x, y + 1.14, z, 0, 1, 1, IRON, y)); coals.push(prop(cylinder(0.31, 0.31, 0.1, 12), x, y + 1.3, z, 0, 1, 1, IRON, y));
   }
-  { const [gx, gz] = polar(wall.inner + 0.45, gate), across = new THREE.Vector3(Math.cos(gate), 0, -Math.sin(gate));
-    for (let i = 0; i < 9; i++) { const t = (i - 4) * 0.36; irons.push(prop(cylinder(0.045, 0.045, 2.45, 6), gx + across.x * t, 1.25, gz + across.z * t, 0, 1, 1, IRON, -5)); }
-    for (const y of [0.45, 1.3, 2.15]) irons.push(prop(box(gateWidth - 0.1, 0.07, 0.07), gx, y, gz, gate, 1, 1, IRON, -5)); }
+  { const [gx, gz] = polar(wall.inner + 0.45, gate), across = new THREE.Vector3(Math.cos(gate), 0, -Math.sin(gate)), RUST: [number, number, number] = [1.5, 0.95, 0.65];
+    for (let i = 0; i < 9; i++) { const t = (i - 4) * 0.36;
+      irons.push(prop(cylinder(0.06, 0.06, 2.5, 6), gx + across.x * t, 1.28, gz + across.z * t, 0, 1, 1, RUST, -5));
+      irons.push(prop(cylinder(0.001, 0.075, 0.24, 6), gx + across.x * t, 0.14, gz + across.z * t, 0, 1, 1, RUST, -5)); }
+    for (const y of [0.42, 1.08, 1.74, 2.4]) irons.push(prop(box(gateWidth - 0.1, 0.09, 0.09), gx, y, gz, gate, 1, 1, RUST, -5)); }
   for (let i = 0; i < 5; i++) {
     const a = [0.55, 2.05, 2.75, 4.3, 5.6][i], [x, z] = polar(wall.inner + 0.06, a), out = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
     const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x, wall.top - 0.3, z), new THREE.Vector3(x - out.x * 0.09, 1.55, z - out.z * 0.09), new THREE.Vector3(x - out.x * 0.04, 0.85, z - out.z * 0.04)]);
@@ -158,6 +181,13 @@ export function buildArena(scene: THREE.Scene): Arena {
   }
   const bannerAngles = Array.from({ length: 8 }, (_, k) => Math.PI / 8 + k * Math.PI / 4), bannerR = wall.outer - 0.15, bannerTop = wall.top + 3.4;
   for (const a of bannerAngles) { const [x, z] = polar(bannerR, a); irons.push(prop(cylinder(0.035, 0.045, 3.4, 6), x, wall.top + 1.7, z, 0, 1, 1, IRON, wall.top), prop(box(1.3, 0.06, 0.06), x, bannerTop, z, a, 1, 1, IRON, -5)); }
+  // Dropped gear in the sand (iron, tinted): a fallen shield by the wall and a broken blade half-buried near the ring.
+  { const a = 2.4, [x, z] = polar(10.3, a);
+    irons.push(prop(cylinder(0.34, 0.34, 0.045, 16), x, 0.05, z, new THREE.Euler(0.12, a, 0.06), 1, 1, [2.3, 1.7, 1.0], -5));
+    irons.push(prop(new THREE.SphereGeometry(0.09, 8, 6), x, 0.1, z, 0, new THREE.Vector3(1, 0.6, 1), 1, [2.3, 1.7, 1.0], -5)); }
+  { const a = 4.9, [x, z] = polar(9.8, a);
+    irons.push(prop(box(0.52, 0.025, 0.07), x, 0.03, z, new THREE.Euler(0.04, a, 0.02), 1, 1, [1.9, 1.9, 2.0], -5));
+    irons.push(prop(box(0.16, 0.04, 0.05), x + Math.sin(a + 0.5) * 0.3, 0.035, z + Math.cos(a + 0.5) * 0.3, a + 0.5, 1, 1, [1.2, 0.9, 0.7], -5)); }
   mesh(mergeGeometries(irons), iron, 'iron');
   mesh(mergeGeometries(coals), coal, 'coals', false);
 

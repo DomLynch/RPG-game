@@ -43,21 +43,22 @@ function stamp(size: number, list: Pebble[], plot: (x: number, y: number, dome: 
     }
   }
 }
-// Sand with gravel: dusty ochre, damp mottling, trodden grain, grey and brown pebbles with a lit edge, a rare bone chip. Mean linear
-// luminance must stay below the hero's skin (tests/arena.test.ts); the sand is the darkest thing the fighters stand against, on purpose.
+// Sand with gravel: dusty grey-stone (owner: less yellow, more gravel), damp mottling, trodden grain, grey pebbles with a lit edge,
+// a rare bone chip. Mean linear luminance must stay below the hero's skin (tests/arena.test.ts); the sand is the darkest thing the
+// fighters stand against, on purpose.
 export function sandAlbedo(size = 1024, seed = 7): Pixels {
   const mottle = fbm(6, 5, seed), damp = fbm(3, 3, seed + 17), grain = fbm(64, 2, seed + 29, 0.6);
   const out = pixels(size, size, (u, v, x, y) => {
     const m = 0.9 + 0.36 * (mottle(u, v) - 0.5), d = Math.max(0, damp(u, v) - 0.58) * 1.4, g = 0.96 + 0.1 * (grain(u, v) - 0.5) + 0.05 * (hash(x, y, seed) - 0.5);
     const k = m * g * (1 - 0.3 * d);
-    return [146 * k + 4 * d, 120 * k, 90 * k - 3 * d];
+    return [134 * k + 3 * d, 124 * k, 110 * k - 2 * d];
   });
   // Gravel sits in the sand: tones near the sand's own, a soft dome, a shadowed lower-right rim (the sun is high and to the upper left).
   const shade = (x: number, y: number, dome: number, p: Pebble, dx: number, dy: number, palette: [number, number, number][]) => {
     const i = (y * size + x) * 4, [r, g, b] = palette[Math.floor(p.tone * palette.length)], rim = (dx + dy) / (p.rx + p.ry), lit = 0.82 + 0.2 * dome - 0.28 * Math.max(0, rim) * (1 - dome) - 0.1 * Math.max(0, -rim) * (1 - dome) * -1;
     out.data[i] = clamp(r * lit); out.data[i + 1] = clamp(g * lit); out.data[i + 2] = clamp(b * lit);
   };
-  const gravel: [number, number, number][] = [[118, 106, 92], [134, 118, 100], [104, 96, 86], [142, 124, 104], [122, 110, 94], [96, 90, 84]];
+  const gravel: [number, number, number][] = [[112, 108, 100], [126, 120, 110], [100, 96, 90], [134, 128, 118], [116, 112, 104], [92, 90, 86]];
   stamp(size, pebbles(size, Math.round(size * size / 420), seed + 3, 1.5, size / 190), (x, y, dome, p, dx, dy) => shade(x, y, dome, p, dx, dy, gravel));
   stamp(size, pebbles(size, Math.round(size * size / 9000), seed + 5, size / 170, size / 80), (x, y, dome, p, dx, dy) => shade(x, y, dome, p, dx, dy, gravel));
   stamp(size, pebbles(size, Math.round(size * size / 120000), seed + 9, size / 300, size / 130), (x, y, dome, p, dx, dy) => shade(x, y, dome, p, dx, dy, [[190, 178, 154], [172, 162, 140]]));   // bone chips
@@ -74,14 +75,17 @@ export function sandNormal(size = 512, seed = 7): Pixels {
     return [128 - 127 * dx / l, 128 - 127 * dy / l, 128 + 127 / l];
   });
 }
-// Ashlar stone: ash-grey blocks in staggered courses with worn mortar, mottling, soot, a few cracks. One tile = 2 m × 2 m on the wall.
+// Ashlar stone: ash-grey blocks in staggered courses with worn mortar, a per-block chamfer (lit top-left, shadowed bottom-right),
+// weather streaks running down, pitting, mottling, soot, a few cracks. One tile = 2 m × 2 m on the wall.
 export function stoneAlbedo(size = 512, seed = 11): Pixels {
-  const mottle = fbm(8, 4, seed), soot = fbm(3, 3, seed + 7), grain = fbm(64, 2, seed + 13, 0.6), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), courses = 4, blocks = 2;
+  const mottle = fbm(8, 4, seed), soot = fbm(3, 3, seed + 7), grain = fbm(64, 2, seed + 13, 0.6), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), stains = fbm(6, 3, seed + 21), courses = 5, blocks = 3;
   return pixels(size, size, (u, v, x, y) => {
     const course = Math.floor(v * courses), bu = (u + (course % 2) * 0.5 / blocks) * blocks, bv = v * courses, fx = bu - Math.floor(bu), fy = bv - Math.floor(bv), block = hash(Math.floor(bu), course, seed);
-    const wobble = 0.03 + 0.05 * grain(u * 3, v * 3), edge = Math.min(fx, 1 - fx, (fy - 0.02) * 2, (1 - fy) * 2), mortar = edge < wobble ? 0.66 + (edge / wobble) * 0.34 : 1;
-    const m = 0.82 + 0.34 * (mottle(u, v) - 0.5) + 0.26 * (block - 0.5), s = Math.max(0, soot(u, v) - 0.62) * 1.3, g = 0.95 + 0.1 * (grain(u, v) - 0.5) + 0.05 * (hash(x, y, seed) - 0.5);
-    const crack = Math.abs(crackField(u, v) - 0.5) < 0.004 && mortar === 1 && crackMask(u, v) > 0.6 ? 0.6 : 1, k = m * g * mortar * crack * (1 - 0.4 * s), warm = 1 + 0.06 * (hash(Math.floor(bu), course, seed + 2) - 0.5);
+    const wobble = 0.03 + 0.05 * grain(u * 3, v * 3), edge = Math.min(fx, 1 - fx, (fy - 0.02) * 2, (1 - fy) * 2), mortar = edge < wobble ? 0.52 + (edge / wobble) * 0.48 : 1;
+    const chamfer = mortar === 1 ? 1 + 0.09 * (0.5 - fx) + 0.11 * (0.5 - fy) : 1;   // worn arris: the sun catches the top-left of each block
+    const m = 0.82 + 0.34 * (mottle(u, v) - 0.5) + 0.36 * (block - 0.5), s = Math.max(0, soot(u, v) - 0.62) * 1.3, g = 0.95 + 0.1 * (grain(u, v) - 0.5) + 0.05 * (hash(x, y, seed) - 0.5);
+    const streak = Math.max(0, stains(u * 3, v * 0.4) - 0.6) * 1.4, pit = hash(x, y, seed + 31) > 0.992 ? 0.72 : 1;
+    const crack = Math.abs(crackField(u, v) - 0.5) < 0.004 && mortar === 1 && crackMask(u, v) > 0.6 ? 0.6 : 1, k = m * g * mortar * chamfer * crack * pit * (1 - 0.4 * s) * (1 - 0.3 * streak), warm = 1 + 0.06 * (hash(Math.floor(bu), course, seed + 2) - 0.5);
     return [158 * k * warm, 150 * k, 138 * k / warm];
   });
 }
@@ -92,7 +96,7 @@ export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, s
   return pixels(width, height, (u, v) => {
     const up = Math.max(0, (v - 0.5) * 2), du = Math.min(Math.abs(u - sunU), 1 - Math.abs(u - sunU)) * 2.2, dv = (v - sunV) * 2.8, sun = Math.exp(-(du * du + dv * dv) * 2.4);
     const c = cloud(u, v * 2) - 0.5, w = wisp(u, v * 3) - 0.5, shade = 1 - 0.32 * up + 0.14 * c + 0.05 * w;
-    return [156 * shade + 70 * sun, 168 * shade * 0.98 + 52 * sun, 166 * shade * 0.94 + 30 * sun];
+    return [169 * shade + 70 * sun, 168 * shade * 0.98 + 52 * sun, 156 * shade * 0.94 + 30 * sun];
   });
 }
 // Crowd atlas: four silhouettes (standing, fist raised, cloaked, leaning) in a row; white with a faint top light, alpha cut. Tinted per
