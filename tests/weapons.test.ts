@@ -161,14 +161,16 @@ test('the fight the trident gives (real tables): its thrust lands from 2.1 m whe
 // ── The cleaver (weapons lane, 2026-09-16): the Pitborn's, on the longsword's clip family — ON THE SHELF. The weapons lane delivers
 // the part, the rig, the data and the proof; the combat lane flips `WEAPONS.cleaver` to CLEAVER, adds the manifest entry, bakes and
 // reviews the fight (artifacts/weapons/REQUESTS.md §5–6). Until then the Pitborn's slot borrows the longsword, exactly as before.
-import { CLEAVER, CLEAVER_PATHS } from '../src/moves.ts';
+import { CLEAVER, CLEAVER_PATHS, OPPONENTS } from '../src/moves.ts';
 const CLEAVER_GLB = 'src/assets/weapons/cleaver/veteran-cleaver.glb';
 
-test('the cleaver is on the shelf: CLEAVER is real data nothing uses; WEAPONS.cleaver still borrows the longsword; no manifest entry yet (the combat lane\'s flip)', () => {
-  assert.equal(WEAPONS.cleaver.placeholder, true); assert.equal(WEAPONS.cleaver.moves, MOVES); assert.deepEqual(bladePaths.cleaver, bladePaths.longsword);
+test('the cleaver is live (slice W): WEAPONS.cleaver is CLEAVER, the Pitborn carries it, and it is baked at a man\'s 1.0× from veteran-cleaver.glb (his sword\'s convention: the rendered blade runs past the simulated one, never the other way)', () => {
+  assert.equal(WEAPONS.cleaver, CLEAVER); assert.equal(WEAPONS.cleaver.placeholder, undefined); assert.equal(OPPONENTS.pitborn.weapon, 'cleaver');
   assert.notEqual(CLEAVER.moves, MOVES); assert.notEqual(CLEAVER.paths, PATHS); assert.equal(CLEAVER.id, 'cleaver');
-  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string }[] };
-  assert.ok(!manifest.weapons.some(w => w.weapon === 'cleaver'), 'no cleaver bake until the flip');
+  assert.notDeepEqual(bladePaths.cleaver, bladePaths.longsword); assert.deepEqual(Object.keys(bladePaths.cleaver).sort(), Object.keys(CLEAVER.paths).sort(), 'every cleaver path baked');
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: [number, number] }[] };
+  const entry = manifest.weapons.find(w => w.weapon === 'cleaver')!;
+  assert.deepEqual(entry, { weapon: 'cleaver', glb: CLEAVER_GLB, node: 'WeaponDrawn', contact: [.14, .86] });
 });
 
 test('the cleaver rig carries WeaponDrawn with its edge as the contact segment, empty sword nodes for the loader, and exactly the sword\'s 21 clips in the sword\'s order — nothing for the renderer to learn; only Heavy is re-keyed', async () => {

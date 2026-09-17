@@ -85,6 +85,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // (16 ticks to the heavy's 32) with the longest reach, so it is the spacing opener from just outside cutting range.
   // A read parrier sees mostly cuts (held past the parry window as baits, or feinted), not the heavy whose long tell is what they are parrying.
   if (!next.wait && !next.next && canAct) next.next = roll() < (reads.parryHappy ? Math.max(profile.pressure, READ.baitShare) : profile.pressure) ? 'light' : h.attacks > 0 && roll() < fight.thrustShare ? 'thrust' : 'heavy';
+  // An opener the bar's worn ceiling can no longer pay for (attrition; a weapon whose heavy costs more than the floor) would be waited for
+  // for ever: it becomes a cut, which every weapon can always afford at the floor.
+  if (next.next && next.next !== 'light' && mine[next.next === 'heavy' ? 'heavy_overhead' : 'thrust'].stamina > M.maxStamina) next.next = 'light';
   if (pressured && next.next === 'heavy') next.next = 'light';   // a heavy planned against a read spammer becomes a cut: the 32-tick swing would be cut first (and never left the warden waiting in guard for a cut that does not come)
   // Below the stamina floor it recovers by circling just outside the player's light reach; it only backs right off
   // when very low or freshly hit. Guarding stops regeneration, so it is a choice made with stamina in hand.
