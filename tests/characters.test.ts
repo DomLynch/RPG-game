@@ -25,12 +25,13 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 });
 
 // Parse the shipped geometry/rig/clips in Node. Image decoding/CSP is exercised in the browser.
-// Three fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig) and the Pitborn (the same rig
-// at OPPONENTS.pitborn.scale with a hunched spine — his ceilings scale with him).
-const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb'] as const;
-const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale };
-// The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver (sword clips until the weapons lane lands it).
-const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon };
+// Five fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig), the Pitborn (the same rig at
+// OPPONENTS.pitborn.scale with a hunched spine — his ceilings scale with him), the Nightborn and the goblin (the rig re-proportioned and
+// scaled to OPPONENTS.goblin.scale of a man's height).
+const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 'goblin.glb'] as const;
+const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale };
+// The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver, the Nightborn's estoc and the goblin's knife (sword clips until the weapons lane lands them).
+const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon };
 async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
@@ -110,7 +111,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
 });
 
 test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from', async () => {
-  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb') } as const;   // the cleaver and the estoc ride the sword clip family until the weapons lane lands them
+  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb') } as const;   // the estoc and the knife ride the sword clip family until the weapons lane lands them
   for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
     const names = rigs[weapon].animations.map(a => a.name);
     for (const role of ROLES) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);
@@ -195,6 +196,63 @@ test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunche
   const ratio = standingTop(brute) / standingTop(hero);
   assert.ok(ratio > k - .06 && ratio <= k + .01, `standing height ratio ${ratio.toFixed(3)} for scale ${k} (${standingTop(brute).toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
   console.log(`pitborn stands ${standingTop(brute).toFixed(3)} m to the hero's ${standingTop(hero).toFixed(3)} (×${ratio.toFixed(3)}, scale ${k}); ${hunchedTracks} hunched tracks`);
+});
+
+// The goblin: scripts/build-warrior.mjs BUILD.goblin — legs ×.84, arms ×1.16, neck ×.9 (thinner), head ×1.17, a 9°/9°/−8°/−8° hunch, root scale .835.
+const GOBLIN = { legs: .84, arms: 1.16, root: .835, stride: .835 * .84, hunched: ['spine_02', 'spine_03', 'neck_01', 'Head'], clamped: ['upperarm_l', 'lowerarm_l', 'upperarm_r', 'lowerarm_r'] };
+// Library clips are retargeted rotations: proportion-independent, so they must be the hero's to the bit. The authored clips (Draw, the swings,
+// the strafes, the kick, the defences) are solved on the rig with the two-bone reach, so their limb tracks legitimately follow his longer arms
+// and shorter legs; everything else in them (pelvis, spine_01, fingers, clavicles) is still the hero's.
+const RETARGETED = ['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Hit', 'Death', 'Guard', 'ArmedWalk', 'Roll'], SOLVED = /^(upperarm|lowerarm|hand|thigh|calf|foot)_[lr]\.quaternion$/;
+test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same 21 clips at the same durations — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {
+  const [hero, goblin] = await Promise.all([readWarrior('warrior.glb'), readWarrior('goblin.glb')]);
+  assert.deepEqual(goblin.animations.map(a => a.name), hero.animations.map(a => a.name));
+  let hunchedTracks = 0, solvedTracks = 0, identical = 0;
+  for (const [i, clip] of hero.animations.entries()) {
+    const other = goblin.animations[i], retargeted = RETARGETED.includes(clip.name);
+    assert.equal(other.duration, clip.duration, `${clip.name} duration`);
+    assert.deepEqual(other.tracks.map(t => t.name).sort(), clip.tracks.map(t => t.name).sort(), `${clip.name} tracks`);
+    for (const track of clip.tracks) {
+      const twin = other.tracks.find(t => t.name === track.name)!;
+      if (track.name === 'pelvis.position') continue;   // the pelvis sits lower (the legs' loss) and sways less (bob): checked below
+      if (clip.name === 'Roll' && GOBLIN.clamped.some(b => track.name === `${b}.quaternion`)) { assert.ok(twin.times.length >= 20, `${track.name}: the rolling arm is re-sampled for the floor clamp`); continue; }
+      assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
+      if (GOBLIN.hunched.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be hunched`); hunchedTracks++; }
+      else if (!retargeted && SOLVED.test(track.name)) solvedTracks++;
+      else { assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`); identical++; }
+    }
+  }
+  assert.ok(hunchedTracks >= hero.animations.length * GOBLIN.hunched.length * .9, `hunched tracks ${hunchedTracks}`);
+  assert.ok(identical > hero.animations.length * 50 && solvedTracks <= (hero.animations.length - RETARGETED.length) * 12, `identical ${identical}, solved ${solvedTracks}`);
+  // The sword hangs from hand_r exactly as the hero's (the hand and the grip are untouched); the scabbard rides the pelvis.
+  for (const name of ['SwordSheathed', 'SwordDrawn']) {
+    const a = hero.scene.getObjectByName(name)!, b = goblin.scene.getObjectByName(name)!;
+    assert.deepEqual(b.position.toArray(), a.position.toArray(), `${name} position`); assert.deepEqual(b.quaternion.toArray(), a.quaternion.toArray(), `${name} rotation`); assert.equal(b.parent?.name, a.parent?.name, `${name} parent`);
+  }
+  // Proportions, from the rig's rest positions (bone length = the child's offset): legs ×.84, arms ×1.16, the hands unchanged, the pelvis
+  // lower by exactly the legs' loss, so the ankle rests where a man's does.
+  const bone = (a: typeof hero, n: string) => a.scene.getObjectByName(n)!, len = (a: typeof hero, n: string) => bone(a, n).position.length();
+  const near = (x: number, y: number, tol: number, what: string) => assert.ok(Math.abs(x - y) <= tol, `${what}: ${x.toFixed(4)} vs ${y.toFixed(4)}`);
+  for (const side of ['l', 'r']) {
+    near(len(goblin, `calf_${side}`) / len(hero, `calf_${side}`), GOBLIN.legs, .002, `thigh ${side}`); near(len(goblin, `foot_${side}`) / len(hero, `foot_${side}`), GOBLIN.legs, .002, `calf ${side}`);
+    near(len(goblin, `lowerarm_${side}`) / len(hero, `lowerarm_${side}`), GOBLIN.arms, .002, `upper arm ${side}`); near(len(goblin, `hand_${side}`) / len(hero, `hand_${side}`), GOBLIN.arms, .002, `forearm ${side}`);
+    near(len(goblin, `ball_${side}`), len(hero, `ball_${side}`), 1e-4, `foot ${side}`); near(len(goblin, `index_01_${side}`), len(hero, `index_01_${side}`), 1e-4, `hand ${side}`);
+  }
+  const legLoss = (1 - GOBLIN.legs) * (len(hero, 'calf_l') + len(hero, 'foot_l'));
+  near(bone(hero, 'pelvis').position.length() - bone(goblin, 'pelvis').position.length(), legLoss, .002, 'pelvis drop = the legs\' loss');
+  // Root scale, the stride datum the runtime reads, and the standing height: OPPONENTS.goblin.scale is the measured ratio (the hit capsule follows it).
+  const root = (a: typeof hero) => a.scene.children[0];
+  for (const axis of ['x', 'y', 'z'] as const) near(root(goblin).scale[axis] / root(hero).scale[axis], GOBLIN.root, 1e-3, `root scale ${axis}`);
+  near(root(goblin).userData.stride, GOBLIN.stride, 1e-6, 'stride');
+  const ratio = standingTop(goblin) / standingTop(hero), k = OPPONENTS.goblin.scale;
+  assert.ok(Math.abs(ratio - k) <= .02, `standing height ratio ${ratio.toFixed(3)} for OPPONENTS.goblin.scale ${k} (${standingTop(goblin).toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
+  // The floor clamp: the roll's longer arms on lower shoulders would otherwise plant the hands 10 cm under the floor.
+  const mixer = new AnimationMixer(goblin.scene), roll = goblin.animations.find(a => a.name === 'Roll')!, point = new Vector3(); let lowest = 9;
+  const action = mixer.clipAction(roll).play();
+  for (let f = 0; f <= 24; f++) { mixer.setTime(roll.duration * f / 24 * .999); goblin.scene.updateMatrixWorld(true); goblin.scene.traverse(o => { if (!(o instanceof SkinnedMesh)) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 2) { point.fromBufferAttribute(p, i); o.applyBoneTransform(i, point); point.applyMatrix4(o.matrixWorld); lowest = Math.min(lowest, point.y); } }); }
+  action.stop();
+  assert.ok(lowest >= 0, `the roll dips to ${lowest.toFixed(3)} m`);
+  console.log(`goblin stands ${standingTop(goblin).toFixed(3)} m to the hero's ${standingTop(hero).toFixed(3)} (×${ratio.toFixed(3)}, OPPONENTS.goblin.scale ${k}); ${identical} identical tracks, ${hunchedTracks} hunched, ${solvedTracks} re-solved limbs; roll lowest ${lowest.toFixed(3)} m`);
 });
 
 test('two fighters share geometry but have independent animated bones', async () => {

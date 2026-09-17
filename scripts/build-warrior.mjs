@@ -42,11 +42,11 @@ const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
-const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'nightborn' ? '#3b3b3f' : '#767a7c', metalness: fighter === 'nightborn' ? 0.7 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'nightborn' ? 0.72 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the Nightborn's dull dark iron, no hot spot
+const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'nightborn' ? '#3b3b3f' : fighter === 'goblin' ? '#4a3a2c' : '#767a7c', metalness: fighter === 'nightborn' ? 0.7 : fighter === 'goblin' ? 0.6 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'goblin' ? 0.9 : fighter === 'nightborn' ? 0.72 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the goblin's one bracer is rust-brown scavenged iron; the Nightborn's dull dark iron, no hot spot
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
 const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
 const leather = new T.MeshStandardMaterial({ name: 'Leather', color: fighter === 'nightborn' ? '#2b2320' : '#4a3527', roughness: 0.8 });   // the Nightborn's is black-oiled
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'nightborn' ? '#17151a' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'nightborn' ? '#17151a' : fighter === 'goblin' ? '#3a3229' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
@@ -75,8 +75,19 @@ const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bron
 // (a constant post-rotation about each bone's own rest sideways axis) — the brute's forward-hunched spine, head thrust out to look at you.
 // The Nightborn: a shade taller than a man and the opposite posture to the brute — the same post-rotations with the signs reversed: chest
 // back, chin up (OPPONENTS.nightborn.scale is the measured standing ratio; the hit capsule follows it).
+// The goblin (opponent 4) is a small man RE-PROPORTIONED, not a shrunken one: `bones` scales each named bone about its own joint in its rest
+// frame (y along the bone = its length, x/z its girth), applied through the skin weights of every part before binding — a smooth stretch,
+// no fold at a joint — and the rig's rest positions and inverse binds are rebuilt to match (`reproportion` below). Rotations, hence every
+// clip's keys, are untouched; the pelvis drops by what the legs lost so the feet stay on the floor, and its walk bob scales with the legs
+// (`bob`). `scale` then sizes the whole man: 0.835 × the re-proportioned ~1.65 m ≈ 1.36 m standing. OPPONENTS.goblin.scale (0.78) is the
+// measured standing-height ratio — the hit capsule follows the man's height, not the root scale — and tests/characters.test.ts pins it.
+// `stride` (root scale × leg scale) is written to the GLB so the runtime plays his walk at his own pace instead of a man's (characters.ts).
 const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] }, pitborn: { scale: 1.13, hunch: [['spine_02', 7], ['spine_03', 7], ['neck_01', -7], ['Head', -6]] },
-  nightborn: { scale: 1.03, hunch: [['spine_02', -2], ['spine_03', -2], ['Head', -4]] } }[fighter] ?? { scale: 1, hunch: [] };
+  nightborn: { scale: 1.03, hunch: [['spine_02', -2], ['spine_03', -2], ['Head', -4]] },
+  goblin: { scale: .835, hunch: [['spine_02', 9], ['spine_03', 9], ['neck_01', -8], ['Head', -8]], bob: .84, stride: .835 * .84, floor: .12,
+    bones: { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l: [1, .84, 1], calf_r: [1, .84, 1],   // short legs
+      upperarm_l: [1, 1.16, 1], upperarm_r: [1, 1.16, 1], lowerarm_l: [1, 1.16, 1], lowerarm_r: [1, 1.16, 1],   // long arms (the hands keep their size: the grip and the sword are untouched)
+      neck_01: [.86, .9, .86], Head: [1.17, 1.17, 1.17] } } }[fighter] ?? { scale: 1, hunch: [] };   // a thin, shorter neck; a big head
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -191,6 +202,37 @@ for (const item of items.split(',').filter(Boolean)) {
     add(g, material, o.userData.bone, 0, 0, 0, 0, o.userData.slot);
   });
 }
+// The goblin's trophies (owner's brief): a bone-and-string necklace — five teeth and a finger on a cord that hugs the collar, rigid to spine_03 —
+// and one iron bracer that doesn't match on the left forearm (the sword hand stays free): a tapered sleeve with two rivet bands, rigid to
+// lowerarm_l. The cord is fitted by raycast: from the neck's axis outward at 36 azimuths, lower at the front (the clavicles) than at the nape,
+// the outermost thing already on him (skin, the scan's neck, tunic, baldric — every bucket so far, in rest space) plus 7 mm; the teeth and the
+// finger hang from it, each set just off the chest at its own height. It rests on the man, whatever the build.
+if (fighter === 'goblin') {
+  const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  const worn = [...parts.values()].flat().map(g => new T.Mesh(g, new T.MeshBasicMaterial({ side: T.DoubleSide })));   // everything on him so far (rest space): skin, the scan head's neck, tunic, baldric
+  const ray = new T.Raycaster(); ray.far = .35;
+  const axis = at('neck_01').clone().add(new T.Vector3(0, 0, .03));   // the neck's own axis at the collar
+  const surface = (y, a, gap) => {   // from the axis at height y, outward at azimuth a (0 = +z, the front): the outermost thing worn there, plus a gap
+    const out = new T.Vector3(Math.sin(a), 0, Math.cos(a)), origin = new T.Vector3(axis.x, y, axis.z);
+    ray.set(origin, out); const hits = ray.intersectObjects(worn, false); if (!hits.length) throw new Error(`goblin necklace: nothing worn at ${y.toFixed(3)} m, azimuth ${a.toFixed(2)}`);
+    return origin.addScaledVector(out, Math.max(...hits.map(h => h.distance)) + gap);
+  };
+  const nape = axis.y + .012, front = nape - .065, collar = a => surface(nape - (nape - front) * (1 + Math.cos(a)) / 2, a, .007);   // the cord: lower at the front than at the nape
+  const ring = Array.from({ length: 36 }, (_, k) => collar(k / 36 * Math.PI * 2));
+  add(new T.TubeGeometry(new T.CatmullRomCurve3(ring, true), 96, .0035, 6, true), leather, 'spine_03');
+  for (let i = -2; i <= 2; i++) {   // teeth: bone cones hanging point-down from the front of the cord, the middle ones longest, each just off the chest at its own height
+    const length = .03 - Math.abs(i) * .004, p = surface(front - .012 - length / 2, i * .17, .006);
+    add(new T.ConeGeometry(.0055, length, 7).rotateX(Math.PI), bone, 'spine_03', p.x, p.y, p.z);
+  }
+  const f = surface(front - .035, -.5, .006);   // a finger: three knuckles, hanging beside the teeth
+  for (let k = 0; k < 3; k++) add(new T.CylinderGeometry(.0065 - k * .0008, .006 - k * .0008, .018, 8), bone, 'spine_03', f.x, f.y - k * .017, f.z);
+  const elbow = at('lowerarm_l'), wrist = at('hand_l'), arm = wrist.clone().sub(elbow), length = arm.length(); arm.normalize();
+  const along = new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), arm);
+  const sleeve = (t0, t1, r0, r1, material) => { const g = new T.CylinderGeometry(r1, r0, (t1 - t0) * length, 18, 1, true).applyQuaternion(along); const c = elbow.clone().addScaledVector(arm, (t0 + t1) / 2 * length); add(g, material, 'lowerarm_l', c.x, c.y, c.z); };
+  sleeve(.28, .82, .052, .042, steel);   // the bracer: elbow end wider, a rust-brown iron sleeve
+  sleeve(.30, .34, .055, .054, trim); sleeve(.76, .80, .046, .045, trim);   // two bronze rivet bands (mismatched furniture)
+  console.log(`  goblin trophies: cord front ${ring[0].toArray().map(v => v.toFixed(3))}, nape ${ring[18].toArray().map(v => v.toFixed(3))}`);
+}
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
@@ -239,6 +281,42 @@ if (weaponId !== 'longsword') {
   weaponNode = weaponBuild.part({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
   base.scene.getObjectByName('hand_r').add(weaponNode); weaponNode.position.copy(drawn.position); weaponNode.rotation.copy(drawn.rotation);
 }
+// Re-proportion (BUILD.bones): every rest-space geometry in the buckets is moved through its skin weights — for bone b with scale S_b about
+// its joint j_b in its rest frame R_b, a vertex v gains w_b·(shift_b + R_b (S_b − I) R_b⁻¹ (v − j_b)), where shift_b is where b's joint
+// went because of its ancestors' scaling (and the pelvis drop that puts the feet back on the floor). Then each bone's rest position is
+// set to its moved joint and the inverse binds are recomputed, so the deformed mesh IS the new bind pose. Rest rotations are untouched.
+const PROPORTION = { drop: 0 };
+if (BUILD.bones) {
+  const bind = i => new T.Matrix4().copy(skeleton.boneInverses[i]).invert();   // rest == bind on this rig (checked: 3e-7 m)
+  const joint = skeleton.bones.map((_, i) => new T.Vector3().setFromMatrixPosition(bind(i)));
+  const frame = skeleton.bones.map((_, i) => new T.Quaternion().setFromRotationMatrix(bind(i)));
+  const S = skeleton.bones.map(b => { const s = BUILD.bones[b.name]; if (s && s.length !== 3) throw new Error(`bones: ${b.name} needs [x, y, z]`); return new T.Vector3(...(s ?? [1, 1, 1])); });
+  for (const name of Object.keys(BUILD.bones)) boneIndex(name);   // every named bone exists
+  const field = (i, v) => v.clone().sub(joint[i]).applyQuaternion(frame[i].clone().invert()).multiply(S[i]).applyQuaternion(frame[i]).add(joint[i]).sub(v);   // R (S − I) R⁻¹ (v − j)
+  const shift = skeleton.bones.map(() => new T.Vector3()), order = [];
+  const visit = b => { order.push(b); for (const c of b.children) if (c.isBone) visit(c); };
+  for (const b of skeleton.bones) if (!b.parent?.isBone) visit(b);
+  for (const b of order) { const i = boneIndex(b.name); if (b.parent?.isBone) { const p = boneIndex(b.parent.name); shift[i].copy(shift[p]).add(field(p, joint[i])); } }
+  // The feet rose by what the legs lost: everything below the root drops by that, so the soles stay where they were.
+  const feet = ['foot_l', 'foot_r'].map(n => shift[boneIndex(n)].y);
+  if (Math.abs(feet[0] - feet[1]) > 1e-6) throw new Error(`reproportion: uneven legs ${feet}`);
+  PROPORTION.drop = -feet[0];
+  for (const b of skeleton.bones) if (b.parent?.isBone) shift[boneIndex(b.name)].y += PROPORTION.drop;
+  let vertices = 0;
+  for (const geometries of parts.values()) for (const g of geometries) {
+    const position = g.getAttribute('position'), index = g.getAttribute('skinIndex'), weight = g.getAttribute('skinWeight'), v = new T.Vector3(), d = new T.Vector3();
+    for (let k = 0; k < position.count; k++) {
+      v.fromBufferAttribute(position, k); d.set(0, 0, 0);
+      for (let c = 0; c < 4; c++) { const w = weight.getComponent(k, c); if (!w) continue; const i = index.getComponent(k, c); d.addScaledVector(shift[i], w).addScaledVector(field(i, v), w); }
+      position.setXYZ(k, v.x + d.x, v.y + d.y, v.z + d.z); vertices++;
+    }
+  }
+  for (const b of skeleton.bones) if (b.parent?.isBone) { const i = boneIndex(b.name), p = boneIndex(b.parent.name); b.position.copy(joint[i]).add(shift[i]).sub(joint[p]).sub(shift[p]).applyQuaternion(frame[p].clone().invert()); }
+  base.scene.updateMatrixWorld(true); skeleton.calculateInverses();
+  const top = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  console.log(`  reproportion: ${vertices} vertices; pelvis ${joint[boneIndex('pelvis')].y.toFixed(3)} → ${top('pelvis').y.toFixed(3)} m (drop ${PROPORTION.drop.toFixed(3)}), head joint ${joint[boneIndex('Head')].y.toFixed(3)} → ${top('Head').y.toFixed(3)}, wrist reach ${joint[boneIndex('hand_r')].distanceTo(joint[boneIndex('upperarm_r')]).toFixed(3)} → ${top('hand_r').distanceTo(top('upperarm_r')).toFixed(3)} m, sole ${top('foot_l').y.toFixed(3)} (was ${joint[boneIndex('foot_l')].y.toFixed(3)})`);
+}
+const LIFT = new T.Vector3(0, PROPORTION.drop, 0);   // authored hand goals below are a man's: the goblin's shoulders sit lower by the drop
 for (const [material, geometries] of parts) {
   const slots = [...new Set(geometries.map(g => g.userData.slot))].sort();
   for (const slot of slots) {
@@ -270,7 +348,7 @@ function retargetClip(lib, sourceName, name, { t0 = 0, t1 = Infinity, duration, 
       for (let i = 0; i < values.length; i += 4) new T.Quaternion().fromArray(values, i).premultiply(correction).normalize().toArray(values, i);
       tracks.push(new T.QuaternionKeyframeTrack(track.name, times, values));
     } else {
-      for (let i = 0; i < values.length; i += 3) for (let c = 0; c < 3; c++) values[i + c] = target.position.getComponent(c) + (inPlace && c !== 1 ? 0 : values[i + c] - from.position.getComponent(c)) * 1.04;
+      for (let i = 0; i < values.length; i += 3) for (let c = 0; c < 3; c++) values[i + c] = target.position.getComponent(c) + (inPlace && c !== 1 ? 0 : values[i + c] - from.position.getComponent(c)) * 1.04 * (BUILD.bob ?? 1);   // bob: shorter legs sway the hips less
       tracks.push(new T.VectorKeyframeTrack(track.name, times, values));
     }
   }
@@ -292,7 +370,7 @@ for (let frame=0;frame<drawTimes.length;frame++) {
   poseMixer.update(0); base.scene.updateMatrixWorld(true);
   if (frame > 0 && frame < 4) {
     const shoulder=base.scene.getObjectByName('upperarm_r'), elbow=base.scene.getObjectByName('lowerarm_r'), hand=base.scene.getObjectByName('hand_r');
-    const target=new T.Vector3(...(frame===1 ? [-.16,1.22,-.13] : frame===2 ? [-.12,1.38,.02] : [-.08,1.65,.24]));
+    const target=new T.Vector3(...(frame===1 ? [-.16,1.22,-.13] : frame===2 ? [-.12,1.38,.02] : [-.08,1.65,.24])).add(LIFT);
     const start=shoulder.getWorldPosition(new T.Vector3()), joint=elbow.getWorldPosition(new T.Vector3()), end=hand.getWorldPosition(new T.Vector3());
     const upper=start.distanceTo(joint), lower=joint.distanceTo(end), direction=target.clone().sub(start), distance=Math.min(direction.length(),upper+lower-.001);
     direction.normalize(); const along=(upper*upper-lower*lower+distance*distance)/(2*distance);
@@ -365,7 +443,7 @@ for (const [name, sourceKeys] of [
     base.scene.getObjectByName('spine_01').rotation.y -= turn*.16;
     base.scene.getObjectByName('spine_02').rotation.x += Math.sin(phase*Math.PI)*(name === 'Heavy' ? .10 : .05);
     positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
-    const handGoal = new T.Vector3(...position), bladeDirection = new T.Vector3(...direction).normalize();
+    const handGoal = new T.Vector3(...position).add(LIFT), bladeDirection = new T.Vector3(...direction).normalize();
     reachArm('r',handGoal); reachArm('l',handGoal.clone().addScaledVector(bladeDirection,-.10).add(new T.Vector3(-.04,0,0)));
     base.scene.updateMatrixWorld(true);
     const hand = base.scene.getObjectByName('hand_r'), orientation = new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),bladeDirection);
@@ -494,7 +572,26 @@ if (BUILD.hunch.length) {
     console.log(`  hunch ${name} ${degrees}° over ${keys} keys`);
   }
 }
+// Ground clamp (BUILD.floor, the re-proportioned man only): longer arms on lower shoulders plant the rolling goblin's hands through the floor
+// (the hero's clear it by 18 cm). The Roll is sampled at 30 Hz; wherever a wrist would be below `floor` (rig metres) the arm is re-solved with
+// the same two-bone reach to that point lifted onto the floor, and only the four arm bones' tracks are rewritten. Nothing else in the clip moves.
+if (BUILD.floor) for (const name of ['Roll']) {
+  const clip = clips.find(c => c.name === name), times = Array.from({ length: Math.round(clip.duration * 30) + 1 }, (_, i) => Math.min(clip.duration, i / 30));
+  const arms = ['upperarm_l', 'lowerarm_l', 'upperarm_r', 'lowerarm_r'], values = new Map(arms.map(b => [b, []]));
+  let clamped = 0, lowest = 9;
+  const action = poseMixer.clipAction(clip); action.play();
+  for (const t of times) {
+    poseMixer.setTime(t); base.scene.updateMatrixWorld(true);
+    for (const side of ['l', 'r']) { const p = base.scene.getObjectByName('hand_' + side).getWorldPosition(new T.Vector3()); lowest = Math.min(lowest, p.y); if (p.y < BUILD.floor) { reachArm(side, p.setY(BUILD.floor)); clamped++; } }
+    base.scene.updateMatrixWorld(true);
+    for (const b of arms) values.get(b).push(...base.scene.getObjectByName(b).quaternion.toArray());
+  }
+  poseMixer.stopAllAction();
+  clip.tracks = [...clip.tracks.filter(tr => !arms.some(b => tr.name === `${b}.quaternion`)), ...arms.map(b => new T.QuaternionKeyframeTrack(`${b}.quaternion`, times, values.get(b)))];
+  console.log(`  floor ${name}: ${clamped} wrist samples lifted to ${BUILD.floor} m (lowest was ${lowest.toFixed(3)})`);
+}
 base.scene.name='Ashcourt warrior';
+if (BUILD.stride) base.scene.userData.stride = BUILD.stride;   // his walk cycle covers this much of a man's stride: the runtime plays it faster to match the sim's travel (no clip change)
 base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);
 const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
