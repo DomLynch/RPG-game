@@ -45,3 +45,25 @@
 the hair layer planned next adds ~5k. `tests/characters.test.ts` caps at 60,000 (owner-approved 2026-09-14, #7). Request:
 raise to 72,000 when the realistic body becomes the default build, or accept the cards as a quality-tier toggle.
 Evidence: `artifacts/character/realistic-v2/stats.json`.
+
+## 11. The Nightborn (opponent 5) — what this lane left open (2026-09-16, branch brief/nightborn-v1)
+Brief: `artifacts/character/BRIEF-nightborn.md`. Shipped: the opponent seam (`OPPONENTS.nightborn`, the committing guard), the kit
+(closed black tunic with sleeves, standing collar, hose, boots, black leather, dull iron), posture (`BUILD.nightborn`), `nightborn.glb`,
+tests, the per-fight budget gate.
+1. **The head is a STAND-IN.** `head.FIGHTERS.nightborn.kt_glb` points at the hero's scan: the KeenTools job on the seven portraits
+   (`artifacts/source/face/nightborn/nightborn-01..07.png`, uploaded 2026-09-16 23:0x) stopped at `402 Insufficient credits` after the
+   uploads. Owner: top up at keentools.io, then `set -a; . ./.env.keentools.local; set +a; node scripts/create-head.mjs artifacts/source/keentools
+   artifacts/source/face/nightborn/nightborn-0{1,6,7,2,3,4,5}.png`, point `kt_glb` at the new GLB (cams are already in that upload order),
+   rebuild (`HEAD_KT=1 blender -b -P scripts/character/parts.py -- --body realistic --fighter nightborn && WARRIOR_FIGHTER=nightborn node
+   scripts/build-warrior.mjs`), expect a `skin_mul` pass (pale grey-white: the portraits carry it; `keentools_skin_tone` follows the face).
+2. **Hair fall.** The portraits show black hair to the shoulders, swept back; the pipeline paints the scalp (`hair: 'full'`) and grows fur
+   shells on it. A hair fall is a new part: an `extract` shell over the back of the scanned head and the nape (two meshes — the KT head and
+   the body below the scan cut), `Hair` material dyed black (`hair_maps` × ~0.4). Do it with the real head; rigid on `Head` so nothing sims.
+3. **Pointed ears.** Owner-locked by the portraits. Two small cones rooted at the ear tips, rigid on `Head` — the `tusks()` pattern with the
+   ear positions read from the scan's widest points at eye height. With the real head.
+4. **Idle stillness.** Not done: the parity test wants every non-posture track byte-identical, so the plan is a GLB datum `idleScale` (≈.6,
+   the Goblin's `stride` pattern) with a one-line read in `characters.ts` (`Idle`/`Armed` action `timeScale`). Renderer lane.
+5. **Reproportion.** Long limbs / narrow shoulders were to come from the Goblin's `reproportion` (uncommitted in his worktree at the time);
+   he ships on root scale 1.03 + the base frame. When the Goblin merges: `BUILD.nightborn` bones `{ legs ×1.04, arms ×1.06, clavicles ×.92 }`,
+   root 1.0, re-measure `OPPONENTS.nightborn.scale`.
+6. **Parry re-key.** One clip re-key (Parry, higher and wider) is allowed by the brief for phone-size readability; not done in v1.

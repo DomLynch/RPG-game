@@ -27,10 +27,10 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 // Parse the shipped geometry/rig/clips in Node. Image decoding/CSP is exercised in the browser.
 // Three fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig) and the Pitborn (the same rig
 // at OPPONENTS.pitborn.scale with a hunched spine — his ceilings scale with him).
-const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb'] as const;
-const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale };
+const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb'] as const;
+const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale };
 // The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver (sword clips until the weapons lane lands it).
-const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon };
+const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon };
 async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
@@ -110,7 +110,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
 });
 
 test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from', async () => {
-  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb') } as const;   // the cleaver rides the sword clip family until the weapons lane lands it
+  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb') } as const;   // the cleaver and the estoc ride the sword clip family until the weapons lane lands them
   for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
     const names = rigs[weapon].animations.map(a => a.name);
     for (const role of ROLES) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);
@@ -389,4 +389,33 @@ test('one stroke, quantified: the first cut loads on the side the sword rests (t
     assert.ok(Math.max(...y.slice(t.windup + t.active)) < 1.7, `${id}: the return stays at chest height, no lift (peak ${Math.max(...y.slice(t.windup + t.active)).toFixed(2)} m)`);
     assert.ok(Math.min(...y) > 1, `${id}: the tip never dips (${Math.min(...y).toFixed(2)} m)`);
   }
+});
+
+const UPRIGHT = ['spine_02', 'spine_03', 'Head'];   // scripts/build-warrior.mjs BUILD.nightborn.hunch — the brute's posture with the signs reversed: chest back, chin up
+test('the Nightborn is the warrior\'s rig at OPPONENTS.nightborn.scale, upright and chin-up: same clips and timings, every bone track identical except the three posture bones, the sword in the same hand, and he stands taller by his scale', async () => {
+  const [hero, him] = await Promise.all([readWarrior('warrior.glb'), readWarrior('nightborn.glb')]);
+  assert.deepEqual(him.animations.map(a => a.name), hero.animations.map(a => a.name));
+  let posed = 0;
+  for (const [i, clip] of hero.animations.entries()) {
+    const other = him.animations[i];
+    assert.equal(other.duration, clip.duration, `${clip.name} duration`);
+    assert.deepEqual(other.tracks.map(t => t.name).sort(), clip.tracks.map(t => t.name).sort(), `${clip.name} tracks`);
+    for (const track of clip.tracks) {
+      const twin = other.tracks.find(t => t.name === track.name)!;
+      assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
+      if (UPRIGHT.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be re-posed`); posed++; }
+      else assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
+    }
+  }
+  assert.ok(posed >= hero.animations.length * UPRIGHT.length * .9, `re-posed tracks ${posed}`);
+  for (const name of ['SwordSheathed', 'SwordDrawn', 'hand_r']) {
+    const a = hero.scene.getObjectByName(name)!, b = him.scene.getObjectByName(name)!;
+    assert.ok(a && b, name);
+    assert.deepEqual(b.position.toArray(), a.position.toArray(), `${name} position`); assert.deepEqual(b.quaternion.toArray(), a.quaternion.toArray(), `${name} rotation`); assert.equal(b.parent?.name, a.parent?.name, `${name} parent`);
+  }
+  const k = OPPONENTS.nightborn.scale, root = (a: typeof hero) => a.scene.children[0].scale;
+  for (const axis of ['x', 'y', 'z'] as const) assert.ok(Math.abs(root(him)[axis] / root(hero)[axis] - k) < 1e-3, `root scale ${axis}: ${root(him)[axis]} / ${root(hero)[axis]}`);
+  const ratio = standingTop(him) / standingTop(hero);
+  assert.ok(ratio > k - .03 && ratio <= k + .02, `standing height ratio ${ratio.toFixed(3)} for scale ${k} (${standingTop(him).toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
+  console.log(`nightborn stands ${standingTop(him).toFixed(3)} m to the hero's ${standingTop(hero).toFixed(3)} (×${ratio.toFixed(3)}, scale ${k}); ${posed} re-posed tracks`);
 });
