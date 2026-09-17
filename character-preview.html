@@ -199,7 +199,7 @@ const api = {
     const solo = w.node.clone(true); solo.position.set(0, 0, 0); solo.quaternion.identity(); solo.scale.set(1, 1, 1); solo.traverse(o => { o.visible = true; });
     const holder = new THREE.Group(); holder.add(solo); studio.add(holder); holder.updateWorldMatrix(true, true);
     const box = new THREE.Box3().setFromObject(solo), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
-    holder.position.set(-mid.x, 1 - mid.y, -mid.z); const d = Math.max(size.x, size.y, size.z) * 1.35;
+    holder.position.set(-mid.x, 1 - mid.y, -mid.z); const d = Math.max(size.x, size.y, size.z) * 1.6; // 1.6: a hooked or forked head must not clip the frame
     const out = cells(4, 2, 480, 720, 1, i => { const a = i * Math.PI / 4; camera.fov = 35; camera.position.set(Math.sin(a) * d, 1.05, Math.cos(a) * d); camera.lookAt(0, 1, 0); renderer.render(studio, camera); return `${w.node.name} ${i * 45}°  ${size.y.toFixed(2)} m, contact ${w.contact[0]}–${w.contact[1]} m`; });
     studio.remove(holder); player.visible = opponent.visible = true; return out;
   },

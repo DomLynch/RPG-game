@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { createFighter, idleIntent, initialDuel, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, idleIntent, initialDuel, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type Opponent } from '../src/moves.ts';
 import { TARGET, type State } from '../src/sim.ts';
 import { STRATEGIES, battery } from './battery.test.ts';
@@ -91,7 +91,7 @@ const whiffPunisher = (d: Duel): Intent => {
   const w = d.fighters[1], p = d.fighters[0];
   if (p.phase !== 'ready') return idle();
   if (w.phase === 'attack' && w.age <= 4 && !w.landed && w.move !== 'kick') return act('backstep');
-  if (w.phase === 'attack' && w.move && !w.landed && w.age >= MOVES[w.move].windup + MOVES[w.move].active && gap(d) <= 1.7) return act('light');
+  if (w.phase === 'attack' && w.move && !w.landed && w.age >= movesOf(w)[w.move].windup + movesOf(w)[w.move].active && gap(d) <= 1.7) return act('light');   // the warden's OWN weapon's timings (the cleaver's chop is live longer than the sword's cut)
   if (w.exhausted && gap(d) <= 1.7) return act('heavy');
   return idle();
 };

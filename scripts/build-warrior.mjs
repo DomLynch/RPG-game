@@ -270,12 +270,12 @@ const sheathWorld = new T.Matrix4().compose(new T.Vector3(-.16,1.22,-.13),new T.
 sheathed.applyMatrix4(base.scene.getObjectByName('pelvis').matrixWorld.clone().invert().multiply(sheathWorld));
 const drawn = sword('SwordDrawn',base.scene.getObjectByName('hand_r'));
 drawn.position.set(0,.08,.015); drawn.rotation.x = Math.PI / 2;
-let weaponNode = null;
+let weaponNode = null, weaponBuild = null;
 if (weaponId !== 'longsword') {
-  const { trident } = await import('./build-weapon.mjs');
-  if (weaponId !== 'trident') throw new Error(`WARRIOR_WEAPON=${weaponId}: no such weapon (scripts/build-weapon.mjs)`);
+  const { WEAPON_BUILDS } = await import('./build-weapon.mjs'); weaponBuild = WEAPON_BUILDS[weaponId];
+  if (!weaponBuild) throw new Error(`WARRIOR_WEAPON=${weaponId}: no such weapon (scripts/build-weapon.mjs)`);
   sheathed.clear(); drawn.clear(); // the loader still finds SwordSheathed/SwordDrawn; they carry nothing
-  weaponNode = trident({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
+  weaponNode = weaponBuild.part({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
   base.scene.getObjectByName('hand_r').add(weaponNode); weaponNode.position.copy(drawn.position); weaponNode.rotation.copy(drawn.rotation);
 }
 // Re-proportion (BUILD.bones): every rest-space geometry in the buckets is moved through its skin weights — for bone b with scale S_b about
@@ -412,7 +412,7 @@ function reachArm(side, target, leg = false) {
 // The cuts are authored the same way (owner, 2026-09-16: the library flick read as "too quick and shallow"): Attack is a horizontal
 // right-to-left arc at chest height — cocked out to the right, the tip crossing the front at the contact key (.34), out to the left — and
 // Return is the backhand, left to right. Their keys replace the retargeted Sword_Attack and its time-reversed clone below.
-for (const [name, keys] of [
+for (const [name, sourceKeys] of [
   ['Heavy', [[0,[.18,1.3,.3],[0,0,1]],[.28,[.2,1.65,-.08],[0,1,-.4]],[.48,[.04,1.13,.43],[0,0,1]],[.64,[.28,.98,.35],[.3,-.6,.7]],[1,[.18,1.3,.3],[0,0,1]]]],
   ['Riposte', [[0,[.18,1.3,.3],[0,0,1]],[.2,[.15,1.25,.05],[0,0,1]],[.34,[.02,1.23,.48],[0,0,1]],[.55,[.04,1.2,.48],[0,0,1]],[1,[.18,1.3,.3],[0,0,1]]]],
   // A cut is a hook with a sword (owner, 2026-09-16): a short load from guard on one side (blade lifted, not swung out), one power arc through
@@ -431,6 +431,7 @@ for (const [name, keys] of [
   ['Attack', [[0,[-.15,1.1,0],[-.5,.45,.74]],[.16,[-.28,1.34,.28],[-.35,.45,.82]],[.34,[-.02,1.18,.5],[0,0,1]],[.52,[.24,1.2,.44],[.62,0,.78]],[.7,[.46,1.26,.32],[.86,.08,.5]],[.82,[.24,1.2,.44],[.62,0,.78]],[.92,[-.02,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]],
   ['Return', [[0,[.35,1.2,.25],[.6,.4,.7]],[.16,[.32,1.34,.3],[.32,.42,.85]],[.34,[.25,1.18,.5],[0,0,1]],[.52,[-.14,1.2,.46],[-.62,0,.78]],[.7,[-.4,1.24,.34],[-.86,.08,.5]],[.82,[-.14,1.2,.46],[-.62,0,.78]],[.92,[.25,1.18,.5],[0,0,1]],[1,[-.15,1.1,0],[-.5,.45,.74]]]]
 ]) {
+  const keys = weaponBuild?.keys?.[name] ?? sourceKeys; // a weapon may re-key a sword clip on its own rig (the cleaver's Heavy is a diagonal hack so its edge leads)
   const positions = [], values = new Map(skeleton.bones.map(b => [b.name, []]));
   for (const [phase, position, direction] of keys) {
     poseMixer.clipAction(clips.find(c => c.name === 'Armed')).play(); poseMixer.update(0);
@@ -550,9 +551,8 @@ if (process.env.WARRIOR_UAL2_ATTACKS) {
   ];
   for (const c of candidates) clips[clips.findIndex(k => k.name === c.name)] = c;
 }
-if (weaponNode) { // the weapon's clips, authored on this rig after every sword clip exists (they borrow the body loops and the two-hand grip)
-  const { tridentClips } = await import('./build-weapon.mjs');
-  clips.push(...tridentClips({ T, base, skeleton, poseMixer, clips, reachArm, weapon: weaponNode }));
+if (weaponBuild?.clips) { // the weapon's own clips, authored on this rig after every sword clip exists (they borrow the body loops and the two-hand grip)
+  clips.push(...weaponBuild.clips({ T, base, skeleton, poseMixer, clips, reachArm, weapon: weaponNode }));
 }
 // The hunch: for each named bone, its rest-pose sideways axis in its own frame; every quaternion key of every clip is post-rotated about it.
 if (BUILD.hunch.length) {

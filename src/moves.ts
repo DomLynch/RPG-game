@@ -200,7 +200,46 @@ export const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
 // Slice V (combat review, 2026-09-16): the shaft guard pays 15 % more for every block and a plain overhead heavy breaks it (the blade guard
 // only breaks to a charged one); the Veteran opens with the thrust three times in five and closes to sweep range, not the sword's cutting range.
 export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .6, close: 1.4 } };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: { ...LONGSWORD, id: 'cleaver', placeholder: true }, knife: { ...LONGSWORD, id: 'knife', placeholder: true } };   // cleaver: the Pitborn's; knife: the goblin's short hooked knife — both on the sword clip family, the longsword's data until the weapons lane replaces it (the goblin's timings: artifacts/character/BRIEF-goblin.md)
+
+// ── Cleaver (weapons lane, 2026-09-16): the Pitborn's. "A fat scythe-type cleaver, wider and the same length as the longsword" (owner):
+// it rides the LONGSWORD'S CLIP FAMILY (Attack / Return / Heavy / Riposte on its own rig, src/assets/weapons/cleaver/veteran-cleaver.glb,
+// WeaponDrawn, contact = the edge .14–.86) so the renderer needs nothing new. What the single edge does to the sword's moves, measured
+// from the bake (artifacts/weapons/tools/edge-check.mjs): the forehand cut leads with the edge → the CHOP; the backhand leads with the
+// spine → the BACK OF THE CLEAVER, a blunt hammer blow (less damage, more stagger and posture); the overhead is re-keyed on the cleaver's
+// rig as a diagonal HACK so its edge leads (the sword's straight overhead comes down flat); the thrust is a clumsy POKE. Slower tells,
+// longer recoveries, more damage and chip: a brute's weapon. Lunges (stepIn × wind-up) equal the sword's so the Pitborn's whiff window
+// (tests/opponents.test.ts: a 12-tick backstep escapes his swing and the punish lands) survives; `reach` follows the SWORD's convention —
+// the warden's conservative spacing estimate (cut 1.65 / heavy 1.9 / stab 2.0), not the measured frontier (1.7 / 2.2 / 2.05), so he
+// spaces like the man the seam was tuned against. Every number PROVISIONAL — GAMEPLAY CHANGE for combat review.
+export const CLEAVER_PATHS: Record<PathId, PathSpec> = {
+  light_right: { clip: 'Attack', source: .34, windup: 22, active: 8, recovery: 26 },        // the chop: 2 ticks more tell than the cut, a longer recovery
+  light_left: { clip: 'Return', source: .34, windup: 22, active: 8, recovery: 26 },         // the back of the cleaver
+  light_right_chain: { clip: 'Attack', source: .34, windup: 18, active: 8, recovery: 22 },
+  light_left_chain: { clip: 'Return', source: .34, windup: 18, active: 8, recovery: 22 },
+  heavy_overhead: { clip: 'Heavy', source: .48, windup: 36, active: 6, recovery: 36 },      // the hack (the cleaver rig's own Heavy keys)
+  heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 26, active: 6, recovery: 36 },
+  thrust: { clip: 'Riposte', source: .34, windup: 18, active: 5, recovery: 26 },            // the poke
+  riposte: { clip: 'Riposte', source: .34, windup: 12, active: 5, recovery: 21 },
+  heavy_riposte: { clip: 'Heavy', source: .48, windup: 22, active: 6, recovery: 29 },
+};
+export const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
+  light_right: { ...MOVES.light_right, chained: { windup: 18, active: 8, recovery: 22 }, chain: { window: 18, follow: ['light_left', 'heavy_overhead'] },
+    windup: 22, active: 8, recovery: 26, damage: 17, stamina: 28, staminaDamage: 24, stagger: 26, chip: .2, knockback: 5, stepIn: .36, feintUntil: 11, posture: 26, chamber: 10, reach: 1.65 },   // the chop: some of it comes through a guard. stepIn .36 over 22 ticks = the cut's lunge over 20 (the Pitborn's whiff window — a 12-tick backstep escapes it — is tuned to that distance)
+  light_left: { ...MOVES.light_left, chained: { windup: 18, active: 8, recovery: 22 }, chain: { window: 18, follow: ['light_right', 'heavy_overhead'] },
+    windup: 22, active: 8, recovery: 26, damage: 9, stamina: 24, staminaDamage: 30, stagger: 32, chip: 0, knockback: 6, stepIn: .36, feintUntil: 11, posture: 34, chamber: 10, reach: 1.65 },   // the back of the cleaver: a hammer — little damage, a lot of posture, hard on a guard
+  heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 26, active: 6, recovery: 36 }, windup: 36, active: 6, recovery: 36, damage: 26, stamina: 42, staminaDamage: 45, stagger: 30, poise: 24, poiseFrom: 22, chip: .5, stepIn: .48, feintUntil: 12, posture: 42, chamber: 12, reach: 1.9 },   // the hack: stepIn .48 over 36 ticks = the heavy's lunge over 32
+  thrust: { ...MOVES.thrust, windup: 18, active: 5, recovery: 26, damage: 7, stamina: 18, staminaDamage: 14, stagger: 14, stepIn: .87, feintUntil: 9, posture: 10, chamber: 9, reach: 2 },   // the poke: a cleaver is no stabbing weapon. stepIn .87 over 18 ticks = the stab's lunge over 16
+  riposte: { ...MOVES.riposte, windup: 12, active: 5, recovery: 21, damage: 28, reach: 1.65 },
+  heavy_riposte: { ...MOVES.heavy_riposte, windup: 22, active: 6, recovery: 29, damage: 34, reach: 1.9 },
+  heavy_counter: { ...MOVES.heavy_counter, windup: 22, active: 6, recovery: 29, damage: 24, reach: 1.9 },
+  critical: { ...MOVES.critical, windup: 22, active: 6, recovery: 29, damage: 46, reach: 1.9 },
+  kick: MOVES.kick,
+};
+export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLEAVER_PATHS, guard: 'blade', material: 'iron', reach: CLEAVER_MOVES.thrust.reach, fight: { thrustShare: .1, close: 1.15 } };   // the poke is a rare opener (one non-cut opener in ten); he closes to the sword's cutting range for his chops
+// ON THE SHELF (the lanes' split, 2026-09-16): the weapons lane delivers a weapon unused; the combat lane puts it in the fight. The
+// cleaver's flip is `cleaver: CLEAVER` here plus its manifest entry (artifacts/weapons/REQUESTS.md §5); until then the Pitborn's slot
+// borrows the longsword exactly as before.
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: { ...LONGSWORD, id: 'cleaver', placeholder: true }, knife: { ...LONGSWORD, id: 'knife', placeholder: true } };   // cleaver: the Pitborn's; knife: the goblin's short hooked knife — both on the sword clip family, the longsword's data until the combat lane flips them
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
