@@ -3,6 +3,7 @@
   "weapons": [
     { "weapon": "longsword", "glb": "src/assets/warrior.glb", "node": "SwordDrawn", "contact": [0.18, 0.86] },
     { "weapon": "trident", "glb": "src/assets/veteran.glb", "node": "WeaponDrawn", "contact": [0.76, 1.22] },
-    { "weapon": "cleaver", "glb": "src/assets/weapons/cleaver/veteran-cleaver.glb", "node": "WeaponDrawn", "contact": [0.14, 0.86] }
+    { "weapon": "cleaver", "glb": "src/assets/weapons/cleaver/veteran-cleaver.glb", "node": "WeaponDrawn", "contact": [0.14, 0.86] },
+    { "weapon": "knife", "glb": "src/assets/goblin.glb", "node": "WeaponDrawn", "contact": [0.12, 0.52] }
   ]
 }

@@ -294,32 +294,28 @@ test('the Veteran\'s stance (slice V): the trident warden opens with the thrust 
   assert.ok(bladeBlocks > 0, 'the blade guard still blocks a plain heavy sometimes');
 });
 
-// ── The knife (weapons lane, 2026-09-17): the goblin's sica — ON THE SHELF, as the cleaver. The combat lane flips `WEAPONS.knife` to KNIFE,
-// adds the manifest entry from src/assets/weapons/knife/goblin-knife.glb (his own re-proportioned rig), bakes, sets his stance and knobs.
-import { KNIFE, KNIFE_PATHS, type MoveId, type PathId } from '../src/moves.ts';
-const KNIFE_GLB = 'src/assets/weapons/knife/goblin-knife.glb';
+// ── The knife (weapons lane, 2026-09-17): the goblin's sica. LIVE since slice X (combat lane): `WEAPONS.knife` is KNIFE, baked from the
+// goblin's own rig (src/assets/goblin.glb carries it: WARRIOR_FIGHTER=goblin defaults to the knife), his stance and knobs set.
+import { KNIFE, KNIFE_PATHS, OPPONENTS as OPP, type MoveId, type PathId } from '../src/moves.ts';
+const KNIFE_GLB = 'src/assets/goblin.glb';
 
-test('the knife is on the shelf: KNIFE is real data nothing uses; WEAPONS.knife still borrows the longsword; no manifest entry yet', () => {
-  assert.equal(WEAPONS.knife.placeholder, true); assert.equal(WEAPONS.knife.moves, MOVES); assert.deepEqual(bladePaths.knife, bladePaths.longsword);
+test('the knife is live (slice X): WEAPONS.knife is KNIFE, the goblin carries it, and it is baked from his own rig with the blade as the contact segment', () => {
+  assert.equal(WEAPONS.knife, KNIFE); assert.equal(WEAPONS.knife.placeholder, undefined); assert.equal(OPP.goblin.weapon, 'knife');
   assert.notEqual(KNIFE.moves, MOVES); assert.notEqual(KNIFE.paths, PATHS); assert.equal(KNIFE.id, 'knife');
-  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string }[] };
-  assert.ok(!manifest.weapons.some(w => w.weapon === 'knife'), 'no knife bake until the flip');
+  assert.notDeepEqual(bladePaths.knife, bladePaths.longsword); assert.deepEqual(Object.keys(bladePaths.knife).sort(), Object.keys(KNIFE.paths).sort(), 'every knife path baked');
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: [number, number] }[] };
+  assert.deepEqual(manifest.weapons.find(w => w.weapon === 'knife'), { weapon: 'knife', glb: KNIFE_GLB, node: 'WeaponDrawn', contact: [.12, .52] });
 });
 
-test('the knife rig is the goblin\'s own (re-proportioned, .835 root) carrying WeaponDrawn with a short blade as the contact segment, empty sword nodes, and exactly the goblin\'s clip list; only Heavy is re-keyed', async () => {
-  const asset = await readRig(KNIFE_GLB), goblin = await readRig('src/assets/goblin.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
+test('the goblin\'s rig carries the knife: WeaponDrawn under hand_r with a short blade as the contact segment and a forward grip, empty sword nodes, the sword\'s clip list in the sword\'s order, every knife path on a sword clip', async () => {
+  const asset = await readRig(KNIFE_GLB), hero = await readRig('src/assets/warrior.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
   assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
   const contact = weapon.userData.contact as { from: number; to: number };
   assert.ok(contact && contact.to < .6 && contact.to > .45 && contact.from > .08 && contact.from < .2, `a short blade: ${JSON.stringify(contact)}`);
   assert.equal(weapon.userData.grip, 'forward', 'forward grip: the reverse grip never lands on the sword\'s clips');
   for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
-  assert.deepEqual(asset.animations.map(c => c.name), goblin.animations.map(c => c.name), 'the goblin\'s clip list, in order');
-  const root = (a: Awaited<ReturnType<typeof readRig>>) => a.scene.children[0].scale.x; assert.ok(Math.abs(root(asset) - root(goblin)) < 1e-6, 'his root scale');
-  for (const clip of goblin.animations) { // his own clips, track for track, except the Heavy (the diagonal hack)
-    const twin = asset.animations.find(c => c.name === clip.name)!;
-    const same = clip.tracks.every(t => { const o = twin.tracks.find(x => x.name === t.name)!; return o && o.times.length === t.times.length && Array.from(t.values).every((v, i) => Math.abs(v - o.values[i]) < 1e-6); });
-    assert.equal(same, clip.name !== 'Heavy', `${clip.name} ${clip.name === 'Heavy' ? 'is the knife\'s own' : 'is the goblin\'s'}`);
-  }
+  assert.deepEqual(asset.animations.map(c => c.name), [...['Idle', 'Walk', 'Jog', 'Run'], ...['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected']], 'the sword\'s clip list, in order');
+  assert.ok(Math.abs(asset.scene.children[0].scale.x / hero.scene.children[0].scale.x - .835) < 1e-3, `his root scale: .835 × the hero's (${asset.scene.children[0].scale.x} / ${hero.scene.children[0].scale.x})`);
   for (const [path, spec] of Object.entries(KNIFE_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
 });
 

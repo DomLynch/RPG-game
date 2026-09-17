@@ -22,7 +22,7 @@ const fighter = process.env.WARRIOR_FIGHTER || 'hero', variant = realistic ? (fi
 // sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
 // the weapon's own clips join the set. The hero defaults to the longsword (byte-identical output); the Veteran defaults to the trident
 // since slice V (duel.ts initialDuel gives him it), so a plain rebuild never hands him the sword back.
-const weaponId = process.env.WARRIOR_WEAPON || (fighter === 'veteran' ? 'trident' : fighter === 'pitborn' ? 'cleaver' : 'longsword');   // each opponent's default is the weapon he fights with (moves.ts OPPONENTS), so a plain rebuild never hands him the sword back
+const weaponId = process.env.WARRIOR_WEAPON || (fighter === 'veteran' ? 'trident' : fighter === 'pitborn' ? 'cleaver' : fighter === 'goblin' ? 'knife' : 'longsword');   // each opponent's default is the weapon he fights with (moves.ts OPPONENTS), so a plain rebuild never hands him the sword back
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
 const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');

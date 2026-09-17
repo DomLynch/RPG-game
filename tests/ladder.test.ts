@@ -4,9 +4,10 @@ import { LADDER, opponentFor, won, nextAfter } from '../src/ladder.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 test('the ladder starts at the Veteran, climbs to the Pitborn, then the Nightborn, and ends there for now', () => {
-  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'nightborn']);
+  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn']);
   assert.equal(nextAfter('veteran')?.id, 'pitborn'); assert.equal(nextAfter('veteran')?.name, 'the Pitborn');
-  assert.equal(nextAfter('pitborn')?.id, 'nightborn'); assert.equal(nextAfter('pitborn')?.name, 'the Nightborn');
+  assert.equal(nextAfter('pitborn')?.id, 'goblin'); assert.equal(nextAfter('pitborn')?.name, 'the Goblin');
+  assert.equal(nextAfter('goblin')?.id, 'nightborn'); assert.equal(nextAfter('goblin')?.name, 'the Nightborn');
   assert.equal(nextAfter('nightborn'), undefined, 'the last rung offers no next opponent');
   for (const rung of LADDER) assert.ok(OPPONENTS[rung.id], `${rung.id} exists in the roster`);
 });

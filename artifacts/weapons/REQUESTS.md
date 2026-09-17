@@ -145,7 +145,7 @@ PR lands the knife on the shelf (the split): `KNIFE` exported, `WEAPONS.knife` s
 unchanged. Built from the character lane's contract (artifacts/goblin/REQUESTS.md #9) and their proposed timing table
 (artifacts/character/BRIEF-goblin.md).
 
-## 9. Combat lane — the flip
+## 9. Combat lane — the flip — **DONE (slice X part 2, 2026-09-17)**: `WEAPONS.knife = KNIFE`, baked from `src/assets/goblin.glb` (rebuilt with the knife; `goblin-knife.glb` removed as a duplicate); knobs, pace 1.2, his battery and his ladder rung. Numbers kept as shipped.
 1. `src/moves.ts`: `WEAPONS.knife` → `KNIFE` (`KNIFE_MOVES` / `KNIFE_PATHS`, guard blade, iron, `fight { thrustShare .4, close 1.0 }`).
 2. `scripts/blade-manifest.json`: `{ "weapon": "knife", "glb": "src/assets/weapons/knife/goblin-knife.glb", "node": "WeaponDrawn",
    "contact": [0.12, 0.52] }` — HIS rig (re-proportioned, .835 root; the knife is 0.81× in his hand: a 0.42 m blade). Then bake.
