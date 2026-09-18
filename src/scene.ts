@@ -252,9 +252,15 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       if (practice.finish && !practice.finish.draw && !stillCamera) finishPush = Math.min(1, finishPush + dt / 1.3); else if (!practice.finish) finishPush = 0;
       if (finishPush > 0) {
         const fallen = practice.finish!.victim === 1 ? practice.enemy : state;
+        const killer = practice.finish!.victim === 1 ? state : practice.enemy;
         desired.x += (fallen.x - desired.x) * .38 * finishPush; desired.z += (fallen.z - desired.z) * .38 * finishPush;
-        desired.y += (1.3 - desired.y) * .3 * finishPush;
-        look.x += (fallen.x - look.x) * .6 * finishPush; look.z += (fallen.z - look.z) * .6 * finishPush; look.y += (.55 - look.y) * .7 * finishPush;
+        // Framing tune (same authorized dolly — still no cut, no FOV, no slow-mo): slide the camera laterally off the
+        // killer→fallen axis and a touch higher, so the settled frame reads the kneeling corpse past the killer's
+        // shoulder instead of hiding it behind his back.
+        const axisX = fallen.x - killer.x, axisZ = fallen.z - killer.z, axisLen = Math.hypot(axisX, axisZ) || 1;
+        desired.x += (-axisZ / axisLen) * .95 * finishPush; desired.z += (axisX / axisLen) * .95 * finishPush;
+        desired.y += (1.55 - desired.y) * .3 * finishPush;
+        look.x += (fallen.x - look.x) * .6 * finishPush; look.z += (fallen.z - look.z) * .6 * finishPush; look.y += (.8 - look.y) * .7 * finishPush;
       }
       heading += wrapAngle(state.heading - heading) * blend;
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading = state.heading;
