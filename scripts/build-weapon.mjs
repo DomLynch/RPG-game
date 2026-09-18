@@ -111,6 +111,7 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
     const mirrored = palmWorld.addScaledVector(across, -2 * palmWorld.dot(across));
     const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, mirrored).multiply(leftLocal.clone().transpose()));
     reachArm('l', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL))); base.scene.updateMatrixWorld(true);
+    if (process.env.GRIP_DEBUG) { const wp = handL.getWorldPosition(new three.Vector3()), sa = weapon.localToWorld(new three.Vector3(0, -.6, 0)), sb = weapon.localToWorld(new three.Vector3(0, 1.8, 0)), ab2 = sb.clone().sub(sa), tt = Math.max(0, Math.min(1, wp.clone().sub(sa).dot(ab2) / ab2.lengthSq())), shoulder = bone('upperarm_l').getWorldPosition(new three.Vector3()); console.log('GRIPDBG', JSON.stringify({ r, l }), 'wristOff', wp.distanceTo(sa.clone().addScaledVector(ab2, tt)).toFixed(3), 'targetFromShoulder', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL)).distanceTo(shoulder).toFixed(3)); }
     handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientL));
     for (const f of fingers) { const q = bone(`${f}_r`).quaternion; bone(`${f}_l`).quaternion.set(q.x * mirror[0], q.y * mirror[1], q.z * mirror[2], q.w * mirror[3]); }
     base.scene.updateMatrixWorld(true);
@@ -119,7 +120,16 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
     return { values, position };
   }
   const make = (name, duration, keys) => {
-    const times = keys.map(k => k.t), poses = keys.map(pose), positions = poses.flatMap(p => p.position);
+    // Densify: quaternion tracks slerp in each bone's local frame, so a wide gap between authored keys lets the wrist swing far off
+    // the shaft mid-segment even when every authored key holds the grip (measured 2026-09-18: Scythe_High max 0.42 between keys,
+    // every key ≤ 0.08). Re-solve pose() at interpolated goals so playback stays on the haft between keys too.
+    const lerp = (a, b, f) => a + (b - a) * f, dense = [];
+    for (let i = 0; i < keys.length - 1; i++) {
+      const a = keys[i], b = keys[i + 1], n = Math.max(1, Math.ceil((b.t - a.t) / .05));
+      for (let j = 0; j < n; j++) { const f = j / n, k = { t: lerp(a.t, b.t, f), body: [a.body[0], lerp(a.body[1], b.body[1], f)] }; for (const p of ['r', 'dir', 'spine']) k[p] = a[p].map((v, x) => lerp(v, b[p][x], f)); for (const p of ['l', 'roll']) k[p] = lerp(a[p] ?? 0, b[p] ?? 0, f); if (a.follow) k.follow = a.follow; dense.push(k); }
+    }
+    dense.push(keys[keys.length - 1]);
+    const times = dense.map(k => k.t), poses = dense.map(pose), positions = poses.flatMap(p => p.position);
     return new three.AnimationClip(name, duration, [new three.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new three.QuaternionKeyframeTrack(b.name + '.quaternion', times, poses.flatMap(p => p.values.get(b.name))))]);
   };
   // A loop: the body clip sampled at n frames with one constant grip; the last key repeats the first so it joins seamlessly.
@@ -162,6 +172,7 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
     make('Trident_High', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
       { t: .28, body: ['Armed', 0], r: [.22, .28, -.30], dir: [-.06, .84, .54], l: .42, spine: [.15, -.08] },
+      { t: .38, body: ['Armed', 0], r: [.28, -.18, .02], dir: [.48, -.16, .86], l: .42, spine: [.06, .02] },   // the descent comes down wide right and LOW: the direct raise→contact lerp carried the tines through the skull capsule at close gaps once keys played faithfully (head-region battery, 2026-09-18)
       { t: .48, body: ['Armed', 0], r: [.20, -.04, .12], dir: [0, -.12, .99], l: .40, spine: [-.08, .14] },
       { t: .64, body: ['Armed', 0], r: [.18, -.18, .16], dir: [0, -.24, .97], l: .40, spine: [-.08, .16] },
       { t: 1, body: ['Armed', 0], ...REST },
@@ -424,6 +435,7 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     const mirrored = palmWorld.addScaledVector(across, -2 * palmWorld.dot(across));
     const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, mirrored).multiply(leftLocal.clone().transpose()));
     reachArm('l', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL))); base.scene.updateMatrixWorld(true);
+    if (process.env.GRIP_DEBUG) { const wp = handL.getWorldPosition(new three.Vector3()), sa = weapon.localToWorld(new three.Vector3(0, -.6, 0)), sb = weapon.localToWorld(new three.Vector3(0, 1.8, 0)), ab2 = sb.clone().sub(sa), tt = Math.max(0, Math.min(1, wp.clone().sub(sa).dot(ab2) / ab2.lengthSq())), shoulder = bone('upperarm_l').getWorldPosition(new three.Vector3()); console.log('GRIPDBG', JSON.stringify({ r, l }), 'wristOff', wp.distanceTo(sa.clone().addScaledVector(ab2, tt)).toFixed(3), 'targetFromShoulder', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL)).distanceTo(shoulder).toFixed(3)); }
     handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientL));
     for (const f of fingers) { const q = bone(`${f}_r`).quaternion; bone(`${f}_l`).quaternion.set(q.x * mirror[0], q.y * mirror[1], q.z * mirror[2], q.w * mirror[3]); }
     base.scene.updateMatrixWorld(true);
@@ -432,7 +444,16 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     return { values, position };
   }
   const make = (name, duration, keys) => {
-    const times = keys.map(k => k.t), poses = keys.map(pose), positions = poses.flatMap(p => p.position);
+    // Densify: quaternion tracks slerp in each bone's local frame, so a wide gap between authored keys lets the wrist swing far off
+    // the shaft mid-segment even when every authored key holds the grip (measured 2026-09-18: Scythe_High max 0.42 between keys,
+    // every key ≤ 0.08). Re-solve pose() at interpolated goals so playback stays on the haft between keys too.
+    const lerp = (a, b, f) => a + (b - a) * f, dense = [];
+    for (let i = 0; i < keys.length - 1; i++) {
+      const a = keys[i], b = keys[i + 1], n = Math.max(1, Math.ceil((b.t - a.t) / .05));
+      for (let j = 0; j < n; j++) { const f = j / n, k = { t: lerp(a.t, b.t, f), body: [a.body[0], lerp(a.body[1], b.body[1], f)] }; for (const p of ['r', 'dir', 'spine']) k[p] = a[p].map((v, x) => lerp(v, b[p][x], f)); for (const p of ['l', 'roll']) k[p] = lerp(a[p] ?? 0, b[p] ?? 0, f); if (a.follow) k.follow = a.follow; dense.push(k); }
+    }
+    dense.push(keys[keys.length - 1]);
+    const times = dense.map(k => k.t), poses = dense.map(pose), positions = poses.flatMap(p => p.position);
     return new three.AnimationClip(name, duration, [new three.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new three.QuaternionKeyframeTrack(b.name + '.quaternion', times, poses.flatMap(p => p.values.get(b.name))))]);
   };
   const loop = (name, body, duration, n, grip, wrap = true) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })));
@@ -451,7 +472,7 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     make('Scythe_Reap', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
       { t: .16, body: ['Armed', 0], r: [.36, -.24, -.18], dir: [.80, .26, .54], l: .46, spine: [.36, 0], roll: -.5 },
-      { t: .34, body: ['Armed', 0], r: [.02, -.18, .34], dir: [-.20, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },   // contact: the head crosses the centre line at full reach, chest height — the sim's striking segment must sit ON the target line here (the task-4 bake caught it 0.7 m past: the whole active window whiffed); the diagonal blade lay reads from the game camera (vertical was edge-on, flat was along the view axis)
+      { t: .34, body: ['Armed', 0], r: [.02, -.16, .40], dir: [-.20, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },   // contact: the head crosses the centre line at full reach, chest height — the sim's striking segment must sit ON the target line here (the task-4 bake caught it 0.7 m past: the whole active window whiffed); the diagonal blade lay reads from the game camera (vertical was edge-on, flat was along the view axis). The rear hand drives +6 cm further out than the first pass: with keys densified (the grip fix) the arc no longer over-extends between keys, so the authored reach must carry the full 2.10 m frontier on its own
       { t: .50, body: ['Armed', 0], r: [-.06, -.20, .30], dir: [-.38, .16, .91], l: .44, spine: [-.34, .05], roll: -.9 },   // the sweep continues across: the head stays inside half a metre of the target line through the window's early ticks, so near gaps still meet the arc
       { t: .72, body: ['Armed', 0], r: [-.18, -.22, .18], dir: [-.86, .12, .49], l: .46, spine: [-.46, .06], roll: -1.05 },  // full follow-through
       { t: 1, body: ['Armed', 0], ...REST },
@@ -460,8 +481,9 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     make('Scythe_High', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
       { t: .26, body: ['Armed', 0], r: [.24, .36, -.26], dir: [.44, .84, .31], l: .46, spine: [.16, -.10], roll: -1.2 },
-      { t: .48, body: ['Armed', 0], r: [.16, -.06, .28], dir: [-.42, -.38, .82], l: .44, spine: [-.16, .16], roll: -.9 },   // contact: down through the front, blade at the diagonal lay
-      { t: .64, body: ['Armed', 0], r: [.20, -.24, .24], dir: [-.55, -.58, .60], l: .46, spine: [-.18, .18], roll: -1.1 },
+      { t: .37, body: ['Armed', 0], r: [.30, -.20, -.20], dir: [.72, -.24, .50], l: .45, spine: [.10, .02], roll: -1.0 },   // the descent comes down wide right and LOW, not straight over the crown: the direct raise→contact lerp carried the head through the opponent's skull capsule at close gaps (head-region battery, 2026-09-18). Its forward drive stays short of the contact key's reach so the far frontier doesn't move
+      { t: .48, body: ['Armed', 0], r: [.16, -.08, .28], dir: [-.50, -.44, .78], l: .44, spine: [-.16, .16], roll: -.9 },   // contact: down through the front, blade at the diagonal lay; the drive sits lower than the first pass (dir y -.44 vs -.38) — with densified keys the arc no longer sags between keys, and a faithful play carried the head through the opponent's skull capsule at close range (head-region battery). The leftward carry matches the trunk arc's lateral cross (x ≈ −0.45 at the contact ticks): without it the head end stays inside the target capsule 5 cm past the 2.30 frontier
+      { t: .64, body: ['Armed', 0], r: [.20, -.26, .20], dir: [-.60, -.68, .42], l: .46, spine: [-.18, .18], roll: -1.1 },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // The heel-jab: no thrust exists on this weapon — the head punches forward short and level, the blade's heel is what meets you.
@@ -491,7 +513,7 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     ]),
     // Deflected: the reap is turned aside — the head knocked out wide right, the arc lost — then the rest grip.
     make('Scythe_Deflected', 1, [
-      { t: 0, body: ['Armed', 0], r: [.02, -.18, .34], dir: [-.20, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },
+      { t: 0, body: ['Armed', 0], r: [.02, -.16, .40], dir: [-.20, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },
       { t: .12, body: ['Armed', 0], r: [.30, -.18, .14], dir: [.50, .22, .84], l: .50, spine: [.12, 0], roll: -.5 },
       { t: .35, body: ['Armed', 0], r: [.36, -.14, -.08], dir: [.66, .30, .68], l: .52, spine: [.28, -.04], roll: -.4 },
       { t: .65, body: ['Armed', 0], r: [.28, -.26, -.04], dir: [.22, .22, .95], l: .50, spine: [.16, 0], roll: -1.57 },

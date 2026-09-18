@@ -665,7 +665,22 @@ if (process.env.WARRIOR_UAL2_ATTACKS) {
   for (const c of candidates) clips[clips.findIndex(k => k.name === c.name)] = c;
 }
 if (weaponBuild?.clips) { // the weapon's own clips, authored on this rig after every sword clip exists (they borrow the body loops and the two-hand grip)
-  clips.push(...weaponBuild.clips({ T, base, skeleton, poseMixer, clips, reachArm, weapon: weaponNode }));
+  const fresh = weaponBuild.clips({ T, base, skeleton, poseMixer, clips, reachArm, weapon: weaponNode });
+  clips.push(...fresh);
+  if (process.env.GRIP_DEBUG) for (const clip of fresh) { // playback audit: does the recorded clip reproduce the authored grip in-process?
+    const mixer = new T.AnimationMixer(base.scene), action = mixer.clipAction(clip).play();
+    let row = '', max = 0;
+    for (let i = 0; i <= 24; i++) {
+      mixer.setTime(i / 24 * clip.duration * .9999); base.scene.updateMatrixWorld(true);
+      const a = weaponNode.localToWorld(new T.Vector3(0, -1.1, 0)), b = weaponNode.localToWorld(new T.Vector3(0, 1.8, 0));
+      const ab = b.clone().sub(a), hp = base.scene.getObjectByName('hand_l').getWorldPosition(new T.Vector3());
+      const tt = Math.max(0, Math.min(1, hp.clone().sub(a).dot(ab) / ab.lengthSq()));
+      const d = hp.distanceTo(a.clone().addScaledVector(ab, tt));
+      max = Math.max(max, d); row += d < .09 ? '.' : d < .16 ? 'o' : '#';
+    }
+    console.log('PLAYBACKDBG', clip.name.padEnd(20), row, ' max', max.toFixed(3));
+    action.stop(); mixer.uncacheClip(clip);
+  }
 }
 // The hunch: for each named bone, its rest-pose sideways axis in its own frame; every quaternion key of every clip is post-rotated about it.
 if (BUILD.hunch.length) {
