@@ -266,6 +266,10 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       // never a finisher (v1). v1's table has no weapon-dependent row, but the weapons are part of the contract.
       const finisher = practice.finish ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
+      // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
+      // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
+      // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
+      const runThroughHold = finisher === 'runThrough' && practice.finish?.victim === 1;
       // Owner 2026-09-18: savour the killshot — a cinematic finisher's corpse animates at 0.75× on a presentation clock that
       // may run past the sim window (the spec's "presentation may hold past the window": no simulation slow motion, the
       // 144-tick death and the hit-stop are untouched). A plain-death pick plays at full speed, exactly like an unadorned kill.
@@ -273,7 +277,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       else if (finishClock < 0) finishClock = 0;
       else finishClock = Math.min(1, finishClock + dt * 0.75 / (RULES.death / 60));
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
-      warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, playerDefence?.pose || mine.pose, playerDefence?.progress ?? mine.progress, mine.attack, mine.contact, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose, runThroughHold ? finishClock : playerDefence?.progress ?? mine.progress, mine.attack, mine.contact, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, enemyDefence?.pose || (finisherPose ?? theirs.pose), enemyDefence?.progress ?? victimProgress, theirs.attack, theirs.contact, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       // Decapitation (owner 2026-09-18): when the seeded rotation picks it, the head comes off just after the skull-gives jolt
       // (the clip's first 9 %) — baked from the rig at that pose, popped along the killing blow, ballistic to a stop. Blood
