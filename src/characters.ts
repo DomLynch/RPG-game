@@ -20,7 +20,7 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   cleaver: { Thrust: 'Riposte' },   // the Pitborn's, on the sword clip family until the weapons lane lands its own
   knife: { Thrust: 'Riposte' },   // the goblin's, on the sword clip family until the weapons lane lands its own
   estoc: { Thrust: 'Riposte' },   // the Nightborn's, likewise
-  scythe: { Thrust: 'Riposte' },   // the Executioner's, likewise — the flip maps the roles to the Scythe_* family (REQUESTS §15)
+  scythe: { Armed: 'Scythe_Idle', ArmedWalk: 'Scythe_Walk', StrafeLeft: 'Scythe_StrafeLeft', StrafeRight: 'Scythe_StrafeRight', Attack: 'Scythe_Reap', Return: 'Scythe_Reap', Heavy: 'Scythe_High', Thrust: 'Scythe_Thrust', Riposte: 'Scythe_Chain', Guard: 'Scythe_Guard', BlockImpact: 'Scythe_BlockImpact', Parry: 'Scythe_BlockImpact', Deflected: 'Scythe_Deflected', Hit: 'Scythe_Hit', Death: 'Scythe_Death' },   // the Executioner's, LIVE 2026-09-18 (the weapons lane's 13-clip family); one reap clip cuts both ways, and a shaft has no blade to turn, so a parry shows the block
   // One sweep clip cuts both ways (the sim's path is the same either side); no parry clip: a shaft has no blade to turn, so a parry shows the block.
   trident: { Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },
 };
