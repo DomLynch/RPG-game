@@ -226,7 +226,7 @@ export function sandWearAtlas(size = 256, seed = 71): Pixels {
   return pixels(size, size, (u, v) => {
     const q = u < 0.5 ? (v < 0.5 ? 0 : 2) : (v < 0.5 ? 1 : 3), s = u % 0.5 * 2, t = v % 0.5 * 2;
     const dx = s - 0.5, dy = t - 0.5, r = Math.hypot(dx, dy) * 2;
-    let a = 0, tone = 0.5;
+    let a: number, tone: number;
     if (q === 0) {          // scorch: a heat-bloomed ring, eaten by noise
       const ring = Math.exp(-((r - 0.55) ** 2) / 0.045);
       a = ring * (0.55 + 0.45 * blotch(s * 2, t * 2)) * (1 - sstep(0.7, 1.0, r)) * sstep(0.06, 0.3, r);
