@@ -329,13 +329,13 @@ export function estoc({ T: three = T, withAoUv = g => g, variant = ESTOC_DEFAULT
 // picks (this entry); the own clip family lands with task 3.
 export const SCYTHE_VARIANTS = {
   A: { name: 'A · war scythe: 1.55 m haft, 0.60 m swept blade (2.15 m butt to tip)', butt: -.45, fore: .55, head: 1.55, blade: .60, sweep: .20, belly: .16, split: .58 },
-  B: { name: 'B · executioner\'s tool: 1.32 m haft, 0.74 m heavy blade, mass in the head', butt: -.40, fore: .50, head: 1.32, blade: .74, sweep: .16, belly: .20, split: .58 },
+  B: { name: 'B · executioner\'s tool: 1.32 m haft, 0.74 m heavy blade, mass in the head', butt: -.40, fore: .50, head: 1.32, blade: .74, sweep: .30, belly: .12, split: .58 },
   C: { name: 'C · garden-tooled: 1.15 m haft, 0.45 m small crescent (the readability floor)', butt: -.35, fore: .45, head: 1.15, blade: .45, sweep: .26, belly: .12, split: .6 },
 };
-export const SCYTHE_DEFAULT = 'A';
+export const SCYTHE_DEFAULT = 'B';   // the owner's pick (2026-09-18): the executioner's tool — heavy blade, mass in the head
 export function scythe({ T: three = T, withAoUv = g => g, leather, variant = SCYTHE_DEFAULT } = {}) {
   const v = SCYTHE_VARIANTS[variant] ?? SCYTHE_VARIANTS[SCYTHE_DEFAULT];
-  const iron = new three.MeshStandardMaterial({ name: 'ScytheIron', color: '#4c4946', metalness: .85, roughness: .62 });   // pitted black-oiled iron, the cleaver's values: his kit's blackened metal, still lights
+  const iron = new three.MeshStandardMaterial({ name: 'ScytheIron', color: '#4c4946', metalness: .7, roughness: .62 });   // the cleaver's pitted iron: the near-black mask value (#33302e) was thematically right but vanished on the evidence sheets and at game distance — the blade IS the read
   const haft = new three.MeshStandardMaterial({ name: 'Haft', color: '#3a2a1c', roughness: .9 });                            // dark oiled wood
   const wrap = leather ?? new three.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: .8 });
   const group = new three.Group(); group.name = 'WeaponDrawn';
@@ -370,13 +370,136 @@ export function scythe({ T: three = T, withAoUv = g => g, leather, variant = SCY
   return group;
 }
 
+// Clip authoring on the fighter's rig — the scythe family (task 3). The two-hand grip solver is the trident's, verbatim machinery
+// (self-contained so the Veteran's clips cannot regress); only the grips and keys are the scythe's. The fight grammar: everything is an
+// arc — the REAP is the horizontal cut (one clip, both sides), the HIGH is the headsman's diagonal, the THRUST is the short hooking
+// heel-jab (a scythe cannot thrust; the Stab button's home, contact at the head — combat lead's nod pending). Variant B: butt -.40,
+// front grip .50, head 1.32. Blade roll per key orients the head (the trident's tines were symmetric; this blade is not).
+export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, reachArm, weapon }) {
+  const bone = name => base.scene.getObjectByName(name);
+  const chest = bone('spine_03'), handR = bone('hand_r'), handL = bone('hand_l');
+  const play = (name, t) => { const clip = clips.find(c => c.name === name); if (!clip) throw new Error(`build-weapon: the rig has no ${name} clip`); poseMixer.clipAction(clip).play(); poseMixer.setTime(Math.min(t, .999999) * clip.duration); base.scene.updateMatrixWorld(true); };
+  const Y = new three.Vector3(0, 1, 0);
+  play('Armed', 0); const restChest = chest.getWorldQuaternion(new three.Quaternion());
+  const basisOf = hand => { const e1 = bone(`middle_01_${hand}`).position.clone().normalize(), t = bone(`thumb_01_${hand}`).position.clone(); const e2 = t.addScaledVector(e1, -t.dot(e1)).normalize(); const e3 = e1.clone().cross(e2); if (hand === 'l') e3.negate(); return new three.Matrix4().makeBasis(e1, e2, e3); };
+  const Br = basisOf('r'), Bl = basisOf('l'), column = (m, i) => new three.Vector3().setFromMatrixColumn(m, i);
+  const shaftR = Y.clone().applyQuaternion(weapon.quaternion), gripR = weapon.position.clone();
+  const palmSign = Math.sign(gripR.dot(column(Br, 2))) || 1;
+  const palmR = column(Br, 2).multiplyScalar(palmSign), palmL = column(Bl, 2).multiplyScalar(palmSign);
+  const toLeft = v => v.clone().applyMatrix4(Br.clone().transpose()).applyMatrix4(Bl);
+  const shaftL = toLeft(shaftR).normalize(), gripL = toLeft(gripR);
+  const frameFrom = (u1, u2) => { const a = u1.clone().normalize(), b = u2.clone().addScaledVector(a, -u2.dot(a)).normalize(); return new three.Matrix4().makeBasis(a, b, a.clone().cross(b)); };
+  const leftLocal = frameFrom(shaftL, palmL);
+  const fingers = ['index', 'middle', 'ring', 'pinky', 'thumb'].flatMap(f => ['01', '02', '03'].map(n => `${f}_${n}`));
+  const mirror = [[1, -1, -1, 1], [-1, 1, -1, 1], [-1, -1, 1, 1]].map(pattern => {
+    play('Armed', 0); for (const f of fingers) { const q = bone(`${f}_r`).quaternion; bone(`${f}_l`).quaternion.set(q.x * pattern[0], q.y * pattern[1], q.z * pattern[2], q.w * pattern[3]); }
+    base.scene.updateMatrixWorld(true); const wrist = handL.getWorldPosition(new three.Vector3()), palm = palmL.clone().applyQuaternion(handL.getWorldQuaternion(new three.Quaternion()));
+    const curl = fingers.filter(f => /_03$/.test(f)).reduce((s, f) => s + bone(`${f}_l`).getWorldPosition(new three.Vector3()).sub(wrist).dot(palm), 0);
+    poseMixer.stopAllAction(); return { pattern, curl };
+  }).sort((a, b) => b.curl - a.curl)[0].pattern;
+  function pose({ body, r, dir, l, spine = [0, 0], roll = 0, follow = 'none' }) {
+    play(body[0], body[1]);
+    if (spine[0]) { bone('pelvis').rotation.y += spine[0] * .35; bone('spine_01').rotation.y += spine[0] * .65; }
+    if (spine[1]) bone('spine_02').rotation.x += spine[1];
+    base.scene.updateMatrixWorld(true);
+    const frame = follow === 'full' ? chest.getWorldQuaternion(new three.Quaternion()).multiply(restChest.clone().invert()) : new three.Quaternion();
+    const origin = chest.getWorldPosition(new three.Vector3());
+    const goal = origin.clone().add(new three.Vector3(...r).applyQuaternion(frame)), shaft = new three.Vector3(...dir).normalize().applyQuaternion(frame);
+    reachArm('r', goal); base.scene.updateMatrixWorld(true);
+    const orientation = new three.Quaternion().setFromAxisAngle(shaft, roll).multiply(new three.Quaternion().setFromUnitVectors(Y, shaft));
+    handR.quaternion.copy(handR.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientation).multiply(weapon.quaternion.clone().invert()));
+    base.scene.updateMatrixWorld(true);
+    const palmWorld = palmR.clone().applyQuaternion(handR.getWorldQuaternion(new three.Quaternion()));
+    let across = shaft.clone().cross(Y); if (across.length() < .1) across = new three.Vector3(1, 0, 0).applyQuaternion(frame); across.normalize();
+    const mirrored = palmWorld.addScaledVector(across, -2 * palmWorld.dot(across));
+    const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, mirrored).multiply(leftLocal.clone().transpose()));
+    reachArm('l', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL))); base.scene.updateMatrixWorld(true);
+    handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientL));
+    for (const f of fingers) { const q = bone(`${f}_r`).quaternion; bone(`${f}_l`).quaternion.set(q.x * mirror[0], q.y * mirror[1], q.z * mirror[2], q.w * mirror[3]); }
+    base.scene.updateMatrixWorld(true);
+    const values = new Map(skeleton.bones.map(b => [b.name, [...b.quaternion.toArray()]])), position = [...bone('pelvis').position.toArray()];
+    poseMixer.stopAllAction();
+    return { values, position };
+  }
+  const make = (name, duration, keys) => {
+    const times = keys.map(k => k.t), poses = keys.map(pose), positions = poses.flatMap(p => p.position);
+    return new three.AnimationClip(name, duration, [new three.VectorKeyframeTrack('pelvis.position', times, positions), ...skeleton.bones.map(b => new three.QuaternionKeyframeTrack(b.name + '.quaternion', times, poses.flatMap(p => p.values.get(b.name))))]);
+  };
+  const loop = (name, body, duration, n, grip, wrap = true) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })));
+  // The rest grip: rear hand at the right hip, the head forward at chest height, blade up — a heavy tool carried ready, the
+  // crescent hanging over the opponent. Roll -1.57 brings the transverse blade vertical (edge forward-up; roll 0 laid it
+  // sideways like a flag). Variant B's front grip sits at .50.
+  const REST = { r: [.26, -.28, .06], dir: [-.06, .30, .95], l: .50, spine: [.10, 0], roll: -1.57 };
+  const GUARD = { r: [.26, -.20, .26], dir: [-.72, .48, .50], l: .56, spine: [-.06, 0], roll: -1.57 }; // the shaft across the body, head high left, blade up
+  const out = [
+    loop('Scythe_Idle', 'Armed', 1.667, 8, REST),
+    loop('Scythe_Walk', 'ArmedWalk', 1.333, 8, REST),
+    loop('Scythe_StrafeLeft', 'StrafeLeft', .8, 6, REST),
+    loop('Scythe_StrafeRight', 'StrafeRight', .8, 6, REST),
+    // The reap: a heavy horizontal arc, right to left across the front at chest height — the edge leads (verified from the bake in
+    // task 4, the cleaver lesson); the head travels wide, the whole body commits. Contact at .34 like the sword's cut.
+    make('Scythe_Reap', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .16, body: ['Armed', 0], r: [.36, -.24, -.18], dir: [.80, .26, .54], l: .46, spine: [.36, 0], roll: -.5 },
+      { t: .34, body: ['Armed', 0], r: [.02, -.18, .36], dir: [-.62, .18, .77], l: .42, spine: [-.20, .04], roll: -.8 },   // contact: the head sweeps through the front, chest height, blade at the diagonal lay — the arc must READ from the game camera (vertical was edge-on, flat was along the view axis)
+      { t: .52, body: ['Armed', 0], r: [-.18, -.20, .20], dir: [-.90, .12, .42], l: .46, spine: [-.42, .06], roll: -1.0 },
+      { t: .74, body: ['Armed', 0], r: [.08, -.30, -.02], dir: [-.38, .34, .86], l: .48, spine: [-.08, 0], roll: -1.57 },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // The high: the headsman's diagonal — raised over the right shoulder, driven down across the front. Contact at .48 like the sword's heavy.
+    make('Scythe_High', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .26, body: ['Armed', 0], r: [.24, .36, -.26], dir: [.44, .84, .31], l: .46, spine: [.16, -.10], roll: -1.2 },
+      { t: .48, body: ['Armed', 0], r: [.16, -.06, .28], dir: [-.42, -.38, .82], l: .44, spine: [-.16, .16], roll: -.9 },   // contact: down through the front, blade at the diagonal lay
+      { t: .64, body: ['Armed', 0], r: [.20, -.24, .24], dir: [-.55, -.58, .60], l: .46, spine: [-.18, .18], roll: -1.1 },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // The heel-jab: no thrust exists on this weapon — the head punches forward short and level, the blade's heel is what meets you.
+    // The blade trails (roll +1.57) so the heel leads. Contact at .34. (The Stab button's mapping; combat lead's nod pending.)
+    make('Scythe_Thrust', .8, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .16, body: ['Armed', 0], r: [.30, -.26, -.12], dir: [-.04, .44, .90], l: .46, spine: [.18, 0], roll: -2.3 },
+      { t: .34, body: ['Armed', 0], r: [.18, -.14, .38], dir: [0, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },          // contact: head level, straight in front, the blade hooked up-back — the heel leads
+      { t: .52, body: ['Armed', 0], r: [.18, -.14, .38], dir: [0, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // The chain: off the jab, the head whips across into a short reap — the same arc as the reap, half size.
+    make('Scythe_Chain', .8, [
+      { t: 0, body: ['Armed', 0], r: [.20, -.18, .20], dir: [-.06, .24, .97], l: .40, spine: [.04, 0], roll: -.6 },
+      { t: .30, body: ['Armed', 0], r: [-.02, -.20, .28], dir: [-.52, .18, .83], l: .44, spine: [-.22, .04], roll: -.8 },   // contact
+      { t: .52, body: ['Armed', 0], r: [-.14, -.22, .16], dir: [-.80, .14, .58], l: .46, spine: [-.34, .04], roll: -1.0 },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    make('Scythe_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
+    // Block impact: the blow lands on the shaft — hands shoved back, chest folds — then settles.
+    make('Scythe_BlockImpact', 1, [
+      { t: 0, body: ['Armed', 0], ...GUARD },
+      { t: .12, body: ['Armed', 0], r: [.22, -.22, .12], dir: [-.72, .48, .50], l: .56, spine: [-.06, .08], roll: -1.57 },
+      { t: .35, body: ['Armed', 0], r: [.24, -.21, .18], dir: [-.72, .48, .50], l: .56, spine: [-.06, .05], roll: -1.57 },
+      { t: .65, body: ['Armed', 0], ...GUARD },
+      { t: 1, body: ['Armed', 0], ...GUARD },
+    ]),
+    // Deflected: the reap is turned aside — the head knocked out wide right, the arc lost — then the rest grip.
+    make('Scythe_Deflected', 1, [
+      { t: 0, body: ['Armed', 0], r: [.02, -.18, .36], dir: [-.62, .18, .77], l: .42, spine: [-.20, .04], roll: -.8 },
+      { t: .12, body: ['Armed', 0], r: [.30, -.18, .14], dir: [.50, .22, .84], l: .50, spine: [.12, 0], roll: -.5 },
+      { t: .35, body: ['Armed', 0], r: [.36, -.14, -.08], dir: [.66, .30, .68], l: .52, spine: [.28, -.04], roll: -.4 },
+      { t: .65, body: ['Armed', 0], r: [.28, -.26, -.04], dir: [.22, .22, .95], l: .50, spine: [.16, 0], roll: -1.57 },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    loop('Scythe_Hit', 'Hit', .333, 4, REST, false),                          // the flinch keeps the head up (yaw only)
+    loop('Scythe_Death', 'Death', 2.4, 10, { ...REST, follow: 'full' }, false), // the tool goes down with him
+  ];
+  return out;
+}
+
 // What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.
 export const WEAPON_BUILDS = {
   trident: { part: trident, clips: tridentClips, keys: {} },
   cleaver: { part: cleaver, clips: null, keys: CLEAVER_KEYS },
   knife: { part: knife, clips: null, keys: CLEAVER_KEYS },   // the same diagonal Heavy: a knife's overhead is a hack too, edge-leading
   estoc: { part: estoc, clips: null, keys: {} },              // no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
-  scythe: { part: scythe, clips: null, keys: {} },            // mesh-only for the variant picks; the own clip family (task 3) replaces the sword family
+  scythe: { part: scythe, clips: scytheClips, keys: {} },      // mesh + the own 13-clip family (owner's pick: variant B)
 };
 
 // Standalone: the part alone (no rig), for the record and the harness turntable.
