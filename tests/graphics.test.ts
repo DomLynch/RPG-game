@@ -129,28 +129,7 @@ test('menu sound and camera controls stay synchronized with desktop controls', (
   app.element('camera-button').click();assert.equal(app.element('mobile-camera').attributes.get('aria-pressed'),'true');
 });
 
-test('swipe trial fires once per gesture and clears on cancellation, pause and mode change', () => {
-  const app=boot();app.tick();app.element('controls-mode').click();
-  const pad=app.element('gesture-pad');
-  const pointer=(type:string,x:number,y:number,id=1)=>pad.dispatchEvent(Object.assign(new Event(type,{cancelable:true}),{pointerId:id,button:0,clientX:x,clientY:y}));
-  pointer('pointerdown',60,60);app.tick();pointer('pointerup',60,60);
-  for(let i=0;i<45;i++)app.tick();
-  assert.equal(app.element('stamina').value,100);
-  pointer('pointerdown',60,60);pointer('pointermove',60,20);pointer('pointermove',60,0);app.tick();
-  assert.equal(app.element('stamina').value,100-MOVES.thrust.stamina,'one upward flick is one thrust');assert.equal(app.rendered.duel.fighters[0].move,'thrust');
-  for(let i=0;i<12;i++)app.tick();assert.ok(app.rendered.duel.fighters[0].age>MOVES.thrust.chamber!,'v1 flick never chambers even while the thumb stays down');
-  pointer('pointercancel',60,0);for(let i=0;i<80;i++)app.tick();
-  app.element('reset-button').click();app.tick();app.key('KeyF');for(let i=0;i<45;i++)app.tick();
-  pointer('pointerdown',60,60);pointer('pointermove',100,60);pointer('pointercancel',100,60);app.tick();
-  assert.equal(app.element('stamina').value,100,'cancelled queued gesture cannot attack');
-  pointer('pointerdown',60,60);app.element('journal-button').click();pointer('pointermove',100,60);app.tick();
-  assert.equal(app.element('stamina').value,100);
-  app.element('controls-mode').click();app.element('close-journal').click();pointer('pointermove',120,60);app.tick();
-  assert.equal(app.element('stamina').value,100);
-});
-
-
-test('the thumb cluster is the mobile layout: round buttons incl. a Stab button that thrusts and holds; Controls swaps to the flick disc and back', () => {
+test('the thumb cluster is the mobile layout: round buttons incl. a Stab button that thrusts and holds; Controls swaps to the v8 guard ring and back', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   const me = () => app.rendered.duel.fighters[0], actions = app.element('actions');
   const press = (el: Element, type: string, id = 5) => el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: 0, clientY: 0 }));
@@ -159,16 +138,12 @@ test('the thumb cluster is the mobile layout: round buttons incl. a Stab button 
   const thrust = app.element('thrust-button'); assert.equal(thrust.hidden, false); assert.equal(app.element('attack-button').dataset.mobile, 'Slash'); assert.equal(app.element('kick-button').hidden, false);
   settle(); press(thrust, 'pointerdown'); app.tick(); assert.equal(me().move, 'thrust');
   for (let i = 0; i < 12; i++) app.tick(); assert.equal(me().age, MOVES.thrust.chamber!, 'held Stab loads the thrust'); press(thrust, 'pointerup'); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > MOVES.thrust.chamber!, 'released, it goes');
-  app.element('controls-mode').click(); app.tick(); assert.equal(app.element('controls-mode').textContent, 'Controls: weapon disc · flick'); assert.equal(actions.dataset.gestures, 'flick'); assert.equal(thrust.hidden, true, 'Stab is a cluster button');
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'flick'); app.element('controls-mode').click(); app.tick();
-  // v7 guard ring: the same verbs as the cluster (Slash, Stab shown) in the ring geometry; then back to the cluster.
-  assert.equal(actions.dataset.gestures, 'ring'); assert.equal(app.element('controls-mode').textContent, 'Controls: guard ring · v7'); assert.equal(thrust.hidden, false, 'Stab is a ring button too'); assert.equal(app.element('attack-button').dataset.mobile, 'Slash');
   app.element('controls-mode').click(); app.tick();   // → ring8 (v8)
   // v8 guard ring: one strike circle owns every attack — no Heavy or Stab buttons; then back to the cluster.
   assert.equal(actions.dataset.gestures, 'ring8'); assert.equal(app.element('controls-mode').textContent, 'Controls: guard ring · v8');
   assert.equal(thrust.hidden, true, 'v8: Stab is a flick, not a button'); assert.equal(app.element('heavy-button').hidden, true, 'v8: no Heavy button');
   assert.equal(app.element('attack-button').dataset.mobile, 'Strike');
-  app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'ring8'); app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
 });
 
 test('guard ring v8: the strike circle owns every attack — a tap slashes as the thumb lifts, a flick up stabs, holding loads the heavy', () => {
@@ -176,7 +151,7 @@ test('guard ring v8: the strike circle owns every attack — a tap slashes as th
   const me = () => app.rendered.duel.fighters[0];
   const at = (type: string, x: number, y: number, id = 9) => Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y });
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
-  for (let i = 0; i < 3; i++) { app.element('controls-mode').click(); app.tick(); }
+  for (let i = 0; i < 1; i++) { app.element('controls-mode').click(); app.tick(); }
   assert.equal(app.element('actions').dataset.gestures, 'ring8');
   const strike = app.element('attack-button');
   settle(); strike.dispatchEvent(at('pointerdown', 0, 0)); strike.dispatchEvent(at('pointerup', 0, 0)); app.tick();
@@ -261,10 +236,10 @@ test('a tap that ends before the next tick still lands: only pointercancel withd
   settle(); tap(app.element('dodge-button')); app.tick(); assert.equal(me().phase, 'backstep', 'a same-frame step tap lands'); for (let i = 0; i < 20; i++) app.tick();
   settle(); tap(app.element('guard-button')); app.tick(); assert.equal(me().phase, 'guard', 'a same-frame guard tap opens the parry window'); assert.equal(me().parrying, true); for (let i = 0; i < 40; i++) app.tick();
   settle(); tap(app.element('thrust-button')); app.tick(); assert.equal(me().move, 'thrust', 'a same-frame Stab tap lands'); for (let i = 0; i < 50; i++) app.tick();
-  app.element('controls-mode').click(); app.tick();   // the flick disc
-  const pad = app.element('gesture-pad'); settle(); press(pad, 'pointerdown', 60, 60); press(pad, 'pointermove', 60, 20); press(pad, 'pointerup', 60, 20); press(pad, 'lostpointercapture', 60, 20); app.tick();
+  app.element('controls-mode').click(); app.tick();   // the v8 guard ring
+  const strike = app.element('attack-button'); settle(); press(strike, 'pointerdown', 60, 60); press(strike, 'pointermove', 60, 20); press(strike, 'pointerup', 60, 20); app.tick();
   assert.equal(me().move, 'thrust', 'a same-frame flick lands'); for (let i = 0; i < 50; i++) app.tick();
-  settle(); press(pad, 'pointerdown', 60, 60); press(pad, 'pointermove', 100, 60); press(pad, 'pointercancel', 100, 60); app.tick(); assert.notEqual(me().phase, 'attack', 'a cancelled pointer withdraws the press');
+  settle(); press(strike, 'pointerdown', 60, 60); press(strike, 'pointermove', 100, 60); press(strike, 'pointercancel', 100, 60); app.tick(); assert.notEqual(me().phase, 'attack', 'a cancelled pointer withdraws the press');
 });
 
 test('the stick never stays pushed: a release delivered outside the pad, a touchend with no fingers, or a new touch all clear it', () => {
