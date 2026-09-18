@@ -10,6 +10,13 @@ from below ~25°, from above ~20°; the GPT brief that produced them is `GPT-BRI
 
 ## ⚠️ READ FIRST — the tree is RED, one test, known fix
 
+> **RESOLVED 2026-09-18 16:45 (commit `2df0d8f`)** — everything in this section is now fixed and committed:
+> decimate went to **0.08** (0.20 still shipped 60,827 ≥ 60k), the Blender parts build re-ran, and the shipped GLB is
+> now **53,839 skinned tris**; the Jog "floating" assertion needed the flight bound scaled by fighter scale (probe data in
+> the commit message); node tests 227/227; evidence `artifacts/character/executioner-v4/`. The uncommitted set this
+> section describes was committed with it (matte iron, ladder rung, test updates). The text below is kept as the
+> record of the diagnosis.
+
 Uncommitted work in this worktree (a later session's, 2026-09-18 ~15:17, **do not revert**): the ladder registration
 (`src/ladder.ts` + `tests/ladder.test.ts` + `tests/graphics.test.ts` picker list), the matte blackened-iron finish
 (`build-warrior.mjs finishMaterials`: the Executioner's Steel/Bronze drop the ORM map for scalar factors — metalness .45,
