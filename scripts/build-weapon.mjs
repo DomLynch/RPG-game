@@ -441,9 +441,9 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     make('Scythe_Reap', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
       { t: .16, body: ['Armed', 0], r: [.36, -.24, -.18], dir: [.80, .26, .54], l: .46, spine: [.36, 0], roll: -.5 },
-      { t: .34, body: ['Armed', 0], r: [.02, -.18, .36], dir: [-.62, .18, .77], l: .42, spine: [-.20, .04], roll: -.8 },   // contact: the head sweeps through the front, chest height, blade at the diagonal lay — the arc must READ from the game camera (vertical was edge-on, flat was along the view axis)
-      { t: .52, body: ['Armed', 0], r: [-.18, -.20, .20], dir: [-.90, .12, .42], l: .46, spine: [-.42, .06], roll: -1.0 },
-      { t: .74, body: ['Armed', 0], r: [.08, -.30, -.02], dir: [-.38, .34, .86], l: .48, spine: [-.08, 0], roll: -1.57 },
+      { t: .34, body: ['Armed', 0], r: [.02, -.18, .34], dir: [-.20, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },   // contact: the head crosses the centre line at full reach, chest height — the sim's striking segment must sit ON the target line here (the task-4 bake caught it 0.7 m past: the whole active window whiffed); the diagonal blade lay reads from the game camera (vertical was edge-on, flat was along the view axis)
+      { t: .50, body: ['Armed', 0], r: [-.06, -.20, .30], dir: [-.38, .16, .91], l: .44, spine: [-.34, .05], roll: -.9 },   // the sweep continues across: the head stays inside half a metre of the target line through the window's early ticks, so near gaps still meet the arc
+      { t: .72, body: ['Armed', 0], r: [-.18, -.22, .18], dir: [-.86, .12, .49], l: .46, spine: [-.46, .06], roll: -1.05 },  // full follow-through
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // The high: the headsman's diagonal — raised over the right shoulder, driven down across the front. Contact at .48 like the sword's heavy.
@@ -459,14 +459,14 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     make('Scythe_Thrust', .8, [
       { t: 0, body: ['Armed', 0], ...REST },
       { t: .16, body: ['Armed', 0], r: [.30, -.26, -.12], dir: [-.04, .44, .90], l: .46, spine: [.18, 0], roll: -2.3 },
-      { t: .34, body: ['Armed', 0], r: [.18, -.14, .38], dir: [0, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },          // contact: head level, straight in front, the blade hooked up-back — the heel leads
-      { t: .52, body: ['Armed', 0], r: [.18, -.14, .38], dir: [0, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },
+      { t: .34, body: ['Armed', 0], r: [.10, -.14, .38], dir: [0, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },          // contact: head level, straight in front, the blade hooked up-back — the heel leads
+      { t: .52, body: ['Armed', 0], r: [.10, -.14, .38], dir: [0, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // The chain: off the jab, the head whips across into a short reap — the same arc as the reap, half size.
     make('Scythe_Chain', .8, [
       { t: 0, body: ['Armed', 0], r: [.20, -.18, .20], dir: [-.06, .24, .97], l: .40, spine: [.04, 0], roll: -.6 },
-      { t: .30, body: ['Armed', 0], r: [-.02, -.20, .28], dir: [-.52, .18, .83], l: .44, spine: [-.22, .04], roll: -.8 },   // contact
+      { t: .30, body: ['Armed', 0], r: [-.02, -.20, .28], dir: [-.18, .16, .97], l: .44, spine: [-.22, .04], roll: -.8 },   // contact: the head on the centre line (same bake lesson as the reap — the short arc must still cross at the contact key)
       { t: .52, body: ['Armed', 0], r: [-.14, -.22, .16], dir: [-.80, .14, .58], l: .46, spine: [-.34, .04], roll: -1.0 },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
@@ -481,7 +481,7 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     ]),
     // Deflected: the reap is turned aside — the head knocked out wide right, the arc lost — then the rest grip.
     make('Scythe_Deflected', 1, [
-      { t: 0, body: ['Armed', 0], r: [.02, -.18, .36], dir: [-.62, .18, .77], l: .42, spine: [-.20, .04], roll: -.8 },
+      { t: 0, body: ['Armed', 0], r: [.02, -.18, .34], dir: [-.20, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },
       { t: .12, body: ['Armed', 0], r: [.30, -.18, .14], dir: [.50, .22, .84], l: .50, spine: [.12, 0], roll: -.5 },
       { t: .35, body: ['Armed', 0], r: [.36, -.14, -.08], dir: [.66, .30, .68], l: .52, spine: [.28, -.04], roll: -.4 },
       { t: .65, body: ['Armed', 0], r: [.28, -.26, -.04], dir: [.22, .22, .95], l: .50, spine: [.16, 0], roll: -1.57 },

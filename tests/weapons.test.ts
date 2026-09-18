@@ -384,3 +384,70 @@ test('the estoc\'s data is the brief\'s: the sword\'s timings and lunges exactly
   assert.ok(ESTOC.moves.thrust.damage > MOVES.thrust.damage && ESTOC.moves.thrust.chain?.follow.includes('thrust') && ESTOC.moves.riposte.damage > MOVES.riposte.damage, 'the thrust is the weapon; the riposte his payoff');
   assert.deepEqual([ESTOC.guard, ESTOC.material, ESTOC.fight.thrustShare > .5, ESTOC.fight.close], ['blade', 'steel', true, LONGSWORD.fight.close]);
 });
+
+// ── The scythe (weapons lane, 2026-09-18): the Executioner's — ON THE SHELF. Mesh (variant B), 13-clip family on his rig, SCYTHE data
+// and the man-scale bake rig all land here; the combat lane flips `WEAPONS.scythe` to SCYTHE, adds the manifest entry, bakes and reviews
+// (artifacts/weapons/REQUESTS.md §14–15). GAMEPLAY CHANGE when flipped: new timings, a guard profile, a chip profile and a dead band inside
+// the arc.
+import { SCYTHE, SCYTHE_MOVES, SCYTHE_PATHS } from '../src/moves.ts';
+const SCYTHE_GLB = 'src/assets/weapons/scythe/executioner-scythe.glb', SCYTHE_BAKE_GLB = 'src/assets/weapons/scythe/warrior-scythe.glb';
+const SCYTHE_CLIPS: Record<string, number> = { Scythe_Idle: 1.667, Scythe_Walk: 1.333, Scythe_StrafeLeft: .8, Scythe_StrafeRight: .8, Scythe_Reap: 1, Scythe_High: 1, Scythe_Thrust: 1, Scythe_Chain: 1, Scythe_Guard: 1, Scythe_BlockImpact: 1, Scythe_Deflected: 1, Scythe_Hit: .333, Scythe_Death: 2.4 };
+
+test('the scythe is on the shelf: SCYTHE is real data nothing uses; WEAPONS.scythe still borrows the longsword; no manifest entry yet', () => {
+  assert.equal(WEAPONS.scythe.placeholder, true); assert.equal(WEAPONS.scythe.moves, MOVES); assert.equal(WEAPONS.scythe.paths, PATHS);
+  assert.deepEqual(bladePaths.scythe, bladePaths.longsword, 'no bake of its own until the flip');
+  assert.notEqual(SCYTHE.moves, MOVES); assert.notEqual(SCYTHE.paths, PATHS); assert.equal(SCYTHE.id, 'scythe');
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string }[] };
+  assert.ok(!manifest.weapons.some(w => w.weapon === 'scythe'), 'no scythe bake until the flip');
+  // The data is complete anyway, so the flip is a one-liner: all nine paths ride its own four attack clips.
+  assert.deepEqual(Object.keys(SCYTHE_PATHS).sort(), Object.keys(PATHS).sort(), 'every sword path has a scythe spec');
+  for (const spec of Object.values(SCYTHE_PATHS)) assert.ok(spec.clip.startsWith('Scythe_'), `${spec.clip} is its own clip family`);
+});
+
+test('the scythe rig is the Executioner\'s own: WeaponDrawn (the head as the contact segment) under hand_r, empty sword nodes, and the full 13-clip family at the contract durations', async () => {
+  const asset = await readRig(SCYTHE_GLB), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
+  assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
+  const contact = weapon.userData.contact as { from: number; to: number };
+  assert.ok(contact && Math.abs(contact.from - 1.22) < .001 && Math.abs(contact.to - 1.32) < .001, `the head, not the haft: ${JSON.stringify(contact)}`);
+  for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
+  for (const [name, duration] of Object.entries(SCYTHE_CLIPS)) {
+    const clip = asset.animations.find(c => c.name === name)!;
+    assert.ok(clip, name); assert.ok(Math.abs(clip.duration - duration) < .002, `${name} ${clip.duration}s`);
+    assert.ok(clip.tracks.every(t => t.values.every(Number.isFinite)));
+    if (['Scythe_Idle', 'Scythe_Walk', 'Scythe_StrafeLeft', 'Scythe_StrafeRight'].includes(name)) for (const track of clip.tracks) { const n = track.getValueSize(); assert.ok([...track.values.slice(0, n)].every((v, i) => Math.abs(v - track.values[track.values.length - n + i]) < 1e-5), `${name} loops seamlessly`); }
+  }
+  for (const [path, spec] of Object.entries(SCYTHE_PATHS)) assert.ok(asset.animations.some(c => c.name === spec.clip), `${path} → ${spec.clip} exists`);
+});
+
+test('the scythe\'s authored contact poses meet the target line: at each path\'s contact key the head is out in front at the move\'s height — the reap crosses the centre line, it does not start 0.7 m past it (the task-4 retime)', async () => {
+  const asset = await readRig(SCYTHE_BAKE_GLB), mixer = new AnimationMixer(asset.scene), weapon = asset.scene.getObjectByName('WeaponDrawn')!, contact = weapon.userData.contact as { from: number; to: number };
+  assert.equal(weapon.parent?.name, 'hand_r', 'the man-scale bake rig carries the same part');
+  // [min tip z, min tip y, max tip y, max |tip x|]: chest height for the reap and the jab, the headsman's low diagonal for the high.
+  const bands: Record<string, [number, number, number, number]> = {
+    light_right: [1.3, .9, 1.5, .45], light_left: [1.3, .9, 1.5, .45], light_right_chain: [1.3, .9, 1.5, .45], light_left_chain: [1.3, .9, 1.5, .45],
+    heavy_overhead: [1.1, .4, 1.0, .6], heavy_overhead_chain: [1.1, .4, 1.0, .6], heavy_riposte: [1.1, .4, 1.0, .6],
+    thrust: [1.3, .9, 1.4, .4], riposte: [1.25, .9, 1.5, .45],
+  };
+  for (const [path, spec] of Object.entries(SCYTHE_PATHS)) {
+    const clip = asset.animations.find(c => c.name === spec.clip)!, action = mixer.clipAction(clip).play(), n = total(spec);
+    mixer.setTime(Math.min(.999999, swingProgress(spec.windup / n, spec.windup / n, spec.source)) * clip.duration); asset.scene.updateMatrix(true);
+    asset.scene.updateMatrixWorld(true);
+    const tip = weapon.localToWorld(new Vector3(0, contact.to, 0)), [minZ, minY, maxY, maxX] = bands[path];
+    assert.ok(tip.z > minZ && tip.y > minY && tip.y < maxY && Math.abs(tip.x) < maxX, `${path} (${spec.clip} @${spec.source}) tip ${tip.toArray().map(v => v.toFixed(2))}`);
+    action.stop(); mixer.uncacheClip(clip);
+  }
+});
+
+test('the scythe\'s data is the brief\'s: slower tells than the sword\'s, the jab quick with no chip, the shaft guard profile, a low thrust share and a dead band inside the arc', () => {
+  assert.ok(SCYTHE_MOVES.light_right.windup > MOVES.light_right.windup && SCYTHE_MOVES.light_right.windup + SCYTHE_MOVES.light_right.active > MOVES.light_right.windup + MOVES.light_right.active, 'the reap\'s tell is longer than the cut\'s (24/8 vs 20/8)');
+  assert.ok(SCYTHE_MOVES.heavy_overhead.windup > MOVES.heavy_overhead.windup, 'the headsman\'s diagonal winds up longer than the sword\'s heavy (36 vs 32)');
+  assert.ok(SCYTHE_MOVES.thrust.windup < MOVES.thrust.windup && SCYTHE_MOVES.thrust.active <= 4 && SCYTHE_MOVES.thrust.chip === 0 && SCYTHE_MOVES.thrust.damage < MOVES.thrust.damage, 'the heel-jab: quicker than a stab, no chip, half a cut\'s damage');
+  assert.deepEqual([SCYTHE.guard, SCYTHE.material], ['shaft', 'iron']);
+  assert.deepEqual(SCYTHE.guardProfile, { costScale: 1.15, heavyBreaks: true }, 'the haft guard: like the trident\'s, a plain heavy breaks it');
+  assert.deepEqual(SCYTHE.fight, { thrustShare: .1, close: 1.5 }, 'the jab is a rare opener; he holds the arc\'s range, never inside a metre and a half');
+  assert.equal(SCYTHE_MOVES.light_right.minReach, 1.4); assert.equal(SCYTHE_MOVES.light_left.minReach, 1.4);
+  // Reach is the conservative spacing convention (the cleaver lesson), not the measured frontier — which the local bake pins at
+  // 2.10 (reap) / 2.30 (high) / 2.05 (jab) with the dead band inside 1.40 m, §14 of REQUESTS.md.
+  assert.deepEqual([SCYTHE_MOVES.light_right.reach, SCYTHE_MOVES.heavy_overhead.reach, SCYTHE_MOVES.thrust.reach], [1.8, 2.0, 1.8]);
+  assert.equal(SCYTHE.reach, SCYTHE_MOVES.thrust.reach);
+});
