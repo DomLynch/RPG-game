@@ -88,9 +88,9 @@ function ashlar(seed: number) {
 // a per-block chamfer, weather streaks, pitting, mottling, soot, a few cracks. One tile = 2 m × 2 m on the wall.
 export function stoneAlbedo(size = 512, seed = 11): Pixels {
   const mottle = fbm(8, 4, seed), soot = fbm(3, 3, seed + 7), grain = fbm(64, 2, seed + 13, 0.6), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), stains = fbm(6, 3, seed + 21), dampF = fbm(3, 3, seed + 17);
-  // Reused stone: each block picks a hue — quarry grey, warm tan, cool slate, faint rose, sand-tinged, dark basalt (half strength:
-  // the full spread read as patchwork on the phone, owner 2026-09-17).
-  const hues: [number, number, number][] = [[1, 1, 1], [1.07, 1.015, 0.93], [0.95, 0.98, 1.03], [1.05, 0.965, 0.925], [1.03, 1, 0.9], [0.92, 0.925, 0.94]];
+  // Reused stone: each block picks a hue — quarry grey, warm tan, cool slate, faint rose, sand-tinged, dark basalt. Half strength
+  // (the full spread read as patchwork, 2026-09-17); the warm hues dampened toward grey again (still too yellow, 2026-09-18).
+  const hues: [number, number, number][] = [[1, 1, 1], [1.035, 1.0, 0.955], [0.95, 0.98, 1.03], [1.025, 0.98, 0.95], [1.015, 1.0, 0.95], [0.92, 0.925, 0.94]];
   const { courseAt, blocksOf, locate } = ashlar(seed);
   return pixels(size, size, (u, v, x, y) => {
     const [course, fy0] = locate(courseAt, v), { at, stagger } = blocksOf[course], [bi, fx0] = locate(at, (((u + stagger) % 1) + 1) % 1), block = hash(bi, course, seed);
@@ -177,6 +177,19 @@ export function bannerAlpha(width = 128, height = 256, seed = 31): Pixels {
   return pixels(width, height, (u, v) => {
     const torn = v < 0.28 + 0.2 * (hem(u, 0.5) - 0.5) + 0.06 * (fray(u, v) - 0.5), side = Math.min(u, 1 - u) < 0.05 * fray(v, u), hole = holes(u, v) > 0.72 && v < 0.75;
     const a = torn || side || hole ? 0 : 255; return [a, a, a, a];   // three.js reads an alphaMap from the green channel: the mask fills every channel
+  });
+}
+// A brazier flame: white-hot core low and centred, orange mid, transparent at the licked edges (owner 2026-09-18: the bare
+// coals read fake — a real tongue of fire). Additive-blended on crossed quads; the arena animates scale and lean per frame,
+// so the texture itself stays static and cheap.
+export function flamePixels(width = 128, height = 256, seed = 37): Pixels {
+  const lick = fbm(5, 3, seed), wisp = fbm(9, 2, seed + 3, 0.6);
+  return pixels(width, height, (u, v) => {
+    // v: 0 at the base, 1 at the tip. The body is widest just above the base and narrows to a tongue.
+    const body = Math.pow(1 - v, 0.6) * Math.min(1, v * 7), w = 0.4 * body * (0.75 + 0.4 * lick(u, v * 2));
+    const d = w > 0 ? Math.abs(u - 0.5) / w : 2, a = Math.pow(Math.max(0, 1 - d), 1.4) * (1 - 0.25 * v) * (0.85 + 0.3 * wisp(u, v));
+    const core = Math.max(0, 1 - d * 2.2) * (1 - v * 0.55);   // the white heart
+    return [255, 120 + 115 * core + 40 * (1 - v), 25 + 150 * core, Math.round(255 * Math.min(1, a))];
   });
 }
 // Mean linear luminance of an sRGB pixel buffer: the number the contrast rule is written in.
