@@ -9,6 +9,62 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## Finishers & gore milestone authorized — 2026-09-17 (lead, owner's call)
+The owner authorized the finishers milestone the 2026-09-13 blood layer deferred ("mortal kombat closers, but gritty,
+realistic"; the flat fall-backwards death is the target). Spec: GAME_SPEC.md "Owner-authorized finishers & gore —
+2026-09-17" — selection is a pure function of the deterministic `Killed` event (victim/location/move/heading +
+weapons), simulation untouched (`RULES.death`, the 220 ms Killed hit-stop, "death has no tail" stand); six v1
+finishers (Split Crown, Run Through, The Quiet One, Opened, Hamstrung, Execution); a slow camera push-in over the
+death window authorized (no cuts/FOV punch/slow-mo); gore upgrades on the existing pooled systems under the
+red/dark/off modes; the 21 clip names/durations stay frozen, finisher clips additive (`Death_*`); NO split
+geometry/detachable limbs in v1. Budget: per-fight cap 9 → 10 MB gzip in `scripts/check-budget.mjs` (11 MB needs
+further owner sign-off); mesh compression (~half) is the approved later lever. The roadmap deferral line drops
+finishers and wounds. Handover brief for the new lane: `artifacts/character/BRIEF-finishers.md` (suggested lane
+`finishers/gore-v1`, ship Split Crown end-to-end first for the owner's phone judgment). No code, asset or behaviour
+change beyond the budget constant.
+
+## The Nightborn's face — the no-credits pass — 2026-09-17 (nightborn lane)
+The owner spotted the Nightborn shipped with a borrowed face (the stand-in: the hero's KeenTools scan, credits exhausted at 402) and
+declined the €11 top-up for now — "try the free version." The stand-in is RESTYLED to his owner-locked identity on its own texture,
+no new assets, no scan: `head.FIGHTERS.nightborn` gains `skin_mul` (1.28, 1.35, 1.50), `pallor` and `dark_eyes`. The photographed head
+is restyled in `keentools_head` on `filled` (position grids from normalised vertex-group bakes, the az_c/az_s pattern): skin paled
+grey-white and cooled with the dark features keeping their ink, the buzz and the synthesised crown strands gone cold black, the
+photographed stubble melted into the surrounding skin, the eye sockets sunk, a thin old scar across the throat 2.5 cm under the chin
+tip; `eye_colour` takes the iris toward black and halves the sclera lift; `body_colour`'s own pallor block drains the body to match
+(skin_mul alone brightened but stayed warm — tan shoulders beside a grey face). Pointed ears land as geometry: `parts.ear_points`
+(`KIT 'ears': 'points'`), two 3 cm cones on the scan's own helix tops, rigid on `Head`, wearing the face's photo tile — the goblin's
+`ears()` untouched. Not done, by design: the shoulder-length hair fall (REQUESTS #2 — a new part, and at the duel camera the black
+buzz + pale face + black kit already carries him) and the unique KeenTools face (REQUESTS #1, ~€11, the flags restyle the real scan
+the same way). Evidence: `artifacts/character/nightborn-face-v{1,2,3}/` (faces, details, gameplay stills, sequence.webm); v1 exposed
+that the photographed face never took skin_mul, v2 the tan-body mismatch. Gate 224/224 + browser gate; blade paths byte-identical
+(texture-and-ears only: no clip, timing, weapon or sim change); per-fight budget 8.36 / 9 MB.
+
+## Rename: Origins Arena — 2026-09-17 (lead, owner's call)
+The owner named the place **Origins Arena** (the world lane's three proposals — The Ashpit · Worldsedge · The Bonehollow — are
+declined; REQUESTS #1 closed). *Ashcourt / The Old Keep* is retired everywhere player-facing: the place block reads
+THE PROVING GROUND / Origins Arena (the eyebrow inherits the retired brand subtitle), the HUD opponent is ARENA WARDEN
+(mobile label "Warden" unchanged; ladder rungs still override dynamically), the brand line and `<title>` carry the locked
+game title **Frankendom: Origins**, and the stale "courtyard" strings ("Enter the arena", the WebGL fallback and recovery
+messages, the loading line, the noscript) now say arena — the browser gate's two matching references and the audio
+reverb's comment/function name (`courtyard` → `arena`, the impulse itself unchanged) moved with them. No runtime,
+asset or behaviour change beyond strings. Gate + browser gate green on the branch.
+
+## Arena v1 — The Ashpit — 2026-09-17 (world lane)
+The courtyard is replaced behind the lead's seam (`src/arena.ts`, `scene.ts` untouched): a sand-and-gravel pit (owner's call: a
+traditional coliseum floor, no tiles) to a podium wall whose inner face stands outside the camera clamp, a portcullis gate on the far
+side with a dark passage, chains, six braziers with flickering emissive coals (no lights), eight torn instanced banners, five broken
+tiers with fallen blocks, a ruined colonnade and parapet, 235 crowd silhouettes on the upper tiers that bob on a blow, lean in on a parry
+and recoil on a kill (≤ 0.1 m / 8°, still in a hit-stop), an ash sky dome with one break of light and fogged mesas. Every texture is
+generated at load from seeded noise (`src/assets/arena/textures.ts`; +9.8 KB gzip on the shell, 9.6 MB of texture memory, no
+downloads, no licences). The seam gains `floor` (the sand mesh, planar UVs `x / 3, z / 3`) as the decal slot. Measured with the new
+harness `scripts/arena-preview.mjs` (game renderer/lights/fog/lock camera, rigs at the start, settled camera; before/after in
+`artifacts/world/{baseline,arena-v1}`): 263 → 12 meshes, 330 → 15 arena draw calls in the portrait lock, 4.4k → 19.4k triangles,
+floor albedo ≈ 0.24 → 0.088 against the hero's skin sample 0.166 (fighters are now the brightest thing on screen). Contract
+(`tests/arena.test.ts`, 7 tests, instances walked): exclusion volume, boundary ring, floor darker than skin with decal UVs, crowd
+placement and reaction caps, ≤ 40 meshes / 120k tris / 12 MB textures; 5 mutations caught. Gate 223/223 + browser gate on the new
+arena. Not done: phone frame-time and startup measurement (no route from the lane), lighting values (proposal), the rename — three names
+proposed (The Ashpit · Worldsedge · The Bonehollow) in `artifacts/world/REQUESTS.md`; report in `artifacts/world/REPORT.md`.
+
 ## Arena seam for the world lane — 2026-09-17 (lead)
 The courtyard moved out of `scene.ts` into `src/arena.ts` behind `buildArena(scene)`; `scene.ts` keeps lights, fog, tone
 mapping, camera, the fighters, the target marker (its brass is the threat tell and is no longer shared with the banners) and
@@ -425,3 +481,13 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
   at every gap) — it would need its own clips. Owner picked A, the sica (2026-09-17); C stays an option (REQUESTS §11).
 - Evidence: tests/weapons.test.ts +4 (193/193 on the merged tree), `artifacts/weapons/REPORT.md` (knife section), sheets `knife-v1/`,
   `knife-B/`, `knife-C/`, `goblin-baseline/`. Hand-off to the combat lane: REQUESTS §9–10.
+
+## Estoc v1 — the weapons lane — 2026-09-17
+- Branch `weapons/estoc-v1` from trunk 9d08824. The Nightborn's estoc: a long, thin, thrust-first square-section blade with no edge,
+  black iron cross + side ring, wire grip — 1,252 triangles, no textures, contact = the last 40 cm (the point); his own rig carries it
+  (`src/assets/weapons/estoc/nightborn-estoc.glb`) with EVERY clip byte-identical to nightborn.glb (nothing re-keyed). On the shelf:
+  `ESTOC` exported (the sword's timings and lunges exactly; cuts weaker, no chip; the thrust stronger and chaining; the riposte his payoff;
+  `fight.thrustShare .7`; material `'steel'`, a new word in `Material` for audio), `WEAPONS.estoc` still the placeholder, no manifest entry.
+- Measured on his rig: the blade lands 0.30 m past the sword everywhere (thrust 2.35, cut 2.0, heavy 2.5); `reach` stays the sword's
+  conservative numbers per his brief, the margin reported for combat review. Owner's pick pending: A estoc (default), B rapier cut, C long
+  tuck (REQUESTS §14). Hand-off: REQUESTS §12–13. Tests: 224/224.

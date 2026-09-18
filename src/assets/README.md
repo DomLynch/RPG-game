@@ -1,4 +1,4 @@
-# Ashcourt warden asset
+# Origins Arena warden asset
 
 Foundation: Quaternius, Universal Base Characters (Standard), Superhero_Male_FullBody.
 https://quaternius.com/packs/universalbasecharacters.html
@@ -427,3 +427,21 @@ Provenance: **original project work, no new third-party asset, texture or licenc
 wedge section, the hook's back sharpened over its last third) and Three.js primitives; procedural materials (scavenged iron, greasy wood,
 cord); no image maps. The re-keyed `Heavy` is the cleaver's original keys on the same CC0 rig. Evidence and the silhouettes:
 `artifacts/weapons/REPORT.md`.
+
+## Weapons (weapons lane, 2026-09-17) — the estoc
+
+`src/assets/weapons/estoc/nightborn-estoc.glb`: the Nightborn's own rig (character lane, #85 brief / his build) carrying the estoc — a
+long, thin, thrust-first blade — with every clip byte-identical to `nightborn.glb`. Built by `scripts/build-weapon.mjs` through
+`build-warrior.mjs` (`WARRIOR_FIGHTER=nightborn WARRIOR_WEAPON=estoc [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=…`).
+
+Provenance: **original project work, no new third-party asset, texture or licence.** A procedural square-section loft and Three.js
+primitives (cross, ring, wire turns, pommel); procedural materials (bright steel, black-oiled iron, wire); no image maps. No clip is
+re-keyed. Evidence and the silhouettes: `artifacts/weapons/REPORT.md`.
+
+# Arena (world lane, 2026-09-17)
+
+Every arena texture — sand albedo and normal map, ashlar stone, sky dome, crowd silhouette atlas, torn-banner alpha — is generated at load
+by `src/assets/arena/textures.ts` from seeded noise (an integer hash, tileable value noise, stamped pebbles). Original project work; no
+third-party images, models or fonts, nothing downloaded, no licence to record. The geometry in `src/arena.ts` is procedural Three.js
+(`three/addons/utils/BufferGeometryUtils.js` for merging). The same functions run in `tests/arena.test.ts`, so the pixels the test
+measures are the pixels the phone shows. Review captures: `node scripts/arena-preview.mjs --label <name>` → `artifacts/world/<name>/`.

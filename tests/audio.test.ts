@@ -64,7 +64,7 @@ test('the noise bed is seeded: the same seed fills the same buffer, another seed
   const noise = (r: { context: Recorder }) => r.context.buffers.at(-1)!;   // the room impulse comes first and is fixed; the synth bed follows the seed
   assert.deepEqual(noise(a), noise(b));
   assert.notDeepEqual(noise(a), noise(c));
-  assert.deepEqual(a.context.buffers[0], c.context.buffers[0], 'the courtyard impulse does not depend on the duel seed');
+  assert.deepEqual(a.context.buffers[0], c.context.buffers[0], 'the arena impulse does not depend on the duel seed');
   assert.ok(noise(a).every(v => v >= -1 && v <= 1) && noise(a).some(v => v !== 0));
 });
 

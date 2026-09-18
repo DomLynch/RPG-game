@@ -168,3 +168,37 @@ Edge-leading on his rig (A): slash .80, backhand −.75 (the hook's sharpened ba
 ## Not done / risks
 - On the shelf by design (REQUESTS §9). His knobs, battery, stance and camera are other lanes'.
 - Timings are the character lane's proposal, adopted as-is except the critical's cost (26 → 20).
+
+---
+
+# Estoc v1 — evidence (weapons lane, 2026-09-17)
+
+Branch `weapons/estoc-v1` from trunk 9d08824 (knife live, the ladder picker). The Nightborn's long, thin, thrust-first blade.
+
+## What was built
+- `scripts/build-weapon.mjs` `estoc()`: a square-section rod (a four-point ring, equal width and thickness — no edge) tapering to the
+  point, 16 rings; black iron straight cross with finials and a side ring, a black block, a wire-wrapped grip (ten turns), a faceted
+  pommel. Procedural bright steel / black-oiled iron / wire; 1,252 triangles (the brief's cap: 2k). Variants A estoc, B rapier cut, C long
+  tuck. `WEAPON_BUILDS.estoc` re-keys nothing.
+- `src/assets/weapons/estoc/nightborn-estoc.glb`: his own rig carrying it; every clip byte-identical to nightborn.glb (the estoc's test);
+  nightborn.glb itself rebuilds byte-identical.
+- `ESTOC` on the shelf; `'steel'` added to `Material`; +3 tests.
+
+## Measurements (his rig, root 1.03)
+| | Nightborn + sword (baseline) | + estoc A | B | C |
+|---|---|---|---|---|
+| opponent GLB gzip | 3,458,427 | 3,455,531 | | |
+| weapon triangles | 364 | 1,252 | 1,252 | 1,096 |
+| weapon extent (rig units) | 0.82 | 1.06 | 0.98 | 1.16 |
+| lands to (sword timings): stab / cut / heavy | 2.0 / 1.7 / 2.2 (a sword) | **2.35 / 2.0 / 2.5** | | |
+
+`reach` in the data stays the sword's (1.65 / 1.9 / 2.0) per the brief; the 0.30 m margin is reported in REQUESTS §13.
+
+## Sheets
+`nightborn-baseline/` (him with the sword through the weapon view), `estoc-v1/` (A: turntable, on-rig, clips, phone lock stills,
+exchange), `estoc-B/`, `estoc-C/` (turntables).
+
+## Not done / risks
+- On the shelf by design (REQUESTS §12). His battery, stance and guard fields are the combat lane's.
+- The grip is one-handed in idle and the sword clips put his left hand on the blade in the Heavy and Riposte (half-swording an estoc is
+  period-correct, and the clips are his own).

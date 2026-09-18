@@ -163,7 +163,7 @@ export type AiProfile = {
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
 export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife';
-export type Material = 'iron' | 'bronze' | 'wood';
+export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
 export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true;
   guardProfile?: Partial<GuardProfile>;   // how this weapon's guard takes a blow (absent = the longsword defaults in RULES)
   fight: { thrustShare: number; close: number };   // the warden's stance with it: share of non-cut openers that are thrusts (the first is always a heavy); the gap it closes to for a cut or a heavy
@@ -281,6 +281,28 @@ export const KNIFE_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PATHS, guard: 'blade', material: 'iron', reach: KNIFE_MOVES.thrust.reach, fight: { thrustShare: .4, close: 1.0 } };   // a knife fighter stabs often and closes inside a sword's cutting range — the combat lane's to tune with his knobs
+// ── Estoc (weapons lane, 2026-09-17): the Nightborn's — a long, thin, thrust-first blade with no cutting edge (his brief, "Weapon: estoc").
+// Rig: src/assets/weapons/estoc/nightborn-estoc.glb — his own body, EVERY clip byte-identical to nightborn.glb (no re-key: nothing to lead
+// with), only WeaponDrawn under hand_r changes; contact = the last 40 cm (.75–1.15), the point. The sword's clip family and the sword's
+// timings and lunges exactly (the cleaver lesson: a different lunge breaks the backstep); `reach` in the sword's conservative spacing
+// convention (frontier minus the sword's own per-move margin), measured on his rig (artifacts/weapons/REPORT.md). What a thrust-first
+// blade does to the sword's moves: the THRUST is the weapon (a little more damage, chains into a second), the cuts are whacks with a rod
+// (less damage, no chip), the riposte is his payoff (he parries everything). ON THE SHELF: the flip is `estoc: ESTOC` below plus a
+// manifest entry from his rig (artifacts/weapons/REQUESTS.md §12). Every number PROVISIONAL — GAMEPLAY CHANGE for combat review.
+export const ESTOC_PATHS: Record<PathId, PathSpec> = PATHS;   // the sword's clips at the sword's timings: the bake differs only by the point and his rig
+export const ESTOC_MOVES: Record<MoveId, MoveDef> = {
+  light_right: { ...MOVES.light_right, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },   // a whack with a rod
+  light_left: { ...MOVES.light_left, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },
+  heavy_overhead: { ...MOVES.heavy_overhead, damage: 15, chip: .25, staminaDamage: 26, posture: 28, reach: 1.9 },
+  // The thrust: his weapon. A little more than the sword's stab, and it chains into a second (the riposte path, 12/5/19): "thrusts and short chains".
+  thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 14, follow: ['thrust'] }, damage: 14, stamina: 20, staminaDamage: 22, stagger: 20, posture: 18, reach: 2 },
+  riposte: { ...MOVES.riposte, damage: 26, reach: 1.65 },
+  heavy_riposte: { ...MOVES.heavy_riposte, reach: 1.9 },
+  heavy_counter: { ...MOVES.heavy_counter, reach: 1.9 },
+  critical: { ...MOVES.critical, reach: 1.9 },
+  kick: MOVES.kick,
+};
+export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, fight: { thrustShare: .7, close: 1.15 } };   // thrust-first lives here (the brief): seven non-cut openers in ten are thrusts; he closes to the sword's range
 // The lanes' split (2026-09-16): the weapons lane delivers a weapon unused; the combat lane puts it in the fight. The cleaver is LIVE
 // since slice W (2026-09-17): OPPONENTS.pitborn carries it, baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention — the
 // brute's rendered blade runs ~10 cm past the simulated one, never the other way; a 1.13× bake let no backstep escape him).
