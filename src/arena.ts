@@ -90,7 +90,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   const plain = new THREE.MeshStandardMaterial({ name: 'ash plain', color: '#4a463f', roughness: 1 });
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
   const flame = new THREE.MeshBasicMaterial({ name: 'flame', map: textures.flame, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-  const motesMaterial = new THREE.PointsMaterial({ name: 'motes', map: textures.mote, size: 0.2, transparent: true, opacity: 0.62, depthWrite: false, sizeAttenuation: true, color: '#847b6e' });
+  const motesMaterial = new THREE.PointsMaterial({ name: 'motes', map: textures.mote, size: 0.1, transparent: true, opacity: 0.62, depthWrite: false, sizeAttenuation: true, color: '#847b6e' });
   const gateLightMaterial = new THREE.MeshBasicMaterial({ name: 'gate-light', map: textures.gateLight, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary, flame, motesMaterial, gateLightMaterial];
   const mottle = fbm(4, 3, 9);
