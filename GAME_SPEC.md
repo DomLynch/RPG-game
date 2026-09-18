@@ -41,14 +41,21 @@ These define a direction, not a promise of native AAA fidelity on a mobile brows
 - Before a real progression/retention test, server-owned character state with persistent guest credentials and optional account recovery. Clearing browser credentials or private browsing can lose guest access; local storage alone is not recovery.
 - No artificial retention incentives in the first rematch test.
 
-## Fighter progression ladder — owner-locked 2026-09-18
-The fighter climbs 10 plain, street-recognizable titles, each with sub-ranks I–V (50 rungs total), low to high:
-**Recruit** → **Legionary** → **Gladiator** (earning the plain name is a beat) → **Centurion** → **Champion** →
-**Praetorian** → **Master** → **Primus** → **Invictus** (the unconquered) → **Origin** (rank 10 carries the game's name —
-the fighter who started it all). Owner chose this set over a Latin-authentic list (Servus/Tiro/Rudiarius…): every word
-here is one a normal player already knows. "Veteran" was deliberately avoided — the first ladder opponent owns that name.
-A future league table layers on top: titles are milestones, sub-ranks become the weekly grind, and rank-10 status is
-held, not kept (defeat in the league can cost it). Ranked power still cannot depend on grind or purchases (Product defaults).
+## Fighter progression ladder — owner-locked 2026-09-18 (revised 2026-09-19)
+The fighter climbs 10 plain, street-recognizable titles. Tiers 1–9 carry sub-ranks **I–V**; **Origin is singular — no
+I–V** (46 rungs total). Low to high:
+**Recruit** → **Legionary** → **Gladiator** (earning the plain name is a beat) → **Veteran** → **Champion** →
+**Praetorian** → **Master** → **Primus** → **Invictus** (the unconquered) → **Origin** (rank 10 carries the game's name).
+Owner note: "Veteran" intentionally reinstated over "Centurion" per review feedback, accepting the shared word with the
+first ladder opponent (player rank vs opponent name — if it ever confuses in the HUD, the cheap fix is renaming the opponent).
+
+**Victory marks, no demotion — this is a career rank, not a skill rating.** Wins fill the tier's five marks
+(`Gladiator III · ● ● ● ○ ○` — win twice more → Gladiator IV); losses never remove marks or demote. Marks per sub-rank:
+**Recruit and Legionary: 3 wins each** (Gladiator after ~30 wins); **Gladiator onward: 5 wins each** (~205 wins to Origin —
+a career ladder, by design). The competitive layer is SEPARATE and comes later: leaderboard position / MMR / seasonal
+placement (e.g. `Invictus IV — career rank` beside `#327 / 1842 MMR — competitive rank`). A beginner must never be punished
+twice for one lost fight. Ranked power still cannot depend on grind or purchases (Product defaults); rank is identity and
+matchmaking context, never stats.
 
 ## Your fighter: Origins
 Players are human fighters with an Origin. In v1 an Origin is a visual and equipment family on the shared skeleton, not a separate species: it sets starting silhouette, armour family, weapon family and idle/salute style. It changes how you look and what you start with, not how strong you are.
