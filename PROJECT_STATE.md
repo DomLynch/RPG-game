@@ -1,5 +1,19 @@
 # Project state
 
+## Arena life — 2026-09-18 (world lane, owner's picks #1–#5)
+Owner: "anything else we can add to make the environment more engaging?" — approved five, built in order, each audited
+(tests + captures) before the next. Sound left to the audio lane. **Ash motes**: 220-Point cloud, per-pixel sprite, slow
+two-frequency drift + a gust on landed blows (`motes` — Points, not Mesh: the solid-geometry rules are about camera
+collision); first pass was invisible at 5 cm/35 % — the brick's luminance noise floor — so 0.14 m, light-toned, reads as
+dust. **Firelight**: `fireGlow` warm vertex tint on wall+tier bands above each brazier (angular proximity × height
+window; static — the coals' emissive flicker carries motion). **Battle-worn sand**: `sandWearAtlas` (scorch ring,
+trample, drag streak, stain quadrants) on merged decal planes at y 0.006 — tone sat *above* sunlit sand at first (decal
+albedo must land below the sand it covers, ≈0.8×); ash/soot tones only, the gore lane owns red. **Fallen gear**: dented
+helmet, snapped spear, broken blade in the iron merge (zero draw calls), yaw-only + low (camera-clamp rule). **Gate
+light**: the low sun spills through the arch — beam rides the real sun direction but lives inside the passage (r ≥ 11.7;
+the contract caught the first cut at 11.35 m) fading to the floor, plus an additive warm pool where it lands (y < 0.5 is
+exempt). Cost: 21/40 draw calls, 21.2k tris, 11.71/12 MB textures. Captures: `artifacts/world/arena-life-*/`.
+
 ## Flames frayed — 2026-09-18 (world lane, owner's art direction)
 Owner, from the phone, after flames-fatter (PR #106): flames are ~50% of the pot, too pointy, too clean — "more like 70-80% of
 the pot size… less pointy at top… more frayed/jaggy, separated a bit… gritty and realistic, not fake cartoony". `flamePixels`

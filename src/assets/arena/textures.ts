@@ -208,6 +208,64 @@ export function flamePixels(width = 128, height = 256, seed = 37): Pixels {
     return [(205 + 50 * heart) * grit, (55 + 65 * (1 - d) * (1 - v * 0.6) + 80 * heart) * grit, (10 + 14 * (1 - d) + 55 * heart) * grit, Math.round(255 * Math.min(1, a))];
   });
 }
+// A drifting ash mote: a soft grey speck with gritty edges. One 32² sprite for the whole particle system —
+// ash hangs in the air so the arena reads inhabited (world lane 2026-09-18); normal blending, no glow.
+export function motePixels(size = 32, seed = 53): Pixels {
+  const grit = fbm(8, 2, seed);
+  return pixels(size, size, (u, v) => {
+    const r = Math.hypot(u - 0.5, v - 0.5) * 2, a = Math.max(0, 1 - r) ** 1.6 * (0.55 + 0.45 * grit(u, v));
+    const c = 155 + 40 * grit(v, u);
+    return [c, c * 0.96, c * 0.9, Math.round(220 * a)];
+  });
+}
+// Battle-wear decals for the sand (world lane 2026-09-18): scorch, trample, streaks, blotch — four quadrants of one 256²
+// atlas. RGB is the stain colour (so the decal is lit like the sand it lies on), alpha is the worn edge.
+export function sandWearAtlas(size = 256, seed = 71): Pixels {
+  const blotch = fbm(6, 3, seed), fine = fbm(16, 2, seed + 5), streak = fbm(4, 4, seed + 9);
+  const sstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  return pixels(size, size, (u, v) => {
+    const q = u < 0.5 ? (v < 0.5 ? 0 : 2) : (v < 0.5 ? 1 : 3), s = u % 0.5 * 2, t = v % 0.5 * 2;
+    const dx = s - 0.5, dy = t - 0.5, r = Math.hypot(dx, dy) * 2;
+    let a = 0, tone = 0.5;
+    if (q === 0) {          // scorch: a heat-bloomed ring, eaten by noise
+      const ring = Math.exp(-((r - 0.55) ** 2) / 0.045);
+      a = ring * (0.55 + 0.45 * blotch(s * 2, t * 2)) * (1 - sstep(0.7, 1.0, r)) * sstep(0.06, 0.3, r);
+      tone = 0.14 + 0.08 * fine(s, t);
+    } else if (q === 1) {   // trample: churned mottle, strongest centre
+      a = (1 - sstep(0.25, 1.0, r)) * sstep(0.34, 0.72, fine(s * 1.6, t * 1.6)) * 0.85;
+      tone = 0.2 + 0.08 * blotch(s, t);
+    } else if (q === 2) {   // streaks: long scuff lines, like something dragged
+      const band = 1 - sstep(0.0, 0.34, Math.abs(dy + 0.12 * (streak(s * 3, 0.5) - 0.5)));
+      a = band * sstep(0.5, 0.85, fine(s * 6, t * 1.2)) * (1 - sstep(0.7, 1.0, Math.abs(dx) * 2)) * 0.8;
+      tone = 0.17 + 0.08 * blotch(s * 2, t);
+    } else {                // blotch: an old soaked stain with a soft rim
+      a = (1 - sstep(0.3, 0.95, r)) * (0.5 + 0.5 * blotch(s * 1.5, t * 1.5)) * sstep(0.05, 0.35, r);
+      tone = 0.17 + 0.08 * fine(s, t);
+    }
+    const k = 255 * tone;
+    return [k * 1.02, k * 0.94, k * 0.82, Math.round(235 * Math.min(1, a))];
+  });
+}
+// Gate light (world lane 2026-09-18): one atlas, two halves. v > 0.5 is the sun shaft that spills through the gate arch —
+// soft across, streaked like light through bars, fading along its length. v < 0.5 is the warm pool where it lands on the
+// sand. Additive: RGB carries the brightness (peak ~half, warm), alpha carries the shape.
+export function gateLightAtlas(width = 128, height = 256, seed = 83): Pixels {
+  const streaks = fbm(6, 3, seed), dapple = fbm(10, 2, seed + 4);
+  return pixels(width, height, (u, v) => {
+    if (v >= 0.5) {
+      const s = u, t = (v - 0.5) * 2;
+      const across = Math.exp(-((s - 0.5) ** 2) / 0.075);
+      const bars = 0.6 + 0.4 * Math.max(0, Math.sin(s * 34 + 2.2 * (streaks(s, t) - 0.5)));
+      const a = across * bars * (t < 0.12 ? t / 0.12 : 1 - smoothstep(0.62, 1, t)) * (0.75 + 0.25 * streaks(s * 3, t * 2));
+      const k = 150 * a;
+      return [k, k * 0.9, k * 0.68, 255];
+    }
+    const s = u, t = v * 2, r = Math.hypot(s - 0.5, t - 0.5) * 2;
+    const a = Math.exp(-(r * r) / 0.55) * (0.7 + 0.3 * dapple(s * 2, t * 2)) * (1 - smoothstep(0.75, 1, r));
+    const k = 120 * a;
+    return [k, k * 0.88, k * 0.64, 255];
+  });
+}
 // Mean linear luminance of an sRGB pixel buffer: the number the contrast rule is written in.
 export function luminance(p: Pixels): number {
   const lin = (c: number) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
