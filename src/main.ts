@@ -37,8 +37,6 @@ const health = element<HTMLMeterElement>('target-health');
 const combatStatus = element('combat-status');
 const runButton = element<HTMLButtonElement>('run-button');
 const joystick = element('joystick');
-const gesturePad = element('gesture-pad');
-let gestureId: number | null = null, gestureX = 0, gestureY = 0, gestureUsed = false;
 const stick = element('stick');
 const input = element<HTMLInputElement>('fighter-name');
 const storage: StoragePort = { getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value) };
@@ -51,16 +49,14 @@ function persist() {
   element('save-status').textContent = saveProfile(storage, profile) ? 'Guest · saved on this device' : 'Storage unavailable · name will not be saved';
 }
 persist();
-// Control-scheme trial: the right thumb is buttons (v0) or the weapon disc in one of three grammars; the scorecard is per scheme.
+// Control-scheme trial: the right thumb is the button cluster or the v8 guard ring (one strike circle owns every attack); the scorecard is per scheme.
 const trial = loadTrial(storage);
 let scheme = trial.scheme, recorded = false, activeMs = 0;   // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
-const disc = () => scheme === 'flick';
 const ring8 = () => scheme === 'ring8';
 const thrustButton = element<HTMLButtonElement>('thrust-button');
-const DISC: Record<Flick, Action> = { left: 'light_left', right: 'light_right', up: 'thrust', down: 'heavy' };
 function applyScheme() {
   element('actions').dataset.gestures = scheme;
-  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(disc())); lastHud = '';
+  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(ring8())); lastHud = '';
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 // Who stands opposite: the rung this device has reached (profile.ladder), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
@@ -138,11 +134,8 @@ function updateHud() {
   kickButton.dataset.reach = String(inKickReach);   // a kick has a short cone: the button brightens when it can land
   combatStatus.dataset.threat = String(practice.threat); combatStatus.dataset.move = practice.threatMove ?? '';
   attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : ring8() ? 'Strike — tap, hold or flick' : 'Light attack';
-  gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '← Cut → · ↑ Thrust · ↓ Heavy';
-  gesturePad.setAttribute('aria-disabled', String(!controlsReady));
-  gesturePad.hidden = !practice.health || !practice.playerHealth;
-  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : disc() ? 'Light' : ring8() ? 'Strike' : 'Slash'; attackButton.setAttribute('aria-label', attackButton.textContent);
-  thrustButton.hidden = disc() || ring8() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
+  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : ring8() ? 'Strike' : 'Slash'; attackButton.setAttribute('aria-label', attackButton.textContent);
+  thrustButton.hidden = ring8() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
   attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
   const ended = !practice.health || !practice.playerHealth;
@@ -175,7 +168,7 @@ let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
   if (ring8Stroke) { clearTimeout(ring8Stroke.timer); ring8Stroke = null; }
-  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; holders.clear(); dragGuard = false; hitStop = 0;
+  action = null; cancel = true; dodgeHeld = null; holders.clear(); dragGuard = false; hitStop = 0;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; stick.dataset.run = 'false'; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -308,26 +301,6 @@ element('difficulty').addEventListener('click', () => { const levels = Object.ke
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
 applyScheme();
-// Weapon disc (the alternative to the cluster): a stroke's direction chooses the attack and the strike goes at once.
-function beginStroke(event: PointerEvent, surface: HTMLElement) {
-  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false;
-  if (practice.phase === 'sheathed') { requestStrike(); gestureUsed = true; }
-  try { surface.setPointerCapture(gestureId); } catch { /* capture is a convenience: a pointer the browser will not capture still strokes */ }
-}
-function moveStroke(event: PointerEvent) {
-  if (paused()) return;
-  const dx = event.clientX - gestureX, dy = event.clientY - gestureY;
-  if (gestureUsed) return;
-  const flick = swipeAction(dx, dy);
-  if (!flick) return;
-  event.preventDefault(); gestureUsed = true;
-  request(DISC[flick]);
-}
-function endStroke(cancelled: boolean) { if (cancelled) withdraw(['light_left', 'light_right', 'thrust', 'heavy', 'light']); gestureId = null; }
-gesturePad.addEventListener('pointerdown', event => { if (disc() && !paused() && assetsReady && event.button === 0 && gestureId === null) beginStroke(event, gesturePad); });
-gesturePad.addEventListener('pointermove', event => { if (event.pointerId === gestureId) moveStroke(event); });
-gesturePad.addEventListener('keydown', event => { if (!disc() || event.repeat) return; const flick = ({ ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' } as Record<string, Flick>)[event.code]; if (flick || event.code === 'Enter' || event.code === 'Space') { event.preventDefault(); request(flick ? DISC[flick] : 'light'); } });
-for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name === 'pointercancel'); });
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
   const x = (event.clientX - rect.left - rect.width / 2) / 42;
