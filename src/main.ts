@@ -100,6 +100,31 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = { Blocked: 30, Hi
 const HEAVY_HIT = 90, HEAVY_BLOCK = 50;   // a heavy-class contact stops longer whether it lands or is blocked
 const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const HITSTOP_KEY = 'frankendom.hitstop.v1', TEMPO_KEY = 'frankendom.tempo.v1';
+// Coach hints (owner, 2026-09-18): one-line flashes that teach the five skill moves — chain, feint, dodge-attack, guard counter, riposte.
+// They run on the first warden fight only (the Veteran, ladder rung 1); a journal toggle turns them off, and each hint fires at most twice
+// per fight so it nags then stops. Presentation-only: it reads the same events the hit-stop and sound already read, and never feeds the sim.
+const COACH_KEY = 'frankendom.hints.v1';
+let coachOn = storage.getItem(COACH_KEY) !== 'off';
+const coachEl = element('coach');
+coachEl.hidden = true;   // the HTML ships it hidden; set it here too because the test harness's element stubs do not parse index.html
+const seen: Record<string, number> = {};
+let coachTimer: ReturnType<typeof setTimeout> | undefined;
+function coachMark(text: string, id: string, max = 2): void {
+  if (!coachOn || opponent.id !== LADDER[0].id || (seen[id] ?? 0) >= max) return;
+  seen[id]++;
+  coachEl.textContent = text; coachEl.hidden = false;
+  clearTimeout(coachTimer); coachTimer = setTimeout(() => { coachEl.hidden = true; }, 2600);
+}
+function coach(events: CombatEvent[]): void {
+  for (const e of events) {
+    if (e.type === 'Parried' && e.actor === 0) coachMark('Parried! Stab = riposte · Heavy = smash', 'parry');
+    else if (e.type === 'Blocked' && e.actor === 0 && !e.perfect) coachMark('Blocked — Heavy now = counter', 'counter');
+    else if (e.type === 'Hit' && e.actor === 0 && e.move?.startsWith('light_')) coachMark('Landed! strike again = faster chain', 'chain');
+    else if (e.type === 'AttackStarted' && e.actor === 0 && e.move === 'heavy_overhead') coachMark('Wind-up: tap Guard to feint', 'feint', 1);
+    else if (e.type === 'ActionStarted' && e.actor === 0 && (e.action === 'roll' || e.action === 'backstep')) coachMark('Strike as you rise = fast cut', 'dodge', 1);
+  }
+}
+function coachReset(): void { for (const id in seen) delete seen[id]; clearTimeout(coachTimer); coachEl.hidden = true; }
 // Tempo: the simulation is written in ticks; stepping it at 50 Hz instead of 60 plays the same fight a fifth slower in wall-clock (wind-ups,
 // windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
 // re-timing of the moves (which needs the blade paths re-baked).
@@ -178,6 +203,12 @@ element('name-form').addEventListener('submit', event => {
 element('name-button').addEventListener('click', () => { clearInput(); input.value = profile.name; welcome.hidden = false; input.focus(); });
 element('journal-button').addEventListener('click', () => { clearInput(); element('scorecard').textContent = formatCard(trial); journal.showModal(); });
 element('mobile-name').addEventListener('click', () => { journal.close(); element('name-button').click(); });
+element('mobile-coach').addEventListener('click', () => {
+  coachOn = !coachOn; storage.setItem(COACH_KEY, coachOn ? 'on' : 'off');
+  element('mobile-coach').textContent = coachOn ? 'Hints: on' : 'Hints: off';
+  element('mobile-coach').setAttribute('aria-pressed', String(coachOn));
+  if (!coachOn) { coachReset(); }
+});
 element('close-journal').addEventListener('click', () => journal.close());
 journal.addEventListener('close', clearInput);
 window.addEventListener('blur', clearInput);
@@ -296,7 +327,7 @@ guardButton.addEventListener('blur', () => { guard = false; if (action === 'parr
 resetButton.addEventListener('click', () => {
   const next = won(practice.finish) ? nextAfter(opponent.id) : undefined;
   if (next) { profile.ladder = next.id; persist(); location.reload(); return; }   // the next fighter is another rig: a fresh page loads it
-  clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+  clearInput(); coachReset(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
@@ -390,7 +421,7 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, opponent.profiles[difficulty]);
-      feedback.update(practice.events); frameEvents.push(...practice.events);
+      feedback.update(practice.events); frameEvents.push(...practice.events); coach(practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;
       if (action) sent = action;
