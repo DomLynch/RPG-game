@@ -9,6 +9,7 @@ import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILE
 import { RULES } from './moves.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
+import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor, won, nextAfter } from './ladder.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -354,6 +355,7 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) joystic
 for (const name of ['pointerup', 'pointercancel']) window.addEventListener(name, event => { if ((event as PointerEvent).pointerId === moveId) releaseStick(); });
 window.addEventListener('touchend', event => { if (moveId !== null && event.touches.length === 0) releaseStick(); });
 window.addEventListener('touchcancel', event => { if (moveId !== null && event.touches.length === 0) releaseStick(); });
+if (typeof document !== 'undefined' && document.body) document.body.dataset.gfxTier = phoneTier() ? 'phone' : 'full';   // support surface: which graphics budget the session is on (the iPhone black-fighters defect)
 let view: ReturnType<typeof createScene>;
 try { view = createScene(canvas, status => { element('art-status').textContent = status; assetsReady = status === ''; }, opponent.id); }
 catch {
