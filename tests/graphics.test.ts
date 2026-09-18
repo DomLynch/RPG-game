@@ -163,7 +163,34 @@ test('the thumb cluster is the mobile layout: round buttons incl. a Stab button 
   assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'flick'); app.element('controls-mode').click(); app.tick();
   // v7 guard ring: the same verbs as the cluster (Slash, Stab shown) in the ring geometry; then back to the cluster.
   assert.equal(actions.dataset.gestures, 'ring'); assert.equal(app.element('controls-mode').textContent, 'Controls: guard ring · v7'); assert.equal(thrust.hidden, false, 'Stab is a ring button too'); assert.equal(app.element('attack-button').dataset.mobile, 'Slash');
+  app.element('controls-mode').click(); app.tick();   // → ring8 (v8)
+  // v8 guard ring: one strike circle owns every attack — no Heavy or Stab buttons; then back to the cluster.
+  assert.equal(actions.dataset.gestures, 'ring8'); assert.equal(app.element('controls-mode').textContent, 'Controls: guard ring · v8');
+  assert.equal(thrust.hidden, true, 'v8: Stab is a flick, not a button'); assert.equal(app.element('heavy-button').hidden, true, 'v8: no Heavy button');
+  assert.equal(app.element('attack-button').dataset.mobile, 'Strike');
   app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
+});
+
+test('guard ring v8: the strike circle owns every attack — a tap slashes as the thumb lifts, a flick up stabs, holding loads the heavy', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const me = () => app.rendered.duel.fighters[0];
+  const at = (type: string, x: number, y: number, id = 9) => Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y });
+  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
+  for (let i = 0; i < 3; i++) { app.element('controls-mode').click(); app.tick(); }
+  assert.equal(app.element('actions').dataset.gestures, 'ring8');
+  const strike = app.element('attack-button');
+  settle(); strike.dispatchEvent(at('pointerdown', 0, 0)); strike.dispatchEvent(at('pointerup', 0, 0)); app.tick();
+  assert.ok(me().move?.startsWith('light'), `a quick tap is the slash, got ${me().move}`);
+  settle(); strike.dispatchEvent(at('pointerdown', 0, 0)); strike.dispatchEvent(at('pointermove', 0, -40)); app.tick();
+  assert.equal(me().move, 'thrust', 'a flick up is the stab');
+  strike.dispatchEvent(at('pointerup', 0, -40));
+  settle(); strike.dispatchEvent(at('pointerdown', 0, 0));
+  const arm = [...app.timers.values()].pop(); assert.ok(arm, 'holding arms a pending heavy'); app.timers.clear(); arm();
+  app.tick();
+  assert.equal(me().move, 'heavy_overhead', 'the loaded heavy');
+  for (let i = 0; i < 16; i++) app.tick();
+  assert.ok(me().charge >= 1, `keeping it held starts the charge (charge ${me().charge})`);
+  strike.dispatchEvent(at('pointerup', 0, 0));
 });
 
 

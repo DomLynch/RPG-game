@@ -55,6 +55,7 @@ persist();
 const trial = loadTrial(storage);
 let scheme = trial.scheme, recorded = false, activeMs = 0;   // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
 const disc = () => scheme === 'flick';
+const ring8 = () => scheme === 'ring8';
 const thrustButton = element<HTMLButtonElement>('thrust-button');
 const DISC: Record<Flick, Action> = { left: 'light_left', right: 'light_right', up: 'thrust', down: 'heavy' };
 function applyScheme() {
@@ -136,16 +137,16 @@ function updateHud() {
   kickButton.setAttribute('aria-disabled',String(!controlsReady || !ok[2]));
   kickButton.dataset.reach = String(inKickReach);   // a kick has a short cone: the button brightens when it can land
   combatStatus.dataset.threat = String(practice.threat); combatStatus.dataset.move = practice.threatMove ?? '';
-  attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
+  attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : ring8() ? 'Strike — tap, hold or flick' : 'Light attack';
   gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '← Cut → · ↑ Thrust · ↓ Heavy';
   gesturePad.setAttribute('aria-disabled', String(!controlsReady));
   gesturePad.hidden = !practice.health || !practice.playerHealth;
-  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : disc() ? 'Light' : 'Slash'; attackButton.setAttribute('aria-label', attackButton.textContent);
-  thrustButton.hidden = disc() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
+  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : disc() ? 'Light' : ring8() ? 'Strike' : 'Slash'; attackButton.setAttribute('aria-label', attackButton.textContent);
+  thrustButton.hidden = disc() || ring8() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
   attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
   const ended = !practice.health || !practice.playerHealth;
-  heavyButton.hidden = ended; heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
+  heavyButton.hidden = ended || ring8(); heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
   attackButton.hidden = ended; resetButton.hidden = !ended;
   const next = ended && won(practice.finish) ? nextAfter(opponent.id) : undefined;
   resetButton.textContent = next ? `Next: ${next.name}` : 'Rematch';
@@ -173,6 +174,7 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
+  if (ring8Stroke) { clearTimeout(ring8Stroke.timer); ring8Stroke = null; }
   gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; holders.clear(); dragGuard = false; hitStop = 0;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; stick.dataset.run = 'false'; runButton.setAttribute('aria-pressed', 'false');
@@ -209,11 +211,12 @@ runButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes
 runButton.addEventListener('keyup', () => setRun(false));
 runButton.addEventListener('blur', () => setRun(false));
 // A strike button with pointer capture: press = strike (held while down); the pointer leaving the circle while down = guard press (drag-off feint).
-function strikeControl(button: HTMLButtonElement, name: Strike, start: () => void) {
+// `pointer` lets a scheme hand the button's touch grammar to its own handler (v8's strike circle) without disturbing the others.
+function strikeControl(button: HTMLButtonElement, name: Strike, start: () => void, pointer: () => boolean = () => true) {
   let id: number | null = null, dragged = false;
   const radius = () => { const r = button.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 + 6 }; };   // 6 px of slack before a press counts as dragged off
   button.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || id !== null) return;
+    if (event.button !== 0 || id !== null || !pointer()) return;
     event.preventDefault(); id = event.pointerId; dragged = false;
     try { button.setPointerCapture(id); } catch { /* capture is a convenience: an uncaptured press still strikes */ }
     hold(name); start();
@@ -232,12 +235,56 @@ function strikeControl(button: HTMLButtonElement, name: Strike, start: () => voi
   button.addEventListener('keyup', () => unhold(name));
   button.addEventListener('blur', () => unhold(name));
 }
-strikeControl(attackButton, 'light', () => requestStrike());
+strikeControl(attackButton, 'light', () => requestStrike(), () => !ring8());
 kickButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestKick(); } });
 kickButton.addEventListener('pointercancel', () => withdraw('kick'));
 kickButton.addEventListener('keydown', event => { if (['Space','Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestKick(); } });
 strikeControl(heavyButton, 'heavy', () => requestStrike(true));
 strikeControl(thrustButton, 'thrust', () => request('thrust'));
+// Guard ring v8 (owner trial, 2026-09-18): the strike circle is the whole grammar — no Heavy or Stab buttons. A quick tap is the slash (it
+// fires as the thumb lifts, the fastest blow); holding loads the heavy (release early = plain, keep holding through the chamber = charged);
+// a flick up is the stab, sideways is that side's cut, back is guard. A loaded heavy dragged off the circle feints into guard, as the strike
+// buttons always have. Every intent is the one the dedicated button sends — the simulation owns every rule and timer, none are re-timed here.
+const RING8_ARM_MS = 300;
+let ring8Stroke: { id: number; x: number; y: number; armed: boolean; feint: boolean; flick: Flick | null; timer: ReturnType<typeof setTimeout> } | null = null;
+attackButton.addEventListener('pointerdown', event => {
+  if (!ring8() || event.button !== 0 || ring8Stroke !== null) return;
+  event.preventDefault();
+  const stroke = { id: event.pointerId, x: event.clientX, y: event.clientY, armed: false, feint: false, flick: null as Flick | null, timer: 0 as unknown as ReturnType<typeof setTimeout> };
+  stroke.timer = setTimeout(() => {
+    if (ring8Stroke !== stroke || stroke.flick) return;
+    stroke.armed = true; unhold('light'); hold('heavy'); requestStrike(true);   // held long enough: the heavy loads; keeping it held charges
+  }, RING8_ARM_MS);
+  ring8Stroke = stroke;
+  try { attackButton.setPointerCapture(event.pointerId); } catch { /* capture is a convenience: an uncaptured press still strikes */ }
+  hold('light');
+});
+attackButton.addEventListener('pointermove', event => {
+  const s = ring8Stroke;
+  if (!s || event.pointerId !== s.id) return;
+  if (s.armed) {   // a loaded heavy leaves the circle: the feint, exactly as dragging a strike button off its circle always was
+    if (s.feint) return;
+    const r = attackButton.getBoundingClientRect();
+    if (Math.hypot(event.clientX - (r.left + r.width / 2), event.clientY - (r.top + r.height / 2)) > r.width / 2 + 6) { s.feint = true; unhold('heavy'); dragGuard = true; requestParry(); }
+    return;
+  }
+  if (s.flick) return;
+  const flick = swipeAction(event.clientX - s.x, event.clientY - s.y);
+  if (!flick) return;
+  clearTimeout(s.timer); unhold('light'); s.flick = flick;
+  if (flick === 'up') { hold('thrust'); request('thrust'); }
+  else if (flick === 'down') { dragGuard = true; requestParry(); }
+  else request(flick === 'left' ? 'light_left' : 'light_right');
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) attackButton.addEventListener(type, event => {
+  const s = ring8Stroke;
+  if (!s || (event as PointerEvent).pointerId !== s.id) return;
+  ring8Stroke = null; clearTimeout(s.timer);
+  unhold('light'); unhold('heavy'); unhold('thrust');
+  if (s.flick === 'down' || s.feint) dragGuard = false;
+  else if (!s.flick && !s.armed && type === 'pointerup') requestStrike();   // the quick tap: the slash fires as the thumb lifts
+  if (type === 'pointercancel') withdraw(s.armed ? 'heavy' : s.flick ? (s.flick === 'up' ? 'thrust' : s.flick === 'down' ? 'parry' : `light_${s.flick}`) : 'light');
+});
 dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); dodgeButton.setPointerCapture(event.pointerId); pressDodge(performance.now()); } });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) dodgeButton.addEventListener(name, () => releaseDodge(name === 'pointercancel'));
 dodgeButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); } });
