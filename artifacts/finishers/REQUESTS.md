@@ -1,5 +1,12 @@
 # REQUESTS → combat lane: can any shipped move land `head`?
 
+> **SUPERSEDED for Split Crown (owner decision 2026-09-18, recorded on PR #112):** the owner
+> re-decided the rule instead — any heavy-blow kill selects Split Crown regardless of the
+> coarse hit location, so the finisher no longer depends on organic head hits (implemented in
+> `src/finishers.ts`). This request stays on the books ONLY as the combat lane's own evidence
+> question: whether blade paths / hit regions should ever report `head` (relevant to future
+> per-weapon or aimed content). No action needed for the finisher milestone.
+
 From: finishers & gore lane (`finishers/gore-v1`, 2026-09-18)
 To: combat / moves lane
 Re: `blade.ts` `bladeImpact` hit regions vs the finisher spec table

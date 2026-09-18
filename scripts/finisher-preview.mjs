@@ -2,12 +2,11 @@
 // captures the death window at phone widths in all three blood modes. Never part of the build or the runtime.
 //   node scripts/finisher-preview.mjs --label finishers-v1
 //
-// Honesty note (the owner reads this): the kill is a genuine simulation — the player draws, walks in and lands paced plain
-// heavy overheads on a passive warden until one kills. Only ONE field is overridden at the presentation seam: the Killed/Hit
-// event's `location` is set to 'head' so the spec's Split Crown row (heavy overhead → head) is exercised, because with the
-// shipped blade paths no move's contact ever lands in the head region (24-duel AI battery, 285 hits: torso and legs only —
-// see artifacts/finishers/REQUESTS.md). Everything downstream of the event — selection, pose, clip, gore, dolly — is the
-// unmodified production code path.
+// Honesty note (the owner reads this): the kill is a genuine simulation with NO overrides — the player draws, walks in and
+// lands paced plain heavy overheads on a passive warden until one kills. Under the owner rule of 2026-09-18 (recorded on
+// PR #112) any heavy-blow kill selects Split Crown regardless of the coarse hit location, so the organic torso/legs kill
+// from this duel fires the real production path end-to-end: selection, pose, clip, gore, dolly — nothing is presented
+// as anything other than what the sim reported. (The earlier head-location override died with the rule change.)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -64,15 +63,7 @@ window.__step = 'simulated';
 if (sim.kill < 0) throw new Error('the scripted duel produced no kill');
 // The window: 0.75 s before the blow, 3.25 s after (the whole 144-tick death plus settle).
 const from = sim.frames.findIndex(f => f.practice.duel.tick >= sim.kill - 45);
-const deathWindow = sim.frames.slice(from, from + 220).map((f, i) => {
-  const atKill = f.practice.duel.tick >= sim.kill;
-  if (!atKill) return f;
-  // THE ONE OVERRIDE (see the header): the head row of the spec table never occurs organically with the shipped blade
-  // paths, so the kill event is presented as the spec row it exists for. The sim decided everything else.
-  const events = f.events.map(e => (e.type === 'Killed' || (e.type === 'Hit' && e.target === 1)) ? { ...e, location: 'head' } : e);
-  const practice = { ...f.practice, finish: f.practice.finish ? { ...f.practice.finish, location: 'head' } : f.practice.finish, enemyWoundSite: 'head' };
-  return { ...f, events, practice };
-});
+const deathWindow = sim.frames.slice(from, from + 220);   // NO field overrides: the 2026-09-18 owner rule makes this organic heavy kill a Split Crown
 const killIndex = deathWindow.findIndex(f => f.events.some(e => e.type === 'Killed'));
 let cursor = -1;
 window.__finisher = {

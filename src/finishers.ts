@@ -18,10 +18,14 @@ export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, Weap
   if (finish.victim === 0) return null;          // the player's own death keeps the plain fall (v2 review)
   if (finish.move === 'kick') return null;       // kicked to death: no blade, no blade closer, no blood (2026-09-13)
   if (finish.move === 'critical') return 'execution';
-  if (finish.location === 'legs') return 'hamstrung';
-  if (finish.location === 'head') return HEAVIES.includes(finish.move) ? 'splitCrown' : 'quietOne';
   if (THRUSTS.includes(finish.move)) return 'runThrough';
-  if (HEAVIES.includes(finish.move)) return 'opened';
+  // Owner decision 2026-09-18 (recorded on PR #112): a heavy blow that kills = Split Crown, on ANY location the coarse
+  // hit-detection reports — universal across weapons and characters (the player-wielded sword's arcs never reach the head
+  // region; nobody can aim, so tying the flagship finisher to a head point guaranteed it never played). v1 ships Split
+  // Crown alone; the remaining universal finishers join a deterministic rotation pool seeded from the kill event (never
+  // wall-clock randomness — same duel, same finisher), and weapon/class-specific specials come later as a separate layer.
+  if (HEAVIES.includes(finish.move)) return 'splitCrown';
+  if (finish.location === 'legs') return 'hamstrung';
   return 'quietOne';                             // a light cut through the body reads the same underplayed way as the neck cut
 }
 
