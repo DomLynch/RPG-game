@@ -61,14 +61,15 @@ function simulate(seed) {
   }
   return { frames, kill };
 }
-// The first death window each shipped finisher draws, across seeded duels (the rotation seed is the kill event itself).
+// The first death window each shipped outcome draws, across seeded duels (the rotation seed is the kill event itself).
 const windows = {};
 const provenance = [];
-for (let seed = 731; seed < 731 + 40 && (windows.splitCrown === undefined || windows.decapitation === undefined); seed++) {
+for (let seed = 731; seed < 731 + 80 && (windows.splitCrown === undefined || windows.decapitation === undefined || windows.runThrough === undefined || windows.plainDeath === undefined); seed++) {
   const sim = simulate(seed);
   if (sim.kill < 0) continue;   // the scripted duel produced no kill on this seed
   const finish = sim.frames[sim.frames.length - 1].practice.finish;
-  const finisher = selectFinisher(finish, ['longsword', 'longsword']);
+  const duel = sim.frames[sim.frames.length - 1].practice.duel;
+  const finisher = selectFinisher(finish, [duel.fighters[0].weapon, duel.fighters[1].weapon]);
   if (finisher && windows[finisher] === undefined) {
     const from = sim.frames.findIndex(f => f.practice.duel.tick >= sim.kill - 45);
     windows[finisher] = { frames: sim.frames.slice(from, from + 220), killIndex: sim.frames.slice(from, from + 220).findIndex(f => f.events.some(e => e.type === 'Killed')) };
@@ -76,7 +77,7 @@ for (let seed = 731; seed < 731 + 40 && (windows.splitCrown === undefined || win
   }
 }
 window.__provenance = provenance;
-if (windows.splitCrown === undefined || windows.decapitation === undefined) throw new Error('could not draw both finishers across 40 seeds: ' + JSON.stringify(provenance));
+if (windows.splitCrown === undefined || windows.decapitation === undefined || windows.runThrough === undefined || windows.plainDeath === undefined) throw new Error('could not draw all four outcomes across 80 seeds: ' + JSON.stringify(provenance));
 window.__step = 'simulated';
 let cursor = -1;
 window.__finisher = {
@@ -117,11 +118,12 @@ try {
     await page.goto(url); await page.waitForFunction(() => window.__finisher || window.__finisherError, null, { timeout: 120000 }).catch(async () => { console.log("  stuck at step:", await page.evaluate(() => window.__step), "err:", await page.evaluate(() => window.__finisherError)); throw new Error("page stuck"); });
     return page;
   };
-  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation' };
+  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death' };
+  const ORDER = ['splitCrown', 'decapitation', 'runThrough', 'plainDeath'];
   const info = await (await open({ width: 393, height: 852 })).evaluate(() => ({ provenance: window.__finisher.provenance }));
   for (const p of info.provenance) console.log(`  ${p.finisher}: seed ${p.seed}, kill ${JSON.stringify(p.finish)}`);
-  // Mode stills: one clean playthrough per blood mode per finisher (scene state evolves with playback, so each mode replays from scratch).
-  for (const which of ['splitCrown', 'decapitation']) {
+  // Mode stills: one clean playthrough per blood mode per outcome (scene state evolves with playback, so each mode replays from scratch).
+  for (const which of ORDER) {
     for (const [mode, name] of [['red', ''], ['dark', '-dark'], ['off', '-off']]) {
       const page = await open({ width: 393, height: 852 });
       const { killIndex, count } = await page.evaluate(w => ({ killIndex: __finisher.killIndex(w), count: __finisher.count(w) }), which);
