@@ -41,6 +41,15 @@ These define a direction, not a promise of native AAA fidelity on a mobile brows
 - Before a real progression/retention test, server-owned character state with persistent guest credentials and optional account recovery. Clearing browser credentials or private browsing can lose guest access; local storage alone is not recovery.
 - No artificial retention incentives in the first rematch test.
 
+## Fighter progression ladder — owner-locked 2026-09-18
+The fighter climbs 10 plain, street-recognizable titles, each with sub-ranks I–V (50 rungs total), low to high:
+**Recruit** → **Legionary** → **Gladiator** (earning the plain name is a beat) → **Centurion** → **Champion** →
+**Praetorian** → **Master** → **Primus** → **Invictus** (the unconquered) → **Origin** (rank 10 carries the game's name —
+the fighter who started it all). Owner chose this set over a Latin-authentic list (Servus/Tiro/Rudiarius…): every word
+here is one a normal player already knows. "Veteran" was deliberately avoided — the first ladder opponent owns that name.
+A future league table layers on top: titles are milestones, sub-ranks become the weekly grind, and rank-10 status is
+held, not kept (defeat in the league can cost it). Ranked power still cannot depend on grind or purchases (Product defaults).
+
 ## Your fighter: Origins
 Players are human fighters with an Origin. In v1 an Origin is a visual and equipment family on the shared skeleton, not a separate species: it sets starting silhouette, armour family, weapon family and idle/salute style. It changes how you look and what you start with, not how strong you are.
 
