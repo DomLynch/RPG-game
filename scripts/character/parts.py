@@ -45,7 +45,7 @@ KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'b
        'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False, 'barefoot': True, 'ears': False},
        # The Nightborn: black-dyed wool (never pure black — below ~12 % value the folds and occlusion have nothing to shade at phone size), clean,
        # the base frame (lean), a closed tunic over both shoulders with a standing collar, no helm, no greaves. artifacts/character/BRIEF-nightborn.md.
-       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': 'points'},  # ears 'points': small tips on the scan's own ears (his brief), not the goblin's long ears
+       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': 'points', 'hair': 'fall'},  # ears 'points': small tips on the scan's own ears (his brief), not the goblin's long ears; hair 'fall': the tied-back shoulder-length curtain (REQUESTS #2)
        'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -1064,6 +1064,97 @@ def ear_points(head_obj, eye_l, eye_r):
     return out
 
 
+def hair_fall(head_obj, body_obj, eye_l, eye_r):
+    """The Nightborn's hair fall (REQUESTS.md #2, owner-authorized 2026-09-18): black, tied back, shoulder-length. One
+    curtain from the upper occiput to the shoulder line, hugging the fighter by casting from the body axis toward the
+    rear and keeping the LAST surface the ray meets: cast from outside-in, the scan's neck cut (12.8 cm below the eyes)
+    lets the ray thread past the nape to the throat — the first build's sheet ran down inside the collar — while the
+    inside-out cast lands every column on the rearmost skin: skull, nape, the standing collar's back, the shoulders. The
+    edges stay medial to the pointed-ear cones (tips at |x| ≈ 0.09, y ≈ eyes.y + 0.11; the fall reaches |x| ≤ 0.064 at
+    y ≥ eyes.y + 0.16), so no clearance clamp is needed. Gathered by a leather tie at the nape, rigid on the Head bone
+    like the ear points: nothing sims. It wears the face's photo tile by the ears' texel-walk from a back-of-skull texel
+    (the crown fill's synthesised strands, blackened by the restyle), so the fall is exactly the buzz's cold black with
+    the tile's own strand streaks. Authored coarse, not an `extract` shell as the note first sketched: the 60k-triangle
+    ceiling leaves this fighter ~600, and the painted buzz already carries the crown."""
+    eyes = (eye_l + eye_r) / 2
+    m = head_obj.matrix_world
+    inv = m.inverted()
+    mb = body_obj.matrix_world
+    invb = mb.inverted()
+    z_top, z_tip = eyes.z + 0.040, shoulder_l.z + 0.020  # upper occiput → shoulder line (shoulder-length, owner's brief)
+    z_tie = eyes.z - 0.105                               # the nape, where the tie gathers the fall
+    cols, rows = 12, 10
+    back = Vector((0, 1, 0))  # the fighter faces -y: hair falls toward +y
+
+    def rear(x, z):  # the rearmost skin at this width and height, over both meshes, 1.5 mm steps between hits
+        best = None
+        for obj, to_local, to_world in ((head_obj, inv, m), (body_obj, invb, mb)):
+            d = (to_local.to_3x3() @ back).normalized()
+            o = to_local @ Vector((x, eyes.y + 0.02, z))
+            for _ in range(8):
+                h, loc, nrm, _ = obj.ray_cast(o, d)
+                if not h:
+                    break
+                w = to_world @ loc
+                if w.y > eyes.y + 0.08 and (best is None or w.y > best[0].y):  # behind the throat: the collar gaps at the neck hole, and a hit in front of it is the throat, not hair's surface
+                    best = (w, (to_world.to_3x3() @ nrm).normalized())
+                o = to_local @ (w + back * 0.0015)
+        return best
+
+    # the hair texel the fall borrows its colour from: the back of the skull (synthesised strands, blackened by the restyle)
+    ok, _, _, face_index = head_obj.closest_point_on_mesh(inv @ Vector((0.0, eyes.y + 0.10, eyes.z + 0.02)))
+    uv_layer = head_obj.data.uv_layers[0].data
+    poly = head_obj.data.polygons[face_index]
+    root_uv = sum((uv_layer[i].uv for i in poly.loop_indices), Vector((0.0, 0.0))) / len(poly.loop_indices)
+    verts, uvs, faces, prev = [], [], [], [None] * cols
+    for i in range(rows):
+        t = i / (rows - 1)
+        z_base = z_top + (z_tip - z_top) * t
+        gather = math.exp(-((z_base - z_tie) / 0.045) ** 2)  # the tie narrows the fall at the nape
+        half = 0.064 - 0.022 * gather + 0.008 * min(1.0, max(0.0, (z_tie - 0.06 - z_base) / 0.06))
+        for j in range(cols):
+            r = 2 * j / (cols - 1) - 1
+            x = half * r
+            z = (z_top - 0.030 * r * r) * (1 - t) + z_tip * t  # the top edge arches down at the sides into the buzz
+            hit = rear(x, z)
+            if hit:
+                p = hit[0] + hit[1] * 0.004
+            else:  # past the body: hang on from the row above
+                p = prev[j] + Vector((0, 0.004, (z_tip - z_top) / (rows - 1))) if prev[j] is not None else Vector((x, eyes.y + 0.12, z))
+            verts.append(p)
+            uvs.append((root_uv.x + r * 0.03, root_uv.y + t * 0.05))  # a walk along the tile's strand direction
+            prev[j] = p
+    for i in range(rows - 1):
+        for j in range(cols - 1):
+            a = i * cols + j
+            faces.append((a, a + 1, a + 1 + cols, a + cols))
+    me = bpy.data.meshes.new('hair_fall')
+    me.from_pydata([tuple(v) for v in verts], [], faces)
+    me.update()
+    uv = me.uv_layers.new(name='UVMap')
+    for f in me.polygons:
+        for li in f.loop_indices:
+            uv.data[li].uv = uvs[me.loops[li].vertex_index]
+        f.use_smooth = True
+    obj = bpy.data.objects.new('hair_fall', me)
+    bpy.context.scene.collection.objects.link(obj)
+    shell = obj.modifiers.new('Shell', 'SOLIDIFY')  # a thin solid sheet: the back faces render (Photo is single-sided), the rim is the silhouette edge
+    shell.thickness, shell.offset, shell.use_rim = 0.003, 0, True
+    out = [tag(obj, 'hair_fall', 'Photo', bone='Head', slot='Hair')]
+    # the tie: a small black-leather thong around the gathered fall at the nape (its front arc tucks into the nape skin)
+    tie_row = min(range(rows), key=lambda i: abs((z_top + (z_tip - z_top) * i / (rows - 1)) - z_tie))
+    y_tie = (verts[tie_row * cols + cols // 2 - 1].y + verts[tie_row * cols + cols // 2].y) / 2
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.040, minor_radius=0.006, major_segments=10, minor_segments=4, location=(0.0, y_tie, z_tie))
+    tie = bpy.context.active_object
+    tie.scale = (1.3, 0.55, 0.9)  # the gathered fall's section: wide across, thin front-to-back
+    select_only([tie])
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    bpy.ops.object.shade_smooth()
+    out.append(tag(tie, 'hair_tie', 'Leather', bone='Head', slot='Hair'))
+    print(f'HAIR FALL: {len(faces)} quads, top z {z_top:.3f} → tips {z_tip:.3f}, tie at z {z_tie:.3f} y {y_tie:.3f}, root uv {tuple(round(c, 4) for c in root_uv)}')
+    return out
+
+
 def strip_crown_under_helm(helm_parts):
     """A fighter who always wears his helm does not need the skull under it: drop the scan head's faces that lie inside
     the dome, well above the brow arch (they can never be seen; ~3k triangles)."""
@@ -1672,6 +1763,8 @@ else:
         body_parts += tusks(bpy.data.objects['kt_head'], el, er)
     if realistic and use_kt and KIT['ears']:
         body_parts += (ear_points if KIT['ears'] == 'points' else ears)(bpy.data.objects['kt_head'], el, er)  # 'points': the Nightborn's small tips; True: the goblin's long ears
+    if realistic and use_kt and KIT.get('hair') == 'fall':
+        body_parts += hair_fall(bpy.data.objects['kt_head'], body, el, er)  # the Nightborn's tied-back fall, rigid on Head (REQUESTS #2)
     if realistic:
         export_kit(body_parts, os.path.join(out, f'body_{VARIANT}.glb'))  # head, body, eyes, hair/brow/lash cards
     tunic = next(o for o in kit if o.name == 'tunic')
