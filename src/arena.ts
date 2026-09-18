@@ -191,11 +191,11 @@ export function buildArena(scene: THREE.Scene): Arena {
     irons.push(prop(box(0.16, 0.04, 0.05), x + Math.sin(a + 0.5) * 0.3, 0.035, z + Math.cos(a + 0.5) * 0.3, a + 0.5, 1, 1, [1.2, 0.9, 0.7], -5)); }
   mesh(mergeGeometries(irons), iron, 'iron');
   mesh(mergeGeometries(coals), coal, 'coals', false);
-  // Flames: one instanced crossed-quad tongue per brazier over the coals (owner 2026-09-18: the bare coals read fake — a real,
-  // moving flame, ~30% taller than the old glow strip). Additive, no light, no shadow; the flicker runs in update().
-  const flameQuad = (() => { const a = new THREE.PlaneGeometry(0.55, 0.62), b = a.clone(); b.rotateY(Math.PI / 2); const g = mergeGeometries([a, b]); g.translate(0, 0.31, 0); return g; })();
+  // Flames: one instanced tongue per brazier over the coals — three quads at 60° so it has volume from every angle
+  // (owner 2026-09-18: fat, orange-red, waving). Additive, no light, no shadow; the motion runs in update().
+  const flameQuad = (() => { const parts = [0, 1, 2].map(i => { const p = new THREE.PlaneGeometry(0.95, 0.78); p.rotateY(i * Math.PI / 3); return p; }); const g = mergeGeometries(parts); g.translate(0, 0.37, 0); return g; })();
   const flames = new THREE.InstancedMesh(flameQuad, flame, brazierAngles.length); flames.name = 'flames'; flames.castShadow = flames.receiveShadow = false; group.add(flames);
-  const flameAnchors = brazierAngles.map(a => { const [x, z] = polar(wall.inner + 0.42, a); return { x, y: wall.top + 1.32, z }; });
+  const flameAnchors = brazierAngles.map(a => { const [x, z] = polar(wall.inner + 0.42, a); return { x, y: wall.top + 1.3, z }; });
 
   // Banners: one instanced cloth, swaying about its crossbar. Dried-blood and bone cloths alternate (instance colours; no saturation).
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
@@ -254,11 +254,13 @@ export function buildArena(scene: THREE.Scene): Arena {
     coal.emissiveIntensity = 1.1 + 0.12 * Math.sin(time * 9.7) + 0.08 * Math.sin(time * 17.3 + 1.7) + 0.1 * (hash(Math.floor(time * 30), 0, 1) - 0.5) + flare * 1.3;
     bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1), a, 1); });
     banners.instanceMatrix.needsUpdate = true;
-    // Flames: each tongue stretches and leans on its own phase — two sines plus a fast noise tick, swelling with the coals' flare.
+    // Flames: a wave, not a pump (owner 2026-09-18) — a slow lean, a slow counter-rotation, a gentle breathe, a small fast lick;
+    // the vertical scale barely moves. The tongue swells with the coals' flare on a landed blow.
     flameAnchors.forEach((p, k) => {
-      const sy = 1 + 0.16 * Math.sin(time * 11 + k * 2.3) + 0.09 * Math.sin(time * 5.7 + k * 1.1) + 0.12 * (hash(Math.floor(time * 13), k, 91) - 0.5) + flare * 0.35;
-      const sx = 1 - (sy - 1) * 0.45;
-      position.set(p.x, p.y, p.z); quaternion.setFromEuler(euler.set(0.07 * Math.sin(time * 3.1 + k * 1.7), k * 1.3, 0, 'YXZ')); scale.set(sx, sy, sx);
+      const lean = 0.13 * Math.sin(time * 2.2 + k * 1.7) + 0.05 * Math.sin(time * 5.1 + k * 2.9);
+      const breathe = 1 + 0.06 * Math.sin(time * 2.9 + k * 2.1) + 0.04 * Math.sin(time * 7.3 + k) + flare * 0.25;
+      const lick = 1 + 0.08 * Math.sin(time * 4.7 + k * 3.7);
+      position.set(p.x, p.y, p.z); quaternion.setFromEuler(euler.set(lean, k * 1.3 + time * 0.35 * (k % 2 ? 1 : -1), 0, 'YXZ')); scale.set(lick, breathe, lick);
       flames.setMatrixAt(k, matrix.compose(position, quaternion, scale));
     });
     flames.instanceMatrix.needsUpdate = true;
