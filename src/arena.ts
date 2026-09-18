@@ -193,9 +193,9 @@ export function buildArena(scene: THREE.Scene): Arena {
   mesh(mergeGeometries(coals), coal, 'coals', false);
   // Flames: one instanced tongue per brazier over the coals — three quads at 60° so it has volume from every angle
   // (owner 2026-09-18: fat, orange-red, waving). Additive, no light, no shadow; the motion runs in update().
-  const flameQuad = (() => { const parts = [0, 1, 2].map(i => { const p = new THREE.PlaneGeometry(0.95, 0.78); p.rotateY(i * Math.PI / 3); return p; }); const g = mergeGeometries(parts); g.translate(0, 0.37, 0); return g; })();
+  const flameQuad = (() => { const parts = [0, 1, 2].map(i => { const p = new THREE.PlaneGeometry(1.3, 0.78); p.rotateY(i * Math.PI / 3); return p; }); const g = mergeGeometries(parts); g.translate(0, 0.37, 0); return g; })();
   const flames = new THREE.InstancedMesh(flameQuad, flame, brazierAngles.length); flames.name = 'flames'; flames.castShadow = flames.receiveShadow = false; group.add(flames);
-  const flameAnchors = brazierAngles.map(a => { const [x, z] = polar(wall.inner + 0.42, a); return { x, y: wall.top + 1.3, z }; });
+  const flameAnchors = brazierAngles.map(a => { const [x, z] = polar(wall.inner + 0.55, a); return { x, y: wall.top + 1.3, z }; });   // 0.55: the fattened quad's vertices (incl. the lick scale) stay outside the camera clamp; the offset from the coals is invisible
 
   // Banners: one instanced cloth, swaying about its crossbar. Dried-blood and bone cloths alternate (instance colours; no saturation).
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
