@@ -524,6 +524,55 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
  }
  clips.push(new T.AnimationClip(name,1,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
 }
+// Death_SplitCrown (owner-authorized finishers & gore, 2026-09-17 — additive; the 21 contract clips above stay frozen):
+// a heavy overhead into the crown. The skull gives at the impact key, then the body drops STRAIGHT down — the knees fold
+// under him, the shins slide back, he ends kneeling and folded forward over his own legs. No backward fall, no bounce.
+// 2.4 s = RULES.death (144 ticks), so the dead phase's progress sweeps the clip 1:1 exactly as Death01 does. Authored on
+// this rig from measured world references, so the re-proportioned goblin gets his own scale of the same collapse.
+{
+ const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+ const times=[0,.045,.09,.18,.32,.5,.68,.82,1],positions=[],values=new Map(skeleton.bones.map(b=>[b.name,[]]));
+ const armed=clips.find(c=>c.name==='Armed');
+ poseMixer.clipAction(armed).play();poseMixer.update(0);base.scene.updateMatrixWorld(true);
+ const pelvisRest=base.scene.getObjectByName('pelvis').position.clone();   // pelvis local frame: +z is world up (.949 standing), +y is world back
+ const footHome={l:base.scene.getObjectByName('foot_l').getWorldPosition(new T.Vector3()),r:base.scene.getObjectByName('foot_r').getWorldPosition(new T.Vector3())};
+ const FLOOR=BUILD.floor??0,rest=pelvisRest.z,ratio=rest/.949;   // kneel/fold distances scale with this rig's standing pelvis height
+ poseMixer.stopAllAction();
+ for(const phase of times){
+  poseMixer.clipAction(armed).play();poseMixer.update(0);base.scene.updateMatrixWorld(true);
+  const snap=smooth(phase/.09);                    // the skull gives: a fast downward jolt of the head in the first fifth of a second
+  const fold=smooth((phase-.09)/.5);               // the torso folds forward over the legs
+  const drop=smooth((phase-.06)/.62);              // the straight-down collapse to the knees
+  const sink=smooth((phase-.5)/.4);                // the last settle onto the folded legs
+  const kneel=smooth((phase-.06)/.5);              // the shins slide back under him
+  const pelvis=base.scene.getObjectByName('pelvis');
+  pelvis.position.set(pelvisRest.x,pelvisRest.y+kneel*.06*ratio,rest-(drop*.55+sink*.08)*rest);
+  pelvis.rotation.x+=fold*.18;
+  base.scene.getObjectByName('spine_01').rotation.x+=fold*.34+snap*.06;
+  base.scene.getObjectByName('spine_02').rotation.x+=fold*.30;
+  base.scene.getObjectByName('neck_01').rotation.x+=snap*.30+fold*.18;
+  base.scene.getObjectByName('Head').rotation.x+=snap*.50+fold*.22;
+  base.scene.updateMatrixWorld(true);
+  for(const side of ['l','r']){
+   const home=footHome[side],target=home.clone();
+   target.z-=kneel*.30*ratio; target.y=home.y+(Math.max(.05,FLOOR)-home.y)*kneel;   // the top of the foot comes to rest on the floor behind him
+   reachArm(side,target,true);
+  }
+  // The arms go slack: the hands fall from guard to his sides, then flop forward onto the ground ahead of the knees.
+  for(const side of ['l','r']){
+   const sx=side==='l' ? 1 : -1, hand=base.scene.getObjectByName('hand_'+side), home=hand.getWorldPosition(new T.Vector3());
+   const sidePt=new T.Vector3(sx*.24*ratio,rest*.55,.05*ratio);
+   const groundPt=new T.Vector3(sx*.17*ratio,Math.max(.1,FLOOR),footHome[side].z+.28*ratio-kneel*.30*ratio);
+   const goal=phase<.5 ? home.clone().lerp(sidePt,smooth((phase-.09)/.4)) : sidePt.clone().lerp(groundPt,smooth((phase-.5)/.35));
+   reachArm(side,goal);
+  }
+  base.scene.updateMatrixWorld(true);
+  positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
+  for(const bone of skeleton.bones)values.get(bone.name).push(...bone.quaternion.toArray());
+  poseMixer.stopAllAction();
+ }
+ clips.push(new T.AnimationClip('Death_SplitCrown',2.4,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
+}
 // GAMEPLAY CHANGE candidates (opt-in, combat review decides): strikes from UAL2 replace the authored attacks. Each candidate
 // joins a strike with its recovery, finds the blade's most-forward instant, and retimes piecewise so that instant lands on
 // the contract's contact fraction at the contract's duration. Moves the blade during contact → re-bake, tests, review.

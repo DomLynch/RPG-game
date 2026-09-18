@@ -445,3 +445,18 @@ by `src/assets/arena/textures.ts` from seeded noise (an integer hash, tileable v
 third-party images, models or fonts, nothing downloaded, no licence to record. The geometry in `src/arena.ts` is procedural Three.js
 (`three/addons/utils/BufferGeometryUtils.js` for merging). The same functions run in `tests/arena.test.ts`, so the pixels the test
 measures are the pixels the phone shows. Review captures: `node scripts/arena-preview.mjs --label <name>` → `artifacts/world/<name>/`.
+
+## Weapons (weapons lane, 2026-09-18) — the scythe
+
+`src/assets/weapons/scythe/`: `scythe.glb` (the part alone) and `executioner-scythe-{A,B,C}.glb` (silhouette variants, the owner's pick B
+also as `executioner-scythe.glb`) — the Executioner's own 1.36× rig carrying the scythe with a 13-clip `Scythe_*` family authored on it
+(the two-hand grip solver from the trident; per-key blade roll so the crescent reads from the game camera), plus `warrior-scythe.glb`:
+the MAN-SCALE bake rig (`WARRIOR_FIGHTER=hero WARRIOR_WEAPON=scythe WARRIOR_OUT=…`), the intended blade-table source after the combat
+lane's flip, per the cleaver convention. Built by `scripts/build-weapon.mjs` through `build-warrior.mjs`
+(`WARRIOR_FIGHTER=executioner WARRIOR_WEAPON=scythe [WEAPON_VARIANT=A|B|C] WARRIOR_OUT=…`). ON THE SHELF: nothing references these yet
+(`WEAPONS.scythe` borrows the longsword; the flip is `artifacts/weapons/REQUESTS.md` §15–17).
+
+Provenance: **original project work, no new third-party asset, texture or licence.** A procedural loft (haft sweep, the crescent's
+curved edge as a swept width envelope, wedge section) and Three.js primitives (ferrules, collar); procedural materials (varnished ash,
+pitted iron `#4c4946`); no image maps. All 13 clips are original authored keys on the same CC0 rig and the same authored-key grammar as
+the sword's clip family recorded above. Evidence and the silhouettes: `artifacts/weapons/scythe-notes.md`.

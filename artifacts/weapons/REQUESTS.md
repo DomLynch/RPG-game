@@ -210,3 +210,47 @@ Built to his brief's contract (artifacts/character/BRIEF-nightborn.md § "Weapon
 `artifacts/weapons/estoc-v1/weapon-turntable.png` (**A**, default: 1.05 m blade, straight cross + side ring), `estoc-B/` (rapier cut:
 0.95 m, swept ring guard), `estoc-C/` (long tuck: 1.15 m, plain long cross). 1,252 / 1,252 / ~1,100 triangles, no textures;
 `WEAPON_VARIANT=A|B|C`. In his hand: `estoc-v1/weapon-on-rig.png`.
+
+---
+
+# Scythe (the Executioner's) — hand-off to the combat lane, 2026-09-18
+
+On the shelf (the split): `SCYTHE` exported, `WEAPONS.scythe` still borrows the longsword, no manifest entry, the Executioner unchanged.
+The owner's call (2026-09-18): **variant B** — 1.32 m haft, 0.74 m blade, sweep .30, iron `#4c4946` (the near-black mask iron was
+invisible on the sheets and at game distance: a contrast failure, not geometry). Everything is procedural/own, no third-party assets.
+
+## 15. Combat lane — the flip (everything here is a GAMEPLAY CHANGE: review before deploy)
+1. `src/moves.ts`: `WEAPONS.scythe` → `SCYTHE` (guard `'shaft'`, material `'iron'`, `guardProfile { costScale 1.15, heavyBreaks: true }`
+   — a plain heavy breaks the haft guard like the trident's; combat may say the head catches instead, that is a one-line change,
+   `fight { thrustShare .1, close 1.5 }`).
+2. `scripts/blade-manifest.json`: `{ "weapon": "scythe", "glb": "src/assets/weapons/scythe/warrior-scythe.glb", "node": "WeaponDrawn",
+   "contact": [1.22, 1.32] }` — the MAN-SCALE bake rig (the cleaver convention). Do NOT bake from `executioner-scythe.glb`: his 1.36× root
+   bakes into the world units and his arc rides a metre over a man's capsule — every gap whiffs (measured, task 4). His rendered 1.36×
+   blade then runs past the simulated one, never short, exactly as the Pitborn's cleaver does. Then `node scripts/bake-blades.mjs`.
+3. Renderer: point the Executioner at the new rig (`OPPONENT_GLB` / his build with `WARRIOR_WEAPON=scythe`); `WEAPON_CLIPS.scythe`
+   maps to the `Scythe_*` family — 13 clips, the two-hand grip solver from the trident, per-key blade roll so the crescent reads from
+   the game camera. The man-scale `warrior-scythe.glb` ships too: it is the bake rig, keep both.
+4. With the table live, the sim reach tests can land (the trident test's method, estoc precedent pins data only on the shelf): the
+   measured frontier below should reproduce within ±0.1 m; then his battery and AI-vs-AI.
+
+## 16. What the numbers do (measured on the man-scale bake, `artifacts/weapons/tools/scythe-reach.mjs`; the tests pin the data rules)
+- Landing frontier vs a standing target: **reap 1.40–2.10 m, headsman's high 2.30, heel-jab 2.05**. `reach` = the conservative spacing
+  estimates 1.8 / 2.0 / 1.8 (the cleaver lesson: measured reaches make the AI hang out of punish range), comments in `SCYTHE_MOVES` pin
+  the frontiers.
+- **The dead band is 1.40 m, not the brief's ~1 m** — the arc physically cannot develop inside it (minReach 1.4 on the reaps). Flagged
+  for combat review: it is a third bigger than the brief promised; shrinking it means a shorter haft, not data.
+- Timings: reap 24/8/26 (chain 18/8/20, the cross like the sword's cuts), high 36/5/33 (chain 24/5/33), jab 14/4/18, riposte 12/5/19.
+  Damage 16 / 22 / 8 / 20 (jab half a cut, no chip — spacing and interrupt tool); stamina 28 / 38 / 18; chip .25 / .5 / 0.
+- The bake lesson that cost a retime: **the striking segment must sit ON the target line at the clip's contact key** — the first reap
+  keyed the head 0.7 m past the centre crossing and the whole 8-tick active window whiffed at every gap. The rig test now pins the
+  contact poses (`tests/weapons.test.ts`, "the scythe's authored contact poses meet the target line").
+
+## 17. Owner / combat-lead calls
+- **The Stab button (combat lead's nod pending).** A scythe has no point; the thrust is the heel-jab — the head punches forward short
+  and level, blade trailing so the heel leads (contact segment 1.22–1.32 on the head, single segment, no tine exception). If Stab must
+  stay a point weapon, the alternative is mapping his jab to a second button — but the reap chain already covers "close then arc".
+- **AI profile proposal**: `fight { thrustShare .1, close 1.5 }` — the jab is one opener in ten; he holds the arc's range and never
+  swings inside 1.4 m: there he kicks or backsteps out, like the trident warden inside his point (the duel code already enforces the
+  hole via minReach; the stance field is his spacing).
+- **Not measured**: his fairness battery, AI-vs-AI, and guard-feel (the haft guard at costScale 1.15 with a plain heavy breaking it is
+  the trident's profile transplanted — his is a heavier weapon and may want heavyBreaks off).
