@@ -45,7 +45,7 @@ KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'b
        'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False, 'barefoot': True, 'ears': False},
        # The Nightborn: black-dyed wool (never pure black — below ~12 % value the folds and occlusion have nothing to shade at phone size), clean,
        # the base frame (lean), a closed tunic over both shoulders with a standing collar, no helm, no greaves. artifacts/character/BRIEF-nightborn.md.
-       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': 'points'},  # ears 'points': small tips on the scan's own ears (his brief), not the goblin's long ears
+       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': 'points', 'crown': True},  # ears 'points': small tips on the scan's own ears (his brief), not the goblin's long ears; crown: the small dark-ruby circlet (his examples, 2026-09-18)
        'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -1064,6 +1064,92 @@ def ear_points(head_obj, eye_l, eye_r):
     return out
 
 
+def nightborn_crown(skull_obj, eye_l, eye_r):
+    """Helmet slot: the Nightborn's crown (owner's examples, 2026-09-18 — dark gothic circlets, his words 'small crown,
+    dark ruby colour'). A band around the skull at mid-forehead, fitted the helm's way (an ellipse measured off the
+    scan's own cross-section, not the triangles of the head it sits on), and seven flame-curved prongs — tallest at
+    the front, shrinking around the sides — each a tapered blade leaning gently outward. Dark ruby metal (the 'Ruby'
+    material), rigid on the Head bone like the ear points: nothing sims. Small by instruction: the tallest prong is
+    ~7.5 cm, well under the 2.0 m locomotion ceiling."""
+    eyes = (eye_l + eye_r) / 2
+    skull = [v.co for v in skull_obj.data.vertices]
+    band_z = eyes.z + 0.092  # perched on the crown proper, level — the owner's '3x more' (v6): the tilt is out (he
+    TILT = 0.0              # called v5 worse) and the band rides at the top of the skull; the prongs carry the height
+    for win in (0.006, 0.012, 0.020):  # the skull narrows toward the top: widen the fit window until the ring has verts
+        ring = [v for v in skull if band_z - win < v.z < band_z + win]
+        if len(ring) >= 24:
+            break
+    rx = max(abs(v.x) for v in ring) + 0.009
+    front_y, back_y = min(v.y for v in ring), max(v.y for v in ring)
+    centre = Vector((0.0, (front_y + back_y) / 2, band_z))
+    ry = (back_y - front_y) / 2 + 0.009
+
+    def rim(phi, zoff=0.0):  # the band's ellipse; 0° is the front (the fighter faces -y)
+        r = math.radians(phi)
+        return centre + Vector((rx * math.sin(r), -ry * math.cos(r), zoff + TILT * (1 - math.cos(r)) / 2))
+
+    # the band: a 2-row ribbon around the skull, solidified to plate
+    segs = 48
+    verts, uvs, faces = [], [], []
+    for i in range(segs):
+        phi = 360 * i / segs
+        lo, hi = rim(phi, -0.011), rim(phi, 0.011)  # 22 mm face — the owner's 'a bit thicker' (v1 was 14 mm and read thin)
+        verts += [tuple(lo), tuple(hi)]
+        uvs += [(i / segs * 2, 0), (i / segs * 2, 1)]
+    for i in range(segs):
+        a = 2 * i
+        faces.append((a, 2 * ((i + 1) % segs), 2 * ((i + 1) % segs) + 1, a + 1))
+    me = bpy.data.meshes.new('crown_band')
+    me.from_pydata(verts, [], faces)
+    me.update()
+    uv = me.uv_layers.new(name='UVMap')
+    for f in me.polygons:
+        for li in f.loop_indices:
+            uv.data[li].uv = uvs[me.loops[li].vertex_index]
+    band = bpy.data.objects.new('crown_band', me)
+    bpy.context.scene.collection.objects.link(band)
+    shell = band.modifiers.new('Plate', 'SOLIDIFY')
+    shell.thickness, shell.offset, shell.use_rim = 0.006, 0, True
+    out = [tag(band, 'crown_band', 'Ruby', bone='Head', slot='Helmet')]
+
+    # the prongs: tapered blades in each azimuth's radial plane, leaning out like flame
+    prongs = [(0, 0.105), (-38, 0.092), (38, 0.092), (-80, 0.073), (80, 0.073), (-125, 0.058), (125, 0.058)]
+    pverts, puvs, pfaces = [], [], []
+    vbase = 0
+    for phi, h in prongs:
+        r = math.radians(phi)
+        radial = Vector((math.sin(r), -math.cos(r), 0.0))
+        tangent = Vector((math.cos(r), math.sin(r), 0.0))
+        base_pt = rim(phi, 0.007)
+        rows = 6
+        for i in range(rows):
+            t = i / (rows - 1)
+            spine = base_pt + Vector((0, 0, h * t)) + radial * (0.028 * t ** 1.5 - 0.010 * max(0.0, t - 0.72) / 0.28)  # leans out, then the tip curls back like a flame
+            w = 0.014 * (1 - t) ** 0.75  # 28 mm base — thicker spikes (owner, v2): v1's 19 mm read thin at the lock camera
+            pverts += [tuple(spine - tangent * w), tuple(spine + tangent * w)]
+            puvs += [(0, t), (1, t)]
+        for i in range(rows - 1):
+            a = vbase + 2 * i
+            pfaces.append((a, a + 1, a + 3, a + 2))
+        vbase += 2 * rows
+    pme = bpy.data.meshes.new('crown_prongs')
+    pme.from_pydata(pverts, [], pfaces)
+    pme.update()
+    puv = pme.uv_layers.new(name='UVMap')
+    for f in pme.polygons:
+        for li in f.loop_indices:
+            puv.data[li].uv = puvs[pme.loops[li].vertex_index]
+    pr = bpy.data.objects.new('crown_prongs', pme)
+    bpy.context.scene.collection.objects.link(pr)
+    pshell = pr.modifiers.new('Plate', 'SOLIDIFY')
+    pshell.thickness, pshell.offset, pshell.use_rim = 0.005, 0, True
+    for poly in pme.polygons:
+        poly.use_smooth = True
+    out.append(tag(pr, 'crown_prongs', 'Ruby', bone='Head', slot='Helmet'))
+    print(f'CROWN: band rx {rx:.3f} ry {ry:.3f} at z {band_z:.3f}, {len(prongs)} prongs to +{max(h for _, h in prongs):.3f} m')
+    return out
+
+
 def strip_crown_under_helm(helm_parts):
     """A fighter who always wears his helm does not need the skull under it: drop the scan head's faces that lie inside
     the dome, well above the brow arch (they can never be seen; ~3k triangles)."""
@@ -1672,6 +1758,8 @@ else:
         body_parts += tusks(bpy.data.objects['kt_head'], el, er)
     if realistic and use_kt and KIT['ears']:
         body_parts += (ear_points if KIT['ears'] == 'points' else ears)(bpy.data.objects['kt_head'], el, er)  # 'points': the Nightborn's small tips; True: the goblin's long ears
+    if realistic and use_kt and KIT.get('crown'):
+        body_parts += nightborn_crown(bpy.data.objects['kt_head'], el, er)  # the small dark-ruby circlet (owner's examples, 2026-09-18)
     if realistic:
         export_kit(body_parts, os.path.join(out, f'body_{VARIANT}.glb'))  # head, body, eyes, hair/brow/lash cards
     tunic = next(o for o in kit if o.name == 'tunic')

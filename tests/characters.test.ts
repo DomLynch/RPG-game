@@ -155,10 +155,11 @@ test('the renderer builds a trident fighter without throwing, keeps the weapon i
 
 
 // Standing height of a clip's first frame: the top of every skinned vertex.
-function standingTop(asset: Awaited<ReturnType<typeof readWarrior>>, clipName = 'Idle') {
+// `skip` excludes meshes (e.g. the Nightborn's crown) so accessories can be measured separately from the body.
+function standingTop(asset: Awaited<ReturnType<typeof readWarrior>>, clipName = 'Idle', skip?: (o: SkinnedMesh) => boolean) {
   const mixer = new AnimationMixer(asset.scene), clip = asset.animations.find(a => a.name === clipName)!, point = new Vector3(), bounds = new Box3();
   mixer.clipAction(clip).play(); mixer.setTime(0); asset.scene.updateMatrixWorld(true);
-  asset.scene.traverse(o => { if (!(o instanceof SkinnedMesh)) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 3) { point.fromBufferAttribute(p, i); o.applyBoneTransform(i, point); point.applyMatrix4(o.matrixWorld); bounds.expandByPoint(point); } });
+  asset.scene.traverse(o => { if (!(o instanceof SkinnedMesh) || (skip && skip(o))) return; const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 3) { point.fromBufferAttribute(p, i); o.applyBoneTransform(i, point); point.applyMatrix4(o.matrixWorld); bounds.expandByPoint(point); } });
   return bounds.max.y;
 }
 const HUNCHED = ['spine_02', 'spine_03', 'neck_01', 'Head'];   // scripts/build-warrior.mjs BUILD.pitborn.hunch
@@ -473,7 +474,13 @@ test('the Nightborn is the warrior\'s rig at OPPONENTS.nightborn.scale, upright 
   }
   const k = OPPONENTS.nightborn.scale, root = (a: typeof hero) => a.scene.children[0].scale;
   for (const axis of ['x', 'y', 'z'] as const) assert.ok(Math.abs(root(him)[axis] / root(hero)[axis] - k) < 1e-3, `root scale ${axis}: ${root(him)[axis]} / ${root(hero)[axis]}`);
-  const ratio = standingTop(him) / standingTop(hero);
-  assert.ok(ratio > k - .03 && ratio <= k + .02, `standing height ratio ${ratio.toFixed(3)} for scale ${k} (${standingTop(him).toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
-  console.log(`nightborn stands ${standingTop(him).toFixed(3)} m to the hero's ${standingTop(hero).toFixed(3)} (×${ratio.toFixed(3)}, scale ${k}); ${posed} re-posed tracks`);
+  // The crown (material 'Ruby', rigid on Head) rides above the old silhouette — the owner-approved v6, 2026-09-18.
+  // The body's proportion invariant is checked without it; the crown is then asserted to add a sane band of height.
+  const noCrown = (o: SkinnedMesh) => (Array.isArray(o.material) ? o.material[0] : o.material)?.name === 'Ruby';
+  const bodyRatio = standingTop(him, 'Idle', noCrown) / standingTop(hero);
+  assert.ok(bodyRatio > k - .03 && bodyRatio <= k + .02, `body height ratio ${bodyRatio.toFixed(3)} for scale ${k} (${standingTop(him, 'Idle', noCrown).toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
+  const top = standingTop(him), crownRise = top - standingTop(him, 'Idle', noCrown);
+  assert.ok(crownRise > .02 && crownRise < .12, `the crown rides ${(crownRise * 100).toFixed(0)} cm above the scaled body (expected 2–12 cm)`);
+  assert.ok(top / standingTop(hero) <= k + .05, `silhouette top ${top.toFixed(3)} m stays within the locomotion bounds allowance`);
+  console.log(`nightborn stands ${standingTop(him, 'Idle', noCrown).toFixed(3)} m body (${top.toFixed(3)} m with the crown) to the hero's ${standingTop(hero).toFixed(3)} (×${bodyRatio.toFixed(3)}, scale ${k}); ${posed} re-posed tracks`);
 });
