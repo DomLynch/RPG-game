@@ -41,6 +41,15 @@ These define a direction, not a promise of native AAA fidelity on a mobile brows
 - Before a real progression/retention test, server-owned character state with persistent guest credentials and optional account recovery. Clearing browser credentials or private browsing can lose guest access; local storage alone is not recovery.
 - No artificial retention incentives in the first rematch test.
 
+## Fighter progression ladder — owner-locked 2026-09-18
+The fighter climbs 10 plain, street-recognizable titles, each with sub-ranks I–V (50 rungs total), low to high:
+**Recruit** → **Legionary** → **Gladiator** (earning the plain name is a beat) → **Centurion** → **Champion** →
+**Praetorian** → **Master** → **Primus** → **Invictus** (the unconquered) → **Origin** (rank 10 carries the game's name —
+the fighter who started it all). Owner chose this set over a Latin-authentic list (Servus/Tiro/Rudiarius…): every word
+here is one a normal player already knows. "Veteran" was deliberately avoided — the first ladder opponent owns that name.
+A future league table layers on top: titles are milestones, sub-ranks become the weekly grind, and rank-10 status is
+held, not kept (defeat in the league can cost it). Ranked power still cannot depend on grind or purchases (Product defaults).
+
 ## Your fighter: Origins
 Players are human fighters with an Origin. In v1 an Origin is a visual and equipment family on the shared skeleton, not a separate species: it sets starting silhouette, armour family, weapon family and idle/salute style. It changes how you look and what you start with, not how strong you are.
 
@@ -151,12 +160,13 @@ Defensive presentation refinement: confirmed block/parry results select original
 ## Owner-authorized finishers & gore — 2026-09-17
 Owner direction: a kill deserves a closer — the ceremony of a Mortal Kombat finisher, but gritty and realistic under the art direction (weight and finality, never acrobatics; readable brutality over spectacle still binds: nothing may cover a pose the player needs to read). This is the "separately reviewed animation milestone" the 2026-09-13 blood layer deferred; it removes finishers from the roadmap deferral list (wounds stay as authorized 2026-09-13 — no per-limb anatomy, no permanent penalties).
 
-Selection is deterministic: the finisher is a pure function of the `Killed` event (victim, location, move, heading) and the fighters' weapons, chosen after damage is decided, consuming no new simulation state — the same duel replays the same finisher. With more than one shipped finisher, kills pick between them through a deterministic rotation pool seeded from the kill event (never wall-clock randomness). The simulation is untouched: `RULES.death` (144 ticks), the 220 ms Killed hit-stop, and "death has no tail" all stand. Presentation may hold the corpse and the camera past the window (the duel is over; `finish` is set), but the rematch flow's timing stays data.
+Selection is deterministic: the finisher is a pure function of the `Killed` event (victim, location, move, heading) and the fighters' weapons, chosen after damage is decided, consuming no new simulation state — the same duel replays the same finisher. Kills rotate through the shipped set PLUS the plain death (owner 2026-09-18 ~23:30: the default fall stays in the mix — a kill landing on it stays frighteningly ordinary) via a deterministic rotation pool seeded from the kill event (never wall-clock randomness). The simulation is untouched: `RULES.death` (144 ticks), the 220 ms Killed hit-stop, and "death has no tail" all stand. Presentation may hold the corpse and the camera past the window (the duel is over; `finish` is set), but the rematch flow's timing stays data. Pacing (owner 2026-09-18: "slow it down 25% so I can savour it"): a cinematic finisher's corpse animates at 0.75× on a presentation clock — presentation time dilation only, not simulation slow motion; a plain-death pick plays at full speed with no dolly.
 
 v1 set (the victim is the opponent; the player's own death keeps the plain fall until a v2 review):
 - **Split Crown** — heavy overhead to the head: the skull gives, the blade bites deep, the body drops straight down. No bounce. (Shipped 2026-09-18, judged on the phone; stays as finisher #1.)
 - **Decapitation** — any blade kill the rotation picks for it (owner 2026-09-18, the first step toward the 5+ set): the head comes off just after the skull-gives jolt and rolls to a stop; the body drops straight down as in Split Crown (the v1 body clip is shared). The severed head is presentation: baked at runtime from the victim rig's own head geometry (face, hair, helm — whoever he is), so no new art or clip ships; blood 'off' keeps the head on, like every gore effect.
-- **Run Through** — thrust to the torso: through the body, a held beat as the victim grips the blade, then slides off it.
+- **Run Through** — any blade kill the rotation picks for it (shipped 2026-09-18 as finisher #4): the thrust drives him up onto his toes, arched back over the blade; a held beat — both hands grip the blade at the chest, a small tremble; then the strength goes and he slides straight down off it, folded over his own legs. Own additive clip (`Death_RunThrough`, 2.4 s, all rigs).
+- **The Plain Death** — in the rotation by the owner's call: no ceremony, the original fall, full speed, no dolly.
 - **The Quiet One** — light/return cut to the neck: deliberately underplayed — a stagger, a hand to the throat, a collapse.
 - **Opened** — heavy to the torso: upright for a beat, then folds at the waist.
 - **Hamstrung** — a low killing blow to the legs: knees first, then down.

@@ -90,7 +90,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   const plain = new THREE.MeshStandardMaterial({ name: 'ash plain', color: '#4a463f', roughness: 1 });
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
   const flame = new THREE.MeshBasicMaterial({ name: 'flame', map: textures.flame, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-  const motesMaterial = new THREE.PointsMaterial({ name: 'motes', map: textures.mote, size: 0.2, transparent: true, opacity: 0.62, depthWrite: false, sizeAttenuation: true, color: '#847b6e' });
+  const motesMaterial = new THREE.PointsMaterial({ name: 'motes', map: textures.mote, size: 0.1, transparent: true, opacity: 0.62, depthWrite: false, sizeAttenuation: true, color: '#847b6e' });
   const gateLightMaterial = new THREE.MeshBasicMaterial({ name: 'gate-light', map: textures.gateLight, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary, flame, motesMaterial, gateLightMaterial];
   const mottle = fbm(4, 3, 9);
@@ -260,7 +260,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   const flameAnchors = brazierAngles.map(a => { const [x, z] = polar(wall.inner + 0.55, a); return { x, y: wall.top + 1.3, z }; });   // 0.55: the fattened quad's vertices (incl. the lick scale) stay outside the camera clamp; the offset from the coals is invisible
   // Ash motes hanging in the air: one Points cloud, positions recomputed in update() (base + slow drift + a gust on a landed blow).
   // Not a Mesh: the solid-geometry rules (play circle, camera clamp) are about things the camera can clip through; a speck cannot.
-  const moteCount = 260, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2);
+  const moteCount = 520, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2);
   for (let i = 0; i < moteCount; i++) {
     const a = hash(i, 0, 61) * TAU, near = hash(i, 5, 61) < 0.62, r = Math.sqrt(hash(i, 1, 61)) * (near ? 7.2 : 10.6), y = 0.5 + Math.pow(hash(i, 2, 61), 1.3) * 4.9;
     moteBase[i * 3] = r * Math.sin(a); moteBase[i * 3 + 1] = y; moteBase[i * 3 + 2] = r * Math.cos(a);

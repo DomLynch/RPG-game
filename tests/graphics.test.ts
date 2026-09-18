@@ -175,10 +175,10 @@ test('coach hints teach the skill moves on the first warden only, and the journa
   assert.equal(coach.hidden, true, 'no hint before anything happens');
   app.key('KeyE'); app.tick(); app.release('KeyE');   // a backstep
   assert.equal(coach.hidden, false, 'the dodge-attack hint flashes on the first warden');
-  assert.match(coach.textContent, /fast cut/);
+  assert.match(coach.textContent, /QUICK CUT/);
   for (let i = 0; i < 15; i++) app.tick();   // the backstep recovers; the warden may answer meanwhile, the hint line persists
   app.key('KeyG'); app.tick(); app.release('KeyG');   // a heavy: the feint hint fires once per fight
-  assert.match(coach.textContent, /feint/);
+  assert.match(coach.textContent, /FEINT/);
   for (let i = 0; i < 90; i++) app.tick();
   assert.equal(coach.hidden, false, 'the VM stubs the fade timer: the line stays until the next hint or a reset');
   app.element('mobile-coach').click();

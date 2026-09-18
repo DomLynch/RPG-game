@@ -6,33 +6,33 @@ import type { HitLocation } from '../src/blade.ts';
 import type { MoveId, WeaponId } from '../src/moves.ts';
 
 // Finishers & gore v1 (owner-authorized 2026-09-17; blade-kill rule owner-decided 2026-09-18 on PR #112 and broadened the
-// same day after the owner's live playtest; two-finisher rotation owner-decided 2026-09-18): selection is a pure function of
-// the Killed event. These tests pin the rule; the mutation receipts are the discriminations (swap any null-row field and
-// the pick changes).
+// same day after the owner's live playtest; two-finisher rotation owner-decided 2026-09-18, grown to four with Run Through
+// and the plain death in the mix, owner 2026-09-18 ~23:30): selection is a pure function of the Killed event. These tests
+// pin the rule; the mutation receipts are the discriminations (swap any null-row field and the pick changes).
 const kill = (move: MoveId, location: HitLocation, victim: 0 | 1 = 1, draw = false): Finish => ({ victim, location, move, heading: 1.1, ...(draw ? { draw: true } : {}) });
 const LONGSWORDS: readonly [WeaponId, WeaponId] = ['longsword', 'longsword'];
-const SHIPPED = ['splitCrown', 'decapitation'] as const;
+const SHIPPED = ['splitCrown', 'decapitation', 'runThrough', 'plainDeath'] as const;
 
-test('selection is the owner rule: ANY blade kill plays a finisher, whatever the move or location', () => {
-  // owner 2026-09-18: every blade kill gets a finisher — light, thrust, riposte, heavy, critical, any location — picked
-  // from the shipped rotation by the kill event's seed
+test('selection is the owner rule: ANY blade kill plays an outcome, whatever the move or location', () => {
+  // owner 2026-09-18: every blade kill draws one of the four — Split Crown, Decapitation, Run Through, or the plain death —
+  // picked by the kill event's seed. Light, thrust, riposte, heavy, critical, any location.
   for (const [move, location] of [['light_right', 'torso'], ['light_left', 'head'], ['thrust', 'torso'], ['riposte', 'legs'], ['heavy_overhead', 'torso'], ['heavy_overhead', 'head'], ['heavy_riposte', 'legs'], ['heavy_counter', 'head'], ['critical', 'torso'], ['critical', 'head'], ['light_right', 'legs']] as [MoveId, HitLocation][])
-    assert.ok(SHIPPED.includes(selectFinisher(kill(move, location), LONGSWORDS)), `${move} @ ${location} plays a shipped finisher`);
+    assert.ok(SHIPPED.includes(selectFinisher(kill(move, location), LONGSWORDS)), `${move} @ ${location} draws a shipped outcome`);
 });
 
-test('the rotation is seeded from the kill event: same event, same finisher; different events pick both', () => {
+test('the rotation is seeded from the kill event: same event, same outcome; the spread covers all four', () => {
   // pinned picks (the hash in selectFinisher — swap the seed and these change)
-  assert.equal(selectFinisher(kill('heavy_overhead', 'torso'), LONGSWORDS), 'splitCrown');
+  assert.equal(selectFinisher(kill('heavy_overhead', 'torso'), LONGSWORDS), 'runThrough');
   assert.equal(selectFinisher(kill('light_right', 'torso'), LONGSWORDS), 'decapitation');
-  assert.equal(selectFinisher(kill('critical', 'head'), LONGSWORDS), 'splitCrown');
-  assert.equal(selectFinisher(kill('critical', 'torso'), LONGSWORDS), 'decapitation');
-  // both finishers are reachable across the kill-event space
+  assert.equal(selectFinisher(kill('light_right', 'head'), LONGSWORDS), 'splitCrown');
+  assert.equal(selectFinisher(kill('thrust', 'head'), LONGSWORDS), 'plainDeath');
+  // every outcome is reachable across the kill-event space
   const picks = new Set<FinisherId>();
-  for (const move of ['light_right', 'thrust', 'riposte', 'heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'] as MoveId[])
+  for (const move of ['light_right', 'light_left', 'thrust', 'riposte', 'heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'] as MoveId[])
     for (const location of ['head', 'torso', 'legs'] as HitLocation[])
       picks.add(selectFinisher(kill(move, location), LONGSWORDS));
   assert.deepEqual([...picks].sort(), [...SHIPPED].sort());
-  // determinism: the same event twice is the same finisher
+  // determinism: the same event twice is the same outcome
   const finish = kill('heavy_overhead', 'head');
   assert.equal(selectFinisher(finish, LONGSWORDS), selectFinisher({ ...finish }, LONGSWORDS));
 });
@@ -54,10 +54,12 @@ test('selection is deterministic and reads only the event and the weapons', () =
   assert.notEqual(selectFinisher(kill('light_right', 'head'), LONGSWORDS), selectFinisher(kill('light_right', 'head', 0), LONGSWORDS));
 });
 
-test('Split Crown and Decapitation have shipped poses; every other finisher falls back to the plain Death', () => {
-  const poses = Object.entries(FINISHER_POSE) as [FinisherId, 'splitCrown' | 'decapitation' | null][];
-  assert.deepEqual(poses.map(([id]) => id), ['splitCrown', 'decapitation', 'runThrough', 'quietOne', 'opened', 'hamstrung', 'execution']);
+test('Split Crown, Decapitation and Run Through have shipped poses; plainDeath and the rest play the plain Death', () => {
+  const poses = Object.entries(FINISHER_POSE) as [FinisherId, 'splitCrown' | 'decapitation' | 'runThrough' | null][];
+  assert.deepEqual(poses.map(([id]) => id), ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened', 'hamstrung', 'execution']);
   assert.equal(FINISHER_POSE.splitCrown, 'splitCrown');
   assert.equal(FINISHER_POSE.decapitation, 'decapitation');   // reuses the Split Crown body collapse; the severed head is the gore layer
-  for (const [id, pose] of poses) if (id !== 'splitCrown' && id !== 'decapitation') assert.equal(pose, null, `${id} waits for its clip`);
+  assert.equal(FINISHER_POSE.runThrough, 'runThrough');       // impaled on the blade, held beat gripping it, slides down off it
+  assert.equal(FINISHER_POSE.plainDeath, null);               // the default fall, in the rotation by the owner's call — null = the plain Death clip
+  for (const [id, pose] of poses) if (!['splitCrown', 'decapitation', 'runThrough'].includes(id)) assert.equal(pose, null, `${id} plays the plain Death`);
 });
