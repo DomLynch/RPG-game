@@ -179,17 +179,17 @@ export function bannerAlpha(width = 128, height = 256, seed = 31): Pixels {
     const a = torn || side || hole ? 0 : 255; return [a, a, a, a];   // three.js reads an alphaMap from the green channel: the mask fills every channel
   });
 }
-// A brazier flame: white-hot core low and centred, orange mid, transparent at the licked edges (owner 2026-09-18: the bare
-// coals read fake — a real tongue of fire). Additive-blended on crossed quads; the arena animates scale and lean per frame,
-// so the texture itself stays static and cheap.
+// A brazier flame: fat and orange-red (owner 2026-09-18: the first pass read as a thin yellow sword — too narrow, too white,
+// pumped up and down). A small warm heart low down, an orange body, deep red edges and tip, the outline licked by noise.
+// Additive-blended on three crossed quads; the arena leans and waves it per frame, so the texture itself stays static.
 export function flamePixels(width = 128, height = 256, seed = 37): Pixels {
   const lick = fbm(5, 3, seed), wisp = fbm(9, 2, seed + 3, 0.6);
   return pixels(width, height, (u, v) => {
-    // v: 0 at the base, 1 at the tip. The body is widest just above the base and narrows to a tongue.
-    const body = Math.pow(1 - v, 0.6) * Math.min(1, v * 7), w = 0.4 * body * (0.75 + 0.4 * lick(u, v * 2));
-    const d = w > 0 ? Math.abs(u - 0.5) / w : 2, a = Math.pow(Math.max(0, 1 - d), 1.4) * (1 - 0.25 * v) * (0.85 + 0.3 * wisp(u, v));
-    const core = Math.max(0, 1 - d * 2.2) * (1 - v * 0.55);   // the white heart
-    return [255, 120 + 115 * core + 40 * (1 - v), 25 + 150 * core, Math.round(255 * Math.min(1, a))];
+    // v: 0 at the base, 1 at the tip. A fat body widest low, narrowing to a ragged tongue.
+    const body = Math.pow(1 - v, 0.5) * Math.min(1, v * 4), w = 0.5 * body * (0.7 + 0.45 * lick(u, v * 2));
+    const d = w > 0 ? Math.abs(u - 0.5) / w : 2, a = Math.pow(Math.max(0, 1 - d), 1.3) * (1 - 0.2 * v) * (0.85 + 0.3 * wisp(u, v));
+    const heart = Math.max(0, 1 - d * 2.6) * Math.max(0, 1 - v * 1.6);   // the warm heart dies quickly with height
+    return [205 + 50 * heart, 55 + 65 * (1 - d) * (1 - v * 0.6) + 80 * heart, 10 + 14 * (1 - d) + 55 * heart, Math.round(255 * Math.min(1, a))];
   });
 }
 // Mean linear luminance of an sRGB pixel buffer: the number the contrast rule is written in.
