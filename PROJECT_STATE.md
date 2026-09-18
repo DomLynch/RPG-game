@@ -571,3 +571,18 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 - Measured on his rig: the blade lands 0.30 m past the sword everywhere (thrust 2.35, cut 2.0, heavy 2.5); `reach` stays the sword's
   conservative numbers per his brief, the margin reported for combat review. Owner's pick pending: A estoc (default), B rapier cut, C long
   tuck (REQUESTS §14). Hand-off: REQUESTS §12–13. Tests: 224/224.
+
+## Scythe v1 — the weapons lane — 2026-09-18
+- Branch `weapons/scythe-v1` from trunk 7ee6e34. The Executioner's scythe (owner picked B over axe, 2026-09-18: the axe duplicated the
+  Pitborn's cleaver): 1.32 m haft, 0.74 m blade, sweep .30, iron `#4c4946` — 495 triangles, no textures, contact = the head (1.22–1.32 m).
+  His own 1.36× rig carries it (`src/assets/weapons/scythe/executioner-scythe.glb`) with a 13-clip `Scythe_*` family authored on it (the
+  trident's two-hand grip solver, per-key blade roll so the crescent reads from the game camera). On the shelf: `SCYTHE` exported,
+  `WEAPONS.scythe` still the placeholder, no manifest entry; the combat lane's flip is REQUESTS §15–17 and every part of it is a
+  GAMEPLAY CHANGE (new timings, shaft guard profile, chip profile, the arc's dead band).
+- Measured on the man-scale bake rig `warrior-scythe.glb` (the cleaver convention — his own 1.36× GLB bakes over a man's capsule and
+  everything whiffs): reap lands 1.40–2.10 m, the headsman's high 2.30, the heel-jab 2.05; `reach` = the conservative spacing estimates
+  1.8 / 2.0 / 1.8. The dead band is 1.40 m, not the brief's ~1 m — flagged for combat review. The bake caught and the rig test now pins:
+  the striking segment must sit ON the target line at the clip's contact key (the first reap keyed it 0.7 m past the crossing and the
+  whole active window whiffed).
+- Evidence: tests/weapons.test.ts +4 (231/231 on the branch; shelf state, rig contract, contact-pose regression guard, data rules),
+  `artifacts/weapons/scythe-notes.md`, sheets `scythe-A/`, `sche-B/…`, `scythe-C/`, `scythe-v1…v5/`, `executioner-baseline/`.

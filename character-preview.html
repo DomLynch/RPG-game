@@ -188,8 +188,9 @@ const api = {
   reset,
   // Weapons lane views (node scripts/character-preview.mjs --weapons [--enemy <glb>]): the opponent's weapon alone, in his hands, its
   // clips, the brief's phone lock camera and one scripted exchange — the same captures for the longsword baseline and every weapon after it.
-  weaponRoles() { // role → the opponent's clip: a weapon build carries its own set (Trident_*); the baseline Veteran uses the sword's
-    const trident = enemyClips.some(c => c.name === 'Trident_Idle');
+  weaponRoles() { // role → the opponent's clip: a weapon build carries its own set (Trident_*, Scythe_*); the baseline Veteran uses the sword's
+    const trident = enemyClips.some(c => c.name === 'Trident_Idle'), scythe = enemyClips.some(c => c.name === 'Scythe_Idle');
+    if (scythe) return { idle: 'Scythe_Idle', approach: 'Scythe_Walk', strafeLeft: 'Scythe_StrafeLeft', strafeRight: 'Scythe_StrafeRight', thrust: 'Scythe_Thrust', chain: 'Scythe_Chain', sweep: 'Scythe_Reap', high: 'Scythe_High', guard: 'Scythe_Guard', impact: 'Scythe_BlockImpact', deflected: 'Scythe_Deflected', hit: 'Scythe_Hit', death: 'Scythe_Death' };
     return trident ? { idle: 'Trident_Idle', approach: 'Trident_Walk', strafeLeft: 'Trident_StrafeLeft', strafeRight: 'Trident_StrafeRight', thrust: 'Trident_Thrust', chain: 'Trident_ThrustChain', sweep: 'Trident_Sweep', high: 'Trident_High', guard: 'Trident_Guard', impact: 'Trident_BlockImpact', deflected: 'Trident_Deflected', hit: 'Trident_Hit', death: 'Trident_Death' }
       : { idle: 'Armed', approach: 'ArmedWalk', strafeLeft: 'StrafeLeft', strafeRight: 'StrafeRight', thrust: 'Riposte', chain: 'Riposte', sweep: 'Attack', high: 'Heavy', guard: 'Guard', impact: 'BlockImpact', deflected: 'Deflected', hit: 'Hit', death: 'Death' };
   },
@@ -200,6 +201,7 @@ const api = {
     const holder = new THREE.Group(); holder.add(solo); studio.add(holder); holder.updateWorldMatrix(true, true);
     const box = new THREE.Box3().setFromObject(solo), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
     holder.position.set(-mid.x, 1 - mid.y, -mid.z); const d = Math.max(size.x, size.y, size.z) * 1.6; // 1.6: a hooked or forked head must not clip the frame
+    holder.rotation.z = -.9;   // lay a long polearm diagonally across the portrait cell (the trident's upright fork read fine; a 2 m scythe wastes the frame vertical)
     const out = cells(4, 2, 480, 720, 1, i => { const a = i * Math.PI / 4; camera.fov = 35; camera.position.set(Math.sin(a) * d, 1.05, Math.cos(a) * d); camera.lookAt(0, 1, 0); renderer.render(studio, camera); return `${w.node.name} ${i * 45}°  ${size.y.toFixed(2)} m, contact ${w.contact[0]}–${w.contact[1]} m`; });
     studio.remove(holder); player.visible = opponent.visible = true; return out;
   },

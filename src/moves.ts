@@ -9,7 +9,7 @@ export const total = (t: Timing): number => t.windup + t.active + t.recovery;
 // Baked blade trajectories: one immutable table per (authored clip, timing). scripts/bake-blades.mjs samples the rig at these
 // timings; tests assert the shipped rig still agrees. `source` is the contact time inside the clip; `clip` is the rig animation.
 export type PathId = 'light_right' | 'light_left' | 'light_right_chain' | 'light_left_chain' | 'heavy_overhead' | 'heavy_overhead_chain' | 'thrust' | 'riposte' | 'heavy_riposte';
-export type PathSpec = Timing & { clip: 'Attack' | 'Return' | 'Heavy' | 'Riposte' | 'Trident_Thrust' | 'Trident_ThrustChain' | 'Trident_Sweep' | 'Trident_High'; source: number };
+export type PathSpec = Timing & { clip: 'Attack' | 'Return' | 'Heavy' | 'Riposte' | 'Trident_Thrust' | 'Trident_ThrustChain' | 'Trident_Sweep' | 'Trident_High' | 'Scythe_Reap' | 'Scythe_High' | 'Scythe_Thrust' | 'Scythe_Chain'; source: number };
 export const PATHS: Record<PathId, PathSpec> = {
   // The cut: a horizontal arc (UAL2 Sword_Regular_A right-to-left, _B the backhand) with a real swing — 20 ticks of tell (333 ms) and an
   // 8-tick sweep. It was 14/5/21 (233 ms, under human reaction) on a fast diagonal flick: the owner read it as "too quick and shallow".
@@ -162,7 +162,7 @@ export type AiProfile = {
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
-export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe';
 export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
 export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true;
   guardProfile?: Partial<GuardProfile>;   // how this weapon's guard takes a blow (absent = the longsword defaults in RULES)
@@ -303,11 +303,56 @@ export const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, fight: { thrustShare: .7, close: 1.15 } };   // thrust-first lives here (the brief): seven non-cut openers in ten are thrusts; he closes to the sword's range
+// ── Scythe (weapons lane, 2026-09-18): the Executioner's — ON THE SHELF, the estoc pattern: real data nothing uses; the combat lane
+// flips `WEAPONS.scythe` to SCYTHE, adds the manifest entry from src/assets/weapons/scythe/warrior-scythe.glb (the man-scale bake rig — the
+// cleaver convention), bakes, reviews (REQUESTS.md §15–17). The fight it means: everything is an arc — the REAP is the horizontal cut (the
+// edge sweeps chest height), the HIGH is the headsman's diagonal, the THRUST is the heel-jab (a scythe has no point; the Stab button's
+// mapping, the combat lead's nod pending). Dead inside ~1 m where the arc cannot develop (minReach on the lights; the brief's inversion
+// of the trident's lesson). Haft guard like the trident's (wood; a plain heavy breaks it) — combat may say the head catches instead.
+const reap = (id: 'light_right' | 'light_left', chainPath: PathId): MoveDef => ({
+  id, direction: id === 'light_right' ? 'right' : 'left', path: id, chainPath, chained: { windup: 18, active: 8, recovery: 20 },
+  chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the reap chains across like the sword's cuts
+  windup: 24, active: 8, recovery: 26, damage: 16, stamina: 28, staminaDamage: 20, stagger: 26, poise: 0, poiseFrom: 0,   // a heavy edge on a long arc: more than a cut, slower tell (400 ms)
+  breaksGuard: false, chip: .25, parryable: true, knockback: 5, stepIn: .4, feintUntil: 12, reach: 1.8, minReach: 1.4, vsGuard: null, posture: 24, chamber: 10, charges: false,   // reach: the conservative spacing estimate (cleaver lesson), the measured bake frontier is 2.10 m with a dead band inside 1.40 — minReach pins that hole; the brief said ~1 m, the arc needs 1.4 (GAMEPLAY CHANGE flag)
+});
+export const SCYTHE_PATHS: Record<PathId, PathSpec> = {
+  light_right: { clip: 'Scythe_Reap', source: .34, windup: 24, active: 8, recovery: 26 },        // the reap: one clip, both sides (the trident sweep's precedent)
+  light_left: { clip: 'Scythe_Reap', source: .34, windup: 24, active: 8, recovery: 26 },
+  light_right_chain: { clip: 'Scythe_Reap', source: .34, windup: 18, active: 8, recovery: 20 },
+  light_left_chain: { clip: 'Scythe_Reap', source: .34, windup: 18, active: 8, recovery: 20 },
+  heavy_overhead: { clip: 'Scythe_High', source: .48, windup: 36, active: 5, recovery: 33 },     // the headsman's diagonal: a giant's mass, a 600 ms tell
+  heavy_overhead_chain: { clip: 'Scythe_High', source: .48, windup: 24, active: 5, recovery: 33 },
+  thrust: { clip: 'Scythe_Thrust', source: .34, windup: 14, active: 4, recovery: 18 },           // the heel-jab: quick, short, no chip
+  riposte: { clip: 'Scythe_Chain', source: .30, windup: 12, active: 5, recovery: 19 },           // the payoff off a parry: the head whips across
+  heavy_riposte: { clip: 'Scythe_High', source: .48, windup: 22, active: 5, recovery: 25 },
+};
+export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
+  light_right: reap('light_right', 'light_right_chain'),
+  light_left: reap('light_left', 'light_left_chain'),
+  heavy_overhead: {
+    id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: 'heavy_overhead_chain', chained: { windup: 24, active: 5, recovery: 33 }, chain: null,
+    windup: 36, active: 5, recovery: 33, damage: 22, stamina: 38, staminaDamage: 35, stagger: 28, poise: 24, poiseFrom: 24,
+    breaksGuard: false, chip: .5, parryable: true, knockback: 5, stepIn: .5, feintUntil: 13, reach: 2.0, vsGuard: null, posture: 36, chamber: 11, charges: true,   // spacing estimate; the bake frontier measures 2.30
+  },
+  // The heel-jab: the scythe cannot thrust, so the Stab button punches the head forward short and level — spacing and interrupt tool,
+  // no chip, half a cut's damage. Chains into the reap (jab, then the arc).
+  thrust: {
+    id: 'thrust', direction: 'thrust', path: 'thrust', chainPath: null, chained: null, chain: { window: 14, follow: ['light_right'] },
+    windup: 14, active: 4, recovery: 18, damage: 8, stamina: 18, staminaDamage: 14, stagger: 16, poise: 0, poiseFrom: 0,
+    breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: .8, feintUntil: 8, reach: 1.8, vsGuard: null, posture: 12, chamber: 6, charges: false,   // spacing estimate; the bake frontier measures 2.05
+  },
+  riposte: { ...MOVES.riposte, path: 'riposte', windup: 12, active: 5, recovery: 19, reach: 1.7 },
+  heavy_riposte: { ...MOVES.heavy_riposte, path: 'heavy_riposte' },
+  heavy_counter: { ...MOVES.heavy_counter, path: 'heavy_riposte' },
+  critical: { ...MOVES.critical, path: 'heavy_riposte' },
+  kick: MOVES.kick,
+};
+export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE_PATHS, guard: 'shaft', material: 'iron', reach: SCYTHE_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.5 } };   // the jab is a rare opener (one in ten); he holds the reap's range, never inside a metre
 // The lanes' split (2026-09-16): the weapons lane delivers a weapon unused; the combat lane puts it in the fight. The cleaver is LIVE
 // since slice W (2026-09-17): OPPONENTS.pitborn carries it, baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention — the
 // brute's rendered blade runs ~10 cm past the simulated one, never the other way; a 1.13× bake let no backstep escape him).
 // The knife is LIVE since slice X (2026-09-17): OPPONENTS.goblin carries it, baked from his own rig (goblin.glb: the knife is 0.81× in his .835 hand, a 0.42 m blade).
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: { ...LONGSWORD, id: 'estoc', placeholder: true }, knife: KNIFE };   // estoc: the Nightborn's thin thrust-first blade, the longsword's data until the weapons lane lands it (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: { ...LONGSWORD, id: 'estoc', placeholder: true }, knife: KNIFE, scythe: { ...LONGSWORD, id: 'scythe', placeholder: true } };   // estoc: the Nightborn's thin thrust-first blade, the longsword's data until the weapons lane lands it (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: the Executioner's arc — mesh, clips and SCYTHE data all on the shelf; the combat lane flips it (artifacts/weapons/REQUESTS.md §15–17)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
