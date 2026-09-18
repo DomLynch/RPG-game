@@ -318,12 +318,65 @@ export function estoc({ T: three = T, withAoUv = g => g, variant = ESTOC_DEFAULT
   return group;
 }
 
+// ── The scythe (the Executioner's; owner 2026-09-18: "a scythe or axe" — the scythe, weapons-lane recommendation accepted: the edge-arc,
+// zero-thrust grammar nobody owns; the axe is the cleaver's fight and the Northman's planned identity). A war scythe: a long haft, and at
+// its top a blade mounted TRANSVERSE — it runs along local +x, swept forward (+z), the edge on the concave (+z) side like the cleaver's
+// bend (the edge leads or trails per the reap keys, task 3; the cleaver lesson: measured from the bake, not assumed). No point anywhere:
+// it cannot thrust. CONTACT WRINKLE (frozen contract: one segment along local Y): the blade is off-axis, so extras.contact marks the
+// HEAD — the arc the haft's top traces is what the bake samples and what the data's reach prices; the blade's inner half is the surface
+// that connects, the tip overhangs past the target by design (a real reap). The Stab button: the short hooking heel-jab, contact at the
+// head (the handover brief's proposal, combat lead's nod pending — REQUESTS.md). Mesh-only on the sword's clip family for the variant
+// picks (this entry); the own clip family lands with task 3.
+export const SCYTHE_VARIANTS = {
+  A: { name: 'A · war scythe: 1.55 m haft, 0.60 m swept blade (2.15 m butt to tip)', butt: -.45, fore: .55, head: 1.55, blade: .60, sweep: .20, belly: .16, split: .58 },
+  B: { name: 'B · executioner\'s tool: 1.32 m haft, 0.74 m heavy blade, mass in the head', butt: -.40, fore: .50, head: 1.32, blade: .74, sweep: .16, belly: .20, split: .58 },
+  C: { name: 'C · garden-tooled: 1.15 m haft, 0.45 m small crescent (the readability floor)', butt: -.35, fore: .45, head: 1.15, blade: .45, sweep: .26, belly: .12, split: .6 },
+};
+export const SCYTHE_DEFAULT = 'A';
+export function scythe({ T: three = T, withAoUv = g => g, leather, variant = SCYTHE_DEFAULT } = {}) {
+  const v = SCYTHE_VARIANTS[variant] ?? SCYTHE_VARIANTS[SCYTHE_DEFAULT];
+  const iron = new three.MeshStandardMaterial({ name: 'ScytheIron', color: '#4c4946', metalness: .85, roughness: .62 });   // pitted black-oiled iron, the cleaver's values: his kit's blackened metal, still lights
+  const haft = new three.MeshStandardMaterial({ name: 'Haft', color: '#3a2a1c', roughness: .9 });                            // dark oiled wood
+  const wrap = leather ?? new three.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: .8 });
+  const group = new three.Group(); group.name = 'WeaponDrawn';
+  const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
+  const cyl = (rTop, rBottom, from, to, segments = 12) => new three.CylinderGeometry(rTop, rBottom, to - from, segments).translate(0, (from + to) / 2, 0);
+  const H = v.head;
+  piece(cyl(.021, .023, v.butt, v.butt + .05), iron);                      // butt cap
+  piece(cyl(.016, .0195, v.butt + .05, H - .10), haft, 0, 0, 0, 10);       // the haft, tapering to the head
+  piece(cyl(.0195, .0195, -.11, .11), wrap);                               // rear grip (the hand)
+  piece(cyl(.0195, .0195, v.fore - .11, v.fore + .11), wrap);              // front grip
+  piece(cyl(.021, .026, H - .12, H + .01), iron);                          // the socket the blade is mounted in
+  // The blade: a loft of wedge rings in the horizontal plane at the head — centreline along +x, swept toward +z, edge on the concave
+  // (+z) side, closing to a point at the tip. Ring layout mirrors the cleaver's, thickness vertical (+y) instead of the blade plane.
+  const x0 = .02, segments = 24, positions = [], uvs = [];
+  const ring = i => {
+    const t = i / segments, x = x0 + t * v.blade, zc = v.sweep * t ** 1.8, th = .016 * (1 - .5 * t);
+    const w = t <= .72 ? .035 + v.belly * (t / .72) ** 1.6 : (.035 + v.belly) * (1 - (t - .72) / .28) ** .75;
+    const e = zc + v.split * w, sp = zc - (1 - v.split) * w, mid = sp + .3 * (e - sp);
+    if (i === segments) return Array.from({ length: 5 }, () => [x, H, zc + .02]);
+    return [[x, H, e], [x, H + th * .5, mid], [x, H + th * .35, sp], [x, H - th * .35, sp], [x, H - th * .5, mid]];
+  };
+  for (let i = 0; i < segments; i++) {
+    const a = ring(i), b = ring(i + 1);
+    for (let k = 0; k < 5; k++) { const n = (k + 1) % 5; for (const [p, u, w] of [[a[k], k, i], [a[n], k + 1, i], [b[n], k + 1, i + 1], [a[k], k, i], [b[n], k + 1, i + 1], [b[k], k, i + 1]]) { positions.push(...p); uvs.push(u / 5, w / segments); } }
+  }
+  const root = ring(0); for (let k = 1; k < 4; k++) for (const [p, u] of [[root[0], 0], [root[k + 1], k + 1], [root[k], k]]) { positions.push(...p); uvs.push(u / 5, 0); } // the root cap
+  const g = new three.BufferGeometry(); g.setAttribute('position', new three.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new three.Float32BufferAttribute(uvs, 2)); g.computeVertexNormals();
+  piece(g, iron);
+  piece(new three.BoxGeometry(.16, .05, .05), iron, H, .06, .01);         // the mounting strap: blade root to socket
+  group.userData.contact = { from: +(H - .10).toFixed(3), to: H };       // the head: the arc's radius the sim prices (see the header note)
+  group.userData.weapon = 'scythe'; group.userData.variant = variant;
+  return group;
+}
+
 // What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.
 export const WEAPON_BUILDS = {
   trident: { part: trident, clips: tridentClips, keys: {} },
   cleaver: { part: cleaver, clips: null, keys: CLEAVER_KEYS },
   knife: { part: knife, clips: null, keys: CLEAVER_KEYS },   // the same diagonal Heavy: a knife's overhead is a hack too, edge-leading
   estoc: { part: estoc, clips: null, keys: {} },              // no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
+  scythe: { part: scythe, clips: null, keys: {} },            // mesh-only for the variant picks; the own clip family (task 3) replaces the sword family
 };
 
 // Standalone: the part alone (no rig), for the record and the harness turntable.
@@ -331,12 +384,12 @@ if (process.argv[1] && /build-weapon\.mjs$/.test(process.argv[1])) {
   const fs = await import('node:fs/promises');
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   globalThis.FileReader ??= class { async readAsArrayBuffer(blob) { this.result = await blob.arrayBuffer(); this.onloadend?.(); } async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); } };
-  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ cleaver: CLEAVER_DEFAULT, knife: KNIFE_DEFAULT, estoc: ESTOC_DEFAULT }[weapon] ?? DEFAULT_VARIANT);
+  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ cleaver: CLEAVER_DEFAULT, knife: KNIFE_DEFAULT, estoc: ESTOC_DEFAULT, scythe: SCYTHE_DEFAULT }[weapon] ?? DEFAULT_VARIANT);
   const scene = new T.Scene(), part = WEAPON_BUILDS[weapon].part({ variant }); scene.add(part);
   const glb = await new GLTFExporter().parseAsync(scene, { binary: true });
   const out = process.env.WEAPON_OUT || `src/assets/weapons/${weapon}/${weapon}.glb`;
   await fs.mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true }); await fs.writeFile(out, Buffer.from(glb));
   let triangles = 0; part.traverse(o => { if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
-  const names = { cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS, estoc: ESTOC_VARIANTS }[weapon] ?? VARIANTS;
+  const names = { cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS, estoc: ESTOC_VARIANTS, scythe: SCYTHE_VARIANTS }[weapon] ?? VARIANTS;
   console.log(`${weapon} ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${names[variant].name})`);
 }
