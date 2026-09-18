@@ -571,3 +571,11 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 - Measured on his rig: the blade lands 0.30 m past the sword everywhere (thrust 2.35, cut 2.0, heavy 2.5); `reach` stays the sword's
   conservative numbers per his brief, the margin reported for combat review. Owner's pick pending: A estoc (default), B rapier cut, C long
   tuck (REQUESTS §14). Hand-off: REQUESTS §12–13. Tests: 224/224.
+
+## Arena life 2 — 2026-09-18 (owner's phone pass)
+On the live build the owner approved firelight + gate light, rejected nothing new, and asked for two fixes. **Motes were
+invisible in gameplay** — the phone camera looks down at busy, dark-speckled sand where a mid-grey speck has no contrast
+and the drift was too slow to catch the eye: now 260 (62 % inside r 7.2), 0.2 m, 0.62 opacity, ~1.8× drift speed.
+**Gear wanted inside the ring**: five more pieces (sunk shield, blade fragment, trodden helmet, snapped shaft) scattered
+r 2.8–7.6, ≥ ~1 rad apart. The play-circle rule (nothing solid above 6 cm inside r 8.55) means everything lies flat or
+squashed into the sand — the contract caught the shield boss at 7 cm. Captures: `artifacts/world/arena-life-2-tuning/`.
