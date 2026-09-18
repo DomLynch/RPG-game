@@ -6,9 +6,9 @@ Owner: "anything else we can add to make the environment more engaging?" — app
 two-frequency drift + a gust on landed blows (`motes` — Points, not Mesh: the solid-geometry rules are about camera
 collision); first pass was invisible at 5 cm/35 % — the brick's luminance noise floor — so 0.14 m, light-toned, reads as
 dust. **Firelight**: `fireGlow` warm vertex tint on wall+tier bands above each brazier (angular proximity × height
-window; static — the coals' emissive flicker carries motion). **Battle-worn sand**: `sandWearAtlas` (scorch ring,
-trample, drag streak, stain quadrants) on merged decal planes at y 0.006 — tone sat *above* sunlit sand at first (decal
-albedo must land below the sand it covers, ≈0.8×); ash/soot tones only, the gore lane owns red. **Fallen gear**: dented
+window; static — the coals' emissive flicker carries motion). ~~**Battle-worn sand**~~ — owner rejected the decals on
+review ("3 i dont like"), dropped pre-merge; the `sandWearAtlas` lessons (decal albedo must land below sunlit sand,
+≈0.8×) are recorded here in case the idea returns. **Fallen gear**: dented
 helmet, snapped spear, broken blade in the iron merge (zero draw calls), yaw-only + low (camera-clamp rule). **Gate
 light**: the low sun spills through the arch — beam rides the real sun direction but lives inside the passage (r ≥ 11.7;
 the contract caught the first cut at 11.35 m) fading to the floor, plus an additive warm pool where it lands (y < 0.5 is

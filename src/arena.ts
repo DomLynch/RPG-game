@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
-import { bannerAlpha, crowdAtlas, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, sandWearAtlas, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
+import { bannerAlpha, crowdAtlas, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
 
 // The arena: everything that is not a fighter, a light, the camera or an effect. Owned by the world lane.
 // Contract (tests/arena.test.ts): the playable surface is a flat circle (sim.ts RADIUS 8.55 m); nothing solid stands inside it above the
@@ -78,8 +78,8 @@ const STONE: [number, number, number] = [1, 1, 1], DARK: [number, number, number
 export function buildArena(scene: THREE.Scene): Arena {
   const group = new THREE.Group(); group.name = 'arena'; scene.add(group);
   const { wall, tiers, tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
-  const textures = { sand: dataTexture(sandAlbedo(), true), sandNormal: dataTexture(sandNormal(), false), stone: dataTexture(stoneAlbedo(), true), stoneNormal: dataTexture(stoneNormal(), false), sky: dataTexture(skyPixels(512, 256, ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), crowd: dataTexture(crowdAtlas(), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), wear: dataTexture(sandWearAtlas(), true), gateLight: dataTexture(gateLightAtlas(), true) };
-  textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.crowd.wrapS = textures.crowd.wrapT = textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = textures.wear.wrapS = textures.wear.wrapT = textures.gateLight.wrapS = textures.gateLight.wrapT = THREE.ClampToEdgeWrapping;
+  const textures = { sand: dataTexture(sandAlbedo(), true), sandNormal: dataTexture(sandNormal(), false), stone: dataTexture(stoneAlbedo(), true), stoneNormal: dataTexture(stoneNormal(), false), sky: dataTexture(skyPixels(512, 256, ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), crowd: dataTexture(crowdAtlas(), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
+  textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.crowd.wrapS = textures.crowd.wrapT = textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = textures.gateLight.wrapS = textures.gateLight.wrapT = THREE.ClampToEdgeWrapping;
   const sand = new THREE.MeshStandardMaterial({ name: 'sand', map: textures.sand, normalMap: textures.sandNormal, normalScale: new THREE.Vector2(0.7, 0.7), color: '#e2ddd6', roughness: 0.96, vertexColors: true });
   const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, normalMap: textures.stoneNormal, normalScale: new THREE.Vector2(1.1, 1.1), color: '#b9b4ab', roughness: 0.93, vertexColors: true });
   const iron = new THREE.MeshStandardMaterial({ name: 'iron', color: '#2a2623', roughness: 0.6, metalness: 0.78, vertexColors: true });
@@ -91,9 +91,8 @@ export function buildArena(scene: THREE.Scene): Arena {
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
   const flame = new THREE.MeshBasicMaterial({ name: 'flame', map: textures.flame, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const motesMaterial = new THREE.PointsMaterial({ name: 'motes', map: textures.mote, size: 0.14, transparent: true, opacity: 0.5, depthWrite: false, sizeAttenuation: true, color: '#9a9184' });
-  const wearMaterial = new THREE.MeshStandardMaterial({ name: 'sand-wear', map: textures.wear, color: '#d8d2c8', transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 });
   const gateLightMaterial = new THREE.MeshBasicMaterial({ name: 'gate-light', map: textures.gateLight, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-  const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary, flame, motesMaterial, wearMaterial, gateLightMaterial];
+  const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary, flame, motesMaterial, gateLightMaterial];
   const mottle = fbm(4, 3, 9);
   function mesh(geometry: THREE.BufferGeometry, material: THREE.Material, name: string, shadows = true) {
     const object = new THREE.Mesh(geometry, material); object.name = name; object.castShadow = shadows; object.receiveShadow = true; group.add(object); return object;
@@ -103,23 +102,6 @@ export function buildArena(scene: THREE.Scene): Arena {
   floor.userData.tile = SAND_TILE;
   // The boundary ring at the play radius: a dark inlay trodden flush with the sand (the simulation's wall, visible).
   const ring = mesh(new THREE.RingGeometry(PLAY_RADIUS - 0.05, PLAY_RADIUS + 0.05, 128), boundary, 'boundary', false); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.012;
-  // Battle-worn sand: scorch rings, churned trample, a drag streak, old stains — merged decals on one draw call, lit like the
-  // sand they lie on (world lane 2026-09-18). Ash and soot tones only; the gore lane owns anything red.
-  const wearDecals: THREE.BufferGeometry[] = [];
-  const wear = (quadrant: number, r: number, a: number, w: number, h: number, yaw: number) => {
-    const g = new THREE.PlaneGeometry(w, h); g.rotateX(-Math.PI / 2); g.rotateY(yaw);
-    const [x, z] = polar(r, a); g.translate(x, 0.006, z);
-    const ox = quadrant === 1 || quadrant === 3 ? 0.5 : 0, oy = quadrant >= 2 ? 0.5 : 0, uv = g.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, ox + uv.getX(i) * 0.5, oy + uv.getY(i) * 0.5);
-    wearDecals.push(g);
-  };
-  wear(0, 3.6, 1.15, 2.6, 2.6, 0.7);      // scorch rings: a blast mark, a burn from a brazier's fall
-  wear(0, 5.8, 4.05, 2.2, 2.2, 2.4);
-  wear(1, 0.4, 2.3, 3.4, 3.4, 0.2);       // trample: the centre where the fighting lives
-  wear(2, 4.2, Math.PI - 0.15, 4.6, 1.7, Math.PI / 2 + 0.1);   // a drag streak on the gate path
-  wear(3, 6.6, 2.2, 1.7, 1.7, 1.1);       // old stains
-  wear(3, 2.6, 5.15, 1.3, 1.3, 0.5);
-  mesh(mergeGeometries(wearDecals), wearMaterial, 'sand-wear', false);
   // Gate light: the low sun spills through the gate arch. The beam rides the real sun direction but lives inside the
   // passage (r ≥ 11.7 — the camera clamp keeps the arena clear for the orbit), fading before it reaches the sand; the
   // warm pool on the floor below y 0.5 is where it lands. One merged mesh, additive, no shadows (world lane 2026-09-18).
