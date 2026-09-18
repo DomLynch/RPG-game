@@ -69,7 +69,8 @@ const photoEyes = new T.MeshPhysicalMaterial({ name: 'PhotoEyes', roughness: .25
 const photoTeeth = new T.MeshStandardMaterial({ name: 'PhotoTeeth', roughness: .4 });
 const bone = new T.MeshStandardMaterial({ name: 'Bone', color: '#b3a073', roughness: .58 }); // yellowed ivory, not chalk: the tusks
 const boneWorn = new T.MeshStandardMaterial({ name: 'BoneWorn', color: '#6e5d45', roughness: .72 }); // the lashed plates: old bone gone dark, pulled toward the leather (owner, 2026-09-16: "a bit darker, or the leather colour") // the Pitborn's tusks and plates (materials rule: bone)
-const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth, bone, boneWorn].map(m => [m, []]));
+const ruby = new T.MeshStandardMaterial({ name: 'Ruby', color: '#4a0d18', metalness: 0.8, roughness: 0.35 }); // the Nightborn's crown: dark ruby metal, not bright red (owner's examples, 2026-09-18)
+const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bronze, wrap, skin, eyesMaterial, face, hairCards, browCards, hairShell, photo, photoEyes, photoTeeth, bone, boneWorn, ruby].map(m => [m, []]));
 // Per-fighter frame (moves.ts OPPONENTS.scale must match `scale`; tests/characters.test.ts checks the shipped height against it): the whole
 // rig is scaled, so every clip, the hand's sword and the baked blade paths follow. `hunch` bends bones forward by degrees in every clip
 // (a constant post-rotation about each bone's own rest sideways axis) — the brute's forward-hunched spine, head thrust out to look at you.
