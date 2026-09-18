@@ -1,0 +1,20 @@
+{
+ "label": "arena-life-4-gear",
+ "commit": "c251bd4",
+ "date": "2026-09-18",
+ "sourceGzip": 19348,
+ "buildMs": 297,
+ "meshes": 14,
+ "instances": 242,
+ "triangles": 21168,
+ "textures": 9,
+ "textureBytes": 11534335.999999998,
+ "drawCallsArena": 19,
+ "drawCallsArenaWide": 19,
+ "drawCallsWithFighters": 111,
+ "trianglesRenderedArena": 31076,
+ "floorLuminance": 0.10536284109560523,
+ "skinLuminance": 0.16575910784402179,
+ "playRadius": 8.55,
+ "cameraClamp": 11.5
+}

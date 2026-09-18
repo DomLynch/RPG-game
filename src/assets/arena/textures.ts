@@ -208,6 +208,36 @@ export function flamePixels(width = 128, height = 256, seed = 37): Pixels {
     return [(205 + 50 * heart) * grit, (55 + 65 * (1 - d) * (1 - v * 0.6) + 80 * heart) * grit, (10 + 14 * (1 - d) + 55 * heart) * grit, Math.round(255 * Math.min(1, a))];
   });
 }
+// A drifting ash mote: a soft grey speck with gritty edges. One 32² sprite for the whole particle system —
+// ash hangs in the air so the arena reads inhabited (world lane 2026-09-18); normal blending, no glow.
+export function motePixels(size = 32, seed = 53): Pixels {
+  const grit = fbm(8, 2, seed);
+  return pixels(size, size, (u, v) => {
+    const r = Math.hypot(u - 0.5, v - 0.5) * 2, a = Math.max(0, 1 - r) ** 1.6 * (0.55 + 0.45 * grit(u, v));
+    const c = 155 + 40 * grit(v, u);
+    return [c, c * 0.96, c * 0.9, Math.round(220 * a)];
+  });
+}
+// Gate light (world lane 2026-09-18): one atlas, two halves. v > 0.5 is the sun shaft that spills through the gate arch —
+// soft across, streaked like light through bars, fading along its length. v < 0.5 is the warm pool where it lands on the
+// sand. Additive: RGB carries the brightness (peak ~half, warm), alpha carries the shape.
+export function gateLightAtlas(width = 128, height = 256, seed = 83): Pixels {
+  const streaks = fbm(6, 3, seed), dapple = fbm(10, 2, seed + 4);
+  return pixels(width, height, (u, v) => {
+    if (v >= 0.5) {
+      const s = u, t = (v - 0.5) * 2;
+      const across = Math.exp(-((s - 0.5) ** 2) / 0.075);
+      const bars = 0.6 + 0.4 * Math.max(0, Math.sin(s * 34 + 2.2 * (streaks(s, t) - 0.5)));
+      const a = across * bars * (t < 0.12 ? t / 0.12 : 1 - smoothstep(0.62, 1, t)) * (0.75 + 0.25 * streaks(s * 3, t * 2));
+      const k = 150 * a;
+      return [k, k * 0.9, k * 0.68, 255];
+    }
+    const s = u, t = v * 2, r = Math.hypot(s - 0.5, t - 0.5) * 2;
+    const a = Math.exp(-(r * r) / 0.55) * (0.7 + 0.3 * dapple(s * 2, t * 2)) * (1 - smoothstep(0.75, 1, r));
+    const k = 120 * a;
+    return [k, k * 0.88, k * 0.64, 255];
+  });
+}
 // Mean linear luminance of an sRGB pixel buffer: the number the contrast rule is written in.
 export function luminance(p: Pixels): number {
   const lin = (c: number) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
