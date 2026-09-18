@@ -115,6 +115,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   });
   let bloodMode: 'red' | 'dark' | 'off' = 'red', splatIndex=0, impactDuration=.18, impactHeading=0, flesh=false, killSpray=false;
   let impact = 0, lastHealth: number = RULES.health, lastPlayerHealth: number = RULES.health;
+  // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
+  let severHead: { group: THREE.Group; velocity: THREE.Vector3; spin: THREE.Vector3; radius: number; resting: boolean } | null = null, killHeading = 0;
   // Wound-site mark + drips (finishers & gore 2026-09-17): a small dark mark at the wound site with three drips below it,
   // living the four-second wound window (the sim's wound refreshes without stacking — so does the mark: a fresh hit on the
   // same fighter re-arms his decal). One pooled decal per fighter; hidden in 'off' like every blood effect.
@@ -148,7 +150,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     bloodiedBlade = on;
   }
   let finishPush = 0;   // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
-  const desired = new THREE.Vector3(), look = new THREE.Vector3(), aim = new THREE.Vector3(0, 1, 0);
+  const desired = new THREE.Vector3(), look = new THREE.Vector3(), aim = new THREE.Vector3(0, 1, 0), spinAxis = new THREE.Vector3();
   let yaw = 0, pitch = 0.45, heading = Math.PI, started = false;
   // Camera kick: a blow nudges the camera a few centimetres along the blow's heading and it settles in ~0.15 s. Small on purpose
   // (readable brutality: nothing may obscure a pose); off when the viewer prefers reduced motion. Placeholder for the visual lane's impact pass.
@@ -174,13 +176,14 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events, frozen = false) {
       const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find(e => e.type === 'Killed');
-      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); }   // a fresh match: both bars full again
+      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); if (severHead) { scene.remove(severHead.group); severHead.group.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); severHead = null; } warriors?.player.unsever(); warriors?.opponent.unsever(); }   // a fresh match: both bars full again
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;
         const kick=blow?.move==='kick'; flesh=hurt && !kick && bloodMode!=='off';
         impactDuration=flesh && killed ? .55 : flesh ? .34 : .18; impact=impactDuration; impactHeading=blow?.heading ?? state.heading;
         killSpray=!!(killed && flesh);   // a kill sprays a cone along the strike heading, not the radial puff
+        if (killed && flesh) killHeading = blow?.heading ?? state.heading;   // the decapitation pop flies the way the blow did
         const site=enemyHurt ? practice.enemyWoundSite : practice.woundSite;
         const target=enemyHurt ? practice.enemy : state;
         sparks.position.set(hurt ? target.x : (state.x+practice.enemy.x)/2,hurt ? (site==='head' ? 1.55 : site==='legs' ? .6 : 1.15) : 1.2,hurt ? target.z : (state.z+practice.enemy.z)/2);
@@ -219,6 +222,34 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
           wound.group.visible = bloodMode !== 'off' && wound.life > 0;
         } else wound.group.visible = false;
       }
+      // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
+      if (severHead) {
+        severHead.group.visible = bloodMode !== 'off';
+        const head = severHead;
+        if (!head.resting && dt > 0) {
+          head.velocity.y -= 12 * dt;   // a touch heavier than life: reads on a phone screen
+          head.group.position.addScaledVector(head.velocity, dt);
+          const rate = head.spin.length();
+          if (rate > 0) { spinAxis.copy(head.spin).multiplyScalar(1 / rate); head.group.rotateOnWorldAxis(spinAxis, rate * dt); }
+          if (head.group.position.y < head.radius) {
+            head.group.position.y = head.radius;
+            const speed = Math.hypot(head.velocity.x, head.velocity.z);
+            if (head.velocity.y < -1) { head.velocity.y = -head.velocity.y * .28; head.velocity.x *= .68; head.velocity.z *= .68; }   // a real bounce
+            else {
+              head.velocity.y = 0;
+              const decay = Math.max(0, 1 - 2.1 * dt); head.velocity.x *= decay; head.velocity.z *= decay;   // rolling friction
+              if (speed > .05) head.spin.set(head.velocity.z / head.radius, 0, -head.velocity.x / head.radius);
+              else {
+                head.resting = true;
+                const splat = splats[splatIndex++ % splats.length]; splat.life = 25; splat.grow = 0;   // where the head fell, a stain stays
+                splat.mesh.position.set(head.group.position.x, .026 + splatIndex % 12 * .0001, head.group.position.z);
+                splat.mesh.scale.set(.16, .12, 1); splat.mesh.rotation.z = splatIndex * 2.4;
+                splat.mesh.material.color.set(bloodMode === 'dark' ? '#352426' : '#681a19');
+              }
+            }
+          }
+        }
+      }
       const animationDt = frozen ? 0 : dt;
       arena.update(animationDt, events);
       const dx = state.x-player.position.x, dz = state.z-player.position.z, ex = practice.enemy.x-opponent.position.x, ez = practice.enemy.z-opponent.position.z;
@@ -236,6 +267,20 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, playerDefence?.pose || mine.pose, playerDefence?.progress ?? mine.progress, mine.attack, mine.contact, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, enemyDefence?.pose || (finisherPose ?? theirs.pose), enemyDefence?.progress ?? theirs.progress, theirs.attack, theirs.contact, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      // Decapitation (owner 2026-09-18): when the seeded rotation picks it, the head comes off just after the skull-gives jolt
+      // (the clip's first 9 %) — baked from the rig at that pose, popped along the killing blow, ballistic to a stop. Blood
+      // 'off' keeps the head on: gore is presentation, like the rest of the layer.
+      if (warriors && finisher === 'decapitation' && bloodMode !== 'off' && !severHead && practice.finish?.victim === 1 && theirs.progress >= .05 && theirs.progress < 1) {
+        const built = warriors.opponent.sever();
+        if (built) {
+          scene.add(built.group);
+          severHead = { group: built.group, velocity: new THREE.Vector3(Math.sin(killHeading) * 2.1, 1.8, Math.cos(killHeading) * 2.1), spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9), radius: built.radius, resting: false };
+          const neck = built.group.position;
+          flesh = true; killSpray = true; impactDuration = .4; impact = impactDuration; impactHeading = killHeading;
+          sparkMaterial.color.set(bloodMode === 'dark' ? '#3e2527' : '#a32b27'); sparkMaterial.blending = THREE.NormalBlending; sparkMaterial.size = .095;
+          sparks.position.set(neck.x, Math.max(.3, neck.y - built.radius * .7), neck.z);   // the sever bursts at the neck stump
+        }
+      }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
       glows.forEach((glow, i) => { const f = practice.duel.fighters[i], at = i ? practice.enemy : state; glow.position.set(at.x, 1.2, at.z); glow.intensity = f.phase === 'attack' && f.charge ? (f.charged ? 8 : 1 + 4 * f.charge / RULES.charge.min) : 0; glow.color.set(f.charged ? '#fff3d0' : '#ff9a3c'); });
       marker.visible = practice.health > 0;

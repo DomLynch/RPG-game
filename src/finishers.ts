@@ -7,7 +7,7 @@ import type { WeaponId } from './moves.ts';
 // finisher. v1 has no weapon-dependent row (one table for every weapon); the weapons argument pins the contract for the
 // per-weapon rows a later pass may add. Presentation falls back to the plain Death clip for any finisher whose clip has
 // not shipped yet (ship order: Split Crown end-to-end first, then the set).
-export type FinisherId = 'splitCrown' | 'runThrough' | 'quietOne' | 'opened' | 'hamstrung' | 'execution';
+export type FinisherId = 'splitCrown' | 'decapitation' | 'runThrough' | 'quietOne' | 'opened' | 'hamstrung' | 'execution';
 
 export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, WeaponId]): FinisherId | null {
   void weapons;   // v1: one table for every weapon — the parameter pins the contract for the per-weapon rows a later pass may add
@@ -17,16 +17,24 @@ export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, Weap
   // Owner rule 2026-09-18 (recorded on PR #112, broadened same day after the owner's live playtest): ANY blade kill plays
   // the finisher — light cut, thrust, riposte, heavy, critical, whatever the sim reports — universal across weapons and
   // characters. Nobody aims in this game, so gating the showpiece behind a blow type the player can't feel guaranteed it
-  // never played. v1 ships Split Crown alone; the remaining universal finishers join a deterministic rotation pool seeded
-  // from the kill event (never wall-clock randomness — same duel, same finisher); weapon/class-specific specials come
-  // later as a separate layer.
-  return 'splitCrown';
+  // never played.
+  // Owner 2026-09-18 (after judging v1 on the phone): Split Crown stays as finisher #1 and a second finisher, Decapitation
+  // (the head comes off and rolls to a stop), joins it — the first two of a 5+ finisher set. Kills pick between the two
+  // through a deterministic rotation pool seeded from the kill event (never wall-clock randomness — same duel, same
+  // finisher); the pool grows as the remaining universal finishers land. weapon/class-specific specials come later as a
+  // separate layer.
+  const seed = `${finish.victim}|${finish.location}|${finish.move}|${finish.heading}|${weapons[0]}|${weapons[1]}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  return hash % 2 === 0 ? 'splitCrown' : 'decapitation';
 }
 
 // Which rigs carry which finisher clip today. null = the plain Death plays until the clip lands (ship order: Split Crown
-// end-to-end first, then the set). The pose word is what characters.ts `update` understands.
-export const FINISHER_POSE: Record<FinisherId, 'splitCrown' | null> = {
+// end-to-end first, then the set). The pose word is what characters.ts `update` understands. Decapitation reuses the
+// Split Crown body collapse (the same straight-down drop); what sets it apart is the severed head, a gore-layer effect.
+export const FINISHER_POSE: Record<FinisherId, 'splitCrown' | 'decapitation' | null> = {
   splitCrown: 'splitCrown',
+  decapitation: 'decapitation',
   runThrough: null,
   quietOne: null,
   opened: null,
