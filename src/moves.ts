@@ -352,7 +352,7 @@ export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE
 // since slice W (2026-09-17): OPPONENTS.pitborn carries it, baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention — the
 // brute's rendered blade runs ~10 cm past the simulated one, never the other way; a 1.13× bake let no backstep escape him).
 // The knife is LIVE since slice X (2026-09-17): OPPONENTS.goblin carries it, baked from his own rig (goblin.glb: the knife is 0.81× in his .835 hand, a 0.42 m blade).
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: { ...LONGSWORD, id: 'estoc', placeholder: true }, knife: KNIFE, scythe: { ...LONGSWORD, id: 'scythe', placeholder: true } };   // estoc: the Nightborn's thin thrust-first blade, the longsword's data until the weapons lane lands it (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: the Executioner's arc — mesh, clips and SCYTHE data all on the shelf; the combat lane flips it (artifacts/weapons/REQUESTS.md §15–17)
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: { ...LONGSWORD, id: 'estoc', placeholder: true }, knife: KNIFE, scythe: SCYTHE };   // estoc: the Nightborn's thin thrust-first blade, the longsword's data until the weapons lane lands it (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
@@ -408,7 +408,7 @@ export const OPPONENTS: Record<OpponentId, Opponent> = {
     hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .5, aggression: .95, pressure: .65, discipline: 15, lapse: .08, feint: .4, guard: 0, disengage: .7, circle: 1, step: .8, interrupt: .8, kick: .7, dash: 1 },
   } },
   // The Executioner (opponent 6): 1.36 — 20 % over the Pitborn's 1.13 (owner, 2026-09-17), a big man's
-  // health and poise. PROVISIONAL: he carries the Veteran's brain (PROFILES) and the longsword's data until the combat lead
-  // writes his profile and ladder slot, and the weapons lane ships his blade — the character lane never makes a weapon live.
-  executioner: { id: 'executioner', weapon: 'longsword', scale: 1.36, health: 160, poise: 12, profiles: PROFILES },
+  // health and poise. His arc is LIVE since 2026-09-18 (the weapons lane's scythe: reap 1.40–2.10 m, a dead band inside 1.4 m,
+  // the shaft guard). PROVISIONAL: he carries the Veteran's brain (PROFILES); his own profile and ladder slot are the combat lead's.
+  executioner: { id: 'executioner', weapon: 'scythe', scale: 1.36, health: 160, poise: 12, profiles: PROFILES },
 };

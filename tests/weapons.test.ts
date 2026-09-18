@@ -385,23 +385,37 @@ test('the estoc\'s data is the brief\'s: the sword\'s timings and lunges exactly
   assert.deepEqual([ESTOC.guard, ESTOC.material, ESTOC.fight.thrustShare > .5, ESTOC.fight.close], ['blade', 'steel', true, LONGSWORD.fight.close]);
 });
 
-// ── The scythe (weapons lane, 2026-09-18): the Executioner's — ON THE SHELF. Mesh (variant B), 13-clip family on his rig, SCYTHE data
-// and the man-scale bake rig all land here; the combat lane flips `WEAPONS.scythe` to SCYTHE, adds the manifest entry, bakes and reviews
-// (artifacts/weapons/REQUESTS.md §14–15). GAMEPLAY CHANGE when flipped: new timings, a guard profile, a chip profile and a dead band inside
-// the arc.
+// ── The scythe (weapons lane → combat lane, 2026-09-18): the Executioner's — LIVE. Mesh (variant B), 13-clip family on his rig, SCYTHE
+// data and the man-scale bake; the flip (WEAPONS.scythe = SCYTHE, the manifest entry, his rebuilt body, the WEAPON_CLIPS map) is the
+// GAMEPLAY CHANGE REQUESTS §15 flagged: new timings, a shaft guard profile, a chip profile and a dead band inside the arc.
 import { SCYTHE, SCYTHE_MOVES, SCYTHE_PATHS } from '../src/moves.ts';
 const SCYTHE_GLB = 'src/assets/weapons/scythe/executioner-scythe.glb', SCYTHE_BAKE_GLB = 'src/assets/weapons/scythe/warrior-scythe.glb';
 const SCYTHE_CLIPS: Record<string, number> = { Scythe_Idle: 1.667, Scythe_Walk: 1.333, Scythe_StrafeLeft: .8, Scythe_StrafeRight: .8, Scythe_Reap: 1, Scythe_High: 1, Scythe_Thrust: 1, Scythe_Chain: 1, Scythe_Guard: 1, Scythe_BlockImpact: 1, Scythe_Deflected: 1, Scythe_Hit: .333, Scythe_Death: 2.4 };
 
-test('the scythe is on the shelf: SCYTHE is real data nothing uses; WEAPONS.scythe still borrows the longsword; no manifest entry yet', () => {
-  assert.equal(WEAPONS.scythe.placeholder, true); assert.equal(WEAPONS.scythe.moves, MOVES); assert.equal(WEAPONS.scythe.paths, PATHS);
-  assert.deepEqual(bladePaths.scythe, bladePaths.longsword, 'no bake of its own until the flip');
+test('the scythe is live (2026-09-18): WEAPONS.scythe is SCYTHE, the Executioner carries it, and it is baked at a man\'s 1.0× from warrior-scythe.glb (the cleaver convention: his rendered 1.36× blade runs past the simulated one, never short)', () => {
+  assert.equal(WEAPONS.scythe, SCYTHE); assert.equal(WEAPONS.scythe.placeholder, undefined); assert.equal(OPP.executioner.weapon, 'scythe');
   assert.notEqual(SCYTHE.moves, MOVES); assert.notEqual(SCYTHE.paths, PATHS); assert.equal(SCYTHE.id, 'scythe');
-  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string }[] };
-  assert.ok(!manifest.weapons.some(w => w.weapon === 'scythe'), 'no scythe bake until the flip');
-  // The data is complete anyway, so the flip is a one-liner: all nine paths ride its own four attack clips.
-  assert.deepEqual(Object.keys(SCYTHE_PATHS).sort(), Object.keys(PATHS).sort(), 'every sword path has a scythe spec');
-  for (const spec of Object.values(SCYTHE_PATHS)) assert.ok(spec.clip.startsWith('Scythe_'), `${spec.clip} is its own clip family`);
+  assert.notDeepEqual(bladePaths.scythe, bladePaths.longsword); assert.deepEqual(Object.keys(bladePaths.scythe).sort(), Object.keys(SCYTHE.paths).sort(), 'every scythe path baked');
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: [number, number] }[] };
+  assert.deepEqual(manifest.weapons.find(w => w.weapon === 'scythe'), { weapon: 'scythe', glb: SCYTHE_BAKE_GLB, node: 'WeaponDrawn', contact: [1.22, 1.32] });
+});
+
+test('the fight the scythe gives (real tables): the reap lands 1.40–2.10 m and meets nothing inside 1.40 (the arc\'s dead band, minReach), the headsman\'s high lands to 2.30 and the heel-jab to 2.10 — the measured frontiers, not the spacing estimates', () => {
+  const landsFrom = (move: 'light_right' | 'heavy_overhead' | 'thrust', gap: number) => {
+    const m = WEAPONS.scythe.moves[move], action = move === 'thrust' ? 'thrust' : move === 'heavy_overhead' ? 'heavy' : 'light';
+    return run(stepDuel(duel(gap, 'scythe'), [act(action), idle()]), m.windup + m.active + 1).events;
+  };
+  const landed = (events: Duel['events']) => events.some(e => e.type === 'Hit');
+  // Measured on the man-scale bake (REQUESTS §16), pinned here so the flip can never silently shorten him: the far frontier.
+  assert.ok(landed(landsFrom('light_right', 2.10)) && !landed(landsFrom('light_right', 2.15)), 'the reap lands to 2.10, whiffs past it');
+  assert.ok(landed(landsFrom('heavy_overhead', 2.30)) && !landed(landsFrom('heavy_overhead', 2.35)), 'the high lands to 2.30, whiffs past it');
+  assert.ok(landed(landsFrom('thrust', 2.10)) && !landed(landsFrom('thrust', 2.15)), 'the jab lands to 2.10, whiffs past it');
+  // The dead band: inside 1.40 m the arc meets nothing (minReach), where the sword's cut still lands.
+  const swordInside = run(stepDuel(duel(1.3), [act('light'), idle()]), MOVES.light_right.windup + MOVES.light_right.active + 1).events;
+  assert.ok(landed(swordInside), 'the sword cuts from 1.3 m');
+  const inside = landsFrom('light_right', 1.35);
+  assert.ok(!landed(inside) && inside.some(e => e.type === 'AttackMissed'), 'the reap whiffs inside the dead band');
+  assert.ok(landed(landsFrom('light_right', 1.45)), 'from 1.45 m the arc develops and lands');
 });
 
 test('the scythe rig is the Executioner\'s own: WeaponDrawn (the head as the contact segment) under hand_r, empty sword nodes, and the full 13-clip family at the contract durations', async () => {
