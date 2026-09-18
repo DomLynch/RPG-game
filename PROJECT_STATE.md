@@ -9,6 +9,16 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## Stone relief: the wall gets its surface — 2026-09-18 (world lane, owner's art direction)
+The owner, from the phone: the masonry colour is right but the wall reads flat and machine-smooth — "add some dents, or bits, or
+other surface imperfections randomly". The diagnosis: the wall had albedo only, no light response; the sand reads real because it
+has a normal map. `stoneNormal` (textures.ts) carves the relief the albedo prints: the ashlar layout is extracted into `ashlar()`
+and shared (the albedo is proven pixel-identical by checksum — the owner-approved colour is untouched), so mortar grooves,
+proud/recessed blocks, chamfers and the albedo's own cracks land exactly on their printed lines, plus erosion undulation, surface
+tooth, two layers of pitted dents and knocked corners. The stone material gains the normal map at scale 1.1. Cost: +1 texture,
+11.0 / 12 MB texture memory, +0.8 KB source gzip, zero draw-call or triangle growth. Contract 7/7, full gate + real-browser gate
+green. Captures: `artifacts/world/stone-relief/` vs `polish-4/`.
+
 ## Finishers & gore milestone authorized — 2026-09-17 (lead, owner's call)
 The owner authorized the finishers milestone the 2026-09-13 blood layer deferred ("mortal kombat closers, but gritty,
 realistic"; the flat fall-backwards death is the target). Spec: GAME_SPEC.md "Owner-authorized finishers & gore —
