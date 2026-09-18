@@ -109,22 +109,29 @@ const coachEl = element('coach');
 coachEl.hidden = true;   // the HTML ships it hidden; set it here too because the test harness's element stubs do not parse index.html
 const seen: Record<string, number> = {};
 let coachTimer: ReturnType<typeof setTimeout> | undefined;
+let coachAnim: Animation | undefined;   // the browser path: the line floats up and fades (the owner's fight-game style); the VM test stubs have no animate()
 function coachMark(text: string, id: string, max = 2): void {
   if (!coachOn || opponent.id !== LADDER[0].id || (seen[id] ?? 0) >= max) return;
   seen[id]++;
   coachEl.textContent = text; coachEl.hidden = false;
-  clearTimeout(coachTimer); coachTimer = setTimeout(() => { coachEl.hidden = true; }, 2600);
+  if (typeof coachEl.animate === 'function') {
+    coachAnim?.cancel();
+    coachAnim = coachEl.animate(
+      [{ transform: 'translate(-50%, 0)', opacity: 1 }, { transform: 'translate(-50%, -52px)', opacity: 0 }],
+      { duration: 2000, easing: 'ease-out', fill: 'forwards' });
+    coachAnim.onfinish = () => { coachEl.hidden = true; };
+  } else { clearTimeout(coachTimer); coachTimer = setTimeout(() => { coachEl.hidden = true; }, 2600); }   // test-harness fallback
 }
 function coach(events: CombatEvent[]): void {
   for (const e of events) {
-    if (e.type === 'Parried' && e.actor === 0) coachMark('Parried! Stab = riposte · Heavy = smash', 'parry');
-    else if (e.type === 'Blocked' && e.actor === 0 && !e.perfect) coachMark('Blocked — Heavy now = counter', 'counter');
-    else if (e.type === 'Hit' && e.actor === 0 && e.move?.startsWith('light_')) coachMark('Landed! strike again = faster chain', 'chain');
-    else if (e.type === 'AttackStarted' && e.actor === 0 && e.move === 'heavy_overhead') coachMark('Wind-up: tap Guard to feint', 'feint', 1);
-    else if (e.type === 'ActionStarted' && e.actor === 0 && (e.action === 'roll' || e.action === 'backstep')) coachMark('Strike as you rise = fast cut', 'dodge', 1);
+    if (e.type === 'Parried' && e.actor === 0) coachMark('RIPOSTE! Stab or Heavy', 'parry');
+    else if (e.type === 'Blocked' && e.actor === 0 && !e.perfect) coachMark('COUNTER! Heavy now', 'counter');
+    else if (e.type === 'Hit' && e.actor === 0 && e.move?.startsWith('light_')) coachMark('CHAIN! Strike again', 'chain');
+    else if (e.type === 'AttackStarted' && e.actor === 0 && e.move === 'heavy_overhead') coachMark('FEINT! Tap Guard', 'feint', 1);
+    else if (e.type === 'ActionStarted' && e.actor === 0 && (e.action === 'roll' || e.action === 'backstep')) coachMark('QUICK CUT! Strike now', 'dodge', 1);
   }
 }
-function coachReset(): void { for (const id in seen) delete seen[id]; clearTimeout(coachTimer); coachEl.hidden = true; }
+function coachReset(): void { for (const id in seen) delete seen[id]; clearTimeout(coachTimer); coachAnim?.cancel(); coachEl.hidden = true; }
 // Tempo: the simulation is written in ticks; stepping it at 50 Hz instead of 60 plays the same fight a fifth slower in wall-clock (wind-ups,
 // windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
 // re-timing of the moves (which needs the blade paths re-baked).
