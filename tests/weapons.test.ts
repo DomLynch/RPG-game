@@ -458,10 +458,10 @@ test('the scythe\'s data is the brief\'s: slower tells than the sword\'s, the ja
   assert.ok(SCYTHE_MOVES.thrust.windup < MOVES.thrust.windup && SCYTHE_MOVES.thrust.active <= 4 && SCYTHE_MOVES.thrust.chip === 0 && SCYTHE_MOVES.thrust.damage < MOVES.thrust.damage, 'the heel-jab: quicker than a stab, no chip, half a cut\'s damage');
   assert.deepEqual([SCYTHE.guard, SCYTHE.material], ['shaft', 'iron']);
   assert.deepEqual(SCYTHE.guardProfile, { costScale: 1.15, heavyBreaks: true }, 'the haft guard: like the trident\'s, a plain heavy breaks it');
-  assert.deepEqual(SCYTHE.fight, { thrustShare: .1, close: 1.5 }, 'the jab is a rare opener; he holds the arc\'s range, never inside a metre and a half');
+  assert.deepEqual(SCYTHE.fight, { thrustShare: .1, close: 2.0 }, 'the jab is a rare opener; he HOLDS the arc\'s edge at 2.0 m — the approach must be timed through the tell (owner 2026-09-18)');
   assert.equal(SCYTHE_MOVES.light_right.minReach, 1.4); assert.equal(SCYTHE_MOVES.light_left.minReach, 1.4);
-  // Reach is the conservative spacing convention (the cleaver lesson), not the measured frontier — which the local bake pins at
-  // 2.10 (reap) / 2.30 (high) / 2.05 (jab) with the dead band inside 1.40 m, §14 of REQUESTS.md.
-  assert.deepEqual([SCYTHE_MOVES.light_right.reach, SCYTHE_MOVES.heavy_overhead.reach, SCYTHE_MOVES.thrust.reach], [1.8, 2.0, 1.8]);
+  // Reach = the measured bake frontier (the trident convention — the owner's read on first play: "this weapon should hit you from
+  // far away"); the sim test above pins the frontiers. The dead band inside 1.40 m is real (minReach).
+  assert.deepEqual([SCYTHE_MOVES.light_right.reach, SCYTHE_MOVES.heavy_overhead.reach, SCYTHE_MOVES.thrust.reach], [2.1, 2.3, 2.1]);
   assert.equal(SCYTHE.reach, SCYTHE_MOVES.thrust.reach);
 });

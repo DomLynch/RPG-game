@@ -313,7 +313,7 @@ const reap = (id: 'light_right' | 'light_left', chainPath: PathId): MoveDef => (
   id, direction: id === 'light_right' ? 'right' : 'left', path: id, chainPath, chained: { windup: 18, active: 8, recovery: 20 },
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the reap chains across like the sword's cuts
   windup: 24, active: 8, recovery: 26, damage: 16, stamina: 28, staminaDamage: 20, stagger: 26, poise: 0, poiseFrom: 0,   // a heavy edge on a long arc: more than a cut, slower tell (400 ms)
-  breaksGuard: false, chip: .25, parryable: true, knockback: 5, stepIn: .4, feintUntil: 12, reach: 1.8, minReach: 1.4, vsGuard: null, posture: 24, chamber: 10, charges: false,   // reach: the conservative spacing estimate (cleaver lesson), the measured bake frontier is 2.10 m with a dead band inside 1.40 — minReach pins that hole; the brief said ~1 m, the arc needs 1.4 (GAMEPLAY CHANGE flag)
+  breaksGuard: false, chip: .25, parryable: true, knockback: 5, stepIn: .4, feintUntil: 12, reach: 2.1, minReach: 1.4, vsGuard: null, posture: 24, chamber: 10, charges: false,   // reach = the measured bake frontier (the trident convention), the dead band inside 1.40 is real (minReach); the brief said ~1 m, the arc needs 1.4 (GAMEPLAY CHANGE flag)
 });
 export const SCYTHE_PATHS: Record<PathId, PathSpec> = {
   light_right: { clip: 'Scythe_Reap', source: .34, windup: 24, active: 8, recovery: 26 },        // the reap: one clip, both sides (the trident sweep's precedent)
@@ -332,14 +332,14 @@ export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
   heavy_overhead: {
     id: 'heavy_overhead', direction: 'overhead', path: 'heavy_overhead', chainPath: 'heavy_overhead_chain', chained: { windup: 24, active: 5, recovery: 33 }, chain: null,
     windup: 36, active: 5, recovery: 33, damage: 22, stamina: 38, staminaDamage: 35, stagger: 28, poise: 24, poiseFrom: 24,
-    breaksGuard: false, chip: .5, parryable: true, knockback: 5, stepIn: .5, feintUntil: 13, reach: 2.0, vsGuard: null, posture: 36, chamber: 11, charges: true,   // spacing estimate; the bake frontier measures 2.30
+    breaksGuard: false, chip: .5, parryable: true, knockback: 5, stepIn: .5, feintUntil: 13, reach: 2.3, vsGuard: null, posture: 36, chamber: 11, charges: true,   // the measured bake frontier (2.30) — his spacing weapon, the player sees it coming from far
   },
   // The heel-jab: the scythe cannot thrust, so the Stab button punches the head forward short and level — spacing and interrupt tool,
   // no chip, half a cut's damage. Chains into the reap (jab, then the arc).
   thrust: {
     id: 'thrust', direction: 'thrust', path: 'thrust', chainPath: null, chained: null, chain: { window: 14, follow: ['light_right'] },
     windup: 14, active: 4, recovery: 18, damage: 8, stamina: 18, staminaDamage: 14, stagger: 16, poise: 0, poiseFrom: 0,
-    breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: .8, feintUntil: 8, reach: 1.8, vsGuard: null, posture: 12, chamber: 6, charges: false,   // spacing estimate; the bake frontier measures 2.05
+    breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: .8, feintUntil: 8, reach: 2.1, vsGuard: null, posture: 12, chamber: 6, charges: false,   // the measured bake frontier (2.10): the heel-jab reaches like the reap — spacing and interrupt, not a point
   },
   riposte: { ...MOVES.riposte, path: 'riposte', windup: 12, active: 5, recovery: 19, reach: 1.7 },
   heavy_riposte: { ...MOVES.heavy_riposte, path: 'heavy_riposte' },
@@ -347,7 +347,7 @@ export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, path: 'heavy_riposte' },
   kick: MOVES.kick,
 };
-export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE_PATHS, guard: 'shaft', material: 'iron', reach: SCYTHE_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.5 } };   // the jab is a rare opener (one in ten); he holds the reap's range, never inside a metre
+export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE_PATHS, guard: 'shaft', material: 'iron', reach: SCYTHE_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 2.0 } };   // the jab is a rare opener (one in ten); he HOLDS the arc's edge at 2.0 m and reaps — the player must time the approach through the tell, never inside a metre and a half (owner 2026-09-18: "this weapon should hit you from far away; you need to time your attack to get in close")
 // The lanes' split (2026-09-16): the weapons lane delivers a weapon unused; the combat lane puts it in the fight. The cleaver is LIVE
 // since slice W (2026-09-17): OPPONENTS.pitborn carries it, baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention — the
 // brute's rendered blade runs ~10 cm past the simulated one, never the other way; a 1.13× bake let no backstep escape him).
