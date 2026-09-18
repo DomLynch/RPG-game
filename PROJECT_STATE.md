@@ -594,3 +594,5 @@ squashed into the sand — the contract caught the shield boss at 7 cm. Captures
   whole active window whiffed).
 - Evidence: tests/weapons.test.ts +4 (231/231 on the branch; shelf state, rig contract, contact-pose regression guard, data rules),
   `artifacts/weapons/scythe-notes.md`, sheets `scythe-A/`, `sche-B/…`, `scythe-C/`, `scythe-v1…v5/`, `executioner-baseline/`.
+- 2026-09-18 (world lane): motes doubled 260 → 520 per owner live feedback ("motes are good. just double their number") after the
+  half-size deploy (PR #123). Size stays 0.1 m, opacity 0.62, drift and gust unchanged — same specks, twice the air.
