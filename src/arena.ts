@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
-import { bannerAlpha, crowdAtlas, fbm, hash, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, type Pixels } from './assets/arena/textures.ts';
+import { bannerAlpha, crowdAtlas, fbm, flamePixels, hash, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
 
 // The arena: everything that is not a fighter, a light, the camera or an effect. Owned by the world lane.
 // Contract (tests/arena.test.ts): the playable surface is a flat circle (sim.ts RADIUS 8.55 m); nothing solid stands inside it above the
@@ -78,10 +78,10 @@ const STONE: [number, number, number] = [1, 1, 1], DARK: [number, number, number
 export function buildArena(scene: THREE.Scene): Arena {
   const group = new THREE.Group(); group.name = 'arena'; scene.add(group);
   const { wall, tiers, tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
-  const textures = { sand: dataTexture(sandAlbedo(), true), sandNormal: dataTexture(sandNormal(), false), stone: dataTexture(stoneAlbedo(), true), sky: dataTexture(skyPixels(512, 256, ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), crowd: dataTexture(crowdAtlas(), true), banner: dataTexture(bannerAlpha(), false) };
-  textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.crowd.wrapS = textures.crowd.wrapT = textures.banner.wrapS = textures.banner.wrapT = THREE.ClampToEdgeWrapping;
+  const textures = { sand: dataTexture(sandAlbedo(), true), sandNormal: dataTexture(sandNormal(), false), stone: dataTexture(stoneAlbedo(), true), stoneNormal: dataTexture(stoneNormal(), false), sky: dataTexture(skyPixels(512, 256, ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), crowd: dataTexture(crowdAtlas(), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true) };
+  textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.crowd.wrapS = textures.crowd.wrapT = textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = THREE.ClampToEdgeWrapping;
   const sand = new THREE.MeshStandardMaterial({ name: 'sand', map: textures.sand, normalMap: textures.sandNormal, normalScale: new THREE.Vector2(0.7, 0.7), color: '#e2ddd6', roughness: 0.96, vertexColors: true });
-  const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, color: '#b9b4ab', roughness: 0.93, vertexColors: true });
+  const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, normalMap: textures.stoneNormal, normalScale: new THREE.Vector2(1.1, 1.1), color: '#b9b4ab', roughness: 0.93, vertexColors: true });
   const iron = new THREE.MeshStandardMaterial({ name: 'iron', color: '#2a2623', roughness: 0.6, metalness: 0.78, vertexColors: true });
   const coal = new THREE.MeshStandardMaterial({ name: 'coal', color: '#1a1210', emissive: '#ff6a1c', emissiveIntensity: 1.1, roughness: 1 });
   const cloth = new THREE.MeshStandardMaterial({ name: 'cloth', alphaMap: textures.banner, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
@@ -89,7 +89,8 @@ export function buildArena(scene: THREE.Scene): Arena {
   const sky = new THREE.MeshBasicMaterial({ name: 'sky', map: textures.sky, side: THREE.BackSide, fog: false });
   const plain = new THREE.MeshStandardMaterial({ name: 'ash plain', color: '#4a463f', roughness: 1 });
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
-  const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary];
+  const flame = new THREE.MeshBasicMaterial({ name: 'flame', map: textures.flame, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary, flame];
   const mottle = fbm(4, 3, 9);
   function mesh(geometry: THREE.BufferGeometry, material: THREE.Material, name: string, shadows = true) {
     const object = new THREE.Mesh(geometry, material); object.name = name; object.castShadow = shadows; object.receiveShadow = true; group.add(object); return object;
@@ -190,6 +191,11 @@ export function buildArena(scene: THREE.Scene): Arena {
     irons.push(prop(box(0.16, 0.04, 0.05), x + Math.sin(a + 0.5) * 0.3, 0.035, z + Math.cos(a + 0.5) * 0.3, a + 0.5, 1, 1, [1.2, 0.9, 0.7], -5)); }
   mesh(mergeGeometries(irons), iron, 'iron');
   mesh(mergeGeometries(coals), coal, 'coals', false);
+  // Flames: one instanced tongue per brazier over the coals — three quads at 60° so it has volume from every angle
+  // (owner 2026-09-18: fat, orange-red, waving). Additive, no light, no shadow; the motion runs in update().
+  const flameQuad = (() => { const parts = [0, 1, 2].map(i => { const p = new THREE.PlaneGeometry(1.3, 0.78); p.rotateY(i * Math.PI / 3); return p; }); const g = mergeGeometries(parts); g.translate(0, 0.37, 0); return g; })();
+  const flames = new THREE.InstancedMesh(flameQuad, flame, brazierAngles.length); flames.name = 'flames'; flames.castShadow = flames.receiveShadow = false; group.add(flames);
+  const flameAnchors = brazierAngles.map(a => { const [x, z] = polar(wall.inner + 0.55, a); return { x, y: wall.top + 1.3, z }; });   // 0.55: the fattened quad's vertices (incl. the lick scale) stay outside the camera clamp; the offset from the coals is invisible
 
   // Banners: one instanced cloth, swaying about its crossbar. Dried-blood and bone cloths alternate (instance colours; no saturation).
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
@@ -248,6 +254,16 @@ export function buildArena(scene: THREE.Scene): Arena {
     coal.emissiveIntensity = 1.1 + 0.12 * Math.sin(time * 9.7) + 0.08 * Math.sin(time * 17.3 + 1.7) + 0.1 * (hash(Math.floor(time * 30), 0, 1) - 0.5) + flare * 1.3;
     bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1), a, 1); });
     banners.instanceMatrix.needsUpdate = true;
+    // Flames: a wave, not a pump (owner 2026-09-18) — a slow lean, a slow counter-rotation, a gentle breathe, a small fast lick;
+    // the vertical scale barely moves. The tongue swells with the coals' flare on a landed blow.
+    flameAnchors.forEach((p, k) => {
+      const lean = 0.13 * Math.sin(time * 2.2 + k * 1.7) + 0.05 * Math.sin(time * 5.1 + k * 2.9);
+      const breathe = 1 + 0.06 * Math.sin(time * 2.9 + k * 2.1) + 0.04 * Math.sin(time * 7.3 + k) + flare * 0.25;
+      const lick = 1 + 0.08 * Math.sin(time * 4.7 + k * 3.7);
+      position.set(p.x, p.y, p.z); quaternion.setFromEuler(euler.set(lean, k * 1.3 + time * 0.35 * (k % 2 ? 1 : -1), 0, 'YXZ')); scale.set(lick, breathe, lick);
+      flames.setMatrixAt(k, matrix.compose(position, quaternion, scale));
+    });
+    flames.instanceMatrix.needsUpdate = true;
     for (const { mesh, people } of crowds) {
       people.forEach((p, i) => { const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt, p.yaw, p.scale); });
       mesh.instanceMatrix.needsUpdate = true;

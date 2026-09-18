@@ -75,18 +75,23 @@ export function sandNormal(size = 512, seed = 7): Pixels {
     return [128 - 127 * dx / l, 128 - 127 * dy / l, 128 + 127 / l];
   });
 }
+// The ashlar block layout, shared by the albedo and the normal map so the carved relief lands exactly on the printed blocks.
+function ashlar(seed: number) {
+  const courseH = Array.from({ length: 5 }, (_, c) => 0.7 + hash(c, 0, seed + 40) * 0.6), cSum = courseH.reduce((a, b) => a + b, 0);
+  const courseAt = [0]; for (const h of courseH) courseAt.push(courseAt[courseAt.length - 1] + h / cSum);
+  const blocksOf = courseH.map((_h, c) => { const n = 2 + Math.floor(hash(c, 1, seed + 41) * 3), w = Array.from({ length: n }, (_, k) => 0.6 + hash(k, c, seed + 42) * 0.9), s = w.reduce((a, b) => a + b, 0), at = [0]; for (const x of w) at.push(at[at.length - 1] + x / s); return { at, stagger: hash(c, 2, seed + 43) }; });
+  const locate = (at: number[], t: number) => { let i = 0; while (i < at.length - 2 && t >= at[i + 1]) i++; return [i, (t - at[i]) / (at[i + 1] - at[i])] as const; };
+  return { courseAt, blocksOf, locate };
+}
 // Ashlar stone: hand-laid, not robotic (owner). Uneven course heights, 2–4 uneven blocks a course with staggered joints that
 // wander, blocks sitting proud (casting a shadow on the course below) or recessed, a damaged block here and there, worn mortar,
 // a per-block chamfer, weather streaks, pitting, mottling, soot, a few cracks. One tile = 2 m × 2 m on the wall.
 export function stoneAlbedo(size = 512, seed = 11): Pixels {
   const mottle = fbm(8, 4, seed), soot = fbm(3, 3, seed + 7), grain = fbm(64, 2, seed + 13, 0.6), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), stains = fbm(6, 3, seed + 21), dampF = fbm(3, 3, seed + 17);
-  // Reused stone: each block picks a hue — quarry grey, warm tan, cool slate, faint rose, sand-tinged, dark basalt (half strength:
-  // the full spread read as patchwork on the phone, owner 2026-09-17).
-  const hues: [number, number, number][] = [[1, 1, 1], [1.07, 1.015, 0.93], [0.95, 0.98, 1.03], [1.05, 0.965, 0.925], [1.03, 1, 0.9], [0.92, 0.925, 0.94]];
-  const courseH = Array.from({ length: 5 }, (_, c) => 0.7 + hash(c, 0, seed + 40) * 0.6), cSum = courseH.reduce((a, b) => a + b, 0);
-  const courseAt = [0]; for (const h of courseH) courseAt.push(courseAt[courseAt.length - 1] + h / cSum);
-  const blocksOf = courseH.map((_h, c) => { const n = 2 + Math.floor(hash(c, 1, seed + 41) * 3), w = Array.from({ length: n }, (_, k) => 0.6 + hash(k, c, seed + 42) * 0.9), s = w.reduce((a, b) => a + b, 0), at = [0]; for (const x of w) at.push(at[at.length - 1] + x / s); return { at, stagger: hash(c, 2, seed + 43) }; });
-  const locate = (at: number[], t: number) => { let i = 0; while (i < at.length - 2 && t >= at[i + 1]) i++; return [i, (t - at[i]) / (at[i + 1] - at[i])] as const; };
+  // Reused stone: each block picks a hue — quarry grey, warm tan, cool slate, faint rose, sand-tinged, dark basalt. Half strength
+  // (the full spread read as patchwork, 2026-09-17); the warm hues dampened toward grey again (still too yellow, 2026-09-18).
+  const hues: [number, number, number][] = [[1, 1, 1], [1.035, 1.0, 0.955], [0.95, 0.98, 1.03], [1.025, 0.98, 0.95], [1.015, 1.0, 0.95], [0.92, 0.925, 0.94]];
+  const { courseAt, blocksOf, locate } = ashlar(seed);
   return pixels(size, size, (u, v, x, y) => {
     const [course, fy0] = locate(courseAt, v), { at, stagger } = blocksOf[course], [bi, fx0] = locate(at, (((u + stagger) % 1) + 1) % 1), block = hash(bi, course, seed);
     const jx = (grain(u * 5, v * 5) - 0.5) * 0.12, fx = Math.min(1, Math.max(0, fx0 + jx * 0.4)), fy = Math.min(1, Math.max(0, fy0 + jx));   // the joints wander
@@ -101,6 +106,43 @@ export function stoneAlbedo(size = 512, seed = 11): Pixels {
     const crack = Math.abs(crackField(u, v) - 0.5) < 0.004 && mortar === 1 && crackMask(u, v) > 0.6 ? 0.6 : 1, k = m * g * mortar * chamfer * drop * recess * damaged * crack * pit * grit * (1 - 0.4 * s) * (1 - 0.3 * streak) * (1 - 0.35 * damp);
     const [hr, hg, hb] = hues[Math.floor(hash(bi, course, seed + 6) * hues.length)];
     return [158 * k * hr, 150 * k * hg, 138 * k * hb];
+  });
+}
+// Stone normal map: the relief the albedo only prints — the wall read flat and machine-smooth with colour alone (owner 2026-09-18).
+// Same layout, joint wander, chamfer and crack fields as stoneAlbedo, so every groove and step lands on its printed line; plus
+// erosion undulation, surface tooth, pitted dents and knocked corners. Tangent-space, +Y up, wraps.
+export function stoneNormal(size = 512, seed = 11): Pixels {
+  const { courseAt, blocksOf, locate } = ashlar(seed);
+  const grain = fbm(64, 2, seed + 13, 0.6), mottle = fbm(8, 4, seed), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), tooth = fbm(48, 2, seed + 71, 0.6);
+  const height = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const u = x / size, v = y / size;
+    const [course, fy0] = locate(courseAt, v), { at, stagger } = blocksOf[course], [bi, fx0] = locate(at, (((u + stagger) % 1) + 1) % 1);
+    const jx = (grain(u * 5, v * 5) - 0.5) * 0.12, fx = Math.min(1, Math.max(0, fx0 + jx * 0.4)), fy = Math.min(1, Math.max(0, fy0 + jx));
+    const wobble = 0.035 + 0.05 * grain(u * 3, v * 3), edge = Math.min(fx, 1 - fx, (fy - 0.02) * 2, (1 - fy) * 2);
+    let h = (hash(bi, course, seed + 44) - 0.5) * 1.1;                                     // proud and recessed blocks: the joints catch light
+    const face = Math.min(1, Math.max(0, (edge - wobble) / 0.22));                         // 0 in the joint → 1 on the face
+    h += (0.4 + 0.8 * hash(bi, course, seed + 60)) * face * face * (3 - 2 * face);         // the chamfer up to the face, per-block amplitude
+    if (edge < wobble) h -= 1.5 * Math.pow(1 - edge / wobble, 0.7);                        // the mortar groove itself
+    h += (mottle(u * 2, v * 2) - 0.5) * 0.55 * face + (tooth(u, v) - 0.5) * 0.22;          // erosion undulation and surface tooth
+    if (hash(bi, course, seed + 61) > 0.78) {                                              // a knocked corner: a bite out of one corner of the block
+      const cx = hash(bi, course, seed + 62) > 0.5 ? 0.06 : 0.94, cy = hash(bi, course, seed + 63) > 0.5 ? 0.08 : 0.92;
+      const d2 = ((fx - cx) / 0.3) ** 2 + ((fy - cy) / 0.3) ** 2;
+      if (d2 < 1) h -= 1.5 * Math.pow(1 - d2, 0.7);
+    }
+    if (edge >= wobble && crackMask(u, v) > 0.6) {                                         // the albedo's cracks, carved
+      const t = Math.abs(crackField(u, v) - 0.5);
+      if (t < 0.012) h -= 0.9 * (1 - t / 0.012);
+    }
+    height[y * size + x] = h;
+  }
+  // Pitted dents: two layers of seeded hollows (the inverse of the sand's pebbles), fading out down in the mortar grooves.
+  const dents = (list: Pebble[], depth: number) => stamp(size, list, (x, y, dome) => { const i = y * size + x; height[i] -= dome * depth * (0.55 + 0.45 * Math.tanh(height[i] + 1.5)); });
+  dents(pebbles(size, Math.round(size * size / 900), seed + 65, 1, size / 128), 0.5);
+  dents(pebbles(size, Math.round(size * size / 16000), seed + 67, size / 96, size / 36), 1.1);
+  return pixels(size, size, (_u, _v, x, y) => {
+    const at = (i: number, j: number) => height[((j + size) % size) * size + (i + size) % size], dx = (at(x + 1, y) - at(x - 1, y)) * 0.9, dy = (at(x, y + 1) - at(x, y - 1)) * 0.9, l = Math.hypot(dx, dy, 1);
+    return [128 - 127 * dx / l, 128 - 127 * dy / l, 128 + 127 / l];
   });
 }
 // The sky: an ash-grey dome, its horizon the scene's fog colour so the dome and the fog meet, with one break of light around the sun.
@@ -135,6 +177,20 @@ export function bannerAlpha(width = 128, height = 256, seed = 31): Pixels {
   return pixels(width, height, (u, v) => {
     const torn = v < 0.28 + 0.2 * (hem(u, 0.5) - 0.5) + 0.06 * (fray(u, v) - 0.5), side = Math.min(u, 1 - u) < 0.05 * fray(v, u), hole = holes(u, v) > 0.72 && v < 0.75;
     const a = torn || side || hole ? 0 : 255; return [a, a, a, a];   // three.js reads an alphaMap from the green channel: the mask fills every channel
+  });
+}
+// A brazier flame: fat and orange-red (owner 2026-09-18: the first pass read as a thin yellow sword — too narrow, too white,
+// pumped up and down; then "fatter still" — body width 0.5 → 0.65 with the quads widened to match). A small warm heart low down,
+// an orange body, deep red edges and tip, the outline licked by noise.
+// Additive-blended on three crossed quads; the arena leans and waves it per frame, so the texture itself stays static.
+export function flamePixels(width = 128, height = 256, seed = 37): Pixels {
+  const lick = fbm(5, 3, seed), wisp = fbm(9, 2, seed + 3, 0.6);
+  return pixels(width, height, (u, v) => {
+    // v: 0 at the base, 1 at the tip. A fat body widest low, narrowing to a ragged tongue.
+    const body = Math.pow(1 - v, 0.5) * Math.min(1, v * 4), w = 0.65 * body * (0.7 + 0.45 * lick(u, v * 2));
+    const d = w > 0 ? Math.abs(u - 0.5) / w : 2, a = Math.pow(Math.max(0, 1 - d), 1.3) * (1 - 0.2 * v) * (0.85 + 0.3 * wisp(u, v));
+    const heart = Math.max(0, 1 - d * 2.6) * Math.max(0, 1 - v * 1.6);   // the warm heart dies quickly with height
+    return [205 + 50 * heart, 55 + 65 * (1 - d) * (1 - v * 0.6) + 80 * heart, 10 + 14 * (1 - d) + 55 * heart, Math.round(255 * Math.min(1, a))];
   });
 }
 // Mean linear luminance of an sRGB pixel buffer: the number the contrast rule is written in.

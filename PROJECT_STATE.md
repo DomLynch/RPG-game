@@ -41,6 +41,22 @@ tests 227/227 (characters triangle + scaled-flight assertions included). Not don
 one command), his real weapon (weapons lane — the sword on his back is theirs), his combat profile (combat lane), mask
 rivets/perforations (texture-level).
 
+## Flames fatter still — 2026-09-18 (world lane, owner's art direction)
+Owner, from the phone, after flames v2 (PR #104): "fire fatter still, still only 50% of pot size". The flame quads widen
+0.95 → 1.3 m (`arena.ts`) and the texture body 0.5 → 0.65 (`flamePixels`), keeping the ragged tongue and wave motion. The wider
+quad's vertices (with the lick scale) reached 11.49 m — inside the 11.5 m camera clamp — so the flame anchors move
+`wall.inner + 0.42 → +0.55`; the 13 cm offset from the coal pans is invisible. Contract 7/7, zero cost delta. Captures:
+`artifacts/world/flames-fatter/` vs `flames-2/`.
+
+## Stone relief: the wall gets its surface — 2026-09-18 (world lane, owner's art direction)
+The owner, from the phone: the masonry colour is right but the wall reads flat and machine-smooth — "add some dents, or bits, or
+other surface imperfections randomly". The diagnosis: the wall had albedo only, no light response; the sand reads real because it
+has a normal map. `stoneNormal` (textures.ts) carves the relief the albedo prints: the ashlar layout is extracted into `ashlar()`
+and shared (the albedo is proven pixel-identical by checksum — the owner-approved colour is untouched), so mortar grooves,
+proud/recessed blocks, chamfers and the albedo's own cracks land exactly on their printed lines, plus erosion undulation, surface
+tooth, two layers of pitted dents and knocked corners. The stone material gains the normal map at scale 1.1. Cost: +1 texture,
+11.0 / 12 MB texture memory, +0.8 KB source gzip, zero draw-call or triangle growth. Contract 7/7, full gate + real-browser gate
+green. Captures: `artifacts/world/stone-relief/` vs `polish-4/`.
 
 ## Finishers & gore milestone authorized — 2026-09-17 (lead, owner's call)
 The owner authorized the finishers milestone the 2026-09-13 blood layer deferred ("mortal kombat closers, but gritty,
