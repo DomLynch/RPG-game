@@ -1,0 +1,20 @@
+{
+ "label": "arena-life-2-tuning",
+ "commit": "bdb63c2",
+ "date": "2026-09-18",
+ "sourceGzip": 19753,
+ "buildMs": 311,
+ "meshes": 14,
+ "instances": 242,
+ "triangles": 21518,
+ "textures": 9,
+ "textureBytes": 11359573.333333332,
+ "drawCallsArena": 20,
+ "drawCallsArenaWide": 20,
+ "drawCallsWithFighters": 112,
+ "trianglesRenderedArena": 31788,
+ "floorLuminance": 0.10536284109560523,
+ "skinLuminance": 0.16575910784402179,
+ "playRadius": 8.55,
+ "cameraClamp": 11.5
+}

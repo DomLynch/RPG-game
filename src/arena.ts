@@ -90,7 +90,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   const plain = new THREE.MeshStandardMaterial({ name: 'ash plain', color: '#4a463f', roughness: 1 });
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
   const flame = new THREE.MeshBasicMaterial({ name: 'flame', map: textures.flame, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-  const motesMaterial = new THREE.PointsMaterial({ name: 'motes', map: textures.mote, size: 0.14, transparent: true, opacity: 0.5, depthWrite: false, sizeAttenuation: true, color: '#9a9184' });
+  const motesMaterial = new THREE.PointsMaterial({ name: 'motes', map: textures.mote, size: 0.2, transparent: true, opacity: 0.62, depthWrite: false, sizeAttenuation: true, color: '#847b6e' });
   const gateLightMaterial = new THREE.MeshBasicMaterial({ name: 'gate-light', map: textures.gateLight, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary, flame, motesMaterial, gateLightMaterial];
   const mottle = fbm(4, 3, 9);
@@ -230,6 +230,27 @@ export function buildArena(scene: THREE.Scene): Arena {
   { const a = 5.6, [x, z] = polar(10.4, a);
     irons.push(prop(box(0.46, 0.02, 0.065), x, 0.025, z, a + 0.3, 1, 1, [1.9, 1.9, 2.0], -0.1));
     irons.push(prop(box(0.14, 0.035, 0.05), x - Math.sin(a) * 0.4, 0.03, z - Math.cos(a) * 0.4, a + 1.2, 1, 1, [1.2, 0.9, 0.7], -0.1)); }
+  // ...and five more pieces the wind has half-buried inside the ring, spread wide (owner 2026-09-18: "4-6 pieces
+  // scattered in the sand around the fighters, not too many, not close to each other"). Inside the play radius the
+  // contract says nothing solid above 6 cm — so these lie flat or squashed into the sand, flush enough to fight over.
+  { const scatter: [number, number, number][] = [[3.1, 0.6, 0], [6.9, 1.9, 1], [4.6, 3.3, 2], [7.6, 4.5, 3], [2.8, 5.5, 1]];   // r, angle, kind
+    const RUST: [number, number, number] = [1.9, 1.55, 1.0], STEEL: [number, number, number] = [1.8, 1.8, 1.95], WOOD: [number, number, number] = [1.5, 1.15, 0.75];
+    for (const [rr, a, kind] of scatter) { const [x, z] = polar(rr, a);
+      if (kind === 0) {   // a shield sunk to its rim, boss up
+        irons.push(prop(cylinder(0.3, 0.3, 0.035, 14), x, 0.004, z, new THREE.Euler(0, a, 0.09), 1, 1, RUST, -0.05));
+        const boss = new THREE.SphereGeometry(0.07, 8, 6); boss.scale(1, 0.4, 1);
+        irons.push(prop(boss, x, 0.025, z, 0, 1, 1, RUST, -0.05));
+      } else if (kind === 1) {   // a blade fragment, edge up
+        irons.push(prop(box(0.4, 0.018, 0.06), x, 0.006, z, a + 0.4, 1, 1, STEEL, -0.05));
+        irons.push(prop(box(0.12, 0.03, 0.05), x - Math.sin(a) * 0.35, 0.004, z - Math.cos(a) * 0.35, a + 1.1, 1, 1, WOOD, -0.05));
+      } else if (kind === 2) {   // a helmet trodden into the sand
+        const dome = new THREE.SphereGeometry(0.16, 10, 7); dome.scale(1, 0.32, 1.1);
+        irons.push(prop(dome, x, 0.004, z, 0, 1, 1, [1.5, 1.42, 1.3], -0.05));
+        irons.push(prop(box(0.18, 0.018, 0.1), x + Math.sin(a) * 0.1, 0.004, z + Math.cos(a) * 0.1, a, 1, 1, [1.5, 1.42, 1.3], -0.05));
+      } else {   // a spear shaft snapped short
+        const frag = cylinder(0.02, 0.024, 0.68, 6); frag.rotateZ(Math.PI / 2);
+        irons.push(prop(frag, x, 0.012, z, a + 0.7, 1, 1, WOOD, -0.05));
+      } } }
   mesh(mergeGeometries(irons), iron, 'iron');
   mesh(mergeGeometries(coals), coal, 'coals', false);
   // Flames: one instanced tongue per brazier over the coals — three quads at 60° so it has volume from every angle
@@ -238,10 +259,10 @@ export function buildArena(scene: THREE.Scene): Arena {
   const flames = new THREE.InstancedMesh(flameQuad, flame, brazierAngles.length); flames.name = 'flames'; flames.castShadow = flames.receiveShadow = false; group.add(flames);
   const flameAnchors = brazierAngles.map(a => { const [x, z] = polar(wall.inner + 0.55, a); return { x, y: wall.top + 1.3, z }; });   // 0.55: the fattened quad's vertices (incl. the lick scale) stay outside the camera clamp; the offset from the coals is invisible
   // Ash motes hanging in the air: one Points cloud, positions recomputed in update() (base + slow drift + a gust on a landed blow).
-  // Not a Mesh: the solid-geometry rules (play circle, camera clamp) are about things the camera can clip through; a 5 cm speck cannot.
-  const moteCount = 220, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2);
+  // Not a Mesh: the solid-geometry rules (play circle, camera clamp) are about things the camera can clip through; a speck cannot.
+  const moteCount = 260, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2);
   for (let i = 0; i < moteCount; i++) {
-    const a = hash(i, 0, 61) * TAU, r = Math.sqrt(hash(i, 1, 61)) * 10.6, y = 0.35 + Math.pow(hash(i, 2, 61), 1.4) * 5.0;
+    const a = hash(i, 0, 61) * TAU, near = hash(i, 5, 61) < 0.62, r = Math.sqrt(hash(i, 1, 61)) * (near ? 7.2 : 10.6), y = 0.5 + Math.pow(hash(i, 2, 61), 1.3) * 4.9;
     moteBase[i * 3] = r * Math.sin(a); moteBase[i * 3 + 1] = y; moteBase[i * 3 + 2] = r * Math.cos(a);
     motePhase[i * 2] = hash(i, 3, 61) * TAU; motePhase[i * 2 + 1] = 0.5 + hash(i, 4, 61);
   }
@@ -316,14 +337,14 @@ export function buildArena(scene: THREE.Scene): Arena {
       flames.setMatrixAt(k, matrix.compose(position, quaternion, scale));
     });
     flames.instanceMatrix.needsUpdate = true;
-    // Ash motes: a slow two-frequency drift, a barely-there settle, and a gust that swirls them when a blow lands.
+    // Ash motes: a two-frequency drift fast enough to catch the eye, a barely-there settle, and a gust that swirls them when a blow lands.
     { const p = moteGeometry.attributes.position as THREE.BufferAttribute;
       for (let i = 0; i < moteCount; i++) {
         const ph = motePhase[i * 2], sp = motePhase[i * 2 + 1], g = 1 + flare * 3.2;
         p.setXYZ(i,
-          moteBase[i * 3] + (0.38 * Math.sin(time * 0.11 * sp + ph) + 0.09 * Math.sin(time * 0.53 * sp + ph * 2.3)) * g,
-          Math.max(0.15, moteBase[i * 3 + 1] + 0.22 * Math.sin(time * 0.07 * sp + ph * 1.7) - 0.1 * flare * Math.sin(ph)),
-          moteBase[i * 3 + 2] + (0.38 * Math.cos(time * 0.09 * sp + ph * 1.3) + 0.09 * Math.cos(time * 0.47 * sp + ph)) * g);
+          moteBase[i * 3] + (0.55 * Math.sin(time * 0.19 * sp + ph) + 0.14 * Math.sin(time * 0.9 * sp + ph * 2.3)) * g,
+          Math.max(0.15, moteBase[i * 3 + 1] + 0.3 * Math.sin(time * 0.13 * sp + ph * 1.7) - 0.1 * flare * Math.sin(ph)),
+          moteBase[i * 3 + 2] + (0.55 * Math.cos(time * 0.16 * sp + ph * 1.3) + 0.14 * Math.cos(time * 0.8 * sp + ph)) * g);
       }
       p.needsUpdate = true; }
     for (const { mesh, people } of crowds) {
