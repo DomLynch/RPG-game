@@ -9,6 +9,30 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## The Executioner — fifth opponent, v2 — 2026-09-17/18 (character lane, owner brief; NOT SHIPPED — local branch `char/executioner-v1`, owner approval of the v2 visuals pending)
+The owner's brief (7 masked reference portraits, `artifacts/source/face/executioner/reference/`): a giant headsman — iron
+half-mask riveted over nose/cheeks/mouth, ragged hood, buckle harness, ~20 % over the Pitborn. The mask/hood could not go to
+the KeenTools scanner (it would bake iron and cloth into the skull), so a bare-head 7-angle portrait set was generated to the
+handover spec (`artifacts/source/face/executioner/executioner-01..07.png`) and uploaded — then `/process` returned 402
+Insufficient credits, same block as the Nightborn (owner declined the €11 top-up there). The head ships as the STAND-IN (the
+hero's scan, nightborn precedent): `head.FIGHTERS.executioner` (chin off — the jaw lives behind iron; buzz 0.14; decimate
+0.26, the helmed budget) records the one-command resume, avatar `01a0b094-dcd8-7792-835d-5bdb88f42cf6`, no re-upload needed.
+Registrations: `parts.KIT.executioner` (charcoal linen (0.16, 0.15, 0.17) — above the 12 % phone floor; grime 0.85;
+build + brute; greaves, boots, helm slot), `build-warrior BUILD.executioner scale 1.36` (owner: "20 % larger than Pitborn",
+no hunch — he stands straight; numerically verified against the pitborn GLB), runtime `OpponentId` + `OPPONENTS.executioner`
+(longsword placeholder, health 160, poise 12, `PROFILES` — the combat lead owns his real profile and ladder rung; LADDER is
+untouched, he is reachable only via `?opponent=executioner`) + `OPPONENT_GLB`. Kit parts authored in `parts.py`:
+`executioner_mask` (iron half-mask raycast-fitted to the face, Steel, ships via the Helmet slot) and `executioner_hood`
+(ragged hood, Heraldry near-black, ships via the Crest slot so it survives the mask's Helmet replacement); pteruges dye
+near-black; NO tusks (they are the Pitborn's). Evidence: `artifacts/character/executioner-v1/` (baseline audit — spiky crown
+hair, red pteruges, no kit) and `artifacts/character/executioner-v2/` (turntable, details, gameplay portrait/attack, faces);
+executioner.glb 6.49 MB raw, 21 clips, per-fight budget PASS (8.35 MB gzip vs the 10 MB cap). Gate: quality gate green at
+df0e4e3, and again after merging trunk 1afa0cb (arena v1 + estoc + Nightborn face v4 + zoom lock) on 2026-09-18 — one
+parts.py conflict (KIT dict), resolved keeping both lanes. Not done: the real KeenTools head (one top-up + one command),
+his real weapon (weapons lane — the sword on his back is theirs), his combat profile/ladder slot (combat/lead), the hood's
+tattered drape (v3 nit; the hem tears read at the cheeks/nape but the dome is smooth), mask rivets/perforations (texture-level).
+
+
 ## Finishers & gore milestone authorized — 2026-09-17 (lead, owner's call)
 The owner authorized the finishers milestone the 2026-09-13 blood layer deferred ("mortal kombat closers, but gritty,
 realistic"; the flat fall-backwards death is the target). Spec: GAME_SPEC.md "Owner-authorized finishers & gore —
