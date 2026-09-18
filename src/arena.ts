@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
-import { bannerAlpha, crowdAtlas, fbm, hash, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, type Pixels } from './assets/arena/textures.ts';
+import { bannerAlpha, crowdAtlas, fbm, hash, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
 
 // The arena: everything that is not a fighter, a light, the camera or an effect. Owned by the world lane.
 // Contract (tests/arena.test.ts): the playable surface is a flat circle (sim.ts RADIUS 8.55 m); nothing solid stands inside it above the
@@ -78,10 +78,10 @@ const STONE: [number, number, number] = [1, 1, 1], DARK: [number, number, number
 export function buildArena(scene: THREE.Scene): Arena {
   const group = new THREE.Group(); group.name = 'arena'; scene.add(group);
   const { wall, tiers, tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
-  const textures = { sand: dataTexture(sandAlbedo(), true), sandNormal: dataTexture(sandNormal(), false), stone: dataTexture(stoneAlbedo(), true), sky: dataTexture(skyPixels(512, 256, ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), crowd: dataTexture(crowdAtlas(), true), banner: dataTexture(bannerAlpha(), false) };
+  const textures = { sand: dataTexture(sandAlbedo(), true), sandNormal: dataTexture(sandNormal(), false), stone: dataTexture(stoneAlbedo(), true), stoneNormal: dataTexture(stoneNormal(), false), sky: dataTexture(skyPixels(512, 256, ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), crowd: dataTexture(crowdAtlas(), true), banner: dataTexture(bannerAlpha(), false) };
   textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.crowd.wrapS = textures.crowd.wrapT = textures.banner.wrapS = textures.banner.wrapT = THREE.ClampToEdgeWrapping;
   const sand = new THREE.MeshStandardMaterial({ name: 'sand', map: textures.sand, normalMap: textures.sandNormal, normalScale: new THREE.Vector2(0.7, 0.7), color: '#e2ddd6', roughness: 0.96, vertexColors: true });
-  const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, color: '#b9b4ab', roughness: 0.93, vertexColors: true });
+  const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, normalMap: textures.stoneNormal, normalScale: new THREE.Vector2(1.1, 1.1), color: '#b9b4ab', roughness: 0.93, vertexColors: true });
   const iron = new THREE.MeshStandardMaterial({ name: 'iron', color: '#2a2623', roughness: 0.6, metalness: 0.78, vertexColors: true });
   const coal = new THREE.MeshStandardMaterial({ name: 'coal', color: '#1a1210', emissive: '#ff6a1c', emissiveIntensity: 1.1, roughness: 1 });
   const cloth = new THREE.MeshStandardMaterial({ name: 'cloth', alphaMap: textures.banner, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
