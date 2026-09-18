@@ -56,23 +56,16 @@ tests; the finishers lane's battery mirrors this), side 0's weapon isolated, the
   asset-agreement contract and the "readable brutality" rule. The combat lane therefore makes
   **no sim change**.
 
-## What this means for the Split Crown row
+## OWNER DECISION (2026-09-18) — recorded, this question is closed
 
-- `selectFinisher` is correct as written. The moment the killing fighter wields a high-arcing
-  weapon (cleaver today; a re-animated hero Heavy or the weapon-slot feature tomorrow), Split
-  Crown fires organically with zero further code. The finishers lane's labeled harness override
-  remains a no-op-safe simulation of an event the sim can now genuinely produce.
-- For the **longsword hero in the live game**, the row is unreachable without an owner decision.
-  Options (owner/lead domain — GAME_SPEC and `src/finishers.ts` belong to you):
-  1. **Re-decide the row**: a heavy kill reports Split Crown regardless of the coarse region
-     ("a heavy chop that kills = the skull gives"). One-row edit; Run Through (thrust @ torso),
-     Opened (heavy @ torso) and the others would need the same look — the coarse region and the
-     finisher fantasy part ways exactly here.
-  2. **Wait for animation**: the visual lane authors a higher, more vertical hero `Heavy`
-     variant; `bake-blades.mjs` picks it up honestly (the 21-clip contract and the
-     asset-agreement tests are the tripwire, so this is a coordinated re-bake).
-  3. **Ship as-is**: Split Crown stays demo-only until 1 or 2 lands. Gore and the other five
-     rows are unaffected.
+The owner re-decided the row: **the v1 finisher set is universal, not locational.**
+Split Crown and the four further universal finishers fire on kills from any weapon and any
+character — no per-weapon tables, no coarse-location gating — rotating per kill for variety;
+weapon/class-specific specials are a later, separate layer. Heavy-blade kill → Split Crown
+from the moment the finishers lane applies the one-row change; kick kills, draws and the
+player's own death keep their current treatment. The rotation pick must stay a pure function
+of the kill event (determinism is a hard spec rule). The findings above remain the evidence
+base; the location event stream stays honest sim data for the future weapon-specific layer.
 
 ## Regression pins shipped in this branch
 
