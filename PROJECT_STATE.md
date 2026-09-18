@@ -9,6 +9,13 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
+## Flames fatter still — 2026-09-18 (world lane, owner's art direction)
+Owner, from the phone, after flames v2 (PR #104): "fire fatter still, still only 50% of pot size". The flame quads widen
+0.95 → 1.3 m (`arena.ts`) and the texture body 0.5 → 0.65 (`flamePixels`), keeping the ragged tongue and wave motion. The wider
+quad's vertices (with the lick scale) reached 11.49 m — inside the 11.5 m camera clamp — so the flame anchors move
+`wall.inner + 0.42 → +0.55`; the 13 cm offset from the coal pans is invisible. Contract 7/7, zero cost delta. Captures:
+`artifacts/world/flames-fatter/` vs `flames-2/`.
+
 ## Stone relief: the wall gets its surface — 2026-09-18 (world lane, owner's art direction)
 The owner, from the phone: the masonry colour is right but the wall reads flat and machine-smooth — "add some dents, or bits, or
 other surface imperfections randomly". The diagnosis: the wall had albedo only, no light response; the sand reads real because it
