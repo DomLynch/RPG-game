@@ -7,7 +7,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { OPPONENTS, PATHS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -25,13 +25,13 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 });
 
 // Parse the shipped geometry/rig/clips in Node. Image decoding/CSP is exercised in the browser.
-// Five fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig), the Pitborn (the same rig at
+// Six fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig), the Pitborn (the same rig at
 // OPPONENTS.pitborn.scale with a hunched spine — his ceilings scale with him), the Nightborn and the goblin (the rig re-proportioned and
-// scaled to OPPONENTS.goblin.scale of a man's height).
-const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 'goblin.glb'] as const;
-const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale };
+// scaled to OPPONENTS.goblin.scale of a man's height), and the Executioner (the brute frame at OPPONENTS.executioner.scale, mask and hood).
+const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 'goblin.glb', 'executioner.glb'] as const;
+const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale };
 // The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver, the Nightborn's estoc and the goblin's knife (sword clips until the weapons lane lands them).
-const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon };
+const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon };
 async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
@@ -68,9 +68,12 @@ for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded wa
           assert.ok(point.toArray().every(Number.isFinite)); bounds.expandByPoint(point);
         }
       });
-      assert.ok(bounds.min.y >= -.03, `${clip.name}: underground foot ${bounds.min.y}`);
-      assert.ok(bounds.min.y < (clip.name === 'Idle' || clip.name === 'Walk' ? .06 : .32), `${clip.name}: floating ${bounds.min.y}`);
       const k = SCALE[file];
+      // Flight scales with the fighter's stride, so the bound scales with k like the height/reach bounds below (probe
+      // 2026-09-18, max Jog min-y over 24 frames: man 0.285, pitborn 0.323 @1.13, goblin 0.193 @0.835, executioner 0.379 @1.36;
+      // the old fixed 0.32 only survived on the Pitborn by 12-frame sampling luck). Walk/Idle stay grounded for everyone.
+      assert.ok(bounds.min.y >= -.03, `${clip.name}: underground foot ${bounds.min.y}`);
+      assert.ok(bounds.min.y < (clip.name === 'Idle' || clip.name === 'Walk' ? .06 : .32 * k), `${clip.name}: floating ${bounds.min.y}`);
       assert.ok(bounds.max.y < 2.0 * k && bounds.max.y > 1.4 * k, `${file} ${clip.name}: height ${bounds.max.y}`); // 1.87 → 2.0 (REQUESTS #9): the Veteran's crested helm reaches ~1.92 m on this 1.8 m body
       // depth 1.6→1.65: the Studio body's feet are real length, so the Jog stride measures 1.605 m toe to toe (2026-09-14)
       assert.ok(bounds.max.x - bounds.min.x < 1.5 * k && bounds.max.z - bounds.min.z < 1.65 * k, `${clip.name} frame ${frame}: reach ${(bounds.max.x - bounds.min.x).toFixed(2)} × ${(bounds.max.z - bounds.min.z).toFixed(2)}`);
@@ -82,7 +85,7 @@ for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded wa
 test('the Veteran is the warrior\'s rig: same bones, the shared clips identical track for track, and either the sword nodes or a WeaponDrawn with a contact segment', async () => {
   const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
   const shared = hero.animations.filter(clip => veteran.animations.some(v => v.name === clip.name)).map(c => c.name);
-  assert.deepEqual(shared, [...CLIPS, ...COMBAT_CLIPS], 'the sword set is shared');
+  assert.deepEqual(shared, [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS], 'the sword set is shared (finisher clips are additive, 2026-09-17)');
   for (const clip of hero.animations) {
     const other = veteran.animations.find(v => v.name === clip.name)!;
     assert.equal(other.duration, clip.duration, `${clip.name} duration`);
@@ -111,7 +114,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
 });
 
 test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from', async () => {
-  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb') } as const;   // the estoc and the knife ride the sword clip family until the weapons lane lands them
+  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), scythe: await readWarrior('executioner.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
   for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
     const names = rigs[weapon].animations.map(a => a.name);
     for (const role of ROLES) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);
@@ -205,7 +208,7 @@ const GOBLIN = { legs: .84, arms: 1.16, root: .835, stride: .835 * .84, hunched:
 // the strafes, the kick, the defences) are solved on the rig with the two-bone reach, so their limb tracks legitimately follow his longer arms
 // and shorter legs; everything else in them (pelvis, spine_01, fingers, clavicles) is still the hero's.
 const RETARGETED = ['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Hit', 'Death', 'Guard', 'ArmedWalk', 'Roll'], SOLVED = /^(upperarm|lowerarm|hand|thigh|calf|foot)_[lr]\.quaternion$/;
-test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same 21 clips at the same durations — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {
+test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same clips at the same durations (the finisher is additive) — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {
   const [hero, goblin] = await Promise.all([readWarrior('warrior.glb'), readWarrior('goblin.glb')]);
   assert.deepEqual(goblin.animations.map(a => a.name), hero.animations.map(a => a.name));
   let hunchedTracks = 0, solvedTracks = 0, identical = 0;

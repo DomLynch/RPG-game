@@ -1,5 +1,30 @@
 # Project state
 
+## Arena life — 2026-09-18 (world lane, owner's picks #1–#5)
+Owner: "anything else we can add to make the environment more engaging?" — approved five, built in order, each audited
+(tests + captures) before the next. Sound left to the audio lane. **Ash motes**: 220-Point cloud, per-pixel sprite, slow
+two-frequency drift + a gust on landed blows (`motes` — Points, not Mesh: the solid-geometry rules are about camera
+collision); first pass was invisible at 5 cm/35 % — the brick's luminance noise floor — so 0.14 m, light-toned, reads as
+dust. **Firelight**: `fireGlow` warm vertex tint on wall+tier bands above each brazier (angular proximity × height
+window; static — the coals' emissive flicker carries motion). ~~**Battle-worn sand**~~ — owner rejected the decals on
+review ("3 i dont like"), dropped pre-merge; the `sandWearAtlas` lessons (decal albedo must land below sunlit sand,
+≈0.8×) are recorded here in case the idea returns. **Fallen gear**: dented
+helmet, snapped spear, broken blade in the iron merge (zero draw calls), yaw-only + low (camera-clamp rule). **Gate
+light**: the low sun spills through the arch — beam rides the real sun direction but lives inside the passage (r ≥ 11.7;
+the contract caught the first cut at 11.35 m) fading to the floor, plus an additive warm pool where it lands (y < 0.5 is
+exempt). Cost: 21/40 draw calls, 21.2k tris, 11.71/12 MB textures. Captures: `artifacts/world/arena-life-*/`.
+
+## Flames frayed — 2026-09-18 (world lane, owner's art direction)
+Owner, from the phone, after flames-fatter (PR #106): flames are ~50% of the pot, too pointy, too clean — "more like 70-80% of
+the pot size… less pointy at top… more frayed/jaggy, separated a bit… gritty and realistic, not fake cartoony". `flamePixels`
+(textures.ts) reworks the silhouette only (quad, anchors, palette and wave motion untouched): body width 0.65 → 0.88 with a
+blunter profile (pow 0.5 → 0.42), two noise slots that drift apart with height split the upper flame into separate tongues,
+high-frequency fray bites the silhouette harder toward the tip, the tip dies in a ragged noise line instead of a point, and a
+per-pixel grain keeps the colour gritty. Measured on the brazier close-up: 145 px vs the 200 px pot rim (72%, was 55%).
+Contract 226/226, zero draw-call/triangle/texture delta (+509 B source). Captures: `artifacts/world/flames-frayed/`; brazier
+close-ups (new `scripts/arena-closeup.mjs` harness — the wide/lock views render flames at ~15 px, too small to art-direct):
+`artifacts/world/flames-2-closeup/`, `flames-fatter-closeup/`, `flames-frayed/brazier.png`.
+
 Objective: live responsive longsword practice on frankendom.com, with canonical persistent-fighter RPG direction.
 Success: draw/strike, light chain/heavy/riposte, dodge/roll, directional block/timed parry, stamina, moving/guarding warden, player defeat/rematch; functioning movement/camera and saved guest identity; isolated verified HTTPS deployment. No claim of a passed player/hardware or online-combat gate.
 Scope: GAME_SPEC.md. Semble discovery is working; CodeGraph was initialized with owner authorization on 2026-09-13. Use both for code work, and run `codegraph sync` after edits.
@@ -8,6 +33,51 @@ Do not inspect/change other business products or existing VPS services.
 Selected approach: Vite + TypeScript + Three.js static build, no framework/backend. Babylon and native web exports rejected for additional surface in this bounded gate.
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
+
+## The Executioner — fifth opponent, v5 — 2026-09-18 (character lane, owner brief; NOT SHIPPED — branch `char/executioner-v1`, PR #111 owner-approved, merge pending)
+The owner's brief (7 masked reference portraits, `artifacts/source/face/executioner/reference/`): a giant headsman — iron
+half-mask riveted over nose/cheeks/mouth, ragged hood, buckle harness, ~20 % over the Pitborn. v5 (owner, 2026-09-18, on
+approving the PR visuals): his skin is DARK CHOCOLATE, mid-African — "not full black" — where the v1–v4 stand-in shipped him
+white/olive like the Veteran. `skin_mul (0.66, 0.55, 0.46)` paints the body and the new `photo_mul (0.66, 0.55, 0.46)`
+tints the STAND-IN photograph (applied after delight, before the neck band, so the collar ring the body continues is the
+tinted tone) — one factor both sides, so the hue stays matched; body bakes to median sRGB (94, 60, 40), the face tile to
+(80, 51, 35). The mask/hood could not go to
+the KeenTools scanner (it would bake iron and cloth into the skull), so a bare-head 7-angle portrait set was generated to the
+handover spec (`artifacts/source/face/executioner/executioner-01..07.png`) and uploaded — then `/process` returned 402
+Insufficient credits, same block as the Nightborn (owner declined the €11 top-up there). The head ships as the STAND-IN (the
+hero's scan, nightborn precedent): `head.FIGHTERS.executioner` (chin off — the jaw lives behind iron; buzz 0.14) records the
+one-command resume, avatar `01a0b094-dcd8-7792-835d-5bdb88f42cf6`, no re-upload needed. decimate 0.08, far below every other
+fighter: his face is never seen (eyes/brow are separate meshes, skin normal baked from the full-res head) and the v3 head at
+the Veteran's helmed 0.26 broke the 60k skinned-triangle ceiling (61,363; 0.20 still shipped 60,827) — v5 ships 53,839.
+Registrations: `parts.KIT.executioner` (charcoal linen (0.16, 0.15, 0.17) — above the 12 % phone floor; grime 0.85;
+build + brute; greaves, boots, helm slot), `build-warrior BUILD.executioner scale 1.36` (owner: "20 % larger than Pitborn",
+no hunch — he stands straight; numerically verified against the pitborn GLB), runtime `OpponentId` + `OPPONENTS.executioner`
+(longsword placeholder, health 160, poise 12, `PROFILES` — the combat lead owns his real profile; he fights the Veteran's
+brain until then) + `OPPONENT_GLB`, and the LADDER: fifth rung after the Nightborn (owner, 2026-09-18 — src/ladder.ts;
+characters/graphics/ladder tests enumerate him). Kit parts authored in `parts.py`:
+`executioner_mask` (iron half-mask raycast-fitted to the face, Steel, ships via the Helmet slot) and `executioner_hood`
+(ragged hood, Heraldry near-black, ships via the Crest slot so it survives the mask's Helmet replacement); pteruges dye
+near-black; NO tusks (they are the Pitborn's). v3 on the owner's v2 review: the hood's throat bib is CUT (it read as a
+floating black plate on the sternum — the throat is bare under the mask now) and the greaves are blackened iron, a dark
+baseColor factor over the bronze map. v4 on the owner's v3 review: the mask and greaves read darker-and-shinier than the
+hood ("fake") — `finishMaterials` now drops the ORM map for Steel/Bronze on HIS GLB only and lands scalar matte factors
+(metalness 0.45, roughness 0.88), greaves baseColor `#4a4239`; every other fighter untouched. Also v4: the Jog flight bound
+in tests/characters scales with the fighter's scale k (probe: man 0.285, pitborn 0.323 @1.13, goblin 0.193 @0.835,
+executioner 0.379 @1.36 — the fixed 0.32 only survived on the Pitborn by 12-frame sampling luck). Evidence:
+`artifacts/character/executioner-v1/` (baseline audit), `-v2/` (mask + hood + near-black kit), `-v3/` (no bib, black
+greaves) and `-v4/` (matte iron), `-v5/` (dark-chocolate skin — the approved look; turntable, details, gameplay
+portrait/attack, faces, sequence); executioner.glb 6.22 MB
+raw, 21 clips, per-fight budget PASS. Gate: green at df0e4e3, after the 1afa0cb trunk merge, on v3 (9d26d9a), and v4/v5 node
+tests 227/227 (characters triangle + scaled-flight assertions included). Not done: the real KeenTools head (one top-up +
+one command), his real weapon (weapons lane — the sword on his back is theirs), his combat profile (combat lane), mask
+rivets/perforations (texture-level).
+
+## Flames fatter still — 2026-09-18 (world lane, owner's art direction)
+Owner, from the phone, after flames v2 (PR #104): "fire fatter still, still only 50% of pot size". The flame quads widen
+0.95 → 1.3 m (`arena.ts`) and the texture body 0.5 → 0.65 (`flamePixels`), keeping the ragged tongue and wave motion. The wider
+quad's vertices (with the lick scale) reached 11.49 m — inside the 11.5 m camera clamp — so the flame anchors move
+`wall.inner + 0.42 → +0.55`; the 13 cm offset from the coal pans is invisible. Contract 7/7, zero cost delta. Captures:
+`artifacts/world/flames-fatter/` vs `flames-2/`.
 
 ## Stone relief: the wall gets its surface — 2026-09-18 (world lane, owner's art direction)
 The owner, from the phone: the masonry colour is right but the wall reads flat and machine-smooth — "add some dents, or bits, or
@@ -501,3 +571,28 @@ Integration for the lead: merge branch → `node scripts/bake-blades.mjs` → `n
 - Measured on his rig: the blade lands 0.30 m past the sword everywhere (thrust 2.35, cut 2.0, heavy 2.5); `reach` stays the sword's
   conservative numbers per his brief, the margin reported for combat review. Owner's pick pending: A estoc (default), B rapier cut, C long
   tuck (REQUESTS §14). Hand-off: REQUESTS §12–13. Tests: 224/224.
+
+## Arena life 2 — 2026-09-18 (owner's phone pass)
+On the live build the owner approved firelight + gate light, rejected nothing new, and asked for two fixes. **Motes were
+invisible in gameplay** — the phone camera looks down at busy, dark-speckled sand where a mid-grey speck has no contrast
+and the drift was too slow to catch the eye: now 260 (62 % inside r 7.2), 0.2 m, 0.62 opacity, ~1.8× drift speed; owner: "too large, floating grey circles" → half size (0.1 m), kept the contrast + drift.
+**Gear wanted inside the ring**: five more pieces (sunk shield, blade fragment, trodden helmet, snapped shaft) scattered
+r 2.8–7.6, ≥ ~1 rad apart. The play-circle rule (nothing solid above 6 cm inside r 8.55) means everything lies flat or
+squashed into the sand — the contract caught the shield boss at 7 cm. Captures: `artifacts/world/arena-life-2-tuning/`.
+
+## Scythe v1 — the weapons lane — 2026-09-18
+- Branch `weapons/scythe-v1` from trunk 7ee6e34. The Executioner's scythe (owner picked B over axe, 2026-09-18: the axe duplicated the
+  Pitborn's cleaver): 1.32 m haft, 0.74 m blade, sweep .30, iron `#4c4946` — 495 triangles, no textures, contact = the head (1.22–1.32 m).
+  His own 1.36× rig carries it (`src/assets/weapons/scythe/executioner-scythe.glb`) with a 13-clip `Scythe_*` family authored on it (the
+  trident's two-hand grip solver, per-key blade roll so the crescent reads from the game camera). On the shelf: `SCYTHE` exported,
+  `WEAPONS.scythe` still the placeholder, no manifest entry; the combat lane's flip is REQUESTS §15–17 and every part of it is a
+  GAMEPLAY CHANGE (new timings, shaft guard profile, chip profile, the arc's dead band).
+- Measured on the man-scale bake rig `warrior-scythe.glb` (the cleaver convention — his own 1.36× GLB bakes over a man's capsule and
+  everything whiffs): reap lands 1.40–2.10 m, the headsman's high 2.30, the heel-jab 2.05; `reach` = the conservative spacing estimates
+  1.8 / 2.0 / 1.8. The dead band is 1.40 m, not the brief's ~1 m — flagged for combat review. The bake caught and the rig test now pins:
+  the striking segment must sit ON the target line at the clip's contact key (the first reap keyed it 0.7 m past the crossing and the
+  whole active window whiffed).
+- Evidence: tests/weapons.test.ts +4 (231/231 on the branch; shelf state, rig contract, contact-pose regression guard, data rules),
+  `artifacts/weapons/scythe-notes.md`, sheets `scythe-A/`, `sche-B/…`, `scythe-C/`, `scythe-v1…v5/`, `executioner-baseline/`.
+- 2026-09-18 (world lane): motes doubled 260 → 520 per owner live feedback ("motes are good. just double their number") after the
+  half-size deploy (PR #123). Size stays 0.1 m, opacity 0.62, drift and gust unchanged — same specks, twice the air.

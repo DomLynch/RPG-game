@@ -20,3 +20,12 @@
 5. **Startup cost note.** `buildArena` runs synchronously inside `createScene` before the rigs load; the 1024² sand albedo is ~150 ms of that
    on the desktop, likely 0.4–0.7 s on a phone. If the phone measurement shows it, the generator can drop to 512² (a one-line change,
    `sandAlbedo(512)`) or run in a worker; not done pre-emptively.
+
+## Owner direction — 2026-09-18 (via lead, flames iteration on live trunk `2c5585a`)
+
+6. **Brazier flames, next pass.** Owner, from the phone, on the just-deployed "fatter" flames (currently ~50% of pot width): wants
+   **~70–80% of pot width**, **less pointy at the top**, and **more frayed/jagged — flame tongues separated and irregular, not one clean
+   outline**. Tone stays gritty and realistic — explicitly **not** fake-cartoony. Baseline numbers on trunk: pot top diameter 0.76 m
+   (`cylinder(0.38, 0.24, 0.32)`), flame quads 1.3 m wide, `flamePixels` body `w = 0.65 * …`, anchors at `wall.inner + 0.55` (pushed out
+   for the 11.5 m camera clamp — re-check that reach when widening). Reference capture: `artifacts/world/flames-fatter/wide.png`;
+   owner's screenshot in Downloads (`Frankendom Origins 9.png`) shows the target feel.

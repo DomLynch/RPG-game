@@ -37,8 +37,6 @@ const health = element<HTMLMeterElement>('target-health');
 const combatStatus = element('combat-status');
 const runButton = element<HTMLButtonElement>('run-button');
 const joystick = element('joystick');
-const gesturePad = element('gesture-pad');
-let gestureId: number | null = null, gestureX = 0, gestureY = 0, gestureUsed = false;
 const stick = element('stick');
 const input = element<HTMLInputElement>('fighter-name');
 const storage: StoragePort = { getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value) };
@@ -51,15 +49,14 @@ function persist() {
   element('save-status').textContent = saveProfile(storage, profile) ? 'Guest · saved on this device' : 'Storage unavailable · name will not be saved';
 }
 persist();
-// Control-scheme trial: the right thumb is buttons (v0) or the weapon disc in one of three grammars; the scorecard is per scheme.
+// Control-scheme trial: the right thumb is the button cluster or the v8 guard ring (one strike circle owns every attack); the scorecard is per scheme.
 const trial = loadTrial(storage);
 let scheme = trial.scheme, recorded = false, activeMs = 0;   // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
-const disc = () => scheme === 'flick';
+const ring8 = () => scheme === 'ring8';
 const thrustButton = element<HTMLButtonElement>('thrust-button');
-const DISC: Record<Flick, Action> = { left: 'light_left', right: 'light_right', up: 'thrust', down: 'heavy' };
 function applyScheme() {
   element('actions').dataset.gestures = scheme;
-  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(disc())); lastHud = '';
+  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(ring8())); lastHud = '';
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 // Who stands opposite: the rung this device has reached (profile.ladder), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
@@ -103,6 +100,31 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = { Blocked: 30, Hi
 const HEAVY_HIT = 90, HEAVY_BLOCK = 50;   // a heavy-class contact stops longer whether it lands or is blocked
 const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const HITSTOP_KEY = 'frankendom.hitstop.v1', TEMPO_KEY = 'frankendom.tempo.v1';
+// Coach hints (owner, 2026-09-18): one-line flashes that teach the five skill moves — chain, feint, dodge-attack, guard counter, riposte.
+// They run on the first warden fight only (the Veteran, ladder rung 1); a journal toggle turns them off, and each hint fires at most twice
+// per fight so it nags then stops. Presentation-only: it reads the same events the hit-stop and sound already read, and never feeds the sim.
+const COACH_KEY = 'frankendom.hints.v1';
+let coachOn = storage.getItem(COACH_KEY) !== 'off';
+const coachEl = element('coach');
+coachEl.hidden = true;   // the HTML ships it hidden; set it here too because the test harness's element stubs do not parse index.html
+const seen: Record<string, number> = {};
+let coachTimer: ReturnType<typeof setTimeout> | undefined;
+function coachMark(text: string, id: string, max = 2): void {
+  if (!coachOn || opponent.id !== LADDER[0].id || (seen[id] ?? 0) >= max) return;
+  seen[id]++;
+  coachEl.textContent = text; coachEl.hidden = false;
+  clearTimeout(coachTimer); coachTimer = setTimeout(() => { coachEl.hidden = true; }, 2600);
+}
+function coach(events: CombatEvent[]): void {
+  for (const e of events) {
+    if (e.type === 'Parried' && e.actor === 0) coachMark('Parried! Stab = riposte · Heavy = smash', 'parry');
+    else if (e.type === 'Blocked' && e.actor === 0 && !e.perfect) coachMark('Blocked — Heavy now = counter', 'counter');
+    else if (e.type === 'Hit' && e.actor === 0 && e.move?.startsWith('light_')) coachMark('Landed! strike again = faster chain', 'chain');
+    else if (e.type === 'AttackStarted' && e.actor === 0 && e.move === 'heavy_overhead') coachMark('Wind-up: tap Guard to feint', 'feint', 1);
+    else if (e.type === 'ActionStarted' && e.actor === 0 && (e.action === 'roll' || e.action === 'backstep')) coachMark('Strike as you rise = fast cut', 'dodge', 1);
+  }
+}
+function coachReset(): void { for (const id in seen) delete seen[id]; clearTimeout(coachTimer); coachEl.hidden = true; }
 // Tempo: the simulation is written in ticks; stepping it at 50 Hz instead of 60 plays the same fight a fifth slower in wall-clock (wind-ups,
 // windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
 // re-timing of the moves (which needs the blade paths re-baked).
@@ -136,16 +158,13 @@ function updateHud() {
   kickButton.setAttribute('aria-disabled',String(!controlsReady || !ok[2]));
   kickButton.dataset.reach = String(inKickReach);   // a kick has a short cone: the button brightens when it can land
   combatStatus.dataset.threat = String(practice.threat); combatStatus.dataset.move = practice.threatMove ?? '';
-  attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
-  gesturePad.textContent = practice.phase === 'sheathed' ? 'Tap to draw' : '← Cut → · ↑ Thrust · ↓ Heavy';
-  gesturePad.setAttribute('aria-disabled', String(!controlsReady));
-  gesturePad.hidden = !practice.health || !practice.playerHealth;
-  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : disc() ? 'Light' : 'Slash'; attackButton.setAttribute('aria-label', attackButton.textContent);
-  thrustButton.hidden = disc() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
+  attackButton.textContent = practice.phase === 'sheathed' ? 'Draw sword' : ring8() ? 'Strike — tap, hold or flick' : 'Light attack';
+  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : ring8() ? 'Strike' : 'Slash'; attackButton.setAttribute('aria-label', attackButton.textContent);
+  thrustButton.hidden = ring8() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed'; thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
   // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
   attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
   const ended = !practice.health || !practice.playerHealth;
-  heavyButton.hidden = ended; heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
+  heavyButton.hidden = ended || ring8(); heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
   attackButton.hidden = ended; resetButton.hidden = !ended;
   const next = ended && won(practice.finish) ? nextAfter(opponent.id) : undefined;
   resetButton.textContent = next ? `Next: ${next.name}` : 'Rematch';
@@ -173,7 +192,8 @@ let run = false, stickRun = false, moveId: number | null = null, orbitId: number
 let moveX = 0, moveZ = 0, orbitX = 0, orbitY = 0;
 const keys = new Set<string>();
 function clearInput() {
-  gestureId = null; gestureUsed = false; action = null; cancel = true; dodgeHeld = null; holders.clear(); dragGuard = false; hitStop = 0;
+  if (ring8Stroke) { clearTimeout(ring8Stroke.timer); ring8Stroke = null; }
+  action = null; cancel = true; dodgeHeld = null; holders.clear(); dragGuard = false; hitStop = 0;
   feedback.quiet(); keys.clear(); guard = false; guardId = null; run = stickRun = false; moveX = moveZ = 0; moveId = orbitId = null; accumulator = 0;
   stick.style.transform = ''; stick.dataset.run = 'false'; runButton.setAttribute('aria-pressed', 'false');
 }
@@ -183,6 +203,12 @@ element('name-form').addEventListener('submit', event => {
 element('name-button').addEventListener('click', () => { clearInput(); input.value = profile.name; welcome.hidden = false; input.focus(); });
 element('journal-button').addEventListener('click', () => { clearInput(); element('scorecard').textContent = formatCard(trial); journal.showModal(); });
 element('mobile-name').addEventListener('click', () => { journal.close(); element('name-button').click(); });
+element('mobile-coach').addEventListener('click', () => {
+  coachOn = !coachOn; storage.setItem(COACH_KEY, coachOn ? 'on' : 'off');
+  element('mobile-coach').textContent = coachOn ? 'Hints: on' : 'Hints: off';
+  element('mobile-coach').setAttribute('aria-pressed', String(coachOn));
+  if (!coachOn) { coachReset(); }
+});
 element('close-journal').addEventListener('click', () => journal.close());
 journal.addEventListener('close', clearInput);
 window.addEventListener('blur', clearInput);
@@ -209,11 +235,12 @@ runButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes
 runButton.addEventListener('keyup', () => setRun(false));
 runButton.addEventListener('blur', () => setRun(false));
 // A strike button with pointer capture: press = strike (held while down); the pointer leaving the circle while down = guard press (drag-off feint).
-function strikeControl(button: HTMLButtonElement, name: Strike, start: () => void) {
+// `pointer` lets a scheme hand the button's touch grammar to its own handler (v8's strike circle) without disturbing the others.
+function strikeControl(button: HTMLButtonElement, name: Strike, start: () => void, pointer: () => boolean = () => true) {
   let id: number | null = null, dragged = false;
   const radius = () => { const r = button.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 + 6 }; };   // 6 px of slack before a press counts as dragged off
   button.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || id !== null) return;
+    if (event.button !== 0 || id !== null || !pointer()) return;
     event.preventDefault(); id = event.pointerId; dragged = false;
     try { button.setPointerCapture(id); } catch { /* capture is a convenience: an uncaptured press still strikes */ }
     hold(name); start();
@@ -232,12 +259,56 @@ function strikeControl(button: HTMLButtonElement, name: Strike, start: () => voi
   button.addEventListener('keyup', () => unhold(name));
   button.addEventListener('blur', () => unhold(name));
 }
-strikeControl(attackButton, 'light', () => requestStrike());
+strikeControl(attackButton, 'light', () => requestStrike(), () => !ring8());
 kickButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); requestKick(); } });
 kickButton.addEventListener('pointercancel', () => withdraw('kick'));
 kickButton.addEventListener('keydown', event => { if (['Space','Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); requestKick(); } });
 strikeControl(heavyButton, 'heavy', () => requestStrike(true));
 strikeControl(thrustButton, 'thrust', () => request('thrust'));
+// Guard ring v8 (owner trial, 2026-09-18): the strike circle is the whole grammar — no Heavy or Stab buttons. A quick tap is the slash (it
+// fires as the thumb lifts, the fastest blow); holding loads the heavy (release early = plain, keep holding through the chamber = charged);
+// a flick up is the stab, sideways is that side's cut, back is guard. A loaded heavy dragged off the circle feints into guard, as the strike
+// buttons always have. Every intent is the one the dedicated button sends — the simulation owns every rule and timer, none are re-timed here.
+const RING8_ARM_MS = 300;
+let ring8Stroke: { id: number; x: number; y: number; armed: boolean; feint: boolean; flick: Flick | null; timer: ReturnType<typeof setTimeout> } | null = null;
+attackButton.addEventListener('pointerdown', event => {
+  if (!ring8() || event.button !== 0 || ring8Stroke !== null) return;
+  event.preventDefault();
+  const stroke = { id: event.pointerId, x: event.clientX, y: event.clientY, armed: false, feint: false, flick: null as Flick | null, timer: 0 as unknown as ReturnType<typeof setTimeout> };
+  stroke.timer = setTimeout(() => {
+    if (ring8Stroke !== stroke || stroke.flick) return;
+    stroke.armed = true; unhold('light'); hold('heavy'); requestStrike(true);   // held long enough: the heavy loads; keeping it held charges
+  }, RING8_ARM_MS);
+  ring8Stroke = stroke;
+  try { attackButton.setPointerCapture(event.pointerId); } catch { /* capture is a convenience: an uncaptured press still strikes */ }
+  hold('light');
+});
+attackButton.addEventListener('pointermove', event => {
+  const s = ring8Stroke;
+  if (!s || event.pointerId !== s.id) return;
+  if (s.armed) {   // a loaded heavy leaves the circle: the feint, exactly as dragging a strike button off its circle always was
+    if (s.feint) return;
+    const r = attackButton.getBoundingClientRect();
+    if (Math.hypot(event.clientX - (r.left + r.width / 2), event.clientY - (r.top + r.height / 2)) > r.width / 2 + 6) { s.feint = true; unhold('heavy'); dragGuard = true; requestParry(); }
+    return;
+  }
+  if (s.flick) return;
+  const flick = swipeAction(event.clientX - s.x, event.clientY - s.y);
+  if (!flick) return;
+  clearTimeout(s.timer); unhold('light'); s.flick = flick;
+  if (flick === 'up') { hold('thrust'); request('thrust'); }
+  else if (flick === 'down') { dragGuard = true; requestParry(); }
+  else request(flick === 'left' ? 'light_left' : 'light_right');
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) attackButton.addEventListener(type, event => {
+  const s = ring8Stroke;
+  if (!s || (event as PointerEvent).pointerId !== s.id) return;
+  ring8Stroke = null; clearTimeout(s.timer);
+  unhold('light'); unhold('heavy'); unhold('thrust');
+  if (s.flick === 'down' || s.feint) dragGuard = false;
+  else if (!s.flick && !s.armed && type === 'pointerup') requestStrike();   // the quick tap: the slash fires as the thumb lifts
+  if (type === 'pointercancel') withdraw(s.armed ? 'heavy' : s.flick ? (s.flick === 'up' ? 'thrust' : s.flick === 'down' ? 'parry' : `light_${s.flick}`) : 'light');
+});
 dodgeButton.addEventListener('pointerdown', event => { if (event.button === 0) { event.preventDefault(); dodgeButton.setPointerCapture(event.pointerId); pressDodge(performance.now()); } });
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) dodgeButton.addEventListener(name, () => releaseDodge(name === 'pointercancel'));
 dodgeButton.addEventListener('keydown', event => { if (['Space', 'Enter'].includes(event.code) && !event.repeat) { event.preventDefault(); pressDodge(performance.now()); } });
@@ -256,31 +327,11 @@ guardButton.addEventListener('blur', () => { guard = false; if (action === 'parr
 resetButton.addEventListener('click', () => {
   const next = won(practice.finish) ? nextAfter(opponent.id) : undefined;
   if (next) { profile.ladder = next.id; persist(); location.reload(); return; }   // the next fighter is another rig: a fresh page loads it
-  clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+  clearInput(); coachReset(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
 applyScheme();
-// Weapon disc (the alternative to the cluster): a stroke's direction chooses the attack and the strike goes at once.
-function beginStroke(event: PointerEvent, surface: HTMLElement) {
-  event.preventDefault(); gestureId = event.pointerId; gestureX = event.clientX; gestureY = event.clientY; gestureUsed = false;
-  if (practice.phase === 'sheathed') { requestStrike(); gestureUsed = true; }
-  try { surface.setPointerCapture(gestureId); } catch { /* capture is a convenience: a pointer the browser will not capture still strokes */ }
-}
-function moveStroke(event: PointerEvent) {
-  if (paused()) return;
-  const dx = event.clientX - gestureX, dy = event.clientY - gestureY;
-  if (gestureUsed) return;
-  const flick = swipeAction(dx, dy);
-  if (!flick) return;
-  event.preventDefault(); gestureUsed = true;
-  request(DISC[flick]);
-}
-function endStroke(cancelled: boolean) { if (cancelled) withdraw(['light_left', 'light_right', 'thrust', 'heavy', 'light']); gestureId = null; }
-gesturePad.addEventListener('pointerdown', event => { if (disc() && !paused() && assetsReady && event.button === 0 && gestureId === null) beginStroke(event, gesturePad); });
-gesturePad.addEventListener('pointermove', event => { if (event.pointerId === gestureId) moveStroke(event); });
-gesturePad.addEventListener('keydown', event => { if (!disc() || event.repeat) return; const flick = ({ ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' } as Record<string, Flick>)[event.code]; if (flick || event.code === 'Enter' || event.code === 'Space') { event.preventDefault(); request(flick ? DISC[flick] : 'light'); } });
-for (const name of ['pointerup','pointercancel','lostpointercapture']) gesturePad.addEventListener(name, event => { if ((event as PointerEvent).pointerId === gestureId) endStroke(name === 'pointercancel'); });
 function moveStick(event: PointerEvent) {
   const rect = joystick.getBoundingClientRect();
   const x = (event.clientX - rect.left - rect.width / 2) / 42;
@@ -370,7 +421,7 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, opponent.profiles[difficulty]);
-      feedback.update(practice.events); frameEvents.push(...practice.events);
+      feedback.update(practice.events); frameEvents.push(...practice.events); coach(practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;
       if (action) sent = action;

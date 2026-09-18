@@ -1543,6 +1543,18 @@ FIGHTERS = {
                 'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84)},  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
     'goblin': {'kt_glb': 'artifacts/source/keentools/01a0ab81-4cff-7871-bac7-adfa28d57d0b.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16 22:33
                'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.42, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.80, 0.77, 0.78), 'backdrop_cool': True},  # stubbled bald scalp (hair_lum .42: the photographed stubble is lum ~.32 — at .30 the fill took only its shadows and printed a dark band round a pale crown); no helm; skin_mul: v1 body rendered (178,154,125) beside a (143,115,97) cheek — tan and 25–30 % too bright for the grey-brown face; backdrop_cool: the grey backdrop smeared onto the crown
+    # The Executioner (opponent 6): seven GPT portraits (front, ±35, ±90, from below ~25°, from above ~20°), 2026-09-17,
+    # artifacts/source/face/executioner/. kt_glb is a STAND-IN (the hero's scan) until the KeenTools account has credits —
+    # the 22:1x job stopped at 402 AFTER the uploads; resume with
+    # `node scripts/create-head.mjs artifacts/source/keentools --avatar 01a0b094-dcd8-7792-835d-5bdb88f42cf6` and point this at the new GLB.
+    # Masked and hooded in game — the iron half-mask and ragged hood are kit parts (parts.py), so chin is off (the jaw sits
+    # behind iron) and the crown's budget goes to the hood. Dark stubble under the hood. decimate 0.08, far below every
+    # other fighter: his face is never seen (only eyes/brow, which are separate meshes with their own ratios, and the skin
+    # normal map is baked from the full-res head), and the v3 head at the Veteran's helmed 0.26 broke the 60k skinned-triangle
+    # ceiling (61,363 — tests/characters); 0.20 still shipped 60,827. 0.08 lands ~59.7k with margin.
+    'executioner': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',
+                    'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.14, 'hair': 'buzz', 'scars': False, 'decimate': 0.08,
+                    'skin_mul': (0.66, 0.55, 0.46), 'photo_mul': (0.66, 0.55, 0.46)},  # owner 2026-09-18: dark-chocolate (mid-African) skin, "not full black" — skin_mul paints the body, photo_mul tints the STAND-IN photograph too, or the collar reads two people; both take the same factor so the hue stays matched
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
@@ -1837,6 +1849,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
     filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size, front=front)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
     filled = delight(filled, dark | (coverage < 0.6))  # the portraits' key light is baked in: the lit cheeks and forehead rendered brighter and shinier than the body
+    if FIGHTERS[FIGHTER].get('photo_mul'):  # per-fighter skin tint ON THE PHOTOGRAPH (the Executioner's dark chocolate, owner
+        filled = filled * np.array(FIGHTERS[FIGHTER]['photo_mul'])[None, None, :]  # 2026-09-18): after delight, before the neck band, so the ring the body continues is the tinted tone — skin_mul alone paints only the body
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
         mottle = (0.92 + P.fbm(size, 41, octaves=(4, 8, 16, 32)) * 0.18)[..., None]  # the painted body's own tone noise, so the band is skin, not paint

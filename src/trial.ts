@@ -2,10 +2,11 @@ import type { StoragePort } from './profile.ts';
 
 // Control-scheme trial: which right-thumb control the owner is testing, and a per-scheme scorecard kept in the browser.
 // The owner locked in the thumb cluster (v5) on 2026-09-16 after trying the square grid, three weapon-disc grammars, an invisible
-// field and a segmented disc; the flick disc (v1) stays as the one alternative. Any other stored scheme falls back to the cluster.
-export type Scheme = 'cluster' | 'flick' | 'ring';
-export const SCHEMES: Scheme[] = ['cluster', 'flick', 'ring'];
-export const LABELS: Record<Scheme, string> = { cluster: 'thumb cluster', flick: 'weapon disc · flick', ring: 'guard ring · v7' };
+// field and a segmented disc; the flick disc (v1) stays as the one alternative. v7 (guard ring) and v8 (one strike circle: tap/hold/flick)
+// are owner trials of 2026-09-18. Any other stored scheme falls back to the cluster.
+export type Scheme = 'cluster' | 'ring8';
+export const SCHEMES: Scheme[] = ['cluster', 'ring8'];
+export const LABELS: Record<Scheme, string> = { cluster: 'thumb cluster', ring8: 'guard ring · v8' };
 export type Tally = { fights: number; wins: number; rematches: number; ticks: number; dealt: number; taken: number; active: number };   // active: real unpaused wall-clock ms (hit-stop included); ticks is simulation time
 export type Trial = { scheme: Scheme; card: Partial<Record<Scheme, Tally>> };
 const KEY = 'frankendom.controls.v1';

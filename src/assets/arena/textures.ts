@@ -180,16 +180,62 @@ export function bannerAlpha(width = 128, height = 256, seed = 31): Pixels {
   });
 }
 // A brazier flame: fat and orange-red (owner 2026-09-18: the first pass read as a thin yellow sword — too narrow, too white,
-// pumped up and down). A small warm heart low down, an orange body, deep red edges and tip, the outline licked by noise.
+// pumped up and down; then "fatter still" — body width 0.5 → 0.65 with the quads widened to match; then "70–80 % of the pot,
+// less pointy, frayed and separated, gritty not cartoon"). A small warm heart low down, an orange body, deep red edges; drifting
+// slots split the upper half into separate tongues, high-frequency fray bites the silhouette, and the tip dies in a ragged line.
 // Additive-blended on three crossed quads; the arena leans and waves it per frame, so the texture itself stays static.
+const smoothstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 export function flamePixels(width = 128, height = 256, seed = 37): Pixels {
-  const lick = fbm(5, 3, seed), wisp = fbm(9, 2, seed + 3, 0.6);
+  const lick = fbm(5, 3, seed), wisp = fbm(9, 2, seed + 3, 0.6), fray = fbm(14, 2, seed + 7), grain = fbm(24, 1, seed + 11);
   return pixels(width, height, (u, v) => {
-    // v: 0 at the base, 1 at the tip. A fat body widest low, narrowing to a ragged tongue.
-    const body = Math.pow(1 - v, 0.5) * Math.min(1, v * 4), w = 0.5 * body * (0.7 + 0.45 * lick(u, v * 2));
-    const d = w > 0 ? Math.abs(u - 0.5) / w : 2, a = Math.pow(Math.max(0, 1 - d), 1.3) * (1 - 0.2 * v) * (0.85 + 0.3 * wisp(u, v));
-    const heart = Math.max(0, 1 - d * 2.6) * Math.max(0, 1 - v * 1.6);   // the warm heart dies quickly with height
-    return [205 + 50 * heart, 55 + 65 * (1 - d) * (1 - v * 0.6) + 80 * heart, 10 + 14 * (1 - d) + 55 * heart, Math.round(255 * Math.min(1, a))];
+    // v: 0 at the base, 1 at the tip. A blunt fat body widest low, still broad at mid-height.
+    const body = Math.pow(1 - v, 0.42) * Math.min(1, v * 4), w = 0.88 * body * (0.72 + 0.4 * lick(u, v * 2));
+    const d = w > 0 ? Math.abs(u - 0.5) / w : 2, edge = Math.max(0, 1 - d);
+    // separation: slots that drift outward with height carve the upper flame into 2–3 tongues
+    let slot = 0;
+    for (const c0 of [-0.2, 0.16]) {
+      const c = 0.5 + c0 * (0.5 + v), spread = 0.003 + 0.006 * Math.max(0, v - 0.35);
+      slot = Math.max(slot, Math.exp(-((u - c) ** 2) / spread));
+    }
+    const carve = slot * smoothstep(0.3, 0.7, v) * 0.9;
+    // fray: high-frequency bites, deeper toward the tip; the centre column survives (that is what keeps it fire, not smoke)
+    const bite = smoothstep(0.38, 0.66, fray(u * 1.9, v * 1.4) * (0.5 + 0.85 * v) + edge * 0.42);
+    // ragged tip: full below ~0.78, noise-eaten to nothing by ~1.0
+    const tip = smoothstep(1.0, 0.78, v + 0.16 * (fray(u * 3.1, 0.7) - 0.5));
+    const a = Math.pow(edge, 1.15) * (1 - 0.12 * v) * (0.85 + 0.3 * wisp(u, v)) * bite * (1 - carve) * tip;
+    const heart = Math.max(0, 1 - d * 2.6) * Math.max(0, 1 - v * 1.6);
+    const grit = 0.88 + 0.24 * grain(u * 4, v * 4);   // per-pixel sooty grain so it never reads flat-shaded
+    return [(205 + 50 * heart) * grit, (55 + 65 * (1 - d) * (1 - v * 0.6) + 80 * heart) * grit, (10 + 14 * (1 - d) + 55 * heart) * grit, Math.round(255 * Math.min(1, a))];
+  });
+}
+// A drifting ash mote: a soft grey speck with gritty edges. One 32² sprite for the whole particle system —
+// ash hangs in the air so the arena reads inhabited (world lane 2026-09-18); normal blending, no glow.
+export function motePixels(size = 32, seed = 53): Pixels {
+  const grit = fbm(8, 2, seed);
+  return pixels(size, size, (u, v) => {
+    const r = Math.hypot(u - 0.5, v - 0.5) * 2, a = Math.max(0, 1 - r) ** 1.6 * (0.55 + 0.45 * grit(u, v));
+    const c = 155 + 40 * grit(v, u);
+    return [c, c * 0.96, c * 0.9, Math.round(220 * a)];
+  });
+}
+// Gate light (world lane 2026-09-18): one atlas, two halves. v > 0.5 is the sun shaft that spills through the gate arch —
+// soft across, streaked like light through bars, fading along its length. v < 0.5 is the warm pool where it lands on the
+// sand. Additive: RGB carries the brightness (peak ~half, warm), alpha carries the shape.
+export function gateLightAtlas(width = 128, height = 256, seed = 83): Pixels {
+  const streaks = fbm(6, 3, seed), dapple = fbm(10, 2, seed + 4);
+  return pixels(width, height, (u, v) => {
+    if (v >= 0.5) {
+      const s = u, t = (v - 0.5) * 2;
+      const across = Math.exp(-((s - 0.5) ** 2) / 0.075);
+      const bars = 0.6 + 0.4 * Math.max(0, Math.sin(s * 34 + 2.2 * (streaks(s, t) - 0.5)));
+      const a = across * bars * (t < 0.12 ? t / 0.12 : 1 - smoothstep(0.62, 1, t)) * (0.75 + 0.25 * streaks(s * 3, t * 2));
+      const k = 150 * a;
+      return [k, k * 0.9, k * 0.68, 255];
+    }
+    const s = u, t = v * 2, r = Math.hypot(s - 0.5, t - 0.5) * 2;
+    const a = Math.exp(-(r * r) / 0.55) * (0.7 + 0.3 * dapple(s * 2, t * 2)) * (1 - smoothstep(0.75, 1, r));
+    const k = 120 * a;
+    return [k, k * 0.88, k * 0.64, 255];
   });
 }
 // Mean linear luminance of an sRGB pixel buffer: the number the contrast rule is written in.

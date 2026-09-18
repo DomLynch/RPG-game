@@ -6,7 +6,7 @@
 
 .art-status{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);max-width:80%;padding:12px 18px;background:#172023e8;color:#e9ddc5;text-align:center;font-size:13px;pointer-events:none}.art-status:empty{display:none}
 
-.combat-hud{position:fixed;top:220px;left:32px;width:260px;font:11px Arial,sans-serif;text-shadow:0 1px 4px #000;pointer-events:none}.combat-hud>span{letter-spacing:1.4px;display:flex;justify-content:space-between}#health-value{letter-spacing:0}#target-health{display:block;width:100%;height:12px;margin-top:8px;accent-color:#a65342}#target-health::-webkit-meter-bar{background:#1d2829;border:1px solid #c1ad7966;border-radius:0}#target-health::-webkit-meter-optimum-value{background:#a65342}#combat-status{line-height:1.5;min-height:34px;color:#f0e3c9}.actions .primary{width:auto;min-width:110px}.combat-hud p{margin-top:8px}
+.combat-hud{position:fixed;top:220px;left:32px;width:260px;font:11px Arial,sans-serif;text-shadow:0 1px 4px #000;pointer-events:none}.combat-hud>span{letter-spacing:1.4px;display:flex;justify-content:space-between}#health-value{letter-spacing:0}#target-health{display:block;width:100%;height:12px;margin-top:8px;accent-color:#a65342}#target-health::-webkit-meter-bar{background:#1d2829;border:1px solid #c1ad7966;border-radius:0}#target-health::-webkit-meter-optimum-value{background:#a65342}#combat-status{line-height:1.5;min-height:34px;color:#f0e3c9}#coach{line-height:1.4;min-height:0;margin-top:2px!important;color:#e0c88f;font-style:italic}.actions .primary{width:auto;min-width:110px}.combat-hud p{margin-top:8px}
 
 .combat-hud>span:not(:first-child){margin-top:10px}.combat-hud meter{display:block;width:100%;height:10px;margin-top:5px}.combat-hud meter::-webkit-meter-bar{background:#1d2829;border:1px solid #c1ad7966;border-radius:0}#player-health::-webkit-meter-optimum-value{background:#739384}#stamina::-webkit-meter-optimum-value{background:#c5ad72}#stamina{background-image:linear-gradient(to right,transparent var(--max,100%),#5a2d2a99 var(--max,100%))}#stamina[data-leg=true]{outline:1px solid #b5533f88}.combat-hud meter.posture{height:4px;margin-top:2px}.posture::-webkit-meter-optimum-value{background:#d98e4a}.posture[data-critical=true]::-webkit-meter-optimum-value{background:#f0553a}#combat-status[data-threat=true]{color:#ffe4a6;background:#542c23cc;padding:7px;border-left:2px solid #e0aa6a}
 .actions{display:grid;grid-template-columns:repeat(3,auto)}#recenter-button{display:none}#attack-button,#reset-button{grid-column:2;grid-row:1}#dodge-button{grid-column:2;grid-row:2}#guard-button{grid-column:3;grid-row:2}#run-button{grid-column:3;grid-row:1}#performance{bottom:140px}
@@ -47,41 +47,38 @@
 #gesture-pad,#thrust-button{display:none}.actions{touch-action:none}
 .scorecard{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;margin:.6em 0;color:#d9c9a6}
 @media(max-width:900px),(pointer:coarse){
- .actions[data-gestures=flick] #attack-button,.actions[data-gestures=flick] #heavy-button{display:none}
  /* Thumb cluster (the mobile layout): round, mostly see-through targets sized by how often they are needed, curved around the right thumb's rest. */
  .actions[data-gestures=cluster]{display:block;position:relative;width:176px;height:210px}
- .actions[data-gestures=cluster] button,.actions[data-gestures=ring] button{position:absolute;border-radius:50%;padding:0!important;min-height:0!important;background:#17232952;border:1px solid #f0e3c94d;box-shadow:inset 0 0 0 3px #f0e3c912,0 1px 3px #0003;color:#f4ead8;transition:background .08s,transform .08s}
- .actions[data-gestures=cluster] button[data-mobile]::after,.actions[data-gestures=ring] button[data-mobile]::after{font:600 11px/1 Arial;letter-spacing:1px;text-transform:uppercase;text-shadow:0 1px 2px #000a}
- .actions[data-gestures=cluster] button:active,.actions[data-gestures=ring] button:active{background:#f0e3c94a;transform:scale(.95)}
- .actions[data-gestures=cluster] button[aria-disabled=true],.actions[data-gestures=ring] button[aria-disabled=true]{opacity:.5}
- .actions[data-gestures=cluster] .primary,.actions[data-gestures=ring] .primary{background:#b7a27680;border-color:#e9d9b3a6}.actions[data-gestures=cluster] .primary:active,.actions[data-gestures=ring] .primary:active{background:#d9c69ac0}
- .actions[data-gestures=cluster] #guard-button[aria-pressed=true],.actions[data-gestures=ring] #guard-button[aria-pressed=true]{background:#c6af7873;border-color:#f0e3c9}
+ .actions[data-gestures=cluster] button,.actions[data-gestures=ring8] button{position:absolute;border-radius:50%;padding:0!important;min-height:0!important;background:#17232952;border:1px solid #f0e3c94d;box-shadow:inset 0 0 0 3px #f0e3c912,0 1px 3px #0003;color:#f4ead8;transition:background .08s,transform .08s}
+ .actions[data-gestures=cluster] button[data-mobile]::after,.actions[data-gestures=ring8] button[data-mobile]::after{font:600 11px/1 Arial;letter-spacing:1px;text-transform:uppercase;text-shadow:0 1px 2px #000a}
+ .actions[data-gestures=cluster] button:active,.actions[data-gestures=ring8] button:active{background:#f0e3c94a;transform:scale(.95)}
+ .actions[data-gestures=cluster] button[aria-disabled=true],.actions[data-gestures=ring8] button[aria-disabled=true]{opacity:.5}
+ .actions[data-gestures=cluster] .primary,.actions[data-gestures=ring8] .primary{background:#b7a27680;border-color:#e9d9b3a6}.actions[data-gestures=cluster] .primary:active,.actions[data-gestures=ring8] .primary:active{background:#d9c69ac0}
+ .actions[data-gestures=cluster] #guard-button[aria-pressed=true],.actions[data-gestures=ring8] #guard-button[aria-pressed=true]{background:#c6af7873;border-color:#f0e3c9}
  .actions[data-gestures=cluster] #thrust-button:not([hidden]){display:block;width:50px;height:50px;left:88px;top:0}
  .actions[data-gestures=cluster] #attack-button{width:66px;height:66px;left:10px;top:38px}
  .actions[data-gestures=cluster] #heavy-button{width:50px;height:50px;left:122px;top:52px}
  .actions[data-gestures=cluster] #kick-button{width:44px;height:44px;min-height:0;left:77px;top:100px;border-radius:50%;font-size:0;background:#17232952}   /* 44 px: the platform minimum for the innermost target */
- .actions[data-gestures=cluster] #kick-button[data-reach=true],.actions[data-gestures=ring] #kick-button[data-reach=true]{background:#b7a27666;border-color:#e9d9b3a6}
+ .actions[data-gestures=cluster] #kick-button[data-reach=true],.actions[data-gestures=ring8] #kick-button[data-reach=true]{background:#b7a27666;border-color:#e9d9b3a6}
  .actions[data-gestures=cluster] #dodge-button{width:56px;height:56px;left:5px;top:144px}
  .actions[data-gestures=cluster] #guard-button{width:64px;height:64px;left:109px;top:145px}
  .actions[data-gestures=cluster] #reset-button{left:0;top:75px;width:176px;height:56px;border-radius:16px;background:#b7a276c8}
- .actions[data-gestures=cluster] #camera-button,.actions[data-gestures=cluster] #run-button,.actions[data-gestures=cluster] #recenter-button,.actions[data-gestures=ring] #camera-button,.actions[data-gestures=ring] #run-button,.actions[data-gestures=ring] #recenter-button{display:none}
- /* Guard ring (v7 prototype): Guard is a ring around Slash — the thumb rests on Slash and a short rock in any direction is Guard (a held
-    strike dragged onto it is the feint). Heavy above, Stab up-right, Step below-left, Kick outside right. Slash sits on top, so the ring's hit
-    region is the annulus only. The scorecard decides between this and the cluster. */
- .actions[data-gestures=ring]{display:block;position:relative;width:208px;height:248px}
- .actions[data-gestures=ring] #guard-button{width:132px;height:132px;left:30px;top:60px;background:radial-gradient(circle,#0000 36px,#17232952 37px);box-shadow:inset 0 0 0 3px #f0e3c912,inset 0 0 0 36px #0000,0 1px 3px #0003}
- .actions[data-gestures=ring] #guard-button[aria-pressed=true]{background:radial-gradient(circle,#0000 36px,#c6af7873 37px)}
- .actions[data-gestures=ring] #guard-button::after{position:absolute;left:0;right:0;bottom:9px;text-align:center}   /* the ring's label sits on its lower rim, clear of Slash */
- .actions[data-gestures=ring] #attack-button{width:66px;height:66px;left:63px;top:93px;z-index:2}
- .actions[data-gestures=ring] #heavy-button{width:50px;height:50px;left:48px;top:4px}
- .actions[data-gestures=ring] #thrust-button:not([hidden]){display:block;width:50px;height:50px;left:118px;top:4px}
- .actions[data-gestures=ring] #kick-button{width:44px;height:44px;min-height:0;left:163px;top:100px;border-radius:50%;font-size:0;background:#17232952}
- .actions[data-gestures=ring] #dodge-button{width:56px;height:56px;left:4px;top:192px}
- .actions[data-gestures=ring] #reset-button{left:0;top:96px;width:208px;height:56px;border-radius:16px;background:#b7a276c8;z-index:3}
- .actions[data-gestures=flick] #gesture-pad{display:block;grid-column:1/-1;grid-row:1;width:148px;height:100px;font:13px/1.7 Arial;padding:18px!important;color:#f0e3c9;border-color:#c6af78;background:#172329a8}
+ .actions[data-gestures=cluster] #camera-button,.actions[data-gestures=cluster] #run-button,.actions[data-gestures=cluster] #recenter-button,.actions[data-gestures=ring8] #camera-button,.actions[data-gestures=ring8] #run-button,.actions[data-gestures=ring8] #recenter-button{display:none}
+ /* Guard ring v8 (owner-approved 2026-09-18, replacing the v7 prototype and the flick disc): the strike circle is the whole grammar — tap = slash, hold = heavy (long hold charges),
+    flick up = stab, sideways = that side's cut, back = guard. No Heavy or Stab buttons (the circle owns them). The strike circle is
+    15% larger than v7 (66 → 76 px) and the ring's hole grows with it; Step and Kick keep their places. */
+ .actions[data-gestures=ring8]{display:block;position:relative;width:208px;height:248px}
+ .actions[data-gestures=ring8] #heavy-button,.actions[data-gestures=ring8] #thrust-button{display:none}
+ .actions[data-gestures=ring8] #guard-button{width:132px;height:132px;left:30px;top:60px;background:radial-gradient(circle,#0000 41px,#17232952 42px);box-shadow:inset 0 0 0 3px #f0e3c912,inset 0 0 0 41px #0000,0 1px 3px #0003}
+ .actions[data-gestures=ring8] #guard-button[aria-pressed=true]{background:radial-gradient(circle,#0000 41px,#c6af7873 42px)}
+ .actions[data-gestures=ring8] #guard-button::after{position:absolute;left:0;right:0;bottom:9px;text-align:center}
+ .actions[data-gestures=ring8] #attack-button{width:76px;height:76px;left:58px;top:88px;z-index:2}
+ .actions[data-gestures=ring8] #kick-button{width:44px;height:44px;min-height:0;left:163px;top:100px;border-radius:50%;font-size:0;background:#17232952}
+ .actions[data-gestures=ring8] #dodge-button{width:56px;height:56px;left:4px;top:192px}
+ .actions[data-gestures=ring8] #reset-button{left:0;top:96px;width:208px;height:56px;border-radius:16px;background:#b7a276c8;z-index:3}
 }
 
-@media(max-width:900px),(pointer:coarse){#kick-button{grid-column:1/-1;grid-row:3;justify-self:end;width:70px;height:44px;min-height:44px;border-radius:22px;font-size:0;background:#283233a6}.actions[data-gestures=flick] #kick-button{grid-row:auto}}
+@media(max-width:900px),(pointer:coarse){#kick-button{grid-column:1/-1;grid-row:3;justify-self:end;width:70px;height:44px;min-height:44px;border-radius:22px;font-size:0;background:#283233a6}}
 @media(min-width:901px) and (pointer:fine){#performance{bottom:190px}}
 
 /* Combat debug overlay: developer readout of simulation state, presentation-only. */

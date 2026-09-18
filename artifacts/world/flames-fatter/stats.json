@@ -1,0 +1,20 @@
+{
+ "label": "flames-fatter",
+ "commit": "84f6794",
+ "date": "2026-09-18",
+ "sourceGzip": 16333,
+ "buildMs": 484,
+ "meshes": 13,
+ "instances": 241,
+ "triangles": 20928,
+ "textures": 8,
+ "textureBytes": 11184810.666666664,
+ "drawCallsArena": 17,
+ "drawCallsArenaWide": 17,
+ "drawCallsWithFighters": 109,
+ "trianglesRenderedArena": 30608,
+ "floorLuminance": 0.10536284109560523,
+ "skinLuminance": 0.16575910784402179,
+ "playRadius": 8.55,
+ "cameraClamp": 11.5
+}

@@ -42,11 +42,11 @@ const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
-const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'nightborn' ? '#3b3b3f' : fighter === 'goblin' ? '#4a3a2c' : '#767a7c', metalness: fighter === 'nightborn' ? 0.7 : fighter === 'goblin' ? 0.6 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'goblin' ? 0.9 : fighter === 'nightborn' ? 0.72 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the goblin's one bracer is rust-brown scavenged iron; the Nightborn's dull dark iron, no hot spot
+const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'nightborn' ? '#3b3b3f' : fighter === 'goblin' ? '#4a3a2c' : fighter === 'executioner' ? '#33302e' : '#767a7c', metalness: fighter === 'nightborn' ? 0.7 : fighter === 'goblin' ? 0.6 : fighter === 'executioner' ? 0.8 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'goblin' ? 0.9 : fighter === 'nightborn' ? 0.72 : fighter === 'executioner' ? 0.7 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the goblin's one bracer is rust-brown scavenged iron; the Nightborn's dull dark iron, no hot spot; the Executioner's mask is pitted dark iron
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
 const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
-const leather = new T.MeshStandardMaterial({ name: 'Leather', color: fighter === 'nightborn' ? '#2b2320' : '#4a3527', roughness: 0.8 });   // the Nightborn's is black-oiled
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'nightborn' ? '#17151a' : fighter === 'goblin' ? '#3a3229' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface. The runtime recolours the opponent only when both fighters share one GLB
+const leather = new T.MeshStandardMaterial({ name: 'Leather', color: fighter === 'nightborn' ? '#2b2320' : fighter === 'executioner' ? '#2b231c' : '#4a3527', roughness: 0.8 });   // the Nightborn's is black-oiled; the Executioner's harness is dark work-leather
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'nightborn' ? '#17151a' : fighter === 'goblin' ? '#3a3229' : fighter === 'executioner' ? '#171310' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface; the Executioner's pteruges and hood are near-black (above the 12 % floor so the rags still shade). The runtime recolours the opponent only when both fighters share one GLB
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
@@ -54,7 +54,7 @@ for (const mesh of [body, base.scene.getObjectByName('Eyes')]) { mesh.geometry.m
 base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .35 });
 const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
 const ranger = new T.MeshStandardMaterial({ name: 'Ranger', roughness: 1 }); // CC0 outfit-pack items; maps from the manifest
-const bronze = new T.MeshStandardMaterial({ name: 'Bronze', roughness: 1, metalness: 1 });
+const bronze = new T.MeshStandardMaterial({ name: 'Bronze', color: fighter === 'executioner' ? '#4a4239' : '#ffffff', roughness: 1, metalness: 1 }); // the Executioner's greaves are blackened iron (the dark factor rides over the bronze map, owner 2026-09-18: "same dark charcoal as the rest"; matte factors land in finishMaterials); everyone else's stay bright bronze (white = the map as authored)
 const wrap = new T.MeshStandardMaterial({ name: 'Wrap', roughness: .85 }); // wrist wraps: leather strip maps from the manifest
 const eyesMaterial = new T.MeshPhysicalMaterial({ name: 'Eyes', roughness: .3, clearcoat: .5, clearcoatRoughness: .18 }); // wet cornea, soft highlight; roughness from the map
 // Realistic head: its own texture tile with skin-strength specular (KHR_materials_specular), and strand cards for hair,
@@ -85,6 +85,7 @@ const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bron
 // `stride` (root scale × leg scale) is written to the GLB so the runtime plays his walk at his own pace instead of a man's (characters.ts).
 const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] }, pitborn: { scale: 1.13, hunch: [['spine_02', 7], ['spine_03', 7], ['neck_01', -7], ['Head', -6]] },
   nightborn: { scale: 1.03, hunch: [['spine_02', -2], ['spine_03', -2], ['Head', -4]] },
+  executioner: { scale: 1.36, hunch: [] },   // 20 % over the Pitborn's 1.13 (owner, 2026-09-17); no hunch — the Executioner stands straight
   goblin: { scale: .835, hunch: [['spine_02', 9], ['spine_03', 9], ['neck_01', -8], ['Head', -8]], bob: .84, stride: .835 * .84, floor: .12,
     bones: { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l: [1, .84, 1], calf_r: [1, .84, 1],   // short legs
       upperarm_l: [1, 1.16, 1], upperarm_r: [1, 1.16, 1], lowerarm_l: [1, 1.16, 1], lowerarm_r: [1, 1.16, 1],   // long arms (the hands keep their size: the grip and the sword are untouched)
@@ -188,7 +189,7 @@ for (const file of partFiles) {
 }
 // Equipped items (WARRIOR_ITEMS=ranger,...): src/assets/source/items/<name>.glb, same contract as parts. An item replaces
 // whatever the level-1 kit put in the same slot. Demo builds only until the runtime swaps slots itself.
-const items = process.env.WARRIOR_ITEMS ?? (fighter === 'veteran' ? 'helmet_bronze' : ''); // the Pitborn fights bareheaded (his tusks and brow are the silhouette) // the Veteran fights in a plain bronze helm: a poor first opponent (owner, 2026-09-16 — the crest floated, and extravagance is for later, harder men; crest_red_veteran.glb stays built)
+const items = process.env.WARRIOR_ITEMS ?? (fighter === 'veteran' ? 'helmet_bronze' : fighter === 'executioner' ? 'mask_iron,hood_rag' : ''); // the Pitborn fights bareheaded (his tusks and brow are the silhouette) // the Veteran fights in a plain bronze helm: a poor first opponent (owner, 2026-09-16 — the crest floated, and extravagance is for later, harder men; crest_red_veteran.glb stays built) // the Executioner: the iron half-mask and the ragged hood (parts.py executioner_mask/executioner_hood) — his face is never seen
 for (const item of items.split(',').filter(Boolean)) {
   const own = `src/assets/source/items/${item}_${fighter}.glb`, file = fighter !== 'hero' && await fs.stat(own).then(() => true, () => false) ? own : `src/assets/source/items/${item}.glb`; // a helm is shelled from its fighter's skull
   const glb = await fs.readFile(file), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
@@ -524,6 +525,55 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
  }
  clips.push(new T.AnimationClip(name,1,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
 }
+// Death_SplitCrown (owner-authorized finishers & gore, 2026-09-17 — additive; the 21 contract clips above stay frozen):
+// a heavy overhead into the crown. The skull gives at the impact key, then the body drops STRAIGHT down — the knees fold
+// under him, the shins slide back, he ends kneeling and folded forward over his own legs. No backward fall, no bounce.
+// 2.4 s = RULES.death (144 ticks), so the dead phase's progress sweeps the clip 1:1 exactly as Death01 does. Authored on
+// this rig from measured world references, so the re-proportioned goblin gets his own scale of the same collapse.
+{
+ const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+ const times=[0,.045,.09,.18,.32,.5,.68,.82,1],positions=[],values=new Map(skeleton.bones.map(b=>[b.name,[]]));
+ const armed=clips.find(c=>c.name==='Armed');
+ poseMixer.clipAction(armed).play();poseMixer.update(0);base.scene.updateMatrixWorld(true);
+ const pelvisRest=base.scene.getObjectByName('pelvis').position.clone();   // pelvis local frame: +z is world up (.949 standing), +y is world back
+ const footHome={l:base.scene.getObjectByName('foot_l').getWorldPosition(new T.Vector3()),r:base.scene.getObjectByName('foot_r').getWorldPosition(new T.Vector3())};
+ const FLOOR=BUILD.floor??0,rest=pelvisRest.z,ratio=rest/.949;   // kneel/fold distances scale with this rig's standing pelvis height
+ poseMixer.stopAllAction();
+ for(const phase of times){
+  poseMixer.clipAction(armed).play();poseMixer.update(0);base.scene.updateMatrixWorld(true);
+  const snap=smooth(phase/.09);                    // the skull gives: a fast downward jolt of the head in the first fifth of a second
+  const fold=smooth((phase-.09)/.5);               // the torso folds forward over the legs
+  const drop=smooth((phase-.06)/.62);              // the straight-down collapse to the knees
+  const sink=smooth((phase-.5)/.4);                // the last settle onto the folded legs
+  const kneel=smooth((phase-.06)/.5);              // the shins slide back under him
+  const pelvis=base.scene.getObjectByName('pelvis');
+  pelvis.position.set(pelvisRest.x,pelvisRest.y+kneel*.06*ratio,rest-(drop*.55+sink*.08)*rest);
+  pelvis.rotation.x+=fold*.18;
+  base.scene.getObjectByName('spine_01').rotation.x+=fold*.34+snap*.06;
+  base.scene.getObjectByName('spine_02').rotation.x+=fold*.30;
+  base.scene.getObjectByName('neck_01').rotation.x+=snap*.30+fold*.18;
+  base.scene.getObjectByName('Head').rotation.x+=snap*.50+fold*.22;
+  base.scene.updateMatrixWorld(true);
+  for(const side of ['l','r']){
+   const home=footHome[side],target=home.clone();
+   target.z-=kneel*.30*ratio; target.y=home.y+(Math.max(.05,FLOOR)-home.y)*kneel;   // the top of the foot comes to rest on the floor behind him
+   reachArm(side,target,true);
+  }
+  // The arms go slack: the hands fall from guard to his sides, then flop forward onto the ground ahead of the knees.
+  for(const side of ['l','r']){
+   const sx=side==='l' ? 1 : -1, hand=base.scene.getObjectByName('hand_'+side), home=hand.getWorldPosition(new T.Vector3());
+   const sidePt=new T.Vector3(sx*.24*ratio,rest*.55,.05*ratio);
+   const groundPt=new T.Vector3(sx*.17*ratio,Math.max(.1,FLOOR),footHome[side].z+.28*ratio-kneel*.30*ratio);
+   const goal=phase<.5 ? home.clone().lerp(sidePt,smooth((phase-.09)/.4)) : sidePt.clone().lerp(groundPt,smooth((phase-.5)/.35));
+   reachArm(side,goal);
+  }
+  base.scene.updateMatrixWorld(true);
+  positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
+  for(const bone of skeleton.bones)values.get(bone.name).push(...bone.quaternion.toArray());
+  poseMixer.stopAllAction();
+ }
+ clips.push(new T.AnimationClip('Death_SplitCrown',2.4,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
+}
 // GAMEPLAY CHANGE candidates (opt-in, combat review decides): strikes from UAL2 replace the authored attacks. Each candidate
 // joins a strike with its recovery, finds the blade's most-forward instant, and retimes piecewise so that instant lands on
 // the contract's contact fraction at the contract's duration. Moves the blade during contact → re-bake, tests, review.
@@ -654,7 +704,7 @@ function finishMaterials(glb, authored = new Map()) {
   for(const m of j.materials) {
     const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
     // Authored slots own their channel outright; anything not authored keeps the procedural map below.
-    if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};if(m.name!=='Heraldry')p.baseColorFactor=[1,1,1,1];} // Heraldry keeps its dye as the factor: the map is undyed leather and the runtime recolours the opponent's
+    if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};if(m.name!=='Heraldry'&&!(m.name==='Bronze'&&fighter==='executioner'))p.baseColorFactor=[1,1,1,1];} // Heraldry keeps its dye as the factor: the map is undyed leather and the runtime recolours the opponent's; the Executioner's Bronze keeps its blackened-iron factor over the bronze map
     if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
     if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
     if(a.occlusion) {a.occlusion.index ??= image(a.occlusion.bytes,a.occlusion.mime); m.occlusionTexture={index:a.occlusion.index,texCoord:a.occlusionTexCoord,strength:1};} // one shared image across materials
@@ -662,6 +712,9 @@ function finishMaterials(glb, authored = new Map()) {
     if(m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
     if(m.name==='Gambeson'||m.name==='Heraldry') {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
     if(m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
+    // The Executioner's blackened iron (owner, v3 review: the mask and greaves read darker and shinier than the hood — fake):
+    // drop the ORM map for scalar matte factors; with metalness down the diffuse returns and they read as charcoal iron beside the hood's cloth.
+    if(fighter==='executioner'&&(m.name==='Steel'||m.name==='Bronze')) {delete p.metallicRoughnessTexture;p.metallicFactor=0.45;p.roughnessFactor=0.88;}
   }
   j.buffers[0].byteLength=offset;
   const text=Buffer.from(JSON.stringify(j)), padded=Buffer.concat([text,Buffer.alloc((4-text.length%4)%4,32)]), bin=Buffer.concat(chunks);

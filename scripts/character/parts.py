@@ -46,7 +46,11 @@ KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'b
        # The Nightborn: black-dyed wool (never pure black — below ~12 % value the folds and occlusion have nothing to shade at phone size), clean,
        # the base frame (lean), a closed tunic over both shoulders with a standing collar, no helm, no greaves. artifacts/character/BRIEF-nightborn.md.
        'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': 'points', 'crown': True},  # ears 'points': small tips on the scan's own ears (his brief), not the goblin's long ears; crown: the small dark-ruby circlet (his examples, 2026-09-18)
-       'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
+       'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True},
+       # The Executioner: charcoal-black linen (above the Nightborn's 12 % phone-size floor), heavily grimed, the brute frame
+       # at 1.36 — 20 % over the Pitborn (BUILD.executioner). The helm slot carries the iron half-mask + ragged hood; leather
+       # buckle harness over bare arms (see artifacts/source/face/executioner/reference/). Greaves and boots; ears under the hood.
+       'executioner': {'linen': (0.16, 0.15, 0.17), 'grime': 0.85, 'greaves': True, 'build': True, 'bare': False, 'brute': True, 'helm': True, 'barefoot': False, 'ears': False}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -910,6 +914,212 @@ def bronze_helmet():
     return [helm, tag(crest, 'crest_red', 'Heraldry', bone='Head', slot='Crest')]
 
 
+def scan_eyes():
+    """The scanned head's eye line and eye spacing. After keentools_head() the eyes are their own objects (kt_eye_l/r);
+    vertex coordinates are rig-space, the same convention bronze_helmet() measures the skull in."""
+    def centre_of(name):
+        o = bpy.data.objects[name]
+        return sum((v.co for v in o.data.vertices), Vector()) / len(o.data.vertices)
+    el, er = centre_of('kt_eye_l'), centre_of('kt_eye_r')
+    return (el.z + er.z) / 2, (er - el).length
+
+
+def executioner_mask():
+    """The Executioner's iron half-mask (Helmet slot, rigid to Head): a plate raycast onto the scanned face so it fits the
+    man himself — from just under the eyes (a short tab up the nose bridge) down over the chin, wrapping to the jaw at ±56°,
+    standing 6 mm off the skin with a raised centre rib. Rivets and the cheek perforations are texture-level (deferred).
+    Reference: artifacts/source/face/executioner/reference/."""
+    kt = bpy.data.objects['kt_head']
+    eye_z, spacing = scan_eyes()
+    skull = [v.co for v in kt.data.vertices if v.co.z > head.z + 0.03]
+    axis_y = (min(v.y for v in skull) + max(v.y for v in skull)) / 2  # the face turns about this vertical axis
+    dg = bpy.context.evaluated_depsgraph_get()
+
+    def top(az):  # the upper edge: under the eyes, a tab rising between them onto the nose bridge
+        a = abs(az)
+        return eye_z + (0.014 if a < 12 else -0.014 if a < 30 else -0.020)
+
+    def bottom(az):  # the lower edge: under the chin at the front, rising along the jaw towards the ears
+        t = min(1.0, max(0.0, (abs(az) - 20) / 36))
+        return (eye_z - 1.45 * spacing) * (1 - t) + (eye_z - 0.85 * spacing) * t
+
+    cols, rows = 41, 16
+    centre = Vector((0, axis_y, eye_z - 0.7 * spacing))
+    grid = []
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            az = -56 + 112 * c / (cols - 1)
+            z = bottom(az) + (top(az) - bottom(az)) * r / (rows - 1)
+            d = Vector((math.sin(math.radians(az)), -math.cos(math.radians(az)), 0))
+            origin = Vector((0, axis_y, z)) + d * 0.25
+            hit, loc, normal = bpy.context.scene.ray_cast(dg, origin, -d)[:3]
+            if not hit:  # past the cheek the ray can slip by the ear: fall back onto a 9 cm cylinder about the axis
+                loc, normal = Vector((0, axis_y, z)) + d * 0.09, d
+            n = normal if normal.dot(d) > 0 else -normal  # the plate's outer normal points away from the axis
+            rib = 0.0035 * max(0.0, 1 - abs(az) / 7) ** 2  # the centre rib down the nose
+            row.append(loc + n * (0.006 + rib))
+        grid.append(row)
+    ys = [p.y for row in grid for p in row]
+    print(f'MASK fit: face y {min(ys):+.3f}..{max(ys):+.3f} (axis y {axis_y:+.3f}), z {min(p.z for row in grid for p in row):.3f}..{max(p.z for row in grid for p in row):.3f}, eye line {eye_z:.3f}')
+    mesh = bpy.data.meshes.new('mask_iron')
+    bm = bmesh.new()
+    verts = [[bm.verts.new(p) for p in row] for row in grid]
+    for r in range(rows - 1):
+        for c in range(cols - 1):
+            bm.faces.new((verts[r][c], verts[r][c + 1], verts[r + 1][c + 1], verts[r + 1][c]))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.normal_update()
+    if sum(f.normal.dot(f.calc_center_median() - centre) for f in bm.faces) < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    ext = bmesh.ops.extrude_edge_only(bm, edges=[e for e in bm.edges if e.is_boundary])  # 2.5 mm of iron at every edge
+    for v in [g for g in ext['geom'] if isinstance(g, bmesh.types.BMVert)]:
+        d = v.co - Vector((0, axis_y, v.co.z))
+        v.co -= d.normalized() * 0.0025
+    bm.to_mesh(mesh)
+    bm.free()
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    mask = bpy.data.objects.new('mask_iron', mesh)
+    bpy.context.collection.objects.link(mask)
+    uv = mesh.uv_layers.new(name='UVMap')
+    for poly in mesh.polygons:  # cylindrical about the face axis, 3 tiles so the iron's grain reads at plate scale
+        us = []
+        for li in poly.loop_indices:
+            d = mesh.vertices[mesh.loops[li].vertex_index].co - centre
+            us.append((math.atan2(d.x, -d.y) / (2 * math.pi) + 0.5) * 3)
+        if max(us) - min(us) > 1.5:
+            us = [u + 3 if u < 1.5 else u for u in us]
+        for li, u in zip(poly.loop_indices, us):
+            d = mesh.vertices[mesh.loops[li].vertex_index].co - centre
+            uv.data[li].uv = (u, (d.z + 0.12) / 0.24 * 2)
+    print(f'MASK {len(mesh.polygons)} faces')
+    return tag(mask, 'mask_iron', 'Steel', bone='Head', slot='Helmet')
+
+
+def executioner_hood():
+    """The Executioner's ragged hood (Helmet slot, rigid to Head): a cloth dome over the skull on the helm's own
+    measurements, standing 3 cm off so it clears the mask; a face opening narrower than the helm's, its edge overhanging
+    the brow; side flaps beside the jaw and a long back over the nape — every hem ragged with a fixed tear pattern. No
+    bib: the throat is bare (owner, 2026-09-18 — the throat cloth read as a floating black plate on the sternum).
+    Sets HELM_RIM_Z so the crown under the dome is stripped like the Veteran's."""
+    global HELM_RIM_Z
+    skull_source = bpy.data.objects.get('kt_head') or HEAD if realistic else body
+    skull = [v.co for v in skull_source.data.vertices if v.co.z > head.z + 0.03]
+    top_z = max(v.z for v in skull)
+    centre = Vector((0, 0, head.z + 0.105))  # the same ride height as the bronze helm: the brow line sits at the rim
+    band = [v for v in skull if centre.z + 0.02 < v.z < centre.z + 0.05]
+    rx = max(abs(v.x) for v in band) + 0.030  # cloth stands off the skull
+    front_y, back_y = min(v.y for v in band), max(v.y for v in band)
+    centre.y = (front_y + back_y) / 2
+    ry = (back_y - front_y) / 2 + 0.032
+    rz = top_z - centre.z + 0.028
+    HELM_RIM_Z = centre.z
+    depth = 0.24
+
+    def rag(a, amp):  # the torn hem: a fixed tear pattern by azimuth, so every build is the same hood
+        return amp * (0.6 * math.sin(math.radians(a * 5.3)) + 0.4 * math.sin(math.radians(a * 11.7 + 120)))
+
+    def bottom(a):  # the hem's depth below the rim by |azimuth| (0 = front), rag included
+        if a < 78:  # the side flaps beside the jaw
+            return 0.13 + rag(a, 0.014)
+        if a < 120:  # ears and the side of the neck
+            return 0.17 + rag(a, 0.016)
+        return 0.22 + rag(a, 0.018)  # the back over the nape
+
+    def inside(phi, sdepth):  # (azimuth in degrees, depth below the rim; negative above): is this point hood?
+        a = abs(phi)
+        if a < 46:  # the face opening: cloth above the brow overhang only, the face and throat open below
+            return sdepth <= -0.022 + 0.018 * (a / 46) ** 2
+        return sdepth <= bottom(a)
+
+    def place(phi, sdepth):
+        r = math.radians(phi)
+        if sdepth <= 0:  # the dome: an ellipsoid octant above the rim, like the helm's
+            t = min(1.0, -sdepth / rz)
+            ring = math.sqrt(max(0.0, 1 - t * t))
+            return centre + Vector((rx * ring * math.sin(r), -ry * ring * math.cos(r), -sdepth))
+        f = 1 + 0.16 * (sdepth / depth) ** 2  # cloth hangs away from the neck, more at the hem
+        return centre + Vector((rx * f * math.sin(r), -ry * f * math.cos(r), -sdepth))
+
+    cols = 72
+    rows = [-rz * math.cos(math.radians(9 * i)) for i in range(1, 11)] + [depth * k / 12 for k in range(1, 13)]
+    grid = [[(360 * c / cols - 180, sd) for c in range(cols)] for sd in rows]
+    keep = [[inside(phi, sd) for (phi, sd) in row] for row in grid]
+    bm = bmesh.new()
+    verts = [[bm.verts.new(place(phi, sd)) for (phi, sd) in row] for row in grid]
+    pole = bm.verts.new(centre + Vector((0, 0, rz)))
+    snapped = {}
+
+    def cross(p_in, p_out):
+        lo, hi = p_in, p_out
+        for _ in range(16):
+            mid = ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2)
+            if inside(*mid):
+                lo = mid
+            else:
+                hi = mid
+        return lo
+
+    for i, row in enumerate(grid):  # outside vertices of kept faces snap onto the boundary, as the helm's do
+        for j, (phi, sd) in enumerate(row):
+            if keep[i][j]:
+                continue
+            for ii, jj in ((i - 1, j), (i + 1, j), (i, (j - 1) % cols), (i, (j + 1) % cols), (i - 1, (j - 1) % cols), (i - 1, (j + 1) % cols), (i + 1, (j - 1) % cols), (i + 1, (j + 1) % cols)):
+                if 0 <= ii < len(grid) and keep[ii][jj]:
+                    q = grid[ii][jj]
+                    q = (q[0] + (360 if q[0] - phi > 180 else -360 if phi - q[0] > 180 else 0), q[1])
+                    snapped[(i, j)] = cross(q, (phi, sd))
+                    break
+    for (i, j), (phi, sd) in snapped.items():
+        verts[i][j].co = place(phi, sd)
+    faces = []
+    for j in range(cols):
+        a, b = verts[0][j], verts[0][(j + 1) % cols]
+        if keep[0][j] or keep[0][(j + 1) % cols]:
+            faces.append(bm.faces.new((pole, b, a)))
+    for i in range(len(grid) - 1):
+        for j in range(cols):
+            j2 = (j + 1) % cols
+            if not (keep[i][j] or keep[i][j2] or keep[i + 1][j] or keep[i + 1][j2]):
+                continue
+            quad = (verts[i][j], verts[i][j2], verts[i + 1][j2], verts[i + 1][j])
+            if len({v.co.to_tuple(5) for v in quad}) < 3:
+                continue
+            try:
+                faces.append(bm.faces.new(quad))
+            except ValueError:
+                pass
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
+    bm.normal_update()
+    if sum(f.normal.dot(f.calc_center_median() - centre) for f in bm.faces) < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    ext = bmesh.ops.extrude_edge_only(bm, edges=[e for e in bm.edges if e.is_boundary])  # the hems: 3 mm of cloth turned inward
+    for v in [g for g in ext['geom'] if isinstance(g, bmesh.types.BMVert)]:
+        d = v.co - centre
+        v.co = centre + d * max(0.0, (d.length - 0.003) / d.length)
+    mesh = bpy.data.meshes.new('hood_rag')
+    bm.to_mesh(mesh)
+    bm.free()
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    hood = bpy.data.objects.new('hood_rag', mesh)
+    bpy.context.collection.objects.link(hood)
+    uv = mesh.uv_layers.new(name='UVMap')
+    for poly in mesh.polygons:  # cylindrical about the skull, 3 tiles so the weave reads at cloth scale
+        us = []
+        for li in poly.loop_indices:
+            d = mesh.vertices[mesh.loops[li].vertex_index].co - centre
+            us.append((math.atan2(d.x, -d.y) / (2 * math.pi) + 0.5) * 3)
+        if max(us) - min(us) > 1.5:
+            us = [u + 3 if u < 1.5 else u for u in us]
+        for li, u in zip(poly.loop_indices, us):
+            d = mesh.vertices[mesh.loops[li].vertex_index].co - centre
+            uv.data[li].uv = (u, (d.z + 0.2) / 0.45 * 2)
+    print(f'HOOD {len(mesh.polygons)} faces, no bib (the throat is bare)')
+    return tag(hood, 'hood_rag', 'Heraldry', bone='Head', slot='Crest')  # Crest, not Helmet: an item replaces the parts in its own slot, and the mask already holds Helmet (the Veteran's helm/crest pair is the pattern); the mask's Helmet slot is what hides the hair
+
+
 def tusks(head_obj, eye_l, eye_r):
     """The Pitborn's two lower tusks: ivory cones rising from the lower-lip corners, angled up, out and a little forward.
     The mouth line sits ~1.1 eye-spacings below the eye line (anthropometry; the scan is cut under the jaw, so the chin
@@ -1752,9 +1962,15 @@ else:
     kit = level1_kit()
     HELM = None
     if realistic and FIGHTER != 'hero' and KIT['helm']:  # a fighter who fights helmed: the helm first, and the skull under it dropped before the body export
-        HELM = bronze_helmet()
-        strip_crown_under_helm(HELM)
-    if realistic and use_kt and KIT['brute']:
+        if FIGHTER == 'executioner':
+            mask = executioner_mask()  # before the hood exists: its fitting rays must see the bare face
+            hood = executioner_hood()
+            strip_crown_under_helm([hood])
+            HELM = (mask, hood)
+        else:
+            HELM = bronze_helmet()
+            strip_crown_under_helm(HELM)
+    if realistic and use_kt and KIT['brute'] and FIGHTER == 'pitborn':  # the tusks are the Pitborn's own (the Executioner is a brute but a man)
         body_parts += tusks(bpy.data.objects['kt_head'], el, er)
     if realistic and use_kt and KIT['ears']:
         body_parts += (ear_points if KIT['ears'] == 'points' else ears)(bpy.data.objects['kt_head'], el, er)  # 'points': the Nightborn's small tips; True: the goblin's long ears
@@ -1771,9 +1987,14 @@ else:
     if FIGHTER == 'hero':
         export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')  # fitted to the shared body: one copy
     if KIT['helm']:
-        helm, crest = HELM if HELM is not None else bronze_helmet()
-        export_kit([helm], f'src/assets/source/items/helmet_bronze{ITEM}.glb')   # a poor gladiator's first helm: plain
-        export_kit([crest], f'src/assets/source/items/crest_red{ITEM}.glb')      # the crest is a later, extravagant reward
+        if FIGHTER == 'executioner':
+            mask, hood = HELM
+            export_kit([mask], f'src/assets/source/items/mask_iron{ITEM}.glb')   # the half-mask: iron plate, the eyes and brow stay free
+            export_kit([hood], f'src/assets/source/items/hood_rag{ITEM}.glb')    # the ragged hood over it
+        else:
+            helm, crest = HELM if HELM is not None else bronze_helmet()
+            export_kit([helm], f'src/assets/source/items/helmet_bronze{ITEM}.glb')   # a poor gladiator's first helm: plain
+            export_kit([crest], f'src/assets/source/items/crest_red{ITEM}.glb')      # the crest is a later, extravagant reward
 if not proof:
     import json
     manifest_path = os.path.join(materials_out, f'manifest_{VARIANT}.json' if realistic else 'manifest.json')

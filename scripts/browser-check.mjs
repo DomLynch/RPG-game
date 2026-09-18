@@ -42,6 +42,7 @@ try {
  await page.waitForTimeout(60);await page.screenshot({path:'artifacts/browser-parry.jpg',type:'jpeg',quality:85});
  await page.getByRole('button',{name:'Light attack',exact:true}).tap();await page.waitForTimeout(350);
  receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,HP-24,'the riposte takes 24');await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});
+ receipt.coach=await page.locator('#coach').textContent();assert.match(receipt.coach,/Parried!/,'the first-warden coach flashes the riposte hint on a real parry');
  await page.waitForTimeout(600);await page.keyboard.down('KeyW');await page.waitForTimeout(240);await page.keyboard.up('KeyW');
  await page.waitForFunction(()=>document.querySelector('#kick-button').dataset.reach==='true',null,{timeout:1500});   // the kick's cone is short: wait until the HUD says it can land rather than on a fixed clock
  await page.getByRole('button',{name:'Kick',exact:true}).tap();await page.waitForTimeout(335);receipt.kick=await snapshot();
@@ -52,20 +53,11 @@ try {
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
  const paused=await snapshot();await page.waitForTimeout(300);assert.deepEqual(await snapshot(),paused);
  for(const mode of ['red','dark','off'])await page.getByRole('button',{name:'Blood: '+mode,exact:true}).tap();receipt.bloodModes=['red','dark','off','red'];
- await page.getByRole('button',{name:'Controls: thumb cluster',exact:true}).tap();await page.getByRole('button',{name:'Close journal'}).tap();
- await page.waitForFunction(()=>document.querySelector('#heavy-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#combat-status').textContent.startsWith('Incoming'));
- // Observe each actual DOM value transition. End-of-action balances include regeneration and cannot prove exact cost.
- await page.evaluate(()=>{window.__staminaDeltas=[];const meter=document.querySelector('#stamina');window.__staminaObserver=new MutationObserver(records=>{for(let i=0;i<records.length;i++){const old=Number(records[i].oldValue),next=Number(i+1<records.length?records[i+1].oldValue:meter.getAttribute('value'));window.__staminaDeltas.push(old-next);}});window.__staminaObserver.observe(meter,{attributes:true,attributeOldValue:true,attributeFilter:['value']});});
- const pad=await center('gesture-pad');await touch('touchStart',pad);await touch('touchMove',{x:pad.x,y:pad.y+40});await touch('touchEnd');
- await page.waitForFunction(()=>window.__staminaDeltas.some(d=>d>1),null,{timeout:1500});
- receipt.swipeDeltas=await page.evaluate(()=>{window.__staminaObserver.disconnect();return window.__staminaDeltas;});assert.deepEqual(receipt.swipeDeltas.filter(d=>d>1).map(d=>Math.round(d*1e6)/1e6),[35]);
- await page.screenshot({path:'artifacts/browser-swipes.png'});
- await page.getByRole('button',{name:'Menu and field journal'}).tap();
- // Controls cycles cluster → flick disc → guard ring (v7); the stroke above ran on the disc. Walk back to the cluster and record the labels seen,
- // checking the ring's layout on the way: no two visible controls overlap, except Slash inside the Guard ring, which is the ring's design.
- const layoutClean=async(scheme)=>{for(const size of [{width:393,height:852},{width:844,height:390}]){await page.setViewportSize(size);const s=await snapshot();assert.equal(s.scale,1);assert.equal(s.overflow,false,`${scheme} overflows at ${size.width}`);const boxes=await page.locator('.actions button:visible').evaluateAll(nodes=>nodes.map(n=>({...n.getBoundingClientRect().toJSON(),id:n.id})));for(const box of boxes)assert.ok(box.width>=44&&box.height>=44,`${scheme}: ${box.id} is ${Math.round(box.width)}×${Math.round(box.height)} px, under the 44 px touch minimum`);for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];const nested=scheme==='ring'&&[a.id,b.id].sort().join()==='attack-button,guard-button';assert.ok(nested||a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,`overlapping controls (${scheme}): ${a.id} × ${b.id}`);}}await page.setViewportSize({width:393,height:852});};
- receipt.controls=[];for(let i=0;i<4;i++){const label=await page.locator('#controls-mode').textContent();receipt.controls.push(label);if(label==='Controls: thumb cluster')break;await page.locator('#controls-mode').tap();if(label==='Controls: weapon disc · flick'){await page.getByRole('button',{name:'Close journal'}).tap();await layoutClean('ring');await page.getByRole('button',{name:'Menu and field journal'}).tap();}}
- assert.deepEqual(receipt.controls,['Controls: weapon disc · flick','Controls: guard ring · v7','Controls: thumb cluster']);
+ // Controls cycles thumb cluster → guard ring (v8) and back. Record the labels seen, checking the ring's layout on the way:
+ // no two visible controls overlap, except Strike inside the Guard ring, which is the design.
+ const layoutClean=async(scheme)=>{for(const size of [{width:393,height:852},{width:844,height:390}]){await page.setViewportSize(size);const s=await snapshot();assert.equal(s.scale,1);assert.equal(s.overflow,false,`${scheme} overflows at ${size.width}`);const boxes=await page.locator('.actions button:visible').evaluateAll(nodes=>nodes.map(n=>({...n.getBoundingClientRect().toJSON(),id:n.id})));for(const box of boxes)assert.ok(box.width>=44&&box.height>=44,`${scheme}: ${box.id} is ${Math.round(box.width)}×${Math.round(box.height)} px, under the 44 px touch minimum`);for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];const nested=scheme==='ring8'&&[a.id,b.id].sort().join()==='attack-button,guard-button';assert.ok(nested||a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,`overlapping controls (${scheme}): ${a.id} × ${b.id}`);}}await page.setViewportSize({width:393,height:852});};
+ receipt.controls=[];for(let i=0;i<3;i++){const label=await page.locator('#controls-mode').textContent();receipt.controls.push(label);if(label==='Controls: thumb cluster'&&i>0)break;await page.locator('#controls-mode').tap();if(label==='Controls: thumb cluster'){await page.getByRole('button',{name:'Close journal'}).tap();await layoutClean('ring8');await page.getByRole('button',{name:'Menu and field journal'}).tap();}}
+ assert.deepEqual(receipt.controls,['Controls: thumb cluster','Controls: guard ring · v8','Controls: thumb cluster']);
  await page.getByRole('button',{name:'Close journal'}).tap();
  await layoutClean('cluster');
  assert.deepEqual(receipt.errors,[]);

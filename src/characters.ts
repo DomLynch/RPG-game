@@ -2,27 +2,30 @@ import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { WeaponId } from './moves.ts';
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, BufferGeometry, BufferAttribute, DoubleSide, Vector3, LoopOnce, type AnimationAction, type AnimationClip } from 'three';
+import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
+// Finisher clips are additive (owner-authorized 2026-09-17): the 21 contract clips above stay frozen, Death_* variants append after them.
+export const FINISHER_CLIPS = ['Death_SplitCrown'] as const;
 // The renderer plays roles, never clip positions. The sword's roles are its clip names (the shipped warrior.glb set) plus Thrust: the
 // sword thrusts with its Riposte clip. Each weapon maps roles to its own clips; an unlisted role plays the clip of its own name (the
 // body clips are shared, and a two-handed weapon's fighter starts armed, so Draw never plays for him).
-export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | 'Thrust';
-export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, 'Thrust'];
+export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust';
+export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust'];
 export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   longsword: { Thrust: 'Riposte' },
   cleaver: { Thrust: 'Riposte' },   // the Pitborn's, on the sword clip family until the weapons lane lands its own
   knife: { Thrust: 'Riposte' },   // the goblin's, on the sword clip family until the weapons lane lands its own
   estoc: { Thrust: 'Riposte' },   // the Nightborn's, likewise
+  scythe: { Armed: 'Scythe_Idle', ArmedWalk: 'Scythe_Walk', StrafeLeft: 'Scythe_StrafeLeft', StrafeRight: 'Scythe_StrafeRight', Attack: 'Scythe_Reap', Return: 'Scythe_Reap', Heavy: 'Scythe_High', Thrust: 'Scythe_Thrust', Riposte: 'Scythe_Chain', Guard: 'Scythe_Guard', BlockImpact: 'Scythe_BlockImpact', Parry: 'Scythe_BlockImpact', Deflected: 'Scythe_Deflected', Hit: 'Scythe_Hit', Death: 'Scythe_Death' },   // the Executioner's, LIVE 2026-09-18 (the weapons lane's 13-clip family); one reap clip cuts both ways, and a shaft has no blade to turn, so a parry shows the block
   // One sweep clip cuts both ways (the sim's path is the same either side); no parry clip: a shaft has no blade to turn, so a parry shows the block.
   trident: { Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },
 };
 export const clipFor = (weapon: WeaponId, role: Role): string => WEAPON_CLIPS[weapon][role] ?? role;
-const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected'];
+const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown'];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
   speed = Number.isFinite(speed) ? Math.max(0, speed) : 0;
@@ -105,11 +108,12 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     trail.frustumCulled = false; trail.visible = false; anchor.add(trail);
     const samples: Vector3[][] = [];
     let speed = 0;
+    let severed = false;   // decapitation is once per kill; unsever() resets on rematch
     return {
       anchor,
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
       playing(): string { let best: Role = 'Idle'; for (const role of ROLES) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
+      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
         // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
         // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
         const step = Math.max(0, Math.min(dt, 0.1));
@@ -120,12 +124,13 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)); weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side; }
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'draw' ? 'Draw' : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' ? 'Death_SplitCrown' : pose === 'draw' ? 'Draw' : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
+        const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation';
         for (const role of ROLES) {
           const a = actions[role];
-          const fade = combatRole === null ? 0 : ['draw','guard','block','parry','deflected'].includes(pose) ? 1 : Math.min(1, progress * 12, pose === 'death' ? 1 : (1 - progress) * 10);
+          const fade = combatRole === null ? 0 : ['draw','guard','block','parry','deflected'].includes(pose) ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
           const target = (weights[role] || 0) * (1 - fade) + Number(role === combatRole) * fade;
           const activeBlade = pose === 'attack' && progress >= contact-1/specs[attack].recovery && progress <= contact+4/specs[attack].recovery;
           a.setEffectiveWeight(activeBlade ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
@@ -144,6 +149,76 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           for (let i = 1; i < samples.length; i++) for (const point of [samples[i-1][0],samples[i-1][1],samples[i][0],samples[i][0],samples[i-1][1],samples[i][1]]) { point.toArray(ribbonVertices, offset); offset += 3; }
           ribbon.setDrawRange(0, offset / 3); ribbon.attributes.position.needsUpdate = true;
         } else if (!trail.visible) samples.length = 0;
+      },
+      // Decapitation (owner 2026-09-18): bake the fighter's OWN head — face, hair, whatever helm he wears — out of the skinned
+      // draws into a static prop at its current pose, and collapse the rig's Head bone so the corpse reads headless. Runs once
+      // per kill; the caller re-parents the returned group to the world and owns the ballistics (and disposes it on rematch).
+      sever() {
+        if (severed) return null;
+        const bone = root.getObjectByName('Head');
+        if (!bone) return null;
+        severed = true;
+        root.updateWorldMatrix(true, true);
+        const group = new Group();
+        root.traverse(object => {
+          if (!(object instanceof SkinnedMesh)) return;
+          const headIndex = object.skeleton.bones.findIndex(b => b.name === 'Head');
+          const geometry = object.geometry, position = geometry.getAttribute('position'), skinIndex = geometry.getAttribute('skinIndex'), skinWeight = geometry.getAttribute('skinWeight');
+          if (headIndex < 0 || !position || !skinIndex || !skinWeight) return;
+          object.skeleton.update();   // bake from THIS frame's pose, not last render's
+          const boneMatrices = object.skeleton.boneMatrices;
+          if (!boneMatrices) return;
+          const index = geometry.getIndex();
+          const sources = Object.entries(geometry.attributes).filter(([name]) => name !== 'skinIndex' && name !== 'skinWeight') as [string, BufferAttributeType][];
+          const remap = new Map<number, number>(), baked: Record<string, number[]> = {}, kept: number[] = [];
+          const v = new Vector3(), n = new Vector3(), nb = new Vector3(), nt = new Vector3(), m4 = new Matrix4(), nm = new Matrix3();
+          const vertex = (i: number): number => {
+            let at = remap.get(i);
+            if (at !== undefined) return at;
+            at = remap.size; remap.set(i, at);
+            for (const [name, attr] of sources) {
+              const dst = baked[name] ??= [];
+              if (name === 'position') {
+                object.applyBoneTransform(i, v.fromBufferAttribute(attr, i)); object.localToWorld(v);
+                dst.push(v.x, v.y, v.z);
+              } else if (name === 'normal') {
+                n.set(0, 0, 0); nb.fromBufferAttribute(attr, i);
+                for (let k = 0; k < 4; k++) {   // the vertex shader's influence mix, with per-influence normal matrices (non-uniform bone scales)
+                  const w = skinWeight.getComponent(i, k);
+                  if (w) { m4.fromArray(boneMatrices, skinIndex.getComponent(i, k) * 16).multiply(object.bindMatrix); n.addScaledVector(nt.copy(nb).applyMatrix3(nm.getNormalMatrix(m4)), w); }
+                }
+                n.normalize().transformDirection(object.bindMatrixInverse).transformDirection(object.matrixWorld);
+                dst.push(n.x, n.y, n.z);
+              } else for (let c = 0; c < attr.itemSize; c++) dst.push(attr.getComponent(i, c));
+            }
+            return at;
+          };
+          const triangles = (index ? index.count : position.count) / 3;
+          for (let t = 0; t < triangles; t++) {
+            let weight = 0;
+            for (let k = 0; k < 3; k++) { const i = index ? index.getX(t * 3 + k) : t * 3 + k; for (let j = 0; j < 4; j++) if (skinIndex.getComponent(i, j) === headIndex) weight += skinWeight.getComponent(i, j); }
+            if (weight / 3 < .5) continue;   // keep triangles the Head bone dominates: skull, scalp, helm — not the neck blend
+            for (let k = 0; k < 3; k++) kept.push(vertex(index ? index.getX(t * 3 + k) : t * 3 + k));
+          }
+          if (!kept.length) return;
+          const head = new BufferGeometry();
+          for (const [name, attr] of sources) head.setAttribute(name, new BufferAttribute(new Float32Array(baked[name]), attr.itemSize));
+          head.setIndex(kept);
+          const prop = new Mesh(head, object.material);
+          prop.castShadow = true; prop.frustumCulled = false;
+          group.add(prop);
+        });
+        const box = new Box3().setFromObject(group), size = box.getSize(new Vector3()), center = box.getCenter(new Vector3());
+        for (const prop of group.children) if (prop instanceof Mesh) prop.geometry.translate(-center.x, -center.y, -center.z);
+        group.position.copy(center);
+        bone.scale.setScalar(.0001);   // no clip tracks bone scale, so the collapse holds; the neck-blend smear hides under the sever burst
+        return { group, radius: Math.max(.07, Math.min(.24, Math.max(size.x, size.z) * .38)) };
+      },
+      // A fresh match (rematch): the rig grows its head back; the caller has already disposed the world-parented prop.
+      unsever() {
+        if (!severed) return;
+        severed = false;
+        root.getObjectByName('Head')?.scale.setScalar(1);
       }
     };
   }
