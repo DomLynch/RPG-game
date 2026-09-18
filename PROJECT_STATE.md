@@ -9,7 +9,7 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
-## The Executioner — fifth opponent, v2 — 2026-09-17/18 (character lane, owner brief; NOT SHIPPED — local branch `char/executioner-v1`, owner approval of the v2 visuals pending)
+## The Executioner — fifth opponent, v3 — 2026-09-17/18 (character lane, owner brief; NOT SHIPPED — local branch `char/executioner-v1`, owner approval of the visuals pending)
 The owner's brief (7 masked reference portraits, `artifacts/source/face/executioner/reference/`): a giant headsman — iron
 half-mask riveted over nose/cheeks/mouth, ragged hood, buckle harness, ~20 % over the Pitborn. The mask/hood could not go to
 the KeenTools scanner (it would bake iron and cloth into the skull), so a bare-head 7-angle portrait set was generated to the
@@ -24,13 +24,16 @@ no hunch — he stands straight; numerically verified against the pitborn GLB), 
 untouched, he is reachable only via `?opponent=executioner`) + `OPPONENT_GLB`. Kit parts authored in `parts.py`:
 `executioner_mask` (iron half-mask raycast-fitted to the face, Steel, ships via the Helmet slot) and `executioner_hood`
 (ragged hood, Heraldry near-black, ships via the Crest slot so it survives the mask's Helmet replacement); pteruges dye
-near-black; NO tusks (they are the Pitborn's). Evidence: `artifacts/character/executioner-v1/` (baseline audit — spiky crown
-hair, red pteruges, no kit) and `artifacts/character/executioner-v2/` (turntable, details, gameplay portrait/attack, faces);
-executioner.glb 6.49 MB raw, 21 clips, per-fight budget PASS (8.35 MB gzip vs the 10 MB cap). Gate: quality gate green at
-df0e4e3, and again after merging trunk 1afa0cb (arena v1 + estoc + Nightborn face v4 + zoom lock) on 2026-09-18 — one
-parts.py conflict (KIT dict), resolved keeping both lanes. Not done: the real KeenTools head (one top-up + one command),
-his real weapon (weapons lane — the sword on his back is theirs), his combat profile/ladder slot (combat/lead), the hood's
-tattered drape (v3 nit; the hem tears read at the cheeks/nape but the dome is smooth), mask rivets/perforations (texture-level).
+near-black; NO tusks (they are the Pitborn's). v3 on the owner's v2 review: the hood's throat bib is CUT (it read as a
+floating black plate on the sternum — the throat is bare under the mask now) and the greaves are blackened iron, a dark
+baseColor factor over the bronze map with a Bronze exemption next to Heraldry's in `finishMaterials` (every other fighter's
+bronze untouched, factor forced white as before). Evidence: `artifacts/character/executioner-v1/` (baseline audit — spiky
+crown hair, red pteruges, no kit), `-v2/` (mask + hood + near-black kit) and `-v3/` (no bib, black greaves; turntable,
+details, gameplay portrait/attack, faces, sequence); executioner.glb 6.49 MB raw, 21 clips, per-fight budget PASS (8.35 MB
+gzip vs the 10 MB cap). Gate: quality gate green at df0e4e3, again after merging trunk 1afa0cb (arena v1 + estoc +
+Nightborn face v4 + zoom lock) on 2026-09-18 — one parts.py conflict (KIT dict), resolved keeping both lanes — and again
+on the v3 build. Not done: the real KeenTools head (one top-up + one command), his real weapon (weapons lane — the sword
+on his back is theirs), his combat profile/ladder slot (combat/lead), mask rivets/perforations (texture-level).
 
 
 ## Finishers & gore milestone authorized — 2026-09-17 (lead, owner's call)

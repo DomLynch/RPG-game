@@ -1000,8 +1000,9 @@ def executioner_mask():
 def executioner_hood():
     """The Executioner's ragged hood (Helmet slot, rigid to Head): a cloth dome over the skull on the helm's own
     measurements, standing 3 cm off so it clears the mask; a face opening narrower than the helm's, its edge overhanging
-    the brow; side flaps beside the jaw, a bib under the chin covering the throat, and a long back over the nape — every
-    hem ragged with a fixed tear pattern. Sets HELM_RIM_Z so the crown under the dome is stripped like the Veteran's."""
+    the brow; side flaps beside the jaw and a long back over the nape — every hem ragged with a fixed tear pattern. No
+    bib: the throat is bare (owner, 2026-09-18 — the throat cloth read as a floating black plate on the sternum).
+    Sets HELM_RIM_Z so the crown under the dome is stripped like the Veteran's."""
     global HELM_RIM_Z
     skull_source = bpy.data.objects.get('kt_head') or HEAD if realistic else body
     skull = [v.co for v in skull_source.data.vertices if v.co.z > head.z + 0.03]
@@ -1013,8 +1014,6 @@ def executioner_hood():
     centre.y = (front_y + back_y) / 2
     ry = (back_y - front_y) / 2 + 0.032
     rz = top_z - centre.z + 0.028
-    eye_z, spacing = scan_eyes()
-    chin_depth = max(0.085, centre.z - (eye_z - 1.45 * spacing) + 0.008)  # the bib tucks just under the mask's chin edge
     HELM_RIM_Z = centre.z
     depth = 0.24
 
@@ -1022,8 +1021,6 @@ def executioner_hood():
         return amp * (0.6 * math.sin(math.radians(a * 5.3)) + 0.4 * math.sin(math.radians(a * 11.7 + 120)))
 
     def bottom(a):  # the hem's depth below the rim by |azimuth| (0 = front), rag included
-        if a < 34:  # the bib: under the chin, covering the throat
-            return chin_depth + rag(a, 0.010)
         if a < 78:  # the side flaps beside the jaw
             return 0.13 + rag(a, 0.014)
         if a < 120:  # ears and the side of the neck
@@ -1032,11 +1029,8 @@ def executioner_hood():
 
     def inside(phi, sdepth):  # (azimuth in degrees, depth below the rim; negative above): is this point hood?
         a = abs(phi)
-        if a < 46:  # the face opening: cloth above the brow overhang and below the chin, open between
-            brow = -0.022 + 0.018 * (a / 46) ** 2
-            if sdepth <= brow:
-                return True
-            return a < 34 and sdepth >= chin_depth + rag(a, 0.010) - 0.004
+        if a < 46:  # the face opening: cloth above the brow overhang only, the face and throat open below
+            return sdepth <= -0.022 + 0.018 * (a / 46) ** 2
         return sdepth <= bottom(a)
 
     def place(phi, sdepth):
@@ -1122,7 +1116,7 @@ def executioner_hood():
         for li, u in zip(poly.loop_indices, us):
             d = mesh.vertices[mesh.loops[li].vertex_index].co - centre
             uv.data[li].uv = (u, (d.z + 0.2) / 0.45 * 2)
-    print(f'HOOD {len(mesh.polygons)} faces, bib depth {chin_depth:.3f}')
+    print(f'HOOD {len(mesh.polygons)} faces, no bib (the throat is bare)')
     return tag(hood, 'hood_rag', 'Heraldry', bone='Head', slot='Crest')  # Crest, not Helmet: an item replaces the parts in its own slot, and the mask already holds Helmet (the Veteran's helm/crest pair is the pattern); the mask's Helmet slot is what hides the hair
 
 
