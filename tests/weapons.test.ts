@@ -314,7 +314,7 @@ test('the goblin\'s rig carries the knife: WeaponDrawn under hand_r with a short
   assert.ok(contact && contact.to < .6 && contact.to > .45 && contact.from > .08 && contact.from < .2, `a short blade: ${JSON.stringify(contact)}`);
   assert.equal(weapon.userData.grip, 'forward', 'forward grip: the reverse grip never lands on the sword\'s clips');
   for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
-  assert.deepEqual(asset.animations.map(c => c.name), [...['Idle', 'Walk', 'Jog', 'Run'], ...['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'], ...['Death_SplitCrown', 'Death_RunThrough']], 'the sword\'s clip list, in order (the finishers are additive, 2026-09-17/18)');
+  assert.deepEqual(asset.animations.map(c => c.name), [...['Idle', 'Walk', 'Jog', 'Run'], ...['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'], ...['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough']], 'the sword\'s clip list, in order (the finishers are additive, 2026-09-17/18)');
   assert.ok(Math.abs(asset.scene.children[0].scale.x / hero.scene.children[0].scale.x - .835) < 1e-3, `his root scale: .835 × the hero's (${asset.scene.children[0].scale.x} / ${hero.scene.children[0].scale.x})`);
   for (const [path, spec] of Object.entries(KNIFE_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
 });

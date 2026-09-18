@@ -577,7 +577,9 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
 // Death_RunThrough (owner-authorized finishers & gore set — Run Through ships 2026-09-18 as rotation finisher #4; additive,
 // same contract as Death_SplitCrown): a thrust through the torso. The impact drives him up onto his toes, arched back over
 // the blade; a held beat — both hands come up and grip the blade at the chest, a small tremble, the head hanging; then the
-// strength goes, the knees fold and he slides straight down off it, ending folded over his legs like the Split Crown settle.
+// strength goes and the knees fold — and he sinks ONTO the blade, not off it (owner 2026-09-18 revision: "the weapon should
+// stay through the body, not pull out — it comes out the other side, and as the opponent drops on his knees the weapon is
+// through his stomach"). The torso stays on the blade line in a tall kneel, hands still on it, the head hanging.
 // 2.4 s = RULES.death (144 ticks); authored on this rig so every fighter (and scale) gets his own run of the same collapse.
 {
  const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
@@ -591,38 +593,32 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
  for(const phase of times){
   poseMixer.clipAction(armed).play();poseMixer.update(0);base.scene.updateMatrixWorld(true);
   const snap=smooth(phase/.05);                    // the impact: a fast arch back over the blade in the first fifth of a second
-  const arch=snap*(1-smooth((phase-.42)/.14));     // held through the beat, released as the fold takes over
+  const arch=snap*(1-smooth((phase-.45)/.3));      // held through the beat, released as he sinks onto the blade
   const hang=smooth((phase-.28)/.45);              // the head, forward and heavy, once the first shock passes
-  const fold=smooth((phase-.52)/.4);               // the torso folds forward over the legs as he slides off the blade
-  const drop=smooth((phase-.56)/.6);               // the straight-down collapse to the knees
-  const sink=smooth((phase-.6)/.38);               // the last settle onto the folded legs
-  const kneel=smooth((phase-.52)/.5);              // the shins slide back under him
+  const fold=smooth((phase-.55)/.4);               // a small slump forward onto the blade — the torso stays near-upright
+  const drop=smooth((phase-.55)/.55);              // the straight-down sink to a TALL kneel (higher than the Split Crown: the torso must stay on the blade)
+  const kneel=smooth((phase-.5)/.5);               // the shins slide back under him
   const grip=smooth((phase-.08)/.2);               // the hands rise to the blade
-  const release=smooth((phase-.5)/.22);            // and slide down it as he drops
-  const fall=smooth((phase-.72)/.26);              // then let go and flop forward with the fold
+  const down=smooth((phase-.5)/.4);                // and follow it down as he kneels — they never let go
   const pelvis=base.scene.getObjectByName('pelvis');
-  pelvis.position.set(pelvisRest.x,pelvisRest.y+kneel*.06*ratio+arch*.02*ratio,rest-(drop*.55+sink*.08)*rest+arch*.02*ratio);
-  pelvis.rotation.x+=fold*.18;
-  base.scene.getObjectByName('spine_01').rotation.x+=-arch*.16+fold*.34+(phase>.1&&phase<.5?Math.sin(phase*90)*.012:0);   // the held-beat tremble
-  base.scene.getObjectByName('spine_02').rotation.x+=-arch*.12+fold*.30;
-  base.scene.getObjectByName('neck_01').rotation.x+=-snap*.10+hang*.16+fold*.18;
-  base.scene.getObjectByName('Head').rotation.x+=-snap*.28+hang*.30+fold*.22;
+  pelvis.position.set(pelvisRest.x,pelvisRest.y+kneel*.06*ratio+arch*.02*ratio-fold*.04*ratio-drop*.08*ratio,rest-drop*.46*rest+arch*.02*ratio);
+  pelvis.rotation.x+=fold*.08;
+  base.scene.getObjectByName('spine_01').rotation.x+=-arch*.16+fold*.16+(phase>.1&&phase<.5?Math.sin(phase*90)*.012:0);   // the held-beat tremble
+  base.scene.getObjectByName('spine_02').rotation.x+=-arch*.12+fold*.14;
+  base.scene.getObjectByName('neck_01').rotation.x+=-snap*.10+hang*.16+fold*.10;
+  base.scene.getObjectByName('Head').rotation.x+=-snap*.28+hang*.30+fold*.12;
   base.scene.updateMatrixWorld(true);
   for(const side of ['l','r']){
    const home=footHome[side],target=home.clone();
    target.z-=kneel*.30*ratio; target.y=home.y+(Math.max(.05,FLOOR)-home.y)*kneel;   // the top of the foot comes to rest on the floor behind him
    reachArm(side,target,true);
   }
-  // The arms: up to grip the blade through the held beat, down it as he slides off, then loose onto the ground ahead of the knees.
+  // The arms: up to grip the blade through the held beat, then DOWN with it as he sinks to the kneel — gripping to the end.
   for(const side of ['l','r']){
    const sx=side==='l'?1:-1,hand=base.scene.getObjectByName('hand_'+side),home=hand.getWorldPosition(new T.Vector3());
    const bladePt=new T.Vector3(sx*.05*ratio,1.18*ratio,.30*ratio);
-   const lowPt=new T.Vector3(sx*.08*ratio,.78*ratio,.32*ratio);
-   const groundPt=new T.Vector3(sx*.17*ratio,Math.max(.1,FLOOR),footHome[side].z+.28*ratio-kneel*.30*ratio);
-   const goal=phase<.08?home.clone()
-    :phase<.5?home.clone().lerp(bladePt,grip)
-    :phase<.72?bladePt.clone().lerp(lowPt,release)
-    :lowPt.clone().lerp(groundPt,fall);
+   const kneelPt=new T.Vector3(sx*.06*ratio,1.0*ratio,.32*ratio);
+   const goal=phase<.08?home.clone():bladePt.clone().lerp(kneelPt,down);
    reachArm(side,goal);
   }
   base.scene.updateMatrixWorld(true);
@@ -631,6 +627,44 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
   poseMixer.stopAllAction();
  }
  clips.push(new T.AnimationClip('Death_RunThrough',2.4,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
+}
+// Fin_RunThrough (owner 2026-09-18 revision — the blade STAYS through the body): the KILLER's side of the Run Through
+// tableau, additive on the same contract as the Death_* clips; every rig carries it. Derived from this rig's own Riposte
+// contact pose (the blade's fullest natural extension — correct grip and arm, nothing hand-tuned), then the whole upper
+// body pitches forward so the blade line drops onto the kneeling man's chest and out his back; a slight crouch and a small
+// step in sell the drive. Keyed [0,.12,.25,1]: raise from Armed, settle by .25, then HOLD — the scene plays it on the
+// finisher clock and freezes it at progress 1 for as long as the corpse kneels.
+{
+ const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+ const times=[0,.12,.25,1],positions=[],values=new Map(skeleton.bones.map(b=>[b.name,[]]));
+ const armed=clips.find(c=>c.name==='Armed'),riposte=clips.find(c=>c.name==='Riposte');
+ // the Riposte's fullest-extension instant = this rig's natural thrust line
+ let hit=0,best=-1e9;
+ for(let t=0;t<=riposte.duration;t+=1/60){
+  poseMixer.stopAllAction();poseMixer.clipAction(riposte).play();poseMixer.setTime(t);base.scene.updateMatrixWorld(true);
+  const z=drawn.localToWorld(new T.Vector3(0,.86,0)).z; if(z>best){best=z;hit=t;}
+ }
+ poseMixer.stopAllAction();
+ for(const phase of times){
+  poseMixer.stopAllAction();
+  if(phase===0){ poseMixer.clipAction(armed).play();poseMixer.update(0); }
+  else {
+   poseMixer.clipAction(riposte).play();poseMixer.setTime(hit);
+   const settle=smooth((phase-.12)/.13);   // the full hold pose by .25
+   base.scene.getObjectByName('spine_01').rotation.x+=.24*settle;
+   base.scene.getObjectByName('spine_02').rotation.x+=.12*settle;
+   const pelvis=base.scene.getObjectByName('pelvis');
+   pelvis.position.y-=.12*settle;           // pelvis local +y is world back: a full lunge shift INTO the drive, the line stays at chest height
+   base.scene.getObjectByName('Head').rotation.x-=.10*settle;   // eyes up on the victim
+   reachArm('r',new T.Vector3(0,1.04,.69));   // extend the drive along the arm's own line (near-full extension) — carries the tip out the far side at close kills
+  }
+  base.scene.updateMatrixWorld(true);
+  if(phase===1){ const from=drawn.localToWorld(new T.Vector3(0,.12,0)),to=drawn.localToWorld(new T.Vector3(0,.86,0)); console.log(`  Fin_RunThrough blade line: [${from.x.toFixed(2)}, ${from.y.toFixed(2)}, ${from.z.toFixed(2)}] -> [${to.x.toFixed(2)}, ${to.y.toFixed(2)}, ${to.z.toFixed(2)}]`); }
+  positions.push(...base.scene.getObjectByName('pelvis').position.toArray());
+  for(const bone of skeleton.bones)values.get(bone.name).push(...bone.quaternion.toArray());
+  poseMixer.stopAllAction();
+ }
+ clips.push(new T.AnimationClip('Fin_RunThrough',2.4,[new T.VectorKeyframeTrack('pelvis.position',times,positions),...skeleton.bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times,values.get(b.name)))]));
 }
 // GAMEPLAY CHANGE candidates (opt-in, combat review decides): strikes from UAL2 replace the authored attacks. Each candidate
 // joins a strike with its recovery, finds the blade's most-forward instant, and retimes piecewise so that instant lands on
