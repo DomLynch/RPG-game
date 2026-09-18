@@ -7,7 +7,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { OPPONENTS, PATHS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -85,7 +85,7 @@ for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded wa
 test('the Veteran is the warrior\'s rig: same bones, the shared clips identical track for track, and either the sword nodes or a WeaponDrawn with a contact segment', async () => {
   const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
   const shared = hero.animations.filter(clip => veteran.animations.some(v => v.name === clip.name)).map(c => c.name);
-  assert.deepEqual(shared, [...CLIPS, ...COMBAT_CLIPS], 'the sword set is shared');
+  assert.deepEqual(shared, [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS], 'the sword set is shared (finisher clips are additive, 2026-09-17)');
   for (const clip of hero.animations) {
     const other = veteran.animations.find(v => v.name === clip.name)!;
     assert.equal(other.duration, clip.duration, `${clip.name} duration`);
@@ -207,7 +207,7 @@ const GOBLIN = { legs: .84, arms: 1.16, root: .835, stride: .835 * .84, hunched:
 // the strafes, the kick, the defences) are solved on the rig with the two-bone reach, so their limb tracks legitimately follow his longer arms
 // and shorter legs; everything else in them (pelvis, spine_01, fingers, clavicles) is still the hero's.
 const RETARGETED = ['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Hit', 'Death', 'Guard', 'ArmedWalk', 'Roll'], SOLVED = /^(upperarm|lowerarm|hand|thigh|calf|foot)_[lr]\.quaternion$/;
-test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same 21 clips at the same durations — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {
+test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same clips at the same durations (the finisher is additive) — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {
   const [hero, goblin] = await Promise.all([readWarrior('warrior.glb'), readWarrior('goblin.glb')]);
   assert.deepEqual(goblin.animations.map(a => a.name), hero.animations.map(a => a.name));
   let hunchedTracks = 0, solvedTracks = 0, identical = 0;
