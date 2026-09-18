@@ -9,31 +9,37 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
-## The Executioner — fifth opponent, v3 — 2026-09-17/18 (character lane, owner brief; NOT SHIPPED — local branch `char/executioner-v1`, owner approval of the visuals pending)
+## The Executioner — fifth opponent, v4 — 2026-09-18 (character lane, owner brief; NOT SHIPPED — branch `char/executioner-v1`, PR pending)
 The owner's brief (7 masked reference portraits, `artifacts/source/face/executioner/reference/`): a giant headsman — iron
 half-mask riveted over nose/cheeks/mouth, ragged hood, buckle harness, ~20 % over the Pitborn. The mask/hood could not go to
 the KeenTools scanner (it would bake iron and cloth into the skull), so a bare-head 7-angle portrait set was generated to the
 handover spec (`artifacts/source/face/executioner/executioner-01..07.png`) and uploaded — then `/process` returned 402
 Insufficient credits, same block as the Nightborn (owner declined the €11 top-up there). The head ships as the STAND-IN (the
-hero's scan, nightborn precedent): `head.FIGHTERS.executioner` (chin off — the jaw lives behind iron; buzz 0.14; decimate
-0.26, the helmed budget) records the one-command resume, avatar `01a0b094-dcd8-7792-835d-5bdb88f42cf6`, no re-upload needed.
+hero's scan, nightborn precedent): `head.FIGHTERS.executioner` (chin off — the jaw lives behind iron; buzz 0.14) records the
+one-command resume, avatar `01a0b094-dcd8-7792-835d-5bdb88f42cf6`, no re-upload needed. decimate 0.08, far below every other
+fighter: his face is never seen (eyes/brow are separate meshes, skin normal baked from the full-res head) and the v3 head at
+the Veteran's helmed 0.26 broke the 60k skinned-triangle ceiling (61,363; 0.20 still shipped 60,827) — v4 ships 53,839.
 Registrations: `parts.KIT.executioner` (charcoal linen (0.16, 0.15, 0.17) — above the 12 % phone floor; grime 0.85;
 build + brute; greaves, boots, helm slot), `build-warrior BUILD.executioner scale 1.36` (owner: "20 % larger than Pitborn",
 no hunch — he stands straight; numerically verified against the pitborn GLB), runtime `OpponentId` + `OPPONENTS.executioner`
-(longsword placeholder, health 160, poise 12, `PROFILES` — the combat lead owns his real profile and ladder rung; LADDER is
-untouched, he is reachable only via `?opponent=executioner`) + `OPPONENT_GLB`. Kit parts authored in `parts.py`:
+(longsword placeholder, health 160, poise 12, `PROFILES` — the combat lead owns his real profile; he fights the Veteran's
+brain until then) + `OPPONENT_GLB`, and the LADDER: fifth rung after the Nightborn (owner, 2026-09-18 — src/ladder.ts;
+characters/graphics/ladder tests enumerate him). Kit parts authored in `parts.py`:
 `executioner_mask` (iron half-mask raycast-fitted to the face, Steel, ships via the Helmet slot) and `executioner_hood`
 (ragged hood, Heraldry near-black, ships via the Crest slot so it survives the mask's Helmet replacement); pteruges dye
 near-black; NO tusks (they are the Pitborn's). v3 on the owner's v2 review: the hood's throat bib is CUT (it read as a
 floating black plate on the sternum — the throat is bare under the mask now) and the greaves are blackened iron, a dark
-baseColor factor over the bronze map with a Bronze exemption next to Heraldry's in `finishMaterials` (every other fighter's
-bronze untouched, factor forced white as before). Evidence: `artifacts/character/executioner-v1/` (baseline audit — spiky
-crown hair, red pteruges, no kit), `-v2/` (mask + hood + near-black kit) and `-v3/` (no bib, black greaves; turntable,
-details, gameplay portrait/attack, faces, sequence); executioner.glb 6.49 MB raw, 21 clips, per-fight budget PASS (8.35 MB
-gzip vs the 10 MB cap). Gate: quality gate green at df0e4e3, again after merging trunk 1afa0cb (arena v1 + estoc +
-Nightborn face v4 + zoom lock) on 2026-09-18 — one parts.py conflict (KIT dict), resolved keeping both lanes — and again
-on the v3 build. Not done: the real KeenTools head (one top-up + one command), his real weapon (weapons lane — the sword
-on his back is theirs), his combat profile/ladder slot (combat/lead), mask rivets/perforations (texture-level).
+baseColor factor over the bronze map. v4 on the owner's v3 review: the mask and greaves read darker-and-shinier than the
+hood ("fake") — `finishMaterials` now drops the ORM map for Steel/Bronze on HIS GLB only and lands scalar matte factors
+(metalness 0.45, roughness 0.88), greaves baseColor `#4a4239`; every other fighter untouched. Also v4: the Jog flight bound
+in tests/characters scales with the fighter's scale k (probe: man 0.285, pitborn 0.323 @1.13, goblin 0.193 @0.835,
+executioner 0.379 @1.36 — the fixed 0.32 only survived on the Pitborn by 12-frame sampling luck). Evidence:
+`artifacts/character/executioner-v1/` (baseline audit), `-v2/` (mask + hood + near-black kit), `-v3/` (no bib, black
+greaves) and `-v4/` (matte iron, turntable, details, gameplay portrait/attack, faces, sequence); executioner.glb 6.22 MB
+raw, 21 clips, per-fight budget PASS. Gate: green at df0e4e3, after the 1afa0cb trunk merge, on v3 (9d26d9a), and v4 node
+tests 227/227 (characters triangle + scaled-flight assertions included). Not done: the real KeenTools head (one top-up +
+one command), his real weapon (weapons lane — the sword on his back is theirs), his combat profile (combat lane), mask
+rivets/perforations (texture-level).
 
 
 ## Finishers & gore milestone authorized — 2026-09-17 (lead, owner's call)

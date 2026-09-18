@@ -54,7 +54,7 @@ for (const mesh of [body, base.scene.getObjectByName('Eyes')]) { mesh.geometry.m
 base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .35 });
 const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
 const ranger = new T.MeshStandardMaterial({ name: 'Ranger', roughness: 1 }); // CC0 outfit-pack items; maps from the manifest
-const bronze = new T.MeshStandardMaterial({ name: 'Bronze', color: fighter === 'executioner' ? '#38322b' : '#ffffff', roughness: 1, metalness: 1 }); // the Executioner's greaves are blackened iron (the dark factor rides over the bronze map, owner 2026-09-18: "same dark charcoal as the rest"); everyone else's stay bright bronze (white = the map as authored)
+const bronze = new T.MeshStandardMaterial({ name: 'Bronze', color: fighter === 'executioner' ? '#4a4239' : '#ffffff', roughness: 1, metalness: 1 }); // the Executioner's greaves are blackened iron (the dark factor rides over the bronze map, owner 2026-09-18: "same dark charcoal as the rest"; matte factors land in finishMaterials); everyone else's stay bright bronze (white = the map as authored)
 const wrap = new T.MeshStandardMaterial({ name: 'Wrap', roughness: .85 }); // wrist wraps: leather strip maps from the manifest
 const eyesMaterial = new T.MeshPhysicalMaterial({ name: 'Eyes', roughness: .3, clearcoat: .5, clearcoatRoughness: .18 }); // wet cornea, soft highlight; roughness from the map
 // Realistic head: its own texture tile with skin-strength specular (KHR_materials_specular), and strand cards for hair,
@@ -662,6 +662,9 @@ function finishMaterials(glb, authored = new Map()) {
     if(m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
     if(m.name==='Gambeson'||m.name==='Heraldry') {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
     if(m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
+    // The Executioner's blackened iron (owner, v3 review: the mask and greaves read darker and shinier than the hood — fake):
+    // drop the ORM map for scalar matte factors; with metalness down the diffuse returns and they read as charcoal iron beside the hood's cloth.
+    if(fighter==='executioner'&&(m.name==='Steel'||m.name==='Bronze')) {delete p.metallicRoughnessTexture;p.metallicFactor=0.45;p.roughnessFactor=0.88;}
   }
   j.buffers[0].byteLength=offset;
   const text=Buffer.from(JSON.stringify(j)), padded=Buffer.concat([text,Buffer.alloc((4-text.length%4)%4,32)]), bin=Buffer.concat(chunks);

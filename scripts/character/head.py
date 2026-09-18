@@ -1548,9 +1548,12 @@ FIGHTERS = {
     # the 22:1x job stopped at 402 AFTER the uploads; resume with
     # `node scripts/create-head.mjs artifacts/source/keentools --avatar 01a0b094-dcd8-7792-835d-5bdb88f42cf6` and point this at the new GLB.
     # Masked and hooded in game — the iron half-mask and ragged hood are kit parts (parts.py), so chin is off (the jaw sits
-    # behind iron) and the crown's budget goes to the hood (decimate: the Veteran's helmed value). Dark stubble under the hood.
+    # behind iron) and the crown's budget goes to the hood. Dark stubble under the hood. decimate 0.08, far below every
+    # other fighter: his face is never seen (only eyes/brow, which are separate meshes with their own ratios, and the skin
+    # normal map is baked from the full-res head), and the v3 head at the Veteran's helmed 0.26 broke the 60k skinned-triangle
+    # ceiling (61,363 — tests/characters); 0.20 still shipped 60,827. 0.08 lands ~59.7k with margin.
     'executioner': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',
-                    'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.14, 'hair': 'buzz', 'scars': False, 'decimate': 0.26},
+                    'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.14, 'hair': 'buzz', 'scars': False, 'decimate': 0.08},
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
