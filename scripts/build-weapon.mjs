@@ -102,6 +102,11 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
     // The left hand: mirror the right's palm normal across the vertical plane through the shaft, orient the hand so its own shaft
     // direction and palm normal meet the shaft and that mirrored normal, then put its grip point on the shaft `l` metres along.
     const palmWorld = palmR.clone().applyQuaternion(handR.getWorldQuaternion(new three.Quaternion()));
+    // The mirror below assumes the UNROLLED pole grip. A weapon whose rear hand rolls about the shaft per key (the scythe's crescent)
+    // must undo that roll first, else the reflected palm lands the front hand on the wrong side of the shaft, fingers dangling
+    // (owner review 2026-09-18; measured: fingers −0.04 below the axis where the wrap should be +0.02 over it). No-op at roll 0
+    // (the trident's keys never roll).
+    palmWorld.applyAxisAngle(shaft, -roll);
     let across = shaft.clone().cross(Y); if (across.length() < .1) across = new three.Vector3(1, 0, 0).applyQuaternion(frame); across.normalize();
     const mirrored = palmWorld.addScaledVector(across, -2 * palmWorld.dot(across));
     const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, mirrored).multiply(leftLocal.clone().transpose()));
@@ -410,6 +415,11 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     handR.quaternion.copy(handR.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientation).multiply(weapon.quaternion.clone().invert()));
     base.scene.updateMatrixWorld(true);
     const palmWorld = palmR.clone().applyQuaternion(handR.getWorldQuaternion(new three.Quaternion()));
+    // The mirror below assumes the UNROLLED pole grip. A weapon whose rear hand rolls about the shaft per key (the scythe's crescent)
+    // must undo that roll first, else the reflected palm lands the front hand on the wrong side of the shaft, fingers dangling
+    // (owner review 2026-09-18; measured: fingers −0.04 below the axis where the wrap should be +0.02 over it). No-op at roll 0
+    // (the trident's keys never roll).
+    palmWorld.applyAxisAngle(shaft, -roll);
     let across = shaft.clone().cross(Y); if (across.length() < .1) across = new three.Vector3(1, 0, 0).applyQuaternion(frame); across.normalize();
     const mirrored = palmWorld.addScaledVector(across, -2 * palmWorld.dot(across));
     const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, mirrored).multiply(leftLocal.clone().transpose()));
