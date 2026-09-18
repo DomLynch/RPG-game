@@ -9,16 +9,21 @@ Selected approach: Vite + TypeScript + Three.js static build, no framework/backe
 Known risks: no physical minimum-phone tests or external player feedback yet; character art is an early original pass; server storage and actual PvP belong to 0B. VPS had ~1.3 GB free at discovery; deploy only a small static build and do not clean unrelated data.
 Next validation: pure simulation invariants, storage failure/reload, touch cancellation, camera edge positions, rendered desktop/mobile layout, public HTTPS and source parity.
 
-## The Executioner — fifth opponent, v4 — 2026-09-18 (character lane, owner brief; NOT SHIPPED — branch `char/executioner-v1`, PR pending)
+## The Executioner — fifth opponent, v5 — 2026-09-18 (character lane, owner brief; NOT SHIPPED — branch `char/executioner-v1`, PR #111 owner-approved, merge pending)
 The owner's brief (7 masked reference portraits, `artifacts/source/face/executioner/reference/`): a giant headsman — iron
-half-mask riveted over nose/cheeks/mouth, ragged hood, buckle harness, ~20 % over the Pitborn. The mask/hood could not go to
+half-mask riveted over nose/cheeks/mouth, ragged hood, buckle harness, ~20 % over the Pitborn. v5 (owner, 2026-09-18, on
+approving the PR visuals): his skin is DARK CHOCOLATE, mid-African — "not full black" — where the v1–v4 stand-in shipped him
+white/olive like the Veteran. `skin_mul (0.66, 0.55, 0.46)` paints the body and the new `photo_mul (0.66, 0.55, 0.46)`
+tints the STAND-IN photograph (applied after delight, before the neck band, so the collar ring the body continues is the
+tinted tone) — one factor both sides, so the hue stays matched; body bakes to median sRGB (94, 60, 40), the face tile to
+(80, 51, 35). The mask/hood could not go to
 the KeenTools scanner (it would bake iron and cloth into the skull), so a bare-head 7-angle portrait set was generated to the
 handover spec (`artifacts/source/face/executioner/executioner-01..07.png`) and uploaded — then `/process` returned 402
 Insufficient credits, same block as the Nightborn (owner declined the €11 top-up there). The head ships as the STAND-IN (the
 hero's scan, nightborn precedent): `head.FIGHTERS.executioner` (chin off — the jaw lives behind iron; buzz 0.14) records the
 one-command resume, avatar `01a0b094-dcd8-7792-835d-5bdb88f42cf6`, no re-upload needed. decimate 0.08, far below every other
 fighter: his face is never seen (eyes/brow are separate meshes, skin normal baked from the full-res head) and the v3 head at
-the Veteran's helmed 0.26 broke the 60k skinned-triangle ceiling (61,363; 0.20 still shipped 60,827) — v4 ships 53,839.
+the Veteran's helmed 0.26 broke the 60k skinned-triangle ceiling (61,363; 0.20 still shipped 60,827) — v5 ships 53,839.
 Registrations: `parts.KIT.executioner` (charcoal linen (0.16, 0.15, 0.17) — above the 12 % phone floor; grime 0.85;
 build + brute; greaves, boots, helm slot), `build-warrior BUILD.executioner scale 1.36` (owner: "20 % larger than Pitborn",
 no hunch — he stands straight; numerically verified against the pitborn GLB), runtime `OpponentId` + `OPPONENTS.executioner`
@@ -35,8 +40,9 @@ hood ("fake") — `finishMaterials` now drops the ORM map for Steel/Bronze on HI
 in tests/characters scales with the fighter's scale k (probe: man 0.285, pitborn 0.323 @1.13, goblin 0.193 @0.835,
 executioner 0.379 @1.36 — the fixed 0.32 only survived on the Pitborn by 12-frame sampling luck). Evidence:
 `artifacts/character/executioner-v1/` (baseline audit), `-v2/` (mask + hood + near-black kit), `-v3/` (no bib, black
-greaves) and `-v4/` (matte iron, turntable, details, gameplay portrait/attack, faces, sequence); executioner.glb 6.22 MB
-raw, 21 clips, per-fight budget PASS. Gate: green at df0e4e3, after the 1afa0cb trunk merge, on v3 (9d26d9a), and v4 node
+greaves) and `-v4/` (matte iron), `-v5/` (dark-chocolate skin — the approved look; turntable, details, gameplay
+portrait/attack, faces, sequence); executioner.glb 6.22 MB
+raw, 21 clips, per-fight budget PASS. Gate: green at df0e4e3, after the 1afa0cb trunk merge, on v3 (9d26d9a), and v4/v5 node
 tests 227/227 (characters triangle + scaled-flight assertions included). Not done: the real KeenTools head (one top-up +
 one command), his real weapon (weapons lane — the sword on his back is theirs), his combat profile (combat lane), mask
 rivets/perforations (texture-level).

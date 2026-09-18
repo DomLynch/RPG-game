@@ -1553,7 +1553,8 @@ FIGHTERS = {
     # normal map is baked from the full-res head), and the v3 head at the Veteran's helmed 0.26 broke the 60k skinned-triangle
     # ceiling (61,363 — tests/characters); 0.20 still shipped 60,827. 0.08 lands ~59.7k with margin.
     'executioner': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',
-                    'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.14, 'hair': 'buzz', 'scars': False, 'decimate': 0.08},
+                    'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.14, 'hair': 'buzz', 'scars': False, 'decimate': 0.08,
+                    'skin_mul': (0.66, 0.55, 0.46), 'photo_mul': (0.66, 0.55, 0.46)},  # owner 2026-09-18: dark-chocolate (mid-African) skin, "not full black" — skin_mul paints the body, photo_mul tints the STAND-IN photograph too, or the collar reads two people; both take the same factor so the hue stays matched
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
@@ -1848,6 +1849,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
     filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size, front=front)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
     filled = delight(filled, dark | (coverage < 0.6))  # the portraits' key light is baked in: the lit cheeks and forehead rendered brighter and shinier than the body
+    if FIGHTERS[FIGHTER].get('photo_mul'):  # per-fighter skin tint ON THE PHOTOGRAPH (the Executioner's dark chocolate, owner
+        filled = filled * np.array(FIGHTERS[FIGHTER]['photo_mul'])[None, None, :]  # 2026-09-18): after delight, before the neck band, so the ring the body continues is the tinted tone — skin_mul alone paints only the body
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
     if SKIN_TONE is not None:  # the photograph's baked neck lighting flattens to the body's albedo towards the seam
         mottle = (0.92 + P.fbm(size, 41, octaves=(4, 8, 16, 32)) * 0.18)[..., None]  # the painted body's own tone noise, so the band is skin, not paint
