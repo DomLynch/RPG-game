@@ -137,10 +137,22 @@ export function buildArena(scene: THREE.Scene): Arena {
     g *= smooth(1.6, 2.6, y) * (1 - smooth(3.8, 4.8, y));
     return [1 + 0.5 * g, 1 + 0.2 * g, 1 - 0.14 * g];
   };
-  const wallTint: Tint = (_x, y, _z, a) => { const k = (0.9 + 0.2 * (hash(Math.floor(a * 30), 0, 4) - 0.5)) * (0.7 + 0.3 * Math.min(1, y / 0.9)); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * 0.99 * gg, k * 0.97 * gb]; };
-  const tierTint: Tint = (_x, y, _z, a) => { const k = (0.88 + 0.18 * (hash(Math.floor(a * 40), Math.floor(y), 6) - 0.5)) * (1 - 0.35 * ruin(a)); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * gg, k * 0.98 * gb]; };
+  // Local grime, not a palette change: irregular damp dirt at the foot and tapering soot above the six braziers.
+  const masonryShade = (y: number, a: number) => {
+    const dirt = Math.exp(-Math.max(0, y) / 0.42) * (0.1 + 0.14 * mottle(Math.sin(a) * 2 + 0.5, Math.cos(a) * 2 + 0.5));
+    let soot = 0;
+    for (const ba of brazierAngles) {
+      const rise = Math.max(0, y - 3.65), drift = 0.012 * rise;
+      const d = Math.atan2(Math.sin(a - ba - drift), Math.cos(a - ba - drift)), width = 0.045 + 0.016 * rise;
+      soot = Math.max(soot, Math.exp(-((d / width) ** 2)) * smooth(3.65, 4.25, y) * (1 - smooth(5.4, 6.8, y)));
+    }
+    return (1 - dirt) * (1 - 0.3 * soot);
+  };
+  const wallTint: Tint = (_x, y, _z, a) => { const k = (0.9 + 0.2 * (hash(Math.floor(a * 30), 0, 4) - 0.5)) * (0.7 + 0.3 * Math.min(1, y / wall.top)) * masonryShade(y, a); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * 0.99 * gg, k * 0.97 * gb]; };
+  const tierTint: Tint = (_x, y, _z, a) => { const k = (0.88 + 0.18 * (hash(Math.floor(a * 40), Math.floor(y), 6) - 0.5)) * (1 - 0.35 * ruin(a)) * masonryShade(y, a); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * gg, k * 0.98 * gb]; };
   const flat = (h: number) => () => h, gateSkip = (a: number) => inGate(a, wall.inner);
-  stones.push(band(wall.inner, flat(0), wall.inner, flat(wall.top), 2, wallTint, gateSkip));                 // the wall's inner face, open at the gate
+  const wallRows = [0, 0.25, 0.7, 1.5, wall.top];   // enough vertical samples to keep foot stains localized
+  for (let i = 1; i < wallRows.length; i++) stones.push(band(wall.inner, flat(wallRows[i - 1]), wall.inner, flat(wallRows[i]), 2, wallTint, gateSkip));
   stones.push(band(wall.inner, flat(wall.top), wall.outer, flat(wall.top), 2, wallTint, gateSkip));           // its walkway
   let inner = wall.outer;
   tiers.forEach((_h, i) => {
