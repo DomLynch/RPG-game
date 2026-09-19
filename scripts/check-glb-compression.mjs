@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { preview } from 'vite';
 import { chromium, webkit } from 'playwright';
-import { assertGlbEquivalent, builtRig, sha256 } from './glb-equivalence.mjs';
+import { assertGlbEquivalent, builtRig, sha256, parseGlb } from './glb-equivalence.mjs';
 
 function checkCsp(value) {
   const directive = value?.split(';').map(s => s.trim()).find(s => s.startsWith('script-src '));
@@ -18,7 +18,9 @@ if (process.argv.includes('--hosted-csp')) {
   const receipt = { rigs: [], browsers: [], errors: [] };
   for (const name of (await fs.readdir('src/assets')).filter(f => f.endsWith('.glb'))) {
     const id = name.slice(0, -4), file = await builtRig(id);
-    receipt.rigs.push({ id, file, ...await assertGlbEquivalent(await fs.readFile(`src/assets/${name}`), await fs.readFile(file)) });
+    const packed = await fs.readFile(file), textures = [];
+    for (const image of parseGlb(packed).doc.images) if (image.uri) textures.push({ path: `assets/${image.uri}`, sha256: sha256(await fs.readFile(`dist/assets/${image.uri}`)) });
+    receipt.rigs.push({ id, file, textures, ...await assertGlbEquivalent(await fs.readFile(`src/assets/${name}`), packed) });
   }
   console.log(`Compressed build equivalence PASS: ${receipt.rigs.length} rigs, ${receipt.rigs.reduce((n, r) => n + r.accessors, 0)} accessors; clips/materials unchanged; JPEG pixels/colour/orientation data identical; other used image bytes unchanged`);
   if (process.argv.includes('--browser')) {
@@ -34,16 +36,22 @@ if (process.argv.includes('--hosted-csp')) {
           await page.route(`${origin}/decoder-csp-probe.js`, route => route.fulfill({ contentType: 'text/javascript', body: `try { window.evalAllowed = new Function('return true')(); } catch { window.evalAllowed = false; } window.evalChecked = true;` }));
           for (const id of ['werewolf', 'skeleton']) {
             const responses = [];
-            const collect = response => { if (/\.glb(?:\?|$)/.test(response.url())) responses.push(response); };
+            const collect = response => { if (/\.glb(?:\?|$)|\/assets\/textures\//.test(response.url())) responses.push(response); };
             page.on('response', collect);
             const navigation = await page.goto(`${origin}/?opponent=${id}`);
             checkCsp(await navigation.headerValue('content-security-policy'));
             await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-            assert.equal(responses.length, 2, 'URL catalogue must fetch only the hero and selected opponent');
+            assert.equal(responses.filter(r => /\.glb(?:\?|$)/.test(r.url())).length, 2, 'URL catalogue must fetch only the hero and selected opponent');
             for (const name of ['warrior', id]) {
               const expected = receipt.rigs.find(r => r.id === name), response = responses.find(r => new URL(r.url()).pathname.endsWith(expected.file.slice(5)));
               assert.ok(response, `Missing ${name}`); assert.equal(response.status(), 200);
               assert.equal(sha256(await response.body()), expected.emittedSha256, 'Served bytes must equal the independently verified compressed build');
+            }
+            const textures = new Map(['warrior', id].flatMap(name => receipt.rigs.find(r => r.id === name).textures).map(t => [t.path, t]));
+            for (const texture of textures.values()) {
+              const response = responses.find(r => new URL(r.url()).pathname === `/${texture.path}`);
+              assert.ok(response, `Shared texture was not loaded: ${texture.path}`); assert.equal(response.status(), 200);
+              assert.equal(sha256(await response.body()), texture.sha256, 'Served shared texture differs from verified pixels');
             }
             if (await page.getByRole('button', { name: 'Enter the arena' }).isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click();
             await page.addScriptTag({ url: `${origin}/decoder-csp-probe.js` });
