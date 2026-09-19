@@ -24,12 +24,12 @@ bpy.context.view_layer.update()
 for side, sgn in [("l", 1), ("r", -1)]:
     p = rig.pose.bones["upperarm_" + side]
     pivot = p.head.copy()
-    angle = math.radians(65 if family == "minotaur" else 35) * sgn
-    stretch = 1.35 if family == "minotaur" else 1.12
+    angle = math.radians(65 if family == "minotaur" else 45) * sgn
+    stretch = 1.35 if family == "minotaur" else 0.97
     shift = (
         Vector((sgn * 0.055, -0.16, -0.045))
         if family == "minotaur"
-        else Vector((0, -0.06, -0.015))
+        else Vector((0, -0.20, -0.015))
     )
     p.matrix = (
         Matrix.Translation(pivot + shift)
@@ -234,7 +234,7 @@ a = tri[:, [0, 1, 2]].reshape(-1)
 b = tri[:, [1, 2, 0]].reshape(-1)
 a, b = np.concatenate([a, b]), np.concatenate([b, a])
 degree = np.bincount(a, minlength=len(w))
-for _ in range(32 if family == "minotaur" else 8):
+for _ in range(48 if family == "minotaur" else 8):
     sums = np.zeros_like(w)
     np.add.at(sums, a, w[b])
     w = 0.35 * w + 0.65 * sums / np.maximum(1, degree)[:, None]

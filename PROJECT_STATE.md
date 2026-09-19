@@ -9,16 +9,16 @@ procedural and MPFB studies remain rejected. No paid job or new runtime dependen
 Added the two encounters after the five existing entries. Pitborn cleaver and Nightborn estoc simulation,
 clips and exact weapon geometry are reused. Fitted intact A-pose surfaces have corrected inverse binds,
 four normalized influences, 45k body triangles and original compressed textures. Including weapons:
-Minotaur 45,615 triangles, Wraith 46,252. Wraith has graded transparency, moving wisps and 28 ash points.
+Minotaur 45,611 triangles, Wraith 46,214. Wraith has graded transparency, moving wisps and 28 ash points.
 Paired executions are disabled for these creatures; ordinary death/reset remains the fallback.
 
 Audit caught and fixed A-pose binding mistakes, claw-to-thigh transfer and leg/shoulder seam stretching.
-Current six-clip / three-phase deformation samples show zero >12cm, >3.5x stretched edges. The formal
+Visual review caught UV-island cracks missed by edge-only sampling: welding coincident vertices before decimation fixed them while preserving per-corner UVs. The Wraith donor arm angle/length/depth was fitted to its actual claw; grip proximity now passes all sampled armed/attack/guard poses. Isolated fur/cloth bend edges still flag 12–15cm stretch in the diagnostic; no runaway geometry is accepted, and final deformation polish remains an owner visual-review item. The formal
 asset check validates base/source/generator hashes, exact animation channels and weapon geometry,
 original map bytes, four-influence normalization, triangle ceiling and 125 finite poses per creature.
-Integrated published weapon/auth/Quiet One/dust trunk 2e5040a while retaining every inherited completion gate.
+Integrated published weapon/auth/Quiet One/dust/audio trunk 5c46f46 while retaining every inherited completion gate.
 Account encounter constraint migration adds the two IDs; local real-PostgreSQL saves and existing RLS checks pass.
-Hosted migration applied with verified TLS; authenticated saves/revisions, invalid-opponent rejection, two-user isolation and anonymous denial pass. Test data rolled back. Exact receipt: lead checkout artifacts/account/live/hosted-creature-migration.md. Full final contract, in-game visual audit, CI and deployment receipts are pending.
+Hosted migration applied with verified TLS; authenticated saves/revisions, invalid-opponent rejection, two-user isolation and anonymous denial pass. Test data rolled back. Exact receipt: lead checkout artifacts/account/live/hosted-creature-migration.md. First actual-game phone landscape/portrait tests passed both opponents: served rig hashes, attacks/damage, ordinary player death, rematch and zero browser/shader errors. Final welded/grip build visual pose review passed; final full contract, CI and public release receipts follow.
 Evidence: artifacts/character/creatures/. Physical-phone performance and owner art/playtest feedback remain open.
 
 ## Earlier character direction correction — 2026-09-19 (historical art review)

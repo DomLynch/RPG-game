@@ -58,12 +58,14 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']])
   const asset = await geometryOnly(output), body = asset.scene.getObjectByName('CreatureBody');
   assert(body?.isSkinnedMesh && body.userData.creature === family);
   const g = body.geometry, weights = g.attributes.skinWeight, joints = g.attributes.skinIndex;
-  assert.equal(g.index.count / 3, 45000);
+  assert(g.index.count > 0 && g.index.count / 3 <= 45000, '45k surface ceiling');
+  const hand = body.skeleton.bones.findIndex(b => b.name === 'hand_r'), handVertices = new Set();
   for (let i = 0; i < weights.count; i++) {
     let sum = 0;
     for (let k = 0; k < 4; k++) {
       const w = weights.getComponent(i, k), j = joints.getComponent(i, k);
       assert(Number.isFinite(w) && w >= 0 && w <= 1 && Number.isInteger(j) && j < body.skeleton.bones.length);
+      if (j === hand && w > .5) handVertices.add(i);
       sum += w;
     }
     assert(Math.abs(sum - 1) < 1e-5, 'Unnormalised skin');
@@ -72,15 +74,20 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']])
   asset.scene.traverse(o => { if (o.isMesh) triangles += (o.geometry.index?.count || o.geometry.attributes.position.count) / 3; });
   assert(triangles < 60000, 'Existing 60k character ceiling');
   const mixer = new AnimationMixer(asset.scene), point = new Vector3();
+  const weapon = asset.scene.getObjectByName('WeaponDrawn'), grip = new Vector3();
+  assert(weapon && handVertices.size, 'The reconstructed hand must follow the grip joint');
   let poses = 0;
   for (const clip of asset.animations) for (const fraction of [0, .25, .5, .75, .999]) {
     mixer.stopAllAction(); const action = mixer.clipAction(clip).play(); action.time = clip.duration * fraction; mixer.update(0);
     asset.scene.updateMatrixWorld(true); body.skeleton.update();
+    weapon.getWorldPosition(grip); let handGap = Infinity;
     for (let i = 0; i < g.attributes.position.count; i++) {
       body.applyBoneTransform(i, point.fromBufferAttribute(g.attributes.position, i));
       assert(point.toArray().every(Number.isFinite), `${clip.name}: nonfinite posed vertex`);
       assert(point.length() < 6, `${clip.name}: runaway skin vertex`);
+      if (handVertices.has(i)) handGap = Math.min(handGap, body.localToWorld(point).distanceTo(grip));
     }
+    if (['Armed', 'Attack', 'Heavy', 'Guard'].includes(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
     poses++;
   }
   receipts.push({ family, sha256: digest(raw), triangles, clipsPreserved: asset.animations.length, finitePoses: poses, mapsPreserved: imageBytes(source).length });
