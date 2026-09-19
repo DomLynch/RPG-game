@@ -35,7 +35,7 @@ try {
       minotaur: { family: /^\w+:Maul_\w+@WeaponDrawn$/, heavy: 'Heavy:Maul_Heavy@WeaponDrawn' },
       wraith: { family: /^\w+:Claw_\w+@WeaponDrawn$/, heavy: 'Heavy:Claw_Heavy@WeaponDrawn' },
       werewolf: { family: /^\w+:(?:Idle|Walk|Jog|Run|Armed|Attack|Hit|Death|Draw|Roll|Guard|Return|Heavy|Riposte|ArmedWalk|StrafeLeft|StrafeRight|Kick|BlockImpact|Parry|Deflected)@WeaponDrawn$/, heavy: 'Heavy:Heavy@WeaponDrawn' },
-      skeleton: { family: /^\w+:Trident_\w+@WeaponDrawn$/, heavy: 'Heavy:Trident_High@WeaponDrawn' },
+      skeleton: { family: /^(?:\w+:Trident_\w+|Roll:Roll|Kick:Kick)@WeaponDrawn$/, heavy: 'Heavy:Trident_High@WeaponDrawn' },
     }[opponent];
     const frames = [];
     const shot = async label => {
