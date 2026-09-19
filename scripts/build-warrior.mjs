@@ -1,3 +1,4 @@
+import { quietOneClip } from './build-quiet-one.mjs';
 import { warriorRecipe } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
@@ -757,6 +758,7 @@ base.scene.name='Ashcourt warrior';
 if (BUILD.stride) base.scene.userData.stride = BUILD.stride;   // his walk cycle covers this much of a man's stride: the runtime plays it faster to match the sim's travel (no clip change)
 base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y=.025;
 base.scene.updateMatrixWorld(true);
+clips.push(quietOneClip(base.scene, clips));
 const result=await new GLTFExporter().parseAsync(base.scene,{binary:true,animations:clips,onlyVisible:true});
 await fs.mkdir('src/assets',{recursive:true});
 // Authored material maps (scripts/character): src/assets/source/materials/manifest.json maps a material name to

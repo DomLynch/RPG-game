@@ -1,5 +1,29 @@
 # Project state
 
+## The Quiet One — 2026-09-19 (finishers/quiet-one; local, release pending)
+Owner authorized the next finisher: restrained neck reaction, left hand at throat, failing backward step, held beat,
+knee buckle and right-side collapse. Additive `Death_QuietOne` on all six live fighters and four shelf/bake rigs;
+2.4 s authored / 3.2 s presented, final pose held until rematch. The five-way deterministic rotation includes plain death.
+Small animated neck wound reuses the existing pool, red/dark/off apply, earlier side camera exposes the held beat,
+and existing quieter contact/voice plus delayed body/gasp cues complete the scene. No simulation or input change.
+
+Original offline authoring in `scripts/build-quiet-one.mjs`, also called by the full warrior builder. Binary append
+preserves all old clips, meshes, skinning, textures and weapon elbow repairs; preservation verified against f7a1e99
+on all ten GLBs. Blade rebake is unchanged. Initial visual review corrected inward elbow, knee/foot ground clipping
+and portrait crop; baked skin-envelope clearance accommodates each body. Full quality passes 268/268 plus build,
+lint, dependency audit, per-fight budget and game browser. All-rig tests cover throat alignment, upright beat,
+intact head, ground contact and held corpse; additive-builder test verifies preservation, idempotence and rejection
+of a later appended clip. Camera edge/aspect tests include the new ending. Earlier rigid-clip comparison tests now
+exempt only the separately authored Quiet One values while retaining clip names, tracks/times and legacy assertions.
+
+Real-scene Veteran/Goblin/Executioner captures cover red/dark/off, portrait/landscape, reduced motion and rematch.
+Final sequence video and phone UI/contract gate receipts: `artifacts/finishers/quiet-one/` and
+`artifacts/character/quiet-final-scene/`. Two-pass review: pure simulation/input unchanged; then rendered poses,
+continuity, modes and reset behavior. Required completion commands and release coordination remain in progress.
+Lead holds release scheduling: no merge/deploy until an allocated window. Physical-phone feel remains owner-only.
+Sentry inspection found existing asset-fetch/texture/WebGL issues (5/6/A/9/8 and older), not evidence about this
+unreleased finisher. No claim of a clean live error stream or public publication.
+
 ## Polearm elbow correction — weapons, 2026-09-19
 Owner reproduced inward, twisted elbows on the Executioner and Veteran in the live game. Their correct polearm gait clips were already selected. Offline IK used reversed left/right bend poles for this rig and shortest-arc bone aiming left axial roll unconstrained. Polearm-only authoring now places elbows outward and aligns the anatomical hinge from the library stance; sword authoring and all combat timings stay unchanged. The Executioner slides his supporting hand down the haft during the raised wind-up to stay within reach.
 
