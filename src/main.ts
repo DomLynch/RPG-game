@@ -113,41 +113,9 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = { Blocked: 30, Hi
 const HEAVY_HIT = 90, HEAVY_BLOCK = 50;   // a heavy-class contact stops longer whether it lands or is blocked
 const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const HITSTOP_KEY = 'frankendom.hitstop.v1', TEMPO_KEY = 'frankendom.tempo.v1';
-// Coach hints (owner, 2026-09-18): one-line flashes that teach the five skill moves — chain, feint, dodge-attack, guard counter, riposte.
-// They run on the first warden fight only (the Veteran, ladder rung 1); a journal toggle turns them off, and each hint fires at most twice
-// per fight so it nags then stops. Presentation-only: it reads the same events the hit-stop and sound already read, and never feeds the sim.
-const COACH_KEY = 'frankendom.hints.v1';
-let coachOn = storage.getItem(COACH_KEY) !== 'off';
-const coachEl = element('coach');
-coachEl.hidden = true;   // the HTML ships it hidden; set it here too because the test harness's element stubs do not parse index.html
-const seen: Record<string, number> = {};
-let coachTimer: ReturnType<typeof setTimeout> | undefined;
-let coachAnim: Animation | undefined;   // the browser path: the line floats up and fades (the owner's fight-game style); the VM test stubs have no animate()
-function coachMark(text: string, id: string, max = 2): void {
-  if (!coachOn || opponent.id !== LADDER[0].id || (seen[id] ?? 0) >= max) return;
-  seen[id]++;
-  coachEl.textContent = text; coachEl.hidden = false;
-  if (typeof coachEl.animate === 'function') {
-    coachAnim?.cancel();
-    coachAnim = coachEl.animate(
-      [{ transform: 'translate(-50%, 0)', opacity: 1 }, { transform: 'translate(-50%, -52px)', opacity: 0 }],
-      { duration: 2000, easing: 'ease-out', fill: 'forwards' });
-    coachAnim.onfinish = () => { coachEl.hidden = true; };
-  } else { clearTimeout(coachTimer); coachTimer = setTimeout(() => { coachEl.hidden = true; }, 2600); }   // test-harness fallback
-}
-function coach(events: CombatEvent[]): void {
-  for (const e of events) {
-    if (e.type === 'Parried' && e.actor === 0) coachMark('RIPOSTE! Stab or Heavy', 'parry');
-    else if (e.type === 'Blocked' && e.actor === 0 && !e.perfect) coachMark('COUNTER! Heavy now', 'counter');
-    else if (e.type === 'Hit' && e.actor === 0 && e.move?.startsWith('light_')) coachMark('CHAIN! Strike again', 'chain');
-    else if (e.type === 'AttackStarted' && e.actor === 0 && e.move === 'heavy_overhead') coachMark('FEINT! Tap Guard', 'feint', 1);
-    else if (e.type === 'ActionStarted' && e.actor === 0 && (e.action === 'roll' || e.action === 'backstep')) coachMark('QUICK CUT! Strike now', 'dodge', 1);
-  }
-}
-function coachReset(): void { for (const id in seen) delete seen[id]; clearTimeout(coachTimer); coachAnim?.cancel(); coachEl.hidden = true; }
 // Damage numbers (owner mockup, 2026-09-19): a clean hit floats its damage off the victim — white for dealt, warm red for taken, gold and
 // bigger for the heavy-class ones (charged, counter, riposte, critical). Four pooled spans round-robin (a duel never shows four at once);
-// positions come from the scene's world→screen projection. Presentation-only, like the coach line.
+// positions come from the scene's world→screen projection. Presentation-only.
 const dmgPool = Array.from(element('dmg-pool').children) as HTMLElement[];
 let dmgCursor = 0;
 function floatDamage(events: CombatEvent[]): void {
@@ -244,12 +212,6 @@ element('name-form').addEventListener('submit', event => {
 element('name-button').addEventListener('click', () => { clearInput(); input.value = profile.name; welcome.hidden = false; input.focus(); });
 element('journal-button').addEventListener('click', () => { clearInput(); element('scorecard').textContent = formatCard(trial); journal.showModal(); });
 element('mobile-name').addEventListener('click', () => { journal.close(); element('name-button').click(); });
-element('mobile-coach').addEventListener('click', () => {
-  coachOn = !coachOn; storage.setItem(COACH_KEY, coachOn ? 'on' : 'off');
-  element('mobile-coach').textContent = coachOn ? 'Hints: on' : 'Hints: off';
-  element('mobile-coach').setAttribute('aria-pressed', String(coachOn));
-  if (!coachOn) { coachReset(); }
-});
 element('close-journal').addEventListener('click', () => journal.close());
 journal.addEventListener('close', clearInput);
 window.addEventListener('blur', clearInput);
@@ -368,7 +330,7 @@ guardButton.addEventListener('blur', () => { guard = false; if (action === 'parr
 resetButton.addEventListener('click', () => {
   const next = won(practice.finish) ? nextAfter(opponent.id) : undefined;
   if (next) { profile.ladder = next.id; persist(); location.reload(); return; }   // the next fighter is another rig: a fresh page loads it
-  clearInput(); coachReset(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
+  clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
 element('controls-mode').addEventListener('click', () => { clearInput(); scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length]; trial.scheme = scheme; saveTrial(storage, trial); applyScheme(); element('scorecard').textContent = formatCard(trial); });
@@ -463,7 +425,7 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, opponent.profiles[difficulty]);
-      feedback.update(practice.events); frameEvents.push(...practice.events); coach(practice.events); floatDamage(practice.events);
+      feedback.update(practice.events); frameEvents.push(...practice.events); floatDamage(practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;
       if (action) sent = action;

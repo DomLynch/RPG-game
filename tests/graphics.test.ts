@@ -169,27 +169,6 @@ test('guard ring v8: the strike circle owns every attack — a tap slashes as th
 });
 
 
-test('coach hints teach the skill moves on the first warden only, and the journal toggle silences them', () => {
-  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  const coach = app.element('coach');
-  assert.equal(coach.hidden, true, 'no hint before anything happens');
-  app.key('KeyE'); app.tick(); app.release('KeyE');   // a backstep
-  assert.equal(coach.hidden, false, 'the dodge-attack hint flashes on the first warden');
-  assert.match(coach.textContent, /QUICK CUT/);
-  for (let i = 0; i < 15; i++) app.tick();   // the backstep recovers; the warden may answer meanwhile, the hint line persists
-  app.key('KeyG'); app.tick(); app.release('KeyG');   // a heavy: the feint hint fires once per fight
-  assert.match(coach.textContent, /FEINT/);
-  for (let i = 0; i < 90; i++) app.tick();
-  assert.equal(coach.hidden, false, 'the VM stubs the fade timer: the line stays until the next hint or a reset');
-  app.element('mobile-coach').click();
-  assert.equal(coach.hidden, true, 'the toggle clears the line');
-  assert.equal(app.storage.getItem('frankendom.hints.v1'), 'off', 'the choice persists');
-  assert.equal(app.element('mobile-coach').textContent, 'Hints: off');
-  app.key('KeyE'); app.tick(); app.release('KeyE');
-  assert.equal(coach.hidden, true, 'hints off: no new flashes');
-});
-
-
 test('the scorecard tallies fights, wins, rematches and damage per scheme', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until the warden wins
