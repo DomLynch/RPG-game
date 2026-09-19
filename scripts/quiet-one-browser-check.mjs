@@ -8,7 +8,7 @@ const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1
 const origin=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const opponent=process.argv.includes('--opponent') ? process.argv[process.argv.indexOf('--opponent')+1] : 'veteran';
 const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'quietOne';
-const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : 'quiet-one'}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
+const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : finisher==='decapitation' ? 'decapitation' : 'quiet-one'}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
 page.setDefaultTimeout(15000);
@@ -27,7 +27,7 @@ await page.getByRole('button', {name:'Close journal'}).tap();
 const clips = async () => (await page.locator('#debug').getAttribute('data-clips')) ?? '';
 const draw = async () => { await page.getByRole('button', { name: 'Draw sword', exact: true }).tap().catch(() => {}); await page.waitForFunction(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false'); };
 
-let splitReceipt;
+let splitReceipt, headReceipt;
 async function fight(name) {
   await draw();
   console.log('difficulty',await page.locator('#difficulty').textContent());
@@ -74,15 +74,21 @@ async function fight(name) {
     assert.ok(splitReceipt.pieces.every(p=>p.visible && p.opacity>.75),'both creature halves visibly survive the split beat');
     await page.screenshot({path:`${dir}/live-split.png`});
   }
+  if(finisher==='decapitation') {
+    headReceipt=JSON.parse(await page.locator('#debug').getAttribute('data-blood')).head;
+    assert.ok(headReceipt?.visible && headReceipt.screen,'detached head is visible in the actual public duel');
+    assert.ok(headReceipt.screen[0]>5 && headReceipt.screen[0]<385 && headReceipt.screen[1]>20 && headReceipt.screen[1]<700,'head remains above portrait controls');
+    await page.screenshot({path:`${dir}/live-head.png`});
+  }
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${dir}/live-${name}-settled.png` });
   console.log(`${name} settled — clips: "${await clips()}"`);
 }
 
 await fight('counter-duel');
-const expected = finisher === 'opened' ? /Opened:WaistCut/ : /Death_QuietOne:Death_QuietOne/;
+const expected = finisher === 'opened' ? /Opened:WaistCut/ : finisher === 'decapitation' ? /Death_SplitCrown:Death_SplitCrown/ : /Death_QuietOne:Death_QuietOne/;
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
-const receipt={url,finisher,opponent,splitReceipt,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
+const receipt={url,finisher,opponent,splitReceipt,headReceipt,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await page.waitForTimeout(5000);
 assert.match(await clips(), expected, 'finisher stays held after the death window');
 if(process.argv.includes('--blood-check')) {

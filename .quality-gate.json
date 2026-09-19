@@ -211,6 +211,15 @@
     [
       "node",
       "scripts/bell-start-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/quiet-one-browser-check.mjs",
+      "--finisher",
+      "decapitation",
+      "--opponent",
+      "goblin",
+      "--blood-check"
     ]
   ]
 }
