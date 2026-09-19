@@ -87,11 +87,19 @@ try {
   if (checks) {
     const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
     assert.ok(fatal, 'decapitation probe exists');
+    const fatalCue = { t: .05, events: fatal.events, presentation: fatal.presentation };
+    const withEmptyTicks = await pcm([fatalCue, ...Array.from({ length: 180 }, (_, i) => ({ t: .1 + i / 60, events: [] }))], 4.5);
+    assert.ok(withEmptyTicks.every((v, i) => Math.abs(v - rendered['events/finish-decapitation'][i]) <= 1), 'empty simulation ticks preserve the finishing mix');
+    const draw = { t: 2, events: CUE_PROBES.find(p => p.name === 'draw').events };
+    const freshDraw = await pcm([draw], 3.2);
     for (const control of ['quiet', 'toggle']) {
       const cancelled = await pcm([{ t: .05, events: fatal.events, presentation: fatal.presentation }, { t: .1, control }], 4.5);
       assert.ok(cancelled.some(v => v !== 0), 'fatal impact plays before cancellation');
       assert.ok(cancelled.subarray(RATE).every(v => v === 0), `${control} leaves no delayed crowd or collapse after the room decays`);
+      const resumed = await pcm([fatalCue, { t: .1, control }, { t: .2, control: control === 'quiet' ? 'unlock' : 'toggle' }, draw], 3.2);
+      assert.ok(resumed.subarray(2 * RATE).every((v, i) => Math.abs(v - freshDraw[2 * RATE + i]) <= 1), `${control}: next duel restores ordinary volume without stale finishing audio`);
     }
+    checks.finishMixLifecycle = true;
     checks.fatalCancellation = true;
     checks.fatalPeakDbfs = -Infinity;
     for (const [name, samples] of Object.entries(rendered)) if (name.startsWith('events/finish-')) {
@@ -145,6 +153,30 @@ function phoneLoudness(x) {
   return gated.length ? loud(mean(gated)) : -Infinity;
 }
 const loudness = Object.fromEntries(Object.entries(rendered).map(([name, pcm]) => [name, measure(pcm, name === 'exchange' ? cues[0].t : PROBE_AT)]));
+if (checks && !fallback && seed === 731) {
+  // Frozen pre-change renders: catches accidental compressor compensation or a finishing-gain reset.
+  const reference = JSON.parse(await fs.readFile('artifacts/audio/phone-mix/reference.json', 'utf8'));
+  checks.phoneMix = { ordinary: 0, crowd: 0, fatal: 0 };
+  for (const probe of CUE_PROBES) {
+    const name = `events/${probe.name}`, before = reference.probes[name];
+    if (!before) continue; // intentionally silent simulation events
+    const delta = loudness[name].lufsIntegrated - before.lufsIntegrated;
+    if (!probe.events.some(e => e.type === 'Killed')) {
+      assert.ok(Math.abs(delta - 20 * Math.log10(.5)) < .15, `${name}: ordinary level changed ${delta} dB, expected half gain`);
+      checks.phoneMix.ordinary++;
+    } else {
+      assert.ok(delta >= 3 && delta <= 3.7, `${name}: boosted fatal loudness changed ${delta} dB`);
+      checks.phoneMix.fatal++;
+    }
+    if (before.tailRmsDbfs !== undefined) {
+      const tail = rendered[name].subarray(Math.round(2.4 * RATE), Math.round(2.7 * RATE));
+      const rmsDbfs = 10 * Math.log10(tail.reduce((sum, v) => sum + (v / 32768) ** 2, 0) / tail.length);
+      assert.ok(Math.abs(rmsDbfs - before.tailRmsDbfs - 20 * Math.log10(1.5)) < .15, `${name}: crowd tail must increase 50%`);
+      checks.phoneMix.crowd++;
+    }
+  }
+  assert.deepEqual(checks.phoneMix, { ordinary: 17, crowd: 8, fatal: 12 });
+}
 
 // --- Payload: the shipped audio assets, raw and gzip; delta against the committed baseline when this is not the baseline.
 async function payload(dir) {

@@ -9,6 +9,7 @@ import { loadSprite } from './audio/sprite.ts';
 export type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null };
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
+const COMBAT_LEVEL = .5, FINISH_LEVEL = 1.5; // owner phone mix: half ordinary FX, +50% for the fatal sequence
 
 // Combat Foley: the simulation's events pick cues from one decoded sprite (src/audio/manifest.ts, built by
 // scripts/build-audio.mjs); seeded variant rotation and ±5 % pitch keep two hits from ever sounding identical. Voices feed a
@@ -16,7 +17,7 @@ const BASE_SEED = 731;
 // the original synthesised layers stand in so no event is ever silent.
 export function createFeedback(host?: FeedbackHost) {
   type Voice = { source: AudioBufferSourceNode | null; gain: GainNode; send: GainNode; until: number };
-  let context: BaseAudioContext | undefined, master: GainNode | undefined, bus: DynamicsCompressorNode | undefined, noise: AudioBuffer | undefined;
+  let context: BaseAudioContext | undefined, master: GainNode | undefined, balance: GainNode | undefined, bus: DynamicsCompressorNode | undefined, noise: AudioBuffer | undefined;
   let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, quieted = false, duel = 0, random = seeded(BASE_SEED);
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
@@ -37,10 +38,13 @@ export function createFeedback(host?: FeedbackHost) {
     // iOS also parks the context in 'interrupted' after calls, Siri or an app switch; resume from any non-running state.
     if (!host && context.state !== 'running') void (context as AudioContext).resume().catch(() => {});
   }
-  // Graph: voice gain → compressor → ceiling → master → out; voice send → room → compressor. Built once, no per-play nodes but the source.
+  // Graph: voice gain → compressor → ceiling → balance → safety → master → out; voice send → room → compressor. Built once, no per-play nodes but the source.
   function build(context: BaseAudioContext) {
     master = context.createGain(); master.gain.value = 1; master.connect(context.destination);
-    const ceiling = context.createWaveShaper(); ceiling.curve = softCeiling(); ceiling.connect(master);
+    // Apply the requested levels AFTER compression, so it cannot squash away the volume change.
+    const safety = context.createWaveShaper(); safety.curve = outputCeiling(); safety.oversample = '4x'; safety.connect(master);
+    balance = context.createGain(); balance.gain.value = COMBAT_LEVEL; balance.connect(safety);
+    const ceiling = context.createWaveShaper(); ceiling.curve = softCeiling(); ceiling.connect(balance);
     // Glue and density: the compressor leans on stacked hits and the makeup pushes the mix into the ceiling, which is what makes impacts read as big on a small speaker.
     const makeup = context.createGain(); makeup.gain.value = 2.1; makeup.connect(ceiling);   // +6.4 dB: restores the 4 dB of codec headroom baked into the sprite, plus glue
     bus = context.createDynamicsCompressor(); bus.threshold.value = -20; bus.knee.value = 10; bus.ratio.value = 5; bus.attack.value = .002; bus.release.value = .15; bus.connect(makeup);
@@ -79,6 +83,7 @@ export function createFeedback(host?: FeedbackHost) {
     if (!context) return;
     for (const source of sources) { try { source.stop(now()); } catch { /* already ended */ } }
     sources.clear();
+    balance!.gain.cancelScheduledValues(now()); balance!.gain.setValueAtTime(COMBAT_LEVEL, now());
     for (const voice of voices) { voice.source = null; voice.until = 0; voice.gain.gain.cancelScheduledValues(now()); voice.send.gain.cancelScheduledValues(now()); }
   }
   return {
@@ -92,6 +97,9 @@ export function createFeedback(host?: FeedbackHost) {
       if (!enabled || quieted || !context || !live()) return;
       if (events.some(e => e.type === 'ActionStarted' && e.action === 'draw' && e.actor === 0)) random = seeded((host?.seed ?? BASE_SEED) + duel++ * 1013);   // a fresh duel, a fresh but repeatable roll
       const time = now();
+      // Death ends the duel: the impact, voice, delayed body and crowd share the finishing level.
+      // Empty post-death ticks keep it; fresh combat or quiet/mute returns to the ordinary level.
+      if (events.length) balance!.gain.setValueAtTime(events.some(e => e.type === 'Killed') ? FINISH_LEVEL : COMBAT_LEVEL, time);
       if (sprite) { for (const cue of cuesFor(events, presentation)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
@@ -106,6 +114,15 @@ export function createFeedback(host?: FeedbackHost) {
 function softCeiling(): Float32Array<ArrayBuffer> {
   const curve = new Float32Array(new ArrayBuffer(1025 * 4)), limit = 10 ** (-1 / 20);
   for (let i = 0; i < curve.length; i++) { const x = (i / 512) - 1; curve[i] = limit * Math.tanh(x / limit); }
+  return curve;
+}
+// Linear below 0.55; oversampling and headroom catch boosted fatal peaks between output samples.
+function outputCeiling(): Float32Array<ArrayBuffer> {
+  const curve = new Float32Array(new ArrayBuffer(1025 * 4)), knee = .55, span = 10 ** (-3 / 20) - knee;
+  for (let i = 0; i < curve.length; i++) {
+    const x = i / 512 - 1, a = Math.abs(x);
+    curve[i] = a <= knee ? x : Math.sign(x) * (knee + span * Math.tanh((a - knee) / span));
+  }
   return curve;
 }
 // Arena: a stone-walled decay, darkening as it fades. Built once from seeded noise; ConvolverNode normalises it.
