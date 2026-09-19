@@ -781,7 +781,10 @@ for (const [name, maps] of Object.entries(manifest)) {
 const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
 if (!realistic) authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
 let finished = finishMaterials(Buffer.from(result), authored);
-if (fighter === 'veteran') finished = textureVeteranTrident(fitVeteranNeck(finished).glb);
+if (fighter === 'veteran') {
+  finished = fitVeteranNeck(finished).glb;
+  if (weaponId === 'trident') finished = textureVeteranTrident(finished);
+}
 await fs.writeFile(output, finished);
 console.log(`${fighter === 'hero' ? 'Warrior' : fighter} → ${output}: ${finished.byteLength} bytes; ${clips.map(a=>a.name).join(', ')}`);
 
