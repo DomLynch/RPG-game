@@ -18,7 +18,8 @@ try {
  await page.route('**/*sentry.io/**',route=>route.abort()); // Deliberate GPU failure checks must not create production incidents.
  page.on('pageerror',e=>receipt.errors.push(String(e)));
   // The first two waits are load waits (the two rigs are ~13 MB; a slow link to the live site is not a behaviour failure): 90 s, like the rig wait.
- await page.goto(url);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});await page.getByRole('button',{name:'Enter the arena'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL; a load wait, not a behaviour wait
+ const gameUrl=new URL(url);gameUrl.searchParams.set('debug','1');
+ await page.goto(gameUrl.href);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});await page.getByRole('button',{name:'Enter the arena'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL; a load wait, not a behaviour wait
  const cdp=await page.context().newCDPSession(page);
  const center=async id=>{const b=await page.locator('#'+id).boundingBox();assert.ok(b,id);return{x:b.x+b.width/2,y:b.y+b.height/2}};
  const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
@@ -31,6 +32,7 @@ try {
  receipt.graphicsRestored=true; receipt.afterRestore=await snapshot();
  // Timestamp the first rendered tell before drawing. Polling plus a fresh layout query after a fixed sleep can miss the parry window.
  await page.evaluate(()=>{window.__tellAt=0;window.__guardAt=0;const status=document.querySelector('#combat-status');const observer=new MutationObserver(()=>{if(status.textContent.startsWith('Incoming strike')){window.__tellAt=performance.now();observer.disconnect();}});observer.observe(status,{childList:true});document.querySelector('#guard-button').addEventListener('pointerdown',()=>{window.__guardAt=performance.now();},{once:true});});
+ await page.evaluate(()=>{window.__combat=[];window.addEventListener('frankendom:combat',e=>{window.__combat.push(e.detail);if(window.__combat.length>256)window.__combat.shift();});});
  await page.getByRole('button',{name:'Draw sword',exact:true}).tap();
  await page.waitForFunction(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden);
  const guardPoint=await center('guard-button');
@@ -43,13 +45,35 @@ try {
  await page.getByRole('button',{name:'Light attack',exact:true}).tap();await page.waitForTimeout(350);
  receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,HP-24,'the riposte takes 24');await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});
  receipt.dmg=await page.locator('.dmg:visible').first().textContent();assert.equal(receipt.dmg,'24','the riposte floats its 24 off the warden');
- await page.waitForTimeout(600);await page.keyboard.down('KeyW');await page.waitForTimeout(240);await page.keyboard.up('KeyW');
- await page.waitForFunction(()=>document.querySelector('#kick-button').dataset.reach==='true',null,{timeout:1500});   // the kick's cone is short: wait until the HUD says it can land rather than on a fixed clock
- await page.getByRole('button',{name:'Kick',exact:true}).tap();await page.waitForTimeout(335);receipt.kick=await snapshot();
- // The warden may escape a kick (a roll with its dodge share, or it is already stepping back after the riposte), so the receipt is either
- // the landed kick or the escape the HUD reported — never an unthrown kick.
- const kicked=[HP-24-4,HP-24-5];receipt.kickEscaped=!(kicked.includes(receipt.kick.enemy)) && /rolled clear|Miss —/.test(receipt.kick.status);
- assert.ok(kicked.includes(receipt.kick.enemy) || receipt.kickEscaped,`kick landed clean (4), as a counter on the warden's wind-up (5), or was escaped: ${receipt.kick.enemy} · ${receipt.kick.status}`);
+ // Observe accepted player attacks, not the last HUD message (an opponent's kick can overwrite it).
+ // A counter may interrupt an accepted attack. Make at most three real attempts; only a completed
+ // player kick (hit, miss, or defender dodge) satisfies the gate. Never count enemy damage as ours.
+ receipt.kickAttempts=[];
+ for(let attempt=0;attempt<3;attempt++) {
+  await page.waitForFunction(()=>document.querySelector('#kick-button').getAttribute('aria-disabled')==='false');
+  await page.keyboard.down('KeyW');await page.waitForTimeout(200);await page.keyboard.up('KeyW');
+  await page.waitForFunction(()=>document.querySelector('#kick-button').dataset.reach==='true' && document.querySelector('#kick-button').getAttribute('aria-disabled')==='false',null,{timeout:3000});
+  const before=await page.evaluate(()=>{window.__combat=[];return {health:document.querySelector('#player-health').value,enemy:document.querySelector('#target-health').value};});
+  await page.getByRole('button',{name:'Kick',exact:true}).tap();
+  await page.waitForFunction(()=>window.__combat.some(s=>s.events.some(e=>e.type==='AttackStarted' && e.actor===0 && e.move==='kick')),null,{timeout:1500});
+  await page.waitForFunction(()=>{const events=window.__combat.flatMap(s=>s.events),start=events.find(e=>e.type==='AttackStarted' && e.actor===0 && e.move==='kick');return start && events.some(e=>e.tick>=start.tick && (
+   (e.move==='kick' && ((e.actor===0 && ['Hit','AttackMissed'].includes(e.type)) || (e.type==='Dodged' && e.target===0))) ||
+   (e.type==='Staggered' && e.actor===0)));},null,{timeout:2000});
+  const sequence=await page.evaluate(()=>window.__combat),events=sequence.flatMap(s=>s.events);
+  const start=events.find(e=>e.type==='AttackStarted' && e.actor===0 && e.move==='kick');
+  const outcome=events.find(e=>e.tick>=start.tick && e.move==='kick' &&
+   ((e.actor===0 && ['Hit','AttackMissed'].includes(e.type)) || (e.type==='Dodged' && e.target===0)));
+  receipt.kickAttempts.push({before,start,outcome:outcome??null,events});
+  if(!outcome)continue;
+  const result=sequence.find(s=>s.events.some(e=>e.tick===outcome.tick && e.type===outcome.type && e.actor===outcome.actor));
+  const applied=events.filter(e=>e.tick<=outcome.tick && e.type==='Hit');
+  assert.equal(result.enemy,before.enemy-applied.filter(e=>e.actor===0 && e.target===1).reduce((n,e)=>n+e.damage,0),'enemy HP follows outgoing hits only');
+  assert.equal(result.health,before.health-applied.filter(e=>e.actor===1 && e.target===0).reduce((n,e)=>n+e.damage,0),'player HP follows incoming hits only');
+  if(outcome.type==='Hit') {assert.equal(outcome.target,1);assert.ok([4,5].includes(outcome.damage),'clean kick 4 or counter kick 5');}
+  receipt.kick=await snapshot();receipt.kickOutcome=outcome;receipt.kickEscaped=['AttackMissed','Dodged'].includes(outcome.type);
+  break;
+ }
+ assert.ok(receipt.kickOutcome,'a player kick must complete within three attempts; enemy counters alone do not pass');
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
  const paused=await snapshot();await page.waitForTimeout(300);assert.deepEqual(await snapshot(),paused);
  for(const mode of ['red','dark','off'])await page.getByRole('button',{name:'Blood: '+mode,exact:true}).tap();receipt.bloodModes=['red','dark','off','red'];

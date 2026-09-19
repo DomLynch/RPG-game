@@ -14,6 +14,10 @@
   "completion_commands": [
     [
       "node",
+      "scripts/roster-browser-check.mjs"
+    ],
+    [
+      "node",
       "scripts/finisher-preview.mjs",
       "--only",
       "splitCrown",

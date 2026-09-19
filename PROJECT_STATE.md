@@ -9,7 +9,7 @@ change) and shader-only separation (faces bridge the gap). The split follows the
 own exterior materials; blood off restores the intact head, red/dark toggle the cut, rematch disposes the split resources.
 Discovery: three Semble queries plus CodeGraph impact review, with direct review of the sever/rematch and scene seams.
 Checks: all six shipped rigs pass geometry/mode/rematch/decapitation regression checks. All five opponents pass real-scene
-phone/landscape/rear captures, mode cycling and rematch. Full quality: 247/247 tests, build, audit, 8,361,824/10 MB budget,
+phone/landscape/rear captures, mode cycling and rematch. Before integrating roster #143, full quality: 247/247 tests, build, audit, 8,361,824/10 MB budget,
 Playwright gate PASS; dedicated finisher completion gate PASS. Added the translated/rotated, pre-render head-bake regression.
 The initial timed-parry browser failure under concurrent capture load is closed by a full isolated quality pass.
 CodeGraph refreshed; two-pass review covered geometry/resource isolation, render placement and browser cleanup.
@@ -18,6 +18,21 @@ Existing Sentry issues 6/A/5/9/8 concern fetch, texture loading and WebGL initia
 change. They remain unresolved and outside this visual feature's scope; this change does not claim to repair them.
 Run Through remains a separate unfinished lane: its original 57 cm regression is preserved in the inherited worktree;
 a partial alignment correction is isolated on `finishers/runthrough-alignment` and is not part of this release.
+
+## Roster foundations — lead, 2026-09-19
+Owner approved the GPT Pro content-reuse direction. Work on `lead/opponent-catalogue`, based on d383b66.
+One typed recipe catalogue supplies identities, bodies, archetype references and weapon defaults. All five serialized combat definitions deep-equal the pre-change baseline; combat, timings, rigs and introductory order are preserved. Executioner default build resolves to scythe; shelved estoc still resolves to its shipped sword until the weapons lane activates it.
+Encounter selection is separate from optional career marks. Existing guest ID/name and legacy opponent rung survive migration; saves retain a legacy alias for safe rollback. No marks are awarded and no server persistence/recovery is claimed. Scorecard now uses actual fighter health ceilings.
+Ownership and the two-opponent/six-opponent sequence: docs/roster-pipeline.md. Estoc PR #142 and Run Through alignment remain their lanes' work, not included here.
+
+Current-task verification ledger:
+- F1: camera tests rejected the initial Vite-only asset glob. Replaced with Node-compatible URL construction; camera 3/3 pass.
+- F2: graphics harness lacked the new real catalogue module. Wired it into the harness without changing assertions; 27/27 pass.
+- F3: shared browser gate confused enemy kick HUD text with the player's kick. Actor/target events and exact HP reconciliation replace the 335 ms text guess. Enemy counters alone cannot pass; bounded attempts require an accepted, completed player kick. Full quality browser run passed with actor 0 AttackStarted → AttackMissed, no page errors; repeated/public verification pending.
+- F4: new roster browser harness initially used the software headless-shell path and stalled; stopped only that owned browser and matched the shared gate's real Chromium executable. Corrected roster browser rerun passed all five opponents, two rigs per route, save migration and zero page errors.
+- Focused catalogue/profile/ladder/scorecard: 12/12 pass; rollback migration separately 5/5. Full final npm run quality passed: 248/248, lint/typecheck/build/audit and browser; 8,361,205-byte per-fight budget. Release receipts pending.
+- Sentry inspected: FRANKENDOM-A is an unresolved texture failure on old release 9587019 (2026-09-18); current catalogue checks do not prove that historic issue fixed. Load/GPU issues stay open. Hardware/external-player gates unchanged.
+
 
 ## Arena life — 2026-09-18 (world lane, owner's picks #1–#5)
 Owner: "anything else we can add to make the environment more engaging?" — approved five, built in order, each audited

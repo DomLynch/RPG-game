@@ -1,3 +1,4 @@
+import { warriorRecipe } from './warrior-recipe.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
 // No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
 import fs from 'node:fs/promises';
@@ -17,12 +18,13 @@ const source = 'artifacts/source';
 const realistic = process.env.WARRIOR_BODY !== 'classic'; // the Blender Studio body with the reconstructed head ships; WARRIOR_BODY=classic rebuilds the CC0 stylised one
 // WARRIOR_FIGHTER=veteran builds the opponent from scripts/character/parts.py --fighter veteran (its own scan, helm and maps)
 // into src/assets/veteran.glb; the default (hero) is the player's warrior.glb. Same rig and body clips; the Veteran carries the trident.
-const fighter = process.env.WARRIOR_FIGHTER || 'hero', variant = realistic ? (fighter === 'hero' ? 'realistic' : fighter) : '';
+const fighter = process.env.WARRIOR_FIGHTER || 'hero';
+const recipe = warriorRecipe(fighter, process.env.WARRIOR_WEAPON), variant = realistic ? recipe.body : '';
 // WARRIOR_WEAPON=trident (weapons lane, scripts/build-weapon.mjs): the fighter carries that weapon instead of the sword — no scabbard, the
 // sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
 // the weapon's own clips join the set. The hero defaults to the longsword (byte-identical output); the Veteran defaults to the trident
 // since slice V (duel.ts initialDuel gives him it), so a plain rebuild never hands him the sword back.
-const weaponId = process.env.WARRIOR_WEAPON || (fighter === 'veteran' ? 'trident' : fighter === 'pitborn' ? 'cleaver' : fighter === 'goblin' ? 'knife' : 'longsword');   // each opponent's default is the weapon he fights with (moves.ts OPPONENTS), so a plain rebuild never hands him the sword back
+const weaponId = recipe.weapon;
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
 const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');

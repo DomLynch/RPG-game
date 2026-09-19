@@ -63,7 +63,7 @@ Players are human fighters with an Origin. In v1 an Origin is a visual and equip
 Initial Origins: Hoplite (bronze, spear, shield, disciplined), Northman (fur, axe, aggression), Pitborn (bone, crude iron, dirty fighting), Nightborn (gothic, vampiric, elegant), Imperial (Roman, gladiatorial, sword and shield), Wildblood (wolf, totem, barbarian). All human, one skeleton. Playable monsters come later, if ever: different body shapes multiply animation, hitbox and balance work.
 
 ## Opponents: every species alters gameplay
-An opponent that does not change how the fight is played is a reskin and is not added. Each is a distinct silhouette and fighting style that exercises an existing mechanic:
+Every fighting archetype must create a distinct tactical problem. Named fighters may reuse approved archetypes with recognisable appearances and encounter variation; a larger roster does not require separate combat systems. Each new archetype exercises an existing mechanic:
 - Hoplite — shield and spear: get around the guard; teaches guard-break timing, angles and closing distance.
 - Orc — never stops swinging: teaches stamina management and parry.
 - Goblin — small, fast, feints, never guards: teaches reading the tell.
@@ -267,3 +267,10 @@ Slice E — charged heavy. Holding Heavy pauses a plain heavy's wind-up at tick 
 
 ## Owner decisions — Origins direction (2026-09-13/14, recorded 2026-09-15)
 Title: Frankendom: Origins. Setting line, pitch, simplicity rule, art direction with the materials rule, Origins list, roster order, collection loops and the five-stat model adopted as written above. Art direction changed while cheap; the retired ESO/Black Desert references and "medieval plate" language no longer bind any lane. The character lane's request #1 (stale art-direction text) is closed by this section. The next engineering deliverable remains one polished exchange — approach, strike, block, parry, counter — ahead of any roster or weapon expansion.
+
+## Owner-authorized roster foundations — 2026-09-19
+Use approved recipes: stable identity + body/appearance preset + weapon package + fighting archetype. The catalogue is authoritative for names, weapons and appearance references; specialist tuning stays in the combat and offline art modules. Only approved body/equipment/animation/contact combinations ship. Keep current combat unchanged during extraction. Load only the hero and selected opponent; retain the 10 MB per-fight limit.
+
+Separate career (victory marks and Recruit → Origin titles) from encounter selection. Migrate the old device-local opponent rung as an encounter, never as career wins. No server-owned career or recovery claim until Supabase exists. Next backend review must cover guest recovery, immutable/versioned fight identity, idempotent results, authorization, and the distinction between client-reported practice wins and server-verified competitive results.
+
+Release in steps: catalogue and correctness repairs → two approved, tactically contrasting named fighters → six → larger roster after playtests. Lead owns catalogue, persistence contracts, integration and release. Combat owns reusable fighting profiles and balance evidence; weapons owns fit, clips and contact validation; character lane owns approved appearances. No new shared-engine name branches. Physical phone and external-player gates remain outstanding.

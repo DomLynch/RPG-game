@@ -1,3 +1,4 @@
+import type { Practice } from './combat.ts';
 import type { StoragePort } from './profile.ts';
 
 // Control-scheme trial: which right-thumb control the owner is testing, and a per-scheme scorecard kept in the browser.
@@ -26,6 +27,10 @@ export function saveTrial(storage: StoragePort, trial: Trial): boolean {
 const tally = (trial: Trial, scheme: Scheme): Tally => (trial.card[scheme] ??= { fights: 0, wins: 0, rematches: 0, ticks: 0, dealt: 0, taken: 0, active: 0 });
 export function recordFight(trial: Trial, scheme: Scheme, won: boolean, ticks: number, dealt: number, taken: number, activeMs = 0): void {
   const t = tally(trial, scheme); t.fights++; if (won) t.wins++; t.ticks += ticks; t.dealt += dealt; t.taken += taken; t.active += activeMs;
+}
+export function recordPractice(trial: Trial, scheme: Scheme, practice: Practice, activeMs: number): void {
+  recordFight(trial, scheme, !!practice.finish && practice.finish.victim === 1 && !practice.finish.draw,
+    practice.duel.tick, practice.enemyMaxHealth - practice.health, practice.maxHealth - practice.playerHealth, activeMs);
 }
 export function recordRematch(trial: Trial, scheme: Scheme): void { tally(trial, scheme).rematches++; }
 // One line per scheme that has been played: the "did I want to duel again" numbers.
