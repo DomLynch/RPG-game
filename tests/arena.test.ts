@@ -75,6 +75,22 @@ test('the arena updates and disposes without touching the fighters', () => {
   assert.equal(scene.getObjectByName('arena'), undefined, 'the arena group leaves the scene');
 });
 
+test('spectators have solid, readable bodies and distinct roster proportions', () => {
+  const crowds = shared.meshes.filter(m => m.name.startsWith('crowd '));
+  const heights = new Map<string, number>();
+  for (const m of crowds) {
+    const size = worldBox(m).getSize(new THREE.Vector3());
+    assert.ok(size.x / size.y >= 0.25 && size.x / size.y < 0.7, `${m.name}: pencil-thin or over-wide body`);
+    assert.ok(size.z > 0.2, `${m.name}: flat cutout`);
+    assert.ok(size.y >= 1.2 && size.y <= 2.3, `${m.name}: out-of-world height`);
+    heights.set(m.name, size.y);
+  }
+  assert.equal(heights.size, 5);
+  assert.ok(heights.get('crowd goblin')! < heights.get('crowd human')!);
+  assert.ok(heights.get('crowd pitborn')! > heights.get('crowd human')!);
+  assert.ok(heights.get('crowd executioner')! > heights.get('crowd pitborn')!);
+});
+
 test('arena cost: ≤ 40 draw calls (meshes), ≤ 120k triangles, ≤ 12 MB of texture memory with mips', () => {
   const { meshes } = shared, textures = new Set<THREE.Texture>();
   const triangles = meshes.reduce((n, m) => n + (m instanceof THREE.InstancedMesh ? m.count : 1) * (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
