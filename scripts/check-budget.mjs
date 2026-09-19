@@ -3,8 +3,8 @@ import { gzipSync } from 'node:zlib';
 // What a phone downloads for one duel is the shell plus the hero and ONE opponent (scene.ts loads exactly those two GLBs), so that is
 // what the budget gates: the shell with its worst hero + opponent pair. The whole of dist/ is the host's storage, not the player's
 // wait, and gets a looser ceiling so the roster can grow without the gate being raised every fighter (5 → 12 → 16 MB was that pattern).
-const PER_FIGHT = 10_000_000, TOTAL = 32_000_000;   // gzip bytes; per fight 2026-09-16: shell 1.3 + hero 3.35 + Veteran 3.71 = 8.4 MB.
-// 9 → 10 MB owner-authorized 2026-09-17 (finishers & gore milestone, GAME_SPEC.md); 11 MB needs further owner sign-off.
+const PER_FIGHT = 12_000_000, TOTAL = 32_000_000;   // gzip bytes; owner approved up to12 MB per fight on2026-09-19.
+// Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
 async function files(path) {
   const out = [];
   for (const entry of await readdir(path, { withFileTypes: true })) {
