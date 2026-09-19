@@ -1,5 +1,7 @@
 import {BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, SkinnedMesh, Vector3, type BufferAttribute} from 'three';
 
+import {spectralMaterial} from './spectral.ts';
+
 export const DISARMED_BEATS = {arm:.16,neck:.58,settle:.96,duration:3.2} as const;
 
 type Vertex = {attributes:Record<string,number[]>; weight:number};
@@ -14,7 +16,10 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
   const across=new Vector3(0,1,0).cross(axis);if(across.lengthSq()<.01)across.set(1,0,0).cross(axis);across.normalize();
   const along=axis.clone().cross(across).normalize();
   const group=new Group();group.name='DisarmedArm';group.position.copy(pivot);group.visible=false;
+  const spectral=root.getObjectByName('CreatureBody')?.userData.creature==='wraith';
+  const materials=new Map<MeshStandardMaterial,MeshStandardMaterial>();
   const cut=new MeshStandardMaterial({color:'#501c20',roughness:.9,side:DoubleSide});
+  if(spectral){cut.transparent=true;cut.depthWrite=false;}
   const changes:{mesh:SkinnedMesh;original:BufferGeometry;remainder:BufferGeometry;cap:SkinnedMesh|null}[]=[];
   const weapon=root.getObjectByName('WeaponDrawn') ?? root.getObjectByName('SwordDrawn');
   const weaponVisible=weapon?.visible ?? true;
@@ -51,7 +56,9 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
       n.applyMatrix3(normalMatrix).normalize();normals.push(...n.toArray());
     }
     const baked=g.clone();baked.deleteAttribute('skinIndex');baked.deleteAttribute('skinWeight');baked.deleteAttribute('tangent');baked.boundingBox=null;baked.boundingSphere=null;baked.setAttribute('position',new Float32BufferAttribute(positions,3));baked.setAttribute('normal',new Float32BufferAttribute(normals,3));
-    const prop=new Mesh(baked,mesh.material);prop.name=mesh.name;prop.castShadow=true;prop.receiveShadow=true;prop.frustumCulled=false;group.add(prop);
+    const copy=(source:typeof cut)=>{if(source===cut || !spectral)return source;let material=materials.get(source);if(!material){material=spectralMaterial(source);materials.set(source,material);}return material;};
+    const material=Array.isArray(mesh.material) ? mesh.material.map(m=>m instanceof MeshStandardMaterial ? copy(m) : m) : mesh.material instanceof MeshStandardMaterial ? copy(mesh.material) : mesh.material;
+    const prop=new Mesh(baked,material);prop.name=mesh.name;prop.castShadow=!spectral;prop.receiveShadow=true;prop.frustumCulled=false;group.add(prop);
   }
   root.traverse(object=>{
     if(!(object instanceof SkinnedMesh))return;
@@ -106,16 +113,17 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
   let active=false;
   return {
     group,
-    apply(progress:number,mode:'red'|'dark'|'off') {
+    apply(progress:number,mode:'red'|'dark'|'off',life=1) {
       const shown=mode!=='off' && progress>=DISARMED_BEATS.arm;
-      for(const change of changes){change.mesh.geometry=shown ? change.remainder : change.original;if(change.cap){change.cap.visible=shown;if(shown && !change.cap.parent)change.mesh.parent!.add(change.cap);}}
+      for(const change of changes){change.mesh.geometry=shown ? change.remainder : change.original;if(change.cap){change.cap.visible=shown && (!spectral || life>0);if(shown && !change.cap.parent)change.mesh.parent!.add(change.cap);}}
       if(weapon)weapon.visible=shown ? false : weaponVisible;
-      active=shown;group.visible=shown;cut.color.set(mode==='dark' ? '#302126' : '#501c20');
+      active=shown;group.visible=shown && (!spectral || life>0);cut.color.set(spectral ? (mode==='dark' ? '#586168' : '#788385') : mode==='dark' ? '#302126' : '#501c20');
+      if(spectral){cut.opacity=.86*life;for(const material of materials.values())material.opacity=.86*life;}
       const elapsed=Math.max(0,(progress-DISARMED_BEATS.arm)*DISARMED_BEATS.duration),fall=Math.min(1,elapsed/.7),ease=fall*fall*(3-2*fall);
       group.quaternion.identity().slerp(rest,ease);group.position.copy(pivot);group.position.x+=.20*ease;
       const at=fall*120,i=Math.min(119,Math.floor(at)),floor=floors[i]+(floors[i+1]-floors[i])*(at-i);
       group.position.y=Math.max(floor,pivot.y-.5*12*elapsed*elapsed);
     },
-    dispose(){for(const c of changes){c.mesh.geometry=c.original;c.cap?.removeFromParent();c.cap?.geometry.dispose();c.remainder.dispose();}if(active && weapon)weapon.visible=weaponVisible;group.removeFromParent();group.traverse(o=>{if(o instanceof Mesh)o.geometry.dispose();});cut.dispose();}
+    dispose(){for(const c of changes){c.mesh.geometry=c.original;c.cap?.removeFromParent();c.cap?.geometry.dispose();c.remainder.dispose();}if(active && weapon)weapon.visible=weaponVisible;group.removeFromParent();group.traverse(o=>{if(o instanceof Mesh)o.geometry.dispose();});cut.dispose();for(const material of materials.values())material.dispose();}
   };
 }

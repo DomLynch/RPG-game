@@ -174,7 +174,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
         mixer.update(step);
-        spectralLife = spectral?.(step, dead, progress, pose === 'opened') ?? 1;
+        spectralLife = spectral?.(step, dead, progress, pose === 'opened' || pose === 'disarmed') ?? 1;
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         // The enlarged Wraith lowers its attacking arm toward the original strike height.
@@ -309,7 +309,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       disarm(progress: number, mode: 'red' | 'dark' | 'off') {
         if (!disarmed && progress >= DISARMED_BEATS.arm && mode !== 'off') this.prepareDisarmed();
-        disarmed?.apply(progress, mode);
+        disarmed?.apply(progress, mode, spectralLife);
       },
       // Both the intact rig and the cached pieces follow the same presentation clock; modes can change mid-finish.
       openWaist(progress: number, mode: 'red' | 'dark' | 'off') {

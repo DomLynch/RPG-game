@@ -24,7 +24,7 @@ test('Disarmed cuts the actual arm and weapon, caps both sides, grounds the prop
   assert.equal(weapon.visible,false,'weapon leaves hand with arm');
   assert.ok(cut.group.getObjectByName('ArmCut'),'arm has cut surface');assert.ok(scene.getObjectByName('ArmStump'),'body has cut surface');
   assert.ok([...originals].some(([mesh,g])=>mesh.geometry!==g),'arm actually removed from live skin');
-  assert.ok(cut.group.children.some(o=>o instanceof Mesh && (Array.isArray(o.material)?o.material:[o.material]).some(m=>borrowedMaterials.has(m))),'original exterior survives');
+  assert.ok(cut.group.children.some(o=>o instanceof Mesh && [...originals.keys()].some(source=>source.name===o.name)),'original exterior survives');
   for(const progress of [.3,.5,.8,1]) {
     mixer.setTime(clip.duration*progress);cut.apply(progress,'red');world.updateMatrixWorld(true);
     const bounds=new Box3().setFromObject(cut.group,true);
@@ -33,7 +33,8 @@ test('Disarmed cuts the actual arm and weapon, caps both sides, grounds the prop
   }
   const settled=cut.group.position.clone();cut.apply(1,'red');assert.deepEqual(cut.group.position.toArray(),settled.toArray(),'held pose does not drift');
   cut.apply(1,'off');assert.equal(cut.group.visible,false);assert.equal(weapon.visible,true);for(const [mesh,g] of originals)assert.equal(mesh.geometry,g);
-  cut.apply(1,'dark');assert.equal(cut.group.visible,true);const cap=cut.group.getObjectByName('ArmCut') as Mesh;assert.equal((cap.material as {color:{getHexString():string}}).color.getHexString(),'302126');
+  cut.apply(1,'dark');assert.equal(cut.group.visible,true);const cap=cut.group.getObjectByName('ArmCut') as Mesh;assert.equal((cap.material as {color:{getHexString():string}}).color.getHexString(),id==='wraith'?'586168':'302126');
+  if(id==='wraith'){cut.apply(1,'red',0);assert.equal(cut.group.visible,false,'ghost arm disappears with the body');cut.apply(1,'dark',1);}
   const owned=new Set<BufferGeometry>();cut.group.traverse(o=>{if(o instanceof Mesh)owned.add(o.geometry);});for(const [mesh,g] of originals)if(mesh.geometry!==g)owned.add(mesh.geometry);scene.traverse(o=>{if(o instanceof SkinnedMesh && o.name==='ArmStump')owned.add(o.geometry);});let disposed=0;for(const g of owned)g.addEventListener('dispose',()=>disposed++);
   cut.dispose();assert.equal(disposed,owned.size,'every owned geometry released');assert.equal(borrowedDisposals,0,'source meshes/materials remain usable');assert.equal(cut.group.parent,null);assert.equal(scene.getObjectByName('ArmStump'),undefined);assert.equal(weapon.visible,true);for(const [mesh,g] of originals)assert.equal(mesh.geometry,g);
   assert.ok(scene.getObjectByName('hand_l')!.getWorldPosition(new Vector3()).toArray().every(Number.isFinite));
