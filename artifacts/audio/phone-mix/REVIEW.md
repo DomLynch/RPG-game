@@ -10,7 +10,7 @@ One additional gain and one oversampled safety shaper are created once per audio
 
 ## Measured review
 
-- 17 ordinary probes: -6.0 to -6.1 LUFS, matching half amplitude within rounding tolerance.
+- 17 ordinary probes: -5.9 to -6.0 LUFS, matching half amplitude within rounding tolerance.
 - Eight crowd-tail windows: +3.52 dB within 0.15 dB, matching x1.5. Fatal mixes: +2.8 to +3.3 LUFS after peak protection.
 - All 29 audible probes checked with FFmpeg's oversampled true-peak meter: maximum reported -1.0 dBTP. The browser's independent 4x reconstructed fatal check reports -1.54 dBFS.
 - A first version passed sample-peak checks but failed true-peak review at +2.2 dBTP. Oversampling and extra limiter headroom corrected this; the stronger browser check is now required by the existing audio gate.

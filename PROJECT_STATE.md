@@ -757,7 +757,7 @@ frame-perfect body contact on every rig. Music, sustained ambience and gait/brea
 ## Phone audio balance — 2026-09-19 (isolated, release held)
 Owner requested ordinary effects x0.5 and death/kill/crowd x1.5. Post-compressor gain preserves these ratios; an oversampled
 output guard limits boosted transient peaks. Existing cue assets, tone recipes, timing and simulation are unchanged.
-Measured ordinary loudness -6.0 to -6.1 LUFS; crowd tails +3.52 dB; complete fatal mixes +2.8 to +3.3 LUFS after limiting.
+Measured ordinary loudness -5.9 to -6.0 LUFS; crowd tails +3.52 dB; complete fatal mixes +2.8 to +3.3 LUFS after limiting.
 True-peak review caught +2.2 dBTP overshoots missed by sample peaks in the first candidate; corrected version reports at most
 -1.0 dBTP with FFmpeg and -1.54 dBFS in browser 4x reconstruction. Five-band spectral energy changes at most 1.67 percentage
 points. No additional EQ change justified; this is measurement, not a physical-phone listening claim.
