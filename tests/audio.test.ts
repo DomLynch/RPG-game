@@ -182,7 +182,7 @@ test('fatal cues follow the visible finish and blood setting, preserving the imm
   for (const override of ['plainDeath', 'splitCrown', 'decapitation', 'runThrough', 'opened'] as const) for (const gore of [true, false]) {
     const cues = cuesFor(deathEvents, deathPresentation(override, gore)), names = cues.map(c => c.name);
     assert.equal(cues[0].name, 'hit_heavy'); assert.equal(cues[0].delay, undefined);
-    assert.equal(names.includes('flesh_tear'), gore && override === 'decapitation');
+    assert.equal(names.includes('flesh_tear'), gore && (override === 'decapitation' || override === 'opened'));
     assert.equal(names.includes('bone_crack'), gore && override === 'splitCrown');
     assert.equal(names.includes('flesh_stab'), gore && override === 'runThrough');
     assert.equal(names.includes('kill'), override !== 'runThrough', 'kneeling impalement has no floor crash');
@@ -231,4 +231,15 @@ test('The Quiet One keeps the held beat quiet and delays body/crowd until the co
   assert.ok(!sounds.some(c=>['bone_crack','flesh_tear','crowd_cheer'].includes(c.name)));
   const off=cuesFor(events,{finish,weapons:['longsword','trident'],override:'quietOne',gore:false});
   assert.ok(!off.some(c=>c.name.startsWith('flesh_')));
+});
+
+
+test('Opened times the tear and the two grounded landings, suppressing them with gore off', () => {
+  const sounds=cuesFor(deathEvents,deathPresentation('opened'));
+  assert.deepEqual(sounds.filter(c=>c.name==='kill').map(c=>c.delay),[2.1,2.68]);
+  assert.equal(sounds.find(c=>c.name==='flesh_tear')?.delay,.144);
+  assert.equal(sounds.some(c=>c.name==='flesh_stab'),false);
+  const off=cuesFor(deathEvents,deathPresentation('opened',false));
+  assert.deepEqual(off.filter(c=>c.name==='kill').map(c=>c.delay),[1.4]);
+  assert.equal(off.some(c=>c.name==='flesh_tear'),false);
 });

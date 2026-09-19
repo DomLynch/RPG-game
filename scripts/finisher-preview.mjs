@@ -18,7 +18,7 @@ const args = process.argv.slice(2), option = name => { const i = args.indexOf(`-
 const commit = execSync('git describe --always --dirty').toString().trim();
 const label = option('label') || 'finishers-v2';
 const opponent = option('opponent') || 'veteran';
-const order = option('only') ? option('only').split(',') : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne'];
+const order = option('only') ? option('only').split(',') : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened'];
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom finisher preview</title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
@@ -93,6 +93,12 @@ window.__finisher = {
   provenance,
   inspect() {
     const crown = renderedScene?.getObjectByName('SplitCrown');
+    const opened = renderedScene?.getObjectByName('Opened');
+    const pieces = opened?.children.map(half => {
+      const box = new Box3().setFromObject(half,true);
+      return {name:half.name,min:box.min.toArray(),max:box.max.toArray(),caps:half.children.filter(o=>o.name==='WaistCut').length,
+        frame:[box.min.x,box.max.x].flatMap(x=>[box.min.y,box.max.y].flatMap(y=>[box.min.z,box.max.z].map(z=>view.project([x,y,z]))))};
+    });
     const actors = renderedScene?.children.filter(o => o.getObjectByName('pelvis')) ?? [];
     const blade = actors[0]?.getObjectByName('SwordDrawn'), chest = actors[1]?.getObjectByName('spine_02')?.getWorldPosition(new Vector3());
     let framing;
@@ -113,7 +119,7 @@ window.__finisher = {
     actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
     const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
     const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
-    return { quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { opened: {visible:opened?.visible ?? false,pieces:pieces ?? []}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -174,7 +180,7 @@ try {
     await page.goto(url); await page.waitForFunction(() => window.__finisher || window.__finisherError, null, { timeout: 120000 }).catch(async () => { console.log("  stuck at step:", await page.evaluate(() => window.__step), "err:", await page.evaluate(() => window.__finisherError)); throw new Error("page stuck"); });
     return page;
   };
-  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', quietOne: 'quiet-one', plainDeath: 'plain-death' };
+  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', quietOne: 'quiet-one', plainDeath: 'plain-death', opened: 'opened' };
   const ORDER = order, cameraChecks = [], quietChecks = [];
   const first = await open({ width: 393, height: 852 });
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
@@ -201,6 +207,24 @@ try {
           assert.ok(framing.maxCameraStep < .25, 'the late side move is continuous, without a camera cut');
           assert.ok(framing.heads.every(p => p && p[0] > 10 && p[0] < 383 && p[1] > 20 && p[1] < 700), 'both heads stay in the portrait frame above the controls');
           assert.ok(Math.hypot(framing.camera[0], framing.camera[2]) <= 11.5, 'finisher camera stays inside the arena');
+        }
+        if (which === 'opened') {
+          const {opened,framing} = await page.evaluate(() => __finisher.inspect());
+          assert.equal(opened.visible,mode !== 'off','waist separation obeys blood mode');
+          if(mode !== 'off') {
+            assert.match(playing,/Opened:WaistCut/);
+            assert.equal(opened.pieces.length,2);
+            assert.ok(opened.pieces.every(p=>p.caps>0),'both halves have closed cut surfaces');
+            assert.ok(opened.pieces.every(p=>p.min[1]>-.015),'no half sinks through the floor');
+            if(suffix === 'settled') {
+              assert.ok(opened.pieces.every(p=>p.min[1]<.04),'both halves land');
+              assert.ok(opened.pieces.every(p=>p.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700)),'entire corpse clears portrait controls');
+            }
+          }
+          if(suffix === 'settled') {
+            assert.ok(framing.side>.75 && framing.maxCameraStep<.25,'smooth side reveal');
+            cameraChecks.push({opponent,which,mode,opened,framing});
+          }
         }
         if (which === 'quietOne') {
           const { quiet, framing } = await page.evaluate(() => __finisher.inspect());
@@ -246,6 +270,13 @@ try {
         assert.ok(checks.at(-1).cameraAfterReset.side < .1, 'normal lock camera returns after rematch');
         await save('run-through-checks' + name + '.json', JSON.stringify({ opponent, commit, checks }, null, 2));
       }
+      if (which === 'opened') {
+        const checks=await page.evaluate(w=>__finisher.modesAndRematch(w),which);
+        assert.deepEqual(checks.map(s=>s.opened.visible),[true,false,true,false]);
+        assert.equal(checks.at(-1).opened.pieces.length,0,'rematch removes the waist props');
+        assert.ok(checks.at(-1).cameraAfterReset.side<.1,'ordinary lock returns on rematch');
+        await save('opened-checks'+name+'.json',JSON.stringify({opponent,commit,checks},null,2));
+      }
       if (which === 'quietOne') {
         const checks = await page.evaluate(w => __finisher.modesAndRematch(w), which);
         assert.deepEqual(checks.slice(0,3).map(s=>s.quiet.woundVisible),[true,false,true]);
@@ -278,7 +309,7 @@ try {
         await wide.evaluate(w => __finisher.play(w, __finisher.count(w) - 1, 'red'), which);   // re-render (cursor already at settle)
         await wide.screenshot({ path: `${dir}/${NAMES[which]}-phone-landscape-settled.png` });
         await wide.context().close();
-        if (['runThrough','splitCrown','quietOne'].includes(which)) {
+        if (['runThrough','splitCrown','quietOne','opened'].includes(which)) {
           const reduced = await open({ width: 393, height: 852 }, 'reduce');
           await reduced.evaluate(w => __finisher.play(w, __finisher.count(w)-1, 'red'), which);
           const state = await reduced.evaluate(() => __finisher.inspect());

@@ -1,4 +1,4 @@
-// Real phone-size game UI: select Quiet One, win by normal controls, verify held clip and next-opponent reset.
+// Real phone-size game UI: select a shipped finisher, win by normal controls, verify held clip and next-opponent reset.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -6,8 +6,8 @@ import { preview } from 'vite';
 
 const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0}});
 const origin=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
-const url=new URL('/?opponent=veteran&debug=1',origin).href, finisher='quietOne';
-const dir=process.env.QUIET_RECEIPT_DIR || 'artifacts/finishers/quiet-one/ui'; await fs.mkdir(dir,{recursive:true});
+const url=new URL('/?opponent=veteran&debug=1',origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'quietOne';
+const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : 'quiet-one'}/ui`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
 page.setDefaultTimeout(15000);
@@ -70,15 +70,16 @@ async function fight(name) {
 }
 
 await fight('counter-duel');
-assert.match(await clips(), /Death_QuietOne/); assert.deepEqual(errors,[]);
+const expected = finisher === 'opened' ? /Opened:WaistCut/ : /Death_QuietOne:Death_QuietOne/;
+assert.match(await clips(), expected); assert.deepEqual(errors,[]);
 const receipt={url,finisher,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await page.waitForTimeout(5000);
-assert.match(await clips(), /Death_QuietOne:Death_QuietOne/, 'finisher stays held after the death window');
+assert.match(await clips(), expected, 'finisher stays held after the death window');
 await page.addStyleTag({content:'#debug{visibility:hidden}'});
 await page.screenshot({path:`${dir}/live-held.png`});
 await page.locator('#reset-button').tap();
 await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn'),null,{timeout:90000});
-assert.doesNotMatch(await clips(), /Death_QuietOne/, 'rematch clears the finisher');
+assert.doesNotMatch(await clips(), expected, 'rematch clears the finisher');
 receipt.rematchClips = await clips();
 await fs.writeFile(`${dir}/live-ui.json`,JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt));
 } finally {await browser.close();if(server)await new Promise(resolve=>server.httpServer.close(resolve));}

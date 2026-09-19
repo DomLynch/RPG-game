@@ -631,3 +631,51 @@ test('The Quiet One clutches the throat, pauses upright, then lies still on the 
     assert.equal(opponent.anchor.getObjectByName('Head')!.scale.x, 1, 'head remains intact');
   }
 });
+
+test('Opened cuts each shipped humanoid at the waist, keeps its materials, grounds both halves and restores cleanly', async () => {
+  for (const file of FIGHTERS) {
+    const asset = await readWarrior(file), weapon = WEAPON_OF[file];
+    const {opponent,player} = buildWarriors(asset,undefined,[weapon,weapon]);
+    const placed = new Group(); placed.position.set(5,0,-4); placed.rotation.y=.8; placed.add(opponent.anchor);
+    const root = opponent.anchor.children[0], original = new Map();
+    root.traverse(o=>{if(o instanceof Mesh)original.set(o.geometry,o.geometry.getAttribute('position').array.slice());});
+    opponent.update(0,.1,'opened',.045);
+    opponent.openWaist(.045,'off'); assert.equal(opponent.anchor.getObjectByName('Opened'),undefined);
+    const before=performance.now(); opponent.prepareOpened();
+    assert.equal(root.visible,true,'preparing does not hide the live opponent');
+    assert.equal(opponent.anchor.getObjectByName('Opened'),undefined,'prepared parts stay outside the live scene');
+    opponent.openWaist(.045,'red');
+    const opened=opponent.anchor.getObjectByName('Opened')!;
+    assert.ok(opened, file); assert.equal(opened.children.length,2); assert.equal(root.visible,false);
+    console.log(`${file}: waist bake ${Math.round(performance.now()-before)} ms`);
+    const legs=opened.children[0], torso=opened.children[1];
+    for(const half of opened.children) {
+      assert.ok(half.children.some(o=>o.name==='WaistCut'),'both cut surfaces are closed');
+      assert.ok(new Box3().setFromObject(half).getSize(new Vector3()).length()>.3);
+    }
+    const initialLegs=legs.quaternion.clone(); opponent.openWaist(.28,'red');
+    assert.ok(torso.position.x>.1*SCALE[file],'torso slides off the waist during the held beat');
+    assert.ok(legs.quaternion.angleTo(initialLegs)<1e-8,'legs stand briefly after the torso starts moving');
+    for(const progress of [.4,.66,.84,1]) {
+      opponent.openWaist(progress,'red'); placed.updateMatrixWorld(true);
+      for(const half of opened.children) {
+        const box=new Box3().setFromObject(half,true);
+        assert.ok(box.min.y>-.012,`${file} ${half.name}: no floor penetration at ${progress} (${box.min.y})`);
+        if(progress===1)assert.ok(box.min.y<.04,`${file}: both halves rest on sand`);
+      }
+    }
+    const held=opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]);
+    opponent.update(0,.1,'opened',1); opponent.openWaist(1,'dark');
+    assert.deepEqual(opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]),held,'final pose holds');
+    opponent.openWaist(1,'off');assert.equal(root.visible,true);assert.equal(opened.visible,false);
+    opponent.openWaist(1,'red');assert.equal(root.visible,false);assert.equal(opened.visible,true);
+    assert.equal(player.anchor.getObjectByName('Opened'),undefined);
+    for(const [geometry,array] of original)assert.deepEqual(geometry.getAttribute('position').array,array,'borrowed source geometry stays intact');
+    let disposed=0; (torso.children[0] as Mesh).geometry.addEventListener('dispose',()=>disposed++);
+    opponent.unsever();assert.equal(disposed,1);assert.equal(root.visible,true);assert.equal(opponent.anchor.getObjectByName('Opened'),undefined);
+    // Enabling gore only after the finish must use the same canonical cut, not sever an already folded pose.
+    opponent.update(0,.1,'opened',1);opponent.openWaist(1,'red');
+    assert.deepEqual(opponent.anchor.getObjectByName('Opened')!.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]),held);
+    opponent.unsever();
+  }
+});

@@ -1,5 +1,16 @@
 # Project state
 
+## Opened waist finisher — 2026-09-19 (in development)
+Owner explicitly authorized a horizontal waist separation: torso slides sideways and falls; legs hold briefly and
+fall separately. Own-model static geometry is sliced and capped during loading/reset, outside the killing frame;
+closed cut surfaces, original exterior maps, arms and held weapon retained with torso, cached floor supports.
+Blood-off keeps the intact collapse. Red/dark/off changes and rematch restore the rig cleanly. Six-way deterministic
+pool and journal option; early side camera and two timed landing cues reuse existing resources. No GLB, simulation,
+input or dependency change. New creature bodies remain outside finisher support until their separate anatomy review.
+Initial CPU checks pass275/275, lint/typecheck/build/audit, 8,933,674-byte worst-fight budget. Tests cover all six
+humanoids, grounded halves, held pose, source geometry preservation, mode changes including late enable, and disposal.
+Visual review, integrated gates and publication receipts remain pending in artifacts/finishers/opened/.
+
 ## Polearm rear-arm visibility — weapons, 2026-09-19
 Owner's rear/front phone captures exposed a second pose defect after PR157: the rear hand was authored on +X (the rig's left side), sending the right elbow through the torso. Both arms and their skin weights were present. Reauthored ready, gait, guard, attack and reaction goals keep the rear grip on the right side; the raised attack passes in front of the shoulder, and supporting-hand slides stay reachable. The shared polearm IK bends outward and forward while retaining the anatomical hinge constraint.
 
