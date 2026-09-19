@@ -122,7 +122,7 @@ window.__finisher = {
     actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
     const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
     const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
-    return { opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -146,6 +146,11 @@ window.__finisher = {
     const reset = this.inspect();
     present = false; for (let i=0;i<60;i++) view.render(p.fighter, true, TICK, p, [], false); present = true;
     receipts.push({ mode: 'rematch', ...reset, cameraAfterReset: this.inspect().framing }); return receipts;
+  },
+  hold(which, seconds) {
+    const f=windows[which].frames.at(-1);
+    for(let i=0;i<seconds*60;i++) {present=i===seconds*60-1;view.render(f.state,true,TICK,f.practice,[],false);}
+    return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(this.inspect()))));
   },
   count(which) { return windows[which].frames.length; },
   killIndex(which) { return windows[which].killIndex; },
@@ -184,7 +189,7 @@ try {
     return page;
   };
   const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', quietOne: 'quiet-one', plainDeath: 'plain-death', opened: 'opened' };
-  const ORDER = order, cameraChecks = [], quietChecks = [];
+  const ORDER = order, cameraChecks = [], quietChecks = [], bloodChecks = [];
   const first = await open({ width: 393, height: 852 });
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
   await first.context().close();
@@ -259,6 +264,30 @@ try {
           await page.screenshot({ path: `${dir}/${NAMES[which]}-phone-rear-contact.png` });
           await page.evaluate(() => __finisher.front());
         }
+      }
+      if (args.includes('--blood-check')) {
+        const before=await page.evaluate(()=>__finisher.inspect());
+        const held=await page.evaluate(w=>__finisher.hold(w,6),which), blood=held.blood;
+        assert.equal(blood.visible,mode!=='off','all finisher blood obeys the mode');
+        if(mode!=='off') {
+          assert.ok(blood.emitted>150 && blood.landed>100,'heavy spray reaches the floor');
+          assert.equal(blood.airborne,0,'jets taper out and the held corpse does not spray forever');
+          assert.ok(blood.pools.length>2 && blood.pools.length<=80,'bounded multiple floor spills');
+          assert.ok(blood.pools.every(p=>p.position[1]>=.02 && p.position[1]<.04),'spills lie on the sand');
+          assert.ok(blood.pools.some(p=>p.radius>.35),'substantial pooled blood');
+          assert.ok(blood.sources.every(s=>blood.pools.some(p=>Math.hypot(p.position[0]-s.position[0],p.position[2]-s.position[2])<.7)),'each wound has blood spilled nearby');
+          if(which==='decapitation')assert.deepEqual(blood.sources.map(s=>s.site),['neck-stump','detached-head']);
+          if(which==='opened')assert.deepEqual(blood.sources.map(s=>s.site),['waist-legs','waist-torso']);
+          if(which==='quietOne')assert.equal(blood.sources[0].site,'jugular');
+        } else {assert.equal(blood.emitted,0);assert.equal(blood.pools.length,0);}
+        bloodChecks.push({opponent,which,mode,before:before.blood,held:blood,draws:held.draws,triangles:held.triangles});
+        await page.screenshot({path:`${dir}/${NAMES[which]}-phone${name}-blood-held.png`});
+        // Dedicated reset check uses a fresh page so the existing finisher state checks retain their own sequence.
+        const resetPage=await open({width:393,height:852});
+        await resetPage.evaluate(w=>__finisher.play(w,__finisher.count(w)-1,'red'),which);
+        const reset=await resetPage.evaluate(w=>__finisher.modesAndRematch(w),which);
+        assert.equal(reset.at(-1).blood.pools.length,0);assert.equal(reset.at(-1).blood.visible,false,'rematch clears all finisher blood');
+        await resetPage.context().close();
       }
       if (which === 'runThrough') {
         if (mode === 'red') {
@@ -335,6 +364,7 @@ try {
     const file = await vpage.video(); await video.close(); await file.saveAs(`${dir}/${NAMES[which]}.webm`); await fs.rm(await file.path(), { force: true });
     console.log(`  ${dir}/${NAMES[which]}.webm`);
   }
+  if (bloodChecks.length) await save('blood-checks.json',JSON.stringify({commit,bloodChecks},null,2));
   if (quietChecks.length) await save('quiet-checks.json',JSON.stringify({commit,quietChecks},null,2));
   await save('camera-checks.json', JSON.stringify({ commit, cameraChecks }, null, 2));
   if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`);
