@@ -93,7 +93,15 @@ window.__finisher = {
   provenance,
   inspect() {
     const crown = renderedScene?.getObjectByName('SplitCrown');
-    return { crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    const actors = renderedScene?.children.filter(o => o.getObjectByName('pelvis')) ?? [];
+    const blade = actors[0]?.getObjectByName('SwordDrawn'), chest = actors[1]?.getObjectByName('spine_02')?.getWorldPosition(new Vector3());
+    let impalement;
+    if (blade && chest) {
+      const grip = blade.localToWorld(new Vector3(0, .24, 0)), tip = blade.localToWorld(new Vector3(0, .85, 0));
+      const run = tip.clone().sub(grip), along = chest.clone().sub(grip).dot(run) / run.lengthSq();
+      impalement = { miss: grip.clone().addScaledVector(run, along).distanceTo(chest), along, tip: tip.toArray(), chest: chest.toArray(), step: actors[0].children[0].position.toArray() };
+    }
+    return { impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -168,11 +176,29 @@ try {
         const playing = await page.evaluate(([w, j, m]) => __finisher.play(w, j, m), [which, i, mode]);
         if (mode === 'red' && suffix === 'settled') console.log(`  ${which} rig at settle: ${playing.split(' ')[1]}`);
         await page.screenshot({ path: `${dir}/${NAMES[which]}-phone${name}-${suffix}.png` });
+        if (which === 'runThrough' && suffix !== 'contact') {
+          const { impalement } = await page.evaluate(() => __finisher.inspect());
+          assert.ok(impalement.miss < .09 && impalement.along > .2 && impalement.along < .8, 'blade stays embedded during the collapse and final hold');
+          assert.match(playing, /Fin_RunThrough:Fin_RunThrough/);
+        }
         if (which === 'splitCrown' && mode === 'red' && suffix === 'contact') {
           await page.evaluate(([w, j]) => __finisher.rear(w, j), [which, i]);
           await page.screenshot({ path: `${dir}/${NAMES[which]}-phone-rear-contact.png` });
           await page.evaluate(() => __finisher.front());
         }
+      }
+      if (which === 'runThrough') {
+        if (mode === 'red') {
+          await page.evaluate(w => __finisher.rear(w), which);
+          await page.screenshot({ path: `${dir}/run-through-phone-rear.png` });
+        }
+        const checks = await page.evaluate(w => __finisher.modesAndRematch(w), which);
+        for (const state of checks.slice(0, 3)) {
+          assert.ok(state.impalement.miss < .09, 'held blade intersects chest in every blood mode');
+          assert.ok(state.impalement.along > .2 && state.impalement.along < .8, 'blade extends through chest');
+        }
+        assert.deepEqual(checks.at(-1).impalement.step, [0, 0, 0], 'rematch clears presentation approach');
+        await save('run-through-checks' + name + '.json', JSON.stringify({ opponent, commit, checks }, null, 2));
       }
       if (which === 'splitCrown') {
         const state = await page.evaluate(() => __finisher.inspect());

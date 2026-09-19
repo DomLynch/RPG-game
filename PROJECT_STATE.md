@@ -24,6 +24,11 @@ Owner unlocked dashboard; only Calibre exists in the observed free organisation.
 automatic RLS and default exposure disabled. No Calibre mutation, production schema change, live login or deployment
 claimed. World lane owns the next release window; merge/deploy held until their release and hosted validation.
 
+## Crowd variety and foot sand — world, 2026-09-19
+Owner requested subdued ruby/navy/brown/grey and other muted clothing, stronger sizes, lower-tier audience and restrained grounded foot sand. Six garment-only dyes preserve skin; separate trousers, two stances per five roster families, independent height/build variation. 219 spectators redistribute across five tiers with gate/flame/collapse clearance. Initial render rejected bright clothes and matching trousers; refined captures in artifacts/world/crowd-dust-final. Arena 9/9 and dust lifecycle check pass; full contract receipts in artifacts/world/crowd-variety-notes. Arena 26 measured draws,92,126 triangles,11.01MB textures; physical phone p95 remains owner-only/unmeasured.
+
+Presentation seam coordinated with lead: cached animated feet feed a 24-point pool, one transient draw, 0.55s fade, no idle or combat-pose emission. Real walking-clip preview verifies emission and expiry; hit-stop, teleport and disposal verified separately. No audio/combat/fighter asset/global light edits. All eight local contract commands passed, including npm run quality (260/260 tests), both finishers, roster, audio, estoc, counter and world render checks. Delivery tracked in PR #151; exact merge/deployment and live receipts are kept in artifacts/world/crowd-variety-notes.
+
 ## World polish — 2026-09-19 (world/crowd-grounding-light; local, not yet shipped)
 Owner approved four sequential passes: roster spectators, settled debris, softer gate light, selective masonry staining.
 Step 1: replace the narrow crossed cards with five opaque instanced body silhouettes: human, goblin, Pitborn, executioner, Nightborn. No fighter assets, animation clips or gameplay changed. Irregular gaps and slight depth/yaw variation; existing bounded crowd reactions retained. First judge rejected boxy torsos; refined rounded bodies, darker clothes, hair and robe silhouettes. Arena tests 8/8; first full quality 246/246 + browser gate passed; refined geometry typechecks and arena tests pass. Fixed-camera captures: artifacts/world/polish-1-crowd-refined. Cost: 88,798 triangles / 120k, 21 measured arena draws (+1), 11.01 MB textures (-0.35 MB), floor luminance 0.105 unchanged. Physical phone performance remains unmeasured.
@@ -86,8 +91,8 @@ CodeGraph refreshed; two-pass review covered geometry/resource isolation, render
 Evidence: artifacts/finishers/split-crown/REPORT.md. Physical iPhone performance and owner visual acceptance remain unclaimed.
 Existing Sentry issues 6/A/5/9/8 concern fetch, texture loading and WebGL initialization; no skull-split event predates this
 change. They remain unresolved and outside this visual feature's scope; this change does not claim to repair them.
-Run Through remains a separate unfinished lane: its original 57 cm regression is preserved in the inherited worktree;
-a partial alignment correction is isolated on `finishers/runthrough-alignment` and is not part of this release.
+At the Split Crown release, Run Through remained separate. Its repair is recorded in the Run Through section below;
+the inherited failure and earlier partial alignment worktrees remain preserved as historical evidence.
 ## Estoc A activation — 2026-09-19 — PR #142, NOT DEPLOYED
 Weapons branch `weapons/estoc-live`, based on trunk `d383b66`. Variant A is built on the current Nightborn,
 with matching render/bake GLBs, manifest entry, real ESTOC data, rebaked paths and flipped shelf receipts. Existing clips,
@@ -717,6 +722,22 @@ squashed into the sand — the contract caught the shield boss at 7 cm. Captures
 - 2026-09-18 (world lane): motes doubled 260 → 520 per owner live feedback ("motes are good. just double their number") after the
   half-size deploy (PR #123). Size stays 0.1 m, opacity 0.62, drift and gust unchanged — same specks, twice the air.
 
+## Run Through repair — 2026-09-19 (implementation and local gates passed)
+Goal: keep the blade through the animated torso and visible behind the kneeling opponent, until rematch.
+Scope: characters.ts pose/aim, scene.ts post-pose alignment, rig regression and finisher-preview completion gate.
+Fresh branch from trunk 3bfb0eb; inherited and partial alignment worktrees remain untouched.
+Candidates: re-key every rig (fixed spacing still fails); rotate shoulder toward tip (reproduced 0.572 m miss);
+grounded render-only step plus blade-midpoint alignment (selected). No new GLBs, dependencies or simulation data.
+Failure F1 closed: the original inherited test reproduces a 0.572 m miss; both corrected regression tests and full quality pass.
+Hold clip must be one-shot; reset post-mixer corrections before repeated/zero-dt evaluation and rematch.
+Passed: all five real torso rigs, translated/rotated parents, variable frame times, red/dark/off, rematch,
+real-scene captures and initial full quality (252/252). Both disabled-aim and loop-only mutations fail the regression.
+Integrated quality passed 253/253 with lint/typecheck/build/audit, 8,366,568-byte per-fight budget and browser gate.
+After the arena merge, configured browser checks and release receipts are recorded in artifacts/finishers/run-through/.
+PR #149 carries the scoped fix; production verification is required before any live-resolution claim.
+Sentry: unresolved 5/6/A/9/8 are asset fetch/texture/WebGL errors; no evidence linking them to pose alignment.
+Three Semble searches + CodeGraph impact completed. No disputed graph edges or performance incident;
+Tree-sitter/CPU profiler are not relevant. No cross-agent handoff or new agents.
 ## Combat audio takeover — 2026-09-19 (audio/reliable-playback, integration pending)
 Distinct original cloth/sand roll and backstep cues consume existing ActionStarted events. Existing impact recipes and four-call shell contract stay unchanged. Quiet/mute stop active sample and fallback sources; quiet blocks scheduling synchronously until unlock. First-variant selection includes region zero; room send no longer squares the cue gain.
 Evidence: artifacts/audio/takeover-{before,after}/REPORT.md and WAVs; artifacts/audio/takeover/NOTES.md and quality.log. Added optional --check to the real offline browser harness and registered it as a completion gate. AAC/Opus all 54 regions decode; forced first-format failure recovers; three exchange renders differ by at most one PCM rounding unit; eight stacked cues peak at -2.85 dBFS. Audio assets 605,004 B gzip, +60,706 B, within the 1 MB lane budget. Source/processing recorded in src/assets/README.md. Physical iPhone silent-switch checks, recorded Foley, continuous footsteps, ambience and music remain unverified/unimplemented. Required quality passed: 254/254 tests, lint/build/audit/budget and game browser; roster, Split Crown, estoc, counter-button and audio completion commands all passed. Branch prepared for PR; not deployed.
