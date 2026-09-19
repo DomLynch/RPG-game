@@ -75,11 +75,31 @@ assert.match(await clips(), expected); assert.deepEqual(errors,[]);
 const receipt={url,finisher,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await page.waitForTimeout(5000);
 assert.match(await clips(), expected, 'finisher stays held after the death window');
+if(process.argv.includes('--blood-check')) {
+  receipt.blood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));
+  assert.equal(receipt.blood.kind,finisher);assert.equal(receipt.blood.visible,true);
+  assert.ok(receipt.blood.emitted>150 && receipt.blood.landed>100 && receipt.blood.pools.some(p=>p.radius>.35),'public UI finish leaves substantial blood at its wounds');
+  assert.equal(receipt.blood.airborne,0,'held scene has no endless spray');
+}
 await page.addStyleTag({content:'#debug{visibility:hidden}'});
 await page.screenshot({path:`${dir}/live-held.png`});
+if(process.argv.includes('--blood-check')) {
+  receipt.bloodModes=[];
+  for(const mode of ['dark','off','red']) {
+    await page.getByRole('button',{name:'Menu and field journal'}).tap();
+    await page.locator('#blood-mode').tap();assert.equal(await page.locator('#blood-mode').textContent(),`Blood: ${mode}`);
+    await page.getByRole('button',{name:'Close journal'}).tap();await page.waitForTimeout(150);
+    const blood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));
+    assert.equal(blood.visible,mode!=='off');
+    if(mode!=='off')assert.equal(blood.color,mode==='dark' ? '2b2226' : '68121a');
+    receipt.bloodModes.push({mode,visible:blood.visible,color:blood.color,pools:blood.pools.length});
+    await page.screenshot({path:`${dir}/live-blood-${mode}.png`});
+  }
+}
 await page.locator('#reset-button').tap();
 await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn'),null,{timeout:90000});
 assert.doesNotMatch(await clips(), expected, 'rematch clears the finisher');
 receipt.rematchClips = await clips();
+if(process.argv.includes('--blood-check')) {receipt.rematchBlood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));assert.equal(receipt.rematchBlood.visible,false);assert.equal(receipt.rematchBlood.pools.length,0);}
 await fs.writeFile(`${dir}/live-ui.json`,JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt));
 } finally {await browser.close();if(server)await new Promise(resolve=>server.httpServer.close(resolve));}

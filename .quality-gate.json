@@ -125,7 +125,8 @@
       "node",
       "scripts/quiet-one-browser-check.mjs",
       "--finisher",
-      "opened"
+      "opened",
+      "--blood-check"
     ],
     [
       "node",
@@ -143,6 +144,16 @@
     [
       "node",
       "scripts/creature-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "splitCrown,decapitation,runThrough,quietOne,opened,plainDeath",
+      "--blood-check",
+      "--no-video",
+      "--label",
+      "blood-gate"
     ]
   ]
 }
