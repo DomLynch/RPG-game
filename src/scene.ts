@@ -7,6 +7,7 @@ import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, selectFinisher } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
+import { phoneTier } from './quality.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
   const distance = Math.hypot(state.x - target.x, state.z - target.z);
@@ -26,8 +27,11 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 const OPPONENT_GLB: Record<OpponentId, string> = { veteran: new URL('./assets/veteran.glb', import.meta.url).href, pitborn: new URL('./assets/pitborn.glb', import.meta.url).href, nightborn: new URL('./assets/nightborn.glb', import.meta.url).href, goblin: new URL('./assets/goblin.glb', import.meta.url).href, executioner: new URL('./assets/executioner.glb', import.meta.url).href };
 export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: string) => void = () => {}, opponentId: OpponentId = 'veteran') {
+  // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
+  // shadow map at 512² — the MSAA framebuffer at 1.5× on a ~1170×2532-class phone is ~200 MB of GPU memory.
+  const PHONE = phoneTier(), PIXEL_CAP = PHONE ? 1.25 : 1.5;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, PIXEL_CAP));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -52,7 +56,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   const sun = new THREE.DirectionalLight('#ffe2b8', 4.2);
   sun.position.set(-15, 26, -18);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(PHONE ? 512 : 1024, PHONE ? 512 : 1024);
   Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 70 });
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
@@ -157,7 +161,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   // (readable brutality: nothing may obscure a pose); off when the viewer prefers reduced motion. Placeholder for the visual lane's impact pass.
   const stillCamera = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   let kick = 0, kickHeading = 0;
-  let ratio = Math.min(devicePixelRatio, 1.5);
+  let ratio = Math.min(devicePixelRatio, PIXEL_CAP);   // the context-loss recovery path lowers this to 1 from the tier's ceiling
   const resize = () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); };
   resize(); window.addEventListener('resize', resize);
   return {

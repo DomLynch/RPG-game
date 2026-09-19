@@ -5,6 +5,7 @@ import type { WeaponId } from './moves.ts';
 import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
+import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -52,6 +53,13 @@ async function loadFighter(url: string) {
   const asset = await new GLTFLoader().loadAsync(url);
   const steel = asset.scene.getObjectByName('Steel');
   if (!(steel instanceof Mesh) || !(steel.material instanceof MeshStandardMaterial) || !steel.material.map || !steel.material.normalMap) throw new Error('Warrior textures did not load');
+  // The owner's iPhone defect (2026-09-18): under GPU memory pressure iOS silently drops uploaded fighter
+  // textures — black mannequins. On phones we cap the skins at 1K before the first upload (the 2K Gambeson
+  // atlas is the offender); desktop keeps the full set. three.js uploads lazily, so this runs pre-render.
+  if (phoneTier()) {
+    const { textures, resized } = budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+    console.info(`phone tier: ${resized}/${textures} fighter textures capped at ${FIGHTER_TEXTURE_CAP}px (the iPhone black-fighters defect)`);
+  }
   return asset;
 }
 // The opponent is his own man (opponentUrl) when one is given; with a single GLB both fighters share the geometry and
