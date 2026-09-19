@@ -157,6 +157,10 @@
     ],
     [
       "node",
+      "scripts/creature-weapon-pose-check.mjs"
+    ],
+    [
+      "node",
       "scripts/bell-start-check.mjs"
     ],
     [
