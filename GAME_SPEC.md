@@ -41,6 +41,21 @@ These define a direction, not a promise of native AAA fidelity on a mobile brows
 - Before a real progression/retention test, server-owned character state with persistent guest credentials and optional account recovery. Clearing browser credentials or private browsing can lose guest access; local storage alone is not recovery.
 - No artificial retention incentives in the first rematch test.
 
+## Season 1 scope — owner decision 2026-09-19
+Ship the core game from **Recruit through Origin**. Prioritize polished, readable combat, dependable mobile controls,
+recoverable fighter identity, saved career marks and visible rank milestones. Origin is Season 1's achievement endpoint;
+it does not automatically unlock an unfinished RPG system. Preserve the enhanced combat already developed.
+
+Player stat allocation, armour-stat builds, inventory/lockers, respecs and monetization are **future seasons**, documented
+in `docs/progression-direction.md`. Do not build dormant runtime systems, payment flows or speculative database tables for
+them now. The current Stat section is a future design constraint, not a Season 1 feature; later numeric proposals remain
+unsettled. Use existing typed content recipes and separate career/encounter state as the integration boundaries.
+
+Career rank grants identity, not extra combat power. Named opponents may retain their existing authored differences;
+equal progression power does not mean flattening all enemy health or weapon values. Persist career progress before calling
+this a progression launch. The physical-device and external uncoached-player gates remain required; no launch-readiness,
+real online PvP or recoverable identity claim follows from this scope decision alone.
+
 ## Fighter progression ladder — owner-locked 2026-09-18 (revised 2026-09-19)
 The fighter climbs 10 plain, street-recognizable titles. Tiers 1–9 carry sub-ranks **I–V**; **Origin is singular — no
 I–V** (46 rungs total). Low to high:
