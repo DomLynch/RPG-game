@@ -93,11 +93,39 @@
       "executioner",
       "--no-video",
       "--label",
-      "quiet-one-large-gate"
+      "quiet-one-large-gate",
+      "--seed",
+      "741"
     ],
     [
       "node",
       "scripts/polearm-pose-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "opened",
+      "--no-video",
+      "--label",
+      "opened-gate"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "opened",
+      "--opponent",
+      "executioner",
+      "--no-video",
+      "--label",
+      "opened-large-gate"
+    ],
+    [
+      "node",
+      "scripts/quiet-one-browser-check.mjs",
+      "--finisher",
+      "opened"
     ],
     [
       "node",

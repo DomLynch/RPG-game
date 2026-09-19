@@ -8,6 +8,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
+import { openWaist } from './opened.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -105,6 +106,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         object.material = object.material.clone(); object.material.color.set('#663c32');
       }
     });
+    let opened: ReturnType<typeof openWaist> | undefined;
     const spectral = spectralAppearance(root);
     const mixer = new AnimationMixer(root);
     const actions = {} as Record<Role, AnimationAction>;
@@ -130,10 +132,11 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     return {
       anchor,
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
-      playing(): string { let best: Role = 'Idle'; for (const role of ROLES) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
+      playing(): string { if (opened?.group.visible) return `Opened:WaistCut@${blade.name}`; let best: Role = 'Idle'; for (const role of ROLES) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
+      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'opened' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
         // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
         // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
+        if (pose !== 'opened' && opened) { opened.group.visible = false; root.visible = true; }
         const step = Math.max(0, Math.min(dt, 0.1));
         speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
@@ -142,16 +145,16 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (pose !== 'sheathed' && speed < 4.2) { const movement = 1-gait[0], side = Math.min(1,Math.abs(lateral)); weights.Walk = weights.Jog = weights.Run = 0; weights.ArmedWalk = movement*(1-side); weights[lateral < 0 ? 'StrafeLeft' : 'StrafeRight'] = movement*side; }
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'quietOne' ? 'Death_QuietOne' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? 'Draw' : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'quietOne' ? 'Death_QuietOne' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'draw' ? 'Draw' : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
-        const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'quietOne';
+        const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'quietOne' || pose === 'opened';
         for (const role of ROLES) {
           const a = actions[role];
-          const fade = combatRole === null ? 0 : ['draw','guard','block','parry','deflected','runThroughHold'].includes(pose) ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
+          const fade = pose === 'opened' ? Math.min(1,progress/.04) : combatRole === null ? 0 : ['draw','guard','block','parry','deflected','runThroughHold'].includes(pose) ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
           const target = (weights[role] || 0) * (1 - fade) + Number(role === combatRole) * fade;
           const activeBlade = pose === 'attack' && progress >= contact-1/specs[attack].recovery && progress <= contact+4/specs[attack].recovery;
-          a.setEffectiveWeight(activeBlade ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
+          a.setEffectiveWeight(pose === 'opened' ? target : activeBlade ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
           if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specs[attack].source) : progress)) * clips[role].duration;
         }
         if (!weaponNode) { drawn!.visible = armed && (pose !== 'draw' || progress >= .29); sheathed!.visible = !drawn!.visible; }
@@ -238,10 +241,34 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       // A fresh match (rematch): the rig grows its head back; the caller has already disposed the world-parented prop.
       unsever() {
+        opened?.dispose(); opened = undefined; root.visible = true;
         crown?.dispose(); crown = undefined;
         if (!severed) return;
         severed = false;
         root.getObjectByName('Head')?.scale.setScalar(1);
+      },
+      // Bake during loading/reset, keeping the one-time mesh work outside the killing frame.
+      prepareOpened() {
+        if (opened) return;
+        const saved = ROLES.map(role => ({role, time:actions[role].time, weight:actions[role].getEffectiveWeight()}));
+        const shown = [blade.visible,sheathed?.visible], position = root.position.clone(), rotation = root.quaternion.clone();
+        for (const role of ROLES) actions[role].setEffectiveWeight(Number(role === 'Death_SplitCrown'));
+        actions.Death_SplitCrown.time = clips.Death_SplitCrown.duration * .045;
+        mixer.update(0); root.visible = true; root.position.set(0,0,0); root.quaternion.identity();
+        blade.visible = true; if (sheathed) sheathed.visible = false;
+        opened = openWaist(root, anchor); opened.group.visible = false;
+        for (const state of saved) { actions[state.role].time = state.time; actions[state.role].setEffectiveWeight(state.weight); }
+        mixer.update(0); root.position.copy(position); root.quaternion.copy(rotation);
+        blade.visible = shown[0]!; if (sheathed) sheathed.visible = shown[1]!;
+      },
+      // Both the intact rig and the cached pieces follow the same presentation clock; modes can change mid-finish.
+      openWaist(progress: number, mode: 'red' | 'dark' | 'off') {
+        if (progress < .045) return;
+        if (!opened && mode !== 'off') this.prepareOpened();
+        if (!opened) return;
+        if (mode !== 'off' && !opened.group.parent) anchor.add(opened.group);
+        opened.group.visible = mode !== 'off'; root.visible = mode === 'off';
+        opened.update(progress, mode === 'dark');
       },
       // Skull-only split, owner 2026-09-19. Reuse the proven head bake; keep the halves attached through the collapse.
       splitCrown(progress: number, mode: 'red' | 'dark' | 'off') {

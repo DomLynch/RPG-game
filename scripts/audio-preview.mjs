@@ -83,7 +83,7 @@ try {
     checks.stackedPeakDbfs = 20 * Math.log10(peak / 32768);
     assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
   }
-  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probe.presentation?.override === 'quietOne' ? 6.5 : probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH);
+  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], ['quietOne','opened'].includes(probe.presentation?.override) ? 6.5 : probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH);
   if (checks) {
     const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
     assert.ok(fatal, 'decapitation probe exists');
@@ -115,7 +115,7 @@ try {
     for (const [name, samples] of Object.entries(rendered)) if (name.startsWith('events/finish-')) {
       let peak = 0; for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
       checks.fatalPeakDbfs = Math.max(checks.fatalPeakDbfs, 20 * Math.log10(peak / 32768));
-      assert.ok(samples.subarray(Math.floor((name.includes('quietOne') ? 6 : 3.8) * RATE)).every(v => v === 0), `${name}: tail finishes within the render`);
+      assert.ok(samples.subarray(Math.floor(((name.includes('quietOne') || name.includes('opened')) ? 6 : 3.8) * RATE)).every(v => v === 0), `${name}: tail finishes within the render`);
     }
     assert.ok(checks.fatalPeakDbfs <= -1, 'fatal stack respects the ceiling');
   }

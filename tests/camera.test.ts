@@ -46,7 +46,7 @@ test('duel camera frames a moving opponent anywhere in the arena', () => {
 
 
 test('finisher side view exposes both fighters at every arena edge and phone aspect', () => {
-  for (const aspect of [375/812,393/852,852/393]) for (let edge=0;edge<6.28;edge+=.2) for(let yaw=0;yaw<6.28;yaw+=.3) for(const gap of [.8,1.4,2.3]) for(const finish of ['runThrough','splitCrown','quietOne'] as const) {
+  for (const aspect of [375/812,393/852,852/393]) for (let edge=0;edge<6.28;edge+=.2) for(let yaw=0;yaw<6.28;yaw+=.3) for(const gap of [.8,1.4,2.3]) for(const finish of ['runThrough','splitCrown','quietOne','opened'] as const) {
     const fallen={x:Math.sin(edge)*7.3,z:Math.cos(edge)*7.3};
     const killer={x:fallen.x+Math.sin(yaw)*gap,z:fallen.z+Math.cos(yaw)*gap};
     if(Math.hypot(killer.x,killer.z)>RADIUS)continue;
