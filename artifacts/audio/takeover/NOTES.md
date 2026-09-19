@@ -19,3 +19,5 @@ Checks: regression tests, real Chromium offline output/quiet/codec checks, npm r
 - Production release read-only receipt: 32f783e8d2aa671daca418d2cde1ade04ffba4bd. This lane will submit a PR; no deployment command or VPS write is authorized by the lane brief.
 
 Final gates: npm run quality PASS (253/253; lint/typecheck/build/audit/budget/game browser); roster completion PASS; Split Crown completion PASS; audio completion PASS. Code/source review completed, no outstanding current-task failures. No background jobs left running. Commit is limited to audio runtime/assets/tests, required completion-gate registration and source/state/evidence documentation.
+
+Integration closure: PR #147 initially conflicted after trunk advanced to d3114a9 (Nightborn estoc). Preserved both completion-command lists, merged all upstream changes, refreshed CodeGraph and reran every gate. 254/254 tests; quality + roster + Split Crown + audio + estoc browser PASS. Final fight payload 8,423,166 B gzip. Receipts: merged-gate-0..4.log. No deploy; PR handoff only.

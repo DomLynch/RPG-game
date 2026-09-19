@@ -31,6 +31,10 @@
       "--label",
       "audio-gate",
       "--check"
+    ],
+    [
+      "node",
+      "scripts/estoc-browser-check.mjs"
     ]
   ]
 }

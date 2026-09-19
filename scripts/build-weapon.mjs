@@ -310,6 +310,9 @@ export function estoc({ T: three = T, withAoUv = g => g, variant = ESTOC_DEFAULT
   const black = new three.MeshStandardMaterial({ name: 'BlackIron', color: '#1d1c1f', metalness: .8, roughness: .62 });     // black-oiled iron furniture, his kit's tone
   const wire = new three.MeshStandardMaterial({ name: 'Wire', color: '#6e7074', metalness: .75, roughness: .5 });           // twisted steel wire over the grip
   const group = new three.Group(); group.name = 'WeaponDrawn';
+  // The longer point rides above the sword's chest-high arc on the upright Nightborn. Tilt the grip down
+  // ten degrees so the visible blade and the bake both aim at the torso; the shared clips stay unchanged.
+  group.rotation.x = Math.PI / 18;
   const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
   // The blade: a square-section rod (a diamond ring of four points, equal width and thickness — no edge) tapering to the point.
   const y0 = .10, y1 = v.y1, segments = 16, positions = [], uvs = [];

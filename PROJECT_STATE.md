@@ -2,7 +2,7 @@
 
 ## Combat audio takeover — 2026-09-19 (audio/reliable-playback, integration pending)
 Distinct original cloth/sand roll and backstep cues consume existing ActionStarted events. Existing impact recipes and four-call shell contract stay unchanged. Quiet/mute stop active sample and fallback sources; quiet blocks scheduling synchronously until unlock. First-variant selection includes region zero; room send no longer squares the cue gain.
-Evidence: artifacts/audio/takeover-{before,after}/REPORT.md and WAVs; artifacts/audio/takeover/NOTES.md and quality.log. Added optional --check to the real offline browser harness and registered it as a completion gate. AAC/Opus all 54 regions decode; forced first-format failure recovers; three exchange renders differ by at most one PCM rounding unit; eight stacked cues peak at -2.85 dBFS. Audio assets 605,004 B gzip, +60,706 B, within the 1 MB lane budget. Source/processing recorded in src/assets/README.md. Physical iPhone silent-switch checks, recorded Foley, continuous footsteps, ambience and music remain unverified/unimplemented. Required quality passed: 253/253 tests, lint/build/audit/budget and game browser; roster, Split Crown and audio completion commands all passed. Branch prepared for PR; not deployed.
+Evidence: artifacts/audio/takeover-{before,after}/REPORT.md and WAVs; artifacts/audio/takeover/NOTES.md and quality.log. Added optional --check to the real offline browser harness and registered it as a completion gate. AAC/Opus all 54 regions decode; forced first-format failure recovers; three exchange renders differ by at most one PCM rounding unit; eight stacked cues peak at -2.85 dBFS. Audio assets 605,004 B gzip, +60,706 B, within the 1 MB lane budget. Source/processing recorded in src/assets/README.md. Physical iPhone silent-switch checks, recorded Foley, continuous footsteps, ambience and music remain unverified/unimplemented. Required quality passed: 254/254 tests, lint/build/audit/budget and game browser; roster, Split Crown, estoc and audio completion commands all passed. Branch prepared for PR; not deployed.
 
 ## Split Crown visible skull split — 2026-09-19 (finishers lane, local gate passed)
 Owner approved a skull-only centre split: the halves open slightly and the body collapses intact. Work is isolated from
@@ -22,6 +22,22 @@ Existing Sentry issues 6/A/5/9/8 concern fetch, texture loading and WebGL initia
 change. They remain unresolved and outside this visual feature's scope; this change does not claim to repair them.
 Run Through remains a separate unfinished lane: its original 57 cm regression is preserved in the inherited worktree;
 a partial alignment correction is isolated on `finishers/runthrough-alignment` and is not part of this release.
+## Estoc A activation — 2026-09-19 — PR #142, NOT DEPLOYED
+Weapons branch `weapons/estoc-live`, based on trunk `d383b66`. Variant A is built on the current Nightborn,
+with matching render/bake GLBs, manifest entry, real ESTOC data, rebaked paths and flipped shelf receipts. Existing clips,
+body geometry and textures preserved; all five other weapon trajectory tables unchanged. Preview `--azimuth` added.
+The longer point initially registered head hits on the upright Nightborn. The estoc part now carries a 10-degree grip tilt,
+composed with the hand attachment by the builder. Only WeaponDrawn's quaternion changes in the GLB: geometry, animations,
+textures and every other node remain identical. The unchanged head-region rule passes; no contact remapping or clip edits.
+A new real-duel regression checks non-head contacts and measured cut/heavy/thrust frontiers of 2.0/2.5/2.3 m.
+Restoring the old blade paths makes that regression fail. The .75 thrust share remains necessary: .70 still fails the unchanged
+roll-and-punish cap (3/24 untouched); .75 passes both fairness batteries. AI-vs-AI median 20.9 s, hero wins 9/24.
+No AI, damage, timing or spacing edits. Full `npm run quality`: 246/246 tests, build, audit, budget and browser gate PASS.
+Estoc browser completion verifies the served rig SHA, WeaponDrawn, portrait/landscape layout and an opponent hit.
+Evidence: `artifacts/weapons/estoc-live/` (logs, browser JSON, probes), `estoc-aim/` (reviewed captures).
+Lead owns roster integration and deployment; no weapons-lane deployment was attempted. Physical-phone validation outstanding.
+Sentry still has earlier unresolved load/texture/WebGL issues (6/A/5/9/8); this unshipped branch cannot resolve those.
+
 
 ## Roster foundations — lead, 2026-09-19
 Owner approved the GPT Pro content-reuse direction. Work on `lead/opponent-catalogue`, based on d383b66.
