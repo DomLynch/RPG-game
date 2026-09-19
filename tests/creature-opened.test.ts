@@ -88,6 +88,11 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
   for(let i=0;i<25;i++){actor.update(0,.1,'opened',1);actor.openWaist(1,'red');}
   assert.equal(halves[0].visible,id!=='wraith');assert.equal(halves[1].visible,id!=='wraith');
   const dropped=group.getObjectByName('OpenedWeapon')!;assert.equal(dropped.visible,id!=='wraith','claws leave no separate dropped weapon');assert.equal(dropped.children.length>0,id!=='wraith');
+  if(id==='minotaur') {
+    parent.updateMatrixWorld(true);
+    const bounds=new Box3().setFromObject(dropped,true);
+    assert.ok(bounds.min.y>-.012 && bounds.min.y<.04,`dropped maul lands on sand ${bounds.min.y}`);
+  }
   if(id==='wraith')assert.equal(partMaterial.opacity,0);
   assert.deepEqual(body.geometry.attributes.position.array,original,'source mesh untouched');
   let disposed=0;partMaterial.addEventListener('dispose',()=>disposed++);

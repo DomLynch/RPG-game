@@ -165,6 +165,8 @@ export function openWaist(root: Object3D, anchor: Group) {
     group, waist,
     update(progress: number, dark: boolean, life = 1) {
       const p = Math.max(0,Math.min(1,progress)); place(p);
+      // A rotated weapon can lie entirely above its baked origin. Let that origin descend below zero.
+      weapon.position.y += Math.min(0,floors[2][120]) * smooth(p,.12,.62);
       for (const [h,half] of [lower,upper,weapon].entries()) {
         const at = p*120, i = Math.min(119,Math.floor(at)), floor = floors[h][i]+(floors[h][i+1]-floors[h][i])*(at-i);
         half.position.y = Math.max(half.position.y,floor);
