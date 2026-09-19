@@ -12,7 +12,10 @@ Startup now preserves the original renderer exception and stack while retaining 
 fails before the change and passes after it; actual Chromium with WebGL disabled verifies the original error and disabled
 combat. Audio e867 is integrated, including Draw-only bell behavior. All 24 configured commands passed on 17218e6:
 291 tests, typecheck/lint/audit, gameplay/recovery/layout, finishers, account/database, audio and creature checks.
-Independent clean Node 22 and real PostgreSQL checks also pass. Final review-record edits are documentation/comments only.
+Independent clean Node 22 and real PostgreSQL checks also pass. The subsequent review-record edits were documentation/comments only.
+The final pre-merge check then found published weapons revision 68ccdf2. It is integrated with its new creature-weapon
+pose gate retained; the combined 25-command contract is revalidated before publication. Release-window coordination
+is explicit in AGENTS.md so every active lane is included before the lead reserves the shared GPU/release window.
 Deployment and public verification receipts are maintained under artifacts/cleanup/ and PR #171; served release.json
 identifies the published revision. GitHub's hosted job was billing-blocked before start; it is not reported green.
 
@@ -21,6 +24,9 @@ Release-specific Sentry triage and remaining acceptance: docs/reliability-audit.
 validation remain unpassed. Career practice-win award policy awaits owner confirmation; no rank ledger or end-game
 system was added. The shared automatic hook's 420-second ceiling is shorter than this 1,111-second full suite;
 all commands were run directly without deleting checks or altering shared enforcement.
+
+## Creature weapons — weapons lane, 2026-09-19
+Owner enables stone maul for Minotaur and bare claws for Wraith. Additive offline authoring preserves original creature surfaces/maps/weights and old clips. Twelve new clips per creature cover ready/gaits/attacks/guard/reactions/death/roll/kick. Maul front hand slides within reach; Wraith contact is derived from actual hand/finger vertices and includes its existing 1.5 presentation scale in the bake. Maul shove samples the haft, other attacks sample the stone head. New geometry/contact regression covers all new clips, exact baked/rendered paths, close hits and measured outer misses. Existing head-region grid now uses each weapon's actual timing instead of the sword clock; all previous expected regions remain pinned. All26 configured local gates passed, including real-game creature damage/death/rematch. Integrated draw-bell trunk e8670fa; full quality293/293 and both affected audio gates pass. Final front/side/rear pose sheets reviewed. Creature browser gate now selects full Chromium consistently with the combat gate; default headless-shell timing failures and diagnostics are retained. GitHub Actions did not start because of account billing/spending limits; no CI success claimed. Full contract and deployment receipts: artifacts/weapons/creature-weapons/. Public release authority remains release.json plus live/receipt.json; physical handset review remains owner-only.
 
 ## Finisher blood upgrade — 2026-09-19 (PR #165)
 Owner requests substantially more blood at actual finishing wounds and floor spills beside the body. New fixed pool:160 ballistic droplets and80 growing floor stains, two draw calls; source locations follow neck/head, separated waist faces, jugular or chest entry/exit. Jets taper to drips and stop; red/dark/off and rematch apply. No simulation, input, GLB or dependency changes. CPU source/ballistic/resource checks pass; Integrated published Wraith c757d87 with its arm correction and creature guards preserved; Independent source/lifecycle and refined motion-frame review pass; small/large Decapitation, Opened and Quiet One red/dark/off/hold/rematch checks pass. Final24-command release validation and public receipts are maintained in artifacts/finishers/blood/.
