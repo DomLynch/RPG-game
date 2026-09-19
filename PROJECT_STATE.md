@@ -62,8 +62,8 @@ CodeGraph refreshed; two-pass review covered geometry/resource isolation, render
 Evidence: artifacts/finishers/split-crown/REPORT.md. Physical iPhone performance and owner visual acceptance remain unclaimed.
 Existing Sentry issues 6/A/5/9/8 concern fetch, texture loading and WebGL initialization; no skull-split event predates this
 change. They remain unresolved and outside this visual feature's scope; this change does not claim to repair them.
-Run Through remains a separate unfinished lane: its original 57 cm regression is preserved in the inherited worktree;
-a partial alignment correction is isolated on `finishers/runthrough-alignment` and is not part of this release.
+At the Split Crown release, Run Through remained separate. Its repair is recorded in the Run Through section below;
+the inherited failure and earlier partial alignment worktrees remain preserved as historical evidence.
 ## Estoc A activation — 2026-09-19 — PR #142, NOT DEPLOYED
 Weapons branch `weapons/estoc-live`, based on trunk `d383b66`. Variant A is built on the current Nightborn,
 with matching render/bake GLBs, manifest entry, real ESTOC data, rebaked paths and flipped shelf receipts. Existing clips,
@@ -693,7 +693,7 @@ squashed into the sand — the contract caught the shield boss at 7 cm. Captures
 - 2026-09-18 (world lane): motes doubled 260 → 520 per owner live feedback ("motes are good. just double their number") after the
   half-size deploy (PR #123). Size stays 0.1 m, opacity 0.62, drift and gust unchanged — same specks, twice the air.
 
-## Run Through repair — 2026-09-19 (in progress)
+## Run Through repair — 2026-09-19 (implementation and local gates passed)
 Goal: keep the blade through the animated torso and visible behind the kneeling opponent, until rematch.
 Scope: characters.ts pose/aim, scene.ts post-pose alignment, rig regression and finisher-preview completion gate.
 Fresh branch from trunk 3bfb0eb; inherited and partial alignment worktrees remain untouched.
@@ -703,7 +703,9 @@ Failure F1 closed: the original inherited test reproduces a 0.572 m miss; both c
 Hold clip must be one-shot; reset post-mixer corrections before repeated/zero-dt evaluation and rematch.
 Passed: all five real torso rigs, translated/rotated parents, variable frame times, red/dark/off, rematch,
 real-scene captures and initial full quality (252/252). Both disabled-aim and loop-only mutations fail the regression.
-Integrated completion commands and live release checks remain in progress.
+Integrated quality passed 253/253 with lint/typecheck/build/audit, 8,366,568-byte per-fight budget and browser gate.
+After the arena merge, configured browser checks and release receipts are recorded in artifacts/finishers/run-through/.
+PR #149 carries the scoped fix; production verification is required before any live-resolution claim.
 Sentry: unresolved 5/6/A/9/8 are asset fetch/texture/WebGL errors; no evidence linking them to pose alignment.
 Three Semble searches + CodeGraph impact completed. No disputed graph edges or performance incident;
 Tree-sitter/CPU profiler are not relevant. No cross-agent handoff or new agents.

@@ -18,7 +18,9 @@ so repeated frozen frames and rematch do not retain an additive correction. No s
   opponent-checks.json records finite segment intersection; rear.png shows the Veteran's exposed blade tip.
 - Ast-grep confirmed the single shared setLoop site. Semble three queries and CodeGraph impact used before edits.
 - Two-pass review: simulation and input untouched; pose reset, parent transforms, clip clock, modes, rematch and actual rendering checked.
-- Full quality, configured completion commands, CI and live release receipts follow separately.
+- Full quality passes 253/253 after roster integration: lint, typecheck, build, zero vulnerabilities, browser and
+  8,366,568/10,000,000-byte per-fight budget. After arena integration, all configured completion checks run again.
+  Release and live-duel receipts are saved alongside this report without changing the checked source revision.
 
 Historical Sentry FRANKENDOM-5 event 4d75f31520904bf3baeb378505a71d79 is a production texture-load error
 on d383b666, before this change. Existing 6/A/9/8 are fetch/texture/WebGL issues. They remain unresolved;
