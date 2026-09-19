@@ -175,6 +175,12 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
     lowerResolution() { if (ratio > 1) { ratio = 1; renderer.setPixelRatio(ratio); resize(); } },
     restoreGraphics() { this.lowerResolution(); rebuildEnvironment(); },
     // Debug probe: where the player's blade tip was drawn this frame (world metres), so a frame-by-frame check can see a held or moving pose.
+    // World → CSS pixels for DOM overlays (damage numbers). Null when the point is behind the camera.
+    project(point: [number, number, number]): [number, number] | null {
+      const v = new THREE.Vector3(point[0], point[1], point[2]).project(camera);
+      if (v.z > 1) return null;
+      return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight];
+    },
     playing(): string { return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : ''; },   // debug probe: what each rig plays
     bladeTip(): [number, number, number] | null { const anchor = warriors?.player.anchor, drawn = anchor?.getObjectByName('WeaponDrawn') ?? anchor?.getObjectByName('SwordDrawn'); if (!drawn) return null; player.updateWorldMatrix(true, true); const tip = drawn.localToWorld(new THREE.Vector3(0, (drawn.userData.contact as { to: number } | undefined)?.to ?? .86, 0)); return [tip.x, tip.y, tip.z]; },
     // Effects consume the simulation's events for the frame; they never infer contact from animation.

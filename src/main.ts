@@ -145,6 +145,27 @@ function coach(events: CombatEvent[]): void {
   }
 }
 function coachReset(): void { for (const id in seen) delete seen[id]; clearTimeout(coachTimer); coachAnim?.cancel(); coachEl.hidden = true; }
+// Damage numbers (owner mockup, 2026-09-19): a clean hit floats its damage off the victim — white for dealt, warm red for taken, gold and
+// bigger for the heavy-class ones (charged, counter, riposte, critical). Four pooled spans round-robin (a duel never shows four at once);
+// positions come from the scene's world→screen projection. Presentation-only, like the coach line.
+const dmgPool = Array.from(element('dmg-pool').children) as HTMLElement[];
+let dmgCursor = 0;
+function floatDamage(events: CombatEvent[]): void {
+  if (!dmgPool.length || typeof view.project !== 'function') return;   // the VM harness ships an empty pool and a stub view: nothing to float there
+  for (const e of events) {
+    if (e.type !== 'Hit' || e.target === undefined || !e.damage) continue;
+    const victim = practice.duel.fighters[e.target];
+    const at = view.project([victim.body.x, 1.62 * victim.scale, victim.body.z]);
+    if (!at) continue;
+    const span = dmgPool[dmgCursor++ % dmgPool.length];
+    span.textContent = String(Math.round(e.damage));
+    span.className = `dmg${e.target === 0 ? ' taken' : ''}${e.counter || e.charged || HEAVY_MOVES.has(e.move ?? '') ? ' heavy' : ''}`;
+    span.style.left = `${at[0]}px`; span.style.top = `${at[1]}px`;
+    span.hidden = false;
+    if (typeof span.animate === 'function') span.animate([{ transform: 'translate(-50%, 0)', opacity: 1 }, { transform: 'translate(-50%, -44px)', opacity: 0 }], { duration: 900, easing: 'ease-out', fill: 'forwards' }).onfinish = () => { span.hidden = true; };
+    else setTimeout(() => { span.hidden = true; }, 900);
+  }
+}
 // Tempo: the simulation is written in ticks; stepping it at 50 Hz instead of 60 plays the same fight a fifth slower in wall-clock (wind-ups,
 // windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
 // re-timing of the moves (which needs the blade paths re-baked).
@@ -442,7 +463,7 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, opponent.profiles[difficulty]);
-      feedback.update(practice.events); frameEvents.push(...practice.events); coach(practice.events);
+      feedback.update(practice.events); frameEvents.push(...practice.events); coach(practice.events); floatDamage(practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;
       if (action) sent = action;
