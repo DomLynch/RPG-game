@@ -1,19 +1,5 @@
 # Project state
 
-## Run Through repair — 2026-09-19 (in progress)
-Goal: keep the blade through the animated torso and visible behind the kneeling opponent, until rematch.
-Scope: characters.ts pose/aim, scene.ts post-pose alignment, rig regression and finisher-preview completion gate.
-Fresh branch from trunk 3bfb0eb; inherited and partial alignment worktrees remain untouched.
-Candidates: re-key every rig (fixed spacing still fails); rotate shoulder toward tip (reproduced 0.572 m miss);
-grounded render-only step plus blade-midpoint alignment (selected). No new GLBs, dependencies or simulation data.
-Failure F1 closed: the original inherited test reproduces a 0.572 m miss; both corrected regression tests and full quality pass.
-Hold clip must be one-shot; reset post-mixer corrections before repeated/zero-dt evaluation and rematch.
-Checks planned: all five torso rigs, translated/rotated parents, variable frame times, red/dark/off, rematch,
-real-scene capture, full quality and configured completion commands, live UI duel and release parity.
-Sentry: unresolved 5/6/A/9/8 are asset fetch/texture/WebGL errors; no evidence linking them to pose alignment.
-Three Semble searches + CodeGraph impact completed. No disputed graph edges or performance incident;
-Tree-sitter/CPU profiler are not relevant. No cross-agent handoff or new agents.
-
 ## Season 1 scope and material cleanup — lead, 2026-09-19
 Owner chose Recruit → Origin as the complete Season 1 core, with the RPG endgame built after launch. Canonical scope is
 in GAME_SPEC.md; docs/progression-direction.md records future choices, persistence/result boundaries, migrations,
@@ -693,3 +679,18 @@ squashed into the sand — the contract caught the shield boss at 7 cm. Captures
   `artifacts/weapons/scythe-notes.md`, sheets `scythe-A/`, `sche-B/…`, `scythe-C/`, `scythe-v1…v5/`, `executioner-baseline/`.
 - 2026-09-18 (world lane): motes doubled 260 → 520 per owner live feedback ("motes are good. just double their number") after the
   half-size deploy (PR #123). Size stays 0.1 m, opacity 0.62, drift and gust unchanged — same specks, twice the air.
+
+## Run Through repair — 2026-09-19 (in progress)
+Goal: keep the blade through the animated torso and visible behind the kneeling opponent, until rematch.
+Scope: characters.ts pose/aim, scene.ts post-pose alignment, rig regression and finisher-preview completion gate.
+Fresh branch from trunk 3bfb0eb; inherited and partial alignment worktrees remain untouched.
+Candidates: re-key every rig (fixed spacing still fails); rotate shoulder toward tip (reproduced 0.572 m miss);
+grounded render-only step plus blade-midpoint alignment (selected). No new GLBs, dependencies or simulation data.
+Failure F1 closed: the original inherited test reproduces a 0.572 m miss; both corrected regression tests and full quality pass.
+Hold clip must be one-shot; reset post-mixer corrections before repeated/zero-dt evaluation and rematch.
+Passed: all five real torso rigs, translated/rotated parents, variable frame times, red/dark/off, rematch,
+real-scene captures and initial full quality (252/252). Both disabled-aim and loop-only mutations fail the regression.
+Integrated completion commands and live release checks remain in progress.
+Sentry: unresolved 5/6/A/9/8 are asset fetch/texture/WebGL errors; no evidence linking them to pose alignment.
+Three Semble searches + CodeGraph impact completed. No disputed graph edges or performance incident;
+Tree-sitter/CPU profiler are not relevant. No cross-agent handoff or new agents.
