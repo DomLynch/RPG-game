@@ -5,7 +5,8 @@
 The owner **rejected the procedural pilots below as amateur**. Passing structural
 checks did not make them acceptable art. Do not use them as approved masters.
 
-The owner approved the new seven-view Minotaur and Wraith concept sheets. The
+The owner approved the new seven-view [Minotaur](character-references/minotaur-v1.png)
+and [Wraith](character-references/wraith-v1.png) concept sheets. The
 Minotaur needs a credible heavy bovine skull continuous with its neck, trapezius
 and muscular body. The Wraith needs a skeletal face and claws, broken crown and
 airy semi-transparent wisps; its lower body dissolves. This supersedes the earlier
@@ -37,6 +38,7 @@ Built-in image generation produced the seven-view sheets using the owner's
 attached images as visual references. A subsequent front-view reconstruction
 source was made for each creature. The Wraith source deliberately omits smoke so
 the opaque core and transparent effects can be authored separately.
+The exact sheet prompts and audit caveat are in [PROMPTS.md](character-references/PROMPTS.md).
 
 The free official [Microsoft TRELLIS.2 demo](https://huggingface.co/spaces/microsoft/TRELLIS.2)
 generated a Minotaur reconstruction and 48 native preview frames (six material

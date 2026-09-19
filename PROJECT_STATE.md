@@ -1,5 +1,21 @@
 # Project state
 
+## Character direction correction — 2026-09-19 (local art review, NOT LIVE)
+Owner rejected the procedural Wraith/Minotaur pilots as amateur. Installed and tested official MPFB 2.0.17
+in Blender 5.2.1; editable macro/target sources, rig test and static GLB exports exist under
+artifacts/character/mpfb-test/. MPFB test: Minotaur 29,436 triangles; Wraith 27,802 and BLEND transparency.
+Both load in Three.js, but visual audit rejects them as final creature art. No Frankendom combat retarget claimed.
+Owner approved newly generated seven-view reference sheets: integrated muscular bovine anatomy for Minotaur;
+skeletal, crowned, wispy and semi-transparent Wraith. Prior solid-bodied Wraith direction is superseded.
+Official free TRELLIS.2 generated a stronger Minotaur shape and 48 native preview frames. GLB extraction
+failed on anonymous ZeroGPU quota; no exported TRELLIS mesh exists yet. Browser sign-in requested;
+connected HF account does not automatically authenticate the local Gradio client or browser.
+No Wraith reconstruction or production integration claimed. Recipes, source/licence hashes and current
+gate distinctions: docs/character-pilots.md. All outputs remain local art-review material.
+Revalidation: full quality (252 tests, lint/build/audit/budget/browser) and all six completion
+commands passed; receipts in artifacts/character/mpfb-test/gates.json. These baseline checks
+do not close the failed art acceptance or blocked GLB extraction. World release hold respected.
+
 ## Multi-character anatomy pilots — 2026-09-19 (character lane, NOT LIVE)
 Owner authorized Wraith/Minotaur pilots, efficient shared production, an audit and previews for iteration.
 Isolated `codex/01a0b8f7/main` from 15bea7e. Offline Blender maker and existing-viewer capture/judge create
