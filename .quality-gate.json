@@ -94,6 +94,10 @@
       "--no-video",
       "--label",
       "quiet-one-large-gate"
+    ],
+    [
+      "node",
+      "scripts/polearm-pose-check.mjs"
     ]
   ]
 }

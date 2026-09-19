@@ -35,8 +35,9 @@ function polearmReach(three, scene) {
     const distance = Math.max(.03, Math.min(direction.length(), a + b - .001)); direction.normalize();
     const along = (a * a - b * b + distance * distance) / (2 * distance);
     // This rig's left shoulder is +X and right shoulder -X. The old sword IK
-    // used the opposite signs, folding the front elbow into the torso.
-    const bend = new three.Vector3(side === 'r' ? -1 : 1, -.5, -.3);
+    // used the opposite signs. Bias forward too: a rearward pole folds the
+    // rear arm through the chest when the weapon reaches across the front.
+    const bend = new three.Vector3(side === 'r' ? -1 : 1, -.5, .6);
     bend.addScaledVector(direction, -bend.dot(direction)).normalize();
     const elbow = start.clone().addScaledVector(direction, along).addScaledVector(bend, Math.sqrt(Math.max(0, a * a - along * along)));
     const u = elbow.clone().sub(start), f = start.clone().addScaledVector(direction, distance).sub(elbow), normal = u.clone().cross(f).normalize();
@@ -91,7 +92,7 @@ export function trident({ T: three = T, withAoUv = g => g, leather, variant = DE
 }
 
 // Clip authoring on the fighter's rig. ctx comes from build-warrior.mjs: { T, base, skeleton, poseMixer, clips, weapon }.
-// Goals are given in the chest's frame (spine_03: x right, y up, z forward at rest) so the weapon rides the body's own motion —
+// Goals are given in the chest's frame (spine_03: x left, y up, z forward at rest) so the weapon rides the body's own motion —
 // the walk's bob, the hit's flinch, the death's fall. Each key: { t, body: [clip, time], r: [x, y, z] rear-hand goal, dir: shaft
 // direction, l: the front hand's distance along the shaft, spine: [yaw, pitch] added on top of the body pose }.
 export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, weapon }) {
@@ -174,9 +175,10 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, w
   const loop = (name, body, duration, n, grip, wrap = true) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })));
   // The rest grip: rear hand at the right hip, tines forward and a little up at the opponent's chest, front hand a forearm along the shaft.
   // Grips along the shaft (`l`) fit the short trident (front grip at .40; the socket at .66): at full extension the rear hand drives
-  // up to the front one, the classic spear thrust, so the tines go as far as the long trident's did.
-  const REST = { r: [.26, -.30, .10], dir: [-.10, .18, .97], l: .40, spine: [.12, 0] };
-  const GUARD = { r: [.26, -.22, .26], dir: [-.78, .45, .43], l: .46, spine: [-.05, 0] }; // the shaft across the body: a guard of wood
+  // up to the front one, the classic spear thrust. Rear-hand goals stay on -X,
+  // outside the torso; +X was the opposite hip and buried his rear arm.
+  const REST = { r: [-.22, -.28, .10], dir: [.48, .18, .86], l: .40, spine: [.12, 0] };
+  const GUARD = { r: [-.26, -.22, .26], dir: [.78, .45, .43], l: .46, spine: [-.05, 0] }; // the shaft across the body: a guard of wood
   const out = [
     loop('Trident_Idle', 'Armed', 1.667, 8, REST),
     loop('Trident_Walk', 'ArmedWalk', 1.333, 8, REST),
@@ -186,50 +188,50 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, w
     // tines at the opponent's chest (~1.2 m up) from ~1.4 m in front (the sword's stab reaches 1.14).
     make('Trident_Thrust', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .18, body: ['Armed', 0], r: [.28, -.30, -.32], dir: [-.03, .13, 1], l: .44, spine: [.22, 0] },
-      { t: .34, body: ['Armed', 0], r: [.20, -.12, .44], dir: [0, .06, 1], l: .22, spine: [-.14, .08] },   // the short spear's thrust: the rear arm drives out to full extension, the front hand just ahead of it
-      { t: .55, body: ['Armed', 0], r: [.20, -.12, .44], dir: [0, .06, 1], l: .22, spine: [-.14, .08] },
+      { t: .18, body: ['Armed', 0], r: [-.28, -.30, -.10], dir: [.30, .13, 1], l: .44, spine: [.22, 0] },
+      { t: .34, body: ['Armed', 0], r: [-.22, -.12, .32], dir: [.18, .06, 1], l: .22, spine: [-.14, .08] },   // the short spear's thrust: the rear arm drives out to full extension, the front hand just ahead of it
+      { t: .55, body: ['Armed', 0], r: [-.22, -.12, .32], dir: [.18, .06, 1], l: .22, spine: [-.14, .08] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     make('Trident_ThrustChain', 1, [ // the second thrust: half withdrawn, out again
-      { t: 0, body: ['Armed', 0], r: [.26, -.24, .00], dir: [-.02, .11, 1], l: .34, spine: [.10, 0] },
-      { t: .34, body: ['Armed', 0], r: [.20, -.12, .46], dir: [0, .06, 1], l: .22, spine: [-.16, .08] },
-      { t: .6, body: ['Armed', 0], r: [.20, -.12, .46], dir: [0, .06, 1], l: .22, spine: [-.16, .08] },
+      { t: 0, body: ['Armed', 0], r: [-.22, -.24, .12], dir: [.40, .11, 1], l: .34, spine: [.10, 0] },
+      { t: .34, body: ['Armed', 0], r: [-.22, -.12, .34], dir: [.18, .06, 1], l: .22, spine: [-.16, .08] },
+      { t: .6, body: ['Armed', 0], r: [-.22, -.12, .34], dir: [.18, .06, 1], l: .22, spine: [-.16, .08] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // Low sweep: the tines swing across the front at knee height, right to left; contact in front at .34.
     make('Trident_Sweep', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .15, body: ['Armed', 0], r: [.34, -.40, -.10], dir: [.66, -.26, .70], l: .38, spine: [.28, 0] },
-      { t: .34, body: ['Armed', 0], r: [.10, -.40, .26], dir: [-.06, -.30, .95], l: .34, spine: [-.04, .06] },
-      { t: .5, body: ['Armed', 0], r: [-.10, -.40, .16], dir: [-.60, -.24, .76], l: .36, spine: [-.28, .06] },
-      { t: .7, body: ['Armed', 0], r: [.06, -.38, -.02], dir: [-.30, .05, .95], l: .40, spine: [-.12, 0] },
+      { t: .15, body: ['Armed', 0], r: [-.34, -.40, -.10], dir: [.66, -.26, .70], l: .38, spine: [.28, 0] },
+      { t: .34, body: ['Armed', 0], r: [-.22, -.36, .24], dir: [.16, -.30, .95], l: .34, spine: [-.04, .06] },
+      { t: .5, body: ['Armed', 0], r: [-.26, -.36, .22], dir: [-.60, -.24, .76], l: .36, spine: [-.28, .06] },
+      { t: .7, body: ['Armed', 0], r: [-.22, -.38, .12], dir: [.30, .05, .95], l: .40, spine: [-.12, 0] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // Overhead pin: raised over the head, driven down into the torso (tines at ~1.0 m from ~1.2 m out); contact at .48 like the sword's heavy.
     make('Trident_High', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .28, body: ['Armed', 0], r: [.22, .28, -.30], dir: [-.06, .84, .54], l: .42, spine: [.15, -.08] },
-      { t: .38, body: ['Armed', 0], r: [.28, -.18, .02], dir: [.48, -.16, .86], l: .42, spine: [.06, .02] },   // the descent comes down wide right and LOW: the direct raise→contact lerp carried the tines through the skull capsule at close gaps once keys played faithfully (head-region battery, 2026-09-18)
-      { t: .48, body: ['Armed', 0], r: [.20, -.04, .12], dir: [0, -.12, .99], l: .40, spine: [-.08, .14] },
-      { t: .64, body: ['Armed', 0], r: [.18, -.18, .16], dir: [0, -.24, .97], l: .40, spine: [-.08, .16] },
+      { t: .28, body: ['Armed', 0], r: [-.24, .28, .24], dir: [.60, .65, .46], l: .28, spine: [.15, -.08] },
+      { t: .38, body: ['Armed', 0], r: [-.28, -.18, .28], dir: [.48, -.16, .86], l: .30, spine: [.06, .02] },   // the descent comes down wide right and LOW: the direct raise→contact lerp carried the tines through the skull capsule at close gaps once keys played faithfully (head-region battery, 2026-09-18)
+      { t: .48, body: ['Armed', 0], r: [-.24, -.04, .15], dir: [.22, -.12, .99], l: .30, spine: [-.08, .14] },
+      { t: .64, body: ['Armed', 0], r: [-.24, -.18, .15], dir: [.20, -.24, .97], l: .35, spine: [-.08, .16] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     make('Trident_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
     // Block impact: the guard takes the blow on the shaft and gives — hands shoved back, chest folds — then settles.
     make('Trident_BlockImpact', 1, [
       { t: 0, body: ['Armed', 0], ...GUARD },
-      { t: .12, body: ['Armed', 0], r: [.22, -.24, .10], dir: [-.78, .45, .43], l: .46, spine: [-.05, .08] },
-      { t: .35, body: ['Armed', 0], r: [.24, -.23, .16], dir: [-.78, .45, .43], l: .46, spine: [-.05, .05] },
+      { t: .12, body: ['Armed', 0], r: [-.26, -.24, .18], dir: [.78, .45, .43], l: .46, spine: [-.05, .08] },
+      { t: .35, body: ['Armed', 0], r: [-.26, -.23, .22], dir: [.78, .45, .43], l: .46, spine: [-.05, .05] },
       { t: .65, body: ['Armed', 0], ...GUARD },
       { t: 1, body: ['Armed', 0], ...GUARD },
     ]),
     // Deflected: the thrust is turned aside — tines knocked out to the right and up, the line lost — then the rest grip again.
     make('Trident_Deflected', 1, [
-      { t: 0, body: ['Armed', 0], r: [.20, -.12, .44], dir: [0, .06, 1], l: .22, spine: [-.14, .08] },
-      { t: .12, body: ['Armed', 0], r: [.28, -.20, .16], dir: [.48, .28, .83], l: .30, spine: [.10, 0] },
-      { t: .35, body: ['Armed', 0], r: [.34, -.16, -.06], dir: [.62, .36, .70], l: .36, spine: [.24, -.04] },
-      { t: .65, body: ['Armed', 0], r: [.26, -.30, -.02], dir: [.20, .20, .96], l: .40, spine: [.16, 0] },
+      { t: 0, body: ['Armed', 0], r: [-.22, -.12, .32], dir: [.18, .06, 1], l: .22, spine: [-.14, .08] },
+      { t: .12, body: ['Armed', 0], r: [-.28, -.20, .16], dir: [.48, .28, .83], l: .30, spine: [.10, 0] },
+      { t: .35, body: ['Armed', 0], r: [-.34, -.16, .04], dir: [.62, .36, .70], l: .36, spine: [.24, -.04] },
+      { t: .65, body: ['Armed', 0], r: [-.26, -.30, .10], dir: [.20, .20, .96], l: .40, spine: [.16, 0] },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     loop('Trident_Hit', 'Hit', .333, 4, REST, false),                        // the flinch keeps the pole level (yaw only)
@@ -503,8 +505,8 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, we
   // The rest grip: rear hand at the right hip, the head forward at chest height, blade up — a heavy tool carried ready, the
   // crescent hanging over the opponent. Roll -1.57 brings the transverse blade vertical (edge forward-up; roll 0 laid it
   // sideways like a flag). Variant B's front grip sits at .50.
-  const REST = { r: [.26, -.28, .06], dir: [-.06, .30, .95], l: .50, spine: [.10, 0], roll: -1.57 };
-  const GUARD = { r: [.26, -.20, .26], dir: [-.72, .48, .50], l: .56, spine: [-.06, 0], roll: -1.57 }; // the shaft across the body, head high left, blade up
+  const REST = { r: [-.22, -.28, .10], dir: [.48, .30, .82], l: .50, spine: [.10, 0], roll: -1.57 };
+  const GUARD = { r: [-.26, -.20, .26], dir: [.72, .48, .50], l: .56, spine: [-.06, 0], roll: -1.57 }; // the shaft across the body, head high left, blade up
   const out = [
     loop('Scythe_Idle', 'Armed', 1.667, 8, REST),
     loop('Scythe_Walk', 'ArmedWalk', 1.333, 8, REST),
@@ -514,55 +516,55 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, we
     // task 4, the cleaver lesson); the head travels wide, the whole body commits. Contact at .34 like the sword's cut.
     make('Scythe_Reap', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .16, body: ['Armed', 0], r: [.36, -.24, -.18], dir: [.80, .26, .54], l: .46, spine: [.36, 0], roll: -.5 },
-      { t: .34, body: ['Armed', 0], r: [.02, -.16, .40], dir: [-.20, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },   // contact: the head crosses the centre line at full reach, chest height — the sim's striking segment must sit ON the target line here (the task-4 bake caught it 0.7 m past: the whole active window whiffed); the diagonal blade lay reads from the game camera (vertical was edge-on, flat was along the view axis). The rear hand drives +6 cm further out than the first pass: with keys densified (the grip fix) the arc no longer over-extends between keys, so the authored reach must carry the full 2.10 m frontier on its own
-      { t: .50, body: ['Armed', 0], r: [-.06, -.20, .30], dir: [-.38, .16, .91], l: .44, spine: [-.34, .05], roll: -.9 },   // the sweep continues across: the head stays inside half a metre of the target line through the window's early ticks, so near gaps still meet the arc
+      { t: .16, body: ['Armed', 0], r: [-.30, -.24, -.10], dir: [.80, .26, .54], l: .46, spine: [.36, 0], roll: -.5 },
+      { t: .34, body: ['Armed', 0], r: [-.20, -.16, .30], dir: [-.06, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },   // contact: the head crosses the centre line at full reach, chest height — the sim's striking segment must sit ON the target line here (the task-4 bake caught it 0.7 m past: the whole active window whiffed); the diagonal blade lay reads from the game camera (vertical was edge-on, flat was along the view axis). Rear-hand clearance and shaft angle are paired to preserve the 2.10 m frontier without crossing the torso
+      { t: .50, body: ['Armed', 0], r: [-.24, -.20, .28], dir: [-.24, .16, .91], l: .44, spine: [-.34, .05], roll: -.9 },   // the sweep continues across: the head stays inside half a metre of the target line through the window's early ticks, so near gaps still meet the arc
       { t: .72, body: ['Armed', 0], r: [-.18, -.22, .18], dir: [-.86, .12, .49], l: .46, spine: [-.46, .06], roll: -1.05 },  // full follow-through
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // The high: the headsman's diagonal — raised over the right shoulder, driven down across the front. Contact at .48 like the sword's heavy.
     make('Scythe_High', 1, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .26, body: ['Armed', 0], r: [.24, .36, -.26], dir: [.44, .84, .31], l: .26, spine: [.16, -.10], roll: -1.2 }, // slide the front hand towards the rear grip on the raise: .46 overextended it off the haft
-      { t: .37, body: ['Armed', 0], r: [.30, -.20, -.20], dir: [.72, -.24, .50], l: .45, spine: [.10, .02], roll: -1.0 },   // the descent comes down wide right and LOW, not straight over the crown: the direct raise→contact lerp carried the head through the opponent's skull capsule at close gaps (head-region battery, 2026-09-18). Its forward drive stays short of the contact key's reach so the far frontier doesn't move
-      { t: .48, body: ['Armed', 0], r: [.16, -.08, .28], dir: [-.50, -.44, .78], l: .44, spine: [-.16, .16], roll: -.9 },   // contact: down through the front, blade at the diagonal lay; the drive sits lower than the first pass (dir y -.44 vs -.38) — with densified keys the arc no longer sags between keys, and a faithful play carried the head through the opponent's skull capsule at close range (head-region battery). The leftward carry matches the trunk arc's lateral cross (x ≈ −0.45 at the contact ticks): without it the head end stays inside the target capsule 5 cm past the 2.30 frontier
-      { t: .64, body: ['Armed', 0], r: [.20, -.26, .20], dir: [-.60, -.68, .42], l: .46, spine: [-.18, .18], roll: -1.1 },
+      { t: .26, body: ['Armed', 0], r: [-.24, .36, .24], dir: [.60, .65, .46], l: .26, spine: [.16, -.10], roll: -1.2 }, // raise in front of the shoulder and slide the supporting hand back; never thread it through the chest
+      { t: .37, body: ['Armed', 0], r: [-.30, -.20, .10], dir: [.72, -.24, .50], l: .35, spine: [.10, .02], roll: -1.0 },   // the descent comes down wide right and LOW, not straight over the crown: the direct raise→contact lerp carried the head through the opponent's skull capsule at close gaps (head-region battery, 2026-09-18). Its forward drive stays short of the contact key's reach so the far frontier doesn't move
+      { t: .48, body: ['Armed', 0], r: [-.24, -.01, .125], dir: [-.18, -.44, .78], l: .44, spine: [-.16, .16], roll: -.9 },   // contact: down through the front, blade at the diagonal lay; the drive sits lower than the first pass (dir y -.44 vs -.38) — with densified keys the arc no longer sags between keys, and a faithful play carried the head through the opponent's skull capsule at close range (head-region battery). The leftward carry matches the trunk arc's lateral cross (x ≈ −0.45 at the contact ticks): without it the head end stays inside the target capsule 5 cm past the 2.30 frontier
+      { t: .64, body: ['Armed', 0], r: [-.22, -.14, .20], dir: [-.20, -.68, .50], l: .30, spine: [-.18, .18], roll: -1.1 },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // The heel-jab: no thrust exists on this weapon — the head punches forward short and level, the blade's heel is what meets you.
     // The blade trails (roll +1.57) so the heel leads. Contact at .34. (The Stab button's mapping; combat lead's nod pending.)
     make('Scythe_Thrust', .8, [
       { t: 0, body: ['Armed', 0], ...REST },
-      { t: .16, body: ['Armed', 0], r: [.30, -.26, -.12], dir: [-.04, .44, .90], l: .46, spine: [.18, 0], roll: -2.3 },
-      { t: .34, body: ['Armed', 0], r: [.10, -.14, .38], dir: [0, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },          // contact: head level, straight in front, the blade hooked up-back — the heel leads
-      { t: .52, body: ['Armed', 0], r: [.10, -.14, .38], dir: [0, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },
+      { t: .16, body: ['Armed', 0], r: [-.28, -.26, .10], dir: [.40, .44, .90], l: .46, spine: [.18, 0], roll: -2.3 },
+      { t: .34, body: ['Armed', 0], r: [-.24, -.14, .23], dir: [.12, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },          // contact: head level, straight in front, the blade hooked up-back — the heel leads
+      { t: .52, body: ['Armed', 0], r: [-.24, -.14, .23], dir: [.12, .08, 1], l: .38, spine: [-.12, .04], roll: -2.0 },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     // The chain: off the jab, the head whips across into a short reap — the same arc as the reap, half size.
     make('Scythe_Chain', .8, [
-      { t: 0, body: ['Armed', 0], r: [.20, -.18, .20], dir: [-.06, .24, .97], l: .40, spine: [.04, 0], roll: -.6 },
-      { t: .30, body: ['Armed', 0], r: [-.02, -.20, .28], dir: [-.18, .16, .97], l: .44, spine: [-.22, .04], roll: -.8 },   // contact: the head on the centre line (same bake lesson as the reap — the short arc must still cross at the contact key)
-      { t: .52, body: ['Armed', 0], r: [-.14, -.22, .16], dir: [-.80, .14, .58], l: .46, spine: [-.34, .04], roll: -1.0 },
+      { t: 0, body: ['Armed', 0], r: [-.20, -.18, .28], dir: [.20, .24, .97], l: .40, spine: [.04, 0], roll: -.6 },
+      { t: .30, body: ['Armed', 0], r: [-.24, -.20, .28], dir: [-.04, .16, .97], l: .44, spine: [-.22, .04], roll: -.8 },   // contact: the head on the centre line (same bake lesson as the reap — the short arc must still cross at the contact key)
+      { t: .52, body: ['Armed', 0], r: [-.24, -.22, .28], dir: [-.80, .14, .58], l: .46, spine: [-.34, .04], roll: -1.0 },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
     make('Scythe_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
     // Block impact: the blow lands on the shaft — hands shoved back, chest folds — then settles.
     make('Scythe_BlockImpact', 1, [
       { t: 0, body: ['Armed', 0], ...GUARD },
-      { t: .12, body: ['Armed', 0], r: [.22, -.22, .12], dir: [-.72, .48, .50], l: .56, spine: [-.06, .08], roll: -1.57 },
-      { t: .35, body: ['Armed', 0], r: [.24, -.21, .18], dir: [-.72, .48, .50], l: .56, spine: [-.06, .05], roll: -1.57 },
+      { t: .12, body: ['Armed', 0], r: [-.26, -.22, .18], dir: [.72, .48, .50], l: .56, spine: [-.06, .08], roll: -1.57 },
+      { t: .35, body: ['Armed', 0], r: [-.26, -.21, .22], dir: [.72, .48, .50], l: .56, spine: [-.06, .05], roll: -1.57 },
       { t: .65, body: ['Armed', 0], ...GUARD },
       { t: 1, body: ['Armed', 0], ...GUARD },
     ]),
     // Deflected: the reap is turned aside — the head knocked out wide right, the arc lost — then the rest grip.
     make('Scythe_Deflected', 1, [
-      { t: 0, body: ['Armed', 0], r: [.02, -.16, .40], dir: [-.20, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },
-      { t: .12, body: ['Armed', 0], r: [.30, -.18, .14], dir: [.50, .22, .84], l: .50, spine: [.12, 0], roll: -.5 },
-      { t: .35, body: ['Armed', 0], r: [.36, -.14, -.08], dir: [.66, .30, .68], l: .52, spine: [.28, -.04], roll: -.4 },
-      { t: .65, body: ['Armed', 0], r: [.28, -.26, -.04], dir: [.22, .22, .95], l: .50, spine: [.16, 0], roll: -1.57 },
+      { t: 0, body: ['Armed', 0], r: [-.20, -.16, .30], dir: [-.06, .14, .96], l: .42, spine: [-.20, .04], roll: -.8 },
+      { t: .12, body: ['Armed', 0], r: [-.30, -.18, .14], dir: [.50, .22, .84], l: .50, spine: [.12, 0], roll: -.5 },
+      { t: .35, body: ['Armed', 0], r: [-.34, -.14, .04], dir: [.66, .30, .68], l: .52, spine: [.28, -.04], roll: -.4 },
+      { t: .65, body: ['Armed', 0], r: [-.26, -.26, .10], dir: [.22, .22, .95], l: .50, spine: [.16, 0], roll: -1.57 },
       { t: 1, body: ['Armed', 0], ...REST },
     ]),
-    loop('Scythe_Hit', 'Hit', .333, 4, REST, false),                          // the flinch keeps the head up (yaw only)
+    loop('Scythe_Hit', 'Hit', .333, 4, { ...REST, l: .36 }, false),                          // the flinch keeps the head up (yaw only)
     loop('Scythe_Death', 'Death', 2.4, 10, { ...REST, follow: 'full' }, false), // the tool goes down with him
   ];
   return out;
