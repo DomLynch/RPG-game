@@ -162,6 +162,21 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         spectral?.(step, dead, progress);
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
+        // The enlarged Wraith lowers its attacking arm toward the original strike height.
+        // Blend through wind-up/recovery; keep its body, grip and simulation untouched.
+        if (spectral && upperArm?.parent && pose === 'attack') {
+          root.updateWorldMatrix(true, true);
+          const middle = blade.localToWorld(new Vector3(0, (segment[0] + segment[1]) / 2, 0));
+          const target = root.worldToLocal(middle.clone()); target.y /= root.scale.y;
+          root.localToWorld(target);
+          const parent = upperArm.parent;
+          const from = parent.worldToLocal(middle).sub(upperArm.position).normalize();
+          const to = parent.worldToLocal(target).sub(upperArm.position).normalize();
+          const amount = Math.max(0, Math.min(1, progress * 8, (1 - progress) * 6));
+          aimedRotation = upperArm.quaternion.clone();
+          upperArm.quaternion.premultiply(new Quaternion().slerp(new Quaternion().setFromUnitVectors(from, to), amount));
+          root.updateWorldMatrix(true, true);
+        }
         trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;
         if (trail.visible && step > 0) {
           anchor.updateWorldMatrix(true, true);
