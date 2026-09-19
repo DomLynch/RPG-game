@@ -7,8 +7,8 @@ import { initialPractice, stepPractice, OPPONENTS } from '../src/combat.ts';
 
 const passive = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
 const idle = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: null };
-function contact(target, fatal) {
-  let practice = initialPractice(731, OPPONENTS.skeleton), lastHit = -1000;
+function contact(target, fatal, opponent = 'skeleton') {
+  let practice = initialPractice(731, OPPONENTS[opponent]), lastHit = -1000;
   const initial = practice;
   for (let tick = 0; tick < 7200; tick++) {
     const before = practice, intent = { ...idle };
@@ -19,16 +19,16 @@ function contact(target, fatal) {
       if (Math.hypot(dx, dz) > 1.9) intent.move = { x: dx, z: dz, yaw: Math.atan2(dx, dz), run: false };
       else if (target === 1 && tick - lastHit > 200) intent.action = 'heavy';
     }
-    practice = stepPractice(practice, intent, target === 1 ? passive : OPPONENTS.skeleton.profiles.hard);
+    practice = stepPractice(practice, intent, target === 1 ? passive : OPPONENTS[opponent].profiles.hard);
     if (practice.events.some(e => e.type === 'Hit' && e.actor === 0)) lastHit = tick;
     if (practice.events.some(e => e.target === target && e.type === (fatal ? 'Killed' : 'Hit'))) return { initial, before, after: practice };
     if (practice.finish) break;
   }
   throw Error(`No real ${fatal ? 'fatal' : 'ordinary'} contact against side ${target}`);
 }
-const contacts = [contact(1, false), contact(1, true), contact(0, false)];
+const contacts = [contact(1, false), contact(1, true), contact(0, false)], werewolfContact = contact(1, false, 'werewolf');
 if (process.argv.includes('--simulation-only')) {
-  console.log(JSON.stringify(contacts.map(c => ({ tick: c.after.duel.tick, events: c.after.events }))));
+  console.log(JSON.stringify([...contacts, werewolfContact].map(c => ({ tick: c.after.duel.tick, events: c.after.events }))));
 } else {
   const dir = 'artifacts/character/werewolf-skeleton/impacts';
   await fs.mkdir(dir, { recursive: true });
@@ -65,8 +65,9 @@ if (process.argv.includes('--simulation-only')) {
         view.render(frames.after.fighter, true, 1 / 60, frames.after, frames.after.events);
         const sparks = window.scene.children.find(o => o.isPoints && o.geometry.attributes.position.count === 12);
         const pools = window.scene.children.filter(o => o.isMesh && o.geometry.type === 'PlaneGeometry' && o.geometry.parameters.width === 2 && o.material.map && o.visible);
-        return { wounds: [0, 1].map(i => window.scene.getObjectByName(`Wound_${i}`).visible), pools: pools.length, impact: sparks.material.color.getHexString(), blood: view.bloodState() };
+        return { wounds: [0, 1].map(i => window.scene.getObjectByName(`Wound_${i}`).visible), pools: pools.length, impact: sparks.material.color.getHexString(), blood: view.bloodState(), framing: [0, .9, 1.8].map(y => view.project([frames.after.enemy.x, y, frames.after.enemy.z])) };
       }, { mode, frames });
+      assert.ok(state.framing.every(p => p && p[0] >= 0 && p[0] <= 852 && p[1] >= 0 && p[1] <= 393), 'settled camera frames the Skeleton from feet to head');
       const flesh = index === 2 && mode !== 'off';
       assert.deepEqual(state.wounds, [flesh, false], 'only the living player has a bleeding wound');
       assert.equal(state.pools, flesh ? 1 : 0, 'Skeleton never leaves blood splats or a death pool');
@@ -76,8 +77,7 @@ if (process.argv.includes('--simulation-only')) {
       receipt.checks.push({ mode, contact: index, ...state });
     }
     // Matching arena preview for the other new creature, using its actual simulation and rig.
-    let werewolf = initialPractice(731, OPPONENTS.werewolf);
-    for (let tick = 0; tick < 120; tick++) werewolf = stepPractice(werewolf, { ...idle, action: werewolf.fighter.phase === 'sheathed' ? 'light' : null }, passive);
+    const werewolf = werewolfContact.before;
     await page.goto(`${origin}/impact-harness?opponent=werewolf`);
     await page.waitForFunction(() => !!window.view, null, { timeout: 90000 });
     for (const viewport of [{ width: 852, height: 393 }, { width: 393, height: 852 }]) {
