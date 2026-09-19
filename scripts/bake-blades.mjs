@@ -15,6 +15,7 @@ for(const entry of manifest.weapons) {
  json.images=[];json.textures=[];json.materials=json.materials.map(m=>({name:m.name}));
  json.buffers[0].uri='data:application/octet-stream;base64,'+bytes.subarray(28+size).toString('base64');
  const asset=await new GLTFLoader().parseAsync(JSON.stringify(json),''), mixer=new AnimationMixer(asset.scene), blade=asset.scene.getObjectByName(entry.node);
+ if(entry.scale) asset.scene.scale.multiplyScalar(entry.scale);
  if(!blade) throw new Error(`blade-manifest: ${entry.glb} has no node ${entry.node}`);
  // The striking segment: the node's extras.contact wins over the manifest (a trident's tines, not its shaft).
  const contact=blade.userData?.contact ? [blade.userData.contact.from, blade.userData.contact.to] : entry.contact;
@@ -22,10 +23,10 @@ for(const entry of manifest.weapons) {
  const paths={};
  for(const [kind,spec] of Object.entries(weapon.paths)) {
   const length=total(spec),clip=asset.animations.find(c=>c.name===spec.clip); if(!clip) throw new Error(`${entry.glb} has no clip ${spec.clip} for ${entry.weapon}/${kind}`);
-  const action=mixer.clipAction(clip).play();
+  const action=mixer.clipAction(clip).play(), override=blade.userData.contactByClip?.[spec.clip], strike=override?[override.from,override.to]:contact;
   paths[kind]=Array.from({length:length+1},(_,age)=>{
    mixer.setTime(Math.min(.999999,swingProgress(age/length,spec.windup/length,spec.source))*clip.duration);asset.scene.updateMatrixWorld(true);
-   return contact.flatMap(y=>blade.localToWorld(new Vector3(0,y,0)).toArray().map(v=>+v.toFixed(5)));
+   return strike.flatMap(y=>blade.localToWorld(new Vector3(0,y,0)).toArray().map(v=>+v.toFixed(5)));
   });action.stop();mixer.uncacheClip(clip);
  }
  tables[entry.weapon]=paths;

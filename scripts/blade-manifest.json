@@ -1,11 +1,13 @@
 {
   "_comment": "One entry per weapon: the rig that carries it, the node whose local Y runs along the striking part, and the contact segment (metres along that Y) the simulation sweeps. If the node carries extras.contact = { from, to } in the GLB it overrides `contact` here. The weapons lane adds an entry per weapon; scripts/bake-blades.mjs writes src/blade-paths.ts keyed by weapon.",
   "weapons": [
-    { "weapon": "longsword", "glb": "src/assets/warrior.glb", "node": "SwordDrawn", "contact": [0.18, 0.86] },
-    { "weapon": "trident", "glb": "src/assets/veteran.glb", "node": "WeaponDrawn", "contact": [0.76, 1.22] },
-    { "weapon": "cleaver", "glb": "src/assets/weapons/cleaver/veteran-cleaver.glb", "node": "WeaponDrawn", "contact": [0.14, 0.86] },
-    { "weapon": "knife", "glb": "src/assets/goblin.glb", "node": "WeaponDrawn", "contact": [0.12, 0.52] },
-    { "weapon": "estoc", "glb": "src/assets/weapons/estoc/nightborn-estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15] },
-    { "weapon": "scythe", "glb": "src/assets/weapons/scythe/warrior-scythe.glb", "node": "WeaponDrawn", "contact": [1.22, 1.32] }
+    {"weapon": "longsword", "glb": "src/assets/warrior.glb", "node": "SwordDrawn", "contact": [0.18, 0.86]},
+    {"weapon": "trident", "glb": "src/assets/veteran.glb", "node": "WeaponDrawn", "contact": [0.76, 1.22]},
+    {"weapon": "cleaver", "glb": "src/assets/weapons/cleaver/veteran-cleaver.glb", "node": "WeaponDrawn", "contact": [0.14, 0.86]},
+    {"weapon": "knife", "glb": "src/assets/goblin.glb", "node": "WeaponDrawn", "contact": [0.12, 0.52]},
+    {"weapon": "estoc", "glb": "src/assets/weapons/estoc/nightborn-estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15]},
+    {"weapon": "scythe", "glb": "src/assets/weapons/scythe/warrior-scythe.glb", "node": "WeaponDrawn", "contact": [1.22, 1.32]},
+    {"weapon": "maul", "glb": "src/assets/minotaur.glb", "node": "WeaponDrawn", "contact": [0.73, 1.11], "scale": 1},
+    {"weapon": "claws", "glb": "src/assets/wraith.glb", "node": "WeaponDrawn", "contact": [0.04, 0.22], "scale": 1.5}
   ]
 }

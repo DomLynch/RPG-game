@@ -134,11 +134,6 @@
     ],
     [
       "node",
-      "scripts/character-pilots.mjs",
-      "--build"
-    ],
-    [
-      "node",
       "scripts/creature-check.mjs"
     ],
     [
@@ -154,6 +149,14 @@
       "--no-video",
       "--label",
       "blood-gate"
+    ],
+    [
+      "node",
+      "scripts/creature-weapon-pose-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/bell-start-check.mjs"
     ],
     [
       "node",
@@ -207,10 +210,6 @@
       "--no-video",
       "--label",
       "decap-front-goblin-gate"
-    ],
-    [
-      "node",
-      "scripts/bell-start-check.mjs"
     ],
     [
       "node",

@@ -99,7 +99,7 @@ window.__finisher = {
     const detachedHead = headBox ? {center:view.project(headBox.getCenter(new Vector3()).toArray()),frame:[headBox.min.x,headBox.max.x].flatMap(x=>[headBox.min.y,headBox.max.y].flatMap(y=>[headBox.min.z,headBox.max.z].map(z=>view.project([x,y,z]))))} : null;
     const crown = renderedScene?.getObjectByName('SplitCrown');
     const opened = renderedScene?.getObjectByName('Opened');
-    const dropped=opened?.getObjectByName('OpenedWeapon'), weaponBox=dropped ? new Box3().setFromObject(dropped,true) : null;
+    const dropped=opened?.getObjectByName('OpenedWeapon'), weaponBox=dropped?.children.length ? new Box3().setFromObject(dropped,true) : null;
     const pieces = opened?.children.filter(o=>o.name!=='OpenedWeapon').map(half => {
       const box = new Box3().setFromObject(half,true);
       return {name:half.name,visible:half.visible,opacity:half.getObjectByName('CreatureBody')?.material.opacity ?? 1,min:box.min.toArray(),max:box.max.toArray(),caps:half.children.filter(o=>o.name==='WaistCut').length,
@@ -246,8 +246,11 @@ try {
             assert.ok(opened.pieces.every(p=>p.min[1]>-.015),'no half sinks through the floor');
             if(suffix === 'settled') {
               assert.ok(opened.pieces.every(p=>p.min[1]<.04),'both halves land');
-              assert.ok(opened.weapon.min[1]>-.015 && opened.weapon.max[1]<.5,'victim weapon drops flat');
-              assert.ok(opened.weapon.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700),'dropped weapon remains in the portrait frame');
+              if(opponent==='wraith') assert.equal(opened.weapon,null,'bare claws leave no detached weapon');
+              else {
+                assert.ok(opened.weapon.min[1]>-.015 && opened.weapon.max[1]<.5,'victim weapon drops flat');
+                assert.ok(opened.weapon.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700),'dropped weapon remains in the portrait frame');
+              }
               assert.ok(opened.pieces.every(p=>p.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700)),'entire corpse clears portrait controls');
             }
           }
