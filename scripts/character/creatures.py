@@ -100,6 +100,13 @@ mesh.data.update()
 bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 bpy.context.view_layer.objects.active = mesh
+# The reconstruction duplicates vertices at UV islands. Weld coincident geometry
+# before decimation so islands cannot simplify apart and open cracks when posed.
+# Blender stores UVs per face corner, so their texture seams remain intact.
+bpy.ops.object.mode_set(mode="EDIT")
+bpy.ops.mesh.select_all(action="SELECT")
+bpy.ops.mesh.remove_doubles(threshold=0.00001)
+bpy.ops.object.mode_set(mode="OBJECT")
 mesh.data.calc_loop_triangles()
 tris = len(mesh.data.loop_triangles)
 if tris > 45000:
