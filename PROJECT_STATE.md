@@ -3,6 +3,31 @@
 ## Veteran material polish — 2026-09-19
 Owner requested enhancement of the working Veteran without rebuilding him. Retained original generated bronze/leather albedo source tiles, added a reproducible Veteran-only bake, and refined bronze wear, leather grain and linen relief. Only embedded material images change: matched-baseline audit proves mesh, skin, rig, all animations, material bindings and other image payloads remain exact. Repeated bake produces byte-identical maps and GLB. Matched actual-WebGL portrait, detail, motion and phone-camera comparisons are in `artifacts/character/veteran-polish/`. The initial golden pass was rejected; final finish is neutral worn bronze. Integrated creature-weapons trunk68ccdf2. Full quality passes293/293 tests, lint/build/dependency audit/browser and9,734,254-byte worst-fight gzip budget; supplementary gates1–13 plus CPU creature integrity pass; remaining browser gates are paused for the lead-owned graphics/release window. PR172 remains draft and this polish is not published. GLB8,156,620 bytes /4,439,218 gzip. Initial combined build exceeded10 MB by2,399 bytes; JPEG82 reduces weight without changing map resolution and was re-reviewed in matched close-ups. GitHub CI did not start because of account billing/spending limits. Physical-device appearance/performance remains an owner check.
 
+## Ordered lead cleanup — 2026-09-19 (PR #171)
+Owner requested readability, existing-recipe cleanup, obsolete QA retirement, then reliability/product gaps.
+The main/scene TypeScript syntax trees and parsed CSS rules were preserved while unpacking dense formatting.
+Input/audio tests retain their behavioral requirements across formatting; missing-event and touch-rule mutations fail.
+Equipment defaults now live in appearance presets; Veteran/Executioner rebuilds are byte-identical to baseline.
+Retired the rejected procedural pilot generator/check (508 source lines). Actual shipped-creature integrity and
+browser gates remain, including both rigs and 250 sampled poses.
+
+Startup now preserves the original renderer exception and stack while retaining the friendly fallback. The regression
+fails before the change and passes after it; actual Chromium with WebGL disabled verifies the original error and disabled
+combat. Audio e867 is integrated, including Draw-only bell behavior. All 24 configured commands passed on 17218e6:
+291 tests, typecheck/lint/audit, gameplay/recovery/layout, finishers, account/database, audio and creature checks.
+Independent clean Node 22 and real PostgreSQL checks also pass. The subsequent review-record edits were documentation/comments only.
+The final pre-merge check then found published weapons revision 68ccdf2. It is integrated with its new creature-weapon
+pose gate retained; the combined 25-command contract is revalidated before publication. Release-window coordination
+is explicit in AGENTS.md so every active lane is included before the lead reserves the shared GPU/release window.
+Deployment and public verification receipts are maintained under artifacts/cleanup/ and PR #171; served release.json
+identifies the published revision. GitHub's hosted job was billing-blocked before start; it is not reported green.
+
+The owner permits up to 12 MB per fight when needed; the separate 32 MB distribution cap is unchanged.
+Release-specific Sentry triage and remaining acceptance: docs/reliability-audit.md. Physical-phone and external-player
+validation remain unpassed. Career practice-win award policy awaits owner confirmation; no rank ledger or end-game
+system was added. The shared automatic hook's 420-second ceiling is shorter than this 1,111-second full suite;
+all commands were run directly without deleting checks or altering shared enforcement.
+
 ## Creature weapons — weapons lane, 2026-09-19
 Owner enables stone maul for Minotaur and bare claws for Wraith. Additive offline authoring preserves original creature surfaces/maps/weights and old clips. Twelve new clips per creature cover ready/gaits/attacks/guard/reactions/death/roll/kick. Maul front hand slides within reach; Wraith contact is derived from actual hand/finger vertices and includes its existing 1.5 presentation scale in the bake. Maul shove samples the haft, other attacks sample the stone head. New geometry/contact regression covers all new clips, exact baked/rendered paths, close hits and measured outer misses. Existing head-region grid now uses each weapon's actual timing instead of the sword clock; all previous expected regions remain pinned. All26 configured local gates passed, including real-game creature damage/death/rematch. Integrated draw-bell trunk e8670fa; full quality293/293 and both affected audio gates pass. Final front/side/rear pose sheets reviewed. Creature browser gate now selects full Chromium consistently with the combat gate; default headless-shell timing failures and diagnostics are retained. GitHub Actions did not start because of account billing/spending limits; no CI success claimed. Full contract and deployment receipts: artifacts/weapons/creature-weapons/. Public release authority remains release.json plus live/receipt.json; physical handset review remains owner-only.
 
