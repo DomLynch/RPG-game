@@ -35,17 +35,18 @@ if (process.argv.includes('--simulation-only')) {
   const server = await createServer({ server: { host: '127.0.0.1', port: 0 } }); await server.listen();
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
   const software = process.argv.includes('--software');
-  const browser = await chromium.launch({ headless: true, args: software ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+  const browser = await chromium.launch({ headless: true, args: software ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
   const receipt = { software, physicalPhone: false, checks: [], errors: [] };
   try {
     const page = await browser.newPage({ viewport: { width: 852, height: 393 } });
     page.on('pageerror', error => receipt.errors.push(String(error)));
+    page.on('console', message => { if (message.type() === 'error' && /shader|WebGL|THREE/.test(message.text())) receipt.errors.push(message.text()); });
     await page.route('**/*sentry.io/**', route => route.abort());
-    await page.route(`${origin}/impact-harness`, route => route.fulfill({ contentType: 'text/html', body: `<style>body{margin:0}canvas{width:100vw;height:100vh}</style><canvas id="world"></canvas><script type="module">
+    await page.route(`${origin}/impact-harness*`, route => route.fulfill({ contentType: 'text/html', body: `<style>body{margin:0}canvas{width:100vw;height:100vh}</style><canvas id="world"></canvas><script type="module">
       import {createScene} from '/src/scene.ts';
-      const view=createScene(document.querySelector('canvas'),()=>{},'skeleton');
+      const view=createScene(document.querySelector('canvas'),()=>{},new URL(location.href).searchParams.get('opponent') || 'skeleton');
       const render=view.renderer.render.bind(view.renderer);
-      view.renderer.render=(scene,camera)=>{window.scene=scene;render(scene,camera)};
+      view.renderer.render=(scene,camera)=>{window.scene=scene;if(window.present!==false)render(scene,camera)};
       await view.ready; window.view=view;
     </script>` }));
     await page.goto(`${origin}/impact-harness`);
@@ -56,7 +57,11 @@ if (process.argv.includes('--simulation-only')) {
       const state = await page.evaluate(({ mode, frames }) => {
         const { view } = window;
         view.setBloodMode(mode);
-        for (const p of [frames.initial, frames.before]) view.render(p.fighter, true, 0, p, []);
+        window.present = false;
+        view.render(frames.initial.fighter, true, 0, frames.initial, []);
+        // Settle the follow camera at the actual pre-contact state without spending GPU frames.
+        for (let frame = 0; frame < 180; frame++) view.render(frames.before.fighter, true, 1 / 60, frames.before, [], true);
+        window.present = true;
         view.render(frames.after.fighter, true, 1 / 60, frames.after, frames.after.events);
         const sparks = window.scene.children.find(o => o.isPoints && o.geometry.attributes.position.count === 12);
         const pools = window.scene.children.filter(o => o.isMesh && o.geometry.type === 'PlaneGeometry' && o.geometry.parameters.width === 2 && o.material.map && o.visible);
@@ -69,6 +74,16 @@ if (process.argv.includes('--simulation-only')) {
       assert.equal(state.blood.emitted, 0, 'unsupported creature finishers never emit wound jets');
       await page.screenshot({ path: `${dir}/${mode}-${['skeleton-hit', 'skeleton-death', 'player-hit'][index]}.png` });
       receipt.checks.push({ mode, contact: index, ...state });
+    }
+    // Matching arena preview for the other new creature, using its actual simulation and rig.
+    let werewolf = initialPractice(731, OPPONENTS.werewolf);
+    for (let tick = 0; tick < 120; tick++) werewolf = stepPractice(werewolf, { ...idle, action: werewolf.fighter.phase === 'sheathed' ? 'light' : null }, passive);
+    await page.goto(`${origin}/impact-harness?opponent=werewolf`);
+    await page.waitForFunction(() => !!window.view, null, { timeout: 90000 });
+    for (const viewport of [{ width: 852, height: 393 }, { width: 393, height: 852 }]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate(p => { window.present = false; for (let i = 0; i < 180; i++) window.view.render(p.fighter, true, 1 / 60, p, [], true); window.present = true; window.view.render(p.fighter, true, 1 / 60, p, []); }, werewolf);
+      await page.screenshot({ path: `${dir}/werewolf-${viewport.width}.png` });
     }
     assert.deepEqual(receipt.errors, []); receipt.passed = true;
     console.log('Skeleton and player real-scene impacts PASS in red/dark/off');
