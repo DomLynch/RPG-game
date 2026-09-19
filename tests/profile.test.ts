@@ -31,10 +31,29 @@ test('names remove controls, trim and enforce a short visible identity', () => {
 test('the ladder rung reached on this device survives reload, and a bad rung is dropped rather than trusted', () => {
   const store = new Map<string, string>(), storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v); } };
   const first = loadProfile(storage, () => 'abcdefgh').profile;
-  first.ladder = 'pitborn'; assert.equal(saveProfile(storage, first), true);
-  assert.equal(loadProfile(storage, () => 'x').profile.ladder, 'pitborn');
+  first.encounter = 'pitborn'; assert.equal(saveProfile(storage, first), true);
+  assert.equal(loadProfile(storage, () => 'x').profile.encounter, 'pitborn');
   store.set('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'abcdefgh', name: 'A', ladder: 'Not a rung!' }));
-  assert.equal(loadProfile(storage, () => 'x').profile.ladder, undefined);
+  assert.equal(loadProfile(storage, () => 'x').profile.encounter, undefined);
   store.set('frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'abcdefgh', name: 'A' }));
-  assert.equal(loadProfile(storage, () => 'x').profile.ladder, undefined, 'older profiles without a rung still load');
+  assert.equal(loadProfile(storage, () => 'x').profile.encounter, undefined, 'older profiles without a rung still load');
+});
+
+
+test('legacy encounter migration preserves identity and never awards career marks', () => {
+  const saved = { version: 1, id: 'guest-12345678', name: 'Aldren', ladder: 'nightborn' };
+  let raw = JSON.stringify(saved);
+  const storage = { getItem: () => raw, setItem: (_: string, v: string) => { raw = v; } };
+  const { profile, returning } = loadProfile(storage, () => { throw Error('identity lost'); });
+  assert.equal(returning, true); assert.equal(profile.encounter, 'nightborn');
+  assert.equal(profile.career, undefined);
+  profile.career = { victoryMarks: 12 }; profile.encounter = 'goblin';
+  saveProfile(storage, profile);
+  assert.equal(JSON.parse(raw).ladder, 'goblin', 'older releases can still read the selected encounter after rollback');
+  assert.deepEqual(loadProfile(storage, () => '').profile, profile);
+  for (const victoryMarks of [-1, 0.5, '12', null, Number.MAX_SAFE_INTEGER + 1]) {
+    raw = JSON.stringify({ ...saved, encounter: 'executioner', career: { victoryMarks } });
+    const result = loadProfile(storage, () => '').profile;
+    assert.equal(result.encounter, 'executioner'); assert.equal(result.career, undefined);
+  }
 });

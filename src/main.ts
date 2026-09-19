@@ -1,12 +1,12 @@
 import { swipeAction, type Flick } from './gestures.ts';
-import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordRematch, saveTrial } from './trial.ts';
+import { LABELS, SCHEMES, formatCard, loadTrial, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILES, type Action, type CombatEvent } from './combat.ts';
-import { RULES } from './moves.ts';
+import { ROSTER } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -61,8 +61,8 @@ function applyScheme() {
   element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`; element('controls-mode').setAttribute('aria-pressed', String(ring8())); lastHud = '';
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
-// Who stands opposite: the rung this device has reached (profile.ladder), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
-const opponent = opponentFor(profile.ladder, /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]);
+// Who stands opposite: the rung this device has reached (profile.encounter), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
+const opponent = opponentFor(profile.encounter, /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1]);
 // Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
 // URL override is dropped so the pick wins. Picking the Veteran is a reset.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
@@ -70,7 +70,7 @@ for (const rung of LADDER) { const option = document.createElement('option') as 
 opponentSelect.value = opponent.id;
 opponentSelect.addEventListener('change', () => {
   const pick = LADDER.find(rung => rung.id === opponentSelect.value); if (!pick) return;
-  profile.ladder = pick.id; persist();
+  profile.encounter = pick.id; persist();
   const url = new URL(location.href); url.searchParams.delete('opponent'); location.replace(url.href);
 });
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
@@ -84,7 +84,7 @@ const finisherSelect = element<HTMLSelectElement>('finisher-select');
 { const auto = document.createElement('option') as HTMLOptionElement; auto.value = 'auto'; auto.textContent = 'Auto (spec)'; finisherSelect.append(auto); }
 for (const [id, label] of FINISHER_OPTIONS) { const option = document.createElement('option') as HTMLOptionElement; option.value = id; option.textContent = label; finisherSelect.append(option); }
 finisherSelect.addEventListener('change', () => { const value = finisherSelect.value; view.setFinisherOverride(value === 'auto' ? null : value as FinisherId); });
-if (opponent.id !== 'veteran') { const label = element('opponent-name'), name = opponent.id.charAt(0).toUpperCase() + opponent.id.slice(1); label.textContent = `THE ${name.toUpperCase()}`; label.dataset.mobile = name; }
+if (opponent.id !== 'veteran') { const label = element('opponent-name'), name = ROSTER[opponent.id].name.replace(/^the /, ''); label.textContent = `THE ${name.toUpperCase()}`; label.dataset.mobile = name; }
 let matchSeed = 731, practice = initialPractice(matchSeed, opponent), state = practice.fighter, previous = state, accumulator = 0, locked = true;
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
 let action: Action | null = null, guard = false, guardId: number | null = null, cancel = false, assetsReady = false, graphicsLost = false, lastHud = '';
@@ -329,7 +329,7 @@ guardButton.addEventListener('keyup', () => { guard = false; });
 guardButton.addEventListener('blur', () => { guard = false; if (action === 'parry') action = null; });
 resetButton.addEventListener('click', () => {
   const next = won(practice.finish) ? nextAfter(opponent.id) : undefined;
-  if (next) { profile.ladder = next.id; persist(); location.reload(); return; }   // the next fighter is another rig: a fresh page loads it
+  if (next) { profile.encounter = next.id; persist(); location.reload(); return; }   // the next fighter is another rig: a fresh page loads it
   clearInput(); recordRematch(trial, scheme); saveTrial(storage, trial); recorded = false; activeMs = 0; matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0; practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter; view.recenter(); canvas.focus(); });
 element('difficulty').addEventListener('click', () => { const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[]; difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length]; element('difficulty').textContent = `Warden: ${difficulty}`; });
 element('debug-mode').addEventListener('click', () => { debug = !debug; element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`; element('debug-mode').setAttribute('aria-pressed', String(debug)); lastHud = ''; });
@@ -425,12 +425,13 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, opponent.profiles[difficulty]);
+      if (debug && practice.events.length) window.dispatchEvent(new CustomEvent('frankendom:combat', { detail: { events: practice.events, health: practice.playerHealth, enemy: practice.health } }));
       feedback.update(practice.events); frameEvents.push(...practice.events); floatDamage(practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;
       if (action) sent = action;
       action = null; cancel = false; state = practice.fighter; accumulator -= step();
-      if (practice.finish && !recorded) { recorded = true; recordFight(trial, scheme, practice.finish.victim === 1 && !practice.finish.draw, practice.duel.tick, RULES.health - practice.health, RULES.health - practice.playerHealth, Math.round(activeMs)); saveTrial(storage, trial); }
+      if (practice.finish && !recorded) { recorded = true; recordPractice(trial, scheme, practice, Math.round(activeMs)); saveTrial(storage, trial); }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
       const stop = stopFor(practice.events); if (stop) { hitStop = stop; accumulator = 0; previous = state; }

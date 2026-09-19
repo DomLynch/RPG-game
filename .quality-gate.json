@@ -10,5 +10,11 @@
     "Desktop and mobile browser movement/camera/persistence/failure checks",
     "Live HTTPS, asset and release parity",
     "Two-pass code review"
+  ],
+  "completion_commands": [
+    [
+      "node",
+      "scripts/roster-browser-check.mjs"
+    ]
   ]
 }

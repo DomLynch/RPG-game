@@ -1,6 +1,8 @@
+import { initialPractice } from '../src/combat.ts';
+import { OPPONENTS } from '../src/moves.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordRematch, saveTrial } from '../src/trial.ts';
+import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from '../src/trial.ts';
 
 const memory = (initial?: string) => { let value = initial ?? null; return { getItem: () => value, setItem: (_k: string, v: string) => { value = v; } }; };
 
@@ -23,4 +25,18 @@ test('the scorecard reads as one line per played scheme with average duel length
   recordFight(trial, 'cluster', true, 1800, 100, 30, 33400);
   assert.match(formatCard(trial), /thumb cluster — 1 fights · 1 won · 1 rematches · 30 s avg \(33 s real\)/);
   assert.equal(loadTrial(memory(JSON.stringify({ scheme: 'cluster', card: { cluster: { fights: 1, wins: 1, rematches: 0, ticks: 900, dealt: 100, taken: 20 } } }))).card.cluster!.active, 0, 'a card saved before the wall-clock field loads with 0');
+});
+
+
+test('scorecard uses each fighter ceiling, including the 190 HP Pitborn', () => {
+  const trial = loadTrial(memory());
+  const practice = initialPractice(731, OPPONENTS.pitborn);
+  practice.health = 170;
+  recordPractice(trial, 'cluster', practice, 1000);
+  assert.equal(trial.card.cluster!.dealt, 20, 'must not record -20');
+  practice.health = 0; practice.maxHealth = 180; practice.playerHealth = 160;
+  practice.finish = { victim: 1, location: 'torso', move: 'light_right', heading: 0 };
+  recordPractice(trial, 'cluster', practice, 2000);
+  assert.equal(trial.card.cluster!.dealt, 210, 'the kill adds all 190 HP');
+  assert.equal(trial.card.cluster!.taken, 20); assert.equal(trial.card.cluster!.wins, 1);
 });
