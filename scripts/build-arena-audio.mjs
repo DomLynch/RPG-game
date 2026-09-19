@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
+import { bellSamples } from '../src/audio/bell.ts';
 const RATE = 48000, n = t => Math.round(t * RATE), recordings = {};
 const sources = { ...JSON.parse(await fs.readFile('artifacts/audio/SOURCES.json')), ...JSON.parse(await fs.readFile('artifacts/audio/arena-life/SOURCES.json')) };
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
@@ -55,11 +56,7 @@ for (let v = 0; v < 2; v++) {
   regions.chant.push(normal(fade(chant)));
 }
 for (const [name, start] of [['grunt', .008], ['grunt2', .16], ['grunt2', .35]]) regions.grunt.push(normal(fade(band(cut(name, start, .24), 120, 4500), .008, .05)));
-const bell = new Float32Array(n(2.6));
-for (const [hz, gain, decay] of [[110, .8, 1.7], [331, .8, 1.5], [552, .45, 1.1], [763, .12, .7], [1136, .08, .4]]) {
-  for (let i = 0; i < bell.length; i++) { const t = i / RATE; bell[i] += gain * Math.sin(t * 2 * Math.PI * hz) * Math.exp(-5 * t / decay); }
-}
-regions.bell.push(normal(fade(bell, .003, .3)));
+regions.bell.push(bellSamples(RATE));
 const manifest = {}, chunks = []; let cursor = .02;
 for (const [name, variants] of Object.entries(regions)) for (const samples of variants) {
   (manifest[name] ??= []).push([Number(cursor.toFixed(3)), samples.length / RATE]); chunks.push([cursor, samples]); cursor += samples.length / RATE + .06;
