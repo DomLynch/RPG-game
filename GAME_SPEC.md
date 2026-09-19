@@ -128,6 +128,8 @@ Provisional progression gate: >=6 of 10 distinct losing testers independently op
 ## NOT NOW — known and deliberately deferred
 Full combat validation until gate 0A passes; multiple weapons/classes; full RPG progression until combat is worth repeating; open world; PvE campaign; guilds; chat; trading; crafting; auction house; matchmaking ladders; monetisation; leaderboards; speculative backend/frameworks; full rollback implementation; seasons and seasonal history (live-ops, backend and content velocity); species as player; non-humanoid rigs; additional combat systems beyond the current light/heavy/guard/parry/dodge/stamina/locational-contact set; a character creator.
 
+Desktop native ports (Unity/Unreal) and a 4K "AAA graphics" pass: considered 2026-09-19 and deliberately scrapped by the owner — web mobile is the product. Rationale recorded: an engine swap buys rendering features, not art quality (AAA visuals are a content-production budget, not a renderer); a desktop HD edition of the web build stays available as a post-gate option (relax the mobile budget, 4K resolution, post-processing) without a port. Do not relitigate without a shipped, proven web game.
+
 Blood Duels: undefined, deferred, and no economy/stakes implementation authorized. No real-money wagering.
 
 Cheating: authoritative damage validation does not stop input automation. Reaction-time distribution analysis is only one possible signal; anticipation, network timing and adaptive bots confound it. Defer detection implementation, document server telemetry requirements before economy work, and never auto-ban from one timing heuristic.
