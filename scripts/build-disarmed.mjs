@@ -2,7 +2,8 @@
 import * as T from 'three';
 const smooth = t => { t=T.MathUtils.clamp(t,0,1);return t*t*(3-2*t); };
 const point = bone => bone.getWorldPosition(new T.Vector3());
-export const DISARMED_BEATS = {arm:.16,neck:.58,settle:.96};
+import {DISARMED_BEATS} from '../src/disarmed.ts';
+export {DISARMED_BEATS};
 
 export function disarmedClips(scene, clips) {
   const bones=[],nodes=[];scene.traverse(o=>{nodes.push(o);if(o.isBone)bones.push(o);});
@@ -37,7 +38,7 @@ export function disarmedClips(scene, clips) {
   const times=Array.from({length:97},(_,i)=>i/96), make=(name,pose)=>{
     const positions=[],rotations=new Map(bones.map(b=>[b.name,[]]));
     for(const p of times){pose(p);positions.push(...bone('pelvis').position.toArray());for(const b of bones)rotations.get(b.name).push(...b.quaternion.clone().normalize().toArray());}
-    return new T.AnimationClip(name,3.2,[new T.VectorKeyframeTrack('pelvis.position',times.map(t=>t*3.2),positions),...bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times.map(t=>t*3.2),rotations.get(b.name)))]);
+    return new T.AnimationClip(name,DISARMED_BEATS.duration,[new T.VectorKeyframeTrack('pelvis.position',times.map(t=>t*DISARMED_BEATS.duration),positions),...bones.map(b=>new T.QuaternionKeyframeTrack(b.name+'.quaternion',times.map(t=>t*DISARMED_BEATS.duration),rotations.get(b.name)))]);
   };
   const fallKeys=[[.70,.2],[.80,.5],[.90,.8],[1,1]].map(([time,phase])=>{sample('Death_QuietOne',phase);return {time,poses:bones.map(b=>({position:b.position.clone(),rotation:b.quaternion.clone().normalize()}))};});
   const interpolate=(keys,p)=>{const right=keys.findIndex(k=>k.time>=p),end=keys[Math.max(1,right)],start=keys[Math.max(1,right)-1],t=smooth((p-start.time)/(end.time-start.time));bones.forEach((b,i)=>{b.position.lerpVectors(start.poses[i].position,end.poses[i].position,t);b.quaternion.slerpQuaternions(start.poses[i].rotation,end.poses[i].rotation,t);});};

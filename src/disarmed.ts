@@ -1,5 +1,7 @@
 import {BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, SkinnedMesh, Vector3, type BufferAttribute} from 'three';
 
+export const DISARMED_BEATS = {arm:.16,neck:.58,settle:.96,duration:3.2} as const;
+
 type Vertex = {attributes:Record<string,number[]>; weight:number};
 // Prepared at the authored arm-contact pose outside combat. Split the actual skin/clothing at
 // the forearm influence boundary, retaining skinning on the stump and baking the falling arm.
@@ -48,7 +50,7 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
       if(skin){const blend=new Matrix4();blend.elements.fill(0);for(let k=0;k<4;k++){const b=g.getAttribute('skinIndex').getComponent(i,k),w=g.getAttribute('skinWeight').getComponent(i,k);for(let e=0;e<16;e++)blend.elements[e]+=skin.skeleton.boneMatrices![b*16+e]*w;}blend.premultiply(skin.bindMatrixInverse).multiply(skin.bindMatrix);n.applyMatrix3(new Matrix3().getNormalMatrix(blend));}
       n.applyMatrix3(normalMatrix).normalize();normals.push(...n.toArray());
     }
-    const baked=g.clone();baked.deleteAttribute('skinIndex');baked.deleteAttribute('skinWeight');baked.setAttribute('position',new Float32BufferAttribute(positions,3));baked.setAttribute('normal',new Float32BufferAttribute(normals,3));
+    const baked=g.clone();baked.deleteAttribute('skinIndex');baked.deleteAttribute('skinWeight');baked.deleteAttribute('tangent');baked.boundingBox=null;baked.boundingSphere=null;baked.setAttribute('position',new Float32BufferAttribute(positions,3));baked.setAttribute('normal',new Float32BufferAttribute(normals,3));
     const prop=new Mesh(baked,mesh.material);prop.name=mesh.name;prop.castShadow=true;prop.receiveShadow=true;prop.frustumCulled=false;group.add(prop);
   }
   root.traverse(object=>{
@@ -101,11 +103,11 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
   return {
     group,
     apply(progress:number,mode:'red'|'dark'|'off') {
-      const shown=mode!=='off' && progress>=.16;
+      const shown=mode!=='off' && progress>=DISARMED_BEATS.arm;
       for(const change of changes){change.mesh.geometry=shown ? change.remainder : change.original;if(change.cap){change.cap.visible=shown;if(shown && !change.cap.parent)change.mesh.parent!.add(change.cap);}}
       if(weapon)weapon.visible=shown ? false : weaponVisible;
       active=shown;group.visible=shown;cut.color.set(mode==='dark' ? '#302126' : '#501c20');
-      const elapsed=Math.max(0,(progress-.16)*3.2),fall=Math.min(1,elapsed/.7),ease=fall*fall*(3-2*fall);
+      const elapsed=Math.max(0,(progress-DISARMED_BEATS.arm)*DISARMED_BEATS.duration),fall=Math.min(1,elapsed/.7),ease=fall*fall*(3-2*fall);
       group.quaternion.identity().slerp(rest,ease);group.position.copy(pivot);group.position.x+=.20*ease;
       const m=new Matrix4().makeRotationFromQuaternion(group.quaternion).elements;let floor=Infinity;
       for(let i=0;i<supports.length;i+=3)floor=Math.min(floor,m[1]*supports[i]+m[5]*supports[i+1]+m[9]*supports[i+2]);
