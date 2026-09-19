@@ -147,7 +147,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
     for (const track of clip.tracks) { // every bone track identical: same rig, same motion, so a sword blade path would be the Veteran's too
       const twin = other.tracks.find(t => t.name === track.name)!;
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
-      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; the all-rig throat/ground test below checks this new motion
+      if (clip.name === 'Death_QuietOne' || clip.name === 'Death_Disarmed') continue; // victim motion is fitted per body; dedicated all-rig contact, reaction and ground tests cover it
       assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
     }
   }
@@ -232,7 +232,7 @@ test('the Pitborn is the warrior\'s rig at OPPONENTS.pitborn.scale with a hunche
     for (const track of clip.tracks) {
       const twin = other.tracks.find(t => t.name === track.name)!;
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
-      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; the all-rig throat/ground test below checks this new motion
+      if (clip.name === 'Death_QuietOne' || clip.name === 'Death_Disarmed') continue; // victim motion is fitted per body; dedicated all-rig contact, reaction and ground tests cover it
       if (HUNCHED.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be hunched`); hunchedTracks++; }
       else if (clip.name === 'Heavy' && /arm|hand|clavicle|Sword|Weapon/.test(track.name)) { if (!twin.values.every((v, n) => v === track.values[n])) rekeyed++; }   // the cleaver's Heavy is the hack: the arms re-keyed so the edge leads (weapons lane); legs and spine still the sword's
       else assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
@@ -277,14 +277,15 @@ test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a
       if (track.name === 'pelvis.position') continue;   // the pelvis sits lower (the legs' loss) and sways less (bob): checked below
       if (clip.name === 'Roll' && GOBLIN.clamped.some(b => track.name === `${b}.quaternion`)) { assert.ok(twin.times.length >= 20, `${track.name}: the rolling arm is re-sampled for the floor clamp`); continue; }
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
-      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; the all-rig throat/ground test below checks this new motion
+      if (clip.name === 'Death_QuietOne' || clip.name === 'Death_Disarmed') continue; // victim motion is fitted per body; dedicated all-rig contact, reaction and ground tests cover it
       if (GOBLIN.hunched.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be hunched`); hunchedTracks++; }
       else if (!retargeted && SOLVED.test(track.name)) solvedTracks++;
       else { assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`); identical++; }
     }
   }
   assert.ok(hunchedTracks >= hero.animations.length * GOBLIN.hunched.length * .9, `hunched tracks ${hunchedTracks}`);
-  assert.ok(identical > hero.animations.length * 50 && solvedTracks <= (hero.animations.length - RETARGETED.length) * 12, `identical ${identical}, solved ${solvedTracks}`);
+  const sharedClipCount=hero.animations.filter(c=>c.name!=='Death_Disarmed').length; // the new victim fall is independently fitted, so it is not a shared-motion candidate
+  assert.ok(identical > sharedClipCount * 50 && solvedTracks <= (sharedClipCount - RETARGETED.length) * 12, `identical ${identical}, solved ${solvedTracks}`);
   // The sword hangs from hand_r exactly as the hero's (the hand and the grip are untouched); the scabbard rides the pelvis.
   for (const name of ['SwordSheathed', 'SwordDrawn']) {
     const a = hero.scene.getObjectByName(name)!, b = goblin.scene.getObjectByName(name)!;
@@ -522,7 +523,7 @@ test('the Nightborn is the warrior\'s rig at OPPONENTS.nightborn.scale, upright 
     for (const track of clip.tracks) {
       const twin = other.tracks.find(t => t.name === track.name)!;
       assert.deepEqual(Array.from(twin.times), Array.from(track.times), `${clip.name} ${track.name} times`);
-      if (clip.name === 'Death_QuietOne') continue; // authored on each body/weapon; the all-rig throat/ground test below checks this new motion
+      if (clip.name === 'Death_QuietOne' || clip.name === 'Death_Disarmed') continue; // victim motion is fitted per body; dedicated all-rig contact, reaction and ground tests cover it
       if (UPRIGHT.some(b => track.name === `${b}.quaternion`)) { assert.notDeepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} should be re-posed`); posed++; }
       else assert.deepEqual(Array.from(twin.values), Array.from(track.values), `${clip.name} ${track.name} values`);
     }

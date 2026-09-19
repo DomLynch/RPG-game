@@ -1,4 +1,4 @@
-import { spectralAppearance } from './spectral.ts';
+import { spectralAppearance, spectralMaterial } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
@@ -14,13 +14,13 @@ import { prepareDisarmed, DISARMED_BEATS } from './disarmed.ts';
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
 // Finisher clips are additive (owner-authorized 2026-09-17): the 21 contract clips above stay frozen, Death_* variants append after them.
-export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne'] as const;
+export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne', 'Death_Disarmed', 'Fin_Disarmed'] as const;
 // The renderer plays roles, never clip positions. The sword's roles are its clip names (the shipped warrior.glb set) plus Thrust: the
 // sword thrusts with its Riposte clip. Each weapon maps roles to its own clips; an unlisted role plays the clip of its own name (the
 // body clips are shared, and a two-handed weapon's fighter starts armed, so Draw never plays for him).
-export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust' | 'Death_Disarmed' | 'Fin_Disarmed';
-export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust'];
+export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust';
 const ADDITIVE_ROLES = ['Death_Disarmed', 'Fin_Disarmed'] as const;
+export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS.filter(role => !(ADDITIVE_ROLES as readonly string[]).includes(role)), 'Thrust'];
 export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   maul: { Idle: 'Maul_Idle', Walk: 'Maul_Walk', Jog: 'Maul_Walk', Run: 'Maul_Walk', Armed: 'Maul_Idle', ArmedWalk: 'Maul_Walk', StrafeLeft: 'Maul_StrafeLeft', StrafeRight: 'Maul_StrafeRight', Attack: 'Maul_Slash', Return: 'Maul_Slash', Heavy: 'Maul_Heavy', Thrust: 'Maul_Thrust', Riposte: 'Maul_Thrust', Guard: 'Maul_Guard', BlockImpact: 'Maul_Guard', Parry: 'Maul_Guard', Deflected: 'Maul_Hit', Hit: 'Maul_Hit', Death: 'Maul_Death', Kick: 'Maul_Kick', Roll: 'Maul_Roll' },
   claws: { Idle: 'Claw_Idle', Walk: 'Claw_Walk', Jog: 'Claw_Walk', Run: 'Claw_Walk', Armed: 'Claw_Idle', ArmedWalk: 'Claw_Walk', StrafeLeft: 'Claw_StrafeLeft', StrafeRight: 'Claw_StrafeRight', Attack: 'Claw_Slash', Return: 'Claw_Slash', Heavy: 'Claw_Heavy', Thrust: 'Claw_Thrust', Riposte: 'Claw_Thrust', Guard: 'Claw_Guard', BlockImpact: 'Claw_Guard', Parry: 'Claw_Guard', Deflected: 'Claw_Hit', Hit: 'Claw_Hit', Death: 'Claw_Death', Kick: 'Claw_Kick', Roll: 'Claw_Roll' },
@@ -137,8 +137,27 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const upperArm = root.getObjectByName('upperarm_r');
     let aimedRotation: Quaternion | undefined;
     let speed = 0;
+    let severedGroup: Group | undefined;
+    const severedMaterials = new Map<MeshStandardMaterial, MeshStandardMaterial>();
     let severed = false;   // decapitation is once per kill; unsever() resets on rematch
     let crown: ReturnType<typeof splitSkull> | undefined;
+    // Probe paired contact poses without advancing clocks, fading ghosts or changing the live actor state.
+    function sample<T>(role: Role, progress: number, read: () => T): T {
+      if (!clips[role]) throw new Error(`Missing paired role ${role}`);
+      const saved = roles.map(r => ({role:r,time:actions[r].time,weight:actions[r].getEffectiveWeight()}));
+      const position=root.position.clone(), rotation=root.quaternion.clone(), offset=anchor.position.clone();
+      const arm=upperArm?.quaternion.clone(), aim=aimedRotation;
+      try {
+        for(const r of roles) actions[r].setEffectiveWeight(Number(r===role));
+        actions[role].time=progress*clips[role].duration; mixer.update(0);
+        root.position.set(0,0,0);root.quaternion.identity();anchor.position.set(0,0,0);root.updateWorldMatrix(true,true);
+        return read();
+      } finally {
+        for(const s of saved){actions[s.role].time=s.time;actions[s.role].setEffectiveWeight(s.weight);}
+        mixer.update(0);root.position.copy(position);root.quaternion.copy(rotation);anchor.position.copy(offset);
+        if(arm && upperArm)upperArm.quaternion.copy(arm);aimedRotation=aim;root.updateWorldMatrix(true,true);
+      }
+    }
     return {
       anchor,
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
@@ -166,7 +185,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           const fade = pose === 'opened' ? Math.min(1,progress/.04) : combatRole === null ? 0 : ['draw','guard','block','parry','deflected','runThroughHold','disarmedStrike'].includes(pose) ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
           const target = (weights[role] || 0) * (1 - fade) + Number(role === combatRole) * fade;
           const activeBlade = pose === 'attack' && progress >= contact-1/specs[attack].recovery && progress <= contact+4/specs[attack].recovery;
-          a.setEffectiveWeight(pose === 'opened' ? target : activeBlade ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
+          a.setEffectiveWeight(['opened','disarmed','disarmedStrike'].includes(pose) ? target : activeBlade ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
           if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specs[attack].source) : progress)) * clips[role].duration;
         }
         if (!weaponNode) { drawn!.visible = armed && (pose !== 'draw' || progress >= .29); sheathed!.visible = !drawn!.visible; }
@@ -175,6 +194,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         aimedRotation = undefined;
         mixer.update(step);
         spectralLife = spectral?.(step, dead, progress, pose === 'opened' || pose === 'disarmed') ?? 1;
+        if (spectral) { for (const material of severedMaterials.values()) material.opacity = .86 * spectralLife; if (severedGroup && spectralLife <= 0) severedGroup.visible = false; }
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         // The enlarged Wraith lowers its attacking arm toward the original strike height.
@@ -213,7 +233,13 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         severed = true;
         root.updateWorldMatrix(true, true);
         root.updateMatrixWorld(true); // refresh SkinnedMesh bind inverses after actor movement before baking world vertices
-        const group = new Group();
+        const group = new Group(); severedGroup = group;
+        const headMaterial = (source: MeshStandardMaterial) => {
+          if (!spectral) return source;
+          let material = severedMaterials.get(source);
+          if (!material) { material = spectralMaterial(source); severedMaterials.set(source, material); }
+          material.opacity = .86 * spectralLife; return material;
+        };
         root.traverse(object => {
           if (!(object instanceof SkinnedMesh)) return;
           const headIndex = object.skeleton.bones.findIndex(b => b.name === 'Head');
@@ -258,8 +284,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           const head = new BufferGeometry();
           for (const [name, attr] of sources) head.setAttribute(name, new BufferAttribute(new Float32Array(baked[name]), attr.itemSize));
           head.setIndex(kept);
-          const prop = new Mesh(head, object.material);
-          prop.castShadow = true; prop.frustumCulled = false;
+          const material = Array.isArray(object.material) ? object.material.map(m => m instanceof MeshStandardMaterial ? headMaterial(m) : m) : object.material instanceof MeshStandardMaterial ? headMaterial(object.material) : object.material;
+          const prop = new Mesh(head, material);
+          prop.castShadow = !spectral; prop.frustumCulled = false;
           group.add(prop);
         });
         const box = new Box3().setFromObject(group), size = box.getSize(new Vector3()), center = box.getCenter(new Vector3());
@@ -273,6 +300,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         opened?.dispose(); opened = undefined; root.visible = true;
         disarmed?.dispose(); disarmed = undefined;
         crown?.dispose(); crown = undefined;
+        for (const material of severedMaterials.values()) material.dispose(); severedMaterials.clear(); severedGroup = undefined;
         if (!severed) return;
         severed = false;
         root.getObjectByName('Head')?.scale.setScalar(1);
@@ -306,6 +334,17 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           mixer.update(0); root.position.copy(position); root.quaternion.copy(rotation);
           blade.visible = shown[0]!; if (sheathed) sheathed.visible = shown[1]!;
         }
+      },
+      disarmedContacts() {
+        this.prepareDisarmed();
+        return {
+          arm: sample('Death_Disarmed',DISARMED_BEATS.arm,()=>disarmed!.stumpWorld()!),
+          neck: sample('Death_Disarmed',DISARMED_BEATS.neck,()=>root.getObjectByName('neck_01')!.getWorldPosition(new Vector3())),
+        };
+      },
+      armCutWorld() { return disarmed?.stumpWorld() ?? null; },
+      disarmedStep(progress: number, target: Vector3) {
+        return sample('Fin_Disarmed',progress,()=>{this.aimBladeAt(target);return anchor.position.clone();});
       },
       disarm(progress: number, mode: 'red' | 'dark' | 'off') {
         if (!disarmed && progress >= DISARMED_BEATS.arm && mode !== 'off') this.prepareDisarmed();
@@ -344,7 +383,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       // Apply after both rigs and their scene transforms update. Put the MIDDLE of the blade through the chest,
       // not the shoulder→tip ray. A grounded presentation step supplies reach without stretching bones or the weapon.
-      aimBladeAt(target: Vector3, amount = 1) {
+      aimBladeAt(target: Vector3, amount = 1, stepInto = true) {
         const upper = upperArm;
         if (!upper?.parent || amount <= 0) return;
         root.updateWorldMatrix(true, true);
@@ -352,16 +391,18 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const embedded = blade.localToWorld(new Vector3(0, (segment[0] + segment[1]) / 2, 0));
         const from = parent.worldToLocal(embedded).sub(upper.position);
         let to = parent.worldToLocal(target.clone()).sub(upper.position);
-        const forward = target.clone().sub(shoulder).setY(0).normalize();
-        const axis = parent.worldToLocal(shoulder.clone().add(forward)).sub(upper.position);
-        // Solve |to - step * axis| = |from| in the shoulder's parent frame (rig bones have nonuniform scales).
-        const a = axis.lengthSq(), b = to.dot(axis), discriminant = b*b - a*(to.lengthSq() - from.lengthSq());
-        if (a < 1e-8 || discriminant < 0) return;
-        const step = (b - Math.sqrt(discriminant)) / a;
-        const position = anchor.getWorldPosition(new Vector3()).addScaledVector(forward, step * amount);
-        anchor.position.copy(anchor.parent ? anchor.parent.worldToLocal(position) : position);
-        root.updateWorldMatrix(true, true);
-        to = parent.worldToLocal(target.clone()).sub(upper.position);
+        if (stepInto) {
+          const forward = target.clone().sub(shoulder).setY(0).normalize();
+          const axis = parent.worldToLocal(shoulder.clone().add(forward)).sub(upper.position);
+          // Solve |to - step * axis| = |from| in the shoulder's parent frame (rig bones have nonuniform scales).
+          const a = axis.lengthSq(), b = to.dot(axis), discriminant = b*b - a*(to.lengthSq() - from.lengthSq());
+          if (a < 1e-8 || discriminant < 0) return;
+          const step = (b - Math.sqrt(discriminant)) / a;
+          const position = anchor.getWorldPosition(new Vector3()).addScaledVector(forward, step * amount);
+          anchor.position.copy(anchor.parent ? anchor.parent.worldToLocal(position) : position);
+          root.updateWorldMatrix(true, true);
+          to = parent.worldToLocal(target.clone()).sub(upper.position);
+        }
         const turn = new Quaternion().setFromUnitVectors(from.normalize(), to.normalize());
         aimedRotation = upper.quaternion.clone();
         upper.quaternion.premultiply(new Quaternion().slerp(turn, amount));

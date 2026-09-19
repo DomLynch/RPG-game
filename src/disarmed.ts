@@ -2,7 +2,8 @@ import {BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matr
 
 import {spectralMaterial} from './spectral.ts';
 
-export const DISARMED_BEATS = {arm:.16,neck:.58,settle:.96,duration:3.2} as const;
+import {DISARMED_BEATS} from './finishers.ts';
+export {DISARMED_BEATS};
 
 type Vertex = {attributes:Record<string,number[]>; weight:number};
 // Prepared at the authored arm-contact pose outside combat. Split the actual skin/clothing at
@@ -113,6 +114,13 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
   let active=false;
   return {
     group,
+    stumpWorld() {
+      const change=changes.find(c=>c.cap);
+      if(!change?.cap)return null;
+      change.mesh.updateWorldMatrix(true,false);change.mesh.updateMatrixWorld(true);change.mesh.skeleton.update();
+      change.cap.bindMatrixInverse.copy(change.mesh.bindMatrixInverse);
+      return change.cap.getVertexPosition(0,new Vector3()).applyMatrix4(change.mesh.matrixWorld);
+    },
     apply(progress:number,mode:'red'|'dark'|'off',life=1) {
       const shown=mode!=='off' && progress>=DISARMED_BEATS.arm;
       for(const change of changes){change.mesh.geometry=shown ? change.remainder : change.original;if(change.cap){change.cap.visible=shown && (!spectral || life>0);if(shown && !change.cap.parent)change.mesh.parent!.add(change.cap);}}

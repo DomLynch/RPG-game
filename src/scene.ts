@@ -10,6 +10,7 @@ import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
+import { DISARMED_BEATS } from './disarmed.ts';
 import { phoneTier } from './quality.ts';
 
 export function cameraPose(
@@ -195,6 +196,7 @@ export function createScene(
     .then((loaded) => {
       warriors = loaded;
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
+      if (supportsFinishers(opponentId, 'disarmed')) loaded.opponent.prepareDisarmed();
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
           if (object instanceof THREE.Mesh) object.geometry.dispose();
@@ -317,6 +319,8 @@ export function createScene(
       resting: boolean;
     } | null = null,
     killHeading = 0;
+  let disarmedSteps: { arm: THREE.Vector3; neck: THREE.Vector3 } | null = null;
+  let finishHold = 0;
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
   // Wound-site mark + drips (finishers & gore 2026-09-17): a small dark mark at the wound site with three drips below it,
   // living the four-second wound window (the sim's wound refreshes without stacking — so does the mark: a fresh hit on the
@@ -541,6 +545,7 @@ export function createScene(
         : null;
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       const detailedBlood = finisher !== null && practice.finish?.victim === 1;
+      const disarmedFinish = finisher === 'disarmed' && practice.finish?.victim === 1;
       const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;
       if (
         practice.health === practice.enemyMaxHealth &&
@@ -566,6 +571,7 @@ export function createScene(
         warriors?.player.unsever();
         warriors?.opponent.unsever();
         if (supportsFinishers(opponentId, 'opened')) warriors?.opponent.prepareOpened();
+        if (supportsFinishers(opponentId, 'disarmed')) warriors?.opponent.prepareDisarmed();
       } // a fresh match: both bars full again
       if (blow && dt > 0 && !stillCamera) {
         const heavy =
@@ -698,7 +704,7 @@ export function createScene(
       if (severHead) {
         severHead.group.visible = bloodMode !== 'off';
         const head = severHead;
-        if (!head.resting && dt > 0) {
+        if (!head.resting && dt > 0 && !(disarmedFinish && finishHold > 0)) {
           head.velocity.y -= 12 * dt; // a touch heavier than life: reads on a phone screen
           head.group.position.addScaledVector(head.velocity, dt);
           const rate = head.spin.length();
@@ -728,7 +734,7 @@ export function createScene(
           }
         }
       }
-      const animationDt = frozen ? 0 : dt;
+      let animationDt = frozen ? 0 : dt;
       arena.update(animationDt, events);
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
@@ -755,15 +761,46 @@ export function createScene(
       // Owner 2026-09-18: savour the killshot — a cinematic finisher's corpse animates at 0.75× on a presentation clock that
       // may run past the sim window (the spec's "presentation may hold past the window": no simulation slow motion, the
       // 144-tick death and the hit-stop are untouched). A plain-death pick plays at full speed, exactly like an unadorned kill.
-      if (!practice.finish) finishClock = -1;
-      else if (finishClock < 0) finishClock = 0;
-      else finishClock = Math.min(1, finishClock + (dt * 0.75) / (RULES.death / 60));
+      const holding = disarmedFinish && finishHold > 0;
+      if (!practice.finish) {
+        finishClock = -1;
+        finishHold = 0;
+        disarmedSteps = null;
+      } else if (finishClock < 0) finishClock = 0;
+      else if (holding) {
+        finishHold = Math.max(0, finishHold - dt);
+        animationDt = 0;
+      } else {
+        let next = Math.min(1, finishClock + (dt * 0.75) / (RULES.death / 60));
+        if (disarmedFinish)
+          for (const beat of [DISARMED_BEATS.arm, DISARMED_BEATS.neck]) {
+            if (finishClock < beat && next >= beat) {
+              next = beat;
+              finishHold = DISARMED_BEATS.hold;
+              break;
+            }
+          }
+        finishClock = next;
+      }
+      if (disarmedFinish && !disarmedSteps && warriors) {
+        player.rotation.y = state.heading;
+        opponent.rotation.y = practice.enemy.heading;
+        const contacts = warriors.opponent.disarmedContacts();
+        disarmedSteps = {
+          arm: warriors.player.disarmedStep(DISARMED_BEATS.arm, contacts.arm),
+          neck: warriors.player.disarmedStep(DISARMED_BEATS.neck, contacts.neck),
+        };
+      }
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
       warriors?.player.update(
         dx * Math.sin(state.heading) + dz * Math.cos(state.heading) < -0.0001 ? -travel : travel,
         animationDt,
-        runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose,
-        runThroughHold ? finishClock : (playerDefence?.progress ?? mine.progress),
+        disarmedFinish
+          ? 'disarmedStrike'
+          : runThroughHold
+            ? 'runThroughHold'
+            : playerDefence?.pose || mine.pose,
+        runThroughHold || disarmedFinish ? finishClock : (playerDefence?.progress ?? mine.progress),
         mine.attack,
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,
@@ -786,6 +823,7 @@ export function createScene(
       );
       // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
       if (detailedBlood) wounds[1].group.visible = false;
+      if (disarmedFinish) warriors?.opponent.disarm(victimProgress, bloodMode);
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
         wounds[1].group.visible = false;
@@ -797,11 +835,11 @@ export function createScene(
       // 'off' keeps the head on: gore is presentation, like the rest of the layer.
       if (
         warriors &&
-        finisher === 'decapitation' &&
+        (finisher === 'decapitation' || disarmedFinish) &&
         bloodMode !== 'off' &&
         !severHead &&
         practice.finish?.victim === 1 &&
-        victimProgress >= 0.05 &&
+        victimProgress >= (disarmedFinish ? DISARMED_BEATS.neck : 0.05) &&
         victimProgress < 1
       ) {
         const headCutPosition = warriors.opponent.boneWorld('neck_01')!;
@@ -877,6 +915,29 @@ export function createScene(
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
+      if (disarmedFinish && warriors && disarmedSteps) {
+        const smooth = (t: number) => {
+          t = THREE.MathUtils.clamp(t, 0, 1);
+          return t * t * (3 - 2 * t);
+        };
+        if (finishClock < 0.38)
+          warriors.player.anchor.position
+            .copy(disarmedSteps.arm)
+            .multiplyScalar(smooth(finishClock / DISARMED_BEATS.arm));
+        else
+          warriors.player.anchor.position.lerpVectors(
+            disarmedSteps.arm,
+            disarmedSteps.neck,
+            smooth((finishClock - 0.38) / (DISARMED_BEATS.neck - 0.38)),
+          );
+        const first = finishClock < 0.38;
+        const target = first ? warriors.opponent.armCutWorld() : warriors.opponent.boneWorld('neck_01');
+        const a = first ? 0.09 : 0.47,
+          b = first ? DISARMED_BEATS.arm : DISARMED_BEATS.neck,
+          c = first ? 0.27 : 0.72;
+        const weight = smooth((finishClock - a) / (b - a)) * (1 - smooth((finishClock - b) / (c - b)));
+        if (target) warriors.player.aimBladeAt(target, weight, false);
+      }
       if (quietFinish && warriors) {
         // Reuse the pooled wound at the animated neck: a narrow cut, covered partly by the clutching hand.
         const neck = warriors.opponent.boneWorld('neck_01')!,
@@ -907,7 +968,13 @@ export function createScene(
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
           : [];
-      finisherBlood.update(dt, detailedBlood ? finisher : null, victimProgress, bloodSources, bloodMode);
+      finisherBlood.update(
+        holding ? 0 : dt,
+        detailedBlood ? finisher : null,
+        victimProgress,
+        bloodSources,
+        bloodMode,
+      );
       if (
         locked &&
         !stillCamera &&
@@ -915,14 +982,17 @@ export function createScene(
         (finisher === 'runThrough' ||
           finisher === 'splitCrown' ||
           finisher === 'quietOne' ||
-          finisher === 'opened')
+          finisher === 'opened' ||
+          disarmedFinish)
       ) {
         const t = THREE.MathUtils.clamp(
-            finisher === 'opened'
-              ? (finishClock - 0.04) / (['wraith', 'minotaur'].includes(opponentId) ? 0.6 : 0.4)
-              : finisher === 'quietOne'
-                ? (finishClock - 0.12) / 0.43
-                : (finishClock - 0.45) / 0.55,
+            disarmedFinish
+              ? (finishClock - 0.01) / 0.2
+              : finisher === 'opened'
+                ? (finishClock - 0.04) / (['wraith', 'minotaur'].includes(opponentId) ? 0.6 : 0.4)
+                : finisher === 'quietOne'
+                  ? (finishClock - 0.12) / 0.43
+                  : (finishClock - 0.45) / 0.55,
             0,
             1,
           ),
@@ -931,7 +1001,7 @@ export function createScene(
           state,
           practice.enemy,
           camera.aspect,
-          finisher,
+          finisher === 'disarmed' ? 'opened' : finisher,
           ['wraith', 'minotaur'].includes(opponentId) ? 1.5 : 1,
         );
         desired.lerp(new THREE.Vector3(side.x, side.y, side.z), reveal);

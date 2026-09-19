@@ -21,6 +21,9 @@ const opponent = option('opponent') || 'veteran';
 // Pin a real simulated kill when retaining a camera regression; selection still uses the production pool.
 const seedStart = option('seed') ? Number(option('seed')) : 731, seedCount = option('seed') ? 1 : 80;
 const order = option('only') ? option('only').split(',') : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened'];
+// Explicit journal selection for a new scene before it joins Auto; still uses a real simulated kill.
+const selected = option('selected');
+assert.ok(!selected || (order.length===1 && order[0]===selected), '--selected must match the one --only outcome');
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom finisher preview</title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
@@ -30,7 +33,7 @@ import { initialPractice, stepPractice } from '/src/combat.ts';
 import { selectFinisher } from '/src/finishers.ts';
 import { OPPONENTS } from '/src/moves.ts';
 import { Box3, Vector3, Raycaster } from 'three';
-const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)};
+const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)}, selected = ${JSON.stringify(selected ?? null)};
 const PASSIVE = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
 const IDLE = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: null };
 const TICK = 1 / 60;
@@ -43,6 +46,7 @@ const render = view.renderer.render.bind(view.renderer);
 view.renderer.render = (scene, camera) => { renderedScene = scene; renderedCamera = camera; if (present) render(scene, camera); };
 window.__step = 'scene';
 await view.ready;
+if(selected) view.setFinisherOverride(selected);
 window.__step = 'ready';
 // A real kill: light to draw, walk in, paced plain heavy overheads (the pacing lets posture drain so the killing blow stays a
 // plain heavy_overhead — the warden is passive, both sides stepped through the real sim). Each seed yields its own kill
@@ -53,7 +57,7 @@ function simulate(seed) {
   let kill = -1;
   let lastHit = -1e9;
   for (let tick = 0; tick < 60 * 120; tick++) {
-    if (kill >= 0 && p.duel.tick > kill + 200) break;   // the death window itself: 200 ticks (3.3 s) past the blow, corpse held
+    if (kill >= 0 && p.duel.tick > kill + (selected==='disarmed' ? 250 : 200)) break;   // the death window itself: 200 ticks (3.3 s) past the blow, corpse held
     const dx = p.enemy.x - p.fighter.x, dz = p.enemy.z - p.fighter.z;
     const dist = Math.hypot(dx, dz);
     const f = p.duel.fighters[0];
@@ -80,11 +84,12 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
   if (sim.kill < 0) continue;   // the scripted duel produced no kill on this seed
   const finish = sim.frames[sim.frames.length - 1].practice.finish;
   const duel = sim.frames[sim.frames.length - 1].practice.duel;
-  const finisher = selectFinisher(finish, [duel.fighters[0].weapon, duel.fighters[1].weapon]);
+  const automatic = selectFinisher(finish, [duel.fighters[0].weapon, duel.fighters[1].weapon]);
+  const finisher = automatic && (selected ?? automatic);
   if (finisher && windows[finisher] === undefined) {
     const from = sim.frames.findIndex(f => f.practice.duel.tick >= sim.kill - 45);
-    windows[finisher] = { frames: sim.frames.slice(from, from + 220), killIndex: sim.frames.slice(from, from + 220).findIndex(f => f.events.some(e => e.type === 'Killed')) };
-    provenance.push({ seed, finisher, finish });
+    windows[finisher] = { frames: sim.frames.slice(from, from + (selected==='disarmed' ? 280 : 220)), killIndex: sim.frames.slice(from, from + (selected==='disarmed' ? 280 : 220)).findIndex(f => f.events.some(e => e.type === 'Killed')) };
+    provenance.push({ seed, finisher, finish, selection: selected ? 'journal' : 'auto' });
   }
 }
 window.__provenance = provenance;
@@ -129,9 +134,14 @@ window.__finisher = {
     const neck = actors[1]?.getObjectByName('neck_01')?.getWorldPosition(new Vector3()), hand = actors[1]?.getObjectByName('hand_l')?.getWorldPosition(new Vector3()), head = actors[1]?.getObjectByName('Head')?.getWorldPosition(new Vector3()), wound = renderedScene?.getObjectByName('Wound_1');
     const body = new Box3();
     actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
+    const armProp=renderedScene?.getObjectByName('DisarmedArm'), armBox=armProp ? new Box3().setFromObject(armProp,true) : null;
+    const stump=actors[1]?.getObjectByName('ArmStump');
+    let armContact;
+    if(stump && blade){stump.updateMatrixWorld(true);stump.skeleton.update();const target=stump.getVertexPosition(0,new Vector3()).applyMatrix4(stump.matrixWorld);armContact=blade.localToWorld(new Vector3(0,.545)).distanceTo(target);}
+    const disarmed={visible:armProp?.visible ?? false,caps:armProp?.children.filter(o=>o.name==='ArmCut').length??0,armContact,min:armBox?.min.toArray(),max:armBox?.max.toArray(),frame:armBox ? [armBox.min.x,armBox.max.x].flatMap(x=>[armBox.min.y,armBox.max.y].flatMap(y=>[armBox.min.z,armBox.max.z].map(z=>view.project([x,y,z])))) : []};
     const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
     const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
-    return { detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { disarmed, detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -197,7 +207,7 @@ try {
     await page.goto(url); await page.waitForFunction(() => window.__finisher || window.__finisherError, null, { timeout: 120000 }).catch(async () => { console.log("  stuck at step:", await page.evaluate(() => window.__step), "err:", await page.evaluate(() => window.__finisherError)); throw new Error("page stuck"); });
     return page;
   };
-  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', quietOne: 'quiet-one', plainDeath: 'plain-death', opened: 'opened' };
+  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', quietOne: 'quiet-one', plainDeath: 'plain-death', opened: 'opened', disarmed: 'disarmed' };
   const ORDER = order, cameraChecks = [], quietChecks = [], bloodChecks = [];
   const first = await open({ width: 393, height: 852 });
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
@@ -209,7 +219,7 @@ try {
       const page = await open({ width: 393, height: 852 });
       const { killIndex, count } = await page.evaluate(w => ({ killIndex: __finisher.killIndex(w), count: __finisher.count(w) }), which);
       const settled = count - 1;
-      for (const [i, suffix] of [[Math.min(killIndex + 26, settled), 'contact'], [Math.min(killIndex + 78, settled), 'drop'], [settled, 'settled']]) {
+      for (const [i, suffix] of (which==='disarmed' ? [[killIndex+34,'arm'],[killIndex+119,'neck'],[settled,'settled']] : [[Math.min(killIndex + 26, settled), 'contact'], [Math.min(killIndex + 78, settled), 'drop'], [settled, 'settled']])) {
         const playing = await page.evaluate(([w, j, m]) => __finisher.play(w, j, m), [which, i, mode]);
         if (mode === 'red' && suffix === 'settled') console.log(`  ${which} rig at settle: ${playing.split(' ')[1]}`);
         await page.screenshot({ path: `${dir}/${NAMES[which]}-phone${name}-${suffix}.png` });
@@ -234,6 +244,23 @@ try {
             assert.ok(detachedHead.frame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'detached head stays visible above portrait controls '+JSON.stringify({suffix,detachedHead,framing}));
           }
           cameraChecks.push({opponent,which,mode,suffix,framing,detachedHead});
+        }
+        if(which==='disarmed') {
+          const state=await page.evaluate(()=>__finisher.inspect());
+          assert.match(playing,/Fin_Disarmed:Fin_Disarmed.*Death_Disarmed:Death_Disarmed/);
+          assert.equal(state.disarmed.visible,mode!=='off');
+          if(mode!=='off') {
+            assert.ok(state.disarmed.caps>0,'detached arm is capped');
+            assert.ok(state.disarmed.min[1]>-.015,'arm and weapon stay above sand');
+            if(suffix==='arm'){assert.ok(state.disarmed.armContact<.025,'blade intersects actual arm cut');assert.equal(state.detachedHead,null,'head stays on through first strike');}
+            else assert.ok(state.detachedHead,'neck strike detaches the head');
+            if(suffix==='settled') {
+              assert.ok(state.disarmed.max[1]<.65,'arm and weapon lie flat');
+              for(const points of [state.disarmed.frame,state.detachedHead.frame,state.quiet.bodyFrame])assert.ok(points.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'all remains clear portrait controls');
+              assert.equal(state.detachedHead.occludedByVictor,false,'victor does not hide the head');
+            }
+          }
+          cameraChecks.push({opponent,which,mode,suffix,...state});
         }
         if (which === 'opened') {
           const {opened,framing} = await page.evaluate(() => __finisher.inspect());

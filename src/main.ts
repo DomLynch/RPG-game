@@ -124,6 +124,7 @@ const FINISHER_OPTIONS: [string, string][] = [
   ['runThrough', 'Run Through'],
   ['quietOne', 'The Quiet One'],
   ['opened', 'Opened'],
+  ['disarmed', 'Disarmed'],
   ['plainDeath', 'Plain death'],
 ];
 const finisherSelect = element<HTMLSelectElement>('finisher-select');

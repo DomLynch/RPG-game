@@ -243,3 +243,17 @@ test('Opened times the tear and the two grounded landings, suppressing them with
   assert.deepEqual(off.filter(c=>c.name==='kill').map(c=>c.delay),[1.4]);
   assert.equal(off.some(c=>c.name==='flesh_tear'),false);
 });
+
+
+test('Disarmed has two distinct timed impacts, an intervening weapon landing, and a late body/crowd response within the voice cap', () => {
+  const sounds=cuesFor(deathEvents,deathPresentation('disarmed'));
+  assert.equal(sounds.length,8,'all essential beats survive the eight-cue limit');
+  assert.ok(sounds.every(c=>(c.delay??0)>.3),'no premature killing thump before the authored swing');
+  const arm=sounds.find(c=>c.name==='flesh_cut')!,neck=sounds.find(c=>c.name==='flesh_tear')!;
+  assert.ok(arm.delay!>.5 && arm.delay!<.55);assert.ok(neck.delay!>1.9 && neck.delay!<2);
+  assert.ok(sounds.find(c=>c.name==='roll')!.delay!>arm.delay! && sounds.find(c=>c.name==='roll')!.delay!<neck.delay!);
+  assert.ok(sounds.find(c=>c.name==='crowd_cheer')!.delay!>neck.delay!);
+  assert.ok(sounds.find(c=>c.name==='kill')!.delay!>3.1,'body landing follows the collapse');
+  const off=cuesFor(deathEvents,deathPresentation('disarmed',false));
+  assert.equal(off.some(c=>c.name.startsWith('flesh_')),false);assert.equal(off.filter(c=>c.name==='hit_heavy').length,2);
+});

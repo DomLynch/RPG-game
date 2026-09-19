@@ -7,6 +7,8 @@ import type { WeaponId } from './moves.ts';
 // finisher. v1 has no weapon-dependent row (one table for every weapon); the weapons argument pins the contract for the
 // per-weapon rows a later pass may add. Presentation falls back to the plain Death clip for any finisher whose clip has
 // not shipped yet (ship order: Split Crown end-to-end first, then the set).
+export const DISARMED_BEATS = {arm:.16,neck:.58,settle:.96,duration:3.2,hold:.07} as const;
+
 export type FinisherId = 'splitCrown' | 'decapitation' | 'runThrough' | 'plainDeath' | 'quietOne' | 'opened' | 'hamstrung' | 'execution' | 'disarmed';
 
 export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, WeaponId]): FinisherId | null {
@@ -35,7 +37,7 @@ export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, Weap
 // beat gripping it, then kneels with it still embedded. Quiet One clutches the throat and collapses onto its side.
 // Opened uses the existing upright jolt, followed by a separately posed waist bake; off keeps the intact collapse.
 // Victim clips are 2.4 s, authored per rig and played at 0.75x on the presentation clock.
-export const FINISHER_POSE: Record<FinisherId, 'splitCrown' | 'decapitation' | 'runThrough' | 'quietOne' | 'opened' | null> = {
+export const FINISHER_POSE: Record<FinisherId, 'splitCrown' | 'decapitation' | 'runThrough' | 'quietOne' | 'opened' | 'disarmed' | null> = {
   splitCrown: 'splitCrown',
   decapitation: 'decapitation',
   runThrough: 'runThrough',
@@ -44,5 +46,5 @@ export const FINISHER_POSE: Record<FinisherId, 'splitCrown' | 'decapitation' | '
   opened: 'opened',
   hamstrung: null,
   execution: null,
-  disarmed: null,
+  disarmed: 'disarmed',
 };

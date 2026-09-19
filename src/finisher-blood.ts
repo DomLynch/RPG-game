@@ -40,7 +40,7 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
       if (cut) sites.push({...source('detached-arm', cut.localToWorld(new Vector3().fromBufferAttribute(cut.geometry.getAttribute('position'), 0)), new Vector3(0,-1,0), .65), delay: DISARMED_BEATS.arm * DISARMED_BEATS.duration});
     }
     // The neck starts bleeding only when the second strike has actually severed the head.
-    if (head) for (const site of finisherBloodSources('decapitation', victim, head)) sites.push({...site, delay: DISARMED_BEATS.neck * DISARMED_BEATS.duration});
+    if (head?.visible) for (const site of finisherBloodSources('decapitation', victim, head)) sites.push({...site, delay: DISARMED_BEATS.neck * DISARMED_BEATS.duration});
     return sites;
   }
   if (kind === 'decapitation') {
