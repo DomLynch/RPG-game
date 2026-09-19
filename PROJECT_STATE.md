@@ -34,10 +34,17 @@ Focused monitoring/config checks pass 4/4. Full contract rerun logs: artifacts/a
 check the latest PR152 CI before integration. No wildcard, assertion removal or runtime behavior change.
 Two-pass review covered ownership/concurrency/retry and mobile/desktop placement/guest startup. No new background task.
 
-Activation pending: Google Cloud currently presents first-use Terms for the signed-in account; owner handoff requested.
+Activation pending: owner approved Google Cloud/API policy registration. Dedicated Google project principal-zoo-509110-v0
+now has Frankendom Origins branding and external audience. Web client form prepared with frankendom.com origin and
+https://rxbewmzmovelckzoosss.supabase.co/auth/v1/callback; credential creation awaits action-time owner approval.
 Need dedicated Google OAuth client/provider, production CSP reload and live login/save/recovery
-before deployment. No live Google or release claim. PR #152 remains draft. World lane holds the next release window;
-refresh trunk and rerun affected checks before auth integration. Calibre remains untouched.
+before deployment. No live Google or release claim. PR #152 remains draft. Integrated released world 8fcf58e, preserving
+all twelve checks. Earlier weapons integration b4800a6 passed 268 tests and CI; new combined gates pending. Calibre remains untouched.
+
+## Mixed, populated crowd and stronger foot sand — world, 2026-09-19
+Owner accepted the softened colours and mixed crowd, then requested busy seating around all 360 degrees including the gate, and more visible one-second foot sand. Six subdued garment dyes (dusty maroon/charcoal navy/earth tones) and five body families are assigned independently using nearby-seat diversity before GPU batching. On 291 occupied seats, only 27/844 nearby pairs repeat a body and 10/844 repeat a dye. Every 30-degree sector has at least 24 spectators and 8 on the lower two tiers; rubble, arch lip and flames retain clearance. Tread height follows tessellated stone; actual support raycasts and full-vertex play/camera clearance checks pass. Arena 114,440 triangles / 120k, unchanged meshes and 11.01 MB textures. Physical phone timing remains unmeasured.
+
+Foot sand uses a 48-point pool, five larger denser particles per plant, low lateral curls with drag and a 1-second fade. Idle, combat-pose suppression, teleport rejection, hit-stop and disposal remain intact. Lifecycle check verifies the longer tail and lower-leg height. Existing world preview now captures 12 sectors plus normal portrait dust on/off. Focused arena/dust 11/11, lint and typecheck pass; all 12 sector renders and stronger dust at portrait combat distance reviewed. Full contract, CI and live receipts are tracked under PR #156 and artifacts/world/mixed-crowd-notes. Integrated weapons f7a1e99 and its polearm browser gate; no fighter, combat, audio, camera or lighting edits from world.
 
 ## Polearm elbow correction — weapons, 2026-09-19
 Owner reproduced inward, twisted elbows on the Executioner and Veteran in the live game. Their correct polearm gait clips were already selected. Offline IK used reversed left/right bend poles for this rig and shortest-arc bone aiming left axial roll unconstrained. Polearm-only authoring now places elbows outward and aligns the anatomical hinge from the library stance; sword authoring and all combat timings stay unchanged. The Executioner slides his supporting hand down the haft during the raised wind-up to stay within reach.

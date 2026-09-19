@@ -64,6 +64,13 @@ const VIEWS = {
   'wide': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(15, 17, 33); camera.lookAt(0, 2.5, -2); } },   // establishing view from beyond the parapet
   'plan': { size: [1024, 1024], ratio: 1, place() { camera.fov = 51; camera.position.set(0, 30, 0.01); camera.lookAt(0, 0, 0); } },      // the exclusion volume by eye
 };
+for (let i = 0; i < 12; i++) VIEWS['crowd-' + i] = {
+  size: [960, 640], ratio: 1, place() {
+    const a = (i + 0.5) / 12 * Math.PI * 2;
+    camera.fov = 51; camera.position.set(3 * Math.sin(a), 2.8, 3 * Math.cos(a));
+    camera.lookAt(17 * Math.sin(a), 5, 17 * Math.cos(a));
+  }
+};
 function render(view, fighters = true) {
   const { size: [w, h], ratio, place } = VIEWS[view]; frame(w, h, ratio); place(); player.visible = opponent.visible = fighters;
   renderer.render(scene, camera); return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
@@ -119,9 +126,18 @@ function dustPreview() {
     dust.update(TICK, feet, [moving, moving]);
     const cloud = scene.getObjectByName('foot dust'), fades = cloud.geometry.getAttribute('dustFade');
     const active = Array.from(fades.array).filter(f => f > 0).length; peak = Math.max(peak, active); if (cloud.visible) visibleFrames++;
-    if (i > 45 && active >= 3 && !captured) { renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png')); cloud.visible = false; renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png')); cloud.visible = true; captured = true; }
+    if (i > 65 && active >= 10 && !captured) { renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png')); cloud.visible = false; renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png')); cloud.visible = true; captured = true; }
   }
   const cleared = !scene.getObjectByName('foot dust').visible;
+  // Same walking rig and effect, viewed at the normal portrait combat distance.
+  frame(393, 852, GAME_RATIO); player.position.copy(new THREE.Vector3(state.x, 0, state.z)); lockCamera();
+  for (let i = 0; i < 110; i++) {
+    player.position.z -= 1.2 * TICK; warriors.player.update(1.2, TICK, 'ready');
+    dust.update(TICK, ['foot_l', 'foot_r'].map(n => warriors.player.boneWorld(n)), [true, true]);
+  }
+  const cloud = scene.getObjectByName('foot dust');
+  renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png'));
+  cloud.visible = false; renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png'));
   dust.dispose(); return { frames, visibleFrames, peak, cleared, footRange: [Math.min(...samples.flat()), Math.max(...samples.flat())] };
 }
 window.__preview = { dustPreview, loaded: false, error: null, capture, stats, moodboard, buildMs };
@@ -154,7 +170,7 @@ try {
   if (args.includes('--moodboard')) {
     const { image, names } = await page.evaluate(() => __preview.moodboard()); await save('swatches.png', image); console.log(`  swatches: ${names.join(' · ')}`);
   } else {
-    for (const view of ['lock-portrait', 'lock-landscape', 'wide', 'plan', 'stands', 'gate', 'debris']) await save(`${view}.png`, await page.evaluate(v => __preview.capture(v), view));
+    for (const view of ['lock-portrait', 'lock-landscape', 'wide', 'plan', 'stands', 'gate', 'debris', ...Array.from({ length: 12 }, (_, i) => 'crowd-' + i)]) await save(`${view}.png`, await page.evaluate(v => __preview.capture(v), view));
     await save('wide-empty.png', await page.evaluate(() => __preview.capture('wide', false)));
     const measured = await page.evaluate(() => __preview.stats());
     // Transfer cost: gzip of the lane's sources (an upper bound on the arena's share of the shell; check-budget.mjs has the shell itself).
@@ -163,7 +179,7 @@ try {
     const stats = { label, commit, date: new Date().toISOString().slice(0, 10), sourceGzip, ...measured };
     await fs.writeFile(`${dir}/stats.json`, JSON.stringify(stats, null, 1));
     const dust = await page.evaluate(() => __preview.dustPreview());
-    if (!dust.visibleFrames || !dust.cleared || dust.peak > 24) throw new Error('Foot dust did not follow locomotion and expire: ' + JSON.stringify(dust));
+    if (!dust.visibleFrames || !dust.cleared || dust.peak > 48) throw new Error('Foot dust did not follow locomotion and expire: ' + JSON.stringify(dust));
     for (let i = 0; i < dust.frames.length; i++) await save('foot-dust-' + i + '.png', dust.frames[i]);
     delete dust.frames; await fs.writeFile(`${dir}/foot-dust.json`, JSON.stringify(dust, null, 2));
     const previous = against ? JSON.parse(await fs.readFile(`artifacts/world/${against}/stats.json`, 'utf8')) : null;
