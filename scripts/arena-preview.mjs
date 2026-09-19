@@ -57,6 +57,10 @@ function lockCamera() {
 }
 const VIEWS = {
   'stands': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(0, 3, 7); camera.lookAt(0, 5, -17); } },
+  'crowd-0': { size: [960, 640], ratio: 1, place() { const a = 0.7; camera.fov = 51; camera.position.set(10 * Math.sin(a), 2.8, 10 * Math.cos(a)); camera.lookAt(17 * Math.sin(a), 5.3, 17 * Math.cos(a)); } },
+  'crowd-1': { size: [960, 640], ratio: 1, place() { const a = 2.4; camera.fov = 51; camera.position.set(10 * Math.sin(a), 2.8, 10 * Math.cos(a)); camera.lookAt(17 * Math.sin(a), 5.3, 17 * Math.cos(a)); } },
+  'crowd-2': { size: [960, 640], ratio: 1, place() { const a = 3.8; camera.fov = 51; camera.position.set(10 * Math.sin(a), 2.8, 10 * Math.cos(a)); camera.lookAt(17 * Math.sin(a), 5.3, 17 * Math.cos(a)); } },
+  'crowd-3': { size: [960, 640], ratio: 1, place() { const a = 5.4; camera.fov = 51; camera.position.set(10 * Math.sin(a), 2.8, 10 * Math.cos(a)); camera.lookAt(17 * Math.sin(a), 5.3, 17 * Math.cos(a)); } },
   'gate': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(4, 2.5, -6); camera.lookAt(0, 2, -12); } },
   'debris': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(6, 2, 5); camera.lookAt(10, 0, 3); } },
   'lock-portrait': { size: [393, 852], ratio: GAME_RATIO, place: lockCamera },
@@ -154,7 +158,7 @@ try {
   if (args.includes('--moodboard')) {
     const { image, names } = await page.evaluate(() => __preview.moodboard()); await save('swatches.png', image); console.log(`  swatches: ${names.join(' · ')}`);
   } else {
-    for (const view of ['lock-portrait', 'lock-landscape', 'wide', 'plan', 'stands', 'gate', 'debris']) await save(`${view}.png`, await page.evaluate(v => __preview.capture(v), view));
+    for (const view of ['lock-portrait', 'lock-landscape', 'wide', 'plan', 'stands', 'gate', 'debris', 'crowd-0', 'crowd-1', 'crowd-2', 'crowd-3']) await save(`${view}.png`, await page.evaluate(v => __preview.capture(v), view));
     await save('wide-empty.png', await page.evaluate(() => __preview.capture('wide', false)));
     const measured = await page.evaluate(() => __preview.stats());
     // Transfer cost: gzip of the lane's sources (an upper bound on the arena's share of the shell; check-budget.mjs has the shell itself).

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
-import { CROWD_DYES, CROWD_KINDS, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
+import { CROWD_DYES, CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
 import { phoneTier } from './quality.ts';
 import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
 
@@ -306,22 +306,22 @@ export function buildArena(scene: THREE.Scene): Arena {
   const banners = new THREE.InstancedMesh(bannerGeometry, cloth, bannerAngles.length); banners.name = 'banners'; banners.castShadow = true; group.add(banners);
   bannerAngles.forEach((_a, k) => banners.setColorAt(k, new THREE.Color(k % 2 ? '#7d7469' : '#472622')));
   // Five solid, unrigged silhouettes: familiar inhabitants of this world, distributed in loose groups across intact tiers.
-  type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; width: number; phase: number };
+  type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; width: number; phase: number; id: number; dye: number };
   const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = CROWD_KINDS.length * 2;
-  const people: Spectator[][] = Array.from({ length: cells }, () => []);
+  const people: Spectator[][] = Array.from({ length: cells }, () => []), seats: Omit<Spectator, 'dye'>[] = [];
   tiers.forEach((_h, i) => {
     const r = wall.outer + i * tierDepth + 0.55, step = 1.05 / r, count = Math.floor(TAU / step);
     for (let s = 0; s < count; s++) {
       const a = s * step + (hash(s, i, 17) - 0.5) * step * 0.28, occupied = hash(s, i, 19) > (i < 2 ? 0.37 : 0.28) + 0.28 * hash(Math.floor(s / 5), i, 71), segment = Math.floor(a / TAU * LAYOUT.segments);
       if (!occupied || ruin(a) > 0.3 || (i < 2 && (inGate(a, r, 0.8) || brazierAngles.some(b => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) * r < 0.75)))) continue; // clear the gate approach, flames and collapsed treads
-      const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a), kind = hash(s, i, 23);
-      const k = kind < 0.48 ? 0 : kind < 0.65 ? 1 : kind < 0.79 ? 2 : kind < 0.88 ? 3 : 4;
-      people[k * 2 + (hash(s, i, 79) > 0.5 ? 1 : 0)].push({ x, y: tierTop(i, a, segment), z, yaw: a + Math.PI + (hash(s, i, 75) - 0.5) * 0.4, scale: 0.84 + hash(s, i, 29) * 0.32, width: 0.88 + hash(s, i, 81) * 0.24, phase: hash(s, i, 31) });
+      const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a);
+      seats.push({ id: i * 256 + s, x, y: tierTop(i, a, segment), z, yaw: a + Math.PI + (hash(s, i, 75) - 0.5) * 0.4, scale: 0.84 + hash(s, i, 29) * 0.32, width: 0.88 + hash(s, i, 81) * 0.24, phase: hash(s, i, 31) });
     }
   });
+  for (const p of mixSpectators(seats)) people[p.kind * 2 + p.pose].push(p);
   people.forEach((list, k) => {
     const instanced = new THREE.InstancedMesh(spectatorGeometry(CROWD_KINDS[Math.floor(k / 2)], k % 2), crowdMaterial, list.length); instanced.name = `crowd ${CROWD_KINDS[Math.floor(k / 2)]}${k % 2 ? " folded" : ""}`; instanced.castShadow = false; instanced.receiveShadow = true; group.add(instanced);
-    list.forEach((_p, j) => { const dye = CROWD_DYES[Math.floor(hash(j, k, 37) * CROWD_DYES.length)]; instanced.setColorAt(j, new THREE.Color(dye).multiplyScalar(0.38 + hash(j, k, 41) * 0.16)); });
+    list.forEach((p, j) => instanced.setColorAt(j, new THREE.Color(CROWD_DYES[p.dye]).multiplyScalar(0.38 + hash(p.id, 0, 41) * 0.16)));
     crowds.push({ mesh: instanced, people: list });
   });
   // The sky dome (unfogged; its horizon is painted the fog colour) and the ash plain with its far ridges. The dome has no pole: its

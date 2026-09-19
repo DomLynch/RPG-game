@@ -1,5 +1,10 @@
 # Project state
 
+## Crowd clustering correction — world, 2026-09-19
+Owner rejected colour/body clumps and strong red/blue in phone captures. Crowd assignment now considers nearby seats before instance batching, with independent seeded choices for kind, dye and stance. Within 2.5m, matching body pairs drop from 172/563 to 14/563 and matching garment pairs from 84/563 to 4/563. Red is dusty brown-maroon; blue is charcoal navy. Regression checks read real instance transforms/colours and constrain both clustering and palette saturation. All 219 positions remain unchanged; 26 arena draws, 91,600 triangles, 11.01MB textures. No audio, effects, combat or fighter changes.
+
+Four close crowd views plus normal duel/stands views reviewed under game lighting; these close views now run in the existing world completion gate. Receipts: artifacts/world/mixed-crowd-notes; captures: artifacts/world/mixed-crowd-review. Physical phone timing remains unmeasured. Full contract, CI and deployment receipts are recorded with the delivery PR.
+
 ## Crowd variety and foot sand — world, 2026-09-19
 Owner requested subdued ruby/navy/brown/grey and other muted clothing, stronger sizes, lower-tier audience and restrained grounded foot sand. Six garment-only dyes preserve skin; separate trousers, two stances per five roster families, independent height/build variation. 219 spectators redistribute across five tiers with gate/flame/collapse clearance. Initial render rejected bright clothes and matching trousers; refined captures in artifacts/world/crowd-dust-final. Arena 9/9 and dust lifecycle check pass; full contract receipts in artifacts/world/crowd-variety-notes. Arena 26 measured draws,92,126 triangles,11.01MB textures; physical phone p95 remains owner-only/unmeasured.
 

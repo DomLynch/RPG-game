@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildArena, LAYOUT, PLAY_RADIUS, CAMERA_CLAMP, SAND_TILE } from '../src/arena.ts';
 import { luminance, sandAlbedo } from '../src/assets/arena/textures.ts';
+import { CROWD_DYES } from '../src/assets/arena/crowd.ts';
 import { RADIUS } from '../src/sim.ts';
 
 // The arena's contract with the simulation, the camera and the fighters. The world lane may replace every mesh; these stay true.
@@ -118,4 +119,25 @@ test('front tiers are occupied and crowd instances vary in build, height and gar
   assert.ok(Math.max(...widths) - Math.min(...widths) > 0.2);
   assert.ok(Math.max(...heights) - Math.min(...heights) > 0.3);
   assert.ok(dyes.size > 30, 'crowd uniforms repeat');
+});
+
+test('nearby spectators mix kinds and garment colours, with subdued red and navy', () => {
+  const palette = CROWD_DYES.map(hex => new THREE.Color(hex));
+  for (const c of palette.slice(0, 2)) { assert.ok(Math.max(c.r, c.g, c.b) < 0.065, 'red or navy is too bright'); assert.ok(Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) < 0.04, 'red or navy is too saturated'); }
+  const tones = palette.map(c => new THREE.Vector3(c.r, c.g, c.b).normalize()), people: { p: THREE.Vector3; kind: string; dye: number }[] = [];
+  for (const m of shared.meshes) if (m instanceof THREE.InstancedMesh && m.name.startsWith('crowd ')) for (let i = 0; i < m.count; i++) {
+    const matrix = new THREE.Matrix4(), c = new THREE.Color(); m.getMatrixAt(i, matrix); m.getColorAt(i, c);
+    const tone = new THREE.Vector3(c.r, c.g, c.b).normalize();
+    const dye = tones.map((t, dye) => ({ dye, d: t.distanceTo(tone) })).sort((a, b) => a.d - b.d)[0].dye;
+    people.push({ p: new THREE.Vector3().setFromMatrixPosition(matrix), kind: m.name.replace(' folded', ''), dye });
+  }
+  let pairs = 0, sameKind = 0, sameDye = 0;
+  for (let i = 0; i < people.length; i++) for (let j = 0; j < i; j++) {
+    const a = people[i], b = people[j];
+    if (Math.hypot(a.p.x - b.p.x, a.p.z - b.p.z) >= 2.5) continue;
+    pairs++; sameKind += Number(a.kind === b.kind); sameDye += Number(a.dye === b.dye);
+  }
+  assert.ok(pairs > 400, 'check the full occupied arena, not a sparse sample');
+  assert.ok(sameKind / pairs < 0.08, `${sameKind}/${pairs} nearby pairs repeat the same body`);
+  assert.ok(sameDye / pairs < 0.03, `${sameDye}/${pairs} nearby pairs repeat the same dye`);
 });
