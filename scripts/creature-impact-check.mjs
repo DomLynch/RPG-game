@@ -82,8 +82,11 @@ if (process.argv.includes('--simulation-only')) {
     await page.waitForFunction(() => !!window.view, null, { timeout: 90000 });
     for (const viewport of [{ width: 852, height: 393 }, { width: 393, height: 852 }]) {
       await page.setViewportSize(viewport);
+      // Wait for the resize listener before the single rendered frame; a late resize clears the canvas.
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await page.evaluate(p => { window.present = false; for (let i = 0; i < 180; i++) window.view.render(p.fighter, true, 1 / 60, p, [], true); window.present = true; window.view.render(p.fighter, true, 1 / 60, p, []); }, werewolf);
-      await page.screenshot({ path: `${dir}/werewolf-${viewport.width}.png` });
+      const screenshot = await page.screenshot({ path: `${dir}/werewolf-${viewport.width}.png` });
+      assert.ok(screenshot.length > 10000, 'Arena screenshot must contain rendered detail, not the blank resize frame');
     }
     assert.deepEqual(receipt.errors, []); receipt.passed = true;
     console.log('Skeleton and player real-scene impacts PASS in red/dark/off');
