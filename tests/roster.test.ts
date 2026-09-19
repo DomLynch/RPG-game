@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { ROSTER, ENCOUNTERS, isOpponentId } from '../src/roster.ts';
 import { OPPONENTS, weaponOf } from '../src/moves.ts';
 import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
+import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 
 test('every recipe resolves to its shipped rig, simulation weapon and offline build', () => {
   assert.equal(ENCOUNTERS.length, 5);
@@ -12,6 +13,7 @@ test('every recipe resolves to its shipped rig, simulation weapon and offline bu
     assert.equal(opponent.id, id); assert.equal(opponent.weapon, recipe.weapon);
     assert.ok(existsSync(new URL(`../src/assets/${recipe.body}.glb`, import.meta.url)));
     const build = warriorRecipe(id);
+    assert.ok(warriorAppearance(id).steel.color, 'every shipped recipe has an explicit appearance');
     assert.equal(build.body, recipe.body);
     assert.equal(build.weapon, weaponOf(recipe.weapon).placeholder ? 'longsword' : recipe.weapon);
   }
@@ -22,4 +24,15 @@ test('every recipe resolves to its shipped rig, simulation weapon and offline bu
     assert.equal(isOpponentId(id), false); assert.throws(() => warriorRecipe(id));
   }
   assert.throws(() => warriorRecipe('veteran', 'missing'));
+});
+
+test('appearance presets reject unknown identities and do not leak edits across builds', () => {
+  for (const id of ['constructor', '__proto__', '', 'missing']) assert.throws(() => warriorAppearance(id));
+  const original = warriorAppearance();
+  const edited = warriorAppearance();
+  edited.steel.color = '#000000';
+  edited.heraldry = '#ffffff';
+  assert.deepEqual(warriorAppearance(), original);
+  assert.equal(warriorAppearance('executioner').matteIron, true);
+  assert.equal(warriorAppearance('veteran').matteIron, false);
 });
