@@ -212,6 +212,20 @@ const RECIPES = {
     const bow = mul(broad(n, r, 600 * f, 2400 * f), swell);
     return densify(mix(n, [y, 0, .7], [drone, 0, .9], [bow, 0, .4]), 1.6, { lift: 2 });
   },
+  // Movement-start textures only: cloth/leather friction and loose sand, no invented landing impact.
+  roll(r) {
+    const n = S(.32);
+    const cloth = mul(broad(n, r, 240, 1700), decay(n, .3, .015));
+    const sand = mul(broad(n, r, 1800, 6500), decay(n, .24, .006));
+    const fold = mul(broad(n, r, 360, 2200), decay(n, .18, .008));
+    return fadeOut(mix(n, [cloth, 0, 1], [sand, .008, .2], [fold, .065, .45]), .04);
+  },
+  backstep(r) {
+    const n = S(.15);
+    const scuff = mul(broad(n, r, 700, 4200), decay(n, .14, .004));
+    const leather = mul(broad(n, r, 220, 1400), decay(n, .12, .006));
+    return fadeOut(mix(n, [scuff, 0, .5], [leather, .003, 1]), .025);
+  },
   // Kill: the body falls — a deep thud with a mid punch, a second slump, a long low tail. Layered under the killing hit at runtime.
   kill(r) {
     const n = S(.72), f = vary(r, 1, .08);
@@ -224,7 +238,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [fall, 0, .2], [body, 0, 1.3], [tone, 0, .5], [low, 0, .2], [slump, .19, .7], [tail, .05, dbfs(-3)]), 2.8), .15);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 4, hit_kick: 4, block: 5, block_perfect: 4, parry: 5, guard_break: 4, charge: 2, kill: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 4, hit_kick: 4, block: 5, block_perfect: 4, parry: 5, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];

@@ -17,7 +17,8 @@ const BASE_SEED = 731;
 export function createFeedback(host?: FeedbackHost) {
   type Voice = { source: AudioBufferSourceNode | null; gain: GainNode; send: GainNode; until: number };
   let context: BaseAudioContext | undefined, master: GainNode | undefined, bus: DynamicsCompressorNode | undefined, noise: AudioBuffer | undefined;
-  let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, duel = 0, random = seeded(BASE_SEED);
+  let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, quieted = false, duel = 0, random = seeded(BASE_SEED);
+  const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
   const live = () => !!host || context?.state === 'running';
   const now = () => host ? host.now() : context!.currentTime;
@@ -32,6 +33,7 @@ export function createFeedback(host?: FeedbackHost) {
       if (host && host.sprite !== undefined) sprite = host.sprite;
       else loading = loadSprite(context).then(buffer => { sprite = buffer; return !!buffer; }, () => { sprite = null; return false; });
     }
+    quieted = false;
     // iOS also parks the context in 'interrupted' after calls, Siri or an app switch; resume from any non-running state.
     if (!host && context.state !== 'running') void (context as AudioContext).resume().catch(() => {});
   }
@@ -53,9 +55,9 @@ export function createFeedback(host?: FeedbackHost) {
     let voice = voices.find(v => !v.source || v.until <= t);
     if (!voice) { voice = voices.reduce((a, b) => a.until <= b.until ? a : b); try { voice.source!.stop(t); } catch { /* already ended */ } }
     const source = context!.createBufferSource(); source.buffer = sprite!; source.playbackRate.value = rate;
-    source.connect(voice.gain); voice.gain.gain.setValueAtTime(cue.gain, t); voice.send.gain.setValueAtTime(cue.gain * cue.room, t);
-    source.start(t, start, duration); voice.source = source; voice.until = t + duration / rate;
-    source.onended = () => { source.disconnect(); if (voice.source === source) voice.source = null; };
+    source.connect(voice.gain); voice.gain.gain.setValueAtTime(cue.gain, t); voice.send.gain.setValueAtTime(cue.room, t);
+    sources.add(source); source.start(t, start, duration); voice.source = source; voice.until = t + duration / rate;
+    source.onended = () => { sources.delete(source); source.disconnect(); if (voice.source === source) voice.source = null; };
   }
   // Fallback while the sprite is still decoding: the original synthesised air, body and inharmonic steel layers.
   function synth(kind: 'swing' | 'hit' | 'steel' | 'parry' | 'charged', time: number) {
@@ -63,25 +65,31 @@ export function createFeedback(host?: FeedbackHost) {
     const air = context!.createBufferSource(), filter = context!.createBiquadFilter(), gain = context!.createGain();
     air.buffer = noise!; filter.type = 'bandpass'; filter.frequency.value = kind === 'swing' ? 900 : 1800; filter.Q.value = .7;
     gain.gain.setValueAtTime(.001, time); gain.gain.exponentialRampToValueAtTime((kind === 'swing' ? .35 : .7) * level, time + .008); gain.gain.exponentialRampToValueAtTime(.001, time + duration);
-    air.connect(filter).connect(gain).connect(bus!); air.start(time); air.stop(time + duration);
-    air.onended = () => { air.disconnect(); filter.disconnect(); gain.disconnect(); };
+    air.connect(filter).connect(gain).connect(bus!); sources.add(air); air.start(time); air.stop(time + duration);
+    air.onended = () => { sources.delete(air); air.disconnect(); filter.disconnect(); gain.disconnect(); };
     if (kind === 'swing') return;
     for (const frequency of kind === 'hit' ? [95, 173] : kind === 'parry' ? [940, 1491, 2273] : kind === 'charged' ? [131, 196] : [620, 1037, 1613]) {
       const tone = context!.createOscillator(), envelope = context!.createGain();
       tone.frequency.value = frequency; envelope.gain.setValueAtTime(.18 * level, time); envelope.gain.exponentialRampToValueAtTime(.001, time + duration);
-      tone.connect(envelope).connect(bus!); tone.start(time); tone.stop(time + duration);
-      tone.onended = () => { tone.disconnect(); envelope.disconnect(); };
+      tone.connect(envelope).connect(bus!); sources.add(tone); tone.start(time); tone.stop(time + duration);
+      tone.onended = () => { sources.delete(tone); tone.disconnect(); envelope.disconnect(); };
     }
+  }
+  function stopSources() {
+    if (!context) return;
+    for (const source of sources) { try { source.stop(now()); } catch { /* already ended */ } }
+    sources.clear();
+    for (const voice of voices) { voice.source = null; voice.until = 0; }
   }
   return {
     unlock,
-    toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, context.currentTime); if (enabled) unlock(); return enabled; },
-    quiet() { if (!host && context?.state === 'running') void (context as AudioContext).suspend().catch(() => {}); },
+    toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, context.currentTime); if (enabled) unlock(); else stopSources(); return enabled; },
+    quiet() { quieted = true; stopSources(); if (!host && context?.state === 'running') void (context as AudioContext).suspend().catch(() => {}); },
     // Resolves true once the sprite is decoded, false if loading failed and the fallback stays. The offline harness awaits it.
     ready() { return loading ?? Promise.resolve(!!sprite); },
     // Sound consumes the simulation's events. Sprite: every mapped cue this tick, impacts first. Fallback: one cue, strongest first.
     update(events: CombatEvent[]) {
-      if (!enabled || !context || !live()) return;
+      if (!enabled || quieted || !context || !live()) return;
       if (events.some(e => e.type === 'ActionStarted' && e.action === 'draw' && e.actor === 0)) random = seeded((host?.seed ?? BASE_SEED) + duel++ * 1013);   // a fresh duel, a fresh but repeatable roll
       const time = now();
       if (sprite) { for (const cue of cuesFor(events)) play(cue, time); return; }

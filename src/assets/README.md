@@ -460,3 +460,9 @@ Provenance: **original project work, no new third-party asset, texture or licenc
 curved edge as a swept width envelope, wedge section) and Three.js primitives (ferrules, collar); procedural materials (varnished ash,
 pitted iron `#4c4946`); no image maps. All 13 clips are original authored keys on the same CC0 rig and the same authored-key grammar as
 the sword's clip family recorded above. Evidence and the silhouettes: `artifacts/weapons/scythe-notes.md`.
+
+## Audio movement pass — 2026-09-19
+`src/assets/audio/sprite.{m4a,ogg}` now contains 54 regions, including four roll and four backstep variants.
+Source/origin: original cloth/leather and sand DSP in `scripts/build-audio.mjs` (`RECIPES.roll/backstep`), authored 2026-09-19; no third-party recording or licence.
+Processing: seeded broadband friction layers, short amplitude envelopes, fade-out, existing -4 dBFS normalization, AAC/Opus encoders. Reproduce with `node scripts/build-audio.mjs`.
+These cues mark movement start only; no footfall/landing events or material inference were added. Existing impact recipes are unchanged.

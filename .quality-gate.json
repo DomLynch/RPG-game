@@ -27,6 +27,13 @@
     ],
     [
       "node",
+      "scripts/audio-preview.mjs",
+      "--label",
+      "audio-gate",
+      "--check"
+    ],
+    [
+      "node",
       "scripts/estoc-browser-check.mjs"
     ],
     [

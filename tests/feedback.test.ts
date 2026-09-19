@@ -65,3 +65,14 @@ test('the shell unlocks audio on the events WebKit treats as user activation, no
   assert.ok(line, 'unlock listener registration exists');
   for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) assert.ok(line!.includes(`'${type}'`), `unlock is bound to ${type}`);
 });
+
+test('quiet blocks cues immediately while browser suspension is still pending', () => withFakeAudio(undefined, () => {
+  const feedback = createFeedback(); feedback.unlock();
+  const context = FakeContext.last!;
+  context.suspend = () => Promise.resolve(); // Web Audio changes state asynchronously.
+  feedback.quiet();
+  feedback.update([{ tick: 1, type: 'Hit', actor: 0 } as never]);
+  assert.equal(context.sources, 0);
+  feedback.unlock(); feedback.update([{ tick: 2, type: 'Hit', actor: 0 } as never]);
+  assert.ok(context.sources > 0);
+}));
