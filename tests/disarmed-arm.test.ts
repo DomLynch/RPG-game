@@ -6,8 +6,8 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {disarmedClips} from '../scripts/build-disarmed.mjs';
 import {prepareDisarmed} from '../src/disarmed.ts';
 
-test('Disarmed cuts the actual arm and weapon, caps both sides, grounds the prop and restores borrowed meshes on all six rigs',async()=>{
- for(const id of ['warrior','veteran','pitborn','goblin','nightborn','executioner']) {
+test('Disarmed cuts the actual arm and weapon, caps both sides, grounds the prop and restores borrowed meshes on all eight rigs',async()=>{
+ for(const id of ['warrior','veteran','pitborn','goblin','nightborn','executioner','minotaur','wraith']) {
   const bytes=await readFile(new URL(`../src/assets/${id}.glb`,import.meta.url)),size=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+size).toString());
   json.images=[];json.textures=[];json.materials=json.materials.map((m:{name:string})=>({name:m.name}));json.buffers[0].uri='data:application/octet-stream;base64,'+bytes.subarray(28+size).toString('base64');
   globalThis.ProgressEvent ??= class {constructor(_type:string,fields:object){Object.assign(this,fields);}} as unknown as typeof ProgressEvent;
@@ -24,7 +24,7 @@ test('Disarmed cuts the actual arm and weapon, caps both sides, grounds the prop
   assert.equal(weapon.visible,false,'weapon leaves hand with arm');
   assert.ok(cut.group.getObjectByName('ArmCut'),'arm has cut surface');assert.ok(scene.getObjectByName('ArmStump'),'body has cut surface');
   assert.ok([...originals].some(([mesh,g])=>mesh.geometry!==g),'arm actually removed from live skin');
-  assert.ok(cut.group.children.some(o=>o.name===weapon.children[0]?.name || o.name==='Skin'),'original exterior survives');
+  assert.ok(cut.group.children.some(o=>o instanceof Mesh && (Array.isArray(o.material)?o.material:[o.material]).some(m=>borrowedMaterials.has(m))),'original exterior survives');
   for(const progress of [.3,.5,.8,1]) {
     mixer.setTime(clip.duration*progress);cut.apply(progress,'red');world.updateMatrixWorld(true);
     const bounds=new Box3().setFromObject(cut.group,true);

@@ -13,10 +13,10 @@ async function load(id:string){
  globalThis.ProgressEvent ??= class {constructor(_type:string,fields:object){Object.assign(this,fields);}} as unknown as typeof ProgressEvent;
  return new GLTFLoader().parseAsync(JSON.stringify(json),'');
 }
-test('Disarmed draft paired contacts meet actual forearm cut and neck across six bodies, off-axis headings and spacings',async()=>{
+test('Disarmed draft paired contacts meet actual forearm cut and neck across eight bodies, off-axis headings and spacings',async()=>{
  const hero=await load('warrior'),[,killer]=disarmedClips(hero.scene,hero.animations);
  hero.animations.push(killer);
- for(const [id,weapon] of [['warrior','longsword'],['veteran','trident'],['pitborn','cleaver'],['goblin','knife'],['nightborn','estoc'],['executioner','scythe']] as const){
+ for(const [id,weapon] of [['warrior','longsword'],['veteran','trident'],['pitborn','cleaver'],['goblin','knife'],['nightborn','estoc'],['executioner','scythe'],['minotaur','maul'],['wraith','claws']] as const){
   const enemy=await load(id),[victim]=disarmedClips(enemy.scene,enemy.animations);enemy.animations.push(victim);
   const actors=buildWarriors(hero,enemy,['longsword',weapon]),player=new Group(),opponent=new Group();player.add(actors.player.anchor);opponent.add(actors.opponent.anchor);
   for(const heading of [0,.8,2.4])for(const gap of [1,1.5,2.1])for(const progress of [DISARMED_BEATS.arm,DISARMED_BEATS.neck]){
