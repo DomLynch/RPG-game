@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {AnimationMixer,Box3,Group,LoopOnce,Mesh,SkinnedMesh,Vector3} from 'three';
+import {AnimationMixer,Box3,Group,LoopOnce,Mesh,SkinnedMesh,Vector3,BufferGeometry,Material} from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {disarmedClips} from '../scripts/build-disarmed.mjs';
 import {prepareDisarmed} from '../src/disarmed.ts';
@@ -15,7 +15,8 @@ test('Disarmed cuts the actual arm and weapon, caps both sides, grounds the prop
   const anchor=new Group(),world=new Group();world.position.set(3,0,-2);world.rotation.y=.8;world.add(anchor);anchor.add(scene);
   const mixer=new AnimationMixer(scene),action=mixer.clipAction(clip);action.setLoop(LoopOnce,1);action.clampWhenFinished=true;action.play();mixer.setTime(clip.duration*.16);world.updateMatrixWorld(true);
   const weapon=scene.getObjectByName('WeaponDrawn') ?? scene.getObjectByName('SwordDrawn')!;weapon.visible=true;
-  const originals:Map<SkinnedMesh,object>=new Map();scene.traverse(o=>{if(o instanceof SkinnedMesh)originals.set(o,o.geometry);});
+  const originals:Map<SkinnedMesh,BufferGeometry>=new Map();scene.traverse(o=>{if(o instanceof SkinnedMesh)originals.set(o,o.geometry);});
+  let borrowedDisposals=0;const borrowedMaterials=new Set<Material>();for(const [mesh,g] of originals){g.addEventListener('dispose',()=>borrowedDisposals++);for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])borrowedMaterials.add(material);}for(const material of borrowedMaterials)material.addEventListener('dispose',()=>borrowedDisposals++);
   const cut=prepareDisarmed(scene,anchor);anchor.add(cut.group);
   assert.equal(cut.group.visible,false);
   for(const [mesh,g] of originals)assert.equal(mesh.geometry,g,'preparation cannot mutate intact rig');
@@ -33,7 +34,8 @@ test('Disarmed cuts the actual arm and weapon, caps both sides, grounds the prop
   const settled=cut.group.position.clone();cut.apply(1,'red');assert.deepEqual(cut.group.position.toArray(),settled.toArray(),'held pose does not drift');
   cut.apply(1,'off');assert.equal(cut.group.visible,false);assert.equal(weapon.visible,true);for(const [mesh,g] of originals)assert.equal(mesh.geometry,g);
   cut.apply(1,'dark');assert.equal(cut.group.visible,true);const cap=cut.group.getObjectByName('ArmCut') as Mesh;assert.equal((cap.material as {color:{getHexString():string}}).color.getHexString(),'302126');
-  cut.dispose();assert.equal(cut.group.parent,null);assert.equal(scene.getObjectByName('ArmStump'),undefined);assert.equal(weapon.visible,true);for(const [mesh,g] of originals)assert.equal(mesh.geometry,g);
+  const owned=new Set<BufferGeometry>();cut.group.traverse(o=>{if(o instanceof Mesh)owned.add(o.geometry);});for(const [mesh,g] of originals)if(mesh.geometry!==g)owned.add(mesh.geometry);scene.traverse(o=>{if(o instanceof SkinnedMesh && o.name==='ArmStump')owned.add(o.geometry);});let disposed=0;for(const g of owned)g.addEventListener('dispose',()=>disposed++);
+  cut.dispose();assert.equal(disposed,owned.size,'every owned geometry released');assert.equal(borrowedDisposals,0,'source meshes/materials remain usable');assert.equal(cut.group.parent,null);assert.equal(scene.getObjectByName('ArmStump'),undefined);assert.equal(weapon.visible,true);for(const [mesh,g] of originals)assert.equal(mesh.geometry,g);
   assert.ok(scene.getObjectByName('hand_l')!.getWorldPosition(new Vector3()).toArray().every(Number.isFinite));
   mixer.stopAllAction();mixer.uncacheRoot(scene);
  }
