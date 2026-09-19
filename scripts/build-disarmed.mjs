@@ -1,5 +1,6 @@
 // Original paired Disarmed motion. Offline authoring; old clips and meshes remain untouched.
 import * as T from 'three';
+import {Buffer} from 'node:buffer';
 const smooth = t => { t=T.MathUtils.clamp(t,0,1);return t*t*(3-2*t); };
 const point = bone => bone.getWorldPosition(new T.Vector3());
 import {DISARMED_BEATS} from '../src/disarmed.ts';
@@ -62,6 +63,11 @@ export function disarmedClips(scene, clips) {
       for(const [b,position,rotation] of held){b.position.lerpVectors(position,b.position,weight);b.quaternion.slerpQuaternions(rotation,b.quaternion.clone().normalize(),weight);}
     }
     scene.updateMatrixWorld(true);
+    if(p>=DISARMED_BEATS.neck) {
+      // Ground the actual body, including larger creature silhouettes, while authoring the fall.
+      const bounds=new T.Box3();scene.traverse(o=>{if(o.isSkinnedMesh){o.skeleton.update();bounds.expandByObject(o,true);}});
+      if(bounds.min.y<.006){const pelvis=bone('pelvis'),position=point(pelvis);position.y+=.006-bounds.min.y;pelvis.position.copy(pelvis.parent.worldToLocal(position));scene.updateMatrixWorld(true);}
+    }
   });
   // Fixed authored poses avoid shortest-arc flips from blending against a moving quaternion target.
   const keys=[[0,'Armed',0],[.09,'Attack',.05],[DISARMED_BEATS.arm,'Attack',.35],[.27,'Attack',.6],[.38,'Armed',0],[.47,'Return',.05],[DISARMED_BEATS.neck,'Return',.35],[.72,'Return',.6],[.90,'Armed',0],[1,'Armed',0]].map(([time,name,phase])=>{
@@ -82,7 +88,7 @@ export async function appendDisarmed(file) {
   if(previous){json.accessors.length=previous.accessors;json.bufferViews.length=previous.views;json.animations.length=previous.animations;}
   const binary=bytes.subarray(28+size,28+size+(previous?.bytes??json.buffers[0].byteLength));
   const base={bytes:binary.length,accessors:json.accessors.length,views:json.bufferViews.length,animations:json.animations.length};
-  const parsed=structuredClone(json);parsed.images=[];parsed.textures=[];parsed.materials=parsed.materials.map(m=>({name:m.name}));
+  const parsed=globalThis.structuredClone(json);parsed.images=[];parsed.textures=[];parsed.materials=parsed.materials.map(m=>({name:m.name}));
   parsed.buffers[0]={byteLength:binary.length,uri:'data:application/octet-stream;base64,'+binary.toString('base64')};
   globalThis.ProgressEvent ??= class {constructor(_,fields){Object.assign(this,fields);}};
   const asset=await new GLTFLoader().parseAsync(JSON.stringify(parsed),'');

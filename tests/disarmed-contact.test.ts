@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {Group,Vector3} from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {finisherBloodSources} from '../src/finisher-blood.ts';
 import {buildWarriors} from '../src/characters.ts';
 import {disarmedClips,DISARMED_BEATS} from '../scripts/build-disarmed.mjs';
 
@@ -25,6 +26,9 @@ test('Disarmed draft paired contacts meet actual forearm cut and neck across six
    const target=actors.opponent.boneWorld(progress===DISARMED_BEATS.arm ? 'lowerarm_r' : 'neck_01')!;
 
    if(progress===DISARMED_BEATS.arm){actors.opponent.prepareDisarmed();actors.opponent.disarm(progress,'red');opponent.updateMatrixWorld(true);const cap=actors.opponent.anchor.getObjectByName('ArmStump')! as import('three').SkinnedMesh;cap.skeleton.update();cap.getVertexPosition(0,target).applyMatrix4(cap.matrixWorld);}
+   const sources=finisherBloodSources('disarmed',opponent,null);
+   if(progress===DISARMED_BEATS.arm){assert.deepEqual(sources.map(s=>s.site),['arm-stump','detached-arm']);assert.ok(sources[0].position.distanceTo(target)<.001,'blood originates on actual animated cut');assert.ok(sources.every(s=>s.position.toArray().every(Number.isFinite)));}
+   else assert.deepEqual(sources,[],'no neck blood before the head is severed');
    actors.player.aimBladeAt(target,1);player.updateMatrixWorld(true);
    const blade=actors.player.anchor.getObjectByName('SwordDrawn')!,middle=blade.localToWorld(new Vector3(0,(.24+.85)/2,0));
    assert.ok(middle.distanceTo(target)<.025,`${id} p${progress} gap${gap} heading${heading}: contact miss${middle.distanceTo(target)}`);

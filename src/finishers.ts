@@ -7,7 +7,7 @@ import type { WeaponId } from './moves.ts';
 // finisher. v1 has no weapon-dependent row (one table for every weapon); the weapons argument pins the contract for the
 // per-weapon rows a later pass may add. Presentation falls back to the plain Death clip for any finisher whose clip has
 // not shipped yet (ship order: Split Crown end-to-end first, then the set).
-export type FinisherId = 'splitCrown' | 'decapitation' | 'runThrough' | 'plainDeath' | 'quietOne' | 'opened' | 'hamstrung' | 'execution';
+export type FinisherId = 'splitCrown' | 'decapitation' | 'runThrough' | 'plainDeath' | 'quietOne' | 'opened' | 'hamstrung' | 'execution' | 'disarmed';
 
 export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, WeaponId]): FinisherId | null {
   void weapons;   // v1: one table for every weapon — the parameter pins the contract for the per-weapon rows a later pass may add
@@ -44,4 +44,5 @@ export const FINISHER_POSE: Record<FinisherId, 'splitCrown' | 'decapitation' | '
   opened: 'opened',
   hamstrung: null,
   execution: null,
+  disarmed: null,
 };

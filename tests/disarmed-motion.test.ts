@@ -5,8 +5,8 @@ import {AnimationMixer, Box3, LoopOnce, Quaternion, SkinnedMesh, Vector3} from '
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {disarmedClips, DISARMED_BEATS} from '../scripts/build-disarmed.mjs';
 
-test('Disarmed paired motion: six real rigs hold a distinct arm reaction before the neck cut, preserve source poses and settle',async()=>{
-  for(const id of ['warrior','veteran','pitborn','goblin','nightborn','executioner']) {
+test('Disarmed paired motion: eight real rigs hold a distinct arm reaction before the neck cut, preserve source poses and settle',async()=>{
+  for(const id of ['warrior','veteran','pitborn','goblin','nightborn','executioner','minotaur','wraith']) {
     const bytes=await readFile(new URL(`../src/assets/${id}.glb`,import.meta.url)),size=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+size).toString());
     json.images=[];json.textures=[];json.materials=json.materials.map((m:{name:string})=>({name:m.name}));
     json.buffers[0].uri='data:application/octet-stream;base64,'+bytes.subarray(28+size).toString('base64');

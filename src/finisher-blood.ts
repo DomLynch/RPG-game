@@ -1,7 +1,8 @@
-import { Color, DynamicDrawUsage, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Texture, Vector3 } from 'three';
+import { Color, DynamicDrawUsage, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, SkinnedMesh, SphereGeometry, Texture, Vector3 } from 'three';
 import type { FinisherId } from './finishers.ts';
+import { DISARMED_BEATS } from './disarmed.ts';
 
-export type BloodSource = { site: string; position: Vector3; direction: Vector3; strength: number };
+export type BloodSource = { site: string; position: Vector3; direction: Vector3; strength: number; delay?: number };
 type Mode = 'red' | 'dark' | 'off';
 
 // Read after posing, separation and final actor headings. Every position is world space.
@@ -25,6 +26,22 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
       if (!cut.geometry.boundingBox) cut.geometry.computeBoundingBox();
       return [source(i ? 'waist-torso' : 'waist-legs', cut.localToWorld(cut.geometry.boundingBox!.getCenter(new Vector3())), new Vector3(0,i ? -1 : 1,0).transformDirection(cut.matrixWorld),1.4)];
     });
+  }
+  if (kind === 'disarmed') {
+    const sites: BloodSource[] = [];
+    const arm = victim.getObjectByName('DisarmedArm');
+    const stump = victim.getObjectByName('ArmStump');
+    if (arm?.visible && stump instanceof SkinnedMesh && stump.visible) {
+      stump.updateMatrixWorld(true); stump.skeleton.update();
+      const cut = arm.getObjectByName('ArmCut') as Mesh | undefined;
+      const position = stump.getVertexPosition(0, new Vector3()).applyMatrix4(stump.matrixWorld);
+      const direction = at('hand_r')?.sub(position) ?? forward.clone();
+      sites.push({...source('arm-stump', position, direction, 1.1), delay: DISARMED_BEATS.arm * DISARMED_BEATS.duration});
+      if (cut) sites.push({...source('detached-arm', cut.localToWorld(new Vector3().fromBufferAttribute(cut.geometry.getAttribute('position'), 0)), new Vector3(0,-1,0), .65), delay: DISARMED_BEATS.arm * DISARMED_BEATS.duration});
+    }
+    // The neck starts bleeding only when the second strike has actually severed the head.
+    if (head) for (const site of finisherBloodSources('decapitation', victim, head)) sites.push({...site, delay: DISARMED_BEATS.neck * DISARMED_BEATS.duration});
+    return sites;
   }
   if (kind === 'decapitation') {
     const sites = [source('neck-stump',neck.clone().addScaledVector(up,.035*size),up.clone().addScaledVector(forward,.35),1.35)];
@@ -86,11 +103,11 @@ export function createFinisherBlood(map: Texture) {
       if(elapsed>=7 && !lateSeeded && stainCursor===0) { for(const s of sources)stain(s.position,.3,s.site);lateSeeded=sources.length>0; }
       const start=kind==='decapitation' ? .05 : kind==='opened' || kind==='splitCrown' ? .045 : .01;
       if(progress>=start && elapsed<7) sources.forEach((s,i)=>{
-        const burst=elapsed<1.7, rate=(burst ? 78 : elapsed<3.5 ? 32 : 14)*s.strength;
+        const age=Math.max(0,elapsed-(s.delay??0)),burst=age<1.7, rate=(burst ? 78 : age<3.5 ? 32 : 14)*s.strength;
         pending[i]=(pending[i]??0)+rate*dt;
         while(pending[i]>=1) {
           pending[i]--; const p=particles[cursor++%particles.length], a=++serial*2.399963;
-          const pressure=burst ? (1.5+.8*Math.sin(elapsed*17)**2) : .25;
+          const pressure=burst ? (1.5+.8*Math.sin(age*17)**2) : .25;
           p.position.copy(s.position);p.velocity.copy(s.direction).multiplyScalar(pressure*Math.min(1.2,s.strength));
           p.velocity.x+=Math.sin(a)*.45;p.velocity.z+=Math.cos(a)*.45;p.velocity.y+=burst ? .35+.35*Math.sin(a*1.7) : -.3;
           p.life=2;p.size=(serial%11===0 ? .022 : .004+(serial%4)*.002)*Math.sqrt(s.strength);emitted++;

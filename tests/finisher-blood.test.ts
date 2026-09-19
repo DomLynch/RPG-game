@@ -47,3 +47,15 @@ test('enabling blood after an off-mode finish restores nearby pools without repl
   assert.ok(blood.inspect().pools[0].radius>.5);assert.equal(blood.inspect().airborne,0);
   blood.dispose();
 });
+
+
+test('a late Disarmed neck strike renews its burst without changing existing wound timing', () => {
+  const late=createFinisherBlood(new Texture()),old=createFinisherBlood(new Texture());
+  const source:BloodSource={site:'neck-stump',position:new Vector3(0,1.5,0),direction:new Vector3(1,0,0),strength:1,delay:1.856};
+  for(let frame=0;frame<120;frame++){late.update(1/60,'disarmed',frame/192,[],'red');old.update(1/60,'disarmed',frame/192,[],'red');}
+  for(let frame=0;frame<30;frame++){late.update(1/60,'disarmed',.75,[source],'red');old.update(1/60,'disarmed',.75,[{...source,delay:0}],'red');}
+  assert.ok(late.inspect().emitted>old.inspect().emitted*2,'the later wound gets a fresh pressure burst');
+  for(let frame=0;frame<600;frame++)late.update(1/60,'disarmed',1,[source],'red');
+  assert.equal(late.inspect().airborne,0,'late burst still ends');
+  late.dispose();old.dispose();
+});
