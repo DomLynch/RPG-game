@@ -818,3 +818,15 @@ nine completion commands; GitHub CI passed on 827fe33. Receipt: artifacts/audio/
 Audio release window granted by lead after world 8fcf58e. Current world trunk integrated without runtime conflicts; preserve
 all configured gates. Final deployment/public parity and affected audio browser receipts go in artifacts/audio/phone-release/.
 The physical phone audition remains unverified; use served release.json as the deployment authority.
+
+## Arena life audio — 2026-09-19 (lane, not yet released)
+Owner approved a quiet audience bed, short reactive cheers/gasps, sparse jeers and wordless chants, close hit grunts and an
+opening low bell. Separate optional AAC/Opus bank uses pinned CC0 recordings; 15 regions,40.09s,388785B combined gzip under
+its450KB cap. Existing combat sprites/cue rotation and half-effects/+50%-fatal mix are unchanged. No music in this pass.
+Audio reads match identity and finish state; crowd voices cannot steal combat voices. Pause/mute stop all arena voices,
+rematch rings once, no late decode starts playback, and fatal contact clears ambience for the established winning roar.
+A pending-suspend/Enter race found during state audit now queues resume within the activating gesture; regression covered.
+Rendered browser QC: crowd bed -38.58dBFS RMS, active fight -24.61dBFS; peak at most-1.1dBTP across idle/fight/fatal/stress.
+Both codecs/format fallback, overlap, variation, cooldowns,6-voice cap, quiet/mute/rematch and missing-bank continuity pass.
+Evidence/provenance: artifacts/audio/arena-life/ and scripts/arena-audio-check.mjs. New completion gate preserves all inherited
+commands. Native GPU checks await the shared release test window; physical handset audition is still unverified.

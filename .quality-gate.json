@@ -70,6 +70,10 @@
     [
       "node",
       "scripts/account-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/arena-audio-check.mjs"
     ]
   ]
 }

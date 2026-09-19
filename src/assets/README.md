@@ -485,3 +485,13 @@ three delayed crowd layers, existing -4 dBFS normalization and AAC/Opus encoding
 three cheer variants use three distinct takes. Reproduce with `node scripts/build-audio.mjs` (ffmpeg with aac_at and libopus).
 Existing impact recipes and gains remain unchanged. Only decapitation gets a sever tear; Split Crown gets a short crack;
 blood-off and kicks omit added wet layers. Crowd starts 350 ms after fatal contact, with the roar fading in after its gasp.
+
+Arena-life audio (2026-09-19): `scripts/build-arena-audio.mjs` builds the separate optional AAC/Opus bank under
+`arena-audio/`. Murmur: SpliceSound, “Indoor adult murmur, medium group.wav”
+(https://freesound.org/people/SpliceSound/sounds/260122/). Jeers/wordless group calls: deleted_user_2104797,
+“Crowd Boo.wav” (https://freesound.org/people/deleted_user_2104797/sounds/324893/). Both CC0 1.0,
+https://creativecommons.org/publicdomain/zero/1.0/, retrieved 2026-09-19; URL/hash pins in
+`artifacts/audio/arena-life/SOURCES.json`. Reuses the pinned CC0 crowd/gasp/tonsil5 grunt recordings in
+`artifacts/audio/SOURCES.json`. Seven offset recorded groups form the bed; shortened cheer/gasp takes react to
+combat; rhythmic open-vowel edits form wordless chants. Bell is original modal synthesis. No music or modern songs.
+Existing combat bank and its 1 MB cap are unchanged; optional arena bank cap is 450 KB combined gzip.
