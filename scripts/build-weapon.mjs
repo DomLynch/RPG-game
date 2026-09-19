@@ -90,7 +90,7 @@ export function trident({ T: three = T, withAoUv = g => g, leather, variant = DE
   return group;
 }
 
-// Clip authoring on the fighter's rig. ctx comes from build-warrior.mjs: { T, base, skeleton, poseMixer, clips, reachArm, weapon }.
+// Clip authoring on the fighter's rig. ctx comes from build-warrior.mjs: { T, base, skeleton, poseMixer, clips, weapon }.
 // Goals are given in the chest's frame (spine_03: x right, y up, z forward at rest) so the weapon rides the body's own motion —
 // the walk's bob, the hit's flinch, the death's fall. Each key: { t, body: [clip, time], r: [x, y, z] rear-hand goal, dir: shaft
 // direction, l: the front hand's distance along the shaft, spine: [yaw, pitch] added on top of the body pose }.
@@ -427,8 +427,8 @@ export function scythe({ T: three = T, withAoUv = g => g, leather, variant = SCY
   return group;
 }
 
-// Clip authoring on the fighter's rig — the scythe family (task 3). The two-hand grip solver is the trident's, verbatim machinery
-// (self-contained so the Veteran's clips cannot regress); only the grips and keys are the scythe's. The fight grammar: everything is an
+// Clip authoring on the fighter's rig — the scythe family. Both polearms use the anatomical elbow solver above;
+// each family keeps its own grips and keys. The fight grammar: everything is an
 // arc — the REAP is the horizontal cut (one clip, both sides), the HIGH is the headsman's diagonal, the THRUST is the short hooking
 // heel-jab (a scythe cannot thrust; the Stab button's home, contact at the head — combat lead's nod pending). Variant B: butt -.40,
 // front grip .50, head 1.32. Blade roll per key orients the head (the trident's tines were symmetric; this blade is not).
