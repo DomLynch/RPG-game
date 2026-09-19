@@ -58,7 +58,7 @@ test('the crowd stands on the tiers, outside the clamp, and never moves past the
   const count = crowd.reduce((n, m) => n + m.count, 0); assert.ok(count >= 150 && count <= 600, `${count} spectators`);
   const rest = new Map<string, THREE.Matrix4[]>(); for (const m of crowd) rest.set(m.name, Array.from({ length: m.count }, (_, i) => { const x = new THREE.Matrix4(); m.getMatrixAt(i, x); return x; }));
   const pos = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(), pos0 = new THREE.Vector3(), q0 = new THREE.Quaternion();
-  for (const m of crowd) for (let i = 0; i < m.count; i++) { rest.get(m.name)![i].decompose(pos, q, s); assert.ok(Math.hypot(pos.x, pos.z) > LAYOUT.wall.outer + 2 * LAYOUT.tierDepth, 'a spectator on the lowest tiers'); assert.ok(pos.y >= LAYOUT.tiers[1], 'a spectator below the tiers'); }
+  for (const m of crowd) for (let i = 0; i < m.count; i++) { rest.get(m.name)![i].decompose(pos, q, s); assert.ok(Math.hypot(pos.x, pos.z) > LAYOUT.wall.outer, 'a spectator off the tiers'); assert.ok(pos.y >= LAYOUT.tiers[0] - (0.3 * 0.3 * 2.4 + 0.03 + 0.012), 'a spectator below the intact front tier'); }
   let moved = 0, tilted = 0;
   const measure = () => { for (const m of crowd) for (let i = 0; i < m.count; i++) { const x = new THREE.Matrix4(); m.getMatrixAt(i, x); x.decompose(pos, q, s); rest.get(m.name)![i].decompose(pos0, q0, s); moved = Math.max(moved, pos.distanceTo(pos0)); tilted = Math.max(tilted, q.angleTo(q0)); } };
   arena.update(0, [{ tick: 1, type: 'Killed', actor: 0, target: 1 } as never]); measure(); assert.equal(moved, 0, 'a hit-stop (dt 0) moved the crowd');
@@ -83,7 +83,7 @@ test('spectators have solid, readable bodies and distinct roster proportions', (
     assert.ok(size.x / size.y >= 0.25 && size.x / size.y < 0.7, `${m.name}: pencil-thin or over-wide body`);
     assert.ok(size.z > 0.2, `${m.name}: flat cutout`);
     assert.ok(size.y >= 1.2 && size.y <= 2.3, `${m.name}: out-of-world height`);
-    heights.set(m.name, size.y);
+    heights.set(m.name.replace(' folded', ''), size.y);
   }
   assert.equal(heights.size, 5);
   assert.ok(heights.get('crowd goblin')! < heights.get('crowd human')!);
@@ -98,4 +98,24 @@ test('arena cost: ≤ 40 draw calls (meshes), ≤ 120k triangles, ≤ 12 MB of t
   const bytes = [...textures].reduce((n, t) => n + t.image.width * t.image.height * 4 * (t.generateMipmaps ? 4 / 3 : 1), 0);
   console.log(`arena cost: ${meshes.length} meshes (draw calls before shadows), ${Math.round(triangles)} triangles, ${textures.size} textures ${(bytes / 1e6).toFixed(1)} MB`);
   assert.ok(meshes.length <= 40, `${meshes.length} meshes`); assert.ok(triangles <= 120_000, `${triangles} triangles`); assert.ok(bytes <= 12e6, `${bytes} bytes of textures`);
+});
+
+test('front tiers are occupied and crowd instances vary in build, height and garment dye', () => {
+  let front = 0, rear = 0;
+  const widths: number[] = [], heights: number[] = [], dyes = new Set<string>();
+  for (const m of shared.meshes) if (m instanceof THREE.InstancedMesh && m.name.startsWith('crowd ')) {
+    const mask = m.geometry.getAttribute('garment');
+    assert.ok(Array.from(mask.array).includes(0) && Array.from(mask.array).includes(1), 'dye must distinguish skin from garments');
+    for (let i = 0; i < m.count; i++) {
+      const matrix = new THREE.Matrix4(), p = new THREE.Vector3(), scale = new THREE.Vector3(), c = new THREE.Color();
+      m.getMatrixAt(i, matrix); matrix.decompose(p, new THREE.Quaternion(), scale); m.getColorAt(i, c);
+      if (Math.hypot(p.x, p.z) < LAYOUT.wall.outer + 2 * LAYOUT.tierDepth) front++; else rear++;
+      widths.push(scale.x / scale.y); heights.push(scale.y); dyes.add(c.getHexString());
+      assert.ok(rgbLuminance(c) < 0.1, 'spectator clothing competes with the fighters');
+    }
+  }
+  assert.ok(front >= 30 && rear > front, `${front} front, ${rear} rear: keep both depth and clear gaps`);
+  assert.ok(Math.max(...widths) - Math.min(...widths) > 0.2);
+  assert.ok(Math.max(...heights) - Math.min(...heights) > 0.3);
+  assert.ok(dyes.size > 30, 'crowd uniforms repeat');
 });

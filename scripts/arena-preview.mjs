@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, PLAY_RADIUS, CAMERA_CLAMP } from '/src/arena.ts';
 import { cameraPose } from '/src/scene.ts';
+import { createFootDust } from '/src/foot-dust.ts';
 import { loadWarriors } from '/src/characters.ts';
 import { actorPose, initialPractice } from '/src/combat.ts';
 import { OPPONENTS } from '/src/moves.ts';
@@ -106,7 +107,24 @@ function moodboard() {
   ctx.textAlign = 'left'; ctx.fillText('Arena v1 materials under the game lighting (scene.ts sun + hemisphere + room environment, ACES 1.3). Ground: the sand.', 16, 26);
   return { image: sheet.toDataURL('image/png'), names: spheres.map(s => s.name) };
 }
-window.__preview = { loaded: false, error: null, capture, stats, moodboard, buildMs };
+function dustPreview() {
+  const dust = createFootDust(scene), samples = []; let visibleFrames = 0, peak = 0, captured = false;
+  player.visible = true; opponent.visible = false; player.position.set(0, 0, 1); player.rotation.y = Math.PI;
+  frame(960, 720, 1); camera.position.set(2.8, 1.5, 4.6); camera.lookAt(0, 0.65, 0);
+  const frames = [];
+  for (let i = 0; i < 240; i++) {
+    const moving = i < 180; player.position.z -= moving ? 1.2 * TICK : 0;
+    warriors.player.update(moving ? 1.2 : 0, TICK, 'ready');
+    const feet = ['foot_l', 'foot_r'].map(n => warriors.player.boneWorld(n)); samples.push(feet.map(f => f?.y));
+    dust.update(TICK, feet, [moving, moving]);
+    const cloud = scene.getObjectByName('foot dust'), fades = cloud.geometry.getAttribute('dustFade');
+    const active = Array.from(fades.array).filter(f => f > 0).length; peak = Math.max(peak, active); if (cloud.visible) visibleFrames++;
+    if (i > 45 && active >= 3 && !captured) { renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png')); cloud.visible = false; renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png')); cloud.visible = true; captured = true; }
+  }
+  const cleared = !scene.getObjectByName('foot dust').visible;
+  dust.dispose(); return { frames, visibleFrames, peak, cleared, footRange: [Math.min(...samples.flat()), Math.max(...samples.flat())] };
+}
+window.__preview = { dustPreview, loaded: false, error: null, capture, stats, moodboard, buildMs };
 try {
   status('Loading warriors…');
   const weapons = practice.duel.fighters.map(f => f.weapon);
@@ -144,6 +162,10 @@ try {
     let sourceGzip = 0; for (const f of sources) sourceGzip += gzipSync(await fs.readFile(f)).length;
     const stats = { label, commit, date: new Date().toISOString().slice(0, 10), sourceGzip, ...measured };
     await fs.writeFile(`${dir}/stats.json`, JSON.stringify(stats, null, 1));
+    const dust = await page.evaluate(() => __preview.dustPreview());
+    if (!dust.visibleFrames || !dust.cleared || dust.peak > 24) throw new Error('Foot dust did not follow locomotion and expire: ' + JSON.stringify(dust));
+    for (let i = 0; i < dust.frames.length; i++) await save('foot-dust-' + i + '.png', dust.frames[i]);
+    delete dust.frames; await fs.writeFile(`${dir}/foot-dust.json`, JSON.stringify(dust, null, 2));
     const previous = against ? JSON.parse(await fs.readFile(`artifacts/world/${against}/stats.json`, 'utf8')) : null;
     const fmt = v => typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(3)) : String(v);
     const row = (name) => { const value = stats[name], delta = previous && typeof previous[name] === 'number' && typeof value === 'number' ? ` (${value - previous[name] >= 0 ? '+' : ''}${fmt(value - previous[name])})` : ''; return `| ${name} | ${fmt(value)}${delta} |`; };
