@@ -1,5 +1,46 @@
 # Project state
 
+## Google account integration — lead, 2026-09-19 (isolated; activation pending)
+Owner requested Google login/Supabase with controls inside Field Journal. Added a lazy account SDK, PKCE login,
+explicit cloud save/load of name and practice opponent, session sign-out, revision conflict checks and owner-only RLS.
+Sign-in never overwrites device/cloud data; explicit load restarts practice. Career marks/results remain outside this
+client-editable table. No combat, renderer or input code changed. Details/setup: docs/account-integration.md.
+
+Integrated evidence at 30b5e48 (trunk 714e969): npm run quality passed 263/263, lint/typecheck/build/audit/budget
+and gameplay browser; all nine additional completion commands passed. CI 35436347273 passed. Enabled account build:
+8,486,798 bytes gzip per fight / 10 MB. Account browser uses controlled provider responses with the real SDK;
+it does not prove live Google configuration. Screenshots/logs/receipts: artifacts/account/integrated-{0..9}.log,
+browser-receipt.json, mobile-guest.png, mobile-signed-in.png and desktop-menu.png. Runtime addition: 161 lines.
+
+Dedicated free project rxbewmzmovelckzoosss created by owner in Mumbai. Applied the checked-in migration via psql
+with TLSv1.3 and verify-full using the official Supabase CA. Hosted transaction tested both users' own save/read,
+cross-user read/write denial, anonymous denial, immutable ownership/revision, stale saves and constraints;
+rolled back both test users and saves (zero profile rows remain). Receipt: artifacts/account/hosted-rls-receipt.txt.
+Hosted site URL and exact /?account=return redirect saved and verified in dashboard. Public REST read without a user
+session returns 401/42501 as intended. Ignored public production configuration and exact-origin CSP are prepared;
+The exact Supabase origin is now installed in the Frankendom nginx CSP (backup retained); nginx -t and public header checks pass.
+
+Failure ledger: F1 callback fixture wrote its PKCE verifier without SDK JSON encoding; corrected fixture and reruns pass.
+F2 logout-failure test expected a retained session; verified current SDK deliberately clears local credentials even when
+remote revoke fails. Corrected regression requires cleared tokens/cloud controls and failed-read retry; passes.
+F3 world integration documentation conflict resolved preserving both lanes; combined quality and CI pass.
+F4 Safari multiline SQL entry was unreliable; nothing executed, switched to exact-file psql migration.
+F5 system CA rejected the pooler certificate; official dashboard CA with verify-full fixed it (TLS not weakened).
+F6 focused test was invoked with absent tsx loader; corrected to this repo's native node --test runner: 3/3 pass.
+F7 / review F1: adding the exact Supabase CSP origin in 51597f8 invalidated the old three-source monitoring
+assertion. Its local/CI failure supersedes the earlier runtime pass for that revision. Updated the test to pin all four
+sources exactly (self, blob, the specific Sentry and Supabase origins); added the configured release success case.
+Focused monitoring/config checks pass 4/4. Full contract rerun logs: artifacts/account/review-f1/{0..9}.log;
+check the latest PR152 CI before integration. No wildcard, assertion removal or runtime behavior change.
+Two-pass review covered ownership/concurrency/retry and mobile/desktop placement/guest startup. No new background task.
+
+Activation: owner approved Google credential creation. Dedicated Google project principal-zoo-509110-v0 has a web
+OAuth client with frankendom.com origin and https://rxbewmzmovelckzoosss.supabase.co/auth/v1/callback. Secret saved
+only in Supabase; public settings confirms Google enabled. Email/password provider disabled. Public privacy page
+added at /privacy.html and linked inside the journal. Google is In production with only OpenID/email/profile scopes.
+Production CSP is installed and publicly verified; actual live login/save/recovery remains pending; PR #152 remains draft. World-integrated c02b17e passed all 12 commands, including 269/269 tests;
+logs artifacts/account/world-integrated. Audio trunk 03282b0 integrated cleanly; combined rerun pending. Calibre untouched.
+
 ## Mixed, populated crowd and stronger foot sand — world, 2026-09-19
 Owner accepted the softened colours and mixed crowd, then requested busy seating around all 360 degrees including the gate, and more visible one-second foot sand. Six subdued garment dyes (dusty maroon/charcoal navy/earth tones) and five body families are assigned independently using nearby-seat diversity before GPU batching. On 291 occupied seats, only 27/844 nearby pairs repeat a body and 10/844 repeat a dye. Every 30-degree sector has at least 24 spectators and 8 on the lower two tiers; rubble, arch lip and flames retain clearance. Tread height follows tessellated stone; actual support raycasts and full-vertex play/camera clearance checks pass. Arena 114,440 triangles / 120k, unchanged meshes and 11.01 MB textures. Physical phone timing remains unmeasured.
 

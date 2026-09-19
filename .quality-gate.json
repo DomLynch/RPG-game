@@ -62,6 +62,14 @@
     [
       "node",
       "scripts/polearm-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/account-database-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/account-browser-check.mjs"
     ]
   ]
 }

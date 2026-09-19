@@ -24,3 +24,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run quality:ci
+      - name: Account database isolation
+        run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
