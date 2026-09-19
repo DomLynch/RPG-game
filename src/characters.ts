@@ -1,3 +1,4 @@
+import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
@@ -104,6 +105,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         object.material = object.material.clone(); object.material.color.set('#663c32');
       }
     });
+    const spectral = spectralAppearance(root);
     const mixer = new AnimationMixer(root);
     const actions = {} as Record<Role, AnimationAction>;
     for (const role of ROLES) { actions[role] = mixer.clipAction(clips[role]).play(); actions[role].setEffectiveWeight(role === 'Idle' ? 1 : 0); }
@@ -157,6 +159,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
         mixer.update(step);
+        spectral?.(step, dead, progress);
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;

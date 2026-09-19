@@ -25,6 +25,7 @@ const recipe = warriorRecipe(fighter, process.env.WARRIOR_WEAPON), variant = rea
 // sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
 // the weapon's own clips join the set. The hero defaults to the longsword (byte-identical output); the Veteran defaults to the trident
 // since slice V (duel.ts initialDuel gives him it), so a plain rebuild never hands him the sword back.
+if (recipe.pipeline === 'reconstruction') throw new Error(`Use node scripts/build-creatures.mjs ${fighter} for this reconstructed surface`);
 const weaponId = recipe.weapon;
 const appearance = warriorAppearance(fighter);
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');

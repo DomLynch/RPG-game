@@ -7,13 +7,16 @@ import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
 import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 
 test('every recipe resolves to its shipped rig, simulation weapon and offline build', () => {
-  assert.equal(ENCOUNTERS.length, 5);
+  assert.equal(ENCOUNTERS.length, 7);
   for (const { id } of ENCOUNTERS) {
     const recipe = ROSTER[id], opponent = OPPONENTS[id];
     assert.equal(opponent.id, id); assert.equal(opponent.weapon, recipe.weapon);
     assert.ok(existsSync(new URL(`../src/assets/${recipe.body}.glb`, import.meta.url)));
     const build = warriorRecipe(id);
-    assert.ok(warriorAppearance(id).steel.color, 'every shipped recipe has an explicit appearance');
+    if (build.pipeline === 'reconstruction') {
+      assert.ok(existsSync(new URL(`../src/assets/source/creatures/${id}.glb`, import.meta.url)), 'reconstruction has a reproducible source');
+      assert.equal(recipe.finishers, false, 'unvalidated creature executions use plain death');
+    } else assert.ok(warriorAppearance(id).steel.color, 'humanoid recipes have an explicit appearance');
     assert.equal(build.body, recipe.body);
     assert.equal(build.weapon, weaponOf(recipe.weapon).placeholder ? 'longsword' : recipe.weapon);
   }

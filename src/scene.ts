@@ -294,7 +294,9 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       // The finisher (owner-authorized 2026-09-17): a pure function of the Killed event and the fighters' weapons picks the
       // victim's death pose; a finisher without a shipped clip falls back to the plain Death. The player's own death is
       // never a finisher (v1). v1's table has no weapon-dependent row, but the weapons are part of the contract.
-      const pick = practice.finish ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
+      const recipe = ROSTER[opponentId];
+      // Creature anatomy uses plain death until its paired executions have been authored.
+      const pick = practice.finish && !('finishers' in recipe && recipe.finishers === false) ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
       const finisher = pick ? (finisherOverride ?? pick) : null;   // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
