@@ -18,7 +18,7 @@ const args = process.argv.slice(2), option = name => { const i = args.indexOf(`-
 const commit = execSync('git describe --always --dirty').toString().trim();
 const label = option('label') || 'finishers-v2';
 const opponent = option('opponent') || 'veteran';
-const order = option('only') ? [option('only')] : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath'];
+const order = option('only') ? option('only').split(',') : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath'];
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom finisher preview</title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
@@ -36,9 +36,9 @@ const canvas = document.getElementById('world');
 window.__step = 'module';
 window.addEventListener('unhandledrejection', e => { window.__finisherError = String(e.reason && e.reason.stack || e.reason); });
 const view = createScene(canvas, () => {}, opponentId);
-let renderedScene, present = true;
+let renderedScene, renderedCamera, present = true;
 const render = view.renderer.render.bind(view.renderer);
-view.renderer.render = (scene, camera) => { renderedScene = scene; if (present) render(scene, camera); };
+view.renderer.render = (scene, camera) => { renderedScene = scene; renderedCamera = camera; if (present) render(scene, camera); };
 window.__step = 'scene';
 await view.ready;
 window.__step = 'ready';
@@ -88,20 +88,27 @@ for (let seed = 731; seed < 731 + 80 && wanted.some(id => windows[id] === undefi
 window.__provenance = provenance;
 if (wanted.some(id => windows[id] === undefined)) throw new Error('could not draw requested outcomes across 80 seeds: ' + JSON.stringify(provenance));
 window.__step = 'simulated';
-let cursor = -1;
+let cursor = -1, maxCameraStep = 0;
 window.__finisher = {
   provenance,
   inspect() {
     const crown = renderedScene?.getObjectByName('SplitCrown');
     const actors = renderedScene?.children.filter(o => o.getObjectByName('pelvis')) ?? [];
     const blade = actors[0]?.getObjectByName('SwordDrawn'), chest = actors[1]?.getObjectByName('spine_02')?.getWorldPosition(new Vector3());
+    let framing;
+    if (actors.length === 2) {
+      const a = actors[0].children[0].getWorldPosition(new Vector3()), b = actors[1].children[0].getWorldPosition(new Vector3());
+      const axis = b.clone().sub(a).setY(0).normalize();
+      const eye = renderedCamera.position.clone().sub(a.clone().add(b).multiplyScalar(.5)).setY(0).normalize();
+      framing = { maxCameraStep, side: Math.abs(axis.x*eye.z-axis.z*eye.x), heads: actors.map(o => view.project(o.getObjectByName('Head').getWorldPosition(new Vector3()).toArray())), camera: renderedCamera.position.toArray() };
+    }
     let impalement;
     if (blade && chest) {
       const grip = blade.localToWorld(new Vector3(0, .24, 0)), tip = blade.localToWorld(new Vector3(0, .85, 0));
       const run = tip.clone().sub(grip), along = chest.clone().sub(grip).dot(run) / run.lengthSq();
       impalement = { miss: grip.clone().addScaledVector(run, along).distanceTo(chest), along, tip: tip.toArray(), chest: chest.toArray(), step: actors[0].children[0].position.toArray() };
     }
-    return { impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -122,7 +129,9 @@ window.__finisher = {
       receipts.push({ mode, ...this.inspect() });
     }
     const p = initialPractice(731, OPPONENTS[opponentId]); view.render(p.fighter, true, TICK, p, [], false);
-    receipts.push({ mode: 'rematch', ...this.inspect() }); return receipts;
+    const reset = this.inspect();
+    present = false; for (let i=0;i<60;i++) view.render(p.fighter, true, TICK, p, [], false); present = true;
+    receipts.push({ mode: 'rematch', ...reset, cameraAfterReset: this.inspect().framing }); return receipts;
   },
   count(which) { return windows[which].frames.length; },
   killIndex(which) { return windows[which].killIndex; },
@@ -131,8 +140,8 @@ window.__finisher = {
     // and screenshots would show a stale frame. A fresh playback resets the cursor so the scene state rebuilds from tick 0.
     return new Promise(resolve => requestAnimationFrame(() => {
       if (mode) view.setBloodMode(mode);
-      if (i <= cursor) { cursor = -1; view.recenter(); }
-      for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j]; present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); cursor = j; }
+      if (i <= cursor) { cursor = -1; maxCameraStep = 0; view.recenter(); }
+      for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j], before = renderedCamera?.position.clone(); present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); if (before && j > windows[which].killIndex+60) maxCameraStep = Math.max(maxCameraStep, before.distanceTo(renderedCamera.position)); cursor = j; }
       requestAnimationFrame(() => resolve(view.playing()));
     }));
   },
@@ -152,8 +161,8 @@ const errors = [];
 const save = async (name, data) => { await fs.writeFile(`${dir}/${name}`, data); console.log(`  ${dir}/${name}`); };
 try {
   console.log(`Capturing ${label} (${commit}) →`);
-  const open = async (viewport) => {
-    const page = await (await browser.newContext({ viewport, deviceScaleFactor: 2 })).newPage();
+  const open = async (viewport, reducedMotion = 'no-preference') => {
+    const page = await (await browser.newContext({ viewport, deviceScaleFactor: 2, reducedMotion })).newPage();
     page.on('pageerror', e => { errors.push(String(e)); console.log('  pageerror:', String(e).slice(0, 300)); });
     page.on('console', m => { if (m.type() === 'error') console.log('  console:', m.text().slice(0, 300)); });
     page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) { console.log('  HTTP', r.status(), r.url()); errors.push(`${r.status()} ${r.url()}`); } });
@@ -161,7 +170,7 @@ try {
     return page;
   };
   const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death' };
-  const ORDER = order;
+  const ORDER = order, cameraChecks = [];
   const first = await open({ width: 393, height: 852 });
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
   await first.context().close();
@@ -176,6 +185,18 @@ try {
         const playing = await page.evaluate(([w, j, m]) => __finisher.play(w, j, m), [which, i, mode]);
         if (mode === 'red' && suffix === 'settled') console.log(`  ${which} rig at settle: ${playing.split(' ')[1]}`);
         await page.screenshot({ path: `${dir}/${NAMES[which]}-phone${name}-${suffix}.png` });
+        if (['runThrough', 'splitCrown'].includes(which) && suffix === 'contact') {
+          const { framing } = await page.evaluate(() => __finisher.inspect());
+          assert.ok(framing.side < .6, 'the side move waits until after the impact');
+        }
+        if (['runThrough', 'splitCrown'].includes(which) && suffix === 'settled') {
+          const { framing } = await page.evaluate(() => __finisher.inspect());
+          cameraChecks.push({ opponent, which, mode, framing });
+          assert.ok(framing.side > .8, 'the settled finisher moves far enough sideways to expose the victim');
+          assert.ok(framing.maxCameraStep < .25, 'the late side move is continuous, without a camera cut');
+          assert.ok(framing.heads.every(p => p && p[0] > 10 && p[0] < 383 && p[1] > 20 && p[1] < 700), 'both heads stay in the portrait frame above the controls');
+          assert.ok(Math.hypot(framing.camera[0], framing.camera[2]) <= 11.5, 'finisher camera stays inside the arena');
+        }
         if (which === 'runThrough' && suffix !== 'contact') {
           const { impalement } = await page.evaluate(() => __finisher.inspect());
           assert.ok(impalement.miss < .09 && impalement.along > .2 && impalement.along < .8, 'blade stays embedded during the collapse and final hold');
@@ -191,6 +212,7 @@ try {
         if (mode === 'red') {
           await page.evaluate(w => __finisher.rear(w), which);
           await page.screenshot({ path: `${dir}/run-through-phone-rear.png` });
+          assert.ok((await page.evaluate(() => __finisher.inspect())).framing.side < .8, 'free camera can orbit away from the automatic side view');
         }
         const checks = await page.evaluate(w => __finisher.modesAndRematch(w), which);
         for (const state of checks.slice(0, 3)) {
@@ -198,6 +220,7 @@ try {
           assert.ok(state.impalement.along > .2 && state.impalement.along < .8, 'blade extends through chest');
         }
         assert.deepEqual(checks.at(-1).impalement.step, [0, 0, 0], 'rematch clears presentation approach');
+        assert.ok(checks.at(-1).cameraAfterReset.side < .1, 'normal lock camera returns after rematch');
         await save('run-through-checks' + name + '.json', JSON.stringify({ opponent, commit, checks }, null, 2));
       }
       if (which === 'splitCrown') {
@@ -212,9 +235,11 @@ try {
         if (mode === 'red') {
           await page.evaluate(w => __finisher.rear(w), which);
           await page.screenshot({ path: `${dir}/${NAMES[which]}-phone-rear.png` });
+          assert.ok((await page.evaluate(() => __finisher.inspect())).framing.side < .8, 'free camera can orbit away from the automatic side view');
           const checks = await page.evaluate(w => __finisher.modesAndRematch(w), which);
           assert.deepEqual(checks.map(s => [s.mode, s.visible, s.headScale]), [['dark', true, .0001], ['off', false, 1], ['red', true, .0001], ['rematch', false, 1]]);
           assert.equal(checks.at(-1).crown, false, 'rematch removes the split meshes');
+          assert.ok(checks.at(-1).cameraAfterReset.side < .1, 'normal lock camera returns after rematch');
           await save('checks.json', JSON.stringify({ opponent, commit, provenance: info.provenance, checks }, null, 2));
         }
       }
@@ -224,6 +249,14 @@ try {
         await wide.evaluate(w => __finisher.play(w, __finisher.count(w) - 1, 'red'), which);   // re-render (cursor already at settle)
         await wide.screenshot({ path: `${dir}/${NAMES[which]}-phone-landscape-settled.png` });
         await wide.context().close();
+        if (['runThrough','splitCrown'].includes(which)) {
+          const reduced = await open({ width: 393, height: 852 }, 'reduce');
+          await reduced.evaluate(w => __finisher.play(w, __finisher.count(w)-1, 'red'), which);
+          const state = await reduced.evaluate(() => __finisher.inspect());
+          assert.ok(state.framing.side < .3, 'reduced motion keeps the original camera behind the player');
+          cameraChecks.push({ opponent, which, reducedMotion: true, framing: state.framing });
+          await reduced.context().close();
+        }
       }
     }
     if (args.includes('--no-video')) continue;
@@ -237,5 +270,6 @@ try {
     const file = await vpage.video(); await video.close(); await file.saveAs(`${dir}/${NAMES[which]}.webm`); await fs.rm(await file.path(), { force: true });
     console.log(`  ${dir}/${NAMES[which]}.webm`);
   }
+  await save('camera-checks.json', JSON.stringify({ commit, cameraChecks }, null, 2));
   if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`);
 } finally { await browser.close(); await server.close(); }

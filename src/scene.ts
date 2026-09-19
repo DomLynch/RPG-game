@@ -26,6 +26,21 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
   };
 }
 
+// Late finisher reveal: a three-quarter side view, fitted to the phone's horizontal field of view.
+// Choose the inward side from the frozen duel positions so the camera cannot switch sides as the corpse moves.
+export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' = 'runThrough') {
+  const dx = fallen.x-killer.x, dz = fallen.z-killer.z, gap = Math.hypot(dx,dz) || 1;
+  const ux = dx/gap, uz = dz/gap, lookX = (killer.x+fallen.x)/2, lookZ = (killer.z+fallen.z)/2;
+  const back = Math.max(3.8, (gap/2+.42)/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
+  const angle = finisher === 'splitCrown' ? Math.PI/3 : 5*Math.PI/12, sideward = Math.sin(angle), rearward = Math.cos(angle);
+  const side = (sign: number) => ({ x: lookX+(-uz*sign*sideward-ux*rearward)*back, y: 3.1, z: lookZ+(ux*sign*sideward-uz*rearward)*back, lookX, lookY: .85, lookZ });
+  const left = side(1), right = side(-1);
+  const pose = Math.hypot(left.x,left.z) <= Math.hypot(right.x,right.z) ? left : right;
+  const radius = Math.hypot(pose.x,pose.z);
+  if (radius > 11.5) { pose.x *= 11.5/radius; pose.z *= 11.5/radius; }
+  return pose;
+}
+
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: string) => void = () => {}, opponentId: OpponentId = 'veteran') {
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
@@ -343,6 +358,14 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / .25));
+      if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown')) {
+        const t = THREE.MathUtils.clamp((finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
+        const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher);
+        desired.lerp(new THREE.Vector3(side.x,side.y,side.z), reveal);
+        look.lerp(new THREE.Vector3(side.lookX,side.lookY,side.lookZ), reveal);
+        const radius = Math.hypot(desired.x,desired.z);
+        if (radius > 11.5) { desired.x *= 11.5/radius; desired.z *= 11.5/radius; }
+      }
       // Read feet after the rigs and headings settle; only grounded locomotion kicks up sand.
       const canScuff = (pose: string, speed: number) => ['sheathed', 'ready', 'guard'].includes(pose) && speed > 0.25 && speed < 6;
       footDust.update(animationDt, dustFeet.map((foot, i) => foot?.getWorldPosition(dustPositions[i]) ?? null),
