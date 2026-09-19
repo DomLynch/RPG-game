@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
+import { CROWD_KINDS, spectatorGeometry } from './assets/arena/crowd.ts';
 import { phoneTier } from './quality.ts';
-import { bannerAlpha, crowdAtlas, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
+import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
 
 // The arena: everything that is not a fighter, a light, the camera or an effect. Owned by the world lane.
 // Contract (tests/arena.test.ts): the playable surface is a flat circle (sim.ts RADIUS 8.55 m); nothing solid stands inside it above the
@@ -82,14 +83,14 @@ export function buildArena(scene: THREE.Scene): Arena {
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): the big procedural maps generate at
   // half size — the generators are size-parametric, so this costs nothing but sharpness on a small screen.
   const phone = phoneTier(), half = (size: number) => (phone ? size / 2 : size);
-  const textures = { sand: dataTexture(sandAlbedo(half(1024)), true), sandNormal: dataTexture(sandNormal(half(512)), false), stone: dataTexture(stoneAlbedo(half(512)), true), stoneNormal: dataTexture(stoneNormal(half(512)), false), sky: dataTexture(skyPixels(half(512), half(256), ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), crowd: dataTexture(crowdAtlas(), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
-  textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.crowd.wrapS = textures.crowd.wrapT = textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = textures.gateLight.wrapS = textures.gateLight.wrapT = THREE.ClampToEdgeWrapping;
+  const textures = { sand: dataTexture(sandAlbedo(half(1024)), true), sandNormal: dataTexture(sandNormal(half(512)), false), stone: dataTexture(stoneAlbedo(half(512)), true), stoneNormal: dataTexture(stoneNormal(half(512)), false), sky: dataTexture(skyPixels(half(512), half(256), ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
+  textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = textures.gateLight.wrapS = textures.gateLight.wrapT = THREE.ClampToEdgeWrapping;
   const sand = new THREE.MeshStandardMaterial({ name: 'sand', map: textures.sand, normalMap: textures.sandNormal, normalScale: new THREE.Vector2(0.7, 0.7), color: '#e2ddd6', roughness: 0.96, vertexColors: true });
   const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, normalMap: textures.stoneNormal, normalScale: new THREE.Vector2(1.1, 1.1), color: '#b9b4ab', roughness: 0.93, vertexColors: true });
   const iron = new THREE.MeshStandardMaterial({ name: 'iron', color: '#2a2623', roughness: 0.6, metalness: 0.78, vertexColors: true });
   const coal = new THREE.MeshStandardMaterial({ name: 'coal', color: '#1a1210', emissive: '#ff6a1c', emissiveIntensity: 1.1, roughness: 1 });
   const cloth = new THREE.MeshStandardMaterial({ name: 'cloth', alphaMap: textures.banner, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
-  const crowdMaterial = new THREE.MeshBasicMaterial({ name: 'crowd', map: textures.crowd, alphaTest: 0.5, side: THREE.DoubleSide });
+  const crowdMaterial = new THREE.MeshStandardMaterial({ name: 'crowd', roughness: 1, vertexColors: true });
   const sky = new THREE.MeshBasicMaterial({ name: 'sky', map: textures.sky, side: THREE.BackSide, fog: false });
   const plain = new THREE.MeshStandardMaterial({ name: 'ash plain', color: '#4a463f', roughness: 1 });
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
@@ -136,10 +137,22 @@ export function buildArena(scene: THREE.Scene): Arena {
     g *= smooth(1.6, 2.6, y) * (1 - smooth(3.8, 4.8, y));
     return [1 + 0.5 * g, 1 + 0.2 * g, 1 - 0.14 * g];
   };
-  const wallTint: Tint = (_x, y, _z, a) => { const k = (0.9 + 0.2 * (hash(Math.floor(a * 30), 0, 4) - 0.5)) * (0.7 + 0.3 * Math.min(1, y / 0.9)); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * 0.99 * gg, k * 0.97 * gb]; };
-  const tierTint: Tint = (_x, y, _z, a) => { const k = (0.88 + 0.18 * (hash(Math.floor(a * 40), Math.floor(y), 6) - 0.5)) * (1 - 0.35 * ruin(a)); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * gg, k * 0.98 * gb]; };
+  // Local grime, not a palette change: irregular damp dirt at the foot and tapering soot above the six braziers.
+  const masonryShade = (y: number, a: number) => {
+    const dirt = Math.exp(-Math.max(0, y) / 0.42) * (0.1 + 0.14 * mottle(Math.sin(a) * 2 + 0.5, Math.cos(a) * 2 + 0.5));
+    let soot = 0;
+    for (const ba of brazierAngles) {
+      const rise = Math.max(0, y - 3.65), drift = 0.012 * rise;
+      const d = Math.atan2(Math.sin(a - ba - drift), Math.cos(a - ba - drift)), width = 0.045 + 0.016 * rise;
+      soot = Math.max(soot, Math.exp(-((d / width) ** 2)) * smooth(3.65, 4.25, y) * (1 - smooth(5.4, 6.8, y)));
+    }
+    return (1 - dirt) * (1 - 0.3 * soot);
+  };
+  const wallTint: Tint = (_x, y, _z, a) => { const k = (0.9 + 0.2 * (hash(Math.floor(a * 30), 0, 4) - 0.5)) * (0.7 + 0.3 * Math.min(1, y / wall.top)) * masonryShade(y, a); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * 0.99 * gg, k * 0.97 * gb]; };
+  const tierTint: Tint = (_x, y, _z, a) => { const k = (0.88 + 0.18 * (hash(Math.floor(a * 40), Math.floor(y), 6) - 0.5)) * (1 - 0.35 * ruin(a)) * masonryShade(y, a); const [gr, gg, gb] = fireGlow(y, a); return [k * gr, k * gg, k * 0.98 * gb]; };
   const flat = (h: number) => () => h, gateSkip = (a: number) => inGate(a, wall.inner);
-  stones.push(band(wall.inner, flat(0), wall.inner, flat(wall.top), 2, wallTint, gateSkip));                 // the wall's inner face, open at the gate
+  const wallRows = [0, 0.25, 0.7, 1.5, wall.top];   // enough vertical samples to keep foot stains localized
+  for (let i = 1; i < wallRows.length; i++) stones.push(band(wall.inner, flat(wallRows[i - 1]), wall.inner, flat(wallRows[i]), 2, wallTint, gateSkip));
   stones.push(band(wall.inner, flat(wall.top), wall.outer, flat(wall.top), 2, wallTint, gateSkip));           // its walkway
   let inner = wall.outer;
   tiers.forEach((_h, i) => {
@@ -171,7 +184,9 @@ export function buildArena(scene: THREE.Scene): Arena {
   // Rubble: fallen stone in the band between the play circle and the wall (never above 0.5 m: the camera clamp rule), blocks on collapsed
   // tiers, a few bone fragments in the sand.
   for (let i = 0; i < 26; i++) {
-    const a = hash(i, 0, 13) * TAU, rr = 9.9 + hash(i, 1, 13) * 1.45, [x, z] = polar(rr, a), s = 0.16 + hash(i, 2, 13) ** 2 * 0.3, bone = i % 4 === 3;
+    const cluster = i % 4 < 2, drum = i % 3;
+    const a = cluster ? 1.3 + drum * 2.1 + hash(drum, 0, 53) * 0.5 + (hash(i, 0, 13) - 0.5) * 0.16 : hash(i, 0, 13) * TAU;
+    const rr = cluster ? 10.1 + hash(drum, 1, 53) * 1.1 - hash(i, 1, 13) * 0.65 : 9.9 + hash(i, 1, 13) * 1.45, [x, z] = polar(rr, a), s = 0.16 + hash(i, 2, 13) ** 2 * 0.3, bone = i % 4 === 3;
     stones.push(prop(new THREE.SphereGeometry(bone ? 0.09 : s, 7, 5), x, bone ? 0.02 : s * 0.25, z, new THREE.Euler(hash(i, 3, 13) * 3, hash(i, 4, 13) * 3, hash(i, 5, 13)), new THREE.Vector3(1, 0.55, 0.8), 1, bone ? BONE : DARK, -0.2));
   }
   for (let i = 0; i < 40; i++) {
@@ -190,7 +205,8 @@ export function buildArena(scene: THREE.Scene): Arena {
     stones.push(prop(cylinder(0.3, 0.3, 0.85, 12), x, 0.17, z, new THREE.Euler(Math.PI / 2, a, 0, 'YXZ'), 1, 2, [seg(i + 40), seg(i + 40), seg(i + 40) * 0.98], -0.2));
   }
   for (let i = 0; i < 7; i++) {
-    const a = hash(i, 0, 55) * TAU, rr = 9.3 + hash(i, 1, 55) * 1.9, [x, z] = polar(rr, a), s = 0.1 + hash(i, 2, 55) * 0.12;
+    const drum = i % 3, a = 1.3 + drum * 2.1 + hash(drum, 0, 53) * 0.5 + (hash(i, 0, 55) - 0.5) * 0.2;
+    const rr = 10.1 + hash(drum, 1, 53) * 1.1 - hash(i, 1, 55) * 0.8, [x, z] = polar(rr, a), s = 0.1 + hash(i, 2, 55) * 0.12;
     stones.push(prop(new THREE.SphereGeometry(s, 6, 4), x, s * 0.3, z, new THREE.Euler(hash(i, 3, 55) * 3, hash(i, 4, 55) * 3, hash(i, 5, 55) * 2), new THREE.Vector3(1, 0.4, 0.8), 1, [1.5, 0.82, 0.55], -0.1));
   }
   mesh(mergeGeometries(stones), stone, 'stone');
@@ -214,22 +230,24 @@ export function buildArena(scene: THREE.Scene): Arena {
   }
   const bannerAngles = Array.from({ length: 8 }, (_, k) => Math.PI / 8 + k * Math.PI / 4), bannerR = wall.outer - 0.15, bannerTop = wall.top + 3.4;
   for (const a of bannerAngles) { const [x, z] = polar(bannerR, a); irons.push(prop(cylinder(0.035, 0.045, 3.4, 6), x, wall.top + 1.7, z, 0, 1, 1, IRON, wall.top), prop(box(1.3, 0.06, 0.06), x, bannerTop, z, a, 1, 1, IRON, -5)); }
+  const fallenStart = irons.length;
   // Dropped gear in the sand (iron, tinted): a fallen shield by the wall and a broken blade half-buried near the ring.
-  { const a = 2.4, [x, z] = polar(10.3, a);
-    irons.push(prop(cylinder(0.34, 0.34, 0.045, 16), x, 0.05, z, new THREE.Euler(0.12, a, 0.06), 1, 1, [2.3, 1.7, 1.0], -5));
-    irons.push(prop(new THREE.SphereGeometry(0.09, 8, 6), x, 0.1, z, 0, new THREE.Vector3(1, 0.6, 1), 1, [2.3, 1.7, 1.0], -5)); }
+  { const a = 1.3 + hash(0, 0, 53) * 0.5 + 0.07, [x, z] = polar(10.1 + hash(0, 1, 53) * 1.1 - 0.4, a);
+    const shield = new THREE.SphereGeometry(0.34, 14, 5, 0, TAU, 0, Math.PI / 2); shield.scale(1, 0.16, 1);
+    irons.push(prop(shield, x, -0.008, z, new THREE.Euler(0.12, a, 0.06), 1, 1, [2.3, 1.7, 1.0], -0.02));
+    irons.push(prop(new THREE.SphereGeometry(0.09, 8, 6), x, 0.046, z, 0, new THREE.Vector3(1, 0.5, 1), 1, [2.3, 1.7, 1.0], -0.02)); }
   { const a = 4.9, [x, z] = polar(9.8, a);
     irons.push(prop(box(0.52, 0.025, 0.07), x, 0.03, z, new THREE.Euler(0.04, a, 0.02), 1, 1, [1.9, 1.9, 2.0], -5));
     irons.push(prop(box(0.16, 0.04, 0.05), x + Math.sin(a + 0.5) * 0.3, 0.035, z + Math.cos(a + 0.5) * 0.3, a + 0.5, 1, 1, [1.2, 0.9, 0.7], -5)); }
   // More of yesterday's fight (world lane 2026-09-18): a dented helmet, a snapped spear, a blade snapped at the tang.
   // All in the iron merge — zero draw calls — and low with yaw-only spins (the camera-clamp rule).
-  { const a = 0.9, [x, z] = polar(10.1, a), dome = new THREE.SphereGeometry(0.17, 10, 7); dome.scale(1, 0.62, 1.12);
-    irons.push(prop(dome, x, 0.055, z, 0, 1, 1, [1.35, 1.3, 1.22], -0.1));
+  { const a = 3.4 + hash(1, 0, 53) * 0.5 - 0.055, [x, z] = polar(10.1 + hash(1, 1, 53) * 1.1 - 0.5, a), dome = new THREE.SphereGeometry(0.17, 10, 7); dome.scale(1, 0.62, 1.12);
+    irons.push(prop(dome, x, 0.008, z, new THREE.Euler(0.13, a, -0.12), 1, 1, [1.35, 1.3, 1.22], -0.1));
     irons.push(prop(box(0.2, 0.02, 0.14), x + Math.sin(a) * 0.13, 0.03, z + Math.cos(a) * 0.13, a, 1, 1, [1.35, 1.3, 1.22], -0.1)); }
   { const a = 3.6, [x, z] = polar(9.9, a), long = cylinder(0.022, 0.026, 0.95, 6); long.rotateZ(Math.PI / 2);
     const stub = cylinder(0.024, 0.028, 0.45, 6); stub.rotateZ(Math.PI / 2);
-    irons.push(prop(long, x, 0.035, z, a, 1, 1, [1.55, 1.25, 0.85], -0.1));
-    irons.push(prop(stub, x + Math.sin(a + 2.6) * 0.75, 0.03, z + Math.cos(a + 2.6) * 0.75, a + 0.9, 1, 1, [1.55, 1.2, 0.8], -0.1));
+    irons.push(prop(long, x, 0.008, z, new THREE.Euler(0.012, a, 0.022), 1, 1, [1.55, 1.25, 0.85], -0.1));
+    irons.push(prop(stub, x + Math.sin(a + 2.6) * 0.57, 0.004, z + Math.cos(a + 2.6) * 0.57, a + 0.9, 1, 1, [1.55, 1.2, 0.8], -0.1));
     irons.push(prop(cylinder(0.03, 0.03, 0.09, 6), x + Math.sin(a) * 0.5, 0.045, z + Math.cos(a) * 0.5, 0, 1, 1, [1.3, 1.15, 1.0], -0.1)); }
   { const a = 5.6, [x, z] = polar(10.4, a);
     irons.push(prop(box(0.46, 0.02, 0.065), x, 0.025, z, a + 0.3, 1, 1, [1.9, 1.9, 2.0], -0.1));
@@ -241,9 +259,10 @@ export function buildArena(scene: THREE.Scene): Arena {
     const RUST: [number, number, number] = [1.9, 1.55, 1.0], STEEL: [number, number, number] = [1.8, 1.8, 1.95], WOOD: [number, number, number] = [1.5, 1.15, 0.75];
     for (const [rr, a, kind] of scatter) { const [x, z] = polar(rr, a);
       if (kind === 0) {   // a shield sunk to its rim, boss up
-        irons.push(prop(cylinder(0.3, 0.3, 0.035, 14), x, 0.004, z, new THREE.Euler(0, a, 0.09), 1, 1, RUST, -0.05));
+        const shield = new THREE.SphereGeometry(0.3, 14, 5, 0, TAU, 0, Math.PI / 2); shield.scale(1, 0.13, 1);
+        irons.push(prop(shield, x, -0.012, z, new THREE.Euler(0.055, a, 0.085), 1, 1, RUST, -0.05));
         const boss = new THREE.SphereGeometry(0.07, 8, 6); boss.scale(1, 0.4, 1);
-        irons.push(prop(boss, x, 0.025, z, 0, 1, 1, RUST, -0.05));
+        irons.push(prop(boss, x, 0.012, z, 0, 1, 1, RUST, -0.05));
       } else if (kind === 1) {   // a blade fragment, edge up
         irons.push(prop(box(0.4, 0.018, 0.06), x, 0.006, z, a + 0.4, 1, 1, STEEL, -0.05));
         irons.push(prop(box(0.12, 0.03, 0.05), x - Math.sin(a) * 0.35, 0.004, z - Math.cos(a) * 0.35, a + 1.1, 1, 1, WOOD, -0.05));
@@ -255,6 +274,14 @@ export function buildArena(scene: THREE.Scene): Arena {
         const frag = cylinder(0.02, 0.024, 0.68, 6); frag.rotateZ(Math.PI / 2);
         irons.push(prop(frag, x, 0.012, z, a + 0.7, 1, 1, WOOD, -0.05));
       } } }
+  // Sand dust at the exposed edges of fallen gear, baked into existing vertex colours; no floor decals or extra draw.
+  for (const g of irons.slice(fallenStart)) {
+    const p = g.attributes.position, c = g.attributes.color;
+    for (let i = 0; i < p.count; i++) {
+      const dust = 0.42 * (1 - smooth(-0.012, 0.03, p.getY(i)));
+      c.setXYZ(i, c.getX(i) * (1 - dust) + 3.4 * dust, c.getY(i) * (1 - dust) + 3 * dust, c.getZ(i) * (1 - dust) + 2.6 * dust);
+    }
+  }
   mesh(mergeGeometries(irons), iron, 'iron');
   mesh(mergeGeometries(coals), coal, 'coals', false);
   // Flames: one instanced tongue per brazier over the coals — three quads at 60° so it has volume from every angle
@@ -278,24 +305,23 @@ export function buildArena(scene: THREE.Scene): Arena {
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
   const banners = new THREE.InstancedMesh(bannerGeometry, cloth, bannerAngles.length); banners.name = 'banners'; banners.castShadow = true; group.add(banners);
   bannerAngles.forEach((_a, k) => banners.setColorAt(k, new THREE.Color(k % 2 ? '#7d7469' : '#472622')));
-  // The crowd: silhouettes on the tiers (crossed quads, four outlines, per-instance ash tints with a few dull cloths), reacting to the fight.
+  // Five solid, unrigged silhouettes: familiar inhabitants of this world, subdued on the upper tiers.
   type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; phase: number };
-  const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = 4, quad = (k: number) => {
-    const a = new THREE.PlaneGeometry(0.95, 1.85), b = a.clone(); b.rotateY(Math.PI / 2); const g = mergeGeometries([a, b]); g.translate(0, 0.925, 0);
-    const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, (k + uv.getX(i)) / cells); return g;
-  };
+  const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = CROWD_KINDS.length;
   const people: Spectator[][] = Array.from({ length: cells }, () => []);
   tiers.forEach((_h, i) => {
     const r = wall.outer + i * tierDepth + 0.55, step = 0.82 / r, count = Math.floor(TAU / step);
     for (let s = 0; s < count; s++) {
-      const a = s * step + hash(s, i, 17) * step * 0.6, occupied = hash(s, i, 19) > 0.34, segment = Math.floor(a / TAU * LAYOUT.segments);
+      const a = s * step + (hash(s, i, 17) - 0.5) * step * 0.8, occupied = hash(s, i, 19) > 0.22 + 0.28 * hash(Math.floor(s / 5), i, 71), segment = Math.floor(a / TAU * LAYOUT.segments);
       if (i < 2 || !occupied || ruin(a) > 0.3) continue;   // the two lowest tiers are broken and empty: the crowd keeps ≥ 5 m from the lock camera
-      const [x, z] = polar(r, a); people[Math.floor(hash(s, i, 23) * cells)].push({ x, y: tierTop(i, a, segment), z, yaw: a + Math.PI, scale: 0.9 + hash(s, i, 29) * 0.2, phase: hash(s, i, 31) });
+      const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a), kind = hash(s, i, 23);
+      const k = kind < 0.48 ? 0 : kind < 0.65 ? 1 : kind < 0.79 ? 2 : kind < 0.88 ? 3 : 4;
+      people[k].push({ x, y: tierTop(i, a, segment), z, yaw: a + Math.PI + (hash(s, i, 75) - 0.5) * 0.4, scale: 0.92 + hash(s, i, 29) * 0.16, phase: hash(s, i, 31) });
     }
   });
   people.forEach((list, k) => {
-    const instanced = new THREE.InstancedMesh(quad(k), crowdMaterial, list.length); instanced.name = `crowd ${k}`; instanced.castShadow = instanced.receiveShadow = false; group.add(instanced);
-    list.forEach((_p, j) => { const cloth = hash(j, k, 37), tone = 0.1 + hash(j, k, 41) * 0.12; instanced.setColorAt(j, cloth > 0.9 ? new THREE.Color(0.3, 0.14, 0.11) : cloth > 0.82 ? new THREE.Color(0.3, 0.23, 0.13) : new THREE.Color(tone, tone * 0.97, tone * 0.92)); });
+    const instanced = new THREE.InstancedMesh(spectatorGeometry(CROWD_KINDS[k]), crowdMaterial, list.length); instanced.name = `crowd ${CROWD_KINDS[k]}`; instanced.castShadow = instanced.receiveShadow = false; group.add(instanced);
+    list.forEach((_p, j) => { const tint = hash(j, k, 37), tone = 0.65 + hash(j, k, 41) * 0.35; instanced.setColorAt(j, new THREE.Color(tone, tone * (tint > 0.8 ? 0.78 : 0.97), tone * (tint > 0.8 ? 0.65 : 0.92))); });
     crowds.push({ mesh: instanced, people: list });
   });
   // The sky dome (unfogged; its horizon is painted the fog colour) and the ash plain with its far ridges. The dome has no pole: its

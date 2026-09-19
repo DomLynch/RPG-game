@@ -55,6 +55,9 @@ function lockCamera() {
   camera.fov = 51; camera.position.set(pose.x, pose.y, pose.z); camera.lookAt(pose.lookX, 0.8, pose.lookZ);
 }
 const VIEWS = {
+  'stands': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(0, 3, 7); camera.lookAt(0, 5, -17); } },
+  'gate': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(4, 2.5, -6); camera.lookAt(0, 2, -12); } },
+  'debris': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(6, 2, 5); camera.lookAt(10, 0, 3); } },
   'lock-portrait': { size: [393, 852], ratio: GAME_RATIO, place: lockCamera },
   'lock-landscape': { size: [852, 393], ratio: GAME_RATIO, place: lockCamera },
   'wide': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(15, 17, 33); camera.lookAt(0, 2.5, -2); } },   // establishing view from beyond the parapet
@@ -133,7 +136,7 @@ try {
   if (args.includes('--moodboard')) {
     const { image, names } = await page.evaluate(() => __preview.moodboard()); await save('swatches.png', image); console.log(`  swatches: ${names.join(' · ')}`);
   } else {
-    for (const view of ['lock-portrait', 'lock-landscape', 'wide', 'plan']) await save(`${view}.png`, await page.evaluate(v => __preview.capture(v), view));
+    for (const view of ['lock-portrait', 'lock-landscape', 'wide', 'plan', 'stands', 'gate', 'debris']) await save(`${view}.png`, await page.evaluate(v => __preview.capture(v), view));
     await save('wide-empty.png', await page.evaluate(() => __preview.capture('wide', false)));
     const measured = await page.evaluate(() => __preview.stats());
     // Transfer cost: gzip of the lane's sources (an upper bound on the arena's share of the shell; check-budget.mjs has the shell itself).

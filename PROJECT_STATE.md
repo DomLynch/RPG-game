@@ -1,5 +1,18 @@
 # Project state
 
+## World polish — 2026-09-19 (world/crowd-grounding-light; local, not yet shipped)
+Owner approved four sequential passes: roster spectators, settled debris, softer gate light, selective masonry staining.
+Step 1: replace the narrow crossed cards with five opaque instanced body silhouettes: human, goblin, Pitborn, executioner, Nightborn. No fighter assets, animation clips or gameplay changed. Irregular gaps and slight depth/yaw variation; existing bounded crowd reactions retained. First judge rejected boxy torsos; refined rounded bodies, darker clothes, hair and robe silhouettes. Arena tests 8/8; first full quality 246/246 + browser gate passed; refined geometry typechecks and arena tests pass. Fixed-camera captures: artifacts/world/polish-1-crowd-refined. Cost: 88,798 triangles / 120k, 21 measured arena draws (+1), 11.01 MB textures (-0.35 MB), floor luminance 0.105 unchanged. Physical phone performance remains unmeasured.
+
+Step 2: settle curved shields, helmet and snapped shaft into the sand; small rubble and pottery gather around three existing column drums. Preserve all five separated in-ring gear sites. Dust uses existing iron vertex colours only, no wear decals. Arena 8/8, lint/typecheck and fixed-camera debris + duel review pass; play/clamp bounds hold. Captures: artifacts/world/polish-2-debris.
+
+Step 3: soften the existing gate shaft through a broader feathered falloff, low-contrast bar interruption and lower peak; warm ground pool and geometry unchanged. Arena 8/8, fixed gate/duel captures reviewed (artifacts/world/polish-3-gate); zero texture/draw/triangle growth.
+
+Step 4: localized dirt at the wall foot and tapering soot above the braziers, baked into existing vertex colours; 552 extra wall triangles keep stains near the ground. Stone albedo/normal pixels unchanged. Arena 8/8 and fixed-camera review pass (artifacts/world/polish-4-masonry). Final local npm run quality: 246/246 + real browser + dependency audit + budget PASS. World preview now runs as a completion command: node scripts/arena-preview.mjs --label quality-world (passed). Final arena: 89,482 triangles, 21 measured draws, 11.01 MB textures, floor luminance 0.105. Two-pass self-review checked clearance/reaction/disposal and fixed-camera materials/readability; no audio, combat, fighter assets, global lighting or camera edits. Integrated trunk 32f783e (roster and Split Crown) preserving both completion commands. Integrated npm run quality: 250/250 plus real browser, audit and budget PASS; all three completion commands (roster routes/migration, Split Crown modes/rematch, world captures) PASS. CodeGraph refreshed in the isolated worktree. PR #145 initial CI passed; integrated newly merged estoc d3114a9 and preserved its completion gate. Revalidation/release receipts pending in artifacts/world/polish-notes.
+The subsequent estoc integration passed full quality and all four completion commands. Integrated counter release 3bfb0eb, preserving its browser gate; counter release verified by its lane and window released. Integrated lead 0c7b03f, preserving its Season 1 state. World owns the next release window; final combined gates/live receipts are recorded in artifacts/world/polish-notes.
+
+
+
 ## Season 1 scope and material cleanup — lead, 2026-09-19
 Owner chose Recruit → Origin as the complete Season 1 core, with the RPG endgame built after launch. Canonical scope is
 in GAME_SPEC.md; docs/progression-direction.md records future choices, persistence/result boundaries, migrations,
@@ -13,7 +26,7 @@ All six fighters' four material constructors and final material GLB output compa
 both with and without authored maps (12 cases). This is material-pipeline equivalence, not a full geometry rebuild.
 Source art needed for a complete UAL2 rebuild is absent in the lead source directory; shipped GLBs remain unchanged.
 Local validation at the initial base: npm run quality passed (250 tests, lint/typecheck/build/audit, budget and browser);
-roster and Split Crown completion checks passed. Evidence: artifacts/lead-quality/. Rebase/release validation remains in progress.
+roster and Split Crown completion checks passed. Evidence: artifacts/lead-quality/. Lead reported integrated 251/251 full quality and roster/Split Crown/estoc/counter completion gates PASS; #148 CI passed and merged as 0c7b03f. Included in the world lane combined release; live receipts pending in artifacts/world/polish-notes.
 Two-pass review: preset identity/isolation and unchanged simulation/input; then authored-map precedence, dye retention,
 matte overrides and browser/render/persistence gates. No new runtime dependency or module added.
 

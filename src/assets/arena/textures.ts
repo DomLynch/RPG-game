@@ -155,22 +155,6 @@ export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, s
     return [169 * shade + 70 * sun, 168 * shade * 0.98 + 52 * sun, 156 * shade * 0.94 + 30 * sun];
   });
 }
-// Crowd atlas: four silhouettes (standing, fist raised, cloaked, leaning) in a row; white with a faint top light, alpha cut. Tinted per
-// instance by the arena. Cheap variation: the outline, not the pixels, tells them apart.
-export function crowdAtlas(cell = 128, seed = 23): Pixels {
-  const shapes: ((x: number, y: number) => boolean)[] = [   // x, y in [0,1] of the cell, y up; each is a union of blobs and bars
-    (x, y) => blob(x, y, .5, .86, .065, .08) || bar(x, y, .5, .62, .3, .24) || bar(x, y, .5, .36, .24, .3) || bar(x, y, .43, .12, .09, .24) || bar(x, y, .58, .12, .09, .24),
-    (x, y) => blob(x, y, .5, .84, .065, .08) || bar(x, y, .5, .6, .3, .24) || bar(x, y, .5, .34, .24, .3) || bar(x, y, .42, .11, .09, .22) || bar(x, y, .59, .11, .09, .22) || bar(x, y, .71, .78, .07, .32) || blob(x, y, .72, .95, .055, .05),
-    (x, y) => blob(x, y, .5, .87, .08, .09) || bar(x, y, .5, .5, .4, .5) || bar(x, y, .5, .14, .34, .28) || bar(x, y, .5, .7, .22, .1),
-    (x, y) => blob(x, y, .56, .8, .065, .08) || bar(x, y, .52, .56, .3, .24) || bar(x, y, .48, .32, .24, .26) || bar(x, y, .42, .1, .09, .2) || bar(x, y, .56, .1, .09, .2) || bar(x, y, .7, .6, .07, .26),
-  ];
-  return pixels(cell * shapes.length, cell, (_u, v, x, y) => {
-    const i = Math.floor(x / cell), lx = (x - i * cell) / cell, ly = v, inside = shapes[i](lx + (hash(x, y, seed) - .5) * .02, ly), tone = 205 + 40 * ly;
-    return [tone, tone, tone, inside ? 255 : 0];
-  });
-}
-const blob = (x: number, y: number, cx: number, cy: number, rx: number, ry: number) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 < 1;
-const bar = (x: number, y: number, cx: number, cy: number, w: number, h: number) => Math.abs(x - cx) < w / 2 && Math.abs(y - cy) < h / 2;
 // A torn banner: a cut mask. Ragged hem, frayed sides, a few holes; the cloth colour is the material's.
 export function bannerAlpha(width = 128, height = 256, seed = 31): Pixels {
   const hem = fbm(6, 3, seed), holes = fbm(5, 3, seed + 3), fray = fbm(10, 2, seed + 5);
@@ -219,17 +203,17 @@ export function motePixels(size = 32, seed = 53): Pixels {
   });
 }
 // Gate light (world lane 2026-09-18): one atlas, two halves. v > 0.5 is the sun shaft that spills through the gate arch —
-// soft across, streaked like light through bars, fading along its length. v < 0.5 is the warm pool where it lands on the
+// soft across, faintly interrupted by bars, fading along its length. v < 0.5 is the warm pool where it lands on the
 // sand. Additive: RGB carries the brightness (peak ~half, warm), alpha carries the shape.
 export function gateLightAtlas(width = 128, height = 256, seed = 83): Pixels {
   const streaks = fbm(6, 3, seed), dapple = fbm(10, 2, seed + 4);
   return pixels(width, height, (u, v) => {
     if (v >= 0.5) {
       const s = u, t = (v - 0.5) * 2;
-      const across = Math.exp(-((s - 0.5) ** 2) / 0.075);
-      const bars = 0.6 + 0.4 * Math.max(0, Math.sin(s * 34 + 2.2 * (streaks(s, t) - 0.5)));
-      const a = across * bars * (t < 0.12 ? t / 0.12 : 1 - smoothstep(0.62, 1, t)) * (0.75 + 0.25 * streaks(s * 3, t * 2));
-      const k = 150 * a;
+      const across = Math.exp(-((s - 0.5) ** 2) / 0.11) * smoothstep(0, 0.22, s) * (1 - smoothstep(0.78, 1, s));
+      const bars = 0.9 + 0.1 * Math.sin(s * 18 + 1.2 * (streaks(s, t) - 0.5));
+      const a = across * bars * smoothstep(0, 0.18, t) * (1 - smoothstep(0.42, 1, t)) * (0.85 + 0.15 * streaks(s * 2, t * 2));
+      const k = 95 * a;
       return [k, k * 0.9, k * 0.68, 255];
     }
     const s = u, t = v * 2, r = Math.hypot(s - 0.5, t - 0.5) * 2;
