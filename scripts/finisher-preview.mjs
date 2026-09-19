@@ -94,7 +94,8 @@ window.__finisher = {
   inspect() {
     const crown = renderedScene?.getObjectByName('SplitCrown');
     const opened = renderedScene?.getObjectByName('Opened');
-    const pieces = opened?.children.map(half => {
+    const dropped=opened?.getObjectByName('OpenedWeapon'), weaponBox=dropped ? new Box3().setFromObject(dropped,true) : null;
+    const pieces = opened?.children.filter(o=>o.name!=='OpenedWeapon').map(half => {
       const box = new Box3().setFromObject(half,true);
       return {name:half.name,min:box.min.toArray(),max:box.max.toArray(),caps:half.children.filter(o=>o.name==='WaistCut').length,
         frame:[box.min.x,box.max.x].flatMap(x=>[box.min.y,box.max.y].flatMap(y=>[box.min.z,box.max.z].map(z=>view.project([x,y,z]))))};
@@ -119,7 +120,7 @@ window.__finisher = {
     actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
     const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
     const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
-    return { opened: {visible:opened?.visible ?? false,pieces:pieces ?? []}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -218,6 +219,8 @@ try {
             assert.ok(opened.pieces.every(p=>p.min[1]>-.015),'no half sinks through the floor');
             if(suffix === 'settled') {
               assert.ok(opened.pieces.every(p=>p.min[1]<.04),'both halves land');
+              assert.ok(opened.weapon.min[1]>-.015 && opened.weapon.max[1]<.5,'victim weapon drops flat');
+              assert.ok(opened.weapon.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700),'dropped weapon remains in the portrait frame');
               assert.ok(opened.pieces.every(p=>p.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700)),'entire corpse clears portrait controls');
             }
           }

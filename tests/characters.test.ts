@@ -647,10 +647,10 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
     assert.equal(opponent.anchor.getObjectByName('Opened'),undefined,'prepared parts stay outside the live scene');
     opponent.openWaist(.045,'red');
     const opened=opponent.anchor.getObjectByName('Opened')!;
-    assert.ok(opened, file); assert.equal(opened.children.length,2); assert.equal(root.visible,false);
+    assert.ok(opened, file); assert.equal(opened.children.length,3); assert.equal(root.visible,false);
     console.log(`${file}: waist bake ${Math.round(performance.now()-before)} ms`);
     const legs=opened.children[0], torso=opened.children[1];
-    for(const half of opened.children) {
+    for(const half of opened.children.slice(0,2)) {
       assert.ok(half.children.some(o=>o.name==='WaistCut'),'both cut surfaces are closed');
       assert.ok(new Box3().setFromObject(half).getSize(new Vector3()).length()>.3);
     }
@@ -659,7 +659,7 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
     assert.ok(legs.quaternion.angleTo(initialLegs)<1e-8,'legs stand briefly after the torso starts moving');
     for(const progress of [.4,.66,.84,1]) {
       opponent.openWaist(progress,'red'); placed.updateMatrixWorld(true);
-      for(const half of opened.children) {
+      for(const half of opened.children.slice(0,2)) {
         const box=new Box3().setFromObject(half,true);
         assert.ok(box.min.y>-.012,`${file} ${half.name}: no floor penetration at ${progress} (${box.min.y})`);
         if(progress===1) {
@@ -677,13 +677,15 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
     const killer={x:placed.position.x+Math.sin(.8)*1.9,z:placed.position.z+Math.cos(.8)*1.9};
     const cameraPose=finisherSidePose(killer,{x:placed.position.x,z:placed.position.z},393/852,'opened');
     const camera=new PerspectiveCamera(51,393/852,.1,180);camera.position.set(cameraPose.x,cameraPose.y,cameraPose.z);camera.lookAt(cameraPose.lookX,cameraPose.lookY,cameraPose.lookZ);camera.updateMatrixWorld();
-    for(const half of opened.children) {
+    for(const half of opened.children.slice(0,2)) {
       const b=new Box3().setFromObject(half,true);
       for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]) {
         const p=new Vector3(x,y,z).project(camera);
         assert.ok(Math.abs(p.x)<.975 && p.y>-.64 && p.y<.95,`${file}: whole ${half.name} inside portrait (${p.x},${p.y})`);
       }
     }
+    const dropped=opened.getObjectByName('OpenedWeapon')!;const weaponBox=new Box3().setFromObject(dropped,true);
+    assert.ok(weaponBox.min.y>-.012 && weaponBox.max.y<.5*SCALE[file],`${file}: released weapon lies flat on the sand (${weaponBox.min.y},${weaponBox.max.y})`);
     const held=opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]);
     opponent.update(0,.1,'opened',1); opponent.openWaist(1,'dark');
     assert.deepEqual(opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]),held,'final pose holds');

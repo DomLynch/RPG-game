@@ -3,7 +3,7 @@
 ## Opened waist finisher — 2026-09-19 (PR #163)
 Owner explicitly authorized a horizontal waist separation: torso slides sideways and falls; legs hold briefly and
 fall separately. Own-model static geometry is sliced and capped during loading/reset, outside the killing frame;
-closed cut surfaces, original exterior maps, arms and held weapon retained with torso, cached floor supports.
+closed cut surfaces, original exterior maps, arms retained with torso, victim weapon released to the sand, cached floor supports.
 Blood-off keeps the intact collapse. Red/dark/off changes and rematch restore the rig cleanly. Six-way deterministic
 pool and journal option; early side camera and two timed landing cues reuse existing resources. No GLB, simulation,
 input or dependency change. New creature bodies remain outside finisher support until their separate anatomy review.

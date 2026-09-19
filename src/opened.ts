@@ -1,7 +1,7 @@
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Euler, SkinnedMesh, Vector3 } from 'three';
 
 // One pose bake per encounter, prepared before combat like a cached severed prop. Exterior maps are borrowed; only the new geometry and cut material
-// belong to this effect. Cut the torso at its waist, retaining both arms and the held weapon with the upper body.
+// belong to this effect. Cut the torso at its waist, retaining both arms with the torso and releasing the victim weapon to the sand.
 export function openWaist(root: Object3D, anchor: Group) {
   root.updateWorldMatrix(true, true); root.updateMatrixWorld(true);
   const inverse = anchor.matrixWorld.clone().invert();
@@ -10,8 +10,8 @@ export function openWaist(root: Object3D, anchor: Group) {
   const waist = hip.y + (spine.getWorldPosition(new Vector3()).applyMatrix4(inverse).y - hip.y) * .6;
   const group = new Group(); group.name = 'Opened';
   const cut = new MeshStandardMaterial({ color: '#501c20', roughness: .88, side: DoubleSide, vertexColors: true });
-  const lower = new Group(), upper = new Group(); lower.name = 'OpenedLegs'; upper.name = 'OpenedTorso'; group.add(lower, upper);
-  const supports: number[][] = [[], []], cutEdges: Vector3[][] = [[], []];
+  const lower = new Group(), upper = new Group(), weapon = new Group(); weapon.name = 'OpenedWeapon'; lower.name = 'OpenedLegs'; upper.name = 'OpenedTorso'; group.add(lower, upper, weapon);
+  const supports: number[][] = [[], [], []], cutEdges: Vector3[][] = [[], []];
   const armBone = (name: string) => /^(clavicle|upperarm|lowerarm|hand|index|middle|pinky|ring|thumb)_/.test(name);
   const visible = (o: Object3D) => { for (let p: Object3D | null = o; p; p = p.parent) if (!p.visible) return false; return true; };
   root.traverse(object => {
@@ -49,7 +49,7 @@ export function openWaist(root: Object3D, anchor: Group) {
       const positions: number[] = [], normals: number[] = [], uvs: number[] = [], colors: number[] = [], groups: { start: number; count: number; materialIndex: number }[] = [];
       const push = (v: Vertex) => {
         const p = v.p.clone(); if (halfIndex) p.y -= waist;
-        positions.push(...p.toArray()); normals.push(...v.n.toArray()); uvs.push(...v.uv); colors.push(...v.color); supports[halfIndex].push(p.x,p.y,p.z);
+        positions.push(...p.toArray()); normals.push(...v.n.toArray()); uvs.push(...v.uv); colors.push(...v.color); supports[attachment ? 2 : halfIndex].push(p.x,p.y,p.z);
       };
       for (let i = 0; i < (index?.count ?? position.count); i += 3) {
         const tri = [0,1,2].map(k => vertices[index ? index.getX(i+k) : i+k]);
@@ -78,7 +78,7 @@ export function openWaist(root: Object3D, anchor: Group) {
       if (positions.length) {
         const g = make(positions,normals,uvs); if (colors.length) g.setAttribute('color',new Float32BufferAttribute(colors,3));
         for (const entry of groups) g.addGroup(entry.start,entry.count,entry.materialIndex);
-        const mesh = new Mesh(g,object.material); mesh.name = object.name; mesh.userData.openedWeapon = attachment; mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false; half.add(mesh);
+        const mesh = new Mesh(g,object.material); mesh.name = object.name; mesh.userData.openedWeapon = attachment; mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false; (attachment ? weapon : half).add(mesh);
       }
       for (const edge of edges) cutEdges[halfIndex].push(...edge);
     }
@@ -111,28 +111,42 @@ export function openWaist(root: Object3D, anchor: Group) {
     const score=-min+.015*(1-Math.cos(angle));
     if(score<best){best=score;rest.copy(q);}
   }
+  const held = root.getObjectByName('WeaponDrawn') ?? root.getObjectByName('SwordDrawn')!;
+  const grip = held.localToWorld(new Vector3()).applyMatrix4(inverse);
+  const direction = held.localToWorld(new Vector3(0,1,0)).applyMatrix4(inverse).sub(grip).normalize();
+  const flat = new Vector3(0,0,1), aligned = new Quaternion().setFromUnitVectors(direction,flat);
+  const weaponRest = aligned.clone(); let thickness = Infinity;
+  // Roll broad blades flat too: aligning only the shaft leaves a scythe head standing on its edge.
+  for(let i=0;i<64;i++) {
+    const q=new Quaternion().setFromAxisAngle(flat,i*Math.PI/32).multiply(aligned), m=new Matrix4().makeRotationFromQuaternion(q).elements;
+    let low=Infinity,high=-Infinity;const points=supports[2];
+    for(let j=0;j<points.length;j+=3){const y=m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2];low=Math.min(low,y);high=Math.max(high,y);}
+    if(high-low<thickness){thickness=high-low;weaponRest.copy(q);}
+  }
   function place(progress: number) {
     const slide = smooth(progress,.045,.3), fall = smooth(progress,.2,.66), legs = smooth(progress,.36,.84);
     upper.position.set(.5*scale*slide,waist*(1-fall),.12*scale*slide);
     upper.quaternion.identity().slerp(rest,fall);
     lower.position.set(-.1*scale*legs,0,-.12*scale*legs); lower.rotation.set(.08*legs,0,1.52*legs);
+    const drop = smooth(progress,.12,.62);
+    weapon.position.set(.25*scale*drop,waist*(1-drop),-.35*scale*drop); weapon.quaternion.identity().slerp(weaponRest,drop);
   }
   // Precompute exact support heights once. Per-frame playback interpolates a tiny table; no per-frame vertex scan.
-  const floors = [[],[]] as number[][];
+  const floors = [[],[],[]] as number[][];
   for (let i=0;i<=120;i++) {
     place(i/120);
-    for (const [h,half] of [lower,upper].entries()) {
+    for (const [h,half] of [lower,upper,weapon].entries()) {
       const m = new Matrix4().makeRotationFromQuaternion(half.quaternion).elements, points = supports[h]; let min = Infinity;
       for (let j=0;j<points.length;j+=3) min = Math.min(min,m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2]);
       floors[h].push(.008-min);
     }
   }
-  supports[0].length = supports[1].length = 0;
+  supports.forEach(points=>{points.length=0;});
   return {
     group, waist,
     update(progress: number, dark: boolean) {
       const p = Math.max(0,Math.min(1,progress)); place(p);
-      for (const [h,half] of [lower,upper].entries()) {
+      for (const [h,half] of [lower,upper,weapon].entries()) {
         const at = p*120, i = Math.min(119,Math.floor(at)), floor = floors[h][i]+(floors[h][i+1]-floors[h][i])*(at-i);
         half.position.y = Math.max(half.position.y,floor);
       }
