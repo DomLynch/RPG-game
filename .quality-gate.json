@@ -157,6 +157,10 @@
     ],
     [
       "node",
+      "scripts/bell-start-check.mjs"
+    ],
+    [
+      "node",
       "scripts/creature-impact-check.mjs"
     ]
   ]
