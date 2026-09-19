@@ -38,4 +38,7 @@ test('appearance presets reject unknown identities and do not leak edits across 
   assert.deepEqual(warriorAppearance(), original);
   assert.equal(warriorAppearance('executioner').matteIron, true);
   assert.equal(warriorAppearance('veteran').matteIron, false);
+  assert.equal(warriorAppearance('veteran').items, 'helmet_bronze');
+  assert.equal(warriorAppearance('executioner').items, 'mask_iron,hood_rag');
+  for (const id of ['hero', 'pitborn', 'goblin', 'nightborn']) assert.equal(warriorAppearance(id).items, '');
 });

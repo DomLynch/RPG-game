@@ -1,23 +1,44 @@
 # Project state
 
-## Werewolf and Skeleton — local integration, not live (2026-09-19)
-Owner requests the next two creatures at the approved Minotaur/Wraith quality. Both original references and exact
-prompts are saved in docs/character-references; both official TRELLIS.2 raw GLBs are exported and pinned in
-src/assets/README.md after the owner upgraded Hugging Face. Shared offline builder fits Werewolf to Pitborn/cleaver
-and Skeleton to Veteran/trident, preserving source maps, clips and weapon geometry. CPU visual review corrected
-Skeleton shaft bending and arm/rib weight contamination; actual trident clip poses and both hand attachments checked.
-Existing Minotaur/Wraith payload and document match their prior versions exactly except refreshed generator hashes.
-284 existing CPU tests and local PostgreSQL checks pass. New encounter migration is local only. Both new creatures are now selectable in the local roster. Skeleton impacts use bone cues, with no human pain/death
-voice or wet death layer; player feedback remains unchanged. 23 focused roster/audio tests pass. The lead-approved scene predicate suppresses Skeleton blood while preserving player blood. 53 focused CPU
-checks pass after correcting the two old seven-opponent expectations. Nine real-scene red/dark/off impact assertions passed with verified CPU SwiftShader rendering: Skeleton
-hit/death has no wound/pool/red impact, while player blood is preserved. Image audit rejected first-frame
-camera crops; harness now settles camera without GPU draws, recapture waits cleanup FREE. Full gameplay
-browser/release gates remain; neither creature is published.
-Actual local build35,590,875 bytes gzip exceeds32MB total storage;10MB per-fight cap remains satisfied.
-Lossless mesh compression trial did not close gap; owner40MB total-storage approval pending. Merged published Audio e8670fa and preserved its Draw-only bell/pendingDraw behavior and every gate.
-Current GPU/release queue: creature OpenedPR167, then lead cleanup. SwiftShader preview permission granted,
-initial bounded capture window completed and browser closed; second corrected capture waits lead cleanup FREE.
-Evidence and remaining steps: artifacts/character/werewolf-skeleton/NOTES.md. No completion/live claim.
+## Werewolf and Skeleton — integrated locally, publication pending (2026-09-19)
+Both official TRELLIS.2 exports are fitted to the shared animation pipeline: Werewolf/Pitborn/cleaver and
+Skeleton/Veteran/trident. References, prompts, source hashes and licences are retained. Skeleton receives bone
+impact audio and no opponent blood; player blood/feedback remains. Local encounter migration passes PostgreSQL
+checks but is not hosted yet. New creatures retain ordinary death, with paired finishers disabled.
+Published maul/claw release 68ccdf2 and cleanup 0f50814 are integrated. All four creature rigs pass 685 pose checks.
+Lossless production-only meshopt packing preserves decoded accessor bytes, maps, materials and clips, removes
+unused materials/maps and offline rollback metadata, and keeps source GLBs intact. Integrated build before licence
+notice: 31,840,186 bytes gzip, worst fight 8,727,860; unchanged 32 MB total cap. No 40 MB increase needed.
+Narrow WASM CSP change is staged, not applied to VPS. Emitted-byte identity and decoded-equivalence checks cover
+all ten rigs. Actual Chromium/WebKit decoder+CSP and inherited browser gates still require allocated release slot.
+Nine software-rendered impact assertions passed; first camera crops failed visual review. Corrected captures pending.
+Queue: current PR167 repair, then this creature release before new finisher scenes. No live/completion claim.
+Evidence: artifacts/character/werewolf-skeleton/ and artifacts/character/compression/.
+
+## Ordered lead cleanup — 2026-09-19 (PR #171)
+Owner requested readability, existing-recipe cleanup, obsolete QA retirement, then reliability/product gaps.
+The main/scene TypeScript syntax trees and parsed CSS rules were preserved while unpacking dense formatting.
+Input/audio tests retain their behavioral requirements across formatting; missing-event and touch-rule mutations fail.
+Equipment defaults now live in appearance presets; Veteran/Executioner rebuilds are byte-identical to baseline.
+Retired the rejected procedural pilot generator/check (508 source lines). Actual shipped-creature integrity and
+browser gates remain, including both rigs and 250 sampled poses.
+
+Startup now preserves the original renderer exception and stack while retaining the friendly fallback. The regression
+fails before the change and passes after it; actual Chromium with WebGL disabled verifies the original error and disabled
+combat. Audio e867 is integrated, including Draw-only bell behavior. All 24 configured commands passed on 17218e6:
+291 tests, typecheck/lint/audit, gameplay/recovery/layout, finishers, account/database, audio and creature checks.
+Independent clean Node 22 and real PostgreSQL checks also pass. The subsequent review-record edits were documentation/comments only.
+The final pre-merge check then found published weapons revision 68ccdf2. It is integrated with its new creature-weapon
+pose gate retained; the combined 25-command contract is revalidated before publication. Release-window coordination
+is explicit in AGENTS.md so every active lane is included before the lead reserves the shared GPU/release window.
+Deployment and public verification receipts are maintained under artifacts/cleanup/ and PR #171; served release.json
+identifies the published revision. GitHub's hosted job was billing-blocked before start; it is not reported green.
+
+The owner permits up to 12 MB per fight when needed; the separate 32 MB distribution cap is unchanged.
+Release-specific Sentry triage and remaining acceptance: docs/reliability-audit.md. Physical-phone and external-player
+validation remain unpassed. Career practice-win award policy awaits owner confirmation; no rank ledger or end-game
+system was added. The shared automatic hook's 420-second ceiling is shorter than this 1,111-second full suite;
+all commands were run directly without deleting checks or altering shared enforcement.
 
 ## Creature weapons — weapons lane, 2026-09-19
 Owner enables stone maul for Minotaur and bare claws for Wraith. Additive offline authoring preserves original creature surfaces/maps/weights and old clips. Twelve new clips per creature cover ready/gaits/attacks/guard/reactions/death/roll/kick. Maul front hand slides within reach; Wraith contact is derived from actual hand/finger vertices and includes its existing 1.5 presentation scale in the bake. Maul shove samples the haft, other attacks sample the stone head. New geometry/contact regression covers all new clips, exact baked/rendered paths, close hits and measured outer misses. Existing head-region grid now uses each weapon's actual timing instead of the sword clock; all previous expected regions remain pinned. All26 configured local gates passed, including real-game creature damage/death/rematch. Integrated draw-bell trunk e8670fa; full quality293/293 and both affected audio gates pass. Final front/side/rear pose sheets reviewed. Creature browser gate now selects full Chromium consistently with the combat gate; default headless-shell timing failures and diagnostics are retained. GitHub Actions did not start because of account billing/spending limits; no CI success claimed. Full contract and deployment receipts: artifacts/weapons/creature-weapons/. Public release authority remains release.json plus live/receipt.json; physical handset review remains owner-only.

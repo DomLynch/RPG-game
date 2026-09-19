@@ -26,7 +26,7 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
-function boot(profileExtras: Record<string, unknown> = {}) {
+function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error) {
   const elements = new Map<string, Element>(), doc = new EventTarget(), win = new EventTarget();
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
@@ -37,7 +37,7 @@ function boot(profileExtras: Record<string, unknown> = {}) {
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })]]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -465,4 +465,9 @@ test('the journal opponent picker lists the ladder, shows the current rung, and 
   assert.equal(app.replaced.length, 1, 'one navigation'); assert.ok(!app.replaced[0].includes('opponent='), `the URL override is dropped: ${app.replaced[0]}`); assert.ok(app.replaced[0].includes('debug'), 'other query flags survive');
   select.value = 'cyclops'; select.dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.replaced.length, 1, 'an unknown value does nothing'); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn');
+});
+
+test('graphics startup preserves the original failure and stack for monitoring', () => {
+  const failure = new Error('GPU allocation failed');
+  assert.throws(() => boot({}, failure), error => error === failure);
 });
