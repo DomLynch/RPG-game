@@ -1,0 +1,466 @@
+{
+  "checks": {
+    "maxRepeatDelta": 1,
+    "codecs": {
+      "aac": {
+        "seconds": 36.67197916666667,
+        "regions": 73
+      },
+      "opus": {
+        "seconds": 36.65139583333333,
+        "regions": 73
+      },
+      "fallback": true
+    },
+    "stackedPeakDbfs": -8.811938781569413,
+    "finishMixLifecycle": true,
+    "fatalCancellation": true,
+    "fatalPeakDbfs": -2.0964904072318626,
+    "fatalTruePeakDbfs": -1.5416331054356636,
+    "phoneMix": {
+      "ordinary": 17,
+      "crowd": 8,
+      "fatal": 12
+    }
+  },
+  "label": "phone-mix-after",
+  "seed": 731,
+  "rate": 48000,
+  "path": "sprite, formats tried in order [\"opus\",\"aac\"]",
+  "generated": "2026-09-19T10:40:23.060Z",
+  "revision": "1074d62",
+  "dirty": true,
+  "exchange": {
+    "lengthTicks": 829,
+    "seconds": 17.816666666666666,
+    "beats": [
+      {
+        "name": "walk",
+        "tick": 1,
+        "events": []
+      },
+      {
+        "name": "draw",
+        "tick": 102,
+        "events": [
+          "ActionStarted(draw)"
+        ]
+      },
+      {
+        "name": "light",
+        "tick": 165,
+        "events": [
+          "AttackActive(light_right)",
+          "Hit(light_right)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "light",
+        "tick": 212,
+        "events": [
+          "AttackActive(light_left)",
+          "Hit(light_left)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "heavy",
+        "tick": 271,
+        "events": [
+          "AttackActive(heavy_overhead)",
+          "Hit(heavy_overhead)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "guard",
+        "tick": 396,
+        "events": [
+          "ActionStarted(guard)"
+        ]
+      },
+      {
+        "name": "block",
+        "tick": 425,
+        "events": [
+          "AttackActive(light_right)",
+          "Blocked(light_right)"
+        ]
+      },
+      {
+        "name": "parry",
+        "tick": 477,
+        "events": [
+          "AttackActive(light_left)",
+          "Parried(light_left)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "riposte",
+        "tick": 495,
+        "events": [
+          "AttackActive(riposte)",
+          "Hit(riposte)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "hit taken",
+        "tick": 542,
+        "events": [
+          "AttackActive(light_right)",
+          "Hit(light_right)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "kick",
+        "tick": 596,
+        "events": [
+          "AttackActive(kick)",
+          "StaminaExhausted",
+          "Hit(kick)",
+          "Staggered"
+        ]
+      },
+      {
+        "name": "death",
+        "tick": 685,
+        "events": [
+          "AttackActive(heavy_overhead)",
+          "Killed(heavy_overhead)",
+          "Hit(heavy_overhead)",
+          "Staggered"
+        ]
+      }
+    ]
+  },
+  "assets": {
+    "raw": 1046013,
+    "gzip": 996816
+  },
+  "loudness": {
+    "exchange": {
+      "lufsIntegrated": -14,
+      "lufsMomentaryMax": -7.2,
+      "peakDbfs": -1.9,
+      "onsetMs": 10,
+      "lengthMs": 12605,
+      "lufsPhone": -14.4
+    },
+    "events/draw": {
+      "lufsIntegrated": -22.5,
+      "lufsMomentaryMax": -21.9,
+      "peakDbfs": -11.6,
+      "onsetMs": 10,
+      "lengthMs": 633,
+      "lufsPhone": -22.6
+    },
+    "events/swing-light": {
+      "lufsIntegrated": -28.8,
+      "lufsMomentaryMax": -28.7,
+      "peakDbfs": -14.7,
+      "onsetMs": 12,
+      "lengthMs": 324,
+      "lufsPhone": -29.1
+    },
+    "events/swing-heavy": {
+      "lufsIntegrated": -25.3,
+      "lufsMomentaryMax": -24.3,
+      "peakDbfs": -12.1,
+      "onsetMs": 11,
+      "lengthMs": 495,
+      "lufsPhone": -26.2
+    },
+    "events/swing-kick": {
+      "lufsIntegrated": -31.2,
+      "lufsMomentaryMax": -31.1,
+      "peakDbfs": -17,
+      "onsetMs": 12,
+      "lengthMs": 294,
+      "lufsPhone": -31.5
+    },
+    "events/swing-thrust": {
+      "lufsIntegrated": -28.8,
+      "lufsMomentaryMax": -28.7,
+      "peakDbfs": -14.7,
+      "onsetMs": 12,
+      "lengthMs": 324,
+      "lufsPhone": -29.1
+    },
+    "events/attack-active": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/charging": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/charged": {
+      "lufsIntegrated": -23,
+      "lufsMomentaryMax": -21.2,
+      "peakDbfs": -15.8,
+      "onsetMs": 12,
+      "lengthMs": 829,
+      "lufsPhone": -23.2
+    },
+    "events/hit-light": {
+      "lufsIntegrated": -23.7,
+      "lufsMomentaryMax": -20.3,
+      "peakDbfs": -8.8,
+      "onsetMs": 10,
+      "lengthMs": 624,
+      "lufsPhone": -25
+    },
+    "events/hit-heavy": {
+      "lufsIntegrated": -20.3,
+      "lufsMomentaryMax": -17.6,
+      "peakDbfs": -8.8,
+      "onsetMs": 10,
+      "lengthMs": 685,
+      "lufsPhone": -22.1
+    },
+    "events/hit-riposte": {
+      "lufsIntegrated": -20.3,
+      "lufsMomentaryMax": -17.6,
+      "peakDbfs": -8.8,
+      "onsetMs": 10,
+      "lengthMs": 685,
+      "lufsPhone": -22.1
+    },
+    "events/hit-kick": {
+      "lufsIntegrated": -24.4,
+      "lufsMomentaryMax": -21.9,
+      "peakDbfs": -8.9,
+      "onsetMs": 10,
+      "lengthMs": 554,
+      "lufsPhone": -25.5
+    },
+    "events/hit-thrust": {
+      "lufsIntegrated": -23.7,
+      "lufsMomentaryMax": -20.3,
+      "peakDbfs": -8.8,
+      "onsetMs": 10,
+      "lengthMs": 624,
+      "lufsPhone": -25
+    },
+    "events/blocked": {
+      "lufsIntegrated": -22.8,
+      "lufsMomentaryMax": -20.7,
+      "peakDbfs": -8.8,
+      "onsetMs": 10,
+      "lengthMs": 628,
+      "lufsPhone": -23.6
+    },
+    "events/blocked-perfect": {
+      "lufsIntegrated": -25.6,
+      "lufsMomentaryMax": -23.1,
+      "peakDbfs": -8.8,
+      "onsetMs": 10,
+      "lengthMs": 575,
+      "lufsPhone": -25.8
+    },
+    "events/parried": {
+      "lufsIntegrated": -19.9,
+      "lufsMomentaryMax": -17.4,
+      "peakDbfs": -8.8,
+      "onsetMs": 10,
+      "lengthMs": 707,
+      "lufsPhone": -20.1
+    },
+    "events/guard-broken": {
+      "lufsIntegrated": -20.6,
+      "lufsMomentaryMax": -17.3,
+      "peakDbfs": -8.8,
+      "onsetMs": 10,
+      "lengthMs": 678,
+      "lufsPhone": -22.6
+    },
+    "events/guard": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/parry-attempt": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/feint": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/roll": {
+      "lufsIntegrated": -34.9,
+      "lufsMomentaryMax": -33.6,
+      "peakDbfs": -17.3,
+      "onsetMs": 11,
+      "lengthMs": 255,
+      "lufsPhone": -35.3
+    },
+    "events/backstep": {
+      "lufsIntegrated": -39.8,
+      "lufsMomentaryMax": -39.8,
+      "peakDbfs": -20.3,
+      "onsetMs": 10,
+      "lengthMs": 118,
+      "lufsPhone": -40.1
+    },
+    "events/dodged": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/missed": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/staggered": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/posture-broken": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/exhausted": {
+      "lufsIntegrated": null,
+      "lufsMomentaryMax": null,
+      "peakDbfs": null,
+      "onsetMs": null,
+      "lengthMs": 0,
+      "lufsPhone": null
+    },
+    "events/killed": {
+      "lufsIntegrated": -10.9,
+      "lufsMomentaryMax": -7.8,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 3013,
+      "lufsPhone": -11.6
+    },
+    "events/finish-plainDeath": {
+      "lufsIntegrated": -10.9,
+      "lufsMomentaryMax": -7.8,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 3013,
+      "lufsPhone": -11.6
+    },
+    "events/finish-plainDeath-blood-off": {
+      "lufsIntegrated": -10.9,
+      "lufsMomentaryMax": -7.9,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 2977,
+      "lufsPhone": -11.6
+    },
+    "events/finish-splitCrown": {
+      "lufsIntegrated": -10.8,
+      "lufsMomentaryMax": -7.8,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 2873,
+      "lufsPhone": -11.6
+    },
+    "events/finish-splitCrown-blood-off": {
+      "lufsIntegrated": -11,
+      "lufsMomentaryMax": -7.9,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 2977,
+      "lufsPhone": -11.7
+    },
+    "events/finish-decapitation": {
+      "lufsIntegrated": -10.7,
+      "lufsMomentaryMax": -7.5,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 2873,
+      "lufsPhone": -11.4
+    },
+    "events/finish-decapitation-blood-off": {
+      "lufsIntegrated": -11,
+      "lufsMomentaryMax": -7.9,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 2977,
+      "lufsPhone": -11.7
+    },
+    "events/finish-runThrough": {
+      "lufsIntegrated": -10.4,
+      "lufsMomentaryMax": -8,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 3056,
+      "lufsPhone": -10.9
+    },
+    "events/finish-runThrough-blood-off": {
+      "lufsIntegrated": -11.6,
+      "lufsMomentaryMax": -7.9,
+      "peakDbfs": -2.1,
+      "onsetMs": 10,
+      "lengthMs": 2977,
+      "lufsPhone": -12.2
+    },
+    "events/player-death": {
+      "lufsIntegrated": -11.1,
+      "lufsMomentaryMax": -9,
+      "peakDbfs": -1.5,
+      "onsetMs": 10,
+      "lengthMs": 3013,
+      "lufsPhone": -11.7
+    },
+    "events/kick-death": {
+      "lufsIntegrated": -11.1,
+      "lufsMomentaryMax": -8.7,
+      "peakDbfs": -2.2,
+      "onsetMs": 10,
+      "lengthMs": 2977,
+      "lufsPhone": -11.7
+    },
+    "events/double-death": {
+      "lufsIntegrated": -9.2,
+      "lufsMomentaryMax": -8,
+      "peakDbfs": -2.3,
+      "onsetMs": 41,
+      "lengthMs": 1475,
+      "lufsPhone": -10.2
+    }
+  }
+}

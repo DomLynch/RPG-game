@@ -34,12 +34,12 @@ Focused monitoring/config checks pass 4/4. Full contract rerun logs: artifacts/a
 check the latest PR152 CI before integration. No wildcard, assertion removal or runtime behavior change.
 Two-pass review covered ownership/concurrency/retry and mobile/desktop placement/guest startup. No new background task.
 
-Activation pending: owner approved Google Cloud/API policy registration. Dedicated Google project principal-zoo-509110-v0
-now has Frankendom Origins branding and external audience. Web client form prepared with frankendom.com origin and
-https://rxbewmzmovelckzoosss.supabase.co/auth/v1/callback; credential creation awaits action-time owner approval.
-Need dedicated Google OAuth client/provider, production CSP reload and live login/save/recovery
-before deployment. No live Google or release claim. PR #152 remains draft. Integrated released world 8fcf58e, preserving
-all twelve checks. Earlier weapons integration b4800a6 passed 268 tests and CI; new combined gates pending. Calibre remains untouched.
+Activation: owner approved Google credential creation. Dedicated Google project principal-zoo-509110-v0 has a web
+OAuth client with frankendom.com origin and https://rxbewmzmovelckzoosss.supabase.co/auth/v1/callback. Secret saved
+only in Supabase; public settings confirms Google enabled. Email/password provider disabled. Public privacy page
+added at /privacy.html and linked inside the journal for Google publication. Production CSP and live login/save/recovery
+remain pending; PR #152 remains draft. World-integrated c02b17e passed all 12 commands, including 269/269 tests;
+logs artifacts/account/world-integrated. Audio trunk 03282b0 integrated cleanly; combined rerun pending. Calibre untouched.
 
 ## Mixed, populated crowd and stronger foot sand — world, 2026-09-19
 Owner accepted the softened colours and mixed crowd, then requested busy seating around all 360 degrees including the gate, and more visible one-second foot sand. Six subdued garment dyes (dusty maroon/charcoal navy/earth tones) and five body families are assigned independently using nearby-seat diversity before GPU batching. On 291 occupied seats, only 27/844 nearby pairs repeat a body and 10/844 repeat a dye. Every 30-degree sector has at least 24 spectators and 8 on the lower two tiers; rubble, arch lip and flames retain clearance. Tread height follows tessellated stone; actual support raycasts and full-vertex play/camera clearance checks pass. Arena 114,440 triangles / 120k, unchanged meshes and 11.01 MB textures. Physical phone timing remains unmeasured.
@@ -799,3 +799,22 @@ Evidence: `artifacts/audio/fatal-before/` and `fatal-crowd/`; reproducible sourc
 fatal stack peaks -2.85 dBFS; quiet/mute cancel future crowd/collapse sources. Lane quality: 261/261 tests, lint/build/audit/budget/game browser and all seven completion commands passed. Final publication is identified by the served release.json.
 Physical phone/silent-switch listening remains unverified. Timing follows current authored presentation durations; no claim of
 frame-perfect body contact on every rig. Music, sustained ambience and gait/breath events remain outside this pass.
+
+## Phone audio balance — 2026-09-19 (release authorized)
+Owner requested ordinary effects x0.5 and death/kill/crowd x1.5. Post-compressor gain preserves these ratios; an oversampled
+output guard limits boosted transient peaks. Existing cue assets, tone recipes, timing and simulation are unchanged.
+Measured ordinary loudness -5.9 to -6.0 LUFS; crowd tails +3.52 dB; complete fatal mixes +2.8 to +3.3 LUFS after limiting.
+True-peak review caught +2.2 dBTP overshoots missed by sample peaks in the first candidate; corrected version reports at most
+-1.0 dBTP with FFmpeg and -1.54 dBFS in browser 4x reconstruction. Five-band spectral energy changes at most 1.67 percentage
+points. No additional EQ change justified; this is measurement, not a physical-phone listening claim.
+Existing audio completion gate now checks the frozen pre-change mix, empty death ticks, rematch after quiet/mute and
+reconstructed peaks. AAC/Opus/fallback, 17 ordinary probes, 12 fatal probes and eight crowd-tail checks pass.
+Evidence: artifacts/audio/phone-mix/REVIEW.md, reference.json, frequency.json and gates.json. Full quality passed 264/264 tests,
+lint/build/audit/budget/game browser; all eight configured completion commands passed, including native fatal playback/pause.
+Release hold acknowledged: no audio trunk merge or deploy until world closeout and lead confirmation. Handset audition remains.
+Integration: weapons trunk f7a1e99 merged cleanly; preserved its polearm gate. Integrated quality passed 265/265 tests and all
+nine completion commands; GitHub CI passed on 827fe33. Receipt: artifacts/audio/phone-mix/integrated-gates.json. PR #158 held.
+
+Audio release window granted by lead after world 8fcf58e. Current world trunk integrated without runtime conflicts; preserve
+all configured gates. Final deployment/public parity and affected audio browser receipts go in artifacts/audio/phone-release/.
+The physical phone audition remains unverified; use served release.json as the deployment authority.
