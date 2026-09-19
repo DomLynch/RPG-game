@@ -1,11 +1,11 @@
-import { ROSTER, supportsFinishers } from './roster.ts';
+import { ROSTER, supportsFinishers, resolveFinisher } from './roster.ts';
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
-import { FINISHER_POSE, selectFinisher, type FinisherId } from './finishers.ts';
+import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
@@ -29,10 +29,10 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
 
 // Late finisher reveal: a three-quarter side view, fitted to the phone's horizontal field of view.
 // Choose the inward side from the frozen duel positions so the camera cannot switch sides as the corpse moves.
-export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough') {
+export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough', bodyScale = 1) {
   const dx = fallen.x-killer.x, dz = fallen.z-killer.z, gap = Math.hypot(dx,dz) || 1;
   const ux = dx/gap, uz = dz/gap, lookX = (killer.x+fallen.x)/2, lookZ = (killer.z+fallen.z)/2;
-  const back = Math.max(finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8, (gap/2+(finisher === 'opened' ? 1.5 : finisher === 'quietOne' ? 1.5 : .42))/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
+  const back = Math.max(finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8, (gap/2+(finisher === 'opened' ? 1.5*bodyScale : finisher === 'quietOne' ? 1.5 : .42))/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
   const angle = finisher !== 'runThrough' ? Math.PI/3 : 5*Math.PI/12, sideward = Math.sin(angle), rearward = Math.cos(angle);
   const side = (sign: number) => ({ x: lookX+(-uz*sign*sideward-ux*rearward)*back, y: finisher === 'opened' ? 3.7 : 3.1, z: lookZ+(ux*sign*sideward-uz*rearward)*back, lookX, lookY: .85, lookZ });
   const left = side(1), right = side(-1);
@@ -101,7 +101,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
   const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
   const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, new URL(`./assets/${ROSTER[opponentId].body}.glb`, import.meta.url).href, weapons).then(loaded => {
-    warriors = loaded; if (supportsFinishers(opponentId)) loaded.opponent.prepareOpened();
+    warriors = loaded; if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
     for (const proxy of [player, opponent]) {
       proxy.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
       proxy.clear();
@@ -188,7 +188,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
   resize(); window.addEventListener('resize', resize);
   return {
     renderer, ready, arena,
-    bloodState() { return {...finisherBlood.inspect(),sources:bloodSources.map(s=>({site:s.site,position:s.position.toArray(),direction:s.direction.toArray()}))}; },
+    bloodState() { const opened = warriors?.opponent.anchor.getObjectByName('Opened'); return {...finisherBlood.inspect(),opened:opened ? {visible:opened.visible,pieces:opened.children.filter(p=>p.name!=='OpenedWeapon').map(p=>({name:p.name,visible:p.visible,opacity:((p.getObjectByName('CreatureBody') as THREE.Mesh | undefined)?.material as THREE.MeshStandardMaterial | undefined)?.opacity ?? 1}))} : null,sources:bloodSources.map(s=>({site:s.site,position:s.position.toArray(),direction:s.direction.toArray()}))}; },
     setBloodMode(mode: 'red' | 'dark' | 'off') { bloodMode=mode; finisherBlood.group.visible=mode!=='off' && bloodSources.length>0; for (const splat of splats) { splat.life=0;splat.grow=0;splat.mesh.visible=false; } if (flesh) { impact=0;sparks.visible=false; } if (mode==='off') setBladeBlood(false); else if (bloodiedBlade) { bloodiedBlade=false; setBladeBlood(true); } },
     setFinisherOverride(id: FinisherId | null) { finisherOverride = id; },
     get yaw() { return yaw; },
@@ -211,13 +211,11 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
     render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events, frozen = false) {
       const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find(e => e.type === 'Killed');
-      // Nonhuman paired executions require a separate anatomy pass; keep ordinary death.
-      const pick = practice.finish && supportsFinishers(opponentId) ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
-      const finisher = pick ? (finisherOverride ?? pick) : null;   // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
+      const finisher = practice.finish ? resolveFinisher(opponentId, practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon], finisherOverride) : null;
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       const detailedBlood = finisher !== null && practice.finish?.victim === 1;
       const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;
-      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { finisherBlood.reset(); bloodSources=[]; impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); if (severHead) { scene.remove(severHead.group); severHead.group.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); severHead = null; } warriors?.player.unsever(); warriors?.opponent.unsever(); if (supportsFinishers(opponentId)) warriors?.opponent.prepareOpened(); }   // a fresh match: both bars full again
+      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { finisherBlood.reset(); bloodSources=[]; impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); if (severHead) { scene.remove(severHead.group); severHead.group.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); severHead = null; } warriors?.player.unsever(); warriors?.opponent.unsever(); if (supportsFinishers(opponentId, 'opened')) warriors?.opponent.prepareOpened(); }   // a fresh match: both bars full again
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;
@@ -379,7 +377,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       finisherBlood.update(dt, detailedBlood ? finisher : null, victimProgress, bloodSources, bloodMode);
       if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown' || finisher === 'quietOne' || finisher === 'opened')) {
         const t = THREE.MathUtils.clamp(finisher === 'opened' ? (finishClock-.04)/.4 : finisher === 'quietOne' ? (finishClock-.12)/.43 : (finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
-        const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher);
+        const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher, opponentId === 'wraith' ? 1.5 : 1);
         desired.lerp(new THREE.Vector3(side.x,side.y,side.z), reveal);
         look.lerp(new THREE.Vector3(side.lookX,side.lookY,side.lookZ), reveal);
         const radius = Math.hypot(desired.x,desired.z);

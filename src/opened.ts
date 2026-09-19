@@ -1,3 +1,4 @@
+import { spectralMaterial } from './spectral.ts';
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Euler, SkinnedMesh, Vector3 } from 'three';
 
 // One pose bake per encounter, prepared before combat like a cached severed prop. Exterior maps are borrowed; only the new geometry and cut material
@@ -9,7 +10,10 @@ export function openWaist(root: Object3D, anchor: Group) {
   const hip = pelvis.getWorldPosition(new Vector3()).applyMatrix4(inverse);
   const waist = hip.y + (spine.getWorldPosition(new Vector3()).applyMatrix4(inverse).y - hip.y) * .6;
   const group = new Group(); group.name = 'Opened';
+  const spectral = root.getObjectByName('CreatureBody')?.userData.creature === 'wraith';
+  const materials = new Map<MeshStandardMaterial, MeshStandardMaterial>();
   const cut = new MeshStandardMaterial({ color: '#501c20', roughness: .88, side: DoubleSide, vertexColors: true });
+  if (spectral) { cut.transparent = true; cut.depthWrite = false; }
   const lower = new Group(), upper = new Group(), weapon = new Group(); weapon.name = 'OpenedWeapon'; lower.name = 'OpenedLegs'; upper.name = 'OpenedTorso'; group.add(lower, upper, weapon);
   const supports: number[][] = [[], [], []], cutEdges: Vector3[][] = [[], []];
   const armBone = (name: string) => /^(clavicle|upperarm|lowerarm|hand|index|middle|pinky|ring|thumb)_/.test(name);
@@ -78,7 +82,13 @@ export function openWaist(root: Object3D, anchor: Group) {
       if (positions.length) {
         const g = make(positions,normals,uvs); if (colors.length) g.setAttribute('color',new Float32BufferAttribute(colors,3));
         for (const entry of groups) g.addGroup(entry.start,entry.count,entry.materialIndex);
-        const mesh = new Mesh(g,object.material); mesh.name = object.name; mesh.userData.openedWeapon = attachment; mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false; (attachment ? weapon : half).add(mesh);
+        const surface = (source: MeshStandardMaterial) => {
+          if (!spectral || attachment) return source;
+          if (!materials.has(source)) materials.set(source,spectralMaterial(source));
+          return materials.get(source)!;
+        };
+        const material = Array.isArray(object.material) ? object.material.map(m=>surface(m as MeshStandardMaterial)) : surface(object.material as MeshStandardMaterial);
+        const mesh = new Mesh(g,material); mesh.name = object.name; mesh.userData.openedWeapon = attachment; mesh.castShadow = !spectral || attachment; mesh.receiveShadow = true; mesh.frustumCulled = false; (attachment ? weapon : half).add(mesh);
       }
       for (const edge of edges) cutEdges[halfIndex].push(...edge);
     }
@@ -97,7 +107,7 @@ export function openWaist(root: Object3D, anchor: Group) {
       const shade=v===center ? .9 : .5+.12*Math.sin(v.x*170+v.z*113);tone.push(shade,shade,shade);
     }
     const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('normal',new Float32BufferAttribute(n,3));g.setAttribute('color',new Float32BufferAttribute(tone,3));
-    const mesh=new Mesh(g,cut);mesh.name='WaistCut';mesh.castShadow=true;half.add(mesh);
+    const mesh=new Mesh(g,cut);mesh.name='WaistCut';mesh.castShadow=!spectral;half.add(mesh);
   }
   const scale = waist;
   const smooth = (p: number, start: number, end: number) => { const t = Math.max(0,Math.min(1,(p-start)/(end-start))); return t*t*(3-2*t); };
@@ -152,14 +162,19 @@ export function openWaist(root: Object3D, anchor: Group) {
   supports.forEach(points=>{points.length=0;});
   return {
     group, waist,
-    update(progress: number, dark: boolean) {
+    update(progress: number, dark: boolean, life = 1) {
       const p = Math.max(0,Math.min(1,progress)); place(p);
       for (const [h,half] of [lower,upper,weapon].entries()) {
         const at = p*120, i = Math.min(119,Math.floor(at)), floor = floors[h][i]+(floors[h][i+1]-floors[h][i])*(at-i);
         half.position.y = Math.max(half.position.y,floor);
       }
-      cut.color.set(dark ? '#302126' : '#501c20');
+      cut.color.set(spectral ? '#788385' : dark ? '#302126' : '#501c20');
+      if (spectral) {
+        for (const material of materials.values()) material.opacity = .86 * life;
+        cut.opacity = .86 * life;
+        lower.visible = upper.visible = life > 0;
+      }
     },
-    dispose() { group.removeFromParent(); group.traverse(o=>{if(o instanceof Mesh)o.geometry.dispose();}); cut.dispose(); }
+    dispose() { group.removeFromParent(); group.traverse(o=>{if(o instanceof Mesh)o.geometry.dispose();}); cut.dispose(); for (const material of materials.values()) material.dispose(); }
   };
 }

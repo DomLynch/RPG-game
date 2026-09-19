@@ -6,7 +6,8 @@ import { preview } from 'vite';
 
 const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0}});
 const origin=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
-const url=new URL('/?opponent=veteran&debug=1',origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'quietOne';
+const opponent=process.argv.includes('--opponent') ? process.argv[process.argv.indexOf('--opponent')+1] : 'veteran';
+const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'quietOne';
 const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : 'quiet-one'}/ui`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
@@ -26,6 +27,7 @@ await page.getByRole('button', {name:'Close journal'}).tap();
 const clips = async () => (await page.locator('#debug').getAttribute('data-clips')) ?? '';
 const draw = async () => { await page.getByRole('button', { name: 'Draw sword', exact: true }).tap().catch(() => {}); await page.waitForFunction(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false'); };
 
+let splitReceipt;
 async function fight(name) {
   await draw();
   console.log('difficulty',await page.locator('#difficulty').textContent());
@@ -64,7 +66,15 @@ async function fight(name) {
   await page.waitForTimeout(300);
   console.log(`${name} kill — clips at reset: "${await clips()}"`);
   await page.screenshot({ path: `${dir}/live-${name}.png` });
-  await page.waitForTimeout(3400);
+  await page.waitForTimeout(2200);
+  if(finisher==='opened' && ['wraith','minotaur'].includes(opponent)) {
+    splitReceipt=JSON.parse(await page.locator('#debug').getAttribute('data-blood')).opened;
+    assert.equal(splitReceipt?.visible,true,'selected Opened separates the creature');
+    assert.equal(splitReceipt.pieces.length,2);
+    assert.ok(splitReceipt.pieces.every(p=>p.visible && p.opacity>.75),'both creature halves visibly survive the split beat');
+    await page.screenshot({path:`${dir}/live-split.png`});
+  }
+  await page.waitForTimeout(1200);
   await page.screenshot({ path: `${dir}/live-${name}-settled.png` });
   console.log(`${name} settled — clips: "${await clips()}"`);
 }
@@ -72,7 +82,7 @@ async function fight(name) {
 await fight('counter-duel');
 const expected = finisher === 'opened' ? /Opened:WaistCut/ : /Death_QuietOne:Death_QuietOne/;
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
-const receipt={url,finisher,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
+const receipt={url,finisher,opponent,splitReceipt,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await page.waitForTimeout(5000);
 assert.match(await clips(), expected, 'finisher stays held after the death window');
 if(process.argv.includes('--blood-check')) {
@@ -80,6 +90,10 @@ if(process.argv.includes('--blood-check')) {
   assert.equal(receipt.blood.kind,finisher);assert.equal(receipt.blood.visible,true);
   assert.ok(receipt.blood.emitted>150 && receipt.blood.landed>100 && receipt.blood.pools.some(p=>p.radius>.35),'public UI finish leaves substantial blood at its wounds');
   assert.equal(receipt.blood.airborne,0,'held scene has no endless spray');
+  if(finisher==='opened' && ['wraith','minotaur'].includes(opponent)) {
+    assert.equal(receipt.blood.opened.pieces.length,2);
+    assert.ok(receipt.blood.opened.pieces.every(p=>p.visible===(opponent!=='wraith')),'only Wraith halves disappear after the hold');
+  }
 }
 await page.addStyleTag({content:'#debug{visibility:hidden}'});
 await page.screenshot({path:`${dir}/live-held.png`});

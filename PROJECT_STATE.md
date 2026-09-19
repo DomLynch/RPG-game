@@ -1,5 +1,8 @@
 # Project state
 
+## Creature Opened correction — 2026-09-19
+Owner reports Opened silently using ordinary death on Wraith and Minotaur. Per-finisher capability and a shared scene/audio resolver now allow only Opened on these creatures. Reuse each actual mesh waist bake; Wraith cut surfaces retain spectral shading with owned materials and a readable3.6-second hold before1.4-second fade. Dropped weapon remains. Actual-mesh CPU tests cover grounding, portrait bounds, pause, materials, source preservation and rematch; a Wraith crop found by the new test is corrected with a size-aware Opened camera margin. Other creature finishers remain disabled. No simulation, GLB, dependency or input changes. Full gates and public receipts pending in artifacts/finishers/creature-opened/.
+
 ## Finisher blood upgrade — 2026-09-19 (PR #165)
 Owner requests substantially more blood at actual finishing wounds and floor spills beside the body. New fixed pool:160 ballistic droplets and80 growing floor stains, two draw calls; source locations follow neck/head, separated waist faces, jugular or chest entry/exit. Jets taper to drips and stop; red/dark/off and rematch apply. No simulation, input, GLB or dependency changes. CPU source/ballistic/resource checks pass; Integrated published Wraith c757d87 with its arm correction and creature guards preserved; Independent source/lifecycle and refined motion-frame review pass; small/large Decapitation, Opened and Quiet One red/dark/off/hold/rematch checks pass. Final24-command release validation and public receipts are maintained in artifacts/finishers/blood/.
 

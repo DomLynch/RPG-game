@@ -307,5 +307,5 @@ iteration. Existing encounter order remains, followed by Minotaur then Wraith. M
 cleaver archetype; Wraith reuses Nightborn's estoc archetype. Approved reconstructed anatomy replaces the
 rejected procedural/MPFB studies. Wraith is skeletal, crowned, wispy and partly transparent; Minotaur has
 continuous bovine skull/neck/muscular anatomy. These additions preserve the current simulation and weapon
-paths. Use ordinary death until creature-specific paired executions are authored and reviewed. They are
+paths. Owner revision 2026-09-19: Opened now also applies to Minotaur and Wraith, using each actual mesh. The Wraith holds its visible waist separation and landing before both halves fade; its dropped weapon remains. Blood-off keeps the intact death, and rematch restores the model. Other creature finishers retain ordinary death pending separate anatomy review. They are
 playtest assets, with physical-phone performance and final art acceptance still requiring owner feedback.

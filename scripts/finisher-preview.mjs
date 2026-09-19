@@ -99,7 +99,7 @@ window.__finisher = {
     const dropped=opened?.getObjectByName('OpenedWeapon'), weaponBox=dropped ? new Box3().setFromObject(dropped,true) : null;
     const pieces = opened?.children.filter(o=>o.name!=='OpenedWeapon').map(half => {
       const box = new Box3().setFromObject(half,true);
-      return {name:half.name,min:box.min.toArray(),max:box.max.toArray(),caps:half.children.filter(o=>o.name==='WaistCut').length,
+      return {name:half.name,visible:half.visible,opacity:half.getObjectByName('CreatureBody')?.material.opacity ?? 1,min:box.min.toArray(),max:box.max.toArray(),caps:half.children.filter(o=>o.name==='WaistCut').length,
         frame:[box.min.x,box.max.x].flatMap(x=>[box.min.y,box.max.y].flatMap(y=>[box.min.z,box.max.z].map(z=>view.project([x,y,z]))))};
     });
     const actors = renderedScene?.children.filter(o => o.getObjectByName('pelvis')) ?? [];
@@ -222,6 +222,7 @@ try {
           if(mode !== 'off') {
             assert.match(playing,/Opened:WaistCut/);
             assert.equal(opened.pieces.length,2);
+            assert.ok(opened.pieces.every(p=>p.visible && p.opacity>.75),'halves remain visible through separation and landing');
             assert.ok(opened.pieces.every(p=>p.caps>0),'both halves have closed cut surfaces');
             assert.ok(opened.pieces.every(p=>p.min[1]>-.015),'no half sinks through the floor');
             if(suffix === 'settled') {
@@ -277,7 +278,13 @@ try {
           assert.ok(blood.pools.some(p=>p.radius>.35),'substantial pooled blood');
           assert.ok(blood.sources.every(s=>blood.pools.some(p=>Math.hypot(p.position[0]-s.position[0],p.position[2]-s.position[2])<.7)),'each wound has blood spilled nearby');
           if(which==='decapitation')assert.deepEqual(blood.sources.map(s=>s.site),['neck-stump','detached-head']);
-          if(which==='opened')assert.deepEqual(blood.sources.map(s=>s.site),['waist-legs','waist-torso']);
+          if(which==='opened') {
+            assert.deepEqual(before.blood.sources.map(s=>s.site),['waist-legs','waist-torso']);
+            if(opponent==='wraith') {
+              assert.ok(held.opened.pieces.every(p=>!p.visible && p.opacity===0),'Wraith halves fade only after the visible split');
+              assert.equal(blood.sources.length,0,'vanished halves stop emitting');
+            } else assert.ok(held.opened.pieces.every(p=>p.visible),'physical corpses stay');
+          }
           if(which==='quietOne')assert.equal(blood.sources[0].site,'jugular');
         } else {assert.equal(blood.emitted,0);assert.equal(blood.pools.length,0);}
         bloodChecks.push({opponent,which,mode,before:before.blood,held:blood,draws:held.draws,triangles:held.triangles});
