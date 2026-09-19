@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
+import { CROWD_KINDS, spectatorGeometry } from './assets/arena/crowd.ts';
 import { phoneTier } from './quality.ts';
-import { bannerAlpha, crowdAtlas, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
+import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
 
 // The arena: everything that is not a fighter, a light, the camera or an effect. Owned by the world lane.
 // Contract (tests/arena.test.ts): the playable surface is a flat circle (sim.ts RADIUS 8.55 m); nothing solid stands inside it above the
@@ -82,14 +83,14 @@ export function buildArena(scene: THREE.Scene): Arena {
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): the big procedural maps generate at
   // half size — the generators are size-parametric, so this costs nothing but sharpness on a small screen.
   const phone = phoneTier(), half = (size: number) => (phone ? size / 2 : size);
-  const textures = { sand: dataTexture(sandAlbedo(half(1024)), true), sandNormal: dataTexture(sandNormal(half(512)), false), stone: dataTexture(stoneAlbedo(half(512)), true), stoneNormal: dataTexture(stoneNormal(half(512)), false), sky: dataTexture(skyPixels(half(512), half(256), ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), crowd: dataTexture(crowdAtlas(), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
-  textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.crowd.wrapS = textures.crowd.wrapT = textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = textures.gateLight.wrapS = textures.gateLight.wrapT = THREE.ClampToEdgeWrapping;
+  const textures = { sand: dataTexture(sandAlbedo(half(1024)), true), sandNormal: dataTexture(sandNormal(half(512)), false), stone: dataTexture(stoneAlbedo(half(512)), true), stoneNormal: dataTexture(stoneNormal(half(512)), false), sky: dataTexture(skyPixels(half(512), half(256), ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
+  textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = textures.gateLight.wrapS = textures.gateLight.wrapT = THREE.ClampToEdgeWrapping;
   const sand = new THREE.MeshStandardMaterial({ name: 'sand', map: textures.sand, normalMap: textures.sandNormal, normalScale: new THREE.Vector2(0.7, 0.7), color: '#e2ddd6', roughness: 0.96, vertexColors: true });
   const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, normalMap: textures.stoneNormal, normalScale: new THREE.Vector2(1.1, 1.1), color: '#b9b4ab', roughness: 0.93, vertexColors: true });
   const iron = new THREE.MeshStandardMaterial({ name: 'iron', color: '#2a2623', roughness: 0.6, metalness: 0.78, vertexColors: true });
   const coal = new THREE.MeshStandardMaterial({ name: 'coal', color: '#1a1210', emissive: '#ff6a1c', emissiveIntensity: 1.1, roughness: 1 });
   const cloth = new THREE.MeshStandardMaterial({ name: 'cloth', alphaMap: textures.banner, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
-  const crowdMaterial = new THREE.MeshBasicMaterial({ name: 'crowd', map: textures.crowd, alphaTest: 0.5, side: THREE.DoubleSide });
+  const crowdMaterial = new THREE.MeshStandardMaterial({ name: 'crowd', roughness: 1, vertexColors: true });
   const sky = new THREE.MeshBasicMaterial({ name: 'sky', map: textures.sky, side: THREE.BackSide, fog: false });
   const plain = new THREE.MeshStandardMaterial({ name: 'ash plain', color: '#4a463f', roughness: 1 });
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
@@ -278,24 +279,23 @@ export function buildArena(scene: THREE.Scene): Arena {
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
   const banners = new THREE.InstancedMesh(bannerGeometry, cloth, bannerAngles.length); banners.name = 'banners'; banners.castShadow = true; group.add(banners);
   bannerAngles.forEach((_a, k) => banners.setColorAt(k, new THREE.Color(k % 2 ? '#7d7469' : '#472622')));
-  // The crowd: silhouettes on the tiers (crossed quads, four outlines, per-instance ash tints with a few dull cloths), reacting to the fight.
+  // Five solid, unrigged silhouettes: familiar inhabitants of this world, subdued on the upper tiers.
   type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; phase: number };
-  const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = 4, quad = (k: number) => {
-    const a = new THREE.PlaneGeometry(0.95, 1.85), b = a.clone(); b.rotateY(Math.PI / 2); const g = mergeGeometries([a, b]); g.translate(0, 0.925, 0);
-    const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, (k + uv.getX(i)) / cells); return g;
-  };
+  const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = CROWD_KINDS.length;
   const people: Spectator[][] = Array.from({ length: cells }, () => []);
   tiers.forEach((_h, i) => {
     const r = wall.outer + i * tierDepth + 0.55, step = 0.82 / r, count = Math.floor(TAU / step);
     for (let s = 0; s < count; s++) {
-      const a = s * step + hash(s, i, 17) * step * 0.6, occupied = hash(s, i, 19) > 0.34, segment = Math.floor(a / TAU * LAYOUT.segments);
+      const a = s * step + (hash(s, i, 17) - 0.5) * step * 0.8, occupied = hash(s, i, 19) > 0.22 + 0.28 * hash(Math.floor(s / 5), i, 71), segment = Math.floor(a / TAU * LAYOUT.segments);
       if (i < 2 || !occupied || ruin(a) > 0.3) continue;   // the two lowest tiers are broken and empty: the crowd keeps ≥ 5 m from the lock camera
-      const [x, z] = polar(r, a); people[Math.floor(hash(s, i, 23) * cells)].push({ x, y: tierTop(i, a, segment), z, yaw: a + Math.PI, scale: 0.9 + hash(s, i, 29) * 0.2, phase: hash(s, i, 31) });
+      const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a), kind = hash(s, i, 23);
+      const k = kind < 0.48 ? 0 : kind < 0.65 ? 1 : kind < 0.79 ? 2 : kind < 0.88 ? 3 : 4;
+      people[k].push({ x, y: tierTop(i, a, segment), z, yaw: a + Math.PI + (hash(s, i, 75) - 0.5) * 0.4, scale: 0.92 + hash(s, i, 29) * 0.16, phase: hash(s, i, 31) });
     }
   });
   people.forEach((list, k) => {
-    const instanced = new THREE.InstancedMesh(quad(k), crowdMaterial, list.length); instanced.name = `crowd ${k}`; instanced.castShadow = instanced.receiveShadow = false; group.add(instanced);
-    list.forEach((_p, j) => { const cloth = hash(j, k, 37), tone = 0.1 + hash(j, k, 41) * 0.12; instanced.setColorAt(j, cloth > 0.9 ? new THREE.Color(0.3, 0.14, 0.11) : cloth > 0.82 ? new THREE.Color(0.3, 0.23, 0.13) : new THREE.Color(tone, tone * 0.97, tone * 0.92)); });
+    const instanced = new THREE.InstancedMesh(spectatorGeometry(CROWD_KINDS[k]), crowdMaterial, list.length); instanced.name = `crowd ${CROWD_KINDS[k]}`; instanced.castShadow = instanced.receiveShadow = false; group.add(instanced);
+    list.forEach((_p, j) => { const tint = hash(j, k, 37), tone = 0.65 + hash(j, k, 41) * 0.35; instanced.setColorAt(j, new THREE.Color(tone, tone * (tint > 0.8 ? 0.78 : 0.97), tone * (tint > 0.8 ? 0.65 : 0.92))); });
     crowds.push({ mesh: instanced, people: list });
   });
   // The sky dome (unfogged; its horizon is painted the fog colour) and the ash plain with its far ridges. The dome has no pole: its

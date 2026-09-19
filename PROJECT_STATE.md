@@ -1,5 +1,9 @@
 # Project state
 
+## World polish — 2026-09-19 (world/crowd-grounding-light; local, not yet shipped)
+Owner approved four sequential passes: roster spectators, settled debris, softer gate light, selective masonry staining.
+Step 1: replace the narrow crossed cards with five opaque instanced body silhouettes: human, goblin, Pitborn, executioner, Nightborn. No fighter assets, animation clips or gameplay changed. Irregular gaps and slight depth/yaw variation; existing bounded crowd reactions retained. First judge rejected boxy torsos; refined rounded bodies, darker clothes, hair and robe silhouettes. Arena tests 8/8; first full quality 246/246 + browser gate passed; refined geometry typechecks and arena tests pass. Fixed-camera captures: artifacts/world/polish-1-crowd-refined. Cost: 88,798 triangles / 120k, 21 measured arena draws (+1), 11.01 MB textures (-0.35 MB), floor luminance 0.105 unchanged. Physical phone performance remains unmeasured.
+
 ## Arena life — 2026-09-18 (world lane, owner's picks #1–#5)
 Owner: "anything else we can add to make the environment more engaging?" — approved five, built in order, each audited
 (tests + captures) before the next. Sound left to the audio lane. **Ash motes**: 220-Point cloud, per-pixel sprite, slow
