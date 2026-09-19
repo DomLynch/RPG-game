@@ -1,6 +1,6 @@
 # Project state
 
-## Reconstructed creature integration — 2026-09-19 (release candidate)
+## Reconstructed creature integration — 2026-09-19 (owner playtest)
 Owner explicitly requests Minotaur and Wraith live in the game with actual pictures for playtesting.
 Both approved reference images exported through signed-in official TRELLIS.2; raw GLBs and MIT software
 licence retained in src/assets/source/creatures/. This supersedes the earlier no-export/art-only state below;
@@ -18,7 +18,7 @@ asset check validates base/source/generator hashes, exact animation channels and
 original map bytes, four-influence normalization, triangle ceiling and 125 finite poses per creature.
 Integrated published weapon/auth/Quiet One/dust/audio trunk 5c46f46 while retaining every inherited completion gate.
 Account encounter constraint migration adds the two IDs; local real-PostgreSQL saves and existing RLS checks pass.
-Hosted migration applied with verified TLS; authenticated saves/revisions, invalid-opponent rejection, two-user isolation and anonymous denial pass. Test data rolled back. Exact receipt: lead checkout artifacts/account/live/hosted-creature-migration.md. First actual-game phone landscape/portrait tests passed both opponents: served rig hashes, attacks/damage, ordinary player death, rematch and zero browser/shader errors. Final welded/grip build visual pose review passed; final full contract, CI and public release receipts follow.
+Hosted migration applied with verified TLS; authenticated saves/revisions, invalid-opponent rejection, two-user isolation and anonymous denial pass. Test data rolled back. Exact receipt: lead checkout artifacts/account/live/hosted-creature-migration.md. First actual-game phone landscape/portrait tests passed both opponents: served rig hashes, attacks/damage, ordinary player death, rematch and zero browser/shader errors. Final welded/grip build visual pose review passed. All 20 configured commands pass on 819697e, including 277 tests, both real creature fights/rematches, existing finishers/weapons/audio, and account browser/database checks. Exact-head GitHub CI also passed. The final publish/live-model checks are recorded in artifacts/character/creatures/RECEIPT.md and PR #150; physical-phone and owner art feedback remain open.
 Evidence: artifacts/character/creatures/. Physical-phone performance and owner art/playtest feedback remain open.
 
 ## Earlier character direction correction — 2026-09-19 (historical art review)
