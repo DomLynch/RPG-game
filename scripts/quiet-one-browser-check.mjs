@@ -8,7 +8,7 @@ const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1
 const origin=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const opponent=process.argv.includes('--opponent') ? process.argv[process.argv.indexOf('--opponent')+1] : 'veteran';
 const url=new URL(`/?opponent=${opponent}&debug=1`,origin).href, finisher=process.argv.includes('--finisher') ? process.argv[process.argv.indexOf('--finisher')+1] : 'quietOne';
-const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'opened' ? 'opened' : finisher==='decapitation' ? 'decapitation' : 'quiet-one'}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
+const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher.replace(/[A-Z]/g, c => '-'+c.toLowerCase())}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
 page.setDefaultTimeout(15000);
@@ -27,7 +27,7 @@ await page.getByRole('button', {name:'Close journal'}).tap();
 const clips = async () => (await page.locator('#debug').getAttribute('data-clips')) ?? '';
 const draw = async () => { await page.getByRole('button', { name: 'Draw sword', exact: true }).tap().catch(() => {}); await page.waitForFunction(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false'); };
 
-let splitReceipt, headReceipt;
+let splitReceipt, headReceipt, armReceipt;
 async function fight(name) {
   await draw();
   console.log('difficulty',await page.locator('#difficulty').textContent());
@@ -74,11 +74,16 @@ async function fight(name) {
     assert.ok(splitReceipt.pieces.every(p=>p.visible && p.opacity>.75),'both creature halves visibly survive the split beat');
     await page.screenshot({path:`${dir}/live-split.png`});
   }
-  if(finisher==='decapitation') {
+  if(finisher==='decapitation' || finisher==='disarmed') {
     headReceipt=JSON.parse(await page.locator('#debug').getAttribute('data-blood')).head;
     assert.ok(headReceipt?.visible && headReceipt.screen,'detached head is visible in the actual public duel');
     assert.ok(headReceipt.screen[0]>5 && headReceipt.screen[0]<385 && headReceipt.screen[1]>20 && headReceipt.screen[1]<700,'head remains above portrait controls');
     await page.screenshot({path:`${dir}/live-head.png`});
+  }
+  if(finisher==='disarmed') {
+    armReceipt=JSON.parse(await page.locator('#debug').getAttribute('data-blood')).disarmed;
+    assert.ok(armReceipt?.visible && armReceipt.capped,'severed weapon arm is visible and capped');
+    await page.screenshot({path:`${dir}/live-disarmed.png`});
   }
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${dir}/live-${name}-settled.png` });
@@ -86,9 +91,9 @@ async function fight(name) {
 }
 
 await fight('counter-duel');
-const expected = finisher === 'opened' ? /Opened:WaistCut/ : finisher === 'decapitation' ? /Death_SplitCrown:Death_SplitCrown/ : /Death_QuietOne:Death_QuietOne/;
+const expected = finisher === 'opened' ? /Opened:WaistCut/ : finisher === 'decapitation' ? /Death_SplitCrown:Death_SplitCrown/ : finisher==='disarmed' ? /Death_Disarmed:Death_Disarmed/ : /Death_QuietOne:Death_QuietOne/;
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
-const receipt={url,finisher,opponent,splitReceipt,headReceipt,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
+const receipt={url,finisher,opponent,splitReceipt,headReceipt,armReceipt,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await page.waitForTimeout(5000);
 assert.match(await clips(), expected, 'finisher stays held after the death window');
 if(process.argv.includes('--blood-check')) {
@@ -112,14 +117,18 @@ if(process.argv.includes('--blood-check')) {
     const blood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));
     assert.equal(blood.visible,mode!=='off');
     if(mode!=='off')assert.equal(blood.color,mode==='dark' ? '2b2226' : '68121a');
+    if(finisher==='disarmed') {
+      assert.equal(blood.disarmed?.visible, mode!=='off' && opponent!=='wraith','arm respects blood setting and spectral fade');
+      assert.equal(blood.head?.visible, mode!=='off' && opponent!=='wraith','head respects blood setting and spectral fade');
+    }
     receipt.bloodModes.push({mode,visible:blood.visible,color:blood.color,pools:blood.pools.length});
     await page.screenshot({path:`${dir}/live-blood-${mode}.png`});
   }
 }
 await page.locator('#reset-button').tap();
-await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips),null,{timeout:90000});
+await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_[^: ]*:Death_/.test(document.querySelector('#debug').dataset.clips),null,{timeout:90000});
 assert.doesNotMatch(await clips(), expected, 'rematch clears the finisher');
 receipt.rematchClips = await clips();
-if(process.argv.includes('--blood-check')) {receipt.rematchBlood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));assert.equal(receipt.rematchBlood.visible,false);assert.equal(receipt.rematchBlood.pools.length,0);}
+if(process.argv.includes('--blood-check')) {receipt.rematchBlood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));assert.equal(receipt.rematchBlood.visible,false);assert.equal(receipt.rematchBlood.pools.length,0);assert.ok(!receipt.rematchBlood.disarmed?.visible);assert.equal(receipt.rematchBlood.head,null);}
 await fs.writeFile(`${dir}/live-ui.json`,JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt));
 } finally {await browser.close();if(server)await new Promise(resolve=>server.httpServer.close(resolve));}

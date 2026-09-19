@@ -424,8 +424,16 @@ export function createScene(
     arena,
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
+      const arm = warriors?.opponent.anchor.getObjectByName('DisarmedArm');
       return {
         ...finisherBlood.inspect(),
+        disarmed: arm
+          ? {
+              visible: arm.visible,
+              position: arm.getWorldPosition(new THREE.Vector3()).toArray(),
+              capped: !!arm.getObjectByName('ArmCut'),
+            }
+          : null,
         head: severHead
           ? {
               position: severHead.group.position.toArray(),
