@@ -35,7 +35,7 @@ def save(name, rgb):
     image.pixels.foreach_set(np.concatenate([np.clip(rgb, 0, 1), np.ones((h, w, 1))], axis=2).astype(np.float32).ravel())
     image.file_format = 'JPEG'
     filename = f'{name}_polish_veteran.jpg'
-    image.save(filepath=str(ROOT / filename), quality=88)
+    image.save(filepath=str(ROOT / filename), quality=82)
     bpy.data.images.remove(image)
     return filename
 
