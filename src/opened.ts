@@ -48,7 +48,7 @@ export function openWaist(root: Object3D, anchor: Group) {
       const side = halfIndex ? 1 : -1, edges: Vector3[][] = [];
       const positions: number[] = [], normals: number[] = [], uvs: number[] = [], colors: number[] = [], groups: { start: number; count: number; materialIndex: number }[] = [];
       const push = (v: Vertex) => {
-        const p = v.p.clone(); if (halfIndex) p.y -= waist;
+        const p = v.p.clone(); p.y -= waist;
         positions.push(...p.toArray()); normals.push(...v.n.toArray()); uvs.push(...v.uv); colors.push(...v.color); supports[attachment ? 2 : halfIndex].push(p.x,p.y,p.z);
       };
       for (let i = 0; i < (index?.count ?? position.count); i += 3) {
@@ -93,7 +93,7 @@ export function openWaist(root: Object3D, anchor: Group) {
     const center=new Vector3();for(const p of hull)center.add(p);center.divideScalar(hull.length);
     const p:number[]=[], n:number[]=[], tone:number[]=[];
     for(let i=0;i<hull.length;i++)for(const v of [center,hull[i],hull[(i+1)%hull.length]]) {
-      p.push(v.x,h ? 0 : waist,v.z);n.push(0,h ? -1 : 1,0);
+      p.push(v.x,0,v.z);n.push(0,h ? -1 : 1,0);
       const shade=v===center ? .9 : .5+.12*Math.sin(v.x*170+v.z*113);tone.push(shade,shade,shade);
     }
     const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('normal',new Float32BufferAttribute(n,3));g.setAttribute('color',new Float32BufferAttribute(tone,3));
@@ -111,6 +111,14 @@ export function openWaist(root: Object3D, anchor: Group) {
     const score=-min+.015*(1-Math.cos(angle));
     if(score<best){best=score;rest.copy(q);}
   }
+  const legRest = new Quaternion(); let legSupport = Infinity;
+  const legFall = new Quaternion().setFromAxisAngle(new Vector3(0,0,1),-Math.PI/2);
+  for(let i=0;i<64;i++) {
+    const q=legFall.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0,1,0),i*Math.PI/32));
+    const m=new Matrix4().makeRotationFromQuaternion(q).elements,points=supports[0];let min=Infinity;
+    for(let j=0;j<points.length;j+=3)min=Math.min(min,m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2]);
+    if(-min<legSupport){legSupport=-min;legRest.copy(q);}
+  }
   const held = root.getObjectByName('WeaponDrawn') ?? root.getObjectByName('SwordDrawn')!;
   const grip = held.localToWorld(new Vector3()).applyMatrix4(inverse);
   const direction = held.localToWorld(new Vector3(0,1,0)).applyMatrix4(inverse).sub(grip).normalize();
@@ -127,7 +135,7 @@ export function openWaist(root: Object3D, anchor: Group) {
     const slide = smooth(progress,.045,.3), fall = smooth(progress,.2,.66), legs = smooth(progress,.36,.84);
     upper.position.set(.5*scale*slide,waist*(1-fall),.12*scale*slide);
     upper.quaternion.identity().slerp(rest,fall);
-    lower.position.set(-.1*scale*legs,0,-.12*scale*legs); lower.rotation.set(.08*legs,0,1.52*legs);
+    lower.position.set(-.35*scale*legs,waist*(1-legs),-.12*scale*legs); lower.quaternion.identity().slerp(legRest,legs);
     const drop = smooth(progress,.12,.62);
     weapon.position.set(.25*scale*drop,waist*(1-drop),-.35*scale*drop); weapon.quaternion.identity().slerp(weaponRest,drop);
   }

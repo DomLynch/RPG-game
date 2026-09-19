@@ -11,7 +11,7 @@ Initial CPU checks pass275/275, lint/typecheck/build/audit, 8,933,674-byte worst
 humanoids, grounded halves, held pose, source geometry preservation, mode changes including late enable, and disposal.
 First visual review rejected limb-propped landing and portrait crop. A bounded broad-rest-face search, cached floor
 supports, one outer cut cap per half, and a wider/higher side view correct them. Stronger tests measure the waist
-itself as well as floor contact. Corrected Veteran real-scene red/dark/off, portrait/landscape, reduced motion and
+itself as well as floor contact. Lower-half pivot and resting orientation are fitted at the waist; the victim weapon drops flat independently. All-six CPU checks and Goblin/Pitborn/Nightborn/Executioner final image reviews pass. Corrected Veteran real-scene red/dark/off, portrait/landscape, reduced motion and
 rematch checks pass. Integrated creature597ee849 retains spectral rendering and supportsFinishers guards before
 both selecting and preparing the effect. Combined budget9,324,979 bytes gzip per fight. The complete23-command
 contract includes Opened normal/large-rig scene checks and real phone-size UI victory/hold/rematch. Final integrated
