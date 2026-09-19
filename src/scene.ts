@@ -100,7 +100,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   assetStatus('Loading warriors…');
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
   const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
-  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, new URL(`./assets/${ROSTER[opponentId].body}.glb`, import.meta.url).href, weapons).then(loaded => {
+  const fighterUrls = import.meta.glob<string>('./assets/*.glb', { eager: true, query: '?url', import: 'default' });
+  const ready = loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons).then(loaded => {
     warriors = loaded; if (supportsFinishers(opponentId)) loaded.opponent.prepareOpened();
     for (const proxy of [player, opponent]) {
       proxy.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });

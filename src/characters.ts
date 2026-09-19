@@ -5,6 +5,7 @@ import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { WeaponId } from './moves.ts';
 import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
@@ -53,7 +54,7 @@ export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'par
 type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
 async function loadFighter(url: string) {
-  const asset = await new GLTFLoader().loadAsync(url);
+  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url);
   const creature = asset.scene.getObjectByName('CreatureBody');
   const steel = asset.scene.getObjectByName('Steel');
   const textured = creature
