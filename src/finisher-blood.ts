@@ -1,4 +1,4 @@
-import { Color, DynamicDrawUsage, Group, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Texture, Vector3 } from 'three';
+import { Color, DynamicDrawUsage, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Texture, Vector3 } from 'three';
 import type { FinisherId } from './finishers.ts';
 
 export type BloodSource = { site: string; position: Vector3; direction: Vector3; strength: number };
@@ -45,9 +45,9 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
 // Fixed resources: two draws, 160 ballistic droplets and 80 growing floor stains. No allocation per emission.
 export function createFinisherBlood(map: Texture) {
   const group = new Group(); group.name = 'FinisherBlood'; group.visible = false;
-  const dropMaterial = new MeshBasicMaterial({color:'#88121c',toneMapped:false});
+  const dropMaterial = new MeshStandardMaterial({color:'#740f19',roughness:.3,metalness:0});
   const poolMaterial = new MeshBasicMaterial({map,color:'#68121a',transparent:true,opacity:.86,depthWrite:false,toneMapped:false});
-  const drops = new InstancedMesh(new SphereGeometry(1,4,2),dropMaterial,160);
+  const drops = new InstancedMesh(new SphereGeometry(1,8,4),dropMaterial,160);
   const pools = new InstancedMesh(new PlaneGeometry(2,2),poolMaterial,80);
   drops.name = 'FinisherDroplets'; pools.name = 'FinisherPools';
   for (const mesh of [drops,pools]) { mesh.instanceMatrix.setUsage(DynamicDrawUsage); mesh.frustumCulled=false; }
@@ -76,7 +76,7 @@ export function createFinisherBlood(map: Texture) {
       if (!kind) { if(active)reset(); return; }
       if(active!==kind) {reset();active=kind;}
       group.visible=mode!=='off';
-      dropMaterial.color.set(mode==='dark' ? '#342127' : '#981522'); poolMaterial.color.set(mode==='dark' ? '#2b2226' : '#68121a');
+      dropMaterial.color.set(mode==='dark' ? '#342127' : '#740f19'); poolMaterial.color.set(mode==='dark' ? '#2b2226' : '#68121a');
       // Hold state at zero dt; off hides and clears airborne drops but never freezes the bleed clock.
       if(dt<=0)return;
       dt=Math.min(dt,.1);elapsed+=dt;
@@ -91,7 +91,7 @@ export function createFinisherBlood(map: Texture) {
           const pressure=burst ? (1.5+.8*Math.sin(elapsed*17)**2) : .25;
           p.position.copy(s.position);p.velocity.copy(s.direction).multiplyScalar(pressure*Math.min(1.2,s.strength));
           p.velocity.x+=Math.sin(a)*.45;p.velocity.z+=Math.cos(a)*.45;p.velocity.y+=burst ? .35+.35*Math.sin(a*1.7) : -.3;
-          p.life=2;p.size=(.018+(serial%4)*.006)*Math.sqrt(s.strength);emitted++;
+          p.life=2;p.size=(.009+(serial%4)*.003)*Math.sqrt(s.strength);emitted++;
         }
         // Once the wound is near the floor, seep directly underneath it as well as landing droplets.
         if(s.position.y<.65)stain(s.position,dt*.08*s.strength,s.site);
@@ -102,7 +102,7 @@ export function createFinisherBlood(map: Texture) {
         p.life-=dt;p.velocity.y-=9.8*dt;p.position.addScaledVector(p.velocity,dt);
         if(p.position.y<=.03) {stain(p.position,.006,'spray');p.life=0;landed++;continue;}
         dummy.position.copy(p.position);dummy.quaternion.setFromUnitVectors(yAxis,velocityDirection.copy(p.velocity).normalize());
-        dummy.scale.set(p.size,p.size*(1.3+Math.min(2,p.velocity.length()*.3)),p.size);dummy.updateMatrix();drops.setMatrixAt(count++,dummy.matrix);
+        dummy.scale.set(p.size,p.size*(1.4+Math.min(1.2,p.velocity.length()*.2)),p.size);dummy.updateMatrix();drops.setMatrixAt(count++,dummy.matrix);
       }
       drops.count=count;drops.instanceMatrix.needsUpdate=true;
       count=0;
