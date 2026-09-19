@@ -759,7 +759,7 @@ fatal stack peaks -2.85 dBFS; quiet/mute cancel future crowd/collapse sources. L
 Physical phone/silent-switch listening remains unverified. Timing follows current authored presentation durations; no claim of
 frame-perfect body contact on every rig. Music, sustained ambience and gait/breath events remain outside this pass.
 
-## Phone audio balance — 2026-09-19 (isolated, release held)
+## Phone audio balance — 2026-09-19 (release authorized)
 Owner requested ordinary effects x0.5 and death/kill/crowd x1.5. Post-compressor gain preserves these ratios; an oversampled
 output guard limits boosted transient peaks. Existing cue assets, tone recipes, timing and simulation are unchanged.
 Measured ordinary loudness -5.9 to -6.0 LUFS; crowd tails +3.52 dB; complete fatal mixes +2.8 to +3.3 LUFS after limiting.
@@ -773,3 +773,7 @@ lint/build/audit/budget/game browser; all eight configured completion commands p
 Release hold acknowledged: no audio trunk merge or deploy until world closeout and lead confirmation. Handset audition remains.
 Integration: weapons trunk f7a1e99 merged cleanly; preserved its polearm gate. Integrated quality passed 265/265 tests and all
 nine completion commands; GitHub CI passed on 827fe33. Receipt: artifacts/audio/phone-mix/integrated-gates.json. PR #158 held.
+
+Audio release window granted by lead after world 8fcf58e. Current world trunk integrated without runtime conflicts; preserve
+all configured gates. Final deployment/public parity and affected audio browser receipts go in artifacts/audio/phone-release/.
+The physical phone audition remains unverified; use served release.json as the deployment authority.
