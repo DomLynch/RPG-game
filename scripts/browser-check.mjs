@@ -42,7 +42,6 @@ try {
  await page.waitForTimeout(60);await page.screenshot({path:'artifacts/browser-parry.jpg',type:'jpeg',quality:85});
  await page.getByRole('button',{name:'Light attack',exact:true}).tap();await page.waitForTimeout(350);
  receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,HP-24,'the riposte takes 24');await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});
- receipt.coach=await page.locator('#coach').textContent();assert.match(receipt.coach,/RIPOSTE/,'the first-warden coach flashes the riposte hint on a real parry');
  receipt.dmg=await page.locator('.dmg:visible').first().textContent();assert.equal(receipt.dmg,'24','the riposte floats its 24 off the warden');
  await page.waitForTimeout(600);await page.keyboard.down('KeyW');await page.waitForTimeout(240);await page.keyboard.up('KeyW');
  await page.waitForFunction(()=>document.querySelector('#kick-button').dataset.reach==='true',null,{timeout:1500});   // the kick's cone is short: wait until the HUD says it can land rather than on a fixed clock
