@@ -26,6 +26,7 @@ test('production packing preserves the real Skeleton buffers, materials and clip
   await assert.rejects(assertGlbEquivalent(source, rewrite(doc => { doc.animations[0].name += '-wrong'; })), /animations changed/);
   await assert.rejects(assertGlbEquivalent(source, rewrite(doc => {
     const index = doc.meshes.flatMap(m => m.primitives).find(p => p.material !== undefined).material;
-    doc.materials[index].name += '-wrong';
+    doc.materials[index].pbrMetallicRoughness ??= {};
+    doc.materials[index].pbrMetallicRoughness.baseColorFactor = [.123, .456, .789, .5];
   })), /material\/texture changed/);
 });

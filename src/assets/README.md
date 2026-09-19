@@ -543,3 +543,15 @@ Raw source SHA-256:
 Werewolf uses the Pitborn animation/cleaver donor. Skeleton uses the Veteran trident donor, with
 rigid weighting for exposed bones rather than the broad smoothing used on flesh. Neither source
 constitutes an automatically game-ready character; inspect fitted attack/guard/locomotion poses.
+
+## Lossless production transport — 2026-09-19
+
+`npm run build` packs emitted GLBs with Meshoptimizer 1.2.0 (MIT, build-only dependency);
+the existing Three.js package supplies the runtime decoder. The authoring GLBs remain unchanged
+by this step. No geometry, animation, skin weights or used texture pixels are quantized.
+Unused material/texture payloads and the offline `creatureWeaponBase` rollback document are
+omitted from production copies; original source files retain them for authoring.
+The build hashes compressed bytes before emission. `check-glb-compression.mjs` independently
+decodes and compares every accessor, clip, node and used material/image against the source,
+and its browser mode checks Chromium/WebKit under the staged CSP with ordinary eval blocked.
+Decoder licensing is shipped at `/licenses/meshoptimizer.txt`.

@@ -26,7 +26,7 @@ if (process.argv.includes('--hosted-csp')) {
     const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
     try {
       for (const engine of [chromium, webkit]) {
-        const browser = await engine.launch({ headless: true });
+        const browser = await engine.launch({ headless: true, ...(engine === chromium ? { executablePath: chromium.executablePath() } : {}) });
         try {
           const page = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
           page.on('pageerror', e => receipt.errors.push(String(e)));
