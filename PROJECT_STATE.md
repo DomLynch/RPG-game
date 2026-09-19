@@ -2,7 +2,7 @@
 
 ## Multi-character anatomy pilots — 2026-09-19 (character lane, NOT LIVE)
 Owner authorized Wraith/Minotaur pilots, efficient shared production, an audit and previews for iteration.
-Isolated `char/multichar-pilots` from 15bea7e. Offline Blender maker and existing-viewer capture/judge create
+Isolated `codex/01a0b8f7/main` from 15bea7e. Offline Blender maker and existing-viewer capture/judge create
 editable component scenes and animated GLBs from committed Nightborn/Pitborn assets. No archive/API dependency.
 No roster, combat, blade bake, live GLB, camera or finisher changes. All 24 original clips, inverse binds,
 weapon nodes/meshes and original binary payload are preserved. Wraith retains the existing face UVs with a
