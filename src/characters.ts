@@ -130,6 +130,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'opened' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
         // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
         // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
+        if (pose !== 'opened' && opened) { opened.group.visible = false; root.visible = true; }
         const step = Math.max(0, Math.min(dt, 0.1));
         speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;

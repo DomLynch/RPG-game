@@ -1,4 +1,4 @@
-import { Box3, BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, SkinnedMesh, Vector3 } from 'three';
+import { Box3, BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Euler, SkinnedMesh, Vector3 } from 'three';
 
 // One pose bake per encounter, prepared before combat like a cached severed prop. Exterior maps are borrowed; only the new geometry and cut material
 // belong to this effect. Cut the torso at its waist, retaining both arms and the held weapon with the upper body.
@@ -91,11 +91,21 @@ export function openWaist(root: Object3D, anchor: Group) {
   });
   const size = new Box3().setFromObject(lower).getSize(new Vector3()), scale = waist/1;
   const smooth = (p: number, start: number, end: number) => { const t = Math.max(0,Math.min(1,(p-start)/(end-start))); return t*t*(3-2*t); };
+  // Find the broad resting face around the torso's long axis. A fixed roll can balance a different rig on a
+  // planted hand or the end of its polearm; the lowest waist support gives the body a weighted final landing.
+  const rest = new Quaternion(); let best = Infinity;
+  for (let i=-32;i<=32;i++) {
+    const angle=i*Math.PI/32, q=new Quaternion().setFromEuler(new Euler(-Math.PI/2,angle,0));
+    const m=new Matrix4().makeRotationFromQuaternion(q).elements, points=supports[1]; let min=Infinity;
+    for(let j=0;j<points.length;j+=3)min=Math.min(min,m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2]);
+    const score=-min+.015*(1-Math.cos(angle));
+    if(score<best){best=score;rest.copy(q);}
+  }
   function place(progress: number) {
     const slide = smooth(progress,.045,.3), fall = smooth(progress,.2,.66), legs = smooth(progress,.36,.84);
     upper.position.set(.5*scale*slide,waist*(1-fall),.12*scale*slide);
-    upper.rotation.set(.18*fall, .16*fall, -1.48*fall);
-    lower.position.set(-.1*scale*legs,0,-.12*scale*legs); lower.rotation.set(-1.48*legs,0,.15*legs);
+    upper.quaternion.identity().slerp(rest,fall);
+    lower.position.set(-.1*scale*legs,0,-.12*scale*legs); lower.rotation.set(.08*legs,0,1.52*legs);
   }
   // Precompute exact support heights once. Per-frame playback interpolates a tiny table; no per-frame vertex scan.
   const floors = [[],[]] as number[][];
