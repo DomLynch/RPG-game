@@ -45,3 +45,17 @@ test('JPEG packing preserves decoded pixels and metadata; a valid coefficient ch
   changed[table + 5] += changed[table + 5] === 255 ? -1 : 1;
   assert.notDeepEqual(jpegFingerprint(changed), expected, 'pixel changes must not pass as lossless packing');
 });
+
+test('shared external textures preserve the real rig and reject missing or corrupted image bytes', async () => {
+  const source = readFileSync(new URL('../src/assets/skeleton.glb', import.meta.url));
+  const images = new Map();
+  const packed = await optimizeGlb(source, (bytes, mime) => {
+    const uri = `textures/${sha256(bytes)}.${mime === 'image/jpeg' ? 'jpg' : 'webp'}`;
+    images.set(uri, bytes); return uri;
+  });
+  await assertGlbEquivalent(source, packed, async uri => images.get(uri));
+  await assert.rejects(assertGlbEquivalent(source, packed, async () => { throw new Error('Missing texture'); }), /Missing texture/);
+  const webp = [...images.keys()].find(uri => uri.endsWith('.webp'));
+  const damaged = Buffer.from(images.get(webp)); damaged[damaged.length - 1] ^= 1;
+  await assert.rejects(assertGlbEquivalent(source, packed, async uri => uri === webp ? damaged : images.get(uri)), /material\/texture changed/);
+});

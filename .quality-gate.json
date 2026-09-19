@@ -222,6 +222,14 @@
     ],
     [
       "node",
+      "scripts/veteran-polish-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/veteran-neck-check.mjs"
+    ],
+    [
+      "node",
       "scripts/creature-impact-check.mjs"
     ],
     [

@@ -1,7 +1,7 @@
 // Independent check of emitted assets: decode with the game's decoder, never the encoder.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { jpegFingerprint } from './jpeg-equivalence.mjs';
 
@@ -20,7 +20,10 @@ export async function builtRig(name) {
   assert.equal(files.length, 1, `Exactly one content-hashed build for ${name}`);
   return `dist/assets/${files[0]}`;
 }
-export async function assertGlbEquivalent(original, emitted) {
+export async function assertGlbEquivalent(original, emitted, loadImage = uri => {
+  assert.match(uri, /^textures\/[a-f0-9]{64}\.(jpg|png|webp)$/);
+  return readFile(`dist/assets/${uri}`);
+}) {
   await MeshoptDecoder.ready;
   const source = parseGlb(original), output = parseGlb(emitted);
   assert.ok(output.doc.extensionsRequired.includes('EXT_meshopt_compression'));
@@ -60,11 +63,13 @@ export async function assertGlbEquivalent(original, emitted) {
   for (const key of ['asset', 'nodes', 'skins', 'animations', 'scenes', 'scene', 'cameras', 'samplers', 'extensions']) {
     assert.deepEqual(output.doc[key], source.doc[key], `${key} changed`);
   }
+  const external = new Map();
+  for (const img of output.doc.images) if (img.uri) external.set(img.uri, await loadImage(img.uri));
   function material(asset, read, index) {
     if (index === undefined) return undefined;
     const image = id => {
-      const { bufferView, ...metadata } = asset.doc.images[id];
-      const bytes = read(bufferView);
+      const { bufferView, uri, ...metadata } = asset.doc.images[id];
+      const bytes = uri ? external.get(uri) : read(bufferView);
       return { ...metadata, content: metadata.mimeType === 'image/jpeg' ? jpegFingerprint(bytes) : sha256(bytes) };
     };
     const texture = id => {

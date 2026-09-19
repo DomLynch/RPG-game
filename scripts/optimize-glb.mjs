@@ -6,7 +6,7 @@ import { gzipSync } from 'node:zlib';
 import { MeshoptEncoder } from 'meshoptimizer';
 import { losslessJpeg } from './lossless-jpeg.mjs';
 
-export async function optimizeGlb(raw) {
+export async function optimizeGlb(raw, externalImage = () => undefined) {
  await MeshoptEncoder.ready;
  assert.equal(raw.readUInt32LE(0),0x46546c67,'Expected GLB');
  assert.equal(raw.readUInt32LE(4),2,'Expected GLB v2');
@@ -32,6 +32,12 @@ export async function optimizeGlb(raw) {
  for(const t of texture.kept){if(t.source!==undefined)t.source=image.map.get(t.source);for(const x of Object.values(t.extensions||{}))if(x.source!==undefined)x.source=image.map.get(x.source);}
  d.materials=material.kept;d.textures=texture.kept;d.images=image.kept;
  const jpegViews=new Set(d.images.filter(i=>i.mimeType==='image/jpeg').map(i=>i.bufferView));
+ for(const img of d.images){
+  const v=d.bufferViews[img.bufferView],rawImage=bin.subarray(v.byteOffset||0,(v.byteOffset||0)+v.byteLength);
+  const bytes=img.mimeType==='image/jpeg'?losslessJpeg(rawImage):rawImage;
+  const uri=externalImage(bytes,img.mimeType);
+  if(uri){assert.ok(!d.accessors.some(a=>a.bufferView===img.bufferView));discardedViews.add(img.bufferView);delete img.bufferView;img.uri=uri;}
+ }
  const chunks=[],views=[],viewMap=new Map(),packedBytes=new Map(),packedViews=new Map();let offset=0,fallback=0;
  const append=bytes=>{const key=createHash('sha256').update(bytes).digest('hex');if(packedBytes.has(key))return packedBytes.get(key);const at=offset;packedBytes.set(key,at);chunks.push(bytes);offset+=bytes.length;const pad=(4-offset%4)%4;if(pad){chunks.push(Buffer.alloc(pad));offset+=pad;}return at;};
  for(const [i,v]of d.bufferViews.entries()){
