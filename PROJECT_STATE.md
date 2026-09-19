@@ -9,8 +9,11 @@ Equipment defaults moved into appearance presets; Veteran/Executioner rebuilds a
 Retired rejected procedural pilot generator/check (508 source lines); current shipped-creature integrity and
 browser gates remain. Current creature integrity passes both rigs and250 sampled poses.
 Reliability review preserves original startup exceptions instead of replacing their stacks; failing-before and
-passing-after regression plus monitoring/graphics checks pass31/31. Real unsupported-WebGL browser gate is updated
-and awaits the coordinated GPU window; all configured gates and public verification remain required before release.
+passing-after regression plus monitoring/graphics checks pass31/31. The actual unsupported-WebGL browser check
+passes: friendly fallback, disabled combat, null context and original renderer exception. Audio e867 is integrated,
+including Draw-only bell behavior. Combined291/291 tests, typecheck/lint/audit and independent clean Node22/real-PG
+checks pass. All configured gameplay gates and public verification remain required before release.
+Owner allows up to12 MB per fight when needed; the separate32 MB distribution cap remains unchanged.
 Release-specific Sentry triage and unpassed physical-phone/external-player acceptance:docs/reliability-audit.md.
 Career practice-win award policy awaits owner confirmation; no rank ledger or end-game system was added.
 
