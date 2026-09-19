@@ -1,5 +1,25 @@
 # Project state
 
+## Google account integration — lead, 2026-09-19 (isolated; activation pending)
+Owner requested Google login/Supabase with controls inside Field Journal. Added a lazy account SDK, PKCE login,
+explicit cloud save/load of name and practice opponent, session sign-out, revision conflict checks and owner-only RLS.
+Sign-in never overwrites device/cloud data; explicit load restarts practice. Career marks/results remain outside this
+client-editable table. No combat, renderer or input code changed. Details/setup: docs/account-integration.md.
+
+Local evidence: initial npm run quality passed 258/258, lint/typecheck/build/audit/budget and gameplay browser checks.
+All eight completion commands passed (roster, Split Crown, audio, estoc, counters, arena, real PostgreSQL RLS, account
+browser). Enabled account build: 8,485,274 bytes gzip per fight / 10 MB. Account browser uses controlled provider
+responses with the real SDK; it does not prove live Google configuration. Screenshots/receipts: artifacts/account/.
+Final npm run quality passes 259/259 plus lint/typecheck/build/audit/budget and gameplay browser. Two-pass review covered ownership,
+stale responses/writes, local data safety and actual mobile/desktop menu behavior. Runtime addition: 160 lines.
+
+Failure ledger: F1 account callback fixture stored its PKCE verifier as raw text instead of the SDK's JSON format;
+fixed the fixture, preserving callback assertions. Account browser reruns and completion command both pass.
+Release blocked on dedicated Supabase project creation/database password handoff and subsequent provider configuration.
+Owner unlocked dashboard; only Calibre exists in the observed free organisation. Frankendom form prepared with
+automatic RLS and default exposure disabled. No Calibre mutation, production schema change, live login or deployment
+claimed. World lane owns the next release window; merge/deploy held until their release and hosted validation.
+
 ## World polish — 2026-09-19 (world/crowd-grounding-light; local, not yet shipped)
 Owner approved four sequential passes: roster spectators, settled debris, softer gate light, selective masonry staining.
 Step 1: replace the narrow crossed cards with five opaque instanced body silhouettes: human, goblin, Pitborn, executioner, Nightborn. No fighter assets, animation clips or gameplay changed. Irregular gaps and slight depth/yaw variation; existing bounded crowd reactions retained. First judge rejected boxy torsos; refined rounded bodies, darker clothes, hair and robe silhouettes. Arena tests 8/8; first full quality 246/246 + browser gate passed; refined geometry typechecks and arena tests pass. Fixed-camera captures: artifacts/world/polish-1-crowd-refined. Cost: 88,798 triangles / 120k, 21 measured arena draws (+1), 11.01 MB textures (-0.35 MB), floor luminance 0.105 unchanged. Physical phone performance remains unmeasured.

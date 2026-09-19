@@ -13,7 +13,7 @@ async function files(path) {
   }
   return out;
 }
-const all = await files('dist'), glb = f => /\.glb$/.test(f.name), sum = (list, k) => list.reduce((n, f) => n + f[k], 0);
+const all = await files(process.argv[2] || 'dist'), glb = f => /\.glb$/.test(f.name), sum = (list, k) => list.reduce((n, f) => n + f[k], 0);
 const shell = sum(all.filter(f => !glb(f)), 'gzip'), hero = all.find(f => /^warrior-/.test(f.name)), opponents = all.filter(f => glb(f) && f !== hero);
 if (!hero || !opponents.length) throw new Error(`dist has no hero + opponent GLBs (${all.filter(glb).map(f => f.name).join(', ') || 'none'})`);
 const worst = opponents.reduce((a, b) => (b.gzip > a.gzip ? b : a)), fight = shell + hero.gzip + worst.gzip, total = sum(all, 'gzip');

@@ -45,6 +45,14 @@
       "scripts/arena-preview.mjs",
       "--label",
       "quality-world"
+    ],
+    [
+      "node",
+      "scripts/account-database-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/account-browser-check.mjs"
     ]
   ]
 }
