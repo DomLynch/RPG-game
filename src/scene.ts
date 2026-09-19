@@ -784,6 +784,8 @@ export function createScene(
           : 0,
         practice.result === 'enemyBlocked' ? Math.max(0, 1 - practice.resultAge / 12) : 0,
       );
+      // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
+      if (detailedBlood) wounds[1].group.visible = false;
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
         wounds[1].group.visible = false;
