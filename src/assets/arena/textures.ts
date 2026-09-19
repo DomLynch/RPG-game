@@ -203,17 +203,17 @@ export function motePixels(size = 32, seed = 53): Pixels {
   });
 }
 // Gate light (world lane 2026-09-18): one atlas, two halves. v > 0.5 is the sun shaft that spills through the gate arch —
-// soft across, streaked like light through bars, fading along its length. v < 0.5 is the warm pool where it lands on the
+// soft across, faintly interrupted by bars, fading along its length. v < 0.5 is the warm pool where it lands on the
 // sand. Additive: RGB carries the brightness (peak ~half, warm), alpha carries the shape.
 export function gateLightAtlas(width = 128, height = 256, seed = 83): Pixels {
   const streaks = fbm(6, 3, seed), dapple = fbm(10, 2, seed + 4);
   return pixels(width, height, (u, v) => {
     if (v >= 0.5) {
       const s = u, t = (v - 0.5) * 2;
-      const across = Math.exp(-((s - 0.5) ** 2) / 0.075);
-      const bars = 0.6 + 0.4 * Math.max(0, Math.sin(s * 34 + 2.2 * (streaks(s, t) - 0.5)));
-      const a = across * bars * (t < 0.12 ? t / 0.12 : 1 - smoothstep(0.62, 1, t)) * (0.75 + 0.25 * streaks(s * 3, t * 2));
-      const k = 150 * a;
+      const across = Math.exp(-((s - 0.5) ** 2) / 0.11) * smoothstep(0, 0.22, s) * (1 - smoothstep(0.78, 1, s));
+      const bars = 0.9 + 0.1 * Math.sin(s * 18 + 1.2 * (streaks(s, t) - 0.5));
+      const a = across * bars * smoothstep(0, 0.18, t) * (1 - smoothstep(0.42, 1, t)) * (0.85 + 0.15 * streaks(s * 2, t * 2));
+      const k = 95 * a;
       return [k, k * 0.9, k * 0.68, 255];
     }
     const s = u, t = v * 2, r = Math.hypot(s - 0.5, t - 0.5) * 2;
