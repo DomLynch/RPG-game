@@ -31,13 +31,13 @@ try {
     const frames = [];
     const shot = async label => {
       const state = await page.evaluate(() => ({ clips: document.querySelector('#debug').dataset.clips, art: document.querySelector('#art-status').textContent, overflow: document.documentElement.scrollWidth > innerWidth, hp: document.querySelector('#player-health').value }));
-      assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(`(?:Maul|Claw)_.*@WeaponDrawn`));
+      assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(`(?:Maul|Reaper)_.*@WeaponDrawn`));
       const path = `${dir}/${opponent}-${label}.png`; await page.screenshot({ path }); frames.push({ label, path, ...state });
     };
     await shot('landscape-ready');
     await page.keyboard.down('w'); await page.waitForTimeout(900); await page.keyboard.up('w');
     await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
-    await page.waitForFunction(prefix => document.querySelector('#debug').dataset.clips.includes(prefix + '_Heavy'), opponent === 'minotaur' ? 'Maul' : 'Claw', { timeout: 45000 });
+    await page.waitForFunction(prefix => document.querySelector('#debug').dataset.clips.includes(prefix + '_Heavy'), opponent === 'minotaur' ? 'Maul' : 'Reaper', { timeout: 45000 });
     await shot('heavy-attack');
     await page.waitForFunction(() => Number(document.querySelector('#player-health').value) < Number(document.querySelector('#player-health').max), null, { timeout: 45000 });
     await shot('landscape-fight');

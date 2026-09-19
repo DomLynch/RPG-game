@@ -1,5 +1,8 @@
 # Project state
 
+## Wraith reaper scythe — weapons lane, in progress
+Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. Integrate PR167 finisher repair before release and rerun Wraith Opened split/fade/ground behavior.
+
 ## Ordered lead cleanup — 2026-09-19 (PR #171)
 Owner requested readability, existing-recipe cleanup, obsolete QA retirement, then reliability/product gaps.
 The main/scene TypeScript syntax trees and parsed CSS rules were preserved while unpacking dense formatting.

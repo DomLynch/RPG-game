@@ -43,7 +43,7 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']])
   for (const [i, before] of original.doc.nodes.entries()) {
     const after = structuredClone(doc.nodes[i]), expected = structuredClone(before);
     if (doc.extras.creatureWeapon && ['WeaponDrawn'].includes(before.name)) {
-      assert.equal(after.extras.weapon, family === 'minotaur' ? 'maul' : 'claws');
+      assert.equal(after.extras.weapon, family === 'minotaur' ? 'maul' : 'reaper');
       continue; // New authored equipment is checked by the creature weapon contract.
     }
     // The surface replaces inherited art; joint transforms and weapon hierarchy are unchanged.
@@ -92,10 +92,10 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']])
       assert(point.length() < 6, `${clip.name}: runaway skin vertex`);
       if (handVertices.has(i)) handGap = Math.min(handGap, body.localToWorld(point).distanceTo(grip));
     }
-    if ((doc.extras.creatureWeapon ? family === 'minotaur' && ['Maul_Idle', 'Maul_Slash', 'Maul_Heavy', 'Maul_Guard'].includes(clip.name) : ['Armed', 'Attack', 'Heavy', 'Guard'].includes(clip.name))) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
+    if ((doc.extras.creatureWeapon ? ['Maul_Idle', 'Maul_Slash', 'Maul_Heavy', 'Maul_Guard', 'Reaper_Idle', 'Reaper_Slash', 'Reaper_Heavy', 'Reaper_Guard'].includes(clip.name) : ['Armed', 'Attack', 'Heavy', 'Guard'].includes(clip.name))) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
     poses++;
   }
-  receipts.push({ family, sha256: digest(raw), triangles, clipsPreserved: asset.animations.length, finitePoses: poses, mapsPreserved: imageBytes(source).length });
+  receipts.push({ family, sha256: digest(raw), triangles, clipsPreserved: original.doc.animations.length, totalClips: asset.animations.length, finitePoses: poses, mapsPreserved: imageBytes(source).length });
 }
 await fs.mkdir('artifacts/character/creatures', { recursive: true });
 await fs.writeFile('artifacts/character/creatures/integrity.json', JSON.stringify(receipts, null, 2));

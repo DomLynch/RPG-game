@@ -312,5 +312,4 @@ playtest assets, with physical-phone performance and final art acceptance still 
 
 ### Creature weapons — owner-authorized 2026-09-19
 Minotaur carries an iron-banded stone maul in two hands: sideways sweep, overhead smash, short haft shove.
-Wraith carries no sword: claw sweep, forward rake, two-handed downward tear. Each uses its own offline
-animation/contact package; preserve approved bodies, Wraith size/wisps and ordinary-death fallback.
+Wraith now carries a massive reaper scythe (owner revision): long slender steel crescent, dark swept shaft, two-handed grip, broad sweeping cuts and a high harvest stroke. It must be visibly different from Executioner; do not reuse his weapon mesh. Each creature uses its own offline animation/contact package; preserve approved bodies, Wraith size/wisps and existing death support.
