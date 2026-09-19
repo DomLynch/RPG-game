@@ -1,5 +1,22 @@
 # Project state
 
+## Season 1 scope and material cleanup — lead, 2026-09-19
+Owner chose Recruit → Origin as the complete Season 1 core, with the RPG endgame built after launch. Canonical scope is
+in GAME_SPEC.md; docs/progression-direction.md records future choices, persistence/result boundaries, migrations,
+release checks and lane ownership. No stat rebalance, build allocation, inventory, purchases or backend is implemented
+by this change. Recoverable identity/career persistence and physical/external-player gates still precede a progression launch.
+
+Code-quality review: the earlier roster foundation already fixed scattered weapon defaults and health reporting. This
+pass moves repeated warrior material values into one offline palette, preserving existing appearance and the Executioner's
+matte overrides. Broad main/input splitting and a new item framework were rejected as churn without a current requirement.
+All six fighters' four material constructors and final material GLB output compare byte-for-byte with the pre-change code,
+both with and without authored maps (12 cases). This is material-pipeline equivalence, not a full geometry rebuild.
+Source art needed for a complete UAL2 rebuild is absent in the lead source directory; shipped GLBs remain unchanged.
+Local validation at the initial base: npm run quality passed (250 tests, lint/typecheck/build/audit, budget and browser);
+roster and Split Crown completion checks passed. Evidence: artifacts/lead-quality/. Rebase/release validation remains in progress.
+Two-pass review: preset identity/isolation and unchanged simulation/input; then authored-map precedence, dye retention,
+matte overrides and browser/render/persistence gates. No new runtime dependency or module added.
+
 ## Button-consistent parry counters — weapons, 2026-09-19
 Owner authorized fix and deployment. After a successful parry, Slash selects `slash_riposte` with each weapon's cut clip
 and a separately baked collision path; Stab retains `riposte`; Heavy retains `heavy_riposte` (or the earned posture critical).
@@ -14,6 +31,7 @@ an audio fixture pressed Slash to request its fixed thrust. Those fixtures now n
 Integrated full quality passes 250/250 tests, lint, build, audit, budget and the shared browser gate. Estoc #142 is merged
 as d3114a9 with Split Crown #144 preserved. All earlier blade tables are byte-identical; only the new counter paths are added.
 Completion and release receipts: `artifacts/weapons/counter-buttons/`. Public deployment remains pending.
+
 
 ## Split Crown visible skull split — 2026-09-19 (finishers lane, local gate passed)
 Owner approved a skull-only centre split: the halves open slightly and the body collapses intact. Work is isolated from

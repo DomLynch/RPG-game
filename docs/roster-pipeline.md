@@ -14,6 +14,7 @@ Owner-approved 2026-09-19. Start with the five shipped fighters; preserve combat
 
 1. Agree a stable ID, name, existing archetype and approved body/weapon pairing with lead.
 2. Character lane supplies its approved GLB/preset. `body` names that shipped asset/preset; appearance variants get their own asset name.
+   Existing offline material palettes live in `scripts/warrior-appearance.mjs`; extend that data instead of adding fighter-name material branches. Geometry and authored texture work remain in the character pipeline.
 3. Add one catalogue recipe. Do not add an opponent-name branch to `duel.ts` or `ai.ts`.
 4. Validate grips, gait, attack silhouettes and visible-versus-simulated blade contact. Sharing bone names alone is insufficient.
 5. Run the unchanged combat battery, rig/contact tests, per-fight budget and both browser gates. Only hero + selected opponent may be fetched.
@@ -30,6 +31,8 @@ First ship these foundations. Then approve two contrasting named fighters using 
 `profile.encounter` selects the next opponent. Legacy `profile.ladder` migrates into it without changing guest ID/name or inventing wins. Saves also write the legacy alias so rolling back a release preserves encounter selection. Optional `career.victoryMarks` is independent and is only a schema boundary here: this release does not award marks, display a career rank, create Supabase resources or claim recoverable identity.
 
 Backend design must handle guest recovery, explicit local-save import, versioned fight IDs/recipes/seeds, idempotent result submission and authorization. Client-reported practice results cannot become server-verified competitive results merely by storing them. Never derive career rank from the encounter array.
+
+The owner's skill-first / Origin-build proposal and its unresolved balance decisions are recorded in `docs/progression-direction.md`. It does not override current combat or authorize paid storage.
 
 ## Known gates
 

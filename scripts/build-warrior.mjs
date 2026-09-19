@@ -1,4 +1,5 @@
 import { warriorRecipe } from './warrior-recipe.mjs';
+import { warriorAppearance } from './warrior-appearance.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
 // No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
 import fs from 'node:fs/promises';
@@ -25,6 +26,7 @@ const recipe = warriorRecipe(fighter, process.env.WARRIOR_WEAPON), variant = rea
 // the weapon's own clips join the set. The hero defaults to the longsword (byte-identical output); the Veteran defaults to the trident
 // since slice V (duel.ts initialDuel gives him it), so a plain rebuild never hands him the sword back.
 const weaponId = recipe.weapon;
+const appearance = warriorAppearance(fighter);
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
 const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
@@ -44,11 +46,11 @@ const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
-const steel = new T.MeshStandardMaterial({ name: 'Steel', color: fighter === 'pitborn' ? '#2f2b28' : fighter === 'nightborn' ? '#3b3b3f' : fighter === 'goblin' ? '#4a3a2c' : fighter === 'executioner' ? '#33302e' : '#767a7c', metalness: fighter === 'nightborn' ? 0.7 : fighter === 'goblin' ? 0.6 : fighter === 'executioner' ? 0.8 : 0.85, roughness: fighter === 'pitborn' ? 0.78 : fighter === 'goblin' ? 0.9 : fighter === 'nightborn' ? 0.72 : fighter === 'executioner' ? 0.7 : 0.55 }); // iron, not chrome; the Pitborn's is crude blackened iron; the goblin's one bracer is rust-brown scavenged iron; the Nightborn's dull dark iron, no hot spot; the Executioner's mask is pitted dark iron
+const steel = new T.MeshStandardMaterial({ name: 'Steel', ...appearance.steel });
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
 const blade = new T.MeshStandardMaterial({ name: 'Blade', color: '#c3c7ca', metalness: 0.9, roughness: 0.3 });
-const leather = new T.MeshStandardMaterial({ name: 'Leather', color: fighter === 'nightborn' ? '#2b2320' : fighter === 'executioner' ? '#2b231c' : '#4a3527', roughness: 0.8 });   // the Nightborn's is black-oiled; the Executioner's harness is dark work-leather
-const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: fighter === 'veteran' ? '#3f2e22' : fighter === 'pitborn' ? '#4d463c' : fighter === 'nightborn' ? '#17151a' : fighter === 'goblin' ? '#3a3229' : fighter === 'executioner' ? '#171310' : '#6e2622', roughness: 0.92, side: T.DoubleSide }); // the dye: the Pitborn's kilt is undyed rag // dyed leather strips over an undyed map (~0.85 mean): the hero's madder red; the Veteran's dark oiled umber, and his crest black horsehair on the same surface; the Executioner's pteruges and hood are near-black (above the 12 % floor so the rags still shade). The runtime recolours the opponent only when both fighters share one GLB
+const leather = new T.MeshStandardMaterial({ name: 'Leather', color: appearance.leather, roughness: 0.8 });
+const heraldry = new T.MeshStandardMaterial({ name: 'Heraldry', color: appearance.heraldry, roughness: 0.92, side: T.DoubleSide }); // dye over the undyed map
 // The universal humanoid: the whole CC0 body with its own face, eyes and eyebrows. Skin maps come from the manifest.
 const skin = new T.MeshPhysicalMaterial({ name: 'Skin', roughness: 1, specularIntensity: 0.5 }); // skin-strength specular, the same as the head tile's: the two tiles meet on the neck and must shade alike
 body.material = skin;
@@ -56,7 +58,7 @@ for (const mesh of [body, base.scene.getObjectByName('Eyes')]) { mesh.geometry.m
 base.scene.getObjectByName('Eyes').material = new T.MeshStandardMaterial({ name: 'Eyes', roughness: .35 });
 const hair = new T.MeshStandardMaterial({ name: 'Hair', color: '#2b211b', roughness: .88 });
 const ranger = new T.MeshStandardMaterial({ name: 'Ranger', roughness: 1 }); // CC0 outfit-pack items; maps from the manifest
-const bronze = new T.MeshStandardMaterial({ name: 'Bronze', color: fighter === 'executioner' ? '#4a4239' : '#ffffff', roughness: 1, metalness: 1 }); // the Executioner's greaves are blackened iron (the dark factor rides over the bronze map, owner 2026-09-18: "same dark charcoal as the rest"; matte factors land in finishMaterials); everyone else's stay bright bronze (white = the map as authored)
+const bronze = new T.MeshStandardMaterial({ name: 'Bronze', color: appearance.bronze, roughness: 1, metalness: 1 });
 const wrap = new T.MeshStandardMaterial({ name: 'Wrap', roughness: .85 }); // wrist wraps: leather strip maps from the manifest
 const eyesMaterial = new T.MeshPhysicalMaterial({ name: 'Eyes', roughness: .3, clearcoat: .5, clearcoatRoughness: .18 }); // wet cornea, soft highlight; roughness from the map
 // Realistic head: its own texture tile with skin-strength specular (KHR_materials_specular), and strand cards for hair,
@@ -813,7 +815,7 @@ function finishMaterials(glb, authored = new Map()) {
   for(const m of j.materials) {
     const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
     // Authored slots own their channel outright; anything not authored keeps the procedural map below.
-    if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};if(m.name!=='Heraldry'&&!(m.name==='Bronze'&&fighter==='executioner'))p.baseColorFactor=[1,1,1,1];} // Heraldry keeps its dye as the factor: the map is undyed leather and the runtime recolours the opponent's; the Executioner's Bronze keeps its blackened-iron factor over the bronze map
+    if(a.baseColor) {p.baseColorTexture={index:image(a.baseColor.bytes,a.baseColor.mime)};if(m.name!=='Heraldry'&&!(m.name==='Bronze'&&appearance.matteIron))p.baseColorFactor=[1,1,1,1];} // Heraldry keeps its dye as the factor: the map is undyed leather and the runtime recolours the opponent's; the Executioner's Bronze keeps its blackened-iron factor over the bronze map
     if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
     if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
     if(a.occlusion) {a.occlusion.index ??= image(a.occlusion.bytes,a.occlusion.mime); m.occlusionTexture={index:a.occlusion.index,texCoord:a.occlusionTexCoord,strength:1};} // one shared image across materials
@@ -823,7 +825,7 @@ function finishMaterials(glb, authored = new Map()) {
     if(m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
     // The Executioner's blackened iron (owner, v3 review: the mask and greaves read darker and shinier than the hood — fake):
     // drop the ORM map for scalar matte factors; with metalness down the diffuse returns and they read as charcoal iron beside the hood's cloth.
-    if(fighter==='executioner'&&(m.name==='Steel'||m.name==='Bronze')) {delete p.metallicRoughnessTexture;p.metallicFactor=0.45;p.roughnessFactor=0.88;}
+    if(appearance.matteIron&&(m.name==='Steel'||m.name==='Bronze')) {delete p.metallicRoughnessTexture;p.metallicFactor=0.45;p.roughnessFactor=0.88;}
   }
   j.buffers[0].byteLength=offset;
   const text=Buffer.from(JSON.stringify(j)), padded=Buffer.concat([text,Buffer.alloc((4-text.length%4)%4,32)]), bin=Buffer.concat(chunks);
