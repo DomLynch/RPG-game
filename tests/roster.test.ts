@@ -42,3 +42,10 @@ test('appearance presets reject unknown identities and do not leak edits across 
   assert.equal(warriorAppearance('executioner').items, 'mask_iron,hood_rag');
   for (const id of ['hero', 'pitborn', 'goblin', 'nightborn']) assert.equal(warriorAppearance(id).items, '');
 });
+
+test('Opened is supported on Wraith and Minotaur without enabling other creature executions', () => {
+  for (const id of ['wraith','minotaur'] as const) {
+    assert.equal(supportsFinishers(id, 'opened'), true);
+    for (const kind of ['splitCrown','decapitation','runThrough','quietOne'] as const) assert.equal(supportsFinishers(id,kind),false);
+  }
+});

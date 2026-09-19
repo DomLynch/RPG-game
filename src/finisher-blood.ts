@@ -18,7 +18,9 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
     const opened = victim.getObjectByName('Opened');
     if (!opened?.visible) return [];
     return ['OpenedLegs','OpenedTorso'].flatMap((name,i) => {
-      const cut = opened.getObjectByName(name)?.getObjectByName('WaistCut') as Mesh | undefined;
+      const half = opened.getObjectByName(name);
+      if (!half?.visible) return [];
+      const cut = half.getObjectByName('WaistCut') as Mesh | undefined;
       if (!cut) return [];
       if (!cut.geometry.boundingBox) cut.geometry.computeBoundingBox();
       return [source(i ? 'waist-torso' : 'waist-legs', cut.localToWorld(cut.geometry.boundingBox!.getCenter(new Vector3())), new Vector3(0,i ? -1 : 1,0).transformDirection(cut.matrixWorld),1.4)];

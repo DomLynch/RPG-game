@@ -160,6 +160,68 @@
     ],
     [
       "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "opened",
+      "--opponent",
+      "minotaur",
+      "--blood-check",
+      "--no-video",
+      "--label",
+      "opened-minotaur-gate"
+    ],
+    [
+      "node",
+      "scripts/quiet-one-browser-check.mjs",
+      "--finisher",
+      "opened",
+      "--opponent",
+      "minotaur",
+      "--blood-check"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "opened",
+      "--opponent",
+      "wraith",
+      "--blood-check",
+      "--no-video",
+      "--label",
+      "opened-wraith-gate"
+    ],
+    [
+      "node",
+      "scripts/quiet-one-browser-check.mjs",
+      "--finisher",
+      "opened",
+      "--opponent",
+      "wraith",
+      "--blood-check"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "decapitation",
+      "--opponent",
+      "goblin",
+      "--no-video",
+      "--label",
+      "decap-front-goblin-gate"
+    ],
+    [
+      "node",
+      "scripts/quiet-one-browser-check.mjs",
+      "--finisher",
+      "decapitation",
+      "--opponent",
+      "goblin",
+      "--blood-check"
+    ],
+    [
+      "node",
       "scripts/veteran-polish-check.mjs"
     ],
     [
