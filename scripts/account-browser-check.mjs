@@ -18,14 +18,14 @@ try {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); inspectedPage = page; page.setDefaultTimeout(15000);
   page.on('pageerror', error => receipt.errors.push(String(error)));
-  let row = null, failRead = false, writes = [], authUrl;
+  let row = null, failRead = false, failLogout = false, writes = [], authUrl;
   await context.route('**/*sentry.io/**', route => route.abort());
   await context.route(`${api}/**`, async route => {
     const request = route.request(), url = new URL(request.url());
     const json = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
     if (url.pathname === '/auth/v1/authorize') { authUrl = url; return route.fulfill({ contentType: 'text/html', body: '<h1>Google redirect intercepted by local QA</h1>' }); }
     if (url.pathname === '/auth/v1/token') { assert.equal(request.postDataJSON().auth_code, 'qa-code'); return json(session); }
-    if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 });
+    if (url.pathname === '/auth/v1/logout') return failLogout ? json({ message: 'Sign-out rejected' }, 400) : route.fulfill({ status: 204 });
     if (url.pathname === '/auth/v1/user') return json(user);
     assert.equal(url.pathname, '/rest/v1/fighter_profiles');
     assert.equal(url.searchParams.get('user_id'), request.method() === 'POST' ? null : `eq.${user.id}`);
@@ -88,6 +88,16 @@ try {
   await page.getByText('Could not read your account.', { exact: false }).waitFor();
   assert.equal(await page.locator('#account-save').isEnabled(), false);
   assert.equal(await page.locator('#account-load').isEnabled(), false);
+  failLogout = true; await page.locator('#account-logout').tap();
+  // Supabase clears the local session even if remote revocation fails; no stale account controls may survive.
+  await page.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
+  assert.equal(await page.locator('#account-save').isVisible(), false);
+  assert.equal(await page.locator('#account-load').isVisible(), false);
+  assert.equal(await page.evaluate(() => localStorage.getItem('frankendom.auth.v1')), null);
+  failLogout = false;
+  await page.evaluate(value => localStorage.setItem('frankendom.auth.v1', JSON.stringify(value)), session);
+  await page.reload(); await page.locator('#journal-button').tap();
+  await page.getByText('Could not read your account.', { exact: false }).waitFor();
   failRead = false; await page.locator('#account-retry').tap();
   await page.getByText('Cloud fighter: Newer device.', { exact: false }).waitFor();
   await page.locator('#account-logout').tap();

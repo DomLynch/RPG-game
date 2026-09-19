@@ -15,7 +15,8 @@ export async function mountAccount(url: string, key: string) {
   function render() {
     login.hidden = !!userId; logout.hidden = save.hidden = restore.hidden = !userId;
     for (const button of [login, logout, save, restore, retry]) button.disabled = busy;
-    restore.disabled = busy || !saved;
+    save.disabled = busy || !retry.hidden;
+    restore.disabled = busy || !saved || !retry.hidden;
     save.textContent = saved ? 'Replace cloud save' : 'Save fighter';
   }
   async function refresh() {
@@ -37,7 +38,7 @@ export async function mountAccount(url: string, key: string) {
       if (turn !== generation) return;
       status.textContent = 'Could not read your account. Retry before saving; your local fighter is safe.';
       retry.hidden = false;
-    } finally { if (turn === generation) { busy = false; render(); save.disabled = !retry.hidden; } }
+    } finally { if (turn === generation) { busy = false; render(); } }
   }
   login.addEventListener('click', async () => {
     busy = true; render(); status.textContent = 'Opening Google…';
@@ -69,7 +70,7 @@ export async function mountAccount(url: string, key: string) {
     } catch {
       if (turn !== generation) return;
       status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; retry.hidden = false;
-    } finally { if (turn === generation) { busy = false; render(); save.disabled = !retry.hidden; } }
+    } finally { if (turn === generation) { busy = false; render(); } }
   });
   restore.addEventListener('click', async () => {
     if (!userId || busy || !saved) return;

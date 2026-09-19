@@ -8,13 +8,17 @@ client-editable table. No combat, renderer or input code changed. Details/setup:
 
 Local evidence: initial npm run quality passed 258/258, lint/typecheck/build/audit/budget and gameplay browser checks.
 All eight completion commands passed (roster, Split Crown, audio, estoc, counters, arena, real PostgreSQL RLS, account
-browser). Enabled account build: 8,485,274 bytes gzip per fight / 10 MB. Account browser uses controlled provider
+browser). Enabled account build: 8,485,279 bytes gzip per fight / 10 MB. Account browser uses controlled provider
 responses with the real SDK; it does not prove live Google configuration. Screenshots/receipts: artifacts/account/.
 Final npm run quality passes 259/259 plus lint/typecheck/build/audit/budget and gameplay browser. Two-pass review covered ownership,
-stale responses/writes, local data safety and actual mobile/desktop menu behavior. Runtime addition: 160 lines.
+stale responses/writes, local data safety and actual mobile/desktop menu behavior. Runtime addition: 161 lines.
 
 Failure ledger: F1 account callback fixture stored its PKCE verifier as raw text instead of the SDK's JSON format;
 fixed the fixture, preserving callback assertions. Account browser reruns and completion command both pass.
+F2: the extra logout-failure fixture expected a retained session, but the current SDK deliberately clears it on remote
+revocation failure. The regression now requires cleared tokens and hidden cloud controls, plus read-failure recovery
+and normal logout. It passes. Centralized save/load disabling keeps failed reads locked through other UI transitions.
+Final account browser, lint/typecheck and budget pass; initial commit CI passes including real PostgreSQL isolation.
 Release blocked on dedicated Supabase project creation/database password handoff and subsequent provider configuration.
 Owner unlocked dashboard; only Calibre exists in the observed free organisation. Frankendom form prepared with
 automatic RLS and default exposure disabled. No Calibre mutation, production schema change, live login or deployment
