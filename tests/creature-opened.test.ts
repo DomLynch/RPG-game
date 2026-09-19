@@ -92,7 +92,7 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
   assert.ok(dropped.children.length>0,'actual weapon geometry is retained');
   parent.updateMatrixWorld(true);
   const droppedBounds=new Box3().setFromObject(dropped,true);
-  if(id==='wraith')assert.ok(Number.isFinite(droppedBounds.min.y) && droppedBounds.min.y>-.012 && droppedBounds.min.y<.04,`weapon lands on sand ${droppedBounds.min.y}`);
+  assert.ok(Number.isFinite(droppedBounds.min.y) && droppedBounds.min.y>-.012 && droppedBounds.min.y<.04,`weapon lands on sand ${droppedBounds.min.y}`);
   if(id==='wraith')assert.equal(partMaterial.opacity,0);
   assert.deepEqual(body.geometry.attributes.position.array,original,'source mesh untouched');
   let disposed=0;partMaterial.addEventListener('dispose',()=>disposed++);
