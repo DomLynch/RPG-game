@@ -35,7 +35,7 @@ try {
  const render = async (script, duration = 42, failure = false, startTick = 0) => page.evaluate(async ({ script, duration, failure, startTick }) => {
   const ctx = new OfflineAudioContext(1, duration * 48000, 48000), starts = [], original = ctx.createBufferSource.bind(ctx); let now = 0;
   ctx.createBufferSource = () => { const source = original(), start = source.start.bind(source), stop = source.stop.bind(source); let entry;
-   source.start = (...args) => { const name = source.buffer.duration > 39 ? Object.entries(window.h.ARENA_MANIFEST).find(([, r]) => r.some(([offset]) => Math.abs(offset - args[1]) < .00001))?.[0] : source.buffer.duration === 2.6 ? 'bell' : 'combat'; entry = { name, at: args[0], offset: args[1], end: args[0] + args[2] / source.playbackRate.value }; starts.push(entry); return start(...args); };
+   source.start = (...args) => { const name = source.buffer.duration > 39 ? Object.entries(window.h.ARENA_MANIFEST).find(([, r]) => r.some(([offset]) => Math.abs(offset - args[1]) < .00001))?.[0] : source.buffer.duration === window.h.ARENA_MANIFEST.bell[0][1] ? 'bell' : 'combat'; entry = { name, at: args[0], offset: args[1], end: args[0] + args[2] / source.playbackRate.value }; starts.push(entry); return start(...args); };
    source.stop = (time) => { if (entry) entry.end = Math.min(entry.end, time); return stop(time); }; return source;
   };
   const fetchOriginal = window.fetch;
@@ -127,11 +127,11 @@ try {
  const ui = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true }); inspectedUi = ui;
  const stage = name => { report.nativeStep = name; console.log(name); };
  ui.on('pageerror', e => report.errors.push(String(e))); await ui.route('**/*sentry.io/**', r => r.abort());
- await ui.addInitScript(() => {
+ await ui.addInitScript(([bellOffset, bellSeconds]) => {
   window.__arena = []; const start = AudioBufferSourceNode.prototype.start, stop = AudioBufferSourceNode.prototype.stop; let id = 0; const entries = new WeakMap();
-  AudioBufferSourceNode.prototype.start = function(...args) { if (this.buffer?.duration > 39 || this.buffer?.duration === 2.6) { const entry = { id: ++id, offset: this.buffer.duration === 2.6 ? 37.43 : args[1], when: args[0] }; entries.set(this, entry); this.addEventListener('ended', () => { entry.ended = true; }); window.__arena.push(entry); } return start.apply(this, args); };
+  AudioBufferSourceNode.prototype.start = function(...args) { if (this.buffer?.duration > 39 || this.buffer?.duration === bellSeconds) { const entry = { id: ++id, offset: this.buffer.duration === bellSeconds ? bellOffset : args[1], when: args[0] }; entries.set(this, entry); this.addEventListener('ended', () => { entry.ended = true; }); window.__arena.push(entry); } return start.apply(this, args); };
   AudioBufferSourceNode.prototype.stop = function(...args) { const entry = entries.get(this); if (entry) entry.stopped = true; return stop.apply(this, args); };
- });
+ }, ARENA_MANIFEST.bell[0]);
  stage('load');
  await ui.goto(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`);
  await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
