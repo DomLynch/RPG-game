@@ -158,6 +158,10 @@
     [
       "node",
       "scripts/bell-start-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/veteran-polish-check.mjs"
     ]
   ]
 }

@@ -13,9 +13,9 @@
   "normalScale": 1.0
  },
  "Bronze": {
-  "baseColor": "bronze_color_veteran.jpg",
-  "normal": "bronze_normal_veteran.jpg",
-  "metallicRoughness": "bronze_orm_veteran.jpg",
+  "baseColor": "bronze_color_polish_veteran.jpg",
+  "normal": "bronze_normal_polish_veteran.jpg",
+  "metallicRoughness": "bronze_orm_polish_veteran.jpg",
   "normalScale": 1.0
  },
  "Wrap": {
@@ -73,14 +73,14 @@
   "baseColor": "gambeson_color_veteran.jpg",
   "metallicRoughness": "gambeson_orm_veteran.jpg",
   "normalScale": 1.5,
-  "normal": "gambeson_normal_veteran.jpg"
+  "normal": "gambeson_normal_polish_veteran.jpg"
  },
  "Leather": {
   "occlusion": "ao_body_veteran.jpg",
   "occlusionTexCoord": 1,
-  "baseColor": "leather_color_veteran.jpg",
-  "normal": "leather_normal_veteran.jpg",
-  "metallicRoughness": "leather_orm_veteran.jpg",
+  "baseColor": "leather_color_polish_veteran.jpg",
+  "normal": "leather_normal_polish_veteran.jpg",
+  "metallicRoughness": "leather_orm_polish_veteran.jpg",
   "normalScale": 1.0
  },
  "Heraldry": {

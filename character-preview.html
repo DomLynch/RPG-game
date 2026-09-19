@@ -247,16 +247,17 @@ const api = {
     w.node.updateWorldMatrix(true, true); const box = new THREE.Box3().setFromObject(w.node), size = box.getSize(new THREE.Vector3());
     return { node: w.node.name, triangles, materials: [...materials], contact: w.contact, extentMetres: +Math.max(size.x, size.y, size.z).toFixed(3), clips: enemyClips.map(c => c.name) };
   },
-  async details(list = DETAILS, who = 'player') { // who: 'player' | 'opponent' — the same close-ups of either fighter, alone at the origin
+  async details(list = DETAILS, who = 'player', layout = {columns: 4, width: 480, height: 480}) { // same frozen lighting; optional layout for matched material comparisons
     await reset(); stage(studio); const subject = who === 'opponent' ? opponent : player, other = who === 'opponent' ? player : opponent;
     other.visible = false; renderer.toneMappingExposure = 1; subject.position.set(0, 0, 0); subject.rotation.y = 0;
-    const sheet = await cells(4, Math.ceil(list.length / 4), 480, 480, 1, i => {
+    const sheet = await cells(layout.columns, Math.ceil(list.length / layout.columns), layout.width, layout.height, 1, i => {
       if (!list[i]) return false; const [caption, clip, t, node, distance, az, el, offset] = list[i];
       scrub(subject, clip, t); subject.updateWorldMatrix(true, true);
       const object = subject.getObjectByName(node) || subject.getObjectByName('Head'), w = object.name === 'SwordDrawn' || object.name === 'WeaponDrawn' ? weaponOf(subject) : null, target = w ? object.localToWorld(new THREE.Vector3(0, (w.contact[0] + w.contact[1]) / 2, 0)) : object.getWorldPosition(new THREE.Vector3());
       if (caption === 'eyes') target.add(new THREE.Vector3(0, .05, .07).applyQuaternion(subject.getWorldQuaternion(new THREE.Quaternion()))); // eye level, not the skull base
       if (offset) target.add(new THREE.Vector3(...offset).applyQuaternion(subject.getWorldQuaternion(new THREE.Quaternion()))); // optional aim offset in the fighter's frame (x right, y up, z forward)
       camera.fov = 30; camera.position.set(target.x + Math.sin(az) * Math.cos(el) * distance, target.y + Math.sin(el) * distance, target.z + Math.cos(az) * Math.cos(el) * distance); camera.lookAt(target);
+      camera.updateProjectionMatrix();
       renderer.render(studio, camera); return `${who}: ${caption}  ${clip} t=${t.toFixed(2)}`;
     });
     other.visible = true; return sheet;
