@@ -325,7 +325,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
         if (built) {
           const headCut = new THREE.Object3D(); headCut.name='BloodHeadCut'; headCut.position.copy(headCutPosition).sub(built.group.position); built.group.add(headCut);
           scene.add(built.group);
-          severHead = { group: built.group, velocity: new THREE.Vector3(Math.sin(killHeading) * 2.1, 1.8, Math.cos(killHeading) * 2.1), spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9), radius: built.radius, resting: false };
+          severHead = { group: built.group, velocity: new THREE.Vector3(Math.sin(killHeading) * .8, 1.8, Math.cos(killHeading) * .8), spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9), radius: built.radius, resting: false };
 
         }
       }
