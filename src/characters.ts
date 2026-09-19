@@ -1,3 +1,4 @@
+import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
@@ -52,8 +53,12 @@ type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
 async function loadFighter(url: string) {
   const asset = await new GLTFLoader().loadAsync(url);
+  const creature = asset.scene.getObjectByName('CreatureBody');
   const steel = asset.scene.getObjectByName('Steel');
-  if (!(steel instanceof Mesh) || !(steel.material instanceof MeshStandardMaterial) || !steel.material.map || !steel.material.normalMap) throw new Error('Warrior textures did not load');
+  const textured = creature
+    ? creature instanceof SkinnedMesh && creature.material instanceof MeshStandardMaterial && creature.material.map && creature.material.roughnessMap
+    : steel instanceof Mesh && steel.material instanceof MeshStandardMaterial && steel.material.map && steel.material.normalMap;
+  if (!textured) throw new Error('Warrior textures did not load');
   // The owner's iPhone defect (2026-09-18): under GPU memory pressure iOS silently drops uploaded fighter
   // textures — black mannequins. On phones we cap the skins at 1K before the first upload (the 2K Gambeson
   // atlas is the offender); desktop keeps the full set. three.js uploads lazily, so this runs pre-render.
@@ -100,6 +105,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         object.material = object.material.clone(); object.material.color.set('#663c32');
       }
     });
+    const spectral = spectralAppearance(root);
     const mixer = new AnimationMixer(root);
     const actions = {} as Record<Role, AnimationAction>;
     for (const role of ROLES) { actions[role] = mixer.clipAction(clips[role]).play(); actions[role].setEffectiveWeight(role === 'Idle' ? 1 : 0); }
@@ -153,6 +159,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
         mixer.update(step);
+        spectral?.(step, dead, progress);
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;

@@ -297,3 +297,13 @@ Use approved recipes: stable identity + body/appearance preset + weapon package 
 Separate career (victory marks and Recruit → Origin titles) from encounter selection. Migrate the old device-local opponent rung as an encounter, never as career wins. No server-owned career or recovery claim until Supabase exists. Next backend review must cover guest recovery, immutable/versioned fight identity, idempotent results, authorization, and the distinction between client-reported practice wins and server-verified competitive results.
 
 Release in steps: catalogue and correctness repairs → two approved, tactically contrasting named fighters → six → larger roster after playtests. Lead owns catalogue, persistence contracts, integration and release. Combat owns reusable fighting profiles and balance evidence; weapons owns fit, clips and contact validation; character lane owns approved appearances. No new shared-engine name branches. Physical phone and external-player gates remain outstanding.
+
+
+### Reconstructed creature playtest — owner request 2026-09-19
+The owner authorised adding Minotaur and Wraith to the playable encounter menu for live visual/combat
+iteration. Existing encounter order remains, followed by Minotaur then Wraith. Minotaur reuses the Pitborn
+cleaver archetype; Wraith reuses Nightborn's estoc archetype. Approved reconstructed anatomy replaces the
+rejected procedural/MPFB studies. Wraith is skeletal, crowned, wispy and partly transparent; Minotaur has
+continuous bovine skull/neck/muscular anatomy. These additions preserve the current simulation and weapon
+paths. Use ordinary death until creature-specific paired executions are authored and reviewed. They are
+playtest assets, with physical-phone performance and final art acceptance still requiring owner feedback.

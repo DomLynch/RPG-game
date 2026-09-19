@@ -1,5 +1,58 @@
 # Project state
 
+## Reconstructed creature integration — 2026-09-19 (owner playtest)
+Owner explicitly requests Minotaur and Wraith live in the game with actual pictures for playtesting.
+Both approved reference images exported through signed-in official TRELLIS.2; raw GLBs and MIT software
+licence retained in src/assets/source/creatures/. This supersedes the earlier no-export/art-only state below;
+procedural and MPFB studies remain rejected. No paid job or new runtime dependency.
+
+Added the two encounters after the five existing entries. Pitborn cleaver and Nightborn estoc simulation,
+clips and exact weapon geometry are reused. Fitted intact A-pose surfaces have corrected inverse binds,
+four normalized influences, 45k body triangles and original compressed textures. Including weapons:
+Minotaur 45,611 triangles, Wraith 46,214. Wraith has graded transparency, moving wisps and 28 ash points.
+Paired executions are disabled for these creatures; ordinary death/reset remains the fallback.
+
+Audit caught and fixed A-pose binding mistakes, claw-to-thigh transfer and leg/shoulder seam stretching.
+Visual review caught UV-island cracks missed by edge-only sampling: welding coincident vertices before decimation fixed them while preserving per-corner UVs. The Wraith donor arm angle/length/depth was fitted to its actual claw; grip proximity now passes all sampled armed/attack/guard poses. Isolated fur/cloth bend edges still flag 12–15cm stretch in the diagnostic; no runaway geometry is accepted, and final deformation polish remains an owner visual-review item. The formal
+asset check validates base/source/generator hashes, exact animation channels and weapon geometry,
+original map bytes, four-influence normalization, triangle ceiling and 125 finite poses per creature.
+Integrated published weapon/auth/Quiet One/dust/audio trunk 5c46f46 while retaining every inherited completion gate.
+Account encounter constraint migration adds the two IDs; local real-PostgreSQL saves and existing RLS checks pass.
+Hosted migration applied with verified TLS; authenticated saves/revisions, invalid-opponent rejection, two-user isolation and anonymous denial pass. Test data rolled back. Exact receipt: lead checkout artifacts/account/live/hosted-creature-migration.md. First actual-game phone landscape/portrait tests passed both opponents: served rig hashes, attacks/damage, ordinary player death, rematch and zero browser/shader errors. Final welded/grip build visual pose review passed. All 20 configured commands pass on 819697e, including 277 tests, both real creature fights/rematches, existing finishers/weapons/audio, and account browser/database checks. Exact-head GitHub CI also passed. The final publish/live-model checks are recorded in artifacts/character/creatures/RECEIPT.md and PR #150; physical-phone and owner art feedback remain open.
+Evidence: artifacts/character/creatures/. Physical-phone performance and owner art/playtest feedback remain open.
+
+## Earlier character direction correction — 2026-09-19 (historical art review)
+Owner rejected the procedural Wraith/Minotaur pilots as amateur. Installed and tested official MPFB 2.0.17
+in Blender 5.2.1; editable macro/target sources, rig test and static GLB exports exist under
+artifacts/character/mpfb-test/. MPFB test: Minotaur 29,436 triangles; Wraith 27,802 and BLEND transparency.
+Both load in Three.js, but visual audit rejects them as final creature art. No Frankendom combat retarget claimed.
+Owner approved newly generated seven-view reference sheets: integrated muscular bovine anatomy for Minotaur;
+skeletal, crowned, wispy and semi-transparent Wraith. Prior solid-bodied Wraith direction is superseded.
+Official free TRELLIS.2 generated a stronger Minotaur shape and 48 native preview frames. GLB extraction
+failed on anonymous ZeroGPU quota; no exported TRELLIS mesh exists yet. Browser sign-in requested;
+connected HF account does not automatically authenticate the local Gradio client or browser.
+No Wraith reconstruction or production integration claimed. Recipes, source/licence hashes and current
+gate distinctions: docs/character-pilots.md. All outputs remain local art-review material.
+Revalidation: full quality (252 tests, lint/build/audit/budget/browser) and all six completion
+commands passed; receipts in artifacts/character/mpfb-test/gates.json. These baseline checks
+do not close the failed art acceptance or blocked GLB extraction. World release hold respected.
+
+## Multi-character anatomy pilots — 2026-09-19 (character lane, NOT LIVE)
+Owner authorized Wraith/Minotaur pilots, efficient shared production, an audit and previews for iteration.
+Isolated `codex/01a0b8f7/main` from 15bea7e. Offline Blender maker and existing-viewer capture/judge create
+editable component scenes and animated GLBs from committed Nightborn/Pitborn assets. No archive/API dependency.
+No roster, combat, blade bake, live GLB, camera or finisher changes. All 24 original clips, inverse binds,
+weapon nodes/meshes and original binary payload are preserved. Wraith retains the existing face UVs with a
+bounded cheek sculpt; Minotaur has original head/neck/horn geometry. Full production art is not approved.
+Audit caught initial 70k-triangle outputs; final Wraith 59,745 and Minotaur 57,207 stay below the existing
+60k ceiling (including rigid weapons). Added draws: 2 and 5. The judge now enforces that ceiling and source/generator hashes.
+Verification: full quality PASS (252 tests, lint/typecheck/build/audit/budget and browser), all existing completion
+commands PASS; final pilot completion rerun after geometry fixes. Receipts: artifacts/character/pilots/.
+Self-review covered payload/rig isolation then front/profile/rear, eight motion samples and phone framing.
+Art verdict: useful first silhouette/fit studies, not A-grade final characters. Wraith still needs independent
+face/cloth identity; Minotaur needs stronger anatomical planes, head/body material continuity and fitted kit.
+Inherited human feet, no validated creature hit regions/finishers, unmeasured physical-phone performance.
+Workflow and exact commands: docs/character-pilots.md. Owner reviews these before any roster integration/release.
 ## Polearm rear-arm visibility — weapons, 2026-09-19
 Owner's rear/front phone captures exposed a second pose defect after PR157: the rear hand was authored on +X (the rig's left side), sending the right elbow through the torso. Both arms and their skin weights were present. Reauthored ready, gait, guard, attack and reaction goals keep the rear grip on the right side; the raised attack passes in front of the shoulder, and supporting-hand slides stay reachable. The shared polearm IK bends outward and forward while retaining the anatomical hinge constraint.
 

@@ -1,6 +1,6 @@
 // Real PostgreSQL role/RLS verification in a disposable, socket-only cluster. Never touches a hosted project.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-auth-'));
@@ -48,7 +48,16 @@ try {
       if (select count(*) from public.fighter_profiles) <> 2 then raise exception 'Unexpected rows'; end if;
       if not exists(select 1 from public.fighter_profiles where display_name='Aldren II' and revision=2) then raise exception 'Original save damaged'; end if;
     end$$;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + readFileSync('supabase/migrations/202609190001_fighter_profiles.sql', 'utf8') + checks);
+  const migrations = readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort().map(n => readFileSync(join('supabase/migrations', n), 'utf8')).join('\n');
+  const creatures = `set role authenticated;
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    do $$begin
+      update public.fighter_profiles set encounter='minotaur' where user_id=auth.uid();
+      if not exists(select 1 from public.fighter_profiles where encounter='minotaur') then raise exception 'Minotaur save failed'; end if;
+      update public.fighter_profiles set encounter='wraith' where user_id=auth.uid();
+      if not exists(select 1 from public.fighter_profiles where encounter='wraith') then raise exception 'Wraith save failed'; end if;
+    end$$;`;
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures);
   console.log('Account database PASS: real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
