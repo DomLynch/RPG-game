@@ -1,4 +1,4 @@
-import { Box3, BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Euler, SkinnedMesh, Vector3 } from 'three';
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Euler, SkinnedMesh, Vector3 } from 'three';
 
 // One pose bake per encounter, prepared before combat like a cached severed prop. Exterior maps are borrowed; only the new geometry and cut material
 // belong to this effect. Cut the torso at its waist, retaining both arms and the held weapon with the upper body.
@@ -11,9 +11,9 @@ export function openWaist(root: Object3D, anchor: Group) {
   const group = new Group(); group.name = 'Opened';
   const cut = new MeshStandardMaterial({ color: '#501c20', roughness: .88, side: DoubleSide, vertexColors: true });
   const lower = new Group(), upper = new Group(); lower.name = 'OpenedLegs'; upper.name = 'OpenedTorso'; group.add(lower, upper);
-  const supports: number[][] = [[], []];
+  const supports: number[][] = [[], []], cutEdges: Vector3[][] = [[], []];
   const armBone = (name: string) => /^(clavicle|upperarm|lowerarm|hand|index|middle|pinky|ring|thumb)_/.test(name);
-  const visible = (o: import('three').Object3D) => { for (let p: import('three').Object3D | null = o; p; p = p.parent) if (!p.visible) return false; return true; };
+  const visible = (o: Object3D) => { for (let p: Object3D | null = o; p; p = p.parent) if (!p.visible) return false; return true; };
   root.traverse(object => {
     if (!(object instanceof Mesh) || !visible(object)) return;
     const geometry = object.geometry as BufferGeometry, position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
@@ -25,7 +25,7 @@ export function openWaist(root: Object3D, anchor: Group) {
     const indices = geometry.getAttribute('skinIndex'), weights = geometry.getAttribute('skinWeight');
     const arm = skin?.skeleton.bones.map(b => armBone(b.name));
     let attachment = false;
-    for (let p: import('three').Object3D | null = object; p && p !== root; p = p.parent) if (p.name === 'WeaponDrawn' || p.name === 'SwordDrawn') attachment = true;
+    for (let p: Object3D | null = object; p && p !== root; p = p.parent) if (p.name === 'WeaponDrawn' || p.name === 'SwordDrawn') attachment = true;
     type Vertex = { p: Vector3; n: Vector3; uv: number[]; color: number[]; arm: number };
     const vertices: Vertex[] = [];
     for (let i = 0; i < position.count; i++) {
@@ -80,16 +80,26 @@ export function openWaist(root: Object3D, anchor: Group) {
         for (const entry of groups) g.addGroup(entry.start,entry.count,entry.materialIndex);
         const mesh = new Mesh(g,object.material); mesh.name = object.name; mesh.userData.openedWeapon = attachment; mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false; half.add(mesh);
       }
-      if (edges.length) {
-        const center = new Vector3(); for (const edge of edges) for (const p of edge) center.add(p); center.divideScalar(edges.length*2);
-        const p: number[] = [], n: number[] = [], u: number[] = [], tone: number[] = [];
-        for (const edge of edges) for (const v of [center,...edge]) { p.push(v.x,halfIndex ? 0 : waist,v.z); n.push(0,-side,0); u.push(v.x,v.z); const shade = v === center ? .9 : .5+.12*Math.sin(v.x*170+v.z*113); tone.push(shade,shade,shade); }
-        const interior = make(p,n,u); interior.setAttribute('color',new Float32BufferAttribute(tone,3));
-        const mesh = new Mesh(interior,cut); mesh.name = 'WaistCut'; mesh.castShadow = true; half.add(mesh);
-      }
+      for (const edge of edges) cutEdges[halfIndex].push(...edge);
     }
   });
-  const size = new Box3().setFromObject(lower).getSize(new Vector3()), scale = waist/1;
+  // One outer cross-section per half closes the layered clothes and body without coplanar cap flicker.
+  for (const [h,half] of [lower,upper].entries()) {
+    const points=cutEdges[h].sort((a,b)=>a.x-b.x || a.z-b.z);
+    const cross=(a:Vector3,b:Vector3,c:Vector3)=>(b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x);
+    const chain=(points:Vector3[])=>{const result:Vector3[]=[];for(const p of points){while(result.length>1 && cross(result.at(-2)!,result.at(-1)!,p)<=0)result.pop();result.push(p);}return result;};
+    const front=chain(points), back=chain([...points].reverse());
+    const hull=[...front.slice(0,-1),...back.slice(0,-1)]; if(hull.length<3)continue;
+    const center=new Vector3();for(const p of hull)center.add(p);center.divideScalar(hull.length);
+    const p:number[]=[], n:number[]=[], tone:number[]=[];
+    for(let i=0;i<hull.length;i++)for(const v of [center,hull[i],hull[(i+1)%hull.length]]) {
+      p.push(v.x,h ? 0 : waist,v.z);n.push(0,h ? -1 : 1,0);
+      const shade=v===center ? .9 : .5+.12*Math.sin(v.x*170+v.z*113);tone.push(shade,shade,shade);
+    }
+    const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('normal',new Float32BufferAttribute(n,3));g.setAttribute('color',new Float32BufferAttribute(tone,3));
+    const mesh=new Mesh(g,cut);mesh.name='WaistCut';mesh.castShadow=true;half.add(mesh);
+  }
+  const scale = waist;
   const smooth = (p: number, start: number, end: number) => { const t = Math.max(0,Math.min(1,(p-start)/(end-start))); return t*t*(3-2*t); };
   // Find the broad resting face around the torso's long axis. A fixed roll can balance a different rig on a
   // planted hand or the end of its polearm; the lowest waist support gives the body a weighted final landing.
@@ -119,7 +129,7 @@ export function openWaist(root: Object3D, anchor: Group) {
   }
   supports[0].length = supports[1].length = 0;
   return {
-    group, waist, size,
+    group, waist,
     update(progress: number, dark: boolean) {
       const p = Math.max(0,Math.min(1,progress)); place(p);
       for (const [h,half] of [lower,upper].entries()) {
