@@ -4,6 +4,8 @@ import { BufferGeometry, Color, Float32BufferAttribute, Object3D, MeshStandardMa
 export function spectralAppearance(root: Object3D) {
   const body = root.getObjectByName('CreatureBody');
   if (!(body instanceof SkinnedMesh) || body.userData.creature !== 'wraith' || !(body.material instanceof MeshStandardMaterial)) return;
+  // Owner size pass: scale the complete rig and its held weapon together, about the floor.
+  root.scale.multiplyScalar(1.5);
   const material = body.material = body.material.clone(), phase = { value: 0 }, life = { value: 1 };
   material.transparent = true; material.depthWrite = false; material.opacity = .86;
   material.metalness = .06; material.roughness = 1;

@@ -1,5 +1,8 @@
 # Project state
 
+## Wraith size feedback — 2026-09-19
+Owner approves both creatures and requests Wraith +50% size. Scoped presentation change in spectral.ts scales the complete Wraith rig 1.5 about its floor, keeping weapon and wisps attached. Minotaur and all shared assets stay unchanged. Considered asset rebuild versus runtime uniform scaling; runtime scaling is the smallest reversible option and adds no geometry/download cost. Existing lifecycle test pins Wraith 1.5 and Minotaur 1.0. Simulation remains the Nightborn archetype: rendered weapon/body grow while collision dimensions and attack reach retain existing tuning; this is an explicit playtest limitation, not a combat rebalance. Camera/ground/grip and public-game checks recorded in artifacts/character/wraith-size/. Integrated Opened94d988a. Audit found root scaling raised light/thrust strikes above hero height; a Wraith-only upper-arm aim correction blends through wind-up/recovery and restores before each mixer update. Real-GLB regression pins torso-height contact, unchanged grip, zero-dt stability, exact1.5 rematch scale and guard reset. All configured gates and public parity are required.
+
 ## Opened waist finisher — 2026-09-19 (PR #163)
 Owner explicitly authorized a horizontal waist separation: torso slides sideways and falls; legs hold briefly and
 fall separately. Own-model static geometry is sliced and capped during loading/reset, outside the killing frame;
