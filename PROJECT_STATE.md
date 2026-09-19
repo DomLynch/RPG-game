@@ -5,15 +5,17 @@ Both official TRELLIS.2 exports are fitted to the shared animation pipeline: Wer
 Skeleton/Veteran/trident. References, prompts, source hashes and licences are retained. Skeleton receives bone
 impact audio and no opponent blood; player blood/feedback remains. Local encounter migration passes PostgreSQL
 checks but is not hosted yet. New creatures retain ordinary death, with paired finishers disabled.
-Published maul/claw release 68ccdf2 and cleanup 0f50814 are integrated. All four creature rigs pass 685 pose checks.
+Published maul/claw release68ccdf2, cleanup0f50814 and audio4408215 are integrated. All four creature rigs pass 685 pose checks.
 Lossless production-only meshopt packing preserves decoded accessor bytes, maps, materials and clips, removes
 unused materials/maps and offline rollback metadata, and keeps source GLBs intact. Integrated build including licence
-notice: 31,840,828 bytes gzip, worst fight 8,728,502; unchanged 32 MB total cap and inherited 12 MB fight cap. No 40 MB increase needed.
+notice: 31,853,762 bytes gzip, worst fight 8,741,436; unchanged 32 MB total cap and inherited 12 MB fight cap. No 40 MB increase needed.
 Narrow WASM CSP change is staged, not applied to VPS. Emitted-byte identity and decoded-equivalence checks cover
 all ten rigs. Actual Chromium/WebKit decoder+CSP and inherited browser gates still require allocated release slot.
-Nine software-rendered impact assertions passed; first camera crops failed visual review. Corrected captures pending.
+Nine software-rendered impact assertions and Skeleton framing pass; corrected landscape previews reviewed.
+Portrait capture failed visual review (resize cleared the one-frame canvas); harness fix staged for final browser pass.
 Full CPU regression after cleanup: 297/297 tests pass, source lint and TypeScript pass.
-Queue: owner-prioritized audio PR173, then current PR167 repair, then this creature release before new finisher scenes. No live/completion claim.
+Audio PR173 is published;35 affected tests pass after integration. Current PR167 repair owns the browser/release slot,
+then this creature release before new finisher scenes. Fresh npm audit recovered and reports zero vulnerabilities. No live/completion claim.
 Evidence: artifacts/character/werewolf-skeleton/ and artifacts/character/compression/.
 
 ## Ordered lead cleanup — 2026-09-19 (PR #171)
