@@ -1,0 +1,121 @@
+{
+  "opponent": "veteran",
+  "commit": "938a84f-dirty",
+  "provenance": [
+    {
+      "seed": 731,
+      "finisher": "decapitation",
+      "finish": {
+        "victim": 1,
+        "location": "torso",
+        "move": "heavy_overhead",
+        "heading": -1.4291661515445797
+      }
+    },
+    {
+      "seed": 733,
+      "finisher": "runThrough",
+      "finish": {
+        "victim": 1,
+        "location": "torso",
+        "move": "heavy_overhead",
+        "heading": 3.107275766931732
+      }
+    },
+    {
+      "seed": 736,
+      "finisher": "splitCrown",
+      "finish": {
+        "victim": 1,
+        "location": "torso",
+        "move": "heavy_overhead",
+        "heading": -0.8403458871564344
+      }
+    }
+  ],
+  "checks": [
+    {
+      "mode": "dark",
+      "crown": true,
+      "visible": true,
+      "halves": 2,
+      "headScale": 0.0001,
+      "bounds": [
+        0.4448786328702692,
+        0.3893542962265201,
+        0.3519418203305982
+      ],
+      "position": [
+        1.948707517619349,
+        0.5239566827662392,
+        7.798405996931738
+      ],
+      "head": [
+        1.925572677266148,
+        0.6082001089414939,
+        7.795280834157623
+      ],
+      "draws": 142,
+      "triangles": 297458
+    },
+    {
+      "mode": "off",
+      "crown": true,
+      "visible": false,
+      "halves": 2,
+      "headScale": 1,
+      "bounds": [
+        0.4448786328702692,
+        0.3893542962265201,
+        0.3519418203305982
+      ],
+      "position": [
+        1.948707517619349,
+        0.5239566827662392,
+        7.798405996931738
+      ],
+      "head": [
+        1.925572677266148,
+        0.6082001089414939,
+        7.795280834157623
+      ],
+      "draws": 110,
+      "triangles": 266714
+    },
+    {
+      "mode": "red",
+      "crown": true,
+      "visible": true,
+      "halves": 2,
+      "headScale": 0.0001,
+      "bounds": [
+        0.4448786328702692,
+        0.3893542962265201,
+        0.3519418203305982
+      ],
+      "position": [
+        1.948707517619349,
+        0.5239566827662392,
+        7.798405996931738
+      ],
+      "head": [
+        1.925572677266148,
+        0.6082001089414939,
+        7.795280834157623
+      ],
+      "draws": 142,
+      "triangles": 297458
+    },
+    {
+      "mode": "rematch",
+      "crown": false,
+      "visible": false,
+      "halves": 0,
+      "headScale": 1,
+      "bounds": [],
+      "position": [],
+      "draws": 110,
+      "triangles": 266714
+    }
+  ]
+}

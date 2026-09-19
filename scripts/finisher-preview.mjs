@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
-const commit = execSync('git rev-parse --short HEAD').toString().trim();
+const commit = execSync('git describe --always --dirty').toString().trim();
 const label = option('label') || 'finishers-v2';
 const opponent = option('opponent') || 'veteran';
 const order = option('only') ? [option('only')] : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath'];
@@ -27,6 +27,7 @@ import { createScene } from '/src/scene.ts';
 import { initialPractice, stepPractice } from '/src/combat.ts';
 import { selectFinisher } from '/src/finishers.ts';
 import { OPPONENTS } from '/src/moves.ts';
+import { Box3, Vector3 } from 'three';
 const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)};
 const PASSIVE = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
 const IDLE = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: null };
@@ -93,14 +94,19 @@ window.__finisher = {
   inspect() {
     const crown = renderedScene?.getObjectByName('SplitCrown');
     return { crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
-      headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1 };
+      headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
+      bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
+      position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
+      head: crown?.parent.getObjectByName('Head')?.getWorldPosition(new Vector3()).toArray(),
+      draws: view.renderer.info.render.calls, triangles: view.renderer.info.render.triangles };
   },
-  async rear(which) {
-    view.orbit(Math.PI / .005, 0);
-    const f = windows[which].frames.at(-1);
-    for (let j = 0; j < 70; j++) { present = j === 69; view.render(f.state, false, TICK, f.practice, [], false); }
+  async rear(which, index = windows[which].frames.length - 1) {
+    const rearYaw = view.yaw + Math.PI; view.recenter(); view.orbit(-rearYaw / .005, 35);
+    const f = windows[which].frames[index];
+    present = true; view.render(f.state, false, 0, f.practice, [], false);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   },
+  front() { view.recenter(); },
   modesAndRematch(which) {
     const f = windows[which].frames.at(-1), receipts = [];
     for (const mode of ['dark', 'off', 'red']) {
@@ -162,11 +168,21 @@ try {
         const playing = await page.evaluate(([w, j, m]) => __finisher.play(w, j, m), [which, i, mode]);
         if (mode === 'red' && suffix === 'settled') console.log(`  ${which} rig at settle: ${playing.split(' ')[1]}`);
         await page.screenshot({ path: `${dir}/${NAMES[which]}-phone${name}-${suffix}.png` });
+        if (which === 'splitCrown' && mode === 'red' && suffix === 'contact') {
+          await page.evaluate(([w, j]) => __finisher.rear(w, j), [which, i]);
+          await page.screenshot({ path: `${dir}/${NAMES[which]}-phone-rear-contact.png` });
+          await page.evaluate(() => __finisher.front());
+        }
       }
       if (which === 'splitCrown') {
         const state = await page.evaluate(() => __finisher.inspect());
+        console.log('  skull state', JSON.stringify(state));
         assert.equal(state.visible, mode !== 'off', 'Split Crown obeys the blood mode');
-        if (mode !== 'off') assert.equal(state.halves, 2, 'the real scene renders two skull halves');
+        if (mode !== 'off') {
+          assert.equal(state.halves, 2, 'the real scene renders two skull halves');
+          assert.ok(Math.hypot(...state.position.map((v, i) => v-state.head[i])) < .35, 'the split stays attached to the animated head');
+          assert.ok(state.bounds.every(v => v > .05 && v < 1), 'the rendered skull has a finite head-sized extent');
+        }
         if (mode === 'red') {
           await page.evaluate(w => __finisher.rear(w), which);
           await page.screenshot({ path: `${dir}/${NAMES[which]}-phone-rear.png` });

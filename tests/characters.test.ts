@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AnimationMixer, Box3, Vector3, SkinnedMesh, Mesh } from 'three';
+import { AnimationMixer, Box3, Vector3, SkinnedMesh, Mesh, Group } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
@@ -49,6 +49,7 @@ test('Split Crown cuts every fighter head, follows its animated bone, respects b
   for (const file of FIGHTERS) {
     const asset = await readWarrior(file), weapon = WEAPON_OF[file];
     const { player, opponent } = buildWarriors(asset, undefined, [weapon, weapon]);
+    const placed = new Group(); placed.position.set(5, 0, -4); placed.rotation.y = .8; placed.add(opponent.anchor);
     const head = opponent.anchor.getObjectByName('Head')!;
     opponent.update(0, .1, 'splitCrown', .15);
     opponent.splitCrown(.15, 'off');
@@ -56,6 +57,8 @@ test('Split Crown cuts every fighter head, follows its animated bone, respects b
     opponent.splitCrown(.15, 'red');
     const crown = opponent.anchor.getObjectByName('SplitCrown')!;
     assert.ok(crown, `${file}: its own head is split`);
+    assert.ok(new Box3().setFromObject(crown).getCenter(new Vector3()).distanceTo(head.getWorldPosition(new Vector3())) < .35,
+      `${file}: head bake stays on the neck away from the world origin, even before a GPU render`);
     assert.equal(crown.children.length, 2);
     for (const [i, half] of crown.children.entries()) {
       const side = i ? 1 : -1;

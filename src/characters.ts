@@ -237,6 +237,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (!bone || progress < .045) return;
         if (!crown && mode !== 'off') {
           root.updateWorldMatrix(true, true);
+          root.updateMatrixWorld(true);   // SkinnedMesh refreshes bindMatrixInverse here, including before the first render
           const inverse = bone.matrixWorld.clone().invert(), head = this.sever();
           if (!head) return;
           const transform = inverse.multiply(new Matrix4().makeTranslation(head.group.position.x, head.group.position.y, head.group.position.z));

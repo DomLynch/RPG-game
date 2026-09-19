@@ -1,5 +1,24 @@
 # Project state
 
+## Split Crown visible skull split — 2026-09-19 (finishers lane, local gate passed)
+Owner approved a skull-only centre split: the halves open slightly and the body collapses intact. Work is isolated from
+both the lead checkout and the unfinished Run Through alignment worktrees. Runtime path: real Killed event → existing
+selection/clock → `characters.splitCrown` → `skull.splitSkull`; no simulation, weapon data or GLB changes.
+Selected triangle clipping with closed cut faces from the existing head bake; rejected a blood-only decal (no silhouette
+change) and shader-only separation (faces bridge the gap). The split follows the Head bone as a sibling, using the victim's
+own exterior materials; blood off restores the intact head, red/dark toggle the cut, rematch disposes the split resources.
+Discovery: three Semble queries plus CodeGraph impact review, with direct review of the sever/rematch and scene seams.
+Checks: all six shipped rigs pass geometry/mode/rematch/decapitation regression checks. All five opponents pass real-scene
+phone/landscape/rear captures, mode cycling and rematch. Full quality: 247/247 tests, build, audit, 8,361,824/10 MB budget,
+Playwright gate PASS; dedicated finisher completion gate PASS. Added the translated/rotated, pre-render head-bake regression.
+The initial timed-parry browser failure under concurrent capture load is closed by a full isolated quality pass.
+CodeGraph refreshed; two-pass review covered geometry/resource isolation, render placement and browser cleanup.
+Evidence: artifacts/finishers/split-crown/REPORT.md. Physical iPhone performance and owner visual acceptance remain unclaimed.
+Existing Sentry issues 6/A/5/9/8 concern fetch, texture loading and WebGL initialization; no skull-split event predates this
+change. They remain unresolved and outside this visual feature's scope; this change does not claim to repair them.
+Run Through remains a separate unfinished lane: its original 57 cm regression is preserved in the inherited worktree;
+a partial alignment correction is isolated on `finishers/runthrough-alignment` and is not part of this release.
+
 ## Arena life — 2026-09-18 (world lane, owner's picks #1–#5)
 Owner: "anything else we can add to make the environment more engaging?" — approved five, built in order, each audited
 (tests + captures) before the next. Sound left to the audio lane. **Ash motes**: 220-Point cloud, per-pixel sprite, slow
