@@ -76,7 +76,10 @@ opponentSelect.addEventListener('change', () => {
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
-const FINISHER_OPTIONS: [string, string][] = [['splitCrown', 'Split Crown'], ['decapitation', 'Decapitation'], ['runThrough', 'Run Through'], ['plainDeath', 'Plain death'], ['quietOne', 'The Quiet One'], ['opened', 'Opened'], ['hamstrung', 'Hamstrung'], ['execution', 'Execution']];
+// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through — plus Plain death as the
+// no-finisher control. The rest of the spec table (quietOne/opened/hamstrung/execution) has no clip yet and would silently
+// play the plain Death, which reads as a bug in a test menu. Add each back the day its clip ships.
+const FINISHER_OPTIONS: [string, string][] = [['splitCrown', 'Split Crown'], ['decapitation', 'Decapitation'], ['runThrough', 'Run Through'], ['plainDeath', 'Plain death']];
 const finisherSelect = element<HTMLSelectElement>('finisher-select');
 { const auto = document.createElement('option') as HTMLOptionElement; auto.value = 'auto'; auto.textContent = 'Auto (spec)'; finisherSelect.append(auto); }
 for (const [id, label] of FINISHER_OPTIONS) { const option = document.createElement('option') as HTMLOptionElement; option.value = id; option.textContent = label; finisherSelect.append(option); }
