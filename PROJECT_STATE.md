@@ -12,7 +12,8 @@ notice: 31,840,828 bytes gzip, worst fight 8,728,502; unchanged 32 MB total cap 
 Narrow WASM CSP change is staged, not applied to VPS. Emitted-byte identity and decoded-equivalence checks cover
 all ten rigs. Actual Chromium/WebKit decoder+CSP and inherited browser gates still require allocated release slot.
 Nine software-rendered impact assertions passed; first camera crops failed visual review. Corrected captures pending.
-Queue: current PR167 repair, then this creature release before new finisher scenes. No live/completion claim.
+Full CPU regression after cleanup: 297/297 tests pass, source lint and TypeScript pass.
+Queue: owner-prioritized audio PR173, then current PR167 repair, then this creature release before new finisher scenes. No live/completion claim.
 Evidence: artifacts/character/werewolf-skeleton/ and artifacts/character/compression/.
 
 ## Ordered lead cleanup — 2026-09-19 (PR #171)
