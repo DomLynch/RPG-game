@@ -224,7 +224,7 @@ try {
           assert.ok(framing.side<.08,'Decapitation retains the original front-facing camera');
           if(mode!=='off') {
             assert.ok(detachedHead,'head is detached');
-            assert.ok(detachedHead.frame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'detached head stays visible above portrait controls');
+            assert.ok(detachedHead.frame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'detached head stays visible above portrait controls '+JSON.stringify({suffix,detachedHead,framing}));
           }
           cameraChecks.push({opponent,which,mode,suffix,framing,detachedHead});
         }
@@ -245,7 +245,7 @@ try {
             }
           }
           if(suffix === 'settled') {
-            assert.ok(framing.side>.75 && framing.maxCameraStep<.25,'smooth side reveal');
+            assert.ok(framing.side>.75 && framing.maxCameraStep<.25,'smooth side reveal '+JSON.stringify(framing));
             cameraChecks.push({opponent,which,mode,opened,framing});
           }
         }

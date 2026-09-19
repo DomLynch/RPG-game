@@ -200,6 +200,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (!bone) return null;
         severed = true;
         root.updateWorldMatrix(true, true);
+        root.updateMatrixWorld(true); // refresh SkinnedMesh bind inverses after actor movement before baking world vertices
         const group = new Group();
         root.traverse(object => {
           if (!(object instanceof SkinnedMesh)) return;

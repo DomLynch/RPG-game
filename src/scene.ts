@@ -378,7 +378,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       bloodSources = detailedBlood && warriors ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location) : [];
       finisherBlood.update(dt, detailedBlood ? finisher : null, victimProgress, bloodSources, bloodMode);
       if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown' || finisher === 'quietOne' || finisher === 'opened')) {
-        const t = THREE.MathUtils.clamp(finisher === 'opened' ? (finishClock-.04)/.4 : finisher === 'quietOne' ? (finishClock-.12)/.43 : (finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
+        const t = THREE.MathUtils.clamp(finisher === 'opened' ? (finishClock-.04)/(['wraith','minotaur'].includes(opponentId) ? .6 : .4) : finisher === 'quietOne' ? (finishClock-.12)/.43 : (finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
         const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher, ['wraith','minotaur'].includes(opponentId) ? 1.5 : 1);
         desired.lerp(new THREE.Vector3(side.x,side.y,side.z), reveal);
         look.lerp(new THREE.Vector3(side.lookX,side.lookY,side.lookZ), reveal);
