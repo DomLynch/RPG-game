@@ -3,14 +3,14 @@ export type { OpponentId } from './roster.ts';
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
 // Damage is tuned for a Souls-length duel: AI vs AI at normal runs ~9 clean hits / ~35 s (light 11, heavy 18, riposte 24, heavy riposte 30, kick 4).
 // The engine (duel.ts) reads this table; nothing here may depend on rendering, clocks or browser state.
-export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'thrust' | 'riposte' | 'heavy_riposte' | 'heavy_counter' | 'critical' | 'kick';
+export type MoveId = 'light_right' | 'light_left' | 'heavy_overhead' | 'thrust' | 'riposte' | 'slash_riposte' | 'heavy_riposte' | 'heavy_counter' | 'critical' | 'kick';
 export type Direction = 'right' | 'left' | 'overhead' | 'thrust' | 'low';
 export type Timing = { windup: number; active: number; recovery: number };
 export const total = (t: Timing): number => t.windup + t.active + t.recovery;
 
 // Baked blade trajectories: one immutable table per (authored clip, timing). scripts/bake-blades.mjs samples the rig at these
 // timings; tests assert the shipped rig still agrees. `source` is the contact time inside the clip; `clip` is the rig animation.
-export type PathId = 'light_right' | 'light_left' | 'light_right_chain' | 'light_left_chain' | 'heavy_overhead' | 'heavy_overhead_chain' | 'thrust' | 'riposte' | 'heavy_riposte';
+export type PathId = 'light_right' | 'light_left' | 'light_right_chain' | 'light_left_chain' | 'heavy_overhead' | 'heavy_overhead_chain' | 'thrust' | 'riposte' | 'slash_riposte' | 'heavy_riposte';
 export type PathSpec = Timing & { clip: 'Attack' | 'Return' | 'Heavy' | 'Riposte' | 'Trident_Thrust' | 'Trident_ThrustChain' | 'Trident_Sweep' | 'Trident_High' | 'Scythe_Reap' | 'Scythe_High' | 'Scythe_Thrust' | 'Scythe_Chain'; source: number };
 export const PATHS: Record<PathId, PathSpec> = {
   // The cut: a horizontal arc (UAL2 Sword_Regular_A right-to-left, _B the backhand) with a real swing — 20 ticks of tell (333 ms) and an
@@ -22,6 +22,7 @@ export const PATHS: Record<PathId, PathSpec> = {
   heavy_overhead: { clip: 'Heavy', source: .48, windup: 32, active: 5, recovery: 31 },
   heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 22, active: 5, recovery: 31 },
   thrust: { clip: 'Riposte', source: .34, windup: 16, active: 5, recovery: 21 },
+  slash_riposte: { clip: 'Attack', source: .34, windup: 12, active: 5, recovery: 19 },
   riposte: { clip: 'Riposte', source: .34, windup: 12, active: 5, recovery: 19 },
   heavy_riposte: { clip: 'Heavy', source: .48, windup: 20, active: 5, recovery: 25 },
 };
@@ -73,6 +74,11 @@ export const MOVES: Record<MoveId, MoveDef> = {
     id: 'thrust', direction: 'thrust', path: 'thrust', chainPath: null, chained: null, chain: null,
     windup: 16, active: 5, recovery: 21, damage: 11, stamina: 20, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0,   // 11 clean for 20 stamina (14 counter, 17 as the stop-hit): the fastest tell, the longest reach
     breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: 1, feintUntil: 9, reach: 2, vsGuard: null, posture: 16, chamber: 8, charges: false,
+  },
+  slash_riposte: {
+    id: 'slash_riposte', direction: 'right', path: 'slash_riposte', chainPath: null, chained: null, chain: null,
+    windup: 12, active: 5, recovery: 19, damage: 24, stamina: 20, staminaDamage: 0, stagger: 24, poise: 0, poiseFrom: 0,
+    breaksGuard: true, chip: 0, parryable: true, knockback: 4, stepIn: .55, feintUntil: 6, reach: 1.65, vsGuard: null, posture: 0, chamber: null, charges: false,   // the parry already filled posture; the slash_riposte is the damage payoff, not a second one (two parries must not be a kill)
   },
   riposte: {
     id: 'riposte', direction: 'thrust', path: 'riposte', chainPath: null, chained: null, chain: null,
@@ -186,6 +192,7 @@ export const TRIDENT_PATHS: Record<PathId, PathSpec> = {
   heavy_overhead: { clip: 'Trident_High', source: .48, windup: 34, active: 5, recovery: 33 },       // the pin: slower and heavier than the sword's heavy
   heavy_overhead_chain: { clip: 'Trident_High', source: .48, windup: 24, active: 5, recovery: 33 },
   thrust: { clip: 'Trident_Thrust', source: .34, windup: 16, active: 5, recovery: 23 },            // the sword stab's tell, a longer recovery: the pole comes back
+  slash_riposte: { clip: 'Trident_Sweep', source: .34, windup: 12, active: 5, recovery: 19 },
   riposte: { clip: 'Trident_ThrustChain', source: .34, windup: 12, active: 5, recovery: 19 },      // the second thrust, from half-withdrawn; also the riposte
   heavy_riposte: { clip: 'Trident_High', source: .48, windup: 22, active: 5, recovery: 27 },
 };
@@ -203,6 +210,7 @@ export const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
   // "Weak inside the point" is NOT in these numbers: the sim sweeps the tines from the wind-up pose, so a thrust lands from 0.4 m
   // like the sword's — a whiff inside ~1 m needs a rule (artifacts/weapons/REQUESTS.md), which is the combat lane's call.
   thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 16, follow: ['thrust'] }, windup: 16, active: 5, recovery: 23, damage: 12, stamina: 22, staminaDamage: 22, stagger: 20, stepIn: 1, reach: 2.25, minReach: 1, posture: 16, chamber: 8 },   // minReach: a thrust started inside 1 m (bodies stand no closer than .85) drives the point past the target and meets nothing; the sweep and the kick have no such hole
+  slash_riposte: { ...MOVES.slash_riposte, windup: 12, active: 5, recovery: 19, direction: 'low', reach: 1.75 },
   riposte: { ...MOVES.riposte, windup: 12, active: 5, recovery: 19, reach: 2.1 },
   heavy_riposte: { ...MOVES.heavy_riposte, windup: 22, active: 5, recovery: 27, reach: 2.15 },
   heavy_counter: { ...MOVES.heavy_counter, windup: 22, active: 5, recovery: 27, reach: 2.15 },
@@ -231,6 +239,7 @@ export const CLEAVER_PATHS: Record<PathId, PathSpec> = {
   heavy_overhead: { clip: 'Heavy', source: .48, windup: 36, active: 6, recovery: 36 },      // the hack (the cleaver rig's own Heavy keys)
   heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 26, active: 6, recovery: 36 },
   thrust: { clip: 'Riposte', source: .34, windup: 18, active: 5, recovery: 26 },            // the poke
+  slash_riposte: { clip: 'Attack', source: .34, windup: 12, active: 5, recovery: 21 },
   riposte: { clip: 'Riposte', source: .34, windup: 12, active: 5, recovery: 21 },
   heavy_riposte: { clip: 'Heavy', source: .48, windup: 22, active: 6, recovery: 29 },
 };
@@ -241,6 +250,7 @@ export const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
     windup: 22, active: 8, recovery: 26, damage: 9, stamina: 24, staminaDamage: 30, stagger: 32, chip: 0, knockback: 6, stepIn: .36, feintUntil: 11, posture: 34, chamber: 10, reach: 1.65 },   // the back of the cleaver: a hammer — little damage, a lot of posture, hard on a guard
   heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 26, active: 6, recovery: 36 }, windup: 36, active: 6, recovery: 36, damage: 26, stamina: 42, staminaDamage: 45, stagger: 30, poise: 24, poiseFrom: 22, chip: .5, stepIn: .48, feintUntil: 12, posture: 42, chamber: 12, reach: 1.9 },   // the hack: stepIn .48 over 36 ticks = the heavy's lunge over 32
   thrust: { ...MOVES.thrust, windup: 18, active: 5, recovery: 26, damage: 7, stamina: 18, staminaDamage: 14, stagger: 14, stepIn: .87, feintUntil: 9, posture: 10, chamber: 9, reach: 2 },   // the poke: a cleaver is no stabbing weapon. stepIn .87 over 18 ticks = the stab's lunge over 16
+  slash_riposte: { ...MOVES.slash_riposte, windup: 12, active: 5, recovery: 21, damage: 28, reach: 1.65 },
   riposte: { ...MOVES.riposte, windup: 12, active: 5, recovery: 21, damage: 28, reach: 1.65 },
   heavy_riposte: { ...MOVES.heavy_riposte, windup: 22, active: 6, recovery: 29, damage: 34, reach: 1.9 },
   heavy_counter: { ...MOVES.heavy_counter, windup: 22, active: 6, recovery: 29, damage: 24, reach: 1.9 },
@@ -264,6 +274,7 @@ export const KNIFE_PATHS: Record<PathId, PathSpec> = {
   heavy_overhead: { clip: 'Heavy', source: .48, windup: 22, active: 5, recovery: 26 },
   heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 26 },
   thrust: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
+  slash_riposte: { clip: 'Attack', source: .34, windup: 12, active: 4, recovery: 15 },
   riposte: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
   heavy_riposte: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 20 },
 };
@@ -276,6 +287,7 @@ export const KNIFE_MOVES: Record<MoveId, MoveDef> = {
   light_left: slash('light_left'),   // the backhand: the hook's outer edge is sharpened, so it cuts too (a rip)
   heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 16, active: 5, recovery: 26 }, windup: 22, active: 5, recovery: 26, damage: 14, stamina: 26, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0, chip: .2, knockback: 3, stepIn: .55, feintUntil: 8, posture: 24, chamber: 7, reach: 1.55 },
   thrust: { ...MOVES.thrust, windup: 12, active: 4, recovery: 15, damage: 9, stamina: 14, staminaDamage: 12, stagger: 14, knockback: 2, stepIn: 1, feintUntil: 5, posture: 12, chamber: 5, reach: 1.45 },
+  slash_riposte: { ...MOVES.slash_riposte, windup: 12, active: 4, recovery: 15, damage: 18, stamina: 16, feintUntil: 5, reach: 1.2 },
   riposte: { ...MOVES.riposte, windup: 12, active: 4, recovery: 15, damage: 18, stamina: 16, feintUntil: 5, reach: 1.2 },
   heavy_riposte: { ...MOVES.heavy_riposte, windup: 16, active: 5, recovery: 20, damage: 22, stamina: 26, feintUntil: 6, reach: 1.55 },
   heavy_counter: { ...MOVES.heavy_counter, windup: 16, active: 5, recovery: 20, damage: 16, stamina: 26, feintUntil: 6, posture: 22, reach: 1.55 },
@@ -297,6 +309,7 @@ export const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   heavy_overhead: { ...MOVES.heavy_overhead, damage: 15, chip: .25, staminaDamage: 26, posture: 28, reach: 1.9 },
   // The thrust: his weapon. A little more than the sword's stab, and it chains into a second (the riposte path, 12/5/19): "thrusts and short chains".
   thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 14, follow: ['thrust'] }, damage: 14, stamina: 20, staminaDamage: 22, stagger: 20, posture: 18, reach: 2 },
+  slash_riposte: { ...MOVES.slash_riposte, damage: 26, reach: 1.65 },
   riposte: { ...MOVES.riposte, damage: 26, reach: 1.65 },
   heavy_riposte: { ...MOVES.heavy_riposte, reach: 1.9 },
   heavy_counter: { ...MOVES.heavy_counter, reach: 1.9 },
@@ -324,6 +337,7 @@ export const SCYTHE_PATHS: Record<PathId, PathSpec> = {
   heavy_overhead: { clip: 'Scythe_High', source: .48, windup: 36, active: 5, recovery: 33 },     // the headsman's diagonal: a giant's mass, a 600 ms tell
   heavy_overhead_chain: { clip: 'Scythe_High', source: .48, windup: 24, active: 5, recovery: 33 },
   thrust: { clip: 'Scythe_Thrust', source: .34, windup: 14, active: 4, recovery: 18 },           // the heel-jab: quick, short, no chip
+  slash_riposte: { clip: 'Scythe_Reap', source: .34, windup: 12, active: 5, recovery: 19 },
   riposte: { clip: 'Scythe_Chain', source: .30, windup: 12, active: 5, recovery: 19 },           // the payoff off a parry: the head whips across
   heavy_riposte: { clip: 'Scythe_High', source: .48, windup: 22, active: 5, recovery: 25 },
 };
@@ -342,6 +356,7 @@ export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
     windup: 14, active: 4, recovery: 18, damage: 8, stamina: 18, staminaDamage: 14, stagger: 16, poise: 0, poiseFrom: 0,
     breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: .8, feintUntil: 8, reach: 2.1, vsGuard: null, posture: 12, chamber: 6, charges: false,   // the measured bake frontier (2.10): the heel-jab reaches like the reap — spacing and interrupt, not a point
   },
+  slash_riposte: { ...MOVES.slash_riposte, path: 'slash_riposte', windup: 12, active: 5, recovery: 19, reach: 2.1, minReach: 1.4 },
   riposte: { ...MOVES.riposte, path: 'riposte', windup: 12, active: 5, recovery: 19, reach: 1.7 },
   heavy_riposte: { ...MOVES.heavy_riposte, path: 'heavy_riposte' },
   heavy_counter: { ...MOVES.heavy_counter, path: 'heavy_riposte' },

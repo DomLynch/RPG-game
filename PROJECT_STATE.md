@@ -1,5 +1,20 @@
 # Project state
 
+## Button-consistent parry counters — weapons, 2026-09-19
+Owner authorized fix and deployment. After a successful parry, Slash selects `slash_riposte` with each weapon's cut clip
+and a separately baked collision path; Stab retains `riposte`; Heavy retains `heavy_riposte` (or the earned posture critical).
+The counter cut keeps that weapon's existing riposte damage, stamina and timing. The scythe reap retains its 1.4 m dead band;
+the trident counter sweep uses its low direction. Ordinary blocks still yield normal Slash/Stab and the existing Heavy counter.
+No new control or GLB. Field Journal now describes the actual buttons. Audio's fixed thrust exchange explicitly presses Stab.
+Verification: real-touch browser captured the hero's Slash/Attack/24, Stab/Riposte/24 and Heavy/Heavy/30 after actual parries.
+Regression checks all light inputs, Stab and Heavy after a real parry, reward consumption, costs, damage and ordinary blocks.
+Restoring the old forced-thrust selector fails the regression. Render/bake tests include the new path across weapon families.
+The first full run exposed two old assumptions: the AI opener filter counted earned counter cuts as ordinary openers, and
+an audio fixture pressed Slash to request its fixed thrust. Those fixtures now name the correct moves; focused 83/83 pass.
+Integrated full quality passes 250/250 tests, lint, build, audit, budget and the shared browser gate. Estoc #142 is merged
+as d3114a9 with Split Crown #144 preserved. All earlier blade tables are byte-identical; only the new counter paths are added.
+Completion and release receipts: `artifacts/weapons/counter-buttons/`. Public deployment remains pending.
+
 ## Split Crown visible skull split — 2026-09-19 (finishers lane, local gate passed)
 Owner approved a skull-only centre split: the halves open slightly and the body collapses intact. Work is isolated from
 both the lead checkout and the unfinished Run Through alignment worktrees. Runtime path: real Killed event → existing

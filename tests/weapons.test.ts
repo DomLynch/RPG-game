@@ -123,7 +123,7 @@ test('the trident rig carries WeaponDrawn with a contact segment on the tines (t
 test('the trident\'s authored clips agree with the data\'s contact ticks: at each path\'s contact key the tines are out in front, at the height the move means (chest for thrusts, knee for the sweep, torso for the pin)', async () => {
   const asset = await readRig(TRIDENT_GLB), mixer = new AnimationMixer(asset.scene), weapon = asset.scene.getObjectByName('WeaponDrawn')!, contact = weapon.userData.contact as { from: number; to: number };
   // [min tip z, min tip y, max tip y]: the sword's own contact tips are 1.10–1.14 out (bake), so the trident's must be at least the sword's.
-  const bands: Record<string, [number, number, number]> = { thrust: [1.25, 1.0, 1.4], riposte: [1.25, 1.0, 1.4], light_right: [1.1, .4, .75], light_left: [1.1, .4, .75], light_right_chain: [1.1, .4, .75], light_left_chain: [1.1, .4, .75], heavy_overhead: [1.15, .6, 1.1], heavy_overhead_chain: [1.15, .6, 1.1], heavy_riposte: [1.15, .6, 1.1] };
+  const bands: Record<string, [number, number, number]> = { slash_riposte: [1.1, .4, .75], thrust: [1.25, 1.0, 1.4], riposte: [1.25, 1.0, 1.4], light_right: [1.1, .4, .75], light_left: [1.1, .4, .75], light_right_chain: [1.1, .4, .75], light_left_chain: [1.1, .4, .75], heavy_overhead: [1.15, .6, 1.1], heavy_overhead_chain: [1.15, .6, 1.1], heavy_riposte: [1.15, .6, 1.1] };
   for (const [path, spec] of Object.entries(TRIDENT_PATHS)) {
     const clip = asset.animations.find(c => c.name === spec.clip)!, action = mixer.clipAction(clip).play(), n = total(spec);
     mixer.setTime(clip.duration * swingProgress(spec.windup / n, spec.windup / n, spec.source)); asset.scene.updateMatrixWorld(true);
@@ -457,7 +457,7 @@ test('the scythe\'s authored contact poses meet the target line: at each path\'s
   const bands: Record<string, [number, number, number, number]> = {
     light_right: [1.3, .9, 1.5, .45], light_left: [1.3, .9, 1.5, .45], light_right_chain: [1.3, .9, 1.5, .45], light_left_chain: [1.3, .9, 1.5, .45],
     heavy_overhead: [1.1, .4, 1.0, .6], heavy_overhead_chain: [1.1, .4, 1.0, .6], heavy_riposte: [1.1, .4, 1.0, .6],
-    thrust: [1.3, .9, 1.4, .4], riposte: [1.25, .9, 1.5, .45],
+    slash_riposte: [1.3, .9, 1.5, .45], thrust: [1.3, .9, 1.4, .4], riposte: [1.25, .9, 1.5, .45],
   };
   for (const [path, spec] of Object.entries(SCYTHE_PATHS)) {
     const clip = asset.animations.find(c => c.name === spec.clip)!, action = mixer.clipAction(clip).play(), n = total(spec);

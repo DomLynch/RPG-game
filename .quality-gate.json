@@ -28,6 +28,10 @@
     [
       "node",
       "scripts/estoc-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/counter-browser-check.mjs"
     ]
   ]
 }

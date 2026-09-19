@@ -79,7 +79,7 @@ export function inBufferWindow(f: Fighter): boolean {
 function chooseMove(f: Fighter, action: Action): MoveId {
   if (action === 'heavy') return f.critical > 0 ? 'critical' : f.punish > 0 ? 'heavy_riposte' : f.counterWindow > 0 ? 'heavy_counter' : 'heavy_overhead';
   if (action === 'kick') return 'kick';
-  if (f.punish > 0) return 'riposte';
+  if (f.punish > 0) return action === 'thrust' ? 'riposte' : 'slash_riposte';
   if (action === 'thrust') return 'thrust';
   if (action === 'light_left' || action === 'light_right') return action;
   return f.lastMove === 'light_right' ? 'light_left' : 'light_right';
