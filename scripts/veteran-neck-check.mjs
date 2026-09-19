@@ -52,6 +52,10 @@ for(const name of ['Photo','Face']) {
     assert.ok(name==='Photo' ? old[i][1]>=cut-.00003 && old[i][1]<cut+.056 : old[i][1]>cut-.024,`${name}: facial features and lower body unchanged`);
   }
   receipt.moved[name]=moved;
+  for(const key of ['POSITION','NORMAL','JOINTS_0','WEIGHTS_0']) {
+    const id=b.attributes[key],a=asset.doc.accessors[id],rows=values(asset,id);
+    for(const [bound,extreme] of [['min',Math.min],['max',Math.max]])assert.deepEqual(a[bound],rows[0].map((_,k)=>extreme(...rows.map(v=>v[k]))),`${name} ${key} accurate ${bound} metadata`);
+  }
   for(const w of values(asset,b.attributes.WEIGHTS_0))assert.ok(w.every(x=>x>=0&&x<=1)&&Math.abs(w.reduce((s,x)=>s+x,0)-1)<1e-5,'Normalized skin weights');
 }
 assert.ok(fitVeteranNeck(raw).glb.equals(raw),'Idempotent geometry finish');

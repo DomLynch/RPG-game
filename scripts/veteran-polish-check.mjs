@@ -67,6 +67,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
   const errors = []; page.on('pageerror', e => errors.push(String(e)));
+  page.on('console', message => { if(message.type()==='error')errors.push(message.text()); });
   page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) errors.push(`${r.status()} ${r.url()}`); });
   const shots = {};
   for (const [label, file] of [...(before ? [['before', before]] : []), ['after', 'src/assets/veteran.glb']]) {

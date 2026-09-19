@@ -30,7 +30,15 @@ export function fitVeteranNeck(glb) {
     const read = { 5121: 'readUInt8', 5123: 'readUInt16LE', 5125: 'readUInt32LE', 5126: 'readFloatLE' }[a.componentType];
     const offset = (v.byteOffset ?? 0) + (a.byteOffset ?? 0), stride = v.byteStride ?? bytes * width;
     return { a, values: Array.from({ length: a.count }, (_, i) => Array.from({ length: width }, (_, k) => bin[read](offset + i * stride + k * bytes))),
-      write(values) { const write = {5126:'writeFloatLE',5123:'writeUInt16LE',5121:'writeUInt8'}[a.componentType]; assert.ok(write); values.forEach((row, i) => row.forEach((x, k) => { assert.ok(Number.isFinite(x)); bin[write](x, offset + i * stride + k * bytes); })); } };
+      write(values) {
+        const write = {5126:'writeFloatLE',5123:'writeUInt16LE',5121:'writeUInt8'}[a.componentType];
+        assert.ok(write);
+        values.forEach((row, i) => row.forEach((x, k) => { assert.ok(Number.isFinite(x)); bin[write](x, offset + i * stride + k * bytes); }));
+        // Bounds describe the stored float32/integer values, including updated skin weights.
+        if (a.min || a.max) for (const [key, extreme] of [['min', Math.min], ['max', Math.max]]) {
+          a[key] = Array.from({length:width}, (_, k) => extreme(...values.map((_, i) => bin[read](offset + i * stride + k * bytes))));
+        }
+      } };
   };
   const photo = primitive('Photo'), face = primitive('Face');
   assert.ok(photo && face, 'Veteran requires the scanned head and original neck');
@@ -195,11 +203,7 @@ export function fitVeteranNeck(glb) {
     normal.values[i] = unit(softened.map((x,k) => (bottom.normal[k]*(1-blend)+x*blend)*chinKeep+normal.values[i][k]*(1-chinKeep)));
   }
   neck.write(neck.values);neckNormal.write(neckNormal.values);faceIndex.write(faceIndex.values);faceWeight.write(faceWeight.values);
-  neck.a.min = [0,1,2].map(k => Math.min(...neck.values.map(v => v[k])));
-  neck.a.max = [0,1,2].map(k => Math.max(...neck.values.map(v => v[k])));
   head.write(head.values); normal.write(normal.values); headIndex.write(headIndex.values); headWeight.write(headWeight.values);
-  head.a.min = [0,1,2].map(k => Math.min(...head.values.map(v => v[k])));
-  head.a.max = [0,1,2].map(k => Math.max(...head.values.map(v => v[k])));
   const maxMove = Math.max(...[...affected.keys()].map(i => Math.hypot(...head.values[i].map((x,k) => x-original[i][k]))));
   assert.ok(maxMove < .03, 'Bounded neck contour correction');
   doc.asset.extras = {...doc.asset.extras, veteranNeckVersion:1};
