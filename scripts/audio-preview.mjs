@@ -83,7 +83,7 @@ try {
     checks.stackedPeakDbfs = 20 * Math.log10(peak / 32768);
     assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
   }
-  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH);
+  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probe.presentation?.override === 'quietOne' ? 6.5 : probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH);
   if (checks) {
     const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
     assert.ok(fatal, 'decapitation probe exists');
@@ -99,13 +99,23 @@ try {
       const resumed = await pcm([fatalCue, { t: .1, control }, { t: .2, control: control === 'quiet' ? 'unlock' : 'toggle' }, draw], 3.2);
       assert.ok(resumed.subarray(2 * RATE).every((v, i) => Math.abs(v - freshDraw[2 * RATE + i]) <= 1), `${control}: next duel restores ordinary volume without stale finishing audio`);
     }
+    const quiet = CUE_PROBES.find(p => p.name === 'finish-quietOne');
+    const quietCue = {t:PROBE_AT,events:quiet.events,presentation:quiet.presentation};
+    const quietSamples=rendered['events/finish-quietOne'];
+    assert.ok(quietSamples.subarray(1.8*RATE,2.5*RATE).every(v=>Math.abs(v)<=1),'Quiet One leaves a silent held beat before the body lands');
+    assert.ok(quietSamples.subarray(2.6*RATE,3.8*RATE).some(v=>Math.abs(v)>100),'Quiet One body and gasp remain audible after the held beat');
+    for(const control of ['quiet','toggle']) {
+      const stopped=await pcm([quietCue,{t:.1,control}],6.5);
+      assert.ok(stopped.subarray(RATE).every(v=>v===0),`${control} cancels Quiet One's late body and crowd`);
+    }
+    checks.quietOneHeldBeatAndCancellation = true;
     checks.finishMixLifecycle = true;
     checks.fatalCancellation = true;
     checks.fatalPeakDbfs = -Infinity;
     for (const [name, samples] of Object.entries(rendered)) if (name.startsWith('events/finish-')) {
       let peak = 0; for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
       checks.fatalPeakDbfs = Math.max(checks.fatalPeakDbfs, 20 * Math.log10(peak / 32768));
-      assert.ok(samples.subarray(Math.floor(3.8 * RATE)).every(v => v === 0), `${name}: tail finishes within the render`);
+      assert.ok(samples.subarray(Math.floor((name.includes('quietOne') ? 6 : 3.8) * RATE)).every(v => v === 0), `${name}: tail finishes within the render`);
     }
     assert.ok(checks.fatalPeakDbfs <= -1, 'fatal stack respects the ceiling');
   }

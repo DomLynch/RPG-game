@@ -13,7 +13,7 @@ export function createFootDust(scene: THREE.Scene) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('dustFade', new THREE.BufferAttribute(fades, 1)); geometry.setAttribute('dustSize', new THREE.BufferAttribute(sizes, 1));
-  const material = new THREE.PointsMaterial({ map, color: '#c9b493', size: 0.52, opacity: 0.6, transparent: true, depthWrite: false });
+  const material = new THREE.PointsMaterial({ map, color: '#b99a68', size: 0.52, opacity: 0.6, transparent: true, depthWrite: false });
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float dustFade; attribute float dustSize; varying float dustAlpha;')
       .replace('gl_PointSize = size;', 'gl_PointSize = size * dustSize; dustAlpha = dustFade;');

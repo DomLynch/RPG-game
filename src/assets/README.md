@@ -495,3 +495,11 @@ https://creativecommons.org/publicdomain/zero/1.0/, retrieved 2026-09-19; URL/ha
 `artifacts/audio/SOURCES.json`. Seven offset recorded groups form the bed; shortened cheer/gasp takes react to
 combat; rhythmic open-vowel edits form wordless chants. Bell is original modal synthesis. No music or modern songs.
 Existing combat bank and its 1 MB cap are unchanged; optional arena bank cap is 450 KB combined gzip.
+## The Quiet One — 2026-09-19
+Original project animation and procedural wound presentation; no new third-party asset or licence.
+`scripts/build-quiet-one.mjs` authors `Death_QuietOne` (2.4 seconds, 61 keys) on each existing CC0-derived rig.
+Run `node scripts/build-quiet-one.mjs` to append/revise this clip on shipped rigs, then `node scripts/bake-blades.mjs`.
+Existing geometry, materials, embedded textures, bone nodes and animation bytes remain unchanged; the full warrior
+builder invokes the same authoring function after final scaling. Anatomical hinge frames keep the palm at the throat,
+feet roll with the fall, and offline skin-envelope clearance grounds the corpse for each body build.
+Reuses the existing licensed death/contact/body/crowd audio at quieter gains with delayed collapse and gasp.
