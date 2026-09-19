@@ -731,7 +731,10 @@ normal camera return on rematch pass. Late motion stays continuous (maximum meas
 Geometric tests cover both finishers around all arena edges, varied headings/spacings and portrait/landscape fields of view.
 Evidence: artifacts/character/side-camera-{veteran,goblin,executioner}/ and artifacts/finishers/side-camera/REPORT.md.
 Two-pass review: simulation/input/rig behavior untouched; actual rendered victims and existing finisher effects verified.
-Full quality, configured completion gates, merged CI and production UI verification still required before a live claim.
+Local quality passed 261/261 after the arena merge; all seven configured completion commands passed. The subsequent fatal-audio
+merge changed no camera/rig code; its new production build passed roster, Split Crown, audio, estoc, counter and arena gates.
+PR #154; release quality reruns all tests on the final merge. Deployment and live-UI receipts are recorded separately in
+artifacts/finishers/side-camera/ so the served revision remains the authority for publication.
 
 ## Fatal contact, death and crowd audio — 2026-09-19
 Owner-authorized next audio pass: recorded human death grunts, organic fatal cuts/punctures, finisher-only tear/crack and three
