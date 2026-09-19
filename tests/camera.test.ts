@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { cameraPose } from '../src/scene.ts';
+import { cameraPose, finisherSidePose } from '../src/scene.ts';
 import { initialState, RADIUS, TARGET } from '../src/sim.ts';
 
 test('all edge angles and orbit positions keep camera inside scenery', () => {
@@ -41,5 +41,23 @@ test('duel camera frames a moving opponent anywhere in the arena', () => {
     const pose=cameraPose(state,Math.atan2(state.x-target.x,state.z-target.z),.45,true,target);
     const camera=new PerspectiveCamera(51,aspect,.1,180);camera.position.set(pose.x,pose.y,pose.z);camera.lookAt(pose.lookX,1,pose.lookZ);camera.updateMatrixWorld();
     for(const actor of [state,target])for(const y of [0,1.8]) { const p=new Vector3(actor.x,y,actor.z).project(camera); assert.ok(Math.abs(p.x)<.95&&Math.abs(p.y)<.95&&p.z<1,JSON.stringify({aspect,a,b,p})); }
+  }
+});
+
+
+test('finisher side view exposes both fighters at every arena edge and phone aspect', () => {
+  for (const aspect of [375/812,393/852,852/393]) for (let edge=0;edge<6.28;edge+=.2) for(let yaw=0;yaw<6.28;yaw+=.3) for(const gap of [.8,1.4,2.3]) for(const finish of ['runThrough','splitCrown'] as const) {
+    const fallen={x:Math.sin(edge)*7.3,z:Math.cos(edge)*7.3};
+    const killer={x:fallen.x+Math.sin(yaw)*gap,z:fallen.z+Math.cos(yaw)*gap};
+    if(Math.hypot(killer.x,killer.z)>RADIUS)continue;
+    const pose=finisherSidePose(killer,fallen,aspect,finish);
+    assert.ok(Math.hypot(pose.x,pose.z)<=11.5+1e-10, 'camera remains inside the arena');
+    const camera=new PerspectiveCamera(51,aspect,.1,180);camera.position.set(pose.x,pose.y,pose.z);camera.lookAt(pose.lookX,pose.lookY,pose.lookZ);camera.updateMatrixWorld();
+    const eye=new Vector3(pose.x-pose.lookX,0,pose.z-pose.lookZ).normalize();
+    assert.ok(Math.abs(Math.sin(yaw)*eye.z-Math.cos(yaw)*eye.x)>.8, 'clear side angle even at the wall');
+    for(const actor of [killer,fallen]) for(const y of [0,1.9]) for(const shoulder of [-.35,.35]) {
+      const screen=new Vector3(actor.x+Math.cos(yaw)*shoulder,y,actor.z-Math.sin(yaw)*shoulder).project(camera);
+      assert.ok(Math.abs(screen.x)<.95&&Math.abs(screen.y)<.95&&screen.z<1, JSON.stringify({aspect,edge,yaw,gap,screen}));
+    }
   }
 });
