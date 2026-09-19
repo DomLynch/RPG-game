@@ -428,7 +428,7 @@ function frame(now: number) {
       if (debug && practice.events.length) window.dispatchEvent(new CustomEvent('frankendom:combat', { detail: { events: practice.events, health: practice.playerHealth, enemy: practice.health } }));
       // Audio uses the same finish, weapon pair and visual override as the renderer; it never guesses a sever from a hit location.
       const deathAudio = practice.finish && practice.events.some(e => e.type === 'Killed') ? { finish: practice.finish, weapons: [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const, override: !supportsFinishers(opponent.id) ? 'plainDeath' as const : finisherSelect.value === 'auto' ? null : finisherSelect.value as FinisherId, gore: bloodMode !== 2 } : undefined;
-      feedback.update(practice.events, deathAudio, { match: matchSeed, ended: !!practice.finish, tick: practice.duel.tick, opening: practice.duel.fighters[0].phase === 'sheathed' || practice.duel.fighters[0].phase === 'draw' }); frameEvents.push(...practice.events); floatDamage(practice.events);
+      feedback.update(practice.events, deathAudio, { match: matchSeed, ended: !!practice.finish, tick: practice.duel.tick, drawing: practice.duel.fighters[0].phase === 'draw' }); frameEvents.push(...practice.events); floatDamage(practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;
       if (action) sent = action;

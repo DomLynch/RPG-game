@@ -951,12 +951,16 @@ commands. Native mobile-viewport welcome/menu/resume/actual defeat/rematch check
 recorded in artifacts/audio/arena-release/gates.json; publication requires their success and exact-head CI.
 Physical handset audition is still unverified.
 
-## Opening bell repair — 2026-09-19 (candidate)
-Returning profiles skip welcome, so the old tick<120 window expired before their first Draw; waiting for the optional crowd
-bank also lost the cue on slow connections. Audio now uses the actual sheathed/draw phase and the original modal bell recipe
-as a local fallback. No combat, crowd or fatal gains changed; rebuilt AAC/Opus assets are byte-identical.
-Failing-before/passing-after offline regression covers cold returning startup, late unmute, pause/mute/death and rematch.
-Existing arena browser gate also tests a real saved-profile reload after the old cutoff with the crowd download blocked.
-All24 inherited gates retained plus the startup regression. Release evidence: artifacts/audio/bell-fix/.
+## Opening bell repair — 2026-09-19 (Draw-only candidate)
+Owner clarified the bell must fire on Draw Sword, not Enter or the rematch button. Returning profiles skip welcome, so the
+old tick<120 window expired before their first Draw; waiting for the optional crowd bank also lost the cue on slow downloads.
+The player's ActionStarted(draw) now triggers the unchanged original bell, with a local fallback if the bank is unavailable.
+A pending draw survives asynchronous Safari unlock only while that same match remains in draw phase; quiet/mute, death,
+phase end and match replacement cancel it. Enter, sheathed waiting, opponent draw and later unmute never arm a bell.
+No combat/crowd/fatal gains or simulation changes. Rebuilt AAC/Opus assets remain byte-identical.
+Offline regression covers fresh/returning Draw, pre-draw pause/mute, interruption, late unmute, opponent draw and rematch.
+Six delayed-resume regressions fail before/pass after. Actual saved-profile and fresh/rematch browser checks are in the
+existing arena gate; all24 inherited gates plus startup regression are retained. Evidence: artifacts/audio/bell-draw/.
+61ed0cc deployment stopped during prepublication checks after owner clarification; it was never served (live remained74df626).
 Physical handset listening remains unverified. Publication requires full gates and public verification; GitHub Actions is
-billing-blocked, so the lead-approved exception requires a fresh clean Node22/macOS reproduction of all CI commands.
+billing-blocked, so the lead-approved exception requires fresh clean Node22/macOS reproduction of all CI commands.
