@@ -10,6 +10,44 @@
 // edge-leading Heavy keys; no new clips, so the renderer needs nothing to draw it).
 import * as T from 'three';
 
+// Keep the elbow's anatomical hinge in the shoulder–elbow–wrist plane. A shortest-
+// arc aim only points each bone: it retains the sword pose's axial roll, so the
+// skinned elbow can face forwards even when both joint positions reach the haft.
+function polearmReach(three, scene) {
+  const frame = (axis, normal) => {
+    const y = axis.clone().normalize(), z = normal.clone().addScaledVector(y, -normal.dot(y)).normalize();
+    return new three.Quaternion().setFromRotationMatrix(new three.Matrix4().makeBasis(y.clone().cross(z), y, z));
+  };
+  const arms = Object.fromEntries(['r', 'l'].map(side => {
+    const [upper, lower, hand] = ['upperarm_', 'lowerarm_', 'hand_'].map(n => scene.getObjectByName(n + side));
+    const [s, e, w] = [upper, lower, hand].map(b => b.getWorldPosition(new three.Vector3()));
+    const u = e.clone().sub(s), f = w.clone().sub(e), normal = u.clone().cross(f).normalize();
+    const local = (b, axis) => {
+      const inverse = b.getWorldQuaternion(new three.Quaternion()).invert();
+      return frame(axis.clone().applyQuaternion(inverse), normal.clone().applyQuaternion(inverse)).invert();
+    };
+    return [side, { upper, lower, a: u.length(), b: f.length(), upperFrame: local(upper, u), lowerFrame: local(lower, f) }];
+  }));
+  return (side, target) => {
+    const { upper, lower, a, b, upperFrame, lowerFrame } = arms[side];
+    scene.updateMatrixWorld(true);
+    const start = upper.getWorldPosition(new three.Vector3()), direction = target.clone().sub(start);
+    const distance = Math.max(.03, Math.min(direction.length(), a + b - .001)); direction.normalize();
+    const along = (a * a - b * b + distance * distance) / (2 * distance);
+    // This rig's left shoulder is +X and right shoulder -X. The old sword IK
+    // used the opposite signs, folding the front elbow into the torso.
+    const bend = new three.Vector3(side === 'r' ? -1 : 1, -.5, -.3);
+    bend.addScaledVector(direction, -bend.dot(direction)).normalize();
+    const elbow = start.clone().addScaledVector(direction, along).addScaledVector(bend, Math.sqrt(Math.max(0, a * a - along * along)));
+    const u = elbow.clone().sub(start), f = start.clone().addScaledVector(direction, distance).sub(elbow), normal = u.clone().cross(f).normalize();
+    const orient = (bone, axis, local) => {
+      bone.quaternion.copy(bone.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(frame(axis, normal)).multiply(local));
+      scene.updateMatrixWorld(true);
+    };
+    orient(upper, u, upperFrame); orient(lower, f, lowerFrame);
+  };
+}
+
 // Silhouette variants for the owner's pick (2026-09-16): tine length / spread and shaft length. Rig units (the fighter's .9/.97
 // scale applies on export). `butt` and `socket` are metres along local Y from the rear hand (y 0 = the rear grip's centre).
 // `fore` is the front grip's centre along the shaft (the rear grip is at 0).
@@ -56,7 +94,7 @@ export function trident({ T: three = T, withAoUv = g => g, leather, variant = DE
 // Goals are given in the chest's frame (spine_03: x right, y up, z forward at rest) so the weapon rides the body's own motion —
 // the walk's bob, the hit's flinch, the death's fall. Each key: { t, body: [clip, time], r: [x, y, z] rear-hand goal, dir: shaft
 // direction, l: the front hand's distance along the shaft, spine: [yaw, pitch] added on top of the body pose }.
-export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, reachArm, weapon }) {
+export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, weapon }) {
   const bone = name => base.scene.getObjectByName(name);
   const chest = bone('spine_03'), handR = bone('hand_r'), handL = bone('hand_l');
   const play = (name, t) => { const clip = clips.find(c => c.name === name); if (!clip) throw new Error(`build-weapon: the rig has no ${name} clip`); poseMixer.clipAction(clip).play(); poseMixer.setTime(Math.min(t, .999999) * clip.duration); base.scene.updateMatrixWorld(true); };
@@ -64,6 +102,7 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
   // The chest's rest orientation: goals turn with the chest's deviation from it — its yaw only for loops and the flinch (the pole stays
   // level while he walks or takes a hit), the full rotation for the death (the pole goes down with him).
   play('Armed', 0); const restChest = chest.getWorldQuaternion(new three.Quaternion());
+  const reachArm = polearmReach(three, base.scene);
   // The right hand already holds a pole correctly (the sword's authored grip: shaft along the weapon node, fingers from Sword_Idle).
   // The left hand's grip is that grip mirrored across the vertical plane through the shaft: the same hold, on the other side.
   // Hand frames from their own landmarks — fingers (middle_01) and thumb — so the mirror maps the right hand's frame onto the left's.
@@ -393,12 +432,13 @@ export function scythe({ T: three = T, withAoUv = g => g, leather, variant = SCY
 // arc — the REAP is the horizontal cut (one clip, both sides), the HIGH is the headsman's diagonal, the THRUST is the short hooking
 // heel-jab (a scythe cannot thrust; the Stab button's home, contact at the head — combat lead's nod pending). Variant B: butt -.40,
 // front grip .50, head 1.32. Blade roll per key orients the head (the trident's tines were symmetric; this blade is not).
-export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, reachArm, weapon }) {
+export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, weapon }) {
   const bone = name => base.scene.getObjectByName(name);
   const chest = bone('spine_03'), handR = bone('hand_r'), handL = bone('hand_l');
   const play = (name, t) => { const clip = clips.find(c => c.name === name); if (!clip) throw new Error(`build-weapon: the rig has no ${name} clip`); poseMixer.clipAction(clip).play(); poseMixer.setTime(Math.min(t, .999999) * clip.duration); base.scene.updateMatrixWorld(true); };
   const Y = new three.Vector3(0, 1, 0);
   play('Armed', 0); const restChest = chest.getWorldQuaternion(new three.Quaternion());
+  const reachArm = polearmReach(three, base.scene);
   const basisOf = hand => { const e1 = bone(`middle_01_${hand}`).position.clone().normalize(), t = bone(`thumb_01_${hand}`).position.clone(); const e2 = t.addScaledVector(e1, -t.dot(e1)).normalize(); const e3 = e1.clone().cross(e2); if (hand === 'l') e3.negate(); return new three.Matrix4().makeBasis(e1, e2, e3); };
   const Br = basisOf('r'), Bl = basisOf('l'), column = (m, i) => new three.Vector3().setFromMatrixColumn(m, i);
   const shaftR = Y.clone().applyQuaternion(weapon.quaternion), gripR = weapon.position.clone();

@@ -39,7 +39,7 @@ try {
     const list = option('sheet').split(';').flatMap(part => { const [name, ts] = part.split(':'); return ts.split(',').map(t => [name.trim(), +t]); });
     const azimuth = Number(option('azimuth') ?? 30);
     if (!Number.isFinite(azimuth)) throw new Error('--azimuth must be a finite number of degrees');
-    await save('sheet.png', await page.evaluate(([l, a]) => __preview.clipSheet(l, a), [list, azimuth * Math.PI / 180]));
+    await save('sheet.png', await page.evaluate(([l, a, c]) => __preview.clipSheet(l, a, c), [list, azimuth * Math.PI / 180, args.includes('--close')]));
     if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
   }
   if (args.includes('--moodboard')) { // Direction proposal only: swatches and silhouette blockout, no baseline captures.

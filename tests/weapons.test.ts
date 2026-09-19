@@ -101,6 +101,39 @@ async function readRig(file: string) { // the rig without its images (the bake r
 }
 const TRIDENT_CLIPS: Record<string, number> = { Trident_Idle: 1.667, Trident_Walk: 1.333, Trident_StrafeLeft: .8, Trident_StrafeRight: .8, Trident_Thrust: 1, Trident_ThrustChain: 1, Trident_Sweep: 1, Trident_High: 1, Trident_Guard: 1, Trident_BlockImpact: 1, Trident_Deflected: 1, Trident_Hit: .333, Trident_Death: 2.4 };
 
+test('polearm elbows bend outwards in the ready gaits and keep their anatomical hinge through every clip, including between keys', async () => {
+  for (const file of [TRIDENT_GLB, 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb']) {
+    const asset = await readRig(file), mixer = new AnimationMixer(asset.scene);
+    const arms = ['l', 'r'].map(side => ({ side, upper: asset.scene.getObjectByName(`upperarm_${side}`)!, lower: asset.scene.getObjectByName(`lowerarm_${side}`)!, hand: asset.scene.getObjectByName(`hand_${side}`)! }));
+    // Measure the bend plane in upper-arm coordinates: independent of root scale,
+    // shoulder placement and camera angle. The original library stance supplies
+    // the rig's anatomical hinge, not the weapon author's preferred bend pole.
+    const hinge = ({ upper, lower, hand }: typeof arms[number]) => {
+      const elbow = upper.worldToLocal(lower.getWorldPosition(new Vector3()));
+      const wrist = upper.worldToLocal(hand.getWorldPosition(new Vector3()));
+      return elbow.clone().cross(wrist.sub(elbow)).normalize();
+    };
+    mixer.clipAction(asset.animations.find(c => c.name === 'Armed')!).play(); mixer.setTime(0); asset.scene.updateMatrixWorld(true);
+    const hinges = arms.map(hinge); mixer.stopAllAction();
+    for (const clip of asset.animations.filter(c => /^(Trident|Scythe)_/.test(c.name))) {
+      mixer.clipAction(clip).play();
+      for (let t = 0; t < clip.duration; t += 1 / 120) {
+        mixer.setTime(t); asset.scene.updateMatrixWorld(true);
+        for (const [i, arm] of arms.entries()) {
+          const label = `${file} ${clip.name}@${t.toFixed(3)} ${arm.side}`;
+          assert.ok(hinge(arm).dot(hinges[i]) > .97, `${label}: elbow crease must follow the bend, never roll backwards`);
+          if (/_(Idle|Walk|StrafeLeft|StrafeRight)$/.test(clip.name)) {
+            const start = arm.upper.getWorldPosition(new Vector3()), direction = arm.hand.getWorldPosition(new Vector3()).sub(start).normalize();
+            const offset = arm.lower.getWorldPosition(new Vector3()).sub(start); offset.addScaledVector(direction, -offset.dot(direction));
+            assert.ok(offset.x * (arm.side === 'l' ? 1 : -1) > .001, `${label}: elbow must sit outside the shoulder–wrist line`);
+          }
+        }
+      }
+      mixer.stopAllAction();
+    }
+  }
+});
+
 test('the trident rig carries WeaponDrawn with a contact segment on the tines (the manifest agrees), empty sword nodes for the loader, and the full clip set at the contract durations', async () => {
   const asset = await readRig(TRIDENT_GLB), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
   assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');

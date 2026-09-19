@@ -54,6 +54,10 @@
       "scripts/arena-preview.mjs",
       "--label",
       "quality-world"
+    ],
+    [
+      "node",
+      "scripts/polearm-browser-check.mjs"
     ]
   ]
 }
