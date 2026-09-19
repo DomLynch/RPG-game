@@ -29,7 +29,7 @@ import { createScene } from '/src/scene.ts';
 import { initialPractice, stepPractice } from '/src/combat.ts';
 import { selectFinisher } from '/src/finishers.ts';
 import { OPPONENTS } from '/src/moves.ts';
-import { Box3, Vector3 } from 'three';
+import { Box3, Vector3, Raycaster } from 'three';
 const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)};
 const PASSIVE = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
 const IDLE = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: null };
@@ -94,15 +94,24 @@ let cursor = -1, maxCameraStep = 0, currentMode = 'red';
 window.__finisher = {
   provenance,
   inspect() {
+    const headProp = renderedScene?.getObjectByName('BloodHeadCut')?.parent;
+    const headBox = headProp ? new Box3().setFromObject(headProp,true) : null;
+    const detachedHead = headBox ? {center:view.project(headBox.getCenter(new Vector3()).toArray()),frame:[headBox.min.x,headBox.max.x].flatMap(x=>[headBox.min.y,headBox.max.y].flatMap(y=>[headBox.min.z,headBox.max.z].map(z=>view.project([x,y,z]))))} : null;
     const crown = renderedScene?.getObjectByName('SplitCrown');
     const opened = renderedScene?.getObjectByName('Opened');
-    const dropped=opened?.getObjectByName('OpenedWeapon'), weaponBox=dropped ? new Box3().setFromObject(dropped,true) : null;
+    const dropped=opened?.getObjectByName('OpenedWeapon'), weaponBox=dropped?.children.length ? new Box3().setFromObject(dropped,true) : null;
     const pieces = opened?.children.filter(o=>o.name!=='OpenedWeapon').map(half => {
       const box = new Box3().setFromObject(half,true);
-      return {name:half.name,min:box.min.toArray(),max:box.max.toArray(),caps:half.children.filter(o=>o.name==='WaistCut').length,
+      return {name:half.name,visible:half.visible,opacity:half.getObjectByName('CreatureBody')?.material.opacity ?? 1,min:box.min.toArray(),max:box.max.toArray(),caps:half.children.filter(o=>o.name==='WaistCut').length,
         frame:[box.min.x,box.max.x].flatMap(x=>[box.min.y,box.max.y].flatMap(y=>[box.min.z,box.max.z].map(z=>view.project([x,y,z]))))};
     });
     const actors = renderedScene?.children.filter(o => o.getObjectByName('pelvis')) ?? [];
+    if(detachedHead && actors[0]) {
+      actors[0].traverse(o=>{if(o.isSkinnedMesh){o.computeBoundingSphere();o.computeBoundingBox();}});
+      const toward=headBox.getCenter(new Vector3()).sub(renderedCamera.position);
+      const ray=new Raycaster(renderedCamera.position,toward.clone().normalize(),0,Math.max(0,toward.length()-.05));
+      detachedHead.occludedByVictor=ray.intersectObject(actors[0],true).some(hit=>hit.object.visible);
+    }
     const blade = actors[0]?.getObjectByName('SwordDrawn'), chest = actors[1]?.getObjectByName('spine_02')?.getWorldPosition(new Vector3());
     let framing;
     if (actors.length === 2) {
@@ -122,7 +131,7 @@ window.__finisher = {
     actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
     const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
     const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
-    return { blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -216,23 +225,37 @@ try {
           assert.ok(framing.heads.every(p => p && p[0] > 10 && p[0] < 383 && p[1] > 20 && p[1] < 700), 'both heads stay in the portrait frame above the controls');
           assert.ok(Math.hypot(framing.camera[0], framing.camera[2]) <= 11.5, 'finisher camera stays inside the arena');
         }
+        if (which === 'decapitation') {
+          const {detachedHead,framing} = await page.evaluate(()=>__finisher.inspect());
+          assert.ok(framing.side<.08,'Decapitation retains the original front-facing camera');
+          if(mode!=='off') {
+            assert.ok(detachedHead,'head is detached');
+            if(suffix!=='contact') assert.equal(detachedHead.occludedByVictor,false,'landed head is not hidden behind the victor');
+            assert.ok(detachedHead.frame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'detached head stays visible above portrait controls '+JSON.stringify({suffix,detachedHead,framing}));
+          }
+          cameraChecks.push({opponent,which,mode,suffix,framing,detachedHead});
+        }
         if (which === 'opened') {
           const {opened,framing} = await page.evaluate(() => __finisher.inspect());
           assert.equal(opened.visible,mode !== 'off','waist separation obeys blood mode');
           if(mode !== 'off') {
             assert.match(playing,/Opened:WaistCut/);
             assert.equal(opened.pieces.length,2);
+            assert.ok(opened.pieces.every(p=>p.visible && p.opacity>.75),'halves remain visible through separation and landing');
             assert.ok(opened.pieces.every(p=>p.caps>0),'both halves have closed cut surfaces');
             assert.ok(opened.pieces.every(p=>p.min[1]>-.015),'no half sinks through the floor');
             if(suffix === 'settled') {
               assert.ok(opened.pieces.every(p=>p.min[1]<.04),'both halves land');
-              assert.ok(opened.weapon.min[1]>-.015 && opened.weapon.max[1]<.5,'victim weapon drops flat');
-              assert.ok(opened.weapon.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700),'dropped weapon remains in the portrait frame');
+              if(opponent==='wraith') assert.equal(opened.weapon,null,'bare claws leave no detached weapon');
+              else {
+                assert.ok(opened.weapon.min[1]>-.015 && opened.weapon.max[1]<.5,'victim weapon drops flat');
+                assert.ok(opened.weapon.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700),'dropped weapon remains in the portrait frame');
+              }
               assert.ok(opened.pieces.every(p=>p.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700)),'entire corpse clears portrait controls');
             }
           }
           if(suffix === 'settled') {
-            assert.ok(framing.side>.75 && framing.maxCameraStep<.25,'smooth side reveal');
+            assert.ok(framing.side>.75 && framing.maxCameraStep<.25,'smooth side reveal '+JSON.stringify(framing));
             cameraChecks.push({opponent,which,mode,opened,framing});
           }
         }
@@ -277,7 +300,13 @@ try {
           assert.ok(blood.pools.some(p=>p.radius>.35),'substantial pooled blood');
           assert.ok(blood.sources.every(s=>blood.pools.some(p=>Math.hypot(p.position[0]-s.position[0],p.position[2]-s.position[2])<.7)),'each wound has blood spilled nearby');
           if(which==='decapitation')assert.deepEqual(blood.sources.map(s=>s.site),['neck-stump','detached-head']);
-          if(which==='opened')assert.deepEqual(blood.sources.map(s=>s.site),['waist-legs','waist-torso']);
+          if(which==='opened') {
+            assert.deepEqual(before.blood.sources.map(s=>s.site),['waist-legs','waist-torso']);
+            if(opponent==='wraith') {
+              assert.ok(held.opened.pieces.every(p=>!p.visible && p.opacity===0),'Wraith halves fade only after the visible split');
+              assert.equal(blood.sources.length,0,'vanished halves stop emitting');
+            } else assert.ok(held.opened.pieces.every(p=>p.visible),'physical corpses stay');
+          }
           if(which==='quietOne')assert.equal(blood.sources[0].site,'jugular');
         } else {assert.equal(blood.emitted,0);assert.equal(blood.pools.length,0);}
         bloodChecks.push({opponent,which,mode,before:before.blood,held:blood,draws:held.draws,triangles:held.triangles});

@@ -1,7 +1,10 @@
 # Project state
 
 ## Wraith reaper scythe — weapons lane, in progress
-Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. Integrate PR167 finisher repair before release and rerun Wraith Opened split/fade/ground behavior.
+Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
+
+## Creature Opened correction — 2026-09-19
+Owner reports Opened silently using ordinary death on Wraith and Minotaur. Per-finisher capability and a shared scene/audio resolver now allow only Opened on these creatures. Reuse each actual mesh waist bake; Wraith cut surfaces retain spectral shading with owned materials and a readable3.6-second hold before1.4-second fade. A physical dropped weapon remains; the clawed Wraith has no separate weapon prop. Actual-mesh CPU tests cover grounding, portrait bounds, pause, materials, source preservation and rematch; a Wraith crop found by the new test is corrected with a size-aware Opened camera margin and inward front-quarter option near arena walls. Owner also requests Decapitation retain the original front view: its generic dolly/side slide is removed and a detached-head portrait regression is added. That probe exposed stale skin bind inverses after actor movement, spawning the head6.8m away; the bake now refreshes them and the same all-six-rig regression passes. Creature camera transitions are slowed enough to preserve the existing continuity bound. Exact Minotaur scene rerun passes. Decapitation’s restored front camera exposed an overlong head throw behind portrait controls; a short lateral impulse keeps the head nearby and clear of the victor, and the same contact/drop/settled framing plus raycast-occlusion checks pass. Other creature finishers remain disabled. No simulation, GLB, dependency or input changes. Integrated the maul/claw weapons and ordered cleanup. Claws exposed a non-finite empty-prop support calculation; the same actual-rig regression now passes with finite transforms and no phantom dropped weapon. Full combined gates and public receipts remain pending in artifacts/finishers/creature-opened/.
 
 ## Ordered lead cleanup — 2026-09-19 (PR #171)
 Owner requested readability, existing-recipe cleanup, obsolete QA retirement, then reliability/product gaps.
@@ -995,3 +998,12 @@ existing arena gate; all24 inherited gates plus startup regression are retained.
 61ed0cc deployment stopped during prepublication checks after owner clarification; it was never served (live remained74df626).
 Physical handset listening remains unverified. Publication requires full gates and public verification; GitHub Actions is
 billing-blocked, so the lead-approved exception requires fresh clean Node22/macOS reproduction of all CI commands.
+
+## Bell weight — 2026-09-19 (candidate)
+Owner confirms Draw bell is audible and requests2xlevel/+50%ring. Bell gain .22→.44 (+6.02dB), duration2.6→3.9s,
+modal decay/release1.5x with original frequencies and attack. Shared generated fallback and rebuilt AAC/Opus bank agree.
+No trigger, combat/crowd gain or simulation changes. Existing cancellation/startup/native gates use authored bell duration;
+rematch silence is measured after the full ring. Focused units/typecheck and ten offline lifecycle cases pass.
+Full offline mix across AAC/Opus/fallback passes truepeak<=-1dBTP; bell-only truepeak-13.3dBTP;401719B gzip under450KB.
+Source/state audit completed. Evidence: artifacts/audio/bell-weight/. Game-browser/release work waits for lead window;
+latest npm audit returned503maintenance, not bypassed. Full inherited gates and public verification required before done.
