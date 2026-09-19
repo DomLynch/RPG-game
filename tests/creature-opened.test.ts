@@ -5,14 +5,14 @@ import { Box3, Group, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } f
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors } from '../src/characters.ts';
 import { finisherSidePose } from '../src/scene.ts';
-import { resolveFinisher } from '../src/roster.ts';
+import { resolveFinisher, ROSTER } from '../src/roster.ts';
 import { selectFinisher } from '../src/finishers.ts';
 import type { Finish } from '../src/duel.ts';
 
 const finish: Finish = { victim:1, location:'torso', move:'light_right', heading:0, draw:false };
 test('creature picker and Auto share an eligibility-checked presentation decision for scene and audio', () => {
   for (const id of ['minotaur','wraith'] as const) {
-    const weapons = ['longsword',id==='wraith' ? 'estoc' : 'cleaver'] as const;
+    const weapons = ['longsword',ROSTER[id].weapon] as const;
     let autoOpened = 0;
     for(let i=0;i<100;i++) {
       const kill={...finish,heading:i/10};
@@ -34,7 +34,7 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
   json.buffers[0].uri='data:application/octet-stream;base64,'+bytes.subarray(28+size).toString('base64');
   globalThis.ProgressEvent ??= class {constructor(_type:string,fields:object){Object.assign(this,fields);}} as unknown as typeof ProgressEvent;
   const asset=await new GLTFLoader().parseAsync(JSON.stringify(json),'');
-  const weapon=id==='wraith' ? 'estoc' : 'cleaver';
+  const weapon=ROSTER[id].weapon;
   const actor=buildWarriors(asset,asset,[weapon,weapon]).opponent;
   const root=actor.anchor.children[0],body=root.getObjectByName('CreatureBody') as Mesh;
   const original=(body.geometry.attributes.position.array as Float32Array).slice(),material=body.material as MeshStandardMaterial;
@@ -51,6 +51,7 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
     if(id==='wraith'){assert.notEqual(skin,material);assert.equal(skin.transparent,true);assert.equal(skin.opacity,.86);}
   }
   actor.openWaist(.28,'red');assert.ok(halves[1].position.x>.1);
+  group.traverse(part=>assert.ok(part.position.toArray().every(Number.isFinite),`${id} finite cut-piece transform ${part.name}`));
   const cameraPose=finisherSidePose({x:parent.position.x+Math.sin(.8)*1.9,z:parent.position.z+Math.cos(.8)*1.9},{x:parent.position.x,z:parent.position.z},393/852,'opened',1.5);
   const camera=new PerspectiveCamera(51,393/852,.1,180);camera.position.set(cameraPose.x,cameraPose.y,cameraPose.z);camera.lookAt(cameraPose.lookX,cameraPose.lookY,cameraPose.lookZ);camera.updateMatrixWorld();
   for(let i=1;i<=32;i++){actor.update(0,.1,'opened',Math.min(1,i/32));actor.openWaist(Math.min(1,i/32),'red');}
@@ -86,7 +87,7 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
   actor.openWaist(1,'dark');assert.equal(group.visible,true);assert.equal(root.visible,false);
   for(let i=0;i<25;i++){actor.update(0,.1,'opened',1);actor.openWaist(1,'red');}
   assert.equal(halves[0].visible,id!=='wraith');assert.equal(halves[1].visible,id!=='wraith');
-  assert.ok(group.getObjectByName('OpenedWeapon')!.visible,'released physical weapon remains');
+  const dropped=group.getObjectByName('OpenedWeapon')!;assert.equal(dropped.visible,id!=='wraith','claws leave no separate dropped weapon');assert.equal(dropped.children.length>0,id!=='wraith');
   if(id==='wraith')assert.equal(partMaterial.opacity,0);
   assert.deepEqual(body.geometry.attributes.position.array,original,'source mesh untouched');
   let disposed=0;partMaterial.addEventListener('dispose',()=>disposed++);

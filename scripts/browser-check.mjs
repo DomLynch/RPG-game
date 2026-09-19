@@ -91,7 +91,7 @@ try {
   await fallback.waitForFunction(()=>document.querySelector('#message').textContent.includes('needs WebGL 2'));
   assert.equal(await fallback.evaluate(()=>document.querySelector('#world').getContext('webgl2')),null);
   assert.equal(await fallback.locator('#attack-button').getAttribute('aria-disabled'),'true');
-  assert.equal(errors.length,1);assert.match(errors[0],/Unable to initialise the WebGL2 arena/);receipt.unsupportedGPU='Explicit fallback message and disabled combat; expected initialization error captured with telemetry blocked';
+  assert.equal(errors.length,1);assert.match(errors[0],/^Error: THREE\.WebGLRenderer: Error creating WebGL context\.$/);receipt.unsupportedGPU={message:'Explicit fallback message and disabled combat; original renderer error retained with telemetry blocked',error:errors[0]};
  } finally {await unsupported.close();}
  receipt.passed=true;
  console.log(JSON.stringify(receipt,null,2));

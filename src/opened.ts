@@ -109,6 +109,7 @@ export function openWaist(root: Object3D, anchor: Group) {
     const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('normal',new Float32BufferAttribute(n,3));g.setAttribute('color',new Float32BufferAttribute(tone,3));
     const mesh=new Mesh(g,cut);mesh.name='WaistCut';mesh.castShadow=!spectral;half.add(mesh);
   }
+  weapon.visible = weapon.children.length > 0; // claws have no separate dropped prop
   const scale = waist;
   const smooth = (p: number, start: number, end: number) => { const t = Math.max(0,Math.min(1,(p-start)/(end-start))); return t*t*(3-2*t); };
   // Find the broad resting face around the torso's long axis. A fixed roll can balance a different rig on a
@@ -156,7 +157,7 @@ export function openWaist(root: Object3D, anchor: Group) {
     for (const [h,half] of [lower,upper,weapon].entries()) {
       const m = new Matrix4().makeRotationFromQuaternion(half.quaternion).elements, points = supports[h]; let min = Infinity;
       for (let j=0;j<points.length;j+=3) min = Math.min(min,m[1]*points[j]+m[5]*points[j+1]+m[9]*points[j+2]);
-      floors[h].push(.008-min);
+      floors[h].push(points.length ? .008-min : 0);
     }
   }
   supports.forEach(points=>{points.length=0;});

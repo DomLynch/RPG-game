@@ -37,10 +37,15 @@ const receipts = [];
 for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']]) {
   const [raw, baseRaw, sourceRaw] = await Promise.all([`src/assets/${family}.glb`, `src/assets/${base}.glb`, `src/assets/source/creatures/${family}.glb`].map(p => fs.readFile(p)));
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
+  assert.equal(doc.extras.creatureWeapon.generator, digest(await fs.readFile('scripts/build-creature-weapons.mjs')), 'Stale creature weapon generator');
   assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw) }, 'Stale creature: rebuild with build-creatures.mjs');
-  assert.deepEqual(doc.animations.map(c => animation(output, c)), original.doc.animations.map(c => animation(original, c)), 'Combat clips changed');
+  assert.deepEqual(doc.animations.slice(0, original.doc.animations.length).map(c => animation(output, c)), original.doc.animations.map(c => animation(original, c)), 'Combat clips changed');
   for (const [i, before] of original.doc.nodes.entries()) {
     const after = structuredClone(doc.nodes[i]), expected = structuredClone(before);
+    if (doc.extras.creatureWeapon && ['WeaponDrawn'].includes(before.name)) {
+      assert.equal(after.extras.weapon, family === 'minotaur' ? 'maul' : 'claws');
+      continue; // New authored equipment is checked by the creature weapon contract.
+    }
     // The surface replaces inherited art; joint transforms and weapon hierarchy are unchanged.
     if (before.mesh !== undefined && after.mesh !== undefined) {
       const a = original.doc.meshes[before.mesh], b = doc.meshes[after.mesh];
@@ -87,7 +92,7 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']])
       assert(point.length() < 6, `${clip.name}: runaway skin vertex`);
       if (handVertices.has(i)) handGap = Math.min(handGap, body.localToWorld(point).distanceTo(grip));
     }
-    if (['Armed', 'Attack', 'Heavy', 'Guard'].includes(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
+    if ((doc.extras.creatureWeapon ? family === 'minotaur' && ['Maul_Idle', 'Maul_Slash', 'Maul_Heavy', 'Maul_Guard'].includes(clip.name) : ['Armed', 'Attack', 'Heavy', 'Guard'].includes(clip.name))) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
     poses++;
   }
   receipts.push({ family, sha256: digest(raw), triangles, clipsPreserved: asset.animations.length, finitePoses: poses, mapsPreserved: imageBytes(source).length });
