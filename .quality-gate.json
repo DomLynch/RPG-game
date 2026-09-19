@@ -154,6 +154,10 @@
       "--no-video",
       "--label",
       "blood-gate"
+    ],
+    [
+      "node",
+      "scripts/creature-weapon-pose-check.mjs"
     ]
   ]
 }
