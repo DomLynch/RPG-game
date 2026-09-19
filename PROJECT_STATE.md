@@ -1,5 +1,8 @@
 # Project state
 
+## Finisher blood upgrade — 2026-09-19 (in progress)
+Owner requests substantially more blood at actual finishing wounds and floor spills beside the body. New fixed pool:160 ballistic droplets and80 growing floor stains, two draw calls; source locations follow neck/head, separated waist faces, jugular or chest entry/exit. Jets taper to drips and stop; red/dark/off and rematch apply. No simulation, input, GLB or dependency changes. CPU source/ballistic/resource checks pass; Wraith integration, visual review and all release receipts remain in artifacts/finishers/blood/.
+
 ## Opened waist finisher — 2026-09-19 (PR #163)
 Owner explicitly authorized a horizontal waist separation: torso slides sideways and falls; legs hold briefly and
 fall separately. Own-model static geometry is sliced and capped during loading/reset, outside the killing frame;

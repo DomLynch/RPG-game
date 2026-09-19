@@ -1,8 +1,9 @@
 import test from 'node:test';
+import {finisherBloodSources} from '../src/finisher-blood.ts';
 import {finisherSidePose} from '../src/scene.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Group } from 'three';
+import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Group, Triangle } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
@@ -701,5 +702,47 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
     opponent.update(0,.1,'opened',1);opponent.openWaist(1,'red');
     assert.deepEqual(opponent.anchor.getObjectByName('Opened')!.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]),held);
     opponent.unsever();
+  }
+});
+
+
+test('finisher blood sources follow the real jugular, skull, chest and separated waist on every humanoid', async () => {
+  for (const file of FIGHTERS) {
+    const asset=await readWarrior(file),weapon=WEAPON_OF[file];
+    for(const kind of ['quietOne','splitCrown','runThrough','opened','decapitation'] as const) {
+      const {opponent}=buildWarriors(asset,undefined,[weapon,weapon]);
+      const parent=new Group();parent.position.set(3,0,-4);parent.rotation.y=.8;parent.add(opponent.anchor);
+      let first: Vector3 | undefined, detached: Group | null = null;
+      for(const progress of [.1,1]) {
+        for(let i=0;i<8;i++)opponent.update(0,.1,kind,progress);
+        if(kind==='opened')opponent.openWaist(progress,'red');
+        parent.updateWorldMatrix(true,true);
+        if(kind==='decapitation') {
+          if(!detached) {const neck=opponent.boneWorld('neck_01')!;detached=opponent.sever()!.group;const cut=new Group();cut.name='BloodHeadCut';cut.position.copy(neck).sub(detached.position);detached.add(cut);}
+          else {detached.position.x+=2;detached.rotation.z=.8;}
+        }
+        const sources=finisherBloodSources(kind,parent,detached);
+        assert.equal(sources.length,kind==='opened' || kind==='runThrough' || kind==='decapitation' ? 2 : 1);
+        for(const s of sources)assert.ok(s.position.toArray().every(Number.isFinite) && Math.abs(s.direction.length()-1)<1e-6);
+        const at=(name:string)=>parent.getObjectByName(name)!.getWorldPosition(new Vector3());
+        if(kind==='decapitation') {assert.ok(sources[0].position.distanceTo(at('neck_01'))<.08);assert.ok(sources[1].position.distanceTo(detached!.getObjectByName('BloodHeadCut')!.getWorldPosition(new Vector3()))<1e-6,'head bleed follows detached rolling cut');}
+        if(kind==='quietOne')assert.ok(sources[0].position.distanceTo(at('neck_01'))<.14,'jugular remains on moving neck');
+        if(kind==='splitCrown')assert.ok(sources[0].position.distanceTo(at('Head'))<.09,'skull source follows head');
+        if(kind==='runThrough')assert.ok(sources[0].position.clone().add(sources[1].position).multiplyScalar(.5).distanceTo(at('spine_02'))<.02,'entry and exit bracket the chest');
+        if(kind==='opened')for(const [i,name] of ['OpenedLegs','OpenedTorso'].entries()) {
+          const cut=parent.getObjectByName(name)!.getObjectByName('WaistCut') as Mesh;
+          const local=cut.worldToLocal(sources[i].position.clone()), vertices=cut.geometry.getAttribute('position');
+          let onCut=false;
+          for(let j=0;j<vertices.count;j+=3) {
+            const triangle=new Triangle(...[0,1,2].map(k=>new Vector3().fromBufferAttribute(vertices,j+k)) as [Vector3,Vector3,Vector3]);
+            if(triangle.closestPointToPoint(local,new Vector3()).distanceTo(local)<1e-6)onCut=true;
+          }
+          assert.ok(onCut,'source lies on an actual triangle of the separated cut surface');
+        }
+        if(first)assert.ok(first.distanceTo(sources[0].position)>.1,'source moves with falling anatomy');
+        first=sources[0].position.clone();
+      }
+      opponent.unsever();
+    }
   }
 });

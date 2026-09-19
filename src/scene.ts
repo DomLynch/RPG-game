@@ -9,6 +9,7 @@ import { FINISHER_POSE, selectFinisher, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
+import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
@@ -125,6 +126,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     return new THREE.CanvasTexture(canvas);
   }
   const dropTexture=impactTexture(false),splatTexture=impactTexture(true);
+  const finisherBlood = createFinisherBlood(splatTexture); scene.add(finisherBlood.group);
+  let bloodSources: ReturnType<typeof finisherBloodSources> = [];
   const sparkPositions = new Float32Array(12 * 3), sparkGeometry = new THREE.BufferGeometry();
   sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
   const sparkMaterial = new THREE.PointsMaterial({ color: '#ffe4af', map: dropTexture, alphaTest:.02, size: .045, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -185,7 +188,8 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
   resize(); window.addEventListener('resize', resize);
   return {
     renderer, ready, arena,
-    setBloodMode(mode: 'red' | 'dark' | 'off') { bloodMode=mode; for (const splat of splats) { splat.life=0;splat.grow=0;splat.mesh.visible=false; } if (flesh) { impact=0;sparks.visible=false; } if (mode==='off') setBladeBlood(false); else if (bloodiedBlade) { bloodiedBlade=false; setBladeBlood(true); } },
+    bloodState() { return {...finisherBlood.inspect(),sources:bloodSources.map(s=>({site:s.site,position:s.position.toArray(),direction:s.direction.toArray()}))}; },
+    setBloodMode(mode: 'red' | 'dark' | 'off') { bloodMode=mode; finisherBlood.group.visible=mode!=='off' && bloodSources.length>0; for (const splat of splats) { splat.life=0;splat.grow=0;splat.mesh.visible=false; } if (flesh) { impact=0;sparks.visible=false; } if (mode==='off') setBladeBlood(false); else if (bloodiedBlade) { bloodiedBlade=false; setBladeBlood(true); } },
     setFinisherOverride(id: FinisherId | null) { finisherOverride = id; },
     get yaw() { return yaw; },
     orbit(dx: number, dy: number) { yaw -= dx * 0.005; pitch = THREE.MathUtils.clamp(pitch + dy * 0.003, 0.22, 0.9); },
@@ -211,8 +215,9 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       const pick = practice.finish && supportsFinishers(opponentId) ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
       const finisher = pick ? (finisherOverride ?? pick) : null;   // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
+      const detailedBlood = finisher !== null && practice.finish?.victim === 1;
       const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;
-      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); if (severHead) { scene.remove(severHead.group); severHead.group.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); severHead = null; } warriors?.player.unsever(); warriors?.opponent.unsever(); if (supportsFinishers(opponentId)) warriors?.opponent.prepareOpened(); }   // a fresh match: both bars full again
+      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { finisherBlood.reset(); bloodSources=[]; impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); if (severHead) { scene.remove(severHead.group); severHead.group.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); severHead = null; } warriors?.player.unsever(); warriors?.opponent.unsever(); if (supportsFinishers(opponentId)) warriors?.opponent.prepareOpened(); }   // a fresh match: both bars full again
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;
@@ -227,12 +232,13 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
         sparkMaterial.blending=flesh || kick || hurt ? THREE.NormalBlending : THREE.AdditiveBlending; sparkMaterial.size=flesh ? (quietFinish ? .045 : .095) : .045;
         if (quietFinish && enemyHurt) { const neck = warriors?.opponent.boneWorld('neck_01'); if (neck) sparks.position.copy(neck); }
         if (finisher === 'opened' && enemyHurt && warriors) { const hip=warriors.opponent.boneWorld('pelvis'), spine=warriors.opponent.boneWorld('spine_01'); if(hip && spine) sparks.position.copy(hip.lerp(spine,.6)); }
-        if(flesh) { const splat=splats[splatIndex++%splats.length]; splat.life=20; splat.grow=0; splat.mesh.position.set(target.x,.022+splatIndex%12*.0001,target.z); splat.mesh.scale.set(.22+(splatIndex%3)*.05,.13+(splatIndex%4)*.035,1); splat.mesh.rotation.z=splatIndex*2.4;splat.mesh.material.color.set(bloodMode==='dark' ? '#352426' : '#681a19'); }
+        if(flesh && !(killed && detailedBlood)) { const splat=splats[splatIndex++%splats.length]; splat.life=20; splat.grow=0; splat.mesh.position.set(target.x,.022+splatIndex%12*.0001,target.z); splat.mesh.scale.set(.22+(splatIndex%3)*.05,.13+(splatIndex%4)*.035,1); splat.mesh.rotation.z=splatIndex*2.4;splat.mesh.material.color.set(bloodMode==='dark' ? '#352426' : '#681a19'); }
         if (flesh) { const wound = wounds[enemyHurt ? 1 : 0]; wound.life = 4; wound.side = enemyHurt ? 1 : 0; wound.site = site; }   // the wound-site mark: refreshed, never stacked
-        if (killed && flesh) {   // the corpse keeps pooling after the splashes fade (cleared on rematch like everything else)
+        if (killed && flesh && !detailedBlood) {   // the corpse keeps pooling after the splashes fade (cleared on rematch like everything else)
           const pool=splats[splatIndex++%splats.length]; pool.life=1e9; pool.grow=1e-6; pool.mesh.position.set(target.x,.03,target.z); pool.mesh.rotation.z=splatIndex*2.4; pool.mesh.scale.set(.3,.2,1); pool.mesh.material.color.set(bloodMode==='dark' ? '#352426' : '#681a19');
           setBladeBlood(true, killed.actor as 0 | 1);
         }
+        if (killed && flesh && detailedBlood) { impact=0; setBladeBlood(true, killed.actor as 0 | 1); }
       }
       lastHealth = practice.health; lastPlayerHealth = practice.playerHealth;
       impact = Math.max(0, impact - dt); sparks.visible = impact > 0;
@@ -279,10 +285,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
               if (speed > .05) head.spin.set(head.velocity.z / head.radius, 0, -head.velocity.x / head.radius);
               else {
                 head.resting = true;
-                const splat = splats[splatIndex++ % splats.length]; splat.life = 25; splat.grow = 0;   // where the head fell, a stain stays
-                splat.mesh.position.set(head.group.position.x, .026 + splatIndex % 12 * .0001, head.group.position.z);
-                splat.mesh.scale.set(.16, .12, 1); splat.mesh.rotation.z = splatIndex * 2.4;
-                splat.mesh.material.color.set(bloodMode === 'dark' ? '#352426' : '#681a19');
+
               }
             }
           }
@@ -317,14 +320,13 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       // (the clip's first 9 %) — baked from the rig at that pose, popped along the killing blow, ballistic to a stop. Blood
       // 'off' keeps the head on: gore is presentation, like the rest of the layer.
       if (warriors && finisher === 'decapitation' && bloodMode !== 'off' && !severHead && practice.finish?.victim === 1 && victimProgress >= .05 && victimProgress < 1) {
+        const headCutPosition = warriors.opponent.boneWorld('neck_01')!;
         const built = warriors.opponent.sever();
         if (built) {
+          const headCut = new THREE.Object3D(); headCut.name='BloodHeadCut'; headCut.position.copy(headCutPosition).sub(built.group.position); built.group.add(headCut);
           scene.add(built.group);
           severHead = { group: built.group, velocity: new THREE.Vector3(Math.sin(killHeading) * 2.1, 1.8, Math.cos(killHeading) * 2.1), spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9), radius: built.radius, resting: false };
-          const neck = built.group.position;
-          flesh = true; killSpray = true; impactDuration = .4; impact = impactDuration; impactHeading = killHeading;
-          sparkMaterial.color.set(bloodMode === 'dark' ? '#3e2527' : '#a32b27'); sparkMaterial.blending = THREE.NormalBlending; sparkMaterial.size = .095;
-          sparks.position.set(neck.x, Math.max(.3, neck.y - built.radius * .7), neck.z);   // the sever bursts at the neck stump
+
         }
       }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
@@ -373,6 +375,8 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
         wound.drips.forEach((drip,i) => { drip.position.set((i-1)*.025*size,-.05*size,0); drip.scale.set(.55,.5*size,1); drip.material.color.set(tone); drip.material.opacity = .6*Math.min(1,finishClock/.25); });
         wound.group.visible = bloodMode !== 'off';
       }
+      bloodSources = detailedBlood && warriors ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location) : [];
+      finisherBlood.update(dt, detailedBlood ? finisher : null, victimProgress, bloodSources, bloodMode);
       if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown' || finisher === 'quietOne' || finisher === 'opened')) {
         const t = THREE.MathUtils.clamp(finisher === 'opened' ? (finishClock-.04)/.4 : finisher === 'quietOne' ? (finishClock-.12)/.43 : (finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
         const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher);
