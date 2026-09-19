@@ -687,7 +687,7 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
       }
     }
     const dropped=opened.getObjectByName('OpenedWeapon')!;const weaponBox=new Box3().setFromObject(dropped,true);
-    assert.ok(weaponBox.min.y>-.012 && weaponBox.max.y<.5*SCALE[file],`${file}: released weapon lies flat on the sand (${weaponBox.min.y},${weaponBox.max.y})`);
+    assert.ok(weaponBox.min.y>-.012 && weaponBox.min.y<.04 && weaponBox.max.y<.5*SCALE[file],`${file}: released weapon lies flat on the sand (${weaponBox.min.y},${weaponBox.max.y})`);
     const held=opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]);
     opponent.update(0,.1,'opened',1); opponent.openWaist(1,'dark');
     assert.deepEqual(opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]),held,'final pose holds');
