@@ -138,6 +138,37 @@ test('polearm elbows bend outwards in the ready gaits and keep their anatomical 
   }
 });
 
+test('both polearm arms stay outside the torso core throughout every shipped clip, including between keys', async () => {
+  for (const file of ['src/assets/veteran.glb', 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb']) {
+    const asset = await readRig(file), mixer = new AnimationMixer(asset.scene);
+    const position = (name: string) => asset.scene.getObjectByName(name)!.getWorldPosition(new Vector3());
+    for (const clip of asset.animations.filter(c => /^(Trident|Scythe)_/.test(c.name))) {
+      mixer.clipAction(clip).play();
+      for (let t = 0; t < clip.duration; t += 1 / 120) {
+        mixer.setTime(t); asset.scene.updateMatrixWorld(true);
+        const right = position('upperarm_r'), left = position('upperarm_l');
+        const pelvis = position('pelvis'), top = right.clone().add(left).multiplyScalar(.5), axis = top.sub(pelvis);
+        // A conservative capsule INSIDE the trunk, following its actual pose and scale.
+        // Checking the elbow and arm segments catches a hidden arm even when both
+        // hands touch the shaft and the elbow hinge faces the right way.
+        const radius = right.distanceTo(left) * .30;
+        for (const side of ['r', 'l']) {
+          const shoulder = position(`upperarm_${side}`), elbow = position(`lowerarm_${side}`), wrist = position(`hand_${side}`);
+          for (const [start, end, first] of [[shoulder, elbow, .4], [elbow, wrist, 0]] as const) {
+            for (let f = first; f <= 1; f += .1) {
+              const point = start.clone().lerp(end, f);
+              const along = Math.max(0, Math.min(1, point.clone().sub(pelvis).dot(axis) / axis.lengthSq()));
+              const distance = point.distanceTo(pelvis.clone().addScaledVector(axis, along));
+              assert.ok(distance > radius, `${file} ${clip.name}@${t.toFixed(3)} ${side}: arm inside torso (${distance.toFixed(3)} m, core ${radius.toFixed(3)} m)`);
+            }
+          }
+        }
+      }
+      mixer.stopAllAction();
+    }
+  }
+});
+
 test('the trident rig carries WeaponDrawn with a contact segment on the tines (the manifest agrees), empty sword nodes for the loader, and the full clip set at the contract durations', async () => {
   const asset = await readRig(TRIDENT_GLB), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
   assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
