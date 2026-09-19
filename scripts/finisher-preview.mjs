@@ -95,7 +95,7 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
 window.__provenance = provenance;
 if (wanted.some(id => windows[id] === undefined)) throw new Error('could not draw requested outcomes from the requested seeds: ' + JSON.stringify(provenance));
 window.__step = 'simulated';
-let cursor = -1, maxCameraStep = 0, currentMode = 'red';
+let cursor = -1, maxCameraStep = 0, maxActorStep = 0, previousActorPosition, currentMode = 'red';
 window.__finisher = {
   provenance,
   inspect() {
@@ -123,7 +123,7 @@ window.__finisher = {
       const a = actors[0].children[0].getWorldPosition(new Vector3()), b = actors[1].children[0].getWorldPosition(new Vector3());
       const axis = b.clone().sub(a).setY(0).normalize();
       const eye = renderedCamera.position.clone().sub(a.clone().add(b).multiplyScalar(.5)).setY(0).normalize();
-      framing = { maxCameraStep, side: Math.abs(axis.x*eye.z-axis.z*eye.x), heads: actors.map(o => view.project(o.getObjectByName('Head').getWorldPosition(new Vector3()).toArray())), camera: renderedCamera.position.toArray() };
+      framing = { maxCameraStep, maxActorStep, side: Math.abs(axis.x*eye.z-axis.z*eye.x), heads: actors.map(o => view.project(o.getObjectByName('Head').getWorldPosition(new Vector3()).toArray())), camera: renderedCamera.position.toArray() };
     }
     let impalement;
     if (blade && chest) {
@@ -140,7 +140,7 @@ window.__finisher = {
     if(stump && blade){stump.updateMatrixWorld(true);stump.skeleton.update();const target=stump.getVertexPosition(0,new Vector3()).applyMatrix4(stump.matrixWorld);armContact=blade.localToWorld(new Vector3(0,.545)).distanceTo(target);}
     const disarmed={visible:armProp?.visible ?? false,caps:armProp?.children.filter(o=>o.name==='ArmCut').length??0,armContact,min:armBox?.min.toArray(),max:armBox?.max.toArray(),frame:armBox ? [armBox.min.x,armBox.max.x].flatMap(x=>[armBox.min.y,armBox.max.y].flatMap(y=>[armBox.min.z,armBox.max.z].map(z=>view.project([x,y,z])))) : []};
     const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
-    const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
+    const quiet = neck && hand && head ? { bodyFrame, bodyMin:body.min.toArray(), handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
     return { disarmed, detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
@@ -178,8 +178,8 @@ window.__finisher = {
     // and screenshots would show a stale frame. A fresh playback resets the cursor so the scene state rebuilds from tick 0.
     return new Promise(resolve => requestAnimationFrame(() => {
       if (mode && mode !== currentMode) { view.setBloodMode(mode); currentMode = mode; }
-      if (i <= cursor) { cursor = -1; maxCameraStep = 0; view.recenter(); }
-      for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j], before = renderedCamera?.position.clone(); present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); if (before && j > windows[which].killIndex+(which === 'quietOne' ? 10 : 60)) maxCameraStep = Math.max(maxCameraStep, before.distanceTo(renderedCamera.position)); cursor = j; }
+      if (i <= cursor) { cursor = -1; maxCameraStep = 0; maxActorStep = 0; previousActorPosition = null; view.recenter(); }
+      for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j], before = renderedCamera?.position.clone(); present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); if (before && j > windows[which].killIndex+(which === 'quietOne' || which === 'disarmed' ? 10 : 60)) maxCameraStep = Math.max(maxCameraStep, before.distanceTo(renderedCamera.position)); if(which==='disarmed' && j>windows[which].killIndex){const actor=renderedScene.children.find(o=>o.getObjectByName('pelvis'));const position=actor.children[0].getWorldPosition(new Vector3());if(previousActorPosition)maxActorStep=Math.max(maxActorStep,position.distanceTo(previousActorPosition));previousActorPosition=position;} cursor = j; }
       requestAnimationFrame(() => resolve(view.playing()));
     }));
   },
@@ -256,6 +256,8 @@ try {
             else assert.ok(state.detachedHead,'neck strike detaches the head');
             if(suffix==='settled') {
               assert.ok(state.disarmed.max[1]<.65,'arm and weapon lie flat');
+              assert.ok(state.quiet.bodyMin[1]>-.035,'victim lies above sand');
+              assert.ok(state.framing.maxCameraStep<.25 && state.framing.maxActorStep<.1,'camera and approach stay continuous');
               for(const points of [state.disarmed.frame,state.detachedHead.frame,state.quiet.bodyFrame])assert.ok(points.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'all remains clear portrait controls');
               assert.equal(state.detachedHead.occludedByVictor,false,'victor does not hide the head');
             }

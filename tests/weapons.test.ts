@@ -7,6 +7,7 @@ import { bladePaths } from '../src/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { LONGSWORD, MOVES, PATHS, RULES, WEAPONS, weaponOf, type Weapon } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
+import { FINISHER_CLIPS } from '../src/characters.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
@@ -250,7 +251,7 @@ test('the cleaver rig carries WeaponDrawn with its edge as the contact segment, 
   const sword = await readRig('src/assets/warrior.glb');
   assert.deepEqual(asset.animations.map(c => c.name), sword.animations.map(c => c.name), 'the same clip list as the sword, in the same order');
   for (const [path, spec] of Object.entries(CLEAVER_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
-  for (const clip of sword.animations.filter(c=>c.name!=='Death_QuietOne')) { // legacy clips match except Heavy; Quiet One is independently grounded on each body/weapon
+  for (const clip of sword.animations.filter(c=>!['Death_QuietOne','Death_Disarmed'].includes(c.name))) { // legacy clips match except Heavy; Quiet One is independently grounded on each body/weapon
     const twin = asset.animations.find(c => c.name === clip.name)!;
     const same = clip.tracks.every(t => { const o = twin.tracks.find(x => x.name === t.name)!; return o && o.times.length === t.times.length && Array.from(t.values).every((v, i) => Math.abs(v - o.values[i]) < 1e-6); });
     assert.equal(same, clip.name !== 'Heavy', `${clip.name} ${clip.name === 'Heavy' ? 'is the cleaver\'s own' : 'is the sword rig\'s'}`);
@@ -382,7 +383,7 @@ test('the goblin\'s rig carries the knife: WeaponDrawn under hand_r with a short
   assert.ok(contact && contact.to < .6 && contact.to > .45 && contact.from > .08 && contact.from < .2, `a short blade: ${JSON.stringify(contact)}`);
   assert.equal(weapon.userData.grip, 'forward', 'forward grip: the reverse grip never lands on the sword\'s clips');
   for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
-  assert.deepEqual(asset.animations.map(c => c.name), [...['Idle', 'Walk', 'Jog', 'Run'], ...['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'], ...['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne']], 'the sword\'s clip list, in order (the finishers are additive, 2026-09-17/18)');
+  assert.deepEqual(asset.animations.map(c => c.name), [...['Idle', 'Walk', 'Jog', 'Run'], ...['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'], ...FINISHER_CLIPS], 'the sword\'s clip list, in order (the finishers are additive, 2026-09-17/18)');
   assert.ok(Math.abs(asset.scene.children[0].scale.x / hero.scene.children[0].scale.x - .835) < 1e-3, `his root scale: .835 × the hero's (${asset.scene.children[0].scale.x} / ${hero.scene.children[0].scale.x})`);
   for (const [path, spec] of Object.entries(KNIFE_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
 });
@@ -424,7 +425,7 @@ test('the live estoc uses its own moves, baked point, and the exact shipped Nigh
   assert.notDeepEqual(bladePaths.estoc, bladePaths.longsword);
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: number[] }[] };
   assert.deepEqual(manifest.weapons.filter(w => w.weapon === 'estoc'), [{ weapon: 'estoc', glb: ESTOC_GLB, node: 'WeaponDrawn', contact: [.75, 1.15] }]);
-  assert.deepEqual(readFileSync(new URL('../' + ESTOC_GLB, import.meta.url)), readFileSync(new URL('../src/assets/nightborn.glb', import.meta.url)), 'bake and rendered rig must match');
+  assert.ok(readFileSync(new URL('../' + ESTOC_GLB, import.meta.url)).equals(readFileSync(new URL('../src/assets/nightborn.glb', import.meta.url))), 'bake and rendered rig must match byte-for-byte');
 });
 
 test('the estoc rig is the Nightborn\'s own with WeaponDrawn (a long thin blade, the last 40 cm as the contact segment, ≤ 2k triangles), empty sword nodes, and EVERY clip byte-identical to nightborn.glb — no re-key at all', async () => {

@@ -1,6 +1,8 @@
 // Original paired Disarmed motion. Offline authoring; old clips and meshes remain untouched.
 import * as T from 'three';
 import {Buffer} from 'node:buffer';
+import process from 'node:process';
+import {pathToFileURL} from 'node:url';
 const smooth = t => { t=T.MathUtils.clamp(t,0,1);return t*t*(3-2*t); };
 const point = bone => bone.getWorldPosition(new T.Vector3());
 import {DISARMED_BEATS} from '../src/disarmed.ts';
@@ -106,4 +108,13 @@ export async function appendDisarmed(file) {
   const raw=Buffer.from(JSON.stringify(json)),js=Buffer.concat([raw,Buffer.alloc((4-raw.length%4)%4,32)]),bin=Buffer.concat(chunks),header=Buffer.alloc(20),bh=Buffer.alloc(8);
   [0x46546c67,2,28+js.length+bin.length,js.length,0x4e4f534a].forEach((v,i)=>header.writeUInt32LE(v,i*4));bh.writeUInt32LE(bin.length);bh.writeUInt32LE(0x004e4942,4);
   await fs.writeFile(file,Buffer.concat([header,js,bh,bin]));return {file,addedBytes:offset-base.bytes,clips:clips.map(c=>c.name)};
+}
+
+
+// Rebuild the additive scene and keep the estoc's authored/baked twin identical to the rendered Nightborn.
+if(process.argv[1] && pathToFileURL(process.argv[1]).href===import.meta.url) {
+  const files=process.argv.slice(2);
+  if(!files.length)files.push(...['warrior','veteran','pitborn','goblin','nightborn','executioner','minotaur','wraith'].map(id=>'src/assets/'+id+'.glb'),'src/assets/weapons/cleaver/veteran-cleaver.glb');
+  for(const file of files)await appendDisarmed(file);
+  if(files.includes('src/assets/nightborn.glb'))await (await import('node:fs/promises')).copyFile('src/assets/nightborn.glb','src/assets/weapons/estoc/nightborn-estoc.glb');
 }
