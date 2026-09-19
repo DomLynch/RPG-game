@@ -758,5 +758,6 @@ True-peak review caught +2.2 dBTP overshoots missed by sample peaks in the first
 points. No additional EQ change justified; this is measurement, not a physical-phone listening claim.
 Existing audio completion gate now checks the frozen pre-change mix, empty death ticks, rematch after quiet/mute and
 reconstructed peaks. AAC/Opus/fallback, 17 ordinary probes, 12 fatal probes and eight crowd-tail checks pass.
-Evidence: artifacts/audio/phone-mix/REVIEW.md, reference.json, frequency.json and gates.json. Full gates in progress.
+Evidence: artifacts/audio/phone-mix/REVIEW.md, reference.json, frequency.json and gates.json. Full quality passed 264/264 tests,
+lint/build/audit/budget/game browser; all eight configured completion commands passed, including native fatal playback/pause.
 Release hold acknowledged: no audio trunk merge or deploy until world closeout and lead confirmation. Handset audition remains.
