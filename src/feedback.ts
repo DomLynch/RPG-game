@@ -2,6 +2,7 @@ import type { CombatEvent } from './combat.ts';
 import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './audio/cues.ts';
 import { MANIFEST, type CueName } from './audio/manifest.ts';
 import { loadSprite } from './audio/sprite.ts';
+import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
@@ -17,6 +18,8 @@ const COMBAT_LEVEL = .5, FINISH_LEVEL = 1.5; // owner phone mix: half ordinary F
 // the original synthesised layers stand in so no event is ever silent.
 export function createFeedback(host?: FeedbackHost) {
   type Voice = { source: AudioBufferSourceNode | null; gain: GainNode; send: GainNode; until: number };
+  let suspensions = 0;
+  let arenaAudio: ReturnType<typeof createArenaAudio> | undefined, arenaOutput: AudioNode;
   let context: BaseAudioContext | undefined, master: GainNode | undefined, balance: GainNode | undefined, bus: DynamicsCompressorNode | undefined, noise: AudioBuffer | undefined;
   let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, quieted = false, duel = 0, random = seeded(BASE_SEED);
   const sources = new Set<AudioScheduledSourceNode>();
@@ -36,13 +39,13 @@ export function createFeedback(host?: FeedbackHost) {
     }
     quieted = false;
     // iOS also parks the context in 'interrupted' after calls, Siri or an app switch; resume from any non-running state.
-    if (!host && context.state !== 'running') void (context as AudioContext).resume().catch(() => {});
+    if (!host && (context.state !== 'running' || suspensions > 0)) void (context as AudioContext).resume().catch(() => {});
   }
   // Graph: voice gain → compressor → ceiling → balance → safety → master → out; voice send → room → compressor. Built once, no per-play nodes but the source.
   function build(context: BaseAudioContext) {
     master = context.createGain(); master.gain.value = 1; master.connect(context.destination);
     // Apply the requested levels AFTER compression, so it cannot squash away the volume change.
-    const safety = context.createWaveShaper(); safety.curve = outputCeiling(); safety.oversample = '4x'; safety.connect(master);
+    const safety = context.createWaveShaper(); safety.curve = outputCeiling(); safety.oversample = '4x'; safety.connect(master); arenaOutput = safety;
     balance = context.createGain(); balance.gain.value = COMBAT_LEVEL; balance.connect(safety);
     const ceiling = context.createWaveShaper(); ceiling.curve = softCeiling(); ceiling.connect(balance);
     // Glue and density: the compressor leans on stacked hits and the makeup pushes the mix into the ceiling, which is what makes impacts read as big on a small speaker.
@@ -81,6 +84,7 @@ export function createFeedback(host?: FeedbackHost) {
   }
   function stopSources() {
     if (!context) return;
+    arenaAudio?.stop();
     for (const source of sources) { try { source.stop(now()); } catch { /* already ended */ } }
     sources.clear();
     balance!.gain.cancelScheduledValues(now()); balance!.gain.setValueAtTime(COMBAT_LEVEL, now());
@@ -89,14 +93,15 @@ export function createFeedback(host?: FeedbackHost) {
   return {
     unlock,
     toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else stopSources(); return enabled; },
-    quiet() { quieted = true; stopSources(); if (!host && context?.state === 'running') void (context as AudioContext).suspend().catch(() => {}); },
+    quiet() { quieted = true; stopSources(); if (!host && context?.state === 'running') { suspensions++; void (context as AudioContext).suspend().catch(() => {}).finally(() => { suspensions--; }); } },
     // Resolves true once the sprite is decoded, false if loading failed and the fallback stays. The offline harness awaits it.
-    ready() { return loading ?? Promise.resolve(!!sprite); },
+    async ready() { const decoded = await (loading ?? Promise.resolve(!!sprite)); await arenaAudio?.ready(); return decoded; },
     // Sound consumes the simulation's events. Sprite: every mapped cue this tick, impacts first. Fallback: one cue, strongest first.
-    update(events: CombatEvent[], presentation?: DeathPresentation) {
+    update(events: CombatEvent[], presentation?: DeathPresentation, frame?: ArenaFrame) {
       if (!enabled || quieted || !context || !live()) return;
       if (events.some(e => e.type === 'ActionStarted' && e.action === 'draw' && e.actor === 0)) random = seeded((host?.seed ?? BASE_SEED) + duel++ * 1013);   // a fresh duel, a fresh but repeatable roll
       const time = now();
+      if (frame) { arenaAudio ??= createArenaAudio(context, arenaOutput, now); arenaAudio.update(events, frame); }
       // Death ends the duel: the impact, voice, delayed body and crowd share the finishing level.
       // Empty post-death ticks keep it; fresh combat or quiet/mute returns to the ordinary level.
       if (events.length) balance!.gain.setValueAtTime(events.some(e => e.type === 'Killed') ? FINISH_LEVEL : COMBAT_LEVEL, time);

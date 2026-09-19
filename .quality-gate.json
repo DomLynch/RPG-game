@@ -101,6 +101,10 @@
     ],
     [
       "node",
+      "scripts/arena-audio-check.mjs"
+    ],
+    [
+      "node",
       "scripts/character-pilots.mjs",
       "--build"
     ],

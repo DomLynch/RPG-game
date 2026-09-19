@@ -1,0 +1,36 @@
+{
+  "physicalPhone": false,
+  "checks": [
+    "Late first unmute skips bell",
+    "One opening bell; non-repeating overlapping beds; sparse idle jeers; no silent seams",
+    "Active-fight chants, delayed reactions, hit grunts, cooldowns and six-voice limit",
+    "Pause/mute silence; resume without bell replay; rematch bell; fatal priority; missing bank preserves combat"
+  ],
+  "errors": [],
+  "codecs": {
+    "aac": 40.10664583333333,
+    "opus": 40.09
+  },
+  "delayed": true,
+  "levels": {
+    "bedDbfs": -38.58110158453638,
+    "fightDbfs": -24.609767047245654
+  },
+  "truePeaks": {
+    "idle": -19.5,
+    "fight": -6.2,
+    "death": -1.1,
+    "deathAAC": -1,
+    "busy": -6
+  },
+  "gzip": 388785,
+  "phoneBand": {
+    "bed": 0.6330379861905261,
+    "reaction": 0.9703582118652488,
+    "jeer": 0.9475673611223471,
+    "chant": 0.9220999598963402,
+    "grunt": 0.9171666129437206,
+    "bell": 0.3532984417142152
+  },
+  "passed": true
+}

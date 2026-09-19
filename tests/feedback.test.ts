@@ -76,3 +76,13 @@ test('quiet blocks cues immediately while browser suspension is still pending', 
   feedback.unlock(); feedback.update([{ tick: 2, type: 'Hit', actor: 0 } as never]);
   assert.ok(context.sources > 0);
 }));
+
+// suspend() changes state asynchronously; Enter/close may unlock before that transition lands.
+test('an immediate unlock queues resume behind a pending suspension', () => withFakeAudio(undefined, () => {
+  const feedback = createFeedback(); feedback.unlock();
+  const context = FakeContext.last!; let finish!: () => void;
+  context.suspend = () => new Promise<void>(resolve => { finish = resolve; });
+  feedback.quiet(); assert.equal(context.state, 'running');
+  feedback.unlock(); assert.equal(context.resumed, 2, 'resume is requested inside the new gesture even before suspend completes');
+  finish();
+}));

@@ -506,6 +506,15 @@ Raw source SHA-256:
 Offline build: `node scripts/build-creatures.mjs`; contract check:
 `node scripts/creature-check.mjs`. The packaging metadata records the exact source,
 base and generator hashes. Surface UVs and compressed source images are preserved.
+Arena-life audio (2026-09-19): `scripts/build-arena-audio.mjs` builds the separate optional AAC/Opus bank under
+`arena-audio/`. Murmur: SpliceSound, “Indoor adult murmur, medium group.wav”
+(https://freesound.org/people/SpliceSound/sounds/260122/). Jeers/wordless group calls: deleted_user_2104797,
+“Crowd Boo.wav” (https://freesound.org/people/deleted_user_2104797/sounds/324893/). Both CC0 1.0,
+https://creativecommons.org/publicdomain/zero/1.0/, retrieved 2026-09-19; URL/hash pins in
+`artifacts/audio/arena-life/SOURCES.json`. Reuses the pinned CC0 crowd/gasp/tonsil5 grunt recordings in
+`artifacts/audio/SOURCES.json`. Seven offset recorded groups form the bed; shortened cheer/gasp takes react to
+combat; rhythmic open-vowel edits form wordless chants. Bell is original modal synthesis. No music or modern songs.
+Existing combat bank and its 1 MB cap are unchanged; optional arena bank cap is 450 KB combined gzip.
 ## The Quiet One — 2026-09-19
 Original project animation and procedural wound presentation; no new third-party asset or licence.
 `scripts/build-quiet-one.mjs` authors `Death_QuietOne` (2.4 seconds, 61 keys) on each existing CC0-derived rig.

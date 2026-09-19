@@ -1,0 +1,17 @@
+{
+  "seconds": 40.08999999999999,
+  "regions": 15,
+  "codecs": {
+    "arena.m4a": {
+      "bytes": 249259,
+      "peakDbfs": -5.5745798889688025,
+      "sha256": "39ac24353df3af166529f330ce7ca42d454eaca4a32d2216f70b0711489cd182"
+    },
+    "arena.ogg": {
+      "bytes": 156398,
+      "peakDbfs": -5.574924159664034,
+      "sha256": "5bd6c7650eabc920e0ed6d6ebcc49347aac6629c5f1a0fc4714dca00be1536e6"
+    }
+  },
+  "gzip": 388785
+}
