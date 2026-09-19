@@ -109,6 +109,23 @@ try {
     }
     assert.ok(checks.fatalPeakDbfs <= -1, 'fatal stack respects the ceiling');
   }
+  if (checks) {
+    // Render the sampled mix at 4x rate to catch peaks reconstructed between 48 kHz samples.
+    checks.fatalTruePeakDbfs = -Infinity;
+    for (const [name, samples] of Object.entries(rendered)) if (CUE_PROBES.some(p => `events/${p.name}` === name && p.events.some(e => e.type === 'Killed'))) {
+      const peak = await page.evaluate(async ({ samples, rate }) => {
+        const context = new OfflineAudioContext(1, samples.length * 4, rate * 4);
+        const buffer = context.createBuffer(1, samples.length, rate);
+        buffer.copyToChannel(Float32Array.from(samples, v => v / 32768), 0);
+        const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination); source.start();
+        const output = (await context.startRendering()).getChannelData(0);
+        let peak = 0; for (const v of output) peak = Math.max(peak, Math.abs(v));
+        return 20 * Math.log10(peak);
+      }, { samples: Array.from(samples), rate: RATE });
+      checks.fatalTruePeakDbfs = Math.max(checks.fatalTruePeakDbfs, peak);
+    }
+    assert.ok(checks.fatalTruePeakDbfs <= -1, `fatal reconstructed peak exceeds -1 dBFS: ${checks.fatalTruePeakDbfs}`);
+  }
   assert.deepEqual(pageErrors, [], 'no browser errors');
 } finally { try { await browser?.close(); } finally { await server.close(); } }
 
@@ -140,7 +157,7 @@ function measure(pcm, cueAt) {
   const round = v => Number.isFinite(v) ? Math.round(v * 10) / 10 : null;
   return { lufsIntegrated: round(integrated), lufsMomentaryMax: round(momentary), peakDbfs: round(dB(peak)), onsetMs: first < 0 ? null : Math.round((first / RATE - cueAt) * 1000), lengthMs: first < 0 ? 0 : Math.round((last - first) / RATE * 1000), lufsPhone: round(phoneLoudness(x)) };
 }
-// Phone band: a handset speaker reproduces little below ~300 Hz, so this is the integrated loudness of what it can actually play (4th-order high-pass at 300 Hz).
+// Phone-band proxy: integrated loudness after a 300 Hz high-pass, not a model of a specific handset speaker.
 function phoneLoudness(x) {
   const w = 2 * Math.PI * 300 / RATE, c = Math.cos(w), alpha = Math.sin(w) / (2 * Math.SQRT1_2), a0 = 1 + alpha;   // RBJ Butterworth high-pass, applied twice
   const hp = [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - alpha) / a0];
@@ -165,7 +182,7 @@ if (checks && !fallback && seed === 731) {
       assert.ok(Math.abs(delta - 20 * Math.log10(.5)) < .15, `${name}: ordinary level changed ${delta} dB, expected half gain`);
       checks.phoneMix.ordinary++;
     } else {
-      assert.ok(delta >= 3 && delta <= 3.7, `${name}: boosted fatal loudness changed ${delta} dB`);
+      assert.ok(delta >= 2.7 && delta <= 3.7, `${name}: boosted fatal loudness changed ${delta} dB (peak protection may reduce the boost)`);
       checks.phoneMix.fatal++;
     }
     if (before.tailRmsDbfs !== undefined) {
@@ -206,7 +223,7 @@ ${exchange.beats.map(b => `| ${b.name} | ${b.tick} | ${(b.tick / 60).toFixed(2)}
 Exchange loudness: integrated ${fmt(loudness.exchange.lufsIntegrated)} LUFS · phone band (> 300 Hz) ${fmt(loudness.exchange.lufsPhone)} LUFS · momentary max ${fmt(loudness.exchange.lufsMomentaryMax)} LUFS · peak ${fmt(loudness.exchange.peakDbfs)} dBFS.
 
 ## Per-cue renders: \`events/<name>.wav\` (one synthetic event at ${PROBE_AT * 1000} ms, ${PROBE_LENGTH} s render; fatal probes 4.5 s)
-LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows across iterations, not against broadcast targets). Phone = the same measure after a 300 Hz high-pass: what a handset speaker can play. Onset = first sample above −60 dBFS relative to the cue tick; length = audible span above −60 dBFS. "—" = silent: the module answers no cue for that event.
+LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows across iterations, not against broadcast targets). Phone = the same measure after a 300 Hz high-pass; a rough proxy, not a specific handset response. Onset = first sample above −60 dBFS relative to the cue tick; length = audible span above −60 dBFS. "—" = silent: the module answers no cue for that event.
 
 | cue | LUFS-I | phone LUFS | LUFS-M max | peak dBFS | onset ms | length ms |${baseline ? ` Δ LUFS-I vs ${against} | Δ phone vs ${against} |` : ''}
 |---|---|---|---|---|---|---|${baseline ? '---|---|' : ''}
