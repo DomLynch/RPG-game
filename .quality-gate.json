@@ -97,6 +97,10 @@
     ],
     [
       "node",
+      "scripts/polearm-pose-check.mjs"
+    ],
+    [
+      "node",
       "scripts/arena-audio-check.mjs"
     ]
   ]
