@@ -1,6 +1,27 @@
 # Project state
 
-## Character direction correction — 2026-09-19 (local art review, NOT LIVE)
+## Reconstructed creature integration — 2026-09-19 (release candidate)
+Owner explicitly requests Minotaur and Wraith live in the game with actual pictures for playtesting.
+Both approved reference images exported through signed-in official TRELLIS.2; raw GLBs and MIT software
+licence retained in src/assets/source/creatures/. This supersedes the earlier no-export/art-only state below;
+procedural and MPFB studies remain rejected. No paid job or new runtime dependency.
+
+Added the two encounters after the five existing entries. Pitborn cleaver and Nightborn estoc simulation,
+clips and exact weapon geometry are reused. Fitted intact A-pose surfaces have corrected inverse binds,
+four normalized influences, 45k body triangles and original compressed textures. Including weapons:
+Minotaur 45,615 triangles, Wraith 46,252. Wraith has graded transparency, moving wisps and 28 ash points.
+Paired executions are disabled for these creatures; ordinary death/reset remains the fallback.
+
+Audit caught and fixed A-pose binding mistakes, claw-to-thigh transfer and leg/shoulder seam stretching.
+Current six-clip / three-phase deformation samples show zero >12cm, >3.5x stretched edges. The formal
+asset check validates base/source/generator hashes, exact animation channels and weapon geometry,
+original map bytes, four-influence normalization, triangle ceiling and 125 finite poses per creature.
+Integrated published weapon/auth/Quiet One/dust trunk 2e5040a while retaining every inherited completion gate.
+Account encounter constraint migration adds the two IDs; local real-PostgreSQL saves and existing RLS checks pass.
+Hosted migration applied with verified TLS; authenticated saves/revisions, invalid-opponent rejection, two-user isolation and anonymous denial pass. Test data rolled back. Exact receipt: lead checkout artifacts/account/live/hosted-creature-migration.md. Full final contract, in-game visual audit, CI and deployment receipts are pending.
+Evidence: artifacts/character/creatures/. Physical-phone performance and owner art/playtest feedback remain open.
+
+## Earlier character direction correction — 2026-09-19 (historical art review)
 Owner rejected the procedural Wraith/Minotaur pilots as amateur. Installed and tested official MPFB 2.0.17
 in Blender 5.2.1; editable macro/target sources, rig test and static GLB exports exist under
 artifacts/character/mpfb-test/. MPFB test: Minotaur 29,436 triangles; Wraith 27,802 and BLEND transparency.

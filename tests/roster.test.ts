@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { ROSTER, ENCOUNTERS, isOpponentId } from '../src/roster.ts';
+import { ROSTER, ENCOUNTERS, isOpponentId, supportsFinishers } from '../src/roster.ts';
 import { OPPONENTS, weaponOf } from '../src/moves.ts';
 import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
 import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
@@ -15,7 +15,7 @@ test('every recipe resolves to its shipped rig, simulation weapon and offline bu
     const build = warriorRecipe(id);
     if (build.pipeline === 'reconstruction') {
       assert.ok(existsSync(new URL(`../src/assets/source/creatures/${id}.glb`, import.meta.url)), 'reconstruction has a reproducible source');
-      assert.equal(recipe.finishers, false, 'unvalidated creature executions use plain death');
+      assert.equal(supportsFinishers(id), false, 'unvalidated creature executions use plain death');
     } else assert.ok(warriorAppearance(id).steel.color, 'humanoid recipes have an explicit appearance');
     assert.equal(build.body, recipe.body);
     assert.equal(build.weapon, weaponOf(recipe.weapon).placeholder ? 'longsword' : recipe.weapon);

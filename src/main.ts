@@ -6,7 +6,7 @@ import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { initialPractice, stepPractice, practiceHint, accepts, describe, PROFILES, type Action, type CombatEvent } from './combat.ts';
-import { ROSTER } from './roster.ts';
+import { ROSTER, supportsFinishers } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -427,7 +427,7 @@ function frame(now: number) {
       practice = stepPractice(practice, { move: { x, z, yaw: view.yaw, run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight') }, action: assetsReady ? action : null, guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')), held: assetsReady && held(), lock: locked, cancel }, opponent.profiles[difficulty]);
       if (debug && practice.events.length) window.dispatchEvent(new CustomEvent('frankendom:combat', { detail: { events: practice.events, health: practice.playerHealth, enemy: practice.health } }));
       // Audio uses the same finish, weapon pair and visual override as the renderer; it never guesses a sever from a hit location.
-      const deathAudio = practice.finish && practice.events.some(e => e.type === 'Killed') ? { finish: practice.finish, weapons: [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const, override: finisherSelect.value === 'auto' ? null : finisherSelect.value as FinisherId, gore: bloodMode !== 2 } : undefined;
+      const deathAudio = practice.finish && practice.events.some(e => e.type === 'Killed') ? { finish: practice.finish, weapons: [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const, override: !supportsFinishers(opponent.id) ? 'plainDeath' as const : finisherSelect.value === 'auto' ? null : finisherSelect.value as FinisherId, gore: bloodMode !== 2 } : undefined;
       feedback.update(practice.events, deathAudio); frameEvents.push(...practice.events); floatDamage(practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (cancel || practice.events.some(e => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'))) sent = null;

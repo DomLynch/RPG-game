@@ -107,6 +107,10 @@
     [
       "node",
       "scripts/creature-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/creature-browser-check.mjs"
     ]
   ]
 }

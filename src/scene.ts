@@ -1,4 +1,4 @@
-import { ROSTER } from './roster.ts';
+import { ROSTER, supportsFinishers } from './roster.ts';
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -207,9 +207,8 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
     render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events, frozen = false) {
       const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find(e => e.type === 'Killed');
-      const recipe = ROSTER[opponentId];
       // Nonhuman paired executions require a separate anatomy pass; keep ordinary death.
-      const pick = practice.finish && !('finishers' in recipe && recipe.finishers === false) ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
+      const pick = practice.finish && supportsFinishers(opponentId) ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
       const finisher = pick ? (finisherOverride ?? pick) : null;   // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;
