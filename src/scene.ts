@@ -337,6 +337,9 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       heading += wrapAngle(state.heading - heading) * blend;
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading = state.heading;
       player.rotation.y = heading;
+      // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
+      const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
+      if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / .25));
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
       if (kick > 0) { camera.position.x += Math.sin(kickHeading) * kick; camera.position.z += Math.cos(kickHeading) * kick; kick = Math.max(0, kick - dt * .3); }
       camera.lookAt(aim); started = true;

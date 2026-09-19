@@ -539,3 +539,63 @@ test('the Nightborn is the warrior\'s rig at OPPONENTS.nightborn.scale, upright 
   assert.ok(top / standingTop(hero) <= k + .05, `silhouette top ${top.toFixed(3)} m stays within the locomotion bounds allowance`);
   console.log(`nightborn stands ${standingTop(him, 'Idle', noCrown).toFixed(3)} m body (${top.toFixed(3)} m with the crown) to the hero's ${standingTop(hero).toFixed(3)} (×${bodyRatio.toFixed(3)}, scale ${k}); ${posed} re-posed tracks`);
 });
+
+test('the Run Through hold aims its blade at the victim (owner 2026-09-19): the held blade line passes through the chest at off-axis headings and spacings, and clearing the target is clean', async () => {
+  const { player } = buildWarriors(await readWarrior());
+  const blade = player.anchor.getObjectByName('SwordDrawn')!;
+  for (let i = 0; i < 40; i++) player.update(0, 1 / 60, 'runThroughHold', Math.min(1, i / 30));   // raise into the hold and settle
+  for (const [x, z] of [[0, 1.3], [.4, 1.55], [-.55, 1.9]] as const) {
+    const chest = new Vector3(x, .95, z);
+    player.update(0, 1 / 60, 'runThroughHold', 1);
+    player.aimBladeAt(chest);
+    player.anchor.updateMatrixWorld(true);
+    const grip = blade.localToWorld(new Vector3(0, .24, 0)), tip = blade.localToWorld(new Vector3(0, .85, 0));
+    const run = tip.clone().sub(grip), len = run.length(), dir = run.clone().normalize();
+    const along = Math.max(0, Math.min(len, chest.clone().sub(grip).dot(dir)));
+    const miss = grip.clone().addScaledVector(dir, along).distanceTo(chest);
+    assert.ok(miss < .09, `the blade passes within 9 cm of the chest at [${x}, ${z}] (miss ${miss.toFixed(3)} m)`);
+    assert.ok(along > .1 && along <= len + .01, 'the chest lies along the blade’s run, not beyond the tip');
+  }
+  player.update(0, 1 / 60, 'ready', 1);
+  assert.deepEqual(player.anchor.position.toArray(), [0, 0, 0], 'rematch clears the presentation step');
+  assert.ok(player.boneWorld('spine_02'), 'a chest bone reads back');
+  assert.equal(player.boneWorld('no_such_bone'), null, 'a missing bone reports null instead of throwing');
+});
+
+
+test('Run Through stays embedded through every opponent collapse, world heading, held frame and rematch', async () => {
+  const hero = await readWarrior();
+  for (const file of FIGHTERS.slice(1)) {
+    const { player, opponent } = buildWarriors(hero, await readWarrior(file), ['longsword', WEAPON_OF[file]]);
+    const stage = new Group(), a = new Group(), b = new Group(); stage.add(a, b); a.add(player.anchor); b.add(opponent.anchor);
+    stage.position.set(3.7, 0, -2.8); stage.rotation.y = 1.17;
+    const blade = player.anchor.getObjectByName('SwordDrawn')!;
+    let random = 731;
+    for (let sample = 0; sample < 12; sample++) {
+      random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+      const yaw = random / 2**32 * Math.PI * 2, gap = .8 + sample * .13;
+      a.rotation.y = yaw; b.rotation.y = yaw + Math.PI + .3;
+      b.position.set(Math.sin(yaw) * gap, 0, Math.cos(yaw) * gap);
+      for (let frame = 0; frame <= 230; frame++) {
+        const progress = Math.min(1, frame / 192), dt = frame % 4 === 0 ? 1/30 : 1/60;
+        player.update(0, dt, 'runThroughHold', progress); opponent.update(0, dt, 'runThrough', progress);
+        const chest = opponent.boneWorld('spine_02')!;
+        player.aimBladeAt(chest, Math.min(1, progress / .25));
+        if (progress < .25) continue;
+        const grip = blade.localToWorld(new Vector3(0, .24, 0)), tip = blade.localToWorld(new Vector3(0, .85, 0));
+        const run = tip.clone().sub(grip), along = chest.clone().sub(grip).dot(run) / run.lengthSq();
+        assert.ok(grip.clone().addScaledVector(run, along).distanceTo(chest) < .09, `${file} frame ${frame} misses torso`);
+        assert.ok(along > .2 && along < .8, `${file}: blade extends both sides of chest`);
+        assert.equal(player.anchor.position.y, 0, 'feet remain grounded');
+        if (frame === 230) {
+          for (let repeat = 0; repeat < 5; repeat++) {
+            player.update(0, 0, 'runThroughHold', 1); player.aimBladeAt(chest);
+            assert.ok(blade.localToWorld(new Vector3(0, .85, 0)).distanceTo(tip) < 1e-6, 'zero-dt holds do not accumulate rotation');
+          }
+        }
+      }
+    }
+    player.update(0, 1/60, 'ready', 1);
+    assert.deepEqual(player.anchor.position.toArray(), [0, 0, 0], 'rematch clears the approach');
+  }
+});
