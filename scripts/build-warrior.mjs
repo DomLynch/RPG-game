@@ -1,4 +1,5 @@
 import { quietOneClip } from './build-quiet-one.mjs';
+import { fitVeteranNeck, textureVeteranTrident } from './veteran-finish.mjs';
 import { warriorRecipe } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
@@ -779,7 +780,11 @@ for (const [name, maps] of Object.entries(manifest)) {
 }
 const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
 if (!realistic) authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
-const finished = finishMaterials(Buffer.from(result), authored);
+let finished = finishMaterials(Buffer.from(result), authored);
+if (fighter === 'veteran') {
+  finished = fitVeteranNeck(finished).glb;
+  if (weaponId === 'trident') finished = textureVeteranTrident(finished);
+}
 await fs.writeFile(output, finished);
 console.log(`${fighter === 'hero' ? 'Warrior' : fighter} → ${output}: ${finished.byteLength} bytes; ${clips.map(a=>a.name).join(', ')}`);
 
