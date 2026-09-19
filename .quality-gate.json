@@ -73,6 +73,30 @@
     ],
     [
       "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "quietOne",
+      "--no-video",
+      "--label",
+      "quiet-one-gate"
+    ],
+    [
+      "node",
+      "scripts/quiet-one-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "quietOne",
+      "--opponent",
+      "executioner",
+      "--no-video",
+      "--label",
+      "quiet-one-large-gate"
+    ],
+    [
+      "node",
       "scripts/polearm-pose-check.mjs"
     ]
   ]

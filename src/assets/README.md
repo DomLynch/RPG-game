@@ -485,3 +485,12 @@ three delayed crowd layers, existing -4 dBFS normalization and AAC/Opus encoding
 three cheer variants use three distinct takes. Reproduce with `node scripts/build-audio.mjs` (ffmpeg with aac_at and libopus).
 Existing impact recipes and gains remain unchanged. Only decapitation gets a sever tear; Split Crown gets a short crack;
 blood-off and kicks omit added wet layers. Crowd starts 350 ms after fatal contact, with the roar fading in after its gasp.
+
+## The Quiet One — 2026-09-19
+Original project animation and procedural wound presentation; no new third-party asset or licence.
+`scripts/build-quiet-one.mjs` authors `Death_QuietOne` (2.4 seconds, 61 keys) on each existing CC0-derived rig.
+Run `node scripts/build-quiet-one.mjs` to append/revise this clip on shipped rigs, then `node scripts/bake-blades.mjs`.
+Existing geometry, materials, embedded textures, bone nodes and animation bytes remain unchanged; the full warrior
+builder invokes the same authoring function after final scaling. Anatomical hinge frames keep the palm at the throat,
+feet roll with the fall, and offline skin-envelope clearance grounds the corpse for each body build.
+Reuses the existing licensed death/contact/body/crowd audio at quieter gains with delayed collapse and gasp.
