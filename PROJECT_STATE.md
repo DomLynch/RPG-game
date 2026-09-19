@@ -39,6 +39,11 @@ Need dedicated Google OAuth client/provider, production CSP reload and live logi
 before deployment. No live Google or release claim. PR #152 remains draft. World lane holds the next release window;
 refresh trunk and rerun affected checks before auth integration. Calibre remains untouched.
 
+## Polearm elbow correction — weapons, 2026-09-19
+Owner reproduced inward, twisted elbows on the Executioner and Veteran in the live game. Their correct polearm gait clips were already selected. Offline IK used reversed left/right bend poles for this rig and shortest-arc bone aiming left axial roll unconstrained. Polearm-only authoring now places elbows outward and aligns the anatomical hinge from the library stance; sword authoring and all combat timings stay unchanged. The Executioner slides his supporting hand down the haft during the raised wind-up to stay within reach.
+
+Both live rigs and the canonical scythe bake rig are rebuilt, with collision paths rebaked. A 120 Hz shipped-rig regression checks every polearm clip for hinge direction and front-wrist distance, plus outward elbows throughout ready gaits. Original shipped rigs fail this regression. Mesh attributes, material definitions, texture pixels and all 2,354 non-arm animation tracks per live rig are unchanged (procedural PNG compression bytes vary on rebuild). Close-up render evidence and validation logs: `artifacts/weapons/polearm-elbows`; delivery is tracked in PR #157. Integrated camera/audio trunk `a8e72e6`: full quality 265/265, build, audit, budget and browser PASS. New real-game desktop/phone-viewport polearm gate verifies served asset hashes and actual polearm playback. Physical-phone validation remains owner-only.
+
 ## Crowd variety and foot sand — world, 2026-09-19
 Owner requested subdued ruby/navy/brown/grey and other muted clothing, stronger sizes, lower-tier audience and restrained grounded foot sand. Six garment-only dyes preserve skin; separate trousers, two stances per five roster families, independent height/build variation. 219 spectators redistribute across five tiers with gate/flame/collapse clearance. Initial render rejected bright clothes and matching trousers; refined captures in artifacts/world/crowd-dust-final. Arena 9/9 and dust lifecycle check pass; full contract receipts in artifacts/world/crowd-variety-notes. Arena 26 measured draws,92,126 triangles,11.01MB textures; physical phone p95 remains owner-only/unmeasured.
 
@@ -756,3 +761,34 @@ Tree-sitter/CPU profiler are not relevant. No cross-agent handoff or new agents.
 ## Combat audio takeover — 2026-09-19 (audio/reliable-playback, integration pending)
 Distinct original cloth/sand roll and backstep cues consume existing ActionStarted events. Existing impact recipes and four-call shell contract stay unchanged. Quiet/mute stop active sample and fallback sources; quiet blocks scheduling synchronously until unlock. First-variant selection includes region zero; room send no longer squares the cue gain.
 Evidence: artifacts/audio/takeover-{before,after}/REPORT.md and WAVs; artifacts/audio/takeover/NOTES.md and quality.log. Added optional --check to the real offline browser harness and registered it as a completion gate. AAC/Opus all 54 regions decode; forced first-format failure recovers; three exchange renders differ by at most one PCM rounding unit; eight stacked cues peak at -2.85 dBFS. Audio assets 605,004 B gzip, +60,706 B, within the 1 MB lane budget. Source/processing recorded in src/assets/README.md. Physical iPhone silent-switch checks, recorded Foley, continuous footsteps, ambience and music remain unverified/unimplemented. Required quality passed: 254/254 tests, lint/build/audit/budget and game browser; roster, Split Crown, estoc, counter-button and audio completion commands all passed. Branch prepared for PR; not deployed.
+
+## Finisher side view — 2026-09-19 (implementation and visual checks passed)
+Owner screenshot: hero shoulder hides Run Through and Split Crown at their settled ending. Success: smooth late side
+move exposes both fighters in portrait, stays within arena, respects reduced motion/free camera and resets for next fight.
+Scope: scene.ts camera endpoint and late blend; camera.test.ts; existing finisher-preview completion checks. No rigs/combat.
+Candidates: more fixed lateral offset (unreliable with distance), snap to side (breaks continuous camera), smooth late
+move to a fitted side view (selected). Reuse the current camera and presentation clock; no new module or dependency.
+Three Semble queries + CodeGraph camera impact reviewed. F1 closed: before correction, the real-scene side-angle assertion
+fails; after correction, the same assertion passes for Run Through and Split Crown on Veteran, Goblin and Executioner.
+Visual review: both finishers expose the victim in portrait and landscape; red/dark/off, reduced motion, manual orbit and
+normal camera return on rematch pass. Late motion stays continuous (maximum measured step 0.077 m/frame at 60 Hz).
+Geometric tests cover both finishers around all arena edges, varied headings/spacings and portrait/landscape fields of view.
+Evidence: artifacts/character/side-camera-{veteran,goblin,executioner}/ and artifacts/finishers/side-camera/REPORT.md.
+Two-pass review: simulation/input/rig behavior untouched; actual rendered victims and existing finisher effects verified.
+Local quality passed 261/261 after the arena merge; all seven configured completion commands passed. The subsequent fatal-audio
+merge changed no camera/rig code; its new production build passed roster, Split Crown, audio, estoc, counter and arena gates.
+PR #154; release quality reruns all tests on the final merge. Deployment and live-UI receipts are recorded separately in
+artifacts/finishers/side-camera/ so the served revision remains the authority for publication.
+
+## Fatal contact, death and crowd audio — 2026-09-19
+Owner-authorized next audio pass: recorded human death grunts, organic fatal cuts/punctures, finisher-only tear/crack and three
+2.5 s arena crowd reactions. The crowd celebrates either winner; simultaneous deaths get one gasp. Fatal impact stays on the
+contact tick, voice follows at 30 ms and crowd at 350 ms. Plain falls and kneeling Run Through have different body cues.
+Audio reads the same finish/weapon pair/visual override as the scene through one presentation-only main.ts call-site addition.
+Blood-off suppresses the added wet layers; no simulation, damage, timing, controls, rigs or renderer changes.
+Evidence: `artifacts/audio/fatal-before/` and `fatal-crowd/`; reproducible source hashes and CC0 licences in
+`artifacts/audio/SOURCES.json` and `src/assets/README.md`. Audio is 996,816 B gzip (+391,812 vs movement pass), under the unchanged
+1 MB limit. 73 AAC and Opus regions decode; format fallback passes; three deterministic exchange renders differ by <=1 PCM unit;
+fatal stack peaks -2.85 dBFS; quiet/mute cancel future crowd/collapse sources. Lane quality: 261/261 tests, lint/build/audit/budget/game browser and all seven completion commands passed. Final publication is identified by the served release.json.
+Physical phone/silent-switch listening remains unverified. Timing follows current authored presentation durations; no claim of
+frame-perfect body contact on every rig. Music, sustained ambience and gait/breath events remain outside this pass.

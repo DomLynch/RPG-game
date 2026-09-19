@@ -43,6 +43,10 @@
     ],
     [
       "node",
+      "artifacts/audio/fatal-crowd/browser.mjs"
+    ],
+    [
+      "node",
       "scripts/estoc-browser-check.mjs"
     ],
     [
@@ -54,6 +58,10 @@
       "scripts/arena-preview.mjs",
       "--label",
       "quality-world"
+    ],
+    [
+      "node",
+      "scripts/polearm-browser-check.mjs"
     ],
     [
       "node",
