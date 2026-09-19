@@ -24,6 +24,13 @@
       "--no-video",
       "--label",
       "split-crown-gate"
+    ],
+    [
+      "node",
+      "scripts/audio-preview.mjs",
+      "--label",
+      "audio-gate",
+      "--check"
     ]
   ]
 }

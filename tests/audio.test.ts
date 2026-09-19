@@ -55,7 +55,9 @@ test('a hosted feedback schedules cues at the scripted time and ignores the offl
   assert.ok(context.starts.every(s => s.when === 2.5), `every layer starts on the host clock, not currentTime (${JSON.stringify(context.starts)})`);
   feedback.quiet(); assert.equal(context.suspended, 0, 'quiet never suspends a hosted context');
   at(3); feedback.update([{ tick: 180, type: 'Parried', actor: 0 } as never]);
-  assert.ok(context.starts.some(s => s.when === 3), 'still audible after quiet in hosted mode');
+  assert.ok(!context.starts.some(s => s.when === 3), 'quiet blocks scheduling in the harness too');
+  feedback.unlock(); feedback.update([ev('Parried')]);
+  assert.ok(context.starts.some(s => s.when === 3), 'unlock restores scheduling');
 });
 
 test('the noise bed is seeded: the same seed fills the same buffer, another seed does not', () => {
@@ -91,7 +93,7 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('AttackStarted', { move: 'light_right', actor: 1 }), ev('Hit', { move: 'light_right' })]), ['hit_flesh', 'whoosh_light']);
   assert.equal(cuesFor([ev('Hit'), ev('GuardBroken'), ev('Parried'), ev('AttackStarted'), ev('Charged')]).length, 4);
   for (const type of ['Staggered', 'Dodged', 'AttackMissed', 'StaminaExhausted', 'Charging', 'AttackActive'] as const) assert.deepEqual(names([ev(type)]), [], `${type} is not mapped yet (body pass)`);
-  assert.deepEqual(names([ev('ActionStarted', { action: 'backstep' }), ev('ActionStarted', { action: 'guard' }), ev('ActionStarted', { action: 'parry' }), ev('ActionStarted', { action: 'feint' })]), []);
+  assert.deepEqual(names([ev('ActionStarted', { action: 'guard' }), ev('ActionStarted', { action: 'parry' }), ev('ActionStarted', { action: 'feint' })]), []);
   for (const c of cuesFor([ev('Hit'), ev('AttackStarted')])) assert.ok(c.gain > 0 && c.gain <= 1 && c.room >= 0 && c.room <= 1);
 });
 
@@ -142,4 +144,27 @@ test('a duel reseeds on its draw, so the same fight rolls the same variants and 
   const fight = () => { const { context, feedback, at } = hosted(11, SPRITE); feedback.unlock(); at(0); feedback.update([ev('ActionStarted', { action: 'draw' })]); for (let i = 1; i < 12; i++) { at(i); feedback.update([ev('Hit', { move: 'light_right' })]); } return context.starts.map(s => s.offset); };
   assert.deepEqual(fight(), fight());
   const offsets = fight(); assert.ok(offsets.every((o, i) => i === 0 || o !== offsets[i - 1]), 'consecutive hits never reuse a variant');
+});
+
+test('movement starts have distinct cloth/sand cues, without synthetic landing events', () => {
+  for (const action of ['roll', 'backstep'] as const) assert.deepEqual(cuesFor([ev('ActionStarted', { action })]).map(c => c.name), [action]);
+});
+
+test('the first variant can select every region, including zero', () => {
+  for (let i = 0; i < 5; i++) assert.equal(nextVariant(() => (i + .5) / 5, 5, -1), i);
+});
+
+test('quiet and mute stop every scheduled layer before resume, including fallback tones', () => {
+  for (const sprite of [null, SPRITE]) {
+    const { context, feedback, at } = hosted(731, sprite);
+    feedback.unlock(); feedback.update([ev('Hit')]);
+    const playing = context.starts.length;
+    at(.05); feedback.quiet();
+    assert.equal(context.stops.filter(t => t === .05).length, playing);
+    feedback.update([ev('Hit')]); assert.equal(context.starts.length, playing);
+    feedback.unlock(); feedback.update([ev('Hit')]);
+    const resumed = context.starts.length - playing;
+    at(.1); feedback.toggle();
+    assert.equal(context.stops.filter(t => t === .1).length, resumed);
+  }
 });

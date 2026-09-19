@@ -8,6 +8,7 @@ import { createServer } from 'vite';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
 
@@ -25,12 +26,14 @@ const seconds = exchange.length / 60 + TAIL;
 const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'error', server: { host: '127.0.0.1', port: 0, strictPort: false }, optimizeDeps: { noDiscovery: true, include: [] } });
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+let browser;
 const rendered = {}; let path_ = '';
+const checks = process.argv.includes('--check') ? {} : null;
 try {
+  browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
   const page = await browser.newPage();
-  page.on('pageerror', e => { throw e; });
-  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; import { spriteFormats } from '/src/audio/sprite.ts'; window.harness = { createFeedback, spriteFormats };</script>` }));
+  const pageErrors = []; page.on('pageerror', e => pageErrors.push(e.message));
+  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; import { spriteFormats, loadSprite } from '/src/audio/sprite.ts'; import { MANIFEST } from '/src/audio/manifest.ts'; window.harness = { createFeedback, spriteFormats, loadSprite, MANIFEST };</script>` }));
   await page.goto(`${origin}/harness`);
   await page.waitForFunction(() => !!window.harness, null, { timeout: 20000 });
   const render = (cues, seconds) => page.evaluate(async ({ cues, seconds, rate, seed, fallback }) => {
@@ -45,11 +48,44 @@ try {
     const bytes = new Uint8Array(pcm.buffer); let text = ''; for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     return { pcm: btoa(text), decoded };
   }, { cues, seconds, rate: RATE, seed, fallback });
-  const pcm = async (...args) => { const { pcm, decoded } = await render(...args); if (!fallback && !decoded) throw new Error('sprite did not decode in Chromium; rerun with --fallback to render the synth path'); return new Int16Array(Buffer.from(pcm, 'base64').buffer); };
+  const pcm = async (...args) => { const { pcm, decoded } = await render(...args); if (!fallback && !decoded) throw new Error('sprite did not decode in Chromium; rerun with --fallback to render the synth path'); const bytes = Buffer.from(pcm, 'base64'); return new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2); };
   path_ = fallback ? 'synth fallback (--fallback)' : `sprite, formats tried in order ${JSON.stringify(await page.evaluate(() => window.harness.spriteFormats()))}`;
   rendered.exchange = await pcm(cues, seconds);
+  if (checks) {
+    checks.maxRepeatDelta = 0;
+    for (let run = 0; run < 2; run++) {
+      const repeat = await pcm(cues, seconds);
+      assert.equal(repeat.length, rendered.exchange.length);
+      for (let i = 0; i < repeat.length; i++) checks.maxRepeatDelta = Math.max(checks.maxRepeatDelta, Math.abs(repeat[i] - rendered.exchange[i]));
+    }
+    assert.ok(checks.maxRepeatDelta <= 1, `exchange changed by ${checks.maxRepeatDelta} PCM units; tolerance is one 16-bit rounding unit`);
+    checks.codecs = await page.evaluate(async () => {
+      const { loadSprite, MANIFEST } = window.harness;
+      const context = new OfflineAudioContext(1, 48000, 48000), result = {};
+      for (const format of ['aac', 'opus']) {
+        const buffer = await loadSprite(context, [format]);
+        if (!buffer) throw new Error(`${format} did not decode`);
+        for (const [name, regions] of Object.entries(MANIFEST)) for (const [start, duration] of regions) {
+          if (start + duration > buffer.duration) throw new Error(`${format}: ${name} extends past sprite`);
+          const samples = buffer.getChannelData(0).subarray(Math.round(start * buffer.sampleRate), Math.round((start + duration) * buffer.sampleRate));
+          if (!samples.some(v => Math.abs(v) > .001)) throw new Error(`${format}: ${name} is silent`);
+        }
+        result[format] = { seconds: buffer.duration, regions: Object.values(MANIFEST).flat().length };
+      }
+      let requests = 0;
+      const recovered = await loadSprite(context, ['opus', 'aac'], (...args) => ++requests === 1 ? Promise.reject(new Error('forced primary failure')) : fetch(...args));
+      if (!recovered || requests !== 2) throw new Error('format fallback failed');
+      result.fallback = true;
+      return result;
+    });
+    const stacked = await pcm([{ t: .05, events: Array.from({ length: 4 }, () => ({ tick: 3, actor: 0, type: 'Parried' })) }, { t: .06, events: Array.from({ length: 4 }, () => ({ tick: 4, actor: 1, type: 'Hit' })) }], 1.2);
+    let peak = 0; for (const sample of stacked) peak = Math.max(peak, Math.abs(sample));
+    checks.stackedPeakDbfs = 20 * Math.log10(peak / 32768);
+    assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
+  }
   for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events }], PROBE_LENGTH);
-} finally { await browser.close(); await server.close(); }
+  assert.deepEqual(pageErrors, [], 'no browser errors');
+} finally { try { await browser?.close(); } finally { await server.close(); } }
 
 // --- WAV out.
 function wav(pcm) {
@@ -102,7 +138,7 @@ async function payload(dir) {
 const assets = await payload(path.join('src', 'assets', 'audio'));
 const baseline = label === against ? null : await fs.readFile(path.join('artifacts', 'audio', against, 'loudness.json'), 'utf8').then(JSON.parse).catch(() => null);
 const git = (cmd) => { try { return execSync(cmd, { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
-const receipt = { label, seed, rate: RATE, path: path_, generated: new Date().toISOString(), revision: git('git rev-parse --short HEAD'), dirty: git('git status --porcelain') !== '', exchange: { lengthTicks: exchange.length, seconds, beats: exchange.beats }, assets, loudness };
+const receipt = { checks, label, seed, rate: RATE, path: path_, generated: new Date().toISOString(), revision: git('git rev-parse --short HEAD'), dirty: git('git status --porcelain') !== '', exchange: { lengthTicks: exchange.length, seconds, beats: exchange.beats }, assets, loudness };
 await fs.writeFile(path.join(out, 'loudness.json'), JSON.stringify(receipt, null, 2));
 
 // --- Report.
@@ -130,7 +166,7 @@ ${rows.join('\n')}
 ## Payload
 Shipped audio assets (src/assets/audio): ${assets.raw} B raw · ${assets.gzip} B gzip${baseline ? ` (baseline ${baseline.assets.raw} B raw · ${baseline.assets.gzip} B gzip; Δ ${assets.gzip - baseline.assets.gzip} B gzip)` : ''}. Lane budget: ≤ 1.0 MB gzip.
 
-Determinism: single-cue renders are byte-identical run to run; the exchange can differ by ±1 LSB in a handful of samples (Chromium's threaded convolution for the room), so its figures are stable but its hash is not.
+Browser checks: ${checks ? JSON.stringify(checks) : 'not requested (use --check for repeated renders, AAC/Opus region decoding, format fallback and stacked ceiling)'}.
 
 ## Phone check
 Not part of this render — the owner listens on the handset (device, silent switch on/off) and records the note here.

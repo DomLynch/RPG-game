@@ -1,0 +1,32 @@
+✖ quiet blocks cues immediately while browser suspension is still pending (110.32975ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 686.03625
+
+✖ failing tests:
+
+test at ../../../../private/var/folders/yp/79ldsfmx2x3frcq_wfvb4nlc0000gn/T/frankendom-audio-regression-zsGMjZ/tests/feedback.test.ts:69:1
+✖ quiet blocks cues immediately while browser suspension is still pending (110.32975ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at file:///private/var/folders/yp/79ldsfmx2x3frcq_wfvb4nlc0000gn/T/frankendom-audio-regression-zsGMjZ/tests/feedback.test.ts:75:10
+      at withFakeAudio (file:///private/var/folders/yp/79ldsfmx2x3frcq_wfvb4nlc0000gn/T/frankendom-audio-regression-zsGMjZ/tests/feedback.test.ts:23:9)
+      at TestContext.<anonymous> (file:///private/var/folders/yp/79ldsfmx2x3frcq_wfvb4nlc0000gn/T/frankendom-audio-regression-zsGMjZ/tests/feedback.test.ts:69:87)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
