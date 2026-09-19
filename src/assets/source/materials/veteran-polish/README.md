@@ -7,7 +7,7 @@ Bronze: seamless, flat, uniformly lit cross-polarized ancient Greek bronze albed
 
 Leather: seamless dark umber vegetable-tanned saddle leather albedo (approximately sRGB 76/51/33), fine irregular pores, shallow broken creases, subtle abrasion and hand-oiled patches; no large cracks, reptile scales, lighting, perspective, objects or text.
 
-The generated images are 1254 square. The baker resamples them to 1024, welds tile edges, derives restrained micro-relief and roughness, and retains the original fitted hammer/fold/strap normals. Roughness/metalness are authored estimates, not measured scans. ORM maps are 512; albedo/normal maps are 1024. The existing tunic colour and all face/skin images remain unchanged.
+The generated images are 1254 square. The baker resamples them to 1024, welds tile edges, derives restrained micro-relief and roughness, and retains the original fitted hammer/fold/strap normals. Roughness/metalness are authored estimates, not measured scans. ORM maps are 512; albedo/normal maps are 1024. Runtime maps use JPEG quality82; the final GLB is8,156,620 bytes (4,439,218 gzip), versus7,705,620 (4,036,012 gzip) before. The existing tunic colour and all face/skin images remain unchanged.
 
 ## Rebuild / audit
 `blender -b -P scripts/character/veteran_materials.py` refreshes only the Veteran material views in the current GLB. It verifies unchanged geometry, rig, skin weights and animation data before writing. Running it twice must produce the same GLB. The normal full Blender character pipeline also calls this baker before the GLB assembler reads the manifest.
