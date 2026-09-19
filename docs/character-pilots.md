@@ -40,18 +40,30 @@ source was made for each creature. The Wraith source deliberately omits smoke so
 the opaque core and transparent effects can be authored separately.
 The exact sheet prompts and audit caveat are in [PROMPTS.md](character-references/PROMPTS.md).
 
-The free official [Microsoft TRELLIS.2 demo](https://huggingface.co/spaces/microsoft/TRELLIS.2)
-generated a Minotaur reconstruction and 48 native preview frames (six material
-modes, eight angles). Shape continuity is materially stronger than the MPFB test.
-However, the GLB export failed with a ZeroGPU quota error. No TRELLIS GLB, Wraith
-reconstruction, animation retarget, mobile performance or production readiness
-is claimed. The HF connector is authenticated, while the local client and in-app
-browser were not; browser sign-in was requested to test authenticated access.
+The signed-in free official [Microsoft TRELLIS.2 demo](https://huggingface.co/spaces/microsoft/TRELLIS.2)
+subsequently exported **both** approved reconstructions successfully on 2026-09-19.
+Seed 190926, resolution 1024, export decimation 100000, texture 2048. Original
+GLBs are committed in `src/assets/source/creatures/`; no paid GPU job was needed.
 
-Saved native renders and interactive review: `artifacts/character/trellis-test/`.
-The preview is a discrete set of reconstruction renders, not a live game character.
-The next model gate is an exported mesh, then cleanup, retopology/texture budget,
-rigging and real combat/motion review against the approved direction.
+## Reconstructed in-game playtest — owner authorised 2026-09-19
+
+This supersedes the old art-only boundary for the reconstructed models. It does
+not approve the rejected procedural/MPFB pilots below. Minotaur and Wraith are
+additional roster entries after the five existing encounters, sharing Pitborn's
+cleaver and Nightborn's estoc combat respectively. They use ordinary deaths;
+paired executions remain disabled until authored for their anatomy.
+
+Build with `node scripts/build-creatures.mjs`; verify with
+`node scripts/creature-check.mjs`. Blender fits an intact A-pose surface to the
+shared joints, transfers/smooths four skin influences, and reduces each body to
+45,000 triangles. The assembler supplies corrected inverse binds and preserves
+original weapon geometry, clip channels and source WebP textures. Source/base/
+generator hashes reject stale builds. Runtime Wraith presentation adds fading
+lower wisps and a 28-point ash cloud, with no additional asset download.
+
+Actual in-game images and checks are saved under `artifacts/character/creatures/`.
+Owner phone playtesting and final creature-specific animation/finisher artistry
+remain open; these are testable reconstructions, not a finished nine-character set.
 
 ### Source and licence records
 
@@ -66,7 +78,7 @@ rigging and real combat/motion review against the approved direction.
   Pack archive SHA-256:
   `6eff3aaa16699b9e924c50364b33b346dd5558b1838f82aed021d561b96ffb86`.
 - Source receipts, downloaded licences, recipe and installation helper are retained
-  in `artifacts/character/mpfb-test/`. No paid service, live asset or roster changed.
+  in `artifacts/character/mpfb-test/`. No paid service was used. MPFB assets remain confined to the rejected experiment.
 
 ## Previous procedural pilots — rejected, retained for comparison
 

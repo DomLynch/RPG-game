@@ -12,6 +12,7 @@ function glb(raw) {
   return { doc: JSON.parse(raw.subarray(20, 20 + n)), bin: raw.subarray(28 + n) };
 }
 function values({ doc, bin }, id) {
+  if (id === undefined) return null;
   const a = doc.accessors[id], v = doc.bufferViews[a.bufferView];
   const width = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 }[a.type];
   const [size, read] = { 5121: [1, 'readUInt8'], 5123: [2, 'readUInt16LE'], 5125: [4, 'readUInt32LE'], 5126: [4, 'readFloatLE'] }[a.componentType];
@@ -24,8 +25,13 @@ async function geometryOnly({ doc, bin }) {
   doc = structuredClone(doc);
   for (const mesh of doc.meshes) for (const p of mesh.primitives) delete p.material;
   for (const key of ['materials', 'textures', 'images', 'samplers', 'extensionsRequired', 'extensionsUsed']) delete doc[key];
-  doc.buffers[0].uri = 'data:application/octet-stream;base64,' + bin.toString('base64');
-  return new GLTFLoader().parseAsync(JSON.stringify(doc), '');
+  let json = Buffer.from(JSON.stringify(doc));
+  json = Buffer.concat([json, Buffer.alloc((4 - json.length % 4) % 4, 32)]);
+  const raw = Buffer.alloc(28 + json.length + bin.length);
+  raw.writeUInt32LE(0x46546c67, 0); raw.writeUInt32LE(2, 4); raw.writeUInt32LE(raw.length, 8);
+  raw.writeUInt32LE(json.length, 12); raw.writeUInt32LE(0x4e4f534a, 16); json.copy(raw, 20);
+  raw.writeUInt32LE(bin.length, 20 + json.length); raw.writeUInt32LE(0x004e4942, 24 + json.length); bin.copy(raw, 28 + json.length);
+  return new GLTFLoader().parseAsync(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength), '');
 }
 const receipts = [];
 for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']]) {

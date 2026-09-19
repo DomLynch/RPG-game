@@ -85,7 +85,7 @@ for v,i in zip(mesh.data.vertices,inv):
     for g in v.groups:w[i,g.group]+=g.weight
 w/=counts[:,None];mesh.data.calc_loop_triangles();tri=np.array([t.vertices for t in mesh.data.loop_triangles]);tri=inv[tri]
 a=tri[:,[0,1,2]].reshape(-1);b=tri[:,[1,2,0]].reshape(-1);a,b=np.concatenate([a,b]),np.concatenate([b,a]);degree=np.bincount(a,minlength=len(w))
-for _ in range(8):
+for _ in range(32 if family=='minotaur' else 8):
     sums=np.zeros_like(w);np.add.at(sums,a,w[b]);w=.35*w+.65*sums/np.maximum(1,degree)[:,None]
 for v,i in zip(mesh.data.vertices,inv):
     for group in [g.group for g in v.groups]:mesh.vertex_groups[group].remove([v.index])

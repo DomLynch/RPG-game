@@ -67,6 +67,10 @@
     [
       "node",
       "scripts/polearm-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/creature-check.mjs"
     ]
   ]
 }
