@@ -76,6 +76,8 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('Hit', { move: 'light_right' })]), ['hit_flesh']);
   assert.deepEqual(names([ev('Hit', { move: 'heavy_overhead' })]), ['hit_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'riposte' })]), ['hit_heavy']);
+  assert.deepEqual(names([ev('Hit', { move: 'slash_riposte' })]), ['hit_heavy']);
+  assert.deepEqual(names([ev('AttackStarted', { move: 'slash_riposte' })]), ['whoosh_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'light_left', charged: true })]), ['hit_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'kick' })]), ['hit_kick']);
   assert.deepEqual(names([ev('Blocked', { perfect: false })]), ['block']);

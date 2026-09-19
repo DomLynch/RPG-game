@@ -13,9 +13,9 @@
 test at ../../../../private/var/folders/yp/79ldsfmx2x3frcq_wfvb4nlc0000gn/T/frankendom-audio-regression-zsGMjZ/tests/feedback.test.ts:69:1
 ✖ quiet blocks cues immediately while browser suspension is still pending (110.32975ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-  
+
   1 !== 0
-  
+
       at file:///private/var/folders/yp/79ldsfmx2x3frcq_wfvb4nlc0000gn/T/frankendom-audio-regression-zsGMjZ/tests/feedback.test.ts:75:10
       at withFakeAudio (file:///private/var/folders/yp/79ldsfmx2x3frcq_wfvb4nlc0000gn/T/frankendom-audio-regression-zsGMjZ/tests/feedback.test.ts:23:9)
       at TestContext.<anonymous> (file:///private/var/folders/yp/79ldsfmx2x3frcq_wfvb4nlc0000gn/T/frankendom-audio-regression-zsGMjZ/tests/feedback.test.ts:69:87)

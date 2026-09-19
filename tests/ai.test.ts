@@ -83,7 +83,7 @@ test('a passive opponent sees a readable opener: at easy and normal the first at
     // The immortal observation fight resets health but not posture, so a passive player's posture eventually breaks; the break's window is finished with the
     // critical, or with the riposte when the warden cannot afford a heavy — the only other moves allowed.
     // …and the break's window is followed up (a punish light into the long stagger). Judge the openers: attacks not within 120 ticks after a critical or riposte.
-    let finisherAt = -999; const openersOnly = attacks.filter(e => { if (e.move === 'critical' || e.move === 'riposte') { finisherAt = e.tick; return false; } return e.tick - finisherAt > 120; });
+    let finisherAt = -999; const openersOnly = attacks.filter(e => { if (e.move === 'critical' || e.move === 'riposte' || e.move === 'slash_riposte') { finisherAt = e.tick; return false; } return e.tick - finisherAt > 120; });
     assert.ok(openersOnly.every(e => e.move === 'heavy_overhead' || e.move === 'thrust'), `${level} seed ${seed}: ${attacks.map(e => e.move).join(' ')}`);
     thrusts += attacks.filter(e => e.move === 'thrust').length; openers += attacks.length - 1;
   }

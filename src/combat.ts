@@ -13,7 +13,7 @@ export const SWORD = { draw: RULES.draw, contact: PATHS.light_right.windup, reco
 const clipSpec = (w: Weapon, path: PathId, move: MoveId) => ({ contact: w.paths[path].windup, recovery: total(w.paths[path]), damage: w.moves[move].damage, reach: w.moves[move].reach, cost: w.moves[move].stamina, source: w.paths[path].source });
 // Clip keys: the renderer plays one role per key (characters.ts maps a role to the weapon's clip); a left cut plays the Return role whether or not it was chained.
 // `source` is where the authored clip's contact key sits, so the swing eases to it at the simulation's contact tick.
-export const attackSpecs = (weapon: WeaponId) => { const w = weaponOf(weapon); return { light: clipSpec(w, 'light_right', 'light_right'), return: clipSpec(w, 'light_left_chain', 'light_left'), heavy: clipSpec(w, 'heavy_overhead', 'heavy_overhead'), riposte: clipSpec(w, 'riposte', 'riposte'), thrust: clipSpec(w, 'thrust', 'thrust') }; };
+export const attackSpecs = (weapon: WeaponId) => { const w = weaponOf(weapon); return { light: clipSpec(w, 'light_right', 'light_right'), return: clipSpec(w, 'light_left_chain', 'light_left'), heavy: clipSpec(w, 'heavy_overhead', 'heavy_overhead'), riposte: clipSpec(w, 'riposte', 'riposte'), slashRiposte: clipSpec(w, 'slash_riposte', 'slash_riposte'), thrust: clipSpec(w, 'thrust', 'thrust') }; };
 export const ATTACKS = attackSpecs('longsword');
 export type Attack = keyof typeof ATTACKS;
 
@@ -31,7 +31,7 @@ export type Practice = {
   wound: number; enemyWound: number; woundSite: HitLocation; enemyWoundSite: HitLocation; reaction: number;
 };
 // The thrust plays its own role; a chained thrust rides the riposte path (the second thrust, from half-withdrawn), so it plays the riposte's clip.
-const clipOf = (f: Fighter): Attack => { const move = f.lastMove; return move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' ? 'heavy' : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte' : move === 'thrust' ? 'thrust' : 'light'; };
+const clipOf = (f: Fighter): Attack => { const move = f.lastMove; return move === 'slash_riposte' ? 'slashRiposte' : move === 'light_left' ? 'return' : move === 'heavy_overhead' || move === 'heavy_riposte' || move === 'heavy_counter' || move === 'critical' ? 'heavy' : move === 'riposte' || (move === 'thrust' && f.chained) ? 'riposte' : move === 'thrust' ? 'thrust' : 'light'; };
 const legacyPhase = (f: Fighter): LegacyPhase => f.phase === 'attack' && f.move === 'kick' ? 'kick' : f.phase;
 const RESULTS: Partial<Record<CombatEvent['type'], [Result, Result]>> = { PostureBroken: ['enemyPostureBroken', 'postureBroken'], Hit: ['hit', 'hurt'], AttackMissed: ['miss', 'dodged'], Blocked: ['blocked', 'enemyBlocked'], Parried: ['parried', 'enemyParried'], GuardBroken: ['enemyBroken', 'broken'], Dodged: ['dodged', 'enemyDodged'] };
 export function project(duel: Duel, ai: AiState, previous?: Practice): Practice {
@@ -75,7 +75,7 @@ export function actorPose(s: Practice, side: Side): { pose: Pose; progress: numb
   return { pose, progress: Math.min(1, f.age / Math.max(1, duration)), attack, contact };
 }
 
-const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick' };
+const NAMES: Record<MoveId, string> = { light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte', slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick' };
 export function practiceHint(s: Practice): string {
   const me = s.duel.fighters[0];
   if (s.finish?.draw) return 'You both fell. Rematch?';

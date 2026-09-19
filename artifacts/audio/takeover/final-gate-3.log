@@ -1,6 +1,6 @@
 # Combat audio render — audio-gate
 
-Revision 32f783e (dirty tree) · seed 731 · 48000 Hz mono · audio path: sprite, formats tried in order ["opus","aac"] · rendered 2026-09-19T09:09:13.889Z through Chromium OfflineAudioContext via `node scripts/audio-preview.mjs --label audio-gate`.
+Revision 1820ec6 (dirty tree) · seed 731 · 48000 Hz mono · audio path: sprite, formats tried in order ["opus","aac"] · rendered 2026-09-19T09:18:24.229Z through Chromium OfflineAudioContext via `node scripts/audio-preview.mjs --label audio-gate`.
 
 ## Exchange (829 ticks = 13.82 s, render 15.82 s): `exchange.wav`
 | beat | tick | time | events on that tick |
