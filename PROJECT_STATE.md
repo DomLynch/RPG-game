@@ -1,6 +1,36 @@
 # Project state
 
-## Google account integration — lead, 2026-09-19 (isolated; activation pending)
+## The Quiet One — 2026-09-19 (PR #159)
+Owner authorized the next finisher: restrained neck reaction, left hand at throat, failing backward step, held beat,
+knee buckle and right-side collapse. Additive `Death_QuietOne` on all six live fighters and four shelf/bake rigs;
+2.4 s authored / 3.2 s presented, final pose held until rematch. The five-way deterministic rotation includes plain death.
+Small animated neck wound reuses the existing pool, red/dark/off apply, earlier side camera exposes the held beat,
+and existing quieter contact/voice plus delayed body/gasp cues complete the scene. No simulation or input change.
+
+Original offline authoring in `scripts/build-quiet-one.mjs`, also called by the full warrior builder. Binary append
+preserves all old clips, meshes, skinning, textures and weapon elbow repairs; preservation verified against f7a1e99
+on all ten GLBs. Blade rebake is unchanged. Initial visual review corrected inward elbow, knee/foot ground clipping
+and portrait crop; baked skin-envelope clearance accommodates each body. Initial full quality passes 268/268 plus build,
+lint, dependency audit, per-fight budget and game browser. All-rig tests cover throat alignment, upright beat,
+intact head, ground contact and held corpse; additive-builder test verifies preservation, idempotence and rejection
+of a later appended clip. Camera edge/aspect tests include the new ending. Earlier rigid-clip comparison tests now
+exempt only the separately authored Quiet One values while retaining clip names, tracks/times and legacy assertions.
+
+Real-scene Veteran/Goblin/Executioner captures cover red/dark/off, portrait/landscape, reduced motion and rematch.
+Final sequence video and phone UI/contract gate receipts: `artifacts/finishers/quiet-one/` and
+`artifacts/character/quiet-final-scene/`. Two-pass review: pure simulation/input unchanged; then rendered poses,
+continuity, modes and reset behavior. All 11 initial completion commands passed, including a real phone-size UI victory/hold/rematch.
+A whole-body portrait bound now guards the large Executioner ending as an additional completion command.
+Decoded audio QC verifies a silent held beat, late fall/gasp, cancellation and <= -1.54 dBTP fatal peaks;
+Quiet One measures -12.2 LUFS against decapitation -10.7 LUFS on the integrated phone mix.
+Integrated world/audio 03282b0, Google account e5339e9 and approved dust tint 6bf1399, preserving all account gates/settings.
+Final combined checks, exact-head CI, deployment and live playback receipts are recorded in
+`artifacts/finishers/quiet-one/`; public `release.json` identifies the served revision. The lead allocated this
+release after AUTH FREE; later lanes must wait for its RELEASE FREE. Physical-phone feel remains owner-only.
+Sentry inspection found existing asset-fetch/texture/WebGL issues (5/6/A/9/8 and older), not evidence about this
+finisher at the time of inspection. No claim of a clean live error stream or public publication.
+
+## Google account integration — lead, 2026-09-19 (live e5339e9, PR #152)
 Owner requested Google login/Supabase with controls inside Field Journal. Added a lazy account SDK, PKCE login,
 explicit cloud save/load of name and practice opponent, session sign-out, revision conflict checks and owner-only RLS.
 Sign-in never overwrites device/cloud data; explicit load restarts practice. Career marks/results remain outside this
@@ -38,8 +68,12 @@ Activation: owner approved Google credential creation. Dedicated Google project 
 OAuth client with frankendom.com origin and https://rxbewmzmovelckzoosss.supabase.co/auth/v1/callback. Secret saved
 only in Supabase; public settings confirms Google enabled. Email/password provider disabled. Public privacy page
 added at /privacy.html and linked inside the journal. Google is In production with only OpenID/email/profile scopes.
-Production CSP is installed and publicly verified; actual live login/save/recovery remains pending; PR #152 remains draft. World-integrated c02b17e passed all 12 commands, including 269/269 tests;
-logs artifacts/account/world-integrated. Audio trunk 03282b0 integrated cleanly; combined rerun pending. Calibre untouched.
+Production CSP and all public assets were verified on live e5339e9. PR #152 merged after exact-head and merge CI;
+all 12 configured commands and deployment quality passed (269 tests). Actual Safari Google sign-in, save, reload,
+cloud restore and sign-out passed against the real services. Phone-size guest menu checks passed; physical-phone
+login and separate-device recovery remain unmeasured. Authoritative receipt: lead checkout
+`artifacts/account/live/RECEIPT.md` and PR #152 body. These supersede the earlier activation-pending notes.
+Calibre untouched.
 
 ## Mixed, populated crowd and stronger foot sand — world, 2026-09-19
 Colour follow-up: owner approved dust size, motion and one-second life but found it grey against the sand. Live phone step capture confirmed the mismatch; a muted golden-tan tint (`#b99a68`, previously `#c9b493`) now sits closer to the lit ground. Only the particle material colour changes. Close/portrait render review and existing lifecycle test pass; release receipts: artifacts/world/warm-dust-notes.
