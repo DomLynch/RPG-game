@@ -34,7 +34,7 @@ try {
  const render = async (script, duration = 42, failure = false, startTick = 0) => page.evaluate(async ({ script, duration, failure, startTick }) => {
   const ctx = new OfflineAudioContext(1, duration * 48000, 48000), starts = [], original = ctx.createBufferSource.bind(ctx); let now = 0;
   ctx.createBufferSource = () => { const source = original(), start = source.start.bind(source), stop = source.stop.bind(source); let entry;
-   source.start = (...args) => { const name = source.buffer.duration > 39 ? Object.entries(window.h.ARENA_MANIFEST).find(([, r]) => r.some(([offset]) => Math.abs(offset - args[1]) < .00001))?.[0] : 'combat'; entry = { name, at: args[0], offset: args[1], end: args[0] + args[2] / source.playbackRate.value }; starts.push(entry); return start(...args); };
+   source.start = (...args) => { const name = source.buffer.duration > 39 ? Object.entries(window.h.ARENA_MANIFEST).find(([, r]) => r.some(([offset]) => Math.abs(offset - args[1]) < .00001))?.[0] : source.buffer.duration === 2.6 ? 'bell' : 'combat'; entry = { name, at: args[0], offset: args[1], end: args[0] + args[2] / source.playbackRate.value }; starts.push(entry); return start(...args); };
    source.stop = (time) => { if (entry) entry.end = Math.min(entry.end, time); return stop(time); }; return source;
   };
   const fetchOriginal = window.fetch;
@@ -83,7 +83,7 @@ try {
  assert.ok(death.starts.filter(s => s.name !== 'combat').every(s => s.end <= 3), 'death clears arena bank');
  assert.equal(rms(samples(death), 7, 8), 0);
  const deathAAC = await render([{ tick: 180, events: fatal.events, presentation: fatal.presentation, ended: true }], 8, 'aac');
- const missing = await render([{ tick: 60, events: [hit] }], 3, true); assert.ok(rms(samples(missing), 1, 2) > .001); assert.ok(missing.starts.every(s => s.name === 'combat'));
+ const missing = await render([{ tick: 60, events: [hit] }], 3, true); assert.ok(rms(samples(missing), 1, 2) > .001); assert.ok(missing.starts.every(s => s.name === 'combat' || s.name === 'bell'));
  report.checks.push('Pause/mute silence; resume without bell replay; rematch bell; fatal priority; missing bank preserves combat');
  // Resolve an intentionally delayed decode after quiet: decoding must never schedule a source by itself.
  console.log('Lifecycle renders passed; delayed decoder test');
@@ -93,7 +93,7 @@ try {
   ctx.decodeAudioData = async data => { const b = await original(data); if (b.duration > 39) await new Promise(resolve => { release = resolve; }); return b; };
   const f = window.h.createFeedback({ context: ctx, now: () => now }); f.unlock(); f.update([], undefined, { match: 1, ended: false, tick: 1 });
   while (!release) await new Promise(resolve => setTimeout(resolve, 10));
-  f.quiet(); release(); await f.ready(); now = .1; f.update([], undefined, { match: 1, ended: false, tick: 1 }); if (count) throw Error('decode resurrected playback'); return true;
+  const before = count; f.quiet(); release(); await f.ready(); now = .1; f.update([], undefined, { match: 1, ended: false, tick: 1 }); if (count !== before) throw Error('decode resurrected playback'); return true;
  });
  for (const [name, r] of Object.entries({ idle, fight, death, deathAAC, busy })) {
   const raw = `${out}/${name}.f32`, wav = `${out}/${name}.wav`; await fs.writeFile(raw, Buffer.from(r.pcm, 'base64'));
@@ -128,7 +128,7 @@ try {
  ui.on('pageerror', e => report.errors.push(String(e))); await ui.route('**/*sentry.io/**', r => r.abort());
  await ui.addInitScript(() => {
   window.__arena = []; const start = AudioBufferSourceNode.prototype.start, stop = AudioBufferSourceNode.prototype.stop; let id = 0; const entries = new WeakMap();
-  AudioBufferSourceNode.prototype.start = function(...args) { if (this.buffer?.duration > 39) { const entry = { id: ++id, offset: args[1], when: args[0] }; entries.set(this, entry); this.addEventListener('ended', () => { entry.ended = true; }); window.__arena.push(entry); } return start.apply(this, args); };
+  AudioBufferSourceNode.prototype.start = function(...args) { if (this.buffer?.duration > 39 || this.buffer?.duration === 2.6) { const entry = { id: ++id, offset: this.buffer.duration === 2.6 ? 37.43 : args[1], when: args[0] }; entries.set(this, entry); this.addEventListener('ended', () => { entry.ended = true; }); window.__arena.push(entry); } return start.apply(this, args); };
   AudioBufferSourceNode.prototype.stop = function(...args) { const entry = entries.get(this); if (entry) entry.stopped = true; return stop.apply(this, args); };
  });
  stage('load');
@@ -154,6 +154,19 @@ try {
  stage('rematch');
  await ui.locator('#reset-button').tap(); await ui.waitForFunction(offset => window.__arena.filter(e => e.offset === offset).length === 2, ARENA_MANIFEST.bell[0][0]);
  report.native = await ui.evaluate(() => window.__arena); await ui.screenshot({ path: `${out}/native.png` });
+ // Actual saved-profile reload: no welcome and no audio gesture for more than the old two-second cutoff.
+ stage('returning player, unavailable crowd download');
+ await ui.route(/\/assets\/arena-[^/]+\.(ogg|m4a)$/, r => r.abort());
+ await ui.reload();
+ await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+ await ui.waitForTimeout(2200);
+ assert.equal(await ui.evaluate(() => window.__arena.length), 0);
+ await ui.locator('#attack-button').tap();
+ await ui.waitForFunction(offset => window.__arena.filter(e => e.offset === offset).length === 1, ARENA_MANIFEST.bell[0][0], { timeout: 3000 });
+ await ui.waitForTimeout(500);
+ report.returningBell = await ui.evaluate(() => window.__arena);
+ assert.equal(report.returningBell.filter(e => e.offset === ARENA_MANIFEST.bell[0][0]).length, 1);
+ report.checks.push('Returning profile after old cutoff rings once with crowd download unavailable');
  report.checks.push('Production mobile viewport: welcome silent, Enter starts audio, menu stops, resume no duplicate bell, rematch rings');
  }
  assert.deepEqual(report.errors, []); report.passed = true;
