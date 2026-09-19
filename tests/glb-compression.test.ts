@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
+import { losslessJpeg } from '../scripts/lossless-jpeg.mjs';
+import { jpegFingerprint } from '../scripts/jpeg-equivalence.mjs';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
 import { assertGlbEquivalent, parseGlb, sha256 } from '../scripts/glb-equivalence.mjs';
 
@@ -29,4 +31,17 @@ test('production packing preserves the real Skeleton buffers, materials and clip
     doc.materials[index].pbrMetallicRoughness ??= {};
     doc.materials[index].pbrMetallicRoughness.baseColorFactor = [.123, .456, .789, .5];
   })), /material\/texture changed/);
+});
+
+
+test('JPEG packing preserves decoded pixels and metadata; a valid coefficient change is rejected', () => {
+  const { doc, bin } = parseGlb(readFileSync(new URL('../src/assets/skeleton.glb', import.meta.url)));
+  const view = doc.images.filter(i => i.mimeType === 'image/jpeg').map(i => doc.bufferViews[i.bufferView]).sort((a,b) => b.byteLength-a.byteLength)[0];
+  const original = bin.subarray(view.byteOffset, view.byteOffset + view.byteLength);
+  const packed = losslessJpeg(original), expected = jpegFingerprint(original);
+  assert.deepEqual(jpegFingerprint(packed), expected);
+  const changed = Buffer.from(packed), table = changed.indexOf(Buffer.from([0xff, 0xdb]));
+  assert.ok(table >= 0); assert.equal(changed[table + 4] >> 4, 0);
+  changed[table + 5] += changed[table + 5] === 255 ? -1 : 1;
+  assert.notDeepEqual(jpegFingerprint(changed), expected, 'pixel changes must not pass as lossless packing');
 });

@@ -555,3 +555,9 @@ The build hashes compressed bytes before emission. `check-glb-compression.mjs` i
 decodes and compares every accessor, clip, node and used material/image against the source,
 and its browser mode checks Chromium/WebKit under the staged CSP with ordinary eval blocked.
 Decoder licensing is shipped at `/licenses/meshoptimizer.txt`.
+
+JPEG textures are additionally repacked by `jpegtran` without changing their DCT coefficients. Only a smaller
+representation is kept; dimensions, decoded RGBA pixels, ICC/EXIF/colour metadata and all non-JPEG map bytes
+are independently checked. Source GLBs and their embedded maps remain untouched. The build needs
+`jpegtran` (`brew install jpeg-turbo` on macOS; `apt install libjpeg-turbo-progs` on Linux); CI installs it.
+`jpeg-js` is a development-only independent pixel judge, not a browser/runtime dependency.

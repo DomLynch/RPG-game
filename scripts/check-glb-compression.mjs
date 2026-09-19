@@ -20,7 +20,7 @@ if (process.argv.includes('--hosted-csp')) {
     const id = name.slice(0, -4), file = await builtRig(id);
     receipt.rigs.push({ id, file, ...await assertGlbEquivalent(await fs.readFile(`src/assets/${name}`), await fs.readFile(file)) });
   }
-  console.log(`Compressed build equivalence PASS: ${receipt.rigs.length} rigs, ${receipt.rigs.reduce((n, r) => n + r.accessors, 0)} accessors; clips, materials and used image bytes unchanged`);
+  console.log(`Compressed build equivalence PASS: ${receipt.rigs.length} rigs, ${receipt.rigs.reduce((n, r) => n + r.accessors, 0)} accessors; clips/materials unchanged; JPEG pixels/colour/orientation data identical; other used image bytes unchanged`);
   if (process.argv.includes('--browser')) {
     const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
     const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;

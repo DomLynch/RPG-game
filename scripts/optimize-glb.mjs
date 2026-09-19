@@ -1,4 +1,4 @@
-// Production-only GLB packing: bit-exact geometry/animation, original used texture bytes.
+// Production-only GLB packing: bit-exact geometry/animation, identical used texture pixels.
 // Source files stay self-contained and unchanged for Blender, baking and rig contracts.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -12,7 +12,7 @@ export async function optimizeGlb(raw) {
  assert.equal(raw.readUInt32LE(4),2,'Expected GLB v2');
  const n=raw.readUInt32LE(12),d=JSON.parse(raw.subarray(20,20+n)),bin=raw.subarray(28+n);
  assert.equal(d.buffers.length,1,'Optimizer requires one embedded buffer');
- assert.ok(!d.extensionsUsed?.some(x=>['EXT_meshopt_compression','KHR_draco_mesh_compression'].includes(x)),'Source must be uncompressed');
+ assert.ok(!d.extensionsUsed?.some(x=>['EXT_meshopt_compression','KHR_meshopt_compression','KHR_draco_mesh_compression'].includes(x)),'Source must be uncompressed');
  assert.ok(d.images.every(i=>i.bufferView!==undefined),'Textures must be embedded');
  // Offline equipment rollback document; the source GLB retains it for rebuilding.
  delete d.extras?.creatureWeaponBase;
