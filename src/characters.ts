@@ -2,7 +2,7 @@ import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { WeaponId } from './moves.ts';
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
+import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
@@ -27,7 +27,7 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   trident: { Idle: 'Trident_Idle', Walk: 'Trident_Walk', Jog: 'Trident_Walk', Run: 'Trident_Walk', Armed: 'Trident_Idle', ArmedWalk: 'Trident_Walk', StrafeLeft: 'Trident_StrafeLeft', StrafeRight: 'Trident_StrafeRight', Attack: 'Trident_Sweep', Return: 'Trident_Sweep', Heavy: 'Trident_High', Thrust: 'Trident_Thrust', Riposte: 'Trident_ThrustChain', Guard: 'Trident_Guard', BlockImpact: 'Trident_BlockImpact', Parry: 'Trident_BlockImpact', Deflected: 'Trident_Deflected', Hit: 'Trident_Hit', Death: 'Trident_Death' },   // the gait roles as on the scythe: unlisted falls back to the sword family, wrong for a two-handed pole
 };
 export const clipFor = (weapon: WeaponId, role: Role): string => WEAPON_CLIPS[weapon][role] ?? role;
-const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough'];
+const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough'];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
   speed = Number.isFinite(speed) ? Math.max(0, speed) : 0;
@@ -116,6 +116,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
     trail.frustumCulled = false; trail.visible = false; anchor.add(trail);
     const samples: Vector3[][] = [];
+    const upperArm = root.getObjectByName('upperarm_r');
+    let aimedRotation: Quaternion | undefined;
     let speed = 0;
     let severed = false;   // decapitation is once per kill; unsever() resets on rematch
     let crown: ReturnType<typeof splitSkull> | undefined;
@@ -147,6 +149,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specs[attack].source) : progress)) * clips[role].duration;
         }
         if (!weaponNode) { drawn!.visible = armed && (pose !== 'draw' || progress >= .29); sheathed!.visible = !drawn!.visible; }
+        anchor.position.set(0, 0, 0); // only the presentation anchor steps into a Run Through
+        if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
+        aimedRotation = undefined;
         mixer.update(step);
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
@@ -252,7 +257,34 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         crown.group.visible = mode !== 'off'; bone.scale.setScalar(mode === 'off' ? 1 : .0001);
         const t = Math.min(1, (progress - .045) / .12);
         crown.open(t*t*(3 - 2*t), mode === 'dark');
-      }
+      },
+      // Apply after both rigs and their scene transforms update. Put the MIDDLE of the blade through the chest,
+      // not the shoulder→tip ray. A grounded presentation step supplies reach without stretching bones or the weapon.
+      aimBladeAt(target: Vector3, amount = 1) {
+        const upper = upperArm;
+        if (!upper?.parent || amount <= 0) return;
+        root.updateWorldMatrix(true, true);
+        const parent = upper.parent, shoulder = upper.getWorldPosition(new Vector3());
+        const embedded = blade.localToWorld(new Vector3(0, (segment[0] + segment[1]) / 2, 0));
+        const from = parent.worldToLocal(embedded).sub(upper.position);
+        let to = parent.worldToLocal(target.clone()).sub(upper.position);
+        const forward = target.clone().sub(shoulder).setY(0).normalize();
+        const axis = parent.worldToLocal(shoulder.clone().add(forward)).sub(upper.position);
+        // Solve |to - step * axis| = |from| in the shoulder's parent frame (rig bones have nonuniform scales).
+        const a = axis.lengthSq(), b = to.dot(axis), discriminant = b*b - a*(to.lengthSq() - from.lengthSq());
+        if (a < 1e-8 || discriminant < 0) return;
+        const step = (b - Math.sqrt(discriminant)) / a;
+        const position = anchor.getWorldPosition(new Vector3()).addScaledVector(forward, step * amount);
+        anchor.position.copy(anchor.parent ? anchor.parent.worldToLocal(position) : position);
+        root.updateWorldMatrix(true, true);
+        to = parent.worldToLocal(target.clone()).sub(upper.position);
+        const turn = new Quaternion().setFromUnitVectors(from.normalize(), to.normalize());
+        aimedRotation = upper.quaternion.clone();
+        upper.quaternion.premultiply(new Quaternion().slerp(turn, amount));
+        root.updateWorldMatrix(true, true);
+      },
+      // The world position of a named bone right now (the scene takes the victim's chest with it).
+      boneWorld(name: string): Vector3 | null { const bone = root.getObjectByName(name); if (!bone) return null; root.updateWorldMatrix(true, true); return bone.getWorldPosition(new Vector3()); }
     };
   }
   return { player: create(false), opponent: create(true) };
