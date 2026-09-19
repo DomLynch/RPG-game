@@ -14,25 +14,35 @@ try {
  receipt.results=await page.evaluate(async()=>{
   const results={};const realFetch=window.fetch;
   window.fetch=()=>Promise.reject(Error('cold/offline bank'));
-  for(const scenario of ['returning','mute','pause','late','death','rematch']) {
-   const context=new OfflineAudioContext(1,4*48000,48000);let now=0;const f=window.make({context,now:()=>now,sprite:null});f.unlock();
-   const frame={match:1,ended:false,tick:600,opening:scenario!=='late'};
+  for(const scenario of ['returning','pauseBefore','muteBefore','mute','pause','late','death','rematch','mutedDraw','opponent']) {
+   const context=new OfflineAudioContext(1,11*48000,48000);let now=0;
+   const bells=[],create=context.createBufferSource.bind(context);
+   context.createBufferSource=()=>{const source=create(),start=source.start.bind(source);source.start=(...args)=>{if(source.buffer?.duration===2.6)bells.push(args[0]);return start(...args);};return source;};
+   const f=window.make({context,now:()=>now,sprite:null});f.unlock();
+   let frame={match:1,ended:false,tick:600};const draw={type:'ActionStarted',actor:scenario==='opponent'?1:0,action:'draw',tick:750};
    f.update([],undefined,frame);
-   now=.2;if(scenario==='mute')f.toggle();if(scenario==='pause')f.quiet();if(scenario==='death')f.update([],undefined,{...frame,ended:true});
-   if(scenario==='rematch'){now=1;f.update([],undefined,{...frame,match:2,tick:1});}
-   await f.ready();now=3;f.update([],undefined,{...frame,match:scenario==='rematch'?2:1,opening:false,tick:780,ended:scenario==='death'});
+   now=.1;if(scenario==='pauseBefore')f.quiet();if(scenario==='muteBefore'||scenario==='mutedDraw')f.toggle();
+   now=.2;if(scenario==='pauseBefore')f.unlock();if(scenario==='muteBefore')f.toggle();
+   now=2.5;f.update(scenario==='late'?[]:[draw],undefined,frame);
+   now=2.7;if(scenario==='mute')f.toggle();if(scenario==='pause')f.quiet();if(scenario==='death'){frame={...frame,ended:true};f.update([],undefined,frame);}
+   now=3.2;if(scenario==='mute'||scenario==='mutedDraw')f.toggle();if(scenario==='pause')f.unlock();f.update([],undefined,frame);
+   if(scenario==='rematch'){now=5;frame={...frame,match:2,tick:1};f.update([],undefined,frame);now=7.5;f.update([draw],undefined,frame);}
+   await f.ready();now=10;f.update([],undefined,frame);
    const data=(await context.startRendering()).getChannelData(0);
    const rms=(a,b)=>Math.sqrt(data.subarray(a*48000,b*48000).reduce((s,v)=>s+v*v,0)/((b-a)*48000));
-   results[scenario]={attack:rms(.01,.15),later:rms(.5,.9),rematch:rms(1.01,1.15),tail:rms(3,4),peak:20*Math.log10(Math.max(...data.subarray(0,48000).map(Math.abs)))};
+   results[scenario]={bells,before:rms(0,2.4),attack:rms(2.51,2.65),afterCancel:rms(3.4,3.8),rematchWaiting:rms(5.2,7.4),tail:rms(10.2,11),peak:20*Math.log10(Math.max(...data.subarray(2.5*48000,3.5*48000).map(Math.abs)))};
   }
   window.fetch=realFetch;return results;
  });
- assert.ok(receipt.results.returning.attack>.01,'returning player must hear bell even with bank unavailable');
- assert.equal(receipt.results.late.attack,0,'first unmute mid-combat stays bell-free');
- for(const name of ['mute','pause','death'])assert.equal(receipt.results[name].later,0,`${name} cancels bell`);
- assert.ok(receipt.results.rematch.rematch>.01,'new match rings');
- assert.ok(receipt.results.returning.peak<=-6,'bell leaves ample peak headroom');
- assert.equal(receipt.results.returning.tail,0,'failed decode never causes a late ring');
+ for(const [name,result] of Object.entries(receipt.results)) {
+  assert.equal(result.before,0,`${name}: Enter and waiting sheathed must not ring`);
+  assert.deepEqual(result.bells,['late','mutedDraw','opponent'].includes(name)?[]:name==='rematch'?[2.5,7.5]:[2.5],`${name}: only player Draw rings once`);
+  assert.equal(result.tail,0,`${name}: no late replay`);
+ }
+ for(const name of ['mute','pause','death'])assert.equal(receipt.results[name].afterCancel,0,`${name} cancels bell without replay`);
+ assert.equal(receipt.results.rematch.rematchWaiting,0,'rematch waits for Draw');
+ assert.ok(receipt.results.returning.attack>.01,'returning player bell audible with bank unavailable');
+ assert.ok(receipt.results.returning.peak<=-6,'bell leaves peak headroom');
  receipt.passed=true;
 }finally{await fs.writeFile(`${out}/startup.json`,JSON.stringify(receipt,null,2));await browser.close();await server.close();}
 console.log(JSON.stringify(receipt));
