@@ -28,3 +28,7 @@ Risks: physical phone listening not available. Fixed presentation delays must ma
   completion commands PASS, including Run Through, roster, Split Crown, audio, Estoc, counter controls and arena. gates-final.json.
 - Review complete: no simulation/input/renderer changes in the audio PR; shared presentation selector and settings reviewed;
   native game source scheduling/pause receipt and codec/PCM/peak checks pass. Physical phone listening is still unverified.
+
+- Owner reconfirmed commit/push/deploy/clean parity. Registered native fatal playback/pause check as a required completion command,
+  with generated receipts in an ignored output directory so checks do not dirty tracked evidence. The first release runner was
+  intentionally stopped before publication to include this gate; completed Run Through/roster checks remain receipts on unchanged code.

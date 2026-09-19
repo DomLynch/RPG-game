@@ -8,6 +8,7 @@ const server = process.env.QA_URL ? null : await preview({ preview: { host: '127
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`); url.searchParams.set('debug', '1');
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const receipt = { url: url.href, physicalPhone: false, errors: [], requests: [] };
+const out = 'artifacts/audio/fatal-browser'; await fs.mkdir(out, { recursive: true });
 try {
  const page = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
  await page.route('**/*sentry.io/**', r => r.abort());
@@ -38,10 +39,10 @@ try {
  assert.ok(paused.some(a => a.stop === crowd.id), 'menu stops the live crowd source');
  await page.locator('#close-journal').click(); await page.waitForTimeout(600);
  assert.equal((await page.evaluate(() => window.__audio)).filter(a => a.offset === crowd.offset).length, 1, 'resume does not replay the cheer');
- await page.screenshot({ path: 'artifacts/audio/fatal-crowd/defeat.png' });
+ await page.screenshot({ path: `${out}/defeat.png` });
  assert.deepEqual(receipt.errors, []); receipt.passed = true;
 } finally {
- await fs.writeFile(process.env.AUDIO_RECEIPT || 'artifacts/audio/fatal-crowd/browser.json', JSON.stringify(receipt, null, 2));
+ await fs.writeFile(process.env.AUDIO_RECEIPT || `${out}/browser.json`, JSON.stringify(receipt, null, 2));
  await browser.close(); await server?.close();
 }
 console.log(JSON.stringify({ passed: receipt.passed, killed: receipt.killed, requests: receipt.requests, errors: receipt.errors }));
