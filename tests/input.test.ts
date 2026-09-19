@@ -22,7 +22,7 @@ test('page declares double-tap suppression and locks page zoom (owner, 2026-09-1
   // the trade (low-vision players cannot zoom the UI) was stated and accepted. iOS Safari ignores the meta, so
   // main.ts also blocks the gesture itself; this test locks both so the decision is not silently reverted.
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  assert.match(css.match(/:root\{([^}]+)\}/)![1], /(?:^|;)touch-action:manipulation(?:;|$)/);
+  assert.match(css.match(/:root\s*\{([^}]+)\}/)![1], /(?:^|;)\s*touch-action\s*:\s*manipulation\s*(?:;|$)/);
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /user-scalable\s*=\s*no/);
   assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
