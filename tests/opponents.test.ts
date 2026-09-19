@@ -207,9 +207,9 @@ export const chargePast = (d: Duel): Intent => {
   return idle();
 };
 
-test('the Nightborn is set up from his data: the estoc slot (the longsword\'s data until the weapons lane), a man\'s health, no poise, and a guard that commits — a 16-tick parry window and a 30-tick recovery on top of the weapon\'s profile', () => {
+test('the Nightborn is set up from his data: the live estoc, a man\'s health, no poise, and a guard that commits — a 16-tick parry window and a 30-tick recovery on top of the weapon\'s profile', () => {
   const d = initialDuel(N), w = d.fighters[1];
-  assert.equal(w.weapon, 'estoc'); assert.ok(WEAPONS.estoc.placeholder); assert.deepEqual(WEAPONS.estoc.moves, MOVES);
+  assert.equal(w.weapon, 'estoc'); assert.equal(WEAPONS.estoc.placeholder, undefined); assert.notDeepEqual(WEAPONS.estoc.moves, MOVES);
   assert.equal(w.scale, N.scale); assert.equal(w.maxHealth, RULES.health); assert.equal(w.poise, 0);
   assert.deepEqual(guardOf(w), { costScale: 1, arc: RULES.guardArc, window: 16, recovery: 40, commits: true, stopsHeavy: false, heavyBreaks: false });
   assert.deepEqual(guardOf(d.fighters[0]), { costScale: 1, arc: RULES.guardArc, window: RULES.parry, recovery: RULES.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false }, 'the hero\'s guard is untouched');

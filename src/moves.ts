@@ -289,8 +289,7 @@ export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PAT
 // timings and lunges exactly (the cleaver lesson: a different lunge breaks the backstep); `reach` in the sword's conservative spacing
 // convention (frontier minus the sword's own per-move margin), measured on his rig (artifacts/weapons/REPORT.md). What a thrust-first
 // blade does to the sword's moves: the THRUST is the weapon (a little more damage, chains into a second), the cuts are whacks with a rod
-// (less damage, no chip), the riposte is his payoff (he parries everything). ON THE SHELF: the flip is `estoc: ESTOC` below plus a
-// manifest entry from his rig (artifacts/weapons/REQUESTS.md §12). Every number PROVISIONAL — GAMEPLAY CHANGE for combat review.
+// (less damage, no chip), the riposte is his payoff (he parries everything). Live variant A, baked from his own rig.
 export const ESTOC_PATHS: Record<PathId, PathSpec> = PATHS;   // the sword's clips at the sword's timings: the bake differs only by the point and his rig
 export const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   light_right: { ...MOVES.light_right, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },   // a whack with a rod
@@ -304,7 +303,7 @@ export const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, reach: 1.9 },
   kick: MOVES.kick,
 };
-export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, fight: { thrustShare: .7, close: 1.15 } };   // thrust-first lives here (the brief): seven non-cut openers in ten are thrusts; he closes to the sword's range
+export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
 // ── Scythe (weapons lane, 2026-09-18): the Executioner's — ON THE SHELF, the estoc pattern: real data nothing uses; the combat lane
 // flips `WEAPONS.scythe` to SCYTHE, adds the manifest entry from src/assets/weapons/scythe/warrior-scythe.glb (the man-scale bake rig — the
 // cleaver convention), bakes, reviews (REQUESTS.md §15–17). The fight it means: everything is an arc — the REAP is the horizontal cut (the
@@ -354,7 +353,7 @@ export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE
 // since slice W (2026-09-17): OPPONENTS.pitborn carries it, baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention — the
 // brute's rendered blade runs ~10 cm past the simulated one, never the other way; a 1.13× bake let no backstep escape him).
 // The knife is LIVE since slice X (2026-09-17): OPPONENTS.goblin carries it, baked from his own rig (goblin.glb: the knife is 0.81× in his .835 hand, a 0.42 m blade).
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: { ...LONGSWORD, id: 'estoc', placeholder: true }, knife: KNIFE, scythe: SCYTHE };   // estoc: the Nightborn's thin thrust-first blade, the longsword's data until the weapons lane lands it (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {

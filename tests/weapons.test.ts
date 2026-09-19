@@ -346,23 +346,24 @@ test('the knife\'s data keeps the goblin\'s brief: every wind-up ≥ 12 ticks (r
   assert.deepEqual([KNIFE.guard, KNIFE.material, KNIFE.fight.thrustShare > LONGSWORD.fight.thrustShare, KNIFE.fight.close < LONGSWORD.fight.close], ['blade', 'iron', true, true]);
 });
 
-// ── The estoc (weapons lane, 2026-09-17): the Nightborn's — ON THE SHELF. The combat lane flips `WEAPONS.estoc` to ESTOC, adds the manifest
-// entry from src/assets/weapons/estoc/nightborn-estoc.glb (his own rig), bakes, reviews (artifacts/weapons/REQUESTS.md §12–13).
+// The estoc is live: variant A on the shipped Nightborn and the same rig in the blade bake.
 import { ESTOC, ESTOC_PATHS } from '../src/moves.ts';
 const ESTOC_GLB = 'src/assets/weapons/estoc/nightborn-estoc.glb';
 
-test('the estoc is on the shelf: ESTOC is real data nothing uses; WEAPONS.estoc still borrows the longsword; no manifest entry yet', () => {
-  assert.equal(WEAPONS.estoc.placeholder, true); assert.equal(WEAPONS.estoc.moves, MOVES); assert.deepEqual(bladePaths.estoc, bladePaths.longsword);
-  assert.notEqual(ESTOC.moves, MOVES); assert.equal(ESTOC.paths, PATHS, 'the sword\'s clips at the sword\'s timings: the bake differs only by the point'); assert.equal(ESTOC.id, 'estoc');
-  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string }[] };
-  assert.ok(!manifest.weapons.some(w => w.weapon === 'estoc'), 'no estoc bake until the flip');
+test('the live estoc uses its own moves, baked point, and the exact shipped Nightborn rig', () => {
+  assert.equal(WEAPONS.estoc, ESTOC); assert.equal(WEAPONS.estoc.placeholder, undefined);
+  assert.notEqual(ESTOC.moves, MOVES); assert.equal(ESTOC.paths, PATHS);
+  assert.notDeepEqual(bladePaths.estoc, bladePaths.longsword);
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: number[] }[] };
+  assert.deepEqual(manifest.weapons.filter(w => w.weapon === 'estoc'), [{ weapon: 'estoc', glb: ESTOC_GLB, node: 'WeaponDrawn', contact: [.75, 1.15] }]);
+  assert.deepEqual(readFileSync(new URL('../' + ESTOC_GLB, import.meta.url)), readFileSync(new URL('../src/assets/nightborn.glb', import.meta.url)), 'bake and rendered rig must match');
 });
 
 test('the estoc rig is the Nightborn\'s own with WeaponDrawn (a long thin blade, the last 40 cm as the contact segment, ≤ 2k triangles), empty sword nodes, and EVERY clip byte-identical to nightborn.glb — no re-key at all', async () => {
   const asset = await readRig(ESTOC_GLB), own = await readRig('src/assets/nightborn.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
   assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
   const contact = weapon.userData.contact as { from: number; to: number };
-  assert.ok(contact && contact.to > 1.0 && Math.abs(contact.to - contact.from - .4) < .001, `the last 40 cm of a long blade: ${JSON.stringify(contact)}`);
+  assert.ok(contact && Math.abs(contact.to - 1.15) < .001 && Math.abs(contact.from - .75) < .001, `the last 40 cm of a long blade: ${JSON.stringify(contact)}`);
   let triangles = 0; weapon.traverse(o => { const m = o as { isMesh?: boolean; geometry?: { index: { count: number } | null; attributes: { position: { count: number } } } }; if (m.isMesh && m.geometry) triangles += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
   assert.ok(triangles > 0 && triangles <= 2000, `≤ 2k triangles (the brief): ${triangles}`);
   for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }

@@ -33,6 +33,20 @@ Current-task verification ledger:
 - Focused catalogue/profile/ladder/scorecard: 12/12 pass; rollback migration separately 5/5. Full final npm run quality passed: 248/248, lint/typecheck/build/audit and browser; 8,361,205-byte per-fight budget. Release receipts pending.
 - Sentry inspected: FRANKENDOM-A is an unresolved texture failure on old release 9587019 (2026-09-18); current catalogue checks do not prove that historic issue fixed. Load/GPU issues stay open. Hardware/external-player gates unchanged.
 
+## Estoc A activation — 2026-09-19 — draft, NOT DEPLOYED
+Weapons branch `weapons/estoc-live`, based on fetched trunk `d383b66`. Variant A is built on the current Nightborn,
+with matching render/bake GLBs, manifest entry, real ESTOC data, rebaked paths and flipped shelf receipts. Existing clips,
+body geometry and decoded textures preserved; all five other weapon trajectory tables unchanged. Preview `--azimuth` added.
+The provisional thrust share .70 produced 3/24 untouched roll-and-punish trials (cap 2); .75 passes the unchanged normal/hard
+Nightborn battery, with AI-vs-AI median 20.7 s and 10/24 hero wins. No AI, damage, timing or spacing edits.
+**Blocker:** `npm run quality`: 244/245 pass; `tests/head-region.test.ts:30` rejects real estoc head contacts, including thrusts.
+The inherited clips and 1.03× rig put the longer point at head height. Preserve the test and hit-region rule; owner decision
+pending: adjust estoc aim or refer the conflicting clip/head contract to combat. No merge/deployment until resolved.
+Independent checks: build, audit (0 vulnerabilities), budget, existing browser gate and real Nightborn browser receipt pass.
+New `.quality-gate.json` completion command checks served rig SHA, WeaponDrawn, portrait/landscape layout and an opponent hit.
+Evidence: `artifacts/weapons/estoc-live/` (logs, captures, browser JSON, bounded stance probe), `estoc-rear/sheet.png`.
+Sentry still has earlier unresolved load/texture/WebGL issues (6/A/5/9/8); this unshipped branch cannot resolve those.
+
 
 ## Arena life — 2026-09-18 (world lane, owner's picks #1–#5)
 Owner: "anything else we can add to make the environment more engaging?" — approved five, built in order, each audited

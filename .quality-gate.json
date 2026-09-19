@@ -24,6 +24,10 @@
       "--no-video",
       "--label",
       "split-crown-gate"
+    ],
+    [
+      "node",
+      "scripts/estoc-browser-check.mjs"
     ]
   ]
 }
