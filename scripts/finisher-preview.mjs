@@ -94,6 +94,9 @@ let cursor = -1, maxCameraStep = 0, currentMode = 'red';
 window.__finisher = {
   provenance,
   inspect() {
+    const headProp = renderedScene?.getObjectByName('BloodHeadCut')?.parent;
+    const headBox = headProp ? new Box3().setFromObject(headProp,true) : null;
+    const detachedHead = headBox ? {center:view.project(headBox.getCenter(new Vector3()).toArray()),frame:[headBox.min.x,headBox.max.x].flatMap(x=>[headBox.min.y,headBox.max.y].flatMap(y=>[headBox.min.z,headBox.max.z].map(z=>view.project([x,y,z]))))} : null;
     const crown = renderedScene?.getObjectByName('SplitCrown');
     const opened = renderedScene?.getObjectByName('Opened');
     const dropped=opened?.getObjectByName('OpenedWeapon'), weaponBox=dropped ? new Box3().setFromObject(dropped,true) : null;
@@ -122,7 +125,7 @@ window.__finisher = {
     actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
     const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
     const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
-    return { blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -215,6 +218,15 @@ try {
           assert.ok(framing.maxCameraStep < .25, 'the late side move is continuous, without a camera cut');
           assert.ok(framing.heads.every(p => p && p[0] > 10 && p[0] < 383 && p[1] > 20 && p[1] < 700), 'both heads stay in the portrait frame above the controls');
           assert.ok(Math.hypot(framing.camera[0], framing.camera[2]) <= 11.5, 'finisher camera stays inside the arena');
+        }
+        if (which === 'decapitation') {
+          const {detachedHead,framing} = await page.evaluate(()=>__finisher.inspect());
+          assert.ok(framing.side<.08,'Decapitation retains the original front-facing camera');
+          if(mode!=='off') {
+            assert.ok(detachedHead,'head is detached');
+            assert.ok(detachedHead.frame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'detached head stays visible above portrait controls');
+          }
+          cameraChecks.push({opponent,which,mode,suffix,framing,detachedHead});
         }
         if (which === 'opened') {
           const {opened,framing} = await page.evaluate(() => __finisher.inspect());

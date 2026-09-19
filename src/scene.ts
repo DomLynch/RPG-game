@@ -34,9 +34,11 @@ export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: 
   const ux = dx/gap, uz = dz/gap, lookX = (killer.x+fallen.x)/2, lookZ = (killer.z+fallen.z)/2;
   const back = Math.max(finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8, (gap/2+(finisher === 'opened' ? 1.5*bodyScale : finisher === 'quietOne' ? 1.5 : .42))/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
   const angle = finisher !== 'runThrough' ? Math.PI/3 : 5*Math.PI/12, sideward = Math.sin(angle), rearward = Math.cos(angle);
-  const side = (sign: number) => ({ x: lookX+(-uz*sign*sideward-ux*rearward)*back, y: finisher === 'opened' ? 3.7 : 3.1, z: lookZ+(ux*sign*sideward-uz*rearward)*back, lookX, lookY: .85, lookZ });
-  const left = side(1), right = side(-1);
-  const pose = Math.hypot(left.x,left.z) <= Math.hypot(right.x,right.z) ? left : right;
+  const side = (sign: number, front = 1) => ({ x: lookX+(-uz*sign*sideward-ux*rearward*front)*back, y: finisher === 'opened' ? 3.7+3*(bodyScale-1) : 3.1, z: lookZ+(ux*sign*sideward-uz*rearward*front)*back, lookX, lookY: .85, lookZ });
+  // Large halves need the inward front-quarter option when the killer stands against the wall;
+  // clamping an outward rear view alone squeezes the corpse out of the portrait frame.
+  const candidates = finisher === 'opened' && bodyScale > 1 ? [side(1),side(-1),side(1,-1),side(-1,-1)] : [side(1),side(-1)];
+  const pose = candidates.reduce((best,p)=>Math.hypot(p.x,p.z)<Math.hypot(best.x,best.z) ? p : best);
   const radius = Math.hypot(pose.x,pose.z);
   if (radius > 11.5) { pose.x *= 11.5/radius; pose.z *= 11.5/radius; }
   return pose;
@@ -342,7 +344,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       // never an FOV change. Off when the viewer prefers reduced motion; the frame loop's hit-stop stays the one impact pause.
       // Paced to the slowed finisher clock (1.3 s / 0.75); a plain-death pick gets no dolly — an ordinary kill stays ordinary.
       if (practice.finish && finisherPose && !practice.finish.draw && !stillCamera) finishPush = Math.min(1, finishPush + dt / (1.3 / 0.75)); else if (!practice.finish) finishPush = 0;
-      if (finishPush > 0) {
+      if (finishPush > 0 && finisher !== 'decapitation') {
         const fallen = practice.finish!.victim === 1 ? practice.enemy : state;
         const killer = practice.finish!.victim === 1 ? state : practice.enemy;
         desired.x += (fallen.x - desired.x) * .38 * finishPush; desired.z += (fallen.z - desired.z) * .38 * finishPush;
@@ -377,7 +379,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       finisherBlood.update(dt, detailedBlood ? finisher : null, victimProgress, bloodSources, bloodMode);
       if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown' || finisher === 'quietOne' || finisher === 'opened')) {
         const t = THREE.MathUtils.clamp(finisher === 'opened' ? (finishClock-.04)/.4 : finisher === 'quietOne' ? (finishClock-.12)/.43 : (finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
-        const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher, opponentId === 'wraith' ? 1.5 : 1);
+        const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher, ['wraith','minotaur'].includes(opponentId) ? 1.5 : 1);
         desired.lerp(new THREE.Vector3(side.x,side.y,side.z), reveal);
         look.lerp(new THREE.Vector3(side.lookX,side.lookY,side.lookZ), reveal);
         const radius = Math.hypot(desired.x,desired.z);

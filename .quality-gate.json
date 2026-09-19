@@ -196,6 +196,17 @@
       "--opponent",
       "wraith",
       "--blood-check"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "decapitation",
+      "--opponent",
+      "goblin",
+      "--no-video",
+      "--label",
+      "decap-front-goblin-gate"
     ]
   ]
 }

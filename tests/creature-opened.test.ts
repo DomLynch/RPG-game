@@ -51,7 +51,7 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
     if(id==='wraith'){assert.notEqual(skin,material);assert.equal(skin.transparent,true);assert.equal(skin.opacity,.86);}
   }
   actor.openWaist(.28,'red');assert.ok(halves[1].position.x>.1);
-  const cameraPose=finisherSidePose({x:parent.position.x+Math.sin(.8)*1.9,z:parent.position.z+Math.cos(.8)*1.9},{x:parent.position.x,z:parent.position.z},393/852,'opened',id==='wraith' ? 1.5 : 1);
+  const cameraPose=finisherSidePose({x:parent.position.x+Math.sin(.8)*1.9,z:parent.position.z+Math.cos(.8)*1.9},{x:parent.position.x,z:parent.position.z},393/852,'opened',1.5);
   const camera=new PerspectiveCamera(51,393/852,.1,180);camera.position.set(cameraPose.x,cameraPose.y,cameraPose.z);camera.lookAt(cameraPose.lookX,cameraPose.lookY,cameraPose.lookZ);camera.updateMatrixWorld();
   for(let i=1;i<=32;i++){actor.update(0,.1,'opened',Math.min(1,i/32));actor.openWaist(Math.min(1,i/32),'red');}
   parent.updateMatrixWorld(true);
@@ -63,6 +63,20 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
       const p=new Vector3(x,y,z).project(camera);
       assert.ok(Math.abs(p.x)<.975 && p.y>-.64 && p.y<.95,`${half.name} clears portrait UI ${p.toArray()}`);
     }
+  }
+  for(const [x,z] of [[0,0],[7,0],[-7,0],[0,7],[0,-7]])for(const heading of [0,Math.PI/2,Math.PI,Math.PI*1.5]) {
+    parent.position.set(x,0,z);parent.rotation.y=heading;parent.updateMatrixWorld(true);
+    const pose=finisherSidePose({x:x+Math.sin(heading)*1.9,z:z+Math.cos(heading)*1.9},{x,z},393/852,'opened',1.5);
+    camera.position.set(pose.x,pose.y,pose.z);camera.lookAt(pose.lookX,pose.lookY,pose.lookZ);camera.updateMatrixWorld();
+    // Test rendered vertices, not empty corners of a world-axis box around a rotated silhouette.
+    for(const half of halves) half.traverse(part=>{
+      if(!(part instanceof Mesh))return;
+      const vertices=part.geometry.getAttribute('position');
+      for(let i=0;i<vertices.count;i++) {
+        const point=new Vector3().fromBufferAttribute(vertices,i).applyMatrix4(part.matrixWorld).project(camera);
+        assert.ok(Math.abs(point.x)<.975 && point.y>-.64 && point.y<.95,`${id} edge${x},${z} heading${heading}: ${half.name} actual vertex ${point.toArray()}`);
+      }
+    });
   }
   const partMaterial=(halves[0].getObjectByName('CreatureBody') as Mesh).material as MeshStandardMaterial;
   const heldOpacity=partMaterial.opacity;
