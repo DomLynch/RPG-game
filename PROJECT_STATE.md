@@ -826,7 +826,7 @@ its450KB cap. Existing combat sprites/cue rotation and half-effects/+50%-fatal m
 Audio reads match identity and finish state; crowd voices cannot steal combat voices. Pause/mute stop all arena voices,
 rematch rings once, no late decode starts playback, and fatal contact clears ambience for the established winning roar.
 A pending-suspend/Enter race found during state audit now queues resume within the activating gesture; regression covered.
-Rendered browser QC: crowd bed -38.58dBFS RMS, active fight -24.61dBFS; peak at most-1.1dBTP across idle/fight/fatal/stress.
+Rendered browser QC: crowd bed -38.58dBFS RMS, active fight -24.61dBFS; peak at most-1.0dBTP across AAC/Opus idle/fight/fatal/stress.
 Both codecs/format fallback, overlap, variation, cooldowns,6-voice cap, quiet/mute/rematch and missing-bank continuity pass.
 Evidence/provenance: artifacts/audio/arena-life/ and scripts/arena-audio-check.mjs. New completion gate preserves all inherited
 commands. Native GPU checks await the shared release test window; physical handset audition is still unverified.

@@ -13,12 +13,13 @@
   "delayed": true,
   "levels": {
     "bedDbfs": -38.58110158453638,
-    "fightDbfs": -24.60976705115081
+    "fightDbfs": -24.60976704907141
   },
   "truePeaks": {
     "idle": -19.5,
     "fight": -6.2,
     "death": -1.1,
+    "deathAAC": -1,
     "busy": -6
   },
   "gzip": 388785,

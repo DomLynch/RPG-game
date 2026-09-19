@@ -38,7 +38,7 @@ try {
    source.stop = (time) => { if (entry) entry.end = Math.min(entry.end, time); return stop(time); }; return source;
   };
   const fetchOriginal = window.fetch;
-  if (failure) window.fetch = (...args) => String(args[0]).includes('arena-audio') ? Promise.reject(Error('optional bank unavailable')) : fetchOriginal(...args);
+  if (failure) window.fetch = (...args) => (failure === 'aac' ? String(args[0]).endsWith('.ogg') : String(args[0]).includes('arena-audio')) ? Promise.reject(Error('forced codec/bank failure')) : fetchOriginal(...args);
   const f = window.h.createFeedback({ context: ctx, now: () => now }); f.unlock(); f.update([], undefined, { match: 731, ended: false }); await f.ready(); window.fetch = fetchOriginal;
   for (let tick = 0; tick < duration * 60; tick++) {
    now = tick / 60;
@@ -79,6 +79,7 @@ try {
  assert.ok(death.starts.some(s => s.name === 'combat' && s.at > 3.3));
  assert.ok(death.starts.filter(s => s.name !== 'combat').every(s => s.end <= 3), 'death clears arena bank');
  assert.equal(rms(samples(death), 7, 8), 0);
+ const deathAAC = await render([{ tick: 180, events: fatal.events, presentation: fatal.presentation, ended: true }], 8, 'aac');
  const missing = await render([{ tick: 60, events: [hit] }], 3, true); assert.ok(rms(samples(missing), 1, 2) > .001); assert.ok(missing.starts.every(s => s.name === 'combat'));
  report.checks.push('Pause/mute silence; resume without bell replay; rematch bell; fatal priority; missing bank preserves combat');
  // Resolve an intentionally delayed decode after quiet: decoding must never schedule a source by itself.
@@ -91,14 +92,14 @@ try {
   while (!release) await new Promise(resolve => setTimeout(resolve, 10));
   f.quiet(); release(); await f.ready(); now = .1; f.update([], undefined, { match: 1, ended: false }); if (count) throw Error('decode resurrected playback'); return true;
  });
- for (const [name, r] of Object.entries({ idle, fight, death, busy })) {
+ for (const [name, r] of Object.entries({ idle, fight, death, deathAAC, busy })) {
   const raw = `${out}/${name}.f32`, wav = `${out}/${name}.wav`; await fs.writeFile(raw, Buffer.from(r.pcm, 'base64'));
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'f32le', '-ar', '48000', '-ac', '1', '-i', raw, wav]);
  }
  const level = data => 20 * Math.log10(rms(data, 3, 10));
  report.levels = { bedDbfs: level(idleData), fightDbfs: level(fightData) };
  assert.ok(report.levels.fightDbfs - report.levels.bedDbfs > 5, 'combat remains in front of bed');
- for (const name of ['idle', 'fight', 'death', 'busy']) {
+ for (const name of ['idle', 'fight', 'death', 'deathAAC', 'busy']) {
   const result = (await import('node:child_process')).spawnSync('ffmpeg', ['-hide_banner', '-i', `${out}/${name}.wav`, '-af', 'ebur128=peak=true', '-f', 'null', '-'], { encoding: 'utf8' });
   const peak = Number([...result.stderr.matchAll(/Peak:\s+(-?[\d.]+) dBFS/g)].at(-1)?.[1]); assert.ok(Number.isFinite(peak) && peak <= -1, `${name}: true peak ${peak}`); (report.truePeaks ??= {})[name] = peak;
  }
