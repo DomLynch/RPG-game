@@ -204,7 +204,7 @@ v1 set (the victim is the opponent; the player's own death keeps the plain fall 
 - **Hamstrung** — a low killing blow to the legs: knees first, then down.
 - **Execution** — the critical (posture-break) kill: the one ceremonial beat — a held half-second before the blow lands.
 
-Camera: a slow push-in over the death window is authorized — a dolly, not a cut: no camera cuts, no FOV punch, no lens overlay, no simulation slow motion. The frame loop's hit-stop remains the one owner of the impact pause. Owner revision 2026-09-19: on Run Through, Split Crown, The Quiet One and Opened, the locked camera moves smoothly to the side after the impact, exposing the victim beside the killer as the pose settles. Fit both fighters to portrait/landscape, choose the inward side at arena edges, keep reduced-motion and manual free-camera behavior, and return to the ordinary view on the next fight.
+Camera: a slow push-in over the death window is authorized — a dolly, not a cut: no camera cuts, no FOV punch, no lens overlay, no simulation slow motion. The frame loop's hit-stop remains the one owner of the impact pause. Owner revision 2026-09-19: on Run Through, Split Crown, The Quiet One and Opened, the locked camera moves smoothly to the side after the impact, exposing the victim beside the killer as the pose settles. Decapitation retains the original front-facing camera without the generic finisher dolly/side slide, keeping the detached head visible. Fit both fighters to portrait/landscape, choose the inward side at arena edges, keep reduced-motion and manual free-camera behavior, and return to the ordinary view on the next fight.
 
 Gore upgrades, all built on the existing pooled particles/decals and all governed by the red/dark/off blood mode so clips stay shareable: directional spray along the strike heading in place of the radial puff; a wound-site mark with drips for the four-second wound window; pooling under the corpse that outlives the 20 s splash fade on a kill (cleared on rematch, as today); blood on the blade — the weapon material tints after a kill and stays bloodied until the next fight.
 
@@ -307,7 +307,7 @@ iteration. Existing encounter order remains, followed by Minotaur then Wraith. M
 cleaver archetype; Wraith reuses Nightborn's estoc archetype. Approved reconstructed anatomy replaces the
 rejected procedural/MPFB studies. Wraith is skeletal, crowned, wispy and partly transparent; Minotaur has
 continuous bovine skull/neck/muscular anatomy. These additions preserve the current simulation and weapon
-paths. Use ordinary death until creature-specific paired executions are authored and reviewed. They are
+paths. Owner revision 2026-09-19: Opened now also applies to Minotaur and Wraith, using each actual mesh. The Wraith holds its visible waist separation and landing before both halves fade; its dropped weapon remains. Blood-off keeps the intact death, and rematch restores the model. Other creature finishers retain ordinary death pending separate anatomy review. They are
 playtest assets, with physical-phone performance and final art acceptance still requiring owner feedback.
 
 ### Creature weapons — owner-authorized 2026-09-19
