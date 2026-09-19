@@ -17,9 +17,10 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
   const across=new Vector3(0,1,0).cross(axis);if(across.lengthSq()<.01)across.set(1,0,0).cross(axis);across.normalize();
   const along=axis.clone().cross(across).normalize();
   const group=new Group();group.name='DisarmedArm';group.position.copy(pivot);group.visible=false;
-  const spectral=root.getObjectByName('CreatureBody')?.userData.creature==='wraith';
+  const creature=root.getObjectByName('CreatureBody')?.userData.creature;
+  const spectral=creature==='wraith',boneCuts=creature==='skeleton';
   const materials=new Map<MeshStandardMaterial,MeshStandardMaterial>();
-  const cut=new MeshStandardMaterial({color:'#501c20',roughness:.9,side:DoubleSide});
+  const cut=new MeshStandardMaterial({color:boneCuts?'#aaa28f':'#501c20',roughness:.9,side:DoubleSide});
   if(spectral){cut.transparent=true;cut.depthWrite=false;}
   const changes:{mesh:SkinnedMesh;original:BufferGeometry;remainder:BufferGeometry;cap:SkinnedMesh|null}[]=[];
   const weapon=root.getObjectByName('WeaponDrawn') ?? root.getObjectByName('SwordDrawn');
@@ -71,7 +72,7 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
       vertices.push({attributes,weight});
     }
     if(!vertices.some(v=>v.weight>.5))return;
-    const halves:Vertex[][]=[[],[]],materialIndices:number[][]=[[],[]],boundary:Vertex[]=[];
+    const halves:Vertex[][]=[[],[]],materialIndices:number[][]=[[],[]],boundary:Vertex[]=[],boundaryEdges:Vertex[][]=[];
     for(let i=0;i<(g.index?.count??vertices.length);i+=3){
       const tri=[0,1,2].map(k=>vertices[g.index ? g.index.getX(i+k) : i+k]);
       const intersections=new Map<string,Vertex>();
@@ -82,17 +83,32 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
         }
         for(let k=1;k<polygon.length-1;k++){halves[side].push(polygon[0],polygon[k],polygon[k+1]);if(Array.isArray(object.material))materialIndices[side].push(g.groups.find(part=>i>=part.start && i<part.start+part.count)?.materialIndex??0);}
       }
+      if(intersections.size===2)boundaryEdges.push([...intersections.values()]);
     }
     const remainder=geometry(halves[0],materialIndices[0]),severed=geometry(halves[1],materialIndices[1]);bake(object,severed);severed.dispose();
     // Convex outer rim closes layered arm wraps without overlapping coplanar tissue fans.
     const posed=(v:Vertex)=>{const p=new Vector3().fromArray(v.attributes.position),sum=new Vector3(),q=new Vector3();p.applyMatrix4(object.bindMatrix);for(let k=0;k<4;k++){q.copy(p).applyMatrix4(new Matrix4().fromArray(object.skeleton.boneMatrices!,v.attributes.skinIndex[k]*16));sum.addScaledVector(q,v.attributes.skinWeight[k]);}return sum.applyMatrix4(object.bindMatrixInverse).applyMatrix4(object.matrixWorld).applyMatrix4(inverse);};
-    object.skeleton.update();const points=boundary.map(v=>{const p=posed(v);return{v,x:p.dot(across),y:p.dot(along)};}).sort((a,b)=>a.x-b.x||a.y-b.y);
-    type Point=(typeof points)[number];const cross=(a:Point,b:Point,c:Point)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
-    const chain=(input:Point[])=>{const result:Point[]=[];for(const p of input){while(result.length>1 && cross(result.at(-2)!,result.at(-1)!,p)<=0)result.pop();result.push(p);}return result;};
-    const front=chain(points),back=chain([...points].reverse()),hull=[...front.slice(0,-1),...back.slice(0,-1)];
-    if(hull.length<3){changes.push({mesh:object,original:g,remainder,cap:null});return;} // a whole detached wrap has no cross-section; the skin closes the limb
-    let center=hull[0].v;for(let i=1;i<hull.length;i++)center=interpolate(center,hull[i].v,1/(i+1));
-    const capTriangles:Vertex[]=[];for(let i=0;i<hull.length;i++)capTriangles.push(center,hull[i].v,hull[(i+1)%hull.length].v);
+    object.skeleton.update();
+    // Disconnected skeleton bones need individual fracture faces, not a plate bridging the space between bones.
+    let sections=[boundary];
+    if(boneCuts) {
+      const vertices=new Map<string,Vertex>(),adjacent=new Map<string,Set<string>>();
+      const key=(v:Vertex)=>v.attributes.position.map(x=>Math.round(x*1e5)).join(',');
+      for(const [a,b] of boundaryEdges){const x=key(a),y=key(b);vertices.set(x,a);vertices.set(y,b);if(!adjacent.has(x))adjacent.set(x,new Set());if(!adjacent.has(y))adjacent.set(y,new Set());adjacent.get(x)!.add(y);adjacent.get(y)!.add(x);}
+      sections=[];const seen=new Set<string>();
+      for(const first of vertices.keys())if(!seen.has(first)){const pending=[first],section:Vertex[]=[];while(pending.length){const k=pending.pop()!;if(seen.has(k))continue;seen.add(k);section.push(vertices.get(k)!);for(const next of adjacent.get(k)??[])pending.push(next);}sections.push(section);}
+    }
+    const capTriangles:Vertex[]=[];
+    for(const section of sections) {
+      const points=section.map(v=>{const p=posed(v);return{v,x:p.dot(across),y:p.dot(along)};}).sort((a,b)=>a.x-b.x||a.y-b.y);
+      type Point=(typeof points)[number];const cross=(a:Point,b:Point,c:Point)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+      const chain=(input:Point[])=>{const result:Point[]=[];for(const p of input){while(result.length>1 && cross(result.at(-2)!,result.at(-1)!,p)<=0)result.pop();result.push(p);}return result;};
+      const front=chain(points),back=chain([...points].reverse()),hull=[...front.slice(0,-1),...back.slice(0,-1)];
+      if(hull.length<3)continue;
+      let center=hull[0].v;for(let i=1;i<hull.length;i++)center=interpolate(center,hull[i].v,1/(i+1));
+      for(let i=0;i<hull.length;i++)capTriangles.push(center,hull[i].v,hull[(i+1)%hull.length].v);
+    }
+    if(!capTriangles.length){changes.push({mesh:object,original:g,remainder,cap:null});return;}
     const capGeometry=geometry(capTriangles);capGeometry.computeVertexNormals();
     const cap=new SkinnedMesh(capGeometry,cut);cap.name='ArmStump';cap.bind(object.skeleton,object.bindMatrix);cap.bindMatrixInverse.copy(object.bindMatrixInverse);cap.position.copy(object.position);cap.quaternion.copy(object.quaternion);cap.scale.copy(object.scale);cap.matrixWorld.copy(object.matrixWorld);cap.frustumCulled=false;cap.visible=false;
     const count=group.children.length;bake(cap,capGeometry);group.children[count].name='ArmCut';
@@ -125,7 +141,7 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
       const shown=mode!=='off' && progress>=DISARMED_BEATS.arm;
       for(const change of changes){change.mesh.geometry=shown ? change.remainder : change.original;if(change.cap){change.cap.visible=shown && (!spectral || life>0);if(shown && !change.cap.parent)change.mesh.parent!.add(change.cap);}}
       if(weapon)weapon.visible=shown ? false : weaponVisible;
-      active=shown;group.visible=shown && (!spectral || life>0);cut.color.set(spectral ? (mode==='dark' ? '#586168' : '#788385') : mode==='dark' ? '#302126' : '#501c20');
+      active=shown;group.visible=shown && (!spectral || life>0);cut.color.set(boneCuts ? '#aaa28f' : spectral ? (mode==='dark' ? '#586168' : '#788385') : mode==='dark' ? '#302126' : '#501c20');
       if(spectral){cut.opacity=.86*life;for(const material of materials.values())material.opacity=.86*life;}
       const elapsed=Math.max(0,(progress-DISARMED_BEATS.arm)*DISARMED_BEATS.duration),fall=Math.min(1,elapsed/.7),ease=fall*fall*(3-2*fall);
       group.quaternion.identity().slerp(rest,ease);group.position.copy(pivot);group.position.x+=.20*ease;
