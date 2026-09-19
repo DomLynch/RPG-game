@@ -45,6 +45,7 @@ if (process.argv.includes('--hosted-csp')) {
               assert.ok(response, `Missing ${name}`); assert.equal(response.status(), 200);
               assert.equal(sha256(await response.body()), expected.emittedSha256, 'Served bytes must equal the independently verified compressed build');
             }
+            if (await page.getByRole('button', { name: 'Enter the arena' }).isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click();
             await page.addScriptTag({ url: `${origin}/decoder-csp-probe.js` });
             await page.waitForFunction(() => window.evalChecked);
             assert.equal(await page.evaluate(() => window.evalAllowed), false, 'WASM allowance must not enable JavaScript eval');
