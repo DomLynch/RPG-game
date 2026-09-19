@@ -7,8 +7,8 @@ impact audio and no opponent blood; player blood/feedback remains. Local encount
 checks but is not hosted yet. New creatures retain ordinary death, with paired finishers disabled.
 Published maul/claw release 68ccdf2 and cleanup 0f50814 are integrated. All four creature rigs pass 685 pose checks.
 Lossless production-only meshopt packing preserves decoded accessor bytes, maps, materials and clips, removes
-unused materials/maps and offline rollback metadata, and keeps source GLBs intact. Integrated build before licence
-notice: 31,840,186 bytes gzip, worst fight 8,727,860; unchanged 32 MB total cap. No 40 MB increase needed.
+unused materials/maps and offline rollback metadata, and keeps source GLBs intact. Integrated build including licence
+notice: 31,840,828 bytes gzip, worst fight 8,728,502; unchanged 32 MB total cap and inherited 12 MB fight cap. No 40 MB increase needed.
 Narrow WASM CSP change is staged, not applied to VPS. Emitted-byte identity and decoded-equivalence checks cover
 all ten rigs. Actual Chromium/WebKit decoder+CSP and inherited browser gates still require allocated release slot.
 Nine software-rendered impact assertions passed; first camera crops failed visual review. Corrected captures pending.
