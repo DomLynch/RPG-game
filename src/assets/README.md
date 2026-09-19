@@ -514,3 +514,7 @@ Existing geometry, materials, embedded textures, bone nodes and animation bytes 
 builder invokes the same authoring function after final scaling. Anatomical hinge frames keep the palm at the throat,
 feet roll with the fall, and offline skin-envelope clearance grounds the corpse for each body build.
 Reuses the existing licensed death/contact/body/crowd audio at quieter gains with delayed collapse and gasp.
+
+Reconstruction packing rounds only position/normal/UV float precision before gzip: positions
+and normals to 1/16384, UVs to 1/65536 (under 0.016 texel error at 2K). It refreshes
+accessor bounds and leaves weights, source images, existing clips and weapons intact.
