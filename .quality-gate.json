@@ -32,6 +32,15 @@
     [
       "node",
       "scripts/counter-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "runThrough",
+      "--no-video",
+      "--label",
+      "run-through-gate"
     ]
   ]
 }

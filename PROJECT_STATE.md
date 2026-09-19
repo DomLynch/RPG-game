@@ -1,5 +1,20 @@
 # Project state
 
+## Run Through repair — 2026-09-19 (in progress)
+Goal: keep the blade through the animated torso and visible behind the kneeling opponent, until rematch.
+Scope: characters.ts pose/aim, scene.ts post-pose alignment, rig regression and finisher-preview completion gate.
+Fresh branch from trunk 3bfb0eb; inherited and partial alignment worktrees remain untouched.
+Candidates: re-key every rig (fixed spacing still fails); rotate shoulder toward tip (reproduced 0.572 m miss);
+grounded render-only step plus blade-midpoint alignment (selected). No new GLBs, dependencies or simulation data.
+Failure F1: original inherited Run Through test misses by 0.572 m. Pending confirming regression + full quality.
+Hold clip must be one-shot; reset post-mixer corrections before repeated/zero-dt evaluation and rematch.
+Checks planned: all five torso rigs, translated/rotated parents, variable frame times, red/dark/off, rematch,
+real-scene capture, full quality and configured completion commands, live UI duel and release parity.
+Sentry: unresolved 5/6/A/9/8 are asset fetch/texture/WebGL errors; no evidence linking them to pose alignment.
+Three Semble searches + CodeGraph impact completed. No disputed graph edges or performance incident;
+Tree-sitter/CPU profiler are not relevant. No cross-agent handoff or new agents.
+
+
 ## Button-consistent parry counters — weapons, 2026-09-19
 Owner authorized fix and deployment. After a successful parry, Slash selects `slash_riposte` with each weapon's cut clip
 and a separately baked collision path; Stab retains `riposte`; Heavy retains `heavy_riposte` (or the earned posture critical).
