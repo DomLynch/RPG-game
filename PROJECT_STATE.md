@@ -1,7 +1,25 @@
 # Project state
 
 ## Wraith size feedback — 2026-09-19
-Owner approves both creatures and requests Wraith +50% size. Scoped presentation change in spectral.ts scales the complete Wraith rig 1.5 about its floor, keeping weapon and wisps attached. Minotaur and all shared assets stay unchanged. Considered asset rebuild versus runtime uniform scaling; runtime scaling is the smallest reversible option and adds no geometry/download cost. Existing lifecycle test pins Wraith 1.5 and Minotaur 1.0. Simulation remains the Nightborn archetype: rendered weapon/body grow while collision dimensions and attack reach retain existing tuning; this is an explicit playtest limitation, not a combat rebalance. Camera/ground/grip and public-game checks recorded in artifacts/character/wraith-size/. Integration waits for Opened release, then all configured gates and public parity are required.
+Owner approves both creatures and requests Wraith +50% size. Scoped presentation change in spectral.ts scales the complete Wraith rig 1.5 about its floor, keeping weapon and wisps attached. Minotaur and all shared assets stay unchanged. Considered asset rebuild versus runtime uniform scaling; runtime scaling is the smallest reversible option and adds no geometry/download cost. Existing lifecycle test pins Wraith 1.5 and Minotaur 1.0. Simulation remains the Nightborn archetype: rendered weapon/body grow while collision dimensions and attack reach retain existing tuning; this is an explicit playtest limitation, not a combat rebalance. Camera/ground/grip and public-game checks recorded in artifacts/character/wraith-size/. Integrated Opened94d988a. Audit found root scaling raised light/thrust strikes above hero height; a Wraith-only upper-arm aim correction blends through wind-up/recovery and restores before each mixer update. Real-GLB regression pins torso-height contact, unchanged grip, zero-dt stability, exact1.5 rematch scale and guard reset. All configured gates and public parity are required.
+
+## Opened waist finisher — 2026-09-19 (PR #163)
+Owner explicitly authorized a horizontal waist separation: torso slides sideways and falls; legs hold briefly and
+fall separately. Own-model static geometry is sliced and capped during loading/reset, outside the killing frame;
+closed cut surfaces, original exterior maps, arms retained with torso, victim weapon released to the sand, cached floor supports.
+Blood-off keeps the intact collapse. Red/dark/off changes and rematch restore the rig cleanly. Six-way deterministic
+pool and journal option; early side camera and two timed landing cues reuse existing resources. No GLB, simulation,
+input or dependency change. New creature bodies remain outside finisher support until their separate anatomy review.
+Initial CPU checks pass275/275, lint/typecheck/build/audit, 8,933,674-byte worst-fight budget. Tests cover all six
+humanoids, grounded halves, held pose, source geometry preservation, mode changes including late enable, and disposal.
+First visual review rejected limb-propped landing and portrait crop. A bounded broad-rest-face search, cached floor
+supports, one outer cut cap per half, and a wider/higher side view correct them. Stronger tests measure the waist
+itself as well as floor contact. Lower-half pivot and resting orientation are fitted at the waist; the victim weapon drops flat independently. All-six CPU checks and Goblin/Pitborn/Nightborn/Executioner final image reviews pass. Corrected Veteran real-scene red/dark/off, portrait/landscape, reduced motion and
+rematch checks pass. Integrated creature597ee849 retains spectral rendering and supportsFinishers guards before
+both selecting and preparing the effect. The sixth Auto outcome exposed Quiet One large-rig portrait cropping at seed741; its lateral camera margin is widened and that exact real kill is pinned in the existing gate. Small/large, mode/reset/reduced-motion and arena-edge checks pass. Combined budget9,325,213 bytes gzip per fight. The complete23-command
+contract includes Opened normal/large-rig scene checks and real phone-size UI victory/hold/rematch. Final integrated
+validation, review, exact-head CI and public publication receipts are maintained in artifacts/finishers/opened/;
+use public release.json as the served revision authority. Physical-phone feel remains owner-only.
 
 ## Reconstructed creature integration — 2026-09-19 (owner playtest)
 Owner explicitly requests Minotaur and Wraith live in the game with actual pictures for playtesting.

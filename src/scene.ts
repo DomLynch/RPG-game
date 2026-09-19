@@ -28,12 +28,12 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
 
 // Late finisher reveal: a three-quarter side view, fitted to the phone's horizontal field of view.
 // Choose the inward side from the frozen duel positions so the camera cannot switch sides as the corpse moves.
-export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' | 'quietOne' = 'runThrough') {
+export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough') {
   const dx = fallen.x-killer.x, dz = fallen.z-killer.z, gap = Math.hypot(dx,dz) || 1;
   const ux = dx/gap, uz = dz/gap, lookX = (killer.x+fallen.x)/2, lookZ = (killer.z+fallen.z)/2;
-  const back = Math.max(finisher === 'quietOne' ? 4.5 : 3.8, (gap/2+(finisher === 'quietOne' ? .65 : .42))/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
+  const back = Math.max(finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8, (gap/2+(finisher === 'opened' ? 1.5 : finisher === 'quietOne' ? 1.5 : .42))/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
   const angle = finisher !== 'runThrough' ? Math.PI/3 : 5*Math.PI/12, sideward = Math.sin(angle), rearward = Math.cos(angle);
-  const side = (sign: number) => ({ x: lookX+(-uz*sign*sideward-ux*rearward)*back, y: 3.1, z: lookZ+(ux*sign*sideward-uz*rearward)*back, lookX, lookY: .85, lookZ });
+  const side = (sign: number) => ({ x: lookX+(-uz*sign*sideward-ux*rearward)*back, y: finisher === 'opened' ? 3.7 : 3.1, z: lookZ+(ux*sign*sideward-uz*rearward)*back, lookX, lookY: .85, lookZ });
   const left = side(1), right = side(-1);
   const pose = Math.hypot(left.x,left.z) <= Math.hypot(right.x,right.z) ? left : right;
   const radius = Math.hypot(pose.x,pose.z);
@@ -100,7 +100,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
   const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
   const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, new URL(`./assets/${ROSTER[opponentId].body}.glb`, import.meta.url).href, weapons).then(loaded => {
-    warriors = loaded;
+    warriors = loaded; if (supportsFinishers(opponentId)) loaded.opponent.prepareOpened();
     for (const proxy of [player, opponent]) {
       proxy.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
       proxy.clear();
@@ -212,7 +212,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       const finisher = pick ? (finisherOverride ?? pick) : null;   // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;
-      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); if (severHead) { scene.remove(severHead.group); severHead.group.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); severHead = null; } warriors?.player.unsever(); warriors?.opponent.unsever(); }   // a fresh match: both bars full again
+      if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); if (severHead) { scene.remove(severHead.group); severHead.group.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); severHead = null; } warriors?.player.unsever(); warriors?.opponent.unsever(); if (supportsFinishers(opponentId)) warriors?.opponent.prepareOpened(); }   // a fresh match: both bars full again
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;
@@ -226,6 +226,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
         sparkMaterial.color.set(flesh ? (bloodMode==='dark' ? '#3e2527' : '#a32b27') : kick || hurt ? '#b1a28a' : '#ffe4af');
         sparkMaterial.blending=flesh || kick || hurt ? THREE.NormalBlending : THREE.AdditiveBlending; sparkMaterial.size=flesh ? (quietFinish ? .045 : .095) : .045;
         if (quietFinish && enemyHurt) { const neck = warriors?.opponent.boneWorld('neck_01'); if (neck) sparks.position.copy(neck); }
+        if (finisher === 'opened' && enemyHurt && warriors) { const hip=warriors.opponent.boneWorld('pelvis'), spine=warriors.opponent.boneWorld('spine_01'); if(hip && spine) sparks.position.copy(hip.lerp(spine,.6)); }
         if(flesh) { const splat=splats[splatIndex++%splats.length]; splat.life=20; splat.grow=0; splat.mesh.position.set(target.x,.022+splatIndex%12*.0001,target.z); splat.mesh.scale.set(.22+(splatIndex%3)*.05,.13+(splatIndex%4)*.035,1); splat.mesh.rotation.z=splatIndex*2.4;splat.mesh.material.color.set(bloodMode==='dark' ? '#352426' : '#681a19'); }
         if (flesh) { const wound = wounds[enemyHurt ? 1 : 0]; wound.life = 4; wound.side = enemyHurt ? 1 : 0; wound.site = site; }   // the wound-site mark: refreshed, never stacked
         if (killed && flesh) {   // the corpse keeps pooling after the splashes fade (cleared on rematch like everything else)
@@ -310,6 +311,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
       warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose, runThroughHold ? finishClock : playerDefence?.progress ?? mine.progress, mine.attack, mine.contact, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, enemyDefence?.pose || (finisherPose ?? theirs.pose), enemyDefence?.progress ?? victimProgress, theirs.attack, theirs.contact, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      if (finisher === 'opened' && practice.finish?.victim === 1) { warriors?.opponent.openWaist(victimProgress, bloodMode); wounds[1].group.visible = false; }
       if (finisher === 'splitCrown' && practice.finish?.victim === 1) warriors?.opponent.splitCrown(victimProgress, bloodMode);
       // Decapitation (owner 2026-09-18): when the seeded rotation picks it, the head comes off just after the skull-gives jolt
       // (the clip's first 9 %) — baked from the rig at that pose, popped along the killing blow, ballistic to a stop. Blood
@@ -371,8 +373,8 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
         wound.drips.forEach((drip,i) => { drip.position.set((i-1)*.025*size,-.05*size,0); drip.scale.set(.55,.5*size,1); drip.material.color.set(tone); drip.material.opacity = .6*Math.min(1,finishClock/.25); });
         wound.group.visible = bloodMode !== 'off';
       }
-      if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown' || finisher === 'quietOne')) {
-        const t = THREE.MathUtils.clamp(finisher === 'quietOne' ? (finishClock-.12)/.43 : (finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
+      if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown' || finisher === 'quietOne' || finisher === 'opened')) {
+        const t = THREE.MathUtils.clamp(finisher === 'opened' ? (finishClock-.04)/.4 : finisher === 'quietOne' ? (finishClock-.12)/.43 : (finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
         const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher);
         desired.lerp(new THREE.Vector3(side.x,side.y,side.z), reveal);
         look.lerp(new THREE.Vector3(side.lookX,side.lookY,side.lookZ), reveal);
