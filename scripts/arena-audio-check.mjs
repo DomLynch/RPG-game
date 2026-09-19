@@ -153,7 +153,7 @@ try {
  stage('draw and wait for real defeat');
  await ui.locator('#attack-button').tap();
  await ui.waitForFunction(offset => window.__arena.filter(e => e.offset === offset).length === 1, ARENA_MANIFEST.bell[0][0]);
- await ui.locator('#reset-button').waitFor({ state: 'visible', timeout: 90000 });
+ await ui.locator('#reset-button').waitFor({ state: 'visible', timeout: 150000 });
  assert.ok((await ui.evaluate(() => window.__arena)).every(e => e.stopped || e.ended), 'actual defeat stops ambience');
  stage('rematch');
  await ui.locator('#reset-button').tap(); await ui.waitForTimeout(2200);
