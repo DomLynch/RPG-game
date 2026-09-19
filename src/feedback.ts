@@ -19,6 +19,7 @@ const COMBAT_LEVEL = .5, FINISH_LEVEL = 1.5; // owner phone mix: half ordinary F
 export function createFeedback(host?: FeedbackHost) {
   type Voice = { source: AudioBufferSourceNode | null; gain: GainNode; send: GainNode; until: number };
   let suspensions = 0;
+  let pendingDraw: number | undefined;
   let arenaAudio: ReturnType<typeof createArenaAudio> | undefined, arenaOutput: AudioNode;
   let context: BaseAudioContext | undefined, master: GainNode | undefined, balance: GainNode | undefined, bus: DynamicsCompressorNode | undefined, noise: AudioBuffer | undefined;
   let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, quieted = false, duel = 0, random = seeded(BASE_SEED);
@@ -83,6 +84,7 @@ export function createFeedback(host?: FeedbackHost) {
     }
   }
   function stopSources() {
+    pendingDraw = undefined;
     if (!context) return;
     arenaAudio?.stop();
     for (const source of sources) { try { source.stop(now()); } catch { /* already ended */ } }
@@ -98,10 +100,14 @@ export function createFeedback(host?: FeedbackHost) {
     async ready() { const decoded = await (loading ?? Promise.resolve(!!sprite)); await arenaAudio?.ready(); return decoded; },
     // Sound consumes the simulation's events. Sprite: every mapped cue this tick, impacts first. Fallback: one cue, strongest first.
     update(events: CombatEvent[], presentation?: DeathPresentation, frame?: ArenaFrame) {
-      if (!enabled || quieted || !context || !live()) return;
+      if (!frame?.drawing || frame.ended || frame.match !== pendingDraw) pendingDraw = undefined;
+      if (!enabled || quieted) return;
+      // Touchend may enable WebKit audio after Draw's simulation tick. Keep only this still-active draw, never a stale cue.
+      if (frame && !frame.ended && events.some(e => e.type === 'ActionStarted' && e.action === 'draw' && e.actor === 0)) pendingDraw = frame.match;
+      if (!context || !live()) return;
       if (events.some(e => e.type === 'ActionStarted' && e.action === 'draw' && e.actor === 0)) random = seeded((host?.seed ?? BASE_SEED) + duel++ * 1013);   // a fresh duel, a fresh but repeatable roll
       const time = now();
-      if (frame) { arenaAudio ??= createArenaAudio(context, arenaOutput, now); arenaAudio.update(events, frame); }
+      if (frame) { arenaAudio ??= createArenaAudio(context, arenaOutput, now); arenaAudio.update(events, frame, pendingDraw === frame.match); pendingDraw = undefined; }
       // Death ends the duel: the impact, voice, delayed body and crowd share the finishing level.
       // Empty post-death ticks keep it; fresh combat or quiet/mute returns to the ordinary level.
       if (events.length) balance!.gain.setValueAtTime(events.some(e => e.type === 'Killed') ? FINISH_LEVEL : COMBAT_LEVEL, time);
