@@ -18,7 +18,7 @@ cross-user read/write denial, anonymous denial, immutable ownership/revision, st
 rolled back both test users and saves (zero profile rows remain). Receipt: artifacts/account/hosted-rls-receipt.txt.
 Hosted site URL and exact /?account=return redirect saved and verified in dashboard. Public REST read without a user
 session returns 401/42501 as intended. Ignored public production configuration and exact-origin CSP are prepared;
-nginx has not been changed.
+The exact Supabase origin is now installed in the Frankendom nginx CSP (backup retained); nginx -t and public header checks pass.
 
 Failure ledger: F1 callback fixture wrote its PKCE verifier without SDK JSON encoding; corrected fixture and reruns pass.
 F2 logout-failure test expected a retained session; verified current SDK deliberately clears local credentials even when
@@ -37,8 +37,8 @@ Two-pass review covered ownership/concurrency/retry and mobile/desktop placement
 Activation: owner approved Google credential creation. Dedicated Google project principal-zoo-509110-v0 has a web
 OAuth client with frankendom.com origin and https://rxbewmzmovelckzoosss.supabase.co/auth/v1/callback. Secret saved
 only in Supabase; public settings confirms Google enabled. Email/password provider disabled. Public privacy page
-added at /privacy.html and linked inside the journal for Google publication. Production CSP and live login/save/recovery
-remain pending; PR #152 remains draft. World-integrated c02b17e passed all 12 commands, including 269/269 tests;
+added at /privacy.html and linked inside the journal. Google is In production with only OpenID/email/profile scopes.
+Production CSP is installed and publicly verified; actual live login/save/recovery remains pending; PR #152 remains draft. World-integrated c02b17e passed all 12 commands, including 269/269 tests;
 logs artifacts/account/world-integrated. Audio trunk 03282b0 integrated cleanly; combined rerun pending. Calibre untouched.
 
 ## Mixed, populated crowd and stronger foot sand — world, 2026-09-19
