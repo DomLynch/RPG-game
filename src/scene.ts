@@ -31,7 +31,7 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
 export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough') {
   const dx = fallen.x-killer.x, dz = fallen.z-killer.z, gap = Math.hypot(dx,dz) || 1;
   const ux = dx/gap, uz = dz/gap, lookX = (killer.x+fallen.x)/2, lookZ = (killer.z+fallen.z)/2;
-  const back = Math.max(finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8, (gap/2+(finisher === 'opened' ? 1.5 : finisher === 'quietOne' ? .65 : .42))/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
+  const back = Math.max(finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8, (gap/2+(finisher === 'opened' ? 1.5 : finisher === 'quietOne' ? 1.5 : .42))/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
   const angle = finisher !== 'runThrough' ? Math.PI/3 : 5*Math.PI/12, sideward = Math.sin(angle), rearward = Math.cos(angle);
   const side = (sign: number) => ({ x: lookX+(-uz*sign*sideward-ux*rearward)*back, y: finisher === 'opened' ? 3.7 : 3.1, z: lookZ+(ux*sign*sideward-uz*rearward)*back, lookX, lookY: .85, lookZ });
   const left = side(1), right = side(-1);

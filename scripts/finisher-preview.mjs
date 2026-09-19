@@ -18,6 +18,8 @@ const args = process.argv.slice(2), option = name => { const i = args.indexOf(`-
 const commit = execSync('git describe --always --dirty').toString().trim();
 const label = option('label') || 'finishers-v2';
 const opponent = option('opponent') || 'veteran';
+// Pin a real simulated kill when retaining a camera regression; selection still uses the production pool.
+const seedStart = option('seed') ? Number(option('seed')) : 731, seedCount = option('seed') ? 1 : 80;
 const order = option('only') ? option('only').split(',') : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened'];
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom finisher preview</title>
@@ -73,7 +75,7 @@ function simulate(seed) {
 // The first death window each shipped outcome draws, across seeded duels (the rotation seed is the kill event itself).
 const windows = {};
 const provenance = [];
-for (let seed = 731; seed < 731 + 80 && wanted.some(id => windows[id] === undefined); seed++) {
+for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id => windows[id] === undefined); seed++) {
   const sim = simulate(seed);
   if (sim.kill < 0) continue;   // the scripted duel produced no kill on this seed
   const finish = sim.frames[sim.frames.length - 1].practice.finish;
@@ -86,7 +88,7 @@ for (let seed = 731; seed < 731 + 80 && wanted.some(id => windows[id] === undefi
   }
 }
 window.__provenance = provenance;
-if (wanted.some(id => windows[id] === undefined)) throw new Error('could not draw requested outcomes across 80 seeds: ' + JSON.stringify(provenance));
+if (wanted.some(id => windows[id] === undefined)) throw new Error('could not draw requested outcomes from the requested seeds: ' + JSON.stringify(provenance));
 window.__step = 'simulated';
 let cursor = -1, maxCameraStep = 0, currentMode = 'red';
 window.__finisher = {
@@ -242,7 +244,7 @@ try {
           if (suffix === 'drop') assert.ok(quiet.headHeight > .9*(opponent === 'goblin' ? .7 : opponent === 'executioner' ? 1.2 : 1), 'the held beat remains upright');
           if (suffix === 'settled') {
             assert.ok(quiet.headHeight < .55,'body reaches the ground');
-            assert.ok(quiet.bodyFrame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'whole fallen body remains inside the portrait frame');
+            assert.ok(quiet.bodyFrame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),`whole fallen body remains inside the portrait frame: ${JSON.stringify(quiet.bodyFrame)}`);
             assert.ok(framing.side > .75 && framing.maxCameraStep < .25,'continuous side reveal');
             assert.ok(framing.heads.every(p=>p && p[0]>10 && p[0]<383 && p[1]>20 && p[1]<700),'both heads clear the portrait controls');
           }

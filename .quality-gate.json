@@ -93,7 +93,9 @@
       "executioner",
       "--no-video",
       "--label",
-      "quiet-one-large-gate"
+      "quiet-one-large-gate",
+      "--seed",
+      "741"
     ],
     [
       "node",

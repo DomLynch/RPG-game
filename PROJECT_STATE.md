@@ -13,7 +13,7 @@ First visual review rejected limb-propped landing and portrait crop. A bounded b
 supports, one outer cut cap per half, and a wider/higher side view correct them. Stronger tests measure the waist
 itself as well as floor contact. Lower-half pivot and resting orientation are fitted at the waist; the victim weapon drops flat independently. All-six CPU checks and Goblin/Pitborn/Nightborn/Executioner final image reviews pass. Corrected Veteran real-scene red/dark/off, portrait/landscape, reduced motion and
 rematch checks pass. Integrated creature597ee849 retains spectral rendering and supportsFinishers guards before
-both selecting and preparing the effect. Combined budget9,324,979 bytes gzip per fight. The complete23-command
+both selecting and preparing the effect. The sixth Auto outcome exposed Quiet One large-rig portrait cropping at seed741; its lateral camera margin is widened and that exact real kill is pinned in the existing gate. Small/large, mode/reset/reduced-motion and arena-edge checks pass. Combined budget9,325,213 bytes gzip per fight. The complete23-command
 contract includes Opened normal/large-rig scene checks and real phone-size UI victory/hold/rematch. Final integrated
 validation, review, exact-head CI and public publication receipts are maintained in artifacts/finishers/opened/;
 use public release.json as the served revision authority. Physical-phone feel remains owner-only.
