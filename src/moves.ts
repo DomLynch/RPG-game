@@ -1,3 +1,5 @@
+import { ROSTER, type OpponentId } from './roster.ts';
+export type { OpponentId } from './roster.ts';
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
 // Damage is tuned for a Souls-length duel: AI vs AI at normal runs ~9 clean hits / ~35 s (light 11, heavy 18, riposte 24, heavy riposte 30, kick 4).
 // The engine (duel.ts) reads this table; nothing here may depend on rendering, clocks or browser state.
@@ -369,14 +371,13 @@ export type Level = keyof typeof PROFILES;
 // counter-hits, stop-hits, rear hits and charged blows always do. 0 = staggered by everything, the human default.
 // guard: how this man's guard behaves on top of his weapon's (`Fighter.guardProfile`): the Nightborn's parry window is longer than a man's
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
-export type OpponentId = 'veteran' | 'pitborn' | 'nightborn' | 'goblin' | 'executioner';
 export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
-export const OPPONENTS: Record<OpponentId, Opponent> = {
-  veteran: { id: 'veteran', weapon: 'trident', scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },   // the trident since slice V (2026-09-16)
+const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon'>> = {
+  veteran: { scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },   // the trident since slice V (2026-09-16)
   // The pit brute: relentless light chains (aggression, pressure), a low parry rate, slower to notice, a low discipline floor so he
   // swings himself hot; poise 16 — a plain cut (14) or stab (11) never stops him, a heavy (18) or any counter does.
   // Health 190: with the Veteran's brain driving the hero he took 150 in ~22 s (probe, 24 seeds); the brute is meant to take more killing than a man.
-  pitborn: { id: 'pitborn', weapon: 'cleaver', scale: 1.13, health: 190, poise: 16, profiles: {
+  pitborn: { scale: 1.13, health: 190, poise: 16, profiles: {
     easy: { reaction: 28, accuracy: .5, parry: .05, dodge: .05, aggression: .6, pressure: .6, discipline: 30, lapse: .45 },
     normal: { reaction: 18, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .3 },
     hard: { reaction: 14, accuracy: .9, parry: .3, dodge: .2, aggression: .95, pressure: .75, discipline: 24, lapse: .1 },   // discipline 20 → 24 with the cleaver (slice W): its hack costs 42, and at 20 he swung himself empty into the whiff punisher (10/24 at hard, over the cap); 24 keeps him hot-headed (the Veteran holds 40) and the punisher at 7/24
@@ -391,7 +392,7 @@ export const OPPONENTS: Record<OpponentId, Opponent> = {
   // 20-tick tell fit inside. His reaction (6 at normal) is the floor under the press: it must sit inside the feint window with a tick to spare.
   // The heavy's tell (34) is past his press, so an honest heavy is parried; a heavy held at its chamber past his press lands on the whiff.
   // Kicks open a standing guard. PROVISIONAL; the battery in tests/opponents.test.ts is the gate.
-  nightborn: { id: 'nightborn', weapon: 'estoc', scale: 1.03, health: RULES.health, poise: 0, guard: { window: 16, recovery: 40, commits: true }, profiles: {
+  nightborn: { scale: 1.03, health: RULES.health, poise: 0, guard: { window: 16, recovery: 40, commits: true }, profiles: {
     easy: { reaction: 8, accuracy: .7, parry: .45, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .3 },
     normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .6, pressure: .45, discipline: 45, lapse: .15 },   // pressure .45: enough heavies that a roller is charged through (a cut-and-thrust man rolls too easily)
     hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .75, pressure: .5, discipline: 40, lapse: .05 },
@@ -402,7 +403,7 @@ export const OPPONENTS: Record<OpponentId, Opponent> = {
   // heavy, against anyone), never guards (guard 0: he evades or steps back where a man would block), hops back out after landing (disengage),
   // drifts sideways while closing (circle) and recovers stamina half again as fast (regen 1.5). He fights with the knife: slash 1.2 / stab 1.45 /
   // hack 1.55 m (measured), inside a sword's cutting range — his `fight.close` 1.0.
-  goblin: { id: 'goblin', weapon: 'knife', scale: .78, health: 120, poise: 0, regen: 1.5, speed: 1.2, profiles: {   // health 100 → 120 (owner, 2026-09-17): a careless player deleted him in seven cuts; the hero brain beat him as often as the Pitborn, the rung before him
+  goblin: { scale: .78, health: 120, poise: 0, regen: 1.5, speed: 1.2, profiles: {   // health 100 → 120 (owner, 2026-09-17): a careless player deleted him in seven cuts; the hero brain beat him as often as the Pitborn, the rung before him
     easy: { reaction: 18, accuracy: .55, parry: 0, dodge: .3, aggression: .7, pressure: .5, discipline: 30, lapse: .4, feint: .15, guard: 0, disengage: .4, circle: .5, step: .6, interrupt: .3, kick: .4, dash: .6 },
     normal: { reaction: 10, accuracy: .8, parry: 0, dodge: .4, aggression: .85, pressure: .6, discipline: 20, lapse: .2, feint: .3, guard: 0, disengage: .6, circle: .8, step: .8, interrupt: .6, kick: .6, dash: 1 },
     hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .5, aggression: .95, pressure: .65, discipline: 15, lapse: .08, feint: .4, guard: 0, disengage: .7, circle: 1, step: .8, interrupt: .8, kick: .7, dash: 1 },
@@ -410,5 +411,9 @@ export const OPPONENTS: Record<OpponentId, Opponent> = {
   // The Executioner (opponent 6): 1.36 — 20 % over the Pitborn's 1.13 (owner, 2026-09-17), a big man's
   // health and poise. His arc is LIVE since 2026-09-18 (the weapons lane's scythe: reap 1.40–2.10 m, a dead band inside 1.4 m,
   // the shaft guard). PROVISIONAL: he carries the Veteran's brain (PROFILES); his own profile and ladder slot are the combat lead's.
-  executioner: { id: 'executioner', weapon: 'scythe', scale: 1.36, health: 160, poise: 12, profiles: PROFILES },
+  executioner: { scale: 1.36, health: 160, poise: 12, profiles: PROFILES },
 };
+
+export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) =>
+  [id, { id, weapon: recipe.weapon, ...ARCHETYPES[recipe.archetype] }],
+)) as Record<OpponentId, Opponent>;
