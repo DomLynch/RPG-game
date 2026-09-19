@@ -83,6 +83,19 @@ if(process.argv.includes('--blood-check')) {
 }
 await page.addStyleTag({content:'#debug{visibility:hidden}'});
 await page.screenshot({path:`${dir}/live-held.png`});
+if(process.argv.includes('--blood-check')) {
+  receipt.bloodModes=[];
+  for(const mode of ['dark','off','red']) {
+    await page.getByRole('button',{name:'Menu and field journal'}).tap();
+    await page.locator('#blood-mode').tap();assert.equal(await page.locator('#blood-mode').textContent(),`Blood: ${mode}`);
+    await page.getByRole('button',{name:'Close journal'}).tap();await page.waitForTimeout(150);
+    const blood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));
+    assert.equal(blood.visible,mode!=='off');
+    if(mode!=='off')assert.equal(blood.color,mode==='dark' ? '2b2226' : '68121a');
+    receipt.bloodModes.push({mode,visible:blood.visible,color:blood.color,pools:blood.pools.length});
+    await page.screenshot({path:`${dir}/live-blood-${mode}.png`});
+  }
+}
 await page.locator('#reset-button').tap();
 await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn'),null,{timeout:90000});
 assert.doesNotMatch(await clips(), expected, 'rematch clears the finisher');
