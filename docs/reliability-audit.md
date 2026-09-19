@@ -38,3 +38,12 @@ failure tests block telemetry so they do not create production incidents.
 
 Future end-game mechanics remain documentation-only. No new backend framework,
 equipment system or competitive rating is needed for this cleanup.
+
+## Shared check-runner limitation
+
+The installed shared hook caps the entire command list at 420 seconds, while
+this candidate's 24 commands took 1,111 seconds and all passed when run directly.
+GitHub's hosted quality job was also prevented from starting by account billing;
+the clean Node 22 and disposable PostgreSQL equivalents passed locally. These are
+recorded infrastructure limitations, not passing hosted/automatic runs. No shared
+hook, billing setting, protection rule or test assertion was weakened for release.
