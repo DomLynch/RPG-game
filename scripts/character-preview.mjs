@@ -2,6 +2,7 @@
 // lock camera and renderer settings, plus a resource table. Never part of the build or the runtime.
 //   node scripts/character-preview.mjs --label baseline      capture into artifacts/character/<label>/
 //   node scripts/character-preview.mjs --against baseline    also print deltas against that label's stats
+//   --sheet 'Clip:0,.25,.5' --azimuth 180   key frames from a chosen angle (degrees; default 30)
 //   node scripts/character-preview.mjs --serve               keep a dev server up for manual review
 //   node scripts/character-preview.mjs --weapons --label live [--enemy /src/assets/veteran.glb]   (the shipped Veteran carries the trident)
 //                                                            weapons lane evidence into artifacts/weapons/<label>/ (the opponent's weapon)
@@ -36,7 +37,9 @@ try {
   console.log(`Capturing ${label} (${commit}) →`);
   if (option('sheet')) { // --sheet 'Clip:0,.25,.5;Other:.1' → one key-frame sheet of the loaded source, nothing else
     const list = option('sheet').split(';').flatMap(part => { const [name, ts] = part.split(':'); return ts.split(',').map(t => [name.trim(), +t]); });
-    await save('sheet.png', await page.evaluate(l => __preview.clipSheet(l), list));
+    const azimuth = Number(option('azimuth') ?? 30);
+    if (!Number.isFinite(azimuth)) throw new Error('--azimuth must be a finite number of degrees');
+    await save('sheet.png', await page.evaluate(([l, a]) => __preview.clipSheet(l, a), [list, azimuth * Math.PI / 180]));
     if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
   }
   if (args.includes('--moodboard')) { // Direction proposal only: swatches and silhouette blockout, no baseline captures.

@@ -27,6 +27,10 @@
     ],
     [
       "node",
+      "scripts/estoc-browser-check.mjs"
+    ],
+    [
+      "node",
       "scripts/arena-preview.mjs",
       "--label",
       "quality-world"
