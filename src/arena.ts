@@ -172,7 +172,9 @@ export function buildArena(scene: THREE.Scene): Arena {
   // Rubble: fallen stone in the band between the play circle and the wall (never above 0.5 m: the camera clamp rule), blocks on collapsed
   // tiers, a few bone fragments in the sand.
   for (let i = 0; i < 26; i++) {
-    const a = hash(i, 0, 13) * TAU, rr = 9.9 + hash(i, 1, 13) * 1.45, [x, z] = polar(rr, a), s = 0.16 + hash(i, 2, 13) ** 2 * 0.3, bone = i % 4 === 3;
+    const cluster = i % 4 < 2, drum = i % 3;
+    const a = cluster ? 1.3 + drum * 2.1 + hash(drum, 0, 53) * 0.5 + (hash(i, 0, 13) - 0.5) * 0.16 : hash(i, 0, 13) * TAU;
+    const rr = cluster ? 10.1 + hash(drum, 1, 53) * 1.1 - hash(i, 1, 13) * 0.65 : 9.9 + hash(i, 1, 13) * 1.45, [x, z] = polar(rr, a), s = 0.16 + hash(i, 2, 13) ** 2 * 0.3, bone = i % 4 === 3;
     stones.push(prop(new THREE.SphereGeometry(bone ? 0.09 : s, 7, 5), x, bone ? 0.02 : s * 0.25, z, new THREE.Euler(hash(i, 3, 13) * 3, hash(i, 4, 13) * 3, hash(i, 5, 13)), new THREE.Vector3(1, 0.55, 0.8), 1, bone ? BONE : DARK, -0.2));
   }
   for (let i = 0; i < 40; i++) {
@@ -191,7 +193,8 @@ export function buildArena(scene: THREE.Scene): Arena {
     stones.push(prop(cylinder(0.3, 0.3, 0.85, 12), x, 0.17, z, new THREE.Euler(Math.PI / 2, a, 0, 'YXZ'), 1, 2, [seg(i + 40), seg(i + 40), seg(i + 40) * 0.98], -0.2));
   }
   for (let i = 0; i < 7; i++) {
-    const a = hash(i, 0, 55) * TAU, rr = 9.3 + hash(i, 1, 55) * 1.9, [x, z] = polar(rr, a), s = 0.1 + hash(i, 2, 55) * 0.12;
+    const drum = i % 3, a = 1.3 + drum * 2.1 + hash(drum, 0, 53) * 0.5 + (hash(i, 0, 55) - 0.5) * 0.2;
+    const rr = 10.1 + hash(drum, 1, 53) * 1.1 - hash(i, 1, 55) * 0.8, [x, z] = polar(rr, a), s = 0.1 + hash(i, 2, 55) * 0.12;
     stones.push(prop(new THREE.SphereGeometry(s, 6, 4), x, s * 0.3, z, new THREE.Euler(hash(i, 3, 55) * 3, hash(i, 4, 55) * 3, hash(i, 5, 55) * 2), new THREE.Vector3(1, 0.4, 0.8), 1, [1.5, 0.82, 0.55], -0.1));
   }
   mesh(mergeGeometries(stones), stone, 'stone');
@@ -215,22 +218,24 @@ export function buildArena(scene: THREE.Scene): Arena {
   }
   const bannerAngles = Array.from({ length: 8 }, (_, k) => Math.PI / 8 + k * Math.PI / 4), bannerR = wall.outer - 0.15, bannerTop = wall.top + 3.4;
   for (const a of bannerAngles) { const [x, z] = polar(bannerR, a); irons.push(prop(cylinder(0.035, 0.045, 3.4, 6), x, wall.top + 1.7, z, 0, 1, 1, IRON, wall.top), prop(box(1.3, 0.06, 0.06), x, bannerTop, z, a, 1, 1, IRON, -5)); }
+  const fallenStart = irons.length;
   // Dropped gear in the sand (iron, tinted): a fallen shield by the wall and a broken blade half-buried near the ring.
-  { const a = 2.4, [x, z] = polar(10.3, a);
-    irons.push(prop(cylinder(0.34, 0.34, 0.045, 16), x, 0.05, z, new THREE.Euler(0.12, a, 0.06), 1, 1, [2.3, 1.7, 1.0], -5));
-    irons.push(prop(new THREE.SphereGeometry(0.09, 8, 6), x, 0.1, z, 0, new THREE.Vector3(1, 0.6, 1), 1, [2.3, 1.7, 1.0], -5)); }
+  { const a = 1.3 + hash(0, 0, 53) * 0.5 + 0.07, [x, z] = polar(10.1 + hash(0, 1, 53) * 1.1 - 0.4, a);
+    const shield = new THREE.SphereGeometry(0.34, 14, 5, 0, TAU, 0, Math.PI / 2); shield.scale(1, 0.16, 1);
+    irons.push(prop(shield, x, -0.008, z, new THREE.Euler(0.12, a, 0.06), 1, 1, [2.3, 1.7, 1.0], -0.02));
+    irons.push(prop(new THREE.SphereGeometry(0.09, 8, 6), x, 0.046, z, 0, new THREE.Vector3(1, 0.5, 1), 1, [2.3, 1.7, 1.0], -0.02)); }
   { const a = 4.9, [x, z] = polar(9.8, a);
     irons.push(prop(box(0.52, 0.025, 0.07), x, 0.03, z, new THREE.Euler(0.04, a, 0.02), 1, 1, [1.9, 1.9, 2.0], -5));
     irons.push(prop(box(0.16, 0.04, 0.05), x + Math.sin(a + 0.5) * 0.3, 0.035, z + Math.cos(a + 0.5) * 0.3, a + 0.5, 1, 1, [1.2, 0.9, 0.7], -5)); }
   // More of yesterday's fight (world lane 2026-09-18): a dented helmet, a snapped spear, a blade snapped at the tang.
   // All in the iron merge — zero draw calls — and low with yaw-only spins (the camera-clamp rule).
-  { const a = 0.9, [x, z] = polar(10.1, a), dome = new THREE.SphereGeometry(0.17, 10, 7); dome.scale(1, 0.62, 1.12);
-    irons.push(prop(dome, x, 0.055, z, 0, 1, 1, [1.35, 1.3, 1.22], -0.1));
+  { const a = 3.4 + hash(1, 0, 53) * 0.5 - 0.055, [x, z] = polar(10.1 + hash(1, 1, 53) * 1.1 - 0.5, a), dome = new THREE.SphereGeometry(0.17, 10, 7); dome.scale(1, 0.62, 1.12);
+    irons.push(prop(dome, x, 0.008, z, new THREE.Euler(0.13, a, -0.12), 1, 1, [1.35, 1.3, 1.22], -0.1));
     irons.push(prop(box(0.2, 0.02, 0.14), x + Math.sin(a) * 0.13, 0.03, z + Math.cos(a) * 0.13, a, 1, 1, [1.35, 1.3, 1.22], -0.1)); }
   { const a = 3.6, [x, z] = polar(9.9, a), long = cylinder(0.022, 0.026, 0.95, 6); long.rotateZ(Math.PI / 2);
     const stub = cylinder(0.024, 0.028, 0.45, 6); stub.rotateZ(Math.PI / 2);
-    irons.push(prop(long, x, 0.035, z, a, 1, 1, [1.55, 1.25, 0.85], -0.1));
-    irons.push(prop(stub, x + Math.sin(a + 2.6) * 0.75, 0.03, z + Math.cos(a + 2.6) * 0.75, a + 0.9, 1, 1, [1.55, 1.2, 0.8], -0.1));
+    irons.push(prop(long, x, 0.008, z, new THREE.Euler(0.012, a, 0.022), 1, 1, [1.55, 1.25, 0.85], -0.1));
+    irons.push(prop(stub, x + Math.sin(a + 2.6) * 0.57, 0.004, z + Math.cos(a + 2.6) * 0.57, a + 0.9, 1, 1, [1.55, 1.2, 0.8], -0.1));
     irons.push(prop(cylinder(0.03, 0.03, 0.09, 6), x + Math.sin(a) * 0.5, 0.045, z + Math.cos(a) * 0.5, 0, 1, 1, [1.3, 1.15, 1.0], -0.1)); }
   { const a = 5.6, [x, z] = polar(10.4, a);
     irons.push(prop(box(0.46, 0.02, 0.065), x, 0.025, z, a + 0.3, 1, 1, [1.9, 1.9, 2.0], -0.1));
@@ -242,9 +247,10 @@ export function buildArena(scene: THREE.Scene): Arena {
     const RUST: [number, number, number] = [1.9, 1.55, 1.0], STEEL: [number, number, number] = [1.8, 1.8, 1.95], WOOD: [number, number, number] = [1.5, 1.15, 0.75];
     for (const [rr, a, kind] of scatter) { const [x, z] = polar(rr, a);
       if (kind === 0) {   // a shield sunk to its rim, boss up
-        irons.push(prop(cylinder(0.3, 0.3, 0.035, 14), x, 0.004, z, new THREE.Euler(0, a, 0.09), 1, 1, RUST, -0.05));
+        const shield = new THREE.SphereGeometry(0.3, 14, 5, 0, TAU, 0, Math.PI / 2); shield.scale(1, 0.13, 1);
+        irons.push(prop(shield, x, -0.012, z, new THREE.Euler(0.055, a, 0.085), 1, 1, RUST, -0.05));
         const boss = new THREE.SphereGeometry(0.07, 8, 6); boss.scale(1, 0.4, 1);
-        irons.push(prop(boss, x, 0.025, z, 0, 1, 1, RUST, -0.05));
+        irons.push(prop(boss, x, 0.012, z, 0, 1, 1, RUST, -0.05));
       } else if (kind === 1) {   // a blade fragment, edge up
         irons.push(prop(box(0.4, 0.018, 0.06), x, 0.006, z, a + 0.4, 1, 1, STEEL, -0.05));
         irons.push(prop(box(0.12, 0.03, 0.05), x - Math.sin(a) * 0.35, 0.004, z - Math.cos(a) * 0.35, a + 1.1, 1, 1, WOOD, -0.05));
@@ -256,6 +262,14 @@ export function buildArena(scene: THREE.Scene): Arena {
         const frag = cylinder(0.02, 0.024, 0.68, 6); frag.rotateZ(Math.PI / 2);
         irons.push(prop(frag, x, 0.012, z, a + 0.7, 1, 1, WOOD, -0.05));
       } } }
+  // Sand dust at the exposed edges of fallen gear, baked into existing vertex colours; no floor decals or extra draw.
+  for (const g of irons.slice(fallenStart)) {
+    const p = g.attributes.position, c = g.attributes.color;
+    for (let i = 0; i < p.count; i++) {
+      const dust = 0.42 * (1 - smooth(-0.012, 0.03, p.getY(i)));
+      c.setXYZ(i, c.getX(i) * (1 - dust) + 3.4 * dust, c.getY(i) * (1 - dust) + 3 * dust, c.getZ(i) * (1 - dust) + 2.6 * dust);
+    }
+  }
   mesh(mergeGeometries(irons), iron, 'iron');
   mesh(mergeGeometries(coals), coal, 'coals', false);
   // Flames: one instanced tongue per brazier over the coals — three quads at 60° so it has volume from every angle
