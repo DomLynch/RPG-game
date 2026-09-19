@@ -1,5 +1,73 @@
 # Character production pilots
 
+## Owner review and new direction — 2026-09-19
+
+The owner **rejected the procedural pilots below as amateur**. Passing structural
+checks did not make them acceptable art. Do not use them as approved masters.
+
+The owner approved the new seven-view Minotaur and Wraith concept sheets. The
+Minotaur needs a credible heavy bovine skull continuous with its neck, trapezius
+and muscular body. The Wraith needs a skeletal face and claws, broken crown and
+airy semi-transparent wisps; its lower body dissolves. This supersedes the earlier
+solid-bodied Wraith interpretation. Approved sheets are concepts, not game renders.
+
+### MPFB test
+
+Installed and enabled MPFB **2.0.17** in Blender **5.2.1 LTS**, from the official
+[tagged source](https://github.com/makehumancommunity/mpfb2/tree/v2.0.17), packaged
+as a Blender extension. The extension-platform sync failed because Blender online
+access was disabled; the pinned source installation succeeded without changing
+that preference. Local experiment: `artifacts/character/mpfb-test/`.
+
+The test created editable human macro/target sources, applied anatomical and
+animal-head targets, added MPFB's game-engine rig, evaluated a pose, and exported
+static GLBs. Minotaur: 29,436 triangles. Wraith: 27,802 triangles with BLEND alpha
+and a separate smoke texture. Both loaded in the local Three.js study viewer.
+These are **MPFB rig tests, not the existing Frankendom combat rig or clips**.
+
+Visual audit rejected both as final art: Minotaur retains a tame cow face and
+insufficiently developed surfaces; Wraith's core still reads as a human mannequin.
+The first triangle-tuft fur attempt was also rejected and removed from the second
+test. MPFB is a useful anatomical foundation, not an automatic creature-finishing
+tool. Experiment scripts remain beside their outputs, outside production tooling.
+
+### Approved image references and reconstruction trial
+
+Built-in image generation produced the seven-view sheets using the owner's
+attached images as visual references. A subsequent front-view reconstruction
+source was made for each creature. The Wraith source deliberately omits smoke so
+the opaque core and transparent effects can be authored separately.
+
+The free official [Microsoft TRELLIS.2 demo](https://huggingface.co/spaces/microsoft/TRELLIS.2)
+generated a Minotaur reconstruction and 48 native preview frames (six material
+modes, eight angles). Shape continuity is materially stronger than the MPFB test.
+However, the GLB export failed with a ZeroGPU quota error. No TRELLIS GLB, Wraith
+reconstruction, animation retarget, mobile performance or production readiness
+is claimed. The HF connector is authenticated, while the local client and in-app
+browser were not; browser sign-in was requested to test authenticated access.
+
+Saved native renders and interactive review: `artifacts/character/trellis-test/`.
+The preview is a discrete set of reconstruction renders, not a live game character.
+The next model gate is an exported mesh, then cleanup, retopology/texture budget,
+rigging and real combat/motion review against the approved direction.
+
+### Source and licence records
+
+- MPFB source tag archive SHA-256:
+  `d08e726c798fdc4eefb02b06b6c4efe37d40b5439777e53cf96dce0e5073297d`.
+  MPFB code is GPL-3.0-or-later; its bundled asset data is CC0-1.0.
+- The optional `jaldmic_vaca_cow_head` morph is by **JALdMIC**, labelled **CC-BY**
+  in the official [animal03 pack](https://static.makehumancommunity.org/assets/assetpacks/animal03.html).
+  Original source: `http://www.makehumancommunity.org/node/3544`.
+  Used in the rejected Minotaur test with adjusted weight and further geometry
+  edits. The pack does not specify a CC-BY version; no version is invented here.
+  Pack archive SHA-256:
+  `6eff3aaa16699b9e924c50364b33b346dd5558b1838f82aed021d561b96ffb86`.
+- Source receipts, downloaded licences, recipe and installation helper are retained
+  in `artifacts/character/mpfb-test/`. No paid service, live asset or roster changed.
+
+## Previous procedural pilots — rejected, retained for comparison
+
 Wraith and Minotaur are **unapproved anatomy studies**, not live roster additions.
 The Wraith reuses Nightborn's rig and face UVs, with a bounded cheek sculpt and a
 new open cowl. Minotaur reuses Pitborn's body and weapon with an original bovine
