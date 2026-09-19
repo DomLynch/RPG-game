@@ -1,6 +1,6 @@
 import { Box3, BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, SkinnedMesh, Vector3 } from 'three';
 
-// One pose bake per kill, like the severed head. Exterior maps are borrowed; only the new geometry and cut material
+// One pose bake per encounter, prepared before combat like a cached severed prop. Exterior maps are borrowed; only the new geometry and cut material
 // belong to this effect. Cut the torso at its waist, retaining both arms and the held weapon with the upper body.
 export function openWaist(root: Object3D, anchor: Group) {
   root.updateWorldMatrix(true, true); root.updateMatrixWorld(true);
@@ -78,7 +78,7 @@ export function openWaist(root: Object3D, anchor: Group) {
       if (positions.length) {
         const g = make(positions,normals,uvs); if (colors.length) g.setAttribute('color',new Float32BufferAttribute(colors,3));
         for (const entry of groups) g.addGroup(entry.start,entry.count,entry.materialIndex);
-        const mesh = new Mesh(g,object.material); mesh.name = object.name; mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false; half.add(mesh);
+        const mesh = new Mesh(g,object.material); mesh.name = object.name; mesh.userData.openedWeapon = attachment; mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false; half.add(mesh);
       }
       if (edges.length) {
         const center = new Vector3(); for (const edge of edges) for (const p of edge) center.add(p); center.divideScalar(edges.length*2);
@@ -96,7 +96,6 @@ export function openWaist(root: Object3D, anchor: Group) {
     upper.position.set(.5*scale*slide,waist*(1-fall),.12*scale*slide);
     upper.rotation.set(.18*fall, .16*fall, -1.48*fall);
     lower.position.set(-.1*scale*legs,0,-.12*scale*legs); lower.rotation.set(-1.48*legs,0,.15*legs);
-    return {fall,legs};
   }
   // Precompute exact support heights once. Per-frame playback interpolates a tiny table; no per-frame vertex scan.
   const floors = [[],[]] as number[][];

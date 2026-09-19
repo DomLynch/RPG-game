@@ -5,7 +5,7 @@
 // Honesty note (the owner reads this): every kill is a genuine simulation with NO overrides — the player draws, walks in and
 // lands paced plain heavy overheads on a passive warden until one kills. Under the owner rule of 2026-09-18 (recorded on
 // PR #112) any heavy-blow kill selects a finisher regardless of the coarse hit location, and the seeded rotation picks
-// between the five shipped outcomes from the kill event — so the harness runs the same passive duel across
+// between the six shipped outcomes from the kill event — so the harness runs the same passive duel across
 // seeds and captures the first death window each finisher actually draws, organic kills on the production path end-to-end:
 // selection, pose, clip, gore, dolly, severed head — nothing is presented as anything other than what the sim reported.
 import { createServer } from 'vite';

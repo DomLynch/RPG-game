@@ -664,6 +664,8 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
         if(progress===1)assert.ok(box.min.y<.04,`${file}: both halves rest on sand`);
       }
     }
+    const fleshBox=new Box3(); for(const part of torso.children)if(!part.userData.openedWeapon)fleshBox.expandByObject(part,true);
+    assert.ok(fleshBox.min.y<.04 && fleshBox.min.y>-.012,`${file}: the torso itself rests on sand, not floating on its weapon`);
     const held=opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]);
     opponent.update(0,.1,'opened',1); opponent.openWaist(1,'dark');
     assert.deepEqual(opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]),held,'final pose holds');
