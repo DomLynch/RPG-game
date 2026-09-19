@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 import { LADDER, opponentFor, won, nextAfter } from '../src/ladder.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
-test('the ladder starts at the Veteran, climbs through the Pitborn, the Goblin and the Nightborn, and ends at the Executioner for now', () => {
-  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner']);
+test('the existing five rungs keep their order, followed by Minotaur and Wraith', () => {
+  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'minotaur', 'wraith']);
   assert.equal(nextAfter('veteran')?.id, 'pitborn'); assert.equal(nextAfter('veteran')?.name, 'the Pitborn');
   assert.equal(nextAfter('pitborn')?.id, 'goblin'); assert.equal(nextAfter('pitborn')?.name, 'the Goblin');
   assert.equal(nextAfter('goblin')?.id, 'nightborn'); assert.equal(nextAfter('goblin')?.name, 'the Nightborn');
   assert.equal(nextAfter('nightborn')?.id, 'executioner'); assert.equal(nextAfter('nightborn')?.name, 'the Executioner');
-  assert.equal(nextAfter('executioner'), undefined, 'the last rung offers no next opponent');
+  assert.equal(nextAfter('executioner')?.id, 'minotaur');
+  assert.equal(nextAfter('minotaur')?.id, 'wraith');
+  assert.equal(nextAfter('wraith'), undefined, 'the last rung offers no next opponent');
   for (const rung of LADDER) assert.ok(OPPONENTS[rung.id], `${rung.id} exists in the roster`);
 });
 

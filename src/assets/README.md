@@ -486,6 +486,26 @@ three cheer variants use three distinct takes. Reproduce with `node scripts/buil
 Existing impact recipes and gains remain unchanged. Only decapitation gets a sever tear; Split Crown gets a short crack;
 blood-off and kicks omit added wet layers. Crowd starts 350 ms after fatal contact, with the roar fading in after its gasp.
 
+
+## Minotaur and Wraith reconstructed playtest (2026-09-19)
+
+`minotaur.glb` and `wraith.glb` are fitted derivatives of the original generated
+surfaces in `source/creatures/`. Inputs were owner-approved project concept images
+(see `docs/character-references/PROMPTS.md`); reconstruction used the official
+Microsoft TRELLIS.2 Space, seed 190926, at resolution 1024 with 2048 textures.
+The [TRELLIS.2 code/model project](https://github.com/microsoft/TRELLIS.2) uses the
+MIT licence, retained at `source/creatures/TRELLIS-LICENSE.txt`. This is a record of
+the generating software licence, not a claim that model outputs or their inherited
+Frankendom rig and motion are CC0. Existing base rig/clip/weapon licences above apply.
+No MPFB or downloaded animal morph is included in these production surfaces.
+
+Raw source SHA-256:
+- Minotaur: `70a4ed946a428f3deee86ac7671404c4e5f71af38d1120e5637e27544ef501c1`
+- Wraith: `16d3ab3fcfcc19b413685fe67abd6510f330710e33f69d35a1b13e4ceee03c16`
+
+Offline build: `node scripts/build-creatures.mjs`; contract check:
+`node scripts/creature-check.mjs`. The packaging metadata records the exact source,
+base and generator hashes. Surface UVs and compressed source images are preserved.
 Arena-life audio (2026-09-19): `scripts/build-arena-audio.mjs` builds the separate optional AAC/Opus bank under
 `arena-audio/`. Murmur: SpliceSound, “Indoor adult murmur, medium group.wav”
 (https://freesound.org/people/SpliceSound/sounds/260122/). Jeers/wordless group calls: deleted_user_2104797,
@@ -503,3 +523,7 @@ Existing geometry, materials, embedded textures, bone nodes and animation bytes 
 builder invokes the same authoring function after final scaling. Anatomical hinge frames keep the palm at the throat,
 feet roll with the fall, and offline skin-envelope clearance grounds the corpse for each body build.
 Reuses the existing licensed death/contact/body/crowd audio at quieter gains with delayed collapse and gasp.
+
+Reconstruction packing rounds only position/normal/UV float precision before gzip: positions
+and normals to 1/16384, UVs to 1/65536 (under 0.016 texel error at 2K). It refreshes
+accessor bounds and leaves weights, source images, existing clips and weapons intact.
