@@ -6,6 +6,7 @@ import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, S
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
+import { splitSkull } from './skull.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -117,6 +118,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const samples: Vector3[][] = [];
     let speed = 0;
     let severed = false;   // decapitation is once per kill; unsever() resets on rematch
+    let crown: ReturnType<typeof splitSkull> | undefined;
     return {
       anchor,
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
@@ -224,9 +226,31 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       // A fresh match (rematch): the rig grows its head back; the caller has already disposed the world-parented prop.
       unsever() {
+        crown?.dispose(); crown = undefined;
         if (!severed) return;
         severed = false;
         root.getObjectByName('Head')?.scale.setScalar(1);
+      },
+      // Skull-only split, owner 2026-09-19. Reuse the proven head bake; keep the halves attached through the collapse.
+      splitCrown(progress: number, mode: 'red' | 'dark' | 'off') {
+        const bone = root.getObjectByName('Head');
+        if (!bone || progress < .045) return;
+        if (!crown && mode !== 'off') {
+          root.updateWorldMatrix(true, true);
+          const inverse = bone.matrixWorld.clone().invert(), head = this.sever();
+          if (!head) return;
+          const transform = inverse.multiply(new Matrix4().makeTranslation(head.group.position.x, head.group.position.y, head.group.position.z));
+          for (const part of head.group.children) if (part instanceof Mesh) part.geometry.applyMatrix4(transform);
+          head.group.position.set(0, 0, 0);
+          crown = splitSkull(head.group);
+          head.group.traverse(o => { if (o instanceof Mesh) o.geometry.dispose(); });
+          bone.parent!.add(crown.group);
+        }
+        if (!crown) return;
+        crown.group.position.copy(bone.position); crown.group.quaternion.copy(bone.quaternion);
+        crown.group.visible = mode !== 'off'; bone.scale.setScalar(mode === 'off' ? 1 : .0001);
+        const t = Math.min(1, (progress - .045) / .12);
+        crown.open(t*t*(3 - 2*t), mode === 'dark');
       }
     };
   }
