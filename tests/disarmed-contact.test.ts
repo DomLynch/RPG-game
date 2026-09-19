@@ -63,3 +63,11 @@ test('Wraith Disarmed parts keep cut-safe ghost materials, pause their fade, the
  head.group.removeFromParent();head.group.traverse(o=>{if(o instanceof Mesh)o.geometry.dispose();});actors.opponent.unsever();actors.opponent.update(0,.1,'ready');
  assert.equal(disposed,owned.size);assert.equal(sourceDisposed,0);assert.equal(source.opacity,.86);assert.equal(actors.opponent.anchor.getObjectByName('Head')!.scale.x,1);
 });
+
+test('entering a paired finisher during zero-dt hit-stop preserves the last combat pose',async()=>{
+ const actors=buildWarriors(await load('warrior'));
+ actors.player.update(0,.016,'attack',.4);
+ const before=actors.player.boneWorld('hand_r')!;
+ actors.player.update(0,0,'disarmedStrike',0);
+ assert.ok(before.distanceTo(actors.player.boneWorld('hand_r')!)<1e-6,'no opening-pose snap inside hit-stop');
+});
