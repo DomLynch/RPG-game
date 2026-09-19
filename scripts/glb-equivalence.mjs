@@ -24,6 +24,8 @@ export async function assertGlbEquivalent(original, emitted) {
   const source = parseGlb(original), output = parseGlb(emitted);
   assert.ok(output.doc.extensionsRequired.includes('EXT_meshopt_compression'));
   for (const key of ['extensionsUsed', 'extensionsRequired']) assert.deepEqual(output.doc[key].filter(x => x !== 'EXT_meshopt_compression'), source.doc[key] || []);
+  const extras = asset => { const value = structuredClone(asset.doc.extras); if (value) delete value.creatureWeaponBase; return value; };
+  assert.deepEqual(extras(output), extras(source), 'Runtime provenance changed');
   function reader(asset) {
     const cache = new Map();
     return id => {

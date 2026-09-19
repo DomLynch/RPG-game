@@ -21,6 +21,8 @@ export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunT
 export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust';
 export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust'];
 export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
+  maul: { Idle: 'Maul_Idle', Walk: 'Maul_Walk', Jog: 'Maul_Walk', Run: 'Maul_Walk', Armed: 'Maul_Idle', ArmedWalk: 'Maul_Walk', StrafeLeft: 'Maul_StrafeLeft', StrafeRight: 'Maul_StrafeRight', Attack: 'Maul_Slash', Return: 'Maul_Slash', Heavy: 'Maul_Heavy', Thrust: 'Maul_Thrust', Riposte: 'Maul_Thrust', Guard: 'Maul_Guard', BlockImpact: 'Maul_Guard', Parry: 'Maul_Guard', Deflected: 'Maul_Hit', Hit: 'Maul_Hit', Death: 'Maul_Death', Kick: 'Maul_Kick', Roll: 'Maul_Roll' },
+  claws: { Idle: 'Claw_Idle', Walk: 'Claw_Walk', Jog: 'Claw_Walk', Run: 'Claw_Walk', Armed: 'Claw_Idle', ArmedWalk: 'Claw_Walk', StrafeLeft: 'Claw_StrafeLeft', StrafeRight: 'Claw_StrafeRight', Attack: 'Claw_Slash', Return: 'Claw_Slash', Heavy: 'Claw_Heavy', Thrust: 'Claw_Thrust', Riposte: 'Claw_Thrust', Guard: 'Claw_Guard', BlockImpact: 'Claw_Guard', Parry: 'Claw_Guard', Deflected: 'Claw_Hit', Hit: 'Claw_Hit', Death: 'Claw_Death', Kick: 'Claw_Kick', Roll: 'Claw_Roll' },
   longsword: { Thrust: 'Riposte' },
   cleaver: { Thrust: 'Riposte' },   // the Pitborn's, on the sword clip family until the weapons lane lands its own
   knife: { Thrust: 'Riposte' },   // the goblin's, on the sword clip family until the weapons lane lands its own
@@ -125,6 +127,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
     trail.frustumCulled = false; trail.visible = false; anchor.add(trail);
     const samples: Vector3[][] = [];
+    const contactByClip = weaponNode?.userData.contactByClip as Record<string, { from: number; to: number }> | undefined;
     const upperArm = root.getObjectByName('upperarm_r');
     let aimedRotation: Quaternion | undefined;
     let speed = 0;
@@ -168,7 +171,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         root.position.z = -Math.abs(recoil)*.045;
         // The enlarged Wraith lowers its attacking arm toward the original strike height.
         // Blend through wind-up/recovery; keep its body, grip and simulation untouched.
-        if (spectral && upperArm?.parent && pose === 'attack') {
+        if (spectral && weapon !== 'claws' && upperArm?.parent && pose === 'attack') {
           root.updateWorldMatrix(true, true);
           const middle = blade.localToWorld(new Vector3(0, (segment[0] + segment[1]) / 2, 0));
           const target = root.worldToLocal(middle.clone()); target.y /= root.scale.y;
@@ -184,7 +187,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;
         if (trail.visible && step > 0) {
           anchor.updateWorldMatrix(true, true);
-          samples.unshift(segment.map(y => anchor.worldToLocal(blade.localToWorld(new Vector3(0, y, 0)))));
+          const override = combatRole && contactByClip?.[clips[combatRole].name], strike = override ? [override.from, override.to] : segment;
+          samples.unshift(strike.map(y => anchor.worldToLocal(blade.localToWorld(new Vector3(0, y, 0)))));
           if (samples.length > 7) samples.pop();
           let offset = 0;
           for (let i = 1; i < samples.length; i++) for (const point of [samples[i-1][0],samples[i-1][1],samples[i][0],samples[i][0],samples[i-1][1],samples[i][1]]) { point.toArray(ribbonVertices, offset); offset += 3; }

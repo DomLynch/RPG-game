@@ -309,3 +309,8 @@ rejected procedural/MPFB studies. Wraith is skeletal, crowned, wispy and partly 
 continuous bovine skull/neck/muscular anatomy. These additions preserve the current simulation and weapon
 paths. Use ordinary death until creature-specific paired executions are authored and reviewed. They are
 playtest assets, with physical-phone performance and final art acceptance still requiring owner feedback.
+
+### Creature weapons — owner-authorized 2026-09-19
+Minotaur carries an iron-banded stone maul in two hands: sideways sweep, overhead smash, short haft shove.
+Wraith carries no sword: claw sweep, forward rake, two-handed downward tear. Each uses its own offline
+animation/contact package; preserve approved bodies, Wraith size/wisps and ordinary-death fallback.

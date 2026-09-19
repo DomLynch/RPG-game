@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { AnimationMixer, Vector3 } from 'three';
 import { clipFor } from '../src/characters.ts';
+import { ROSTER } from '../src/roster.ts';
 
 const digest = b => createHash('sha256').update(b).digest('hex');
 const generator = digest(Buffer.concat(await Promise.all(['scripts/character/creatures.py', 'scripts/character/creature_pack.py'].map(p => fs.readFile(p)))));
@@ -38,10 +39,17 @@ const receipts = [];
 for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'veteran']].filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
   const [raw, baseRaw, sourceRaw] = await Promise.all([`src/assets/${family}.glb`, `src/assets/${base}.glb`, `src/assets/source/creatures/${family}.glb`].map(p => fs.readFile(p)));
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
+  const weaponKind = ROSTER[family].weapon;
+  if (['maul', 'claws'].includes(weaponKind)) assert.equal(doc.extras.creatureWeapon?.generator, digest(await fs.readFile('scripts/build-creature-weapons.mjs')), 'Stale creature weapon generator');
   assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw) }, 'Stale creature: rebuild with build-creatures.mjs');
-  assert.deepEqual(doc.animations.map(c => animation(output, c)), original.doc.animations.map(c => animation(original, c)), 'Combat clips changed');
+  assert.deepEqual(doc.animations.slice(0, original.doc.animations.length).map(c => animation(output, c)), original.doc.animations.map(c => animation(original, c)), 'Combat clips changed');
+  if (!doc.extras.creatureWeapon) assert.equal(doc.animations.length, original.doc.animations.length, 'No unauthored clips');
   for (const [i, before] of original.doc.nodes.entries()) {
     const after = structuredClone(doc.nodes[i]), expected = structuredClone(before);
+    if (doc.extras.creatureWeapon && ['WeaponDrawn'].includes(before.name)) {
+      assert.equal(after.extras.weapon, weaponKind);
+      continue; // New authored equipment is checked by the creature weapon contract.
+    }
     // The surface replaces inherited art; joint transforms and weapon hierarchy are unchanged.
     if (before.mesh !== undefined && after.mesh !== undefined) {
       const a = original.doc.meshes[before.mesh], b = doc.meshes[after.mesh];
@@ -79,7 +87,6 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
   const mixer = new AnimationMixer(asset.scene), point = new Vector3();
   const weapon = asset.scene.getObjectByName('WeaponDrawn'), grip = new Vector3();
   assert(weapon && handVertices.size, 'The reconstructed hand must follow the grip joint');
-  const weaponKind = family === 'skeleton' ? 'trident' : ['minotaur', 'werewolf'].includes(family) ? 'cleaver' : 'estoc';
   const gripClips = new Set(['Armed', 'Attack', 'Heavy', 'Guard', 'Thrust'].map(role => clipFor(weaponKind, role)));
   let poses = 0;
   for (const clip of asset.animations) for (const fraction of [0, .25, .5, .75, .999]) {
@@ -97,7 +104,7 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
         if (supportVertices.has(i)) supportGap = Math.min(supportGap, world.distanceTo(supportGrip));
       }
     }
-    if (gripClips.has(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
+    if (weaponKind !== 'claws' && gripClips.has(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
     if (family === 'skeleton' && gripClips.has(clip.name)) assert(supportGap < .08, `${family} ${clip.name}: supporting hand detached (${supportGap}m)`);
     poses++;
   }

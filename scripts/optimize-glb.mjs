@@ -13,6 +13,8 @@ export async function optimizeGlb(raw) {
  assert.equal(d.buffers.length,1,'Optimizer requires one embedded buffer');
  assert.ok(!d.extensionsUsed?.some(x=>['EXT_meshopt_compression','KHR_draco_mesh_compression'].includes(x)),'Source must be uncompressed');
  assert.ok(d.images.every(i=>i.bufferView!==undefined),'Textures must be embedded');
+ // Offline equipment rollback document; the source GLB retains it for rebuilding.
+ delete d.extras?.creatureWeaponBase;
  const preserveAll=d.extensionsUsed?.some(x=>['KHR_materials_variants','KHR_animation_pointer'].includes(x));
  const mats=new Set(d.meshes.flatMap(m=>m.primitives.map(p=>p.material)).filter(i=>i!==undefined)),textures=new Set(),images=new Set();
  if(preserveAll)d.materials.forEach((_,i)=>mats.add(i));
