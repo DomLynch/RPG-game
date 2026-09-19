@@ -953,3 +953,13 @@ Evidence/provenance: artifacts/audio/arena-life/ and scripts/arena-audio-check.m
 commands. Native mobile-viewport welcome/menu/resume/actual defeat/rematch checks pass. All17 integrated release commands are
 recorded in artifacts/audio/arena-release/gates.json; publication requires their success and exact-head CI.
 Physical handset audition is still unverified.
+
+## Opening bell repair — 2026-09-19 (candidate)
+Returning profiles skip welcome, so the old tick<120 window expired before their first Draw; waiting for the optional crowd
+bank also lost the cue on slow connections. Audio now uses the actual sheathed/draw phase and the original modal bell recipe
+as a local fallback. No combat, crowd or fatal gains changed; rebuilt AAC/Opus assets are byte-identical.
+Failing-before/passing-after offline regression covers cold returning startup, late unmute, pause/mute/death and rematch.
+Existing arena browser gate also tests a real saved-profile reload after the old cutoff with the crowd download blocked.
+All24 inherited gates retained plus the startup regression. Release evidence: artifacts/audio/bell-fix/.
+Physical handset listening remains unverified. Publication requires full gates and public verification; GitHub Actions is
+billing-blocked, so the lead-approved exception requires a fresh clean Node22/macOS reproduction of all CI commands.
