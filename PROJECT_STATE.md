@@ -712,3 +712,18 @@ Tree-sitter/CPU profiler are not relevant. No cross-agent handoff or new agents.
 ## Combat audio takeover — 2026-09-19 (audio/reliable-playback, integration pending)
 Distinct original cloth/sand roll and backstep cues consume existing ActionStarted events. Existing impact recipes and four-call shell contract stay unchanged. Quiet/mute stop active sample and fallback sources; quiet blocks scheduling synchronously until unlock. First-variant selection includes region zero; room send no longer squares the cue gain.
 Evidence: artifacts/audio/takeover-{before,after}/REPORT.md and WAVs; artifacts/audio/takeover/NOTES.md and quality.log. Added optional --check to the real offline browser harness and registered it as a completion gate. AAC/Opus all 54 regions decode; forced first-format failure recovers; three exchange renders differ by at most one PCM rounding unit; eight stacked cues peak at -2.85 dBFS. Audio assets 605,004 B gzip, +60,706 B, within the 1 MB lane budget. Source/processing recorded in src/assets/README.md. Physical iPhone silent-switch checks, recorded Foley, continuous footsteps, ambience and music remain unverified/unimplemented. Required quality passed: 254/254 tests, lint/build/audit/budget and game browser; roster, Split Crown, estoc, counter-button and audio completion commands all passed. Branch prepared for PR; not deployed.
+
+## Finisher side view — 2026-09-19 (implementation and visual checks passed)
+Owner screenshot: hero shoulder hides Run Through and Split Crown at their settled ending. Success: smooth late side
+move exposes both fighters in portrait, stays within arena, respects reduced motion/free camera and resets for next fight.
+Scope: scene.ts camera endpoint and late blend; camera.test.ts; existing finisher-preview completion checks. No rigs/combat.
+Candidates: more fixed lateral offset (unreliable with distance), snap to side (breaks continuous camera), smooth late
+move to a fitted side view (selected). Reuse the current camera and presentation clock; no new module or dependency.
+Three Semble queries + CodeGraph camera impact reviewed. F1 closed: before correction, the real-scene side-angle assertion
+fails; after correction, the same assertion passes for Run Through and Split Crown on Veteran, Goblin and Executioner.
+Visual review: both finishers expose the victim in portrait and landscape; red/dark/off, reduced motion, manual orbit and
+normal camera return on rematch pass. Late motion stays continuous (maximum measured step 0.077 m/frame at 60 Hz).
+Geometric tests cover both finishers around all arena edges, varied headings/spacings and portrait/landscape fields of view.
+Evidence: artifacts/character/side-camera-{veteran,goblin,executioner}/ and artifacts/finishers/side-camera/REPORT.md.
+Two-pass review: simulation/input/rig behavior untouched; actual rendered victims and existing finisher effects verified.
+Full quality, configured completion gates, merged CI and production UI verification still required before a live claim.
