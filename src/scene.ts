@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
-import { FINISHER_POSE, selectFinisher } from './finishers.ts';
+import { FINISHER_POSE, selectFinisher, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { phoneTier } from './quality.ts';
@@ -118,6 +118,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
     splat.rotation.x=-Math.PI/2; splat.visible=false; scene.add(splat); return {mesh:splat,life:0,grow:0};   // grow: a kill pool spreads over ~2 s instead of appearing at once
   });
   let bloodMode: 'red' | 'dark' | 'off' = 'red', splatIndex=0, impactDuration=.18, impactHeading=0, flesh=false, killSpray=false;
+let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-09-19): swap which finisher plays on a ceremonial kill; null = the spec's selection
   let impact = 0, lastHealth: number = RULES.health, lastPlayerHealth: number = RULES.health;
   // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
   let severHead: { group: THREE.Group; velocity: THREE.Vector3; spin: THREE.Vector3; radius: number; resting: boolean } | null = null, killHeading = 0;
@@ -167,6 +168,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   return {
     renderer, ready, arena,
     setBloodMode(mode: 'red' | 'dark' | 'off') { bloodMode=mode; for (const splat of splats) { splat.life=0;splat.grow=0;splat.mesh.visible=false; } if (flesh) { impact=0;sparks.visible=false; } if (mode==='off') setBladeBlood(false); else if (bloodiedBlade) { bloodiedBlade=false; setBladeBlood(true); } },
+    setFinisherOverride(id: FinisherId | null) { finisherOverride = id; },
     get yaw() { return yaw; },
     orbit(dx: number, dy: number) { yaw -= dx * 0.005; pitch = THREE.MathUtils.clamp(pitch + dy * 0.003, 0.22, 0.9); },
     recenter() { yaw = 0; pitch = 0.45; started = false; },
@@ -268,7 +270,8 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       // The finisher (owner-authorized 2026-09-17): a pure function of the Killed event and the fighters' weapons picks the
       // victim's death pose; a finisher without a shipped clip falls back to the plain Death. The player's own death is
       // never a finisher (v1). v1's table has no weapon-dependent row, but the weapons are part of the contract.
-      const finisher = practice.finish ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
+      const pick = practice.finish ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
+      const finisher = pick ? (finisherOverride ?? pick) : null;   // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the

@@ -11,6 +11,7 @@ import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor, won, nextAfter } from './ladder.ts';
+import type { FinisherId } from './finishers.ts';
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('world');
@@ -72,6 +73,14 @@ opponentSelect.addEventListener('change', () => {
   profile.ladder = pick.id; persist();
   const url = new URL(location.href); url.searchParams.delete('opponent'); location.replace(url.href);
 });
+// Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
+// kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
+// player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
+const FINISHER_OPTIONS: [string, string][] = [['splitCrown', 'Split Crown'], ['decapitation', 'Decapitation'], ['runThrough', 'Run Through'], ['plainDeath', 'Plain death'], ['quietOne', 'The Quiet One'], ['opened', 'Opened'], ['hamstrung', 'Hamstrung'], ['execution', 'Execution']];
+const finisherSelect = element<HTMLSelectElement>('finisher-select');
+{ const auto = document.createElement('option') as HTMLOptionElement; auto.value = 'auto'; auto.textContent = 'Auto (spec)'; finisherSelect.append(auto); }
+for (const [id, label] of FINISHER_OPTIONS) { const option = document.createElement('option') as HTMLOptionElement; option.value = id; option.textContent = label; finisherSelect.append(option); }
+finisherSelect.addEventListener('change', () => { const value = finisherSelect.value; view.setFinisherOverride(value === 'auto' ? null : value as FinisherId); });
 if (opponent.id !== 'veteran') { const label = element('opponent-name'), name = opponent.id.charAt(0).toUpperCase() + opponent.id.slice(1); label.textContent = `THE ${name.toUpperCase()}`; label.dataset.mobile = name; }
 let matchSeed = 731, practice = initialPractice(matchSeed, opponent), state = practice.fighter, previous = state, accumulator = 0, locked = true;
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
