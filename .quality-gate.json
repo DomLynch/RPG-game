@@ -15,6 +15,15 @@
     [
       "node",
       "scripts/roster-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "splitCrown",
+      "--no-video",
+      "--label",
+      "split-crown-gate"
     ]
   ]
 }
