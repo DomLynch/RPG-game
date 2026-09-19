@@ -99,17 +99,16 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, r
     const orientation = new three.Quaternion().setFromAxisAngle(shaft, roll).multiply(new three.Quaternion().setFromUnitVectors(Y, shaft));
     handR.quaternion.copy(handR.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientation).multiply(weapon.quaternion.clone().invert()));
     base.scene.updateMatrixWorld(true);
-    // The left hand: mirror the right's palm normal across the vertical plane through the shaft, orient the hand so its own shaft
-    // direction and palm normal meet the shaft and that mirrored normal, then put its grip point on the shaft `l` metres along.
-    const palmWorld = palmR.clone().applyQuaternion(handR.getWorldQuaternion(new three.Quaternion()));
-    // The mirror below assumes the UNROLLED pole grip. A weapon whose rear hand rolls about the shaft per key (the scythe's crescent)
-    // must undo that roll first, else the reflected palm lands the front hand on the wrong side of the shaft, fingers dangling
-    // (owner review 2026-09-18; measured: fingers −0.04 below the axis where the wrap should be +0.02 over it). No-op at roll 0
-    // (the trident's keys never roll).
-    palmWorld.applyAxisAngle(shaft, -roll);
-    let across = shaft.clone().cross(Y); if (across.length() < .1) across = new three.Vector3(1, 0, 0).applyQuaternion(frame); across.normalize();
-    const mirrored = palmWorld.addScaledVector(across, -2 * palmWorld.dot(across));
-    const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, mirrored).multiply(leftLocal.clone().transpose()));
+    // The left hand grips the way a real front hand does on a pole held in front of the
+    // body: fingers along the shaft, palm normal facing the chest. (The old pose mirrored
+    // the right grip across the vertical plane through the shaft — geometrically on-shaft,
+    // but it wrapped the forearm across the body: the twisted, crossed look in the owner's
+    // 2026-09-19 review, identical on both polearm families since the authoring is shared.)
+    const gripPoint = weapon.localToWorld(new three.Vector3(0, l, 0));
+    const palmNatural = chest.getWorldPosition(new three.Vector3()).sub(gripPoint); palmNatural.y *= .25;   // mostly horizontal: the palm faces the chest, not the floor
+    if (palmNatural.lengthSq() < .01) palmNatural.set(1, 0, 0).applyQuaternion(frame);
+    palmNatural.normalize();
+    const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, palmNatural).multiply(leftLocal.clone().transpose()));
     reachArm('l', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL))); base.scene.updateMatrixWorld(true);
     if (process.env.GRIP_DEBUG) { const wp = handL.getWorldPosition(new three.Vector3()), sa = weapon.localToWorld(new three.Vector3(0, -.6, 0)), sb = weapon.localToWorld(new three.Vector3(0, 1.8, 0)), ab2 = sb.clone().sub(sa), tt = Math.max(0, Math.min(1, wp.clone().sub(sa).dot(ab2) / ab2.lengthSq())), shoulder = bone('upperarm_l').getWorldPosition(new three.Vector3()); console.log('GRIPDBG', JSON.stringify({ r, l }), 'wristOff', wp.distanceTo(sa.clone().addScaledVector(ab2, tt)).toFixed(3), 'targetFromShoulder', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL)).distanceTo(shoulder).toFixed(3)); }
     handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientL));
@@ -425,15 +424,16 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, re
     const orientation = new three.Quaternion().setFromAxisAngle(shaft, roll).multiply(new three.Quaternion().setFromUnitVectors(Y, shaft));
     handR.quaternion.copy(handR.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientation).multiply(weapon.quaternion.clone().invert()));
     base.scene.updateMatrixWorld(true);
-    const palmWorld = palmR.clone().applyQuaternion(handR.getWorldQuaternion(new three.Quaternion()));
-    // The mirror below assumes the UNROLLED pole grip. A weapon whose rear hand rolls about the shaft per key (the scythe's crescent)
-    // must undo that roll first, else the reflected palm lands the front hand on the wrong side of the shaft, fingers dangling
-    // (owner review 2026-09-18; measured: fingers −0.04 below the axis where the wrap should be +0.02 over it). No-op at roll 0
-    // (the trident's keys never roll).
-    palmWorld.applyAxisAngle(shaft, -roll);
-    let across = shaft.clone().cross(Y); if (across.length() < .1) across = new three.Vector3(1, 0, 0).applyQuaternion(frame); across.normalize();
-    const mirrored = palmWorld.addScaledVector(across, -2 * palmWorld.dot(across));
-    const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, mirrored).multiply(leftLocal.clone().transpose()));
+    // The left hand grips the way a real front hand does on a pole held in front of the
+    // body: fingers along the shaft, palm normal facing the chest. (The old pose mirrored
+    // the right grip across the vertical plane through the shaft — geometrically on-shaft,
+    // but it wrapped the forearm across the body: the twisted, crossed look in the owner's
+    // 2026-09-19 review, identical on both polearm families since the authoring is shared.)
+    const gripPoint = weapon.localToWorld(new three.Vector3(0, l, 0));
+    const palmNatural = chest.getWorldPosition(new three.Vector3()).sub(gripPoint); palmNatural.y *= .25;   // mostly horizontal: the palm faces the chest, not the floor
+    if (palmNatural.lengthSq() < .01) palmNatural.set(1, 0, 0).applyQuaternion(frame);
+    palmNatural.normalize();
+    const orientL = new three.Quaternion().setFromRotationMatrix(frameFrom(shaft, palmNatural).multiply(leftLocal.clone().transpose()));
     reachArm('l', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL))); base.scene.updateMatrixWorld(true);
     if (process.env.GRIP_DEBUG) { const wp = handL.getWorldPosition(new three.Vector3()), sa = weapon.localToWorld(new three.Vector3(0, -.6, 0)), sb = weapon.localToWorld(new three.Vector3(0, 1.8, 0)), ab2 = sb.clone().sub(sa), tt = Math.max(0, Math.min(1, wp.clone().sub(sa).dot(ab2) / ab2.lengthSq())), shoulder = bone('upperarm_l').getWorldPosition(new three.Vector3()); console.log('GRIPDBG', JSON.stringify({ r, l }), 'wristOff', wp.distanceTo(sa.clone().addScaledVector(ab2, tt)).toFixed(3), 'targetFromShoulder', weapon.localToWorld(new three.Vector3(0, l, 0)).sub(gripL.clone().applyQuaternion(orientL)).distanceTo(shoulder).toFixed(3)); }
     handL.quaternion.copy(handL.parent.getWorldQuaternion(new three.Quaternion()).invert().multiply(orientL));
