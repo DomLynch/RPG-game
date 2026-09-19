@@ -1,5 +1,19 @@
 # Project state
 
+## Werewolf and Skeleton — offline fitting, not live (2026-09-19)
+Owner requests the next two creatures at the approved Minotaur/Wraith quality. Both original references and exact
+prompts are saved in docs/character-references; both official TRELLIS.2 raw GLBs are exported and pinned in
+src/assets/README.md after the owner upgraded Hugging Face. Shared offline builder fits Werewolf to Pitborn/cleaver
+and Skeleton to Veteran/trident, preserving source maps, clips and weapon geometry. CPU visual review corrected
+Skeleton shaft bending and arm/rib weight contamination; actual trident clip poses and both hand attachments checked.
+Existing Minotaur/Wraith payload and document match their prior versions exactly except refreshed generator hashes.
+284 existing CPU tests and local PostgreSQL checks pass. New encounter migration is local only. Neither new creature
+is selectable or published yet: roster, bone-specific feedback, final game review and full release gates remain.
+Actual pre-integration build35,597,141 bytes gzip exceeds32MB total storage;10MB per-fight cap remains satisfied.
+Lossless mesh compression trial did not close gap; owner40MB total-storage approval pending. Shared GPU/release
+queue: AudioPR166 then creature OpenedPR167; integrate their published heads before shared runtime work.
+Evidence and remaining steps: artifacts/character/werewolf-skeleton/NOTES.md. No completion/live claim.
+
 ## Finisher blood upgrade — 2026-09-19 (PR #165)
 Owner requests substantially more blood at actual finishing wounds and floor spills beside the body. New fixed pool:160 ballistic droplets and80 growing floor stains, two draw calls; source locations follow neck/head, separated waist faces, jugular or chest entry/exit. Jets taper to drips and stop; red/dark/off and rematch apply. No simulation, input, GLB or dependency changes. CPU source/ballistic/resource checks pass; Integrated published Wraith c757d87 with its arm correction and creature guards preserved; Independent source/lifecycle and refined motion-frame review pass; small/large Decapitation, Opened and Quiet One red/dark/off/hold/rematch checks pass. Final24-command release validation and public receipts are maintained in artifacts/finishers/blood/.
 

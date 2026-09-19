@@ -56,6 +56,10 @@ try {
       if not exists(select 1 from public.fighter_profiles where encounter='minotaur') then raise exception 'Minotaur save failed'; end if;
       update public.fighter_profiles set encounter='wraith' where user_id=auth.uid();
       if not exists(select 1 from public.fighter_profiles where encounter='wraith') then raise exception 'Wraith save failed'; end if;
+      update public.fighter_profiles set encounter='werewolf' where user_id=auth.uid();
+      if not exists(select 1 from public.fighter_profiles where encounter='werewolf') then raise exception 'Werewolf save failed'; end if;
+      update public.fighter_profiles set encounter='skeleton' where user_id=auth.uid();
+      if not exists(select 1 from public.fighter_profiles where encounter='skeleton') then raise exception 'Skeleton save failed'; end if;
     end$$;`;
   run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures);
   console.log('Account database PASS: real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes. No hosted database changed.');

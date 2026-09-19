@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { AnimationMixer, Vector3 } from 'three';
+import { clipFor } from '../src/characters.ts';
 
 const digest = b => createHash('sha256').update(b).digest('hex');
 const generator = digest(Buffer.concat(await Promise.all(['scripts/character/creatures.py', 'scripts/character/creature_pack.py'].map(p => fs.readFile(p)))));
@@ -34,7 +35,7 @@ async function geometryOnly({ doc, bin }) {
   return new GLTFLoader().parseAsync(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength), '');
 }
 const receipts = [];
-for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']]) {
+for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'veteran']].filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
   const [raw, baseRaw, sourceRaw] = await Promise.all([`src/assets/${family}.glb`, `src/assets/${base}.glb`, `src/assets/source/creatures/${family}.glb`].map(p => fs.readFile(p)));
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
   assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw) }, 'Stale creature: rebuild with build-creatures.mjs');
@@ -60,12 +61,14 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']])
   const g = body.geometry, weights = g.attributes.skinWeight, joints = g.attributes.skinIndex;
   assert(g.index.count > 0 && g.index.count / 3 <= 45000, '45k surface ceiling');
   const hand = body.skeleton.bones.findIndex(b => b.name === 'hand_r'), handVertices = new Set();
+  const support = body.skeleton.bones.findIndex(b => b.name === 'hand_l'), supportVertices = new Set();
   for (let i = 0; i < weights.count; i++) {
     let sum = 0;
     for (let k = 0; k < 4; k++) {
       const w = weights.getComponent(i, k), j = joints.getComponent(i, k);
       assert(Number.isFinite(w) && w >= 0 && w <= 1 && Number.isInteger(j) && j < body.skeleton.bones.length);
       if (j === hand && w > .5) handVertices.add(i);
+      if (j === support && w > .5) supportVertices.add(i);
       sum += w;
     }
     assert(Math.abs(sum - 1) < 1e-5, 'Unnormalised skin');
@@ -76,18 +79,26 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn']])
   const mixer = new AnimationMixer(asset.scene), point = new Vector3();
   const weapon = asset.scene.getObjectByName('WeaponDrawn'), grip = new Vector3();
   assert(weapon && handVertices.size, 'The reconstructed hand must follow the grip joint');
+  const weaponKind = family === 'skeleton' ? 'trident' : ['minotaur', 'werewolf'].includes(family) ? 'cleaver' : 'estoc';
+  const gripClips = new Set(['Armed', 'Attack', 'Heavy', 'Guard', 'Thrust'].map(role => clipFor(weaponKind, role)));
   let poses = 0;
   for (const clip of asset.animations) for (const fraction of [0, .25, .5, .75, .999]) {
     mixer.stopAllAction(); const action = mixer.clipAction(clip).play(); action.time = clip.duration * fraction; mixer.update(0);
     asset.scene.updateMatrixWorld(true); body.skeleton.update();
-    weapon.getWorldPosition(grip); let handGap = Infinity;
+    weapon.getWorldPosition(grip); let handGap = Infinity, supportGap = Infinity;
+    const supportGrip = body.skeleton.bones[support].getWorldPosition(new Vector3());
     for (let i = 0; i < g.attributes.position.count; i++) {
       body.applyBoneTransform(i, point.fromBufferAttribute(g.attributes.position, i));
       assert(point.toArray().every(Number.isFinite), `${clip.name}: nonfinite posed vertex`);
       assert(point.length() < 6, `${clip.name}: runaway skin vertex`);
-      if (handVertices.has(i)) handGap = Math.min(handGap, body.localToWorld(point).distanceTo(grip));
+      if (handVertices.has(i) || (family === 'skeleton' && supportVertices.has(i))) {
+        const world = body.localToWorld(point);
+        if (handVertices.has(i)) handGap = Math.min(handGap, world.distanceTo(grip));
+        if (supportVertices.has(i)) supportGap = Math.min(supportGap, world.distanceTo(supportGrip));
+      }
     }
-    if (['Armed', 'Attack', 'Heavy', 'Guard'].includes(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
+    if (gripClips.has(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
+    if (family === 'skeleton' && gripClips.has(clip.name)) assert(supportGap < .08, `${family} ${clip.name}: supporting hand detached (${supportGap}m)`);
     poses++;
   }
   receipts.push({ family, sha256: digest(raw), triangles, clipsPreserved: asset.animations.length, finitePoses: poses, mapsPreserved: imageBytes(source).length });

@@ -527,3 +527,19 @@ Reuses the existing licensed death/contact/body/crowd audio at quieter gains wit
 Reconstruction packing rounds only position/normal/UV float precision before gzip: positions
 and normals to 1/16384, UVs to 1/65536 (under 0.016 texel error at 2K). It refreshes
 accessor bounds and leaves weights, source images, existing clips and weapons intact.
+
+## Werewolf and Skeleton reconstructed sources — 2026-09-19
+Original project reference artwork generated with built-in image generation; images and exact prompts
+are retained in `docs/character-references/`. Converted through the signed-in official Microsoft
+TRELLIS.2 Space with seed190926, 1024 resolution, 100000 export faces and 2048 textures.
+The owner supplied a Hugging Face PRO subscription; no separately billed GPU job was used.
+The existing TRELLIS software licence and inherited rig/weapon/animation licences above apply.
+Source meshes are unrigged: fitted game surfaces, bindings and motion checks are a separate build stage.
+
+Raw source SHA-256:
+- Werewolf: `f2691db5b870eed7d95af59c00d47e4d12b3c105e2423c7d7f5ca7fbe38ea03b`
+- Skeleton: `7135dd7639954eb1c21871833ba8eabb9000ef8289dcbbc152130a27ae09eeb9`
+
+Werewolf uses the Pitborn animation/cleaver donor. Skeleton uses the Veteran trident donor, with
+rigid weighting for exposed bones rather than the broad smoothing used on flesh. Neither source
+constitutes an automatically game-ready character; inspect fitted attack/guard/locomotion poses.
