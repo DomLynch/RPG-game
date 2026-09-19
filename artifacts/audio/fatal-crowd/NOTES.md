@@ -16,3 +16,10 @@ Risks: physical phone listening not available. Fixed presentation delays must ma
 - F3 closed: preview assertion used fatal-* instead of existing finish-* probe names; corrected harness naming, same checks pass.
 - Public first-pass receipt: f5129ea published; game browser, native dodge sample playback, mute, public index/release/sprite hash parity
   and nginx active passed. Initial parry gate failure passed unchanged on retry. First-pass Sentry release error count 0 at check.
+
+- Native gameplay receipt: actual Veteran opponent defeated the player at tick 882; real sprite death_voice, crowd_cheer and kill
+  sources observed; crowd delay >=340 ms, menu stopped it, resume did not replay it; no browser errors. See browser.json.
+- 17 existing nonfatal probes retain identical measured integrated loudness and peak (0.0 dB difference); nonfatal-parity.json.
+- Integrated upstream PR149 (Run Through visual correction) before the full gate; its new completion command remains required.
+
+- F4: full gate found three old FakeContext tests missing standard AudioParam.cancelScheduledValues. Updated the stand-in; retained all lifecycle assertions. Real browser cancellation had already passed. Full gate rerun required.
