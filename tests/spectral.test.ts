@@ -8,7 +8,9 @@ test('only Wraith gets a private transparent material; death fades and rematch r
   body.name = 'CreatureBody'; root.add(body);
   body.userData.creature = 'minotaur'; assert.equal(spectralAppearance(root), undefined);
   assert.equal(body.material, shared); assert.equal(root.children.length, 1);
+  assert.deepEqual(root.scale.toArray(), [1, 1, 1]);
   body.userData.creature = 'wraith'; const update = spectralAppearance(root)!;
+  assert.deepEqual(root.scale.toArray(), [1.5, 1.5, 1.5]);
   assert.notEqual(body.material, shared); assert.equal(shared.transparent, false);
   assert.equal(body.material.transparent, true); assert.equal(body.material.depthWrite, false);
   assert.equal(body.castShadow, false);
