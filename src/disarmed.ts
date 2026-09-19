@@ -99,6 +99,10 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
     let low=Infinity,high=-Infinity;for(let j=0;j<supports.length;j+=3){const y=m[1]*supports[j]+m[5]*supports[j+1]+m[9]*supports[j+2];low=Math.min(low,y);high=Math.max(high,y);}
     if(high-low<best){best=high-low;rest.copy(q);}
   }
+  // Cache support heights while preparing the prop; no vertex scans in the game frame loop.
+  const floors:number[]=[];
+  for(let i=0;i<=120;i++){const t=i/120,q=new Quaternion().slerp(rest,t*t*(3-2*t)),m=new Matrix4().makeRotationFromQuaternion(q).elements;let low=Infinity;for(let j=0;j<supports.length;j+=3)low=Math.min(low,m[1]*supports[j]+m[5]*supports[j+1]+m[9]*supports[j+2]);floors.push(.006-low);}
+  supports.length=0;
   let active=false;
   return {
     group,
@@ -109,9 +113,8 @@ export function prepareDisarmed(root:Object3D, anchor:Group) {
       active=shown;group.visible=shown;cut.color.set(mode==='dark' ? '#302126' : '#501c20');
       const elapsed=Math.max(0,(progress-DISARMED_BEATS.arm)*DISARMED_BEATS.duration),fall=Math.min(1,elapsed/.7),ease=fall*fall*(3-2*fall);
       group.quaternion.identity().slerp(rest,ease);group.position.copy(pivot);group.position.x+=.20*ease;
-      const m=new Matrix4().makeRotationFromQuaternion(group.quaternion).elements;let floor=Infinity;
-      for(let i=0;i<supports.length;i+=3)floor=Math.min(floor,m[1]*supports[i]+m[5]*supports[i+1]+m[9]*supports[i+2]);
-      group.position.y=Math.max(.006-floor,pivot.y-.5*12*elapsed*elapsed);
+      const at=fall*120,i=Math.min(119,Math.floor(at)),floor=floors[i]+(floors[i+1]-floors[i])*(at-i);
+      group.position.y=Math.max(floor,pivot.y-.5*12*elapsed*elapsed);
     },
     dispose(){for(const c of changes){c.mesh.geometry=c.original;c.cap?.removeFromParent();c.cap?.geometry.dispose();c.remainder.dispose();}if(active && weapon)weapon.visible=weaponVisible;group.removeFromParent();group.traverse(o=>{if(o instanceof Mesh)o.geometry.dispose();});cut.dispose();}
   };
