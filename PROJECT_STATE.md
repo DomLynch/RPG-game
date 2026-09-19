@@ -1,5 +1,8 @@
 # Project state
 
+## Wraith size feedback — 2026-09-19
+Owner approves both creatures and requests Wraith +50% size. Scoped presentation change in spectral.ts scales the complete Wraith rig 1.5 about its floor, keeping weapon and wisps attached. Minotaur and all shared assets stay unchanged. Considered asset rebuild versus runtime uniform scaling; runtime scaling is the smallest reversible option and adds no geometry/download cost. Existing lifecycle test pins Wraith 1.5 and Minotaur 1.0. Simulation remains the Nightborn archetype: rendered weapon/body grow while collision dimensions and attack reach retain existing tuning; this is an explicit playtest limitation, not a combat rebalance. Camera/ground/grip and public-game checks recorded in artifacts/character/wraith-size/. Integration waits for Opened release, then all configured gates and public parity are required.
+
 ## Reconstructed creature integration — 2026-09-19 (owner playtest)
 Owner explicitly requests Minotaur and Wraith live in the game with actual pictures for playtesting.
 Both approved reference images exported through signed-in official TRELLIS.2; raw GLBs and MIT software
