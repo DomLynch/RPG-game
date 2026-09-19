@@ -23,3 +23,8 @@ Risks: physical phone listening not available. Fixed presentation delays must ma
 - Integrated upstream PR149 (Run Through visual correction) before the full gate; its new completion command remains required.
 
 - F4: full gate found three old FakeContext tests missing standard AudioParam.cancelScheduledValues. Updated the stand-in; retained all lifecycle assertions. Real browser cancellation had already passed. Full gate rerun required.
+
+- F4 closed: 20/20 targeted audio/lifecycle tests; full quality 261/261, lint/build/audit/budget/game-browser PASS. All seven
+  completion commands PASS, including Run Through, roster, Split Crown, audio, Estoc, counter controls and arena. gates-final.json.
+- Review complete: no simulation/input/renderer changes in the audio PR; shared presentation selector and settings reviewed;
+  native game source scheduling/pause receipt and codec/PCM/peak checks pass. Physical phone listening is still unverified.

@@ -723,6 +723,6 @@ Blood-off suppresses the added wet layers; no simulation, damage, timing, contro
 Evidence: `artifacts/audio/fatal-before/` and `fatal-crowd/`; reproducible source hashes and CC0 licences in
 `artifacts/audio/SOURCES.json` and `src/assets/README.md`. Audio is 996,816 B gzip (+391,812 vs movement pass), under the unchanged
 1 MB limit. 73 AAC and Opus regions decode; format fallback passes; three deterministic exchange renders differ by <=1 PCM unit;
-fatal stack peaks -2.85 dBFS; quiet/mute cancel future crowd/collapse sources. Required full integration gates pending.
+fatal stack peaks -2.85 dBFS; quiet/mute cancel future crowd/collapse sources. Lane quality: 261/261 tests, lint/build/audit/budget/game browser and all seven completion commands passed. Final publication is identified by the served release.json.
 Physical phone/silent-switch listening remains unverified. Timing follows current authored presentation durations; no claim of
 frame-perfect body contact on every rig. Music, sustained ambience and gait/breath events remain outside this pass.
