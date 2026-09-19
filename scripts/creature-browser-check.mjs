@@ -8,14 +8,15 @@ const server = process.env.QA_URL ? null : await preview({ preview: { host: '127
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = process.env.CREATURE_RECEIPT_DIR || 'artifacts/character/creatures/game';
 await fs.mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const receipt = { origin, physicalPhone: false, views: [], errors: [] };
+let inspectedPage;
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
   for (const opponent of ['minotaur', 'wraith']) {
     const context = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-    const page = await context.newPage();
+    const page = inspectedPage = await context.newPage();
     page.on('pageerror', e => receipt.errors.push(String(e)));
     page.on('console', m => { if (m.type() === 'error' && /shader|WebGL|THREE/.test(m.text())) receipt.errors.push(m.text()); });
     await page.route('**/*sentry.io/**', r => r.abort());
@@ -37,11 +38,12 @@ try {
     await page.keyboard.down('w'); await page.waitForTimeout(900); await page.keyboard.up('w');
     await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
     await page.waitForFunction(prefix => document.querySelector('#debug').dataset.clips.includes(prefix + '_Heavy'), opponent === 'minotaur' ? 'Maul' : 'Claw', { timeout: 45000 });
-    await shot('heavy-windup');
+    await shot('heavy-attack');
     await page.waitForFunction(() => Number(document.querySelector('#player-health').value) < Number(document.querySelector('#player-health').max), null, { timeout: 45000 });
     await shot('landscape-fight');
     await page.setViewportSize({ width: 393, height: 852 }); await shot('portrait-fight');
-    await page.getByRole('button', { name: 'Rematch', exact: true }).waitFor({ state: 'visible', timeout: 90000 });
+    // Large translucent rigs can advance well below 60 simulation ticks per wall-clock second in headless Chromium.
+    await page.getByRole('button', { name: 'Rematch', exact: true }).waitFor({ state: 'visible', timeout: 180000 });
     await shot('death'); await page.getByRole('button', { name: 'Rematch', exact: true }).click(); await ready();
     assert.equal(await page.locator('#player-health').getAttribute('value'), await page.locator('#player-health').getAttribute('max'));
     await shot('rematch');
@@ -50,6 +52,10 @@ try {
   }
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify({ passed: true, views: receipt.views.length, release: receipt.release }));
+} catch (error) {
+  receipt.failure = { message: String(error), state: await inspectedPage?.locator('#debug').textContent().catch(() => 'unavailable') };
+  await inspectedPage?.screenshot({ path: `${dir}/failure.png` }).catch(() => {});
+  console.error(receipt.failure); throw error;
 } finally {
   await fs.writeFile(`${dir}/receipt.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); if (server) await new Promise(resolve => server.httpServer.close(resolve));
