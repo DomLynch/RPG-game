@@ -1046,7 +1046,7 @@ function frame(now: number) {
         match: matchSeed,
         ended: !!practice.finish,
         tick: practice.duel.tick,
-        opening: practice.duel.fighters[0].phase === 'sheathed' || practice.duel.fighters[0].phase === 'draw',
+        drawing: practice.duel.fighters[0].phase === 'draw',
       });
       frameEvents.push(...practice.events);
       floatDamage(practice.events);
