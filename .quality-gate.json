@@ -207,6 +207,10 @@
       "--no-video",
       "--label",
       "decap-front-goblin-gate"
+    ],
+    [
+      "node",
+      "scripts/bell-start-check.mjs"
     ]
   ]
 }
