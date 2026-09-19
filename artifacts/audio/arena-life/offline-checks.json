@@ -1,6 +1,7 @@
 {
   "physicalPhone": false,
   "checks": [
+    "Late first unmute skips bell",
     "One opening bell; non-repeating overlapping beds; sparse idle jeers; no silent seams",
     "Active-fight chants, delayed reactions, hit grunts, cooldowns and six-voice limit",
     "Pause/mute silence; resume without bell replay; rematch bell; fatal priority; missing bank preserves combat"
@@ -13,7 +14,7 @@
   "delayed": true,
   "levels": {
     "bedDbfs": -38.58110158453638,
-    "fightDbfs": -24.60976704907141
+    "fightDbfs": -24.609767047245654
   },
   "truePeaks": {
     "idle": -19.5,

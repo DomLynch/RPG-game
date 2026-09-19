@@ -31,7 +31,7 @@ try {
   if (await window.h.loadArena(ctx, ['opus', 'aac'], () => Promise.reject(Error('offline'))) !== null) throw Error('failure must be optional');
   return results;
  });
- const render = async (script, duration = 42, failure = false) => page.evaluate(async ({ script, duration, failure }) => {
+ const render = async (script, duration = 42, failure = false, startTick = 0) => page.evaluate(async ({ script, duration, failure, startTick }) => {
   const ctx = new OfflineAudioContext(1, duration * 48000, 48000), starts = [], original = ctx.createBufferSource.bind(ctx); let now = 0;
   ctx.createBufferSource = () => { const source = original(), start = source.start.bind(source), stop = source.stop.bind(source); let entry;
    source.start = (...args) => { const name = source.buffer.duration > 39 ? Object.entries(window.h.ARENA_MANIFEST).find(([, r]) => r.some(([offset]) => Math.abs(offset - args[1]) < .00001))?.[0] : 'combat'; entry = { name, at: args[0], offset: args[1], end: args[0] + args[2] / source.playbackRate.value }; starts.push(entry); return start(...args); };
@@ -39,17 +39,17 @@ try {
   };
   const fetchOriginal = window.fetch;
   if (failure) window.fetch = (...args) => (failure === 'aac' ? String(args[0]).endsWith('.ogg') : String(args[0]).includes('arena-audio')) ? Promise.reject(Error('forced codec/bank failure')) : fetchOriginal(...args);
-  const f = window.h.createFeedback({ context: ctx, now: () => now }); f.unlock(); f.update([], undefined, { match: 731, ended: false }); await f.ready(); window.fetch = fetchOriginal;
+  const f = window.h.createFeedback({ context: ctx, now: () => now }); f.unlock(); f.update([], undefined, { match: 731, ended: false, tick: startTick }); await f.ready(); window.fetch = fetchOriginal;
   for (let tick = 0; tick < duration * 60; tick++) {
    now = tick / 60;
    const step = script.find(s => s.tick === tick);
    if (step?.control) f[step.control]();
-   if (!step?.skip) f.update(step?.events ?? [], step?.presentation, { match: script.filter(s => s.tick <= tick && s.match !== undefined).at(-1)?.match ?? 731, ended: script.some(s => s.tick <= tick && s.ended) });
+   if (!step?.skip) f.update(step?.events ?? [], step?.presentation, { match: script.filter(s => s.tick <= tick && s.match !== undefined).at(-1)?.match ?? 731, tick: startTick + tick - (script.filter(s => s.tick <= tick && s.match !== undefined).at(-1)?.tick ?? 0), ended: script.some(s => s.tick <= tick && s.ended) });
   }
   const data = (await ctx.startRendering()).getChannelData(0), bytes = new Uint8Array(data.buffer); let encoded = '';
   for (let i = 0; i < bytes.length; i += 32768) encoded += String.fromCharCode(...bytes.subarray(i, i + 32768));
   return { starts, pcm: btoa(encoded) };
- }, { script, duration, failure });
+ }, { script, duration, failure, startTick });
  const samples = r => { const b = Buffer.from(r.pcm, 'base64'); return new Float32Array(b.buffer, b.byteOffset, b.length / 4); };
  const rms = (data, start, end) => { const part = data.subarray(start * 48000, end * 48000); return Math.sqrt(part.reduce((sum, v) => sum + v * v, 0) / part.length); };
  console.log('Codec checks passed; rendering lifecycle/mix probes');
@@ -59,6 +59,9 @@ try {
  const beds = idle.starts.filter(s => s.name === 'bed'); assert.ok(beds.length >= 5);
  for (let i = 1; i < beds.length; i++) { assert.notEqual(beds[i].offset, beds[i - 1].offset); assert.ok(beds[i].at < beds[i - 1].end, 'beds overlap'); }
  for (let t = 3; t < 41; t += .25) assert.ok(rms(idleData, t, t + .25) > .001, 'no silent bed seam');
+ const late = await render([], 4, false, 1800);
+ assert.ok(late.starts.some(s => s.name === 'bed')); assert.ok(late.starts.every(s => s.name !== 'bell'), 'first unmute late in match has no opening bell');
+ report.checks.push('Late first unmute skips bell');
  report.checks.push('One opening bell; non-repeating overlapping beds; sparse idle jeers; no silent seams');
  const hit = { type: 'Hit', actor: 0, target: 1, move: 'heavy_overhead', tick: 1 };
  const combatScript = Array.from({ length: 39 }, (_, i) => ({ tick: (i + 2) * 60, events: [{ ...hit, move: i % 9 === 0 ? 'heavy_overhead' : 'light', tick: (i + 2) * 60 }] }));
@@ -88,9 +91,9 @@ try {
   const ctx = new OfflineAudioContext(1, 48000, 48000); let now = 0, count = 0, release; const original = ctx.decodeAudioData.bind(ctx), create = ctx.createBufferSource.bind(ctx);
   ctx.createBufferSource = () => { count++; return create(); };
   ctx.decodeAudioData = async data => { const b = await original(data); if (b.duration > 39) await new Promise(resolve => { release = resolve; }); return b; };
-  const f = window.h.createFeedback({ context: ctx, now: () => now }); f.unlock(); f.update([], undefined, { match: 1, ended: false });
+  const f = window.h.createFeedback({ context: ctx, now: () => now }); f.unlock(); f.update([], undefined, { match: 1, ended: false, tick: 1 });
   while (!release) await new Promise(resolve => setTimeout(resolve, 10));
-  f.quiet(); release(); await f.ready(); now = .1; f.update([], undefined, { match: 1, ended: false }); if (count) throw Error('decode resurrected playback'); return true;
+  f.quiet(); release(); await f.ready(); now = .1; f.update([], undefined, { match: 1, ended: false, tick: 1 }); if (count) throw Error('decode resurrected playback'); return true;
  });
  for (const [name, r] of Object.entries({ idle, fight, death, deathAAC, busy })) {
   const raw = `${out}/${name}.f32`, wav = `${out}/${name}.wav`; await fs.writeFile(raw, Buffer.from(r.pcm, 'base64'));
