@@ -1,5 +1,5 @@
 import type { CombatEvent } from './combat.ts';
-import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue } from './audio/cues.ts';
+import { cuesFor, nextVariant, PITCH_SPREAD, seeded, type Cue, type DeathPresentation } from './audio/cues.ts';
 import { MANIFEST, type CueName } from './audio/manifest.ts';
 import { loadSprite } from './audio/sprite.ts';
 
@@ -79,20 +79,20 @@ export function createFeedback(host?: FeedbackHost) {
     if (!context) return;
     for (const source of sources) { try { source.stop(now()); } catch { /* already ended */ } }
     sources.clear();
-    for (const voice of voices) { voice.source = null; voice.until = 0; }
+    for (const voice of voices) { voice.source = null; voice.until = 0; voice.gain.gain.cancelScheduledValues(now()); voice.send.gain.cancelScheduledValues(now()); }
   }
   return {
     unlock,
-    toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, context.currentTime); if (enabled) unlock(); else stopSources(); return enabled; },
+    toggle() { enabled = !enabled; if (master && context) master.gain.setValueAtTime(enabled ? 1 : 0, now()); if (enabled) unlock(); else stopSources(); return enabled; },
     quiet() { quieted = true; stopSources(); if (!host && context?.state === 'running') void (context as AudioContext).suspend().catch(() => {}); },
     // Resolves true once the sprite is decoded, false if loading failed and the fallback stays. The offline harness awaits it.
     ready() { return loading ?? Promise.resolve(!!sprite); },
     // Sound consumes the simulation's events. Sprite: every mapped cue this tick, impacts first. Fallback: one cue, strongest first.
-    update(events: CombatEvent[]) {
+    update(events: CombatEvent[], presentation?: DeathPresentation) {
       if (!enabled || quieted || !context || !live()) return;
       if (events.some(e => e.type === 'ActionStarted' && e.action === 'draw' && e.actor === 0)) random = seeded((host?.seed ?? BASE_SEED) + duel++ * 1013);   // a fresh duel, a fresh but repeatable roll
       const time = now();
-      if (sprite) { for (const cue of cuesFor(events)) play(cue, time); return; }
+      if (sprite) { for (const cue of cuesFor(events, presentation)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
       else if (events.some(e => e.type === 'Blocked')) synth('steel', time);

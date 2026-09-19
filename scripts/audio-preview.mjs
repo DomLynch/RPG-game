@@ -13,13 +13,13 @@ import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 2, PROBE_AT = .05, PROBE_LENGTH = 1.2;
+const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 4, PROBE_AT = .05, PROBE_LENGTH = 1.2;
 const out = path.join('artifacts', 'audio', label);
 await fs.mkdir(path.join(out, 'events'), { recursive: true });
 
 // --- the exchange: ticks → seconds; the render runs TAIL seconds past the last tick so decays finish.
 const exchange = scriptExchange();
-const cues = exchange.ticks.map(({ tick, events }) => ({ t: tick / 60, events }));
+const cues = exchange.ticks.map(({ tick, events, presentation }) => ({ t: tick / 60, events, presentation }));
 const seconds = exchange.length / 60 + TAIL;
 
 // --- Chromium page served by the Vite dev server, so /src/feedback.ts and any asset it imports resolve exactly as in the game.
@@ -41,7 +41,7 @@ try {
     let now = 0;
     const feedback = window.harness.createFeedback({ context, now: () => now, seed, ...(fallback ? { sprite: null } : {}) });
     feedback.unlock(); const decoded = await feedback.ready();
-    for (const { t, events } of cues) { now = t; feedback.update(events); }
+    for (const { t, events, presentation, control } of cues) { now = t; if (control) feedback[control](); else feedback.update(events, presentation); }
     const data = (await context.startRendering()).getChannelData(0);
     // 16-bit PCM, transferred as base64 (Float32 arrays do not serialise through evaluate).
     const pcm = new Int16Array(data.length); for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
@@ -83,7 +83,24 @@ try {
     checks.stackedPeakDbfs = 20 * Math.log10(peak / 32768);
     assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
   }
-  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events }], PROBE_LENGTH);
+  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH);
+  if (checks) {
+    const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
+    assert.ok(fatal, 'decapitation probe exists');
+    for (const control of ['quiet', 'toggle']) {
+      const cancelled = await pcm([{ t: .05, events: fatal.events, presentation: fatal.presentation }, { t: .1, control }], 4.5);
+      assert.ok(cancelled.some(v => v !== 0), 'fatal impact plays before cancellation');
+      assert.ok(cancelled.subarray(RATE).every(v => v === 0), `${control} leaves no delayed crowd or collapse after the room decays`);
+    }
+    checks.fatalCancellation = true;
+    checks.fatalPeakDbfs = -Infinity;
+    for (const [name, samples] of Object.entries(rendered)) if (name.startsWith('events/finish-')) {
+      let peak = 0; for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+      checks.fatalPeakDbfs = Math.max(checks.fatalPeakDbfs, 20 * Math.log10(peak / 32768));
+      assert.ok(samples.subarray(Math.floor(3.8 * RATE)).every(v => v === 0), `${name}: tail finishes within the render`);
+    }
+    assert.ok(checks.fatalPeakDbfs <= -1, 'fatal stack respects the ceiling');
+  }
   assert.deepEqual(pageErrors, [], 'no browser errors');
 } finally { try { await browser?.close(); } finally { await server.close(); } }
 
@@ -156,7 +173,7 @@ ${exchange.beats.map(b => `| ${b.name} | ${b.tick} | ${(b.tick / 60).toFixed(2)}
 
 Exchange loudness: integrated ${fmt(loudness.exchange.lufsIntegrated)} LUFS · phone band (> 300 Hz) ${fmt(loudness.exchange.lufsPhone)} LUFS · momentary max ${fmt(loudness.exchange.lufsMomentaryMax)} LUFS · peak ${fmt(loudness.exchange.peakDbfs)} dBFS.
 
-## Per-cue renders: \`events/<name>.wav\` (one synthetic event at ${PROBE_AT * 1000} ms, ${PROBE_LENGTH} s render)
+## Per-cue renders: \`events/<name>.wav\` (one synthetic event at ${PROBE_AT * 1000} ms, ${PROBE_LENGTH} s render; fatal probes 4.5 s)
 LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows across iterations, not against broadcast targets). Phone = the same measure after a 300 Hz high-pass: what a handset speaker can play. Onset = first sample above −60 dBFS relative to the cue tick; length = audible span above −60 dBFS. "—" = silent: the module answers no cue for that event.
 
 | cue | LUFS-I | phone LUFS | LUFS-M max | peak dBFS | onset ms | length ms |${baseline ? ` Δ LUFS-I vs ${against} | Δ phone vs ${against} |` : ''}
