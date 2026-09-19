@@ -18,6 +18,22 @@ Existing Sentry issues 6/A/5/9/8 concern fetch, texture loading and WebGL initia
 change. They remain unresolved and outside this visual feature's scope; this change does not claim to repair them.
 Run Through remains a separate unfinished lane: its original 57 cm regression is preserved in the inherited worktree;
 a partial alignment correction is isolated on `finishers/runthrough-alignment` and is not part of this release.
+## Estoc A activation — 2026-09-19 — PR #142, NOT DEPLOYED
+Weapons branch `weapons/estoc-live`, based on trunk `d383b66`. Variant A is built on the current Nightborn,
+with matching render/bake GLBs, manifest entry, real ESTOC data, rebaked paths and flipped shelf receipts. Existing clips,
+body geometry and textures preserved; all five other weapon trajectory tables unchanged. Preview `--azimuth` added.
+The longer point initially registered head hits on the upright Nightborn. The estoc part now carries a 10-degree grip tilt,
+composed with the hand attachment by the builder. Only WeaponDrawn's quaternion changes in the GLB: geometry, animations,
+textures and every other node remain identical. The unchanged head-region rule passes; no contact remapping or clip edits.
+A new real-duel regression checks non-head contacts and measured cut/heavy/thrust frontiers of 2.0/2.5/2.3 m.
+Restoring the old blade paths makes that regression fail. The .75 thrust share remains necessary: .70 still fails the unchanged
+roll-and-punish cap (3/24 untouched); .75 passes both fairness batteries. AI-vs-AI median 20.9 s, hero wins 9/24.
+No AI, damage, timing or spacing edits. Full `npm run quality`: 246/246 tests, build, audit, budget and browser gate PASS.
+Estoc browser completion verifies the served rig SHA, WeaponDrawn, portrait/landscape layout and an opponent hit.
+Evidence: `artifacts/weapons/estoc-live/` (logs, browser JSON, probes), `estoc-aim/` (reviewed captures).
+Lead owns roster integration and deployment; no weapons-lane deployment was attempted. Physical-phone validation outstanding.
+Sentry still has earlier unresolved load/texture/WebGL issues (6/A/5/9/8); this unshipped branch cannot resolve those.
+
 
 ## Roster foundations — lead, 2026-09-19
 Owner approved the GPT Pro content-reuse direction. Work on `lead/opponent-catalogue`, based on d383b66.
@@ -32,20 +48,6 @@ Current-task verification ledger:
 - F4: new roster browser harness initially used the software headless-shell path and stalled; stopped only that owned browser and matched the shared gate's real Chromium executable. Corrected roster browser rerun passed all five opponents, two rigs per route, save migration and zero page errors.
 - Focused catalogue/profile/ladder/scorecard: 12/12 pass; rollback migration separately 5/5. Full final npm run quality passed: 248/248, lint/typecheck/build/audit and browser; 8,361,205-byte per-fight budget. Release receipts pending.
 - Sentry inspected: FRANKENDOM-A is an unresolved texture failure on old release 9587019 (2026-09-18); current catalogue checks do not prove that historic issue fixed. Load/GPU issues stay open. Hardware/external-player gates unchanged.
-
-## Estoc A activation — 2026-09-19 — draft, NOT DEPLOYED
-Weapons branch `weapons/estoc-live`, based on fetched trunk `d383b66`. Variant A is built on the current Nightborn,
-with matching render/bake GLBs, manifest entry, real ESTOC data, rebaked paths and flipped shelf receipts. Existing clips,
-body geometry and decoded textures preserved; all five other weapon trajectory tables unchanged. Preview `--azimuth` added.
-The provisional thrust share .70 produced 3/24 untouched roll-and-punish trials (cap 2); .75 passes the unchanged normal/hard
-Nightborn battery, with AI-vs-AI median 20.7 s and 10/24 hero wins. No AI, damage, timing or spacing edits.
-**Blocker:** `npm run quality`: 244/245 pass; `tests/head-region.test.ts:30` rejects real estoc head contacts, including thrusts.
-The inherited clips and 1.03× rig put the longer point at head height. Preserve the test and hit-region rule; owner decision
-pending: adjust estoc aim or refer the conflicting clip/head contract to combat. No merge/deployment until resolved.
-Independent checks: build, audit (0 vulnerabilities), budget, existing browser gate and real Nightborn browser receipt pass.
-New `.quality-gate.json` completion command checks served rig SHA, WeaponDrawn, portrait/landscape layout and an opponent hit.
-Evidence: `artifacts/weapons/estoc-live/` (logs, captures, browser JSON, bounded stance probe), `estoc-rear/sheet.png`.
-Sentry still has earlier unresolved load/texture/WebGL issues (6/A/5/9/8); this unshipped branch cannot resolve those.
 
 
 ## Arena life — 2026-09-18 (world lane, owner's picks #1–#5)

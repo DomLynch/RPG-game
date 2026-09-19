@@ -10,7 +10,7 @@ import { TARGET } from '../src/sim.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
-const duel = (gap: number, weapon: 'longsword' | 'trident' = 'longsword'): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready', weapon), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
+const duel = (gap: number, weapon: Weapon['id'] = 'longsword'): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready', weapon), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
 // Steps n ticks and returns the final duel with every tick's events gathered (stepDuel only carries the current tick's).
 const run = (d: Duel, n: number, a = idle(), b = idle()) => { const events: Duel['events'] = []; for (let i = 0; i < n; i++) { d = stepDuel(d, [a, b]); events.push(...d.events); } return { ...d, events }; };
 
@@ -373,6 +373,22 @@ test('the estoc rig is the Nightborn\'s own with WeaponDrawn (a long thin blade,
     for (const t of clip.tracks) { const o = twin.tracks.find(x => x.name === t.name)!; assert.ok(o && o.times.length === t.times.length && Array.from(t.values).every((v, i) => Math.abs(v - o.values[i]) < 1e-6), `${clip.name} ${t.name} is the Nightborn's own`); }
   }
   assert.ok(Object.values(ESTOC_PATHS).every(spec => ['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip)));
+});
+
+test('the live estoc keeps torso aim through its actual reach: cuts to 2.0 m, heavy to 2.5 m, thrust to 2.3 m', () => {
+  for (const [move, action, frontier] of [['light_right', 'light', 2], ['heavy_overhead', 'heavy', 2.5], ['thrust', 'thrust', 2.3]] as const) {
+    const m = ESTOC.moves[move];
+    let last = 0;
+    for (let cm = 85; cm <= 270; cm += 5) {
+      const events = run(stepDuel(duel(cm / 100, 'estoc'), [act(action), idle()]), m.windup + m.active + 1).events;
+      for (const e of events.filter(e => e.type === 'Hit' && e.actor === 0)) {
+        assert.notEqual(e.location, 'head', `${move} at ${cm / 100} m`);
+        if (move === 'thrust') assert.equal(e.location, 'torso', 'a thrust earns the torso finisher');
+        last = cm / 100;
+      }
+    }
+    assert.equal(last, frontier, `${move}: keep the measured reach, not a head-free miss`);
+  }
 });
 
 test('the estoc\'s data is the brief\'s: the sword\'s timings and lunges exactly, reach in the sword\'s conservative convention, cuts weaker than the sword\'s with no chip, the thrust a little stronger and chaining, a high thrust share, steel', () => {
