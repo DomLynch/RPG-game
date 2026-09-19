@@ -1,15 +1,16 @@
 # Project state
 
-## Werewolf and Skeleton — offline fitting, not live (2026-09-19)
+## Werewolf and Skeleton — local integration, not live (2026-09-19)
 Owner requests the next two creatures at the approved Minotaur/Wraith quality. Both original references and exact
 prompts are saved in docs/character-references; both official TRELLIS.2 raw GLBs are exported and pinned in
 src/assets/README.md after the owner upgraded Hugging Face. Shared offline builder fits Werewolf to Pitborn/cleaver
 and Skeleton to Veteran/trident, preserving source maps, clips and weapon geometry. CPU visual review corrected
 Skeleton shaft bending and arm/rib weight contamination; actual trident clip poses and both hand attachments checked.
 Existing Minotaur/Wraith payload and document match their prior versions exactly except refreshed generator hashes.
-284 existing CPU tests and local PostgreSQL checks pass. New encounter migration is local only. Neither new creature
-is selectable or published yet: roster, bone-specific feedback, final game review and full release gates remain.
-Actual pre-integration build35,597,141 bytes gzip exceeds32MB total storage;10MB per-fight cap remains satisfied.
+284 existing CPU tests and local PostgreSQL checks pass. New encounter migration is local only. Both new creatures are now selectable in the local roster. Skeleton impacts use bone cues, with no human pain/death
+voice or wet death layer; player feedback remains unchanged. 23 focused roster/audio tests pass. Shared scene blood
+suppression, final game review and full release gates remain; neither creature is published.
+Actual local build35,590,875 bytes gzip exceeds32MB total storage;10MB per-fight cap remains satisfied.
 Lossless mesh compression trial did not close gap; owner40MB total-storage approval pending. Shared GPU/release
 queue: AudioPR166 then creature OpenedPR167; integrate their published heads before shared runtime work.
 Evidence and remaining steps: artifacts/character/werewolf-skeleton/NOTES.md. No completion/live claim.

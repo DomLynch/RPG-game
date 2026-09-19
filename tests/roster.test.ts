@@ -7,7 +7,7 @@ import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
 import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 
 test('every recipe resolves to its shipped rig, simulation weapon and offline build', () => {
-  assert.equal(ENCOUNTERS.length, 7);
+  assert.equal(ENCOUNTERS.length, 9);
   for (const { id } of ENCOUNTERS) {
     const recipe = ROSTER[id], opponent = OPPONENTS[id];
     assert.equal(opponent.id, id); assert.equal(opponent.weapon, recipe.weapon);

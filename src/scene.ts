@@ -1,4 +1,4 @@
-import { ROSTER, supportsFinishers } from './roster.ts';
+import { ROSTER, supportsFinishers, hasBlood } from './roster.ts';
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -221,7 +221,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;
-        const kick=blow?.move==='kick'; flesh=hurt && !kick && bloodMode!=='off';
+        const kick=blow?.move==='kick'; flesh=hurt && (!enemyHurt || hasBlood(opponentId)) && !kick && bloodMode!=='off';
         impactDuration=flesh && killed ? (quietFinish ? .2 : .55) : flesh ? .34 : .18; impact=impactDuration; impactHeading=blow?.heading ?? state.heading;
         killSpray=!!(killed && flesh);   // a kill sprays a cone along the strike heading, not the radial puff
         if (killed && flesh) killHeading = blow?.heading ?? state.heading;   // the decapitation pop flies the way the blow did

@@ -13,7 +13,7 @@ const receipt = { origin, physicalPhone: false, views: [], errors: [] };
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
-  for (const opponent of ['minotaur', 'wraith']) {
+  for (const opponent of ['minotaur', 'wraith', 'werewolf', 'skeleton']) {
     const context = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const page = await context.newPage();
     page.on('pageerror', e => receipt.errors.push(String(e)));

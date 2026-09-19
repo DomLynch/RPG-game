@@ -243,3 +243,21 @@ test('Opened times the tear and the two grounded landings, suppressing them with
   assert.deepEqual(off.filter(c=>c.name==='kill').map(c=>c.delay),[1.4]);
   assert.equal(off.some(c=>c.name==='flesh_tear'),false);
 });
+
+
+test('Skeleton impacts and death use bone cues, while the player and subsequent flesh opponents retain their voices', () => {
+  const namesFor = (events: CombatEvent[], opponent: 'skeleton' | 'werewolf') => cuesFor(events, undefined, opponent).map(c => c.name);
+  for (const type of ['Hit', 'GuardBroken', 'Killed'] as const) {
+    const hit = ev(type, { target: 1, move: 'heavy_overhead', charged: true });
+    const bones = namesFor([hit], 'skeleton');
+    assert.ok(bones.includes('bone_crack'));
+    assert.ok(!bones.some(n => n.startsWith('flesh_') || n === 'hit_flesh' || n === 'hit_heavy' || n === 'death_voice'));
+    const flesh = namesFor([hit], 'werewolf');
+    assert.ok(flesh.includes(type === 'Killed' ? 'death_voice' : type === 'Hit' ? 'hit_heavy' : 'hit_flesh'));
+    const hero = namesFor([ev(type, { actor: 1, target: 0, move: 'light_right' })], 'skeleton');
+    assert.ok(hero.includes(type === 'Killed' ? 'death_voice' : 'hit_flesh'));
+  }
+  const double = namesFor([ev('Killed', { target: 1 }), ev('Killed', { actor: 1, target: 0 })], 'skeleton');
+  assert.equal(double.filter(n => n === 'death_voice').length, 1);
+  assert.equal(double.filter(n => n === 'crowd_gasp').length, 1);
+});
