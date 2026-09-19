@@ -1,0 +1,149 @@
+{
+  "physicalPhone": false,
+  "checks": [
+    "Production mobile viewport: welcome silent, Enter starts audio, menu stops, resume no duplicate bell, rematch rings"
+  ],
+  "errors": [],
+  "native": [
+    {
+      "id": 1,
+      "offset": 37.43,
+      "when": 1.2426666666666666,
+      "stopped": true,
+      "ended": true
+    },
+    {
+      "id": 2,
+      "offset": 8.08,
+      "when": 1.2426666666666666,
+      "stopped": true,
+      "ended": true
+    },
+    {
+      "id": 3,
+      "offset": 0.02,
+      "when": 7.253333333333333,
+      "ended": true
+    },
+    {
+      "id": 4,
+      "offset": 8.08,
+      "when": 14.277333333333333,
+      "ended": true
+    },
+    {
+      "id": 5,
+      "offset": 36.53,
+      "when": 18.690666666666665,
+      "ended": true
+    },
+    {
+      "id": 6,
+      "offset": 24.2,
+      "when": 18.830666666666666,
+      "ended": true
+    },
+    {
+      "id": 7,
+      "offset": 16.14,
+      "when": 21.584,
+      "ended": true
+    },
+    {
+      "id": 8,
+      "offset": 36.83,
+      "when": 22.322666666666667,
+      "ended": true
+    },
+    {
+      "id": 9,
+      "offset": 30.81,
+      "when": 24.906666666666666,
+      "ended": true
+    },
+    {
+      "id": 10,
+      "offset": 36.53,
+      "when": 26.402666666666665,
+      "ended": true
+    },
+    {
+      "id": 11,
+      "offset": 8.08,
+      "when": 28.72533333333333,
+      "ended": true
+    },
+    {
+      "id": 12,
+      "offset": 37.13,
+      "when": 31.05333333333333,
+      "ended": true
+    },
+    {
+      "id": 13,
+      "offset": 27.53,
+      "when": 31.19333333333333,
+      "ended": true
+    },
+    {
+      "id": 14,
+      "offset": 0.02,
+      "when": 35.89333333333333,
+      "ended": true
+    },
+    {
+      "id": 15,
+      "offset": 36.83,
+      "when": 38.285333333333334,
+      "ended": true
+    },
+    {
+      "id": 16,
+      "offset": 8.08,
+      "when": 43.81333333333333,
+      "ended": true
+    },
+    {
+      "id": 17,
+      "offset": 37.13,
+      "when": 46.12533333333333,
+      "ended": true
+    },
+    {
+      "id": 18,
+      "offset": 33.67,
+      "when": 48.176,
+      "ended": true
+    },
+    {
+      "id": 19,
+      "offset": 0.02,
+      "when": 51.093333333333334,
+      "ended": true
+    },
+    {
+      "id": 20,
+      "offset": 36.53,
+      "when": 55.192,
+      "ended": true
+    },
+    {
+      "id": 21,
+      "offset": 8.08,
+      "when": 58.384,
+      "stopped": true,
+      "ended": true
+    },
+    {
+      "id": 22,
+      "offset": 37.43,
+      "when": 67.088
+    },
+    {
+      "id": 23,
+      "offset": 8.08,
+      "when": 67.088
+    }
+  ],
+  "passed": true
+}

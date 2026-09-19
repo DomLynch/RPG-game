@@ -870,4 +870,6 @@ A pending-suspend/Enter race found during state audit now queues resume within t
 Rendered browser QC: crowd bed -38.58dBFS RMS, active fight -24.61dBFS; peak at most-1.0dBTP across AAC/Opus idle/fight/fatal/stress.
 Both codecs/format fallback, overlap, variation, cooldowns,6-voice cap, quiet/mute/rematch and missing-bank continuity pass.
 Evidence/provenance: artifacts/audio/arena-life/ and scripts/arena-audio-check.mjs. New completion gate preserves all inherited
-commands. Native GPU checks await the shared release test window; physical handset audition is still unverified.
+commands. Native mobile-viewport welcome/menu/resume/actual defeat/rematch checks pass. All17 integrated release commands are
+recorded in artifacts/audio/arena-release/gates.json; publication requires their success and exact-head CI.
+Physical handset audition is still unverified.

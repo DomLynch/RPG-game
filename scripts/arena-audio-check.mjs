@@ -12,7 +12,7 @@ const server = await createServer({ configFile: false, appType: 'custom', logLev
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true });
 const report = { physicalPhone: false, checks: [], errors: [] };
-let production;
+let production, inspectedUi;
 try {
  if (!process.argv.includes('--ui-only')) {
  const page = await browser.newPage(); page.on('pageerror', e => report.errors.push(String(e)));
@@ -121,34 +121,41 @@ try {
  }
  if (!process.argv.includes('--offline')) {
  // Real production UI and native nodes. No injected game state or simulation overrides.
- console.log('Mix checks passed; production UI test');
+ console.log('Production UI test');
  production = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
- const ui = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+ const ui = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true }); inspectedUi = ui;
+ const stage = name => { report.nativeStep = name; console.log(name); };
  ui.on('pageerror', e => report.errors.push(String(e))); await ui.route('**/*sentry.io/**', r => r.abort());
  await ui.addInitScript(() => {
   window.__arena = []; const start = AudioBufferSourceNode.prototype.start, stop = AudioBufferSourceNode.prototype.stop; let id = 0; const entries = new WeakMap();
   AudioBufferSourceNode.prototype.start = function(...args) { if (this.buffer?.duration > 39) { const entry = { id: ++id, offset: args[1], when: args[0] }; entries.set(this, entry); this.addEventListener('ended', () => { entry.ended = true; }); window.__arena.push(entry); } return start.apply(this, args); };
   AudioBufferSourceNode.prototype.stop = function(...args) { const entry = entries.get(this); if (entry) entry.stopped = true; return stop.apply(this, args); };
  });
+ stage('load');
  await ui.goto(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`);
  await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
  assert.equal(await ui.evaluate(() => window.__arena.length), 0);
+ stage('enter');
  await ui.getByRole('button', { name: 'Enter the arena' }).tap(); await ui.waitForFunction(() => window.__arena.length >= 2, null, { timeout: 30000 });
+ stage('menu');
  await ui.getByRole('button', { name: 'Menu and field journal' }).tap();
  let entries = await ui.evaluate(() => window.__arena); assert.ok(entries.every(e => e.stopped || e.ended));
  await ui.waitForTimeout(250); assert.equal(await ui.evaluate(() => window.__arena.length), entries.length);
+ stage('resume');
  await ui.locator('#close-journal').tap(); await ui.locator('canvas').tap({ position: { x: 20, y: 100 } });
  await ui.waitForFunction(count => window.__arena.length > count, entries.length);
  entries = await ui.evaluate(() => window.__arena);
  assert.equal(entries.filter(e => e.offset === ARENA_MANIFEST.bell[0][0]).length, 1);
  await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+ stage('draw and wait for real defeat');
  await ui.locator('#attack-button').tap();
  await ui.locator('#reset-button').waitFor({ state: 'visible', timeout: 90000 });
  assert.ok((await ui.evaluate(() => window.__arena)).every(e => e.stopped || e.ended), 'actual defeat stops ambience');
+ stage('rematch');
  await ui.locator('#reset-button').tap(); await ui.waitForFunction(offset => window.__arena.filter(e => e.offset === offset).length === 2, ARENA_MANIFEST.bell[0][0]);
  report.native = await ui.evaluate(() => window.__arena); await ui.screenshot({ path: `${out}/native.png` });
  report.checks.push('Production mobile viewport: welcome silent, Enter starts audio, menu stops, resume no duplicate bell, rematch rings');
  }
  assert.deepEqual(report.errors, []); report.passed = true;
-} finally { await fs.writeFile(`${out}/${process.argv.includes('--ui-only') ? 'native-checks' : process.argv.includes('--offline') ? 'offline-checks' : 'checks'}.json`, JSON.stringify(report, null, 2)); await browser.close(); await server.close(); await production?.close(); }
+} finally { if (inspectedUi && !report.passed) report.diagnostic = await inspectedUi.evaluate(() => ({ art: document.querySelector('#art-status')?.textContent, status: document.querySelector('#combat-status')?.textContent, health: document.querySelector('#player-health')?.value, attack: document.querySelector('#attack-button')?.outerHTML, audio: window.__arena })).catch(e => String(e)); await fs.writeFile(`${out}/${process.argv.includes('--ui-only') ? 'native-checks' : process.argv.includes('--offline') ? 'offline-checks' : 'checks'}.json`, JSON.stringify(report, null, 2)); await browser.close(); await server.close(); await production?.close(); }
 console.log(JSON.stringify(report, null, 2));
