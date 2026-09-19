@@ -124,6 +124,10 @@
       "scripts/quiet-one-browser-check.mjs",
       "--finisher",
       "opened"
+    ],
+    [
+      "node",
+      "scripts/arena-audio-check.mjs"
     ]
   ]
 }
