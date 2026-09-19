@@ -283,7 +283,7 @@ if (weaponId !== 'longsword') {
   if (!weaponBuild) throw new Error(`WARRIOR_WEAPON=${weaponId}: no such weapon (scripts/build-weapon.mjs)`);
   sheathed.clear(); drawn.clear(); // the loader still finds SwordSheathed/SwordDrawn; they carry nothing
   weaponNode = weaponBuild.part({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
-  base.scene.getObjectByName('hand_r').add(weaponNode); weaponNode.position.copy(drawn.position); weaponNode.rotation.copy(drawn.rotation);
+  base.scene.getObjectByName('hand_r').add(weaponNode); weaponNode.position.copy(drawn.position); weaponNode.quaternion.premultiply(drawn.quaternion); // retain the part's authored grip tilt
   if (weaponNode.userData.grip === 'reverse') weaponNode.rotateZ(Math.PI);   // the blade runs back along the forearm (the goblin's reverse-grip hook): the sword's transform turned 180° about its thickness axis — blade reversed AND the edge moved to the other side, so the forehand still leads with the edge
 }
 // Re-proportion (BUILD.bones): every rest-space geometry in the buckets is moved through its skin weights — for bone b with scale S_b about

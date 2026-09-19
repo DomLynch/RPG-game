@@ -18,6 +18,22 @@ Existing Sentry issues 6/A/5/9/8 concern fetch, texture loading and WebGL initia
 change. They remain unresolved and outside this visual feature's scope; this change does not claim to repair them.
 Run Through remains a separate unfinished lane: its original 57 cm regression is preserved in the inherited worktree;
 a partial alignment correction is isolated on `finishers/runthrough-alignment` and is not part of this release.
+## Estoc A activation — 2026-09-19 — PR #142, NOT DEPLOYED
+Weapons branch `weapons/estoc-live`, based on trunk `d383b66`. Variant A is built on the current Nightborn,
+with matching render/bake GLBs, manifest entry, real ESTOC data, rebaked paths and flipped shelf receipts. Existing clips,
+body geometry and textures preserved; all five other weapon trajectory tables unchanged. Preview `--azimuth` added.
+The longer point initially registered head hits on the upright Nightborn. The estoc part now carries a 10-degree grip tilt,
+composed with the hand attachment by the builder. Only WeaponDrawn's quaternion changes in the GLB: geometry, animations,
+textures and every other node remain identical. The unchanged head-region rule passes; no contact remapping or clip edits.
+A new real-duel regression checks non-head contacts and measured cut/heavy/thrust frontiers of 2.0/2.5/2.3 m.
+Restoring the old blade paths makes that regression fail. The .75 thrust share remains necessary: .70 still fails the unchanged
+roll-and-punish cap (3/24 untouched); .75 passes both fairness batteries. AI-vs-AI median 20.9 s, hero wins 9/24.
+No AI, damage, timing or spacing edits. Full `npm run quality`: 246/246 tests, build, audit, budget and browser gate PASS.
+Estoc browser completion verifies the served rig SHA, WeaponDrawn, portrait/landscape layout and an opponent hit.
+Evidence: `artifacts/weapons/estoc-live/` (logs, browser JSON, probes), `estoc-aim/` (reviewed captures).
+Lead owns roster integration and deployment; no weapons-lane deployment was attempted. Physical-phone validation outstanding.
+Sentry still has earlier unresolved load/texture/WebGL issues (6/A/5/9/8); this unshipped branch cannot resolve those.
+
 
 ## Roster foundations — lead, 2026-09-19
 Owner approved the GPT Pro content-reuse direction. Work on `lead/opponent-catalogue`, based on d383b66.
