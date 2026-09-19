@@ -56,7 +56,8 @@ async function fight(name) {
         await page.locator('#thrust-button').tap();await page.waitForTimeout(180);continue;
       }
     }
-    if(distance>1.55) {
+    // Close inside the short knife's range so the Goblin can offer a punishable attack.
+    if(distance>(opponent==='goblin' ? 1.1 : 1.55)) {
       await page.keyboard.down('KeyW');await page.waitForTimeout(80);await page.keyboard.up('KeyW');continue;
     }
     await page.waitForTimeout(40);
