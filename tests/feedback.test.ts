@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import ts from 'typescript';
 import { createFeedback } from '../src/feedback.ts';
 
 // Minimal Web Audio stand-in: enough surface for unlock/quiet/play to run without a browser.
@@ -61,9 +62,23 @@ test('quiet() silences the page: no cue reaches the graph until the next unlock,
 
 test('the shell unlocks audio on the events WebKit treats as user activation, not only pointerdown', () => {
   const source = fs.readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
-  const line = source.split('\n').find(l => l.includes('feedback.unlock()') && l.includes('addEventListener'));
-  assert.ok(line, 'unlock listener registration exists');
-  for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) assert.ok(line!.includes(`'${type}'`), `unlock is bound to ${type}`);
+  const parsed = ts.createSourceFile('main.ts', source, ts.ScriptTarget.Latest, true);
+  const loop = parsed.statements.find(node => ts.isForOfStatement(node)
+    && node.statement.getText(parsed).includes('feedback.unlock()')
+    && node.statement.getText(parsed).includes('addEventListener'));
+  assert.ok(loop, 'unlock listener registration exists');
+  const listeners = new Map<string, () => void>();
+  let unlocked = 0;
+  const js = ts.transpileModule(loop.getText(parsed), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  new Function('window', 'feedback', js)(
+    { addEventListener: (type: string, listener: () => void) => listeners.set(type, listener) },
+    { unlock: () => { unlocked++; } },
+  );
+  for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) {
+    assert.ok(listeners.has(type), `unlock is bound to ${type}`);
+    const before = unlocked; listeners.get(type)!();
+    assert.equal(unlocked, before + 1, `${type} invokes unlock`);
+  }
 });
 
 test('quiet blocks cues immediately while browser suspension is still pending', () => withFakeAudio(undefined, () => {
