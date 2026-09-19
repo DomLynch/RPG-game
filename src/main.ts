@@ -846,14 +846,14 @@ try {
     },
     opponent.id,
   );
-} catch {
+} catch (error) {
   element('performance').textContent = '3D unavailable';
   message.hidden = false;
   message.textContent =
     'The arena needs WebGL 2. Try an up-to-date browser with hardware acceleration enabled.';
   cameraButton.disabled = runButton.disabled = true;
   attackButton.setAttribute('aria-disabled', 'true');
-  throw new Error('Unable to initialise the WebGL2 arena');
+  throw error; // Preserve the GPU/renderer cause and stack for monitoring.
 }
 let bloodMode = 0;
 element('blood-mode').addEventListener('click', () => {

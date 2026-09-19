@@ -1,5 +1,19 @@
 # Project state
 
+## Ordered lead cleanup — 2026-09-19 (local candidate, not released)
+Owner requested readability, existing-recipe cleanup, obsolete QA retirement, then reliability/product gaps.
+main.ts/scene.ts were reformatted with identical TypeScript syntax trees; CSS selectors, declarations and values
+were compared structurally and preserved. Two whitespace-sensitive tests now retain their behavioral requirements
+across formatting; missing input events and missing touch-action mutations still fail. Full CPU quality:284/284.
+Equipment defaults moved into appearance presets; Veteran/Executioner rebuilds are byte-identical to baseline.
+Retired rejected procedural pilot generator/check (508 source lines); current shipped-creature integrity and
+browser gates remain. Current creature integrity passes both rigs and250 sampled poses.
+Reliability review preserves original startup exceptions instead of replacing their stacks; failing-before and
+passing-after regression plus monitoring/graphics checks pass31/31. Real unsupported-WebGL browser gate is updated
+and awaits the coordinated GPU window; all configured gates and public verification remain required before release.
+Release-specific Sentry triage and unpassed physical-phone/external-player acceptance:docs/reliability-audit.md.
+Career practice-win award policy awaits owner confirmation; no rank ledger or end-game system was added.
+
 ## Finisher blood upgrade — 2026-09-19 (PR #165)
 Owner requests substantially more blood at actual finishing wounds and floor spills beside the body. New fixed pool:160 ballistic droplets and80 growing floor stains, two draw calls; source locations follow neck/head, separated waist faces, jugular or chest entry/exit. Jets taper to drips and stop; red/dark/off and rematch apply. No simulation, input, GLB or dependency changes. CPU source/ballistic/resource checks pass; Integrated published Wraith c757d87 with its arm correction and creature guards preserved; Independent source/lifecycle and refined motion-frame review pass; small/large Decapitation, Opened and Quiet One red/dark/off/hold/rematch checks pass. Final24-command release validation and public receipts are maintained in artifacts/finishers/blood/.
 
