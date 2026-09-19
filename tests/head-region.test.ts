@@ -11,13 +11,13 @@ import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact, type HitLocation } from '../src/blade.ts';
 import { bladePaths } from '../src/blade-paths.ts';
 import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/duel.ts';
-import { OPPONENTS, PATHS, PROFILES } from '../src/moves.ts';
+import { OPPONENTS, PATHS, PROFILES, WEAPONS, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 // The duel's registering rule (src/duel.ts): only the move's ACTIVE window is swept, and the first sweep sample inside
 // the 0.31·k capsule decides — replicated here against a static pair so the classification is tested without AI noise.
 function registeringLocation(weapon: string, kind: string, d: number, scale = 1): HitLocation | null {
-  const spec = PATHS[kind];
+  const spec = WEAPONS[weapon as WeaponId].paths[kind];
   assert.ok(spec, `${kind} is a combat path`);
   const at = { x: 0, z: d, heading: Math.PI, distance: 0 }, df = { x: 0, z: 0, heading: 0, distance: 0 };
   for (let age = spec.windup; age < spec.windup + spec.active; age++) {

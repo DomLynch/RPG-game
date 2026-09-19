@@ -34,12 +34,12 @@ const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 
 const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale };
 // The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver, the Nightborn's estoc and the goblin's knife (sword clips until the weapons lane lands them).
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon };
-async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
+async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
   const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
-  assert.ok(json.images.length >= 3);
+  assert.ok(json.images.length >= (['minotaur.glb','wraith.glb'].includes(file) ? 2 : 3));
   assert.ok(json.images.every((i: { bufferView: number }) => Number.isInteger(i.bufferView)));
   json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
@@ -169,7 +169,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
 });
 
 test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from', async () => {
-  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), scythe: await readWarrior('executioner.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
+  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), scythe: await readWarrior('executioner.glb'), maul: await readWarrior('minotaur.glb'), claws: await readWarrior('wraith.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
   for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
     const names = rigs[weapon].animations.map(a => a.name);
     for (const role of ROLES) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);
