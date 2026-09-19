@@ -161,6 +161,10 @@
     [
       "node",
       "scripts/veteran-polish-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/veteran-neck-check.mjs"
     ]
   ]
 }

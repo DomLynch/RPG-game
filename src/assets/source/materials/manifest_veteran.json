@@ -35,9 +35,9 @@
   "normalScale": 0.5
  },
  "Face": {
-  "baseColor": "face_color_veteran.jpg",
-  "normal": "face_normal_veteran.jpg",
-  "metallicRoughness": "face_orm_veteran.jpg",
+  "baseColor": "face_color_polish_veteran.jpg",
+  "normal": "face_normal_polish_veteran.jpg",
+  "metallicRoughness": "face_orm_polish_veteran.jpg",
   "occlusion": "face_ao_veteran.jpg",
   "normalScale": 1.6
  },
@@ -54,9 +54,9 @@
   "normalScale": 1.0
  },
  "Photo": {
-  "baseColor": "kt_face_color_veteran.jpg",
-  "normal": "kt_face_normal_veteran.jpg",
-  "metallicRoughness": "kt_face_orm_veteran.jpg",
+  "baseColor": "kt_face_color_polish_veteran.jpg",
+  "normal": "kt_face_normal_polish_veteran.jpg",
+  "metallicRoughness": "kt_face_orm_polish_veteran.jpg",
   "normalScale": 0.8
  },
  "PhotoEyes": {
