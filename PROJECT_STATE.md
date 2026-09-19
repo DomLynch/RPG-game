@@ -6,23 +6,33 @@ explicit cloud save/load of name and practice opponent, session sign-out, revisi
 Sign-in never overwrites device/cloud data; explicit load restarts practice. Career marks/results remain outside this
 client-editable table. No combat, renderer or input code changed. Details/setup: docs/account-integration.md.
 
-Local evidence: initial npm run quality passed 258/258, lint/typecheck/build/audit/budget and gameplay browser checks.
-All eight completion commands passed (roster, Split Crown, audio, estoc, counters, arena, real PostgreSQL RLS, account
-browser). Enabled account build: 8,485,279 bytes gzip per fight / 10 MB. Account browser uses controlled provider
-responses with the real SDK; it does not prove live Google configuration. Screenshots/receipts: artifacts/account/.
-Final npm run quality passes 259/259 plus lint/typecheck/build/audit/budget and gameplay browser. Two-pass review covered ownership,
-stale responses/writes, local data safety and actual mobile/desktop menu behavior. Runtime addition: 161 lines.
+Integrated evidence at 30b5e48 (trunk 714e969): npm run quality passed 263/263, lint/typecheck/build/audit/budget
+and gameplay browser; all nine additional completion commands passed. CI 35436347273 passed. Enabled account build:
+8,486,798 bytes gzip per fight / 10 MB. Account browser uses controlled provider responses with the real SDK;
+it does not prove live Google configuration. Screenshots/logs/receipts: artifacts/account/integrated-{0..9}.log,
+browser-receipt.json, mobile-guest.png, mobile-signed-in.png and desktop-menu.png. Runtime addition: 161 lines.
 
-Failure ledger: F1 account callback fixture stored its PKCE verifier as raw text instead of the SDK's JSON format;
-fixed the fixture, preserving callback assertions. Account browser reruns and completion command both pass.
-F2: the extra logout-failure fixture expected a retained session, but the current SDK deliberately clears it on remote
-revocation failure. The regression now requires cleared tokens and hidden cloud controls, plus read-failure recovery
-and normal logout. It passes. Centralized save/load disabling keeps failed reads locked through other UI transitions.
-Final account browser, lint/typecheck and budget pass; initial commit CI passes including real PostgreSQL isolation.
-Release blocked on dedicated Supabase project creation/database password handoff and subsequent provider configuration.
-Owner unlocked dashboard; only Calibre exists in the observed free organisation. Frankendom form prepared with
-automatic RLS and default exposure disabled. No Calibre mutation, production schema change, live login or deployment
-claimed. World lane owns the next release window; merge/deploy held until their release and hosted validation.
+Dedicated free project rxbewmzmovelckzoosss created by owner in Mumbai. Applied the checked-in migration via psql
+with TLSv1.3 and verify-full using the official Supabase CA. Hosted transaction tested both users' own save/read,
+cross-user read/write denial, anonymous denial, immutable ownership/revision, stale saves and constraints;
+rolled back both test users and saves (zero profile rows remain). Receipt: artifacts/account/hosted-rls-receipt.txt.
+Hosted site URL and exact /?account=return redirect saved and verified in dashboard. Public REST read without a user
+session returns 401/42501 as intended. Ignored public production configuration and exact-origin CSP are prepared;
+nginx has not been changed.
+
+Failure ledger: F1 callback fixture wrote its PKCE verifier without SDK JSON encoding; corrected fixture and reruns pass.
+F2 logout-failure test expected a retained session; verified current SDK deliberately clears local credentials even when
+remote revoke fails. Corrected regression requires cleared tokens/cloud controls and failed-read retry; passes.
+F3 world integration documentation conflict resolved preserving both lanes; combined quality and CI pass.
+F4 Safari multiline SQL entry was unreliable; nothing executed, switched to exact-file psql migration.
+F5 system CA rejected the pooler certificate; official dashboard CA with verify-full fixed it (TLS not weakened).
+F6 focused test was invoked with absent tsx loader; corrected to this repo's native node --test runner: 3/3 pass.
+Two-pass review covered ownership/concurrency/retry and mobile/desktop placement/guest startup. No new background task.
+
+Activation pending: Google Cloud currently presents first-use Terms for the signed-in account; owner handoff requested.
+Need dedicated Google OAuth client/provider, production CSP reload and live login/save/recovery
+before deployment. No live Google or release claim. PR #152 remains draft. World lane holds the next release window;
+refresh trunk and rerun affected checks before auth integration. Calibre remains untouched.
 
 ## Crowd variety and foot sand — world, 2026-09-19
 Owner requested subdued ruby/navy/brown/grey and other muted clothing, stronger sizes, lower-tier audience and restrained grounded foot sand. Six garment-only dyes preserve skin; separate trousers, two stances per five roster families, independent height/build variation. 219 spectators redistribute across five tiers with gate/flame/collapse clearance. Initial render rejected bright clothes and matching trousers; refined captures in artifacts/world/crowd-dust-final. Arena 9/9 and dust lifecycle check pass; full contract receipts in artifacts/world/crowd-variety-notes. Arena 26 measured draws,92,126 triangles,11.01MB textures; physical phone p95 remains owner-only/unmeasured.
