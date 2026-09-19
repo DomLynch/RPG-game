@@ -45,7 +45,7 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
 // Fixed resources: two draws, 160 ballistic droplets and 80 growing floor stains. No allocation per emission.
 export function createFinisherBlood(map: Texture) {
   const group = new Group(); group.name = 'FinisherBlood'; group.visible = false;
-  const dropMaterial = new MeshStandardMaterial({color:'#740f19',roughness:.3,metalness:0});
+  const dropMaterial = new MeshStandardMaterial({color:'#740f19',roughness:.46,metalness:0});
   const poolMaterial = new MeshBasicMaterial({map,color:'#68121a',transparent:true,opacity:.86,depthWrite:false,toneMapped:false});
   const drops = new InstancedMesh(new SphereGeometry(1,8,4),dropMaterial,160);
   const pools = new InstancedMesh(new PlaneGeometry(2,2),poolMaterial,80);
@@ -91,7 +91,7 @@ export function createFinisherBlood(map: Texture) {
           const pressure=burst ? (1.5+.8*Math.sin(elapsed*17)**2) : .25;
           p.position.copy(s.position);p.velocity.copy(s.direction).multiplyScalar(pressure*Math.min(1.2,s.strength));
           p.velocity.x+=Math.sin(a)*.45;p.velocity.z+=Math.cos(a)*.45;p.velocity.y+=burst ? .35+.35*Math.sin(a*1.7) : -.3;
-          p.life=2;p.size=(.009+(serial%4)*.003)*Math.sqrt(s.strength);emitted++;
+          p.life=2;p.size=(serial%11===0 ? .022 : .004+(serial%4)*.002)*Math.sqrt(s.strength);emitted++;
         }
         // Once the wound is near the floor, seep directly underneath it as well as landing droplets.
         if(s.position.y<.65)stain(s.position,dt*.08*s.strength,s.site);
