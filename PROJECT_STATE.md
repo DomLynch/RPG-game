@@ -8,11 +8,13 @@ and Skeleton to Veteran/trident, preserving source maps, clips and weapon geomet
 Skeleton shaft bending and arm/rib weight contamination; actual trident clip poses and both hand attachments checked.
 Existing Minotaur/Wraith payload and document match their prior versions exactly except refreshed generator hashes.
 284 existing CPU tests and local PostgreSQL checks pass. New encounter migration is local only. Both new creatures are now selectable in the local roster. Skeleton impacts use bone cues, with no human pain/death
-voice or wet death layer; player feedback remains unchanged. 23 focused roster/audio tests pass. Shared scene blood
-suppression, final game review and full release gates remain; neither creature is published.
+voice or wet death layer; player feedback remains unchanged. 23 focused roster/audio tests pass. The lead-approved scene predicate suppresses Skeleton blood while preserving player blood. 53 focused CPU
+checks pass after correcting the two old seven-opponent expectations. Real-scene red/dark/off and full release
+gates remain; neither creature is published.
 Actual local build35,590,875 bytes gzip exceeds32MB total storage;10MB per-fight cap remains satisfied.
-Lossless mesh compression trial did not close gap; owner40MB total-storage approval pending. Shared GPU/release
-queue: AudioPR166 then creature OpenedPR167; integrate their published heads before shared runtime work.
+Lossless mesh compression trial did not close gap; owner40MB total-storage approval pending. Merged published Audio e8670fa and preserved its Draw-only bell/pendingDraw behavior and every gate.
+Current GPU/release queue: creature OpenedPR167, then lead cleanup. SwiftShader preview permission granted,
+but waiting Finishers explicit CPU window to avoid disturbing timed UI gates.
 Evidence and remaining steps: artifacts/character/werewolf-skeleton/NOTES.md. No completion/live claim.
 
 ## Finisher blood upgrade — 2026-09-19 (PR #165)

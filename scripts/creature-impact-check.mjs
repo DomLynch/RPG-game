@@ -34,8 +34,9 @@ if (process.argv.includes('--simulation-only')) {
   await fs.mkdir(dir, { recursive: true });
   const server = await createServer({ server: { host: '127.0.0.1', port: 0 } }); await server.listen();
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-  const browser = await chromium.launch({ headless: true });
-  const receipt = { checks: [], errors: [] };
+  const software = process.argv.includes('--software');
+  const browser = await chromium.launch({ headless: true, args: software ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [] });
+  const receipt = { software, physicalPhone: false, checks: [], errors: [] };
   try {
     const page = await browser.newPage({ viewport: { width: 852, height: 393 } });
     page.on('pageerror', error => receipt.errors.push(String(error)));
@@ -49,6 +50,8 @@ if (process.argv.includes('--simulation-only')) {
     </script>` }));
     await page.goto(`${origin}/impact-harness`);
     await page.waitForFunction(() => !!window.view, null, { timeout: 90000 });
+    receipt.renderer = await page.evaluate(() => { const gl = window.view.renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : ''; });
+    if (software) assert.match(receipt.renderer, /SwiftShader/i);
     for (const mode of ['red', 'dark', 'off']) for (const [index, frames] of contacts.entries()) {
       const state = await page.evaluate(({ mode, frames }) => {
         const { view } = window;
