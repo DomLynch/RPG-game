@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readdir } from 'node:fs/promises';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { jpegFingerprint } from './jpeg-equivalence.mjs';
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 export function parseGlb(raw) {
@@ -63,7 +64,8 @@ export async function assertGlbEquivalent(original, emitted) {
     if (index === undefined) return undefined;
     const image = id => {
       const { bufferView, ...metadata } = asset.doc.images[id];
-      return { ...metadata, sha256: sha256(read(bufferView)) };
+      const bytes = read(bufferView);
+      return { ...metadata, content: metadata.mimeType === 'image/jpeg' ? jpegFingerprint(bytes) : sha256(bytes) };
     };
     const texture = id => {
       const result = structuredClone(asset.doc.textures[id]);

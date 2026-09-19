@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { MeshoptEncoder } from 'meshoptimizer';
+import { losslessJpeg } from './lossless-jpeg.mjs';
 
 export async function optimizeGlb(raw) {
  await MeshoptEncoder.ready;
@@ -30,11 +31,13 @@ export async function optimizeGlb(raw) {
  for(const m of material.kept)visitTextures(m,v=>v.index=texture.map.get(v.index));
  for(const t of texture.kept){if(t.source!==undefined)t.source=image.map.get(t.source);for(const x of Object.values(t.extensions||{}))if(x.source!==undefined)x.source=image.map.get(x.source);}
  d.materials=material.kept;d.textures=texture.kept;d.images=image.kept;
+ const jpegViews=new Set(d.images.filter(i=>i.mimeType==='image/jpeg').map(i=>i.bufferView));
  const chunks=[],views=[],viewMap=new Map(),packedBytes=new Map(),packedViews=new Map();let offset=0,fallback=0;
  const append=bytes=>{const key=createHash('sha256').update(bytes).digest('hex');if(packedBytes.has(key))return packedBytes.get(key);const at=offset;packedBytes.set(key,at);chunks.push(bytes);offset+=bytes.length;const pad=(4-offset%4)%4;if(pad){chunks.push(Buffer.alloc(pad));offset+=pad;}return at;};
  for(const [i,v]of d.bufferViews.entries()){
   if(discardedViews.has(i))continue;
-  const bytes=bin.subarray(v.byteOffset||0,(v.byteOffset||0)+v.byteLength),a=d.accessors.find(a=>a.bufferView===i);
+  let bytes=bin.subarray(v.byteOffset||0,(v.byteOffset||0)+v.byteLength);const a=d.accessors.find(a=>a.bufferView===i);
+  if(jpegViews.has(i))bytes=losslessJpeg(bytes);
   let encoded;
   const width=a&&{SCALAR:1,VEC2:2,VEC3:3,VEC4:4,MAT4:16}[a.type],stride=a&&(v.byteStride||width*({5120:1,5121:1,5122:2,5123:2,5125:4,5126:4}[a.componentType]));
   const mode=v.target===34963?'INDICES':'ATTRIBUTES';
@@ -42,7 +45,7 @@ export async function optimizeGlb(raw) {
    encoded=MeshoptEncoder.encodeGltfBuffer(bytes,bytes.length/stride,stride,mode);
    if(gzipSync(encoded).length>=gzipSync(bytes).length)encoded=undefined;
   }
-  const next={...v};
+  const next={...v,byteLength:bytes.length};
   if(encoded){next.buffer=1;next.byteOffset=0;next.extensions={EXT_meshopt_compression:{buffer:0,byteOffset:append(Buffer.from(encoded)),byteLength:encoded.length,byteStride:stride,count:bytes.length/stride,mode,filter:'NONE'}};fallback=Math.max(fallback,bytes.length);}
   else {next.buffer=0;next.byteOffset=append(bytes);}
   const key=JSON.stringify(next);if(!packedViews.has(key)){packedViews.set(key,views.length);views.push(next);}
