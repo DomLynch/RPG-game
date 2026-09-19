@@ -1,5 +1,22 @@
 # Project state
 
+## Multi-character anatomy pilots — 2026-09-19 (character lane, NOT LIVE)
+Owner authorized Wraith/Minotaur pilots, efficient shared production, an audit and previews for iteration.
+Isolated `char/multichar-pilots` from 15bea7e. Offline Blender maker and existing-viewer capture/judge create
+editable component scenes and animated GLBs from committed Nightborn/Pitborn assets. No archive/API dependency.
+No roster, combat, blade bake, live GLB, camera or finisher changes. All 24 original clips, inverse binds,
+weapon nodes/meshes and original binary payload are preserved. Wraith retains the existing face UVs with a
+bounded cheek sculpt; Minotaur has original head/neck/horn geometry. Full production art is not approved.
+Audit caught initial 70k-triangle outputs; final Wraith 59,745 and Minotaur 57,207 stay below the existing
+60k ceiling (including rigid weapons). Added draws: 2 and 5. The judge now enforces that ceiling and source/generator hashes.
+Verification: full quality PASS (252 tests, lint/typecheck/build/audit/budget and browser), all existing completion
+commands PASS; final pilot completion rerun after geometry fixes. Receipts: artifacts/character/pilots/.
+Self-review covered payload/rig isolation then front/profile/rear, eight motion samples and phone framing.
+Art verdict: useful first silhouette/fit studies, not A-grade final characters. Wraith still needs independent
+face/cloth identity; Minotaur needs stronger anatomical planes, head/body material continuity and fitted kit.
+Inherited human feet, no validated creature hit regions/finishers, unmeasured physical-phone performance.
+Workflow and exact commands: docs/character-pilots.md. Owner reviews these before any roster integration/release.
+
 ## World polish — 2026-09-19 (world/crowd-grounding-light; local, not yet shipped)
 Owner approved four sequential passes: roster spectators, settled debris, softer gate light, selective masonry staining.
 Step 1: replace the narrow crossed cards with five opaque instanced body silhouettes: human, goblin, Pitborn, executioner, Nightborn. No fighter assets, animation clips or gameplay changed. Irregular gaps and slight depth/yaw variation; existing bounded crowd reactions retained. First judge rejected boxy torsos; refined rounded bodies, darker clothes, hair and robe silhouettes. Arena tests 8/8; first full quality 246/246 + browser gate passed; refined geometry typechecks and arena tests pass. Fixed-camera captures: artifacts/world/polish-1-crowd-refined. Cost: 88,798 triangles / 120k, 21 measured arena draws (+1), 11.01 MB textures (-0.35 MB), floor luminance 0.105 unchanged. Physical phone performance remains unmeasured.

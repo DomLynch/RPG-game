@@ -13,6 +13,7 @@ import struct
 
 import bpy
 from mathutils import Vector
+from mathutils.noise import noise
 
 OUT = Path('artifacts/character/pilots')
 OUT.mkdir(parents=True, exist_ok=True)
@@ -113,7 +114,7 @@ def unify(parts, name, mat, voxel=.004):
     smooth.factor, smooth.iterations = .8, 14
     bpy.ops.object.modifier_apply(modifier=smooth.name)
     dec = o.modifiers.new('Review mesh', 'DECIMATE')
-    dec.ratio = .24
+    dec.ratio = .12
     bpy.ops.object.modifier_apply(modifier=dec.name)
     return finish(o, name, mat)
 
@@ -208,7 +209,7 @@ def wraith():
     seam = material('Frayed hem', (.03, .033, .025), 1)
     # Open front cowl: top is rounded, the opening widens toward the shoulder mantle.
     vs, fs = [], []
-    rows, cols = 36, 64
+    rows, cols = 12, 16
     profiles = [(1.27, .27, .172, .12), (1.45, .245, .17, .37),
                 (1.63, .157, .186, .76), (1.77, .147, .187, .65),
                 (1.86, .10, .135, .4), (1.892, .008, .014, .05)]
@@ -217,7 +218,7 @@ def wraith():
         h, rx, rz, gap = interpolate(profiles, q)
         for col in range(cols + 1):
             angle = gap + (math.tau - 2 * gap) * col / cols
-            fold = .005 * math.sin(angle * 13 + row * .07) + .002 * math.sin(angle * 23 - row * .21)
+            fold = .005 * math.sin(angle * 5 + row * .07) + .002 * math.sin(angle * 7 - row * .21)
             rag = (.012 * math.sin(angle * 9) + .007 * math.cos(angle * 17)) * max(0, 1 - row / 5)
             vs.append(xyz(((rx + fold) * math.sin(angle), h + rag, (rz + fold) * math.cos(angle) + .018)))
     for row in range(rows):
@@ -232,13 +233,13 @@ def wraith():
     # Explicit hems around the face; no texture trick concealing the silhouette.
     for side in [0, cols]:
         pts = [vs[r * (cols + 1) + side] for r in range(rows + 1)]
-        sweep('Cowl hem', [(p.x, p.z, -p.y) for p in pts], [.003] * len(pts), seam, 8)
+        sweep('Cowl hem', [(p.x, p.z, -p.y) for p in pts], [.003] * len(pts), seam, 6)
 
 
 def append_geometry(doc, payload, obj, material_index, skin, bones):
     """Append a mesh in unscaled rest space, weighted to the original rig."""
     obj.data.calc_loop_triangles()
-    positions, normals, joints, weights, indices = [], [], [], [], []
+    positions, normals, joints, weights, indices, colors = [], [], [], [], [], []
     for v in obj.data.vertices:
         p = obj.matrix_world @ v.co
         positions.extend((p.x, p.z, -p.y))
@@ -250,6 +251,14 @@ def append_geometry(doc, payload, obj, material_index, skin, bones):
         chest = max(0, min(1, (1.55 - height) / .13))
         joints.extend((bones['Head'], bones['neck_01'], bones['spine_03'], 0))
         weights.extend((head, 1 - head - chest, chest, 0))
+        # Original, deterministic colour breakup for review; no baked lighting.
+        grain = noise(p * 65) * .08 + noise(p * 230) * .035
+        value = .86 + grain
+        if 'Worn horn' in obj.name:
+            value *= 1 - .78 * max(0, min(1, (height - 1.94) / .13))
+        elif 'linen' in obj.name:
+            value += .03 * math.sin(p.z * 1900) * math.sin(p.x * 1800)
+        colors.extend((value, value, value))
     for t in obj.data.loop_triangles:
         indices.extend(t.vertices)
 
@@ -269,6 +278,7 @@ def append_geometry(doc, payload, obj, material_index, skin, bones):
     count = len(positions) // 3
     attrs = {'POSITION': accessor(positions, 'VEC3', 'f', 5126, count, True),
              'NORMAL': accessor(normals, 'VEC3', 'f', 5126, count),
+             'COLOR_0': accessor(colors, 'VEC3', 'f', 5126, count),
              'JOINTS_0': accessor(joints, 'VEC4', 'H', 5123, count),
              'WEIGHTS_0': accessor(weights, 'VEC4', 'f', 5126, count)}
     idx = accessor(indices, 'SCALAR', 'I', 5125, len(indices))
@@ -280,6 +290,60 @@ def append_geometry(doc, payload, obj, material_index, skin, bones):
     parent = next(node for node in doc['nodes'] if any('skin' in doc['nodes'][c] for c in node.get('children', [])))
     parent['children'].append(n)
     return len(indices) // 3
+
+
+def gaunt_face(doc, payload):
+    """A bounded shape edit on the existing head, keeping its UVs, weights and eyes."""
+    node = next(n for n in doc['nodes'] if n.get('name') == 'Photo')
+    primitive = doc['meshes'][node['mesh']]['primitives'][0]
+    positions = doc['accessors'][primitive['attributes']['POSITION']]
+    view = doc['bufferViews'][positions['bufferView']]
+    start = view.get('byteOffset', 0) + positions.get('byteOffset', 0)
+    verts = []
+    for i in range(positions['count']):
+        x, y, z = struct.unpack_from('<fff', payload, start + i * view.get('byteStride', 12))
+        cheek = math.exp(-((abs(x)-.066)/.03)**2 - ((y-1.635)/.034)**2) * max(0, min(1, (z-.025)/.04))
+        x *= 1 - .11 * cheek
+        z -= .014 * cheek
+        verts.append(xyz((x, y, z)))
+    ac = doc['accessors'][primitive['indices']]
+    vi = doc['bufferViews'][ac['bufferView']]
+    fmt = {5123: 'H', 5125: 'I'}[ac['componentType']]
+    ix = struct.unpack_from('<' + fmt * ac['count'], payload, vi.get('byteOffset', 0) + ac.get('byteOffset', 0))
+    # The opaque cowl covers the back of the scanned head: do not render hidden scalp.
+    kept = []
+    for i in range(0, len(ix), 3):
+        tri = ix[i:i+3]
+        if all(verts[j].y > .005 and verts[j].z > 1.58 for j in tri):
+            continue
+        kept.extend(tri)
+    payload.extend(b'\0' * (-len(payload) % 4))
+    raw = struct.pack('<' + 'I' * len(kept), *kept)
+    desc = {'bufferView': len(doc['bufferViews']), 'componentType': 5125, 'count': len(kept), 'type': 'SCALAR'}
+    doc['bufferViews'].append({'buffer': 0, 'byteOffset': len(payload), 'byteLength': len(raw)})
+    payload.extend(raw)
+    primitive['indices'] = len(doc['accessors'])
+    doc['accessors'].append(desc)
+    sculpt = bpy.data.meshes.new('Wraith gaunt face')
+    sculpt.from_pydata(verts, [], [ix[i:i+3] for i in range(0, len(ix), 3)])
+    sculpt.update()
+    for key in ['POSITION', 'NORMAL']:
+        vals = []
+        for v in sculpt.vertices:
+            p = v.co if key == 'POSITION' else v.normal
+            vals.extend((p.x, p.z, -p.y))
+        payload.extend(b'\0' * (-len(payload) % 4))
+        desc = {'bufferView': len(doc['bufferViews']), 'componentType': 5126, 'count': len(verts), 'type': 'VEC3'}
+        raw = struct.pack('<' + 'f' * len(vals), *vals)
+        doc['bufferViews'].append({'buffer': 0, 'byteOffset': len(payload), 'byteLength': len(raw)})
+        payload.extend(raw)
+        if key == 'POSITION':
+            desc.update(min=[min(vals[i::3]) for i in range(3)], max=[max(vals[i::3]) for i in range(3)])
+        primitive['attributes'][key] = len(doc['accessors'])
+        doc['accessors'].append(desc)
+    obj = bpy.data.objects.new('Wraith face study - source UVs retained in GLB', sculpt)
+    bpy.context.collection.objects.link(obj)
+    obj.hide_render = obj.hide_viewport = True
 
 
 def build(name, base):
@@ -325,8 +389,11 @@ def build(name, base):
                                     'pbrMetallicRoughness': {'baseColorFactor': list(mat.diffuse_color),
                                     'roughnessFactor': mat['roughness'], 'metallicFactor': mat['metallic']}})
         triangles += append_geometry(doc, data, obj, materials[mat.name], skin, bones)
+    if name == 'wraith':
+        gaunt_face(doc, data)
     doc.setdefault('extras', {})['characterPilot'] = {'family': name, 'base': base, 'stage': 'anatomy-review',
-                                                    'sourceSha256': hashlib.sha256(source_path.read_bytes()).hexdigest()}
+                                                    'sourceSha256': hashlib.sha256(source_path.read_bytes()).hexdigest(),
+                                                    'generatorSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
     # Strong preservation checks: no original accessor, skin or animation is rewritten.
     for field in ['animations', 'skins', 'images', 'textures', 'samplers']:
         assert doc.get(field) == frozen.get(field), field

@@ -21,20 +21,36 @@ function glb(raw) {
   const size = raw.readUInt32LE(12);
   return { doc: JSON.parse(raw.subarray(20, 20 + size)), bin: raw.subarray(28 + size) };
 }
+const generatorHash = digest(await fs.readFile('scripts/character/pilots.py'));
 const receipts = [];
 for (const [name, base] of [['wraith', 'nightborn'], ['minotaur', 'pitborn']]) {
   const original = await fs.readFile(`src/assets/${base}.glb`), output = await fs.readFile(`${dir}/${name}.glb`);
   const a = glb(original), b = glb(output);
   assert.equal(b.doc.extras.characterPilot.sourceSha256, digest(original), 'Pilot source became stale; rebuild');
+  assert.equal(b.doc.extras.characterPilot.generatorSha256, generatorHash, 'Pilot generator became stale; rebuild');
   assert.deepEqual(b.bin.subarray(0, a.bin.length), a.bin, 'Original binary changed');
   for (const key of ['animations', 'skins', 'images', 'textures', 'samplers']) assert.deepEqual(b.doc[key], a.doc[key], key);
   assert.deepEqual(b.doc.accessors.slice(0, a.doc.accessors.length), a.doc.accessors);
   for (const [i, node] of a.doc.nodes.entries()) {
     // The only permitted old-node edit is hiding a replaced art mesh.
     const before = { ...node }, after = { ...b.doc.nodes[i] };
-    if (!('mesh' in after)) { delete before.mesh; delete before.skin; }
+    if ('mesh' in before && !('mesh' in after)) {
+      assert((name === 'wraith' ? ['Ruby'] : ['Face', 'Photo', 'PhotoEyes', 'PhotoTeeth', 'Bone', 'BoneWorn']).includes(node.name), 'Only replaced art may be hidden');
+      delete before.mesh; delete before.skin;
+    }
     if (before.children) after.children = after.children.filter(n => n < a.doc.nodes.length);
     assert.deepEqual(after, before, `Original node ${node.name ?? i} changed`);
+  }
+  const faceMesh = a.doc.nodes.find(n => n.name === 'Photo').mesh;
+  for (const [i, mesh] of a.doc.meshes.entries()) {
+    if (name === 'wraith' && i === faceMesh) {
+      const before = structuredClone(mesh), after = structuredClone(b.doc.meshes[i]);
+      for (const [j, p] of before.primitives.entries()) {
+        delete p.indices; delete after.primitives[j].indices;
+        for (const key of ['POSITION', 'NORMAL']) { delete p.attributes[key]; delete after.primitives[j].attributes[key]; }
+      }
+      assert.deepEqual(after, before, 'Face UVs and skin weights preserved');
+    } else assert.deepEqual(b.doc.meshes[i], mesh, `Original mesh ${i} changed`);
   }
   let addedTriangles = 0;
   for (const node of b.doc.nodes.filter(n => n.extras?.pilot)) {
@@ -49,7 +65,10 @@ for (const [name, base] of [['wraith', 'nightborn'], ['minotaur', 'pitborn']]) {
       }
     }
   }
-  receipts.push({ name, base, sha256: digest(output), bytes: output.length, addedTriangles, animationsPreserved: a.doc.animations.length, originalBinaryPreserved: true });
+  const visibleMeshes = new Set(b.doc.nodes.filter(n => n.mesh !== undefined).map(n => n.mesh));
+  const totalTriangles = [...visibleMeshes].reduce((sum, i) => sum + b.doc.meshes[i].primitives.reduce((n, p) => n + b.doc.accessors[p.indices ?? p.attributes.POSITION].count / 3, 0), 0);
+  assert(totalTriangles < 60000, `${name}: ${totalTriangles} triangles exceeds the existing 60k ceiling`);
+  receipts.push({ name, base, sha256: digest(output), bytes: output.length, addedTriangles, totalTriangles, addedDraws: b.doc.nodes.filter(n => n.extras?.pilot).length, animationsPreserved: a.doc.animations.length, originalBinaryPreserved: true });
 }
 if (!args.includes('--check')) {
   const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent' });
