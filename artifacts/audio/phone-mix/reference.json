@@ -1,0 +1,131 @@
+{
+  "sourceRevision": "a8e72e6",
+  "seed": 731,
+  "rate": 48000,
+  "probes": {
+    "events/draw": {
+      "lufsIntegrated": -16.5,
+      "peakDbfs": -5.6
+    },
+    "events/swing-light": {
+      "lufsIntegrated": -22.8,
+      "peakDbfs": -8.7
+    },
+    "events/swing-heavy": {
+      "lufsIntegrated": -19.3,
+      "peakDbfs": -6.1
+    },
+    "events/swing-kick": {
+      "lufsIntegrated": -25.3,
+      "peakDbfs": -11
+    },
+    "events/swing-thrust": {
+      "lufsIntegrated": -22.8,
+      "peakDbfs": -8.7
+    },
+    "events/charged": {
+      "lufsIntegrated": -17,
+      "peakDbfs": -9.8
+    },
+    "events/hit-light": {
+      "lufsIntegrated": -17.8,
+      "peakDbfs": -2.8
+    },
+    "events/hit-heavy": {
+      "lufsIntegrated": -14.4,
+      "peakDbfs": -2.8
+    },
+    "events/hit-riposte": {
+      "lufsIntegrated": -14.4,
+      "peakDbfs": -2.8
+    },
+    "events/hit-kick": {
+      "lufsIntegrated": -18.4,
+      "peakDbfs": -2.8
+    },
+    "events/hit-thrust": {
+      "lufsIntegrated": -17.8,
+      "peakDbfs": -2.8
+    },
+    "events/blocked": {
+      "lufsIntegrated": -16.9,
+      "peakDbfs": -2.8
+    },
+    "events/blocked-perfect": {
+      "lufsIntegrated": -19.7,
+      "peakDbfs": -2.8
+    },
+    "events/parried": {
+      "lufsIntegrated": -14,
+      "peakDbfs": -2.8
+    },
+    "events/guard-broken": {
+      "lufsIntegrated": -14.7,
+      "peakDbfs": -2.8
+    },
+    "events/roll": {
+      "lufsIntegrated": -29,
+      "peakDbfs": -11.3
+    },
+    "events/backstep": {
+      "lufsIntegrated": -33.8,
+      "peakDbfs": -14.2
+    },
+    "events/killed": {
+      "lufsIntegrated": -13.8,
+      "peakDbfs": -2.8
+    },
+    "events/finish-plainDeath": {
+      "lufsIntegrated": -13.8,
+      "peakDbfs": -2.8,
+      "tailRmsDbfs": -18.887600918313588
+    },
+    "events/finish-plainDeath-blood-off": {
+      "lufsIntegrated": -14,
+      "peakDbfs": -2.8,
+      "tailRmsDbfs": -16.511569317288213
+    },
+    "events/finish-splitCrown": {
+      "lufsIntegrated": -13.8,
+      "peakDbfs": -2.8,
+      "tailRmsDbfs": -32.57082515152852
+    },
+    "events/finish-splitCrown-blood-off": {
+      "lufsIntegrated": -14.1,
+      "peakDbfs": -2.8,
+      "tailRmsDbfs": -16.511626483581992
+    },
+    "events/finish-decapitation": {
+      "lufsIntegrated": -13.6,
+      "peakDbfs": -2.8,
+      "tailRmsDbfs": -32.57082515152852
+    },
+    "events/finish-decapitation-blood-off": {
+      "lufsIntegrated": -14.1,
+      "peakDbfs": -2.8,
+      "tailRmsDbfs": -16.511626483581992
+    },
+    "events/finish-runThrough": {
+      "lufsIntegrated": -13.7,
+      "peakDbfs": -2.8,
+      "tailRmsDbfs": -16.779287942719233
+    },
+    "events/finish-runThrough-blood-off": {
+      "lufsIntegrated": -14.9,
+      "peakDbfs": -2.8,
+      "tailRmsDbfs": -16.511569317288213
+    },
+    "events/player-death": {
+      "lufsIntegrated": -14.2,
+      "peakDbfs": -2.8
+    },
+    "events/kick-death": {
+      "lufsIntegrated": -14.3,
+      "peakDbfs": -2.8
+    },
+    "events/double-death": {
+      "lufsIntegrated": -12,
+      "peakDbfs": -2.8
+    }
+  }
+}

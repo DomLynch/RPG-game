@@ -19,10 +19,16 @@ exempt only the separately authored Quiet One values while retaining clip names,
 Real-scene Veteran/Goblin/Executioner captures cover red/dark/off, portrait/landscape, reduced motion and rematch.
 Final sequence video and phone UI/contract gate receipts: `artifacts/finishers/quiet-one/` and
 `artifacts/character/quiet-final-scene/`. Two-pass review: pure simulation/input unchanged; then rendered poses,
-continuity, modes and reset behavior. Required completion commands and release coordination remain in progress.
+continuity, modes and reset behavior. All 11 configured completion commands passed, including a real phone-size UI victory/hold/rematch.
+Integrated world/audio trunk 03282b0; final checks will follow the pending auth release before deployment.
 Lead holds release scheduling: no merge/deploy until an allocated window. Physical-phone feel remains owner-only.
 Sentry inspection found existing asset-fetch/texture/WebGL issues (5/6/A/9/8 and older), not evidence about this
 unreleased finisher. No claim of a clean live error stream or public publication.
+
+## Mixed, populated crowd and stronger foot sand — world, 2026-09-19
+Owner accepted the softened colours and mixed crowd, then requested busy seating around all 360 degrees including the gate, and more visible one-second foot sand. Six subdued garment dyes (dusty maroon/charcoal navy/earth tones) and five body families are assigned independently using nearby-seat diversity before GPU batching. On 291 occupied seats, only 27/844 nearby pairs repeat a body and 10/844 repeat a dye. Every 30-degree sector has at least 24 spectators and 8 on the lower two tiers; rubble, arch lip and flames retain clearance. Tread height follows tessellated stone; actual support raycasts and full-vertex play/camera clearance checks pass. Arena 114,440 triangles / 120k, unchanged meshes and 11.01 MB textures. Physical phone timing remains unmeasured.
+
+Foot sand uses a 48-point pool, five larger denser particles per plant, low lateral curls with drag and a 1-second fade. Idle, combat-pose suppression, teleport rejection, hit-stop and disposal remain intact. Lifecycle check verifies the longer tail and lower-leg height. Existing world preview now captures 12 sectors plus normal portrait dust on/off. Focused arena/dust 11/11, lint and typecheck pass; all 12 sector renders and stronger dust at portrait combat distance reviewed. Full contract, CI and live receipts are tracked under PR #156 and artifacts/world/mixed-crowd-notes. Integrated weapons f7a1e99 and its polearm browser gate; no fighter, combat, audio, camera or lighting edits from world.
 
 ## Polearm elbow correction — weapons, 2026-09-19
 Owner reproduced inward, twisted elbows on the Executioner and Veteran in the live game. Their correct polearm gait clips were already selected. Offline IK used reversed left/right bend poles for this rig and shortest-arc bone aiming left axial roll unconstrained. Polearm-only authoring now places elbows outward and aligns the anatomical hinge from the library stance; sword authoring and all combat timings stay unchanged. The Executioner slides his supporting hand down the haft during the raised wind-up to stay within reach.
@@ -777,3 +783,22 @@ Evidence: `artifacts/audio/fatal-before/` and `fatal-crowd/`; reproducible sourc
 fatal stack peaks -2.85 dBFS; quiet/mute cancel future crowd/collapse sources. Lane quality: 261/261 tests, lint/build/audit/budget/game browser and all seven completion commands passed. Final publication is identified by the served release.json.
 Physical phone/silent-switch listening remains unverified. Timing follows current authored presentation durations; no claim of
 frame-perfect body contact on every rig. Music, sustained ambience and gait/breath events remain outside this pass.
+
+## Phone audio balance — 2026-09-19 (release authorized)
+Owner requested ordinary effects x0.5 and death/kill/crowd x1.5. Post-compressor gain preserves these ratios; an oversampled
+output guard limits boosted transient peaks. Existing cue assets, tone recipes, timing and simulation are unchanged.
+Measured ordinary loudness -5.9 to -6.0 LUFS; crowd tails +3.52 dB; complete fatal mixes +2.8 to +3.3 LUFS after limiting.
+True-peak review caught +2.2 dBTP overshoots missed by sample peaks in the first candidate; corrected version reports at most
+-1.0 dBTP with FFmpeg and -1.54 dBFS in browser 4x reconstruction. Five-band spectral energy changes at most 1.67 percentage
+points. No additional EQ change justified; this is measurement, not a physical-phone listening claim.
+Existing audio completion gate now checks the frozen pre-change mix, empty death ticks, rematch after quiet/mute and
+reconstructed peaks. AAC/Opus/fallback, 17 ordinary probes, 12 fatal probes and eight crowd-tail checks pass.
+Evidence: artifacts/audio/phone-mix/REVIEW.md, reference.json, frequency.json and gates.json. Full quality passed 264/264 tests,
+lint/build/audit/budget/game browser; all eight configured completion commands passed, including native fatal playback/pause.
+Release hold acknowledged: no audio trunk merge or deploy until world closeout and lead confirmation. Handset audition remains.
+Integration: weapons trunk f7a1e99 merged cleanly; preserved its polearm gate. Integrated quality passed 265/265 tests and all
+nine completion commands; GitHub CI passed on 827fe33. Receipt: artifacts/audio/phone-mix/integrated-gates.json. PR #158 held.
+
+Audio release window granted by lead after world 8fcf58e. Current world trunk integrated without runtime conflicts; preserve
+all configured gates. Final deployment/public parity and affected audio browser receipts go in artifacts/audio/phone-release/.
+The physical phone audition remains unverified; use served release.json as the deployment authority.

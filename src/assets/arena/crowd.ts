@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hash } from './textures.ts';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // Distant spectators, not fighter rigs: opaque, faceted bodies share one material and ten instanced meshes.
@@ -56,7 +57,7 @@ export function spectatorGeometry(kind: typeof CROWD_KINDS[number], pose = 0): T
 }
 
 // Dye only the garment vertices. One standard lit material, no atlas or extra draw per colour.
-export const CROWD_DYES = ['#622b38', '#293c58', '#514033', '#535451', '#3e4837', '#62503a'];
+export const CROWD_DYES = ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'];
 export function spectatorMaterial() {
   const material = new THREE.MeshStandardMaterial({ name: 'crowd', roughness: 1, vertexColors: true });
   material.onBeforeCompile = shader => {
@@ -65,4 +66,19 @@ export function spectatorMaterial() {
   };
   material.customProgramCacheKey = () => 'spectator-garment-v1';
   return material;
+}
+
+// Assign people before GPU batching. Independent random rolls alone can still form visible teams;
+// choose among the least-repeated nearby kinds/dyes, with seeded ties so there is no striped sequence.
+export function mixSpectators<T extends { id: number; x: number; z: number }>(seats: T[]) {
+  const mixed: (T & { kind: number; dye: number; pose: number })[] = [];
+  for (const seat of [...seats].sort((a, b) => hash(a.id, 0, 101) - hash(b.id, 0, 101))) {
+    const nearby = mixed.filter(p => Math.hypot(p.x - seat.x, p.z - seat.z) < 2.5);
+    const choose = (key: 'kind' | 'dye', weights: number[], seed: number) => weights.map((weight, value) => ({
+      value, repeats: nearby.filter(p => p[key] === value).length,
+      tie: -Math.log(Math.max(1e-9, hash(seat.id, value, seed))) / weight
+    })).sort((a, b) => a.repeats - b.repeats || a.tie - b.tie)[0].value;
+    mixed.push({ ...seat, kind: choose('kind', [2, 1, 1, 0.7, 0.8], 103), dye: choose('dye', [0.6, 0.6, 1.4, 1.4, 1, 1], 107), pose: hash(seat.id, 0, 109) > 0.5 ? 1 : 0 });
+  }
+  return mixed;
 }
