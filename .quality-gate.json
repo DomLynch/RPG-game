@@ -31,6 +31,10 @@
     ],
     [
       "node",
+      "scripts/counter-browser-check.mjs"
+    ],
+    [
+      "node",
       "scripts/arena-preview.mjs",
       "--label",
       "quality-world"

@@ -7,7 +7,7 @@ import { preview } from 'vite';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
 url.searchParams.set('opponent', 'nightborn'); url.searchParams.set('debug', '1');
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const receipt = { url: url.href, physicalPhone: false, errors: [], views: [] };
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {

@@ -171,7 +171,7 @@ test('the role table resolves every role for both weapons to a clip the rig carr
     const names = rigs[weapon].animations.map(a => a.name);
     for (const role of ROLES) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);
     // What the renderer plays for a path is what scripts/bake-blades.mjs sampled for it (PathSpec.clip), so the trail and the sim agree.
-    const paths = WEAPONS[weapon].paths, played: Record<string, Role> = { light_right: 'Attack', light_right_chain: 'Attack', light_left: 'Return', light_left_chain: 'Return', heavy_overhead: 'Heavy', heavy_overhead_chain: 'Heavy', heavy_riposte: 'Heavy', thrust: 'Thrust', riposte: 'Riposte' };
+    const paths = WEAPONS[weapon].paths, played: Record<string, Role> = { light_right: 'Attack', light_right_chain: 'Attack', light_left: 'Return', light_left_chain: 'Return', heavy_overhead: 'Heavy', heavy_overhead_chain: 'Heavy', heavy_riposte: 'Heavy', thrust: 'Thrust', riposte: 'Riposte', slash_riposte: 'Attack' };
     for (const [path, role] of Object.entries(played)) assert.equal(clipFor(weapon, role), paths[path as keyof typeof paths].clip, `${weapon} ${path}: renderer plays ${clipFor(weapon, role)}, bake sampled ${paths[path as keyof typeof paths].clip}`);
   }
   assert.deepEqual(Object.keys(WEAPON_CLIPS).sort(), Object.keys(WEAPONS).sort(), 'every weapon the sim knows has a clip table');
@@ -182,7 +182,7 @@ test('the renderer builds a trident fighter without throwing, keeps the weapon i
   const { player, opponent } = buildWarriors(hero, veteran, ['longsword', 'trident']);
   const weapon = opponent.anchor.getObjectByName('WeaponDrawn')!, contact = weapon.userData.contact as { from: number; to: number };
   assert.ok(weapon, 'the opponent carries WeaponDrawn');
-  for (const [pose, attack] of [['sheathed', 'light'], ['ready', 'light'], ['attack', 'light'], ['attack', 'return'], ['attack', 'heavy'], ['attack', 'thrust'], ['attack', 'riposte'], ['guard', 'light'], ['block', 'light'], ['parry', 'light'], ['deflected', 'light'], ['hit', 'light'], ['roll', 'light'], ['kick', 'light'], ['death', 'light']] as const) {
+  for (const [pose, attack] of [['sheathed', 'light'], ['ready', 'light'], ['attack', 'light'], ['attack', 'return'], ['attack', 'heavy'], ['attack', 'thrust'], ['attack', 'riposte'], ['attack', 'slashRiposte'], ['guard', 'light'], ['block', 'light'], ['parry', 'light'], ['deflected', 'light'], ['hit', 'light'], ['roll', 'light'], ['kick', 'light'], ['death', 'light']] as const) {
     for (let i = 0; i < 12; i++) opponent.update(0, 1 / 60, pose, i / 11, attack, .4);
     assert.ok(weapon.visible, `${pose}/${attack}: the trident stays in hand`);
     opponent.anchor.updateMatrixWorld(true);
@@ -384,7 +384,7 @@ test('swing easing remains monotone and preserves the authored contact pose', ()
 
 test('return, heavy and riposte authored blades agree with their contact ticks', async () => {
   const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene);
-  for (const [kind,name,source] of [['light','Attack',.34],['return','Return',.34],['heavy','Heavy',.48],['riposte','Riposte',.34]] as const) {
+  for (const [kind,name,source] of [['light','Attack',.34],['return','Return',.34],['heavy','Heavy',.48],['riposte','Riposte',.34],['slashRiposte','Attack',.34]] as const) {
     const spec = ATTACKS[kind], clip = asset.animations.find(a => a.name === name)!;
     const action = mixer.clipAction(clip).play();
     mixer.setTime(clip.duration * swingProgress(spec.contact/spec.recovery,spec.contact/spec.recovery,source));
