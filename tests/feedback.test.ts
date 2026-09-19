@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { createFeedback } from '../src/feedback.ts';
+import { BELL_SECONDS } from '../src/audio/bell.ts';
 
 // Minimal Web Audio stand-in: enough surface for unlock/quiet/play to run without a browser.
 class FakeContext {
@@ -12,7 +13,7 @@ class FakeContext {
   node() { const param = () => ({ value: 0, setValueAtTime() {}, cancelScheduledValues() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }); return { gain: param(), frequency: param(), Q: param(), playbackRate: param(), threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(), type: '', curve: null, buffer: null, connect() { return this; }, disconnect() {}, start() {}, stop() {}, onended: null }; }
   createGain() { return this.node(); } createBiquadFilter() { return this.node(); } createOscillator() { return this.node(); } createWaveShaper() { return this.node(); } createDynamicsCompressor() { return this.node(); } createConvolver() { return this.node(); }
   createBuffer(_c: number, length: number) { return { duration: length / this.sampleRate, getChannelData: () => new Float32Array(length) }; }
-  createBufferSource() { if (this.state !== 'running') throw new Error('play must not reach the graph while the context is not running'); this.sources++; const node = this.node(); node.start = () => { if ((node.buffer as { duration?: number } | null)?.duration === 2.6) this.bells++; }; return node; }
+  createBufferSource() { if (this.state !== 'running') throw new Error('play must not reach the graph while the context is not running'); this.sources++; const node = this.node(); node.start = () => { if ((node.buffer as { duration?: number } | null)?.duration === BELL_SECONDS) this.bells++; }; return node; }
   resume() { this.resumed++; this.state = 'running'; return Promise.resolve(); }
   suspend() { this.state = 'suspended'; return Promise.resolve(); }
 }
