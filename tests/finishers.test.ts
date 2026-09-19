@@ -11,21 +11,21 @@ import type { MoveId, WeaponId } from '../src/moves.ts';
 // pin the rule; the mutation receipts are the discriminations (swap any null-row field and the pick changes).
 const kill = (move: MoveId, location: HitLocation, victim: 0 | 1 = 1, draw = false): Finish => ({ victim, location, move, heading: 1.1, ...(draw ? { draw: true } : {}) });
 const LONGSWORDS: readonly [WeaponId, WeaponId] = ['longsword', 'longsword'];
-const SHIPPED = ['splitCrown', 'decapitation', 'runThrough', 'plainDeath'] as const;
+const SHIPPED = ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne'] as const;
 
 test('selection is the owner rule: ANY blade kill plays an outcome, whatever the move or location', () => {
-  // owner 2026-09-18: every blade kill draws one of the four — Split Crown, Decapitation, Run Through, or the plain death —
+  // owner 2026-09-18: every blade kill draws one of the five — Split Crown, Decapitation, Run Through, The Quiet One, or plain death —
   // picked by the kill event's seed. Light, thrust, riposte, heavy, critical, any location.
   for (const [move, location] of [['light_right', 'torso'], ['light_left', 'head'], ['thrust', 'torso'], ['riposte', 'legs'], ['heavy_overhead', 'torso'], ['heavy_overhead', 'head'], ['heavy_riposte', 'legs'], ['heavy_counter', 'head'], ['critical', 'torso'], ['critical', 'head'], ['light_right', 'legs']] as [MoveId, HitLocation][])
     assert.ok(SHIPPED.includes(selectFinisher(kill(move, location), LONGSWORDS)), `${move} @ ${location} draws a shipped outcome`);
 });
 
-test('the rotation is seeded from the kill event: same event, same outcome; the spread covers all four', () => {
+test('the rotation is seeded from the kill event: same event, same outcome; the spread covers all five', () => {
   // pinned picks (the hash in selectFinisher — swap the seed and these change)
-  assert.equal(selectFinisher(kill('heavy_overhead', 'torso'), LONGSWORDS), 'runThrough');
+  assert.equal(selectFinisher(kill('heavy_overhead', 'torso'), LONGSWORDS), 'splitCrown');
   assert.equal(selectFinisher(kill('light_right', 'torso'), LONGSWORDS), 'decapitation');
-  assert.equal(selectFinisher(kill('light_right', 'head'), LONGSWORDS), 'splitCrown');
-  assert.equal(selectFinisher(kill('thrust', 'head'), LONGSWORDS), 'plainDeath');
+  assert.equal(selectFinisher(kill('light_right', 'head'), LONGSWORDS), 'runThrough');
+  assert.equal(selectFinisher(kill('thrust', 'head'), LONGSWORDS), 'decapitation');
   // every outcome is reachable across the kill-event space
   const picks = new Set<FinisherId>();
   for (const move of ['light_right', 'light_left', 'thrust', 'riposte', 'heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'] as MoveId[])
@@ -54,12 +54,13 @@ test('selection is deterministic and reads only the event and the weapons', () =
   assert.notEqual(selectFinisher(kill('light_right', 'head'), LONGSWORDS), selectFinisher(kill('light_right', 'head', 0), LONGSWORDS));
 });
 
-test('Split Crown, Decapitation and Run Through have shipped poses; plainDeath and the rest play the plain Death', () => {
-  const poses = Object.entries(FINISHER_POSE) as [FinisherId, 'splitCrown' | 'decapitation' | 'runThrough' | null][];
+test('Split Crown, Decapitation, Run Through and Quiet One have shipped poses; plainDeath and the rest play the plain Death', () => {
+  const poses = Object.entries(FINISHER_POSE) as [FinisherId, 'splitCrown' | 'decapitation' | 'runThrough' | 'quietOne' | null][];
   assert.deepEqual(poses.map(([id]) => id), ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened', 'hamstrung', 'execution']);
   assert.equal(FINISHER_POSE.splitCrown, 'splitCrown');
   assert.equal(FINISHER_POSE.decapitation, 'decapitation');   // reuses the Split Crown body collapse; the severed head is the gore layer
-  assert.equal(FINISHER_POSE.runThrough, 'runThrough');       // impaled on the blade, held beat gripping it, slides down off it
+  assert.equal(FINISHER_POSE.runThrough, 'runThrough');       // impaled on the blade, held beat gripping it, kneels with it still embedded
+  assert.equal(FINISHER_POSE.quietOne, 'quietOne');
   assert.equal(FINISHER_POSE.plainDeath, null);               // the default fall, in the rotation by the owner's call — null = the plain Death clip
-  for (const [id, pose] of poses) if (!['splitCrown', 'decapitation', 'runThrough'].includes(id)) assert.equal(pose, null, `${id} plays the plain Death`);
+  for (const [id, pose] of poses) if (!['splitCrown', 'decapitation', 'runThrough', 'quietOne'].includes(id)) assert.equal(pose, null, `${id} plays the plain Death`);
 });

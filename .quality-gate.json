@@ -14,8 +14,12 @@
   "completion_commands": [
     [
       "node",
-      "scripts/character-pilots.mjs",
-      "--build"
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "runThrough",
+      "--no-video",
+      "--label",
+      "run-through-gate"
     ],
     [
       "node",
@@ -29,6 +33,17 @@
       "--no-video",
       "--label",
       "split-crown-gate"
+    ],
+    [
+      "node",
+      "scripts/audio-preview.mjs",
+      "--label",
+      "audio-gate",
+      "--check"
+    ],
+    [
+      "node",
+      "artifacts/audio/fatal-crowd/browser.mjs"
     ],
     [
       "node",
@@ -46,27 +61,48 @@
     ],
     [
       "node",
+      "scripts/polearm-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/account-database-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/account-browser-check.mjs"
+    ],
+    [
+      "node",
       "scripts/finisher-preview.mjs",
       "--only",
-      "runThrough",
+      "quietOne",
       "--no-video",
       "--label",
-      "run-through-gate"
+      "quiet-one-gate"
     ],
     [
       "node",
-      "scripts/audio-preview.mjs",
+      "scripts/quiet-one-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "quietOne",
+      "--opponent",
+      "executioner",
+      "--no-video",
       "--label",
-      "audio-gate",
-      "--check"
+      "quiet-one-large-gate"
     ],
     [
       "node",
-      "artifacts/audio/fatal-crowd/browser.mjs"
+      "scripts/polearm-pose-check.mjs"
     ],
     [
       "node",
-      "scripts/polearm-browser-check.mjs"
+      "scripts/character-pilots.mjs",
+      "--build"
     ],
     [
       "node",

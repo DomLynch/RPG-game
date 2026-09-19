@@ -28,11 +28,11 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
 
 // Late finisher reveal: a three-quarter side view, fitted to the phone's horizontal field of view.
 // Choose the inward side from the frozen duel positions so the camera cannot switch sides as the corpse moves.
-export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' = 'runThrough') {
+export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' | 'quietOne' = 'runThrough') {
   const dx = fallen.x-killer.x, dz = fallen.z-killer.z, gap = Math.hypot(dx,dz) || 1;
   const ux = dx/gap, uz = dz/gap, lookX = (killer.x+fallen.x)/2, lookZ = (killer.z+fallen.z)/2;
-  const back = Math.max(3.8, (gap/2+.42)/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
-  const angle = finisher === 'splitCrown' ? Math.PI/3 : 5*Math.PI/12, sideward = Math.sin(angle), rearward = Math.cos(angle);
+  const back = Math.max(finisher === 'quietOne' ? 4.5 : 3.8, (gap/2+(finisher === 'quietOne' ? .65 : .42))/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
+  const angle = finisher !== 'runThrough' ? Math.PI/3 : 5*Math.PI/12, sideward = Math.sin(angle), rearward = Math.cos(angle);
   const side = (sign: number) => ({ x: lookX+(-uz*sign*sideward-ux*rearward)*back, y: 3.1, z: lookZ+(ux*sign*sideward-uz*rearward)*back, lookX, lookY: .85, lookZ });
   const left = side(1), right = side(-1);
   const pose = Math.hypot(left.x,left.z) <= Math.hypot(right.x,right.z) ? left : right;
@@ -144,8 +144,8 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
   // Wound-site mark + drips (finishers & gore 2026-09-17): a small dark mark at the wound site with three drips below it,
   // living the four-second wound window (the sim's wound refreshes without stacking — so does the mark: a fresh hit on the
   // same fighter re-arms his decal). One pooled decal per fighter; hidden in 'off' like every blood effect.
-  const wounds = [0, 1].map(() => {
-    const group = new THREE.Group();
+  const wounds = [0, 1].map(side => {
+    const group = new THREE.Group(); group.name = `Wound_${side}`;
     const mark = new THREE.Mesh(new THREE.PlaneGeometry(.15, .2), new THREE.MeshBasicMaterial({ color: '#4a1213', map: splatTexture, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
     const drips = [0, 1, 2].map(i => { const drip = new THREE.Mesh(new THREE.PlaneGeometry(.014, .1), new THREE.MeshBasicMaterial({ color: '#4a1213', transparent: true, opacity: 0, depthWrite: false, toneMapped: false })); drip.position.set((i - 1) * .045, -.13, 0); group.add(drip); return drip; });
     group.add(mark); group.visible = false; scene.add(group);
@@ -207,19 +207,26 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
     render(state: State, locked: boolean, dt: number, practice: Practice, events: CombatEvent[] = practice.events, frozen = false) {
       const blow = events.find(e => e.type === 'Hit' || e.type === 'GuardBroken'), contact = blow || events.some(e => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find(e => e.type === 'Killed');
+      const recipe = ROSTER[opponentId];
+      // Nonhuman paired executions require a separate anatomy pass; keep ordinary death.
+      const pick = practice.finish && !('finishers' in recipe && recipe.finishers === false) ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
+      const finisher = pick ? (finisherOverride ?? pick) : null;   // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
+      const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
+      const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;
       if (practice.health===practice.enemyMaxHealth && practice.playerHealth===practice.maxHealth && (lastHealth<practice.enemyMaxHealth || lastPlayerHealth<practice.maxHealth)) { impact=0; for(const splat of splats) { splat.life=0; splat.grow=0; } for(const wound of wounds) wound.life=0; setBladeBlood(false); if (severHead) { scene.remove(severHead.group); severHead.group.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); severHead = null; } warriors?.player.unsever(); warriors?.opponent.unsever(); }   // a fresh match: both bars full again
       if (blow && dt > 0 && !stillCamera) { const heavy = blow.charged || blow.move === 'heavy_overhead' || blow.move === 'heavy_riposte' || blow.move === 'heavy_counter' || blow.move === 'critical' || blow.type === 'GuardBroken'; kick = heavy ? .045 : .02; kickHeading = blow.heading ?? state.heading; }
       if (contact && dt > 0) {
         const enemyHurt=blow?.target===1, hurt=!!blow;
         const kick=blow?.move==='kick'; flesh=hurt && !kick && bloodMode!=='off';
-        impactDuration=flesh && killed ? .55 : flesh ? .34 : .18; impact=impactDuration; impactHeading=blow?.heading ?? state.heading;
+        impactDuration=flesh && killed ? (quietFinish ? .2 : .55) : flesh ? .34 : .18; impact=impactDuration; impactHeading=blow?.heading ?? state.heading;
         killSpray=!!(killed && flesh);   // a kill sprays a cone along the strike heading, not the radial puff
         if (killed && flesh) killHeading = blow?.heading ?? state.heading;   // the decapitation pop flies the way the blow did
         const site=enemyHurt ? practice.enemyWoundSite : practice.woundSite;
         const target=enemyHurt ? practice.enemy : state;
         sparks.position.set(hurt ? target.x : (state.x+practice.enemy.x)/2,hurt ? (site==='head' ? 1.55 : site==='legs' ? .6 : 1.15) : 1.2,hurt ? target.z : (state.z+practice.enemy.z)/2);
         sparkMaterial.color.set(flesh ? (bloodMode==='dark' ? '#3e2527' : '#a32b27') : kick || hurt ? '#b1a28a' : '#ffe4af');
-        sparkMaterial.blending=flesh || kick || hurt ? THREE.NormalBlending : THREE.AdditiveBlending; sparkMaterial.size=flesh ? .095 : .045;
+        sparkMaterial.blending=flesh || kick || hurt ? THREE.NormalBlending : THREE.AdditiveBlending; sparkMaterial.size=flesh ? (quietFinish ? .045 : .095) : .045;
+        if (quietFinish && enemyHurt) { const neck = warriors?.opponent.boneWorld('neck_01'); if (neck) sparks.position.copy(neck); }
         if(flesh) { const splat=splats[splatIndex++%splats.length]; splat.life=20; splat.grow=0; splat.mesh.position.set(target.x,.022+splatIndex%12*.0001,target.z); splat.mesh.scale.set(.22+(splatIndex%3)*.05,.13+(splatIndex%4)*.035,1); splat.mesh.rotation.z=splatIndex*2.4;splat.mesh.material.color.set(bloodMode==='dark' ? '#352426' : '#681a19'); }
         if (flesh) { const wound = wounds[enemyHurt ? 1 : 0]; wound.life = 4; wound.side = enemyHurt ? 1 : 0; wound.site = site; }   // the wound-site mark: refreshed, never stacked
         if (killed && flesh) {   // the corpse keeps pooling after the splashes fade (cleared on rematch like everything else)
@@ -245,11 +252,11 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
           wound.life = Math.max(0, wound.life - dt);
           const body = wound.side === 1 ? practice.enemy : state;
           wound.group.position.set(body.x, wound.site === 'head' ? 1.55 : wound.site === 'legs' ? .6 : 1.15, body.z);
-          wound.group.rotation.y = body.heading;
+          wound.group.rotation.set(0, body.heading, 0); wound.mark.scale.set(1,1,1);
           const fade = Math.min(1, wound.life), seep = Math.min(1, (4 - wound.life) / 1.2);   // drips run in the first ~1.2 s, the mark fades over the last
           const tone = bloodMode === 'dark' ? '#241314' : '#4a1213';
           wound.mark.material.color.set(tone); wound.mark.material.opacity = .55 * fade;
-          for (const drip of wound.drips) { drip.material.color.set(tone); drip.material.opacity = .5 * fade * seep; drip.scale.y = .4 + .6 * seep; }
+          wound.drips.forEach((drip,i) => { drip.position.set((i-1)*.045,-.13,0); drip.material.color.set(tone); drip.material.opacity = .5 * fade * seep; drip.scale.set(1,.4+.6*seep,1); });
           wound.group.visible = bloodMode !== 'off' && wound.life > 0;
         } else wound.group.visible = false;
       }
@@ -291,14 +298,6 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       const playerDefence=defenceReaction(practice),enemyDefence=defenceReaction(practice,true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
       const mine = actorPose(practice, 0), theirs = actorPose(practice, 1);
-      // The finisher (owner-authorized 2026-09-17): a pure function of the Killed event and the fighters' weapons picks the
-      // victim's death pose; a finisher without a shipped clip falls back to the plain Death. The player's own death is
-      // never a finisher (v1). v1's table has no weapon-dependent row, but the weapons are part of the contract.
-      const recipe = ROSTER[opponentId];
-      // Creature anatomy uses plain death until its paired executions have been authored.
-      const pick = practice.finish && !('finishers' in recipe && recipe.finishers === false) ? selectFinisher(practice.finish, [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon]) : null;
-      const finisher = pick ? (finisherOverride ?? pick) : null;   // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
-      const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       // Run Through revision (owner 2026-09-18): the blade STAYS through the body. The killer holds the downward drive
       // (Fin_RunThrough, keyed to settle by a quarter of the window then hold) on the same 0.75× finisher clock; the
       // tableau freezes at progress 1 for as long as the corpse kneels (practice.finish holds until rematch).
@@ -360,8 +359,21 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / .25));
-      if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown')) {
-        const t = THREE.MathUtils.clamp((finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
+      if (quietFinish && warriors) {
+        // Reuse the pooled wound at the animated neck: a narrow cut, covered partly by the clutching hand.
+        const neck = warriors.opponent.boneWorld('neck_01')!, head = warriors.opponent.boneWorld('Head')!;
+        const up = head.clone().sub(neck).normalize(), forward = new THREE.Vector3(Math.sin(practice.enemy.heading),0,Math.cos(practice.enemy.heading));
+        forward.addScaledVector(up,-forward.dot(up)).normalize();
+        const size = head.distanceTo(neck)/.075, wound = wounds[1]; wound.life = 4;
+        wound.group.position.copy(neck).addScaledVector(forward,.075*size);
+        wound.group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(up.clone().cross(forward),up,forward));
+        wound.mark.scale.set(.85*size,.14*size,1); wound.mark.material.opacity = .82;
+        const tone = bloodMode === 'dark' ? '#241314' : '#581017'; wound.mark.material.color.set(tone);
+        wound.drips.forEach((drip,i) => { drip.position.set((i-1)*.025*size,-.05*size,0); drip.scale.set(.55,.5*size,1); drip.material.color.set(tone); drip.material.opacity = .6*Math.min(1,finishClock/.25); });
+        wound.group.visible = bloodMode !== 'off';
+      }
+      if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown' || finisher === 'quietOne')) {
+        const t = THREE.MathUtils.clamp(finisher === 'quietOne' ? (finishClock-.12)/.43 : (finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
         const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher);
         desired.lerp(new THREE.Vector3(side.x,side.y,side.z), reveal);
         look.lerp(new THREE.Vector3(side.lookX,side.lookY,side.lookZ), reveal);

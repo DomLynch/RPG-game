@@ -32,7 +32,89 @@ Art verdict: useful first silhouette/fit studies, not A-grade final characters. 
 face/cloth identity; Minotaur needs stronger anatomical planes, head/body material continuity and fitted kit.
 Inherited human feet, no validated creature hit regions/finishers, unmeasured physical-phone performance.
 Workflow and exact commands: docs/character-pilots.md. Owner reviews these before any roster integration/release.
+## Polearm rear-arm visibility — weapons, 2026-09-19
+Owner's rear/front phone captures exposed a second pose defect after PR157: the rear hand was authored on +X (the rig's left side), sending the right elbow through the torso. Both arms and their skin weights were present. Reauthored ready, gait, guard, attack and reaction goals keep the rear grip on the right side; the raised attack passes in front of the shoulder, and supporting-hand slides stay reachable. The shared polearm IK bends outward and forward while retaining the anatomical hinge constraint.
+
+Both live rigs and the canonical scythe bake rig are rebuilt, with collision paths rebaked. New 120 Hz regression samples both upper/lower arms against the posed torso core in all clips; the old shipped rig fails it. Existing hinge, grip, contact-height, head-region and reach pins pass. Mesh attributes, material definitions, texture pixels and 2,354 non-arm tracks per rig remain unchanged. A new completion gate captures front, side and rear views at eight ready/gait/guard/attack poses. Initial full quality: 267/267 plus build/audit/budget/browser PASS; account-integrated CPU quality: 270/270. Integrated Quiet One and warm dust trunk 1ee616d, regenerated the three rigs with Death_QuietOne retained, and made its append-preservation fixture cover full exports and additive rigs. All 16 contract commands, final gates and release receipts are recorded in artifacts/weapons/polearm-rear-arm. Sentry FRANKENDOM-5 latest event is texture loading on 714e969; FRANKENDOM-6 is a stackless load failure on f7a1e99. Neither explains the reproduced offline pose; neither is claimed resolved. Physical-phone review remains owner-only.
+
+## The Quiet One — 2026-09-19 (PR #159)
+Owner authorized the next finisher: restrained neck reaction, left hand at throat, failing backward step, held beat,
+knee buckle and right-side collapse. Additive `Death_QuietOne` on all six live fighters and four shelf/bake rigs;
+2.4 s authored / 3.2 s presented, final pose held until rematch. The five-way deterministic rotation includes plain death.
+Small animated neck wound reuses the existing pool, red/dark/off apply, earlier side camera exposes the held beat,
+and existing quieter contact/voice plus delayed body/gasp cues complete the scene. No simulation or input change.
+
+Original offline authoring in `scripts/build-quiet-one.mjs`, also called by the full warrior builder. Binary append
+preserves all old clips, meshes, skinning, textures and weapon elbow repairs; preservation verified against f7a1e99
+on all ten GLBs. Blade rebake is unchanged. Initial visual review corrected inward elbow, knee/foot ground clipping
+and portrait crop; baked skin-envelope clearance accommodates each body. Initial full quality passes 268/268 plus build,
+lint, dependency audit, per-fight budget and game browser. All-rig tests cover throat alignment, upright beat,
+intact head, ground contact and held corpse; additive-builder test verifies preservation, idempotence and rejection
+of a later appended clip. Camera edge/aspect tests include the new ending. Earlier rigid-clip comparison tests now
+exempt only the separately authored Quiet One values while retaining clip names, tracks/times and legacy assertions.
+
+Real-scene Veteran/Goblin/Executioner captures cover red/dark/off, portrait/landscape, reduced motion and rematch.
+Final sequence video and phone UI/contract gate receipts: `artifacts/finishers/quiet-one/` and
+`artifacts/character/quiet-final-scene/`. Two-pass review: pure simulation/input unchanged; then rendered poses,
+continuity, modes and reset behavior. All 11 initial completion commands passed, including a real phone-size UI victory/hold/rematch.
+A whole-body portrait bound now guards the large Executioner ending as an additional completion command.
+Decoded audio QC verifies a silent held beat, late fall/gasp, cancellation and <= -1.54 dBTP fatal peaks;
+Quiet One measures -12.2 LUFS against decapitation -10.7 LUFS on the integrated phone mix.
+Integrated world/audio 03282b0, Google account e5339e9 and approved dust tint 6bf1399, preserving all account gates/settings.
+Final combined checks, exact-head CI, deployment and live playback receipts are recorded in
+`artifacts/finishers/quiet-one/`; public `release.json` identifies the served revision. The lead allocated this
+release after AUTH FREE; later lanes must wait for its RELEASE FREE. Physical-phone feel remains owner-only.
+Sentry inspection found existing asset-fetch/texture/WebGL issues (5/6/A/9/8 and older), not evidence about this
+finisher at the time of inspection. No claim of a clean live error stream or public publication.
+
+## Google account integration — lead, 2026-09-19 (live e5339e9, PR #152)
+Owner requested Google login/Supabase with controls inside Field Journal. Added a lazy account SDK, PKCE login,
+explicit cloud save/load of name and practice opponent, session sign-out, revision conflict checks and owner-only RLS.
+Sign-in never overwrites device/cloud data; explicit load restarts practice. Career marks/results remain outside this
+client-editable table. No combat, renderer or input code changed. Details/setup: docs/account-integration.md.
+
+Integrated evidence at 30b5e48 (trunk 714e969): npm run quality passed 263/263, lint/typecheck/build/audit/budget
+and gameplay browser; all nine additional completion commands passed. CI 35436347273 passed. Enabled account build:
+8,486,798 bytes gzip per fight / 10 MB. Account browser uses controlled provider responses with the real SDK;
+it does not prove live Google configuration. Screenshots/logs/receipts: artifacts/account/integrated-{0..9}.log,
+browser-receipt.json, mobile-guest.png, mobile-signed-in.png and desktop-menu.png. Runtime addition: 161 lines.
+
+Dedicated free project rxbewmzmovelckzoosss created by owner in Mumbai. Applied the checked-in migration via psql
+with TLSv1.3 and verify-full using the official Supabase CA. Hosted transaction tested both users' own save/read,
+cross-user read/write denial, anonymous denial, immutable ownership/revision, stale saves and constraints;
+rolled back both test users and saves (zero profile rows remain). Receipt: artifacts/account/hosted-rls-receipt.txt.
+Hosted site URL and exact /?account=return redirect saved and verified in dashboard. Public REST read without a user
+session returns 401/42501 as intended. Ignored public production configuration and exact-origin CSP are prepared;
+The exact Supabase origin is now installed in the Frankendom nginx CSP (backup retained); nginx -t and public header checks pass.
+
+Failure ledger: F1 callback fixture wrote its PKCE verifier without SDK JSON encoding; corrected fixture and reruns pass.
+F2 logout-failure test expected a retained session; verified current SDK deliberately clears local credentials even when
+remote revoke fails. Corrected regression requires cleared tokens/cloud controls and failed-read retry; passes.
+F3 world integration documentation conflict resolved preserving both lanes; combined quality and CI pass.
+F4 Safari multiline SQL entry was unreliable; nothing executed, switched to exact-file psql migration.
+F5 system CA rejected the pooler certificate; official dashboard CA with verify-full fixed it (TLS not weakened).
+F6 focused test was invoked with absent tsx loader; corrected to this repo's native node --test runner: 3/3 pass.
+F7 / review F1: adding the exact Supabase CSP origin in 51597f8 invalidated the old three-source monitoring
+assertion. Its local/CI failure supersedes the earlier runtime pass for that revision. Updated the test to pin all four
+sources exactly (self, blob, the specific Sentry and Supabase origins); added the configured release success case.
+Focused monitoring/config checks pass 4/4. Full contract rerun logs: artifacts/account/review-f1/{0..9}.log;
+check the latest PR152 CI before integration. No wildcard, assertion removal or runtime behavior change.
+Two-pass review covered ownership/concurrency/retry and mobile/desktop placement/guest startup. No new background task.
+
+Activation: owner approved Google credential creation. Dedicated Google project principal-zoo-509110-v0 has a web
+OAuth client with frankendom.com origin and https://rxbewmzmovelckzoosss.supabase.co/auth/v1/callback. Secret saved
+only in Supabase; public settings confirms Google enabled. Email/password provider disabled. Public privacy page
+added at /privacy.html and linked inside the journal. Google is In production with only OpenID/email/profile scopes.
+Production CSP and all public assets were verified on live e5339e9. PR #152 merged after exact-head and merge CI;
+all 12 configured commands and deployment quality passed (269 tests). Actual Safari Google sign-in, save, reload,
+cloud restore and sign-out passed against the real services. Phone-size guest menu checks passed; physical-phone
+login and separate-device recovery remain unmeasured. Authoritative receipt: lead checkout
+`artifacts/account/live/RECEIPT.md` and PR #152 body. These supersede the earlier activation-pending notes.
+Calibre untouched.
+
 ## Mixed, populated crowd and stronger foot sand — world, 2026-09-19
+Colour follow-up: owner approved dust size, motion and one-second life but found it grey against the sand. Live phone step capture confirmed the mismatch; a muted golden-tan tint (`#b99a68`, previously `#c9b493`) now sits closer to the lit ground. Only the particle material colour changes. Close/portrait render review and existing lifecycle test pass; release receipts: artifacts/world/warm-dust-notes.
+
 Owner accepted the softened colours and mixed crowd, then requested busy seating around all 360 degrees including the gate, and more visible one-second foot sand. Six subdued garment dyes (dusty maroon/charcoal navy/earth tones) and five body families are assigned independently using nearby-seat diversity before GPU batching. On 291 occupied seats, only 27/844 nearby pairs repeat a body and 10/844 repeat a dye. Every 30-degree sector has at least 24 spectators and 8 on the lower two tiers; rubble, arch lip and flames retain clearance. Tread height follows tessellated stone; actual support raycasts and full-vertex play/camera clearance checks pass. Arena 114,440 triangles / 120k, unchanged meshes and 11.01 MB textures. Physical phone timing remains unmeasured.
 
 Foot sand uses a 48-point pool, five larger denser particles per plant, low lateral curls with drag and a 1-second fade. Idle, combat-pose suppression, teleport rejection, hit-stop and disposal remain intact. Lifecycle check verifies the longer tail and lower-leg height. Existing world preview now captures 12 sectors plus normal portrait dust on/off. Focused arena/dust 11/11, lint and typecheck pass; all 12 sector renders and stronger dust at portrait combat distance reviewed. Full contract, CI and live receipts are tracked under PR #156 and artifacts/world/mixed-crowd-notes. Integrated weapons f7a1e99 and its polearm browser gate; no fighter, combat, audio, camera or lighting edits from world.

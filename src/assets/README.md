@@ -506,3 +506,11 @@ Raw source SHA-256:
 Offline build: `node scripts/build-creatures.mjs`; contract check:
 `node scripts/creature-check.mjs`. The packaging metadata records the exact source,
 base and generator hashes. Surface UVs and compressed source images are preserved.
+## The Quiet One — 2026-09-19
+Original project animation and procedural wound presentation; no new third-party asset or licence.
+`scripts/build-quiet-one.mjs` authors `Death_QuietOne` (2.4 seconds, 61 keys) on each existing CC0-derived rig.
+Run `node scripts/build-quiet-one.mjs` to append/revise this clip on shipped rigs, then `node scripts/bake-blades.mjs`.
+Existing geometry, materials, embedded textures, bone nodes and animation bytes remain unchanged; the full warrior
+builder invokes the same authoring function after final scaling. Anatomical hinge frames keep the palm at the throat,
+feet roll with the fall, and offline skin-envelope clearance grounds the corpse for each body build.
+Reuses the existing licensed death/contact/body/crowd audio at quieter gains with delayed collapse and gasp.

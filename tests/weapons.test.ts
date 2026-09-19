@@ -138,6 +138,37 @@ test('polearm elbows bend outwards in the ready gaits and keep their anatomical 
   }
 });
 
+test('both polearm arms stay outside the torso core throughout every shipped clip, including between keys', async () => {
+  for (const file of ['src/assets/veteran.glb', 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb']) {
+    const asset = await readRig(file), mixer = new AnimationMixer(asset.scene);
+    const position = (name: string) => asset.scene.getObjectByName(name)!.getWorldPosition(new Vector3());
+    for (const clip of asset.animations.filter(c => /^(Trident|Scythe)_/.test(c.name))) {
+      mixer.clipAction(clip).play();
+      for (let t = 0; t < clip.duration; t += 1 / 120) {
+        mixer.setTime(t); asset.scene.updateMatrixWorld(true);
+        const right = position('upperarm_r'), left = position('upperarm_l');
+        const pelvis = position('pelvis'), top = right.clone().add(left).multiplyScalar(.5), axis = top.sub(pelvis);
+        // A conservative capsule INSIDE the trunk, following its actual pose and scale.
+        // Checking the elbow and arm segments catches a hidden arm even when both
+        // hands touch the shaft and the elbow hinge faces the right way.
+        const radius = right.distanceTo(left) * .30;
+        for (const side of ['r', 'l']) {
+          const shoulder = position(`upperarm_${side}`), elbow = position(`lowerarm_${side}`), wrist = position(`hand_${side}`);
+          for (const [start, end, first] of [[shoulder, elbow, .4], [elbow, wrist, 0]] as const) {
+            for (let f = first; f <= 1; f += .1) {
+              const point = start.clone().lerp(end, f);
+              const along = Math.max(0, Math.min(1, point.clone().sub(pelvis).dot(axis) / axis.lengthSq()));
+              const distance = point.distanceTo(pelvis.clone().addScaledVector(axis, along));
+              assert.ok(distance > radius, `${file} ${clip.name}@${t.toFixed(3)} ${side}: arm inside torso (${distance.toFixed(3)} m, core ${radius.toFixed(3)} m)`);
+            }
+          }
+        }
+      }
+      mixer.stopAllAction();
+    }
+  }
+});
+
 test('the trident rig carries WeaponDrawn with a contact segment on the tines (the manifest agrees), empty sword nodes for the loader, and the full clip set at the contract durations', async () => {
   const asset = await readRig(TRIDENT_GLB), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
   assert.ok(weapon, 'WeaponDrawn'); assert.equal(weapon.parent?.name, 'hand_r');
@@ -219,7 +250,7 @@ test('the cleaver rig carries WeaponDrawn with its edge as the contact segment, 
   const sword = await readRig('src/assets/warrior.glb');
   assert.deepEqual(asset.animations.map(c => c.name), sword.animations.map(c => c.name), 'the same clip list as the sword, in the same order');
   for (const [path, spec] of Object.entries(CLEAVER_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
-  for (const clip of sword.animations) { // every clip is the rig's own, track for track, except the Heavy (the diagonal hack)
+  for (const clip of sword.animations.filter(c=>c.name!=='Death_QuietOne')) { // legacy clips match except Heavy; Quiet One is independently grounded on each body/weapon
     const twin = asset.animations.find(c => c.name === clip.name)!;
     const same = clip.tracks.every(t => { const o = twin.tracks.find(x => x.name === t.name)!; return o && o.times.length === t.times.length && Array.from(t.values).every((v, i) => Math.abs(v - o.values[i]) < 1e-6); });
     assert.equal(same, clip.name !== 'Heavy', `${clip.name} ${clip.name === 'Heavy' ? 'is the cleaver\'s own' : 'is the sword rig\'s'}`);
@@ -351,7 +382,7 @@ test('the goblin\'s rig carries the knife: WeaponDrawn under hand_r with a short
   assert.ok(contact && contact.to < .6 && contact.to > .45 && contact.from > .08 && contact.from < .2, `a short blade: ${JSON.stringify(contact)}`);
   assert.equal(weapon.userData.grip, 'forward', 'forward grip: the reverse grip never lands on the sword\'s clips');
   for (const name of ['SwordDrawn', 'SwordSheathed']) { const node = asset.scene.getObjectByName(name)!; assert.ok(node, name); assert.equal(node.children.length, 0, `${name} carries nothing`); }
-  assert.deepEqual(asset.animations.map(c => c.name), [...['Idle', 'Walk', 'Jog', 'Run'], ...['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'], ...['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough']], 'the sword\'s clip list, in order (the finishers are additive, 2026-09-17/18)');
+  assert.deepEqual(asset.animations.map(c => c.name), [...['Idle', 'Walk', 'Jog', 'Run'], ...['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'], ...['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Death_QuietOne']], 'the sword\'s clip list, in order (the finishers are additive, 2026-09-17/18)');
   assert.ok(Math.abs(asset.scene.children[0].scale.x / hero.scene.children[0].scale.x - .835) < 1e-3, `his root scale: .835 × the hero's (${asset.scene.children[0].scale.x} / ${hero.scene.children[0].scale.x})`);
   for (const [path, spec] of Object.entries(KNIFE_PATHS)) assert.ok(['Attack', 'Return', 'Heavy', 'Riposte'].includes(spec.clip), `${path} rides a sword clip`);
 });
@@ -463,6 +494,7 @@ test('the fight the scythe gives (real tables): the reap lands 1.40–2.10 m and
   // Measured on the man-scale bake (REQUESTS §16), pinned here so the flip can never silently shorten him: the far frontier.
   assert.ok(landed(landsFrom('light_right', 2.10)) && !landed(landsFrom('light_right', 2.15)), 'the reap lands to 2.10, whiffs past it');
   assert.ok(landed(landsFrom('heavy_overhead', 2.30)) && !landed(landsFrom('heavy_overhead', 2.35)), 'the high lands to 2.30, whiffs past it');
+  for (let gap = .85; gap <= 2.30 + 1e-6; gap += .05) assert.ok(landed(landsFrom('heavy_overhead', gap)), `the high retains close and mid-range contact at ${gap.toFixed(2)} m`);
   assert.ok(landed(landsFrom('thrust', 2.10)) && !landed(landsFrom('thrust', 2.15)), 'the jab lands to 2.10, whiffs past it');
   // The dead band: inside 1.40 m the arc meets nothing (minReach), where the sword's cut still lands.
   const swordInside = run(stepDuel(duel(1.3), [act('light'), idle()]), MOVES.light_right.windup + MOVES.light_right.active + 1).events;

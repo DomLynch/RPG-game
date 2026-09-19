@@ -39,6 +39,19 @@ try {
       await shot('start');
       await page.keyboard.down('w'); await page.waitForTimeout(900); await page.keyboard.up('w');
       await shot('approach');
+      if (!mobile) {
+        await page.keyboard.down('w');
+        await page.waitForFunction(() => Number(document.querySelector('#debug').textContent.match(/gap ([\d.]+)/)?.[1]) < 2.3, null, { timeout: 15000 });
+        await page.keyboard.up('w');
+        await page.getByRole('button', { name: 'Camera locked', exact: true }).click();
+        const orbit = async dx => {
+          await page.mouse.move(250, 450); await page.mouse.down();
+          await page.mouse.move(250 + dx, 450, { steps: 20 }); await page.mouse.up();
+          await page.waitForTimeout(400);
+        };
+        await orbit(628); await shot('start-rear');
+        await orbit(-220); await shot('start-side');
+      }
       await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
       await page.waitForFunction(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), prefix, { timeout: 30000 });
       await shot('fight');
