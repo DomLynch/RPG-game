@@ -128,6 +128,7 @@ try {
   AudioBufferSourceNode.prototype.stop = function(...args) { const entry = entries.get(this); if (entry) entry.stopped = true; return stop.apply(this, args); };
  });
  await ui.goto(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`);
+ await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
  assert.equal(await ui.evaluate(() => window.__arena.length), 0);
  await ui.getByRole('button', { name: 'Enter the arena' }).tap(); await ui.waitForFunction(() => window.__arena.length >= 2, null, { timeout: 30000 });
  await ui.getByRole('button', { name: 'Menu and field journal' }).tap();
