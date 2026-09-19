@@ -38,6 +38,7 @@ try {
       };
       await shot('start');
       await page.keyboard.down('w'); await page.waitForTimeout(900); await page.keyboard.up('w');
+      await shot('approach');
       await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
       await page.waitForFunction(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), prefix, { timeout: 30000 });
       await shot('fight');

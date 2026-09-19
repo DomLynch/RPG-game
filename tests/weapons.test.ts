@@ -119,6 +119,10 @@ test('polearm elbows bend outwards in the ready gaits and keep their anatomical 
       mixer.clipAction(clip).play();
       for (let t = 0; t < clip.duration; t += 1 / 120) {
         mixer.setTime(t); asset.scene.updateMatrixWorld(true);
+        const weapon = asset.scene.getObjectByName('WeaponDrawn')!, shaftStart = weapon.localToWorld(new Vector3(0, -1, 0));
+        const shaft = weapon.localToWorld(new Vector3(0, 2, 0)).sub(shaftStart), wrist = arms[0].hand.getWorldPosition(new Vector3());
+        const nearest = shaftStart.clone().addScaledVector(shaft, wrist.clone().sub(shaftStart).dot(shaft) / shaft.lengthSq());
+        assert.ok(wrist.distanceTo(nearest) < .17, `${file} ${clip.name}@${t.toFixed(3)}: front wrist stays within gripping distance of the shaft`);
         for (const [i, arm] of arms.entries()) {
           const label = `${file} ${clip.name}@${t.toFixed(3)} ${arm.side}`;
           assert.ok(hinge(arm).dot(hinges[i]) > .97, `${label}: elbow crease must follow the bend, never roll backwards`);
