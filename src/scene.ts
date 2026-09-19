@@ -1,11 +1,11 @@
-import { ROSTER, supportsFinishers } from './roster.ts';
+import { ROSTER, supportsFinishers, resolveFinisher } from './roster.ts';
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
-import { FINISHER_POSE, selectFinisher, type FinisherId } from './finishers.ts';
+import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
@@ -46,6 +46,7 @@ export function finisherSidePose(
   fallen: { x: number; z: number },
   aspect: number,
   finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough',
+  bodyScale = 1,
 ) {
   const dx = fallen.x - killer.x,
     dz = fallen.z - killer.z,
@@ -56,23 +57,27 @@ export function finisherSidePose(
     lookZ = (killer.z + fallen.z) / 2;
   const back = Math.max(
     finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8,
-    (gap / 2 + (finisher === 'opened' ? 1.5 : finisher === 'quietOne' ? 1.5 : 0.42)) /
+    (gap / 2 + (finisher === 'opened' ? 1.5 * bodyScale : finisher === 'quietOne' ? 1.5 : 0.42)) /
       (Math.tan((51 * Math.PI) / 360) * Math.min(aspect, 1)),
   );
   const angle = finisher !== 'runThrough' ? Math.PI / 3 : (5 * Math.PI) / 12,
     sideward = Math.sin(angle),
     rearward = Math.cos(angle);
-  const side = (sign: number) => ({
-    x: lookX + (-uz * sign * sideward - ux * rearward) * back,
-    y: finisher === 'opened' ? 3.7 : 3.1,
-    z: lookZ + (ux * sign * sideward - uz * rearward) * back,
+  const side = (sign: number, front = 1) => ({
+    x: lookX + (-uz * sign * sideward - ux * rearward * front) * back,
+    y: finisher === 'opened' ? 3.7 + 3 * (bodyScale - 1) : 3.1,
+    z: lookZ + (ux * sign * sideward - uz * rearward * front) * back,
     lookX,
     lookY: 0.85,
     lookZ,
   });
-  const left = side(1),
-    right = side(-1);
-  const pose = Math.hypot(left.x, left.z) <= Math.hypot(right.x, right.z) ? left : right;
+  // Large halves need the inward front-quarter option when the killer stands against the wall;
+  // clamping an outward rear view alone squeezes the corpse out of the portrait frame.
+  const candidates =
+    finisher === 'opened' && bodyScale > 1
+      ? [side(1), side(-1), side(1, -1), side(-1, -1)]
+      : [side(1), side(-1)];
+  const pose = candidates.reduce((best, p) => (Math.hypot(p.x, p.z) < Math.hypot(best.x, best.z) ? p : best));
   const radius = Math.hypot(pose.x, pose.z);
   if (radius > 11.5) {
     pose.x *= 11.5 / radius;
@@ -189,7 +194,7 @@ export function createScene(
   )
     .then((loaded) => {
       warriors = loaded;
-      if (supportsFinishers(opponentId)) loaded.opponent.prepareOpened();
+      if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
           if (object instanceof THREE.Mesh) object.geometry.dispose();
@@ -414,8 +419,33 @@ export function createScene(
     ready,
     arena,
     bloodState() {
+      const opened = warriors?.opponent.anchor.getObjectByName('Opened');
       return {
         ...finisherBlood.inspect(),
+        head: severHead
+          ? {
+              position: severHead.group.position.toArray(),
+              screen: this.project(severHead.group.position.toArray()),
+              visible: severHead.group.visible,
+            }
+          : null,
+        opened: opened
+          ? {
+              visible: opened.visible,
+              pieces: opened.children
+                .filter((p) => p.name !== 'OpenedWeapon')
+                .map((p) => ({
+                  name: p.name,
+                  visible: p.visible,
+                  opacity:
+                    (
+                      (p.getObjectByName('CreatureBody') as THREE.Mesh | undefined)?.material as
+                        | THREE.MeshStandardMaterial
+                        | undefined
+                    )?.opacity ?? 1,
+                })),
+            }
+          : null,
         sources: bloodSources.map((s) => ({
           site: s.site,
           position: s.position.toArray(),
@@ -501,15 +531,14 @@ export function createScene(
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
-      // Nonhuman paired executions require a separate anatomy pass; keep ordinary death.
-      const pick =
-        practice.finish && supportsFinishers(opponentId)
-          ? selectFinisher(practice.finish, [
-              practice.duel.fighters[0].weapon,
-              practice.duel.fighters[1].weapon,
-            ])
-          : null;
-      const finisher = pick ? (finisherOverride ?? pick) : null; // test override (owner 2026-09-19): swaps WHICH finisher plays on a ceremonial kill; a kill the spec gives no ceremony (draw, kick, the player's own death) stays plain
+      const finisher = practice.finish
+        ? resolveFinisher(
+            opponentId,
+            practice.finish,
+            [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
+            finisherOverride,
+          )
+        : null;
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       const detailedBlood = finisher !== null && practice.finish?.victim === 1;
       const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;
@@ -536,7 +565,7 @@ export function createScene(
         }
         warriors?.player.unsever();
         warriors?.opponent.unsever();
-        if (supportsFinishers(opponentId)) warriors?.opponent.prepareOpened();
+        if (supportsFinishers(opponentId, 'opened')) warriors?.opponent.prepareOpened();
       } // a fresh match: both bars full again
       if (blow && dt > 0 && !stillCamera) {
         const heavy =
@@ -755,6 +784,8 @@ export function createScene(
           : 0,
         practice.result === 'enemyBlocked' ? Math.max(0, 1 - practice.resultAge / 12) : 0,
       );
+      // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
+      if (detailedBlood) wounds[1].group.visible = false;
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
         wounds[1].group.visible = false;
@@ -781,9 +812,15 @@ export function createScene(
           headCut.position.copy(headCutPosition).sub(built.group.position);
           built.group.add(headCut);
           scene.add(built.group);
+          // A short lateral fall clears the victor's silhouette in the original front camera.
+          const axis = new THREE.Vector3(
+            practice.enemy.x - state.x,
+            0,
+            practice.enemy.z - state.z,
+          ).normalize();
           severHead = {
             group: built.group,
-            velocity: new THREE.Vector3(Math.sin(killHeading) * 2.1, 1.8, Math.cos(killHeading) * 2.1),
+            velocity: new THREE.Vector3(-axis.z * 1.1, 1.8, axis.x * 1.1),
             spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9),
             radius: built.radius,
             resting: false,
@@ -815,7 +852,7 @@ export function createScene(
       if (practice.finish && finisherPose && !practice.finish.draw && !stillCamera)
         finishPush = Math.min(1, finishPush + dt / (1.3 / 0.75));
       else if (!practice.finish) finishPush = 0;
-      if (finishPush > 0) {
+      if (finishPush > 0 && finisher !== 'decapitation') {
         const fallen = practice.finish!.victim === 1 ? practice.enemy : state;
         const killer = practice.finish!.victim === 1 ? state : practice.enemy;
         desired.x += (fallen.x - desired.x) * 0.38 * finishPush;
@@ -882,7 +919,7 @@ export function createScene(
       ) {
         const t = THREE.MathUtils.clamp(
             finisher === 'opened'
-              ? (finishClock - 0.04) / 0.4
+              ? (finishClock - 0.04) / (['wraith', 'minotaur'].includes(opponentId) ? 0.6 : 0.4)
               : finisher === 'quietOne'
                 ? (finishClock - 0.12) / 0.43
                 : (finishClock - 0.45) / 0.55,
@@ -890,7 +927,13 @@ export function createScene(
             1,
           ),
           reveal = t * t * (3 - 2 * t);
-        const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher);
+        const side = finisherSidePose(
+          state,
+          practice.enemy,
+          camera.aspect,
+          finisher,
+          ['wraith', 'minotaur'].includes(opponentId) ? 1.5 : 1,
+        );
         desired.lerp(new THREE.Vector3(side.x, side.y, side.z), reveal);
         look.lerp(new THREE.Vector3(side.lookX, side.lookY, side.lookZ), reveal);
         const radius = Math.hypot(desired.x, desired.z);

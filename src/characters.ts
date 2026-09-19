@@ -110,6 +110,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     });
     let opened: ReturnType<typeof openWaist> | undefined;
     const spectral = spectralAppearance(root);
+    let spectralLife = 1;
     const mixer = new AnimationMixer(root);
     const actions = {} as Record<Role, AnimationAction>;
     for (const role of ROLES) { actions[role] = mixer.clipAction(clips[role]).play(); actions[role].setEffectiveWeight(role === 'Idle' ? 1 : 0); }
@@ -165,7 +166,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
         mixer.update(step);
-        spectral?.(step, dead, progress);
+        spectralLife = spectral?.(step, dead, progress, pose === 'opened') ?? 1;
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         // The enlarged Wraith lowers its attacking arm toward the original strike height.
@@ -203,6 +204,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (!bone) return null;
         severed = true;
         root.updateWorldMatrix(true, true);
+        root.updateMatrixWorld(true); // refresh SkinnedMesh bind inverses after actor movement before baking world vertices
         const group = new Group();
         root.traverse(object => {
           if (!(object instanceof SkinnedMesh)) return;
@@ -287,7 +289,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (!opened) return;
         if (mode !== 'off' && !opened.group.parent) anchor.add(opened.group);
         opened.group.visible = mode !== 'off'; root.visible = mode === 'off';
-        opened.update(progress, mode === 'dark');
+        opened.update(progress, mode === 'dark', spectralLife);
       },
       // Skull-only split, owner 2026-09-19. Reuse the proven head bake; keep the halves attached through the collapse.
       splitCrown(progress: number, mode: 'red' | 'dark' | 'off') {

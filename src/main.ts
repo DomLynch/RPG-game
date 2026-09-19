@@ -15,7 +15,7 @@ import {
   type Action,
   type CombatEvent,
 } from './combat.ts';
-import { ROSTER, supportsFinishers } from './roster.ts';
+import { ROSTER, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -1034,11 +1034,13 @@ function frame(now: number) {
           ? {
               finish: practice.finish,
               weapons: [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon] as const,
-              override: !supportsFinishers(opponent.id)
-                ? ('plainDeath' as const)
-                : finisherSelect.value === 'auto'
-                  ? null
-                  : (finisherSelect.value as FinisherId),
+              override:
+                resolveFinisher(
+                  opponent.id,
+                  practice.finish,
+                  [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
+                  finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId),
+                ) ?? 'plainDeath',
               gore: bloodMode !== 2,
             }
           : undefined;

@@ -746,3 +746,20 @@ test('finisher blood sources follow the real jugular, skull, chest and separated
     }
   }
 });
+
+test('a severed head starts at its animated head after actor movement, even before the next renderer update', async () => {
+  for(const file of FIGHTERS) {
+    const asset=await readWarrior(file),weapon=WEAPON_OF[file];
+    const actor=buildWarriors(asset,undefined,[weapon,weapon]).opponent;
+    const parent=new Group();parent.add(actor.anchor);parent.updateMatrixWorld(true);
+    // The kill frame may change the actor transform after its last render (also happens while frames are skipped).
+    parent.position.set(3,0,6);parent.rotation.y=.8;
+    actor.update(0,.016,'decapitation',.07);
+    const head=actor.boneWorld('Head')!;
+    const detached=actor.sever()!;
+    const center=new Box3().setFromObject(detached.group,true).getCenter(new Vector3());
+    assert.ok(center.distanceTo(head)<.35*SCALE[file],`${file}: detached head starts at the skull, miss ${center.distanceTo(head)}m`);
+    actor.unsever();
+    detached.group.traverse(o=>{if(o instanceof Mesh)o.geometry.dispose();});
+  }
+});
