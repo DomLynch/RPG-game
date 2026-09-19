@@ -65,6 +65,14 @@
     ],
     [
       "node",
+      "scripts/account-database-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/account-browser-check.mjs"
+    ],
+    [
+      "node",
       "scripts/polearm-pose-check.mjs"
     ]
   ]

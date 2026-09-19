@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs';
 import { init, captureException, type Envelope } from '@sentry/browser';
 import { monitoringOptions } from '../src/monitoring.ts';
 
-test('production CSP permits one explicit HTTPS ingest origin, not a wildcard', () => {
+test('production CSP permits only self, blobs and the exact Sentry and Supabase origins', () => {
   const config = readFileSync(new URL('../deploy/frankendom.com.conf', import.meta.url), 'utf8');
   const sources = config.match(/connect-src ([^;]+);/)![1].split(' ');
-  assert.equal(sources.length, 3);
-  assert.equal(sources[0], "'self'");
-  assert.equal(sources[1], 'blob:');
-  assert.match(sources[2], /^https:\/\/o\d+\.ingest\.us\.sentry\.io$/);
+  assert.deepEqual(sources, [
+    "'self'", 'blob:',
+    'https://o4508959368019968.ingest.us.sentry.io',
+    'https://rxbewmzmovelckzoosss.supabase.co',
+  ]);
 });
 
 test('monitoring is disabled without a DSN and excludes high-volume integrations', () => {
