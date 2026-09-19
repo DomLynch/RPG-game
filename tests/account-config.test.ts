@@ -6,6 +6,7 @@ test('release refuses partial account configuration, unsafe keys and missing CSP
     encoding: 'utf8', env: { ...process.env, VITE_SUPABASE_URL: url, VITE_SUPABASE_PUBLISHABLE_KEY: key },
   });
   assert.equal(run('', '').status, 0);
+  assert.equal(run('https://rxbewmzmovelckzoosss.supabase.co', 'sb_publishable_test').status, 0);
   for (const [url, key, message] of [
     ['https://account-test.supabase.co', '', /both Supabase/],
     ['http://account-test.supabase.co', 'sb_publishable_test', /HTTPS project origin/],

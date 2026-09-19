@@ -27,6 +27,11 @@ F3 world integration documentation conflict resolved preserving both lanes; comb
 F4 Safari multiline SQL entry was unreliable; nothing executed, switched to exact-file psql migration.
 F5 system CA rejected the pooler certificate; official dashboard CA with verify-full fixed it (TLS not weakened).
 F6 focused test was invoked with absent tsx loader; corrected to this repo's native node --test runner: 3/3 pass.
+F7 / review F1: adding the exact Supabase CSP origin in 51597f8 invalidated the old three-source monitoring
+assertion. Its local/CI failure supersedes the earlier runtime pass for that revision. Updated the test to pin all four
+sources exactly (self, blob, the specific Sentry and Supabase origins); added the configured release success case.
+Focused monitoring/config checks pass 4/4. Full contract rerun logs: artifacts/account/review-f1/{0..9}.log;
+check the latest PR152 CI before integration. No wildcard, assertion removal or runtime behavior change.
 Two-pass review covered ownership/concurrency/retry and mobile/desktop placement/guest startup. No new background task.
 
 Activation pending: Google Cloud currently presents first-use Terms for the signed-in account; owner handoff requested.
