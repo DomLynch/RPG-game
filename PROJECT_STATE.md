@@ -11,7 +11,9 @@ Regression checks all light inputs, Stab and Heavy after a real parry, reward co
 Restoring the old forced-thrust selector fails the regression. Render/bake tests include the new path across weapon families.
 The first full run exposed two old assumptions: the AI opener filter counted earned counter cuts as ordinary openers, and
 an audio fixture pressed Slash to request its fixed thrust. Those fixtures now name the correct moves; focused 83/83 pass.
-Integration/release checks are recorded under `artifacts/weapons/counter-buttons/`; full final and live receipts pending.
+Integrated full quality passes 250/250 tests, lint, build, audit, budget and the shared browser gate. Estoc #142 is merged
+as d3114a9 with Split Crown #144 preserved. All earlier blade tables are byte-identical; only the new counter paths are added.
+Completion and release receipts: `artifacts/weapons/counter-buttons/`. Public deployment remains pending.
 
 ## Split Crown visible skull split — 2026-09-19 (finishers lane, local gate passed)
 Owner approved a skull-only centre split: the halves open slightly and the body collapses intact. Work is isolated from
