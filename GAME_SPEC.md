@@ -1,5 +1,13 @@
 # Frankendom: Origins
 
+## Account recovery slice — owner-authorized 2026-09-19
+Optional Google sign-in and Supabase account saves live inside Field Journal on mobile and desktop. Guest practice
+starts without login or a network dependency. First slice saves fighter name and selected encounter explicitly;
+sign-in must never silently overwrite an existing cloud fighter. Loading a saved fighter clearly restarts practice.
+Use a dedicated Frankendom project, owner-only database access and PKCE. No Gmail inbox scopes. Browser practice
+scores and optional local career marks are not trusted rank awards; server-owned Season 1 results remain a separate
+deliverable. Configuration and live recovery must be verified before claiming account persistence is shipped.
+
 ## The promise
 My fighter, my build: I return between duels to develop a recognisable character, refine a chosen set of skills, and earn equipment that changes my tactics and appearance; the next fight tests the fighter I have shaped.
 
