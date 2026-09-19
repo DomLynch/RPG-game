@@ -1,0 +1,572 @@
+
+> frankendom@0.1.0 quality
+> eslint src && npm test && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser
+
+
+> frankendom@0.1.0 test
+> node --test tests/*.test.ts
+
+✔ the warden reacts only after its reaction delay: no defensive input can answer an attack it has not yet noticed (3.690667ms)
+✔ an unblockable swing it cannot parry or roll is answered with a backstep out of reach (1.968583ms)
+✔ the warden uses the same combat API: its attacks cost stamina, obey range and resolve through the same contact rules (6.9155ms)
+✔ a passive opponent sees a readable opener: at easy and normal the first attack is always a heavy, later ones heavy or thrust; hard also pressures with lights (147.427333ms)
+✔ against a settled guard the warden holds its heavy to the charge that breaks it, and releases as soon as it is charged (5.350333ms)
+✔ the warden punishes a whiff with a light and kicks or breaks a standing guard (14.770708ms)
+✔ parry frequency follows the profile: a light-spamming player is parried at hard and never by a profile without parries (93.772833ms)
+✔ the warden never idles out of reach: a stationary guarding fighter is attacked at least every eight seconds at every level (75.421417ms)
+✔ the warden moves with seeded, bounded decisions, stays in the arena and waits for the player to draw (30.855084ms)
+✔ the warden reads only committed state: identical duels decide identically, and pending player input changes nothing (7.216792ms)
+✔ difficulty changes outcomes through reaction, defence and aggression, not through different rules (124.538708ms)
+✔ a landed blow earns a punish window: the warden never counter-attacks the instant its stagger ends (2.816959ms)
+✔ posture: a shaky warden gives ground so its bar drains, and finishes a broken player with the critical rather than a riposte (4.317333ms)
+✔ reads: habits become reads only with evidence, at the documented thresholds (2.023666ms)
+✔ the warden adapts: a turtle is kicked and charged through more; a light-spammer is parried more; a roller sees delayed swings and tail punishes; a parrier gets baited lights (147.792875ms)
+✔ the thrust: a minority opener planned only after the first heavy, thrown from wherever it stands (no walk-back), never into a guard — and the stop-hit into an opponent walking onto the point (32.432667ms)
+✔ perception runs on elapsed time: a heavy parked at its chamber is noticed and answered on the normal reaction clock (1.00125ms)
+✔ fairness pass: the warden uses its own tools against pressure — the guard counter after a block, the punish of a whiffed parry, a guard walk (never a slow opener, never a standing wait) into a read spammer, and feints at a parrier (19.447ms)
+✔ a kick is never guarded or parried: with its dodge share the warden rolls it (steps out without the stamina), otherwise it takes the poke (37.425833ms)
+✔ habits are counted from what the player actually threw: a thrust is a thrust, not a cut — and no profile reacts faster than a human can (3.378ms)
+✔ the ring wall in the warden's footwork: a retreat that would put its back to the wall becomes a circle inward, and a player pinned on the wall is pressed straight (0.317125ms)
+✔ attrition and the stamina floor: a warden whose ceiling has been cut below its discipline floor still fights (the floor is a share of the ceiling), never circles for ever (0.138542ms)
+✔ feint knob: a feinting fighter feints anyone (the read-parrier's sixth still applies on top); without the knob a passive player is never feinted (21.621042ms)
+✔ guard knob 0: the fighter never stands in guard, never baits with one, never blocks and never guard-walks — it evades or steps back instead; the same seeds with the default guard do all of those (298.066584ms)
+✔ disengage knob: after a landed blow the fighter hops back out of range on most of them; without the knob it never steps back after landing (133.1995ms)
+✔ circle knob: a circler drifts sideways while closing in; the default walks straight (0.291417ms)
+✔ regen knob: a fighter built with regen 2 refills stamina twice as fast; the default is RULES.regen (0.865209ms)
+✔ step knob: a kick that a backstep will clear is stepped out of (10 stamina), not rolled (30); a blow the step cannot clear is still rolled; without the knob the roll is the dodge (10.39375ms)
+✔ interrupt knob: a fast fighter cuts INTO a slow tell that his cut beats; without the knob no one attacks into a threat (0.43025ms)
+✔ kick knob: against a read roller or backstepper a kicker kicks (the one blow their timing does not escape); the default only kicks a guard (8.312584ms)
+✔ dash knob: a darter sprints into an opening from outside reach; the default walks (0.308ms)
+✔ pace: an opponent with speed 1.2 walks, lunges and steps 1.2× as far per tick; a man is unchanged (2.293583ms)
+✔ one step out, then walking: an evade plan takes the backstep only while inside the blow's reach and walks back once out — never a chain of backsteps (0.366584ms)
+✔ a chain follow-up the cut cannot reach goes as the thrust when the chain allows it (the goblin's slash → thrust); a sword cut, whose chain has no thrust, does not (0.340292ms)
+✔ a fighter with no guard respects a read poker's or kicker's reach: he hovers at its edge instead of walking onto the point, and goes in on the whiff (0.351958ms)
+arena cost: 14 meshes (draw calls before shadows), 21518 triangles, 9 textures 11.4 MB
+✔ the play radius the arena is built for is the simulation's (10.550667ms)
+✔ nothing solid stands inside the play circle above the floor, and nothing reaches inside the camera clamp at fighter height (9.537625ms)
+✔ a visible boundary ring lies at the play radius (0.813875ms)
+✔ the floor is sand, darker than the hero's skin, flat to the camera clamp, with planar decal UVs (801.167667ms)
+✔ the crowd stands on the tiers, outside the clamp, and never moves past the readable-brutality cap; a hit-stop holds it still (1638.27925ms)
+✔ the arena updates and disposes without touching the fighters (1402.714833ms)
+✔ arena cost: ≤ 40 draw calls (meshes), ≤ 120k triangles, ≤ 12 MB of texture memory with mips (1.274583ms)
+✔ the scripted exchange lands every beat in order and is reproducible (17.112125ms)
+✔ every event type the exchange emits has a cue probe, and probe names are unique (4.15ms)
+✔ a hosted feedback schedules cues at the scripted time and ignores the offline context state (4.293875ms)
+✔ the noise bed is seeded: the same seed fills the same buffer, another seed does not (53.743584ms)
+✔ events map to material cues, impacts before air, at most four per tick, and unmapped events stay silent (1.790875ms)
+✔ variant rotation is seeded, never repeats the last variant, and reaches every variant (0.231458ms)
+✔ the sprite manifest is well-formed and the shipped audio stays inside the lane budget (39.36675ms)
+✔ with a decoded sprite, cues play sprite regions on pooled voices; past the cap the soonest-ending voice is stolen (0.918083ms)
+✔ a duel reseeds on its draw, so the same fight rolls the same variants and pitches (2.801459ms)
+✔ movement starts have distinct cloth/sand cues, without synthetic landing events (0.409125ms)
+✔ the first variant can select every region, including zero (0.262541ms)
+✔ quiet and mute stop every scheduled layer before resume, including fallback tones (4.546084ms)
+battery veteran (trident) normal
+  kick only: 0W 24L 0S untouched 0 taken 208 landed 81
+  light spam: 0W 24L 0S untouched 0 taken 190 landed 55
+  held lights: 0W 24L 0S untouched 0 taken 199 landed 28
+  heavy only: 0W 24L 0S untouched 0 taken 199 landed 50
+  charged heavy only: 2W 22L 0S untouched 0 taken 206 landed 69
+  thrust from range: 0W 24L 0S untouched 0 taken 189 landed 52
+  turtle and punish: 0W 24L 0S untouched 0 taken 148 landed 44
+  roll and punish: 0W 0L 24S untouched 2 taken 80 landed 0
+  perfect parry: 24W 0L 0S untouched 1 taken 64 landed 120
+battery veteran (trident) hard
+  kick only: 0W 24L 0S untouched 0 taken 206 landed 35
+  light spam: 0W 24L 0S untouched 0 taken 208 landed 26
+  held lights: 0W 24L 0S untouched 0 taken 210 landed 11
+  heavy only: 0W 24L 0S untouched 0 taken 245 landed 13
+  charged heavy only: 0W 24L 0S untouched 0 taken 254 landed 23
+  thrust from range: 0W 24L 0S untouched 0 taken 197 landed 33
+  turtle and punish: 0W 24L 0S untouched 0 taken 156 landed 24
+  roll and punish: 0W 7L 17S untouched 1 taken 130 landed 0
+  perfect parry: 23W 1L 0S untouched 0 taken 61 landed 118
+battery veteran (longsword) normal
+  kick only: 0W 24L 0S untouched 0 taken 189 landed 228
+  light spam: 0W 24L 0S untouched 0 taken 175 landed 76
+  held lights: 0W 24L 0S untouched 0 taken 178 landed 33
+  heavy only: 3W 21L 0S untouched 0 taken 207 landed 72
+  charged heavy only: 7W 17L 0S untouched 0 taken 162 landed 100
+  thrust from range: 0W 24L 0S untouched 0 taken 185 landed 42
+  turtle and punish: 0W 24L 0S untouched 0 taken 175 landed 60
+  roll and punish: 0W 6L 18S untouched 0 taken 133 landed 0
+  perfect parry: 22W 2L 0S untouched 0 taken 94 landed 116
+battery veteran (longsword) hard
+  kick only: 0W 24L 0S untouched 0 taken 197 landed 73
+  light spam: 0W 24L 0S untouched 0 taken 173 landed 39
+  held lights: 0W 24L 0S untouched 0 taken 168 landed 13
+  heavy only: 0W 24L 0S untouched 0 taken 179 landed 21
+  charged heavy only: 0W 24L 0S untouched 0 taken 184 landed 32
+  thrust from range: 0W 24L 0S untouched 0 taken 186 landed 14
+  turtle and punish: 0W 24L 0S untouched 0 taken 154 landed 34
+  roll and punish: 0W 1L 23S untouched 0 taken 88 landed 0
+  perfect parry: 19W 5L 0S untouched 1 taken 97 landed 113
+✔ no simple strategy dominates the veteran (trident) warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit (5017.995208ms)
+✔ no simple strategy dominates the veteran (longsword) warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit (2651.300584ms)
+✔ finite blade distance handles crossing, parallel, endpoints and degenerate segments (0.838334ms)
+✔ blade contact rejects empty space inside the old broad cone and targets behind the fighter (19.001875ms)
+✔ a moving target crossing the blade within a tick cannot tunnel through it (0.294042ms)
+✔ locked armed footwork faces the opponent while moving laterally; sweep damage resolves once (9.537916ms)
+✔ a miss is reported only after follow-through closes, and late contact still hits once (1.573167ms)
+✔ upright blade regions produce deterministic lethal-location data without renderer bones (0.215042ms)
+✔ all edge angles and orbit positions keep camera inside scenery (4.741041ms)
+✔ locked camera frames both capsules at boundary and near contact in portrait and landscape (6.267667ms)
+✔ duel camera frames a moving opponent anywhere in the arena (8.778375ms)
+pitborn stands 1.957 m to the hero's 1.745 (×1.121, scale 1.13); 96 hunched tracks
+goblin stands 1.357 m to the hero's 1.745 (×0.778, OPPONENTS.goblin.scale 0.78); 1282 identical tracks, 96 hunched, 168 re-solved limbs; roll lowest 0.045 m
+nightborn stands 1.808 m body (1.843 m with the crown) to the hero's 1.745 (×1.036, scale 1.03); 72 re-posed tracks
+✔ gaits blend continuously, stay normalized and settle to idle at rest (2.230667ms)
+✔ Split Crown cuts every fighter head, follows its animated bone, respects blood modes and restores on rematch (4664.836375ms)
+✔ shipped warrior.glb has finite poses, grounded walk and bounded running flight (5519.664708ms)
+✔ shipped veteran.glb has finite poses, grounded walk and bounded running flight (3694.230917ms)
+✔ shipped pitborn.glb has finite poses, grounded walk and bounded running flight (2973.963417ms)
+✔ shipped nightborn.glb has finite poses, grounded walk and bounded running flight (3681.529833ms)
+✔ shipped goblin.glb has finite poses, grounded walk and bounded running flight (4014.234125ms)
+✔ shipped executioner.glb has finite poses, grounded walk and bounded running flight (6800.501125ms)
+✔ the Veteran is the warrior's rig: same bones, the shared clips identical track for track, and either the sword nodes or a WeaponDrawn with a contact segment (602.581833ms)
+✔ the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from (1527.488208ms)
+✔ the renderer builds a trident fighter without throwing, keeps the weapon in hand through every pose, and its trail samples the contact segment (581.9425ms)
+✔ the Pitborn is the warrior's rig at OPPONENTS.pitborn.scale with a hunched spine: same clips and timings, every bone track identical except the hunched ones and the cleaver's re-keyed Heavy (the hack), the cleaver in the sword hand, and he stands taller by his scale less the hunch (544.472125ms)
+✔ the goblin is the warrior's rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same clips at the same durations (the finisher is additive) — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero (644.631542ms)
+✔ two fighters share geometry but have independent animated bones (178.116459ms)
+✔ combat clips and both sword attachments are present and produce finite animated poses (187.3705ms)
+✔ the exported blade crosses the target at the simulation contact frame (159.772375ms)
+✔ roll and guard keep the shipped body finite, above the floor and within a compact silhouette (1543.148834ms)
+✔ swing easing remains monotone and preserves the authored contact pose (0.712625ms)
+✔ return, heavy and riposte authored blades agree with their contact ticks (184.773667ms)
+✔ baked collision paths match the shipped blade throughout every active strike (206.818791ms)
+✔ authored strafe loops close cleanly and alternate grounded feet (196.045375ms)
+✔ authored kick plants its support foot and extends towards its contact range (182.288375ms)
+✔ defence presentation follows confirmed contacts and yields immediately to new actions (0.485625ms)
+✔ block recoil and parry visibly redirect the shipped blade and recover their guard pose (160.361541ms)
+✔ a zero-dt update evaluates the pose for the tick without advancing: the contact pose is applied on the freeze frame, and no trail sample is taken (167.562625ms)
+✔ the cuts are hooks: the blade tip never passes behind the shoulder line in Attack or Return, swings out wide, and never dips low (163.46025ms)
+✔ one stroke, quantified: the first cut loads on the side the sword rests (the right hip), the sideways travel is all one way inside the cut, it stops at the extended pose, and the return retraces the arc at chest height (no lift over the head) (0.244875ms)
+✔ the Nightborn is the warrior's rig at OPPONENTS.nightborn.scale, upright and chin-up: same clips and timings, every bone track identical except the three posture bones, the sword in the same hand, and he stands taller by his scale (400.101875ms)
+✔ legacy constant views stay equal to the move data the simulation actually uses (2.190667ms)
+✔ the projection mirrors both fighters: phases, resources, threat, results and warden reaction for the renderer (5.850125ms)
+✔ the warden threat flag and move drive the incoming warning; the projection exposes what it will do (1.866792ms)
+✔ hints prioritise defeat, drawing, threats, exhaustion, warden guard, chains, then expiring notices (9.195125ms)
+✔ control gating: actions are accepted when legal or late in a committed move, never after defeat or while exhausted (0.997ms)
+✔ defeat freezes the fight and a fresh practice restores everything; the debug readout stays a pure function of state (0.52125ms)
+✔ the thrust plays its own clip role; a chained thrust and the riposte play the riposte's (the second thrust, from half-withdrawn); a fighter's specs are its weapon's (0.421541ms)
+✔ seeded practice replays are identical, never mutate the previous state, and keep both fighters bounded and apart (5667.111042ms)
+✔ a parry then a light produces the riposte the browser gate expects, then a close kick lands (2.541667ms)
+✔ attack phases: nothing lands before the active window, a hit resolves once, a whiff is reported when the window closes (7.983083ms)
+✔ drawing takes its full time, cannot damage, and holds the fighter still like every committed action (1.385208ms)
+✔ range and facing produce real misses; lock turns during wind-up but never snaps around (1.629125ms)
+✔ enough clean hits kill; death freezes both fighters and rejects every input (2.486ms)
+✔ held guard blocks a facing light for stamina; a guard from behind or without stamina is broken (0.799ms)
+✔ perfect block: a guard raised just in time pays half; a settled guard pays full; a parry window never counts (0.799541ms)
+✔ parry succeeds only inside the fresh-press window, staggers the attacker and opens one stronger riposte (11.185333ms)
+✔ a fresh parry tap that meets nothing leaves the fighter exposed: guard is refused until the exposure ends; a held press never is (1.17575ms)
+✔ a guard yields to any action: attacks start the same tick from a held guard (0.911625ms)
+✔ feint: a fresh guard press early in a wind-up abandons the swing into a parry window for a price (8.180334ms)
+✔ guard profile: a shield is data — block cost, arc, window and stopping heavies come from the fighter, defaults from RULES (1.926167ms)
+✔ the feint mind-game: a raised guard answers the feint; the kick that opens it is taken through the guard by a blocker and rolled by a dodger — never blocked or parried (2.652583ms)
+✔ directional guard, when enabled, only stops cuts from the matching side (1.145125ms)
+✔ roll: bounded invulnerability, one cost, locked direction, no cancel from an attack, cannot be spammed (1.691167ms)
+✔ backstep: 0.6 m straight back, still facing, 10 stamina, no invulnerability, cancels into a swing late, holds into a roll (0.82375ms)
+✔ stamina: costs at commitment, delayed regeneration, half-rate regeneration while guarding, sprint drain without the delay, exhaustion and recovery (2.199833ms)
+✔ chain: the opposite cut follows fast inside the window; same side, expired window or a chained cut start fresh (3.484292ms)
+✔ chain grammar: a heavy inside a light's window winds up faster; a light out of an evade is a fast dodge-attack (3.199375ms)
+✔ counter-hit: a clean hit on a committed swing or a roll's tail lands harder and staggers longer; never through a guard or parry (1.238375ms)
+✔ rear hit: striking inside the target's rear arc earns a modest damage and stagger bonus, stacking with a counter (0.702ms)
+✔ guard counter: a heavy thrown straight out of a block is fast and armoured; any attack or a stagger closes the window; a parry punish outranks it (0.48475ms)
+✔ charged heavy: holding Heavy pauses the wind-up with hyper-armour; a long enough hold multiplies the swing; early release is a plain heavy (0.90575ms)
+✔ buffered input: one action queued in the last ticks of a committed move fires when ready, expires, and clears on cancellation (1.46225ms)
+✔ interrupts: a hit stops a wind-up; a heavy past its poise point trades through a light and still lands (0.692875ms)
+✔ a guard takes a plain heavy for chip and stamina without staggering; a charged heavy, an empty stamina bar or a kick breaks it; a perfect block stops the chip (4.463292ms)
+✔ wounds slow regeneration for a while, refresh without stacking, and only come from unblocked cuts (0.547375ms)
+✔ events: every outcome is reported exactly once per contact and the stream is deterministic (195.40825ms)
+✔ the same intent sequence replays to the same duel; inputs never mutate the previous state; resources stay bounded (2454.418875ms)
+✔ thrust: longest reach, fully blockable, a riposte in the punish window; a held thrust or light chambers without ever charging (3.168459ms)
+✔ posture: blocks, clean hits and being parried fill it; it drains while standing; full = a break with a long stagger and a critical window (3.254ms)
+✔ kick lands: the lunge carries the short cone to a standing target 1.5 m away, which is what the HUD reach flag promises (1.007708ms)
+✔ correctness pass: elapsed perception, bounded chamber lunge, attack-start reset, discounted block affordability, armour scope, draws (8.316833ms)
+✔ side symmetry: movement resolves against the start-of-tick bodies, so swapping the fighters swaps the result exactly (12.459875ms)
+✔ holding Guard always guards: press-and-hold at any moment of an incoming heavy is a parry, a perfect block or a block — never a hit through the guard (11.561792ms)
+✔ slice P tuning pins: 40 stamina/s after .75 s, a guard at half rate, block costs 15/30/20, 150 health (8–15 blows a duel), sprint drains without the delay (0.13925ms)
+✔ gladiator identity (slice Q): the ring wall hits back — knockback that meets the wall adds stagger and posture, and a cornered fighter cannot backstep (a roll still works) (1.681791ms)
+✔ gladiator identity (slice Q): attrition — every blade wound takes stamina off the ceiling for the duel (floor 40), a kick does not, and a leg wound slows the walk (12.397917ms)
+✔ gladiator identity (slice Q): the thrust is the stop-hit — into a swing or an opponent walking onto the point it lands at stopHit rates (a cut only counters), and a thrust that meets nothing overextends (2.347792ms)
+✔ gladiator identity (slice Q): posture pins — a gain pauses the drain for posture.hold ticks, then it drains at .2, a parry puts 25 on the attacker, cut 20 / heavy 32 / thrust 16 (swept to ~one break per two duels at normal) (0.752583ms)
+✔ unlock creates one context inside the gesture and opts into an iOS playback audio session (98.606208ms)
+✔ unlock resumes an interrupted context (iOS after a call or app switch), and leaves a running one alone (2.042375ms)
+✔ quiet() silences the page: no cue reaches the graph until the next unlock, then cues play again (3.948791ms)
+✔ the shell unlocks audio on the events WebKit treats as user activation, not only pointerdown (0.490209ms)
+✔ quiet blocks cues immediately while browser suspension is still pending (1.963667ms)
+✔ selection is the owner rule: ANY blade kill plays an outcome, whatever the move or location (0.811709ms)
+✔ the rotation is seeded from the kill event: same event, same outcome; the spread covers all four (1.625292ms)
+✔ no ceremony for a draw, the player's own death, or a killing kick (0.057667ms)
+✔ selection is deterministic and reads only the event and the weapons (1.179125ms)
+✔ Split Crown, Decapitation and Run Through have shipped poses; plainDeath and the rest play the plain Death (0.100917ms)
+✔ the v8 strike circle reads a stroke direction: jitter and invalid input are nothing, diagonals resolve to the nearest axis (1.350417ms)
+✔ graphics restoration resumes one loop, clears inputs and preserves the current fight (82.989417ms)
+✔ a shader error during context loss pauses and then recovers rather than killing the loop (3.070541ms)
+✔ unrestored or failed graphics have a manual reload path, with real failures reported (2.402583ms)
+✔ repeated and reordered GPU events never multiply the animation loop or recovery timer (36.519125ms)
+✔ ordinary render failures are not swallowed as recoverable GPU loss (2.329167ms)
+✔ a late draw press buffers one attack, and focus loss cancels it (58.417792ms)
+✔ mobile outer-stick sprint stops on cancellation and menu opening pauses combat (10.748208ms)
+✔ menu sound and camera controls stay synchronized with desktop controls (1.661208ms)
+✔ the thumb cluster is the mobile layout: round buttons incl. a Stab button that thrusts and holds; Controls swaps to the v8 guard ring and back (5.529459ms)
+✔ guard ring v8: the strike circle owns every attack — a tap slashes as the thumb lifts, a flick up stabs, holding loads the heavy (32.611458ms)
+✔ the scorecard tallies fights, wins, rematches and damage per scheme (49.661208ms)
+✔ dodge control: a tap is an instant backstep, a hold grows it into a roll, and interruption releases it (148.874791ms)
+✔ heavy control: a held key charges the swing and release lets it fly (8.496792ms)
+✔ kick input spends once and clears on pointer cancellation or graphics interruption (31.595333ms)
+✔ the first match meets the fixed warden and every rematch a differently seeded one (3.411958ms)
+✔ a tap that ends before the next tick still lands: only pointercancel withdraws a queued press (lostpointercapture follows every pointerup) (45.636209ms)
+✔ the stick never stays pushed: a release delivered outside the pad, a touchend with no fingers, or a new touch all clear it (4.474ms)
+✔ the HUD shows both posture bars and flags a bar near breaking (123.191208ms)
+✔ hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) frames (+ the frame that resumes) while frames keep rendering; heavier contacts stop longer; ticks are never skipped (208.573709ms)
+✔ the Kick button says when the warden is inside its cone (104.049ms)
+✔ a cancelled touch withdraws its press even after the simulation has buffered it, and never another control's press (6.03425ms)
+✔ hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it (119.83675ms)
+✔ controls pass: Slash held chambers the cut, a held strike dragged off its circle becomes a guard press (feint in the window), the held level belongs to its own control, and Step rolls at once when the stick is deflected (59.231542ms)
+✔ tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-clock (17 ms frames advance ~50 ticks a second instead of ~60), is remembered, and hit-stop stays in milliseconds (11.11875ms)
+✔ the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads (52.729625ms)
+✔ the ladder: the first rung is the Veteran and his label stays the warden (1.332084ms)
+✔ the journal opponent picker lists the ladder, shows the current rung, and a pick saves the rung and reloads without the URL override (3.338ms)
+head battery (12 seeds each): cleaver {"head":37,"headKills":7,"kills":8,"events":65,"duels":12} · longsword {"head":0,"headKills":0,"kills":5,"events":70,"duels":12}
+✔ hit locations by the registering rule: only the cleaver arcs reach the head; every other weapon is torso/legs at every range (97.863375ms)
+✔ organic head blows in seeded duels: the cleaver lands them with heavies, the longsword hero never does (888.234584ms)
+✔ combat buttons stay DOM hit targets during cooldown so repeated touches are consumed (170.874958ms)
+✔ page declares double-tap suppression and locks page zoom (owner, 2026-09-17) (3.567625ms)
+✔ the ladder starts at the Veteran, climbs through the Pitborn, the Goblin and the Nightborn, and ends at the Executioner for now (22.520875ms)
+✔ the opponent comes from saved progress, a URL override beats it, and anything unknown falls back to the Veteran (2.547375ms)
+✔ only a clean win over the opponent counts as climbing (0.444584ms)
+✔ production CSP permits one explicit HTTPS ingest origin, not a wildcard (4.493625ms)
+✔ monitoring is disabled without a DSN and excludes high-volume integrations (1.582792ms)
+✔ real SDK sends error and release but strips guest identity and request details (226.734041ms)
+battery veteran (trident) normal
+  kick only: 0W 24L 0S untouched 0 taken 208 landed 81
+  light spam: 0W 24L 0S untouched 0 taken 190 landed 55
+  held lights: 0W 24L 0S untouched 0 taken 199 landed 28
+  heavy only: 0W 24L 0S untouched 0 taken 199 landed 50
+  charged heavy only: 2W 22L 0S untouched 0 taken 206 landed 69
+  thrust from range: 0W 24L 0S untouched 0 taken 189 landed 52
+  turtle and punish: 0W 24L 0S untouched 0 taken 148 landed 44
+  roll and punish: 0W 0L 24S untouched 2 taken 80 landed 0
+  perfect parry: 24W 0L 0S untouched 1 taken 64 landed 120
+battery veteran (trident) hard
+  kick only: 0W 24L 0S untouched 0 taken 206 landed 35
+  light spam: 0W 24L 0S untouched 0 taken 208 landed 26
+  held lights: 0W 24L 0S untouched 0 taken 210 landed 11
+  heavy only: 0W 24L 0S untouched 0 taken 245 landed 13
+  charged heavy only: 0W 24L 0S untouched 0 taken 254 landed 23
+  thrust from range: 0W 24L 0S untouched 0 taken 197 landed 33
+  turtle and punish: 0W 24L 0S untouched 0 taken 156 landed 24
+  roll and punish: 0W 7L 17S untouched 1 taken 130 landed 0
+  perfect parry: 23W 1L 0S untouched 0 taken 61 landed 118
+battery veteran (longsword) normal
+  kick only: 0W 24L 0S untouched 0 taken 189 landed 228
+  light spam: 0W 24L 0S untouched 0 taken 175 landed 76
+  held lights: 0W 24L 0S untouched 0 taken 178 landed 33
+  heavy only: 3W 21L 0S untouched 0 taken 207 landed 72
+  charged heavy only: 7W 17L 0S untouched 0 taken 162 landed 100
+  thrust from range: 0W 24L 0S untouched 0 taken 185 landed 42
+  turtle and punish: 0W 24L 0S untouched 0 taken 175 landed 60
+  roll and punish: 0W 6L 18S untouched 0 taken 133 landed 0
+  perfect parry: 22W 2L 0S untouched 0 taken 94 landed 116
+battery veteran (longsword) hard
+  kick only: 0W 24L 0S untouched 0 taken 197 landed 73
+  light spam: 0W 24L 0S untouched 0 taken 173 landed 39
+  held lights: 0W 24L 0S untouched 0 taken 168 landed 13
+  heavy only: 0W 24L 0S untouched 0 taken 179 landed 21
+  charged heavy only: 0W 24L 0S untouched 0 taken 184 landed 32
+  thrust from range: 0W 24L 0S untouched 0 taken 186 landed 14
+  turtle and punish: 0W 24L 0S untouched 0 taken 154 landed 34
+  roll and punish: 0W 1L 23S untouched 0 taken 88 landed 0
+  perfect parry: 19W 5L 0S untouched 1 taken 97 landed 113
+goblin AI vs AI (12 seeds): median 41.2 s, range 28.9–78.8 s
+goblin battery normal
+  kick only: 0W 24L 0S untouched 0 taken 315 landed 229
+  light spam: 1W 23L 0S untouched 0 taken 316 landed 79
+  held lights: 0W 24L 0S untouched 0 taken 316 landed 77
+  heavy only: 0W 24L 0S untouched 0 taken 312 landed 34
+  charged heavy only: 2W 22L 0S untouched 0 taken 306 landed 47
+  thrust from range: 0W 10L 14S untouched 0 taken 249 landed 33
+  turtle and punish: 0W 24L 0S untouched 0 taken 238 landed 30
+  roll and punish: 0W 20L 4S untouched 0 taken 388 landed 0
+  perfect parry: 24W 0L 0S untouched 1 taken 121 landed 96
+  swings at every feint: 2W 21L 1S untouched 0 taken 291 landed 69
+  patient (whiff punisher): 3W 0L 21S untouched 0 taken 206 landed 103
+  longest guard phase 10 ticks (a feint's parry press), blocks 0
+goblin battery hard
+  kick only: 1W 23L 0S untouched 0 taken 316 landed 293
+  light spam: 0W 24L 0S untouched 0 taken 318 landed 52
+  held lights: 1W 23L 0S untouched 0 taken 313 landed 59
+  heavy only: 0W 24L 0S untouched 0 taken 303 landed 25
+  charged heavy only: 0W 24L 0S untouched 0 taken 309 landed 46
+  thrust from range: 0W 8L 16S untouched 0 taken 251 landed 43
+  turtle and punish: 0W 24L 0S untouched 0 taken 238 landed 29
+  roll and punish: 0W 23L 1S untouched 0 taken 430 landed 0
+  perfect parry: 22W 2L 0S untouched 1 taken 143 landed 94
+  swings at every feint: 0W 21L 3S untouched 0 taken 290 landed 57
+  patient (whiff punisher): 2W 0L 22S untouched 0 taken 221 landed 63
+  longest guard phase 10 ticks (a feint's parry press), blocks 0
+goblin AI vs AI: median 41.9 s, range 23.6–78.8 s
+pitborn battery normal
+  kick only: 0W 24L 0S untouched 0 taken 180 landed 198
+  light spam: 0W 24L 0S untouched 0 taken 177 landed 39
+  held lights: 0W 24L 0S untouched 0 taken 159 landed 32
+  heavy only: 0W 24L 0S untouched 0 taken 197 landed 34
+  charged heavy only: 2W 22L 0S untouched 0 taken 168 landed 78
+  thrust from range: 0W 24L 0S untouched 0 taken 193 landed 84
+  turtle and punish: 0W 24L 0S untouched 0 taken 145 landed 47
+  roll and punish: 0W 21L 3S untouched 0 taken 160 landed 0
+  perfect parry: 8W 16L 0S untouched 0 taken 144 landed 131
+  whiff punisher: 9W 15L 0S untouched 0 taken 128 landed 160
+  first guard break: median 76 ticks, slowest 349
+pitborn battery hard
+  kick only: 0W 24L 0S untouched 0 taken 176 landed 174
+  light spam: 0W 24L 0S untouched 0 taken 148 landed 16
+  held lights: 0W 24L 0S untouched 0 taken 156 landed 9
+  heavy only: 0W 24L 0S untouched 0 taken 177 landed 8
+  charged heavy only: 0W 24L 0S untouched 0 taken 158 landed 24
+  thrust from range: 0W 24L 0S untouched 0 taken 176 landed 33
+  turtle and punish: 0W 24L 0S untouched 0 taken 143 landed 54
+  roll and punish: 0W 24L 0S untouched 0 taken 156 landed 0
+  perfect parry: 7W 17L 0S untouched 0 taken 163 landed 129
+  whiff punisher: 7W 17L 0S untouched 1 taken 140 landed 121
+  first guard break: median 72 ticks, slowest 345
+pitborn AI vs AI: median 27.5 s, range 15.8–40.1 s
+nightborn: parry presses at cut ticks 7 8 7 7 8 7 8 7 8 (feint window closes at 10); the chain closed in 4/6 seeds
+nightborn battery normal
+  kick only: 0W 24L 0S untouched 0 taken 287 landed 173
+  light spam: 0W 24L 0S untouched 0 taken 171 landed 26
+  held lights: 0W 24L 0S untouched 0 taken 191 landed 53
+  heavy only: 0W 24L 0S untouched 0 taken 210 landed 25
+  charged heavy only: 0W 24L 0S untouched 0 taken 200 landed 45
+  thrust from range: 0W 24L 0S untouched 0 taken 221 landed 26
+  turtle and punish: 0W 24L 0S untouched 0 taken 173 landed 85
+  roll and punish: 0W 0L 24S untouched 2 taken 69 landed 0
+  perfect parry: 24W 0L 0S untouched 5 taken 39 landed 120
+  feint and punish: 3W 21L 0S untouched 0 taken 223 landed 113
+  charge past the parry: 0W 24L 0S untouched 0 taken 200 landed 45
+nightborn battery hard
+  kick only: 0W 24L 0S untouched 0 taken 268 landed 61
+  light spam: 0W 24L 0S untouched 0 taken 171 landed 25
+  held lights: 0W 24L 0S untouched 0 taken 188 landed 53
+  heavy only: 0W 24L 0S untouched 0 taken 207 landed 10
+  charged heavy only: 0W 24L 0S untouched 0 taken 208 landed 29
+  thrust from range: 0W 24L 0S untouched 0 taken 196 landed 4
+  turtle and punish: 0W 24L 0S untouched 0 taken 179 landed 42
+  roll and punish: 0W 0L 24S untouched 1 taken 67 landed 0
+  perfect parry: 24W 0L 0S untouched 3 taken 63 landed 120
+  feint and punish: 3W 21L 0S untouched 0 taken 247 landed 74
+  charge past the parry: 0W 24L 0S untouched 0 taken 208 landed 29
+nightborn AI vs AI: median 20.9 s, range 13.9–28.6 s, hero wins 9/24
+✔ no simple strategy dominates the veteran (trident) warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit (3813.637417ms)
+✔ no simple strategy dominates the veteran (longsword) warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit (2425.142958ms)
+✔ initialDuel() is the Veteran — the trident (slice V) on a man's scale, health and poise, the shipped PROFILES; the hero the longsword — and the cleaver slot is the real cleaver (slice W), baked from its own rig (1.916541ms)
+✔ the goblin is set up from his data: the knife (live, slice X), 0.78× scale, 120 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes (195.059375ms)
+✔ the goblin is set up as the brief asks: knobs on every level (feints, guard 0, disengage, circle, step, interrupt, kick, dash), regen 1.5 and pace 1.2, the knife live (0.238542ms)
+✔ fight identity — read the feint: the goblin passes the fairness battery at normal and hard; the patient whiff punisher is the best honest answer and beats the player who swings at every tell; he never holds a guard and never blocks; every strategy gets touched (4263.466958ms)
+✔ AI vs AI at normal: the Veteran's brain in the hero body against the goblin finishes every fight, median 25–45 s (169.69325ms)
+✔ the Pitborn is set up from his data: the cleaver slot, 1.13× scale, 190 health and poise 16 on the warden side; the hero is unchanged (0.173958ms)
+✔ poise: a plain cut never staggers or moves the Pitborn — it wounds him and builds his posture; a heavy staggers him; a counter-hit cut staggers him (0.495625ms)
+✔ the hit capsule grows with the man: a horizontal blade at 1.40 m is a head hit on a man and a torso hit on the 1.13× brute; at 1.90 m it misses the man and finds the brute's head (0.170583ms)
+✔ fight identity — don't turtle: the Pitborn passes the fairness battery at normal and hard, breaks a held guard inside 6 s, and the off-line whiff punisher is the best honest answer to him (1027.271917ms)
+✔ AI vs AI at normal: the Veteran's brain in the hero body against the Pitborn finishes every fight, median 25–45 s (105.212417ms)
+✔ the Nightborn is set up from his data: the live estoc, a man's health, no poise, and a guard that commits — a 16-tick parry window and a 30-tick recovery on top of the weapon's profile (0.261917ms)
+✔ the committing parry, tick by tick: his blade comes up inside the feint window of a 20-tick cut, a feint leaves it parrying nothing, no cut comes out of it, and when the window closes he is exposed for 40 ticks with no swing in him — the punish lands clean (a lapse or a block on a given cut is his call; over six seeds the chain must close in most) (11.147166ms)
+✔ fight identity — don't spam, bait him: the Nightborn passes the fairness battery at normal and hard; the feint-and-punish is the best honest answer at normal and no plain script beats him; a cut-spammer is parried, and a habitual bait or charge stops working once read (1791.129625ms)
+✔ AI vs AI at normal: the Veteran's brain in the hero body against the Nightborn finishes every fight, median 18–40 s, and wins some of them — he is beatable by a baiter, not by outlasting (87.953333ms)
+✔ guest identity and name survive loading a new session (5.881042ms)
+✔ broken, wrong-version, mistyped or blocked storage cannot break entry (0.455792ms)
+✔ names remove controls, trim and enforce a short visible identity (11.424959ms)
+✔ the ladder rung reached on this device survives reload, and a bad rung is dropped rather than trusted (0.496042ms)
+✔ legacy encounter migration preserves identity and never awards career marks (7.84375ms)
+✔ tier detection: mobile UA plus coarse pointer is a phone, either alone is not (4.483166ms)
+✔ tier detection: ?gfx= overrides both ways and wins over every signal (0.258291ms)
+✔ tier detection: a bare environment (node, tests) is full tier and never throws (4.102084ms)
+✔ budgetTextures resizes only the oversized unique textures, once each (8.488458ms)
+✔ budgetTextures leaves a fighter with no oversized textures untouched (1.571125ms)
+✔ canvasResize no-ops outside a browser and on at-cap textures (0.210792ms)
+✔ every recipe resolves to its shipped rig, simulation weapon and offline build (2.423541ms)
+✔ one second walks three metres; diagonals cannot move faster (1.920125ms)
+✔ sprint, analog input and camera-relative movement have explicit behavior (2.995125ms)
+✔ idle does not mutate caller state and rejects non-finite inputs (2.18975ms)
+✔ seeded randomized input replay stays bounded, separated and reproducible (61.771625ms)
+✔ sustained input cannot leave arena or enter the target (14.134958ms)
+✔ heading interpolation takes short path across wraparound (0.316583ms)
+✔ the control trial survives storage that is missing, corrupt or hostile, and round-trips through save (3.080334ms)
+✔ the scorecard reads as one line per played scheme with average duel length in seconds (0.430875ms)
+✔ scorecard uses each fighter ceiling, including the 190 HP Pitborn (2.447167ms)
+✔ the live duel: the player carries the longsword and the Veteran the trident (slice V); the trident is its own table, guard and stance (4.352125ms)
+✔ a second weapon with a longer reach resolves contact from its own table: the trident lands a thrust from where the longsword whiffs, costs its own stamina, and the AI-facing reach follows it (4.15275ms)
+✔ contact events name the weapon and its material for the audio lane: Hit, Blocked, Parried and GuardBroken (1.841834ms)
+✔ the bake manifest is sound: every entry names a known weapon, an existing rig and node, a rising contact segment; every non-placeholder weapon has a baked table with all of its paths (58.789959ms)
+✔ the warden reasons with its own weapon's reach: carrying a longer weapon it throws the thrust from where the longsword would only walk in (8.181792ms)
+✔ the trident rig carries WeaponDrawn with a contact segment on the tines (the manifest agrees), empty sword nodes for the loader, and the full clip set at the contract durations (575.622958ms)
+✔ the trident's authored clips agree with the data's contact ticks: at each path's contact key the tines are out in front, at the height the move means (chest for thrusts, knee for the sweep, torso for the pin) (395.954792ms)
+✔ the fight the trident gives (real tables): its thrust lands from 2.1 m where the longsword's whiffs (a short pole, driven to full arm extension), and the AI-facing reach of every move sits within 0.1 m of where it really lands (5.748667ms)
+✔ the cleaver is live (slice W): WEAPONS.cleaver is CLEAVER, the Pitborn carries it, and it is baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention: the rendered blade runs past the simulated one, never the other way) (0.613166ms)
+✔ the cleaver rig carries WeaponDrawn with its edge as the contact segment, empty sword nodes for the loader, and exactly the sword's 21 clips in the sword's order — nothing for the renderer to learn; only Heavy is re-keyed (620.372833ms)
+✔ the cleaver's edge leads: over each cut's active window the tip moves along the edge side (+x) for the chop and the hack, along the spine for the back-of-the-cleaver; the hack leads with the edge more cleanly than the sword's straight overhead (616.675625ms)
+✔ the cleaver's data keeps the Pitborn's whiff window: lunges equal the sword's (stepIn × wind-up), reach follows the sword's spacing convention, chops hit harder, the poke softer, the back of the cleaver is a hammer (0.303708ms)
+✔ the shaft guard (slice V): blocks a cut and a thrust at 15 % more stamina than the blade guard, and a plain overhead heavy breaks it where the blade guard only takes chip (3.405959ms)
+✔ the sweep trips a roll (slice V): a low blade lands on a roller in the roll's first half, the same roll escapes it in the second half and escapes the kick as ever (2.156542ms)
+✔ the Veteran's stance (slice V): the trident warden opens with the thrust most of the time, closes to sweep range rather than the sword's, never thrusts inside the point — there it kicks, and steps back out when it cannot (14.728166ms)
+✔ the knife is live (slice X): WEAPONS.knife is KNIFE, the goblin carries it, and it is baked from his own rig with the blade as the contact segment (0.433583ms)
+✔ the goblin's rig carries the knife: WeaponDrawn under hand_r with a short blade as the contact segment and a forward grip, empty sword nodes, the sword's clip list in the sword's order, every knife path on a sword clip (512.289375ms)
+✔ the knife's edge leads on the goblin's rig: the slash and the hack move along the edge side; the backhand runs along the hook's sharpened back (268.91625ms)
+✔ the knife's data keeps the goblin's brief: every wind-up ≥ 12 ticks (readability), feints inside the first ~40 % of the wind-up, damage and cost below the sword's, reach below the sword's and rising from slash to stab to hack (0.333416ms)
+✔ the live estoc uses its own moves, baked point, and the exact shipped Nightborn rig (2.779042ms)
+✔ the estoc rig is the Nightborn's own with WeaponDrawn (a long thin blade, the last 40 cm as the contact segment, ≤ 2k triangles), empty sword nodes, and EVERY clip byte-identical to nightborn.glb — no re-key at all (549.623416ms)
+✔ the live estoc keeps torso aim through its actual reach: cuts to 2.0 m, heavy to 2.5 m, thrust to 2.3 m (29.961667ms)
+✔ the estoc's data is the brief's: the sword's timings and lunges exactly, reach in the sword's conservative convention, cuts weaker than the sword's with no chip, the thrust a little stronger and chaining, a high thrust share, steel (0.428542ms)
+✔ the scythe is live (2026-09-18): WEAPONS.scythe is SCYTHE, the Executioner carries it, and it is baked at a man's 1.0× from warrior-scythe.glb (the cleaver convention: his rendered 1.36× blade runs past the simulated one, never short) (0.382666ms)
+✔ the fight the scythe gives (real tables): the reap lands 1.40–2.10 m and meets nothing inside 1.40 (the arc's dead band, minReach), the headsman's high lands to 2.30 and the heel-jab to 2.10 — the measured frontiers, not the spacing estimates (15.853542ms)
+✔ the scythe rig is the Executioner's own: WeaponDrawn (the head as the contact segment) under hand_r, empty sword nodes, and the full 13-clip family at the contract durations (318.174834ms)
+✔ the scythe's authored contact poses meet the target line: at each path's contact key the head is out in front at the move's height — the reap crosses the centre line, it does not start 0.7 m past it (the task-4 retime) (328.553375ms)
+✔ the scythe's data is the brief's: slower tells than the sword's, the jab quick with no chip, the shaft guard profile, a low thrust share and a dead band inside the arc (0.232667ms)
+ℹ tests 254
+ℹ suites 0
+ℹ pass 254
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39357.730583
+
+> frankendom@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 372 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                           9.47 kB │ gzip:   3.73 kB
+dist/assets/sprite-CLp_XvlU.ogg         268.79 kB
+dist/assets/sprite-Dr3X7aIZ.m4a         372.99 kB
+dist/assets/pitborn-BGks6ad5.glb      5,679.32 kB
+dist/assets/goblin-DDxfN6W7.glb       5,939.19 kB
+dist/assets/nightborn-CHPUAls9.glb    6,271.52 kB
+dist/assets/warrior-BPhwPfKJ.glb      6,370.26 kB
+dist/assets/executioner-6Rn02AiA.glb  7,102.26 kB
+dist/assets/veteran-BU0uESeV.glb      7,587.47 kB
+dist/assets/index-CF1ejBk7.css           19.73 kB │ gzip:   4.86 kB
+dist/assets/index-B--oUcuY.js           926.28 kB │ gzip: 263.26 kB
+
+✓ built in 348ms
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+found 0 vulnerabilities
+Per fight (shell 873782 + hero 3517219 + worst opponent veteran-BU0uESeV.glb 4036080): 8427081 bytes gzip of 10000000; all of dist: 40547314 raw, 21979587 gzip of 32000000. Budget PASS.
+
+> frankendom@0.1.0 test:browser
+> node scripts/browser-check.mjs
+
+{
+  "url": "http://127.0.0.1:62982",
+  "physicalPhone": false,
+  "errors": [],
+  "console": [
+    "WebGL: INVALID_OPERATION: delete: object does not belong to this context",
+    "WebGL: INVALID_OPERATION: delete: object does not belong to this context",
+    "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+  ],
+  "graphicsRestored": true,
+  "afterRestore": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Draw your sword. The warden will counterattack.",
+    "health": 150,
+    "enemy": 150,
+    "stamina": 100
+  },
+  "guardAfterTellMs": 466.2999999523163,
+  "parry": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Parried! The warden is open.",
+    "health": 150,
+    "enemy": 150,
+    "stamina": 100
+  },
+  "riposte": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Clean counter slash hit · −24",
+    "health": 150,
+    "enemy": 126,
+    "stamina": 80
+  },
+  "dmg": "24",
+  "kickAttempts": [
+    {
+      "before": {
+        "health": 150,
+        "enemy": 126
+      },
+      "start": {
+        "tick": 288,
+        "type": "AttackStarted",
+        "actor": 0,
+        "move": "kick"
+      },
+      "outcome": {
+        "tick": 306,
+        "type": "AttackMissed",
+        "actor": 0,
+        "move": "kick"
+      },
+      "events": [
+        {
+          "tick": 288,
+          "type": "AttackStarted",
+          "actor": 0,
+          "move": "kick"
+        },
+        {
+          "tick": 306,
+          "type": "AttackActive",
+          "actor": 0,
+          "move": "kick"
+        },
+        {
+          "tick": 306,
+          "type": "AttackMissed",
+          "actor": 0,
+          "move": "kick"
+        }
+      ]
+    }
+  ],
+  "kick": {
+    "scale": 1,
+    "overflow": false,
+    "status": "Miss — close the distance and face the warden.",
+    "health": 150,
+    "enemy": 126,
+    "stamina": 55
+  },
+  "kickOutcome": {
+    "tick": 306,
+    "type": "AttackMissed",
+    "actor": 0,
+    "move": "kick"
+  },
+  "kickEscaped": true,
+  "bloodModes": [
+    "red",
+    "dark",
+    "off",
+    "red"
+  ],
+  "controls": [
+    "Controls: thumb cluster",
+    "Controls: guard ring · v8",
+    "Controls: thumb cluster"
+  ],
+  "unsupportedGPU": "Explicit fallback message and disabled combat; expected initialization error captured with telemetry blocked",
+  "passed": true
+}

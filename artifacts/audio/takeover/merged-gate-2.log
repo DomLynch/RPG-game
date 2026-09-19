@@ -1,0 +1,10 @@
+Capturing split-crown-gate (8c166d1-dirty) →
+  console: Failed to load resource: the server responded with a status of 404 (Not Found)
+  decapitation: seed 731, kill {"victim":1,"location":"torso","move":"heavy_overhead","heading":-1.4291661515445797}
+  runThrough: seed 733, kill {"victim":1,"location":"torso","move":"heavy_overhead","heading":3.107275766931732}
+  splitCrown: seed 736, kill {"victim":1,"location":"torso","move":"heavy_overhead","heading":-0.8403458871564344}
+  splitCrown rig at settle: Death_SplitCrown:Death_SplitCrown@WeaponDrawn
+  skull state {"crown":true,"visible":true,"halves":2,"headScale":0.0001,"bounds":[0.4448786328702692,0.3893542962265201,0.3519418203305982],"position":[1.948707517619349,0.5239566827662392,7.798405996931738],"head":[1.925572677266148,0.6082001089414939,7.795280834157623],"draws":142,"triangles":297458}
+  artifacts/character/split-crown-gate/checks.json
+  skull state {"crown":true,"visible":true,"halves":2,"headScale":0.0001,"bounds":[0.4448786328702692,0.3893542962265201,0.3519418203305982],"position":[1.948707517619349,0.5239566827662392,7.798405996931738],"head":[1.925572677266148,0.6082001089414939,7.795280834157623],"draws":142,"triangles":297458}
+  skull state {"crown":false,"visible":false,"halves":0,"headScale":1,"bounds":[],"position":[],"draws":110,"triangles":266714}
