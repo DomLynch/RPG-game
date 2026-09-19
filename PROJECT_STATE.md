@@ -1,6 +1,6 @@
 # Project state
 
-## The Quiet One — 2026-09-19 (finishers/quiet-one; local, release pending)
+## The Quiet One — 2026-09-19 (PR #159)
 Owner authorized the next finisher: restrained neck reaction, left hand at throat, failing backward step, held beat,
 knee buckle and right-side collapse. Additive `Death_QuietOne` on all six live fighters and four shelf/bake rigs;
 2.4 s authored / 3.2 s presented, final pose held until rematch. The five-way deterministic rotation includes plain death.
@@ -10,7 +10,7 @@ and existing quieter contact/voice plus delayed body/gasp cues complete the scen
 Original offline authoring in `scripts/build-quiet-one.mjs`, also called by the full warrior builder. Binary append
 preserves all old clips, meshes, skinning, textures and weapon elbow repairs; preservation verified against f7a1e99
 on all ten GLBs. Blade rebake is unchanged. Initial visual review corrected inward elbow, knee/foot ground clipping
-and portrait crop; baked skin-envelope clearance accommodates each body. Full quality passes 268/268 plus build,
+and portrait crop; baked skin-envelope clearance accommodates each body. Initial full quality passes 268/268 plus build,
 lint, dependency audit, per-fight budget and game browser. All-rig tests cover throat alignment, upright beat,
 intact head, ground contact and held corpse; additive-builder test verifies preservation, idempotence and rejection
 of a later appended clip. Camera edge/aspect tests include the new ending. Earlier rigid-clip comparison tests now
@@ -24,8 +24,9 @@ A whole-body portrait bound now guards the large Executioner ending as an additi
 Decoded audio QC verifies a silent held beat, late fall/gasp, cancellation and <= -1.54 dBTP fatal peaks;
 Quiet One measures -12.2 LUFS against decapitation -10.7 LUFS on the integrated phone mix.
 Integrated world/audio 03282b0 and Google account trunk e5339e9, preserving all account gates/settings.
-Final combined checks and exact-head CI precede the allocated Quiet One release window.
-Lead holds release scheduling: no merge/deploy until an allocated window. Physical-phone feel remains owner-only.
+Final combined checks, exact-head CI, deployment and live playback receipts are recorded in
+`artifacts/finishers/quiet-one/`; public `release.json` identifies the served revision. The lead allocated this
+release after AUTH FREE; later lanes must wait for its RELEASE FREE. Physical-phone feel remains owner-only.
 Sentry inspection found existing asset-fetch/texture/WebGL issues (5/6/A/9/8 and older), not evidence about this
 unreleased finisher. No claim of a clean live error stream or public publication.
 
