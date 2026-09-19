@@ -766,3 +766,5 @@ reconstructed peaks. AAC/Opus/fallback, 17 ordinary probes, 12 fatal probes and 
 Evidence: artifacts/audio/phone-mix/REVIEW.md, reference.json, frequency.json and gates.json. Full quality passed 264/264 tests,
 lint/build/audit/budget/game browser; all eight configured completion commands passed, including native fatal playback/pause.
 Release hold acknowledged: no audio trunk merge or deploy until world closeout and lead confirmation. Handset audition remains.
+Integration: weapons trunk f7a1e99 merged cleanly; preserved its polearm gate. Integrated quality passed 265/265 tests and all
+nine completion commands; GitHub CI passed on 827fe33. Receipt: artifacts/audio/phone-mix/integrated-gates.json. PR #158 held.
