@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AnimationMixer, Box3, Vector3, SkinnedMesh } from 'three';
+import { AnimationMixer, Box3, Vector3, SkinnedMesh, Mesh, Group } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
@@ -44,6 +44,58 @@ async function readWarrior(file: (typeof FIGHTERS)[number] = 'warrior.glb') {
   globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
   return new GLTFLoader().parseAsync(JSON.stringify(json), '');
 }
+
+test('Split Crown cuts every fighter head, follows its animated bone, respects blood modes and restores on rematch', async () => {
+  for (const file of FIGHTERS) {
+    const asset = await readWarrior(file), weapon = WEAPON_OF[file];
+    const { player, opponent } = buildWarriors(asset, undefined, [weapon, weapon]);
+    const placed = new Group(); placed.position.set(5, 0, -4); placed.rotation.y = .8; placed.add(opponent.anchor);
+    const head = opponent.anchor.getObjectByName('Head')!;
+    opponent.update(0, .1, 'splitCrown', .15);
+    opponent.splitCrown(.15, 'off');
+    assert.equal(opponent.anchor.getObjectByName('SplitCrown'), undefined, 'off never builds a split');
+    opponent.splitCrown(.15, 'red');
+    const crown = opponent.anchor.getObjectByName('SplitCrown')!;
+    assert.ok(crown, `${file}: its own head is split`);
+    assert.ok(new Box3().setFromObject(crown).getCenter(new Vector3()).distanceTo(head.getWorldPosition(new Vector3())) < .35,
+      `${file}: head bake stays on the neck away from the world origin, even before a GPU render`);
+    assert.equal(crown.children.length, 2);
+    for (const [i, half] of crown.children.entries()) {
+      const side = i ? 1 : -1;
+      assert.ok(half.children.some(o => o.name === 'SkullCut'), `${file}: cut surfaces close the head`);
+      assert.ok(half.children.length >= 2);
+      for (const part of half.children) {
+        assert.ok(part instanceof Mesh);
+        const p = part.geometry.getAttribute('position');
+        for (let v = 0; v < p.count; v++) {
+          assert.ok([p.getX(v), p.getY(v), p.getZ(v)].every(Number.isFinite));
+          assert.ok(p.getX(v)*side >= -1e-7, 'no exterior triangle bridges the split');
+        }
+      }
+    }
+    assert.equal(player.anchor.getObjectByName('SplitCrown'), undefined, 'the other fighter is untouched');
+    assert.equal(player.anchor.getObjectByName('Head')!.scale.x, 1);
+    opponent.update(0, .1, 'splitCrown', 1); opponent.splitCrown(1, 'dark');
+    assert.deepEqual(crown.quaternion.toArray(), head.quaternion.toArray(), 'the halves follow the kneeling head');
+    assert.deepEqual(crown.position.toArray(), head.position.toArray());
+    const cap = crown.children[0].children.find(o => o.name === 'SkullCut') as Mesh;
+    const darkColor = (cap.material as import('three').MeshStandardMaterial).color.getHex();
+    opponent.splitCrown(1, 'off');
+    assert.equal(crown.visible, false); assert.equal(head.scale.x, 1);
+    opponent.splitCrown(1, 'red');
+    assert.equal(crown.visible, true); assert.equal(head.scale.x, .0001);
+    assert.notEqual((cap.material as import('three').MeshStandardMaterial).color.getHex(), darkColor);
+    let disposed = 0; cap.geometry.addEventListener('dispose', () => disposed++);
+    opponent.unsever();
+    assert.equal(disposed, 1); assert.equal(head.scale.x, 1);
+    assert.equal(opponent.anchor.getObjectByName('SplitCrown'), undefined);
+    // The same fighter can decapitate on the next fight; the separate severed-head path is still intact.
+    opponent.update(0, .1, 'decapitation', .1);
+    const severed = opponent.sever(); assert.ok(severed?.group.children.length);
+    assert.equal(opponent.sever(), null); opponent.unsever();
+    severed.group.traverse(o => { if (o instanceof Mesh) o.geometry.dispose(); });
+  }
+});
 
 for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight`, async () => {
   const asset = await readWarrior(file), names = asset.animations.map(a => a.name);

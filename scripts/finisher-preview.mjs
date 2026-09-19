@@ -5,17 +5,20 @@
 // Honesty note (the owner reads this): every kill is a genuine simulation with NO overrides — the player draws, walks in and
 // lands paced plain heavy overheads on a passive warden until one kills. Under the owner rule of 2026-09-18 (recorded on
 // PR #112) any heavy-blow kill selects a finisher regardless of the coarse hit location, and the seeded rotation picks
-// between the shipped two (Split Crown, Decapitation) from the kill event — so the harness runs the same passive duel across
+// between the four shipped outcomes from the kill event — so the harness runs the same passive duel across
 // seeds and captures the first death window each finisher actually draws, organic kills on the production path end-to-end:
 // selection, pose, clip, gore, dolly, severed head — nothing is presented as anything other than what the sim reported.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
-const commit = execSync('git rev-parse --short HEAD').toString().trim();
+const commit = execSync('git describe --always --dirty').toString().trim();
 const label = option('label') || 'finishers-v2';
+const opponent = option('opponent') || 'veteran';
+const order = option('only') ? [option('only')] : ['splitCrown', 'decapitation', 'runThrough', 'plainDeath'];
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom finisher preview</title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
@@ -23,13 +26,19 @@ const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 import { createScene } from '/src/scene.ts';
 import { initialPractice, stepPractice } from '/src/combat.ts';
 import { selectFinisher } from '/src/finishers.ts';
+import { OPPONENTS } from '/src/moves.ts';
+import { Box3, Vector3 } from 'three';
+const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)};
 const PASSIVE = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
 const IDLE = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: null };
 const TICK = 1 / 60;
 const canvas = document.getElementById('world');
 window.__step = 'module';
 window.addEventListener('unhandledrejection', e => { window.__finisherError = String(e.reason && e.reason.stack || e.reason); });
-const view = createScene(canvas, () => {}, 'veteran');
+const view = createScene(canvas, () => {}, opponentId);
+let renderedScene, present = true;
+const render = view.renderer.render.bind(view.renderer);
+view.renderer.render = (scene, camera) => { renderedScene = scene; if (present) render(scene, camera); };
 window.__step = 'scene';
 await view.ready;
 window.__step = 'ready';
@@ -37,7 +46,7 @@ window.__step = 'ready';
 // plain heavy_overhead — the warden is passive, both sides stepped through the real sim). Each seed yields its own kill
 // event; the seeded rotation maps it to a finisher, and we keep the first death window each shipped finisher draws.
 function simulate(seed) {
-  let p = initialPractice(seed);
+  let p = initialPractice(seed, OPPONENTS[opponentId]);
   const frames = [];
   let kill = -1;
   let lastHit = -1e9;
@@ -64,7 +73,7 @@ function simulate(seed) {
 // The first death window each shipped outcome draws, across seeded duels (the rotation seed is the kill event itself).
 const windows = {};
 const provenance = [];
-for (let seed = 731; seed < 731 + 80 && (windows.splitCrown === undefined || windows.decapitation === undefined || windows.runThrough === undefined || windows.plainDeath === undefined); seed++) {
+for (let seed = 731; seed < 731 + 80 && wanted.some(id => windows[id] === undefined); seed++) {
   const sim = simulate(seed);
   if (sim.kill < 0) continue;   // the scripted duel produced no kill on this seed
   const finish = sim.frames[sim.frames.length - 1].practice.finish;
@@ -77,11 +86,36 @@ for (let seed = 731; seed < 731 + 80 && (windows.splitCrown === undefined || win
   }
 }
 window.__provenance = provenance;
-if (windows.splitCrown === undefined || windows.decapitation === undefined || windows.runThrough === undefined || windows.plainDeath === undefined) throw new Error('could not draw all four outcomes across 80 seeds: ' + JSON.stringify(provenance));
+if (wanted.some(id => windows[id] === undefined)) throw new Error('could not draw requested outcomes across 80 seeds: ' + JSON.stringify(provenance));
 window.__step = 'simulated';
 let cursor = -1;
 window.__finisher = {
   provenance,
+  inspect() {
+    const crown = renderedScene?.getObjectByName('SplitCrown');
+    return { crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+      headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
+      bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
+      position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
+      head: crown?.parent.getObjectByName('Head')?.getWorldPosition(new Vector3()).toArray(),
+      draws: view.renderer.info.render.calls, triangles: view.renderer.info.render.triangles };
+  },
+  async rear(which, index = windows[which].frames.length - 1) {
+    const rearYaw = view.yaw + Math.PI; view.recenter(); view.orbit(-rearYaw / .005, 35);
+    const f = windows[which].frames[index];
+    present = true; view.render(f.state, false, 0, f.practice, [], false);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  },
+  front() { view.recenter(); },
+  modesAndRematch(which) {
+    const f = windows[which].frames.at(-1), receipts = [];
+    for (const mode of ['dark', 'off', 'red']) {
+      view.setBloodMode(mode); view.render(f.state, true, 0, f.practice, [], false);
+      receipts.push({ mode, ...this.inspect() });
+    }
+    const p = initialPractice(731, OPPONENTS[opponentId]); view.render(p.fighter, true, TICK, p, [], false);
+    receipts.push({ mode: 'rematch', ...this.inspect() }); return receipts;
+  },
   count(which) { return windows[which].frames.length; },
   killIndex(which) { return windows[which].killIndex; },
   play(which, i, mode) {
@@ -90,7 +124,7 @@ window.__finisher = {
     return new Promise(resolve => requestAnimationFrame(() => {
       if (mode) view.setBloodMode(mode);
       if (i <= cursor) { cursor = -1; view.recenter(); }
-      for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j]; view.render(f.state, true, TICK, f.practice, f.events, false); cursor = j; }
+      for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j]; present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); cursor = j; }
       requestAnimationFrame(() => resolve(view.playing()));
     }));
   },
@@ -119,8 +153,10 @@ try {
     return page;
   };
   const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death' };
-  const ORDER = ['splitCrown', 'decapitation', 'runThrough', 'plainDeath'];
-  const info = await (await open({ width: 393, height: 852 })).evaluate(() => ({ provenance: window.__finisher.provenance }));
+  const ORDER = order;
+  const first = await open({ width: 393, height: 852 });
+  const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
+  await first.context().close();
   for (const p of info.provenance) console.log(`  ${p.finisher}: seed ${p.seed}, kill ${JSON.stringify(p.finish)}`);
   // Mode stills: one clean playthrough per blood mode per outcome (scene state evolves with playback, so each mode replays from scratch).
   for (const which of ORDER) {
@@ -132,6 +168,29 @@ try {
         const playing = await page.evaluate(([w, j, m]) => __finisher.play(w, j, m), [which, i, mode]);
         if (mode === 'red' && suffix === 'settled') console.log(`  ${which} rig at settle: ${playing.split(' ')[1]}`);
         await page.screenshot({ path: `${dir}/${NAMES[which]}-phone${name}-${suffix}.png` });
+        if (which === 'splitCrown' && mode === 'red' && suffix === 'contact') {
+          await page.evaluate(([w, j]) => __finisher.rear(w, j), [which, i]);
+          await page.screenshot({ path: `${dir}/${NAMES[which]}-phone-rear-contact.png` });
+          await page.evaluate(() => __finisher.front());
+        }
+      }
+      if (which === 'splitCrown') {
+        const state = await page.evaluate(() => __finisher.inspect());
+        console.log('  skull state', JSON.stringify(state));
+        assert.equal(state.visible, mode !== 'off', 'Split Crown obeys the blood mode');
+        if (mode !== 'off') {
+          assert.equal(state.halves, 2, 'the real scene renders two skull halves');
+          assert.ok(Math.hypot(...state.position.map((v, i) => v-state.head[i])) < .35, 'the split stays attached to the animated head');
+          assert.ok(state.bounds.every(v => v > .05 && v < 1), 'the rendered skull has a finite head-sized extent');
+        }
+        if (mode === 'red') {
+          await page.evaluate(w => __finisher.rear(w), which);
+          await page.screenshot({ path: `${dir}/${NAMES[which]}-phone-rear.png` });
+          const checks = await page.evaluate(w => __finisher.modesAndRematch(w), which);
+          assert.deepEqual(checks.map(s => [s.mode, s.visible, s.headScale]), [['dark', true, .0001], ['off', false, 1], ['red', true, .0001], ['rematch', false, 1]]);
+          assert.equal(checks.at(-1).crown, false, 'rematch removes the split meshes');
+          await save('checks.json', JSON.stringify({ opponent, commit, provenance: info.provenance, checks }, null, 2));
+        }
       }
       await page.context().close();
       if (mode === 'red') {   // the landscape lock for the wide frame — a FRESH page at landscape size: resizing the portrait
@@ -141,6 +200,7 @@ try {
         await wide.context().close();
       }
     }
+    if (args.includes('--no-video')) continue;
     // Feel reference: the whole death window in real time, phone portrait.
     const video = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, recordVideo: { dir, size: { width: 393, height: 852 } } });
     const vpage = await video.newPage(); vpage.on('pageerror', e => errors.push(String(e)));

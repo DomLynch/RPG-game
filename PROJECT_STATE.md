@@ -9,6 +9,39 @@ Step 2: settle curved shields, helmet and snapped shaft into the sand; small rub
 Step 3: soften the existing gate shaft through a broader feathered falloff, low-contrast bar interruption and lower peak; warm ground pool and geometry unchanged. Arena 8/8, fixed gate/duel captures reviewed (artifacts/world/polish-3-gate); zero texture/draw/triangle growth.
 
 Step 4: localized dirt at the wall foot and tapering soot above the braziers, baked into existing vertex colours; 552 extra wall triangles keep stains near the ground. Stone albedo/normal pixels unchanged. Arena 8/8 and fixed-camera review pass (artifacts/world/polish-4-masonry). Final local npm run quality: 246/246 + real browser + dependency audit + budget PASS. World preview now runs as a completion command: node scripts/arena-preview.mjs --label quality-world (passed). Final arena: 89,482 triangles, 21 measured draws, 11.01 MB textures, floor luminance 0.105. Two-pass self-review checked clearance/reaction/disposal and fixed-camera materials/readability; no audio, combat, fighter assets, global lighting or camera edits. Integrating latest trunk before release.
+## Split Crown visible skull split — 2026-09-19 (finishers lane, local gate passed)
+Owner approved a skull-only centre split: the halves open slightly and the body collapses intact. Work is isolated from
+both the lead checkout and the unfinished Run Through alignment worktrees. Runtime path: real Killed event → existing
+selection/clock → `characters.splitCrown` → `skull.splitSkull`; no simulation, weapon data or GLB changes.
+Selected triangle clipping with closed cut faces from the existing head bake; rejected a blood-only decal (no silhouette
+change) and shader-only separation (faces bridge the gap). The split follows the Head bone as a sibling, using the victim's
+own exterior materials; blood off restores the intact head, red/dark toggle the cut, rematch disposes the split resources.
+Discovery: three Semble queries plus CodeGraph impact review, with direct review of the sever/rematch and scene seams.
+Checks: all six shipped rigs pass geometry/mode/rematch/decapitation regression checks. All five opponents pass real-scene
+phone/landscape/rear captures, mode cycling and rematch. Before integrating roster #143, full quality: 247/247 tests, build, audit, 8,361,824/10 MB budget,
+Playwright gate PASS; dedicated finisher completion gate PASS. Added the translated/rotated, pre-render head-bake regression.
+The initial timed-parry browser failure under concurrent capture load is closed by a full isolated quality pass.
+CodeGraph refreshed; two-pass review covered geometry/resource isolation, render placement and browser cleanup.
+Evidence: artifacts/finishers/split-crown/REPORT.md. Physical iPhone performance and owner visual acceptance remain unclaimed.
+Existing Sentry issues 6/A/5/9/8 concern fetch, texture loading and WebGL initialization; no skull-split event predates this
+change. They remain unresolved and outside this visual feature's scope; this change does not claim to repair them.
+Run Through remains a separate unfinished lane: its original 57 cm regression is preserved in the inherited worktree;
+a partial alignment correction is isolated on `finishers/runthrough-alignment` and is not part of this release.
+
+## Roster foundations — lead, 2026-09-19
+Owner approved the GPT Pro content-reuse direction. Work on `lead/opponent-catalogue`, based on d383b66.
+One typed recipe catalogue supplies identities, bodies, archetype references and weapon defaults. All five serialized combat definitions deep-equal the pre-change baseline; combat, timings, rigs and introductory order are preserved. Executioner default build resolves to scythe; shelved estoc still resolves to its shipped sword until the weapons lane activates it.
+Encounter selection is separate from optional career marks. Existing guest ID/name and legacy opponent rung survive migration; saves retain a legacy alias for safe rollback. No marks are awarded and no server persistence/recovery is claimed. Scorecard now uses actual fighter health ceilings.
+Ownership and the two-opponent/six-opponent sequence: docs/roster-pipeline.md. Estoc PR #142 and Run Through alignment remain their lanes' work, not included here.
+
+Current-task verification ledger:
+- F1: camera tests rejected the initial Vite-only asset glob. Replaced with Node-compatible URL construction; camera 3/3 pass.
+- F2: graphics harness lacked the new real catalogue module. Wired it into the harness without changing assertions; 27/27 pass.
+- F3: shared browser gate confused enemy kick HUD text with the player's kick. Actor/target events and exact HP reconciliation replace the 335 ms text guess. Enemy counters alone cannot pass; bounded attempts require an accepted, completed player kick. Full quality browser run passed with actor 0 AttackStarted → AttackMissed, no page errors; repeated/public verification pending.
+- F4: new roster browser harness initially used the software headless-shell path and stalled; stopped only that owned browser and matched the shared gate's real Chromium executable. Corrected roster browser rerun passed all five opponents, two rigs per route, save migration and zero page errors.
+- Focused catalogue/profile/ladder/scorecard: 12/12 pass; rollback migration separately 5/5. Full final npm run quality passed: 248/248, lint/typecheck/build/audit and browser; 8,361,205-byte per-fight budget. Release receipts pending.
+- Sentry inspected: FRANKENDOM-A is an unresolved texture failure on old release 9587019 (2026-09-18); current catalogue checks do not prove that historic issue fixed. Load/GPU issues stay open. Hardware/external-player gates unchanged.
+
 
 ## Arena life — 2026-09-18 (world lane, owner's picks #1–#5)
 Owner: "anything else we can add to make the environment more engaging?" — approved five, built in order, each audited

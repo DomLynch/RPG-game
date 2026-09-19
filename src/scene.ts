@@ -1,3 +1,4 @@
+import { ROSTER } from './roster.ts';
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -25,7 +26,6 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
 }
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
-const OPPONENT_GLB: Record<OpponentId, string> = { veteran: new URL('./assets/veteran.glb', import.meta.url).href, pitborn: new URL('./assets/pitborn.glb', import.meta.url).href, nightborn: new URL('./assets/nightborn.glb', import.meta.url).href, goblin: new URL('./assets/goblin.glb', import.meta.url).href, executioner: new URL('./assets/executioner.glb', import.meta.url).href };
 export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: string) => void = () => {}, opponentId: OpponentId = 'veteran') {
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
   // shadow map at 512² — the MSAA framebuffer at 1.5× on a ~1170×2532-class phone is ~200 MB of GPU memory.
@@ -82,7 +82,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   assetStatus('Loading warriors…');
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
   const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
-  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, OPPONENT_GLB[opponentId], weapons).then(loaded => {
+  const ready = loadWarriors(new URL('./assets/warrior.glb', import.meta.url).href, new URL(`./assets/${ROSTER[opponentId].body}.glb`, import.meta.url).href, weapons).then(loaded => {
     warriors = loaded;
     for (const proxy of [player, opponent]) {
       proxy.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
@@ -292,6 +292,7 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       const victimProgress = finisherPose && practice.finish?.victim === 1 ? finishClock : theirs.progress;
       warriors?.player.update(dx*Math.sin(state.heading)+dz*Math.cos(state.heading)<-.0001 ? -travel : travel, animationDt, runThroughHold ? 'runThroughHold' : playerDefence?.pose || mine.pose, runThroughHold ? finishClock : playerDefence?.progress ?? mine.progress, mine.attack, mine.contact, travel && dt ? (dx*Math.cos(state.heading)-dz*Math.sin(state.heading))/(travel*dt) : 0, practice.result === 'blocked' ? Math.max(0,1-practice.resultAge/12) : 0);
       warriors?.opponent.update(ex*Math.sin(practice.enemy.heading)+ez*Math.cos(practice.enemy.heading)<-.0001 ? -enemyTravel : enemyTravel, animationDt, enemyDefence?.pose || (finisherPose ?? theirs.pose), enemyDefence?.progress ?? victimProgress, theirs.attack, theirs.contact, enemyTravel && dt ? (ex*Math.cos(practice.enemy.heading)-ez*Math.sin(practice.enemy.heading))/(enemyTravel*dt) : 0, practice.result === 'enemyBlocked' ? Math.max(0,1-practice.resultAge/12) : 0);
+      if (finisher === 'splitCrown' && practice.finish?.victim === 1) warriors?.opponent.splitCrown(victimProgress, bloodMode);
       // Decapitation (owner 2026-09-18): when the seeded rotation picks it, the head comes off just after the skull-gives jolt
       // (the clip's first 9 %) — baked from the rig at that pose, popped along the killing blow, ballistic to a stop. Blood
       // 'off' keeps the head on: gore is presentation, like the rest of the layer.
