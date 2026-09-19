@@ -182,15 +182,15 @@ test('a parry then a light produces the riposte the browser gate expects, then a
   assert.equal(s.result, 'parried'); assert.equal(s.playerHealth, HP);
   s = tick(s, RULES.parry + 1, { ...idle(), guard: true }); s = stepPractice(s, idle());
   s = stepPractice(s, act('light'));
-  assert.equal(s.attack, 'riposte');
-  s = tick(s, ATTACKS.riposte.contact);
-  assert.equal(s.health, HP - MOVES.riposte.damage);
+  assert.equal(s.attack, 'slashRiposte');
+  s = tick(s, ATTACKS.slashRiposte.contact);
+  assert.equal(s.health, HP - MOVES.slash_riposte.damage);
   // Mirror scripts/browser-check.mjs: 600 ms after the counter tap, hold forward for 240 ms, then kick.
-  s = tick(s, 36 - ATTACKS.riposte.contact);
+  s = tick(s, 36 - ATTACKS.slashRiposte.contact);
   s = tick(s, 14, { ...idle(), move: { x: 0, z: -1, yaw: 0, run: false } });
   s = stepPractice(s, act('kick'));
   assert.equal(s.phase, 'kick');
   s = tick(s, MOVES.kick.windup);
   // The warden's re-engagement can start a tick either side of the kick's contact, so the kick lands clean or as a counter-hit.
-  assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(HP - MOVES.riposte.damage - s.health), `kick dealt ${HP - MOVES.riposte.damage - s.health}`);
+  assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(HP - MOVES.slash_riposte.damage - s.health), `kick dealt ${HP - MOVES.slash_riposte.damage - s.health}`);
 });
