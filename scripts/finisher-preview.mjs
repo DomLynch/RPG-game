@@ -29,7 +29,7 @@ import { createScene } from '/src/scene.ts';
 import { initialPractice, stepPractice } from '/src/combat.ts';
 import { selectFinisher } from '/src/finishers.ts';
 import { OPPONENTS } from '/src/moves.ts';
-import { Box3, Vector3 } from 'three';
+import { Box3, Vector3, Raycaster } from 'three';
 const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)};
 const PASSIVE = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
 const IDLE = { move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, held: false, lock: true, cancel: null };
@@ -106,6 +106,12 @@ window.__finisher = {
         frame:[box.min.x,box.max.x].flatMap(x=>[box.min.y,box.max.y].flatMap(y=>[box.min.z,box.max.z].map(z=>view.project([x,y,z]))))};
     });
     const actors = renderedScene?.children.filter(o => o.getObjectByName('pelvis')) ?? [];
+    if(detachedHead && actors[0]) {
+      actors[0].traverse(o=>{if(o.isSkinnedMesh){o.computeBoundingSphere();o.computeBoundingBox();}});
+      const toward=headBox.getCenter(new Vector3()).sub(renderedCamera.position);
+      const ray=new Raycaster(renderedCamera.position,toward.clone().normalize(),0,Math.max(0,toward.length()-.05));
+      detachedHead.occludedByVictor=ray.intersectObject(actors[0],true).some(hit=>hit.object.visible);
+    }
     const blade = actors[0]?.getObjectByName('SwordDrawn'), chest = actors[1]?.getObjectByName('spine_02')?.getWorldPosition(new Vector3());
     let framing;
     if (actors.length === 2) {
@@ -224,6 +230,7 @@ try {
           assert.ok(framing.side<.08,'Decapitation retains the original front-facing camera');
           if(mode!=='off') {
             assert.ok(detachedHead,'head is detached');
+            if(suffix!=='contact') assert.equal(detachedHead.occludedByVictor,false,'landed head is not hidden behind the victor');
             assert.ok(detachedHead.frame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'detached head stays visible above portrait controls '+JSON.stringify({suffix,detachedHead,framing}));
           }
           cameraChecks.push({opponent,which,mode,suffix,framing,detachedHead});

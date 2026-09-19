@@ -325,7 +325,9 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
         if (built) {
           const headCut = new THREE.Object3D(); headCut.name='BloodHeadCut'; headCut.position.copy(headCutPosition).sub(built.group.position); built.group.add(headCut);
           scene.add(built.group);
-          severHead = { group: built.group, velocity: new THREE.Vector3(Math.sin(killHeading) * .8, 1.8, Math.cos(killHeading) * .8), spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9), radius: built.radius, resting: false };
+          // A short lateral fall clears the victor's silhouette in the original front camera.
+          const axis = new THREE.Vector3(practice.enemy.x-state.x,0,practice.enemy.z-state.z).normalize();
+          severHead = { group: built.group, velocity: new THREE.Vector3(-axis.z * 1.1, 1.8, axis.x * 1.1), spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9), radius: built.radius, resting: false };
 
         }
       }

@@ -117,7 +117,7 @@ if(process.argv.includes('--blood-check')) {
   }
 }
 await page.locator('#reset-button').tap();
-await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn'),null,{timeout:90000});
+await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips),null,{timeout:90000});
 assert.doesNotMatch(await clips(), expected, 'rematch clears the finisher');
 receipt.rematchClips = await clips();
 if(process.argv.includes('--blood-check')) {receipt.rematchBlood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));assert.equal(receipt.rematchBlood.visible,false);assert.equal(receipt.rematchBlood.pools.length,0);}
