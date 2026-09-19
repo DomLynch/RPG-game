@@ -1008,3 +1008,12 @@ existing arena gate; all24 inherited gates plus startup regression are retained.
 61ed0cc deployment stopped during prepublication checks after owner clarification; it was never served (live remained74df626).
 Physical handset listening remains unverified. Publication requires full gates and public verification; GitHub Actions is
 billing-blocked, so the lead-approved exception requires fresh clean Node22/macOS reproduction of all CI commands.
+
+## Bell weight — 2026-09-19 (candidate)
+Owner confirms Draw bell is audible and requests2xlevel/+50%ring. Bell gain .22→.44 (+6.02dB), duration2.6→3.9s,
+modal decay/release1.5x with original frequencies and attack. Shared generated fallback and rebuilt AAC/Opus bank agree.
+No trigger, combat/crowd gain or simulation changes. Existing cancellation/startup/native gates use authored bell duration;
+rematch silence is measured after the full ring. Focused units/typecheck and ten offline lifecycle cases pass.
+Full offline mix across AAC/Opus/fallback passes truepeak<=-1dBTP; bell-only truepeak-13.3dBTP;401719B gzip under450KB.
+Source/state audit completed. Evidence: artifacts/audio/bell-weight/. Game-browser/release work waits for lead window;
+latest npm audit returned503maintenance, not bypassed. Full inherited gates and public verification required before done.

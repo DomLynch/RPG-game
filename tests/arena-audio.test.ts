@@ -4,8 +4,11 @@ import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { ARENA_MANIFEST } from '../src/audio/arena-manifest.ts';
 import { createArenaAudio, loadArena } from '../src/audio/arena.ts';
+import { BELL_SECONDS, bellSamples } from '../src/audio/bell.ts';
 
 test('optional arena assets stay within their own 450KB budget and expose non-overlapping regions', () => {
+  assert.equal(ARENA_MANIFEST.bell[0][1], BELL_SECONDS, 'encoded bell and local fallback share duration');
+  assert.equal(bellSamples(48000).length, Math.round(BELL_SECONDS * 48000));
   const sizes = ['arena.m4a', 'arena.ogg'].map(file => gzipSync(readFileSync(new URL(`../src/assets/arena-audio/${file}`, import.meta.url))).length);
   assert.ok(sizes.reduce((a, b) => a + b) <= 450000);
   const regions = Object.values(ARENA_MANIFEST).flat().sort((a, b) => a[0] - b[0]);
