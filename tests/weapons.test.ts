@@ -494,6 +494,7 @@ test('the fight the scythe gives (real tables): the reap lands 1.40–2.10 m and
   // Measured on the man-scale bake (REQUESTS §16), pinned here so the flip can never silently shorten him: the far frontier.
   assert.ok(landed(landsFrom('light_right', 2.10)) && !landed(landsFrom('light_right', 2.15)), 'the reap lands to 2.10, whiffs past it');
   assert.ok(landed(landsFrom('heavy_overhead', 2.30)) && !landed(landsFrom('heavy_overhead', 2.35)), 'the high lands to 2.30, whiffs past it');
+  for (let gap = .85; gap <= 2.30 + 1e-6; gap += .05) assert.ok(landed(landsFrom('heavy_overhead', gap)), `the high retains close and mid-range contact at ${gap.toFixed(2)} m`);
   assert.ok(landed(landsFrom('thrust', 2.10)) && !landed(landsFrom('thrust', 2.15)), 'the jab lands to 2.10, whiffs past it');
   // The dead band: inside 1.40 m the arc meets nothing (minReach), where the sword's cut still lands.
   const swordInside = run(stepDuel(duel(1.3), [act('light'), idle()]), MOVES.light_right.windup + MOVES.light_right.active + 1).events;

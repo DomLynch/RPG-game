@@ -292,8 +292,10 @@ const api = {
       const [name, t] = list[i]; scrub(player, name, t); studioCamera(false, azimuth);
       if (close) {
         player.updateMatrixWorld(true);
-        const aim = player.getObjectByName('spine_03').getWorldPosition(new THREE.Vector3());
-        camera.position.copy(aim).add(new THREE.Vector3(Math.sin(azimuth) * 2.1, .05, Math.cos(azimuth) * 2.1)); camera.lookAt(aim);
+        const shoulderSpan = player.getObjectByName('upperarm_r').getWorldPosition(new THREE.Vector3()).distanceTo(player.getObjectByName('upperarm_l').getWorldPosition(new THREE.Vector3()));
+        const aim = player.getObjectByName('spine_03').getWorldPosition(new THREE.Vector3()); aim.y += shoulderSpan * .2;
+        const distance = shoulderSpan * 5.5; // keep raised hands in frame on the larger Executioner too
+        camera.position.copy(aim).add(new THREE.Vector3(Math.sin(azimuth) * distance, .05, Math.cos(azimuth) * distance)); camera.lookAt(aim);
       }
       renderer.render(studio, camera); return `${name} t=${t.toFixed(2)}`;
     });
