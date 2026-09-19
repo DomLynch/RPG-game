@@ -8,7 +8,7 @@ class FakeContext {
   static last: FakeContext | undefined; static made = 0;
   state = 'suspended'; resumed = 0; sampleRate = 48000; currentTime = 0; destination = {}; sources = 0;
   constructor() { FakeContext.made++; FakeContext.last = this; }
-  node() { const param = () => ({ value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }); return { gain: param(), frequency: param(), Q: param(), playbackRate: param(), threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(), type: '', curve: null, buffer: null, connect() { return this; }, disconnect() {}, start() {}, stop() {}, onended: null }; }
+  node() { const param = () => ({ value: 0, setValueAtTime() {}, cancelScheduledValues() {}, exponentialRampToValueAtTime() {} }); return { gain: param(), frequency: param(), Q: param(), playbackRate: param(), threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(), type: '', curve: null, buffer: null, connect() { return this; }, disconnect() {}, start() {}, stop() {}, onended: null }; }
   createGain() { return this.node(); } createBiquadFilter() { return this.node(); } createOscillator() { return this.node(); } createWaveShaper() { return this.node(); } createDynamicsCompressor() { return this.node(); } createConvolver() { return this.node(); }
   createBuffer(_c: number, length: number) { return { getChannelData: () => new Float32Array(length) }; }
   createBufferSource() { if (this.state !== 'running') throw new Error('play must not reach the graph while the context is not running'); this.sources++; return this.node(); }
@@ -65,3 +65,14 @@ test('the shell unlocks audio on the events WebKit treats as user activation, no
   assert.ok(line, 'unlock listener registration exists');
   for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) assert.ok(line!.includes(`'${type}'`), `unlock is bound to ${type}`);
 });
+
+test('quiet blocks cues immediately while browser suspension is still pending', () => withFakeAudio(undefined, () => {
+  const feedback = createFeedback(); feedback.unlock();
+  const context = FakeContext.last!;
+  context.suspend = () => Promise.resolve(); // Web Audio changes state asynchronously.
+  feedback.quiet();
+  feedback.update([{ tick: 1, type: 'Hit', actor: 0 } as never]);
+  assert.equal(context.sources, 0);
+  feedback.unlock(); feedback.update([{ tick: 2, type: 'Hit', actor: 0 } as never]);
+  assert.ok(context.sources > 0);
+}));

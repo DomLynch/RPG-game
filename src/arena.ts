@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
-import { CROWD_KINDS, spectatorGeometry } from './assets/arena/crowd.ts';
+import { CROWD_DYES, CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
 import { phoneTier } from './quality.ts';
 import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
 
@@ -90,7 +90,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   const iron = new THREE.MeshStandardMaterial({ name: 'iron', color: '#2a2623', roughness: 0.6, metalness: 0.78, vertexColors: true });
   const coal = new THREE.MeshStandardMaterial({ name: 'coal', color: '#1a1210', emissive: '#ff6a1c', emissiveIntensity: 1.1, roughness: 1 });
   const cloth = new THREE.MeshStandardMaterial({ name: 'cloth', alphaMap: textures.banner, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
-  const crowdMaterial = new THREE.MeshStandardMaterial({ name: 'crowd', roughness: 1, vertexColors: true });
+  const crowdMaterial = spectatorMaterial();
   const sky = new THREE.MeshBasicMaterial({ name: 'sky', map: textures.sky, side: THREE.BackSide, fog: false });
   const plain = new THREE.MeshStandardMaterial({ name: 'ash plain', color: '#4a463f', roughness: 1 });
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
@@ -127,6 +127,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   mesh(mergeGeometries(gateLight), gateLightMaterial, 'gate-light', false);
 
   // Stone: the podium wall, the tiers, the gate, the colonnade, the parapet and the rubble — one merged mesh.
+  const crowdObstacles: THREE.Box3[] = [];
   const stones: THREE.BufferGeometry[] = [], seg = (r: number) => (0.94 + 0.12 * (hash(Math.floor(r * 7), 1, 2) - 0.5));
   const brazierAngles = [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4, gate - 0.42, gate + 0.42];
   // Firelight on the masonry: warmth by angular proximity to a brazier, through a height window around the flame (world lane
@@ -192,7 +193,8 @@ export function buildArena(scene: THREE.Scene): Arena {
   for (let i = 0; i < 40; i++) {
     const a = i / 40 * TAU + 0.04, r = ruin(a); if (r < 0.5) continue;
     const tier = 1 + (i % 3), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments)), s = 0.5 + hash(i, 6, 13) * 0.6;
-    stones.push(prop(box(s * 1.4, s * 0.7, s), x, foot + s * 0.32, z, new THREE.Euler(hash(i, 7, 13) * 0.3, a + hash(i, 8, 13), 0), 1, 2, DARK, foot - 0.3));
+    const rubble = prop(box(s * 1.4, s * 0.7, s), x, foot + s * 0.32, z, new THREE.Euler(hash(i, 7, 13) * 0.3, a + hash(i, 8, 13), 0), 1, 2, DARK, foot - 0.3);
+    rubble.computeBoundingBox(); crowdObstacles.push(rubble.boundingBox!.clone().expandByScalar(0.4)); stones.push(rubble);
   }
   // Gladiator-pit debris in the moat band (every vertex below 0.5 m: the clamp rule): half-buried boulders, broken column drums
   // from the colonnade, terracotta amphora shards. The old bones are in the small rubble above.
@@ -305,23 +307,37 @@ export function buildArena(scene: THREE.Scene): Arena {
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
   const banners = new THREE.InstancedMesh(bannerGeometry, cloth, bannerAngles.length); banners.name = 'banners'; banners.castShadow = true; group.add(banners);
   bannerAngles.forEach((_a, k) => banners.setColorAt(k, new THREE.Color(k % 2 ? '#7d7469' : '#472622')));
-  // Five solid, unrigged silhouettes: familiar inhabitants of this world, subdued on the upper tiers.
-  type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; phase: number };
-  const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = CROWD_KINDS.length;
-  const people: Spectator[][] = Array.from({ length: cells }, () => []);
+  // Five solid, unrigged silhouettes: familiar inhabitants of this world, mixed across the surviving stone treads.
+  type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; width: number; phase: number; id: number; dye: number };
+  const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = CROWD_KINDS.length * 2;
+  const people: Spectator[][] = Array.from({ length: cells }, () => []), seats: Omit<Spectator, 'dye'>[] = [], vacancies: Omit<Spectator, 'dye'>[] = [];
   tiers.forEach((_h, i) => {
-    const r = wall.outer + i * tierDepth + 0.55, step = 0.82 / r, count = Math.floor(TAU / step);
+    const r = wall.outer + i * tierDepth + 0.55, step = 1.05 / r, count = Math.floor(TAU / step);
     for (let s = 0; s < count; s++) {
-      const a = s * step + (hash(s, i, 17) - 0.5) * step * 0.8, occupied = hash(s, i, 19) > 0.22 + 0.28 * hash(Math.floor(s / 5), i, 71), segment = Math.floor(a / TAU * LAYOUT.segments);
-      if (i < 2 || !occupied || ruin(a) > 0.3) continue;   // the two lowest tiers are broken and empty: the crowd keeps ≥ 5 m from the lock camera
-      const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a), kind = hash(s, i, 23);
-      const k = kind < 0.48 ? 0 : kind < 0.65 ? 1 : kind < 0.79 ? 2 : kind < 0.88 ? 3 : 4;
-      people[k].push({ x, y: tierTop(i, a, segment), z, yaw: a + Math.PI + (hash(s, i, 75) - 0.5) * 0.4, scale: 0.92 + hash(s, i, 29) * 0.16, phase: hash(s, i, 31) });
+      const a = s * step + (hash(s, i, 17) - 0.5) * step * 0.28, occupied = hash(s, i, 19) > 0.4 + 0.18 * hash(Math.floor(s / 5), i, 71), segment = Math.floor(a / TAU * LAYOUT.segments);
+      if ((i === 0 && inGate(a, r, 0.15)) || (i < 2 && brazierAngles.some(b => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) * r < 0.75))) continue; // fill surviving treads around the full ring; clear the arch lip and flames
+      const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a);
+      if (crowdObstacles.some(b => x >= b.min.x && x <= b.max.x && z >= b.min.z && z <= b.max.z)) continue;
+      const fraction = a / TAU * LAYOUT.segments - segment, next = (segment + 1) % LAYOUT.segments;
+      const y = THREE.MathUtils.lerp(tierTop(i, segment / LAYOUT.segments * TAU, segment), tierTop(i, (segment + 1) / LAYOUT.segments * TAU, next), fraction);
+      (occupied ? seats : vacancies).push({ id: i * 256 + s, x, y, z, yaw: a + Math.PI + (hash(s, i, 75) - 0.5) * 0.4, scale: 0.84 + hash(s, i, 29) * 0.32, width: 0.88 + hash(s, i, 81) * 0.24, phase: hash(s, i, 31) });
     }
   });
+  // Full-circle coverage: fill sparse sectors and lower rows from existing safe seat candidates.
+  const sector = (p: { x: number; z: number }) => Math.floor(((Math.atan2(p.x, p.z) + TAU) % TAU) / TAU * 12);
+  const front = (p: { x: number; z: number }) => Math.hypot(p.x, p.z) < wall.outer + 2 * tierDepth;
+  const coverage = Array.from({ length: 12 }, () => [0, 0]);
+  for (const p of seats) { coverage[sector(p)][0]++; if (front(p)) coverage[sector(p)][1]++; }
+  vacancies.sort((a, b) => hash(a.id, 0, 113) - hash(b.id, 0, 113));
+  for (const lowerOnly of [true, false]) for (let i = vacancies.length - 1; i >= 0; i--) {
+    const p = vacancies[i], c = coverage[sector(p)];
+    if (lowerOnly ? !front(p) || c[1] >= 8 : c[0] >= 24) continue;
+    seats.push(p); c[0]++; if (front(p)) c[1]++; vacancies.splice(i, 1);
+  }
+  for (const p of mixSpectators(seats)) people[p.kind * 2 + p.pose].push(p);
   people.forEach((list, k) => {
-    const instanced = new THREE.InstancedMesh(spectatorGeometry(CROWD_KINDS[k]), crowdMaterial, list.length); instanced.name = `crowd ${CROWD_KINDS[k]}`; instanced.castShadow = instanced.receiveShadow = false; group.add(instanced);
-    list.forEach((_p, j) => { const tint = hash(j, k, 37), tone = 0.65 + hash(j, k, 41) * 0.35; instanced.setColorAt(j, new THREE.Color(tone, tone * (tint > 0.8 ? 0.78 : 0.97), tone * (tint > 0.8 ? 0.65 : 0.92))); });
+    const instanced = new THREE.InstancedMesh(spectatorGeometry(CROWD_KINDS[Math.floor(k / 2)], k % 2), crowdMaterial, list.length); instanced.name = `crowd ${CROWD_KINDS[Math.floor(k / 2)]}${k % 2 ? " folded" : ""}`; instanced.castShadow = false; instanced.receiveShadow = true; group.add(instanced);
+    list.forEach((p, j) => instanced.setColorAt(j, new THREE.Color(CROWD_DYES[p.dye]).multiplyScalar(0.38 + hash(p.id, 0, 41) * 0.16)));
     crowds.push({ mesh: instanced, people: list });
   });
   // The sky dome (unfogged; its horizon is painted the fog colour) and the ash plain with its far ridges. The dome has no pole: its
@@ -344,8 +360,8 @@ export function buildArena(scene: THREE.Scene): Arena {
     if (mood === 'recoil') { const k = smooth(0, 0.2, t) * (1 - smooth(1.4, 2, t)); return [-0.035 * k, -0.14 * k]; }
     return [0, 0];
   }
-  function place(instanced: THREE.InstancedMesh, i: number, x: number, y: number, z: number, tilt: number, yaw: number, s: number) {
-    position.set(x, y, z); quaternion.setFromEuler(euler.set(tilt, yaw, 0, 'YXZ')); scale.set(s, s, s); instanced.setMatrixAt(i, matrix.compose(position, quaternion, scale));
+  function place(instanced: THREE.InstancedMesh, i: number, x: number, y: number, z: number, tilt: number, yaw: number, s: number, width = 1) {
+    position.set(x, y, z); quaternion.setFromEuler(euler.set(tilt, yaw, 0, 'YXZ')); scale.set(s * width, s, s * width); instanced.setMatrixAt(i, matrix.compose(position, quaternion, scale));
   }
   function update(dt: number, events: CombatEvent[]) {
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
@@ -378,7 +394,7 @@ export function buildArena(scene: THREE.Scene): Arena {
       }
       p.needsUpdate = true; }
     for (const { mesh, people } of crowds) {
-      people.forEach((p, i) => { const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt, p.yaw, p.scale); });
+      people.forEach((p, i) => { const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt, p.yaw, p.scale, p.width); });
       mesh.instanceMatrix.needsUpdate = true;
     }
   }

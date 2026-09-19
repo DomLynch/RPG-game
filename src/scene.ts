@@ -8,6 +8,7 @@ import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, selectFinisher, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
+import { createFootDust } from './foot-dust.ts';
 import { phoneTier } from './quality.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
@@ -23,6 +24,21 @@ export function cameraPose(state: State, yaw: number, pitch: number, locked: boo
     lookX: locked ? (state.x + target.x) / 2 : state.x,
     lookZ: locked ? (state.z + target.z) / 2 : state.z,
   };
+}
+
+// Late finisher reveal: a three-quarter side view, fitted to the phone's horizontal field of view.
+// Choose the inward side from the frozen duel positions so the camera cannot switch sides as the corpse moves.
+export function finisherSidePose(killer: { x: number; z: number }, fallen: { x: number; z: number }, aspect: number, finisher: 'runThrough' | 'splitCrown' = 'runThrough') {
+  const dx = fallen.x-killer.x, dz = fallen.z-killer.z, gap = Math.hypot(dx,dz) || 1;
+  const ux = dx/gap, uz = dz/gap, lookX = (killer.x+fallen.x)/2, lookZ = (killer.z+fallen.z)/2;
+  const back = Math.max(3.8, (gap/2+.42)/(Math.tan(51*Math.PI/360)*Math.min(aspect,1)));
+  const angle = finisher === 'splitCrown' ? Math.PI/3 : 5*Math.PI/12, sideward = Math.sin(angle), rearward = Math.cos(angle);
+  const side = (sign: number) => ({ x: lookX+(-uz*sign*sideward-ux*rearward)*back, y: 3.1, z: lookZ+(ux*sign*sideward-uz*rearward)*back, lookX, lookY: .85, lookZ });
+  const left = side(1), right = side(-1);
+  const pose = Math.hypot(left.x,left.z) <= Math.hypot(right.x,right.z) ? left : right;
+  const radius = Math.hypot(pose.x,pose.z);
+  if (radius > 11.5) { pose.x *= 11.5/radius; pose.z *= 11.5/radius; }
+  return pose;
 }
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
@@ -68,7 +84,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   function box(w: number, h: number, d: number, x: number, y: number, z: number, material: THREE.Material, parent: THREE.Object3D = scene) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  const arena = buildArena(scene);
+  const arena = buildArena(scene), footDust = createFootDust(scene);
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group(); scene.add(group); group.position.set(x, 0, z);
     mesh(new THREE.CapsuleGeometry(0.31, 1.12, 6, 14), material, 0, 0.88, 0, group);
@@ -79,6 +95,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   const player = capsule(0, 4, metal);
   const opponent = capsule(TARGET.x, TARGET.z, new THREE.MeshStandardMaterial({ color: '#6d5447', roughness: 0.8, metalness: 0.25 }));
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
+  const dustFeet: (THREE.Object3D | null)[] = [], dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
   assetStatus('Loading warriors…');
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
   const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
@@ -89,6 +106,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       proxy.clear();
     }
     player.add(loaded.player.anchor); opponent.add(loaded.opponent.anchor);
+    for (const rig of [loaded.player, loaded.opponent]) for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
     assetStatus('');
   }).catch(error => {
     captureException(error);
@@ -337,6 +355,21 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
       heading += wrapAngle(state.heading - heading) * blend;
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase)) heading = state.heading;
       player.rotation.y = heading;
+      // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
+      const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
+      if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / .25));
+      if (locked && !stillCamera && practice.finish?.victim === 1 && (finisher === 'runThrough' || finisher === 'splitCrown')) {
+        const t = THREE.MathUtils.clamp((finishClock-.45)/.55, 0, 1), reveal = t*t*(3-2*t);
+        const side = finisherSidePose(state, practice.enemy, camera.aspect, finisher);
+        desired.lerp(new THREE.Vector3(side.x,side.y,side.z), reveal);
+        look.lerp(new THREE.Vector3(side.lookX,side.lookY,side.lookZ), reveal);
+        const radius = Math.hypot(desired.x,desired.z);
+        if (radius > 11.5) { desired.x *= 11.5/radius; desired.z *= 11.5/radius; }
+      }
+      // Read feet after the rigs and headings settle; only grounded locomotion kicks up sand.
+      const canScuff = (pose: string, speed: number) => ['sheathed', 'ready', 'guard'].includes(pose) && speed > 0.25 && speed < 6;
+      footDust.update(animationDt, dustFeet.map((foot, i) => foot?.getWorldPosition(dustPositions[i]) ?? null),
+        [canScuff(mine.pose, travel), canScuff(mine.pose, travel), canScuff(theirs.pose, enemyTravel), canScuff(theirs.pose, enemyTravel)]);
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
       if (kick > 0) { camera.position.x += Math.sin(kickHeading) * kick; camera.position.z += Math.cos(kickHeading) * kick; kick = Math.max(0, kick - dt * .3); }
       camera.lookAt(aim); started = true;

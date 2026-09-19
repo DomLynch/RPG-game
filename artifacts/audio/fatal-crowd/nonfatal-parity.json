@@ -1,0 +1,87 @@
+[
+  {
+    "cue": "events/draw",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/swing-light",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/swing-heavy",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/swing-kick",
+    "lufsDelta": 0.0,
+    "peakDelta": 0
+  },
+  {
+    "cue": "events/swing-thrust",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/charged",
+    "lufsDelta": 0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/hit-light",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/hit-heavy",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/hit-riposte",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/hit-kick",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/hit-thrust",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/blocked",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/blocked-perfect",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/parried",
+    "lufsDelta": 0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/guard-broken",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/roll",
+    "lufsDelta": 0,
+    "peakDelta": 0.0
+  },
+  {
+    "cue": "events/backstep",
+    "lufsDelta": 0.0,
+    "peakDelta": 0.0
+  }
+]

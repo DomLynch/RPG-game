@@ -1,0 +1,107 @@
+[
+  {
+    "opponent": "veteran",
+    "source": "3bfb0eb-dirty",
+    "modes": [
+      "dark",
+      "off",
+      "red"
+    ],
+    "maxMissMetres": 3.5921320273859453e-09,
+    "bladeFraction": 0.49999999768664327,
+    "groundedStep": [
+      0.015041218348674085,
+      0,
+      0.2782679882672481
+    ],
+    "rematchStep": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "opponent": "pitborn",
+    "source": "3bfb0eb-dirty",
+    "modes": [
+      "dark",
+      "off",
+      "red"
+    ],
+    "maxMissMetres": 2.3649926143519233e-09,
+    "bladeFraction": 0.4999999981830501,
+    "groundedStep": [
+      0.012076332732313233,
+      0,
+      0.17173555233953808
+    ],
+    "rematchStep": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "opponent": "goblin",
+    "source": "3bfb0eb-dirty",
+    "modes": [
+      "dark",
+      "off",
+      "red"
+    ],
+    "maxMissMetres": 6.445395808267213e-09,
+    "bladeFraction": 0.49999999586860633,
+    "groundedStep": [
+      0.04005141030674508,
+      0,
+      0.30103873820491067
+    ],
+    "rematchStep": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "opponent": "nightborn",
+    "source": "3bfb0eb-dirty",
+    "modes": [
+      "dark",
+      "off",
+      "red"
+    ],
+    "maxMissMetres": 3.3397108015316966e-09,
+    "bladeFraction": 0.49999999706831827,
+    "groundedStep": [
+      0.019492697172465823,
+      0,
+      0.18183080484540604
+    ],
+    "rematchStep": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "opponent": "executioner",
+    "source": "3bfb0eb-dirty",
+    "modes": [
+      "dark",
+      "off",
+      "red"
+    ],
+    "maxMissMetres": 5.104032167431336e-10,
+    "bladeFraction": 0.5000000000711752,
+    "groundedStep": [
+      0.007376933910035355,
+      0,
+      0.12723125078358866
+    ],
+    "rematchStep": [
+      0,
+      0,
+      0
+    ]
+  }
+]

@@ -8,29 +8,32 @@ import { createServer } from 'vite';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 2, PROBE_AT = .05, PROBE_LENGTH = 1.2;
+const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 4, PROBE_AT = .05, PROBE_LENGTH = 1.2;
 const out = path.join('artifacts', 'audio', label);
 await fs.mkdir(path.join(out, 'events'), { recursive: true });
 
 // --- the exchange: ticks → seconds; the render runs TAIL seconds past the last tick so decays finish.
 const exchange = scriptExchange();
-const cues = exchange.ticks.map(({ tick, events }) => ({ t: tick / 60, events }));
+const cues = exchange.ticks.map(({ tick, events, presentation }) => ({ t: tick / 60, events, presentation }));
 const seconds = exchange.length / 60 + TAIL;
 
 // --- Chromium page served by the Vite dev server, so /src/feedback.ts and any asset it imports resolve exactly as in the game.
 const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'error', server: { host: '127.0.0.1', port: 0, strictPort: false }, optimizeDeps: { noDiscovery: true, include: [] } });
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+let browser;
 const rendered = {}; let path_ = '';
+const checks = process.argv.includes('--check') ? {} : null;
 try {
+  browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
   const page = await browser.newPage();
-  page.on('pageerror', e => { throw e; });
-  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; import { spriteFormats } from '/src/audio/sprite.ts'; window.harness = { createFeedback, spriteFormats };</script>` }));
+  const pageErrors = []; page.on('pageerror', e => pageErrors.push(e.message));
+  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; import { spriteFormats, loadSprite } from '/src/audio/sprite.ts'; import { MANIFEST } from '/src/audio/manifest.ts'; window.harness = { createFeedback, spriteFormats, loadSprite, MANIFEST };</script>` }));
   await page.goto(`${origin}/harness`);
   await page.waitForFunction(() => !!window.harness, null, { timeout: 20000 });
   const render = (cues, seconds) => page.evaluate(async ({ cues, seconds, rate, seed, fallback }) => {
@@ -38,18 +41,93 @@ try {
     let now = 0;
     const feedback = window.harness.createFeedback({ context, now: () => now, seed, ...(fallback ? { sprite: null } : {}) });
     feedback.unlock(); const decoded = await feedback.ready();
-    for (const { t, events } of cues) { now = t; feedback.update(events); }
+    for (const { t, events, presentation, control } of cues) { now = t; if (control) feedback[control](); else feedback.update(events, presentation); }
     const data = (await context.startRendering()).getChannelData(0);
     // 16-bit PCM, transferred as base64 (Float32 arrays do not serialise through evaluate).
     const pcm = new Int16Array(data.length); for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
     const bytes = new Uint8Array(pcm.buffer); let text = ''; for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     return { pcm: btoa(text), decoded };
   }, { cues, seconds, rate: RATE, seed, fallback });
-  const pcm = async (...args) => { const { pcm, decoded } = await render(...args); if (!fallback && !decoded) throw new Error('sprite did not decode in Chromium; rerun with --fallback to render the synth path'); return new Int16Array(Buffer.from(pcm, 'base64').buffer); };
+  const pcm = async (...args) => { const { pcm, decoded } = await render(...args); if (!fallback && !decoded) throw new Error('sprite did not decode in Chromium; rerun with --fallback to render the synth path'); const bytes = Buffer.from(pcm, 'base64'); return new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2); };
   path_ = fallback ? 'synth fallback (--fallback)' : `sprite, formats tried in order ${JSON.stringify(await page.evaluate(() => window.harness.spriteFormats()))}`;
   rendered.exchange = await pcm(cues, seconds);
-  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events }], PROBE_LENGTH);
-} finally { await browser.close(); await server.close(); }
+  if (checks) {
+    checks.maxRepeatDelta = 0;
+    for (let run = 0; run < 2; run++) {
+      const repeat = await pcm(cues, seconds);
+      assert.equal(repeat.length, rendered.exchange.length);
+      for (let i = 0; i < repeat.length; i++) checks.maxRepeatDelta = Math.max(checks.maxRepeatDelta, Math.abs(repeat[i] - rendered.exchange[i]));
+    }
+    assert.ok(checks.maxRepeatDelta <= 1, `exchange changed by ${checks.maxRepeatDelta} PCM units; tolerance is one 16-bit rounding unit`);
+    checks.codecs = await page.evaluate(async () => {
+      const { loadSprite, MANIFEST } = window.harness;
+      const context = new OfflineAudioContext(1, 48000, 48000), result = {};
+      for (const format of ['aac', 'opus']) {
+        const buffer = await loadSprite(context, [format]);
+        if (!buffer) throw new Error(`${format} did not decode`);
+        for (const [name, regions] of Object.entries(MANIFEST)) for (const [start, duration] of regions) {
+          if (start + duration > buffer.duration) throw new Error(`${format}: ${name} extends past sprite`);
+          const samples = buffer.getChannelData(0).subarray(Math.round(start * buffer.sampleRate), Math.round((start + duration) * buffer.sampleRate));
+          if (!samples.some(v => Math.abs(v) > .001)) throw new Error(`${format}: ${name} is silent`);
+        }
+        result[format] = { seconds: buffer.duration, regions: Object.values(MANIFEST).flat().length };
+      }
+      let requests = 0;
+      const recovered = await loadSprite(context, ['opus', 'aac'], (...args) => ++requests === 1 ? Promise.reject(new Error('forced primary failure')) : fetch(...args));
+      if (!recovered || requests !== 2) throw new Error('format fallback failed');
+      result.fallback = true;
+      return result;
+    });
+    const stacked = await pcm([{ t: .05, events: Array.from({ length: 4 }, () => ({ tick: 3, actor: 0, type: 'Parried' })) }, { t: .06, events: Array.from({ length: 4 }, () => ({ tick: 4, actor: 1, type: 'Hit' })) }], 1.2);
+    let peak = 0; for (const sample of stacked) peak = Math.max(peak, Math.abs(sample));
+    checks.stackedPeakDbfs = 20 * Math.log10(peak / 32768);
+    assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
+  }
+  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH);
+  if (checks) {
+    const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
+    assert.ok(fatal, 'decapitation probe exists');
+    const fatalCue = { t: .05, events: fatal.events, presentation: fatal.presentation };
+    const withEmptyTicks = await pcm([fatalCue, ...Array.from({ length: 180 }, (_, i) => ({ t: .1 + i / 60, events: [] }))], 4.5);
+    assert.ok(withEmptyTicks.every((v, i) => Math.abs(v - rendered['events/finish-decapitation'][i]) <= 1), 'empty simulation ticks preserve the finishing mix');
+    const draw = { t: 2, events: CUE_PROBES.find(p => p.name === 'draw').events };
+    const freshDraw = await pcm([draw], 3.2);
+    for (const control of ['quiet', 'toggle']) {
+      const cancelled = await pcm([{ t: .05, events: fatal.events, presentation: fatal.presentation }, { t: .1, control }], 4.5);
+      assert.ok(cancelled.some(v => v !== 0), 'fatal impact plays before cancellation');
+      assert.ok(cancelled.subarray(RATE).every(v => v === 0), `${control} leaves no delayed crowd or collapse after the room decays`);
+      const resumed = await pcm([fatalCue, { t: .1, control }, { t: .2, control: control === 'quiet' ? 'unlock' : 'toggle' }, draw], 3.2);
+      assert.ok(resumed.subarray(2 * RATE).every((v, i) => Math.abs(v - freshDraw[2 * RATE + i]) <= 1), `${control}: next duel restores ordinary volume without stale finishing audio`);
+    }
+    checks.finishMixLifecycle = true;
+    checks.fatalCancellation = true;
+    checks.fatalPeakDbfs = -Infinity;
+    for (const [name, samples] of Object.entries(rendered)) if (name.startsWith('events/finish-')) {
+      let peak = 0; for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+      checks.fatalPeakDbfs = Math.max(checks.fatalPeakDbfs, 20 * Math.log10(peak / 32768));
+      assert.ok(samples.subarray(Math.floor(3.8 * RATE)).every(v => v === 0), `${name}: tail finishes within the render`);
+    }
+    assert.ok(checks.fatalPeakDbfs <= -1, 'fatal stack respects the ceiling');
+  }
+  if (checks) {
+    // Render the sampled mix at 4x rate to catch peaks reconstructed between 48 kHz samples.
+    checks.fatalTruePeakDbfs = -Infinity;
+    for (const [name, samples] of Object.entries(rendered)) if (CUE_PROBES.some(p => `events/${p.name}` === name && p.events.some(e => e.type === 'Killed'))) {
+      const peak = await page.evaluate(async ({ samples, rate }) => {
+        const context = new OfflineAudioContext(1, samples.length * 4, rate * 4);
+        const buffer = context.createBuffer(1, samples.length, rate);
+        buffer.copyToChannel(Float32Array.from(samples, v => v / 32768), 0);
+        const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination); source.start();
+        const output = (await context.startRendering()).getChannelData(0);
+        let peak = 0; for (const v of output) peak = Math.max(peak, Math.abs(v));
+        return 20 * Math.log10(peak);
+      }, { samples: Array.from(samples), rate: RATE });
+      checks.fatalTruePeakDbfs = Math.max(checks.fatalTruePeakDbfs, peak);
+    }
+    assert.ok(checks.fatalTruePeakDbfs <= -1, `fatal reconstructed peak exceeds -1 dBFS: ${checks.fatalTruePeakDbfs}`);
+  }
+  assert.deepEqual(pageErrors, [], 'no browser errors');
+} finally { try { await browser?.close(); } finally { await server.close(); } }
 
 // --- WAV out.
 function wav(pcm) {
@@ -79,7 +157,7 @@ function measure(pcm, cueAt) {
   const round = v => Number.isFinite(v) ? Math.round(v * 10) / 10 : null;
   return { lufsIntegrated: round(integrated), lufsMomentaryMax: round(momentary), peakDbfs: round(dB(peak)), onsetMs: first < 0 ? null : Math.round((first / RATE - cueAt) * 1000), lengthMs: first < 0 ? 0 : Math.round((last - first) / RATE * 1000), lufsPhone: round(phoneLoudness(x)) };
 }
-// Phone band: a handset speaker reproduces little below ~300 Hz, so this is the integrated loudness of what it can actually play (4th-order high-pass at 300 Hz).
+// Phone-band proxy: integrated loudness after a 300 Hz high-pass, not a model of a specific handset speaker.
 function phoneLoudness(x) {
   const w = 2 * Math.PI * 300 / RATE, c = Math.cos(w), alpha = Math.sin(w) / (2 * Math.SQRT1_2), a0 = 1 + alpha;   // RBJ Butterworth high-pass, applied twice
   const hp = [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - alpha) / a0];
@@ -92,6 +170,30 @@ function phoneLoudness(x) {
   return gated.length ? loud(mean(gated)) : -Infinity;
 }
 const loudness = Object.fromEntries(Object.entries(rendered).map(([name, pcm]) => [name, measure(pcm, name === 'exchange' ? cues[0].t : PROBE_AT)]));
+if (checks && !fallback && seed === 731) {
+  // Frozen pre-change renders: catches accidental compressor compensation or a finishing-gain reset.
+  const reference = JSON.parse(await fs.readFile('artifacts/audio/phone-mix/reference.json', 'utf8'));
+  checks.phoneMix = { ordinary: 0, crowd: 0, fatal: 0 };
+  for (const probe of CUE_PROBES) {
+    const name = `events/${probe.name}`, before = reference.probes[name];
+    if (!before) continue; // intentionally silent simulation events
+    const delta = loudness[name].lufsIntegrated - before.lufsIntegrated;
+    if (!probe.events.some(e => e.type === 'Killed')) {
+      assert.ok(Math.abs(delta - 20 * Math.log10(.5)) < .15, `${name}: ordinary level changed ${delta} dB, expected half gain`);
+      checks.phoneMix.ordinary++;
+    } else {
+      assert.ok(delta >= 2.7 && delta <= 3.7, `${name}: boosted fatal loudness changed ${delta} dB (peak protection may reduce the boost)`);
+      checks.phoneMix.fatal++;
+    }
+    if (before.tailRmsDbfs !== undefined) {
+      const tail = rendered[name].subarray(Math.round(2.4 * RATE), Math.round(2.7 * RATE));
+      const rmsDbfs = 10 * Math.log10(tail.reduce((sum, v) => sum + (v / 32768) ** 2, 0) / tail.length);
+      assert.ok(Math.abs(rmsDbfs - before.tailRmsDbfs - 20 * Math.log10(1.5)) < .15, `${name}: crowd tail must increase 50%`);
+      checks.phoneMix.crowd++;
+    }
+  }
+  assert.deepEqual(checks.phoneMix, { ordinary: 17, crowd: 8, fatal: 12 });
+}
 
 // --- Payload: the shipped audio assets, raw and gzip; delta against the committed baseline when this is not the baseline.
 async function payload(dir) {
@@ -102,7 +204,7 @@ async function payload(dir) {
 const assets = await payload(path.join('src', 'assets', 'audio'));
 const baseline = label === against ? null : await fs.readFile(path.join('artifacts', 'audio', against, 'loudness.json'), 'utf8').then(JSON.parse).catch(() => null);
 const git = (cmd) => { try { return execSync(cmd, { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
-const receipt = { label, seed, rate: RATE, path: path_, generated: new Date().toISOString(), revision: git('git rev-parse --short HEAD'), dirty: git('git status --porcelain') !== '', exchange: { lengthTicks: exchange.length, seconds, beats: exchange.beats }, assets, loudness };
+const receipt = { checks, label, seed, rate: RATE, path: path_, generated: new Date().toISOString(), revision: git('git rev-parse --short HEAD'), dirty: git('git status --porcelain') !== '', exchange: { lengthTicks: exchange.length, seconds, beats: exchange.beats }, assets, loudness };
 await fs.writeFile(path.join(out, 'loudness.json'), JSON.stringify(receipt, null, 2));
 
 // --- Report.
@@ -120,8 +222,8 @@ ${exchange.beats.map(b => `| ${b.name} | ${b.tick} | ${(b.tick / 60).toFixed(2)}
 
 Exchange loudness: integrated ${fmt(loudness.exchange.lufsIntegrated)} LUFS · phone band (> 300 Hz) ${fmt(loudness.exchange.lufsPhone)} LUFS · momentary max ${fmt(loudness.exchange.lufsMomentaryMax)} LUFS · peak ${fmt(loudness.exchange.peakDbfs)} dBFS.
 
-## Per-cue renders: \`events/<name>.wav\` (one synthetic event at ${PROBE_AT * 1000} ms, ${PROBE_LENGTH} s render)
-LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows across iterations, not against broadcast targets). Phone = the same measure after a 300 Hz high-pass: what a handset speaker can play. Onset = first sample above −60 dBFS relative to the cue tick; length = audible span above −60 dBFS. "—" = silent: the module answers no cue for that event.
+## Per-cue renders: \`events/<name>.wav\` (one synthetic event at ${PROBE_AT * 1000} ms, ${PROBE_LENGTH} s render; fatal probes 4.5 s)
+LUFS per ITU-R BS.1770-4 (short sounds under-read on integrated; compare rows across iterations, not against broadcast targets). Phone = the same measure after a 300 Hz high-pass; a rough proxy, not a specific handset response. Onset = first sample above −60 dBFS relative to the cue tick; length = audible span above −60 dBFS. "—" = silent: the module answers no cue for that event.
 
 | cue | LUFS-I | phone LUFS | LUFS-M max | peak dBFS | onset ms | length ms |${baseline ? ` Δ LUFS-I vs ${against} | Δ phone vs ${against} |` : ''}
 |---|---|---|---|---|---|---|${baseline ? '---|---|' : ''}
@@ -130,7 +232,7 @@ ${rows.join('\n')}
 ## Payload
 Shipped audio assets (src/assets/audio): ${assets.raw} B raw · ${assets.gzip} B gzip${baseline ? ` (baseline ${baseline.assets.raw} B raw · ${baseline.assets.gzip} B gzip; Δ ${assets.gzip - baseline.assets.gzip} B gzip)` : ''}. Lane budget: ≤ 1.0 MB gzip.
 
-Determinism: single-cue renders are byte-identical run to run; the exchange can differ by ±1 LSB in a handful of samples (Chromium's threaded convolution for the room), so its figures are stable but its hash is not.
+Browser checks: ${checks ? JSON.stringify(checks) : 'not requested (use --check for repeated renders, AAC/Opus region decoding, format fallback and stacked ceiling)'}.
 
 ## Phone check
 Not part of this render — the owner listens on the handset (device, silent switch on/off) and records the note here.

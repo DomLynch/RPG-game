@@ -43,6 +43,30 @@
       "scripts/arena-preview.mjs",
       "--label",
       "quality-world"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "runThrough",
+      "--no-video",
+      "--label",
+      "run-through-gate"
+    ],
+    [
+      "node",
+      "scripts/audio-preview.mjs",
+      "--label",
+      "audio-gate",
+      "--check"
+    ],
+    [
+      "node",
+      "artifacts/audio/fatal-crowd/browser.mjs"
+    ],
+    [
+      "node",
+      "scripts/polearm-browser-check.mjs"
     ]
   ]
 }

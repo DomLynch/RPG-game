@@ -460,3 +460,28 @@ Provenance: **original project work, no new third-party asset, texture or licenc
 curved edge as a swept width envelope, wedge section) and Three.js primitives (ferrules, collar); procedural materials (varnished ash,
 pitted iron `#4c4946`); no image maps. All 13 clips are original authored keys on the same CC0 rig and the same authored-key grammar as
 the sword's clip family recorded above. Evidence and the silhouettes: `artifacts/weapons/scythe-notes.md`.
+
+## Audio movement pass — 2026-09-19
+`src/assets/audio/sprite.{m4a,ogg}` now contains 54 regions, including four roll and four backstep variants.
+Source/origin: original cloth/leather and sand DSP in `scripts/build-audio.mjs` (`RECIPES.roll/backstep`), authored 2026-09-19; no third-party recording or licence.
+Processing: seeded broadband friction layers, short amplitude envelopes, fade-out, existing -4 dBFS normalization, AAC/Opus encoders. Reproduce with `node scripts/build-audio.mjs`.
+These cues mark movement start only; no footfall/landing events or material inference were added. Existing impact recipes are unchanged.
+
+## Fatal contact and crowd — 2026-09-19
+The 73-region AAC/Opus sprite adds human death voices, restrained organic fatal contact, and three 2.5 s crowd variations.
+These are CC0 public recordings, verified on the linked Freesound source pages on 2026-09-19. Source URLs, authors,
+licence URLs and SHA-256 hashes are pinned in `artifacts/audio/SOURCES.json`; downloads are build inputs, never runtime requests.
+
+| Source | Author | Licence | Use |
+|---|---|---|---|
+| [Crowd Cheer.wav](https://freesound.org/people/deleted_user_2104797/sounds/324892/) | deleted_user_2104797 | CC0-1.0 | Three separate recorded cheering takes |
+| [small crowd gasp shock surprise](https://freesound.org/people/HowardV/sounds/264376/) | HowardV | CC0-1.0 | Crowd onset and double-death reaction |
+| [Grunt1 - Death Pain.wav](https://freesound.org/people/tonsil5/sounds/416839/) | tonsil5 | CC0-1.0 | Short dying grunt |
+| [Grunt2 - Death Pain.wav](https://freesound.org/people/tonsil5/sounds/416838/) | tonsil5 | CC0-1.0 | Second recorded dying grunt |
+| [rip_tear FLESH!.wav](https://freesound.org/people/aust_paul/sounds/30931/) | aust_paul | CC0-1.0 | Natural-object Foley for cut, puncture, sever and skull layers |
+
+Processing in `scripts/build-audio.mjs`: mono 48 kHz decode, short trims/fades, high/low-pass filters, restrained pitch changes,
+three delayed crowd layers, existing -4 dBFS normalization and AAC/Opus encoding. Four voice variants use two distinct recordings;
+three cheer variants use three distinct takes. Reproduce with `node scripts/build-audio.mjs` (ffmpeg with aac_at and libopus).
+Existing impact recipes and gains remain unchanged. Only decapitation gets a sever tear; Split Crown gets a short crack;
+blood-off and kicks omit added wet layers. Crowd starts 350 ms after fatal contact, with the roar fading in after its gasp.

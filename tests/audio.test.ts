@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, EXCHANGE_BEATS, scriptExchange } from '../src/audio/exchange.ts';
-import { cuesFor, nextVariant, seeded } from '../src/audio/cues.ts';
+import { cuesFor, nextVariant, seeded, type DeathPresentation } from '../src/audio/cues.ts';
 import { MANIFEST, SPRITE_SECONDS } from '../src/audio/manifest.ts';
 import { spriteFormats } from '../src/audio/sprite.ts';
 import { createFeedback, VOICES } from '../src/feedback.ts';
@@ -35,7 +35,7 @@ test('every event type the exchange emits has a cue probe, and probe names are u
 // host's lifecycle: the harness owns rendering.
 class Recorder {
   starts: { when: number; offset?: number; duration?: number }[] = []; stops: number[] = []; state = 'suspended'; sampleRate = 48000; currentTime = 99; destination = {}; suspended = 0; resumed = 0; buffers: Float32Array[] = [];
-  node() { const { starts, stops } = this, param = () => ({ value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }); return { buffer: null, type: '', curve: null, frequency: param(), Q: param(), gain: param(), playbackRate: param(), threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(), connect() { return this; }, disconnect() {}, start(when: number, offset?: number, duration?: number) { starts.push({ when, offset, duration }); }, stop(when: number) { stops.push(when); }, onended: null }; }
+  node() { const { starts, stops } = this, param = () => ({ value: 0, setValueAtTime() {}, cancelScheduledValues() {}, exponentialRampToValueAtTime() {} }); return { buffer: null, type: '', curve: null, frequency: param(), Q: param(), gain: param(), playbackRate: param(), threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(), connect() { return this; }, disconnect() {}, start(when: number, offset?: number, duration?: number) { starts.push({ when, offset, duration }); }, stop(when: number) { stops.push(when); }, onended: null }; }
   createGain() { return this.node(); } createBufferSource() { return this.node(); } createBiquadFilter() { return this.node(); } createOscillator() { return this.node(); } createWaveShaper() { return this.node(); } createDynamicsCompressor() { return this.node(); } createConvolver() { return this.node(); }
   createBuffer(_c: number, length: number) { const data = new Float32Array(length); this.buffers.push(data); return { getChannelData: () => data }; }
   resume() { this.resumed++; return Promise.resolve(); } suspend() { this.suspended++; return Promise.resolve(); }
@@ -55,7 +55,9 @@ test('a hosted feedback schedules cues at the scripted time and ignores the offl
   assert.ok(context.starts.every(s => s.when === 2.5), `every layer starts on the host clock, not currentTime (${JSON.stringify(context.starts)})`);
   feedback.quiet(); assert.equal(context.suspended, 0, 'quiet never suspends a hosted context');
   at(3); feedback.update([{ tick: 180, type: 'Parried', actor: 0 } as never]);
-  assert.ok(context.starts.some(s => s.when === 3), 'still audible after quiet in hosted mode');
+  assert.ok(!context.starts.some(s => s.when === 3), 'quiet blocks scheduling in the harness too');
+  feedback.unlock(); feedback.update([ev('Parried')]);
+  assert.ok(context.starts.some(s => s.when === 3), 'unlock restores scheduling');
 });
 
 test('the noise bed is seeded: the same seed fills the same buffer, another seed does not', () => {
@@ -74,6 +76,8 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('Hit', { move: 'light_right' })]), ['hit_flesh']);
   assert.deepEqual(names([ev('Hit', { move: 'heavy_overhead' })]), ['hit_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'riposte' })]), ['hit_heavy']);
+  assert.deepEqual(names([ev('Hit', { move: 'slash_riposte' })]), ['hit_heavy']);
+  assert.deepEqual(names([ev('AttackStarted', { move: 'slash_riposte' })]), ['whoosh_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'light_left', charged: true })]), ['hit_heavy']);
   assert.deepEqual(names([ev('Hit', { move: 'kick' })]), ['hit_kick']);
   assert.deepEqual(names([ev('Blocked', { perfect: false })]), ['block']);
@@ -86,12 +90,14 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('ActionStarted', { action: 'draw' })]), ['draw']);
   // The killing tick: the hit lands first, the fall is layered slightly after it.
   const kill = cuesFor([ev('AttackActive'), ev('Killed', { move: 'heavy_overhead' }), ev('Hit', { move: 'heavy_overhead', charged: true }), ev('Staggered', { actor: 1 })]);
-  assert.deepEqual(kill.map(c => c.name), ['kill', 'hit_heavy']); assert.ok((kill[0].delay ?? 0) > 0 && kill[1].delay === undefined);
+  assert.deepEqual(kill.map(c => c.name), ['flesh_cut', 'hit_heavy', 'death_voice', 'crowd_cheer', 'kill']);
+  assert.ok(kill.find(c => c.name === 'hit_heavy')!.delay === undefined);
+  assert.ok(kill.find(c => c.name === 'crowd_cheer')!.delay! >= .35);
   // Air never precedes an impact in the same tick.
   assert.deepEqual(names([ev('AttackStarted', { move: 'light_right', actor: 1 }), ev('Hit', { move: 'light_right' })]), ['hit_flesh', 'whoosh_light']);
   assert.equal(cuesFor([ev('Hit'), ev('GuardBroken'), ev('Parried'), ev('AttackStarted'), ev('Charged')]).length, 4);
   for (const type of ['Staggered', 'Dodged', 'AttackMissed', 'StaminaExhausted', 'Charging', 'AttackActive'] as const) assert.deepEqual(names([ev(type)]), [], `${type} is not mapped yet (body pass)`);
-  assert.deepEqual(names([ev('ActionStarted', { action: 'backstep' }), ev('ActionStarted', { action: 'guard' }), ev('ActionStarted', { action: 'parry' }), ev('ActionStarted', { action: 'feint' })]), []);
+  assert.deepEqual(names([ev('ActionStarted', { action: 'guard' }), ev('ActionStarted', { action: 'parry' }), ev('ActionStarted', { action: 'feint' })]), []);
   for (const c of cuesFor([ev('Hit'), ev('AttackStarted')])) assert.ok(c.gain > 0 && c.gain <= 1 && c.room >= 0 && c.room <= 1);
 });
 
@@ -113,7 +119,7 @@ test('the sprite manifest is well-formed and the shipped audio stays inside the 
     if (i) assert.ok(regions[i][0] >= regions[i - 1][1], `region ${i} does not overlap its predecessor`);
   }
   for (const [name, variants] of Object.entries(MANIFEST)) assert.ok(variants.length >= 2, `${name} has variants (${variants.length})`);
-  const used = new Set(CUE_PROBES.flatMap(p => cuesFor(p.events).map(c => c.name)));
+  const used = new Set(CUE_PROBES.flatMap(p => cuesFor(p.events, p.presentation).map(c => c.name)));
   for (const name of used) assert.ok(name in MANIFEST, `cue ${name} exists in the sprite`);
   const dir = new URL('../src/assets/audio/', import.meta.url);
   let gzip = 0; for (const file of ['sprite.m4a', 'sprite.ogg']) { const bytes = fs.readFileSync(new URL(file, dir)); assert.ok(bytes.length > 1000, `${file} is present`); gzip += gzipSync(bytes).length; }
@@ -142,4 +148,75 @@ test('a duel reseeds on its draw, so the same fight rolls the same variants and 
   const fight = () => { const { context, feedback, at } = hosted(11, SPRITE); feedback.unlock(); at(0); feedback.update([ev('ActionStarted', { action: 'draw' })]); for (let i = 1; i < 12; i++) { at(i); feedback.update([ev('Hit', { move: 'light_right' })]); } return context.starts.map(s => s.offset); };
   assert.deepEqual(fight(), fight());
   const offsets = fight(); assert.ok(offsets.every((o, i) => i === 0 || o !== offsets[i - 1]), 'consecutive hits never reuse a variant');
+});
+
+test('movement starts have distinct cloth/sand cues, without synthetic landing events', () => {
+  for (const action of ['roll', 'backstep'] as const) assert.deepEqual(cuesFor([ev('ActionStarted', { action })]).map(c => c.name), [action]);
+});
+
+test('the first variant can select every region, including zero', () => {
+  for (let i = 0; i < 5; i++) assert.equal(nextVariant(() => (i + .5) / 5, 5, -1), i);
+});
+
+test('quiet and mute stop every scheduled layer before resume, including fallback tones', () => {
+  for (const sprite of [null, SPRITE]) {
+    const { context, feedback, at } = hosted(731, sprite);
+    feedback.unlock(); feedback.update([ev('Hit')]);
+    const playing = context.starts.length;
+    at(.05); feedback.quiet();
+    assert.equal(context.stops.filter(t => t === .05).length, playing);
+    feedback.update([ev('Hit')]); assert.equal(context.starts.length, playing);
+    feedback.unlock(); feedback.update([ev('Hit')]);
+    const resumed = context.starts.length - playing;
+    at(.1); feedback.toggle();
+    assert.equal(context.stops.filter(t => t === .1).length, resumed);
+  }
+});
+
+
+const deathPresentation = (override: DeathPresentation['override'] = 'plainDeath', gore = true): DeathPresentation => ({
+  finish: { victim: 1, location: 'head', move: 'heavy_overhead', heading: 0 }, weapons: ['longsword', 'trident'], override, gore,
+});
+const deathEvents = [ev('Hit', { move: 'heavy_overhead', target: 1 }), ev('Killed', { move: 'heavy_overhead', target: 1 })];
+test('fatal cues follow the visible finish and blood setting, preserving the immediate impact', () => {
+  for (const override of ['plainDeath', 'splitCrown', 'decapitation', 'runThrough', 'opened'] as const) for (const gore of [true, false]) {
+    const cues = cuesFor(deathEvents, deathPresentation(override, gore)), names = cues.map(c => c.name);
+    assert.equal(cues[0].name, 'hit_heavy'); assert.equal(cues[0].delay, undefined);
+    assert.equal(names.includes('flesh_tear'), gore && override === 'decapitation');
+    assert.equal(names.includes('bone_crack'), gore && override === 'splitCrown');
+    assert.equal(names.includes('flesh_stab'), gore && override === 'runThrough');
+    assert.equal(names.includes('kill'), override !== 'runThrough', 'kneeling impalement has no floor crash');
+    assert.equal(names.filter(n => n === 'crowd_cheer').length, 1);
+    assert.ok(cues.length <= VOICES);
+    assert.ok(cues.find(c => c.name === 'death_voice')!.delay! < cues.find(c => c.name === 'crowd_cheer')!.delay!);
+    if (!gore) assert.ok(!names.some(n => n.startsWith('flesh_') || n === 'bone_crack'));
+  }
+});
+test('either winner gets the crowd, kicks have no flesh layer, and a double death gets one gasp', () => {
+  for (const actor of [0, 1] as const) {
+    const events = [ev('Killed', { actor, target: actor === 0 ? 1 : 0, move: 'thrust', weapon: 'trident' })];
+    const cues = cuesFor(events), names = cues.map(c => c.name);
+    assert.ok(names.includes('flesh_stab')); assert.ok(names.includes('crowd_cheer')); assert.ok(names.includes('death_voice'));
+  }
+  assert.ok(cuesFor([ev('Killed', { move: 'light_right', weapon: 'estoc' })]).some(c => c.name === 'flesh_stab'));
+  const kick = cuesFor([ev('Killed', { move: 'kick' })]);
+  assert.ok(!kick.some(c => c.name.startsWith('flesh_') || c.name === 'bone_crack'));
+  assert.ok(kick.some(c => c.name === 'crowd_cheer'));
+  const double = cuesFor([ev('Killed', { target: 1 }), ev('Killed', { actor: 1, target: 0 })]);
+  assert.equal(double.filter(c => c.name === 'crowd_gasp').length, 1); assert.ok(!double.some(c => c.name === 'crowd_cheer'));
+  const playerDeath = deathPresentation('decapitation'); playerDeath.finish.victim = 0;
+  assert.ok(!cuesFor([ev('Killed', { actor: 1, target: 0 })], playerDeath).some(c => c.name === 'flesh_tear'), 'an override cannot invent a finisher on player death');
+});
+test('quiet and mute cancel the entire fatal sequence, including crowd and body scheduled in the future', () => {
+  for (const method of ['quiet', 'toggle'] as const) {
+    const { feedback, context, at } = hosted(731, SPRITE); feedback.unlock();
+    feedback.update(deathEvents, deathPresentation('decapitation'));
+    assert.ok(context.starts.some(s => s.when >= 1.4), 'collapse is scheduled ahead');
+    assert.ok(context.starts.some(s => MANIFEST.crowd_cheer.some(([offset]) => s.offset === offset)));
+    at(.1); feedback[method]();
+    assert.equal(context.stops.filter(t => t === .1).length, context.starts.length, 'every scheduled source is stopped');
+    const count = context.starts.length; at(1); feedback.update(deathEvents); assert.equal(context.starts.length, count);
+    if (method === 'toggle') feedback.toggle(); else feedback.unlock();
+    assert.equal(context.starts.length, count, 'unlock does not replay the old sequence');
+  }
 });

@@ -284,9 +284,19 @@ const api = {
     player.position.set(-.75, 0, 0); opponent.position.set(.75, 0, 0); scrub(player, 'Armed', 0); scrub(opponent, 'Armed', 0);
     return cells(4, 2, 540, 720, 1, i => { const a = i * Math.PI / 4; player.rotation.y = opponent.rotation.y = a; studioCamera(true); renderer.render(studio, camera); return `turntable ${i * 45}°  Armed t=0  player | opponent`; });
   },
-  async clipSheet(list = CLIP_SHEET, azimuth = Math.PI / 6) {
+  async clipSheet(list = CLIP_SHEET, azimuth = Math.PI / 6, close = false) {
     await reset(); stage(studio); opponent.visible = false; renderer.toneMappingExposure = 1; player.position.set(0, 0, 0); player.rotation.y = 0;
-    return cells(8, Math.ceil(list.length / 8), 360, 480, 1, i => { if (!list[i]) return false; const [name, t] = list[i]; scrub(player, name, t); studioCamera(false, azimuth); renderer.render(studio, camera); return `${name} t=${t.toFixed(2)}`; });
+    const cols = Math.min(close ? 4 : 8, list.length);
+    return cells(cols, Math.ceil(list.length / cols), close ? 600 : 360, close ? 600 : 480, 1, i => {
+      if (!list[i]) return false;
+      const [name, t] = list[i]; scrub(player, name, t); studioCamera(false, azimuth);
+      if (close) {
+        player.updateMatrixWorld(true);
+        const aim = player.getObjectByName('spine_03').getWorldPosition(new THREE.Vector3());
+        camera.position.copy(aim).add(new THREE.Vector3(Math.sin(azimuth) * 2.1, .05, Math.cos(azimuth) * 2.1)); camera.lookAt(aim);
+      }
+      renderer.render(studio, camera); return `${name} t=${t.toFixed(2)}`;
+    });
   },
   async lockStill(orientation, moment) {
     await reset(); stage(arena); opponent.visible = true; renderer.toneMappingExposure = 1.3;

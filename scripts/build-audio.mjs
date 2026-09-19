@@ -1,14 +1,41 @@
-// Combat audio sprite build. Every shipped sound is original procedural Foley rendered here — deterministic Node DSP
+// Combat audio sprite build. Original procedural Foley plus hash-pinned CC0 recordings (artifacts/audio/SOURCES.json).
+// Procedural layers use deterministic Node DSP
 // (seeded noise, modal iron resonators, pitch-dropping body thumps, swept-filter air) — so the sprite is reproducible from
-// this file alone: no downloads, no licences. Output: src/assets/audio/sprite.m4a (AAC, Safari) + sprite.ogg (Opus,
+// this script and the source list; missing public recordings are cached under artifacts/audio/source-cache. Output: src/assets/audio/sprite.m4a (AAC, Safari) + sprite.ogg (Opus,
 // Chrome/Android) + the generated src/audio/manifest.ts (cue → variants → [start, duration]). Usage: node scripts/build-audio.mjs
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const RATE = 48000, GAP = .04, LEAD = .02;
 const S = seconds => Math.round(seconds * RATE);
 const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+// Public CC0 previews are build inputs only, never additional runtime downloads. Hash changes fail closed.
+const recordings = {}, sourceList = JSON.parse(await fs.readFile('artifacts/audio/SOURCES.json', 'utf8'));
+await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
+for (const [name, source] of Object.entries(sourceList)) {
+  const file = `artifacts/audio/source-cache/${name}.mp3`;
+  let bytes = await fs.readFile(file).catch(() => null);
+  if (!bytes) {
+    const response = await fetch(source.url, { signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`${name}: source HTTP ${response.status}`);
+    bytes = Buffer.from(await response.arrayBuffer());
+  }
+  if (createHash('sha256').update(bytes).digest('hex') !== source.sha256) throw new Error(`${name}: source hash mismatch`);
+  await fs.writeFile(file, bytes);
+  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 64 * 1024 * 1024 });
+  recordings[name] = Float32Array.from(new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4));
+}
+function recording(name, start, seconds, rate = 1) {
+  const source = recordings[name], out = new Float32Array(S(seconds));
+  for (let i = 0; i < out.length; i++) {
+    const at = S(start) + i * rate, j = Math.floor(at), f = at - j;
+    out[i] = ((source[j] || 0) * (1 - f) + (source[j + 1] || 0) * f) * Math.min(1, i / S(.006), (out.length - 1 - i) / S(.018));
+  }
+  return out;
+}
 
 // --- DSP primitives -------------------------------------------------------------------------------------------------
 const noise = (n, r) => Float32Array.from({ length: n }, () => r() * 2 - 1);
@@ -212,6 +239,36 @@ const RECIPES = {
     const bow = mul(broad(n, r, 600 * f, 2400 * f), swell);
     return densify(mix(n, [y, 0, .7], [drone, 0, .9], [bow, 0, .4]), 1.6, { lift: 2 });
   },
+  // Movement-start textures only: cloth/leather friction and loose sand, no invented landing impact.
+  roll(r) {
+    const n = S(.32);
+    const cloth = mul(broad(n, r, 240, 1700), decay(n, .3, .015));
+    const sand = mul(broad(n, r, 1800, 6500), decay(n, .24, .006));
+    const fold = mul(broad(n, r, 360, 2200), decay(n, .18, .008));
+    return fadeOut(mix(n, [cloth, 0, 1], [sand, .008, .2], [fold, .065, .45]), .04);
+  },
+  backstep(r) {
+    const n = S(.15);
+    const scuff = mul(broad(n, r, 700, 4200), decay(n, .14, .004));
+    const leather = mul(broad(n, r, 220, 1400), decay(n, .12, .006));
+    return fadeOut(mix(n, [scuff, 0, .5], [leather, .003, 1]), .025);
+  },
+  // Human voices and organic contact, kept short and dry-forward. Two different recorded vocal performances.
+  death_voice(r, v) { return biquad(recording(v % 2 ? 'grunt2' : 'grunt', v % 2 ? .16 : .008, v % 2 ? .62 : .44, v < 2 ? 1 : vary(r, .97, .015)), 'highpass', 120); },
+  flesh_cut(r, v) { return biquad(recording('tear', .02 + v * .13, .18, vary(r, 1, .04)), 'lowpass', 4300); },
+  flesh_stab(r, v) { return mul(biquad(recording('tear', v * .2, .16, 1.15), 'lowpass', 2200), decay(S(.16), .2, .002)); },
+  flesh_tear(r, v) { return biquad(recording('tear', .02 + v * .29, .34, vary(r, .92, .025)), 'lowpass', 3800); },
+  bone_crack(r, v) {
+    const n = S(.2);
+    return mix(n, [mul(recording('tear', .01 + v * .3, .2), decay(n, .14)), 0, .8], [punch(n, vary(r, 600), r, { t60: .06, tone: .15 }), 0, .16]);
+  },
+  crowd_gasp(r, v) { return biquad(recording('gasp', v ? 5.55 : 3.9, .42, vary(r, 1, .015)), 'highpass', 180); },
+  crowd_cheer(r, v) {
+    const n = S(2.5), cheer = biquad(biquad(recording('crowd', [.5, 21.85, 44.9][v], 2.28), 'highpass', 180), 'lowpass', 5500);
+    for (let i = 0; i < cheer.length; i++) cheer[i] *= Math.min(1, i / S(.2));
+    // Gasp first, then one of three actual cheering takes. Quiet delayed copies widen the group without a new runtime bus.
+    return fadeOut(mix(n, [RECIPES.crowd_gasp(r, v % 2), 0, .3], [cheer, .22, 1], [cheer, .266, .17], [cheer, .323, .1]), .6);
+  },
   // Kill: the body falls — a deep thud with a mid punch, a second slump, a long low tail. Layered under the killing hit at runtime.
   kill(r) {
     const n = S(.72), f = vary(r, 1, .08);
@@ -224,13 +281,13 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [fall, 0, .2], [body, 0, 1.3], [tone, 0, .5], [low, 0, .2], [slump, .19, .7], [tail, .05, dbfs(-3)]), 2.8), .15);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 4, hit_kick: 4, block: 5, block_perfect: 4, parry: 5, guard_break: 4, charge: 2, kill: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 4, hit_kick: 4, block: 5, block_perfect: 4, parry: 5, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];
 for (const [name, count] of Object.entries(VARIANTS)) for (let v = 0; v < count; v++) {
   let seed = 0; for (const c of `${name}#${v}`) seed = (seed * 31 + c.charCodeAt(0)) | 0;
-  cues.push({ name, variant: v, samples: normalize(RECIPES[name](rng(seed)), -4) });   // −4 dBFS: lossy decoders overshoot dense transients by 3–4 dB, and integer decoders would clip that
+  cues.push({ name, variant: v, samples: normalize(RECIPES[name](rng(seed), v), -4) });   // −4 dBFS: lossy decoders overshoot dense transients by 3–4 dB, and integer decoders would clip that
 }
 const total = cues.reduce((t, c) => t + LEAD + c.samples.length / RATE + GAP, 0);
 const sprite = silence(S(total)), manifest = {};
