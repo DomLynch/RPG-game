@@ -8,6 +8,7 @@ import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, selectFinisher, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
+import { createFootDust } from './foot-dust.ts';
 import { phoneTier } from './quality.ts';
 
 export function cameraPose(state: State, yaw: number, pitch: number, locked: boolean, target: { x: number; z: number } = TARGET) {
@@ -83,7 +84,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   function box(w: number, h: number, d: number, x: number, y: number, z: number, material: THREE.Material, parent: THREE.Object3D = scene) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  const arena = buildArena(scene);
+  const arena = buildArena(scene), footDust = createFootDust(scene);
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group(); scene.add(group); group.position.set(x, 0, z);
     mesh(new THREE.CapsuleGeometry(0.31, 1.12, 6, 14), material, 0, 0.88, 0, group);
@@ -94,6 +95,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
   const player = capsule(0, 4, metal);
   const opponent = capsule(TARGET.x, TARGET.z, new THREE.MeshStandardMaterial({ color: '#6d5447', roughness: 0.8, metalness: 0.25 }));
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
+  const dustFeet: (THREE.Object3D | null)[] = [], dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
   assetStatus('Loading warriors…');
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
   const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map(f => f.weapon) as [WeaponId, WeaponId];
@@ -104,6 +106,7 @@ export function createScene(canvas: HTMLCanvasElement, assetStatus: (status: str
       proxy.clear();
     }
     player.add(loaded.player.anchor); opponent.add(loaded.opponent.anchor);
+    for (const rig of [loaded.player, loaded.opponent]) for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
     assetStatus('');
   }).catch(error => {
     captureException(error);
@@ -363,6 +366,10 @@ let finisherOverride: FinisherId | null = null;   // dev/test pick (owner 2026-0
         const radius = Math.hypot(desired.x,desired.z);
         if (radius > 11.5) { desired.x *= 11.5/radius; desired.z *= 11.5/radius; }
       }
+      // Read feet after the rigs and headings settle; only grounded locomotion kicks up sand.
+      const canScuff = (pose: string, speed: number) => ['sheathed', 'ready', 'guard'].includes(pose) && speed > 0.25 && speed < 6;
+      footDust.update(animationDt, dustFeet.map((foot, i) => foot?.getWorldPosition(dustPositions[i]) ?? null),
+        [canScuff(mine.pose, travel), canScuff(mine.pose, travel), canScuff(theirs.pose, enemyTravel), canScuff(theirs.pose, enemyTravel)]);
       camera.position.lerp(desired, started ? blend : 1); aim.lerp(look, started ? blend : 1);
       if (kick > 0) { camera.position.x += Math.sin(kickHeading) * kick; camera.position.z += Math.cos(kickHeading) * kick; kick = Math.max(0, kick - dt * .3); }
       camera.lookAt(aim); started = true;
