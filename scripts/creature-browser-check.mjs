@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { builtRig, assertGlbEquivalent } from './glb-equivalence.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
@@ -23,7 +24,9 @@ try {
     await page.goto(`${origin}/?opponent=${opponent}&debug=1`);
     const response = await asset; assert.equal(response.status(), 200);
     const rigSha256 = hash(await response.body());
-    assert.equal(rigSha256, hash(await fs.readFile(`src/assets/${opponent}.glb`)), 'Served reconstruction differs');
+    const packed = await fs.readFile(await builtRig(opponent));
+    const equivalence = await assertGlbEquivalent(await fs.readFile(`src/assets/${opponent}.glb`), packed);
+    assert.equal(rigSha256, hash(packed), 'Served compressed reconstruction differs from the verified build');
     await page.getByRole('button', { name: 'Enter the arena' }).click();
     const ready = () => page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
     await ready(); await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });
@@ -43,7 +46,7 @@ try {
     await shot('death'); await page.getByRole('button', { name: 'Rematch', exact: true }).click(); await ready();
     assert.equal(await page.locator('#player-health').getAttribute('value'), await page.locator('#player-health').getAttribute('max'));
     await shot('rematch');
-    receipt.views.push({ opponent, asset: response.url(), rigSha256, opponentLanded: true, rematch: true, frames });
+    receipt.views.push({ opponent, asset: response.url(), rigSha256, equivalence, opponentLanded: true, rematch: true, frames });
     await context.close();
   }
   assert.deepEqual(receipt.errors, []); receipt.passed = true;

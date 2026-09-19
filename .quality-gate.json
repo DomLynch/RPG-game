@@ -162,6 +162,11 @@
     [
       "node",
       "scripts/creature-impact-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/check-glb-compression.mjs",
+      "--browser"
     ]
   ]
 }
