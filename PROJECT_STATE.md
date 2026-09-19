@@ -19,7 +19,10 @@ exempt only the separately authored Quiet One values while retaining clip names,
 Real-scene Veteran/Goblin/Executioner captures cover red/dark/off, portrait/landscape, reduced motion and rematch.
 Final sequence video and phone UI/contract gate receipts: `artifacts/finishers/quiet-one/` and
 `artifacts/character/quiet-final-scene/`. Two-pass review: pure simulation/input unchanged; then rendered poses,
-continuity, modes and reset behavior. All 11 configured completion commands passed, including a real phone-size UI victory/hold/rematch.
+continuity, modes and reset behavior. All 11 initial completion commands passed, including a real phone-size UI victory/hold/rematch.
+A whole-body portrait bound now guards the large Executioner ending as an additional completion command.
+Decoded audio QC verifies a silent held beat, late fall/gasp, cancellation and <= -1.54 dBTP fatal peaks;
+Quiet One measures -12.2 LUFS against decapitation -10.7 LUFS on the integrated phone mix.
 Integrated world/audio trunk 03282b0; final checks will follow the pending auth release before deployment.
 Lead holds release scheduling: no merge/deploy until an allocated window. Physical-phone feel remains owner-only.
 Sentry inspection found existing asset-fetch/texture/WebGL issues (5/6/A/9/8 and older), not evidence about this

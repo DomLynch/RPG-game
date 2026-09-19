@@ -109,7 +109,10 @@ window.__finisher = {
       impalement = { miss: grip.clone().addScaledVector(run, along).distanceTo(chest), along, tip: tip.toArray(), chest: chest.toArray(), step: actors[0].children[0].position.toArray() };
     }
     const neck = actors[1]?.getObjectByName('neck_01')?.getWorldPosition(new Vector3()), hand = actors[1]?.getObjectByName('hand_l')?.getWorldPosition(new Vector3()), head = actors[1]?.getObjectByName('Head')?.getWorldPosition(new Vector3()), wound = renderedScene?.getObjectByName('Wound_1');
-    const quiet = neck && hand && head ? { handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
+    const body = new Box3();
+    actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
+    const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
+    const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
     return { quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
@@ -212,6 +215,7 @@ try {
           if (suffix === 'drop') assert.ok(quiet.headHeight > .9*(opponent === 'goblin' ? .7 : opponent === 'executioner' ? 1.2 : 1), 'the held beat remains upright');
           if (suffix === 'settled') {
             assert.ok(quiet.headHeight < .55,'body reaches the ground');
+            assert.ok(quiet.bodyFrame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'whole fallen body remains inside the portrait frame');
             assert.ok(framing.side > .75 && framing.maxCameraStep < .25,'continuous side reveal');
             assert.ok(framing.heads.every(p=>p && p[0]>10 && p[0]<383 && p[1]>20 && p[1]<700),'both heads clear the portrait controls');
           }
