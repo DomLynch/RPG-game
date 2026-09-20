@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, idleIntent, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { OPPONENTS, PROFILES, RULES, type AiProfile, type Opponent } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
@@ -14,6 +14,9 @@ const gap = (d: Duel) => Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x,
 const W = (d: Duel) => d.fighters[1], P = (d: Duel) => d.fighters[0];
 const ready = (d: Duel) => P(d).phase === 'ready';
 const swingStart = (d: Duel) => W(d).phase === 'attack' && W(d).age === 0 && W(d).move !== 'kick';
+// Directional guard: a scripted guard or parry reads the warden's swing perfectly and holds the matching side (a cheese upper bound); with nothing coming it stands straight.
+export const side = (d: Duel): Intent['guardDirection'] => { const w = W(d); return w.phase === 'attack' && w.move ? mirror(movesOf(w)[w.move].direction) : undefined; };
+const guard = (d: Duel, extra: Partial<Intent> = {}): Intent => ({ ...idle(), guard: true, guardDirection: side(d), ...extra });
 // Each strategy is a pure function of the committed state: exactly what a thumb could do with perfect information.
 export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   'kick only': d => (ready(d) && gap(d) <= 1.5 ? act('kick') : idle()),
@@ -22,12 +25,12 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
   'heavy only': d => (ready(d) && gap(d) <= 1.8 ? act('heavy') : idle()),
   'charged heavy only': d => (ready(d) && gap(d) <= 1.8 ? act('heavy', { held: true }) : { ...idle(), held: P(d).phase === 'attack' && !P(d).charged }),
   'thrust from range': d => (ready(d) && gap(d) >= 1.5 && gap(d) <= 1.95 ? act('thrust') : idle()),
-  'turtle and punish': d => (P(d).punish > 0 || P(d).critical > 0 || P(d).counterWindow > 0 ? (ready(d) || P(d).phase === 'guard' ? act('heavy', { guard: true }) : { ...idle(), guard: true }) : { ...idle(), guard: true }),
+  'turtle and punish': d => (P(d).punish > 0 || P(d).critical > 0 || P(d).counterWindow > 0 ? (ready(d) || P(d).phase === 'guard' ? guard(d, { action: 'heavy' }) : guard(d)) : guard(d)),
   'roll and punish': d => (swingStart(d) && ready(d) && P(d).stamina >= RULES.rollCost ? act('dodge') : ready(d) && W(d).phase === 'hurt' ? act('light') : idle()),
   // Perfect-information parry: press exactly so the window covers contact, and kick anything that is not parryable.
   // The press is timed on the tell (elapsed ticks since the swing started), the way a human reads it: a held swing that parks at its chamber
   // draws the press early and meets nothing, which is what a bait is for.
-  'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = movesOf(w)[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return act('parry', { guard: true }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
+  'perfect parry': d => { const w = W(d); if (w.phase === 'attack' && w.move && !w.landed && ready(d)) { const t = movesOf(w)[w.move]; if (!t.parryable) return P(d).stamina >= RULES.rollCost ? act('dodge') : idle(); if (t.windup - elapsed(w) === RULES.parry - 2 && !P(d).parryCooldown) return guard(d, { action: 'parry' }); } return ready(d) && P(d).punish > 0 ? act('heavy') : idle(); },
 };
 // `opponent` picks who stands in the ring (moves.ts OPPONENTS): the same battery is the fairness gate for every man on the roster.
 export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES) {

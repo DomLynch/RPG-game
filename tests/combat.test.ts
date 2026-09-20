@@ -177,10 +177,10 @@ test('a parry then a light produces the riposte the browser gate expects, then a
   assert.equal(s.threatMove, 'heavy_overhead');
   const windup = MOVES.heavy_overhead.windup;
   s = tick(s, windup - s.enemyAge - 6, idle());
-  s = stepPractice(s, act('parry', { guard: true }));
-  while (s.result !== 'parried' && s.threat) s = stepPractice(s, { ...idle(), guard: true });
+  s = stepPractice(s, act('parry', { guard: true, guardDirection: 'overhead' }));   // directional guard: a heavy is parried overhead
+  while (s.result !== 'parried' && s.threat) s = stepPractice(s, { ...idle(), guard: true, guardDirection: 'overhead' });
   assert.equal(s.result, 'parried'); assert.equal(s.playerHealth, HP);
-  s = tick(s, RULES.parry + 1, { ...idle(), guard: true }); s = stepPractice(s, idle());
+  s = tick(s, RULES.parry + 1, { ...idle(), guard: true, guardDirection: 'overhead' }); s = stepPractice(s, idle());
   s = stepPractice(s, act('light'));
   assert.equal(s.attack, 'slashRiposte');
   s = tick(s, ATTACKS.slashRiposte.contact);
@@ -191,6 +191,8 @@ test('a parry then a light produces the riposte the browser gate expects, then a
   s = stepPractice(s, act('kick'));
   assert.equal(s.phase, 'kick');
   s = tick(s, MOVES.kick.windup);
-  // The warden's re-engagement can start a tick either side of the kick's contact, so the kick lands clean or as a counter-hit.
-  assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(HP - MOVES.slash_riposte.damage - s.health), `kick dealt ${HP - MOVES.slash_riposte.damage - s.health}`);
+  // The warden's re-engagement can start a tick either side of the kick's contact, so the kick lands clean or as a counter-hit — or, under the
+  // directional guard, he reads it and braces it low (a Blocked kick: no damage, no stagger). The browser gate accepts all three (browser-check.mjs).
+  const dealt = HP - MOVES.slash_riposte.damage - s.health, w = s.duel.fighters[1], braced = dealt === 0 && w.phase === 'guard' && w.guardDirection === 'low';
+  assert.ok([MOVES.kick.damage, Math.round(MOVES.kick.damage * RULES.counter.damage)].includes(dealt) || (dealt === 0 && braced), `kick dealt ${dealt}, braced ${braced}`);
 });

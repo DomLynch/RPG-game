@@ -8,7 +8,7 @@ import { bladePaths } from '../src/blade-paths.ts';
 import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
 import { TARGET, type State } from '../src/sim.ts';
-import { STRATEGIES, battery } from './battery.test.ts';
+import { STRATEGIES, battery, side } from './battery.test.ts';
 
 const P = OPPONENTS.pitborn;
 const idle = (): Intent => ({ ...idleIntent(), lock: true }), act = (action: Intent['action']): Intent => ({ ...idle(), action });
@@ -196,9 +196,9 @@ export const feintAndPunish = (d: Duel): Intent => {
   if (w.exposed > 0 && up && gap(d) <= 1.7) return act('light');   // the punish: a cut lands well inside the exposure (a heavy would too, but the feint and the held guard leave no stamina for one)
   if (w.exposed > 0 && p.phase === 'guard') return idle();
   if (threat && w.age <= 4 && up) return act('backstep');   // out of his swings while there is time, as the whiff punisher
-  if (threat && (up || p.phase === 'guard')) return { ...idle(), guard: true };   // too late to step: take it on the guard — restraint
-  if (p.phase === 'attack' && isLight(p) && p.age < movesOf(p)[p.move!].feintUntil && w.phase === 'guard' && w.parrying) return act('parry');
-  if (p.phase === 'guard' && w.phase === 'guard' && w.parrying) return { ...idle(), guard: true };
+  if (threat && (up || p.phase === 'guard')) return { ...idle(), guard: true, guardDirection: side(d) };   // too late to step: take it on the guard (the side read) — restraint
+  if (p.phase === 'attack' && isLight(p) && p.age < movesOf(p)[p.move!].feintUntil && w.phase === 'guard' && w.parrying) return { ...act('parry'), guardDirection: side(d) };
+  if (p.phase === 'guard' && w.phase === 'guard' && w.parrying) return { ...idle(), guard: true, guardDirection: side(d) };
   if (up && gap(d) <= 1.7 && (w.phase === 'ready' || w.phase === 'hurt' || recovering) && !w.exposed) return act('light');   // open (or punish a whiff's recovery) with the cut his parry wants
   return idle();
 };

@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, initialDuel, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, idleIntent, initialDuel, mirror, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
 const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
 const idle = (): Intent => ({ ...idleIntent(), lock: true });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
-const hold = (): Intent => ({ ...idle(), guard: true });
+// A scripted turtle reads the warden's swing and holds the matching side (directional guard); with nothing coming the guard stands straight.
+const hold = (d?: Duel): Intent => { const w = d?.fighters[1]; return { ...idle(), guard: true, guardDirection: w && w.phase === 'attack' && w.move ? mirror(movesOf(w)[w.move].direction) : undefined }; };
 function arena(gap = 1.2): Duel {
   return { tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] };
 }
@@ -101,12 +102,12 @@ test('against a settled guard the warden holds its heavy to the charge that brea
   let d = guardedArena(), ai = fresh(1); let first = decide(d, 1, ai, PROFILES.normal);
   for (let seed = 2; !first.intent.held; seed++) { ai = fresh(seed); first = decide(d, 1, ai, PROFILES.normal); }
   ai = first.ai; assert.equal(first.intent.action, 'heavy'); assert.equal(first.intent.held, true, 'a heavy at a guard is thrown held');
-  d = stepDuel(d, [hold(), first.intent]);
+  d = stepDuel(d, [hold(d), first.intent]);
   let charged = 0, released = 0;
   for (let i = 0; i < 120 && d.fighters[1].phase === 'attack'; i++) {
     const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai;
     if (d.fighters[1].charge < RULES.charge.min) assert.equal(w.intent.held, true, `held while charging (charge ${d.fighters[1].charge})`); else released++;
-    d = stepDuel(d, [hold(), w.intent]); charged += d.events.filter(e => e.type === 'Charged' && e.actor === 1).length;
+    d = stepDuel(d, [hold(d), w.intent]); charged += d.events.filter(e => e.type === 'Charged' && e.actor === 1).length;
   }
   assert.equal(charged, 1, 'the hold reaches the charge'); assert.ok(released > 0, 'and lets go once charged'); assert.ok(d.events.length >= 0);
   assert.equal(d.fighters[1].phase, 'ready'); assert.ok(!decide(d, 1, ai, PROFILES.normal).ai.hold, 'the hold ends with the swing');
@@ -122,7 +123,7 @@ test('the warden punishes a whiff with a light and kicks or breaks a standing gu
   for (let i = 0; i < 400; i++) { const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai; d = stepDuel(d, [i === 0 ? { ...act('light'), lock: false } : { ...idle(), lock: false }, w.intent]); whiffed ||= d.events.some(e => e.type === 'AttackMissed' && e.actor === 0); for (const e of d.events) if (e.type === 'AttackStarted' && e.actor === 1) moves.push(e.move!); }
   assert.ok(whiffed, 'the scripted light must whiff');
   assert.ok(moves.length && ['light_right', 'light_left'].includes(moves[0]), `whiff punished with ${moves.join(' ')}`);
-  const guarded = play(PROFILES.normal, 1800, () => hold()).events;
+  const guarded = play(PROFILES.normal, 1800, d => hold(d)).events;
   const opener = wardenAttacks(guarded)[0];
   assert.ok(opener && (opener.move === 'heavy_overhead' || opener.move === 'kick'), `standing guard is opened with ${opener?.move}`);
   assert.ok(wardenAttacks(guarded).some(e => e.move === 'kick') || guarded.some(e => e.type === 'Charged' && e.actor === 1), 'a standing guard is kicked or charged through');
@@ -144,7 +145,7 @@ test('parry frequency follows the profile: a light-spamming player is parried at
 
 test('the warden never idles out of reach: a stationary guarding fighter is attacked at least every eight seconds at every level', () => {
   for (const [name, profile] of Object.entries(PROFILES)) {
-    const { events } = play(profile, 3600, () => hold());
+    const { events } = play(profile, 3600, d => hold(d));
     let last = 0, longest = 0;
     for (const e of wardenAttacks(events)) { longest = Math.max(longest, e.tick - last); last = e.tick; }
     longest = Math.max(longest, 3600 - last);
@@ -235,7 +236,7 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   };
   const starts = (log: ReturnType<typeof watch>['log']) => log.filter(e => e.type === 'AttackStarted' && e.actor === 1);
   // Turtle: hold guard. After the read, kicks are the main opener (four in five decisions at point-blank) and heavies are mostly charged.
-  const turtle = watch(PROFILES.normal, 2400, () => hold());
+  const turtle = watch(PROFILES.normal, 2400, d => hold(d));
   assert.ok(readOpponent(turtle.habits).turtle, 'turtle read');
   const late = starts(turtle.log).filter(e => e.read.turtle), kicks = late.filter(e => e.move === 'kick').length, heavies = late.filter(e => e.move === 'heavy_overhead').length;
   assert.ok(kicks + heavies >= 6, `enough openers after the read: ${kicks} kicks, ${heavies} heavies`);
@@ -300,7 +301,7 @@ test('the thrust: a minority opener planned only after the first heavy, thrown f
   let d = arena(2.4), ai = initialAi(); const gaps: number[] = [];
   for (let i = 0; i < 4800; i++) {
     const gap = Math.hypot(d.fighters[0].body.x - d.fighters[1].body.x, d.fighters[0].body.z - d.fighters[1].body.z);
-    const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai; d = stepDuel(d, [{ ...idle(), guard: Math.floor(d.tick / 90) % 2 === 0 }, w.intent]);
+    const w = decide(d, 1, ai, PROFILES.normal); ai = w.ai; d = stepDuel(d, [Math.floor(d.tick / 90) % 2 === 0 ? hold(d) : idle(), w.intent]);
     for (const e of d.events) if (e.type === 'AttackStarted' && e.actor === 1 && e.move === 'thrust') gaps.push(gap);
     d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, posture: 0, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, stamina: 100, posture: 0, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
@@ -366,12 +367,15 @@ test('fairness pass: the warden uses its own tools against pressure — the guar
   assert.equal(closeAtCalm.filter(w => w.intent.action === 'kick').length, 0, 'no kick at an unguarded, unread player');
 });
 
-test('a kick is never guarded or parried: with its dodge share the warden rolls it (steps out without the stamina), otherwise it takes the poke', () => {
+test('a kick is never parried; with its dodge share the warden rolls it (steps out without the stamina); misread it is taken, READ it is braced behind a low guard (directional guard)', () => {
   const plans = (profile: AiProfile, stamina: number) => [...Array(200).keys()].map(seed => { const d = arena(1.1); d.fighters[0] = { ...d.fighters[0], phase: 'attack', move: 'kick', lastMove: 'kick', age: profile.reaction }; d.fighters[1] = { ...d.fighters[1], stamina }; return decide(d, 1, { ...initialAi(((seed + 1) * 2654435761) >>> 0), mode: 'approach', decision: 500, wait: 500 }, profile).ai.plan; });   // spread seeds: neighbours share their first draw
   assert.ok(PROFILES.easy.reaction >= MOVES.kick.windup, 'easy cannot notice a kick before it lands'); assert.ok(!plans(PROFILES.easy, 100).some(p => p), 'so it never plans against one');
   for (const level of ['normal', 'hard'] as const) {
-    const rich = plans(PROFILES[level], 100), poor = plans(PROFILES[level], RULES.rollCost - 1);
-    assert.ok(!rich.some(p => p === 'block' || p === 'parry') && !poor.some(p => p === 'block' || p === 'parry'), `${level} never guards or parries a kick`);
+    const blind = { ...PROFILES[level], read: 0 };   // never reads the kick's side: the pre-directional answers
+    const rich = plans(blind, 100), poor = plans(blind, RULES.rollCost - 1);
+    assert.ok(!rich.some(p => p === 'block' || p === 'parry') && !poor.some(p => p === 'block' || p === 'parry'), `${level} never guards or parries a kick it has not read`);
+    const reader = plans({ ...PROFILES[level], read: 1 }, 100);
+    assert.ok(!reader.some(p => p === 'parry'), 'a kick is never parried'); assert.ok(Math.abs(reader.filter(p => p === 'block').length / reader.length - (1 - PROFILES[level].dodge)) < .08, `${level}: a read kick is braced low whenever it is not rolled`);
     const escapes = rich.filter(p => p === 'dodge').length / rich.length;
     assert.ok(Math.abs(escapes - PROFILES[level].dodge) < .08, `${level} rolls a kick with its dodge share: ${escapes} vs ${PROFILES[level].dodge}`); assert.ok(rich.some(p => p === 'ignore'), 'and takes the rest');
     assert.ok(!poor.some(p => p === 'dodge') && poor.some(p => p === 'evade'), `${level} steps out when it cannot roll`);

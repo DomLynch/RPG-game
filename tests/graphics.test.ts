@@ -278,7 +278,7 @@ test('hit-stop: every contact freezes the simulation for exactly ceil(ms / 17) f
   let needTick = true;
   for (let frame = 0; frame < 6000 && !((measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2 && (measured['heavy Blocked']?.length ?? 0) >= 1); frame++) {
     const hitsDone = (measured['Hit']?.length ?? 0) >= 2 && (measured['heavy Hit']?.length ?? 0) >= 2;   // then hold guard so a warden heavy is blocked
-    if (needTick) { if (hitsDone) app.key('KeyQ'); else if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); app.tick(); }
+    if (needTick) { if (hitsDone) { app.key('KeyQ'); app.key('ArrowUp'); } else if (me().phase === 'ready' && !app.rendered.finish) app.key('KeyF'); app.tick(); }   // Q + up: the overhead guard that meets a heavy (directional guard)
     needTick = true;
     if (app.rendered.finish) { app.element('reset-button').click(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick(); continue; }
     const contacts = app.rendered.events.filter(e => e.type in EXPECT); if (!contacts.length) continue;

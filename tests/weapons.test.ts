@@ -52,13 +52,13 @@ test('a second weapon with a longer reach resolves contact from its own table: t
 
 test('contact events name the weapon and its material for the audio lane: Hit, Blocked, Parried and GuardBroken', () => {
   const light = MOVES.light_right, heavy = MOVES.heavy_overhead;
-  const hold = (): Intent => ({ ...idle(), guard: true });
+  const hold = (): Intent => ({ ...idle(), guard: true, guardDirection: 'left' });   // directional guard: side 0's first light is a light_right, met on the left
   const hit = run(stepDuel(duel(1.2), [act('light'), idle()]), light.windup).events.find(e => e.type === 'Hit')!;
   const blocked = run(stepDuel(duel(1.2), [act('light'), hold()]), light.windup, idle(), hold()).events.find(e => e.type === 'Blocked')!;
-  let p = run(stepDuel(duel(1.2), [act('light'), idle()]), light.windup - 9); p = run(stepDuel(p, [idle(), { ...act('parry'), guard: true }]), 8, idle(), hold());
+  let p = run(stepDuel(duel(1.2), [act('light'), idle()]), light.windup - 9); p = run(stepDuel(p, [idle(), { ...act('parry'), guard: true, guardDirection: 'left' }]), 8, idle(), hold());
   const parried = p.events.find(e => e.type === 'Parried')!;
   let g = run(stepDuel(duel(1.2), [idle(), hold()]), 5, idle(), hold()); g = { ...g, fighters: [g.fighters[0], { ...g.fighters[1], stamina: 5 }] } as Duel;
-  const broken = run(stepDuel(g, [act('heavy'), hold()]), heavy.windup, idle(), hold()).events.find(e => e.type === 'GuardBroken')!;
+  const broken = run(stepDuel(g, [act('heavy'), { ...hold(), guardDirection: 'overhead' }]), heavy.windup, idle(), { ...hold(), guardDirection: 'overhead' }).events.find(e => e.type === 'GuardBroken')!;   // the overhead guard meets the heavy and breaks for want of stamina
   for (const [name, e] of [['Hit', hit], ['Blocked', blocked], ['Parried', parried], ['GuardBroken', broken]] as const) { assert.ok(e, `${name} happened`); assert.deepEqual([e.weapon, e.material], ['longsword', 'iron'], `${name} carries the attacker's weapon and material`); }
 });
 
@@ -290,13 +290,14 @@ test('the cleaver\'s data keeps the Pitborn\'s whiff window: lunges equal the sw
 
 // ── Slice V: the trident's fight — rules the data asked for, and the warden's stance with it ───────────────────────────────────────────
 const events = (d: Duel, n: number, a: Intent, b: Intent) => run(d, n, a, b).events;
-const guardIntent = (): Intent => ({ ...idle(), guard: true });
+const guardIntent = (side: Intent['guardDirection'] = 'left'): Intent => ({ ...idle(), guard: true, guardDirection: side });   // directional guard: the side that meets the blow under test
 
 test('the shaft guard (slice V): blocks a cut and a thrust at 15 % more stamina than the blade guard, and a plain overhead heavy breaks it where the blade guard only takes chip', () => {
   // Side 0 attacks with the sword; side 1 (the target) holds its guard with the weapon under test. The guard is settled (age past the parry window) before the blow lands.
   const arena = (guardWeapon: 'longsword' | 'trident', gap: number): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready', guardWeapon)], finish: null, events: [] });
-  const settle = (d: Duel) => run(d, RULES.parry + 2, idle(), guardIntent());
-  const blow = (guardWeapon: 'longsword' | 'trident', action: 'light' | 'thrust' | 'heavy') => { const m = action === 'heavy' ? MOVES.heavy_overhead : action === 'thrust' ? MOVES.thrust : MOVES.light_right; return events(settle(arena(guardWeapon, 1.2)), m.windup + m.active + 1, act(action), guardIntent()); };
+  const sideFor = (action: 'light' | 'thrust' | 'heavy') => action === 'light' ? 'left' : action === 'thrust' ? 'thrust' : 'overhead';   // the side that meets side 0's light_right / thrust / overhead
+  const settle = (d: Duel, side: Intent['guardDirection']) => run(d, RULES.parry + 2, idle(), guardIntent(side));
+  const blow = (guardWeapon: 'longsword' | 'trident', action: 'light' | 'thrust' | 'heavy') => { const m = action === 'heavy' ? MOVES.heavy_overhead : action === 'thrust' ? MOVES.thrust : MOVES.light_right; return events(settle(arena(guardWeapon, 1.2), sideFor(action)), m.windup + m.active + 1, act(action), guardIntent(sideFor(action))); };
   for (const [action, cost] of [['light', MOVES.light_right.staminaDamage], ['thrust', MOVES.thrust.staminaDamage]] as const) {
     const blade = blow('longsword', action).find(e => e.type === 'Blocked')!, shaft = blow('trident', action).find(e => e.type === 'Blocked')!;
     assert.ok(blade && shaft, `${action}: both guards block`); assert.equal(blade.stamina, cost); assert.equal(shaft.stamina, cost * 1.15, `${action}: the shaft pays 15 % more`);

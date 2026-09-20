@@ -70,7 +70,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     // and the guard he holds or the parry he presses goes there. Rolled once per threat; a profile without the knob rolls nothing and reads
     // perfectly (the pre-directional guard). A kick read right is met low — the braced kick (below).
     const want = mirror(theirs[F.move!].direction);
-    next.readSide = profile.read === undefined || roll() < profile.read ? want : (['left', 'right', 'overhead', 'thrust', 'low'] as Direction[]).filter(d => d !== want)[Math.floor(roll() * 4)];
+    next.readSide = guardShare === 0 ? null : profile.read === undefined || roll() < profile.read ? want : (['left', 'right', 'overhead', 'thrust', 'low'] as Direction[]).filter(d => d !== want)[Math.floor(roll() * 4)];   // a guardless fighter (the goblin) has no side to pick and rolls nothing: his stream is untouched
     const r = roll(), inRange = gap <= theirs[F.move!].reach + .4, unblockable = theirs[F.move!].breaksGuard || charging(F) || (guardOf(M).heavyBreaks && theirs[F.move!].direction === 'overhead'), affordable = M.stamina >= theirs[F.move!].staminaDamage;
     // A kick cannot be parried and punishes a raised guard, so a guard or a parry is never the answer. With its dodge share the warden rolls
     // (or steps out without the stamina); otherwise it takes the kick — a cheap poke whose point is to open a guard, and a warden that
