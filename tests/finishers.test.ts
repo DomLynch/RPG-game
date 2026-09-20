@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FINISHER_POSE, selectFinisher, type FinisherId } from '../src/finishers.ts';
+import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src/finishers.ts';
 import type { Finish } from '../src/duel.ts';
 import type { HitLocation } from '../src/blade.ts';
 import type { MoveId, WeaponId } from '../src/moves.ts';
@@ -66,4 +66,29 @@ test('Split Crown, Decapitation, Run Through Quiet One and Opened have shipped p
   assert.equal(FINISHER_POSE.opened, 'opened');
   assert.equal(FINISHER_POSE.plainDeath, null);               // the default fall, in the rotation by the owner's call — null = the plain Death clip
   for (const [id, pose] of poses) if (!['splitCrown', 'decapitation', 'runThrough', 'quietOne', 'opened'].includes(id)) assert.equal(pose, null, `${id} plays the plain Death`);
+});
+
+test('owner 2026-09-20: the same ceremony never plays twice in a row, the pool stays even, and the pick is still deterministic', () => {
+  const moves = ['light_right', 'light_left', 'thrust', 'riposte', 'heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'] as MoveId[];
+  const locations = ['head', 'torso', 'legs'] as HitLocation[];
+  let seed = 12345;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  const count = new Map<FinisherId, number>();
+  let previous: FinisherId | null = null;
+  for (let i = 0; i < 20000; i++) {
+    const finish: Finish = { victim: 1, location: locations[i % 3], move: moves[(i >> 2) % 8], heading: (rnd() * 2 - 1) * Math.PI };
+    const pick = selectFinisher(finish, LONGSWORDS, previous)!;
+    assert.ok(ROTATION.includes(pick as (typeof ROTATION)[number]), 'a rotation outcome');
+    assert.notEqual(pick, previous, `never the previous fight's ceremony (${previous}) again`);
+    assert.equal(pick, selectFinisher({ ...finish }, LONGSWORDS, previous), 'same kill, same history, same outcome');
+    count.set(pick, (count.get(pick) ?? 0) + 1);
+    previous = pick;
+  }
+  for (const id of ROTATION) {
+    const share = (count.get(id) ?? 0) / 20000;
+    assert.ok(share > .16 && share < .24, `${id} draws an even share (${(share * 100).toFixed(1)} %)`);
+  }
+  // a first fight (no history) still draws every outcome, and never quietOne
+  assert.equal(selectFinisher(kill('light_right', 'torso'), LONGSWORDS, null), 'decapitation');
+  assert.ok(selectFinisher(kill('critical', 'legs'), LONGSWORDS, 'splitCrown') !== 'quietOne');
 });
