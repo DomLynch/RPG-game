@@ -110,21 +110,23 @@ export function createScene(
   scene.background = new THREE.Color('#a9a89c');
   scene.fog = new THREE.FogExp2('#a9a89c', 0.018);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
+  // The environment map: the arena's own ash sky (an equirect the world lane paints, warm sand below the horizon) once it has landed,
+  // so bronze and iron reflect this place; the studio RoomEnvironment only until then (audit 2026-09-20).
+  let arenaSky: THREE.Texture | undefined;
   function rebuildEnvironment() {
-    const environment = new RoomEnvironment(),
-      pmrem = new THREE.PMREMGenerator(renderer);
+    const pmrem = new THREE.PMREMGenerator(renderer), environment = arenaSky ? null : new RoomEnvironment();
     try {
-      const target = pmrem.fromScene(environment, 0.04);
+      const target = environment ? pmrem.fromScene(environment, 0.04) : pmrem.fromEquirectangular(arenaSky!);
       environmentTarget?.dispose();
       environmentTarget = target;
       scene.environment = target.texture;
+      scene.environmentIntensity = environment ? 0.45 : 1.0;
     } finally {
-      environment.dispose();
+      environment?.dispose();
       pmrem.dispose();
     }
   }
   rebuildEnvironment();
-  scene.environmentIntensity = 0.45;
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
   const metal = new THREE.MeshStandardMaterial({ color: '#89949b', metalness: 0.72, roughness: 0.4 });
   // The target marker's brass is a combat tell (it warms on a threat); the arena has its own materials in arena.ts.
@@ -134,7 +136,7 @@ export function createScene(
   sun.position.set(-15, 26, -18);
   sun.castShadow = true;
   sun.shadow.mapSize.set(PHONE ? 512 : 1024, PHONE ? 512 : 1024);
-  Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 70 });
+  Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 70 });   // the pit floor to the wall's foot (11.7 m), not the tiers: 1.25× sharper shadows on the sand for free (audit 2026-09-20)
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
   function mesh(
@@ -167,6 +169,7 @@ export function createScene(
   const arena = buildArena(scene),
     footDust = createFootDust(scene),
     clash = createClashSparks(scene);
+  arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
     scene.add(group);
@@ -798,7 +801,7 @@ export function createScene(
         }
       }
       const animationDt = frozen ? 0 : dt;
-      arena.update(animationDt, events);
+      arena.update(animationDt, events, started ? camera : undefined);   // the crowd culls against the settled camera; the first frame draws everyone
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
         ex = practice.enemy.x - opponent.position.x,
