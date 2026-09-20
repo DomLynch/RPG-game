@@ -1011,3 +1011,6 @@ rematch silence is measured after the full ring. Focused units/typecheck and ten
 Full offline mix across AAC/Opus/fallback passes truepeak<=-1dBTP; bell-only truepeak-13.3dBTP;401719B gzip under450KB.
 Source/state audit completed. Evidence: artifacts/audio/bell-weight/. Game-browser/release work waits for lead window;
 latest npm audit returned503maintenance, not bypassed. Full inherited gates and public verification required before done.
+
+## Goblin polish — 2026-09-20 (character lane, char/goblin-polish)
+Ears lofted with a lobe and a torn notch; body tone greyed to the face; the pink band behind each ear (the scan's ear photo projected onto the skull band the tile unwraps to its outer edges, past the crown fill's feather) painted out by forcing the fill on that measured UV band (`head.FIGHTERS.goblin.ear_fill`, `crown_fill(force=)`); the scan's real ear flaps flattened and re-mapped. Goblin-only flags; other fighters' builds untouched. 300/300 tests, quality:ci, browser gate and the dist probe green; goblin.glb 3.31 MB gzip (+48 KB); budget 30.84/32 MB. Evidence `artifacts/character/goblin-polish/`. Still open from the brief: the lock camera hides him behind the hero at close range on 393×852 (REQUESTS #8, camera lane).
