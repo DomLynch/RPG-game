@@ -150,6 +150,13 @@ clears it on Veteran, Pitborn, Goblin and Executioner. Harness now asserts the v
 the killer (camera ray). Run Through alignment (owner: blade reads off-centre) remains open.
 
 
+## Warhammer — the Dwarf's, on the shelf (weapons lane, 2026-09-20)
+Owner: "Create the dwarf hammer / war hammer - should be medium size". Part (0.93 m, square face on +x, back-spike, langets), the
+12-clip `Warhammer_*` family on the humanoid rig (the trident's machinery shared as `twoHandFamily()`, Veteran byte-identical),
+`WEAPONS.warhammer` = the maul's set, PLACEHOLDER (Combat sets the .78-fighter reach), `WEAPON_CLIPS.warhammer`, manifest + baked
+table, shelf rig `veteran-warhammer.glb`, pose sheets. Grip check at the Dwarf's .78: both wrists ≤ 0.071 m from the haft on the five
+grip roles. Next: character lane integrates (donor rebuild `WARRIOR_WEAPON=warhammer` → refit → roster `weapon: 'warhammer'`).
+
 ## Weapons Phase 2 polish — reconstructed parts, in progress (weapons lane, 2026-09-20)
 Owner reversed the freeze for weapons: polish all of them now for beta, keep the procedural parts as the revert. Trident (Veteran)
 and cleaver (Pitborn) ship as TRELLIS.2 reconstructions fitted by `scripts/weapon-fit.py` on the unchanged contact segments

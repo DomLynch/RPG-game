@@ -170,7 +170,7 @@ export type AiProfile = {
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
-export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe' | 'maul' | 'reaper';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
 export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
 export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true;
   guardProfile?: Partial<GuardProfile>;   // how this weapon's guard takes a blow (absent = the longsword defaults in RULES)
@@ -374,8 +374,12 @@ const creaturePaths = (paths: Record<PathId, PathSpec>, prefix: string): Record<
 ) as Record<PathId, PathSpec>;
 const MAUL: Weapon = { ...CLEAVER, id: 'maul', moves: { ...CLEAVER_MOVES, thrust: { ...CLEAVER_MOVES.thrust, stepIn: .3, reach: 1.4 } }, paths: creaturePaths(CLEAVER_PATHS, 'Maul'), guard: 'shaft', material: 'wood', fight: { thrustShare: .1, close: 1.15 } };
 // The Wraith reaps with a long crescent; stepping inside its edge earns a kick/backstep, not a phantom close hit.
+// The Dwarf's warhammer (weapons lane, on the shelf 2026-09-20; the character lane integrates, Combat acks the numbers): the maul's
+// blunt cleaver-family set on the humanoid Warhammer_* clips. PLACEHOLDER — reach proposals for a .78 fighter meant to get inside
+// (heavier hits, not longer ones) are Combat's to set; the maul's 1.4 thrust reach and 'shaft' guard stand in until then.
+const WARHAMMER: Weapon = { ...MAUL, id: 'warhammer', paths: creaturePaths(CLEAVER_PATHS, 'Warhammer'), placeholder: true };
 const REAPER: Weapon = { ...ESTOC, id: 'reaper', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {

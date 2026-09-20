@@ -102,7 +102,7 @@ async function readRig(file: string) { // the rig without its images (the bake r
 const TRIDENT_CLIPS: Record<string, number> = { Trident_Idle: 1.667, Trident_Walk: 1.333, Trident_StrafeLeft: .8, Trident_StrafeRight: .8, Trident_Thrust: 1, Trident_ThrustChain: 1, Trident_Sweep: 1, Trident_High: 1, Trident_Guard: 1, Trident_BlockImpact: 1, Trident_Deflected: 1, Trident_Hit: .333, Trident_Death: 2.4 };
 
 test('polearm elbows bend outwards in the ready gaits and keep their anatomical hinge through every clip, including between keys [slow]', async () => {
-  for (const file of [TRIDENT_GLB, 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb']) {
+  for (const file of [TRIDENT_GLB, 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb', 'src/assets/weapons/warhammer/veteran-warhammer.glb']) {
     const asset = await readRig(file), mixer = new AnimationMixer(asset.scene);
     const arms = ['l', 'r'].map(side => ({ side, upper: asset.scene.getObjectByName(`upperarm_${side}`)!, lower: asset.scene.getObjectByName(`lowerarm_${side}`)!, hand: asset.scene.getObjectByName(`hand_${side}`)! }));
     // Measure the bend plane in upper-arm coordinates: independent of root scale,
@@ -115,7 +115,7 @@ test('polearm elbows bend outwards in the ready gaits and keep their anatomical 
     };
     mixer.clipAction(asset.animations.find(c => c.name === 'Armed')!).play(); mixer.setTime(0); asset.scene.updateMatrixWorld(true);
     const hinges = arms.map(hinge); mixer.stopAllAction();
-    for (const clip of asset.animations.filter(c => /^(Trident|Scythe)_/.test(c.name))) {
+    for (const clip of asset.animations.filter(c => /^(Trident|Scythe|Warhammer)_/.test(c.name))) {
       mixer.clipAction(clip).play();
       for (let t = 0; t < clip.duration; t += 1 / 120) {
         mixer.setTime(t); asset.scene.updateMatrixWorld(true);
@@ -139,10 +139,10 @@ test('polearm elbows bend outwards in the ready gaits and keep their anatomical 
 });
 
 test('both polearm arms stay outside the torso core throughout every shipped clip, including between keys [slow]', async () => {
-  for (const file of ['src/assets/veteran.glb', 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb']) {
+  for (const file of ['src/assets/veteran.glb', 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb', 'src/assets/weapons/warhammer/veteran-warhammer.glb']) {
     const asset = await readRig(file), mixer = new AnimationMixer(asset.scene);
     const position = (name: string) => asset.scene.getObjectByName(name)!.getWorldPosition(new Vector3());
-    for (const clip of asset.animations.filter(c => /^(Trident|Scythe)_/.test(c.name))) {
+    for (const clip of asset.animations.filter(c => /^(Trident|Scythe|Warhammer)_/.test(c.name))) {
       mixer.clipAction(clip).play();
       for (let t = 0; t < clip.duration; t += 1 / 120) {
         mixer.setTime(t); asset.scene.updateMatrixWorld(true);
@@ -573,4 +573,34 @@ test('every reconstructed part loads on the contract — one WeaponDrawn node, t
     if (procedural) assert.deepEqual(procedural({ variant: undefined }).userData.contact, { from: part.userData.contact.from, to: part.userData.contact.to }, `${id}: the revert variant strikes with the same segment`);
     else assert.equal(id, 'longsword', 'only the hero\'s sword keeps its primitives in build-warrior.mjs (WEAPON_VARIANT=procedural)');
   }
+});
+
+// The Dwarf's warhammer, on the shelf (2026-09-20): the part, the Warhammer_* family on the humanoid rig, the placeholder data.
+test('the warhammer shelf: WEAPONS.warhammer is the maul\'s set flagged placeholder on Warhammer_* paths; the shelf rig carries WeaponDrawn with the head as the contact segment (the manifest agrees), the 12-clip family at the contract durations, and both hands on the haft through the grip roles', async () => {
+  const w = WEAPONS.warhammer;
+  assert.equal(w.placeholder, true); assert.equal(w.guard, 'shaft'); assert.deepEqual(Object.keys(w.moves), Object.keys(WEAPONS.maul.moves));
+  assert.deepEqual(new Set(Object.values(w.paths).map(p => p.clip)), new Set(['Warhammer_Slash', 'Warhammer_Heavy', 'Warhammer_Thrust']));
+  const asset = await readRig('src/assets/weapons/warhammer/veteran-warhammer.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
+  assert.equal(weapon.parent!.name, 'hand_r');
+  const manifest = (JSON.parse(readFileSync('scripts/blade-manifest.json', 'utf8')).weapons as { weapon: string; contact: number[] }[]).find(e => e.weapon === 'warhammer')!;
+  assert.deepEqual([weapon.userData.contact.from, weapon.userData.contact.to], manifest.contact, 'the head is the contact segment');
+  for (const name of ['SwordDrawn', 'SwordSheathed']) assert.equal(asset.scene.getObjectByName(name)!.children.length, 0, `${name} stays an empty group for the loader`);
+  const durations: Record<string, number> = { Idle: 1.667, Walk: 1.333, StrafeLeft: .8, StrafeRight: .8, Slash: 1, Heavy: 1, Thrust: 1, Guard: 1, BlockImpact: 1, Deflected: 1, Hit: .333, Death: 2.4 };
+  for (const [role, duration] of Object.entries(durations)) { const clip = asset.animations.find(c => c.name === `Warhammer_${role}`); assert.ok(clip, `Warhammer_${role}`); assert.ok(Math.abs(clip!.duration - duration) < 1e-3, `Warhammer_${role} ${clip!.duration}`); }
+  assert.equal(asset.animations.filter(c => c.name.startsWith('Warhammer_')).length, 12);
+  // The character lane's grip check (five roles, sampled): each wrist within 0.08 m of the haft's axis, the front one up the haft.
+  const mixer = new AnimationMixer(asset.scene), hand = (side: string) => asset.scene.getObjectByName(`hand_${side}`)!.getWorldPosition(new Vector3());
+  let worst = 0;
+  for (const role of ['Idle', 'Slash', 'Heavy', 'Guard', 'Thrust']) {
+    const clip = asset.animations.find(c => c.name === `Warhammer_${role}`)!; mixer.clipAction(clip).play();
+    for (let t = 0; t < clip.duration; t += clip.duration / 24) {
+      mixer.setTime(t); asset.scene.updateMatrixWorld(true);
+      const a = weapon.localToWorld(new Vector3(0, -1, 0)), axis = weapon.localToWorld(new Vector3(0, 2, 0)).sub(a);
+      for (const side of ['r', 'l']) { const p = hand(side), s = p.clone().sub(a).dot(axis) / axis.lengthSq(); worst = Math.max(worst, p.distanceTo(a.clone().addScaledVector(axis, s))); }
+    }
+    mixer.stopAllAction();
+  }
+  // The rig's own grip offset (SwordDrawn at (0, .08, .015) in hand_r) puts the right wrist 0.081 m off the axis at this 1.0× rig; the
+  // character lane's 0.08 m gate is at the Dwarf's .78 scale (0.081 × .78 = 0.063), so the shelf asserts the same bound scaled up.
+  assert.ok(worst < .08 / .78, `both wrists within 0.08 m of the haft at the Dwarf's scale through the grip roles (worst ${worst.toFixed(3)} m at 1.0×)`);
 });
