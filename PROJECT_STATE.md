@@ -41,6 +41,18 @@ Previous full CPU regression:297/297; current compression regression3/3. Full in
 No live/completion claim.
 Evidence: artifacts/character/werewolf-skeleton/ and artifacts/character/compression/.
 
+## Contact grit — presentation lane, 2026-09-20 (branch presentation/impact-grit)
+Owner-directed small realistic contact feedback, four steps behind the existing event stream, no sim change: (1) metal sparks
+(`src/clash-sparks.ts`) off the defender's guard on a blade-to-blade block or parry — steel on steel only (a shaft, wood, a kick, a landed
+blow: none), 4–8 hot streaks under gravity, one bounce off the sand, out ≤ 0.45 s; (2) guard shudder (`src/camera-kick.ts`): the trunk
+camera kick was applied before `lookAt` and along the view axis, so it measured 0 px; it is now a world offset applied after the look-at
+for the draw only — a heavy drops the camera 6 cm and holds two frames (11 px at phone framing), a heavy block 2.8 cm (6 px), a parry
+flicks 2 cm sideways (4 px), all settled within 13 frames; a heavy caught on the guard deepens the body recoil ×1.5; (3) sand puff off
+the defender's rear foot on a heavy that lands or is caught (`foot-dust.ts` `puff`); (4) kill dip: exposure −6 % for two frames, eased
+back over two, kill only (−2.4 % crop brightness). Harness `scripts/impact-preview.mjs` (scripted block/parry/heavy/kill through the real
+`createScene`, hit-stop reproduced) with before/after strips and camera traces in `artifacts/presentation/`; 4 new test files (7 tests).
+Gate 314/314 + browser gate on cbec4cd. Phone amplitudes unverified on device; the shove table is one place to halve.
+
 ## Veteran neck and material finish — 2026-09-19 (PR #172)
 Owner approved the matched before/after previews and authorized publication. The existing Veteran now has a continuous neck contour, shared collar skin weights and blended skin colour/normal/roughness maps. The trident shares restrained worn-bronze maps; armour, leather and linen receive the earlier material polish. Facial features, weapon geometry/reach, skeleton, clips, topology, UVs and unrelated surfaces remain preserved. The offline build is repeatable; alternate Veteran weapon builds also pass.
 
