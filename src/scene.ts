@@ -662,7 +662,9 @@ export function createScene(
       );
       // Opened: measure how far the landed pieces reach from the fallen's origin (world bounds of torso, legs and the dropped
       // weapon), so the side view fits what actually landed. Monotonic — the camera only ever backs off, never creeps in.
-      if (finisher === 'opened' && practice.finish?.victim === 1 && warriors) {
+      // Only while the pieces can still move (the victim clip places them until progress 1); after that the value is frozen —
+      // a precise bounds traversal of the corpse meshes has no business running 60× a second while the player sits on the tableau.
+      if (finisher === 'opened' && practice.finish?.victim === 1 && warriors && victimProgress < 1) {
         const pieces = warriors.opponent.anchor.getObjectByName('Opened');
         if (pieces?.visible) {
           const origin = warriors.opponent.anchor.getWorldPosition(new THREE.Vector3());
