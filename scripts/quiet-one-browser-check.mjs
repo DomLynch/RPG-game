@@ -54,32 +54,46 @@ const draw = async () => {
 
 let splitReceipt, headReceipt;
 async function fight(name) {
+  // A real duel against the live warden: the AI is seeded per match, so the scripted player wins most duels, not every one.
+  // Up to three duels; a lost or timed-out one is rematched in place (no win → no next-rung reload) and fought again.
+  // The kill assertion below is unchanged — a real UI duel must kill the opponent.
+  for (let attempt = 1; attempt <= 3; attempt++) {
   await draw();
-  console.log('difficulty',await page.locator('#difficulty').textContent());
+  console.log('difficulty',await page.locator('#difficulty').textContent(), 'attempt', attempt);
 
   let elapsed = 0;   // page time spent in this duel; the budget is page time, never wall time
   const step = async ms => { await run(ms); elapsed += ms; };
 
   while (elapsed < 90000) {
-    const state=await page.evaluate(()=>({text:document.querySelector('#debug').textContent,hp:document.querySelector('#player-health').value,enemy:document.querySelector('#target-health').value,light:document.querySelector('#attack-button').getAttribute('aria-disabled')==='false'}));
+    const state=await page.evaluate(()=>({text:document.querySelector('#debug').textContent,hp:document.querySelector('#player-health').value,enemy:document.querySelector('#target-health').value,light:document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',thrust:document.querySelector('#thrust-button').getAttribute('aria-disabled')==='false'}));
+    // Under the paused clock a Playwright tap must never wait for a control to enable — time only moves when this loop moves it.
+    const enabled = async id => (await page.locator('#'+id).getAttribute('aria-disabled')) === 'false';
     if(!state.hp || !state.enemy)break;
     const distance=+(state.text.match(/gap ([\d.]+)/)?.[1] ?? Infinity);
     const lines=state.text.split('warden:')[1]?.split('\n') ?? [], attack=lines[1]?.match(/([a-z_]+)\+? (\d+)\/(\d+) ([·#|\-]+)/);
     const stamina=+(state.text.match(/you: hp \d+ st (\d+)/)?.[1] ?? 0);
     const punish=+(state.text.split('warden:')[0].match(/punish (\d+)/)?.[1] ?? 0);
     if(punish>0 && state.light && stamina>=22 && distance<2) {
-      await page.locator('#attack-button').tap();await step(200);continue;
+      await page.keyboard.press('KeyF');await step(200);continue;   // keys, not taps: no actionability wait under the paused clock, and tick-exact
     }
     if(attack) {
       const age=+attack[2],windup=attack[4].indexOf('#');
       if(attack[1]==='kick' && distance<1.35) {
         await page.keyboard.down('KeyS');await step(250);await page.keyboard.up('KeyS');continue;
       }
-      if(windup>=0 && age>=windup-7 && age<windup+5 && distance<2.6) {
-        await page.keyboard.down('KeyQ');await step(180);await page.keyboard.up('KeyQ');continue;
+      // Parry, not block: a guard TAP whose press lands a few ticks before contact (the game's "tap just before impact to
+      // parry"), then the riposte. A held 180 ms guard was a block — chip damage, no counter — and the warden read the
+      // predictable pattern (habits "parry 13/16"): the veteran duel was a coin flip. Under the harness clock the tap is
+      // tick-exact: step one frame at a time while the attack is in flight, press at contact − 3 ticks, release 3 ticks later.
+      if(windup>=0 && age<windup && distance<2.6) {
+        if(age<windup-3) { await step(16); continue; }
+        await page.keyboard.down('KeyQ');await step(48);await page.keyboard.up('KeyQ');
+        for(let k=0;k<6;k++){ if(await enabled('thrust-button')){ await page.keyboard.press('KeyT'); await step(180); break; } await step(16); }   // the riposte, as soon as the sim accepts it
+        continue;
       }
-      if(age>windup+8 && state.light && stamina>45 && distance<1.65) {
-        await page.locator('#thrust-button').tap();await step(180);continue;
+      // Pressure: a thrust into the recovery keeps the warden engaged (parry-only play stalled the duel out of its budget).
+      if(age>windup+8 && state.thrust && stamina>45 && distance<1.65) {
+        await page.keyboard.press('KeyT');await step(180);continue;
       }
     }
     // Close inside the short knife's range so the Goblin can offer a punishable attack.
@@ -87,6 +101,12 @@ async function fight(name) {
       await page.keyboard.down('KeyW');await step(80);await page.keyboard.up('KeyW');continue;
     }
     await step(40);
+  }
+  if (await page.locator('#target-health').evaluate(e => +e.value) === 0) break;
+  if (attempt === 3) break;
+  console.log(`duel ${attempt} did not kill (page time ${elapsed} ms) — rematch\n`, await page.locator('#debug').textContent());
+  await page.locator('#reset-button').tap();
+  await until(() => document.querySelector('#target-health').value > 0 && document.querySelector('#player-health').value > 0 && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', 20000);
   }
   console.log('end state',await page.locator('#debug').textContent());
   assert.equal(await page.locator('#target-health').evaluate(e => e.value),0,'real UI duel must kill the opponent');
@@ -133,15 +153,22 @@ await page.screenshot({path:`${dir}/live-held.png`});
 // Blood is red only (owner 2026-09-20): the journal's blood toggle is gone, so the dark/off cycling that used to run under
 // --blood-check is retired; the finisher's own blood assertions above still run under the same flag.
 
-// Rematch after a WIN loads the next rung as a fresh document (main.ts reset-button → location.reload) — the harness clock dies
-// with the old document, and Playwright's own waitForFunction survives that where a plain evaluate loop cannot. Arm for the
-// navigation before the tap: a new document is waited for on real time (its boot is machine-dependent, not timing-sensitive);
-// an in-place rematch (last rung) is driven on the harness clock as before. Same predicate either way.
+// Rematch after a WIN loads the next rung as a fresh document (main.ts reset-button → location.reload). page.clock survives
+// the navigation: the new document boots with the fake clock already installed and paused, so nothing rAF-driven runs in it
+// until the gate advances time (the real-time script never had a clock, which is why it needed no care here). Boot itself —
+// asset fetches, the ready flag — is promise-driven and completes on real time; only then is the new document stepped with
+// run()/until() like the old one. An in-place rematch (last rung, no reload) needs no boot wait. Same predicate either way.
 const rematchPredicate = ()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips);
 const navigated = page.waitForEvent('framenavigated', { timeout: 3000 }).then(() => true, () => false);
 await page.locator('#reset-button').tap();
-if (await navigated) await page.waitForFunction(rematchPredicate, null, { timeout: 90000 });
-else await until(rematchPredicate, 20000);
+if (await navigated) {
+  for (let i = 0; i < 450; i++) {   // ≤ 90 s real time for the next rung's rigs to arrive
+    const ready = await page.evaluate(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false);
+    if (ready) break;
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
+await until(rematchPredicate, 20000);
 assert.doesNotMatch(await clips(), expected, 'rematch clears the finisher');
 receipt.rematchClips = await clips();
 if(process.argv.includes('--blood-check')) {receipt.rematchBlood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));assert.equal(receipt.rematchBlood.visible,false);assert.equal(receipt.rematchBlood.pools.length,0);}
