@@ -5,8 +5,8 @@ import type { Weapon } from './moves.ts';
 // Presentation only: metal sparks for a blade meeting a blade. A few thin fragments struck off the attacking blade itself, each its own
 // speed, angle, life, thickness and streak length (owner 2026-09-20, three times: nothing uniform, nothing yellow, nothing bright or thick
 // enough to look pasted on — silver, a reflection off the steel rather than a grey fleck, 70 % opaque), falling under gravity, one bounce
-// off the sand, cooling from a cool silver-white to a dull silver and out, plus one glint: a three-frame silver flash where the blades met. Normal blending (no additive glow), tone-mapped like the rest of the frame, drawn as thin streaks of up to eight points.
-// Readable brutality: ≤ 7 sparks, ≤ 0.4 s, nothing that covers a pose. Steel on steel only — the caller decides.
+// off the sand, cooling from a cool silver-white to a dull silver and out, plus one glint: a five-frame silver flash where the blades met. Normal blending (no additive glow), tone-mapped like the rest of the frame, drawn as thin streaks of up to eight points.
+// Readable brutality: ≤ 8 sparks, ≤ 0.4 s, nothing that covers a pose. Steel on steel only — the caller decides.
 // Steel on steel: the strength of the sparks a contact deserves, or 0 for none. Only a block or parry of a metal blade by a blade guard
 // (a shaft catching a blade, a wooden weapon, a kick, a landed blow: nothing). A parry strikes hardest, then a heavy, then a perfect block.
 export const HEAVY_CLASS = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
@@ -23,7 +23,7 @@ export function createClashSparks(scene: THREE.Scene) {
   const map = new THREE.DataTexture(pixels, 16, 16); map.needsUpdate = true; map.magFilter = map.minFilter = THREE.LinearFilter;
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3)); geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3)); geometry.setAttribute('sparkSize', new THREE.BufferAttribute(sizes, 1));
-  const material = new THREE.PointsMaterial({ map, size: 0.075, vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false });
+  const material = new THREE.PointsMaterial({ map, size: 0.1, vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false });
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float sparkSize;').replace('gl_PointSize = size;', 'gl_PointSize = size * sparkSize;');
   };
@@ -42,18 +42,18 @@ export function createClashSparks(scene: THREE.Scene) {
       const dir = along.clone().multiplyScalar((random() - 0.35) * 1.2).addScaledVector(side, (random() - 0.5) * 3.0).setY(0.1 + random() * 1.8).normalize();
       const speed = (1.4 + random() * random() * 4.5) * (0.8 + strength * 0.4);
       life[p] = span[p] = 0.15 + random() * random() * 0.35 + strength * 0.04; bounced[p] = 0;
-      girth[p] = 0.65 + random() * random() * 0.8; streak[p] = 2 + Math.round(random() * (trail - 2)); glint[p] = 0;   // some hair-thin flicks, some longer streaks
+      girth[p] = 0.7 + random() * random() * 0.8; streak[p] = 3 + Math.round(random() * (trail - 3)); glint[p] = 0;   // some hair-thin flicks, some longer streaks
       for (let axis = 0; axis < 3; axis++) { velocity[p * 3 + axis] = dir.getComponent(axis) * speed; for (let t = 0; t < trail; t++) history[(p * trail + t) * 3 + axis] = at.getComponent(axis); }
     }
   };
   return {
     // `a`→`b`: the attacking blade's contact zone (world). `heading`: the blow's direction (the attacker's facing). `strength` 0..1.
-    // Three to seven sparks, some of them a frame or two late, so no two clashes look alike.
+    // Four to eight sparks, some of them a frame or two late, so no two clashes look alike.
     burst(a: THREE.Vector3, b: THREE.Vector3, heading: number, strength: number) {
-      const at = new THREE.Vector3(), n = 3 + Math.round(random() * (2 + strength * 2)), now = Math.max(1, Math.round(n * (0.4 + random() * 0.4)));
+      const at = new THREE.Vector3(), n = 4 + Math.round(random() * (2 + strength * 2)), now = Math.max(1, Math.round(n * (0.4 + random() * 0.4)));
       spawn(a, b, heading, strength, now);
-      // The glint: the sun off the steel at the contact itself, gone in three frames, no motion, no streak, thin enough not to be a blob.
-      const g = cursor++ % pool; at.lerpVectors(a, b, 0.7); life[g] = span[g] = 0.05; bounced[g] = 1; girth[g] = 1.5 + strength * 0.6; streak[g] = 1; glint[g] = 1;
+      // The glint: the sun off the steel at the contact itself, gone in five frames, no motion, no streak, thin enough not to be a blob.
+      const g = cursor++ % pool; at.lerpVectors(a, b, 0.7); life[g] = span[g] = 0.085; bounced[g] = 1; girth[g] = 1.9 + strength * 0.7; streak[g] = 1; glint[g] = 1;
       for (let axis = 0; axis < 3; axis++) { velocity[g * 3 + axis] = 0; for (let t = 0; t < trail; t++) history[(g * trail + t) * 3 + axis] = at.getComponent(axis); }
       if (n > now) late.push({ a: a.clone(), b: b.clone(), heading, strength, n: n - now });
     },
@@ -77,9 +77,11 @@ export function createClashSparks(scene: THREE.Scene) {
           const i = p * trail + t, fade = heat * (1 - t * 0.14);
           positions.set([history[i * 3], history[i * 3 + 1], history[i * 3 + 2]], i * 3);
           // Silver, not grey: a cool white when struck (no yellow, a touch of blue like light off steel), a dull silver as it cools, out:
-          // (0.92, 0.95, 1.0) → (0.58, 0.60, 0.66) → 0. The glint holds pure silver-white for its three frames.
-          const hot = glint[p] ? 1 : Math.min(1, fade * 1.6), gain = glint[p] ? 1 : Math.min(1, fade * 2.5);
-          colors.set([(0.58 + 0.34 * hot) * gain, (0.60 + 0.35 * hot) * gain, (0.66 + 0.34 * hot) * gain], i * 3);
+          // (1.0, 1.0, 1.0) → (0.58, 0.60, 0.66) → 0. The glint holds pure silver-white for its five frames. Owner 2026-09-20 (4th pass,
+          // "can't see the sparks now"): a step up from the first silver pass — size 0.1, white when struck, five-frame glint, one more spark —
+          // still 70 % opaque, still no yellow, no glow.
+          const hot = glint[p] ? 1 : Math.min(1, fade * 1.8), gain = glint[p] ? 1 : Math.min(1, fade * 2.5);
+          colors.set([(0.58 + 0.42 * hot) * gain, (0.60 + 0.40 * hot) * gain, (0.66 + 0.34 * hot) * gain], i * 3);
           sizes[i] = t < streak[p] ? girth[p] * (glint[p] ? heat : 0.5 + heat * 0.5) * (1 - t * 0.12) : 0;
         }
       }
