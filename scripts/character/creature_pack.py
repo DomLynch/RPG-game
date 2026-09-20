@@ -369,6 +369,8 @@ d.setdefault("extras", {})["creatureSource"] = {
     "sourceSha256": hashlib.sha256(
         (Path(f"src/assets/source/creatures/{family}.glb")).read_bytes()
     ).hexdigest(),
+    # The one map the fitter may replace: its colour-matched base colour (creature-check.mjs verifies the swap).
+    **({"skinMatched": hashlib.sha256(matched.read_bytes()).hexdigest()} if matched.exists() else {}),
 }
 assert b[: len(original)] == original
 assert d["animations"] == frozen["animations"]

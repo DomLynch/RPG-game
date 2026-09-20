@@ -217,9 +217,11 @@ bpy.ops.mesh.remove_doubles(threshold=0.00001)
 bpy.ops.object.mode_set(mode="OBJECT")
 mesh.data.calc_loop_triangles()
 tris = len(mesh.data.loop_triangles)
-if tris > 45000:
+# The Veteran's surface stops at the jaw; his scanned head (12.7k with eyes and teeth) rides on top under the 60k ceiling.
+budget = 39000 if family == "veteran" else 45000
+if tris > budget:
     mod = mesh.modifiers.new("Mobile surface", "DECIMATE")
-    mod.ratio = 45000 / tris
+    mod.ratio = budget / tris
     if family == "dwarf":
         # A 1536-res reconstruction carries fine face/beard/finger detail that a uniform collapse turns into shards. Spend the
         # 45k budget where the camera goes: the head (top 24 % of the body) and the hands keep their triangles, the torso,

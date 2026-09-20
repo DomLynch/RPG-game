@@ -41,7 +41,8 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
   const weaponKind = ROSTER[family].weapon;
   if (['maul', 'reaper'].includes(weaponKind)) assert.equal(doc.extras.creatureWeapon?.generator, digest(await fs.readFile('scripts/build-creature-weapons.mjs')), 'Stale creature weapon generator');
-  assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw) }, 'Stale creature: rebuild with build-creatures.mjs');
+  const { skinMatched } = doc.extras.creatureSource ?? {};   // set when the fitter colour-matched the base colour map to the donor's skin (the Veteran)
+  assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw), ...(skinMatched ? { skinMatched } : {}) }, 'Stale creature: rebuild with build-creatures.mjs');
   // Death_QuietOne is authored per body on its own skin envelope (build-quiet-one.mjs), so it is the one clip not inherited verbatim.
   const inherited = a => a.doc.animations.filter(c => c.name !== 'Death_QuietOne');
   assert.deepEqual(inherited(output).slice(0, inherited(original).length).map(c => animation(output, c)), inherited(original).map(c => animation(original, c)), 'Combat clips changed');
@@ -65,7 +66,12 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
     assert.deepEqual(after, expected, `Joint/attachment changed: ${before.name}`);
   }
   const imageBytes = a => a.doc.images.map(img => { const v = a.doc.bufferViews[img.bufferView]; return digest(a.bin.subarray(v.byteOffset || 0, (v.byteOffset || 0) + v.byteLength)); });
-  for (const hash of imageBytes(source)) assert(imageBytes(output).includes(hash), 'Original compressed map lost');
+  const outImages = imageBytes(output), lost = imageBytes(source).filter(hash => !outImages.includes(hash));
+  if (skinMatched) { // exactly the source base colour map is replaced, by the matched WebP the pack stamped
+    const tex = source.doc.textures[source.doc.materials[0].pbrMetallicRoughness.baseColorTexture.index], baseImage = tex.source ?? Object.values(tex.extensions).find(e => 'source' in e).source;
+    assert.deepEqual(lost, [imageBytes(source)[baseImage]], 'Only the base colour map may be colour-matched');
+    assert(outImages.includes(skinMatched), 'Matched base colour map lost');
+  } else assert.deepEqual(lost, [], 'Original compressed map lost');
   const asset = await geometryOnly(output), body = asset.scene.getObjectByName('CreatureBody');
   assert(body?.isSkinnedMesh && body.userData.creature === family);
   const g = body.geometry, weights = g.attributes.skinWeight, joints = g.attributes.skinIndex;
