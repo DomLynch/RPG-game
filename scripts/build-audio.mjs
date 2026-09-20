@@ -68,12 +68,6 @@ function mode(n, f, t60, amp = 1, { slide = 1, tau = .03, phase = 0 } = {}) {
   for (let i = 0; i < n; i++) { const t = i / RATE, freq = f * (1 + (slide - 1) * Math.exp(-t / tau)); ph += 2 * Math.PI * freq / RATE; y[i] = amp * Math.exp(-k * i) * Math.sin(ph); }
   return y;
 }
-// Inharmonic modal bank: iron rings with partials that are not multiples of the fundamental; decay shortens up the series.
-function modal(n, f0, ratios, t60, amp, r, { spread = .012, roll = .72 } = {}) {
-  const y = new Float32Array(n);
-  ratios.forEach((ratio, k) => add(y, mode(n, f0 * ratio * (1 + (r() - .5) * spread), t60 * roll ** k, amp * (.9 ** k), { phase: r() * Math.PI * 2 })));
-  return y;
-}
 // Envelopes: linear-segment (times in s, levels) and the classic percussive attack/decay.
 function envelope(n, points) {
   const y = new Float32Array(n);
@@ -82,10 +76,8 @@ function envelope(n, points) {
 }
 const decay = (n, t60, attack = .001) => { const y = new Float32Array(n), k = 6.9078 / (t60 * RATE), a = Math.max(1, S(attack)); for (let i = 0; i < n; i++) y[i] = Math.min(1, i / a) * Math.exp(-k * Math.max(0, i - a)); return y; };
 const mul = (x, e) => { const y = new Float32Array(x.length); for (let i = 0; i < y.length; i++) y[i] = x[i] * (e[i] ?? 0); return y; };
-const gain = (x, g) => x.map(v => v * g);
 function add(target, x, at = 0, g = 1) { const o = S(at); for (let i = 0; i < x.length && o + i < target.length; i++) target[o + i] += x[i] * g; return target; }
 const mix = (n, ...layers) => { const y = new Float32Array(n); for (const [x, at = 0, g = 1] of layers) add(y, x, at, g); return y; };
-const sub = (x, from, seconds) => x.subarray(S(from), S(from) + S(seconds));
 function normalize(x, peakDb) { let peak = 0; for (const v of x) peak = Math.max(peak, Math.abs(v)); const g = peak ? 10 ** (peakDb / 20) / peak : 0; return x.map(v => v * g); }
 const fadeOut = (x, seconds) => { const n = S(seconds); for (let i = 0; i < n && i < x.length; i++) x[x.length - 1 - i] *= i / n; return x; };
 const dbfs = db => 10 ** (db / 20);
