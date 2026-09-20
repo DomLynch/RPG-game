@@ -25,3 +25,8 @@ Veteran to the creatures' standard. Beta freeze (owner FYI 2026-09-20) allows po
 
 ## Not in scope
 New opponents (Werewolf, Skeleton, Troll…) — parked for Phase 2 per the freeze. The hero: the owner called him done.
+
+## Status 2026-09-20 (evening)
+Steps 1–3 done on `char/veteran-v2-fit`: source, reconstruction, fit (helm retained, trident on hand_r). Step 4 (head
+judgement / graft) and step 5's render review wait on the deployer's FREE window; CPU gates green (321 tests, creature-check,
+budget 24.0 of 32 MB).

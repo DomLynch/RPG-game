@@ -255,6 +255,22 @@ hero's outputs stay byte-identical.
   high sculpt alike, before any bake. The kit is cut from that surface and the strips probe it, so tunic, belt, wraps,
   straps and greaves follow without clipping (`build-before-after.png`). 59.4k skinned triangles.
 
+## The Veteran v2 — a TRELLIS.2 body on his own rig (character lane, 2026-09-20)
+
+`src/assets/veteran.glb` is now a TRELLIS.2 reconstruction fitted through the creature pipeline, the way the Executioner was
+rebuilt: his front portrait was edited by FLUX.1 Kontext [dev] into a full-body A-pose in the approved kit
+(`scripts/character/kontext.py`; `docs/character-references/veteran-source-v1.png` + `.kontext.json`: seed 7 of three, a
+second pass removed a forearm tattoo, the FLUX corner stamp erased), reconstructed by `scripts/character/trellis2.py`
+(`src/assets/source/creatures/veteran.glb` + sidecar, seed 190926, 1024, 100k faces, 2K texture), and fitted by
+`creatures.py` with the v1 Veteran as his own weight donor (`src/assets/source/backups/veteran-v1.glb`, the Studio body
+with the KeenTools head — byte-identical to the last shipped v1; also the Skeleton's donor now). Recipe: arm angle 62°,
+height 1.82 m, human hands keep the donor's finger weights so the clips curl round the trident. `creature_pack.py` retains
+the fitted `Helmet` slot draw alongside the weapon (`KEEP_SLOTS`), so he still fights in the plain Chalcidian helm. 44,964
+surface triangles + trident + helm = 47.5k skinned; 2.79 MB gzip packed (v1 was 4.6). The generator hash change re-stamps
+the Dwarf and Executioner (rebuilt byte-identical but for that hash); the held creatures are untouched. The v1-specific
+release checks (`veteran-neck-check.mjs`, `veteran-polish-check.mjs`) now audit the v1 backup they were written for.
+Open: the owner's render review; the KeenTools head graft if the reconstruction's face reads soft in the close-ups.
+
 ## Combat audio (audio lane, 2026-09-15; reconciled 2026-09-20)
 `src/assets/audio/sprite.m4a` (AAC-LC 128 kb/s, Apple AudioToolbox encoder via ffmpeg `aac_at`, for Safari) and `sprite.ogg`
 (Opus 96 kb/s VBR via ffmpeg `libopus`, for Chrome/Android) are one audio sprite built by `node scripts/build-audio.mjs`
