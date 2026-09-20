@@ -12,7 +12,8 @@ const receipt={url:url.href,physicalPhone:false,counters:[],errors:[]};
 const dir='artifacts/weapons/counter-buttons';await fs.mkdir(dir,{recursive:true});
 try {
  for(const [button,move,clip,damage] of [['attack-button','slash_riposte','Attack',24],['thrust-button','riposte','Riposte',24],['heavy-button','heavy_riposte','Heavy',30]]) {
-  const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+  // 1× pixel density: this gate asserts events, clips and health, not pixels, and software-GL runners render every harness frame.
+  const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:1});
   page.on('pageerror',e=>receipt.errors.push(String(e)));await page.route('**/*sentry.io/**',r=>r.abort());
   await page.goto(url.href);await page.getByRole('button',{name:'Enter the arena'}).tap({timeout:120000});   // a load wait: the runner's first render compiles shaders on software GL
   await page.waitForFunction(()=>document.querySelector('#art-status').textContent===''&&document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});

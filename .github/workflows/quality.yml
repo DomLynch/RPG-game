@@ -29,8 +29,16 @@ jobs:
       - name: Account database isolation
         run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
   browser:
+    # One runner per gate: each harness-clock gate renders every frame on software GL, so they run in parallel with room for slow runners.
+    strategy:
+      fail-fast: false
+      matrix:
+        gate:
+          - { name: combat, script: scripts/browser-check.mjs }
+          - { name: counter, script: scripts/counter-browser-check.mjs }
+    name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,14 +50,13 @@ jobs:
       - name: Lossless JPEG build tool
         run: sudo apt-get install -y libjpeg-turbo-progs
       - run: npm run build
-      - name: Combat gate (parry, riposte, kick, journal, layout, no-WebGL fallback)
-        run: node scripts/browser-check.mjs
-      - name: Counter gate (slash, thrust and heavy ripostes)
-        run: node scripts/counter-browser-check.mjs
+      - name: ${{ matrix.gate.name }} gate
+        run: node ${{ matrix.gate.script }}
+        timeout-minutes: 30
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-gate-receipts
+          name: browser-gate-receipts-${{ matrix.gate.name }}
           path: |
             artifacts/browser-check.json
             artifacts/browser-*.jpg
