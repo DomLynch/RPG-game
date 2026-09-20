@@ -107,7 +107,7 @@ test('the Pitborn is set up from his data: the cleaver slot, 1.13× scale, 190 h
   const [hero, brute] = initialDuel(P).fighters;
   assert.deepEqual(hero, initialDuel().fighters[0]);
   assert.equal(brute.weapon, 'cleaver'); assert.equal(brute.scale, 1.13); assert.equal(brute.health, 190); assert.equal(brute.maxHealth, 190); assert.equal(brute.poise, 16);
-  assert.ok(P.profiles.normal.aggression > PROFILES.normal.aggression && P.profiles.normal.parry < PROFILES.normal.parry && P.profiles.normal.reaction > PROFILES.normal.reaction, 'relentless, rarely parries, slower to notice');
+  assert.ok(P.profiles.normal.aggression > PROFILES.normal.aggression && P.profiles.normal.parry < PROFILES.normal.parry && P.profiles.normal.reaction >= PROFILES.normal.reaction && P.profiles.normal.lapse <= PROFILES.normal.lapse, 'relentless, rarely parries; notices like a man and answers what he sees (the 2026-09-20 tune: he was the softest rung, walking onto every stab)');
 });
 
 test('poise: a plain cut never staggers or moves the Pitborn — it wounds him and builds his posture; a heavy staggers him; a counter-hit cut staggers him', () => {
@@ -171,15 +171,17 @@ test('fight identity — don\'t turtle: the Pitborn passes the fairness battery 
 });
 
 test('AI vs AI at normal: the Veteran\'s brain in the hero body against the Pitborn finishes every fight, median 25–45 s', () => {
-  const lengths: number[] = [];
+  const lengths: number[] = []; let heroWins = 0;
   for (let s = 1; s <= 24; s++) {
     let d = ring(P, 1.6), hero = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), brute = initialAi((s * 2654435761) >>> 0);
     for (let i = 0; i < 7200 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, brute, P.profiles.normal); hero = a.ai; brute = b.ai; d = stepDuel(d, [a.intent, b.intent]); }
-    assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
+    assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick); if (d.finish!.victim === 1) heroWins++;
   }
   const median = lengths.sort((a, b) => a - b)[12] / 60;
   assert.ok(median >= 25 && median <= 45, `median ${median.toFixed(1)} s (${lengths.map(t => (t / 60).toFixed(0)).join(' ')})`);
-  console.log(`pitborn AI vs AI: median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s`);
+  // The 2026-09-20 tune (reaction 18 → 14, lapse .3 → .1): rung 2 is no longer the softest fight — the hero's brain won 17/24 before, 13/24 after, the Veteran's own 13.
+  assert.ok(heroWins <= 15, `the hero brain wins ${heroWins}/24 — the Pitborn is the pushover again`);
+  console.log(`pitborn AI vs AI: hero wins ${heroWins}/24, median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s`);
 });
 
 // ── The Nightborn (opponent 5): the parry is his game, and the parry is how he is beaten — feint it, bait it, or charge past it.
@@ -266,4 +268,43 @@ test('AI vs AI at normal: the Veteran\'s brain in the hero body against the Nigh
   assert.ok(heroWins >= 3, `the hero won ${heroWins}/24`);
   assert.ok(exhausted <= 24 * 10, `the Nightborn was exhausted on ${exhausted} ticks over 24 fights — he is beaten by wit, not stamina`);
   console.log(`nightborn AI vs AI: median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s, hero wins ${heroWins}/24`);
+});
+
+// ── The Executioner (opponent 5, 2026-09-18 by the roster lane; gated 2026-09-20 by the combat lane): the man's brain (PROFILES) in a 1.36×
+// brute with 160 hp, poise 12 and the scythe — huge reach, a shaft guard. No bespoke answer is prescribed for him; the standard rules are the gate.
+const E = OPPONENTS.executioner;
+test('the Executioner is set up from his data: the live scythe, 1.36× scale, 160 health, poise 12, the shared PROFILES; the hero is unchanged', () => {
+  const [hero, him] = initialDuel(E).fighters;
+  assert.deepEqual(hero, initialDuel().fighters[0]);
+  assert.equal(him.weapon, 'scythe'); assert.equal(WEAPONS.scythe.placeholder, undefined); assert.equal(him.scale, 1.36); assert.equal(him.health, 160); assert.equal(him.maxHealth, 160); assert.equal(him.poise, 12);
+  assert.equal(E.profiles, PROFILES);
+});
+
+test('fight identity — reach: the Executioner passes the fairness battery at normal and hard (no cheese over the caps, every strategy touched), an honest script can beat him, and a man parked inside his point is not left alone', () => {
+  const parked = (at: number) => (d: Duel): Intent => ({ ...idle(), move: { x: 0, z: gap(d) > at + .05 ? -1 : gap(d) < at - .05 ? 1 : 0, yaw: 0, run: false } });   // stands at a chosen distance and never swings
+  for (const [level, cap] of [['normal', .5], ['hard', .35]] as const) {
+    const rows = battery(level, 24, 7200, E, { ...STRATEGIES, 'whiff punisher': whiffPunisher, 'parked at 1.2 m': parked(1.2), 'parked at 1.6 m': parked(1.6) });
+    const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');
+    for (const [name, r] of Object.entries(rows)) {
+      if (name !== 'perfect parry') assert.ok(r.wins / 24 <= cap, `${level} · ${name} wins ${r.wins}/24 (cap ${cap * 100} %)\n  ${table}`);
+      assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
+    }
+    // No bespoke answer was designed for him; what is pinned is that an honest script beats him at all at normal (the charged heavy through his shaft guard does — the whiff punisher does not: the scythe walks through a backstep).
+    const honest = Object.entries(rows).filter(([n]) => n !== 'perfect parry' && !n.startsWith('parked')).map(([, r]) => r.wins);
+    if (level === 'normal') assert.ok(Math.max(...honest) >= 3, `${level} · no honest script wins 3 of 24 against him\n  ${table}`);
+    for (const name of ['parked at 1.2 m', 'parked at 1.6 m']) assert.equal(rows[name].wins + rows[name].untouched, 0, `${level} · ${name}: a man who stands still inside his reach is killed, never left alone\n  ${table}`);
+    console.log(`executioner battery ${level}\n  ${table}`);
+  }
+});
+
+test('AI vs AI at normal: the Veteran\'s brain in the hero body against the Executioner finishes every fight, median 18–45 s', () => {
+  const lengths: number[] = [];
+  for (let s = 1; s <= 24; s++) {
+    let d = ring(E, 1.6), hero = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), him = initialAi((s * 2654435761) >>> 0);
+    for (let i = 0; i < 7200 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, him, E.profiles.normal); hero = a.ai; him = b.ai; d = stepDuel(d, [a.intent, b.intent]); }
+    assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
+  }
+  const median = lengths.sort((a, b) => a - b)[12] / 60;
+  assert.ok(median >= 18 && median <= 45, `median ${median.toFixed(1)} s (${lengths.map(t => (t / 60).toFixed(0)).join(' ')})`);
+  console.log(`executioner AI vs AI: median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s`);
 });
