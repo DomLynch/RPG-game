@@ -16,9 +16,10 @@ const receipt = { origin, physicalPhone: false, views: [], errors: [] };
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
-  for (const opponent of ['executioner', 'veteran']) {
+  const view = async (opponent, mobile) => {
     const prefix = opponent === 'executioner' ? 'Scythe' : 'Trident';
-    for (const mobile of [false, true]) {
+    const started = Date.now();
+    {
       const viewport = mobile ? { width: 852, height: 393 } : { width: 1100, height: 1050 };
       // Receipts render at native DPR on the Mac; on the software-GL runner every extra pixel is wall time (HARNESS_DPR / CI → 1).
       const deviceScaleFactor = Number(process.env.HARNESS_DPR) || (process.env.CI ? 1 : mobile ? 2 : 1.5);
@@ -39,13 +40,17 @@ try {
       // Booted for real (asset loads are machine-dependent, not timing-sensitive); from here page time moves only when this gate
       // advances it, so the walk-in, the orbit's settle and the fight frames land on the same ticks on a MacBook, the VPS or a GPU-less
       // runner (release check #9 failed on ubuntu-latest on wall-clock waits, 2026-09-21; the combat gate moved first).
-      const { run, until } = await harnessClock(page);
+      const clock = await harnessClock(page);
+      // Page time spent per frame, in the receipt: the frame count is machine-independent, so it prices the check on any runner.
+      let pageMs = 0;
+      const run = async ms => { await clock.run(ms); pageMs += ms; };
+      const until = async (...a) => { pageMs += await clock.until(...a); };
       const frames = [];
       const shot = async label => {
         const state = await page.evaluate(() => ({ clips: document.querySelector('#debug').dataset.clips, art: document.querySelector('#art-status').textContent, overflow: document.documentElement.scrollWidth > innerWidth }));
         assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(`${prefix}_`));
         const path = `${dir}/${opponent}-${mobile ? 'phone' : 'desktop'}-${label}.png`;
-        await page.screenshot({ path }); frames.push({ label, path, ...state });
+        await page.screenshot({ path }); frames.push({ label, path, pageMs, ...state });
       };
       await shot('start');
       await page.keyboard.down('w'); await run(900); await page.keyboard.up('w');
@@ -67,10 +72,15 @@ try {
       await until(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), 30000, prefix);
       await shot('fight');
       for (let i = 0; i < 3; i++) { await run(120); await shot(`fight-${i}`); }
-      receipt.views.push({ opponent, mobile, viewport, deviceScaleFactor, asset: response.url(), rigSha256, frames });
+      receipt.views.push({ opponent, mobile, viewport, deviceScaleFactor, asset: response.url(), rigSha256, wallMs: Date.now() - started, frames });
       await context.close();
     }
-  }
+  };
+  // The two opponents run side by side: on a software-GL runner a frame costs ~1 s and the four views need ~1,400 of them
+  // (release check #9 measured 1704 s serial, 2026-09-21), so the wall time halves where the cores are free. Page time is per page,
+  // so the views stay on the same ticks; the receipt order is fixed below, not by finish time.
+  await Promise.all(['executioner', 'veteran'].map(async opponent => { await view(opponent, false); await view(opponent, true); }));
+  receipt.views.sort((a, b) => a.opponent.localeCompare(b.opponent) || Number(a.mobile) - Number(b.mobile));
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify({ passed: true, views: receipt.views.length, release: receipt.release }));
 } finally {
