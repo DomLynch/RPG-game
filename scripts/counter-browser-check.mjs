@@ -14,7 +14,7 @@ try {
  for(const [button,move,clip,damage] of [['attack-button','slash_riposte','Attack',24],['thrust-button','riposte','Riposte',24],['heavy-button','heavy_riposte','Heavy',30]]) {
   const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:2});
   page.on('pageerror',e=>receipt.errors.push(String(e)));await page.route('**/*sentry.io/**',r=>r.abort());
-  await page.goto(url.href);await page.getByRole('button',{name:'Enter the arena'}).tap();
+  await page.goto(url.href);await page.getByRole('button',{name:'Enter the arena'}).tap({timeout:120000});   // a load wait: the runner's first render compiles shaders on software GL
   await page.waitForFunction(()=>document.querySelector('#art-status').textContent===''&&document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
   const {run,until}=await harnessClock(page);await run(200);   // a few harness frames after the arena opens before the first press
   await page.evaluate(()=>{

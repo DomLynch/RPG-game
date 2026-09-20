@@ -21,7 +21,8 @@ try {
  page.on('pageerror',e=>receipt.errors.push(String(e)));
   // The first two waits are load waits (the two rigs are ~13 MB; a slow link to the live site is not a behaviour failure): 90 s, like the rig wait.
  const gameUrl=new URL(url);gameUrl.searchParams.set('debug','1');
- await page.goto(gameUrl.href);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});await page.getByRole('button',{name:'Enter the arena'}).tap();await page.waitForFunction(()=>document.querySelector('#welcome').hidden);await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL; a load wait, not a behaviour wait
+ await page.goto(gameUrl.href);await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});await page.getByRole('button',{name:'Enter the arena'}).tap({timeout:120000});await page.waitForFunction(()=>document.querySelector('#welcome').hidden,null,{timeout:120000});await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='',null,{timeout:90000});   // the two rigs (14 MB) decode slowly on a CI runner's software GL, and its first real render compiles every shader while the
+   // Enter tap waits on the main thread: load waits (120 s), not behaviour waits — behaviour is on the harness clock below
  const {run,until}=await harnessClock(page);   // from here on, page time moves only when the gate advances it
  const cdp=await page.context().newCDPSession(page);
  const center=async id=>{const b=await page.locator('#'+id).boundingBox();assert.ok(b,id);return{x:b.x+b.width/2,y:b.y+b.height/2}};
