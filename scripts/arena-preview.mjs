@@ -4,6 +4,7 @@
 //   node scripts/arena-preview.mjs --against baseline      also print deltas against that label's stats
 //   node scripts/arena-preview.mjs --moodboard             material swatches under the game lighting (direction proposal only)
 //   node scripts/arena-preview.mjs --serve                 keep a dev server up for manual review
+//   --phone                                                 capture at the phone tier (halved arena maps, 512 shadow map, prop maps capped)
 // Every capture uses the same camera and exposure; changing them here to flatter the set is a failed iteration. The lock views settle
 // the camera before capturing (the lead's 7.6 % lesson: an unsettled camera is not a before/after).
 import { createServer } from 'vite';
@@ -154,7 +155,7 @@ try {
 // The page is served by this script (no harness file in the repo root): vite transforms its inline module like any index.html.
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'arena-preview', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/arena-preview.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml('/arena-preview.html', PAGE)); }); } }] });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}arena-preview.html`;
+const url = `${server.resolvedUrls.local[0]}arena-preview.html${args.includes('--phone') ? '?gfx=phone' : ''}`;   // --phone: the phone tier (quality.ts ?gfx=phone override)
 if (args.includes('--serve')) { console.log(`Arena preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
 const dir = `artifacts/world/${args.includes('--moodboard') ? 'moodboard' : label}`; await fs.mkdir(dir, { recursive: true });

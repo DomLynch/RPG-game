@@ -10,14 +10,17 @@ const portcullisUrl = url('portcullis'), rackUrl = url('weapon-rack'), shieldUrl
 // re-textured in Blender (artifacts/presentation/props-v1), loaded after the procedural arena so nothing waits on them. Each entry
 // carries the GLB's unit size so tests/arena-props.test.ts can hold the placement to the arena contract without loading a file:
 // nothing inside the play circle, nothing 0.5–6 m high inside the camera clamp (11.5 m). `size` is the unscaled [w, h, d] in metres.
-export type ArenaProp = { id: string; url: string; size: [number, number, number]; r: number; angle: number; y: number; yaw: number; pitch?: number; scale: number; replaces?: 'gateBars' };
+export type ArenaProp = { id: string; url: string; size: [number, number, number]; r: number; angle: number; y: number; yaw: number; pitch?: number; scale: number; metalness: number; roughness: number; replaces?: 'gateBars' };
+// `metalness`/`roughness` replace each GLB's metallic-roughness map (audit 2026-09-20: the phone's ceiling is GPU memory, and a second
+// 768² map per prop bought little on matte, worn things); the base-colour map stays, capped at 512² (256² on the phone tier).
 export const PROPS: readonly ArenaProp[] = [
-  { id: 'portcullis', url: portcullisUrl, size: [1, 0.82, 0.15], r: 12.15, angle: Math.PI, y: 1.31, yaw: Math.PI, scale: 3.2, replaces: 'gateBars' },   // the gate's lattice, 3.2 m wide
-  { id: 'weapon-rack', url: rackUrl, size: [0.5, 0.99, 0.31], r: 12.1, angle: Math.PI + 0.7, y: 2.6 + 0.745, yaw: Math.PI + 0.7 + Math.PI / 2, scale: 1.5 },   // on the wall walkway beside the gate
-  { id: 'shield', url: shieldUrl, size: [0.94, 1, 0.26], r: 9.7, angle: 0.62, y: 0.115, yaw: 0.62, pitch: -Math.PI / 2, scale: 0.9 },   // lying face up in the sand band
-  { id: 'column-drum', url: drumUrl, size: [0.81, 0.78, 1.01], r: 10.9, angle: 2.35, y: 0.235, yaw: 2.35 + 0.6, scale: 0.6 },              // a fallen drum, on its side
-  { id: 'bone-pile', url: bonesUrl, size: [0.99, 0.52, 0.99], r: 10.4, angle: 4.55, y: 0.21, yaw: 4.55, scale: 0.8 },                        // half-buried
+  { id: 'portcullis', url: portcullisUrl, size: [1, 0.82, 0.15], r: 12.15, angle: Math.PI, y: 1.31, yaw: Math.PI, scale: 3.2, metalness: 0.55, roughness: 0.82, replaces: 'gateBars' },   // the gate's lattice, 3.2 m wide
+  { id: 'weapon-rack', url: rackUrl, size: [0.5, 0.99, 0.31], r: 12.1, angle: Math.PI + 0.7, y: 2.6 + 0.745, yaw: Math.PI + 0.7 + Math.PI / 2, scale: 1.5, metalness: 0.25, roughness: 0.9 },   // on the wall walkway beside the gate
+  { id: 'shield', url: shieldUrl, size: [0.94, 1, 0.26], r: 9.7, angle: 0.62, y: 0.115, yaw: 0.62, pitch: -Math.PI / 2, scale: 0.9, metalness: 0.3, roughness: 0.88 },   // lying face up in the sand band
+  { id: 'column-drum', url: drumUrl, size: [0.81, 0.78, 1.01], r: 10.9, angle: 2.35, y: 0.235, yaw: 2.35 + 0.6, scale: 0.6, metalness: 0, roughness: 0.95 },              // a fallen drum, on its side
+  { id: 'bone-pile', url: bonesUrl, size: [0.99, 0.52, 0.99], r: 10.4, angle: 4.55, y: 0.21, yaw: 4.55, scale: 0.8, metalness: 0, roughness: 0.92 },                        // half-buried
 ];
+export const PROP_TEXTURE_CAP = { full: 512, phone: 256 } as const;
 // World-space extent of a placed prop: its scaled box, the horizontal reach taken as the box's diagonal (the yaw makes the exact
 // footprint irrelevant to the contract). A pitched prop swaps its height for its depth.
 export function extent(p: ArenaProp): { rMin: number; yMin: number; yMax: number } {
@@ -41,8 +44,16 @@ export function loadArenaProps(group: THREE.Group, phone: boolean, replaced: (wh
     if (!gltf || disposed) return;
     const root = gltf.scene; root.name = `prop ${p.id}`;
     root.position.set(p.r * Math.sin(p.angle), p.y, p.r * Math.cos(p.angle)); root.rotation.set(p.pitch ?? 0, p.yaw, 0, 'YXZ'); root.scale.setScalar(p.scale);
-    root.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = o.receiveShadow = true; const m = o.material as THREE.MeshStandardMaterial; if (m.isMeshStandardMaterial) m.envMapIntensity = 0.6; } });
-    if (phone) budgetTextures(root, 512);   // the phone tier's GPU memory (quality.ts): 768² hero maps become 512²
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      o.castShadow = o.receiveShadow = true;
+      const m = o.material as THREE.MeshStandardMaterial;
+      if (!m.isMeshStandardMaterial) return;
+      m.envMapIntensity = 0.6; m.metalness = p.metalness; m.roughness = p.roughness;
+      for (const slot of ['metalnessMap', 'roughnessMap'] as const) { m[slot]?.dispose(); m[slot] = null; }   // factors instead: half the VRAM
+      m.needsUpdate = true;
+    });
+    budgetTextures(root, phone ? PROP_TEXTURE_CAP.phone : PROP_TEXTURE_CAP.full);
     group.add(root); roots.push(root);
     if (p.replaces) replaced(p.replaces);
   })).then(() => undefined);
@@ -50,7 +61,7 @@ export function loadArenaProps(group: THREE.Group, phone: boolean, replaced: (wh
     ready,
     dispose() {
       disposed = true;
-      for (const root of roots) { root.traverse((o) => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); for (const m of [o.material].flat() as THREE.MeshStandardMaterial[]) { for (const t of [m.map, m.normalMap, m.metalnessMap, m.roughnessMap]) t?.dispose(); m.dispose(); } } }); group.remove(root); }
+      for (const root of roots) { root.traverse((o) => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); for (const m of [o.material].flat() as THREE.MeshStandardMaterial[]) { for (const t of [m.map, m.normalMap]) t?.dispose(); m.dispose(); } } }); group.remove(root); }
     },
   };
 }
