@@ -4,6 +4,7 @@
 //   node scripts/arena-preview.mjs --against baseline      also print deltas against that label's stats
 //   node scripts/arena-preview.mjs --moodboard             material swatches under the game lighting (direction proposal only)
 //   node scripts/arena-preview.mjs --serve                 keep a dev server up for manual review
+//   --phone                                                 capture at the phone tier (halved arena maps, 512 shadow map, prop maps capped)
 // Every capture uses the same camera and exposure; changing them here to flatter the set is a failed iteration. The lock views settle
 // the camera before capturing (the lead's 7.6 % lesson: an unsettled camera is not a before/after).
 import { createServer } from 'vite';
@@ -39,7 +40,7 @@ scene.add(new THREE.HemisphereLight('#c9cfc6', '#4a4238', 1.6));
 const sun = new THREE.DirectionalLight('#ffe2b8', 4.2); sun.position.set(-15, 26, -18); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
 Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 70 }); sun.shadow.normalBias = 0.04; scene.add(sun);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
-const t0 = performance.now(), arena = buildArena(scene), buildMs = performance.now() - t0;
+const t0 = performance.now(), arena = buildArena(scene), buildMs = performance.now() - t0; let readyMs = 0;
 // The two rigs at the simulation's start: the hero at initialState, the Veteran at TARGET, both in their ready pose.
 const practice = initialPractice(731, OPPONENTS.veteran), state = initialState(), enemy = practice.enemy;
 const player = new THREE.Group(), opponent = new THREE.Group(); scene.add(player, opponent);
@@ -91,7 +92,7 @@ function stats() {
   const skin = []; warriors.player.anchor.traverse(o => { if (o.isMesh && o.material.name === 'Skin' && o.material.map) skin.push(o.material); });
   const floor = arena.floor ? materialLuminance(arena.floor.material) : null;
   const arenaOnly = render('lock-portrait', false), withFighters = render('lock-portrait', true), wide = render('wide', false);
-  return { buildMs: Math.round(buildMs), meshes: meshes.length, instances, triangles: Math.round(triangles), textures: textures.size, textureBytes, drawCallsArena: arenaOnly.calls, drawCallsArenaWide: wide.calls, drawCallsWithFighters: withFighters.calls, trianglesRenderedArena: arenaOnly.triangles, floorLuminance: floor, skinLuminance: skin.length ? textureLuminance(skin[0].map) : null, playRadius: PLAY_RADIUS, cameraClamp: CAMERA_CLAMP };
+  return { buildMs: Math.round(buildMs), readyMs: Math.round(readyMs), meshes: meshes.length, instances, triangles: Math.round(triangles), textures: textures.size, textureBytes, drawCallsArena: arenaOnly.calls, drawCallsArenaWide: wide.calls, drawCallsWithFighters: withFighters.calls, trianglesRenderedArena: arenaOnly.triangles, floorLuminance: floor, skinLuminance: skin.length ? textureLuminance(skin[0].map) : null, playRadius: PLAY_RADIUS, cameraClamp: CAMERA_CLAMP };
 }
 function capture(view, fighters = true) { render(view, fighters); return canvas.toDataURL('image/png'); }
 // Material swatches: the arena's own materials on spheres over its sand, under the game lighting, next to the hero's skin — the mood board.
@@ -145,6 +146,7 @@ try {
   status('Loading warriors…');
   const weapons = practice.duel.fighters.map(f => f.weapon);
   warriors = await loadWarriors(new URL('/src/assets/warrior.glb', location.href).href, new URL('/src/assets/veteran.glb', location.href).href, weapons);
+  await arena.ready; readyMs = performance.now() - t0;   // props and worker textures in place before any capture
   player.add(warriors.player.anchor); opponent.add(warriors.opponent.anchor); settle(30);
   window.__preview.loaded = true; status('Ready');
 } catch (e) { window.__preview.error = String(e && e.stack || e); status(String(e)); }
@@ -153,7 +155,7 @@ try {
 // The page is served by this script (no harness file in the repo root): vite transforms its inline module like any index.html.
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'arena-preview', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/arena-preview.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml('/arena-preview.html', PAGE)); }); } }] });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}arena-preview.html`;
+const url = `${server.resolvedUrls.local[0]}arena-preview.html${args.includes('--phone') ? '?gfx=phone' : ''}`;   // --phone: the phone tier (quality.ts ?gfx=phone override)
 if (args.includes('--serve')) { console.log(`Arena preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
 const dir = `artifacts/world/${args.includes('--moodboard') ? 'moodboard' : label}`; await fs.mkdir(dir, { recursive: true });
@@ -185,7 +187,7 @@ try {
     const previous = against ? JSON.parse(await fs.readFile(`artifacts/world/${against}/stats.json`, 'utf8')) : null;
     const fmt = v => typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(3)) : String(v);
     const row = (name) => { const value = stats[name], delta = previous && typeof previous[name] === 'number' && typeof value === 'number' ? ` (${value - previous[name] >= 0 ? '+' : ''}${fmt(value - previous[name])})` : ''; return `| ${name} | ${fmt(value)}${delta} |`; };
-    console.log(`\n| resource | ${label}${previous ? ` (Δ vs ${against})` : ''} |\n|---|---|\n${['sourceGzip', 'buildMs', 'meshes', 'instances', 'triangles', 'textures', 'textureBytes', 'drawCallsArena', 'drawCallsArenaWide', 'drawCallsWithFighters', 'trianglesRenderedArena', 'floorLuminance', 'skinLuminance'].map(row).join('\n')}`);
+    console.log(`\n| resource | ${label}${previous ? ` (Δ vs ${against})` : ''} |\n|---|---|\n${['sourceGzip', 'buildMs', 'readyMs', 'meshes', 'instances', 'triangles', 'textures', 'textureBytes', 'drawCallsArena', 'drawCallsArenaWide', 'drawCallsWithFighters', 'trianglesRenderedArena', 'floorLuminance', 'skinLuminance'].map(row).join('\n')}`);
   }
   if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`);
 } finally { await browser.close(); await server.close(); }
