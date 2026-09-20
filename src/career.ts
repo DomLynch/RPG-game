@@ -7,7 +7,7 @@ import type { Profile } from './profile.ts';
 export const TITLES = ['Recruit', 'Legionary', 'Gladiator', 'Veteran', 'Champion', 'Praetorian', 'Master', 'Primus', 'Invictus', 'Origin'] as const;
 export const ORIGIN_MARKS = 205;
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V'] as const;
-export type Rank = { title: (typeof TITLES)[number]; numeral: string; filled: number; pips: number; label: string };
+type Rank = { title: (typeof TITLES)[number]; numeral: string; filled: number; pips: number; label: string };
 export const marksOf = (profile: Pick<Profile, 'career'>): number => profile.career?.victoryMarks ?? 0;
 // Beta award policy (owner 2026-09-20): every won duel in the arena earns one mark — a rematch or a journal-picked opponent included.
 export function awardMark(profile: Profile): number {

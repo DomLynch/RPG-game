@@ -10,7 +10,7 @@
 // Testing overrides: ?gfx=phone forces the tier on, ?gfx=full forces it off.
 import { MeshStandardMaterial, type Mesh, type Object3D, type Texture } from 'three';
 
-export type TierEnv = { userAgent?: string; maxTouchPoints?: number; locationSearch?: string; coarse?: boolean };
+type TierEnv = { userAgent?: string; maxTouchPoints?: number; locationSearch?: string; coarse?: boolean };
 
 function readEnv(): TierEnv {
   const g = globalThis as { navigator?: { userAgent?: string; maxTouchPoints?: number }; location?: { search?: string }; matchMedia?: (q: string) => { matches: boolean } };

@@ -7,7 +7,7 @@ import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
 // synth fallback; a buffer skips loading. Absent in the game.
-export type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null; balance?: { combat: number; finish: number } };   // balance: evidence renders of the mix stage at other levels
+type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null; balance?: { combat: number; finish: number } };   // balance: evidence renders of the mix stage at other levels
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
 // Owner phone mix (2026-09-19): half ordinary FX, +50 % for the fatal sequence. Owner 2026-09-20, phone at 20 % volume still loud:

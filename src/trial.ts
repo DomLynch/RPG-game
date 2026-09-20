@@ -5,11 +5,11 @@ import type { StoragePort } from './profile.ts';
 // The owner locked in the thumb cluster (v5) on 2026-09-16 after trying the square grid, three weapon-disc grammars, an invisible
 // field and a segmented disc; the flick disc (v1) stays as the one alternative. v7 (guard ring) and v8 (one strike circle: tap/hold/flick)
 // are owner trials of 2026-09-18. Any other stored scheme falls back to the cluster.
-export type Scheme = 'cluster' | 'ring8';
+type Scheme = 'cluster' | 'ring8';
 export const SCHEMES: Scheme[] = ['cluster', 'ring8'];
 export const LABELS: Record<Scheme, string> = { cluster: 'thumb cluster', ring8: 'guard ring · v8' };
-export type Tally = { fights: number; wins: number; rematches: number; ticks: number; dealt: number; taken: number; active: number };   // active: real unpaused wall-clock ms (hit-stop included); ticks is simulation time
-export type Trial = { scheme: Scheme; card: Partial<Record<Scheme, Tally>> };
+type Tally = { fights: number; wins: number; rematches: number; ticks: number; dealt: number; taken: number; active: number };   // active: real unpaused wall-clock ms (hit-stop included); ticks is simulation time
+type Trial = { scheme: Scheme; card: Partial<Record<Scheme, Tally>> };
 const KEY = 'frankendom.controls.v1';
 const isTally = (t: unknown): t is Tally => typeof t === 'object' && t !== null && ['fights', 'wins', 'rematches', 'ticks', 'dealt', 'taken'].every(k => Number.isFinite((t as Record<string, unknown>)[k]));
 

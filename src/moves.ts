@@ -201,7 +201,7 @@ const sweep = (id: 'light_right' | 'light_left'): MoveDef => ({
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'thrust'] },   // sweep, sweep, or a sweep into the thrust
   windup: 22, active: 8, recovery: 24, damage: 12, stamina: 25, staminaDamage: 15, stagger: 26, knockback: 5, stepIn: .3, feintUntil: 11, reach: 1.75, posture: 18, chamber: 10,   // lands to 1.75 m measured (the cut: 1.7): a short pole's low sweep
 });
-export const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
+const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
   light_right: sweep('light_right'),
   light_left: sweep('light_left'),
   heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 24, active: 5, recovery: 33 }, windup: 34, active: 5, recovery: 33, damage: 20, stamina: 38, staminaDamage: 35, chip: .5, stepIn: .45, feintUntil: 12, reach: 2.15, posture: 36, chamber: 11 },
@@ -243,7 +243,7 @@ export const CLEAVER_PATHS: Record<PathId, PathSpec> = {
   riposte: { clip: 'Riposte', source: .34, windup: 12, active: 5, recovery: 21 },
   heavy_riposte: { clip: 'Heavy', source: .48, windup: 22, active: 6, recovery: 29 },
 };
-export const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
+const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
   light_right: { ...MOVES.light_right, chained: { windup: 18, active: 8, recovery: 22 }, chain: { window: 18, follow: ['light_left', 'heavy_overhead'] },
     windup: 22, active: 8, recovery: 26, damage: 17, stamina: 28, staminaDamage: 24, stagger: 26, chip: .2, knockback: 5, stepIn: .36, feintUntil: 11, posture: 26, chamber: 10, reach: 1.65 },   // the chop: some of it comes through a guard. stepIn .36 over 22 ticks = the cut's lunge over 20 (the Pitborn's whiff window — a 12-tick backstep escapes it — is tuned to that distance)
   light_left: { ...MOVES.light_left, chained: { windup: 18, active: 8, recovery: 22 }, chain: { window: 18, follow: ['light_right', 'heavy_overhead'] },
@@ -282,7 +282,7 @@ const slash = (id: 'light_right' | 'light_left'): MoveDef => ({
   ...MOVES[id], chained: { windup: 12, active: 6, recovery: 14 }, chain: { window: 14, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'thrust', 'heavy_overhead'] },
   windup: 14, active: 6, recovery: 16, damage: 10, stamina: 18, staminaDamage: 10, stagger: 18, chip: 0, knockback: 2, stepIn: .4, feintUntil: 6, posture: 14, chamber: 6, reach: 1.2,
 });
-export const KNIFE_MOVES: Record<MoveId, MoveDef> = {
+const KNIFE_MOVES: Record<MoveId, MoveDef> = {
   light_right: slash('light_right'),
   light_left: slash('light_left'),   // the backhand: the hook's outer edge is sharpened, so it cuts too (a rip)
   heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 16, active: 5, recovery: 26 }, windup: 22, active: 5, recovery: 26, damage: 14, stamina: 26, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0, chip: .2, knockback: 3, stepIn: .55, feintUntil: 8, posture: 24, chamber: 7, reach: 1.55 },
@@ -303,7 +303,7 @@ export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PAT
 // blade does to the sword's moves: the THRUST is the weapon (a little more damage, chains into a second), the cuts are whacks with a rod
 // (less damage, no chip), the riposte is his payoff (he parries everything). Live variant A, baked from his own rig.
 export const ESTOC_PATHS: Record<PathId, PathSpec> = PATHS;   // the sword's clips at the sword's timings: the bake differs only by the point and his rig
-export const ESTOC_MOVES: Record<MoveId, MoveDef> = {
+const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   light_right: { ...MOVES.light_right, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },   // a whack with a rod
   light_left: { ...MOVES.light_left, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },
   heavy_overhead: { ...MOVES.heavy_overhead, damage: 15, chip: .25, staminaDamage: 26, posture: 28, reach: 1.9 },
@@ -372,9 +372,9 @@ export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE
 const creaturePaths = (paths: Record<PathId, PathSpec>, prefix: string): Record<PathId, PathSpec> => Object.fromEntries(
   Object.entries(paths).map(([id, spec]) => [id, { ...spec, clip: `${prefix}_${id.includes('heavy') ? 'Heavy' : id === 'thrust' || id === 'riposte' ? 'Thrust' : 'Slash'}` }]),
 ) as Record<PathId, PathSpec>;
-export const MAUL: Weapon = { ...CLEAVER, id: 'maul', moves: { ...CLEAVER_MOVES, thrust: { ...CLEAVER_MOVES.thrust, stepIn: .3, reach: 1.4 } }, paths: creaturePaths(CLEAVER_PATHS, 'Maul'), guard: 'shaft', material: 'wood', fight: { thrustShare: .1, close: 1.15 } };
+const MAUL: Weapon = { ...CLEAVER, id: 'maul', moves: { ...CLEAVER_MOVES, thrust: { ...CLEAVER_MOVES.thrust, stepIn: .3, reach: 1.4 } }, paths: creaturePaths(CLEAVER_PATHS, 'Maul'), guard: 'shaft', material: 'wood', fight: { thrustShare: .1, close: 1.15 } };
 // The Wraith reaps with a long crescent; stepping inside its edge earns a kick/backstep, not a phantom close hit.
-export const REAPER: Weapon = { ...ESTOC, id: 'reaper', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
+const REAPER: Weapon = { ...ESTOC, id: 'reaper', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
 export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 

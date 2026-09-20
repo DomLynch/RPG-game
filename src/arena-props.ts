@@ -10,7 +10,7 @@ const portcullisUrl = url('portcullis'), rackUrl = url('weapon-rack'), shieldUrl
 // re-textured in Blender (artifacts/presentation/props-v1), loaded after the procedural arena so nothing waits on them. Each entry
 // carries the GLB's unit size so tests/arena-props.test.ts can hold the placement to the arena contract without loading a file:
 // nothing inside the play circle, nothing 0.5–6 m high inside the camera clamp (11.5 m). `size` is the unscaled [w, h, d] in metres.
-export type ArenaProp = { id: string; url: string; size: [number, number, number]; r: number; angle: number; y: number; yaw: number; pitch?: number; scale: number; metalness: number; roughness: number; replaces?: 'gateBars' };
+type ArenaProp = { id: string; url: string; size: [number, number, number]; r: number; angle: number; y: number; yaw: number; pitch?: number; scale: number; metalness: number; roughness: number; replaces?: 'gateBars' };
 // `metalness`/`roughness` replace each GLB's metallic-roughness map (audit 2026-09-20: the phone's ceiling is GPU memory, and a second
 // 768² map per prop bought little on matte, worn things); the base-colour map stays, capped at 512² (256² on the phone tier).
 export const PROPS: readonly ArenaProp[] = [
@@ -20,7 +20,7 @@ export const PROPS: readonly ArenaProp[] = [
   { id: 'column-drum', url: drumUrl, size: [0.81, 0.78, 1.01], r: 10.9, angle: 2.35, y: 0.235, yaw: 2.35 + 0.6, scale: 0.6, metalness: 0, roughness: 0.95 },              // a fallen drum, on its side
   { id: 'bone-pile', url: bonesUrl, size: [0.99, 0.52, 0.99], r: 10.4, angle: 4.55, y: 0.21, yaw: 4.55, scale: 0.8, metalness: 0, roughness: 0.92 },                        // half-buried
 ];
-export const PROP_TEXTURE_CAP = { full: 512, phone: 256 } as const;
+const PROP_TEXTURE_CAP = { full: 512, phone: 256 } as const;
 // World-space extent of a placed prop: its scaled box, the horizontal reach taken as the box's diagonal (the yaw makes the exact
 // footprint irrelevant to the contract). A pitched prop swaps its height for its depth.
 export function extent(p: ArenaProp): { rMin: number; yMin: number; yMax: number } {

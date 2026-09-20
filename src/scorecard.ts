@@ -4,12 +4,12 @@ import { isOpponentId, type OpponentId } from './roster.ts';
 // Beta scorecard (owner 2026-09-20): fights, wins and losses per opponent, saved on this device. "Left" counts inside losses — a
 // fight the player walked out of (AFK catch-up or a closed page) is a loss, flagged so the owner can see how many were walk-aways.
 // Draws (a double fall) count as a fight and nothing else. Device-local for the beta; a later pass can sync it like career marks.
-export type Line = { fights: number; wins: number; losses: number; left: number };
+type Line = { fights: number; wins: number; losses: number; left: number };
 export type Scorecard = { version: 1; rows: Partial<Record<OpponentId, Line>> };
-export type Outcome = 'win' | 'loss' | 'draw';
+type Outcome = 'win' | 'loss' | 'draw';
 const KEY = 'frankendom.scorecard.v1';
 const count = (n: unknown): number => (Number.isSafeInteger(n) && (n as number) >= 0 ? (n as number) : 0);
-export const emptyLine = (): Line => ({ fights: 0, wins: 0, losses: 0, left: 0 });
+const emptyLine = (): Line => ({ fights: 0, wins: 0, losses: 0, left: 0 });
 
 export function loadScorecard(storage: StoragePort): Scorecard {
   const card: Scorecard = { version: 1, rows: {} };
