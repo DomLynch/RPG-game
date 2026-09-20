@@ -30,7 +30,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { loadWarriors, CLIPS, COMBAT_CLIPS } from '/src/characters.ts';
-import { cameraPose } from '/src/scene.ts';
+import { cameraPose } from '/src/camera.ts';
 import { ATTACKS, MOVES, RULES, SWORD } from '/src/combat.ts'; // DEFENCE/KICK views were dropped by the combat lane; the same numbers live in RULES/MOVES
 const KICK = { contact: MOVES.kick.windup, recovery: MOVES.kick.windup + MOVES.kick.active + MOVES.kick.recovery }, DEFENCE = { roll: RULES.roll };
 import { TARGET, wrapAngle } from '/src/sim.ts';
