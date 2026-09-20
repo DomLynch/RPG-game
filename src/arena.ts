@@ -3,9 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
 import { CROWD_DYES, CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
 import { phoneTier } from './quality.ts';
-import { loadArenaProps } from './arena-props.ts';
-import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, type Pixels } from './assets/arena/textures.ts';
-import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
+import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, sandAlbedo, sandNormal, skyPixels, stoneAlbedo, stoneNormal, type Pixels } from './assets/arena/textures.ts';
 
 // The arena: everything that is not a fighter, a light, the camera or an effect. Owned by the world lane.
 // Contract (tests/arena.test.ts): the playable surface is a flat circle (sim.ts RADIUS 8.55 m); nothing solid stands inside it above the
@@ -16,7 +14,7 @@ export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
 export const LAYOUT = { wall: { inner: 11.7, outer: 12.5, top: 2.6 }, tiers: [3.4, 4.2, 5.0, 5.8, 6.6], tierDepth: 1.6, gate: Math.PI, gateWidth: 3.2, colonnade: 21.4, parapet: { inner: 22.4, outer: 23.2, top: 8.6 }, segments: 96 };
-export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera): void; dispose(): void };
+export type Arena = { group: THREE.Group; floor: THREE.Mesh; update(dt: number, events: CombatEvent[]): void; dispose(): void };
 
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const ruinNoise = fbm(6, 3, 5), ruin = (angle: number) => smooth(0.56, 0.78, ruinNoise(angle / TAU, 0.37));   // where the tiers have collapsed
@@ -84,14 +82,8 @@ export function buildArena(scene: THREE.Scene): Arena {
   const { wall, tiers, tierDepth, gate, gateWidth, colonnade, parapet } = LAYOUT, polar = (r: number, a: number) => [r * Math.sin(a), r * Math.cos(a)] as const;
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): the big procedural maps generate at
   // half size — the generators are size-parametric, so this costs nothing but sharpness on a small screen.
-  const phone = phoneTier();
-  // The heavy maps (sand, stone, sky: ~1.4 s of generation) come from a worker when the page has one; until they land the materials hold
-  // flat 2×2 stand-ins in the sand's and stone's own mean colours, so the first frame is the right value and the detail arrives about a
-  // second later. Without Workers (Node tests, an old browser) they generate here, synchronously, exactly as before.
-  const skyU = ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1, solid = (r: number, g: number, b: number) => ({ width: 2, height: 2, data: new Uint8Array([r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255]) });
-  const worker = typeof Worker === 'function' ? new Worker(new URL('./assets/arena/texture-worker.ts', import.meta.url), { type: 'module' }) : null;
-  const heavy: HeavyTextures | null = worker ? null : generateHeavyTextures(phone, skyU);
-  const textures = { sand: dataTexture(heavy?.sand ?? solid(146, 120, 90), true), sandNormal: dataTexture(heavy?.sandNormal ?? solid(128, 128, 255), false), stone: dataTexture(heavy?.stone ?? solid(118, 112, 103), true), stoneNormal: dataTexture(heavy?.stoneNormal ?? solid(128, 128, 255), false), sky: dataTexture(heavy?.sky ?? solid(156, 168, 166), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
+  const phone = phoneTier(), half = (size: number) => (phone ? size / 2 : size);
+  const textures = { sand: dataTexture(sandAlbedo(half(1024)), true), sandNormal: dataTexture(sandNormal(half(512)), false), stone: dataTexture(stoneAlbedo(half(512)), true), stoneNormal: dataTexture(stoneNormal(half(512)), false), sky: dataTexture(skyPixels(half(512), half(256), ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
   textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = textures.gateLight.wrapS = textures.gateLight.wrapT = THREE.ClampToEdgeWrapping;
   const sand = new THREE.MeshStandardMaterial({ name: 'sand', map: textures.sand, normalMap: textures.sandNormal, normalScale: new THREE.Vector2(0.7, 0.7), color: '#e2ddd6', roughness: 0.96, vertexColors: true });
   const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, normalMap: textures.stoneNormal, normalScale: new THREE.Vector2(1.1, 1.1), color: '#b9b4ab', roughness: 0.93, vertexColors: true });
@@ -104,22 +96,8 @@ export function buildArena(scene: THREE.Scene): Arena {
   const boundary = new THREE.MeshStandardMaterial({ name: 'boundary', color: '#4e4136', roughness: 0.9, side: THREE.DoubleSide });
   const flame = new THREE.MeshBasicMaterial({ name: 'flame', map: textures.flame, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const motesMaterial = new THREE.PointsMaterial({ name: 'motes', map: textures.mote, size: 0.1, transparent: true, opacity: 0.62, depthWrite: false, sizeAttenuation: true, color: '#847b6e' });
-  const gateLightMaterial = new THREE.MeshBasicMaterial({ name: 'gate-light', map: textures.gateLight, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });   // a warm patch, not a stage spotlight (audit 2026-09-20)
+  const gateLightMaterial = new THREE.MeshBasicMaterial({ name: 'gate-light', map: textures.gateLight, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary, flame, motesMaterial, gateLightMaterial];
-  // When the worker's maps land: fresh textures on the materials, the stand-ins disposed. The materials keep their programs (same map slots).
-  let disposed = false;
-  const texturesReady = new Promise<void>((resolve) => {
-    if (!worker) return resolve();
-    worker.onmessage = (event: MessageEvent<HeavyTextures>) => {
-      if (disposed) { worker.terminate(); return resolve(); }   // disposed while generating: nothing to swap into
-      const p = event.data, swap = (key: 'sand' | 'sandNormal' | 'stone' | 'stoneNormal' | 'sky', srgb: boolean) => { const t = dataTexture(p[key], srgb); textures[key].dispose(); textures[key] = t; return t; };
-      sand.map = swap('sand', true); sand.normalMap = swap('sandNormal', false); stone.map = swap('stone', true); stone.normalMap = swap('stoneNormal', false);
-      sky.map = swap('sky', true); textures.sky.wrapT = THREE.ClampToEdgeWrapping;
-      worker.terminate(); resolve();
-    };
-    worker.onerror = () => { worker.terminate(); resolve(); };   // the flat stand-ins stay: a duel on plain sand beats no duel
-    worker.postMessage({ phone, skyU });
-  });
   const mottle = fbm(4, 3, 9);
   function mesh(geometry: THREE.BufferGeometry, material: THREE.Material, name: string, shadows = true) {
     const object = new THREE.Mesh(geometry, material); object.name = name; object.castShadow = shadows; object.receiveShadow = true; group.add(object); return object;
@@ -141,7 +119,7 @@ export function buildArena(scene: THREE.Scene): Arena {
     const buv = beam.attributes.uv;
     for (let i = 0; i < buv.count; i++) buv.setY(i, 0.5 + buv.getY(i) * 0.5);   // bright entry at the arch, fading down
     gateLight.push(beam);
-    const pool = new THREE.CircleGeometry(2.4, 20); pool.rotateX(-Math.PI / 2); pool.scale(1.25, 1, 0.85); pool.rotateY(0.65);   // wider and fainter: it spreads instead of spotlighting
+    const pool = new THREE.CircleGeometry(1.75, 20); pool.rotateX(-Math.PI / 2); pool.scale(1.25, 1, 0.85); pool.rotateY(0.65);
     const puv = pool.attributes.uv;
     for (let i = 0; i < puv.count; i++) puv.setY(i, puv.getY(i) * 0.5);         // the pool: bottom half of the atlas
     pool.translate(1.55, 0.009, -10.1);
@@ -242,14 +220,11 @@ export function buildArena(scene: THREE.Scene): Arena {
     for (let leg = 0; leg < 3; leg++) { const la = leg / 3 * TAU; irons.push(prop(cylinder(0.025, 0.03, 1.05, 6), x + Math.sin(la) * 0.16, y + 0.52, z + Math.cos(la) * 0.16, new THREE.Euler(Math.cos(la) * 0.2, 0, -Math.sin(la) * 0.2), 1, 1, IRON, y)); }
     irons.push(prop(cylinder(0.38, 0.24, 0.32, 14), x, y + 1.14, z, 0, 1, 1, IRON, y)); coals.push(prop(cylinder(0.31, 0.31, 0.1, 12), x, y + 1.3, z, 0, 1, 1, IRON, y));
   }
-  // The procedural bars stand in until the authored portcullis (arena-props.ts) has loaded, then hide: their own mesh, not the iron merge.
-  const bars: THREE.BufferGeometry[] = [];
   { const [gx, gz] = polar(wall.inner + 0.45, gate), across = new THREE.Vector3(Math.cos(gate), 0, -Math.sin(gate)), RUST: [number, number, number] = [1.5, 0.95, 0.65];
     for (let i = 0; i < 9; i++) { const t = (i - 4) * 0.36;
-      bars.push(prop(cylinder(0.06, 0.06, 2.5, 6), gx + across.x * t, 1.28, gz + across.z * t, 0, 1, 1, RUST, -5));
-      bars.push(prop(cylinder(0.001, 0.075, 0.24, 6), gx + across.x * t, 0.14, gz + across.z * t, 0, 1, 1, RUST, -5)); }
-    for (const y of [0.42, 1.08, 1.74, 2.4]) bars.push(prop(box(gateWidth - 0.1, 0.09, 0.09), gx, y, gz, gate, 1, 1, RUST, -5)); }
-  const gateBars = mesh(mergeGeometries(bars), iron, 'gate bars');
+      irons.push(prop(cylinder(0.06, 0.06, 2.5, 6), gx + across.x * t, 1.28, gz + across.z * t, 0, 1, 1, RUST, -5));
+      irons.push(prop(cylinder(0.001, 0.075, 0.24, 6), gx + across.x * t, 0.14, gz + across.z * t, 0, 1, 1, RUST, -5)); }
+    for (const y of [0.42, 1.08, 1.74, 2.4]) irons.push(prop(box(gateWidth - 0.1, 0.09, 0.09), gx, y, gz, gate, 1, 1, RUST, -5)); }
   for (let i = 0; i < 5; i++) {
     const a = [0.55, 2.05, 2.75, 4.3, 5.6][i], [x, z] = polar(wall.inner + 0.06, a), out = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
     const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x, wall.top - 0.3, z), new THREE.Vector3(x - out.x * 0.09, 1.55, z - out.z * 0.09), new THREE.Vector3(x - out.x * 0.04, 0.85, z - out.z * 0.04)]);
@@ -330,7 +305,7 @@ export function buildArena(scene: THREE.Scene): Arena {
 
   // Banners: one instanced cloth, swaying about its crossbar. Dried-blood and bone cloths alternate (instance colours; no saturation).
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
-  const banners = new THREE.InstancedMesh(bannerGeometry, cloth, bannerAngles.length); banners.name = 'banners'; banners.castShadow = false; group.add(banners);   // no shadow: a swaying 3 m slab on the fighting sand competed with the fighters' own shadows (audit 2026-09-20)
+  const banners = new THREE.InstancedMesh(bannerGeometry, cloth, bannerAngles.length); banners.name = 'banners'; banners.castShadow = true; group.add(banners);
   bannerAngles.forEach((_a, k) => banners.setColorAt(k, new THREE.Color(k % 2 ? '#7d7469' : '#472622')));
   // Five solid, unrigged silhouettes: familiar inhabitants of this world, mixed across the surviving stone treads.
   type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; width: number; phase: number; id: number; dye: number };
@@ -388,11 +363,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   function place(instanced: THREE.InstancedMesh, i: number, x: number, y: number, z: number, tilt: number, yaw: number, s: number, width = 1) {
     position.set(x, y, z); quaternion.setFromEuler(euler.set(tilt, yaw, 0, 'YXZ')); scale.set(s * width, s, s * width); instanced.setMatrixAt(i, matrix.compose(position, quaternion, scale));
   }
-  // Crowd culling: with the camera given, a spectator outside its frustum (a 1.2 m sphere around him) collapses to nothing — the lock
-  // camera sees a narrow sector of the far tiers, so most of the 300 figures never reach the vertex shader (audit 2026-09-20).
-  const frustum = new THREE.Frustum(), viewProjection = new THREE.Matrix4(), seat = new THREE.Sphere(new THREE.Vector3(), 1.2);
-  function update(dt: number, events: CombatEvent[], camera?: THREE.Camera) {
-    const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  function update(dt: number, events: CombatEvent[]) {
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
     for (const e of events) {
       if (e.type === 'Killed') { mood = 'recoil'; since = 0; } else if (e.type === 'Parried') { mood = 'lean'; since = 0; } else if (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'PostureBroken') { mood = 'cheer'; since = 0; }
@@ -423,18 +394,14 @@ export function buildArena(scene: THREE.Scene): Arena {
       }
       p.needsUpdate = true; }
     for (const { mesh, people } of crowds) {
-      people.forEach((p, i) => { if (cull && !frustum.intersectsSphere(seat.set(seat.center.set(p.x, p.y + 0.9, p.z), 1.2))) { place(mesh, i, p.x, p.y, p.z, 0, p.yaw, 0, 1); return; } const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt, p.yaw, p.scale, p.width); });
+      people.forEach((p, i) => { const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt, p.yaw, p.scale, p.width); });
       mesh.instanceMatrix.needsUpdate = true;
     }
   }
   update(0, []);
-  const props = loadArenaProps(group, phone, (what) => { if (what === 'gateBars') gateBars.visible = false; });
   return {
-    group, floor, update, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
-    get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed
+    group, floor, update,
     dispose() {
-      disposed = true; worker?.terminate();
-      props.dispose();
       group.traverse(object => { if (object instanceof THREE.Mesh || object instanceof THREE.Points) object.geometry.dispose(); if (object instanceof THREE.InstancedMesh) object.dispose(); });
       for (const material of materials) material.dispose(); for (const t of Object.values(textures)) t.dispose(); scene.remove(group);
     },

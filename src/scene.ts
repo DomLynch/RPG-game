@@ -110,23 +110,21 @@ export function createScene(
   scene.background = new THREE.Color('#a9a89c');
   scene.fog = new THREE.FogExp2('#a9a89c', 0.018);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
-  // The environment map: the arena's own ash sky (an equirect the world lane paints, warm sand below the horizon) once it has landed,
-  // so bronze and iron reflect this place; the studio RoomEnvironment only until then (audit 2026-09-20).
-  let arenaSky: THREE.Texture | undefined;
   function rebuildEnvironment() {
-    const pmrem = new THREE.PMREMGenerator(renderer), environment = arenaSky ? null : new RoomEnvironment();
+    const environment = new RoomEnvironment(),
+      pmrem = new THREE.PMREMGenerator(renderer);
     try {
-      const target = environment ? pmrem.fromScene(environment, 0.04) : pmrem.fromEquirectangular(arenaSky!);
+      const target = pmrem.fromScene(environment, 0.04);
       environmentTarget?.dispose();
       environmentTarget = target;
       scene.environment = target.texture;
-      scene.environmentIntensity = environment ? 0.45 : 1.0;
     } finally {
-      environment?.dispose();
+      environment.dispose();
       pmrem.dispose();
     }
   }
   rebuildEnvironment();
+  scene.environmentIntensity = 0.45;
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
   const metal = new THREE.MeshStandardMaterial({ color: '#89949b', metalness: 0.72, roughness: 0.4 });
   // The target marker's brass is a combat tell (it warms on a threat); the arena has its own materials in arena.ts.
@@ -136,7 +134,7 @@ export function createScene(
   sun.position.set(-15, 26, -18);
   sun.castShadow = true;
   sun.shadow.mapSize.set(PHONE ? 512 : 1024, PHONE ? 512 : 1024);
-  Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 70 });   // the pit floor to the wall's foot (11.7 m), not the tiers: 1.25× sharper shadows on the sand for free (audit 2026-09-20)
+  Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 70 });
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
   function mesh(
@@ -169,7 +167,6 @@ export function createScene(
   const arena = buildArena(scene),
     footDust = createFootDust(scene),
     clash = createClashSparks(scene);
-  arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
     scene.add(group);
@@ -198,13 +195,12 @@ export function createScene(
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
-  // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
-  // loading screen instead of stalling the first exchange (measured 69 ms p95 in the first window when they arrived late under load).
-  const ready = Promise.all([
-    loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
-    arena.ready,
-  ])
-    .then(([loaded]) => {
+  const ready = loadWarriors(
+    fighterUrls['./assets/warrior.glb'],
+    fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`],
+    weapons,
+  )
+    .then((loaded) => {
       warriors = loaded;
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       for (const proxy of [player, opponent]) {
@@ -652,19 +648,14 @@ export function createScene(
             rig = attacker ? warriors?.opponent : warriors?.player,
             weapon = rig?.anchor.getObjectByName('WeaponDrawn') ?? rig?.anchor.getObjectByName('SwordDrawn'),
             contactRange = weapon?.userData.contact as { from: number; to: number } | undefined;
-          // Struck off the attacking blade itself (owner 2026-09-20): the outer part of its contact zone as the rig draws it this frame,
-          // with a fallback segment at the defender's guard when a rig is not loaded.
-          const defenderBody = attacker ? state : practice.enemy, guard = new THREE.Vector3(defenderBody.x, 1.15, defenderBody.z);
-          let a: THREE.Vector3, b: THREE.Vector3;
-          if (weapon && contactRange) {
-            // The rig's contact pose already drives the blade into the defender; sparks belong on the visible length, so the zone ends
-            // where the blade enters his body (0.3 m off his axis) and runs 0.4 m back toward the attacker's hand.
-            const hand = weapon.localToWorld(new THREE.Vector3(0, 0, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)), length = hand.distanceTo(tip) || 1;   // the grip to the tip: the whole visible length
-            let entry = 1;
-            for (let t = 0; t <= 1; t += 0.05) { const q = hand.clone().lerp(tip, t); if (Math.hypot(q.x - guard.x, q.z - guard.z) < 0.3) { entry = t; break; } }
-            b = hand.clone().lerp(tip, Math.max(0.25, entry - 0.02)); a = b.clone().sub(tip.clone().sub(hand).multiplyScalar(Math.min(0.4, length * 0.35) / length));
-          } else { const towardAttacker = new THREE.Vector3(attacker ? practice.enemy.x : state.x, 0, attacker ? practice.enemy.z : state.z).sub(new THREE.Vector3(guard.x, 0, guard.z)).normalize(); a = guard.clone().addScaledVector(towardAttacker, 0.2); b = guard.clone().addScaledVector(towardAttacker, 0.6); }
-          clash.burst(a, b, attacker ? practice.enemy.heading : state.heading, strength);
+          // The blades meet at the defender's guard: a third of a metre in front of his chest toward the attacker's hand, at the height the
+          // attacking blade is passing (on the contact tick the rig's blade already reaches into the defender's body, so its own points are not the meeting point).
+          const defenderBody = attacker ? state : practice.enemy,
+            hand = weapon?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3(attacker ? practice.enemy.x : state.x, 1.1, attacker ? practice.enemy.z : state.z),
+            bladeHeight = weapon && contactRange ? (weapon.localToWorld(new THREE.Vector3(0, contactRange.from, 0)).y + weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)).y) / 2 : 1.15;
+          const at = new THREE.Vector3(defenderBody.x, 0, defenderBody.z);
+          at.add(hand.clone().setY(0).sub(at).normalize().multiplyScalar(0.35)).setY(Math.min(1.6, Math.max(0.8, bladeHeight)));
+          clash.burst(at, attacker ? practice.enemy.heading : state.heading, strength);
           impact = 0; // the dedicated sparks replace the generic dots for this contact
         }
         sparks.position.set(
@@ -807,7 +798,7 @@ export function createScene(
         }
       }
       const animationDt = frozen ? 0 : dt;
-      arena.update(animationDt, events, started ? camera : undefined);   // the crowd culls against the settled camera; the first frame draws everyone
+      arena.update(animationDt, events);
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
         ex = practice.enemy.x - opponent.position.x,
