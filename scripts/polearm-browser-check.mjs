@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import { builtRig, assertGlbEquivalent } from './glb-equivalence.mjs';
+import { harnessClock } from './lib/harness-clock.mjs';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = process.env.POLEARM_RECEIPT_DIR || 'artifacts/weapons/polearm-browser';
@@ -33,6 +34,10 @@ try {
       await page.getByRole('button', { name: 'Enter the arena' }).click();
       await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
       await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });
+      // Booted for real (asset loads are machine-dependent, not timing-sensitive); from here page time moves only when this gate
+      // advances it, so the walk-in, the orbit's settle and the fight frames land on the same ticks on a MacBook, the VPS or a GPU-less
+      // runner (release check #9 failed on ubuntu-latest on wall-clock waits, 2026-09-21; the combat gate moved first).
+      const { run, until } = await harnessClock(page);
       const frames = [];
       const shot = async label => {
         const state = await page.evaluate(() => ({ clips: document.querySelector('#debug').dataset.clips, art: document.querySelector('#art-status').textContent, overflow: document.documentElement.scrollWidth > innerWidth }));
@@ -41,25 +46,25 @@ try {
         await page.screenshot({ path }); frames.push({ label, path, ...state });
       };
       await shot('start');
-      await page.keyboard.down('w'); await page.waitForTimeout(900); await page.keyboard.up('w');
+      await page.keyboard.down('w'); await run(900); await page.keyboard.up('w');
       await shot('approach');
       if (!mobile) {
         await page.keyboard.down('w');
-        await page.waitForFunction(() => Number(document.querySelector('#debug').textContent.match(/gap ([\d.]+)/)?.[1]) < 2.3, null, { timeout: 15000 });
+        await until(() => Number(document.querySelector('#debug').textContent.match(/gap ([\d.]+)/)?.[1]) < 2.3, 15000);
         await page.keyboard.up('w');
         await page.getByRole('button', { name: 'Camera locked', exact: true }).click();
         const orbit = async dx => {
           await page.mouse.move(250, 450); await page.mouse.down();
           await page.mouse.move(250 + dx, 450, { steps: 20 }); await page.mouse.up();
-          await page.waitForTimeout(400);
+          await run(400);
         };
         await orbit(628); await shot('start-rear');
         await orbit(-220); await shot('start-side');
       }
       await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
-      await page.waitForFunction(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), prefix, { timeout: 30000 });
+      await until(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), 30000, prefix);
       await shot('fight');
-      for (let i = 0; i < 3; i++) { await page.waitForTimeout(120); await shot(`fight-${i}`); }
+      for (let i = 0; i < 3; i++) { await run(120); await shot(`fight-${i}`); }
       receipt.views.push({ opponent, mobile, viewport, asset: response.url(), rigSha256, frames });
       await context.close();
     }
