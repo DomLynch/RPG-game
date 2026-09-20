@@ -6,6 +6,7 @@ atlas — and then does what a painted-on face cannot: sculpted wrinkles and por
 to the normal map, photographed skin micro-detail (Lee Perry-Smith head scan, CC BY 3.0, as tiling detail only — not his
 face), and hair, brow and lash cards as real geometry over a shaved scalp cap."""
 import math
+import json
 import os
 
 import __main__ as P  # parts.py, the running Blender script: its image and noise helpers
@@ -1508,12 +1509,13 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
         photo = photo_layer_multi(pos_face, normal_obj, F, lid_ring, size, head)
         colour_face = fill_margin(face_colour(pos_face, mask_face, F, P.upsample(ao_face, size), detail_colour, size, photo), mask_face)
         maps['Face']['baseColor'] = save_two_sizes('face_color', colour_face, 'sRGB')
-    hair = tag(hair_shells(head, F), 'hair_shells', 'HairShell', bone='Head', slot='Hair')
-    maps['HairShell'] = {'baseColor': save_png_rgba(os.path.join(materials_out, 'hair_shell.png'), shell_texture())}
+    hair = None if HAIR == 'mesh' else tag(hair_shells(head, F), 'hair_shells', 'HairShell', bone='Head', slot='Hair')  # 'mesh': the head brought its own hair (a TRELLIS.2 reconstruction): no shells over the strands
+    if hair is not None:
+        maps['HairShell'] = {'baseColor': save_png_rgba(os.path.join(materials_out, 'hair_shell.png'), shell_texture())}
     brows = tag(brow_cards(head, F, dense=photo is None, count=0 if photo is not None else None), 'brow_cards', 'BrowCards', bone='Head', slot='Face')
     maps['BrowCards'] = dict(maps['HairCards'])  # same sheet, sharper cut-off in the build
     # Lash strips are off: with the lids closed they crossed the opening as a line. Back once placed on the scanned lid edge.
-    return {'maps': maps, 'ao_body': ao_body, 'head': head, 'body': rest, 'parts': [head, rest, hair, brows],
+    return {'maps': maps, 'ao_body': ao_body, 'head': head, 'body': rest, 'parts': [p for p in (head, rest, hair, brows) if p is not None],
             'tiles': {'colour_face': colour_face, 'colour_body': colour_body, 'pos_face': pos_face, 'pos_body': pos_body,
                       'mask_face': mask_face, 'mask_body': mask_body, 'ao_face': ao_face, 'ao_body': ao_body, 'detail': detail_colour, 'size': size, 'nails': nails}}
 
@@ -1525,7 +1527,8 @@ def build(body, high, F, armature, select_only, save_two_sizes, save_jpeg, mater
 # only; `hair_lum` = the sRGB luminance below which a texel beside the unseen crown counts as photographed hair (0.16
 # for a dark buzz cut; the blond-grey Veteran's hair measures 0.34 median against 0.66 skin, 2026-09-16); `hair` = how the
 # unphotographed crown is filled: 'buzz' (scalp grain in the hair tone) or 'full' (swept-back strands in the hair's own
-# shadow and highlight tones).
+# shadow and highlight tones); 'mesh' = the head carries its own hair geometry and complete texture (a TRELLIS.2 reconstruction
+# through scripts/character/trellis_head.py): no shells, no crown synthesis.
 FIGHTERS = {
     'hero': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',  # eight portraits: the five plus three from below for the jaw (2026-09-15)
              'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 40), (-45, 40), (0, 15)), 'chin': True, 'hair_lum': 0.16, 'hair': 'buzz', 'scars': False, 'decimate': 0.28},
@@ -1536,9 +1539,13 @@ FIGHTERS = {
     # re-run scripts/create-head.mjs on the seven and point this at the new GLB. Until then the stand-in is RESTYLED to his brief
     # (2026-09-17, the no-credits pass): skin_mul pales him grey-white, pallor drains the face's health and sinks his eyes,
     # dark_eyes near-blacks the iris; the pointed ears and the throat scar are parts.py/face_colour on the same flags.
-    'nightborn': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',
-                  'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.16, 'hair': 'full', 'scars': True, 'decimate': 0.26,  # decimate: the Veteran's — the budget goes to the sleeves, hose and boots
-                  'skin_mul': (1.34, 1.42, 1.58), 'pallor': True, 'dark_eyes': True, 'red_eyes': True},  # skin_mul: the hero's olive scan paled and cooled to his brief's grey-white; red_eyes: the owner, 2026-09-17 — the brief's "no red eyes" yielded (a deep ember, no glow)
+    # 2026-09-20: his OWN head at last — not KeenTools (still no credits) but TRELLIS.2 (the free Space the creatures came from) on
+    # nightborn-01.png, seed 190926 / 1024 / 100k / 2K, adapted to this contract by scripts/character/trellis_head.py (eye sockets
+    # by the portrait landmark model, donor eyeballs and teeth, KeenTools' units). It brings its own hair strands and pointed ears
+    # ('hair': 'mesh'; parts.py KIT ears off). decimate 0.14: the reconstruction is 99k triangles (a scan is 48k faces).
+    'nightborn': {'kt_glb': 'artifacts/source/keentools/nightborn-trellis-01.glb',
+                  'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.16, 'hair': 'mesh', 'scars': True, 'decimate': 0.14,
+                  'skin_mul': (1.30, 1.24, 1.21), 'photo_mul': (1.30, 1.24, 1.14), 'pallor': True, 'dark_eyes': True, 'red_eyes': True},  # skin_mul / photo_mul: the adapter's portrait match reads the shadowed cheek; both lift ×~1.25 to the owner-approved stand-in's brightness (body .64/.61/.62, face highlights .58) and take the blue cast out; red_eyes: the owner, 2026-09-17 — the brief's "no red eyes" yielded (a deep ember, no glow)
     'pitborn': {'kt_glb': 'artifacts/source/keentools/01a0ab5b-b143-7531-ad79-6de9bacbf0fa.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16
                 'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84), 'photo_orm_1k': True},   # photo_orm_1k: the head's roughness ships at 1K (texture diet, 2026-09-20)  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
     'goblin': {'kt_glb': 'artifacts/source/keentools/01a0ab81-4cff-7871-bac7-adfa28d57d0b.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16 22:33
@@ -1570,7 +1577,7 @@ def select_fighter(name):
     """Point the scan pipeline at one fighter's portraits and tuning (parts.py --fighter <name>; default hero)."""
     global FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE
     f = FIGHTERS[name]
-    FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE = name, f['kt_glb'], f['cams'], f['chin'], f['hair_lum'], f['hair'], f['scars'], f['decimate']
+    FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE = name, os.environ.get('HEAD_KT_GLB') or f['kt_glb'], f['cams'], f['chin'], f['hair_lum'], f['hair'], f['scars'], f['decimate']   # HEAD_KT_GLB: try another head (a trellis_head.py adapter output) without editing the table
 
 
 SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painted body and neck stub take it as their base
@@ -1643,8 +1650,8 @@ def keentools_skin_tone(eye_l, eye_r, crown_z):
             u, v = uv[li].uv
             samples.append(px[min(h - 1, int((1 - v) * h)), min(w - 1, int(u * w))])
     samples = np.array(samples)
-    samples = samples[samples.max(axis=1) > 0.06]  # skip un-photographed texels
-    neck_tone = np.median(samples, axis=0)
+    samples = samples[samples.max(axis=1) > (0.25 if HAIR == 'mesh' else 0.06)]  # skip un-photographed texels; on a mesh head (its own hair and collar in the texture) anything darker than a quarter is hair or cloth, not skin
+    neck_tone = np.median(samples, axis=0) if len(samples) else np.array([0.5, 0.5, 0.5])
     # the body's tone comes from the lit face, not the neck band under the jaw (photographed in the chin's shadow: the
     # body painted to it read paler and pinker than the face under the same light). Cheekbones and forehead, forward-facing.
     ys = [p.center.y for p in mesh.polygons if p.material_index == 0]
@@ -1660,10 +1667,14 @@ def keentools_skin_tone(eye_l, eye_r, crown_z):
             u, v = uv[li].uv
             face.append(px[min(h - 1, int((1 - v) * h)), min(w - 1, int(u * w))])
     face = np.array(face)
-    face = face[face.max(axis=1) > 0.06]
+    face = face[face.max(axis=1) > (0.25 if HAIR == 'mesh' else 0.06)]
     lum = np.array([0.30, 0.59, 0.11])
     face_tone = np.median(face, axis=0) if len(face) > 500 else neck_tone
     SKIN_TONE = face_tone * (neck_tone @ lum) / (face_tone @ lum)  # the face's hue at the neck band's brightness (the lit cheek itself renders near white; the body painted to the neck band alone read pink-grey beside the face)
+    if HAIR == 'mesh':  # a mesh head: the adapter (trellis_head.py) matched its texture to the portrait and recorded the portrait's skin — the body takes that
+        report = KT_GLB.rsplit('.', 1)[0] + '.json'
+        tone = json.load(open(report)).get('tone') if os.path.exists(report) else None
+        SKIN_TONE = np.array(tone['portrait_skin']) if tone else face_tone
     SKIN_TONE = SKIN_TONE * np.array(FIGHTERS[FIGHTER].get('skin_mul', (1.0, 1.0, 1.0)))  # per-fighter correction: the Pitborn's neck band is lit paler and warmer than his grey-green cheeks
     print(f'KEENTOOLS skin tone {np.round(SKIN_TONE, 3)}: hue of {len(face)} cheek/forehead texels {np.round(face_tone, 3)}, brightness of the neck band {np.round(neck_tone, 3)} ({len(samples)} texels; values are sRGB-encoded, as Blender pixels are)')
     return SKIN_TONE
@@ -1825,6 +1836,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         if q > 0:
             cover.add([v.index], min(1.0, q), 'REPLACE')
     coverage = bake_attribute(head, 'coverage', select_only, size)
+    if HAIR == 'mesh':  # a reconstruction is textured on every face: nothing is unseen, nothing is a grazing-angle smear to refill or delight
+        coverage = np.ones_like(coverage)
     head.vertex_groups.remove(head.vertex_groups['coverage'])
     stretch = bake_attribute(head, 'stretch', select_only, size) if 'stretch' in head.vertex_groups else np.zeros((size, size), np.float32)
     if 'stretch' in head.vertex_groups:
@@ -1848,6 +1861,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     colour = P.downsample(colour, colour.shape[0] // size) if colour.shape[0] > size else colour
     seen_edge = 0.6 + (0.16 * (hair_streaks(size, seed=13) - 0.5) * (scalp > 0.5) if HAIR == 'full' else 0)  # full hair: the photographed tufts end ragged along the strands, not on one coverage iso-line
     dark = (colour.max(axis=2) < 0.06) | ((coverage < seen_edge) & ((hair_zone > 0.5) | (back > 0.3))) | (coverage < 0.3)
+    if HAIR == 'mesh':  # a reconstruction is textured all round: its black texels are black hair, not an unseen crown to synthesise
+        dark = np.zeros_like(dark)
     if FIGHTERS[FIGHTER].get('backdrop_cool'):  # the portraits' neutral backdrop projected onto the crown at grazing angles: a cool texel (blue ≥ 85 % of red) above the hairline is neither skin nor stubble — unseen, so the fill covers it (per fighter: grey hair is cool too)
         backdrop = (hair_zone > 0.5) & (colour[:, :, 2] >= colour[:, :, 0] * 0.85)   # skin and stubble here run b ≈ .6–.7 r; the backdrop's graded edge ~.9
         print(f'KEENTOOLS backdrop on the crown: {int((backdrop & ~dark).sum())} cool texels marked unseen')
@@ -1866,7 +1881,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     crown_w = np.clip(1 - blur((~dark).astype(np.float32), 16) * 1.6, 0, 1) * dark * (scalp > 0.5) if HAIR == 'full' else np.zeros((size, size), np.float32)  # where the crown is synthesised strands (crown_fill's own blend weight)
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
     filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size, front=front)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
-    filled = delight(filled, dark | (coverage < 0.6))  # the portraits' key light is baked in: the lit cheeks and forehead rendered brighter and shinier than the body
+    if HAIR != 'mesh':  # a mesh head's texture was matched to its flat-lit portrait by the adapter; and its atlas is mostly hair, whose median delight would pull the face down to
+        filled = delight(filled, dark | (coverage < 0.6))  # the portraits' key light is baked in: the lit cheeks and forehead rendered brighter and shinier than the body
     if FIGHTERS[FIGHTER].get('photo_mul'):  # per-fighter skin tint ON THE PHOTOGRAPH (the Executioner's dark chocolate, owner
         filled = filled * np.array(FIGHTERS[FIGHTER]['photo_mul'])[None, None, :]  # 2026-09-18): after delight, before the neck band, so the ring the body continues is the tinted tone — skin_mul alone paints only the body
     fade = np.clip(seam * 1.1, 0, 1)  # fully flat at the very edge, so it carries none of the photograph's lighting
@@ -1889,7 +1905,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         occl = 1 - (1 - (0.55 + 0.45 * np.clip(blur(ao_kt, 4), 0, 1) ** 1.2)) * back * fade  # the painted body's own occlusion curve
         filled = filled * occl[..., None]
         RING_TONE = ring_tones(head, filled, neck_z, neck_c, size)  # re-read from the finished band (fade and nape occlusion in): what the neck below must continue
-    if FIGHTERS[FIGHTER].get('pallor'):  # the Nightborn's no-credits restyle of the STAND-IN scan texture (his brief): pale grey-white
+    if FIGHTERS[FIGHTER].get('pallor') and HAIR != 'mesh':  # the Nightborn's no-credits restyle of the STAND-IN scan texture (his brief): pale grey-white — his own head (a mesh) carries all of it already
         # skin, black hair, clean-shaven, sunken eyes, the throat scar. skin_mul pales only the painted body; the photographed head is
         # restyled here, on `filled`, before the gutters are margined. Position grids come from normalised vertex-group bakes (the az_c/az_s pattern).
         pos_g = {}
