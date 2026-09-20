@@ -200,7 +200,7 @@ if (checks && !fallback && seed === 731) {
       assert.ok(Math.abs(delta - 20 * Math.log10(.5)) < .15, `${name}: ordinary level changed ${delta} dB, expected half gain`);
       checks.phoneMix.ordinary++;
     } else {
-      assert.ok(delta >= 2.7 && delta <= 3.7, `${name}: boosted fatal loudness changed ${delta} dB (peak protection may reduce the boost)`);
+      assert.ok(delta >= 2.7 - .05 && delta <= 3.7 + .05, `${name}: boosted fatal loudness changed ${delta} dB (peak protection may reduce the boost)`);   // ± .05: measure() rounds LUFS to .1, so a delta is quantised to that
       checks.phoneMix.fatal++;
     }
     if (before.tailRmsDbfs !== undefined) {

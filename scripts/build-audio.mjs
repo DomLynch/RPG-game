@@ -12,6 +12,10 @@ const RATE = 48000, GAP = .04, LEAD = .02;
 // Owner's ear, 2026-09-20: everything 30 % deeper. Applied to every frequency the recipes touch (filters, sweeps, modes) and
 // as a length-preserving pitch shift on the recordings, so decays, lengths and timing are unchanged.
 const PITCH = .7;
+// Owner 2026-09-20, after playing the −30 % mix: the end-of-match cheer is still high — the crowd recordings go another 30 %.
+const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7 };
+// Length-preserving pitch shift: asetrate lowers pitch and slows; atempo (≤ 2 per stage, chained) restores the length.
+const pitchFilter = pitch => { const tempo = 1 / pitch, stages = Math.ceil(Math.log(tempo) / Math.log(2)); return `asetrate=${RATE * pitch},aresample=${RATE},${Array.from({ length: stages }, () => `atempo=${tempo ** (1 / stages)}`).join(',')}`; };
 const S = seconds => Math.round(seconds * RATE);
 const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
@@ -28,7 +32,7 @@ for (const [name, source] of Object.entries(sourceList)) {
   }
   if (createHash('sha256').update(bytes).digest('hex') !== source.sha256) throw new Error(`${name}: source hash mismatch`);
   await fs.writeFile(file, bytes);
-  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-af', `asetrate=${RATE * PITCH},aresample=${RATE},atempo=${1 / PITCH}`, '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 64 * 1024 * 1024 });   // pitch × PITCH, same length
+  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-af', pitchFilter(PITCH_BY_SOURCE[name] ?? PITCH), '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 64 * 1024 * 1024 });   // pitch × PITCH, same length
   recordings[name] = Float32Array.from(new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4));
 }
 function recording(name, start, seconds, rate = 1) {

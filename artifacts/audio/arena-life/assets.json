@@ -5,13 +5,13 @@
     "arena.m4a": {
       "bytes": 251635,
       "peakDbfs": -5.584269926637946,
-      "sha256": "727e5ce0743ffa9ca59687d3712ae288f21ab6f2822b72b2d0dafc92aa962515"
+      "sha256": "e4a404b734310857452e981e334f221be901906b31a3b193523ea67be6b07384"
     },
     "arena.ogg": {
-      "bytes": 161591,
-      "peakDbfs": -5.801738704671155,
-      "sha256": "270f23770408fe7e5315bf4ceec65991c29146c14b1d677a471157dcbc635236"
+      "bytes": 161652,
+      "peakDbfs": -5.855133530271461,
+      "sha256": "8f886dc1bec6f308a9abc346b5f92bd6b358734370508fdba0893c5f099190f5"
     }
   },
-  "gzip": 396634
+  "gzip": 396893
 }
