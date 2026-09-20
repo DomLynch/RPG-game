@@ -1053,9 +1053,10 @@ launch, not the audio: it was the only audio gate calling `launch({ headless: tr
 headless-shell binary; the same tap succeeds in ~2 s under the full Chrome for Testing binary that the other 14 gates select with
 `executablePath`. Fixed here by launching like the others; the gate then passes load → enter → menu → resume → rematch. Three
 non-audio scripts still launch the headless shell (`polearm-pose-check`, `creature-weapon-pose-check`, `veteran-polish-check`) —
-noted for their lanes, untouched. For PR #175's fast-Stop/full-release split: `audio-preview --check` (68 s, offline,
-deterministic) is the only audio command that belongs on Stop if any does; the three browser gates are release checks, and
-`arena-audio-check` already takes `--offline` / `--ui-only` if the lead wants them split.
+noted for their lanes, untouched. Since #175 (trunk f2944f9) Stop runs `npm run quality:ci` + `npm run test:browser` and all
+four audio gates sit in the 32 `release_commands` that `scripts/release-checks.mjs` executes inside `deploy.sh` before the live
+switch — the right place for them; `arena-audio-check` also takes `--offline` / `--ui-only` if the lead ever wants the fast
+offline half back on Stop.
 
 **Beta freeze (owner + lead, 2026-09-20).** Ships: current impacts, fatal sounds, crowd ambience, bell. Parked as Phase 2, in this
 order when reopened: (a) material-aware impacts for the grown roster (bronze/iron/bone/wood; needs the struck material, the weapon
