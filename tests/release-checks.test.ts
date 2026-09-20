@@ -37,10 +37,13 @@ test('independent checks run concurrently; fixed-port checks run alone; receipt 
   const result = run(root, { RELEASE_CHECK_CONCURRENCY: '6' });
   const wall = (Date.now() - started) / 1000;
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.ok(wall < 3.5, `6x700ms in parallel + 2x300ms serial should take ~1.3s + startup, took ${wall}s`);
-  assert.match(result.stdout, /6 concurrent \(limit 6\), 2 serial \(fixed port\)/);
+  assert.ok(wall < 3.5, `6x700ms in parallel with 2x300ms fixed-port overlapping should take ~1s + startup, took ${wall}s`);
+  assert.match(result.stdout, /8 total, concurrency 6, 2 fixed-port \(one at a time\)/);
   assert.ok(existsSync(join(root, 'artifacts', 'release-checks.json')));
-  assert.equal(JSON.parse(readFileSync(join(root, 'artifacts', 'release-checks.json'), 'utf8')).checks, 8);
+  const written = JSON.parse(readFileSync(join(root, 'artifacts', 'release-checks.json'), 'utf8'));
+  assert.equal(written.checks, 8);
+  assert.equal(written.checks_detail.length, 8);
+  assert.ok(written.checks_detail.every((c: { seconds: number }) => c.seconds > 0.2), 'durations recorded per check');
   assert.ok(existsSync(join(root, 'artifacts', 'release-checks', '01-scripts_sleep.mjs.log')), 'per-check log kept');
 });
 
@@ -59,4 +62,17 @@ test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
   const result = run(root, { RELEASE_CHECK_CONCURRENCY: '1' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.ok((Date.now() - started) / 1000 >= 0.8, 'serial: sum of durations');
+});
+
+test('longest checks from the previous receipt start first; unknown checks sit at the median', () => {
+  const root = repo([['node', 'scripts/sleep.mjs', '50'], ['node', 'scripts/sleep.mjs', '51'], ['node', 'scripts/sleep.mjs', '52'], ['node', 'scripts/sleep.mjs', '53']]);
+  mkdirSync(join(root, 'artifacts'), { recursive: true });
+  writeFileSync(join(root, 'artifacts', 'release-checks.json'), JSON.stringify({ checks_detail: [
+    { command: 'node scripts/sleep.mjs 50', seconds: 5 }, { command: 'node scripts/sleep.mjs 51', seconds: 90 }, { command: 'node scripts/sleep.mjs 53', seconds: 40 },
+  ] }));
+  const result = run(root, { RELEASE_CHECK_CONCURRENCY: '1' });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const order = [...result.stdout.matchAll(/Release check (\d)\/4 started/g)].map(m => Number(m[1]));
+  assert.deepEqual(order, [2, 3, 4, 1], 'known 90s first; unknown check at the median (40s) ties the known 40s and keeps contract order; known 5s last');
+  assert.match(result.stdout, /ordered by last run's durations \(3 known\)/);
 });
