@@ -1,5 +1,15 @@
 # Project state
 
+## Opponent picker shows live rungs only — lead implementation, 2026-09-20 (owner)
+The journal's opponent picker is built from `LADDER` (held recipes filtered out) instead of every `ENCOUNTERS` entry greyed as
+"(on hold)": Minotaur, Wraith, Werewolf and Skeleton no longer appear in the beta menu at all (they stay valid ids, so saved
+encounters still fall back). The beta list is Veteran, Pitborn, Goblin, Nightborn, Executioner, Dwarf. Roles as of today: the
+former lead is the deploy/GitHub/CI dev; this lane is lead implementation (features, integration, add/remove); character dev
+builds bodies; the design/web dev designs only and hands designs to implementation.
+Evidence: tsc + eslint clean; graphics/roster/ladder tests 37/37 (picker test updated); build + audit 0 + budget PASS
+(20,820,778 gzip of 32 MB, per fight 8,821,562 of 12 MB with the Dwarf). Full `npm test` and `test:browser` deferred until the
+deploy dev posts FREE (load-gated deploy in progress); receipts go on the PR.
+
 ## Dwarf — character lane candidate, not approved, not released (2026-09-20)
 Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
 `black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft
