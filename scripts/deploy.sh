@@ -19,7 +19,10 @@ else
   echo "No green CI quality run found for $revision; running the full quality gate"
   npm run quality
 fi
-node scripts/release-checks.mjs
+# Checks CI already proved for this exact revision (green release-checks job + receipt artifact) are skipped here;
+# the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
+trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
+RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="CI release-checks for $revision" node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 printf '{"revision":"%s","phase":"0B-swordplay"}\n' "$revision" > dist/release.json
 host=root@49.12.7.18
