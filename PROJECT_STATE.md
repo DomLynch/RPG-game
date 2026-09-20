@@ -14,6 +14,17 @@ blade, 3–7, staggered, thin, pale straw → ember, tone-mapped. Evidence `arti
 `artifacts/world/{base,props}-{full,phone}`. Not done: baked AO (needs an unwrapped lightmap pipeline), KTX2 textures (needs the
 basis_universal encoder — owner's OK), the phone AA decision and one-pass post (after KTX2). check-budget counts prop GLBs as opponent
 candidates: true per-fight ≈ 10.4 of 12 MB.
+## /game marketing page + Field Journal redesign — web/design lane, 2026-09-20 (owner picked direction E of nine)
+`public/game/` is a static, one-page mobile-first site at frankendom.com/game (Vite copies `public/` verbatim; nginx `try_files $uri/`
+serves the folder index). Direction "Pocket Arena": light ground, the live game inside a phone frame, bento tiles, Bricolage Grotesque +
+Instrument Sans (SIL OFL, `public/game/fonts/LICENSES.txt`). Images are the shipped GLBs rendered offline (transparent WebP portraits)
+plus two HUD-less captures of the live arena; total folder 644 KB, no inline script (site CSP is `script-src 'self'`; `game.js` is the
+only script). frankendom.com itself is untouched: the game still loads on `/`.
+The Field Journal (`<dialog id="journal">`) is restyled in the same brand as a light bottom sheet: fighter card (name · rank pips · save
+state, mirrored from `persist()` into `#journal-name/-sigil/-rank/-save`), account, Controls chips + "How to fight" folded, record ledger,
+Arena (opponent, warden, blood), Test tools (finisher, hit-stop, tempo, debug). Every bound element id, aria label and button text is
+unchanged, and everything the browser gates tap stays visible when the journal opens; the milestones copy and the retired ESO/Black Desert
+reference links are gone (`/game/` is linked instead). Evidence and remaining validation: see the PR.
 
 ## Opponent picker shows live rungs only — lead implementation, 2026-09-20 (owner)
 The journal's opponent picker is built from `LADDER` (held recipes filtered out) instead of every `ENCOUNTERS` entry greyed as
@@ -33,18 +44,26 @@ that memory (`lastFinisher`, rolled at rematch) and hands it to the audio resolv
 scene and audio still agree. Presentation state only; replays with the same history are identical. The preview harness
 resets the memory per captured window. Test: 20 000-event sweep asserts no repeat, 16–24 % share each, determinism.
 
-## Dwarf — character lane candidate, not approved, not released (2026-09-20)
-Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
-`black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft
-TRELLIS.2 Space by the new scripted runner `scripts/character/trellis2.py` (seed 190926, 1024, 100000 faces, 2048 textures;
-74 s on the owner's PRO quota; source SHA-256 `2213ef49…`). Fitted to the Veteran donor at 1.60 m with the existing
-`creatures.py` recipe seam: bind error 2.2e-6, 38 clips preserved, 190 finite poses, grip checks pass (`creature-check.mjs dwarf`).
-Roster recipe `dwarf` (veteran archetype, trident, plain death only) is the tenth recipe and, on the owner's instruction
-("ignore caps, use what you need", 2026-09-20), NOT held: he is the sixth live rung after the Executioner while the four
-creatures stay held; one `hold: true` flag parks him. Ladder/roster/graphics pins updated; cloud-profile migration `202609200001_dwarf_encounter.sql` staged, NOT applied to the hosted project.
-Open decisions for lead/combat: a `dwarf` archetype (shorter reach, higher poise) and weapon instead of the Veteran's
-profile/trident; whether he belongs in the beta ladder at all (the freeze analysis says Phase 2). Budget impact recorded in
-`artifacts/character/dwarf/quality.log`. No browser gate, no publication, no owner approval of the concept yet.
+## Dwarf v2 — owner-approved look, character lane (2026-09-20)
+Owner reviewed v1 in the arena and asked for four fixes ("A grade"): support-hand grip, chrome shoulder plate, soft face, true dwarf
+proportions. v2 (`char/dwarf-v2`):
+- Proportions: a re-proportioned donor rig (`build-warrior.mjs` BUILD.dwarf — legs −28 %, torso/limbs +20–25 % girth, short thick neck,
+  bigger head, root .95) stands 1.494 m (Veteran 1.804); built from the Veteran's parts via `WARRIOR_PARTS_VARIANT`, to
+  `src/assets/source/creatures/dwarf-donor.glb`, rebuilt by `build-creatures.mjs dwarf` before the fit. New `dwarf` archetype in
+  `moves.ts` (scale .78 = measured 1.361/1.745 in the shared Idle, 170 health, poise 12: a stab (11) never stops him, a cut (14) does; Veteran AI profiles),
+  pinned by a standing-height test in `tests/characters.test.ts` (±0.03, < 0.9 of the hero). Reach stays the ordinary trident's
+  (≈22 % shorter than the Veteran's by design: he has to get inside). The fitter scales its ~1.80 m z thresholds by height/1.80 for
+  the dwarf family only; every other family keeps k = 1.
+- Grip: the donor's 40 finger tracks now drive the reconstructed fingers (shared `keep_fingers` path with the Executioner, #206);
+  `creature-check` requires the supporting hand on the shaft (< 0.08 m) like the Skeleton's. Hands are rounded before binding.
+- Face: source regenerated at TRELLIS.2 resolution 1536 (same seed/faces/textures); the 45k budget is spent on the head and hands
+  (torso/skirt/legs absorb the decimation), beard hairline holes filled, head relaxed volume-preservingly (beard full, brow/eyes/nose
+  a third). Owner: "much better".
+- Plate: `metallicFactor 0.35` on the Dwarf surface (creature_pack SURFACE_FACTORS); retained maps stay byte-identical. Up close the
+  plate still shows TRELLIS's baked highlights; geometry ironing was tried and reverted (it faceted the arm).
+- Generator hash moved (creatures.py), so every creature is rebuilt in this PR; the five others are checked accessor-equivalent to
+  trunk's. Reproducible: the dwarf rebuild reproduces sha 85f5c387…. Ladder placement unchanged (sixth rung) pending the owner.
+
 ## AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, the game continues as if")
 Leaving a live fight (tab hidden, phone call, lock screen) no longer freezes it in the player's favour. The browser cannot run the
 fight while hidden, so the hidden time is owed to the fight and simulated on return with no input (`owed` in `main.ts`, both clocks
@@ -87,6 +106,13 @@ The deploy gate's blood-gate check (decapitation "detached head stays visible ab
 clears it on Veteran, Pitborn, Goblin and Executioner. Harness now asserts the victim's chest/skull are not hidden behind
 the killer (camera ray). Run Through alignment (owner: blade reads off-centre) remains open.
 
+
+## Weapons Phase 2 polish — reconstructed parts, in progress (weapons lane, 2026-09-20)
+Owner reversed the freeze for weapons: polish all of them now for beta, keep the procedural parts as the revert. Trident (Veteran)
+and cleaver (Pitborn) ship as TRELLIS.2 reconstructions fitted by `scripts/weapon-fit.py` on the unchanged contact segments
+(`bake-blades` tables identical; `WEAPON_VARIANT=short|A` rebuilds byte-identical to the previous rigs). Knife, estoc, scythe and
+longsword are concept-approved and queued on the ZeroGPU quota reset; maul/claws/reaper (creature injector) not started. Skeleton,
+dwarf and werewolf pick the new parts up on their next creature pack. Evidence: `artifacts/weapons/REPORT.md` "Phase 2 polish".
 
 ## Wraith reaper scythe — weapons lane, in progress
 Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.

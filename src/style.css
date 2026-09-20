@@ -336,45 +336,6 @@ dialog>p {
   line-height: 1.6;
   color: #c5ceca;
 }
-.milestones {
-  list-style: none;
-  padding: 0;
-  margin: 28px 0;
-}
-.milestones li {
-  display: flex;
-  gap: 18px;
-  padding: 18px 0;
-  border-top: 1px solid #75837c40;
-}
-.milestones li>span {
-  font-size: 24px;
-  color: #a3987e;
-}
-.milestones strong {
-  font-size: 18px;
-  font-weight: 400;
-}
-.milestones p {
-  font-size: 14px;
-  color: #aebdb8;
-  line-height: 1.5;
-  margin: 8px 0 0;
-}
-.milestones .current>span {
-  color: #e0c799;
-}
-.note {
-  font-size: 13px !important;
-  border-top: 1px solid #75837c40;
-  padding-top: 18px;
-}
-.references {
-  display: grid;
-  gap: 12px;
-  font-size: 12px;
-  line-height: 1.5;
-}
 [hidden] {
   display: none !important;
 }
@@ -1317,48 +1278,132 @@ dialog>p {
   white-space: pre;
   pointer-events: none;
 }
-.menu-select {
-  display: inline-flex;
+
+/* Field Journal — the /game brand brought into the arena: a light sheet, rounded, Bricolage + Instrument Sans (licences in
+   public/game/fonts/LICENSES.txt). The fonts are only fetched once the dialog first renders, so guest start-up pays nothing. */
+@font-face {
+  font-family: "Bricolage";
+  src: url(/game/fonts/bricolage.woff2) format("woff2");
+  font-weight: 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url(/game/fonts/instrument.woff2) format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+}
+dialog {
+  --jb: #f6f2ea; --jp: #ebe5d9; --jf: #1b1916; --jm: #7a746a; --jl: #dcd4c6; --ja: #b3231c;
+  color: var(--jf);
+  background: var(--jb);
+  border: 0;
+  border-radius: 22px;
+  width: min(520px, 94vw);
+  max-height: 88dvh;
+  padding: 16px 18px 22px;
+  box-shadow: 0 40px 90px -30px #000c;
+  font: 15px/1.45 "Instrument Sans", Arial, sans-serif;
+  color-scheme: light;
+}
+dialog::backdrop {
+  background: #0a1214a6;
+  backdrop-filter: blur(8px);
+}
+@media (max-width: 700px) {
+  dialog {
+    width: 100vw;
+    max-width: none;
+    margin: auto 0 0;
+    border-radius: 22px 22px 0 0;
+    max-height: 92dvh;
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
+  }
+}
+dialog .eyebrow {
+  font: 600 11px/1 "Instrument Sans", Arial, sans-serif;
+  letter-spacing: .18em;
+  color: var(--jm);
+}
+dialog h4 {
+  margin: 18px 0 8px;
+  font: 600 11px/1 "Instrument Sans", Arial, sans-serif;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--jm);
+}
+dialog button {
+  width: auto;
+  max-width: none;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--jl);
+  background: #fff9;
+  color: var(--jf);
+  font: 600 14px/1 "Instrument Sans", Arial, sans-serif;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+dialog button:hover { border-color: var(--jf); background: #fff; }
+dialog button[aria-pressed=true] { border-color: var(--jf); background: var(--jf); color: #fff; }
+dialog #close-journal { width: 34px; height: 34px; min-height: 0; padding: 0; }
+dialog .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+dialog .chips.quiet button { color: var(--jm); border-style: dashed; }
+.fighter {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
   align-items: center;
-  gap: 8px;
-  margin: 6px 10px 6px 0;
-  font:
-    12px Arial,sans-serif;
-  color: #c5ceca;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--jl);
+}
+.fighter-sigil {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ja);
+  display: grid; place-items: center;
+  font: 800 18px "Bricolage", Arial, sans-serif;
+  color: var(--ja);
+}
+.fighter strong { display: block; font: 800 22px/1 "Bricolage", Arial, sans-serif; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.fighter-rank { display: block; font-size: 13px; color: var(--ja); margin-top: 4px; }
+.fighter-save { display: block; font-size: 12px; color: var(--jm); }
+.account { padding: 14px 0; border-bottom: 1px solid var(--jl); overflow-wrap: anywhere; }
+.account > strong { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--jm); }
+.account p { margin: 4px 0 10px; font-size: 14px; }
+.account small { display: block; margin-top: 8px; font-size: 12px; color: var(--jm); }
+.account-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.account-actions button { flex: 1 1 140px; min-height: 44px; border-radius: 12px; }
+dialog #account-login { flex-basis: 100%; min-height: 48px; background: #fff; border-color: var(--jf); }
+.menu-select {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 600 11px "Instrument Sans", Arial, sans-serif;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--jm);
 }
 .menu-select select {
-  font:
-    13px Arial,sans-serif;
-  color: #eee9df;
-  background: #172329c4;
-  border: 1px solid #6b7a78;
-  border-radius: 8px;
-  padding: 6px 8px;
-  min-height: 36px;
+  font: 600 14px "Instrument Sans", Arial, sans-serif;
+  color: var(--jf); background: #fff;
+  border: 1px solid var(--jl); border-radius: 999px;
+  padding: 0 12px; min-height: 40px;
+  letter-spacing: 0; text-transform: none;
 }
-
-/* Account actions belong to the journal on every screen size. */
-.account {
-  padding: 16px 0;
-  border-bottom: 1px solid #d1bd8c55;
-  margin-bottom: 18px;
-  font:
-    14px/1.5 Arial,sans-serif;
-  overflow-wrap: anywhere;
+.howto { border-top: 1px solid var(--jl); margin-top: 12px; }
+.howto summary { cursor: pointer; padding: 12px 0; font: 600 13px "Instrument Sans", Arial, sans-serif; color: var(--jf); }
+.howto p { margin: 0 0 12px; font: 13px/1.55 "Instrument Sans", Arial, sans-serif; color: var(--jf); }
+.scorecard {
+  white-space: pre-wrap;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--jp);
+  font: 12px/1.5 ui-monospace, Menlo, monospace;
+  color: var(--jf);
 }
-.account p {
-  margin: 8px 0;
-}
-.account small {
-  margin-top: 10px;
-  color: #b7c2bd;
-}
-.account-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.account-actions button {
-  flex: 1 1 160px;
-  backdrop-filter: none;
+dialog output { display: block; margin-top: 8px; font: 12px "Instrument Sans", Arial, sans-serif; color: var(--jm); }
+.note { margin: 18px 0 10px; font-size: 12px; color: var(--jm); }
+.references { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; }
+.references a { color: var(--jf); text-decoration: underline dotted; }
+@media (max-width: 900px), (pointer: coarse) {
+  .mobile-tools { display: block; margin: 0; }
 }

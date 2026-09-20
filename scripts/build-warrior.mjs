@@ -22,14 +22,14 @@ const realistic = process.env.WARRIOR_BODY !== 'classic'; // the Blender Studio 
 // WARRIOR_FIGHTER=veteran builds the opponent from scripts/character/parts.py --fighter veteran (its own scan, helm and maps)
 // into src/assets/veteran.glb; the default (hero) is the player's warrior.glb. Same rig and body clips; the Veteran carries the trident.
 const fighter = process.env.WARRIOR_FIGHTER || 'hero';
-const recipe = warriorRecipe(fighter, process.env.WARRIOR_WEAPON), variant = realistic ? recipe.body : '';
+const recipe = warriorRecipe(fighter, process.env.WARRIOR_WEAPON), variant = realistic ? process.env.WARRIOR_PARTS_VARIANT || recipe.body : '';   // WARRIOR_PARTS_VARIANT: a reconstruction's donor rig borrows another fighter's parts (the surface is replaced by creature_pack.py)
 // WARRIOR_WEAPON=trident (weapons lane, scripts/build-weapon.mjs): the fighter carries that weapon instead of the sword — no scabbard, the
 // sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
 // the weapon's own clips join the set. The hero defaults to the longsword (byte-identical output); the Veteran defaults to the trident
 // since slice V (duel.ts initialDuel gives him it), so a plain rebuild never hands him the sword back.
-if (recipe.pipeline === 'reconstruction') throw new Error(`Use node scripts/build-creatures.mjs ${fighter} for this reconstructed surface`);
+if (recipe.pipeline === 'reconstruction' && !process.env.WARRIOR_PARTS_VARIANT) throw new Error(`Use node scripts/build-creatures.mjs ${fighter} for this reconstructed surface`);   // a donor-rig build for a reconstruction is the exception (WARRIOR_OUT outside src/assets)
 const weaponId = recipe.weapon;
-const appearance = warriorAppearance(fighter);
+const appearance = warriorAppearance(process.env.WARRIOR_PARTS_VARIANT || fighter);   // a donor rig wears the borrowed fighter's palette too
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
 const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
@@ -96,7 +96,15 @@ const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] },
   goblin: { scale: .835, hunch: [['spine_02', 9], ['spine_03', 9], ['neck_01', -8], ['Head', -8]], bob: .84, stride: .835 * .84, floor: .12,
     bones: { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l: [1, .84, 1], calf_r: [1, .84, 1],   // short legs
       upperarm_l: [1, 1.16, 1], upperarm_r: [1, 1.16, 1], lowerarm_l: [1, 1.16, 1], lowerarm_r: [1, 1.16, 1],   // long arms (the hands keep their size: the grip and the sword are untouched)
-      neck_01: [.86, .9, .86], Head: [1.17, 1.17, 1.17] } } }[fighter] ?? { scale: 1, hunch: [] };   // a thin, shorter neck; a big head
+      neck_01: [.86, .9, .86], Head: [1.17, 1.17, 1.17] } },   // a thin, shorter neck; a big head
+  // The dwarf donor (2026-09-20): a short, wide man — the TRELLIS surface replaces this body in creature_pack.py, so only the joints,
+  // inverse binds, stride and the trident matter. Legs lose 28 %, torso/limbs gain 20–25 % girth, a short thick neck and a bigger head;
+  // `scale` .95 lands ~1.45 m standing. Owner asked for true dwarf proportions rather than the 1.60 m Veteran fit.
+  dwarf: { scale: .95, hunch: [['spine_02', 4], ['spine_03', 4], ['neck_01', -3], ['Head', -3]], bob: .72, stride: .95 * .72, floor: .10,
+    bones: { thigh_l: [1.25, .72, 1.25], thigh_r: [1.25, .72, 1.25], calf_l: [1.25, .72, 1.25], calf_r: [1.25, .72, 1.25],
+      pelvis: [1.2, 1, 1.2], spine_01: [1.22, 1, 1.22], spine_02: [1.22, 1, 1.22], spine_03: [1.22, 1, 1.22], clavicle_l: [1, 1.1, 1], clavicle_r: [1, 1.1, 1],
+      upperarm_l: [1.2, 1, 1.2], upperarm_r: [1.2, 1, 1.2], lowerarm_l: [1.2, 1, 1.2], lowerarm_r: [1.2, 1, 1.2], hand_l: [1.1, 1.1, 1.1], hand_r: [1.1, 1.1, 1.1],
+      neck_01: [1.15, .75, 1.15], Head: [1.12, 1.12, 1.12] } } }[fighter] ?? { scale: 1, hunch: [] };
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -267,8 +275,14 @@ function bladeGeometry(base, tip, width, thickness, pointFraction = .14, segment
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
   g.computeVertexNormals(); return g;
 }
+// Phase 2 polish (weapons lane, 2026-09-20): the hero's longsword is the reconstructed part when it exists (scripts/weapon-fit.py →
+// src/assets/source/weapons/longsword.part.glb), in the hand AND the scabbard node — the same geometry, one buffer in the export.
+// WEAPON_VARIANT=procedural rebuilds the primitives below, byte-identical to before.
+const longswordPart = weaponId === 'longsword' && process.env.WEAPON_VARIANT !== 'procedural' && await fs.stat('src/assets/source/weapons/longsword.part.glb').then(() => true, () => false)
+  ? await (await import('./build-weapon.mjs')).sourced('longsword', null)({}) : null;
 function sword(name, parent) {
   const group = new T.Group(); group.name = name; parent.add(group);
+  if (longswordPart) { for (const child of longswordPart.children) group.add(child.clone()); return group; }
   const piece = (geometry, material, y) => { const mesh = new T.Mesh(withAoUv(geometry), material); mesh.position.y = y; group.add(mesh); };
   piece(bladeGeometry(.10, .86, .046, .007), blade, 0);
   piece(new T.CapsuleGeometry(.011, .21, 3, 10).rotateZ(Math.PI / 2), trim, .092);           // rounded bronze crossguard
@@ -287,7 +301,7 @@ if (weaponId !== 'longsword') {
   const { WEAPON_BUILDS } = await import('./build-weapon.mjs'); weaponBuild = WEAPON_BUILDS[weaponId];
   if (!weaponBuild) throw new Error(`WARRIOR_WEAPON=${weaponId}: no such weapon (scripts/build-weapon.mjs)`);
   sheathed.clear(); drawn.clear(); // the loader still finds SwordSheathed/SwordDrawn; they carry nothing
-  weaponNode = weaponBuild.part({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
+  weaponNode = await weaponBuild.part({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT }); // async for a reconstructed part (build-weapon.mjs sourced())
   base.scene.getObjectByName('hand_r').add(weaponNode); weaponNode.position.copy(drawn.position); weaponNode.quaternion.premultiply(drawn.quaternion); // retain the part's authored grip tilt
   if (weaponNode.userData.grip === 'reverse') weaponNode.rotateZ(Math.PI);   // the blade runs back along the forearm (the goblin's reverse-grip hook): the sword's transform turned 180° about its thickness axis — blade reversed AND the edge moved to the other side, so the forehand still leads with the edge
 }
@@ -780,6 +794,7 @@ for (const [name, maps] of Object.entries(manifest)) {
 }
 const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
 if (!realistic) authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
+for (const [name, maps] of Object.entries(weaponNode?.maps ?? longswordPart?.maps ?? {})) authored.set(name, { ...maps, occlusionTexCoord: 0 }); // a reconstructed weapon's own maps, by material name
 let finished = finishMaterials(Buffer.from(result), authored);
 if (fighter === 'veteran') {
   finished = fitVeteranNeck(finished).glb;
