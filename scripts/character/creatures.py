@@ -120,7 +120,52 @@ tris = len(mesh.data.loop_triangles)
 if tris > 45000:
     mod = mesh.modifiers.new("Mobile surface", "DECIMATE")
     mod.ratio = 45000 / tris
-    bpy.ops.object.modifier_apply(modifier=mod.name)
+    if family == "dwarf":
+        # A 1536-res reconstruction carries fine face/beard/finger detail that a uniform collapse turns into shards. Spend the
+        # 45k budget where the camera goes: the head (top 24 % of the body) and the hands keep their triangles, the torso,
+        # skirt and legs absorb the reduction. Blender collapses vertices with higher group weight first (factor 1 = full effect).
+        detail = mesh.vertex_groups.new(name="Mobile surface budget")
+        top = max(v.co.z for v in mesh.data.vertices)
+        # The head proper (not the shoulders: the reconstructed plate is noisy and collapses smoother when decimated with the torso).
+        head_zone = lambda v: v.co.z > top * 0.76 and abs(v.co.x) < 0.14 * height
+        for v in mesh.data.vertices:
+            hand_zone = abs(v.co.x) > 0.40 * height and 0.40 * height < v.co.z < 0.62 * height
+            detail.add([v.index], 0.0 if head_zone(v) or hand_zone else 1.0, "REPLACE")
+        mod.vertex_group = detail.name
+        mod.vertex_group_factor = 1.0
+        # The reconstruction's splayed fingers are thin strips; once the donor's finger tracks curl them they read as splinters.
+        # Round the hands into a solid grip before binding (hand zone only; the rest of the surface is untouched).
+        hands = mesh.vertex_groups.new(name="Mobile surface hands")
+        for v in mesh.data.vertices:
+            if abs(v.co.x) > 0.40 * height and 0.40 * height < v.co.z < 0.62 * height:
+                hands.add([v.index], 1.0, "REPLACE")
+        smooth = mesh.modifiers.new("Hand rounding", "SMOOTH")
+        smooth.vertex_group = hands.name
+        smooth.factor = 0.6
+        smooth.iterations = 12
+        bpy.ops.object.modifier_move_to_index(modifier=smooth.name, index=0)
+        # The 1536-res head carries micro-facets and hairline holes in the beard that shade as dark triangles. Close the
+        # holes, then relax the head surface volume-preservingly: the beard/lower face (below the nose line) gets the full
+        # relaxation, the upper face (brow, eyes, nose) a third of it so its features stay crisp.
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.fill_holes(sides=8)
+        bpy.ops.mesh.normals_make_consistent(inside=False)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        head_relax = mesh.vertex_groups.new(name="Mobile surface head")
+        for v in mesh.data.vertices:
+            if head_zone(v):
+                head_relax.add([v.index], 1.0 if v.co.z < top * 0.90 else 0.35, "REPLACE")
+        relax = mesh.modifiers.new("Head relaxation", "LAPLACIANSMOOTH")
+        relax.vertex_group = head_relax.name
+        relax.lambda_factor = 0.35
+        relax.lambda_border = 0.0
+        relax.iterations = 4
+        relax.use_volume_preserve = True
+        relax.use_normalized = True
+        bpy.ops.object.modifier_move_to_index(modifier=relax.name, index=1)
+    for m in list(mesh.modifiers):
+        bpy.ops.object.modifier_apply(modifier=m.name)
 bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 body.select_set(True)
