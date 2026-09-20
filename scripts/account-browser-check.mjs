@@ -22,7 +22,7 @@ const user = { id: '11111111-1111-4111-8111-111111111111', email: 'fighter@examp
 const session = { access_token: 'qa-access-token', refresh_token: 'qa-refresh-token', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user };
 try {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); inspectedPage = page; page.setDefaultTimeout(15000);
+  const page = await context.newPage(); inspectedPage = page; page.setDefaultTimeout(60000);   // a software-GL runner: text and taps wait behind the game's startup on every navigation
   page.on('pageerror', error => receipt.errors.push(String(error)));
   let row = null, failRead = false, failLogout = false, writes = [], authUrl;
   await context.route('**/*sentry.io/**', route => route.abort());
@@ -47,7 +47,10 @@ try {
   });
   const requests = []; page.on('request', request => requests.push(request.url()));
   await page.goto(origin);
-  await page.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+  // Readiness = the attack button enables (assets decoded, renderer up). 120 s: a software-GL runner spends most of a minute here, and the
+  // page's main thread is blocked meanwhile — a click attempted before this hangs until Playwright's own timeout (CI run 35534160181, check 11).
+  const ready = p => p.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
+  await ready(page);
   assert.equal(await page.locator('#account-login').isVisible(), false);
   assert.equal(requests.some(url => url.startsWith(api) || /\/account-[^/]+\.js/.test(url)), false);
   await page.locator('#journal-button').tap();
@@ -61,13 +64,13 @@ try {
   assert.equal(authUrl.searchParams.get('code_challenge_method'), 's256');
   assert.ok(authUrl.searchParams.get('code_challenge'));
   receipt.checks.push('Guest arena has no account overlay or SDK download; mobile menu layout; Google PKCE redirect');
-  await page.goto(`${origin}/?account=return&error=access_denied&error_description=qa`);
+  await page.goto(`${origin}/?account=return&error=access_denied&error_description=qa`); await ready(page);
   await page.getByText('Sign-in cancelled.', { exact: false }).waitFor();
   assert.equal(new URL(page.url()).search, '');
   receipt.checks.push('Cancelled OAuth returns to usable journal and removes callback parameters');
   await page.evaluate(() => localStorage.setItem('frankendom.auth.v1-code-verifier', JSON.stringify('qa-verifier')));
   row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80 };
-  await page.goto(`${origin}/?account=return&code=qa-code`);
+  await page.goto(`${origin}/?account=return&code=qa-code`); await ready(page);
   await page.getByText('Cloud fighter: Cloud fighter.', { exact: false }).waitFor();
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')).name), 'Local fighter');
   assert.equal(writes.length, 0, 'Signing in never overwrites either save');
@@ -90,7 +93,7 @@ try {
   await page.getByText('Cloud fighter: Newer device.', { exact: false }).waitFor();
   receipt.checks.push('Real SDK code exchange/session recovery; explicit cloud load; whitelisted save with career marks; load never lowers the device count; stale-write conflict and retry');
   failRead = true;
-  await page.reload(); await page.locator('#journal-button').tap();
+  await page.reload(); await ready(page); await page.locator('#journal-button').tap();
   await page.getByText('Could not read your account.', { exact: false }).waitFor();
   assert.equal(await page.locator('#account-save').isEnabled(), false);
   assert.equal(await page.locator('#account-load').isEnabled(), false);
@@ -102,7 +105,7 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem('frankendom.auth.v1')), null);
   failLogout = false;
   await page.evaluate(value => localStorage.setItem('frankendom.auth.v1', JSON.stringify(value)), session);
-  await page.reload(); await page.locator('#journal-button').tap();
+  await page.reload(); await ready(page); await page.locator('#journal-button').tap();
   await page.getByText('Could not read your account.', { exact: false }).waitFor();
   failRead = false; await page.locator('#account-retry').tap();
   await page.getByText('Cloud fighter: Newer device.', { exact: false }).waitFor();
@@ -111,9 +114,10 @@ try {
   assert.equal(await page.locator('#account-load').isVisible(), false);
   assert.equal(await page.evaluate(() => localStorage.getItem('frankendom.auth.v1')), null);
   receipt.checks.push('Service failure cannot overwrite cloud; retry recovers; sign-out clears session and cloud controls');
-  const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.close();   // the phone page's game loop would starve the desktop page's load on a software-GL runner (third Linux run: page.goto timed out at 30 s)
+  const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } }); desktop.setDefaultTimeout(60000);
   desktop.on('pageerror', error => receipt.errors.push(String(error)));
-  await desktop.goto(origin); await desktop.locator('#journal-button').click();
+  await desktop.goto(origin, { timeout: 120000 }); await ready(desktop); await desktop.locator('#journal-button').click();
   await desktop.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
   assert.equal(await desktop.locator('#journal-button span').isVisible(), true, 'Actual desktop media path');
   assert.equal(await desktop.locator('#account-login').isVisible(), true);
@@ -123,7 +127,7 @@ try {
   receipt.checks.push('Account controls inside journal on desktop and mobile, hidden when journal closes');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify(receipt, null, 2));
-} catch (error) { receipt.failure = String(error); receipt.ui = await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }
+} catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }
 finally {
   await fs.writeFile('artifacts/account/browser-receipt.json', JSON.stringify(receipt, null, 2));
   await browser.close(); await new Promise(resolve => server.httpServer.close(resolve));
