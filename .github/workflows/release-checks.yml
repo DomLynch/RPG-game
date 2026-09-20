@@ -2,15 +2,20 @@
 # given (default: the ref this was dispatched on). Nothing here gates a merge or a deploy — every job continues on
 # error and the receipt is a per-check table in the run summary plus one artifact per check. Purpose: learn which of
 # the 25 checks are trustworthy on headless Linux and how long each takes there, before anyone lets deploy.sh trust
-# this run instead of the Mac's own release checks. Dispatch only (no push trigger): 25 runners per run.
+# this run instead of the Mac's own release checks. Runs on every trunk push (free on a public repo) and on dispatch.
+# Per-job conclusions are what matter: the run itself always succeeds (continue-on-error), a failed check is a failed job.
 name: release-checks
 on:
+  push:
+    branches: [codex/01a09a76/task-1]
   workflow_dispatch:
     inputs:
       ref:
         description: 'Commit or branch to measure (default: the ref you dispatch from)'
         required: false
         default: ''
+# One run per trunk push; a newer push cancels the older run, like quality.yml. deploy.sh only ever trusts a
+# job whose run is for the exact revision being deployed (scripts/ci-trusted-checks.mjs).
 concurrency:
   group: release-checks-${{ github.ref }}-${{ inputs.ref }}
   cancel-in-progress: true
@@ -56,8 +61,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Lossless JPEG build tool
-        run: sudo apt-get install -y libjpeg-turbo-progs
+      - name: Lossless JPEG build tool and ffmpeg (arena-audio-check spawns ffmpeg)
+        run: sudo apt-get install -y libjpeg-turbo-progs ffmpeg
       - run: npm run build
       - name: Release check ${{ matrix.check.index }}
         env:

@@ -80,10 +80,16 @@ const pool = async (items, limit) => {
 
 const median = values => { const v = [...values].sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : 0; };
 const fallback = median([...knownSeconds.values()]);
-const all = commands.map((command, index) => ({ command, index, fixedPort: bindsFixedPort(command), expected: knownSeconds.get(command.join(' ')) ?? fallback }));
+// RELEASE_CHECKS_SKIP="1,3" (from scripts/ci-trusted-checks.mjs): checks CI already proved for this exact revision.
+// Never applies to --extended. Anything not listed runs here.
+const trustedSource = process.env.RELEASE_CHECKS_SKIP_SOURCE || 'CI';
+const trustedIndices = new Set(extended ? [] : String(process.env.RELEASE_CHECKS_SKIP || '').split(',').map(s => Number(s.trim())).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length));
+const all = commands.map((command, index) => ({ command, index, fixedPort: bindsFixedPort(command), expected: knownSeconds.get(command.join(' ')) ?? fallback }))
+  .filter(item => !trustedIndices.has(item.index + 1));
+for (const index of [...trustedIndices].sort((a, b) => a - b)) console.log(`${kind} check ${index}/${commands.length} trusted from ${trustedSource} — ${commands[index - 1].join(' ')}`);
 const ordered = [...all].sort((a, b) => b.expected - a.expected);  // longest known first; unknown checks sit at the median
 const fixed = all.filter(item => item.fixedPort).length;
-console.log(`${kind} checks: ${commands.length} total, concurrency ${concurrency}, ${fixed} fixed-port (one at a time), ` +
+console.log(`${kind} checks: ${commands.length} total, ${trustedIndices.size} trusted from ${trustedSource}, ${all.length} to run, concurrency ${concurrency}, ${fixed} fixed-port (one at a time), ` +
   (knownSeconds.size ? `ordered by last run's durations (${knownSeconds.size} known)` : 'no previous durations, contract order'));
 const wall = Date.now();
 const results = await pool(ordered, concurrency);
@@ -106,7 +112,10 @@ if (execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).
   throw new Error('Revision changed during release checks');
 }
 const wallSeconds = (Date.now() - wall) / 1000;
-const detail = results.sort((a, b) => a.index - b.index).map(r => ({ index: r.index + 1, command: r.command.join(' '), seconds: Number(r.seconds.toFixed(1)), retried: retried.has(r.index) }));
+const detail = [
+  ...results.map(r => ({ index: r.index + 1, command: r.command.join(' '), seconds: Number(r.seconds.toFixed(1)), retried: retried.has(r.index) })),
+  ...[...trustedIndices].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, trusted: trustedSource })),
+].sort((a, b) => a.index - b.index);
 console.log(`${kind} checks wall time ${wallSeconds.toFixed(0)}s (serial sum ${detail.reduce((sum, r) => sum + r.seconds, 0).toFixed(0)}s)`);
 if (extended) { console.log(`Extended checks passed for ${revision}`); process.exit(0); }
 mkdirSync(dirname(receipt), { recursive: true });
