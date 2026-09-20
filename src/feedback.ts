@@ -11,8 +11,10 @@ type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: numbe
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
 // Owner phone mix (2026-09-19): half ordinary FX, +50 % for the fatal sequence. Owner 2026-09-20, phone at 20 % volume still loud:
-// everything but the bell another −30 %, so the bell (arena.ts, exempt) leads by contrast and the handset volume slider gets headroom.
-const MIX = .7;
+// everything but the bell at 40 % (−8 dB): the first cut to 70 % was −3 dB, inaudible on the phone and swallowed by the output guard on the
+// finishers (1.5 × .7 still clipped it); at .4 both combat and finish sit under the guard's linear region, so the whole cut is heard and the
+// bell (arena.ts, exempt) leads by contrast.
+const MIX = .4;
 export const COMBAT_LEVEL = .5 * MIX, FINISH_LEVEL = 1.5 * MIX;
 
 // Combat Foley: the simulation's events pick cues from one decoded sprite (src/audio/manifest.ts, built by
