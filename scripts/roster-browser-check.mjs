@@ -53,6 +53,7 @@ try {
  await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
  assert.equal(await page.locator('#target-health').getAttribute('max'),'190');
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
+ await page.locator('label[for=journal-tab-arena]').tap();   // the opponent picker sits on the Arena tab
  await page.locator('#opponent-select').selectOption('goblin');
  await page.waitForFunction(()=>document.querySelector('#target-health').max===120 && document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
  const profile=await page.evaluate(()=>JSON.parse(localStorage.getItem('frankendom.fighter.v1')));

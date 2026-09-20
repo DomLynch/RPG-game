@@ -1,5 +1,23 @@
 # Project state
 
+## Tabbed Field Journal wiring — lead implementation, 2026-09-20 (owner: "get it live")
+On top of the design lane's markup/CSS (529bb6d, rebased onto trunk): the blood toggle is gone — `#blood-mode` button removed, its
+red/dark/off cycling removed from main.ts, gore always on (the renderer keeps `BloodMode` for a later setting); hit-stop chip sits in
+the Arena tab (design's markup, no JS change); test tools stay visible under Settings. Gates learned the tabs: browser-check and
+quiet-one click `label[for=journal-tab-settings]` before #controls-mode / #finisher-select, roster-browser-check clicks
+`label[for=journal-tab-arena]` before #opponent-select; browser-check's blood-mode cycle and quiet-one's dark/off cycling under
+--blood-check are retired (the finisher's own blood assertions still run). Evidence recorded in PR #228.
+
+## Field Journal tabs — web/design lane draft, 2026-09-20 (owner direction; markup + CSS only)
+Owner's read of the live journal: still messy. New layout (approved from a clickable mock): the fighter card and the sign-in
+prompt stay pinned; under them a browser-style strip with three tabs — Fighter (record table), Arena (opponent, warden,
+hit-stop, blood until the lead removes it) and Settings (controls chips, "How to fight", then the quiet Test tools). The
+duplicate cloud-save sentence under the Google button is gone. Tabs are CSS radio inputs: every bound id is unchanged and
+unique, no `main.ts` change. The journal opens on Fighter, so a browser check that reaches `#opponent-select`,
+`#finisher-select` or `#controls-mode` must click that tab's label first — the lead wires that into the gate scripts with
+the queued blood/hit-stop changes. The record table is restyled in the light journal's ink (its first rules were for the dark
+sheet). Gate: node tests 333/333, build, audit, budget PASS. Not pushed until the lead calls the window (#218 ahead in the queue).
+
 ## Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentation lane, 2026-09-20 (branch presentation/arena-props)
 Five authored props generated on the owner's Hugging Face Pro account (TRELLIS.2 from prompted reference images) and dieted in Blender
 (3–5k tris, 512–768² WebP, metallic-roughness → factors): a portcullis that replaces the procedural gate bars once loaded, a weapon rack
