@@ -36,10 +36,20 @@ const { run, until } = await harnessClock(page); await run(200);   // a few harn
 // The draw goes through the keyboard (F = strike; sheathed, a strike is the draw): on ubuntu-latest a Playwright tap issued under the
 // paused clock never reached the simulation (the counter check's afterDraw receipt shows the button still reading "Draw sword"),
 // while key presses — which this script already uses for movement, guard and step — land. Same request path in the game.
+// Probe for the runner (lead + finishers, 2026-09-21): the game's frame loop measures elapsed = rAF timestamp − last, where `last`
+// was read from the real performance.now() before the clock was installed. If the fake rAF timestamp lives in a different range
+// from the jumped performance.now(), one frame of hugely negative elapsed sinks the accumulator and the simulation stands still
+// while frames keep rendering — the "tick never moves, fps 63" stall. Record what the page actually sees.
+const probe = async () => {
+  await page.evaluate(() => { window.__raf = []; const tick = t => { window.__raf.push([Math.round(t), Math.round(performance.now())]); if (window.__raf.length < 6) requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+  await run(16 * 6);
+  return page.evaluate(() => ({ raf: window.__raf, perfNow: Math.round(performance.now()), dateNow: Date.now(), journalOpen: document.querySelector('#journal')?.open, message: document.querySelector('#message')?.textContent, tick: document.querySelector('#debug')?.textContent?.match(/tick (\d+)/)?.[1] }));
+};
+console.log('clock probe before draw', JSON.stringify(await probe()));
 const draw = async () => {
   await page.keyboard.press('KeyF'); await run(16);
   try { await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 20000); }
-  catch (error) { console.log('draw diagnostics', JSON.stringify(await page.evaluate(() => ({ attack: document.querySelector('#attack-button')?.textContent, attackDisabled: document.querySelector('#attack-button')?.getAttribute('aria-disabled'), status: document.querySelector('#combat-status')?.textContent, debug: document.querySelector('#debug')?.textContent?.slice(0, 160), visibility: document.visibilityState })))); throw error; }
+  catch (error) { console.log('draw diagnostics', JSON.stringify({ ...(await probe()), ...(await page.evaluate(() => ({ attack: document.querySelector('#attack-button')?.textContent, attackDisabled: document.querySelector('#attack-button')?.getAttribute('aria-disabled'), status: document.querySelector('#combat-status')?.textContent, debug: document.querySelector('#debug')?.textContent?.slice(0, 200), visibility: document.visibilityState }))) })); throw error; }
 };
 
 let splitReceipt, headReceipt;
