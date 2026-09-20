@@ -4,11 +4,12 @@ import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
+import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
+import { clashStrength, createClashSparks } from './clash-sparks.ts';
 import { bloodiesMaterial, createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 
@@ -163,7 +164,8 @@ export function createScene(
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
   const arena = buildArena(scene),
-    footDust = createFootDust(scene);
+    footDust = createFootDust(scene),
+    clash = createClashSparks(scene);
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
     scene.add(group);
@@ -510,6 +512,9 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
+    probe(): { sparks: number; burst: [number, number, number] } {
+      return { sparks: clash.alive(), burst: clash.last() };
+    }, // debug probe for the presentation harness: live contact effects
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
         drawn = anchor?.getObjectByName('WeaponDrawn') ?? anchor?.getObjectByName('SwordDrawn');
@@ -593,6 +598,25 @@ export function createScene(
         if (killed && flesh) killHeading = blow?.heading ?? state.heading; // the decapitation pop flies the way the blow did
         const site = enemyHurt ? practice.enemyWoundSite : practice.woundSite;
         const target = enemyHurt ? practice.enemy : state;
+        // Steel on steel: a block or parry of a metal blade by a blade guard throws metal sparks from the attacker's blade (clash-sparks.ts);
+        // the generic contact dots stay for everything else (a shaft catching a blade, a kick, a fist).
+        const clashEvent = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
+        const strength = clashEvent ? clashStrength(clashEvent, weaponOf(practice.duel.fighters[clashEvent.actor].weapon)) : 0;
+        if (clashEvent && strength > 0 && clashEvent.target !== undefined) {
+          const attacker = clashEvent.target,
+            rig = attacker ? warriors?.opponent : warriors?.player,
+            weapon = rig?.anchor.getObjectByName('WeaponDrawn') ?? rig?.anchor.getObjectByName('SwordDrawn'),
+            contactRange = weapon?.userData.contact as { from: number; to: number } | undefined;
+          // The blades meet at the defender's guard: a third of a metre in front of his chest toward the attacker's hand, at the height the
+          // attacking blade is passing (on the contact tick the rig's blade already reaches into the defender's body, so its own points are not the meeting point).
+          const defenderBody = attacker ? state : practice.enemy,
+            hand = weapon?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3(attacker ? practice.enemy.x : state.x, 1.1, attacker ? practice.enemy.z : state.z),
+            bladeHeight = weapon && contactRange ? (weapon.localToWorld(new THREE.Vector3(0, contactRange.from, 0)).y + weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)).y) / 2 : 1.15;
+          const at = new THREE.Vector3(defenderBody.x, 0, defenderBody.z);
+          at.add(hand.clone().setY(0).sub(at).normalize().multiplyScalar(0.35)).setY(Math.min(1.6, Math.max(0.8, bladeHeight)));
+          clash.burst(at, attacker ? practice.enemy.heading : state.heading, strength);
+          impact = 0; // the dedicated sparks replace the generic dots for this contact
+        }
         sparks.position.set(
           hurt ? target.x : (state.x + practice.enemy.x) / 2,
           hurt ? (site === 'head' ? 1.55 : site === 'legs' ? 0.6 : 1.15) : 1.2,
@@ -645,6 +669,7 @@ export function createScene(
       }
       lastHealth = practice.health;
       lastPlayerHealth = practice.playerHealth;
+      clash.update(dt); // contact effects run on the frame's dt through a hit-stop, like the generic sparks and the camera kick
       impact = Math.max(0, impact - dt);
       sparks.visible = impact > 0;
       if (impact > 0) {
