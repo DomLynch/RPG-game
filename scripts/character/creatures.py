@@ -14,12 +14,15 @@ recipes = {
     "minotaur": ("pitborn", 65, 1.35, (0.055, -0.16, -0.045), 1.85, 48),
     "wraith": ("nightborn", 45, 0.97, (0, -0.20, -0.015), 1.88, 8),
     "werewolf": ("pitborn", 65, 1.10, (0.025, -0.08, -0.045), 1.85, 16),
-    "skeleton": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),
+    "skeleton": ("source/backups/veteran-v1", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),  # the v1 Veteran (Studio body): the shipped veteran.glb is now the v2 reconstruction
     # Re-proportioned donor (build-warrior.mjs BUILD.dwarf, 1.494 m standing): true dwarf height; fingers follow the donor's finger tracks.
     "dwarf": ("source/creatures/dwarf-donor", 60, 1.0, (0, -0.04, -0.025), 1.494, 8),
     # The Executioner is his own donor: the v5 rig (backup) carries his 1.32x root, scythe and clips. Arm pose solved
     # numerically so the posed WeaponDrawn origin lands in the reconstruction's palm (angle 64, reach 1.15, 0.011 m).
     "executioner": ("source/backups/executioner-v5", 64, 1.15, (0.02, -0.12, 0), 1.87, 16),
+    # The Veteran is his own donor too: v1 (KeenTools head on the Studio body, backup) carries his rig, trident and
+    # clips. The Kontext source stands in a 62° A-pose (docs/character-references/veteran-source-v1.png).
+    "veteran": ("source/backups/veteran-v1", 62, 1.0, (0, -0.04, -0.025), 1.82, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
@@ -200,7 +203,7 @@ for v in mesh.data.vertices:
     )
     # Disallow nearest-body transfer from attaching claws to the adjacent thigh.
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
-    if family == "skeleton":
+    if family in ("skeleton", "veteran"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
         edge = 0.185 + max(0, 1.4 - z) * 0.26
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
@@ -209,10 +212,10 @@ for v in mesh.data.vertices:
     ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner") else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran") else 0.92)) / 0.10))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
-    keep_fingers = family in ("executioner", "dwarf") and arm_mix > 0.5
+    keep_fingers = family in ("executioner", "dwarf", "veteran") and arm_mix > 0.5
     if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",
