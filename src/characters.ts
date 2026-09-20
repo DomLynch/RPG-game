@@ -5,6 +5,7 @@ import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { WeaponId } from './moves.ts';
 import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
@@ -21,7 +22,7 @@ export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typ
 export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust'];
 export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   maul: { Idle: 'Maul_Idle', Walk: 'Maul_Walk', Jog: 'Maul_Walk', Run: 'Maul_Walk', Armed: 'Maul_Idle', ArmedWalk: 'Maul_Walk', StrafeLeft: 'Maul_StrafeLeft', StrafeRight: 'Maul_StrafeRight', Attack: 'Maul_Slash', Return: 'Maul_Slash', Heavy: 'Maul_Heavy', Thrust: 'Maul_Thrust', Riposte: 'Maul_Thrust', Guard: 'Maul_Guard', BlockImpact: 'Maul_Guard', Parry: 'Maul_Guard', Deflected: 'Maul_Hit', Hit: 'Maul_Hit', Death: 'Maul_Death', Kick: 'Maul_Kick', Roll: 'Maul_Roll' },
-  claws: { Idle: 'Claw_Idle', Walk: 'Claw_Walk', Jog: 'Claw_Walk', Run: 'Claw_Walk', Armed: 'Claw_Idle', ArmedWalk: 'Claw_Walk', StrafeLeft: 'Claw_StrafeLeft', StrafeRight: 'Claw_StrafeRight', Attack: 'Claw_Slash', Return: 'Claw_Slash', Heavy: 'Claw_Heavy', Thrust: 'Claw_Thrust', Riposte: 'Claw_Thrust', Guard: 'Claw_Guard', BlockImpact: 'Claw_Guard', Parry: 'Claw_Guard', Deflected: 'Claw_Hit', Hit: 'Claw_Hit', Death: 'Claw_Death', Kick: 'Claw_Kick', Roll: 'Claw_Roll' },
+  reaper: { Idle: 'Reaper_Idle', Walk: 'Reaper_Walk', Jog: 'Reaper_Walk', Run: 'Reaper_Walk', Armed: 'Reaper_Idle', ArmedWalk: 'Reaper_Walk', StrafeLeft: 'Reaper_StrafeLeft', StrafeRight: 'Reaper_StrafeRight', Attack: 'Reaper_Slash', Return: 'Reaper_Slash', Heavy: 'Reaper_Heavy', Thrust: 'Reaper_Thrust', Riposte: 'Reaper_Thrust', Guard: 'Reaper_Guard', BlockImpact: 'Reaper_Guard', Parry: 'Reaper_Guard', Deflected: 'Reaper_Hit', Hit: 'Reaper_Hit', Death: 'Reaper_Death', Kick: 'Reaper_Kick', Roll: 'Reaper_Roll' },
   longsword: { Thrust: 'Riposte' },
   cleaver: { Thrust: 'Riposte' },   // the Pitborn's, on the sword clip family until the weapons lane lands its own
   knife: { Thrust: 'Riposte' },   // the goblin's, on the sword clip family until the weapons lane lands its own
@@ -55,7 +56,7 @@ export function defenceReaction(s: Practice, opponent=false): {pose:'block'|'par
 type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // One fighter GLB: the same rig, clip names and sword attachments as every other (blade paths are baked once).
 async function loadFighter(url: string) {
-  const asset = await new GLTFLoader().loadAsync(url);
+  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url);
   const creature = asset.scene.getObjectByName('CreatureBody');
   const steel = asset.scene.getObjectByName('Steel');
   const textured = creature
@@ -118,7 +119,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     // The trail follows the striking part: the node's own contact segment (extras.contact, metres along its Y) or the sword's blade.
     const weaponNode = root.getObjectByName('WeaponDrawn'), sheathed = root.getObjectByName('SwordSheathed'), drawn = root.getObjectByName('SwordDrawn');
     if (!weaponNode && !(sheathed && drawn)) throw new Error('Warrior weapon attachments are missing');
-    const blade = weaponNode ?? drawn!, contactSegment = weaponNode?.userData.contact as { from: number; to: number } | undefined, segment = contactSegment ? [contactSegment.from, contactSegment.to] : [.24, .85];
+    const blade = (weaponNode?.userData.contactNode ? root.getObjectByName(weaponNode.userData.contactNode) : weaponNode) ?? drawn!, contactSegment = blade?.userData.contact as { from: number; to: number } | undefined, segment = contactSegment ? [contactSegment.from, contactSegment.to] : [.24, .85];
     for (const role of ONE_SHOT) { const action = actions[role]; action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; }
     if (opponent) actions.Idle.time = clips.Idle.duration * 0.4;
     mixer.update(0);
@@ -171,7 +172,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         root.position.z = -Math.abs(recoil)*.045;
         // The enlarged Wraith lowers its attacking arm toward the original strike height.
         // Blend through wind-up/recovery; keep its body, grip and simulation untouched.
-        if (spectral && weapon !== 'claws' && upperArm?.parent && pose === 'attack') {
+        if (spectral && weapon !== 'reaper' && upperArm?.parent && pose === 'attack') {
           root.updateWorldMatrix(true, true);
           const middle = blade.localToWorld(new Vector3(0, (segment[0] + segment[1]) / 2, 0));
           const target = root.worldToLocal(middle.clone()); target.y /= root.scale.y;

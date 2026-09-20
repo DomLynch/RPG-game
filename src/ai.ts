@@ -99,6 +99,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // An opener the bar's worn ceiling can no longer pay for (attrition; a weapon whose heavy costs more than the floor) would be waited for
   // for ever: it becomes a cut, which every weapon can always afford at the floor.
   if (next.next && next.next !== 'light' && mine[next.next === 'heavy' ? 'heavy_overhead' : 'thrust'].stamina > M.maxStamina) next.next = 'light';
+  // A planned cut whose blade has a point (minReach) is useless against a man standing inside it; if the heavy or the thrust can be thrown from here,
+  // the plan becomes that instead of waiting for a cut that never comes (the Executioner at hard stood over a man at 1.2 m for a minute: his cut
+  // needs 1.5 m, his heavy 0 — and hard plans cuts half the time).
+  if (next.next === 'light' && gap < (mine.light_right.minReach ?? 0) + .1) { const can = (id: 'heavy_overhead' | 'thrust', action: 'heavy' | 'thrust') => gap >= (mine[id].minReach ?? 0) + .1 && gap <= mine[id].reach - .1 && legal(M, action); if (can('heavy_overhead', 'heavy')) next.next = 'heavy'; else if (can('thrust', 'thrust')) next.next = 'thrust'; }
   if (pressured && next.next === 'heavy') next.next = 'light';   // a heavy planned against a read spammer becomes a cut: the 32-tick swing would be cut first (and never left the warden waiting in guard for a cut that does not come)
   // Below the stamina floor it recovers by circling just outside the player's light reach; it only backs right off
   // when very low or freshly hit. Guarding stops regeneration, so it is a choice made with stamina in hand.
@@ -185,7 +189,10 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // Hit and run: the hop back out after a landed blow.
   if (tick < next.disengageUntil && canAct && !threat && legal(M, 'backstep')) { next.disengageUntil = 0; return { intent: { ...intent, action: 'backstep' }, ai: next }; }
   // Closing distance: to cutting range normally; a warden that has decided on a thrust stops just inside thrust reach, so the thrust opens from where a cut cannot reach.
-  let forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : fight.close) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : 0;
+  // Between a pole's point and its first move in reach (minReach … minReach + .1, the margin inReach keeps): a step back to where the pole works
+  // instead of standing frozen — the reaper Wraith, whose approach stops at 1.9 m, met a fighter parked at 1.45 m and never moved again.
+  const cramped = next.mode === 'approach' && gap < (mine.thrust.minReach ?? 0) + .1;
+  let forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : fight.close) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : cramped ? -.4 : 0;
   // A fighter who cannot block, against a read poker: hover just outside the thrust's reach and go in on the whiff (the opening), never walk onto the point.
   // (Standing at the edge of the reach, not beyond it: a poker who is never given the shot never whiffs. The step out answers the thrust; the whiff opens him.)
   const hover = guardShare === 0 ? (reads.poker ? theirs.thrust.reach : reads.kicker ? theirs.kick.reach + .3 : 0) : 0;   // the reach respected: the thrust's, or the kick's cone plus its lunge

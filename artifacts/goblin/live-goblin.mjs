@@ -1,6 +1,7 @@
 // The goblin in the real game (dist, or QA_URL=https://frankendom.com for the live receipt): `?opponent=goblin` loads goblin.glb, the HUD
-// ceilings are his (100), a fight runs, and the lock camera frames him at the brief's phone sizes. Screens → artifacts/goblin/live-<size>.png.
+// ceilings are his (OPPONENTS.goblin.health), a fight runs, and the lock camera frames him at the brief's phone sizes. Screens → artifacts/goblin/live-<size>.png.
 import { preview } from 'vite'; import { chromium } from 'playwright'; import fs from 'node:fs/promises';
+import { OPPONENTS, RULES } from '../../src/moves.ts';   // the HUD ceilings the probe expects come from the data, not literals
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0, strictPort: true } });
 const base = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
@@ -12,7 +13,7 @@ try {
     const requests = []; page.on('request', r => { if (r.url().includes('.glb')) requests.push(r.url().split('/').pop()); });
     await page.goto(`${base}/?opponent=goblin`);
     await page.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-    await page.getByRole('button', { name: 'Enter the courtyard' }).tap(); await page.waitForFunction(() => document.querySelector('#welcome').hidden);
+    await page.getByRole('button', { name: 'Enter the arena' }).tap(); await page.waitForFunction(() => document.querySelector('#welcome').hidden);
     await page.waitForFunction(() => document.querySelector('#art-status').textContent === '', null, { timeout: 90000 });
     await page.waitForTimeout(1500);
     const hud = await page.evaluate(() => ({ health: document.querySelector('#health-value').textContent, player: document.querySelector('#player-health-value').textContent, status: document.querySelector('#combat-status').textContent }));
@@ -26,5 +27,5 @@ try {
   }
 } finally { await browser.close(); await server?.close(); }
 console.log(JSON.stringify(receipt, null, 1));
-const ok = Object.values(receipt).every(r => typeof r !== 'object' || (r.glbs.some(g => /^goblin[-.]/.test(g)) && r.hud.health.endsWith('/ 100') && r.hud.player.endsWith('/ 150') && r.statusChanged && !r.errors.length));
+const ok = Object.values(receipt).every(r => typeof r !== 'object' || (r.glbs.some(g => /^goblin[-.]/.test(g)) && r.hud.health.endsWith(`/ ${OPPONENTS.goblin.health}`) && r.hud.player.endsWith(`/ ${RULES.health}`) && r.statusChanged && !r.errors.length));
 if (!ok) { console.error('FAILED'); process.exit(1); }

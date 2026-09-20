@@ -8,6 +8,6 @@
     {"weapon": "estoc", "glb": "src/assets/weapons/estoc/nightborn-estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15]},
     {"weapon": "scythe", "glb": "src/assets/weapons/scythe/warrior-scythe.glb", "node": "WeaponDrawn", "contact": [1.22, 1.32]},
     {"weapon": "maul", "glb": "src/assets/minotaur.glb", "node": "WeaponDrawn", "contact": [0.73, 1.11], "scale": 1},
-    {"weapon": "claws", "glb": "src/assets/wraith.glb", "node": "WeaponDrawn", "contact": [0.04, 0.22], "scale": 1.5}
+    {"weapon": "reaper", "glb": "src/assets/wraith.glb", "node": "ReaperEdge", "contact": [0, 0.868], "scale": 1.5}
   ]
 }

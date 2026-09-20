@@ -2,6 +2,14 @@ import { Color, DynamicDrawUsage, Group, InstancedMesh, Mesh, MeshBasicMaterial,
 import type { FinisherId } from './finishers.ts';
 
 export type BloodSource = { site: string; position: Vector3; direction: Vector3; strength: number };
+
+// Which of a weapon's materials a kill bloodies. A sword bloodies its Blade only. A hafted weapon bloodies everything but its
+// handle: every shipped two-hander ships the haft, grip wrap and binding as their own materials (Haft/Ash/Leather/Cord/Wire), so
+// "tint the whole weapon" painted the scythe's haft red after a kill (owner, 2026-09-19).
+export const HANDLE_MATERIAL = /haft|handle|grip|wrap|leather|cord|wire|^ash$/i;
+export function bloodiesMaterial(name: string, twoHanded: boolean): boolean {
+  return twoHanded ? !HANDLE_MATERIAL.test(name) : name === 'Blade';
+}
 type Mode = 'red' | 'dark' | 'off';
 
 // Read after posing, separation and final actor headings. Every position is world space.

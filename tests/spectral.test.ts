@@ -32,12 +32,13 @@ test('enlarged Wraith strikes stay at human torso height and reset without scale
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
   globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
   const asset = await new GLTFLoader().parseAsync(JSON.stringify(json), '');
-  const actor = buildWarriors(asset, asset, ['claws', 'claws']).opponent;
+  const actor = buildWarriors(asset, asset, ['reaper', 'reaper']).opponent;
   const root = actor.anchor.children[0], blade = root.getObjectByName('WeaponDrawn')!, hand = root.getObjectByName('hand_r')!;
   const grip = hand.worldToLocal(blade.getWorldPosition(new Vector3()));
-  const point = () => blade.localToWorld(new Vector3(0, blade.userData.contact.to, 0));
+  const edge = root.getObjectByName('ReaperEdge')!;
+  const point = () => edge.localToWorld(new Vector3(0, edge.userData.contact.to, 0));
   for (const attack of ['light', 'return', 'heavy', 'thrust', 'riposte'] as const) {
-    const spec = attackSpecs('claws')[attack], contact = spec.contact / spec.recovery;
+    const spec = attackSpecs('reaper')[attack], contact = spec.contact / spec.recovery;
     actor.update(0, .1, 'attack', contact, attack, contact);
     const tip = point();
     assert(tip.y > .8 && tip.y < 1.6, `${attack}: strike must cross the hero torso, got ${tip.y}`);
@@ -50,7 +51,7 @@ test('enlarged Wraith strikes stay at human torso height and reset without scale
   actor.update(0, .1, 'death', 1); actor.unsever(); actor.update(0, .1, 'ready');
   assert.deepEqual(root.scale.toArray(), [1.5, 1.5, 1.5]);
   assert.deepEqual(asset.scene.scale.toArray(), [1, 1, 1], 'source and future actors stay unmodified');
-  const fresh = buildWarriors(asset, asset, ['claws', 'claws']).opponent;
+  const fresh = buildWarriors(asset, asset, ['reaper', 'reaper']).opponent;
   for (let i = 0; i < 30; i++) { actor.update(0, .1, 'guard', .5); fresh.update(0, .1, 'guard', .5); }
   assert(actor.boneWorld('hand_r')!.distanceTo(fresh.boneWorld('hand_r')!) < 1e-6, 'return to guard has no residual correction');
 });

@@ -8,5 +8,5 @@ export function warriorRecipe(fighter = 'hero', override) {
   const approved = weaponOf(recipe?.weapon ?? 'longsword');
   const weapon = override || (approved.placeholder ? 'longsword' : approved.id);
   if (!Object.hasOwn(WEAPONS, weapon)) throw new Error(`Unknown weapon: ${weapon}`);
-  return { body: recipe?.body ?? 'realistic', weapon, ...(['minotaur', 'wraith'].includes(fighter) ? { pipeline: 'reconstruction' } : {}) };
+  return { body: recipe?.body ?? 'realistic', weapon, ...(['minotaur', 'wraith', 'werewolf', 'skeleton', 'dwarf'].includes(fighter) ? { pipeline: 'reconstruction' } : {}) };
 }

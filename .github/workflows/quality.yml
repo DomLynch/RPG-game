@@ -23,6 +23,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Lossless JPEG build tool
+        run: sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs
       - run: npm run quality:ci
       - name: Account database isolation
         run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs

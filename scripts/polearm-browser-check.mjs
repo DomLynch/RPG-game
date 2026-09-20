@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
+import { builtRig, assertGlbEquivalent } from './glb-equivalence.mjs';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = process.env.POLEARM_RECEIPT_DIR || 'artifacts/weapons/polearm-browser';
@@ -25,7 +26,10 @@ try {
       await page.goto(`${origin}/?opponent=${opponent}&debug=1`);
       const response = await asset; assert.equal(response.status(), 200);
       const rigSha256 = hash(await response.body());
-      assert.equal(rigSha256, hash(await fs.readFile(`src/assets/${opponent}.glb`)), 'served rig must match the tested file');
+      // The build packs every rig (meshopt, shared textures): the served bytes must be that build, and the build the tested source.
+      const packed = await fs.readFile(await builtRig(opponent));
+      await assertGlbEquivalent(await fs.readFile(`src/assets/${opponent}.glb`), packed);
+      assert.equal(rigSha256, hash(packed), 'served rig must match the verified build of the tested file');
       await page.getByRole('button', { name: 'Enter the arena' }).click();
       await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
       await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });

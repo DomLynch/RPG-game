@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-auth-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
-const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+// A locale-less shell (hooks, CI, a non-interactive deploy) makes PostgreSQL 17 on macOS abort with
+// "postmaster became multithreaded during startup"; a valid LC_ALL keeps the check independent of who runs it.
+const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 'C' };
+const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env });
 let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
@@ -56,9 +59,19 @@ try {
       if not exists(select 1 from public.fighter_profiles where encounter='minotaur') then raise exception 'Minotaur save failed'; end if;
       update public.fighter_profiles set encounter='wraith' where user_id=auth.uid();
       if not exists(select 1 from public.fighter_profiles where encounter='wraith') then raise exception 'Wraith save failed'; end if;
+      update public.fighter_profiles set encounter='werewolf' where user_id=auth.uid();
+      if not exists(select 1 from public.fighter_profiles where encounter='werewolf') then raise exception 'Werewolf save failed'; end if;
+      update public.fighter_profiles set encounter='skeleton' where user_id=auth.uid();
+      if not exists(select 1 from public.fighter_profiles where encounter='skeleton') then raise exception 'Skeleton save failed'; end if;
+    end$$;
+    do $$begin
+      update public.fighter_profiles set victory_marks=3 where user_id=auth.uid();
+      if (select victory_marks from public.fighter_profiles where user_id=auth.uid()) <> 3 then raise exception 'Marks save failed'; end if;
+      begin update public.fighter_profiles set victory_marks=-1 where user_id=auth.uid(); raise exception 'Negative marks allowed'; exception when check_violation then null; end;
+      begin update public.fighter_profiles set victory_marks=100001 where user_id=auth.uid(); raise exception 'Absurd marks allowed'; exception when check_violation then null; end;
     end$$;`;
   run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures);
-  console.log('Account database PASS: real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes. No hosted database changed.');
+  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });

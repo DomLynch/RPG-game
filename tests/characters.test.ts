@@ -169,7 +169,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
 });
 
 test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from', async () => {
-  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), scythe: await readWarrior('executioner.glb'), maul: await readWarrior('minotaur.glb'), claws: await readWarrior('wraith.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
+  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), scythe: await readWarrior('executioner.glb'), maul: await readWarrior('minotaur.glb'), reaper: await readWarrior('wraith.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
   for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
     const names = rigs[weapon].animations.map(a => a.name);
     for (const role of ROLES) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);
@@ -686,7 +686,7 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
       }
     }
     const dropped=opened.getObjectByName('OpenedWeapon')!;const weaponBox=new Box3().setFromObject(dropped,true);
-    assert.ok(weaponBox.min.y>-.012 && weaponBox.max.y<.5*SCALE[file],`${file}: released weapon lies flat on the sand (${weaponBox.min.y},${weaponBox.max.y})`);
+    assert.ok(weaponBox.min.y>-.012 && weaponBox.min.y<.04 && weaponBox.max.y<.5*SCALE[file],`${file}: released weapon lies flat on the sand (${weaponBox.min.y},${weaponBox.max.y})`);
     const held=opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]);
     opponent.update(0,.1,'opened',1); opponent.openWaist(1,'dark');
     assert.deepEqual(opened.children.map(o=>[...o.position.toArray(),...o.quaternion.toArray()]),held,'final pose holds');

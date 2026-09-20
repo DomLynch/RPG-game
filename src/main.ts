@@ -1,10 +1,11 @@
 import { swipeAction, type Flick } from './gestures.ts';
-import { LABELS, SCHEMES, formatCard, loadTrial, recordPractice, recordRematch, saveTrial } from './trial.ts';
+import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
+import { awardMark, marksOf, rankFor } from './career.ts';
 import {
   initialPractice,
   stepPractice,
@@ -15,7 +16,7 @@ import {
   type Action,
   type CombatEvent,
 } from './combat.ts';
-import { ROSTER, resolveFinisher } from './roster.ts';
+import { ENCOUNTERS, ROSTER, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -69,6 +70,9 @@ input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
 function persist() {
   element('name-button').textContent = profile.name;
+  const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
+  element('rank-sigil').textContent = rank.numeral || '✦';
+  element('rank').textContent = rank.label;
   element('save-status').textContent = saveProfile(storage, profile)
     ? 'Guest · saved on this device'
     : 'Storage unavailable · name will not be saved';
@@ -76,6 +80,13 @@ function persist() {
 persist();
 // Control-scheme trial: the right thumb is the button cluster or the v8 guard ring (one strike circle owns every attack); the scorecard is per scheme.
 const trial = loadTrial(storage);
+// AFK is not an escape (owner 2026-09-20): a fight that never reached its end because the page was closed is a loss on the card.
+// The marker is written on the first tick of a live fight and cleared when its result is recorded.
+const AFK_KEY = 'frankendom.fight.v1';
+try {
+  const left = JSON.parse(storage.getItem(AFK_KEY) || 'null');
+  if (left && SCHEMES.includes(left.scheme)) { recordFight(trial, left.scheme, false, 0, 0, 0); saveTrial(storage, trial); storage.setItem(AFK_KEY, ''); }
+} catch { /* unreadable storage: nothing to score */ }
 let scheme = trial.scheme,
   recorded = false,
   activeMs = 0; // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
@@ -96,10 +107,11 @@ const opponent = opponentFor(
 // Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
 // URL override is dropped so the pick wins. Picking the Veteran is a reset.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
-for (const rung of LADDER) {
+for (const rung of ENCOUNTERS) {   // every recipe, held ones greyed: the journal shows what is built and what waits for after beta
   const option = document.createElement('option') as HTMLOptionElement;
   option.value = rung.id;
-  option.textContent = rung.name;
+  option.textContent = rung.hold ? `${rung.name} (on hold)` : rung.name;
+  option.disabled = rung.hold;
   opponentSelect.append(option);
 }
 opponentSelect.value = opponent.id;
@@ -122,7 +134,7 @@ const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],
   ['runThrough', 'Run Through'],
-  ['quietOne', 'The Quiet One'],
+  ['quietOne', 'The Quiet One (test only)'],   // out of the beta rotation (owner 2026-09-20); still forceable here
   ['opened', 'Opened'],
   ['plainDeath', 'Plain death'],
 ];
@@ -970,7 +982,16 @@ let last = performance.now(),
   reportAt = last,
   frames: number[] = [],
   frameId = 0;
+// Time away from a live fight is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
+// no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
+// suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
+const AFK_CAP = 300;
+let hiddenPerf = 0, hiddenWall = 0, owed = 0, marked = false;
+const fightLive = () => welcome.hidden && !journal.open && !practice.finish;
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); }
+  else if (hiddenPerf && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
+  if (!document.hidden) hiddenPerf = hiddenWall = 0;
   last = performance.now();
   frames = [];
   reportAt = last;
@@ -988,6 +1009,8 @@ function frame(now: number) {
       dodgeHeld.rolled = true;
       request('dodge');
     }
+    const afk = owed > 0;   // the fight the player missed runs before this frame draws: no hit-stop, no per-hit sound or number, one final picture
+    if (afk) { hitStop = 0; accumulator += owed; activeMs += owed * 1000; owed = 0; }
     // The pause spends the frame's time first; whatever the frame has left after the pause ends goes on to the simulation (no discarded time).
     if (hitStop > 0) {
       const spent = Math.min(hitStop, elapsed * 1000);
@@ -1005,6 +1028,7 @@ function frame(now: number) {
       Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= step()) {
       previous = state;
+      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ scheme })); } catch { /* unsaved: a closed page then scores nothing */ } }
       practice = stepPractice(
         practice,
         {
@@ -1044,14 +1068,16 @@ function frame(now: number) {
               gore: bloodMode !== 2,
             }
           : undefined;
-      feedback.update(practice.events, deathAudio, {
+      const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
+      feedback.update(quiet ? [] : practice.events, deathAudio, {
         match: matchSeed,
         ended: !!practice.finish,
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
+        opponent: opponent.id,
       });
       frameEvents.push(...practice.events);
-      floatDamage(practice.events);
+      if (!quiet) floatDamage(practice.events);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (
         cancel ||
@@ -1069,10 +1095,13 @@ function frame(now: number) {
         recorded = true;
         recordPractice(trial, scheme, practice, Math.round(activeMs));
         saveTrial(storage, trial);
+        marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
+        if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent
+        if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
       }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
-      const stop = stopFor(practice.events);
+      const stop = quiet ? 0 : stopFor(practice.events);
       if (stop) {
         hitStop = stop;
         accumulator = 0;
