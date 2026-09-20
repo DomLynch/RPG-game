@@ -311,6 +311,14 @@ element('controls-mode').addEventListener('click', () => {
 applyScheme();
 if (typeof document !== 'undefined' && document.body)
   document.body.dataset.gfxTier = phoneTier() ? 'phone' : 'full'; // support surface: which graphics budget the session is on (the iPhone black-fighters defect)
+// The versus card: a still of this fight from the real models (public/versus/<id>.webp) while the rigs download. No card for an
+// opponent (a fresh rung without one yet) just means the arena shows through as before; a card that fails to fetch hides itself.
+const versus = element('versus'), versusStill = element<HTMLImageElement>('versus-still');
+const hideVersus = () => { if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
+versusStill.addEventListener('error', () => { versus.hidden = true; });
+versusStill.addEventListener('load', () => { if (!assetsReady) versus.hidden = false; });
+element('versus-foe').textContent = ROSTER[opponent.id].name.replace(/^the /, '');
+versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>;
 try {
   view = createScene(
@@ -318,6 +326,7 @@ try {
     (status) => {
       element('art-status').textContent = status;
       assetsReady = status === '';
+      if (status !== 'Loading warriors…') hideVersus();   // the rigs are in (or failed: the banner must be readable)
     },
     opponent.id,
   );

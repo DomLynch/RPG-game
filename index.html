@@ -19,6 +19,10 @@
   <section class="combat-hud" aria-label="Training opponent"><span><span id="opponent-name" class="meter-label" aria-hidden="true" data-mobile="Warden">ARENA WARDEN</span> <span id="health-value">150 / 150</span></span><meter id="target-health" aria-label="Warden health" min="0" max="150" value="150"></meter><meter id="target-posture" class="posture" aria-label="Warden posture" min="0" max="100" value="0"></meter><span><span class="meter-label" aria-hidden="true" data-mobile="Health">YOUR HEALTH</span> <span id="player-health-value">150 / 150</span></span><meter id="player-health" aria-label="Your health" min="0" max="150" value="150"></meter><meter id="posture" class="posture" aria-label="Your posture" min="0" max="100" value="0"></meter><span><span class="meter-label" aria-hidden="true" id="stamina-label" data-mobile="Stamina">STAMINA</span> <span id="stamina-value">100 / 100</span></span><meter id="stamina" aria-label="Stamina" min="0" max="100" value="100"></meter><p id="combat-status" role="status">Draw your sword to begin.</p></section>
   <div id="dmg-pool" aria-hidden="true"><span class="dmg" hidden></span><span class="dmg" hidden></span><span class="dmg" hidden></span><span class="dmg" hidden></span></div>
   <div id="art-status" role="status" class="art-status"></div>
+  <!-- Versus card (presentation, owner 2026-09-20): a still of the fight about to happen — the real gladiator and the real opponent, rendered
+       from their game models (scripts/versus-cards.mjs → public/versus/<id>.webp) — covers the arena while the rigs download, so the
+       capsule stand-ins are never seen. It fades the moment the warriors are in; if there is no card for the opponent it stays hidden. -->
+  <div id="versus" class="versus" hidden aria-hidden="true"><img id="versus-still" alt="" decoding="async"><div class="versus-caption"><span>You</span><b>vs</b><span id="versus-foe"></span></div></div>
   <output id="performance" aria-label="Rendering performance">Loading the arena…</output>
   <pre id="debug" class="debug" aria-label="Combat debug overlay" hidden></pre>
   <dialog id="journal" aria-label="Field journal">
