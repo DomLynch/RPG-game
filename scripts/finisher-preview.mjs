@@ -246,11 +246,9 @@ try {
             assert.ok(opened.pieces.every(p=>p.min[1]>-.015),'no half sinks through the floor');
             if(suffix === 'settled') {
               assert.ok(opened.pieces.every(p=>p.min[1]<.04),'both halves land');
-              if(opponent==='wraith') assert.equal(opened.weapon,null,'bare claws leave no detached weapon');
-              else {
-                assert.ok(opened.weapon.min[1]>-.015 && opened.weapon.max[1]<.5,'victim weapon drops flat');
-                assert.ok(opened.weapon.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700),'dropped weapon remains in the portrait frame');
-              }
+              assert.ok(opened.weapon,'the victim\'s weapon detaches (every roster fighter is armed; the Wraith carries the reaper)');
+              assert.ok(opened.weapon.min[1]>-.015 && opened.weapon.max[1]<.5,'victim weapon drops flat');
+              assert.ok(opened.weapon.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700),'dropped weapon remains in the portrait frame');
               assert.ok(opened.pieces.every(p=>p.frame.every(v=>v && v[0]>5 && v[0]<388 && v[1]>20 && v[1]<700)),'entire corpse clears portrait controls');
             }
           }
