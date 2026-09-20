@@ -4,12 +4,17 @@
 // GPU-less VPS, a CI runner — which is what made the old wall-clock waits ("parry 430 ms after the tell") flake or fail elsewhere.
 // The game is untouched. Real-time responsiveness is the physical-phone acceptance's job, not this gate's.
 export async function harnessClock(page) {
-  // An installed clock keeps pace with real time until paused, so the pause target must sit further ahead than any round-trip a slow
-  // runner can take between these two calls (a 1 s margin lost once to "Cannot fast-forward to the past" on CI). The jump fires each
-  // due timer at most once, like a laptop lid closing, so 60 s of page time costs one frame. From here only run()/until() move time.
+  // The fake performance.now() restarts from 0 at install (probed: real 3021 ms → fake 60000 after a 60 s jump), while the game already
+  // holds frame timestamps taken from the real clock before install; if page time sits below them the game sees negative frame time
+  // and the simulation stands still until it catches up — on a runner whose boot took over a minute, never within a gate's budget.
+  // So the pause target is the real page uptime plus a margin: page time lands ahead of every timestamp the game captured, and the
+  // margin also covers the install→pause round-trip (an installed clock keeps pace with real time until paused; 1 s lost once to
+  // "Cannot fast-forward to the past" on CI). The jump fires each due timer at most once, so it costs one frame. From here only
+  // run()/until() move time.
+  const uptime = await page.evaluate(() => performance.now());
   const start = Date.now();
   await page.clock.install({ time: start });
-  await page.clock.pauseAt(start + 60_000);
+  await page.clock.pauseAt(start + Math.ceil(uptime) + 60_000);
   const run = ms => page.clock.runFor(ms);
   // Advance whole frames until the page predicate holds. `ms` is a budget in page time, never wall time.
   const until = async (predicate, ms = 5000, arg) => {
