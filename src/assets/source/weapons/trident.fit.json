@@ -11,10 +11,11 @@
  ],
  "width_x": 0.3493,
  "thickness_z": 0.0687,
+ "head_from": 0.721,
  "contact": [
   0.76,
   1.22
  ],
  "texture": 512,
- "bytes": 255360
+ "bytes": 255460
 }
