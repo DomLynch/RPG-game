@@ -33,7 +33,14 @@ await page.getByRole('button', {name:'Close journal'}).tap();
 const clips = async () => (await page.locator('#debug').getAttribute('data-clips')) ?? '';
 await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
 const { run, until } = await harnessClock(page); await run(200);   // a few harness frames after the journal closes before the first press
-const draw = async () => { await page.getByRole('button', { name: 'Draw sword', exact: true }).tap().catch(() => {}); await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false'); };
+// The draw goes through the keyboard (F = strike; sheathed, a strike is the draw): on ubuntu-latest a Playwright tap issued under the
+// paused clock never reached the simulation (the counter check's afterDraw receipt shows the button still reading "Draw sword"),
+// while key presses — which this script already uses for movement, guard and step — land. Same request path in the game.
+const draw = async () => {
+  await page.keyboard.press('KeyF'); await run(16);
+  try { await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 20000); }
+  catch (error) { console.log('draw diagnostics', JSON.stringify(await page.evaluate(() => ({ attack: document.querySelector('#attack-button')?.textContent, attackDisabled: document.querySelector('#attack-button')?.getAttribute('aria-disabled'), status: document.querySelector('#combat-status')?.textContent, debug: document.querySelector('#debug')?.textContent?.slice(0, 160), visibility: document.visibilityState })))); throw error; }
+};
 
 let splitReceipt, headReceipt;
 async function fight(name) {
