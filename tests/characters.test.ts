@@ -679,7 +679,8 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
           const bodyOnly=new Box3();for(const part of half.children)if(!part.userData.openedWeapon)bodyOnly.expandByObject(part,true);
           assert.ok(bodyOnly.min.y<.04,'body itself reaches the floor');
           const cutHeight=new Box3().setFromObject(cut,true).getCenter(new Vector3()).y;
-          assert.ok(cutHeight<(half.name==='OpenedLegs' ? .3 : .4)*SCALE[file]+.05,`${file} ${half.name}: severed waist itself settles rather than balancing high on a limb (${cutHeight})`);
+          // Legs allow .35: the Veteran v2's baked skirt is stiff and is the legs half's broadest face, so his waist rests .37 up on it (v1 .24); a half balanced on a limb sits .5+.
+          assert.ok(cutHeight<(half.name==='OpenedLegs' ? .35 : .4)*SCALE[file]+.05,`${file} ${half.name}: severed waist itself settles rather than balancing high on a limb (${cutHeight})`);
         }
       }
     }
