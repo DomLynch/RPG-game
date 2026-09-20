@@ -397,10 +397,11 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // Hard (owner, 2026-09-20): the shared hard beat the hero's brain only 13/24 — two wins tighter than normal. Pressure .7 and a discipline
   // floor of 30 keep him cutting instead of resting: 18/24 (sweep, 24 seeds). His own table so the Executioner (shared PROFILES) is untouched.
   veteran: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },   // the trident since slice V (2026-09-16)
-  // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf,
-  // 1.494 m standing → 0.83 of the hero, the hit capsule follows the measured height like the goblin's). Sturdier than a man: 170 health and
-  // poise 12 — a stab (11) never stops him, a plain cut (14) or heavier does. Same AI profiles as the Veteran until the combat lane tunes him.
-  dwarf: { scale: .83, health: 170, poise: 12, profiles: PROFILES },
+  // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
+  // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
+  // a barrel body; the hit capsule follows the measured height like the goblin's. Sturdier than a man: 170 health and poise 12 — a stab (11)
+  // never stops him, a plain cut (14) or heavier does. Same AI profiles as the Veteran until the combat lane tunes him.
+  dwarf: { scale: .78, health: 170, poise: 12, profiles: PROFILES },
   // The pit brute: relentless light chains (aggression, pressure), a low parry rate, slower to notice, a low discipline floor so he
   // swings himself hot; poise 16 — a plain cut (14) or stab (11) never stops him, a heavy (18) or any counter does.
   // Health 190: with the Veteran's brain driving the hero he took 150 in ~22 s (probe, 24 seeds); the brute is meant to take more killing than a man.

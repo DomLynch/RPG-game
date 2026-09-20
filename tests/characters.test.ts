@@ -266,11 +266,12 @@ const GOBLIN = { legs: .84, arms: 1.16, root: .835, stride: .835 * .84, hunched:
 const RETARGETED = ['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Hit', 'Death', 'Guard', 'ArmedWalk', 'Roll'], SOLVED = /^(upperarm|lowerarm|hand|thigh|calf|foot)_[lr]\.quaternion$/;
 test('the dwarf is the re-proportioned donor rig (BUILD.dwarf) under his reconstructed surface: OPPONENTS.dwarf.scale is his measured standing height', async () => {
   const [hero, dwarf] = await Promise.all([readWarrior(), readWarrior('dwarf.glb')]);
-  // The Trident idle is his rest: the hero's Idle is a sword stance of the same height class, so the ratio is the standing-height ratio the hit capsule follows.
-  const ratio = standingTop(dwarf, 'Trident_Idle') / standingTop(hero), k = OPPONENTS.dwarf.scale;
-  assert.ok(Math.abs(ratio - k) <= .03, `standing height ratio ${ratio.toFixed(3)} for OPPONENTS.dwarf.scale ${k} (${standingTop(dwarf, 'Trident_Idle').toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
+  // Both measured in the same upright Idle (his trident idle is a crouch, 1.21 m, and would understate him): the ratio is the
+  // standing-height ratio the hit capsule follows, like the goblin's.
+  const ratio = standingTop(dwarf) / standingTop(hero), k = OPPONENTS.dwarf.scale;
+  assert.ok(Math.abs(ratio - k) <= .03, `standing height ratio ${ratio.toFixed(3)} for OPPONENTS.dwarf.scale ${k} (${standingTop(dwarf).toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
   assert.ok(ratio < .9, 'a dwarf, not a short man: under 90 % of the hero');
-  console.log(`dwarf stands ${standingTop(dwarf, 'Trident_Idle').toFixed(3)} m to the hero's ${standingTop(hero).toFixed(3)} (×${ratio.toFixed(3)}, OPPONENTS.dwarf.scale ${k})`);
+  console.log(`dwarf stands ${standingTop(dwarf).toFixed(3)} m to the hero's ${standingTop(hero).toFixed(3)} (×${ratio.toFixed(3)}, OPPONENTS.dwarf.scale ${k})`);
 });
 
 test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same clips at the same durations (the finisher is additive) — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {

@@ -24,9 +24,9 @@ proportions. v2 (`char/dwarf-v2`):
 - Proportions: a re-proportioned donor rig (`build-warrior.mjs` BUILD.dwarf — legs −28 %, torso/limbs +20–25 % girth, short thick neck,
   bigger head, root .95) stands 1.494 m (Veteran 1.804); built from the Veteran's parts via `WARRIOR_PARTS_VARIANT`, to
   `src/assets/source/creatures/dwarf-donor.glb`, rebuilt by `build-creatures.mjs dwarf` before the fit. New `dwarf` archetype in
-  `moves.ts` (scale .83 = 1.494/1.804, 170 health, poise 12: a stab (11) never stops him, a cut (14) does; Veteran AI profiles),
+  `moves.ts` (scale .78 = measured 1.361/1.745 in the shared Idle, 170 health, poise 12: a stab (11) never stops him, a cut (14) does; Veteran AI profiles),
   pinned by a standing-height test in `tests/characters.test.ts` (±0.03, < 0.9 of the hero). Reach stays the ordinary trident's
-  (≈17 % shorter than the Veteran's by design: he has to get inside). The fitter scales its ~1.80 m z thresholds by height/1.80 for
+  (≈22 % shorter than the Veteran's by design: he has to get inside). The fitter scales its ~1.80 m z thresholds by height/1.80 for
   the dwarf family only; every other family keeps k = 1.
 - Grip: the donor's 40 finger tracks now drive the reconstructed fingers (shared `keep_fingers` path with the Executioner, #206);
   `creature-check` requires the supporting hand on the shaft (< 0.08 m) like the Skeleton's. Hands are rounded before binding.
