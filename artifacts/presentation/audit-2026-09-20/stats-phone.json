@@ -1,0 +1,20 @@
+{
+ "label": "trunk-phone",
+ "commit": "cf49f00",
+ "date": "2026-09-20",
+ "sourceGzip": 23158,
+ "buildMs": 508,
+ "meshes": 20,
+ "instances": 313,
+ "triangles": 114440,
+ "textures": 8,
+ "textureBytes": 3145727.9999999995,
+ "drawCallsArena": 26,
+ "drawCallsArenaWide": 26,
+ "drawCallsWithFighters": 118,
+ "trianglesRenderedArena": 125394,
+ "floorLuminance": 0.10550690137334812,
+ "skinLuminance": 0.16575910784402179,
+ "playRadius": 8.55,
+ "cameraClamp": 11.5
+}
