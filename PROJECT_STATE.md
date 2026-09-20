@@ -11,6 +11,15 @@ state, mirrored from `persist()` into `#journal-name/-sigil/-rank/-save`), accou
 Arena (opponent, warden, blood), Test tools (finisher, hit-stop, tempo, debug). Every bound element id, aria label and button text is
 unchanged, and everything the browser gates tap stays visible when the journal opens; the milestones copy and the retired ESO/Black Desert
 reference links are gone (`/game/` is linked instead). Evidence and remaining validation: see the PR.
+## Beta scorecard — lead implementation, 2026-09-20 (owner: "yes do it")
+`src/scorecard.ts`: fights, wins, losses per opponent, saved on this device (`frankendom.scorecard.v1`); "left" counts inside
+losses — the AFK catch-up death and the closed-page loss (the `frankendom.fight.v1` marker now carries the opponent id) are
+losses flagged left; a draw is a fight only. The journal shows a table (`#scorecard-table`: one row per offered rung + "All
+fights"; losses read "2 (1 left)" when walk-aways happened); the per-scheme control-trial dump stays but only under the debug
+toggle. Device-local for the beta; a later pass can sync it with the account like career marks.
+Evidence: tsc + eslint clean; scorecard unit tests; graphics harness (AFK death → veteran row 1/0/1 left 1; stale marker →
+goblin row at boot; rendered table rows checked); harness Element now mirrors DOM `append(...)`/`replaceChildren`. Browser
+gate left to CI per the one-deployer rule (deploy #13 in flight).
 
 ## Opponent picker shows live rungs only — lead implementation, 2026-09-20 (owner)
 The journal's opponent picker is built from `LADDER` (held recipes filtered out) instead of every `ENCOUNTERS` entry greyed as
