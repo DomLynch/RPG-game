@@ -7,7 +7,7 @@ import { jpegFingerprint } from '../scripts/jpeg-equivalence.mjs';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
 import { assertGlbEquivalent, parseGlb, sha256 } from '../scripts/glb-equivalence.mjs';
 
-test('production packing preserves the real Skeleton buffers, materials and clips; the judge rejects corruption', async () => {
+test('production packing preserves the real Skeleton buffers, materials and clips; the judge rejects corruption [slow]', async () => {
   const source = readFileSync(new URL('../src/assets/skeleton.glb', import.meta.url)), hash = sha256(source);
   const packed = await optimizeGlb(source);
   const result = await assertGlbEquivalent(source, packed);

@@ -202,3 +202,44 @@ exchange), `estoc-B/`, `estoc-C/` (turntables).
 - On the shelf by design (REQUESTS §12). His battery, stance and guard fields are the combat lane's.
 - The grip is one-handed in idle and the sword clips put his left hand on the blade in the Heavy and Riposte (half-swording an estoc is
   period-correct, and the clips are his own).
+
+# Phase 2 polish — reconstructed weapons (2026-09-20)
+
+Owner (2026-09-20): "do the polish now for beta", "all weapons", "keep the backup so we can revert", "aaa grade", "show me the
+pics of the before and after". Branch `weapons/polish-v1`. Every weapon keeps its procedural part as the revert variant; the
+reconstructed part ships by default on the same contact segment, so `bake-blades` writes the same tables and combat is untouched.
+
+## Pipeline (all in the repo)
+1. `scripts/weapon-recon.py` — concept picture (FLUX.1-dev Space, prompt + seed on record) → official TRELLIS.2 Space
+   (`/preprocess_image → /image_to_3d → /extract_glb`, seed 190926, 1024, 100k faces, 1024² maps) → `src/assets/source/weapons/<id>.glb`
+   + `<id>.trellis.json`. The Space's extraction floor is 100,000 faces; the game-grade reduction happens in Blender.
+2. `scripts/weapon-fit.py` (Blender 5.2 headless) — orientation from the principal extents (the trident stood, the cleaver lay flat),
+   which end is up (`up`: wide | flat | narrow), the head landmark from the width profile ('wide' = first point outside the shaft;
+   'flat' = first blade-thin slice), ONE uniform scale so head and tip land on the contract. The head keeps the reconstruction
+   (decimated); the handle is a clean 16-gon lathe whose colour is baked from the reconstruction — the TRELLIS handle is a stack of
+   overlapping coil shells: welding it goes non-manifold (the decimator then deletes the fork) and decimating it tears the ridges
+   into spikes; both measured. Near-black rows (the concept painted the oiled ash at ≈ 0.001 linear) are authored ash grain in the
+   owner's brown. Output `<id>.part.glb` + `<id>.fit.json`.
+3. `scripts/build-weapon.mjs sourced()` — loads the part (images stripped for node's loader, handed to `finishMaterials` by material
+   name), `WEAPON_VARIANT=<old>` still builds the primitives. `tests/weapons.test.ts` walks every reconstructed part: one
+   WeaponDrawn, the fit's contact == the procedural part's, its own maps, inside the budget.
+
+## Receipts
+| weapon | rig | tris (was) | gzip Δ | revert proof | bake |
+|---|---|---|---|---|---|
+| trident | veteran.glb | 3,998 (652) | +221 KB | `WEAPON_VARIANT=short` rebuild == HEAD veteran.glb (cmp) | blade-paths.ts unchanged |
+| cleaver | pitborn.glb | 3,979 (615) | +192 KB | `WEAPON_VARIANT=A` rebuild == HEAD pitborn.glb (cmp) | blade-paths.ts unchanged |
+
+Sheets: `artifacts/weapons/before-<id>/`, `after-<id>/` (harness `--weapons`), `after-<id>/before-after.png` (part alone under
+identical Blender lighting + the harness's guard / in-hand / thrust frames). Tools: `tools/weapon-render.py`, `tools/before-after.py`.
+
+## Not done / risks
+- Knife, estoc, scythe, longsword: concepts chosen (knife = sica seed 3; estoc = seed 7 rotated; scythe = seed 3, a double moon the fit
+  cuts to one blade and lays flat; longsword prompt queued); the Hugging Face Pro ZeroGPU quota ran out after 7 concept + 3
+  reconstruction runs ("try again in 4:18") — queued to run on the reset, no credits bought (the owner's purchase, not the lane's).
+- Maul / claws / reaper live in `build-creature-weapons.mjs` (creature lane, factor-coloured primitives injected into the creature
+  GLBs); a reconstructed part there needs images added to that injector — not started.
+- The creature packs (skeleton, dwarf, werewolf) inherit the donor's `WeaponDrawn` subtree at pack time: they carry the new parts
+  only after `build-creatures.mjs` re-packs them (creature lane).
+- The committed `warrior.glb` predates the integrated Quiet-One flow (same clips and materials, 65 more accessors in a fresh build):
+  the longsword rebuild will carry that pipeline change too.

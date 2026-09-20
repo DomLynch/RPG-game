@@ -54,7 +54,7 @@ test('the floor is sand, darker than the hero\'s skin, flat to the camera clamp,
   for (let i = 0; i < p.count; i += 97) { assert.ok(Math.abs(uv.getX(i) - p.getX(i) / SAND_TILE) < 1e-4 && Math.abs(uv.getY(i) - p.getZ(i) / SAND_TILE) < 1e-4, 'floor UVs are not u = x / SAND_TILE, v = z / SAND_TILE'); assert.equal(p.getY(i), 0); }
 });
 
-test('the crowd stands on the tiers, outside the clamp, and never moves past the readable-brutality cap; a hit-stop holds it still', () => {
+test('the crowd stands on the tiers, outside the clamp, and never moves past the readable-brutality cap; a hit-stop holds it still [slow]', () => {
   const { scene, arena } = built(), crowd = [...arena.group.children].filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd'));
   const count = crowd.reduce((n, m) => n + m.count, 0); assert.ok(count >= 150 && count <= 600, `${count} spectators`);
   const rest = new Map<string, THREE.Matrix4[]>(); for (const m of crowd) rest.set(m.name, Array.from({ length: m.count }, (_, i) => { const x = new THREE.Matrix4(); m.getMatrixAt(i, x); return x; }));
@@ -79,7 +79,7 @@ test('the crowd stands on the tiers, outside the clamp, and never moves past the
   arena.dispose(); assert.equal(scene.getObjectByName('arena'), undefined);
 });
 
-test('the arena updates and disposes without touching the fighters', () => {
+test('the arena updates and disposes without touching the fighters [slow]', () => {
   const { scene, arena, meshes } = built();
   assert.ok(meshes.length > 0);
   arena.update(1 / 60, [{ tick: 1, type: 'Hit', actor: 0, target: 1 } as never]);
@@ -151,4 +151,19 @@ test('nearby spectators mix kinds and garment colours, with subdued red and navy
   assert.ok(pairs > 400, 'check the full occupied arena, not a sparse sample');
   assert.ok(sameKind / pairs < 0.08, `${sameKind}/${pairs} nearby pairs repeat the same body`);
   assert.ok(sameDye / pairs < 0.03, `${sameDye}/${pairs} nearby pairs repeat the same dye`);
+});
+
+test('with a camera, spectators outside its frustum collapse to nothing and the rest stand; without one everybody stands', () => {
+  const { arena } = built(), crowd = [...arena.group.children].filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd'));
+  const camera = new THREE.PerspectiveCamera(51, 393 / 852, 0.1, 180); camera.position.set(0, 4.2, 9.5); camera.lookAt(0, 0.8, -2.5); camera.updateMatrixWorld(true);
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  const m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  // A culled instance is a zero matrix (decompose() reports scale 1 for it in three r186, so read the matrix itself).
+  const standingAt = (mesh: THREE.InstancedMesh, i: number) => { mesh.getMatrixAt(i, m); return m.elements[5] !== 0; };
+  const count = (visible: boolean) => crowd.reduce((n, mesh) => { for (let i = 0; i < mesh.count; i++) if (standingAt(mesh, i) === visible) n++; return n; }, 0);
+  arena.update(1 / 60, []); assert.equal(count(false), 0, 'no camera: nobody culled');
+  arena.update(1 / 60, [], camera);
+  const standing = count(true), culled = count(false); assert.ok(culled > standing, `culled ${culled}, standing ${standing}: the portrait lock sees a narrow sector`);
+  for (const mesh of crowd) for (let i = 0; i < mesh.count; i++) { if (!standingAt(mesh, i)) continue; m.decompose(p, q, s); assert.ok(frustum.intersectsSphere(new THREE.Sphere(p.clone().add(new THREE.Vector3(0, 0.9, 0)), 1.2)), 'a standing spectator is outside the frustum'); }
+  arena.update(1 / 60, []); assert.equal(count(false), 0, 'the camera gone, everybody stands again');
 });

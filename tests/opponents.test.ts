@@ -68,7 +68,7 @@ test('the goblin is set up as the brief asks: knobs on every level (feints, guar
   const [, him] = initialDuel(G).fighters; assert.equal(him.regen, 1.5); assert.equal(him.speed, 1.2);
 });
 
-test('fight identity — read the feint: the goblin passes the fairness battery at normal and hard; the patient whiff punisher is the best honest answer and beats the player who swings at every tell; he never holds a guard and never blocks; every strategy gets touched', () => {
+test('fight identity — read the feint: the goblin passes the fairness battery at normal and hard; the patient whiff punisher is the best honest answer and beats the player who swings at every tell; he never holds a guard and never blocks; every strategy gets touched [slow]', () => {
   // Floors: at 100 hp the patient answer won 8/24 at normal; the owner raised him to 120 hp (2026-09-17: rung 3 should be harder than the Pitborn, and it
   // is — the hero brain now loses 15/24 to him, 8/24 before) and against 120 hp the patient script's slow damage runs out the two-minute clock instead:
   // it still never loses to him and still beats the swinger, and that is what is pinned.
@@ -240,7 +240,7 @@ test('the committing parry, tick by tick: his blade comes up inside the feint wi
   console.log(`nightborn: parry presses at cut ticks ${presses.join(' ')} (feint window closes at ${feintUntil}); the chain closed in ${chains}/6 seeds`);
 });
 
-test('fight identity — don\'t spam, bait him: the Nightborn passes the fairness battery at normal and hard; the feint-and-punish is the best honest answer at normal and no plain script beats him; a cut-spammer is parried, and a habitual bait or charge stops working once read', () => {
+test('fight identity — don\'t spam, bait him: the Nightborn passes the fairness battery at normal and hard; the feint-and-punish is the best honest answer at normal and no plain script beats him; a cut-spammer is parried, and a habitual bait or charge stops working once read [slow]', () => {
   for (const [level, cap, floor] of [['normal', .5, 3], ['hard', .35, 1]] as const) {
     const rows = battery(level, 24, 7200, N, { ...STRATEGIES, 'feint and punish': feintAndPunish, 'charge past the parry': chargePast });
     const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');
@@ -281,7 +281,7 @@ test('the Executioner is set up from his data: the live scythe, 1.36× scale, 16
   assert.equal(E.profiles, PROFILES);
 });
 
-test('fight identity — reach: the Executioner passes the fairness battery at normal and hard (no cheese over the caps, every strategy touched), an honest script can beat him, and a man parked inside his point is not left alone', () => {
+test('fight identity — reach: the Executioner passes the fairness battery at normal and hard (no cheese over the caps, every strategy touched), an honest script can beat him, and a man parked inside his point is not left alone [slow]', () => {
   const parked = (at: number) => (d: Duel): Intent => ({ ...idle(), move: { x: 0, z: gap(d) > at + .05 ? -1 : gap(d) < at - .05 ? 1 : 0, yaw: 0, run: false } });   // stands at a chosen distance and never swings
   for (const [level, cap] of [['normal', .5], ['hard', .35]] as const) {
     const rows = battery(level, 24, 7200, E, { ...STRATEGIES, 'whiff punisher': whiffPunisher, 'parked at 1.2 m': parked(1.2), 'parked at 1.6 m': parked(1.6) });

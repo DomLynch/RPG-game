@@ -1,0 +1,21 @@
+{
+ "weapon": "cleaver",
+ "source": "src/assets/source/weapons/cleaver.glb",
+ "part": "src/assets/source/weapons/cleaver.part.glb",
+ "source_tris": 97194,
+ "part_tris": 3979,
+ "scale": 0.93593,
+ "extent_y": [
+  -0.125,
+  0.8611
+ ],
+ "width_x": 0.1964,
+ "thickness_z": 0.1359,
+ "head_from": 0.095,
+ "contact": [
+  0.14,
+  0.86
+ ],
+ "texture": 512,
+ "bytes": 235240
+}

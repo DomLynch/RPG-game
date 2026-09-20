@@ -1,5 +1,19 @@
 # Project state
 
+## Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentation lane, 2026-09-20 (branch presentation/arena-props)
+Five authored props generated on the owner's Hugging Face Pro account (TRELLIS.2 from prompted reference images) and dieted in Blender
+(3–5k tris, 512–768² WebP, metallic-roughness → factors): a portcullis that replaces the procedural gate bars once loaded, a weapon rack
+on the walkway, a fallen shield, a column drum and a bone pile in the sand band — 672 KB gzip after build packing, +7 MB GPU desktop /
++1.75 MB phone (maps capped 512²/256²), placement held to the exclusion volume by `tests/arena-props.test.ts` from a size table.
+Startup: the arena's heavy maps generate in a Web Worker behind flat stand-ins (`buildArena` on the main thread 1,067 → 204 ms) and
+`scene.ts` `ready` waits for `arena.ready` so uploads land in the loading screen (p95 18–19 ms in every window; load at trunk parity).
+Crowd: spectators outside the camera frustum collapse per frame (~33 of 291 stand at the portrait lock). Sun shadow frustum ±12 m.
+The environment map is the arena's own sky once it has landed (warm sand below the horizon), intensity 1.0. Banners stop casting shadows
+(the slab on the fighting sand); the gate light is a wider, fainter patch. Sparks v2 on the owner's live feedback: struck off the visible
+blade, 3–7, staggered, thin, pale straw → ember, tone-mapped. Evidence `artifacts/presentation/{REPORT-arena-props.md,props-v1,sparks-v2}`,
+`artifacts/world/{base,props}-{full,phone}`. Not done: baked AO (needs an unwrapped lightmap pipeline), KTX2 textures (needs the
+basis_universal encoder — owner's OK), the phone AA decision and one-pass post (after KTX2). check-budget counts prop GLBs as opponent
+candidates: true per-fight ≈ 10.4 of 12 MB.
 ## /game marketing page + Field Journal redesign — web/design lane, 2026-09-20 (owner picked direction E of nine)
 `public/game/` is a static, one-page mobile-first site at frankendom.com/game (Vite copies `public/` verbatim; nginx `try_files $uri/`
 serves the folder index). Direction "Pocket Arena": light ground, the live game inside a phone frame, bento tiles, Bricolage Grotesque +
@@ -11,6 +25,15 @@ state, mirrored from `persist()` into `#journal-name/-sigil/-rank/-save`), accou
 Arena (opponent, warden, blood), Test tools (finisher, hit-stop, tempo, debug). Every bound element id, aria label and button text is
 unchanged, and everything the browser gates tap stays visible when the journal opens; the milestones copy and the retired ESO/Black Desert
 reference links are gone (`/game/` is linked instead). Evidence and remaining validation: see the PR.
+## Beta scorecard — lead implementation, 2026-09-20 (owner: "yes do it")
+`src/scorecard.ts`: fights, wins, losses per opponent, saved on this device (`frankendom.scorecard.v1`); "left" counts inside
+losses — the AFK catch-up death and the closed-page loss (the `frankendom.fight.v1` marker now carries the opponent id) are
+losses flagged left; a draw is a fight only. The journal shows a table (`#scorecard-table`: one row per offered rung + "All
+fights"; losses read "2 (1 left)" when walk-aways happened); the per-scheme control-trial dump stays but only under the debug
+toggle. Device-local for the beta; a later pass can sync it with the account like career marks.
+Evidence: tsc + eslint clean; scorecard unit tests; graphics harness (AFK death → veteran row 1/0/1 left 1; stale marker →
+goblin row at boot; rendered table rows checked); harness Element now mirrors DOM `append(...)`/`replaceChildren`. Browser
+gate left to CI per the one-deployer rule (deploy #13 in flight).
 
 ## Opponent picker shows live rungs only — lead implementation, 2026-09-20 (owner)
 The journal's opponent picker is built from `LADDER` (held recipes filtered out) instead of every `ENCOUNTERS` entry greyed as
@@ -30,18 +53,26 @@ that memory (`lastFinisher`, rolled at rematch) and hands it to the audio resolv
 scene and audio still agree. Presentation state only; replays with the same history are identical. The preview harness
 resets the memory per captured window. Test: 20 000-event sweep asserts no repeat, 16–24 % share each, determinism.
 
-## Dwarf — character lane candidate, not approved, not released (2026-09-20)
-Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
-`black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft
-TRELLIS.2 Space by the new scripted runner `scripts/character/trellis2.py` (seed 190926, 1024, 100000 faces, 2048 textures;
-74 s on the owner's PRO quota; source SHA-256 `2213ef49…`). Fitted to the Veteran donor at 1.60 m with the existing
-`creatures.py` recipe seam: bind error 2.2e-6, 38 clips preserved, 190 finite poses, grip checks pass (`creature-check.mjs dwarf`).
-Roster recipe `dwarf` (veteran archetype, trident, plain death only) is the tenth recipe and, on the owner's instruction
-("ignore caps, use what you need", 2026-09-20), NOT held: he is the sixth live rung after the Executioner while the four
-creatures stay held; one `hold: true` flag parks him. Ladder/roster/graphics pins updated; cloud-profile migration `202609200001_dwarf_encounter.sql` staged, NOT applied to the hosted project.
-Open decisions for lead/combat: a `dwarf` archetype (shorter reach, higher poise) and weapon instead of the Veteran's
-profile/trident; whether he belongs in the beta ladder at all (the freeze analysis says Phase 2). Budget impact recorded in
-`artifacts/character/dwarf/quality.log`. No browser gate, no publication, no owner approval of the concept yet.
+## Dwarf v2 — owner-approved look, character lane (2026-09-20)
+Owner reviewed v1 in the arena and asked for four fixes ("A grade"): support-hand grip, chrome shoulder plate, soft face, true dwarf
+proportions. v2 (`char/dwarf-v2`):
+- Proportions: a re-proportioned donor rig (`build-warrior.mjs` BUILD.dwarf — legs −28 %, torso/limbs +20–25 % girth, short thick neck,
+  bigger head, root .95) stands 1.494 m (Veteran 1.804); built from the Veteran's parts via `WARRIOR_PARTS_VARIANT`, to
+  `src/assets/source/creatures/dwarf-donor.glb`, rebuilt by `build-creatures.mjs dwarf` before the fit. New `dwarf` archetype in
+  `moves.ts` (scale .78 = measured 1.361/1.745 in the shared Idle, 170 health, poise 12: a stab (11) never stops him, a cut (14) does; Veteran AI profiles),
+  pinned by a standing-height test in `tests/characters.test.ts` (±0.03, < 0.9 of the hero). Reach stays the ordinary trident's
+  (≈22 % shorter than the Veteran's by design: he has to get inside). The fitter scales its ~1.80 m z thresholds by height/1.80 for
+  the dwarf family only; every other family keeps k = 1.
+- Grip: the donor's 40 finger tracks now drive the reconstructed fingers (shared `keep_fingers` path with the Executioner, #206);
+  `creature-check` requires the supporting hand on the shaft (< 0.08 m) like the Skeleton's. Hands are rounded before binding.
+- Face: source regenerated at TRELLIS.2 resolution 1536 (same seed/faces/textures); the 45k budget is spent on the head and hands
+  (torso/skirt/legs absorb the decimation), beard hairline holes filled, head relaxed volume-preservingly (beard full, brow/eyes/nose
+  a third). Owner: "much better".
+- Plate: `metallicFactor 0.35` on the Dwarf surface (creature_pack SURFACE_FACTORS); retained maps stay byte-identical. Up close the
+  plate still shows TRELLIS's baked highlights; geometry ironing was tried and reverted (it faceted the arm).
+- Generator hash moved (creatures.py), so every creature is rebuilt in this PR; the five others are checked accessor-equivalent to
+  trunk's. Reproducible: the dwarf rebuild reproduces sha 85f5c387…. Ladder placement unchanged (sixth rung) pending the owner.
+
 ## AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, the game continues as if")
 Leaving a live fight (tab hidden, phone call, lock screen) no longer freezes it in the player's favour. The browser cannot run the
 fight while hidden, so the hidden time is owed to the fight and simulated on return with no input (`owed` in `main.ts`, both clocks
@@ -84,6 +115,13 @@ The deploy gate's blood-gate check (decapitation "detached head stays visible ab
 clears it on Veteran, Pitborn, Goblin and Executioner. Harness now asserts the victim's chest/skull are not hidden behind
 the killer (camera ray). Run Through alignment (owner: blade reads off-centre) remains open.
 
+
+## Weapons Phase 2 polish — reconstructed parts, in progress (weapons lane, 2026-09-20)
+Owner reversed the freeze for weapons: polish all of them now for beta, keep the procedural parts as the revert. Trident (Veteran)
+and cleaver (Pitborn) ship as TRELLIS.2 reconstructions fitted by `scripts/weapon-fit.py` on the unchanged contact segments
+(`bake-blades` tables identical; `WEAPON_VARIANT=short|A` rebuilds byte-identical to the previous rigs). Knife, estoc, scythe and
+longsword are concept-approved and queued on the ZeroGPU quota reset; maul/claws/reaper (creature injector) not started. Skeleton,
+dwarf and werewolf pick the new parts up on their next creature pack. Evidence: `artifacts/weapons/REPORT.md` "Phase 2 polish".
 
 ## Wraith reaper scythe — weapons lane, in progress
 Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.

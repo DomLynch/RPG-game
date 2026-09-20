@@ -11,7 +11,8 @@ function pack(doc, bin) {
 export function textureVeteranTrident(glb) {
   const length = glb.readUInt32LE(12), doc = JSON.parse(glb.subarray(20,20+length));
   const bronze = doc.materials.find(m => m.name === 'Bronze'), weapon = doc.materials.find(m => m.name === 'TridentBronze');
-  assert.ok(bronze?.normalTexture && bronze.pbrMetallicRoughness.baseColorTexture && weapon);
+  if (!weapon) return glb; // the reconstructed trident (WeaponTrident, weapons lane Phase 2) carries its own maps: nothing to share
+  assert.ok(bronze?.normalTexture && bronze.pbrMetallicRoughness.baseColorTexture);
   // Share the reviewed maps, so the finish costs no extra texture download or allocation.
   weapon.pbrMetallicRoughness = structuredClone(bronze.pbrMetallicRoughness);
   weapon.normalTexture = {...bronze.normalTexture, scale:.35};

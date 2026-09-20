@@ -15,12 +15,15 @@ recipes = {
     "wraith": ("nightborn", 45, 0.97, (0, -0.20, -0.015), 1.88, 8),
     "werewolf": ("pitborn", 65, 1.10, (0.025, -0.08, -0.045), 1.85, 16),
     "skeleton": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),
-    "dwarf": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.60, 8),
+    # Re-proportioned donor (build-warrior.mjs BUILD.dwarf, 1.494 m standing): true dwarf height; fingers follow the donor's finger tracks.
+    "dwarf": ("source/creatures/dwarf-donor", 60, 1.0, (0, -0.04, -0.025), 1.494, 8),
     # The Executioner is his own donor: the v5 rig (backup) carries his 1.32x root, scythe and clips. Arm pose solved
     # numerically so the posed WeaponDrawn origin lands in the reconstruction's palm (angle 64, reach 1.15, 0.011 m).
     "executioner": ("source/backups/executioner-v5", 64, 1.15, (0.02, -0.12, 0), 1.87, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
+# The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
+k = height / 1.80 if family == "dwarf" else 1.0
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=str(Path(f"src/assets/{base}.glb").resolve()))
 rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
@@ -117,7 +120,52 @@ tris = len(mesh.data.loop_triangles)
 if tris > 45000:
     mod = mesh.modifiers.new("Mobile surface", "DECIMATE")
     mod.ratio = 45000 / tris
-    bpy.ops.object.modifier_apply(modifier=mod.name)
+    if family == "dwarf":
+        # A 1536-res reconstruction carries fine face/beard/finger detail that a uniform collapse turns into shards. Spend the
+        # 45k budget where the camera goes: the head (top 24 % of the body) and the hands keep their triangles, the torso,
+        # skirt and legs absorb the reduction. Blender collapses vertices with higher group weight first (factor 1 = full effect).
+        detail = mesh.vertex_groups.new(name="Mobile surface budget")
+        top = max(v.co.z for v in mesh.data.vertices)
+        # The head proper (not the shoulders: the reconstructed plate is noisy and collapses smoother when decimated with the torso).
+        head_zone = lambda v: v.co.z > top * 0.76 and abs(v.co.x) < 0.14 * height
+        for v in mesh.data.vertices:
+            hand_zone = abs(v.co.x) > 0.40 * height and 0.40 * height < v.co.z < 0.62 * height
+            detail.add([v.index], 0.0 if head_zone(v) or hand_zone else 1.0, "REPLACE")
+        mod.vertex_group = detail.name
+        mod.vertex_group_factor = 1.0
+        # The reconstruction's splayed fingers are thin strips; once the donor's finger tracks curl them they read as splinters.
+        # Round the hands into a solid grip before binding (hand zone only; the rest of the surface is untouched).
+        hands = mesh.vertex_groups.new(name="Mobile surface hands")
+        for v in mesh.data.vertices:
+            if abs(v.co.x) > 0.40 * height and 0.40 * height < v.co.z < 0.62 * height:
+                hands.add([v.index], 1.0, "REPLACE")
+        smooth = mesh.modifiers.new("Hand rounding", "SMOOTH")
+        smooth.vertex_group = hands.name
+        smooth.factor = 0.6
+        smooth.iterations = 12
+        bpy.ops.object.modifier_move_to_index(modifier=smooth.name, index=0)
+        # The 1536-res head carries micro-facets and hairline holes in the beard that shade as dark triangles. Close the
+        # holes, then relax the head surface volume-preservingly: the beard/lower face (below the nose line) gets the full
+        # relaxation, the upper face (brow, eyes, nose) a third of it so its features stay crisp.
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.fill_holes(sides=8)
+        bpy.ops.mesh.normals_make_consistent(inside=False)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        head_relax = mesh.vertex_groups.new(name="Mobile surface head")
+        for v in mesh.data.vertices:
+            if head_zone(v):
+                head_relax.add([v.index], 1.0 if v.co.z < top * 0.90 else 0.35, "REPLACE")
+        relax = mesh.modifiers.new("Head relaxation", "LAPLACIANSMOOTH")
+        relax.vertex_group = head_relax.name
+        relax.lambda_factor = 0.35
+        relax.lambda_border = 0.0
+        relax.iterations = 4
+        relax.use_volume_preserve = True
+        relax.use_normalized = True
+        bpy.ops.object.modifier_move_to_index(modifier=relax.name, index=1)
+    for m in list(mesh.modifiers):
+        bpy.ops.object.modifier_apply(modifier=m.name)
 bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 body.select_set(True)
@@ -136,7 +184,7 @@ for v in mesh.data.vertices:
     # Crown and horns are one rigid skull. Wisps hang from the pelvis, never knee joints.
     rigid = (
         head
-        if z > 1.62 or (abs(x) < 0.20 and z > 1.53)
+        if z > 1.62 * k or (abs(x) < 0.20 and z > 1.53 * k)
         else pelvis
         if (family == "wraith" and z < 1.04)
         or (family == "minotaur" and abs(x) < 0.11 and z < 0.98 and y > 0.16)
@@ -154,15 +202,17 @@ for v in mesh.data.vertices:
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
     if family == "skeleton":
         edge = 0.185 + max(0, 1.4 - z) * 0.26
+    if family == "dwarf":
+        edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
     arm_mix = max(
         0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf", "executioner") else 0.055))
-    ) * max(0, min(1, (1.62 - z) / 0.10))
+    ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner") else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner") else 0.92)) / 0.10))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
-    keep_fingers = family == "executioner" and arm_mix > 0.5
+    keep_fingers = family in ("executioner", "dwarf") and arm_mix > 0.5
     if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",
@@ -187,19 +237,19 @@ for v in mesh.data.vertices:
             side = "l" if x > 0 else "r"
             name = (
                 "neck_01"
-                if z > 1.48
+                if z > 1.48 * k
                 else "spine_03"
-                if z > 1.30
+                if z > 1.30 * k
                 else "spine_02"
-                if z > 1.10
+                if z > 1.10 * k
                 else "spine_01"
-                if z > 0.98
+                if z > 0.98 * k
                 else "pelvis"
-                if z > 0.84
+                if z > 0.84 * k
                 else "thigh_" + side
-                if z > 0.52
+                if z > 0.52 * k
                 else "calf_" + side
-                if z > 0.18
+                if z > 0.18 * k
                 else "foot_" + side
             )
             ws = [(mesh.vertex_groups[name].index, 1)]

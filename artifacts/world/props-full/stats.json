@@ -1,0 +1,21 @@
+{
+ "label": "props-full",
+ "commit": "498f4e8",
+ "date": "2026-09-20",
+ "sourceGzip": 25405,
+ "buildMs": 156,
+ "readyMs": 2855,
+ "meshes": 26,
+ "instances": 319,
+ "triangles": 133438,
+ "textures": 13,
+ "textureBytes": 18000554.666666668,
+ "drawCallsArena": 31,
+ "drawCallsArenaWide": 35,
+ "drawCallsWithFighters": 123,
+ "trianglesRenderedArena": 148416,
+ "floorLuminance": 0.10536284109560523,
+ "skinLuminance": 0.16575910784402179,
+ "playRadius": 8.55,
+ "cameraClamp": 11.5
+}
