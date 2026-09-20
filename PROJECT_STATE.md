@@ -12,6 +12,16 @@ creatures stay held; one `hold: true` flag parks him. Ladder/roster/graphics pin
 Open decisions for lead/combat: a `dwarf` archetype (shorter reach, higher poise) and weapon instead of the Veteran's
 profile/trident; whether he belongs in the beta ladder at all (the freeze analysis says Phase 2). Budget impact recorded in
 `artifacts/character/dwarf/quality.log`. No browser gate, no publication, no owner approval of the concept yet.
+## AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, the game continues as if")
+Leaving a live fight (tab hidden, phone call, lock screen) no longer freezes it in the player's favour. The browser cannot run the
+fight while hidden, so the hidden time is owed to the fight and simulated on return with no input (`owed` in `main.ts`, both clocks
+read, 300 s cap): the player comes back to the fight they would have lost standing still — no hit-stop, no per-hit sound or number
+while catching up, the killing tick still plays its sound and the death is the first picture drawn. A fight abandoned by closing the
+page is scored as a loss on the controls card at the next boot (`frankendom.fight.v1` marker set on the first live tick, cleared when
+the result is recorded). Journal and welcome still pause; hidden time only counts while a fight is live.
+Evidence: graphics harness test (hidden 120 s → idle fighter dead on return; seeded marker → 1 fight 0 wins at boot); eslint + tsc
+clean; full `npm test` and `test:browser` receipts recorded in the PR (the browser gate is wall-clock timed and flakes under load).
+
 ## Combat: Pitborn tune, Executioner gate, a planned-cut fix — 2026-09-20
 - Pitborn normal reaction 18 → 14, lapse .3 → .1 (hard 12 / .08): hero brain 17/24 → 13/24 (Veteran 13); gate + a win-share pin. Executioner gets a fairness gate (caps, touched, honest answer, parked probes, AI-vs-AI 18–45 s). Fix found by the gate: a planned cut inside its own point (scythe 1.4 m) becomes the heavy/thrust when throwable — the hard Executioner froze over a man at 1.2 m. Other wardens' battery tables byte-identical. 312/312.
 - Reaper Wraith (#186, draft — on hold with the Wraith for Season 2): inside the point the kick counts to its landing range; check 28 is a wall-clock UI duel that also fails on a trunk build on this Mac (61/78 hp left), so it is not a receipt here.
@@ -27,6 +37,14 @@ bodies now carry `victory_marks`; cloud 80 lifts device 77; save echoes 80); `te
 applied by the career lane through the Supabase MCP before the lead deploys (additive; the live client ignores the column).
 Remaining: rematch loop after the last rung and the beta roster cut are the lead's; automatic save after a win for signed-in
 players is a follow-up (v1 syncs on the explicit Save/Load buttons only).
+
+## Beta rotation: five outcomes, The Quiet One picker-only (2026-09-20)
+Owner (directly to the finishers lane, 2026-09-20): Split Crown, Decapitation, Run Through and Opened stay; The Quiet One
+leaves the automatic rotation (`selectFinisher` now `% 5`). Its clip, pose, gore and audio stay shipped and the dev picker
+can still force it ("The Quiet One (test only)"). The finisher preview harness reaches outcomes outside the rotation through
+the production picker override on a real kill and labels the window as such; the Quiet One release checks keep passing
+that way. No new finishers until beta metrics.
+
 ## Finisher cameras — Split Crown front-quarter, Decapitation corpse+head framing (2026-09-20)
 Owner phone review: the Split Crown side reveal turned the victim into profile and hid the skull seam; Decapitation's
 front camera let the killer's back hide the headless corpse. Split Crown now reveals on a raised 45° front-quarter

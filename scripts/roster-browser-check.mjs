@@ -18,7 +18,7 @@ try {
  });
  let rigs=[];
  page.on('response',r=>{if(new URL(r.url()).pathname.endsWith('.glb'))rigs.push({url:r.url(),status:r.status()});});
- for(const {id} of ENCOUNTERS) {
+ for(const {id} of ENCOUNTERS.filter(o=>!o.hold)) {   // the live rungs; held recipes are checked below as fallbacks, not as fights
   console.log('Checking roster:',id);
   rigs=[];
   const target=new URL(url);target.searchParams.set('opponent',id);
@@ -29,6 +29,20 @@ try {
   assert.equal(rigs.length,2,'fetch only hero and selected opponent');assert.ok(rigs.every(r=>r.status===200));
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')));
   receipt.opponents.push({id,...state,rigs:[...rigs]});
+ }
+ // A held recipe (roster.ts `hold`) is not a fight: ?opponent=<held> falls back to the first rung, and the page fetches only the hero
+ // and the Veteran — no creature GLB is in the bundle to fetch.
+ for(const {id} of ENCOUNTERS.filter(o=>o.hold)) {
+  console.log('Checking held recipe falls back:',id);
+  rigs=[];
+  const target=new URL(url);target.searchParams.set('opponent',id);
+  await page.goto(target.href);
+  await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false' && document.querySelector('#art-status').textContent==='',null,{timeout:90000});
+  assert.equal(await page.evaluate(()=>document.querySelector('#target-health').max),OPPONENTS.veteran.health,`${id} is held: the first rung stands in`);
+  assert.equal(rigs.length,2,'fetch only hero and the fallback opponent');assert.ok(rigs.every(r=>r.status===200));
+  assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER.veteran.body+'-')),'the Veteran rig is fetched');
+  assert.ok(!rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')),`${id}'s GLB is not fetched (held recipes are out of the bundle)`);
+  receipt.opponents.push({id,held:true,fallback:'veteran',rigs:[...rigs]});
  }
  // No URL override: the old profile's Pitborn rung survives. Selecting another encounter
  // persists the migrated profile, preserving identity and independent career marks.

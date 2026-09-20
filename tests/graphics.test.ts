@@ -27,7 +27,7 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
-function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error) {
+function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}) {
   const elements = new Map<string, Element>(), doc = new EventTarget(), win = new EventTarget();
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
@@ -36,7 +36,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const view = { yaw: 0, recenter() {}, lowerResolution() {}, orbit() {}, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
-  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })]]);
+  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
   const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './career.ts': career, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
@@ -46,7 +46,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, window: win, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { element, errors, callbacks, timers, storage, window: win, document: doc, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -478,4 +478,23 @@ test('the identity aside shows the career rank from the saved mark count at boot
   assert.equal(app.element('rank').textContent, 'Gladiator I · ● ● ○ ○ ○');
   assert.equal(app.element('rank-sigil').textContent, 'I');
   assert.equal(boot().element('rank').textContent, 'Recruit I · ○ ○ ○');
+});
+
+test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
+  const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
+  for (let i = 0; i < 60; i++) app.tick();
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fight.v1')!).scheme, 'cluster', 'a live fight is marked');
+  assert.equal(app.rendered.finish, null);
+  app.document.hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick(120000);
+  assert.equal(app.rendered.finish, null, 'nothing runs while hidden');
+  app.document.hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  app.tick();
+  assert.equal(app.rendered.finish?.victim, 0, 'the idle fighter is dead when the player comes back');
+  assert.equal(app.storage.getItem('frankendom.fight.v1'), '', 'a decided fight is no longer marked');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.cluster.fights, 1);
+  const again = boot({ id: 'tester-0001' }, undefined, { 'frankendom.fight.v1': JSON.stringify({ scheme: 'cluster' }) });
+  const card = JSON.parse(again.storage.getItem('frankendom.controls.v1')!).card.cluster;
+  assert.deepEqual([card.fights, card.wins], [1, 0], 'closing the page mid-fight scored a loss at the next boot');
+  assert.equal(again.storage.getItem('frankendom.fight.v1'), '');
 });

@@ -25,8 +25,11 @@ export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, Weap
   const seed = `${finish.victim}|${finish.location}|${finish.move}|${finish.heading}|${weapons[0]}|${weapons[1]}`;
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  const pick = Math.abs(hash % 6);
-  return pick === 0 ? 'splitCrown' : pick === 1 ? 'decapitation' : pick === 2 ? 'runThrough' : pick === 3 ? 'plainDeath' : pick === 4 ? 'quietOne' : 'opened';
+  // Beta rotation (owner 2026-09-20, simplifying for the freeze): five outcomes — Split Crown, Decapitation, Run Through,
+  // Opened, plain death. The Quiet One is out of the automatic pick (too subtle to read on a phone); its clip, pose and
+  // gore stay shipped and the dev picker can still force it.
+  const pick = Math.abs(hash % 5);
+  return pick === 0 ? 'splitCrown' : pick === 1 ? 'decapitation' : pick === 2 ? 'runThrough' : pick === 3 ? 'plainDeath' : 'opened';
 }
 
 // Which rigs carry which finisher clip today. null = the plain Death plays until the clip lands (the plain death is also a
