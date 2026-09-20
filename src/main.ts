@@ -6,6 +6,7 @@ import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
+import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import {
   initialPractice,
   stepPractice,
@@ -16,7 +17,7 @@ import {
   type Action,
   type CombatEvent,
 } from './combat.ts';
-import { ROSTER, resolveFinisher } from './roster.ts';
+import { ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -81,9 +82,14 @@ const trial = loadTrial(storage);
 // AFK is not an escape (owner 2026-09-20): a fight that never reached its end because the page was closed is a loss on the card.
 // The marker is written on the first tick of a live fight and cleared when its result is recorded.
 const AFK_KEY = 'frankendom.fight.v1';
+const scorecard = loadScorecard(storage);
 try {
   const left = JSON.parse(storage.getItem(AFK_KEY) || 'null');
-  if (left && SCHEMES.includes(left.scheme)) { recordFight(trial, left.scheme, false, 0, 0, 0); saveTrial(storage, trial); storage.setItem(AFK_KEY, ''); }
+  if (left && SCHEMES.includes(left.scheme)) {
+    recordFight(trial, left.scheme, false, 0, 0, 0); saveTrial(storage, trial);
+    if (isOpponentId(left.opponent)) { recordResult(scorecard, left.opponent, 'loss', true); saveScorecard(storage, scorecard); }
+    storage.setItem(AFK_KEY, '');
+  }
 } catch { /* unreadable storage: nothing to score */ }
 let scheme = trial.scheme,
   recorded = false,
@@ -444,9 +450,19 @@ element('name-button').addEventListener('click', () => {
   welcome.hidden = false;
   input.focus();
 });
+// The beta scorecard: one row per offered opponent plus the total; the per-scheme control trial dump stays for the debug view only.
+function renderScorecard() {
+  const cell = (tag: 'th' | 'td', text: string | number) => { const el = document.createElement(tag); el.textContent = String(text); return el; };
+  const table = element('scorecard-table');
+  table.replaceChildren();
+  const head = document.createElement('tr'); for (const label of ['Opponent', 'Fights', 'Wins', 'Losses']) head.append(cell('th', label)); table.append(head);
+  for (const row of scorecardRows(scorecard, LADDER)) { const tr = document.createElement('tr'); tr.append(cell('td', row.name), cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr); }
+  element('scorecard').textContent = formatCard(trial);
+  element('scorecard').hidden = !debug;
+}
 element('journal-button').addEventListener('click', () => {
   clearInput();
-  element('scorecard').textContent = formatCard(trial);
+  renderScorecard();
   journal.showModal();
 });
 element('mobile-name').addEventListener('click', () => {
@@ -1025,7 +1041,7 @@ function frame(now: number) {
       Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ scheme })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ scheme, opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       practice = stepPractice(
         practice,
         {
@@ -1094,6 +1110,8 @@ function frame(now: number) {
         recordPractice(trial, scheme, practice, Math.round(activeMs));
         saveTrial(storage, trial);
         marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
+        recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk);   // a fight lost while away is a loss, flagged left
+        saveScorecard(storage, scorecard);
         if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent
         if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
       }
