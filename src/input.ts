@@ -3,6 +3,7 @@
 // the simulation owns legality and buffering. Everything the layer touches is injected — the DOM lookup, window, clock, media
 // query, viewport width — so the entry point's own globals (and the VM harness's fakes in tests/graphics.test.ts) are what it binds to.
 import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
+import type { Direction } from './moves.ts';
 
 type Lookup = <T extends HTMLElement>(id: string) => T;
 export type InputEnv = {
@@ -16,7 +17,13 @@ export type InputEnv = {
   practice: () => Practice;
   quiet: () => void;         // feedback.quiet — clearing input also silences pending cues
 };
-export type Intent = { x: number; z: number; run: boolean; action: Action | null; guard: boolean; held: boolean; cancel: boolean };
+export type Intent = { x: number; z: number; run: boolean; action: Action | null; guard: boolean; guardDirection: Direction | null; held: boolean; cancel: boolean };
+// Guard side (owner 2026-09-20, five sides): the thumb still on the Guard button is the straight guard (null: the simulation reads it as the
+// stab's side); slid past GUARD_SLIDE_PX it is that side — left, right, up = overhead, down = low. Keyboard: Q held + an arrow key.
+export const GUARD_SLIDE_PX = 18;
+export const guardSide = (dx: number, dy: number): Direction | null =>
+  !(Math.hypot(dx, dy) >= GUARD_SLIDE_PX) ? null : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'overhead' : 'low';
+const ARROW_SIDE: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'overhead', ArrowDown: 'low' };
 
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
 export const HOLD_MS = 150,
@@ -49,6 +56,8 @@ export function createInput(env: InputEnv) {
   let action: Action | null = null,
     guard = false,
     guardId: number | null = null,
+    guardFrom: { x: number; y: number } | null = null,
+    guardDir: Direction | null = null,
     cancel = false;
   let dodgeHeld: { since: number; rolled: boolean } | null = null;
   const holders = new Set<Strike>();
@@ -255,18 +264,28 @@ export function createInput(env: InputEnv) {
   });
   dodgeButton.addEventListener('keyup', () => releaseDodge());
   dodgeButton.addEventListener('blur', () => releaseDodge(true));
+  const showSide = () => { guardButton.dataset.side = guardDir ?? 'straight'; };
   guardButton.addEventListener('pointerdown', (event) => {
     if (event.button !== 0 || paused() || guardId !== null) return;
     event.preventDefault();
     guardId = event.pointerId;
     guardButton.setPointerCapture(guardId);
+    guardFrom = { x: event.clientX, y: event.clientY };
+    guardDir = null; showSide();
     guard = true;
     requestParry();
+  });
+  guardButton.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== guardId || !guardFrom) return;
+    const side = guardSide(event.clientX - guardFrom.x, event.clientY - guardFrom.y);
+    if (side !== guardDir) { guardDir = side; showSide(); }
   });
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
     guardButton.addEventListener(name, (event) => {
       if ((event as PointerEvent).pointerId === guardId) {
         guardId = null;
+        guardFrom = null;
+        guardDir = null; showSide();
         guard = false;
         if (name === 'pointercancel') withdraw('parry');
       }
@@ -344,19 +363,20 @@ export function createInput(env: InputEnv) {
     },
     // What the simulation sees this tick. Presses reach it only once the assets are ready (the buttons read disabled until then).
     intent(): Intent {
-      const ready = env.ready();
+      const ready = env.ready(), q = keys.has('KeyQ'), arrow = (code: string) => !q && keys.has(code);
       return {
         x:
           moveX +
-          Number(keys.has('KeyD') || keys.has('ArrowRight')) -
-          Number(keys.has('KeyA') || keys.has('ArrowLeft')),
+          Number(keys.has('KeyD') || arrow('ArrowRight')) -
+          Number(keys.has('KeyA') || arrow('ArrowLeft')),
         z:
           moveZ +
-          Number(keys.has('KeyS') || keys.has('ArrowDown')) -
-          Number(keys.has('KeyW') || keys.has('ArrowUp')),
+          Number(keys.has('KeyS') || arrow('ArrowDown')) -
+          Number(keys.has('KeyW') || arrow('ArrowUp')),
         run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight'),
         action: ready ? action : null,
-        guard: ready && (guard || dragGuard || keys.has('KeyQ')),
+        guard: ready && (guard || dragGuard || q),
+        guardDirection: guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null),
         held: ready && held(),
         cancel,
       };
@@ -384,6 +404,8 @@ export function createInput(env: InputEnv) {
       keys.clear();
       guard = false;
       guardId = null;
+      guardFrom = null;
+      guardDir = null; showSide();
       run = stickRun = false;
       moveX = moveZ = 0;
       moveId = null;

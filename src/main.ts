@@ -486,6 +486,7 @@ function frame(now: number) {
           move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
           action: intent.action,
           guard: intent.guard,
+          guardDirection: intent.guardDirection ?? undefined,
           held: intent.held,
           lock: locked,
           cancel: intent.cancel,
