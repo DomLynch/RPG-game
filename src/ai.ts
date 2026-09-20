@@ -1,16 +1,15 @@
-import { RULES, type AiProfile, type MoveId, LONGSWORD, weaponOf } from './moves.ts';
+import { RULES, type AiProfile, type MoveId, weaponOf } from './moves.ts';
 import { aim, distance, elapsed, idleIntent, legal, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
 // action `reaction` ticks late, and emits an ordinary Intent that stepDuel judges by the same rules as the player's.
 export type AiMode = 'approach' | 'circle' | 'retreat' | 'guard';
-export type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
+type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 // Habits: what the opponent has done this match, counted from committed state edges only. The warden reads them (see `readOpponent`)
 // and adapts — a parry-happy player gets baited swings, a turtle gets kicked and charged through, a roller gets delayed swings and
 // tail punishes, a light-spammer gets parried more. Reads need evidence first, so the first exchanges are always the honest ones.
 export type Habits = { ticks: number; guard: number; parries: number; rolls: number; steps: number; lights: number; heavies: number; thrusts: number; kicks: number; attacks: number; parks: number };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
-export const THRUST_SHARE = LONGSWORD.fight.thrustShare;   // the sword's share of non-light openers that are thrusts (each weapon carries its own in `fight`); the thrust's real job is the stop-hit
 export const READ = { feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 export const readOpponent = (h: Habits): Reads => ({
   parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
