@@ -1,5 +1,13 @@
 # Project state
 
+## Tabbed Field Journal wiring — lead implementation, 2026-09-20 (owner: "get it live")
+On top of the design lane's markup/CSS (529bb6d, rebased onto trunk): the blood toggle is gone — `#blood-mode` button removed, its
+red/dark/off cycling removed from main.ts, gore always on (the renderer keeps `BloodMode` for a later setting); hit-stop chip sits in
+the Arena tab (design's markup, no JS change); test tools stay visible under Settings. Gates learned the tabs: browser-check and
+quiet-one click `label[for=journal-tab-settings]` before #controls-mode / #finisher-select, roster-browser-check clicks
+`label[for=journal-tab-arena]` before #opponent-select; browser-check's blood-mode cycle and quiet-one's dark/off cycling under
+--blood-check are retired (the finisher's own blood assertions still run). Evidence recorded in PR #228.
+
 ## Field Journal tabs — web/design lane draft, 2026-09-20 (owner direction; markup + CSS only)
 Owner's read of the live journal: still messy. New layout (approved from a clickable mock): the fighter card and the sign-in
 prompt stay pinned; under them a browser-style strip with three tabs — Fighter (record table), Arena (opponent, warden,

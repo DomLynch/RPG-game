@@ -330,13 +330,7 @@ try {
   attackButton.setAttribute('aria-disabled', 'true');
   throw error; // Preserve the GPU/renderer cause and stack for monitoring.
 }
-let bloodMode = 0;
-element('blood-mode').addEventListener('click', () => {
-  bloodMode = (bloodMode + 1) % 3;
-  const mode = (['red', 'dark', 'off'] as const)[bloodMode];
-  view.setBloodMode(mode);
-  element('blood-mode').textContent = `Blood: ${mode}`;
-});
+// Blood is red, always (owner 2026-09-20: the dark/off toggle leaves the journal; the renderer keeps the modes for a later setting).
 const showTempo = () => {
   element('tempo-mode').textContent = `Tempo: ${tempoHz} Hz`;
   element('tempo-mode').setAttribute('aria-pressed', String(tempoHz === 50));
@@ -529,7 +523,7 @@ function frame(now: number) {
                   finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId),
                   view.previousFinisher(),
                 ) ?? 'plainDeath',
-              gore: bloodMode !== 2,
+              gore: true,
             }
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
