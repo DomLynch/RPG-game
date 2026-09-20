@@ -41,7 +41,7 @@ RECIPES = {
     "cleaver": dict(contact=(0.14, 0.86), head_at=0.10, head="flat", up="flat", edge="bend", butt=-0.125, grips=[],
                     shaft_rgb=(0.07, 0.036, 0.015), tris=4000, texture=512),
     # The Goblin's sica (owner's pick A): edge 0.12–0.52 m, blade root 0.09, forward grip −0.11–0.065, an inward hook.
-    "knife": dict(contact=(0.12, 0.52), head_at=0.09, head="flat", up="flat", edge="bend", butt=-0.11, grips=[], tris=2500, texture=512),
+    "knife": dict(contact=(0.12, 0.52), head_at=0.09, head="flat", up="flat", edge="bend", butt=-0.11, grips=[], grip_r=0.017, weld=True, cut=0.014, shaft_rgb=(0.07, 0.036, 0.015), tris=3200, texture=512),  # cut above the picture's hollow collar; its grip's back baked black
     # The Nightborn's estoc (A): the point 0.75–1.15 m, the cross under the blade at 0.088, wire grip −0.11–0.088, wheel pommel.
     # The hero's longsword (build-warrior.mjs sword()): the blade 0.18–0.86 m, the cross under it at 0.081, leather grip, wheel pommel.
     "longsword": dict(contact=(0.18, 0.86), head_at=0.081, head="wide", up="narrow", butt=-0.105, grips=[], tris=3000, texture=512),
@@ -84,6 +84,11 @@ def extent(P, axis):
 
 
 apply_transform()
+if recipe.get("weld"):  # a thin blade: weld the UV-island duplicates or the decimator tears it into slivers (knife, measured);
+    bpy.ops.object.mode_set(mode="EDIT")  # never on the trident — its coil shells go non-manifold and the decimator drops the fork
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.remove_doubles(threshold=0.00001)
+    bpy.ops.object.mode_set(mode="OBJECT")
 
 # 1. Orientation. The Space frames the object however the picture suggested (the trident stood, the cleaver lay flat): the
 # principal extents say which axis is which. Length → Z (the game's local Y on export), width → X, thickness → Y; the thin axis
@@ -130,7 +135,7 @@ if recipe["head"] == "wide":
     z_head = min(p.z for p in P if abs(p.x) > 4 * shaft_r)
 else:  # 'flat': the lowest 1 cm slice whose section is more than twice as wide as thick
     slices = [(z, [p for p in P if z <= p.z < z + 0.01]) for z in [z_bottom + i * 0.01 for i in range(int((z_tip - z_bottom) / 0.01))]]
-    z_head = next(z for z, S in slices if S and extent(S, 0) > 2 * extent(S, 1) and extent(S, 0) > 2.2 * shaft_r)
+    z_head = next(z for z, S in slices if S and extent(S, 0) > 2.5 * extent(S, 1) and extent(S, 0) > 1.5 * shaft_r)  # a blade is thin; a knife's need not be much wider than its grip
 if recipe.get("fit") == ("bottom", "head"):  # a polearm whose head goes sideways: the pole's length is what the contract fixes
     s = (recipe["head_at"] - butt) / (z_head - z_bottom)
     obj.scale = (s, s, s)
@@ -144,6 +149,8 @@ else:
 apply_transform()
 P = coords()
 z_bottom, shaft_r = min(p.z for p in P), shaft_r * s
+if recipe.get("grip_r"):  # the lathe is ours: a picture's chunky handle does not dictate the grip a hand closes on
+    shaft_r = min(shaft_r, recipe["grip_r"])
 print(f"[weapon-fit] fitted ×{s:.4f}: head at {recipe['head_at']:.3f} (was {z_head:.3f} raw), tip {max(p.z for p in P):.3f}, handle from {z_bottom:.3f}, radius {shaft_r:.4f}")
 
 
@@ -179,8 +186,8 @@ if recipe.get("socket"):
 elif wrap:
     z_cut = wrap_hi + 0.012
 else:
-    z_cut = recipe["head_at"] - 0.005  # a blade: the lathe runs up to the guard / ferrule
-r_cut, z_top = radius_at(z_cut), z_cut + 0.022
+    z_cut = recipe["head_at"] + recipe.get("cut", -0.005)  # a blade: the lathe runs up to the guard / ferrule (or past a hollow collar)
+r_cut, z_top = min(radius_at(z_cut), shaft_r * 1.4), z_cut + 0.022  # the ring under the head: at most a ferrule's flare over the grip
 bares = runs(lambda z, r: r <= 1.25 * shaft_r) or [(z_bottom, z_cut)]
 bare_rows = (bares[0][0] + 0.012, min(bares[0][1], z_cut) - 0.012)  # the reconstruction's longest bare handle rows
 print(f"[weapon-fit] handle: bare rows {bare_rows[0]:.3f}–{bare_rows[1]:.3f}" + (f", wrap {wrap_lo:.3f}–{wrap_hi:.3f} (r {wrap_r:.4f})" if wrap else "") + f", head from {z_cut:.3f}")
@@ -205,6 +212,9 @@ def lathe(name, rings, material, segments=16):
             f = bm_.faces.new((a, b, c, d))
             for lp, (u, v) in zip(f.loops, [(i / segments, rings[k][2]), ((i + 1) / segments, rings[k][2]), ((i + 1) / segments, rings[k + 1][2]), (i / segments, rings[k + 1][2])]):
                 lp[uv_].uv = (u, v)
+    top = bm_.faces.new(list(reversed(ring_verts[-1])))  # closed at the top: a blade root may not cover it (the knife)
+    for lp in top.loops:
+        lp[uv_].uv = (0.5, rings[-1][2])
     for f in bm_.faces:
         f.smooth = True
     mesh_ = bpy.data.meshes.new(name)

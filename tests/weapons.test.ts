@@ -556,7 +556,7 @@ test('the scythe\'s data is the brief\'s: slower tells than the sword\'s, the ja
 // same contract. The procedural part stays as the revert variant, so the two must agree on the striking segment.
 test('every reconstructed part loads on the contract — one WeaponDrawn node, the procedural part\'s exact contact segment, its own colour and metal/rough maps under Weapon<Id>, a baked handle under Weapon<Id>Shaft, inside the phone budget — and the procedural variant still builds', async () => {
   const { WEAPON_BUILDS } = await import('../scripts/build-weapon.mjs');
-  const budget: Record<string, number> = { trident: 4000, cleaver: 4000, knife: 2500, estoc: 2000, scythe: 4500, longsword: 3000 };
+  const budget: Record<string, number> = { trident: 4000, cleaver: 4000, knife: 3200, estoc: 2000, scythe: 4500, longsword: 3000 };
   const reconstructed = Object.entries(WEAPON_BUILDS).filter(([, b]) => (b.part as { reconstructed?: string }).reconstructed);
   assert.ok(reconstructed.length >= 2, 'the trident and the cleaver are reconstructed');
   for (const [id, build] of reconstructed) {

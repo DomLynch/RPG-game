@@ -124,8 +124,8 @@ def reconstruct(args, image, tok, deadline, prov):
     pre_path = as_path(pre)
     shutil.copy(pre_path, args.dir / "preprocessed.png")
     log("preprocessed (background removed)")
-    with_retries(lambda: c.predict(
-        handle_file(str(image)), args.seed, str(args.resolution),
+    with_retries(lambda: c.predict(  # the Space's image_to_3d takes the PREPROCESSED cut-out (its image component's value), not the photo:
+        handle_file(str(pre_path)), args.seed, str(args.resolution),  # fed the photo, a studio backdrop reconstructs as a box (the knife, 2026-09-20)
         args.ss_guidance, args.ss_rescale, args.ss_steps, args.ss_rescale_t,
         args.shape_guidance, args.shape_rescale, args.shape_steps, args.shape_rescale_t,
         args.tex_guidance, args.tex_rescale, args.tex_steps, args.tex_rescale_t,
