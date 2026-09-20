@@ -45,9 +45,13 @@ try {
  await until(()=>/Parried|Blocked|Hit taken|Guard broken/.test(document.querySelector('#combat-status').textContent),1500);
  receipt.parry=await snapshot();assert.match(receipt.parry.status,/Parried/);await touch('touchEnd');
  await run(60);await page.screenshot({path:'artifacts/browser-parry.jpg',type:'jpeg',quality:85});
+ // The damage float lives 900 ms on the document's animation timeline (real time, not harness time), so it is recorded the instant it
+ // appears rather than looked for after screenshots that a software-GL box takes slowly.
+ await page.evaluate(()=>{window.__floats=[];new MutationObserver(list=>{for(const m of list){const span=m.target;if(!span.hidden&&span.textContent)window.__floats.push(span.textContent);}}).observe(document.querySelector('#dmg-pool'),{attributes:true,attributeFilter:['hidden'],subtree:true});});
  await page.getByRole('button',{name:'Light attack',exact:true}).tap();await run(350);
- receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,HP-24,'the riposte takes 24');await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});
- receipt.dmg=await page.locator('.dmg:visible').first().textContent();assert.equal(receipt.dmg,'24','the riposte floats its 24 off the warden');
+ receipt.riposte=await snapshot();assert.equal(receipt.riposte.enemy,HP-24,'the riposte takes 24');
+ receipt.dmg=(await page.evaluate(()=>window.__floats))[0];assert.equal(receipt.dmg,'24','the riposte floats its 24 off the warden');
+ await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});
  // Observe accepted player attacks, not the last HUD message (an opponent's kick can overwrite it).
  // A counter may interrupt an accepted attack. Make at most three real attempts; only a completed
  // player kick (hit, miss, or defender dodge) satisfies the gate. Never count enemy damage as ours.
