@@ -73,7 +73,16 @@ unseen so the fill covers it (per fighter — grey hair is cool too); `hair_lum 
 not its shadows. The scan's own pinnae are flattened against the skull (92 % of what stands proud of the temple's skull line, `parts.ears()`)
 and the goblin ear is rooted 12 mm behind and 8 mm below the canal with a wider base to cover them.
 
+## Polish pass — 2026-09-20 (PR: char/goblin-polish)
+Ears lofted from rings (`parts.ears()`: a fat lobe at the root, widest a third up, a torn notch on the outer rim) instead of two-ring
+cones the leaf shaping never reached; skin_mul (0.77, 0.77, 0.80) — the body read warmer than the grey face at the collar. The pink patch
+behind each ear was NOT the pinna: the scan unwraps the skull band behind the ears to the tile's outer edges (u .86–.97 / .03–.14 at v
+.44–.74, measured from the mesh) and the projection painted the photographed ear onto it; the crown fill's boundary feather never
+reaches small edge islands. `head.FIGHTERS.goblin.ear_fill`: that band and the flaps are marked unseen and the fill is FORCED there
+(`crown_fill(force=)`). The scan's real ear flaps (|x| .10–.13, 6–15 cm behind the eyes, down to 8 cm below — not where the canal ray
+lands) are flattened 92 % and re-mapped to the skull texels behind them. Evidence: `artifacts/character/goblin-polish/` (ears-before-after,
+views, faces, turntable, lock stills; Δ vs goblin-v1 +48 KB gzip). Live probe reads his hp from the data (120) and the renamed button.
+
 ## Open on the character side (owner's eye first)
-The flattened pinna still shows as a slightly pinker flat patch behind the ear in profile (recolour it from the cheek, or cut it); the ears
-are smooth cones (torn notch, thicker lobe next); the bracer reads leather-brown rather than rusted iron at phone size (its own 1K rust maps
+The flattened flap still prints a faint outline in profile; the bracer reads leather-brown rather than rusted iron at phone size (its own 1K rust maps
 would fix it); the necklace finger sits on his right, small.

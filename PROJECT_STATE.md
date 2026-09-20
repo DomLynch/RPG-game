@@ -1031,6 +1031,8 @@ Full offline mix across AAC/Opus/fallback passes truepeak<=-1dBTP; bell-only tru
 Source/state audit completed. Evidence: artifacts/audio/bell-weight/. Game-browser/release work waits for lead window;
 latest npm audit returned503maintenance, not bypassed. Full inherited gates and public verification required before done.
 
+## Goblin polish — 2026-09-20 (character lane, char/goblin-polish)
+Ears lofted with a lobe and a torn notch; body tone greyed to the face; the pink band behind each ear (the scan's ear photo projected onto the skull band the tile unwraps to its outer edges, past the crown fill's feather) painted out by forcing the fill on that measured UV band (`head.FIGHTERS.goblin.ear_fill`, `crown_fill(force=)`); the scan's real ear flaps flattened and re-mapped. Goblin-only flags; other fighters' builds untouched. 300/300 tests, quality:ci, browser gate and the dist probe green; goblin.glb 3.31 MB gzip (+48 KB); budget 30.84/32 MB. Evidence `artifacts/character/goblin-polish/`. Still open from the brief: the lock camera hides him behind the hero at close range on 393×852 (REQUESTS #8, camera lane).
 ## Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five passes; beta freeze)
 Docs-and-hygiene pass only: no sound, gain, timing or simulation change (rebuilt sprite byte-identical: m4a 88c3e2b1…, ogg d3358aef…).
 Read this section first; the dated audio entries above (2026-09-15 … 2026-09-19) are its history.
