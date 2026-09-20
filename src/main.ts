@@ -1063,6 +1063,7 @@ function frame(now: number) {
                   practice.finish,
                   [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
                   finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId),
+                  view.previousFinisher(),
                 ) ?? 'plainDeath',
               gore: bloodMode !== 2,
             }

@@ -187,6 +187,7 @@ window.__finisher = {
     // and screenshots would show a stale frame. A fresh playback resets the cursor so the scene state rebuilds from tick 0.
     return new Promise(resolve => requestAnimationFrame(() => {
       view.setFinisherOverride(windows[which].override ?? null);   // the picker's own path for outcomes outside the rotation
+      if (i <= cursor) view.setPreviousFinisher(null);   // every captured window is a first fight (the no-repeat rule reads the previous one)
       if (mode && mode !== currentMode) { view.setBloodMode(mode); currentMode = mode; }
       if (i <= cursor) { cursor = -1; maxCameraStep = 0; view.recenter(); }
       for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j], before = renderedCamera?.position.clone(); present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); if (before && j > windows[which].killIndex+(which === 'quietOne' ? 10 : 60)) maxCameraStep = Math.max(maxCameraStep, before.distanceTo(renderedCamera.position)); cursor = j; }
