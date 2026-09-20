@@ -35,7 +35,15 @@ try {
   catch(error){ receipt.onFailure=await diagnose(); receipt.error=String(error).slice(0,300); throw error; }
   const box=await page.locator('#guard-button').boundingBox();
   await until(()=>window.__tellAt>0&&performance.now()-window.__tellAt>=430,20000);
-  await touch('touchStart',{x:box.x+box.width/2,y:box.y+box.height/2});
+  // Directional guard: the parry must be on the side the blow arrives on — the mirror of the attack's direction (AttackStarted carries it);
+  // a straight thrust needs no slide. Same rule as browser-check.mjs.
+  const incoming=await page.evaluate(()=>{const e=[...window.__combat].reverse().flatMap(s=>s.events).find(e=>e.type==='AttackStarted'&&e.actor===1);return e?e.direction:null;});
+  const side={right:'left',left:'right',overhead:'overhead',low:'low',thrust:null}[incoming]??null;
+  const slide={left:{x:-30,y:0},right:{x:30,y:0},overhead:{x:0,y:-30},low:{x:0,y:30}}[side];
+  receipt.parrySide={incoming,side};
+  const centre={x:box.x+box.width/2,y:box.y+box.height/2};
+  await touch('touchStart',centre);
+  if(slide){await touch('touchMove',{x:centre.x+slide.x,y:centre.y+slide.y});}
   await until(()=>window.__combat.some(s=>s.events.some(e=>e.type==='Parried'&&e.actor===0)),1500);
   await touch('touchEnd');await page.locator('#'+button).tap();
   await until(move=>window.__combat.some(s=>s.events.some(e=>e.type==='Hit'&&e.actor===0&&e.move===move)),2000,move);

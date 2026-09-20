@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFighter, elapsed, idleIntent, initialDuel, legal, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, idleIntent, initialDuel, legal, mirror, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PATHS, PROFILES, RULES, total, type GuardProfile } from '../src/moves.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -9,7 +9,10 @@ const HP = RULES.health;   // fighters start at RULES.health; the numbers below 
 // Both fighters are scripted here; the AI has its own suite. Index 0 stands south of index 1, both facing each other.
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Action, extra: Partial<Intent> = {}): Intent => ({ ...idle(), action, ...extra });
-const hold = (extra: Partial<Intent> = {}): Intent => ({ ...idle(), guard: true, ...extra });
+// hold(): a guard held on the defender's LEFT — the side that meets these tests' default cut, a light_right (directional guard, on by default).
+// Pass guardDirection for anything else: 'right' vs a light_left, 'overhead' vs a heavy, 'thrust' vs a thrust, 'low' to brace a kick.
+const hold = (extra: Partial<Intent> = {}): Intent => ({ ...idle(), guard: true, guardDirection: 'left', ...extra });
+const vs = (attack: 'light_left' | 'light_right' | 'heavy_overhead' | 'thrust' | 'kick' | 'heavy'): Intent => hold({ guardDirection: attack === 'light_left' ? 'right' : attack === 'light_right' ? 'left' : attack === 'thrust' ? 'thrust' : attack === 'kick' ? 'low' : 'overhead' });
 function duel(gap = 1.2, heading = Math.PI, phase: 'ready' | 'sheathed' = 'ready'): Duel {
   return { tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading, distance: 0 }, phase), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] };
 }
@@ -82,7 +85,7 @@ test('held guard blocks a facing light for stamina; a guard from behind or witho
 });
 
 test('perfect block: a guard raised just in time pays half; a settled guard pays full; a parry window never counts', () => {
-  const incoming = (guardAge: number, parrying = false) => stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: guardAge, parrying }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  const incoming = (guardAge: number, parrying = false) => stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', guardDirection: 'right', age: guardAge, parrying }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [vs('light_left'), idle()]);
   for (const age of [RULES.parry, RULES.parry + RULES.perfectBlock - 2]) {
     const d = incoming(age);
     assert.equal(d.fighters[0].stamina, 100 - light.staminaDamage * RULES.perfectBlockCost, `guard age ${age}`);
@@ -94,21 +97,21 @@ test('perfect block: a guard raised just in time pays half; a settled guard pays
   // A live parry window parries instead. A fresh press still *held* when its window closes becomes the standing guard — and its first
   // perfectBlock ticks are the perfect block, so 'hold Guard a little early' is the natural way to find it. A *released* tap is exposed.
   assert.ok(types(incoming(RULES.parry - 2, true)).includes('Parried'));
-  const heldOn = run(stepDuel(duel(), [act('parry', { guard: true }), idle()]), RULES.parry, hold());
+  const heldOn = run(stepDuel(duel(), [act('parry', { guard: true, guardDirection: 'left' }), idle()]), RULES.parry, hold());
   assert.equal(heldOn.fighters[0].phase, 'guard'); assert.equal(heldOn.fighters[0].exposed, 0); assert.equal(heldOn.fighters[0].parrying, false);
-  const viaHold = run({ ...heldOn, fighters: [heldOn.fighters[0], { ...heldOn.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, 1, hold(), idle());
+  const viaHold = run({ ...heldOn, fighters: [heldOn.fighters[0], { ...heldOn.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, 1, vs('light_left'), idle());
   assert.equal(viaHold.events.find(e => e.type === 'Blocked')?.perfect, true, 'the tick after the window closes is a perfect block when held');
-  const released = run(stepDuel(duel(), [act('parry', { guard: true }), idle()]), RULES.parry, idle());
+  const released = run(stepDuel(duel(), [act('parry', { guard: true, guardDirection: 'left' }), idle()]), RULES.parry, idle());
   assert.equal(released.fighters[0].phase, 'ready'); assert.ok(released.fighters[0].exposed > 0, 'a released tap that met nothing is exposed');
   // Composes with a guard profile.
-  const shielded = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: RULES.parry, guardProfile: { costScale: .5 } }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  const shielded = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', guardDirection: 'right', age: RULES.parry, guardProfile: { costScale: .5 } }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [vs('light_left'), idle()]);
   assert.equal(shielded.fighters[0].stamina, 100 - light.staminaDamage * .5 * RULES.perfectBlockCost);
 });
 
 test('parry succeeds only inside the fresh-press window, staggers the attacker and opens one stronger riposte', () => {
   const attackerAt = (d: Duel, age: number) => ({ ...d, fighters: [d.fighters[0], { ...d.fighters[1], phase: 'attack' as const, move: 'light_left' as const, age, chained: false, landed: false, lastMove: 'light_left' as const }] } as Duel);
   const contact = light.windup;
-  const parried = stepDuel(attackerAt(duel(), contact - 1), [act('parry', { guard: true }), idle()]);
+  const parried = stepDuel(attackerAt(duel(), contact - 1), [act('parry', { guard: true, guardDirection: 'right' }), idle()]);
   assert.deepEqual(types(parried), ['ActionStarted', 'AttackActive', 'Parried', 'Staggered']);
   assert.equal(parried.fighters[0].health, HP); assert.equal(parried.fighters[0].stamina, 100); assert.equal(parried.fighters[0].punish, RULES.parryStun);
   assert.equal(parried.fighters[1].phase, 'hurt'); assert.equal(parried.fighters[1].stun, RULES.parryStun); assert.equal(parried.fighters[1].landed, true);
@@ -119,14 +122,14 @@ test('parry succeeds only inside the fresh-press window, staggers the attacker a
     assert.equal(answer.fighters[0].punish, 0, 'the reward is consumed once');
     assert.equal(run(answer, MOVES[expected].windup).fighters[1].health, HP - MOVES[expected].damage);
   }
-  const late = stepDuel(attackerAt({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: RULES.parry, parrying: false }, duel().fighters[1]] }, contact - 1), [hold(), idle()]);
+  const late = stepDuel(attackerAt({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', guardDirection: 'right', age: RULES.parry, parrying: false }, duel().fighters[1]] }, contact - 1), [vs('light_left'), idle()]);
   assert.ok(types(late).includes('Blocked'), 'after the window a held guard only blocks');
   for (const [action, expected] of [['light', 'light_right'], ['thrust', 'thrust'], ['heavy', 'heavy_counter']] as const) {
     assert.equal(stepDuel(late, [act(action), idle()]).fighters[0].move, expected, `ordinary block then ${action}`);
   }
-  const cooling = stepDuel(attackerAt({ ...duel(), fighters: [{ ...duel().fighters[0], parryCooldown: 2 }, duel().fighters[1]] }, contact - 1), [act('parry', { guard: true }), idle()]);
+  const cooling = stepDuel(attackerAt({ ...duel(), fighters: [{ ...duel().fighters[0], parryCooldown: 2 }, duel().fighters[1]] }, contact - 1), [act('parry', { guard: true, guardDirection: 'right' }), idle()]);
   assert.ok(types(cooling).includes('Blocked'), 'a press during cooldown opens no window');
-  const boundary = stepDuel(attackerAt({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: RULES.parry - 2, parrying: true }, duel().fighters[1]] }, contact - 1), [hold(), idle()]);
+  const boundary = stepDuel(attackerAt({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', guardDirection: 'right', age: RULES.parry - 2, parrying: true }, duel().fighters[1]] }, contact - 1), [vs('light_left'), idle()]);
   assert.ok(types(boundary).includes('Parried'), 'the last tick of the window still parries');
   let counter = run(parried, RULES.parry + 1, hold());
   counter = stepDuel(counter, [idle(), idle()]);   // release the guard, then strike
@@ -139,7 +142,7 @@ test('parry succeeds only inside the fresh-press window, staggers the attacker a
 
 test('a fresh parry tap that meets nothing leaves the fighter exposed: guard is refused until the exposure ends; a held press never is', () => {
   assert.equal(RULES.parryRecovery, 8);
-  let d = stepDuel(duel(), [act('parry', { guard: true }), idle()]);
+  let d = stepDuel(duel(), [act('parry', { guard: true, guardDirection: 'left' }), idle()]);
   d = run(d, RULES.parry - 1, hold());
   assert.equal(d.fighters[0].phase, 'guard');
   const kept = stepDuel(d, [hold(), idle()]); assert.equal(kept.fighters[0].phase, 'guard', 'still held: the standing guard, no hole'); assert.equal(kept.fighters[0].exposed, 0);
@@ -150,9 +153,9 @@ test('a fresh parry tap that meets nothing leaves the fighter exposed: guard is 
   assert.equal(run(d, RULES.parryRecovery - 1, hold()).fighters[0].phase, 'ready');
   assert.equal(run(d, RULES.parryRecovery + 1, hold()).fighters[0].phase, 'guard', 'exposure ends and the held guard engages');
   const off = { ...RULES, parryRecovery: 0 };
-  assert.equal(run(stepDuel(duel(), [act('parry', { guard: true }), idle()], off), RULES.parry + 2, hold(), idle(), off).fighters[0].phase, 'guard', 'with the rule off a held guard simply stays up');
+  assert.equal(run(stepDuel(duel(), [act('parry', { guard: true, guardDirection: 'left' }), idle()], off), RULES.parry + 2, hold(), idle(), off).fighters[0].phase, 'guard', 'with the rule off a held guard simply stays up');
   // A parry that connects is never punished: the punish window proves it.
-  const parried = stepDuel({ ...duel(), fighters: [duel().fighters[0], { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [act('parry', { guard: true }), idle()]);
+  const parried = stepDuel({ ...duel(), fighters: [duel().fighters[0], { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [act('parry', { guard: true, guardDirection: 'right' }), idle()]);
   assert.ok(types(parried).includes('Parried'));
   assert.equal(run(parried, RULES.parry + 1, hold()).fighters[0].exposed, 0);
 });
@@ -175,7 +178,7 @@ test('a guard yields to any action: attacks start the same tick from a held guar
 test('feint: a fresh guard press early in a wind-up abandons the swing into a parry window for a price', () => {
   const d = run(stepDuel(duel(), [act('light'), idle()]), 3);
   assert.equal(legal(d.fighters[0], 'parry'), true);
-  const feinted = stepDuel(d, [act('parry', { guard: true }), idle()]);
+  const feinted = stepDuel(d, [act('parry', { guard: true, guardDirection: 'left' }), idle()]);
   assert.equal(feinted.fighters[0].phase, 'guard'); assert.equal(feinted.fighters[0].age, 0); assert.equal(feinted.fighters[0].parrying, true);
   assert.equal(feinted.fighters[0].stamina, 100 - light.stamina - RULES.feintCost); assert.equal(feinted.fighters[0].parryCooldown, RULES.parryCooldown);
   assert.deepEqual(types(feinted), ['ActionStarted']); assert.equal(feinted.events[0].action, 'feint');
@@ -184,26 +187,26 @@ test('feint: a fresh guard press early in a wind-up abandons the swing into a pa
   // Too late: the swing is committed and the press is neither accepted nor queued.
   const late = run(stepDuel(duel(), [act('light'), idle()]), light.feintUntil);
   assert.equal(legal(late.fighters[0], 'parry'), false);
-  const pressed = stepDuel(late, [act('parry', { guard: true }), idle()]);
+  const pressed = stepDuel(late, [act('parry', { guard: true, guardDirection: 'left' }), idle()]);
   assert.equal(pressed.fighters[0].phase, 'attack'); assert.equal(pressed.fighters[0].buffer, null);
   assert.equal(run(pressed, light.windup, hold()).fighters[1].health, HP - light.damage);
   // Heavy has a longer window; a kick has none; a held guard alone (no fresh press) never feints; exhaustion forbids it.
-  assert.equal(stepDuel(run(stepDuel(duel(), [act('heavy'), idle()]), heavy.feintUntil - 1), [act('parry', { guard: true }), idle()]).fighters[0].phase, 'guard');
-  assert.equal(stepDuel(run(stepDuel(duel(), [act('heavy'), idle()]), heavy.feintUntil), [act('parry', { guard: true }), idle()]).fighters[0].phase, 'attack');
-  assert.equal(stepDuel(run(stepDuel(duel(1.05), [act('kick'), idle()]), 2), [act('parry', { guard: true }), idle()]).fighters[0].move, 'kick');
+  assert.equal(stepDuel(run(stepDuel(duel(), [act('heavy'), idle()]), heavy.feintUntil - 1), [act('parry', { guard: true, guardDirection: 'overhead' }), idle()]).fighters[0].phase, 'guard');
+  assert.equal(stepDuel(run(stepDuel(duel(), [act('heavy'), idle()]), heavy.feintUntil), [act('parry', { guard: true, guardDirection: 'overhead' }), idle()]).fighters[0].phase, 'attack');
+  assert.equal(stepDuel(run(stepDuel(duel(1.05), [act('kick'), idle()]), 2), [act('parry', { guard: true, guardDirection: 'left' }), idle()]).fighters[0].move, 'kick');
   assert.equal(stepDuel(run(stepDuel(duel(), [act('light'), idle()]), 2), [hold(), idle()]).fighters[0].phase, 'attack');
   const broke = { ...duel(), fighters: [{ ...duel().fighters[0], stamina: 25 }, duel().fighters[1]] } as Duel;
-  const poor = stepDuel(run(stepDuel(broke, [act('light'), idle()]), 2), [act('parry', { guard: true }), idle()]);
+  const poor = stepDuel(run(stepDuel(broke, [act('light'), idle()]), 2), [act('parry', { guard: true, guardDirection: 'left' }), idle()]);
   assert.equal(poor.fighters[0].phase, 'attack', 'cannot afford the feint');
   // On cooldown the feint still cancels the swing, but into a plain guard without a window.
   const cooling = { ...duel(), fighters: [{ ...duel().fighters[0], parryCooldown: 20 }, duel().fighters[1]] } as Duel;
-  const plain = stepDuel(run(stepDuel(cooling, [act('light'), idle()]), 2), [act('parry', { guard: true }), idle()]);
+  const plain = stepDuel(run(stepDuel(cooling, [act('light'), idle()]), 2), [act('parry', { guard: true, guardDirection: 'left' }), idle()]);
   assert.equal(plain.fighters[0].phase, 'guard'); assert.equal(plain.fighters[0].parrying, false); assert.equal(plain.fighters[0].age, RULES.parry);
 });
 
 test('guard profile: a shield is data — block cost, arc, window and stopping heavies come from the fighter, defaults from RULES', () => {
   const withGuard = (profile: Partial<GuardProfile>) => { const d = duel(); d.fighters[0] = { ...d.fighters[0], guardProfile: profile }; return run(stepDuel(d, [hold(), idle()]), RULES.parry + 1, hold()); };
-  const incoming = (d: Duel, move: 'light_left' | 'heavy_overhead' = 'light_left') => run({ ...d, fighters: [d.fighters[0], { ...d.fighters[1], phase: 'attack', move, age: MOVES[move].windup - 1, lastMove: move }] } as Duel, 1, hold(), idle());
+  const incoming = (d: Duel, move: 'light_left' | 'heavy_overhead' = 'light_left') => run({ ...d, fighters: [d.fighters[0], { ...d.fighters[1], phase: 'attack', move, age: MOVES[move].windup - 1, lastMove: move }] } as Duel, 1, vs(move), idle());
   assert.equal(incoming(withGuard({})).fighters[0].stamina, 100 - MOVES.light_left.staminaDamage);
   assert.equal(incoming(withGuard({ costScale: .5 })).fighters[0].stamina, 100 - MOVES.light_left.staminaDamage * .5);
   const chipped = incoming(withGuard({}), 'heavy_overhead');
@@ -215,20 +218,20 @@ test('guard profile: a shield is data — block cost, arc, window and stopping h
   const wide = duel(); wide.fighters[0] = { ...wide.fighters[0], guardProfile: { window: 16 } };
   // Press so that contact falls on the window's 15th tick: inside a 16-tick window, outside the default 10.
   let lateParry = { ...wide, fighters: [wide.fighters[0], { ...wide.fighters[1], phase: 'attack', move: 'light_left', age: 0, lastMove: 'light_left' }] } as Duel;
-  lateParry = run(lateParry, light.windup - 15, idle(), idle()); lateParry = stepDuel(lateParry, [act('parry', { guard: true }), idle()]); lateParry = run(lateParry, 14, hold(), idle());
+  lateParry = run(lateParry, light.windup - 15, idle(), idle()); lateParry = stepDuel(lateParry, [act('parry', { guard: true, guardDirection: 'right' }), idle()]); lateParry = run(lateParry, 14, vs('light_left'), idle());
   assert.ok(types(lateParry).includes('Parried'), 'a 16-tick window still parries at its tick 15');
 });
 
 test('the feint mind-game: a raised guard answers the feint; the kick that opens it is taken through the guard by a blocker and rolled by a dodger — never blocked or parried', () => {
   // A blocking opponent (no parry, no roll) raises its guard as soon as it notices the heavy; a dodger has the roll.
-  const play = (dodge: number) => {
-    const profile = { ...PROFILES.hard, reaction: 7, parry: 0, dodge };   // a quick blocker: the feint must land inside the heavy's feint window
+  const play = (dodge: number, read = 0) => {
+    const profile = { ...PROFILES.hard, reaction: 7, parry: 0, dodge, read };   // a quick blocker: the feint must land inside the heavy's feint window. read 0: he never guards low, so the kick shoves (directional guard)
     let d = duel(1.1), ai = initialAi(); const seen: string[] = [];
     const step = (intent: Intent) => { const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [intent, w.intent]); seen.push(...d.events.map(e => `${e.type}:${e.actor}${e.action ? ':' + e.action : ''}${e.move ? ':' + e.move : ''}`)); };
     step(act('heavy'));
     for (let i = 0; i < heavy.feintUntil - 2; i++) step(idle());
     assert.equal(d.fighters[1].phase, 'guard', 'the opponent has raised its guard against the heavy');
-    step(act('parry', { guard: true }));
+    step(act('parry', { guard: true, guardDirection: 'left' }));
     assert.ok(seen.includes('ActionStarted:0:feint'));
     // The kick is the answer to a raised guard. The warden never guards or parries it; with its dodge share it rolls, otherwise the guard is opened.
     step(act('kick', { guard: true }));
@@ -240,17 +243,74 @@ test('the feint mind-game: a raised guard answers the feint; the kick that opens
   assert.ok(!blocker.seen.includes('ActionStarted:1:parry'), 'no parry press at a kick');
   const dodger = play(1);
   assert.ok(dodger.seen.includes('ActionStarted:1:roll'), `the dodger rolls the kick: ${dodger.seen.join(' ')}`); assert.ok(!dodger.seen.includes('Hit:0:kick'), 'and it does not land');
+  // Directional guard: a blocker who READS the kick drops his guard low and braces it — a block, no stagger (owner 2026-09-20: low is a read, not a wall).
+  const reader = play(0, 1);
+  assert.ok(reader.seen.includes('Blocked:1:kick'), `the reading blocker braces the kick: ${reader.seen.join(' ')}`); assert.ok(!reader.seen.includes('Hit:0:kick')); assert.equal(reader.d.fighters[1].phase, 'guard', 'and is not staggered');
 });
 
-test('directional guard, when enabled, only stops cuts from the matching side', () => {
-  const rules = { ...RULES, directionalGuard: true };
-  for (const [side, attack, blocks] of [['right', 'light_right', true], ['left', 'light_right', false], ['left', 'light_left', true], ['overhead', 'light_left', false]] as const) {
-    let d = stepDuel(duel(), [hold({ guardDirection: side }), idle()], rules);
-    d = run(d, RULES.parry, hold({ guardDirection: side }), idle(), rules);
-    d = stepDuel(d, [hold({ guardDirection: side }), act(attack)], rules);
-    d = run(d, light.windup, hold({ guardDirection: side }), idle(), rules);
-    assert.equal(d.fighters[0].health, blocks ? HP : HP - light.damage, `${side} guard vs ${attack}`);
+// Runs n ticks and collects every event type seen along the way (d.events holds only the last tick's).
+const runSeen = (d: Duel, n: number, a: Intent, b: Intent, seen: string[]): Duel => { for (let i = 0; i < n; i++) { d = stepDuel(d, [a, b]); seen.push(...d.events.map(e => e.type)); } return d; };
+
+test('directional guard (on by default): a held guard covers one side, mirrored — a LEFT guard meets a RIGHT cut; no side is the straight guard (thrust), never everything', () => {
+  assert.equal(RULES.directionalGuard, true, 'owner 2026-09-20: on by default');
+  const block = (side: Intent['guardDirection'] | undefined, attack: 'light_right' | 'light_left' | 'heavy_overhead' | 'thrust') => {
+    const g = side === undefined ? { ...idle(), guard: true } : hold({ guardDirection: side });
+    let d = stepDuel(duel(), [g, idle()]); d = run(d, RULES.parry, g, idle());   // past the parry window: a standing guard
+    const seen: string[] = [];
+    d = stepDuel(d, [g, act(attack === 'heavy_overhead' ? 'heavy' : attack)]); d = runSeen(d, MOVES[attack].windup + 1, g, idle(), seen);
+    return seen.includes('Blocked');   // a blocked heavy still chips, so the event is the judge, not full health
+  };
+  assert.equal(block('left', 'light_right'), true, 'a left guard blocks the right cut arriving on the defender\'s left');
+  assert.equal(block('right', 'light_right'), false, 'a right guard is on the wrong side of a right cut'); assert.equal(block('right', 'light_left'), true, 'and meets a left cut');
+  assert.equal(block('overhead', 'light_right'), false); assert.equal(block('low', 'light_right'), false);
+  assert.equal(block('overhead', 'heavy_overhead'), true); assert.equal(block('left', 'heavy_overhead'), false);
+  assert.equal(block('thrust', 'thrust'), true); assert.equal(block('overhead', 'thrust'), false);
+  assert.equal(block(undefined, 'thrust'), true, 'no side = the straight guard: it stops a thrust');
+  assert.equal(block(undefined, 'light_right'), false, '…and nothing else (the old null clause blocked everything)');
+});
+
+test('directional parry: a fresh press turns the blade only on the matching (mirrored) side; the wrong side meets nothing and the cut lands', () => {
+  const parry = (side: Intent['guardDirection']) => {
+    const seen: string[] = [];
+    let d = stepDuel(duel(), [idle(), act('light_right')]);   // the foe's right cut: windup 20
+    d = run(d, light.windup - RULES.parry + 2, idle(), idle());
+    d = stepDuel(d, [act('parry', { guard: true, guardDirection: side }), idle()]); seen.push(...d.events.map(e => e.type));   // pressed so the window covers contact
+    d = runSeen(d, RULES.parry + 2, hold({ guardDirection: side }), idle(), seen);
+    return { parried: seen.includes('Parried'), hp: d.fighters[0].health };
+  };
+  assert.deepEqual(parry('left'), { parried: true, hp: HP });
+  assert.equal(parry('right').parried, false); assert.equal(parry('right').hp, HP - light.damage);
+  assert.equal(parry('thrust').parried, false, 'the straight parry does not turn a cut');
+});
+
+test('a kick into a LOW guard is braced — an ordinary block: the kick\'s block cost, no stagger, no damage, the guard-counter window opens; into any other held side it shoves as before', () => {
+  const kicked = (side: Intent['guardDirection'] | undefined) => {
+    const g = side === undefined ? { ...idle(), guard: true } : hold({ guardDirection: side });
+    let d = stepDuel(duel(1.0), [g, idle()]); d = run(d, RULES.parry, g, idle());
+    const stamina = d.fighters[0].stamina;
+    const seen: string[] = [];
+    d = stepDuel(d, [g, act('kick')]); d = runSeen(d, kick.windup + 1, g, idle(), seen);
+    const me = d.fighters[0];
+    return { blocked: seen.includes('Blocked'), staggered: me.phase === 'hurt', hp: me.health, spent: Math.round(stamina - me.stamina), counter: me.counterWindow > 0 };
+  };
+  const low = kicked('low');
+  assert.deepEqual(low, { blocked: true, staggered: false, hp: HP, spent: kick.staminaDamage, counter: true });
+  for (const side of ['left', 'overhead', undefined] as const) {
+    const other = kicked(side);
+    assert.equal(other.blocked, false, `${side ?? 'straight'} guard: the kick is not blocked`); assert.equal(other.staggered, true, 'the shove lands'); assert.equal(other.spent, kick.vsGuard!.staminaDamage, 'and drains the guard as before');
   }
+});
+
+test('a held guard follows the thumb: the side changes mid-hold without a new press, and the block is judged on the side held at contact', () => {
+  let d = stepDuel(duel(), [hold({ guardDirection: 'overhead' }), idle()]); d = run(d, RULES.parry, hold({ guardDirection: 'overhead' }), idle());
+  d = stepDuel(d, [hold({ guardDirection: 'overhead' }), act('light_right')]);   // a right cut is coming; the guard is up overhead
+  d = run(d, 6, hold({ guardDirection: 'overhead' }), idle());
+  assert.equal(d.fighters[0].guardDirection, 'overhead');
+  const seen: string[] = [];
+  d = runSeen(d, light.windup - 6, hold({ guardDirection: 'left' }), idle(), seen);   // slide left before contact
+  assert.equal(d.fighters[0].guardDirection, 'left', 'the held guard took the slide');
+  assert.equal(d.fighters[0].health, HP, 'and the cut was blocked on the new side'); assert.ok(seen.includes('Blocked'));
+  assert.equal(d.fighters[0].phase, 'guard', 'still guarding: no re-press was needed');
 });
 
 test('roll: bounded invulnerability, one cost, locked direction, no cancel from an attack, cannot be spammed', () => {
@@ -359,7 +419,7 @@ test('chain grammar: a heavy inside a light\'s window winds up faster; a light o
   assert.equal(late.fighters[0].chained, false, 'outside the window a heavy is the full wind-up');
   assert.ok(types(run(finisher, heavy.chained!.windup)).includes('Hit'), 'the chained heavy lands at its own contact tick');
   const guarded = run(stepDuel(duel(), [idle(), hold()]), RULES.parry + 2, idle(), hold());
-  const chainedBreak = run(stepDuel({ ...guarded, fighters: [{ ...guarded.fighters[0], chain: 10, lastMove: 'light_right' }, guarded.fighters[1]] } as Duel, [act('heavy'), hold()]), heavy.chained!.windup, idle(), hold());
+  const chainedBreak = run(stepDuel({ ...guarded, fighters: [{ ...guarded.fighters[0], chain: 10, lastMove: 'light_right' }, guarded.fighters[1]] } as Duel, [act('heavy'), vs('heavy')]), heavy.chained!.windup, idle(), vs('heavy'));
   assert.ok(types(chainedBreak).includes('Blocked') && chainedBreak.fighters[1].health === HP - Math.round(heavy.damage * heavy.chip), 'a chained heavy cannot charge, so a guard takes it for chip');
   // Dodge-attack: from a backstep's tail, or within dodgeAttackWindow ticks after a roll or backstep ends.
   const fromStep = stepDuel(run(stepDuel(duel(1.2), [act('backstep'), idle()]), RULES.backstep.cancelFrom), [act('light'), idle()]);
@@ -375,7 +435,7 @@ test('chain grammar: a heavy inside a light\'s window winds up faster; a light o
   const heavyRip = stepDuel(punishing, [act('heavy'), idle()]);
   assert.equal(heavyRip.fighters[0].move, 'heavy_riposte'); assert.equal(heavyRip.fighters[0].stamina, 100 - MOVES.heavy_riposte.stamina); assert.equal(heavyRip.fighters[0].punish, 0);
   assert.equal(run(heavyRip, MOVES.heavy_riposte.windup).fighters[1].health, HP - MOVES.heavy_riposte.damage);
-  const ripGuard = run(stepDuel({ ...guarded, fighters: [{ ...guarded.fighters[0], punish: 60 }, guarded.fighters[1]] } as Duel, [act('heavy'), hold()]), MOVES.heavy_riposte.windup, idle(), hold());
+  const ripGuard = run(stepDuel({ ...guarded, fighters: [{ ...guarded.fighters[0], punish: 60 }, guarded.fighters[1]] } as Duel, [act('heavy'), vs('heavy')]), MOVES.heavy_riposte.windup, idle(), vs('heavy'));
   assert.ok(types(ripGuard).includes('GuardBroken'));
 });
 
@@ -394,7 +454,7 @@ test('counter-hit: a clean hit on a committed swing or a roll\'s tail lands hard
   // Roll tail counts, the invulnerable window does not exist to be countered, and a guard or parry never yields a counter.
   const tail = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'roll', age: RULES.safeEnd + 2 }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [idle(), idle()]);
   assert.equal(tail.events.find(e => e.type === 'Hit')?.counter, true); assert.equal(tail.fighters[0].health, HP - counterDmg);
-  const guarded = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: 12 }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  const guarded = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', guardDirection: 'right', age: 12 }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [vs('light_left'), idle()]);
   assert.ok(types(guarded).includes('Blocked')); assert.equal(guarded.fighters[0].stamina, 100 - light.staminaDamage);
   // Kicks and heavies use the same rule.
   const kicked = run(stepDuel(duel(1.05), [act('kick'), act('heavy')]), kick.windup);
@@ -413,7 +473,7 @@ test('rear hit: striking inside the target\'s rear arc earns a modest damage and
 
 test('guard counter: a heavy thrown straight out of a block is fast and armoured; any attack or a stagger closes the window; a parry punish outranks it', () => {
   const blocked = run(stepDuel(duel(), [hold(), idle()]), RULES.perfectBlock + 1, hold());   // a settled guard: an ordinary block
-  const after = run({ ...blocked, fighters: [blocked.fighters[0], { ...blocked.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, 1, hold(), idle());
+  const after = run({ ...blocked, fighters: [blocked.fighters[0], { ...blocked.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, 1, vs('light_left'), idle());
   assert.ok(types(after).includes('Blocked')); assert.equal(after.fighters[0].counterWindow, RULES.guardCounter);
   const counter = stepDuel(after, [act('heavy', { guard: true }), idle()]);
   assert.equal(counter.fighters[0].move, 'heavy_counter'); assert.equal(counter.fighters[0].counterWindow, 0); assert.equal(counter.fighters[0].stamina, 100 - light.staminaDamage - MOVES.heavy_counter.stamina);
@@ -426,7 +486,7 @@ test('guard counter: a heavy thrown straight out of a block is fast and armoured
   trade = run(trade, MOVES.heavy_counter.windup - trade.fighters[0].age);
   assert.ok(types(trade).includes('Hit') && trade.fighters[1].health < HP - MOVES.heavy_counter.damage + 1, 'the counter lands');
   // The window expires; a light in the window is an ordinary light; a stagger or any attack consumes it.
-  assert.equal(stepDuel(run(after, RULES.guardCounter, hold()), [act('heavy', { guard: true }), idle()]).fighters[0].move, 'heavy_overhead');
+  assert.equal(stepDuel(run(after, RULES.guardCounter, vs('heavy')), [act('heavy', { guard: true }), idle()]).fighters[0].move, 'heavy_overhead');
   assert.equal(stepDuel(after, [act('light', { guard: true }), idle()]).fighters[0].move, 'light_right');
   assert.equal(stepDuel(after, [act('light', { guard: true }), idle()]).fighters[0].counterWindow, 0);
   const struck = stepDuel({ ...after, fighters: [{ ...after.fighters[0], phase: 'ready' }, { ...after.fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left', landed: false }] } as Duel, [idle(), idle()]);
@@ -434,7 +494,7 @@ test('guard counter: a heavy thrown straight out of a block is fast and armoured
   // A parry's punish window outranks it, and a perfect block opens it too.
   const parried = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], counterWindow: 10, punish: 30 }, duel().fighters[1]] } as Duel, [act('heavy'), idle()]);
   assert.equal(parried.fighters[0].move, 'heavy_riposte');
-  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', age: RULES.parry }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [hold(), idle()]);
+  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'guard', guardDirection: 'right', age: RULES.parry }, { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [vs('light_left'), idle()]);
   assert.equal(perfect.events.find(e => e.type === 'Blocked')?.perfect, true); assert.equal(perfect.fighters[0].counterWindow, RULES.guardCounter);
 });
 
@@ -460,7 +520,7 @@ test('charged heavy: holding Heavy pauses the wind-up with hyper-armour; a long 
   armour = run(stepDuel(armour, [heldIntent, act('light')]), light.windup, heldIntent);
   assert.ok(types(armour).includes('Hit')); assert.equal(armour.fighters[0].phase, 'attack'); assert.equal(armour.fighters[0].age, heavy.chamber!, 'still charging');
   assert.equal(armour.fighters[0].health, HP - Math.round(light.damage * RULES.counter.damage), 'but the light was a counter-hit');
-  const feint = stepDuel(run(stepDuel(duel(), [act('heavy', { held: true }), idle()]), heavy.chamber! + 5, heldIntent), [act('parry', { guard: true }), idle()]);
+  const feint = stepDuel(run(stepDuel(duel(), [act('heavy', { held: true }), idle()]), heavy.chamber! + 5, heldIntent), [act('parry', { guard: true, guardDirection: 'overhead' }), idle()]);
   assert.equal(feint.fighters[0].phase, 'guard'); assert.equal(feint.fighters[0].parrying, true);
   // Only the plain heavy charges: chained, riposte and guard-counter heavies ignore the hold.
   const chainedHeavy = run(stepDuel(run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT), [act('heavy', { held: true }), idle()]), heavy.chamber! + 3, heldIntent);
@@ -504,7 +564,7 @@ test('buffered input: one action queued in the last ticks of a committed move fi
   const freshStagger = stepDuel({ ...duel(2.2), fighters: [{ ...duel().fighters[0], phase: 'hurt' as const, age: 2, stun: 24 }, duel().fighters[1]] } as Duel, [act('heavy'), idle()]);
   assert.equal(freshStagger.fighters[0].buffer, null, 'too early in the stagger to queue');
   let parry = run(stepDuel(duel(2.2), [act('light'), idle()]), LIGHT - 4);
-  parry = run(stepDuel(parry, [act('parry', { guard: true }), idle()]), 4, hold());
+  parry = run(stepDuel(parry, [act('parry', { guard: true, guardDirection: 'left' }), idle()]), 4, hold());
   assert.equal(parry.fighters[0].phase, 'guard'); assert.equal(parry.fighters[0].parrying, true, 'a queued parry opens its window on the first ready tick');
 });
 
@@ -533,11 +593,11 @@ test('interrupts: a hit stops a wind-up; a heavy past its poise point trades thr
 test('a guard takes a plain heavy for chip and stamina without staggering; a charged heavy, an empty stamina bar or a kick breaks it; a perfect block stops the chip', () => {
   const guarded = run(stepDuel(duel(), [idle(), hold()]), RULES.parry + 2, idle(), hold());
   const chip = Math.round(heavy.damage * heavy.chip);
-  const blocked = run(stepDuel(guarded, [act('heavy'), hold()]), heavy.windup, idle(), hold());
+  const blocked = run(stepDuel(guarded, [act('heavy'), vs('heavy')]), heavy.windup, idle(), vs('heavy'));
   assert.equal(blocked.fighters[1].health, HP - chip); assert.equal(blocked.fighters[1].stamina, 100 - heavy.staminaDamage); assert.equal(blocked.fighters[1].phase, 'guard', 'no stagger'); assert.equal(blocked.fighters[1].wound, 0, 'chip never marks a wound');
   const event = blocked.events.find(e => e.type === 'Blocked')!; assert.equal(event.damage, chip); assert.equal(event.stamina, heavy.staminaDamage); assert.equal(blocked.fighters[1].counterWindow, RULES.guardCounter, 'a blocked heavy opens the guard counter');
   const heldIntent = { ...idle(), held: true };
-  const charged = run(run(stepDuel(guarded, [act('heavy', { held: true }), hold()]), heavy.chamber! + RULES.charge.min, heldIntent, hold()), heavy.windup - heavy.chamber!, idle(), hold());
+  const charged = run(run(stepDuel(guarded, [act('heavy', { held: true }), vs('heavy')]), heavy.chamber! + RULES.charge.min, heldIntent, vs('heavy')), heavy.windup - heavy.chamber!, idle(), vs('heavy'));
   assert.equal(charged.fighters[1].health, HP - Math.round(heavy.damage * RULES.charge.damage)); assert.equal(charged.fighters[1].stamina, 100 - RULES.breakCost, 'a break costs breakCost, not the whole bar'); assert.equal(charged.fighters[1].exhausted, false); assert.ok(charged.fighters[1].stamina >= RULES.rollCost, 'enough left to roll clear'); assert.equal(charged.fighters[1].stun, Math.round(heavy.stagger * RULES.charge.stagger));
   const broke = charged.events.find(e => e.type === 'GuardBroken')!;
   assert.ok(broke.charged, 'a charged heavy breaks a standing guard');
@@ -545,11 +605,11 @@ test('a guard takes a plain heavy for chip and stamina without staggering; a cha
   assert.equal(broke.actor, 0); assert.equal(broke.target, 1); assert.equal(broke.damage, Math.round(heavy.damage * RULES.charge.damage));
   const landed = run(stepDuel(duel(), [act('light'), idle()]), light.windup).events.find(e => e.type === 'Hit')!, stopped = run(stepDuel(duel(), [act('light'), hold()]), light.windup, idle(), hold()).events.find(e => e.type === 'Blocked')!;
   assert.deepEqual([landed.actor, landed.target, stopped.actor, stopped.target], [0, 1, 1, 0], 'blows name the attacker first, defences the defender');
-  const starved = run(stepDuel({ ...guarded, fighters: [guarded.fighters[0], { ...guarded.fighters[1], stamina: heavy.staminaDamage - 15 }] } as Duel, [act('heavy'), hold()]), heavy.windup, idle(), hold());   // 15 short: a guard's half-rate regeneration over the wind-up cannot close it
+  const starved = run(stepDuel({ ...guarded, fighters: [guarded.fighters[0], { ...guarded.fighters[1], stamina: heavy.staminaDamage - 15 }] } as Duel, [act('heavy'), vs('heavy')]), heavy.windup, idle(), vs('heavy'));   // 15 short: a guard's half-rate regeneration over the wind-up cannot close it
   assert.equal(starved.fighters[1].health, HP - heavy.damage); assert.ok(types(starved).includes('GuardBroken'), 'without the stamina to pay, the guard breaks');
-  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'heavy_overhead', age: heavy.windup - 1, lastMove: 'heavy_overhead' }, { ...duel().fighters[1], phase: 'guard', age: RULES.parry }] } as Duel, [idle(), hold()]);
+  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'heavy_overhead', age: heavy.windup - 1, lastMove: 'heavy_overhead' }, { ...duel().fighters[1], phase: 'guard', guardDirection: 'overhead', age: RULES.parry }] } as Duel, [idle(), vs('heavy')]);
   assert.equal(perfect.fighters[1].health, HP, 'a perfect block stops the chip'); assert.equal(perfect.events.find(e => e.type === 'Blocked')?.damage, undefined);
-  const dying = run(stepDuel({ ...guarded, fighters: [guarded.fighters[0], { ...guarded.fighters[1], health: chip }] } as Duel, [act('heavy'), hold()]), heavy.windup, idle(), hold());
+  const dying = run(stepDuel({ ...guarded, fighters: [guarded.fighters[0], { ...guarded.fighters[1], health: chip }] } as Duel, [act('heavy'), vs('heavy')]), heavy.windup, idle(), vs('heavy'));
   assert.equal(dying.fighters[1].health, 0); assert.equal(dying.fighters[1].phase, 'dead'); assert.equal(dying.finish?.victim, 1); assert.ok(types(dying).includes('Killed'), 'chip can kill, through the normal death path');
   const close = { ...guarded, fighters: [{ ...guarded.fighters[0], body: { ...guarded.fighters[0].body, z: TARGET.z + 1.05 } }, guarded.fighters[1]] } as Duel;
   let kicked = stepDuel(close, [act('kick'), hold()]);
@@ -584,7 +644,7 @@ test('wounds slow regeneration for a while, refresh without stacking, and only c
   const again = run(stepDuel({ ...d, fighters: [{ ...d.fighters[0], phase: 'ready', age: 0 }, { ...d.fighters[1], phase: 'ready', wound: 100 }] }, [act('light'), idle()]), light.windup);
   assert.equal(again.fighters[1].wound, RULES.wound, 'refreshes to the full duration, no stacking');
   let parried = run(stepDuel(duel(), [act('light'), idle()]), light.windup - 9);
-  parried = run(stepDuel(parried, [idle(), act('parry', { guard: true })]), 8, idle(), hold());   // pressed 9 ticks before contact: inside the 10-tick window
+  parried = run(stepDuel(parried, [idle(), act('parry', { guard: true, guardDirection: 'left' })]), 8, idle(), hold());   // pressed 9 ticks before contact: inside the 10-tick window
   assert.ok(types(parried).includes('Parried')); assert.equal(parried.fighters[1].wound, 0);
   const blocked = run(stepDuel(duel(), [act('light'), hold()]), light.windup, idle(), hold());
   assert.ok(types(blocked).includes('Blocked')); assert.equal(blocked.fighters[1].wound, 0);
@@ -596,12 +656,16 @@ test('events: every outcome is reported exactly once per contact and the stream 
   const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
   const pick = (): Action | null => { const r = random(); return r < .04 ? 'light' : r < .05 ? 'heavy' : r < .06 ? 'kick' : r < .07 ? 'dodge' : r < .08 ? 'backstep' : r < .12 ? 'parry' : null; };
   const held = [false, false];   // guard is a held input: it toggles occasionally rather than flickering every tick
+  // The guard's side (directional guard) comes from its own stream so the walk above is unchanged: half the time the side that meets the
+  // foe's current swing (so blocks, breaks and parries keep happening), otherwise any of the six (five sides or none).
+  let sideSeed = 4242; const sideRoll = () => ((sideSeed = (Math.imul(sideSeed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+  const sideOf = (k: number): Intent['guardDirection'] => { const foe = d.fighters[1 - k]; const r = sideRoll(); if (foe.phase === 'attack' && foe.move && r < .5) return mirror(MOVES[foe.move].direction); return ([undefined, 'left', 'right', 'overhead', 'thrust', 'low'] as const)[Math.floor(sideRoll() * 6)] ?? null; };
   for (let i = 0; i < 24000; i++) {
     if (!d.fighters[0].health || !d.fighters[1].health) d = { ...duel(1.2), tick: d.tick };
     // Coverage fuzz, not an economy test: re-centre wanderers without healing them and top up stamina so every outcome keeps occurring.
     if (i % 1500 === 0) d = { ...d, fighters: d.fighters.map((f, k) => ({ ...f, body: duel(1.2).fighters[k].body })) as Duel['fighters'] };
     if (i % 300 === 0) d = { ...d, fighters: d.fighters.map(f => ({ ...f, stamina: 100, exhausted: false })) as Duel['fighters'] };
-    const intents: [Intent, Intent] = [0, 1].map(k => { if (random() < .04) held[k] = !held[k]; return { move: { x: (random() - .5) * .6, z: (random() - .5) * .6, yaw: 0, run: random() < .02 }, action: pick(), guard: held[k], lock: true }; }) as [Intent, Intent];
+    const intents: [Intent, Intent] = [0, 1].map(k => { if (random() < .04) held[k] = !held[k]; return { move: { x: (random() - .5) * .6, z: (random() - .5) * .6, yaw: 0, run: random() < .02 }, action: pick(), guard: held[k], guardDirection: sideOf(k), lock: true }; }) as [Intent, Intent];
     d = stepDuel(d, intents);
     const hits = d.events.filter(e => ['Hit', 'Blocked', 'Parried', 'GuardBroken', 'Dodged'].includes(e.type));
     for (const actor of [0, 1]) assert.ok(hits.filter(e => (e.type === 'Hit' || e.type === 'GuardBroken' ? e.actor : e.target) === actor).length <= 1, 'at most one contact outcome per attacker per tick');
@@ -641,23 +705,23 @@ test('thrust: longest reach, fully blockable, a riposte in the punish window; a 
   assert.equal(far.fighters[1].health, HP - thrust.damage, 'a thrust reaches where a cut cannot'); assert.equal(far.fighters[0].stamina, 100 - thrust.stamina);
   assert.equal(run(stepDuel(duel(1.95), [act('light'), idle()]), light.windup).fighters[1].health, HP, 'a light whiffs from the same distance');
   const guarded = run(stepDuel(duel(), [idle(), hold()]), RULES.parry + 2, idle(), hold());
-  const blocked = run(stepDuel(guarded, [act('thrust'), hold()]), thrust.windup, idle(), hold());
+  const blocked = run(stepDuel(guarded, [act('thrust'), vs('thrust')]), thrust.windup, idle(), vs('thrust'));
   assert.ok(types(blocked).includes('Blocked')); assert.equal(blocked.fighters[1].health, HP, 'no chip'); assert.equal(blocked.fighters[1].stamina, 100 - thrust.staminaDamage);
-  const parried = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'thrust', age: thrust.windup - 1, lastMove: 'thrust' }, { ...duel().fighters[1], phase: 'guard', age: 2 }] } as Duel, [idle(), hold()]);
+  const parried = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'thrust', age: thrust.windup - 1, lastMove: 'thrust' }, { ...duel().fighters[1], phase: 'guard', guardDirection: 'thrust', age: 2 }] } as Duel, [idle(), vs('thrust')]);
   assert.ok(types(parried).includes('Parried'));
   assert.equal(stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], punish: 30 }, duel().fighters[1]] } as Duel, [act('thrust'), idle()]).fighters[0].move, 'riposte');
   // Chamber: a held thrust waits at its chamber tick; it is feintable there; it never charges and has no hyper-armour; the hold releases itself at the maximum.
   const heldIntent = { ...idle(), held: true };
   const chambered = run(stepDuel(duel(), [act('thrust', { held: true }), idle()]), thrust.chamber! + 4, heldIntent);
   assert.equal(chambered.fighters[0].age, thrust.chamber!); assert.equal(chambered.fighters[0].charge, 4); assert.equal(chambered.fighters[0].charged, false);
-  assert.equal(stepDuel(chambered, [act('parry', { guard: true }), idle()]).fighters[0].phase, 'guard', 'feint from the chamber');
+  assert.equal(stepDuel(chambered, [act('parry', { guard: true, guardDirection: 'left' }), idle()]).fighters[0].phase, 'guard', 'feint from the chamber');
   const long = run(stepDuel(duel(), [act('thrust', { held: true }), idle()]), thrust.chamber! + RULES.charge.max + 2, heldIntent);
   assert.equal(long.fighters[0].charged, false); assert.equal(long.fighters[0].charge, RULES.charge.max); assert.ok(long.fighters[0].age > thrust.chamber!, 'released by itself'); assert.ok(!long.events.some(e => e.type === 'Charged'));
   const struck = run(stepDuel(chambered, [heldIntent, act('light')]), light.windup, heldIntent);
   assert.equal(struck.fighters[0].phase, 'hurt', 'no hyper-armour on a chambered thrust'); assert.ok(struck.events.find(e => e.type === 'Hit')?.counter, 'and it is a counter-hit');
   const lightChamber = run(stepDuel(duel(), [act('light', { held: true }), idle()]), light.chamber! + 3, heldIntent);
   assert.equal(lightChamber.fighters[0].move, 'light_right'); assert.equal(lightChamber.fighters[0].age, light.chamber!); assert.ok(lightChamber.events.length >= 0);
-  assert.equal(stepDuel(lightChamber, [act('parry', { guard: true }), idle()]).fighters[0].phase, 'guard', 'a chambered light is feintable');
+  assert.equal(stepDuel(lightChamber, [act('parry', { guard: true, guardDirection: 'left' }), idle()]).fighters[0].phase, 'guard', 'a chambered light is feintable');
   assert.equal(run(lightChamber, light.windup - light.chamber!).fighters[1].health, HP - light.damage, 'released, it lands as a plain light');
   for (const id of ['slash_riposte', 'riposte', 'heavy_riposte', 'heavy_counter', 'kick'] as const) assert.equal(MOVES[id].chamber, null, `${id} never chambers`);
 });
@@ -666,14 +730,14 @@ test('posture: blocks, clean hits and being parried fill it; it drains while sta
   const P = RULES.posture;
   // A block puts the move's posture on the blocker; a perfect block takes half; a clean hit puts it on the victim.
   const guarded = run(stepDuel(duel(), [idle(), hold()]), RULES.parry + 2, idle(), hold());
-  const blocked = run(stepDuel(guarded, [act('heavy'), hold()]), heavy.windup, idle(), hold());
+  const blocked = run(stepDuel(guarded, [act('heavy'), vs('heavy')]), heavy.windup, idle(), vs('heavy'));
   assert.equal(blocked.fighters[1].posture, heavy.posture, 'a blocked heavy puts its full posture on the blocker');
-  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', age: RULES.parry }] } as Duel, [idle(), hold()]);
+  const perfect = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', guardDirection: 'left', age: RULES.parry }] } as Duel, [idle(), hold()]);
   assert.ok(Math.abs(perfect.fighters[1].posture - light.posture * P.perfect) < 1e-9, 'a perfect block takes half the posture');
   const hit = run(stepDuel(duel(), [act('light'), idle()]), light.windup);
   assert.ok(Math.abs(hit.fighters[1].posture - light.posture) < 1e-9, 'a clean hit puts the move\'s posture on the victim');
   // Being parried shakes the attacker.
-  const parried = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', age: 2 }] } as Duel, [idle(), hold()]);
+  const parried = stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', guardDirection: 'left', age: 2 }] } as Duel, [idle(), hold()]);
   assert.ok(types(parried).includes('Parried')); assert.equal(parried.fighters[0].posture, P.parry);
   // Drain: standing fighters lose decay per tick; a staggered one does not.
   const standing = run({ ...duel(), fighters: [{ ...duel().fighters[0], posture: 50 }, duel().fighters[1]] } as Duel, 10);
@@ -698,7 +762,7 @@ test('posture: blocks, clean hits and being parried fill it; it drains while sta
   assert.equal(stepDuel(expired, [act('heavy'), idle()]).fighters[0].move, 'heavy_overhead', 'after the window a heavy is a heavy');
   // A guard break resets the victim's posture: that break was the payoff.
   const held = { ...guarded, fighters: [guarded.fighters[0], { ...guarded.fighters[1], posture: 60 }] } as Duel;
-  const gb = run(run(stepDuel(held, [act('heavy', { held: true }), hold()]), heavy.chamber! + RULES.charge.min, { ...idle(), held: true }, hold()), heavy.windup - heavy.chamber!, idle(), hold());
+  const gb = run(run(stepDuel(held, [act('heavy', { held: true }), vs('heavy')]), heavy.chamber! + RULES.charge.min, { ...idle(), held: true }, vs('heavy')), heavy.windup - heavy.chamber!, idle(), vs('heavy'));
   assert.ok(types(gb).includes('GuardBroken')); assert.equal(gb.fighters[1].posture, 0);
   // Posture never shakes the dead, and the critical itself puts no posture on its victim. The ripostes carry none either: the parry that earned
   // them already put RULES.posture.parry on the attacker, and two parries must not add up to a break plus a critical (a kill).
@@ -728,7 +792,7 @@ test('correctness pass: elapsed perception, bounded chamber lunge, attack-start 
   const kh = k.events.find(e => e.type === 'Hit')!; assert.equal(kh.damage, kick.damage); assert.ok(!kh.charged, 'a kick never inherits the charge');
   for (const id of ['punish', 'critical', 'counterWindow', 'charge'] as const) assert.equal(stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], punish: 30, critical: 30, counterWindow: 10, charge: 5, charged: true }, duel().fighters[1]] } as Duel, [act('kick'), idle()]).fighters[0][id], 0, `${id} reset by a kick start`);
   // Perfect block: the discounted price is what must be affordable.
-  const perfectAt = (stamina: number) => stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', age: RULES.parry, stamina }] } as Duel, [idle(), hold()]);
+  const perfectAt = (stamina: number) => stepDuel({ ...duel(), fighters: [{ ...duel().fighters[0], phase: 'attack', move: 'light_right', age: light.windup - 1, lastMove: 'light_right' }, { ...duel().fighters[1], phase: 'guard', guardDirection: 'left', age: RULES.parry, stamina }] } as Duel, [idle(), hold()]);
   const cost = light.staminaDamage * RULES.perfectBlockCost;   // 7.5
   assert.ok(types(perfectAt(cost + 2)).includes('Blocked'), `a perfect block costing ${cost} is affordable at ${cost + 2}`); assert.ok(Math.abs(perfectAt(cost + 2).fighters[1].stamina - 2) <= RULES.regen, 'the price is paid (the guard tick may regenerate a little first)');
   assert.ok(types(perfectAt(cost - 1)).includes('GuardBroken'), 'not one below'); assert.ok(types(perfectAt(cost)).includes('Blocked'), 'exactly affordable');
@@ -757,7 +821,7 @@ test('holding Guard always guards: press-and-hold at any moment of an incoming h
   const outcomes: Record<number, string> = {};
   for (let t = 4; t <= 30; t += 2) {
     let g = stepDuel(duel(), [idle(), act('heavy')]); let seen = '';
-    for (let i = 1; i <= heavy.windup + 2 && !seen; i++) { g = stepDuel(g, [i === t ? act('parry', { guard: true }) : i > t ? hold() : idle(), idle()]); const e = g.events.find(x => ['Parried', 'Blocked', 'GuardBroken', 'Hit'].includes(x.type)); if (e) seen = e.type + (e.type === 'Blocked' && e.perfect ? '*' : ''); }
+    for (let i = 1; i <= heavy.windup + 2 && !seen; i++) { g = stepDuel(g, [i === t ? act('parry', { guard: true, guardDirection: 'overhead' }) : i > t ? vs('heavy') : idle(), idle()]); const e = g.events.find(x => ['Parried', 'Blocked', 'GuardBroken', 'Hit'].includes(x.type)); if (e) seen = e.type + (e.type === 'Blocked' && e.perfect ? '*' : ''); }
     outcomes[t] = seen;
   }
   const hits = Object.entries(outcomes).filter(([, o]) => o === 'Hit' || o === 'GuardBroken' || !o).map(([t]) => t);
@@ -765,7 +829,7 @@ test('holding Guard always guards: press-and-hold at any moment of an incoming h
   assert.ok(Object.values(outcomes).includes('Parried') && Object.values(outcomes).includes('Blocked*') && Object.values(outcomes).includes('Blocked'), `all three defensive outcomes occur across the timeline: ${JSON.stringify(outcomes)}`);
   // The same timeline with a released tap: the exposed ticks after a missed window are where the heavy lands.
   let tapped = stepDuel(duel(), [idle(), act('heavy')]); let seenTap = '';
-  for (let i = 1; i <= heavy.windup + 2 && !seenTap; i++) { tapped = stepDuel(tapped, [i === 14 ? act('parry', { guard: true }) : idle(), idle()]); const e = tapped.events.find(x => ['Parried', 'Blocked', 'GuardBroken', 'Hit'].includes(x.type)); if (e) seenTap = e.type; }
+  for (let i = 1; i <= heavy.windup + 2 && !seenTap; i++) { tapped = stepDuel(tapped, [i === 14 ? act('parry', { guard: true, guardDirection: 'overhead' }) : idle(), idle()]); const e = tapped.events.find(x => ['Parried', 'Blocked', 'GuardBroken', 'Hit'].includes(x.type)); if (e) seenTap = e.type; }
   assert.equal(seenTap, 'Hit', 'a released tap at 14 is exposed when the heavy lands');
 });
 
