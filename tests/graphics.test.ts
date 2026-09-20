@@ -153,6 +153,24 @@ test('the scorecard tallies fights, wins, rematches and damage', () => {
   app.element('journal-button').click(); assert.match(app.element('scorecard').textContent, /^1 fights · 0 won · 1 rematches/);
 });
 
+test('guard side: a slide on the Guard button or Q + an arrow sets the guard direction the simulation sees; lifting resets it', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  const me = () => app.rendered.duel.fighters[0], guardButton = app.element('guard-button');
+  const at = (type: string, x: number, y: number, id = 7) => Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y });
+  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
+  settle(); guardButton.dispatchEvent(at('pointerdown', 100, 100)); guardButton.dispatchEvent(at('pointermove', 60, 104)); app.tick();
+  assert.equal(guardButton.dataset.side, 'left'); assert.equal(me().phase, 'guard'); assert.equal(me().guardDirection, 'left', 'the press carries the side the thumb slid to');
+  guardButton.dispatchEvent(at('pointerup', 60, 104)); assert.equal(guardButton.dataset.side, 'straight', 'lifting resets the side');
+  for (let i = 0; i < 40; i++) app.tick();
+  settle(); guardButton.dispatchEvent(at('pointerdown', 100, 100)); guardButton.dispatchEvent(at('pointermove', 104, 100)); app.tick();
+  assert.equal(me().guardDirection, null, 'a small wobble is still the straight guard'); guardButton.dispatchEvent(at('pointerup', 104, 100));
+  for (let i = 0; i < 40; i++) app.tick();
+  settle(); const x = me().body.x, z = me().body.z; app.key('KeyQ'); app.key('ArrowUp'); app.tick();
+  assert.equal(me().guardDirection, 'overhead', 'Q + an arrow is that side'); assert.deepEqual([me().body.x, me().body.z], [x, z], 'the arrow picks the side, it does not walk');
+  app.release('ArrowUp'); app.release('KeyQ'); for (let i = 0; i < 40; i++) app.tick();
+  app.key('ArrowUp'); for (let i = 0; i < 5; i++) app.tick(); assert.notEqual(me().body.z, z, 'without Q the arrow walks as before'); app.release('ArrowUp');
+});
+
 test('dodge control: a tap is an instant backstep, a hold grows it into a roll, and interruption releases it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   assert.equal(app.element('stamina').value, 100);

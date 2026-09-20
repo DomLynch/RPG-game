@@ -562,6 +562,7 @@ export function createScene(
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,
         practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
+        practice.duel.fighters[0].guardDirection,
       );
       warriors?.opponent.update(
         ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
@@ -577,6 +578,7 @@ export function createScene(
               (enemyTravel * dt)
           : 0,
         practice.result === 'enemyBlocked' ? (blockHeavy[1] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
+        practice.duel.fighters[1].guardDirection,
       );
       // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
       if (detailedBlood) wounds.hide(1);
