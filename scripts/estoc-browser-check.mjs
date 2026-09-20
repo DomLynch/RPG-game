@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
+import { builtRig, assertGlbEquivalent } from './glb-equivalence.mjs';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
 url.searchParams.set('opponent', 'nightborn'); url.searchParams.set('debug', '1');
@@ -18,7 +19,10 @@ try {
   await page.goto(url.href);
   const response = await asset; assert.equal(response.status(), 200);
   receipt.rigSha256 = hash(await response.body());
-  assert.equal(receipt.rigSha256, hash(await fs.readFile('src/assets/nightborn.glb')), 'served Nightborn must match the tested rig');
+  // The build packs every rig (meshopt, shared textures): prove the served bytes are that build, and the build is the tested source.
+  const packed = await fs.readFile(await builtRig('nightborn'));
+  await assertGlbEquivalent(await fs.readFile('src/assets/nightborn.glb'), packed);
+  assert.equal(receipt.rigSha256, hash(packed), 'served Nightborn must match the verified build of the tested rig');
   await page.getByRole('button', { name: /Enter the arena/ }).tap();
   await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
   await page.getByRole('button', { name: 'Draw sword', exact: true }).tap();
