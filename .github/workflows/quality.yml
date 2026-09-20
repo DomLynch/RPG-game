@@ -1,8 +1,8 @@
-# The release gate minus the real-browser step, on every push and pull request to the live trunk: lint, the node suites
-# (including the strategy battery — no scripted one-trick player may beat the warden), the build, the dependency audit and
-# the asset budget. The Playwright gate needs a real GPU (its parry and kick steps are wall-clock touch timings; software GL
-# stalls the page until the press lands a second late), so it stays in scripts/deploy.sh, which runs it before every deploy
-# and then against the live site.
+# The release gate on every push and pull request to the live trunk. `quality`: lint, the node suites (including the strategy battery —
+# no scripted one-trick player may beat the warden), the build, the dependency audit and the asset budget. `browser`: the real-browser
+# combat and counter gates on a fixed-step harness clock (scripts/lib/harness-clock.mjs), which made them machine-independent on
+# 2026-09-20 — a GPU-less runner lands every scripted press on the same simulation tick as a MacBook. The remaining release
+# checks still run in scripts/deploy.sh until each is moved onto the harness clock.
 name: quality
 on:
   push:
@@ -28,3 +28,30 @@ jobs:
       - run: npm run quality:ci
       - name: Account database isolation
         run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Lossless JPEG build tool
+        run: sudo apt-get install -y libjpeg-turbo-progs
+      - run: npm run build
+      - name: Combat gate (parry, riposte, kick, journal, layout, no-WebGL fallback)
+        run: node scripts/browser-check.mjs
+      - name: Counter gate (slash, thrust and heavy ripostes)
+        run: node scripts/counter-browser-check.mjs
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-gate-receipts
+          path: |
+            artifacts/browser-check.json
+            artifacts/browser-*.jpg
+            artifacts/weapons/counter-buttons/
+          if-no-files-found: ignore

@@ -14,6 +14,16 @@ blade, 3–7, staggered, thin, pale straw → ember, tone-mapped. Evidence `arti
 `artifacts/world/{base,props}-{full,phone}`. Not done: baked AO (needs an unwrapped lightmap pipeline), KTX2 textures (needs the
 basis_universal encoder — owner's OK), the phone AA decision and one-pass post (after KTX2). check-budget counts prop GLBs as opponent
 candidates: true per-fight ≈ 10.4 of 12 MB.
+## Browser gates on a harness clock, in CI — lead implementation, 2026-09-20 (owner: "do this please, it's important")
+`scripts/lib/harness-clock.mjs`: after boot the gate installs Playwright's page.clock (paused) and advances page time 16 ms per frame;
+`browser-check.mjs` and `counter-browser-check.mjs` replaced every wall-clock wait (parry 430 ms after the tell, riposte 350 ms,
+kick reach, journal pause) with harness-time waits; the damage float (900 ms on the real animation timeline) is recorded by an
+observer as it appears. Assertions and the game are unchanged. Proof on the GPU-less VPS build box (root@49.12.7.18,
+/opt/frankendom-build, Node 22, load ~1) where the old gate failed at the riposte: combat gate passed (guard 440 ms after the
+tell, parry, riposte 24, dmg "24", kick completed, controls cycle, no-WebGL fallback), counter gate passed (24/24/30).
+`.github/workflows/quality.yml` gains a `browser` job running both gates on every PR/push to trunk. Still on deploy.sh only:
+the other release checks (roster, estoc, polearm, quiet-one, account, creature…) until each moves onto the harness clock.
+
 ## /game marketing page + Field Journal redesign — web/design lane, 2026-09-20 (owner picked direction E of nine)
 `public/game/` is a static, one-page mobile-first site at frankendom.com/game (Vite copies `public/` verbatim; nginx `try_files $uri/`
 serves the folder index). Direction "Pocket Arena": light ground, the live game inside a phone frame, bento tiles, Bricolage Grotesque +
