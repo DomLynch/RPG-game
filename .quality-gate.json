@@ -3,7 +3,7 @@
     [
       "npm",
       "run",
-      "quality"
+      "quality:ci"
     ]
   ],
   "manual": [
@@ -12,6 +12,13 @@
     "Two-pass code review"
   ],
   "completion_commands": [
+    [
+      "npm",
+      "run",
+      "test:browser"
+    ]
+  ],
+  "release_commands": [
     [
       "node",
       "scripts/finisher-preview.mjs",
