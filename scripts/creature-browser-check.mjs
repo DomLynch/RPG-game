@@ -1,4 +1,5 @@
 // Real game routes: exact served GLBs, combat, phone layout, death/rematch and screenshots.
+import { ROSTER } from '../src/roster.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -15,7 +16,7 @@ let inspectedPage;
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
-  for (const opponent of ['minotaur', 'wraith', 'werewolf', 'skeleton']) {
+  for (const opponent of ['minotaur', 'wraith', 'werewolf', 'skeleton'].filter(id => !ROSTER[id].hold)) {   // held recipes are not in the bundle
     const context = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const page = inspectedPage = await context.newPage();
     page.on('pageerror', e => receipt.errors.push(String(e)));
