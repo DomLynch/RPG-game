@@ -27,7 +27,7 @@ test('creature picker and Auto share an eligibility-checked presentation decisio
   }
 });
 
-for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves stay whole, ground, frame, fade appropriately and restore`,async()=>{
+for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves stay whole, ground, frame, fade appropriately and restore [slow]`,async()=>{
   const bytes=readFileSync(new URL(`../src/assets/${id}.glb`,import.meta.url)),size=bytes.readUInt32LE(12);
   const json=JSON.parse(bytes.subarray(20,20+size).toString());
   json.images=[];json.textures=[];json.materials=json.materials.map((m:{name:string})=>({name:m.name}));

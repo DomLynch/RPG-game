@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-test('release refuses partial account configuration, unsafe keys and missing CSP', () => {
+test('release refuses partial account configuration, unsafe keys and missing CSP [slow]', () => {
   const run = (url: string, key: string) => spawnSync(process.execPath, ['scripts/check-account-config.mjs'], {
     encoding: 'utf8', env: { ...process.env, VITE_SUPABASE_URL: url, VITE_SUPABASE_PUBLISHABLE_KEY: key },
   });
