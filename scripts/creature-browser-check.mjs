@@ -33,7 +33,7 @@ try {
     await ready(); await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });
     const expected = {
       minotaur: { family: /^\w+:Maul_\w+@WeaponDrawn$/, heavy: 'Heavy:Maul_Heavy@WeaponDrawn' },
-      wraith: { family: /^\w+:Claw_\w+@WeaponDrawn$/, heavy: 'Heavy:Claw_Heavy@WeaponDrawn' },
+      wraith: { family: /^\w+:Reaper_\w+@ReaperEdge$/, heavy: 'Heavy:Reaper_Heavy@ReaperEdge' },   // the reaper's contact node is its blade edge, not the grip
       werewolf: { family: /^\w+:(?:Idle|Walk|Jog|Run|Armed|Attack|Hit|Death|Draw|Roll|Guard|Return|Heavy|Riposte|ArmedWalk|StrafeLeft|StrafeRight|Kick|BlockImpact|Parry|Deflected)@WeaponDrawn$/, heavy: 'Heavy:Heavy@WeaponDrawn' },
       skeleton: { family: /^(?:\w+:Trident_\w+|Roll:Roll|Kick:Kick)@WeaponDrawn$/, heavy: 'Heavy:Trident_High@WeaponDrawn' },
     }[opponent];

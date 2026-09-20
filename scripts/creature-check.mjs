@@ -40,7 +40,7 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
   const [raw, baseRaw, sourceRaw] = await Promise.all([`src/assets/${family}.glb`, `src/assets/${base}.glb`, `src/assets/source/creatures/${family}.glb`].map(p => fs.readFile(p)));
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
   const weaponKind = ROSTER[family].weapon;
-  if (['maul', 'claws'].includes(weaponKind)) assert.equal(doc.extras.creatureWeapon?.generator, digest(await fs.readFile('scripts/build-creature-weapons.mjs')), 'Stale creature weapon generator');
+  if (['maul', 'reaper'].includes(weaponKind)) assert.equal(doc.extras.creatureWeapon?.generator, digest(await fs.readFile('scripts/build-creature-weapons.mjs')), 'Stale creature weapon generator');
   assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw) }, 'Stale creature: rebuild with build-creatures.mjs');
   assert.deepEqual(doc.animations.slice(0, original.doc.animations.length).map(c => animation(output, c)), original.doc.animations.map(c => animation(original, c)), 'Combat clips changed');
   if (!doc.extras.creatureWeapon) assert.equal(doc.animations.length, original.doc.animations.length, 'No unauthored clips');
@@ -104,11 +104,11 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
         if (supportVertices.has(i)) supportGap = Math.min(supportGap, world.distanceTo(supportGrip));
       }
     }
-    if (weaponKind !== 'claws' && gripClips.has(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
+    if (gripClips.has(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
     if (family === 'skeleton' && gripClips.has(clip.name)) assert(supportGap < .08, `${family} ${clip.name}: supporting hand detached (${supportGap}m)`);
     poses++;
   }
-  receipts.push({ family, sha256: digest(raw), triangles, clipsPreserved: asset.animations.length, finitePoses: poses, mapsPreserved: imageBytes(source).length });
+  receipts.push({ family, sha256: digest(raw), triangles, clipsPreserved: original.doc.animations.length, totalClips: asset.animations.length, finitePoses: poses, mapsPreserved: imageBytes(source).length });
 }
 await fs.mkdir('artifacts/character/creatures', { recursive: true });
 await fs.writeFile('artifacts/character/creatures/integrity.json', JSON.stringify(receipts, null, 2));

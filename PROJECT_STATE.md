@@ -1,5 +1,7 @@
 # Project state
 
+## Wraith reaper scythe — weapons lane, in progress
+Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
 ## Werewolf and Skeleton — integrated locally, publication pending (2026-09-19)
 Both official TRELLIS.2 exports are fitted to the shared animation pipeline: Werewolf/Pitborn/cleaver and
 Skeleton/Veteran/trident. References, prompts, source hashes and licences are retained. Skeleton receives bone

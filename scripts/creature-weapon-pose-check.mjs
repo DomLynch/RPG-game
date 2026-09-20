@@ -12,7 +12,7 @@ await server.listen();
 const browser = await chromium.launch({ headless: true });
 const receipt = [], errors = [];
 try {
-  for (const [id, prefix, cut] of [['minotaur', 'Maul', 'Slash'], ['wraith', 'Claw', 'Slash']]) {
+  for (const [id, prefix, cut] of [['minotaur', 'Maul', 'Slash'], ['wraith', 'Reaper', 'Slash']]) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     page.on('pageerror', e => errors.push(String(e)));
     page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) errors.push(`${r.status()} ${r.url()}`); });
