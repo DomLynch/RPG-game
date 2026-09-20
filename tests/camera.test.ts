@@ -54,7 +54,8 @@ test('finisher side view exposes both fighters at every arena edge and phone asp
     assert.ok(Math.hypot(pose.x,pose.z)<=11.5+1e-10, 'camera remains inside the arena');
     const camera=new PerspectiveCamera(51,aspect,.1,180);camera.position.set(pose.x,pose.y,pose.z);camera.lookAt(pose.lookX,pose.lookY,pose.lookZ);camera.updateMatrixWorld();
     const eye=new Vector3(pose.x-pose.lookX,0,pose.z-pose.lookZ).normalize();
-    assert.ok(Math.abs(Math.sin(yaw)*eye.z-Math.cos(yaw)*eye.x)>.8, 'clear side angle even at the wall');
+    // Split Crown (owner 2026-09-20) is a raised front-quarter, not a profile: the seam runs front-to-back over the bowed skull.
+    assert.ok(Math.abs(Math.sin(yaw)*eye.z-Math.cos(yaw)*eye.x)>(finish==='splitCrown'?.55:.8), 'clear side angle even at the wall');
     for(const actor of [killer,fallen]) for(const y of [0,1.9]) for(const shoulder of [-.35,.35]) {
       const screen=new Vector3(actor.x+Math.cos(yaw)*shoulder,y,actor.z-Math.sin(yaw)*shoulder).project(camera);
       assert.ok(Math.abs(screen.x)<.95&&Math.abs(screen.y)<.95&&screen.z<1, JSON.stringify({aspect,edge,yaw,gap,screen}));
