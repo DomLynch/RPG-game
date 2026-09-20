@@ -11,7 +11,7 @@ const out = process.env.ARENA_RECEIPT_DIR || 'artifacts/audio/arena-life'; await
 const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'error', server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { noDiscovery: true, include: [] } }); await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browserType = process.env.AUDIO_BROWSER === 'webkit' ? webkit : chromium;
-const browser = await browserType.launch({ headless: true });
+const browser = await browserType.launch({ headless: true, executablePath: browserType.executablePath() });   // the full browser, like the other gates: under Playwright's headless shell the Enter tap never becomes actionable
 const report = { browser: browserType.name(), physicalPhone: false, checks: [], errors: [] };
 let production, inspectedUi;
 try {
