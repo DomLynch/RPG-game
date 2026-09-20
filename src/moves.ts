@@ -394,7 +394,9 @@ export type Level = keyof typeof PROFILES;
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
 export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
 const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon'>> = {
-  veteran: { scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },   // the trident since slice V (2026-09-16)
+  // Hard (owner, 2026-09-20): the shared hard beat the hero's brain only 13/24 — two wins tighter than normal. Pressure .7 and a discipline
+  // floor of 30 keep him cutting instead of resting: 18/24 (sweep, 24 seeds). His own table so the Executioner (shared PROFILES) is untouched.
+  veteran: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },   // the trident since slice V (2026-09-16)
   // The pit brute: relentless light chains (aggression, pressure), a low parry rate, slower to notice, a low discipline floor so he
   // swings himself hot; poise 16 — a plain cut (14) or stab (11) never stops him, a heavy (18) or any counter does.
   // Health 190: with the Veteran's brain driving the hero he took 150 in ~22 s (probe, 24 seeds); the brute is meant to take more killing than a man.
@@ -404,7 +406,7 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     // as he walked in (the thrust did 1254 of the damage across 24 fights; blocks and parries barely happened at reaction 18 / lapse .3). Reaction
     // 18 → 14 and lapse .3 → .1: he notices the stab in time to block it and answers what he sees; the whiff punisher stays the answer (9/24).
     normal: { reaction: 14, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .1 },
-    hard: { reaction: 12, accuracy: .9, parry: .3, dodge: .2, aggression: .95, pressure: .75, discipline: 24, lapse: .08 },   // discipline 20 → 24 with the cleaver (slice W): its hack costs 42, and at 20 he swung himself empty into the whiff punisher (10/24 at hard, over the cap); 24 keeps him hot-headed (the Veteran holds 40) and the punisher at 7/24
+    hard: { reaction: 12, accuracy: .9, parry: .4, dodge: .3, aggression: .95, pressure: .75, discipline: 24, lapse: .08 },   // parry .3 → .4, dodge .2 → .3 (owner, 2026-09-20): hard was 15/24 for the hero's brain; more answers, 17/24 (sweep). discipline 20 → 24 with the cleaver (slice W): its hack costs 42, and at 20 he swung himself empty into the whiff punisher (10/24 at hard, over the cap); 24 keeps him hot-headed (the Veteran holds 40) and the punisher at 7/24
   } },
   // The Nightborn (opponent 5, the vampire duelist): the parry is his whole game — the highest parry share on the roster, the fastest
   // reaction, thrusts over cuts (pressure), a low dodge share, a man's health and no poise (a duelist is staggered like anyone; his
@@ -417,9 +419,11 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // The heavy's tell (34) is past his press, so an honest heavy is parried; a heavy held at its chamber past his press lands on the whiff.
   // Kicks open a standing guard. PROVISIONAL; the battery in tests/opponents.test.ts is the gate.
   nightborn: { scale: 1.03, health: RULES.health, poise: 0, guard: { window: 16, recovery: 40, commits: true }, profiles: {
-    easy: { reaction: 8, accuracy: .7, parry: .45, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .3 },
+    // Easy (owner, 2026-09-20): 8-tick reaction and a .45 parry made easy as hard as hard (hero's brain 8 / 9 / 9 across levels). A human
+    // reaction, a quarter parry and more lapses put him with the other rungs' easy: 20/24 (sweep, 24 seeds); the commit is still there to learn.
+    easy: { reaction: 16, accuracy: .7, parry: .25, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .4 },
     normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .6, pressure: .45, discipline: 45, lapse: .15 },   // pressure .45: enough heavies that a roller is charged through (a cut-and-thrust man rolls too easily)
-    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .75, pressure: .5, discipline: 40, lapse: .05 },
+    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .75, pressure: .5, discipline: 30, lapse: .05 },   // discipline 40 → 30 (owner, 2026-09-20): hard was no harder than normal (9/24 both); a lower floor keeps him fencing when low: 19/24
   } },
   // The goblin (opponent 4, the pit-runner): small, fast, mean — 0.78× a man (his measured standing height; the rig is re-proportioned, not
   // shrunk: build-warrior.mjs BUILD.goblin), 100 health, poise 0 (anything staggers him). Reaction fast, parry 0 (he never parries), the dodge
