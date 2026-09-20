@@ -6,9 +6,12 @@ export type BloodSource = { site: string; position: Vector3; direction: Vector3;
 // Which of a weapon's materials a kill bloodies. A sword bloodies its Blade only. A hafted weapon bloodies everything but its
 // handle: every shipped two-hander ships the haft, grip wrap and binding as their own materials (Haft/Ash/Leather/Cord/Wire), so
 // "tint the whole weapon" painted the scythe's haft red after a kill (owner, 2026-09-19).
-export const HANDLE_MATERIAL = /haft|handle|grip|wrap|leather|cord|wire|^ash$/i;
+// A reconstructed part (weapons lane Phase 2, scripts/weapon-fit.py) ships two materials: Weapon<Id> — the head, the striking part —
+// and Weapon<Id>Shaft, its baked handle; the sword rule admits the head, the handle rule the shaft.
+export const HANDLE_MATERIAL = /haft|handle|grip|wrap|leather|cord|wire|shaft$|^ash$/i;
+const RECONSTRUCTED_HEAD = /^Weapon[A-Z]\w*$/;
 export function bloodiesMaterial(name: string, twoHanded: boolean): boolean {
-  return twoHanded ? !HANDLE_MATERIAL.test(name) : name === 'Blade';
+  return twoHanded ? !HANDLE_MATERIAL.test(name) : name === 'Blade' || (RECONSTRUCTED_HEAD.test(name) && !HANDLE_MATERIAL.test(name));
 }
 type Mode = 'red' | 'dark' | 'off';
 

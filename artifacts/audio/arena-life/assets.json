@@ -1,17 +1,17 @@
 {
-  "seconds": 40.489999999999995,
+  "seconds": 41.489999999999995,
   "regions": 15,
   "codecs": {
     "arena.m4a": {
-      "bytes": 251635,
+      "bytes": 257839,
       "peakDbfs": -5.584269926637946,
-      "sha256": "57d107811fb98e7ef04ddb70bd4ec6f9108efb19cde9856fbe8307d290806558"
+      "sha256": "454f0077c0c418b6cd548b9e8611f9534ebe17f660ff1515b19729671c12c48a"
     },
     "arena.ogg": {
-      "bytes": 161664,
-      "peakDbfs": -5.7665904534844685,
-      "sha256": "f84ccfe43ddca090eb4b36ef6c1ec3100c1fffc7f41012b1cb2a7cd236006491"
+      "bytes": 165462,
+      "peakDbfs": -5.855133530271461,
+      "sha256": "d6d595aba722bd7b6e0c028ffb77d67e24c237f47f6d969a342fca2770f6f42c"
     }
   },
-  "gzip": 396928
+  "gzip": 406717
 }

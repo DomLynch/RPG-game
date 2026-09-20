@@ -87,6 +87,14 @@ that memory (`lastFinisher`, rolled at rematch) and hands it to the audio resolv
 scene and audio still agree. Presentation state only; replays with the same history are identical. The preview harness
 resets the memory per captured window. Test: 20 000-event sweep asserts no repeat, 16–24 % share each, determinism.
 
+## Dwarf warhammer — integration of the weapons lane's shelf package (2026-09-20)
+Owner: the Dwarf gets a warhammer instead of the Veteran's trident. Weapons shipped `warhammer` on the shelf (#233, weapons/warhammer-v1:
+part, 12 `Warhammer_*` clips on the base humanoid rig, WEAPON_CLIPS, `WEAPONS.warhammer = {...MAUL, placeholder}`). Character lane
+(`char/dwarf-warhammer`, on top of #233): the donor is rebuilt with `WARRIOR_WEAPON=warhammer`, the Dwarf refitted and packed (37 clips,
+185 finite poses, both hands on the haft < 0.08 m, source maps retained; sha 82dab728…), roster `weapon: 'warhammer'`, the creature
+browser check keys on the `Warhammer_*` family, and the role-table test maps the warhammer to dwarf.glb. Still Combat's: the reach band and
+lifting the `placeholder` flag (the sim uses the maul's numbers until then); the browser gate and the deploy stay with the deployer.
+
 ## Dwarf v2 — owner-approved look, character lane (2026-09-20)
 Owner reviewed v1 in the arena and asked for four fixes ("A grade"): support-hand grip, chrome shoulder plate, soft face, true dwarf
 proportions. v2 (`char/dwarf-v2`):
@@ -160,8 +168,9 @@ grip roles. Next: character lane integrates (donor rebuild `WARRIOR_WEAPON=warha
 ## Weapons Phase 2 polish — reconstructed parts, in progress (weapons lane, 2026-09-20)
 Owner reversed the freeze for weapons: polish all of them now for beta, keep the procedural parts as the revert. Trident (Veteran)
 and cleaver (Pitborn) ship as TRELLIS.2 reconstructions fitted by `scripts/weapon-fit.py` on the unchanged contact segments
-(`bake-blades` tables identical; `WEAPON_VARIANT=short|A` rebuilds byte-identical to the previous rigs). Knife, estoc, scythe and
-longsword are concept-approved and queued on the ZeroGPU quota reset; maul/claws/reaper (creature injector) not started. Skeleton,
+(`bake-blades` tables identical; `WEAPON_VARIANT=short|A` rebuilds byte-identical to the previous rigs). Knife (Goblin), estoc
+(Nightborn) and longsword (hero, hand + scabbard) followed in v2 the same way; the scythe part is fitted but not on a rig (the
+Executioner's donor re-pack is the character lane's) and maul/claws/reaper (creature injector) are not started. Skeleton,
 dwarf and werewolf pick the new parts up on their next creature pack. Evidence: `artifacts/weapons/REPORT.md` "Phase 2 polish".
 
 ## Wraith reaper scythe — weapons lane, in progress

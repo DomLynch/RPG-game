@@ -617,6 +617,15 @@ too); the fit, bake, lathe, grain and all clips are original project work. No do
 |---|---|---|---|---|
 | trident (Veteran; Skeleton/Dwarf donors) | `veteran.glb` | 3,998 tris | FLUX seed 190926 | 0.76–1.22 m |
 | cleaver (Pitborn; Werewolf donor) | `pitborn.glb` | 3,979 tris | FLUX seed 7, rotated 180° | 0.14–0.86 m |
+| knife (Goblin) | `goblin.glb` | 3,194 tris | FLUX seed 3 (kukri-style sica prompt) | 0.12–0.52 m |
+| estoc (Nightborn) | `nightborn.glb` | 1,993 tris | FLUX seed 7, rotated 180° | 0.75–1.15 m |
+| longsword (the hero; hand + scabbard) | `warrior.glb` | 2,991 tris | FLUX seed 7, 768×1152 | 0.18–0.86 m |
+| scythe (Executioner) | source + part only, not yet on a rig | 4,483 tris | FLUX seed 3 (a double moon; the fit keeps one blade, laid flat) | 1.22–1.32 m |
+
+Lessons kept in `scripts/weapon-fit.py` (v2): `/image_to_3d` must get the PREPROCESSED cut-out (the photo reconstructs as a box);
+thin blades are welded before decimation (`weld`), the trident never (its coil shells go non-manifold); a picture's chunky handle
+does not set the grip (`grip_r`); a cross-guarded sword's head is the guard's underside (`head: guard`), a hanging moon's the root
+(`wide-top`); the handle is re-centred on the axis before any radius is read; wraps the picture lacks are authored leather rows.
 
 ## Executioner reconstructed (TRELLIS.2) — 2026-09-20
 `executioner.glb` is now a fitted derivative of a TRELLIS.2 reconstruction, replacing the procedural

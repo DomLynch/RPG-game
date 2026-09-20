@@ -8,7 +8,17 @@ node scripts/check-glb-compression.mjs --hosted-csp
 node --input-type=module -e 'import { loadEnv } from "vite"; import { readFileSync } from "node:fs"; const dsn = process.env.VITE_SENTRY_DSN || loadEnv("production", process.cwd()).VITE_SENTRY_DSN; if (!dsn || new URL(dsn).protocol !== "https:" || !readFileSync("deploy/frankendom.com.conf", "utf8").includes(new URL(dsn).origin)) throw new Error("Configure VITE_SENTRY_DSN and its CSP origin before deployment");'
 revision=$(git rev-parse HEAD)
 export VITE_SENTRY_RELEASE="$revision"
-npm run quality
+# CI runs `quality:ci` (lint + full suite + build + audit + budget) on every trunk push. When it already passed for
+# this exact revision, re-running the 6-minute suite here only duplicates it: run the deploy-only parts instead.
+# Any doubt (gh unavailable, no green run for this SHA) falls back to the full gate.
+ci_green=$(gh run list --workflow quality.yml --commit "$revision" --status success --json url --jq '.[0].url' 2>/dev/null || true)
+if [[ -n "$ci_green" ]]; then
+  echo "CI quality is green for $revision ($ci_green); running quality:deploy"
+  npm run quality:deploy
+else
+  echo "No green CI quality run found for $revision; running the full quality gate"
+  npm run quality
+fi
 node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 printf '{"revision":"%s","phase":"0B-swordplay"}\n' "$revision" > dist/release.json

@@ -2,6 +2,13 @@ import bpy, math, sys
 src, prefix = sys.argv[sys.argv.index('--')+1:][:2]
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=src)
+node = sys.argv[sys.argv.index('--')+3] if len(sys.argv) > sys.argv.index('--')+3 else None  # optional: render only this node's subtree (a sword inside a rig)
+if node:
+    root = bpy.data.objects[node]; keep = {root} | {c for c in root.children_recursive}
+    for o in list(bpy.data.objects):
+        if o not in keep: bpy.data.objects.remove(o, do_unlink=True)
+    root.parent = None; root.matrix_world.identity()
+    bpy.context.view_layer.update()
 objs=[o for o in bpy.data.objects if o.type=='MESH']
 pts=[o.matrix_world @ v.co for o in objs for v in o.data.vertices]
 zmin=min(p.z for p in pts); zmax=max(p.z for p in pts); zc=(zmin+zmax)/2; L=zmax-zmin
