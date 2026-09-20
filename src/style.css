@@ -626,15 +626,16 @@ dialog>p {
   z-index: 5;
   font:
     700 15px/1 Arial,sans-serif;
-  color: #f4ead8;
+  color: #b8b4ad; /* owner 2026-09-20: greyed out, cosmetic only */
+  opacity: 0.7;
   text-shadow: 0 1px 3px #000c;
   pointer-events: none;
 }
 .dmg.taken {
-  color: #e8b3a0;
+  color: #b39a92;
 }
 .dmg.heavy {
-  color: #ffd97a;
+  color: #c9c1a8;
   font-size: 19px;
 }
 .actions .primary {
