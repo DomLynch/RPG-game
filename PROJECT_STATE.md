@@ -10,6 +10,14 @@ Evidence: tsc + eslint clean; graphics/roster/ladder tests 37/37 (picker test up
 (20,820,778 gzip of 32 MB, per fight 8,821,562 of 12 MB with the Dwarf). Full `npm test` and `test:browser` deferred until the
 deploy dev posts FREE (load-gated deploy in progress); receipts go on the PR.
 
+## Finisher rotation: even pool, never the same ceremony twice in a row (2026-09-20)
+Owner: "random, but the same finish can't appear twice in a row — keeps it fresh". Measured before the change: the
+seeded pick was already even (19.6–20.6 % each over 20 000 kill events) but memoryless (19.9 % back-to-back repeats).
+`selectFinisher(finish, weapons, previous)` now excludes the previous fight's ceremony from the pool; the scene keeps
+that memory (`lastFinisher`, rolled at rematch) and hands it to the audio resolver via `view.previousFinisher()`, so
+scene and audio still agree. Presentation state only; replays with the same history are identical. The preview harness
+resets the memory per captured window. Test: 20 000-event sweep asserts no repeat, 16–24 % share each, determinism.
+
 ## Dwarf — character lane candidate, not approved, not released (2026-09-20)
 Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
 `black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft

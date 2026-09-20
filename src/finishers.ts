@@ -9,7 +9,13 @@ import type { WeaponId } from './moves.ts';
 // not shipped yet (ship order: Split Crown end-to-end first, then the set).
 export type FinisherId = 'splitCrown' | 'decapitation' | 'runThrough' | 'plainDeath' | 'quietOne' | 'opened' | 'hamstrung' | 'execution';
 
-export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, WeaponId]): FinisherId | null {
+// The beta rotation pool (owner 2026-09-20): five outcomes, evenly drawn (measured 19.6–20.6 % each over 20 000 kill events).
+export const ROTATION = ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'opened'] as const satisfies readonly FinisherId[];
+
+// `previous` is the ceremony the last fight actually showed (owner 2026-09-20: "the same finish can't appear twice in a
+// row — keeps it fresh"). It is excluded from the pool for this kill; the pick stays a pure function of the kill event
+// and that one presentation fact, so a replay with the same history is identical. null = first fight / no ceremony yet.
+export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, WeaponId], previous: FinisherId | null = null): FinisherId | null {
   void weapons;   // v1: one table for every weapon — the parameter pins the contract for the per-weapon rows a later pass may add
   if (finish.draw) return null;                  // a double fall gets no ceremony
   if (finish.victim === 0) return null;          // the player's own death keeps the plain fall (v2 review)
@@ -27,9 +33,9 @@ export function selectFinisher(finish: Finish, weapons: readonly [WeaponId, Weap
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
   // Beta rotation (owner 2026-09-20, simplifying for the freeze): five outcomes — Split Crown, Decapitation, Run Through,
   // Opened, plain death. The Quiet One is out of the automatic pick (too subtle to read on a phone); its clip, pose and
-  // gore stay shipped and the dev picker can still force it.
-  const pick = Math.abs(hash % 5);
-  return pick === 0 ? 'splitCrown' : pick === 1 ? 'decapitation' : pick === 2 ? 'runThrough' : pick === 3 ? 'plainDeath' : 'opened';
+  // gore stay shipped and the dev picker can still force it. Never the previous fight's ceremony again.
+  const pool = ROTATION.filter((id) => id !== previous);
+  return pool[Math.abs(hash % pool.length)];
 }
 
 // Which rigs carry which finisher clip today. null = the plain Death plays until the clip lands (the plain death is also a
