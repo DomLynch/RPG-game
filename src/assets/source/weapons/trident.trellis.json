@@ -1,0 +1,37 @@
+{
+ "space": "microsoft/TRELLIS.2",
+ "seed": 190926,
+ "resolution": "1024",
+ "faces": 100000,
+ "texture": 1024,
+ "image": "docs/weapon-references/trident-concept-v1.png",
+ "image_sha256": "691a0a5571dc4d6a4d0bcb45d18ef64feb4455f6ce5c271c639db178da8051f5",
+ "concept": {
+  "space": "black-forest-labs/FLUX.1-dev",
+  "seed": 190926,
+  "steps": 28,
+  "guidance": 3.5,
+  "size": [
+   1024,
+   1024
+  ],
+  "prompt": "Product photograph of a single ancient gladiator's short trident, isolated on a plain light grey studio background; short dark oiled ash-wood shaft with two grips wrapped in worn brown leather and a bronze butt cap; a heavy fat three-pronged bronze head in a dull worn museum patina; no hands, people, text or watermark"
+ },
+ "image_to_3d_s": 55.5,
+ "glb": "src/assets/source/weapons/trident.glb",
+ "bytes": 4142616,
+ "sha256": "92ec382f08e82912f03d45f1a0d38232a64bfe88f8a0ee4ca4afbf6e246e2a3d",
+ "attempts": 2,
+ "note": "attempt 1 asked extract_glb for 20,000 faces: the Space's floor is 100,000 (the game-grade decimation is scripts/weapon-fit.py)",
+ "fit": {
+  "script": "scripts/weapon-fit.py",
+  "part": "src/assets/source/weapons/trident.part.glb",
+  "tris": 3998,
+  "scale": 1.16895,
+  "contact": [
+   0.76,
+   1.22
+  ],
+  "date": "2026-09-20"
+ }
+}

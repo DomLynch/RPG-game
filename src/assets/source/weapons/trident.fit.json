@@ -1,0 +1,20 @@
+{
+ "weapon": "trident",
+ "source": "src/assets/source/weapons/trident.glb",
+ "part": "src/assets/source/weapons/trident.part.glb",
+ "source_tris": 99646,
+ "part_tris": 3998,
+ "scale": 1.16895,
+ "extent_y": [
+  -0.2,
+  1.2198
+ ],
+ "width_x": 0.3493,
+ "thickness_z": 0.0687,
+ "contact": [
+  0.76,
+  1.22
+ ],
+ "texture": 512,
+ "bytes": 255360
+}

@@ -570,9 +570,44 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, we
   return out;
 }
 
+// Phase 2 polish (weapons lane, 2026-09-20): a weapon may ship a RECONSTRUCTED part — scripts/weapon-recon.py (concept → TRELLIS.2)
+// then scripts/weapon-fit.py (Blender) → src/assets/source/weapons/<id>.part.glb: one node named WeaponDrawn on the same contract
+// (local Y along the shaft, rear hand at 0, extras.contact where the procedural part had it, so the bake and the sim never move), with
+// its own colour and metal/rough maps. sourced() wraps the procedural builder: no variant (or `trellis`) loads the part; every named
+// silhouette still builds the primitives — the revert is WEAPON_VARIANT=<old variant> and a rebuild, nothing deleted.
+// Node's GLTFLoader cannot decode images, so the maps are stripped here and handed to build-warrior's finishMaterials by material
+// name (`part.maps`, outside userData: the exporter writes userData as extras).
+export function sourced(id, procedural) {
+  return async function part({ variant, ...rest } = {}) {
+    if (variant && variant !== 'trellis') return procedural({ variant, ...rest });
+    const fs = await import('node:fs/promises'), { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const glb = await fs.readFile(`src/assets/source/weapons/${id}.part.glb`);
+    const n = glb.readUInt32LE(12), doc = JSON.parse(glb.subarray(20, 20 + n)), bin = glb.subarray(28 + n);
+    const image = index => { const source = doc.images[doc.textures[index].source], view = doc.bufferViews[source.bufferView]; return { bytes: Buffer.from(bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength)), mime: source.mimeType }; };
+    const maps = {};
+    for (const m of doc.materials) {
+      const p = m.pbrMetallicRoughness ?? {}, entry = maps[m.name] = {};
+      if (p.baseColorTexture) { entry.baseColor = image(p.baseColorTexture.index); delete p.baseColorTexture; }
+      if (p.metallicRoughnessTexture) { entry.metallicRoughness = image(p.metallicRoughnessTexture.index); delete p.metallicRoughnessTexture; }
+      if (m.normalTexture) { entry.normal = image(m.normalTexture.index); entry.normalScale = m.normalTexture.scale ?? 1; delete m.normalTexture; }
+    }
+    doc.images = []; doc.textures = []; delete doc.samplers;
+    const json = Buffer.from(JSON.stringify(doc)), padded = Buffer.concat([json, Buffer.alloc((4 - json.length % 4) % 4, 32)]);
+    const header = Buffer.alloc(20), chunk = Buffer.alloc(8);
+    header.writeUInt32LE(0x46546c67, 0); header.writeUInt32LE(2, 4); header.writeUInt32LE(28 + padded.length + bin.length, 8); header.writeUInt32LE(padded.length, 12); header.writeUInt32LE(0x4e4f534a, 16);
+    chunk.writeUInt32LE(bin.length, 0); chunk.writeUInt32LE(0x004e4942, 4);
+    const stripped = Buffer.concat([header, padded, chunk, bin]);
+    const asset = await new GLTFLoader().parseAsync(stripped.buffer.slice(stripped.byteOffset, stripped.byteOffset + stripped.byteLength), '');
+    const node = asset.scene.getObjectByName('WeaponDrawn'); if (!node?.userData.contact) throw new Error(`${id}.part.glb: no WeaponDrawn node with extras.contact`);
+    node.removeFromParent(); node.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+    node.userData.weapon = id; node.userData.variant = 'trellis'; node.maps = maps;
+    return node;
+  };
+}
+
 // What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.
 export const WEAPON_BUILDS = {
-  trident: { part: trident, clips: tridentClips, keys: {} },
+  trident: { part: sourced('trident', trident), clips: tridentClips, keys: {} },   // reconstructed part by default; WEAPON_VARIANT=short|A|B|C → the primitives
   cleaver: { part: cleaver, clips: null, keys: CLEAVER_KEYS },
   knife: { part: knife, clips: null, keys: CLEAVER_KEYS },   // the same diagonal Heavy: a knife's overhead is a hack too, edge-leading
   estoc: { part: estoc, clips: null, keys: {} },              // no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
@@ -584,12 +619,12 @@ if (process.argv[1] && /build-weapon\.mjs$/.test(process.argv[1])) {
   const fs = await import('node:fs/promises');
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   globalThis.FileReader ??= class { async readAsArrayBuffer(blob) { this.result = await blob.arrayBuffer(); this.onloadend?.(); } async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); } };
-  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ cleaver: CLEAVER_DEFAULT, knife: KNIFE_DEFAULT, estoc: ESTOC_DEFAULT, scythe: SCYTHE_DEFAULT }[weapon] ?? DEFAULT_VARIANT);
-  const scene = new T.Scene(), part = WEAPON_BUILDS[weapon].part({ variant }); scene.add(part);
-  const glb = await new GLTFExporter().parseAsync(scene, { binary: true });
+  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ trident: 'trellis', cleaver: CLEAVER_DEFAULT, knife: KNIFE_DEFAULT, estoc: ESTOC_DEFAULT, scythe: SCYTHE_DEFAULT }[weapon] ?? DEFAULT_VARIANT); // no variant: what the fighter build ships (the reconstructed part where one exists)
+  const scene = new T.Scene(), part = await WEAPON_BUILDS[weapon].part({ variant }); scene.add(part);
+  const glb = part.maps ? await fs.readFile(`src/assets/source/weapons/${weapon}.part.glb`) : await new GLTFExporter().parseAsync(scene, { binary: true }); // the reconstructed part's record keeps its maps
   const out = process.env.WEAPON_OUT || `src/assets/weapons/${weapon}/${weapon}.glb`;
   await fs.mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true }); await fs.writeFile(out, Buffer.from(glb));
   let triangles = 0; part.traverse(o => { if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
   const names = { cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS, estoc: ESTOC_VARIANTS, scythe: SCYTHE_VARIANTS }[weapon] ?? VARIANTS;
-  console.log(`${weapon} ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${names[variant].name})`);
+  console.log(`${weapon} ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${names[variant]?.name ?? `${part.userData.variant}: the reconstructed part (scripts/weapon-fit.py), its own maps`})`);
 }

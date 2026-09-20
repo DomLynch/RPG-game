@@ -287,7 +287,7 @@ if (weaponId !== 'longsword') {
   const { WEAPON_BUILDS } = await import('./build-weapon.mjs'); weaponBuild = WEAPON_BUILDS[weaponId];
   if (!weaponBuild) throw new Error(`WARRIOR_WEAPON=${weaponId}: no such weapon (scripts/build-weapon.mjs)`);
   sheathed.clear(); drawn.clear(); // the loader still finds SwordSheathed/SwordDrawn; they carry nothing
-  weaponNode = weaponBuild.part({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT });
+  weaponNode = await weaponBuild.part({ T, withAoUv, leather, variant: process.env.WEAPON_VARIANT }); // async for a reconstructed part (build-weapon.mjs sourced())
   base.scene.getObjectByName('hand_r').add(weaponNode); weaponNode.position.copy(drawn.position); weaponNode.quaternion.premultiply(drawn.quaternion); // retain the part's authored grip tilt
   if (weaponNode.userData.grip === 'reverse') weaponNode.rotateZ(Math.PI);   // the blade runs back along the forearm (the goblin's reverse-grip hook): the sword's transform turned 180° about its thickness axis — blade reversed AND the edge moved to the other side, so the forehand still leads with the edge
 }
@@ -780,6 +780,7 @@ for (const [name, maps] of Object.entries(manifest)) {
 }
 const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
 if (!realistic) authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
+for (const [name, maps] of Object.entries(weaponNode?.maps ?? {})) authored.set(name, { ...maps, occlusionTexCoord: 0 }); // a reconstructed weapon's own maps, by material name
 let finished = finishMaterials(Buffer.from(result), authored);
 if (fighter === 'veteran') {
   finished = fitVeteranNeck(finished).glb;
