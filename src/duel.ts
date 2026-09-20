@@ -59,6 +59,12 @@ export const elapsed = (f: Fighter): number => f.age + f.charge;
 export const timing = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
 const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
 export const guardOf = (f: Fighter, R: typeof RULES = RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, ...f.guardProfile });
+// Directional guard (owner 2026-09-20, on by default): a guard or parry covers ONE of the five attack sides. The side is the DEFENDER's:
+// facing each other, an attacker's `right` cut arrives on the defender's left, so a `left` guard meets a `right` cut; overhead, thrust
+// and low match by name. No side chosen (the thumb still on the button) is the straight guard, `thrust` — never "everything".
+export const mirror = (attack: Direction): Direction => attack === 'right' ? 'left' : attack === 'left' ? 'right' : attack;
+export const guardSide = (f: Pick<Fighter, 'guardDirection'>): Direction => f.guardDirection ?? 'thrust';
+export const covers = (f: Pick<Fighter, 'guardDirection'>, attack: Direction, R: typeof RULES = RULES): boolean => !R.directionalGuard || guardSide(f) === mirror(attack);
 // A swing may be feinted (cancelled into a fresh guard) only in its first ticks and only for a price.
 export const feintable = (f: Fighter, R: typeof RULES = RULES): boolean => f.phase === 'attack' && f.move !== null && f.age < movesOf(f)[f.move].feintUntil && f.stamina >= R.feintCost;
 // Ticks a committed phase lasts; null for phases that end on input.
@@ -167,6 +173,8 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     // *held* when the window closes simply becomes the standing guard (its first perfectBlock ticks are the perfect block). Holding Guard
     // therefore always guards — the only gamble in a parry is the tap. A punish window proves the parry connected. A committing parry
     // (guard.commits) has no such refuge: met nothing, it ends exposed whether or not the guard is held.
+    // A held guard follows the thumb: the side may change mid-hold (a slide, or the warden re-reading late) without a new press.
+    if (next.phase === 'guard' && intent.guard && R.directionalGuard) next.guardDirection = intent.guardDirection ?? null;
     if (next.phase === 'guard' && next.age >= window && next.parrying) { next.parrying = false; if (recovery > 0 && !next.punish && (!intent.guard || commits)) { next.phase = 'ready'; next.age = 0; next.exposed = recovery; } }
     if ((length !== null && next.age >= length && next.phase !== 'dead') || (next.phase === 'guard' && !intent.guard && next.age >= window)) {
       if (next.phase === 'attack' && !next.chained && next.move && movesOf(next)[next.move].chain) next.chain = movesOf(next)[next.move].chain!.window;
@@ -239,7 +247,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (!location) continue;
     A.landed = true;
     const g = guardOf(d, R), facing = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) <= g.arc;
-    const guarding = d.phase === 'guard' && facing && (!R.directionalGuard || !d.guardDirection || d.guardDirection === def.direction);
+    const raised = d.phase === 'guard' && facing, guarding = raised && covers(d, def.direction, R);   // raised: any guard up; guarding: the side covers this attack
     const breaks = (def.breaksGuard || charged || (g.heavyBreaks && def.direction === 'overhead')) && !g.stopsHeavy, blockCost = def.staminaDamage * g.costScale;
     const stagger = (ticks: number) => {
       const wall = walledHit ? R.wall.stagger : 0;
@@ -279,7 +287,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       A.phase = 'hurt'; A.age = 0; A.stun = R.parryStun; A.buffer = null; D.punish = R.parryStun;
       events.push({ tick, type: 'Parried', actor: j, target: i, move: a.move, weapon: weapon.id, material: weapon.material }, { tick, type: 'Staggered', actor: i, ticks: R.parryStun });
       shake(i, R.posture.parry);
-    } else if (guarding && def.vsGuard) {
+    } else if (raised && !guarding && def.vsGuard) {   // a kick into a guard held on any other side: the shove lands as before. The low guard braces it — an ordinary block below.
       spend(j, def.vsGuard.staminaDamage); wound(def.damage, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: def.damage, location, heading: a.body.heading, weapon: weapon.id, material: weapon.material }); stagger(def.vsGuard.stagger); shake(j, def.posture);
     } else if (guarding && !breaks && d.stamina >= (d.age - g.window < R.perfectBlock ? blockCost * R.perfectBlockCost : blockCost)) {
       // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half and stops the chip; the
