@@ -149,7 +149,7 @@ const whiffPunisher = (d: Duel): Intent => {
   return idle();
 };
 
-test('fight identity — don\'t turtle: the Pitborn passes the fairness battery at normal and hard, breaks a held guard inside 6 s, and the off-line whiff punisher is the best honest answer to him', () => {
+test('fight identity — don\'t turtle: the Pitborn passes the fairness battery at normal and hard, breaks a held guard inside 6 s, and the off-line whiff punisher is the best honest answer to him [slow]', () => {
   for (const [level, cap] of [['normal', .5], ['hard', .35]] as const) {
     const rows = battery(level, 24, 7200, P, { ...STRATEGIES, 'whiff punisher': whiffPunisher });
     const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');

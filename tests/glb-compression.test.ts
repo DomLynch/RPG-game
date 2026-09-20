@@ -46,7 +46,7 @@ test('JPEG packing preserves decoded pixels and metadata; a valid coefficient ch
   assert.notDeepEqual(jpegFingerprint(changed), expected, 'pixel changes must not pass as lossless packing');
 });
 
-test('shared external textures preserve the real rig and reject missing or corrupted image bytes', async () => {
+test('shared external textures preserve the real rig and reject missing or corrupted image bytes [slow]', async () => {
   const source = readFileSync(new URL('../src/assets/skeleton.glb', import.meta.url));
   const images = new Map();
   const packed = await optimizeGlb(source, (bytes, mime) => {
