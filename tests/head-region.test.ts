@@ -72,7 +72,7 @@ function headBattery(weapon: 'longsword' | 'cleaver', seeds: number) {
   return tally;
 }
 
-test('organic head blows in seeded duels: the cleaver lands them with heavies, the longsword hero never does', () => {
+test('organic head blows in seeded duels: the cleaver lands them with heavies, the longsword hero never does [slow]', () => {
   const cleaver = headBattery('cleaver', 12), longsword = headBattery('longsword', 12);
   console.log(`head battery (12 seeds each): cleaver ${JSON.stringify(cleaver)} · longsword ${JSON.stringify(longsword)}`);
   assert.equal(longsword.head, 0, `the hero's longsword reported ${longsword.head} head blows — its clips arc chest-high by design`);

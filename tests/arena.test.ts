@@ -54,7 +54,7 @@ test('the floor is sand, darker than the hero\'s skin, flat to the camera clamp,
   for (let i = 0; i < p.count; i += 97) { assert.ok(Math.abs(uv.getX(i) - p.getX(i) / SAND_TILE) < 1e-4 && Math.abs(uv.getY(i) - p.getZ(i) / SAND_TILE) < 1e-4, 'floor UVs are not u = x / SAND_TILE, v = z / SAND_TILE'); assert.equal(p.getY(i), 0); }
 });
 
-test('the crowd stands on the tiers, outside the clamp, and never moves past the readable-brutality cap; a hit-stop holds it still', () => {
+test('the crowd stands on the tiers, outside the clamp, and never moves past the readable-brutality cap; a hit-stop holds it still [slow]', () => {
   const { scene, arena } = built(), crowd = [...arena.group.children].filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd'));
   const count = crowd.reduce((n, m) => n + m.count, 0); assert.ok(count >= 150 && count <= 600, `${count} spectators`);
   const rest = new Map<string, THREE.Matrix4[]>(); for (const m of crowd) rest.set(m.name, Array.from({ length: m.count }, (_, i) => { const x = new THREE.Matrix4(); m.getMatrixAt(i, x); return x; }));
@@ -79,7 +79,7 @@ test('the crowd stands on the tiers, outside the clamp, and never moves past the
   arena.dispose(); assert.equal(scene.getObjectByName('arena'), undefined);
 });
 
-test('the arena updates and disposes without touching the fighters', () => {
+test('the arena updates and disposes without touching the fighters [slow]', () => {
   const { scene, arena, meshes } = built();
   assert.ok(meshes.length > 0);
   arena.update(1 / 60, [{ tick: 1, type: 'Hit', actor: 0, target: 1 } as never]);

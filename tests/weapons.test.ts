@@ -101,7 +101,7 @@ async function readRig(file: string) { // the rig without its images (the bake r
 }
 const TRIDENT_CLIPS: Record<string, number> = { Trident_Idle: 1.667, Trident_Walk: 1.333, Trident_StrafeLeft: .8, Trident_StrafeRight: .8, Trident_Thrust: 1, Trident_ThrustChain: 1, Trident_Sweep: 1, Trident_High: 1, Trident_Guard: 1, Trident_BlockImpact: 1, Trident_Deflected: 1, Trident_Hit: .333, Trident_Death: 2.4 };
 
-test('polearm elbows bend outwards in the ready gaits and keep their anatomical hinge through every clip, including between keys', async () => {
+test('polearm elbows bend outwards in the ready gaits and keep their anatomical hinge through every clip, including between keys [slow]', async () => {
   for (const file of [TRIDENT_GLB, 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb']) {
     const asset = await readRig(file), mixer = new AnimationMixer(asset.scene);
     const arms = ['l', 'r'].map(side => ({ side, upper: asset.scene.getObjectByName(`upperarm_${side}`)!, lower: asset.scene.getObjectByName(`lowerarm_${side}`)!, hand: asset.scene.getObjectByName(`hand_${side}`)! }));
@@ -138,7 +138,7 @@ test('polearm elbows bend outwards in the ready gaits and keep their anatomical 
   }
 });
 
-test('both polearm arms stay outside the torso core throughout every shipped clip, including between keys', async () => {
+test('both polearm arms stay outside the torso core throughout every shipped clip, including between keys [slow]', async () => {
   for (const file of ['src/assets/veteran.glb', 'src/assets/executioner.glb', 'src/assets/weapons/scythe/warrior-scythe.glb']) {
     const asset = await readRig(file), mixer = new AnimationMixer(asset.scene);
     const position = (name: string) => asset.scene.getObjectByName(name)!.getWorldPosition(new Vector3());

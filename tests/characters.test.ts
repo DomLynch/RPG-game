@@ -47,7 +47,7 @@ async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'w
   return new GLTFLoader().parseAsync(JSON.stringify(json), '');
 }
 
-test('Split Crown cuts every fighter head, follows its animated bone, respects blood modes and restores on rematch', async () => {
+test('Split Crown cuts every fighter head, follows its animated bone, respects blood modes and restores on rematch [slow]', async () => {
   for (const file of FIGHTERS) {
     const asset = await readWarrior(file), weapon = WEAPON_OF[file];
     const { player, opponent } = buildWarriors(asset, undefined, [weapon, weapon]);
@@ -99,7 +99,7 @@ test('Split Crown cuts every fighter head, follows its animated bone, respects b
   }
 });
 
-for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight`, async () => {
+for (const file of FIGHTERS) test(`shipped ${file} has finite poses, grounded walk and bounded running flight [slow]`, async () => {
   const asset = await readWarrior(file), names = asset.animations.map(a => a.name);
   // The sword set is the base of every rig; a rig carries every clip its weapon's role table names, and nothing plays by position.
   assert.deepEqual(names.slice(0, CLIPS.length + COMBAT_CLIPS.length), [...CLIPS, ...COMBAT_CLIPS]);
@@ -367,7 +367,7 @@ test('the exported blade crosses the target at the simulation contact frame', as
   assert.ok(tip.z > .9 && tip.z <= SWORD.reach + .1 && Math.abs(tip.x) < .45 && tip.y > .6 && tip.y < 2, `Contact tip: ${tip.toArray()}`);
 });
 
-test('roll and guard keep the shipped body finite, above the floor and within a compact silhouette', async () => {
+test('roll and guard keep the shipped body finite, above the floor and within a compact silhouette [slow]', async () => {
   const asset = await readWarrior(), mixer = new AnimationMixer(asset.scene), point = new Vector3();
   for (const name of ['Roll', 'Guard', 'BlockImpact', 'Parry']) {
     const clip = asset.animations.find(a => a.name === name)!;
@@ -579,7 +579,7 @@ test('the Run Through hold aims its blade at the victim (owner 2026-09-19): the 
 });
 
 
-test('Run Through stays embedded through every opponent collapse, world heading, held frame and rematch', async () => {
+test('Run Through stays embedded through every opponent collapse, world heading, held frame and rematch [slow]', async () => {
   const hero = await readWarrior();
   for (const file of FIGHTERS.slice(1)) {
     const { player, opponent } = buildWarriors(hero, await readWarrior(file), ['longsword', WEAPON_OF[file]]);
@@ -644,7 +644,7 @@ test('The Quiet One clutches the throat, pauses upright, then lies still on the 
   }
 });
 
-test('Opened cuts each shipped humanoid at the waist, keeps its materials, grounds both halves and restores cleanly', async () => {
+test('Opened cuts each shipped humanoid at the waist, keeps its materials, grounds both halves and restores cleanly [slow]', async () => {
   for (const file of FIGHTERS) {
     const asset = await readWarrior(file), weapon = WEAPON_OF[file];
     const {opponent,player} = buildWarriors(asset,undefined,[weapon,weapon]);
@@ -716,7 +716,7 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
 });
 
 
-test('finisher blood sources follow the real jugular, skull, chest and separated waist on every humanoid', async () => {
+test('finisher blood sources follow the real jugular, skull, chest and separated waist on every humanoid [slow]', async () => {
   for (const file of FIGHTERS) {
     const asset=await readWarrior(file),weapon=WEAPON_OF[file];
     for(const kind of ['quietOne','splitCrown','runThrough','opened','decapitation'] as const) {
