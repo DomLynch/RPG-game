@@ -1,0 +1,122 @@
+# Measurement-only: run every release check from .quality-gate.json as its own GitHub job, in parallel, on the commit
+# given (default: the ref this was dispatched on). Nothing here gates a merge or a deploy — every job continues on
+# error and the receipt is a per-check table in the run summary plus one artifact per check. Purpose: learn which of
+# the 25 checks are trustworthy on headless Linux and how long each takes there, before anyone lets deploy.sh trust
+# this run instead of the Mac's own release checks. Dispatch only (no push trigger): 25 runners per run.
+name: release-checks
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit or branch to measure (default: the ref you dispatch from)'
+        required: false
+        default: ''
+concurrency:
+  group: release-checks-${{ github.ref }}-${{ inputs.ref }}
+  cancel-in-progress: true
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      checks: ${{ steps.list.outputs.checks }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - id: list
+        # One matrix entry per release_commands row: index, a short name for the job title, the argv as one string.
+        run: |
+          node -e '
+            const gate = require("./.quality-gate.json");
+            const checks = gate.release_commands.map((command, i) => ({
+              index: i + 1,
+              name: (command.find(a => a.endsWith(".mjs")) || command[0]).replace(/^(scripts|artifacts)\//, "").replace(/\.mjs$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40),
+              argv: JSON.stringify(command),
+            }));
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "checks=" + JSON.stringify(checks) + "\n");
+          '
+  check:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        check: ${{ fromJson(needs.plan.outputs.checks) }}
+    name: check ${{ matrix.check.index }} (${{ matrix.check.name }})
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Lossless JPEG build tool
+        run: sudo apt-get install -y libjpeg-turbo-progs
+      - run: npm run build
+      - name: Release check ${{ matrix.check.index }}
+        env:
+          CHECK_INDEX: ${{ matrix.check.index }}
+          CHECK_ARGV: ${{ matrix.check.argv }}
+          CHECK_NAME: ${{ matrix.check.name }}
+        # Same argv the Mac runs, timed; the receipt is written whether it passes or not.
+        run: |
+          PG_BIN="$(pg_config --bindir 2>/dev/null || true)" node -e '
+            const { spawnSync } = require("child_process");
+            const argv = JSON.parse(process.env.CHECK_ARGV);
+            const started = Date.now();
+            const result = spawnSync(argv[0], argv.slice(1), { stdio: "inherit", env: { ...process.env, PG_BIN: process.env.PG_BIN } });
+            const seconds = Math.round((Date.now() - started) / 100) / 10;
+            const status = result.status ?? 1;
+            require("fs").mkdirSync("artifacts", { recursive: true });
+            require("fs").writeFileSync(`artifacts/release-check-${process.env.CHECK_INDEX}.json`,
+              JSON.stringify({ index: Number(process.env.CHECK_INDEX), name: process.env.CHECK_NAME, command: argv.join(" "), seconds, status, runner: "ubuntu-latest" }) + "\n");
+            console.log(`check ${process.env.CHECK_INDEX} ${status === 0 ? "passed" : "FAILED (exit " + status + ")"} in ${seconds}s`);
+            process.exit(status);
+          '
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-check-${{ matrix.check.index }}
+          path: |
+            artifacts/release-check-${{ matrix.check.index }}.json
+            artifacts/**/*.json
+            artifacts/**/*.jpg
+            artifacts/**/*.png
+            artifacts/**/*.webm
+          if-no-files-found: ignore
+  summary:
+    needs: check
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-check-*
+          path: receipts
+      - name: Per-check table
+        run: |
+          node -e '
+            const fs = require("fs"), path = require("path");
+            const rows = [];
+            for (const dir of fs.readdirSync("receipts")) {
+              const file = path.join("receipts", dir, `${dir}.json`);
+              if (fs.existsSync(file)) rows.push(JSON.parse(fs.readFileSync(file, "utf8")));
+            }
+            rows.sort((a, b) => b.seconds - a.seconds);
+            const passed = rows.filter(r => r.status === 0).length;
+            const lines = [
+              `## Release checks on ubuntu-latest — ${passed}/${rows.length} passed, longest ${rows[0]?.seconds ?? 0}s`,
+              "", "| # | check | seconds | result |", "|---|---|---:|---|",
+              ...rows.map(r => `| ${r.index} | ${r.name} | ${r.seconds} | ${r.status === 0 ? "pass" : "FAIL (exit " + r.status + ")"} |`),
+              "", "Measurement only: this run gates nothing. Compare against the Mac receipt in artifacts/release-checks.json before trusting any check here.",
+            ];
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            console.log(lines.join("\n"));
+          '
