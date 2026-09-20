@@ -107,9 +107,11 @@ export function buildArena(scene: THREE.Scene): Arena {
   const gateLightMaterial = new THREE.MeshBasicMaterial({ name: 'gate-light', map: textures.gateLight, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });   // a warm patch, not a stage spotlight (audit 2026-09-20)
   const materials = [sand, stone, iron, coal, cloth, crowdMaterial, sky, plain, boundary, flame, motesMaterial, gateLightMaterial];
   // When the worker's maps land: fresh textures on the materials, the stand-ins disposed. The materials keep their programs (same map slots).
+  let disposed = false;
   const texturesReady = new Promise<void>((resolve) => {
     if (!worker) return resolve();
     worker.onmessage = (event: MessageEvent<HeavyTextures>) => {
+      if (disposed) { worker.terminate(); return resolve(); }   // disposed while generating: nothing to swap into
       const p = event.data, swap = (key: 'sand' | 'sandNormal' | 'stone' | 'stoneNormal' | 'sky', srgb: boolean) => { const t = dataTexture(p[key], srgb); textures[key].dispose(); textures[key] = t; return t; };
       sand.map = swap('sand', true); sand.normalMap = swap('sandNormal', false); stone.map = swap('stone', true); stone.normalMap = swap('stoneNormal', false);
       sky.map = swap('sky', true); textures.sky.wrapT = THREE.ClampToEdgeWrapping;
@@ -431,6 +433,7 @@ export function buildArena(scene: THREE.Scene): Arena {
     group, floor, update, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
     get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed
     dispose() {
+      disposed = true; worker?.terminate();
       props.dispose();
       group.traverse(object => { if (object instanceof THREE.Mesh || object instanceof THREE.Points) object.geometry.dispose(); if (object instanceof THREE.InstancedMesh) object.dispose(); });
       for (const material of materials) material.dispose(); for (const t of Object.values(textures)) t.dispose(); scene.remove(group);
