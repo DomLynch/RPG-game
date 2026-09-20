@@ -586,8 +586,8 @@ export function createScene(
         warriors?.opponent.unsever();
         if (supportsFinishers(opponentId, 'opened')) warriors?.opponent.prepareOpened();
       } // a fresh match: both bars full again
-      // Camera kick: a landed blow shoves the camera along its heading (7 cm for a heavy class, 2 cm for a light), a block or parry rocks
-      // it less (1.2–2.8 cm) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
+      // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
+      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
       const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
       const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && shoveFor(shoveEvent);
       if (shoveEvent && shove && dt > 0 && !stillCamera) {
