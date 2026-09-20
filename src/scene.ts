@@ -651,14 +651,19 @@ export function createScene(
             rig = attacker ? warriors?.opponent : warriors?.player,
             weapon = rig?.anchor.getObjectByName('WeaponDrawn') ?? rig?.anchor.getObjectByName('SwordDrawn'),
             contactRange = weapon?.userData.contact as { from: number; to: number } | undefined;
-          // The blades meet at the defender's guard: a third of a metre in front of his chest toward the attacker's hand, at the height the
-          // attacking blade is passing (on the contact tick the rig's blade already reaches into the defender's body, so its own points are not the meeting point).
-          const defenderBody = attacker ? state : practice.enemy,
-            hand = weapon?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3(attacker ? practice.enemy.x : state.x, 1.1, attacker ? practice.enemy.z : state.z),
-            bladeHeight = weapon && contactRange ? (weapon.localToWorld(new THREE.Vector3(0, contactRange.from, 0)).y + weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)).y) / 2 : 1.15;
-          const at = new THREE.Vector3(defenderBody.x, 0, defenderBody.z);
-          at.add(hand.clone().setY(0).sub(at).normalize().multiplyScalar(0.35)).setY(Math.min(1.6, Math.max(0.8, bladeHeight)));
-          clash.burst(at, attacker ? practice.enemy.heading : state.heading, strength);
+          // Struck off the attacking blade itself (owner 2026-09-20): the outer part of its contact zone as the rig draws it this frame,
+          // with a fallback segment at the defender's guard when a rig is not loaded.
+          const defenderBody = attacker ? state : practice.enemy, guard = new THREE.Vector3(defenderBody.x, 1.15, defenderBody.z);
+          let a: THREE.Vector3, b: THREE.Vector3;
+          if (weapon && contactRange) {
+            // The rig's contact pose already drives the blade into the defender; sparks belong on the visible length, so the zone ends
+            // where the blade enters his body (0.3 m off his axis) and runs 0.4 m back toward the attacker's hand.
+            const hand = weapon.localToWorld(new THREE.Vector3(0, 0, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)), length = hand.distanceTo(tip) || 1;   // the grip to the tip: the whole visible length
+            let entry = 1;
+            for (let t = 0; t <= 1; t += 0.05) { const q = hand.clone().lerp(tip, t); if (Math.hypot(q.x - guard.x, q.z - guard.z) < 0.3) { entry = t; break; } }
+            b = hand.clone().lerp(tip, Math.max(0.25, entry - 0.02)); a = b.clone().sub(tip.clone().sub(hand).multiplyScalar(Math.min(0.4, length * 0.35) / length));
+          } else { const towardAttacker = new THREE.Vector3(attacker ? practice.enemy.x : state.x, 0, attacker ? practice.enemy.z : state.z).sub(new THREE.Vector3(guard.x, 0, guard.z)).normalize(); a = guard.clone().addScaledVector(towardAttacker, 0.2); b = guard.clone().addScaledVector(towardAttacker, 0.6); }
+          clash.burst(a, b, attacker ? practice.enemy.heading : state.heading, strength);
           impact = 0; // the dedicated sparks replace the generic dots for this contact
         }
         sparks.position.set(
