@@ -25,12 +25,12 @@ test('a parry sparks hardest, then a heavy, a perfect block, a plain block', () 
   assert.ok(parry > heavy && heavy > perfect && perfect > plain && plain > 0, `${parry} ${heavy} ${perfect} ${plain}`);
 });
 
-test('a burst throws 4–8 sparks that fall, bounce once off the sand, and die within 0.45 s; a pause holds them', () => {
+test('a burst throws 3–7 sparks over a frame or two that fall, bounce once off the sand, and die within 0.45 s; a pause holds them', () => {
   const scene = new THREE.Scene(), sparks = createClashSparks(scene), points = scene.getObjectByName('clash sparks') as THREE.Points;
   assert.ok(points && !points.visible);
-  sparks.burst(new THREE.Vector3(0, 1.2, -1.3), Math.PI, 0.4); const few = sparks.alive();
-  sparks.burst(new THREE.Vector3(0, 1.2, -1.3), Math.PI, 0.9); const many = sparks.alive();
-  assert.ok(few >= 4 && few <= 8 && many >= few + 4 && many <= 16, `${few} then ${many}`);
+  sparks.burst(new THREE.Vector3(0, 1.2, -1.3), new THREE.Vector3(0.3, 1.3, -1.5), Math.PI, 0.4); sparks.update(1 / 60); sparks.update(1 / 60); const few = sparks.alive();
+  sparks.burst(new THREE.Vector3(0, 1.2, -1.3), new THREE.Vector3(0.3, 1.3, -1.5), Math.PI, 0.9); sparks.update(1 / 60); sparks.update(1 / 60); const many = sparks.alive();
+  assert.ok(few >= 3 && few <= 7 && many >= few + 3 && many <= 14, `${few} then ${many}`);
   sparks.update(1 / 60); assert.ok(points.visible);
   const position = points.geometry.attributes.position as THREE.BufferAttribute, before = position.getY(0);
   sparks.update(0); assert.equal(position.getY(0), before, 'dt 0 moved a spark');

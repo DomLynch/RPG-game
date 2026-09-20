@@ -152,3 +152,18 @@ test('nearby spectators mix kinds and garment colours, with subdued red and navy
   assert.ok(sameKind / pairs < 0.08, `${sameKind}/${pairs} nearby pairs repeat the same body`);
   assert.ok(sameDye / pairs < 0.03, `${sameDye}/${pairs} nearby pairs repeat the same dye`);
 });
+
+test('with a camera, spectators outside its frustum collapse to nothing and the rest stand; without one everybody stands', () => {
+  const { arena } = built(), crowd = [...arena.group.children].filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && o.name.startsWith('crowd'));
+  const camera = new THREE.PerspectiveCamera(51, 393 / 852, 0.1, 180); camera.position.set(0, 4.2, 9.5); camera.lookAt(0, 0.8, -2.5); camera.updateMatrixWorld(true);
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  const m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  // A culled instance is a zero matrix (decompose() reports scale 1 for it in three r186, so read the matrix itself).
+  const standingAt = (mesh: THREE.InstancedMesh, i: number) => { mesh.getMatrixAt(i, m); return m.elements[5] !== 0; };
+  const count = (visible: boolean) => crowd.reduce((n, mesh) => { for (let i = 0; i < mesh.count; i++) if (standingAt(mesh, i) === visible) n++; return n; }, 0);
+  arena.update(1 / 60, []); assert.equal(count(false), 0, 'no camera: nobody culled');
+  arena.update(1 / 60, [], camera);
+  const standing = count(true), culled = count(false); assert.ok(culled > standing, `culled ${culled}, standing ${standing}: the portrait lock sees a narrow sector`);
+  for (const mesh of crowd) for (let i = 0; i < mesh.count; i++) { if (!standingAt(mesh, i)) continue; m.decompose(p, q, s); assert.ok(frustum.intersectsSphere(new THREE.Sphere(p.clone().add(new THREE.Vector3(0, 0.9, 0)), 1.2)), 'a standing spectator is outside the frustum'); }
+  arena.update(1 / 60, []); assert.equal(count(false), 0, 'the camera gone, everybody stands again');
+});
