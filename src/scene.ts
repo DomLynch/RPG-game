@@ -191,7 +191,7 @@ export function createScene(
   ];
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
-  const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb'], { eager: true, query: '?url', import: 'default' });
+  const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
   const ready = loadWarriors(
     fighterUrls['./assets/warrior.glb'],
     fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`],
