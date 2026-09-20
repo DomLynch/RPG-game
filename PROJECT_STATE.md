@@ -1,5 +1,8 @@
 # Project state
 
+## Combat: Pitborn tune, Executioner gate, a planned-cut fix — 2026-09-20
+- Pitborn normal reaction 18 → 14, lapse .3 → .1 (hard 12 / .08): hero brain 17/24 → 13/24 (Veteran 13); gate + a win-share pin. Executioner gets a fairness gate (caps, touched, honest answer, parked probes, AI-vs-AI 18–45 s). Fix found by the gate: a planned cut inside its own point (scythe 1.4 m) becomes the heavy/thrust when throwable — the hard Executioner froze over a man at 1.2 m. Other wardens' battery tables byte-identical. 312/312.
+- Reaper Wraith (#186, draft — on hold with the Wraith for Season 2): inside the point the kick counts to its landing range; check 28 is a wall-clock UI duel that also fails on a trunk build on this Mac (61/78 hp left), so it is not a receipt here.
 ## Career marks — career lane, 2026-09-20 (owner decision: marks on the Google account via Supabase)
 Every won duel awards one victory mark on the device (`awardMark` in `src/career.ts`, called once per fight in the same block that
 records the practice tally); rank is a pure function of the count per GAME_SPEC's ladder (3 marks per sub-rank for Recruit and
