@@ -6,7 +6,11 @@ then rays back onto the mesh. Eyeballs and teeth are borrowed from a donor scan 
 `eye_colour`/`dark_eyes`; the teeth never show — no fighter opens his mouth). Nothing in head.py changes: point a fighter's
 `kt_glb` at the output.
 
-  blender -b --python-exit-code 1 -P scripts/character/trellis_head.py -- <trellis.glb> <out.glb> [--donor <kt.glb>] [--python <face venv python>]
+  blender -b --python-exit-code 1 -P scripts/character/trellis_head.py -- <trellis.glb> <out.glb> [--portrait <front.png>] [--donor <kt.glb>] [--python <face venv python>]
+
+With --portrait, the texture's skin is matched to the portrait's skin: TRELLIS.2 bakes the face two to three times darker than
+the photograph it was given (measured 2026-09-20: cheek luminance .12–.21 against the portrait's .46), and the pipeline paints the
+body to the head's tone. The gain comes from the same landmark points on both (cheeks, forehead, chin), so hair and cloth stay dark.
 
 Writes <out>.json beside the GLB with what it measured (eye spacing found, scale applied, landmark confidence), and the front
 render + landmark overlay under artifacts/character/trellis-head/ for the receipt.
@@ -17,6 +21,7 @@ import os
 import subprocess
 import sys
 
+import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
@@ -24,8 +29,12 @@ args = sys.argv[sys.argv.index('--') + 1:]
 src, out = args[0], args[1]
 donor = args[args.index('--donor') + 1] if '--donor' in args else 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb'
 python = args[args.index('--python') + 1] if '--python' in args else os.path.expanduser('~/.venvs/face/bin/python')
+portrait = args[args.index('--portrait') + 1] if '--portrait' in args else None
+SKIN_POINTS = (50, 280, 10, 151, 152, 168, 425, 205)  # cheeks, forehead, chin, nose bridge, cheekbones
 EYE_SPACING, EYE_RADIUS, EYE_MID = 0.5755, 0.152, Vector((0.006, -0.792, 0.362))  # KeenTools' units, from the hero's scan
 IRIS_L, IRIS_R = 473, 468  # MediaPipe refined-landmark iris centres (the subject's left eye is on the image's right)
+LID_L = (362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398)  # the lid margins, in order round the opening
+LID_R = (33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246)
 work = 'artifacts/character/trellis-head'
 os.makedirs(work, exist_ok=True)
 
@@ -132,6 +141,94 @@ for name, idx in (('l', IRIS_L), ('r', IRIS_R)):
     if loc is None:
         sys.exit(f'iris {name} ray missed the mesh at pixel {px:.0f},{py:.0f}')
     iris[name] = loc
+# The reconstruction is a closed surface with the eyes painted on it. Cut each lid opening (the landmark contour, rays onto the
+# mesh, faces whose centre falls inside it and near its depth) so the eyeballs — and their painted iris — show the way a scan's do.
+
+
+def inside(pt, poly):
+    x, z = pt
+    n, hit = len(poly), False
+    for i in range(n):
+        (x1, z1), (x2, z2) = poly[i], poly[(i + 1) % n]
+        if (z1 > z) != (z2 > z) and x < x1 + (z - z1) * (x2 - x1) / (z2 - z1):
+            hit = not hit
+    return hit
+
+
+openings = {}
+for key, ring in (('l', LID_L), ('r', LID_R)):
+    pts = []
+    for idx in ring:
+        px, py = lm['points'][idx]
+        loc = ray_from_pixel(px, py)
+        if loc is not None:
+            pts.append(loc)
+    if len(pts) >= 6:
+        openings[key] = pts
+bm = bmesh.new()
+bm.from_mesh(head.data)
+cut = []
+for key, pts in openings.items():
+    cx_, cz_ = sum(p.x for p in pts) / len(pts), sum(p.z for p in pts) / len(pts)
+    poly = [(cx_ + (p.x - cx_) * 1.2, cz_ + (p.z - cz_) * 1.2) for p in pts]  # a fifth wider than the landmark margin: the lid's thickness, so the opening reads at phone size
+    depth_y, width = sum(p.y for p in pts) / len(pts), max(p.x for p in pts) - min(p.x for p in pts)
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if abs(c.y - depth_y) < width and inside((c.x, c.z), poly):  # the lid surface within an eye's width of the margin's depth; the skull behind is far beyond it
+            cut.append(f)
+bmesh.ops.delete(bm, geom=list(set(cut)), context='FACES')
+bm.to_mesh(head.data)
+bm.free()
+head.data.update()
+print(f'TRELLIS_HEAD eye openings cut: {len(set(cut))} faces over {len(openings)} eye(s)')
+
+# Texture ↔ portrait tone match: the texel under each skin landmark (ray → face → its UV) against the portrait's own pixels there.
+gain = None
+if portrait:
+    uvs = head.data.uv_layers.active.data
+    skin_uv = []
+    for idx in SKIN_POINTS:
+        px, py = lm['points'][idx]
+        hit, loc, normal, face_index = head.ray_cast(Vector((cx + (px / w - 0.5) * span, -100, cz - (py / h - 0.5) * span)), Vector((0, 1, 0)))
+        if hit:
+            poly = head.data.polygons[face_index]
+            u = sum((uvs[li].uv for li in poly.loop_indices), Vector((0, 0))) / len(poly.loop_indices)
+            skin_uv.append([u.x, u.y])
+    tex_png = os.path.join(work, 'texture.png')
+    tex.image.filepath_raw = tex_png
+    tex.image.file_format = 'PNG'
+    tex.image.save()
+    r = subprocess.run([python, 'scripts/character/landmarks.py', portrait], capture_output=True, text=True)
+    if r.returncode == 0 and skin_uv:
+        matched = os.path.join(work, 'texture-matched.png')
+        code = f'''
+import json, cv2, numpy as np
+tex = cv2.imread({tex_png!r}, cv2.IMREAD_UNCHANGED).astype(np.float32) / 255
+por = cv2.imread({portrait!r})[:, :, ::-1].astype(np.float32) / 255
+plm = json.load(open({portrait.rsplit('.', 1)[0] + '.landmarks.json'!r}))['points']
+H, W = tex.shape[:2]
+def patch(im, x, y, r=5):
+    y0, x0 = max(0, int(y) - r), max(0, int(x) - r)
+    return im[y0:int(y) + r, x0:int(x) + r, :3].reshape(-1, 3)
+t = np.concatenate([patch(tex, u * W, (1 - v) * H) for u, v in {skin_uv!r}])
+p = np.concatenate([patch(por, plm[i][0], plm[i][1]) for i in {list(SKIN_POINTS)!r}])
+t = t[t.max(axis=1) > 0.04]
+gain = np.median(p, axis=0) / np.maximum(np.median(t, axis=0), 1e-3)
+gain = np.clip(gain, 0.5, 4.0)
+out = tex.copy()
+out[:, :, :3] = 1 - np.clip(1 - tex[:, :, :3] * gain[None, None, ::1], 0, 1)   # a plain gain, clipped: highlights are rare on a matte face
+cv2.imwrite({matched!r}, (np.clip(out, 0, 1) * 255).round().astype(np.uint8))
+print(json.dumps({{'gain': gain.tolist(), 'texture_skin': np.median(t, axis=0).tolist(), 'portrait_skin': np.median(p, axis=0).tolist()}}))
+'''
+        r2 = subprocess.run([python, '-c', code], capture_output=True, text=True)
+        if r2.returncode == 0:
+            gain = json.loads(r2.stdout.strip().splitlines()[-1])
+            new_img = bpy.data.images.load(matched)
+            new_img.name = 'Image_0'
+            tex.image = new_img
+            new_img.pack()
+        else:
+            print('TONE MATCH FAILED', r2.stderr[-400:])
 # The eyeballs sit behind the lid surface: the donor's own eye sits `depth` behind the point in front of it (measured below).
 spacing = abs(iris['l'].x - iris['r'].x)
 scale = EYE_SPACING / spacing
@@ -174,9 +271,11 @@ depth = sum(depths) / len(depths) if depths else EYE_RADIUS * 0.8
 d_mid = (centroid(d_eye_l) + centroid(d_eye_r)) / 2
 teeth_offset = centroid(d_teeth) - d_mid
 for e, key in ((d_eye_l, 'l'), (d_eye_r, 'r')):
-    target = iris[key] + Vector((0, depth, 0))
+    target = iris[key] + Vector((0, EYE_RADIUS - 0.012, 0))  # the cornea a hair inside the opening: the reconstruction painted the eye ON the surface, so the surface is where the eye's front was
     e.data.transform(Matrix.Translation(target - centroid(e)))
-d_teeth.data.transform(Matrix.Translation(((iris['l'] + iris['r']) / 2 + teeth_offset) - centroid(d_teeth)))
+mouth = (iris['l'] + iris['r']) / 2 + teeth_offset
+hit, lips, _, _ = head.ray_cast(Vector((mouth.x, -100, mouth.z)), Vector((0, 1, 0)))  # the teeth sit behind whatever this face has for lips; nobody opens his mouth
+d_teeth.data.transform(Matrix.Translation(Vector((mouth.x, (lips.y if hit else mouth.y) + 0.45, mouth.z)) - centroid(d_teeth)))
 bpy.data.objects.remove(d_head, do_unlink=True)
 
 # One mesh, four slots in KeenTools' order: the head's material first, then the donor's eye and teeth materials.
@@ -192,7 +291,7 @@ slots = [m.name for m in head.data.materials]
 assert slots == ['Material_0', 'Material_1', 'Material_2', 'Material_3'], slots
 only([head])
 bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', use_selection=True, export_apply=True, export_animations=False)
-report = {'source': src, 'donor': donor, 'yaw': yaw_used, 'eye_spacing_found': spacing, 'scale': scale, 'eye_depth': depth,
+report = {'source': src, 'donor': donor, 'portrait': portrait, 'tone': gain, 'yaw': yaw_used, 'eye_spacing_found': spacing, 'scale': scale, 'eye_depth': depth,
           'iris_l': list(iris['l']), 'iris_r': list(iris['r']), 'slots': slots, 'vertices': len(head.data.vertices),
           'triangles': sum(len(p.vertices) - 2 for p in head.data.polygons)}
 json.dump(report, open(out.rsplit('.', 1)[0] + '.json', 'w'), indent=1)

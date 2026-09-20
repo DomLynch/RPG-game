@@ -45,7 +45,7 @@ KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'b
        'pitborn': {'linen': (0.34, 0.31, 0.27), 'grime': 0.88, 'greaves': False, 'build': True, 'bare': True, 'brute': True, 'helm': False, 'barefoot': True, 'ears': False},
        # The Nightborn: black-dyed wool (never pure black — below ~12 % value the folds and occlusion have nothing to shade at phone size), clean,
        # the base frame (lean), a closed tunic over both shoulders with a standing collar, no helm, no greaves. artifacts/character/BRIEF-nightborn.md.
-       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': 'points', 'crown': True},  # ears 'points': small tips on the scan's own ears (his brief), not the goblin's long ears; crown: the small dark-ruby circlet (his examples, 2026-09-18)
+       'nightborn': {'linen': (0.13, 0.12, 0.15), 'grime': 0.30, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'collar': True, 'boots': True, 'barefoot': False, 'ears': False, 'crown': True},  # ears: the TRELLIS.2 head carries his pointed ears (2026-09-20); 'points' was the stand-in's tips (his brief), not the goblin's long ears; crown: the small dark-ruby circlet (his examples, 2026-09-18)
        'goblin': {'linen': (0.31, 0.28, 0.23), 'grime': 0.94, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'barefoot': True, 'ears': True},
        # The Executioner: charcoal-black linen (above the Nightborn's 12 % phone-size floor), heavily grimed, the brute frame
        # at 1.36 — 20 % over the Pitborn (BUILD.executioner). The helm slot carries the iron half-mask + ragged hood; leather
@@ -2000,7 +2000,7 @@ if not proof:
     manifest_path = os.path.join(materials_out, f'manifest_{VARIANT}.json' if realistic else 'manifest.json')
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     ao_file = os.path.basename(occlusion_map())
-    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.6), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), ('HairShell', REAL['maps']['HairShell'], 1.0)] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
+    extra = [('Eyes', eye_maps(bpy.data.objects['eye_L']), 0.5), ('Face', REAL['maps']['Face'], 1.6), ('HairCards', REAL['maps']['HairCards'], 1.0), ('BrowCards', REAL['maps']['BrowCards'], 1.0), *([('HairShell', REAL['maps']['HairShell'], 1.0)] if 'HairShell' in REAL['maps'] else [])] + [(k, REAL['maps'][k], 0.8) for k in ('Photo', 'PhotoEyes', 'PhotoTeeth') if k in REAL['maps']] if realistic else []
     # the Studio sculpt's muscle relief is subtle: amplified in the shader (Skin normalScale 1.6 for the realistic build)
     for name, maps, scale in [('Skin', REAL['maps']['Skin'] if realistic else skin_maps(), 1.6 if realistic else 0.8), ('Ranger', ranger_maps(), 1.0), ('Bronze', bronze_maps(), 1.0), ('Wrap', wrap_maps(), 1.0), ('Hair', hair_maps(), 0.6)] + extra:
         manifest[name] = {k: os.path.basename(v) for k, v in maps.items()}
