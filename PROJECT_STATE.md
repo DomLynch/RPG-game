@@ -87,6 +87,14 @@ that memory (`lastFinisher`, rolled at rematch) and hands it to the audio resolv
 scene and audio still agree. Presentation state only; replays with the same history are identical. The preview harness
 resets the memory per captured window. Test: 20 000-event sweep asserts no repeat, 16–24 % share each, determinism.
 
+## Dwarf warhammer — integration of the weapons lane's shelf package (2026-09-20)
+Owner: the Dwarf gets a warhammer instead of the Veteran's trident. Weapons shipped `warhammer` on the shelf (#233, weapons/warhammer-v1:
+part, 12 `Warhammer_*` clips on the base humanoid rig, WEAPON_CLIPS, `WEAPONS.warhammer = {...MAUL, placeholder}`). Character lane
+(`char/dwarf-warhammer`, on top of #233): the donor is rebuilt with `WARRIOR_WEAPON=warhammer`, the Dwarf refitted and packed (37 clips,
+185 finite poses, both hands on the haft < 0.08 m, source maps retained; sha 82dab728…), roster `weapon: 'warhammer'`, the creature
+browser check keys on the `Warhammer_*` family, and the role-table test maps the warhammer to dwarf.glb. Still Combat's: the reach band and
+lifting the `placeholder` flag (the sim uses the maul's numbers until then); the browser gate and the deploy stay with the deployer.
+
 ## Dwarf v2 — owner-approved look, character lane (2026-09-20)
 Owner reviewed v1 in the arena and asked for four fixes ("A grade"): support-hand grip, chrome shoulder plate, soft face, true dwarf
 proportions. v2 (`char/dwarf-v2`):

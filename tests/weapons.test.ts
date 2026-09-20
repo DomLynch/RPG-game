@@ -576,9 +576,9 @@ test('every reconstructed part loads on the contract — one WeaponDrawn node, t
 });
 
 // The Dwarf's warhammer, on the shelf (2026-09-20): the part, the Warhammer_* family on the humanoid rig, the placeholder data.
-test('the warhammer shelf: WEAPONS.warhammer is the maul\'s set flagged placeholder on Warhammer_* paths; the shelf rig carries WeaponDrawn with the head as the contact segment (the manifest agrees), the 12-clip family at the contract durations, and both hands on the haft through the grip roles', async () => {
+test('the warhammer shelf: WEAPONS.warhammer is real data (own blunt table since the Combat slice, 2026-09-20) on Warhammer_* paths; the shelf rig carries WeaponDrawn with the head as the contact segment (the manifest agrees), the 12-clip family at the contract durations, and both hands on the haft through the grip roles', async () => {
   const w = WEAPONS.warhammer;
-  assert.equal(w.placeholder, true); assert.equal(w.guard, 'shaft'); assert.deepEqual(Object.keys(w.moves), Object.keys(WEAPONS.maul.moves));
+  assert.equal(w.placeholder, undefined, 'the Combat slice lifted the placeholder'); assert.equal(w.guard, 'shaft'); assert.deepEqual(Object.keys(w.moves), Object.keys(WEAPONS.maul.moves)); assert.notEqual(w.moves, WEAPONS.maul.moves, 'his own table, not the maul\'s');
   assert.deepEqual(new Set(Object.values(w.paths).map(p => p.clip)), new Set(['Warhammer_Slash', 'Warhammer_Heavy', 'Warhammer_Thrust']));
   const asset = await readRig('src/assets/weapons/warhammer/veteran-warhammer.glb'), weapon = asset.scene.getObjectByName('WeaponDrawn')!;
   assert.equal(weapon.parent!.name, 'hand_r');
