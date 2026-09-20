@@ -323,6 +323,9 @@ export function createScene(
     orbit(dx: number, dy: number) {
       rig.orbit(dx, dy);
     },
+    stopTour() {
+      rig.stopTour();
+    },
     recenter() {
       rig.recenter();
     },
