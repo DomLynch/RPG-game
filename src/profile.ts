@@ -1,5 +1,5 @@
 import { isOpponentId, type OpponentId } from './roster.ts';
-export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; career?: { victoryMarks: number } }; // career is independent; no awards before server persistence
+export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; career?: { victoryMarks: number } }; // career: won duels on this device; client-reported to a cloud save (beta), never competitive rank authority
 export type StoragePort = Pick<Storage, 'getItem' | 'setItem'>;
 const KEY = 'frankendom.fighter.v1';
 export const cleanName = (name: string) => Array.from(name).filter(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127).join('').trim().slice(0, 24) || 'Wanderer';

@@ -63,9 +63,15 @@ try {
       if not exists(select 1 from public.fighter_profiles where encounter='werewolf') then raise exception 'Werewolf save failed'; end if;
       update public.fighter_profiles set encounter='skeleton' where user_id=auth.uid();
       if not exists(select 1 from public.fighter_profiles where encounter='skeleton') then raise exception 'Skeleton save failed'; end if;
+    end$$;
+    do $$begin
+      update public.fighter_profiles set victory_marks=3 where user_id=auth.uid();
+      if (select victory_marks from public.fighter_profiles where user_id=auth.uid()) <> 3 then raise exception 'Marks save failed'; end if;
+      begin update public.fighter_profiles set victory_marks=-1 where user_id=auth.uid(); raise exception 'Negative marks allowed'; exception when check_violation then null; end;
+      begin update public.fighter_profiles set victory_marks=100001 where user_id=auth.uid(); raise exception 'Absurd marks allowed'; exception when check_violation then null; end;
     end$$;`;
   run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures);
-  console.log('Account database PASS: real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes. No hosted database changed.');
+  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
