@@ -595,6 +595,15 @@ export function createScene(
         kickRate = 1 / shove.settle;
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
+      // A heavy landing on a planted man (or caught on his guard) kicks sand off his rear foot — the foot farther from the attacker. Feet are
+      // last frame's world positions (a frame old, a centimetre); no puff for a kick, a light, or a fighter who is not on his feet.
+      const planted = shoveEvent && dt > 0 && shoveEvent.type !== 'Parried' && HEAVY_CLASS.has(shoveEvent.move ?? '') ? shoveEvent : undefined;
+      if (planted && planted.target !== undefined && dustFeet.length === 4) {
+        const defender = blow ? planted.target : planted.actor, attackerAt = defender ? state : practice.enemy;
+        const feet = [dustPositions[defender * 2], dustPositions[defender * 2 + 1]].filter((_f, i) => dustFeet[defender * 2 + i]);
+        const rear = feet.sort((a, b) => Math.hypot(b.x - attackerAt.x, b.z - attackerAt.z) - Math.hypot(a.x - attackerAt.x, a.z - attackerAt.z))[0];
+        if (rear && rear.y < 0.25) footDust.puff(rear, blow ? 1 : 0.6);
+      }
       if (contact && dt > 0) {
         const enemyHurt = blow?.target === 1,
           hurt = !!blow;

@@ -43,12 +43,12 @@ const MOMENTS = {
 };
 function tail(list, s, intent, profile) { const at = list.length - 1; for (let i = 0; i < 24; i++) { s = stepPractice(s, intent, profile); list.push(s); } return { list, at }; }
 const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, 'veteran');
-const cell = { w: 360, h: 420 }, sheet = document.createElement('canvas'), ctx = sheet.getContext('2d');
+const cell = { w: 360, h: 560 }, sheet = document.createElement('canvas'), ctx = sheet.getContext('2d');
 // Render one moment the way main.ts does: settle the camera on the pre-contact state, then step frame by frame with the frame loop's hit-stop
 // (the contact frame carries the events and is frozen; later frozen frames carry none; effects keep running on dt, the rigs hold).
 function play(name, captureAt) {
   const { list, at } = MOMENTS[name](), start = Math.max(0, at - 30), cells = [], trace = [];
-  const state = p => p.fighter, mid = p => [(p.fighter.x + p.enemy.x) / 2, 1.1, (p.fighter.z + p.enemy.z) / 2];
+  const state = p => p.fighter, mid = p => [(p.fighter.x + p.enemy.x) / 2, 0.75, (p.fighter.z + p.enemy.z) / 2];
   view.recenter(); for (let i = 0; i < 90; i++) view.render(state(list[start]), true, TICK, list[start], [], false);
   let frame = 0, stop = 0;
   for (let k = start; k < list.length; k++) {
