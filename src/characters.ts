@@ -2,7 +2,7 @@ import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
-import type { WeaponId } from './moves.ts';
+import type { Direction, WeaponId } from './moves.ts';
 import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -94,6 +94,11 @@ function fighterClips(asset: FighterAsset, weapon: WeaponId): Record<Role, Anima
 // Two actors from parsed assets (textures already checked by the loader; tests build from the parsed rig alone): the
 // player from `asset`, the opponent from `opponentAsset` when given, else a recoloured clone of the same asset. `weapons` names
 // what each carries (the simulation's word, duel.ts): it picks the clips, the swing's contact key and the striking part the trail follows.
+// Per side: torso yaw (spine_01.y), sword-arm pitch (upperarm_r.x) and chest pitch (spine_02.x), radians, added to the Guard clip's frame.
+export const GUARD_TILT: Record<Direction, { yaw: number; arm: number; spine: number }> = {
+  thrust: { yaw: 0, arm: 0, spine: 0 }, left: { yaw: .45, arm: 0, spine: 0 }, right: { yaw: -.45, arm: 0, spine: 0 },
+  overhead: { yaw: 0, arm: -.5, spine: -.25 }, low: { yaw: 0, arm: .5, spine: .25 },
+};
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0]) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1]) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
@@ -134,6 +139,13 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const contactByClip = weaponNode?.userData.contactByClip as Record<string, { from: number; to: number }> | undefined;
     const upperArm = root.getObjectByName('upperarm_r');
     let aimedRotation: Quaternion | undefined;
+    // Guard side (owner 2026-09-20, five sides): the one Guard clip is the straight guard; a side tilts it after the mixer writes the
+    // frame — the torso turns to that side, the sword arm lifts or drops. Measured on the warrior rig from the Guard pose (blade tip
+    // relative to the pelvis, the fighter's right = −x): left +.14 m across, right −.23 m, overhead +.35 m up, low −.37 m down. Code-
+    // tilted for the beta; the weapons lane replaces it with authored guard clips family by family. Blended so a slide never snaps.
+    const spine1 = root.getObjectByName('spine_01'), spine2 = root.getObjectByName('spine_02');
+    const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
+    let tiltApplied = false;   // the mixer rewrites a bone only when its clip value changes (a held guard's does not), so the tilt is undone by hand before every update
     let speed = 0;
     let severed = false;   // decapitation is once per kill; unsever() resets on rematch
     let crown: ReturnType<typeof splitSkull> | undefined;
@@ -141,7 +153,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       anchor,
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
       playing(): string { if (opened?.group.visible) return `Opened:WaistCut@${blade.name}`; let best: Role = 'Idle'; for (const role of ROLES) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'opened' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0) {
+      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'opened' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null) {
         // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
         // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
         if (pose !== 'opened' && opened) { opened.group.visible = false; root.visible = true; }
@@ -169,7 +181,16 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         anchor.position.set(0, 0, 0); // only the presentation anchor steps into a Run Through
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
+        if (tiltApplied) { tilted.forEach((b, i) => b.quaternion.copy(untilted[i])); tiltApplied = false; }
         mixer.update(step);
+        const guarding = guardSide && (pose === 'guard' || pose === 'block' || pose === 'parry') ? GUARD_TILT[guardSide] : GUARD_TILT.thrust, ease = 1 - Math.exp(-step * 16);
+        for (const k of ['yaw', 'arm', 'spine'] as const) tilt[k] += (guarding[k] - tilt[k]) * ease;
+        if (tilt.yaw || tilt.spine || tilt.arm) {
+          tilted.forEach((b, i) => untilted[i].copy(b.quaternion)); tiltApplied = true;
+          if (spine1) spine1.rotation.y += tilt.yaw;
+          if (spine2) spine2.rotation.x += tilt.spine;
+          if (upperArm) upperArm.rotation.x += tilt.arm;
+        }
         spectralLife = spectral?.(step, dead, progress, pose === 'opened') ?? 1;
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;

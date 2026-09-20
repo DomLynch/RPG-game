@@ -9,7 +9,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { OPPONENTS, PATHS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -773,4 +773,24 @@ test('a severed head starts at its animated head after actor movement, even befo
     actor.unsever();
     detached.group.traverse(o=>{if(o instanceof Mesh)o.geometry.dispose();});
   }
+});
+
+test('guard side tilts the held guard: left and right swing the blade across, overhead lifts it, low drops it; a non-guard pose ignores the side and it eases back', async () => {
+  const hero = await readWarrior('warrior.glb'), { player } = buildWarriors(hero);
+  const sword = player.anchor.getObjectByName('SwordDrawn')!, pelvis = player.anchor.getObjectByName('pelvis')!;
+  const tip = () => { player.anchor.updateMatrixWorld(true); return sword.localToWorld(new Vector3(0, .86, 0)).sub(pelvis.getWorldPosition(new Vector3())); };
+  const settle = (side: Parameters<typeof player.update>[8], pose: 'guard' | 'roll' = 'guard') => { for (let i = 0; i < 60; i++) player.update(0, 1 / 60, pose, .8, 'light', .35, 0, 0, side); return tip(); };
+  const straight = settle(null), thrust = settle('thrust');
+  assert.ok(straight.distanceTo(thrust) < 1e-6, 'no side and the straight (thrust) side are the same guard');
+  const left = settle('left'), right = settle('right'), high = settle('overhead'), low = settle('low');
+  assert.ok(left.x - straight.x > .1, `left guard moves the tip to the fighter's left (+x): ${(left.x - straight.x).toFixed(2)}`);
+  assert.ok(straight.x - right.x > .15, `right guard moves it right (−x): ${(straight.x - right.x).toFixed(2)}`);
+  assert.ok(high.y - straight.y > .25, `overhead raises the tip: ${(high.y - straight.y).toFixed(2)}`);
+  assert.ok(straight.y - low.y > .25, `low drops it: ${(straight.y - low.y).toFixed(2)}`);
+  assert.ok([left, right, high, low].every(t => t.toArray().every(Number.isFinite) && t.length() < 2.5), 'every tilted guard is a finite, compact pose');
+  const rolling = settle('overhead', 'roll'), rollingPlain = settle(null, 'roll');   // a progress-driven pose (the idle loops with time, so two settles never match)
+  assert.ok(rolling.distanceTo(rollingPlain) < 1e-6, 'a side only tilts a guard: a roll ignores it');
+  settle('overhead'); player.update(0, 1 / 60, 'guard', .8, 'light', .35, 0, 0, null); const easing = tip();
+  assert.ok(easing.y > straight.y + .05 && easing.y < high.y - .05, `releasing the side eases back over frames, never snaps: ${easing.y.toFixed(2)} between ${straight.y.toFixed(2)} and ${high.y.toFixed(2)}`);
+  assert.deepEqual(Object.keys(GUARD_TILT).sort(), ['left', 'low', 'overhead', 'right', 'thrust'], 'one tilt per simulation direction');
 });

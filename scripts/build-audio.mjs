@@ -118,6 +118,14 @@ const thud = (n, r, { from = 6000, to = 320, fall = .12, t60 = .2, Q = .6 } = {}
 // tone is driven hard into tanh: its odd harmonics (3f, 5f, 7f) land in the 200–700 Hz band the speaker has, and the ear
 // reconstructs the missing fundamental from them. A slow pitch drop over the first 60 ms gives it the "sag" of mass landing.
 const heft = (n, f, r, { t60 = .3, drive = 4 } = {}) => normalize(saturate(mode(n, vary(r, f, .05), t60, 1, { slide: 2.4, tau: .06 }), drive), 0);
+// Owner 2026-09-20, 23:20: two reference clips (a sword slice, a steel clash; measured, not copied — neither is licensed).
+// Slice body: centroid 1.4–2.2 kHz, 47 Hz–7 kHz wide, −30 dB in .2 s. Steel clash: centroid 2.5–6.5 kHz, nothing below 300 Hz,
+// ring .3–.8 s. These layers are voiced in absolute Hz so they land where the references sit whatever PITCH does to the bodies.
+const abs = hz => hz / PITCH;
+// Edge: the blade's bright slice — a broadband burst 1–7 kHz that is over in ~120 ms, laid over the weighted body.
+const blade = (n, r, { lo = 1000, hi = 7000, t60 = .12 } = {}) => mul(broad(n, r, abs(lo), abs(hi)), decay(n, t60, .001));
+// Steel ring: a dense inharmonic cluster placed where a real clash rings (f0 ~ 900–1300 Hz, partials to ~6 kHz), long decay.
+const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
 // Rumble: a broad low-mid tail (150–800 Hz) that lingers after the strike.
 const rumble = (n, t60, r, f = 900) => mul(biquad(biquad(noise(n, r), 'lowpass', f, .5), 'highpass', 260, .5), decay(n, t60, .01));
 // Dense steel: `count` inharmonic partials from f0 up to ~f0 × top with jittered decays, amplitude-roughened by slow noise.
@@ -164,8 +172,9 @@ const RECIPES = {
     const tone = punch(n, 380 * f, r, { t60: .08, tone: .5, burst: .3 });
     const thump = mode(n, 150 * f, .28, 1, { slide: 2.2, tau: .035 });
     const weight = heft(n, 110 * f, r, { t60: .26 });
+    const slice = blade(n, r, { lo: 1000 * f, hi: 7000 * f, t60: .12 });
     const tail = rumble(n, .32, r);
-    return densify(mix(n, [crack, 0, .5], [splash, .002, .6], [body, .002, 1.2], [tone, .002, .5], [thump, .004, .12], [weight, .004, .45], [tail, .02, dbfs(-4)]), 3);
+    return densify(mix(n, [crack, 0, .5], [splash, .002, .6], [body, .002, 1.2], [tone, .002, .5], [thump, .004, .12], [weight, .004, .45], [slice, 0, .7], [tail, .02, dbfs(-4)]), 3);
   },
   hit_heavy(r) {
     const n = S(.46), f = vary(r, 1, .08);
@@ -178,8 +187,9 @@ const RECIPES = {
     const thump = mode(n, 100 * f, .35, 1, { slide: 2.6, tau: .045 });
     const sub = mode(n, 50 * f, .4, 1, { slide: 1.6, tau: .06 });
     const weight = heft(n, 90 * f, r, { t60: .38, drive: 5 });
+    const slice = blade(n, r, { lo: 800 * f, hi: 7000 * f, t60: .16 });
     const tail = rumble(n, .42, r);
-    return densify(mix(n, [crack, 0, .5], [edge, .001, .4], [splash, .003, .6], [body, .003, 1.3], [tone, .003, .5], [second, .028, .55], [thump, .004, .14], [sub, .012, .08], [weight, .004, .6], [tail, .03, dbfs(-3)]), 3.5);
+    return densify(mix(n, [crack, 0, .5], [edge, .001, .4], [splash, .003, .6], [body, .003, 1.3], [tone, .003, .5], [second, .028, .55], [thump, .004, .14], [sub, .012, .08], [weight, .004, .6], [slice, 0, .7], [tail, .03, dbfs(-3)]), 3.5);
   },
   // Kick: a cloth slap and a dull mid thud, no edge, no ring.
   hit_kick(r) {
@@ -194,21 +204,22 @@ const RECIPES = {
   },
   // Block: iron on iron into a braced guard — a hard broadband click, a dense clang the arms damp, the guard's own body.
   block(r) {
-    const n = S(.38), f = vary(r, 1, .07);
+    const n = S(.5), f = vary(r, 1, .07);
     const click = mul(broad(n, r, 1500, 10000), decay(n, .004));
-    const clang = dense(n, 640 * f, 14, vary(r, .2, .12), r, { top: 3.6, roll: .84 });
+    const clang = steel(n, 900 * f, vary(r, .5, .12), r);
     const muffle = mul(broad(n, r, 250, 1600), decay(n, .04, .001));
     const body = thud(n, r, { from: 4000 * f, to: 320 * f, fall: .07, t60: .14 });
     const tone = punch(n, 330 * f, r, { t60: .08, tone: .6, burst: .3 });
     const weight = heft(n, 95 * f, r, { t60: .28 });
+    const zing = blade(n, r, { lo: 2000, hi: 10000, t60: .05 });
     const tail = rumble(n, .24, r);
-    return densify(mix(n, [click, 0, .45], [clang, .001, .85], [muffle, .001, .5], [body, .002, 1], [tone, .002, .4], [weight, .003, .5], [tail, .02, dbfs(-8)]), 2.6);
+    return densify(mix(n, [click, 0, .45], [clang, .001, 1], [muffle, .001, .4], [body, .002, .9], [tone, .002, .35], [weight, .003, .5], [zing, 0, .35], [tail, .02, dbfs(-8)]), 2.6);
   },
   // Perfect block: the same steel caught clean — brighter and tighter, a smaller body, a touch of edge.
   block_perfect(r) {
-    const n = S(.30), f = vary(r, 1, .06);
+    const n = S(.42), f = vary(r, 1, .06);
     const click = mul(broad(n, r, 2000, 10000), decay(n, .004));
-    const clang = dense(n, 980 * f, 12, vary(r, .16, .1), r, { top: 3.4, roll: .8, grit: .25 });
+    const clang = steel(n, 1300 * f, vary(r, .4, .1), r, { top: 5, roll: .85, grit: .25 });
     const sparkle = mul(broad(n, r, 3000, 9000), decay(n, .015));
     const body = thud(n, r, { from: 5000 * f, to: 400 * f, fall: .05, t60: .09 });
     const weight = heft(n, 110 * f, r, { t60: .2 });
@@ -216,11 +227,11 @@ const RECIPES = {
   },
   // Parry: bright and decisive — an edge scrape sliding up, a long dense ring with beating partials, the hand's jolt underneath.
   parry(r) {
-    const n = S(.52), f = vary(r, 1, .06);
+    const n = S(.66), f = vary(r, 1, .06);
     const click = mul(broad(n, r, 1500, 10000), decay(n, .005));
     const scrape = mul(sweepBandpass(noise(n, r), t => 1100 + 1500 * Math.min(1, t * 6), 2), envelope(n, [[0, .3], [.05, 1], [.09, 0], [n / RATE, 0]]));
-    const ring = dense(n, 1050 * f, 16, vary(r, .42, .1), r, { top: 2.8, roll: .84, grit: .3, spread: .02 });
-    const beat = mode(n, 1050 * f * 1.011, .4, .6, { phase: r() * 6 });
+    const ring = steel(n, 1100 * f, vary(r, .7, .1), r, { spread: .02 });
+    const beat = mode(n, abs(1100 * f) * 1.011, .6, .5, { phase: r() * 6 });
     const zing = mul(broad(n, r, 3500, 8000), decay(n, .03));
     const body = thud(n, r, { from: 4500 * f, to: 340 * f, fall: .09, t60: .16 });
     const tone = punch(n, 380 * f, r, { t60: .1, tone: .6, burst: .3 });
@@ -340,8 +351,8 @@ const pcm = new Int16Array(sprite.length); for (let i = 0; i < sprite.length; i+
 const header = Buffer.alloc(44); header.write('RIFF', 0); header.writeUInt32LE(36 + pcm.byteLength, 4); header.write('WAVE', 8); header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22); header.writeUInt32LE(RATE, 24); header.writeUInt32LE(RATE * 2, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(pcm.byteLength, 40);
 await fs.writeFile(wavPath, Buffer.concat([header, Buffer.from(pcm.buffer)]));
 const encode = (args, file) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-map_metadata', '-1', '-fflags', '+bitexact', '-flags', '+bitexact', ...args, path.join(dir, file)]);   // bit-exact: no encoder tags, timestamps or random stream serials, so two builds are byte-identical
-encode(['-c:a', 'aac_at', '-b:a', '128k', '-movflags', '+faststart'], 'sprite.m4a');   // Apple AudioToolbox AAC-LC; Safari decodes it and honours its gapless padding
-encode(['-c:a', 'libopus', '-b:a', '88k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 88k: the heft layers and the .5 pitch cost ~4 kB at 92k, 819 B over the 1 MB lane budget
+encode(['-c:a', 'aac_at', '-b:a', '112k', '-movflags', '+faststart'], 'sprite.m4a');   // Apple AudioToolbox AAC-LC; Safari decodes it and honours its gapless padding
+encode(['-c:a', 'libopus', '-b:a', '80k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 80k / AAC 112k: the bright slice edges and the longer steel rings (owner's references) cost ~90 kB at 88k/128k
 // Codec check: decode each encode and compare with the source over the impact cues — waveform SNR (dense transients are the
 // hard case for both codecs) and the decoded peak, which must stay under full scale for integer decoders.
 const codec = {};

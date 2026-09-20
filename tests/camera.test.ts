@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { cameraPose, finisherSidePose } from '../src/camera.ts';
+import { TOUR, cameraPose, finisherSidePose } from '../src/camera.ts';
 import { initialState, RADIUS, TARGET } from '../src/sim.ts';
 
 test('all edge angles and orbit positions keep camera inside scenery', () => {
@@ -176,4 +176,50 @@ test('rig: the side-view reveal lerps onto finisherSidePose as the finisher cloc
   const big = at(finish({ clock: 1, finisher: 'opened', big: true })), small = at(finish({ clock: 1, finisher: 'opened' }));
   assert.ok(big.camera.position.distanceTo(small.camera.position) > 0.1, 'a large-bodied creature gets the wider side view');
   assert.ok(Math.hypot(camera.position.x, camera.position.z) <= 11.5 + 1e-9, 'inside the colonnade');
+});
+
+test('rig: the arena cam — five seconds after a finish the camera orbits the fallen slowly, breathing and rising, looking at him; a touch, a draw, reduced motion or a rematch end it', () => {
+  const focus = (f: CameraFinish, state: { x: number; z: number }, enemy: { x: number; z: number }) => { const fallen = f.victim === 1 ? enemy : state; return new Vector3(f.head ? (fallen.x + f.head.x) / 2 : fallen.x, 0, f.head ? (fallen.z + f.head.z) / 2 : fallen.z); };
+  const tour = (f: CameraFinish, seconds: number, still = false, touchAt?: number) => {
+    const { camera, rig, state, enemy } = rigAt(3, 4, still), at = focus(f, state, enemy), frames: { pos: Vector3; angle: number; dir: Vector3 }[] = [];
+    rig.update(1 / 60, state, enemy, true, null);
+    for (let i = 0; i < seconds * 60; i++) {
+      if (touchAt !== undefined && i === Math.round(touchAt * 60)) rig.stopTour();
+      rig.update(1 / 60, state, enemy, true, f);
+      frames.push({ pos: camera.position.clone(), angle: Math.atan2(camera.position.x - at.x, camera.position.z - at.z), dir: camera.getWorldDirection(new Vector3()) });
+    }
+    return { frames, at, rig, camera, state, enemy };
+  };
+  const plain = finish({ finisher: null, posed: false });
+  // Before the delay the finisher's own moves have settled and nothing else happens; after it the camera is on the move.
+  const early = tour(plain, TOUR.delay - 0.5);
+  assert.ok(early.frames.at(-1)!.pos.distanceTo(early.frames.at(-60)!.pos) < 1e-6, 'before the delay the settled frame holds');
+  const long = tour(plain, TOUR.delay + 45);
+  const after = long.frames.slice((TOUR.delay + TOUR.blendIn + 1) * 60);
+  assert.ok(after[0].pos.distanceTo(after.at(-1)!.pos) > 1, 'after the delay the camera travels');
+  // A slow orbit: the angle around the fallen advances the same way every second, never jumps, and a lap takes TOUR.lap seconds.
+  let turned = 0; for (let i = 1; i < after.length; i++) { const d = Math.atan2(Math.sin(after[i].angle - after[i - 1].angle), Math.cos(after[i].angle - after[i - 1].angle)); assert.ok(Math.abs(d) < 0.01, `no cut: ${d.toFixed(4)} rad in one frame`); turned += d; }
+  assert.ok(Math.abs(Math.abs(turned) - (after.length / 60) * 2 * Math.PI / TOUR.lap) < 0.15, `one lap per ${TOUR.lap} s: turned ${turned.toFixed(2)} rad in ${after.length / 60} s`);
+  // Breathing in and out around the fallen, rising and settling, always looking at him, never outside the colonnade.
+  const dist = after.map(f => Math.hypot(f.pos.x - long.at.x, f.pos.z - long.at.z)), ys = after.map(f => f.pos.y);
+  assert.ok(Math.min(...dist) < TOUR.radius - TOUR.breath / 2 && Math.max(...dist) > TOUR.radius + TOUR.breath / 2, `breathes: ${Math.min(...dist).toFixed(2)}–${Math.max(...dist).toFixed(2)} m`);
+  assert.ok(Math.min(...ys) < 1.9 && Math.max(...ys) > 2.8, `rises and settles: ${Math.min(...ys).toFixed(2)}–${Math.max(...ys).toFixed(2)} m`);
+  for (const f of after) { assert.ok(Math.hypot(f.pos.x, f.pos.z) <= 11.5 + 1e-6, 'inside the colonnade'); assert.ok(f.dir.angleTo(long.at.clone().setY(0.7).sub(f.pos)) < 0.05, 'the look stays on the fallen'); }
+  // The player's own death runs lower.
+  const mine = tour(finish({ finisher: null, posed: false, victim: 0 }), TOUR.delay + 45);
+  assert.ok(Math.max(...mine.frames.slice((TOUR.delay + TOUR.blendIn + 1) * 60).map(f => f.pos.y)) < Math.max(...ys) - 0.4, 'a lost fight is watched from lower');
+  // A touch on the arena stops the tour for this finish; the camera settles and stays.
+  const touched = tour(plain, TOUR.delay + 20, false, TOUR.delay + 6);
+  assert.ok(touched.rig.touring === false, 'touched: no longer touring');
+  assert.ok(touched.frames.at(-1)!.pos.distanceTo(touched.frames.at(-120)!.pos) < 1e-3, 'touched: the camera has stopped');
+  // No tour on a draw or under reduced motion; a rematch (no finish) resets so the next kill tours again.
+  for (const [name, r] of Object.entries({ draw: tour(finish({ draw: true }), TOUR.delay + 10), still: tour(plain, TOUR.delay + 10, true) })) assert.ok(r.frames.at(-1)!.pos.distanceTo(r.frames.at(-120)!.pos) < 1e-6, `${name}: the frame holds`);
+  const again = tour(plain, TOUR.delay + 8, false, TOUR.delay + 1);
+  again.rig.update(1 / 60, again.state, again.enemy, true, null);
+  for (let i = 0; i < (TOUR.delay + 8) * 60; i++) again.rig.update(1 / 60, again.state, again.enemy, true, plain);
+  assert.ok(again.rig.touring, 'after a rematch the stop is forgotten and the next finish tours');
+  // At the arena edge the orbit is clamped to the colonnade, still looking at the fallen.
+  const { rig, camera, state } = rigAt(0, 0), edge = { x: 0, z: 9.6 }, edgeFinish = finish({ finisher: null, posed: false });
+  rig.update(1 / 60, state, edge, true, null);
+  for (let i = 0; i < (TOUR.delay + 40) * 60; i++) { rig.update(1 / 60, state, edge, true, edgeFinish); assert.ok(Math.hypot(camera.position.x, camera.position.z) <= 11.5 + 1e-6, 'clamped to the colonnade'); }
 });

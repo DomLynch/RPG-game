@@ -19,7 +19,10 @@ else
   echo "No green CI quality run found for $revision; running the full quality gate"
   npm run quality
 fi
-node scripts/release-checks.mjs
+# Checks CI already proved for this exact revision (green release-checks job + receipt artifact) are skipped here;
+# the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
+trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
+RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="CI release-checks for $revision" node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 printf '{"revision":"%s","phase":"0B-swordplay"}\n' "$revision" > dist/release.json
 host=root@49.12.7.18
@@ -29,7 +32,12 @@ release="/var/www/frankendom/releases/$revision"
 ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
 printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
-rsync -az --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r -e "$remote_shell" dist/ "$host:$release/"
+# Hardlink files unchanged since the current release instead of re-uploading the whole dist (the GLBs dominate).
+# rsync only links when size, mtime and content match, so a changed asset is always uploaded in full.
+link_dest=$(ssh "${ssh_options[@]}" "$host" "readlink -f /var/www/frankendom/current 2>/dev/null || true")
+link_args=()
+[[ -n "$link_dest" && "$link_dest" != "$release" ]] && link_args=(--link-dest="$link_dest")
+rsync -az --checksum "${link_args[@]}" --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r -e "$remote_shell" dist/ "$host:$release/"
 ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE'
 set -euo pipefail
 test -s "$1/index.html"

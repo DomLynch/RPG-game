@@ -43,7 +43,14 @@ try {
  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden,5000);
  const guardPoint=await center('guard-button');
  await until(()=>window.__tellAt>0 && performance.now()-window.__tellAt>=430,20000);
+ // Directional guard: the parry must be on the side the blow arrives on — the mirror of the attack's direction (a right cut arrives on the
+ // defender's left; overhead, thrust and low by name). The tell's AttackStarted carries `direction`; a straight thrust needs no slide.
+ const incoming=await page.evaluate(()=>{const e=[...window.__combat].reverse().flatMap(s=>s.events).find(e=>e.type==='AttackStarted' && e.actor===1);return e?e.direction:null;});
+ const side={right:'left',left:'right',overhead:'overhead',low:'low',thrust:null}[incoming] ?? null;
+ const slide={left:{x:-30,y:0},right:{x:30,y:0},overhead:{x:0,y:-30},low:{x:0,y:30}}[side];
+ receipt.parrySide={incoming,side};
  await touch('touchStart',guardPoint);
+ if(slide){await touch('touchMove',{x:guardPoint.x+slide.x,y:guardPoint.y+slide.y});}
  receipt.guardAfterTellMs=await page.evaluate(()=>window.__guardAt-window.__tellAt);assert.ok(receipt.guardAfterTellMs>0,'Guard must receive the real touch after the tell');
  await until(()=>/Parried|Blocked|Hit taken|Guard broken/.test(document.querySelector('#combat-status').textContent),1500);
  receipt.parry=await snapshot();assert.match(receipt.parry.status,/Parried/);await touch('touchEnd');
@@ -57,7 +64,7 @@ try {
  await page.screenshot({path:'artifacts/browser-riposte.jpg',type:'jpeg',quality:85});
  // Observe accepted player attacks, not the last HUD message (an opponent's kick can overwrite it).
  // A counter may interrupt an accepted attack. Make at most three real attempts; only a completed
- // player kick (hit, miss, or defender dodge) satisfies the gate. Never count enemy damage as ours.
+ // player kick (hit, miss, defender dodge, or a low guard bracing it — directional guard) satisfies the gate. Never count enemy damage as ours.
  receipt.kickAttempts=[];
  for(let attempt=0;attempt<3;attempt++) {
   await until(()=>document.querySelector('#kick-button').getAttribute('aria-disabled')==='false',5000);
@@ -67,12 +74,13 @@ try {
   await page.getByRole('button',{name:'Kick',exact:true}).tap();
   await until(()=>window.__combat.some(s=>s.events.some(e=>e.type==='AttackStarted' && e.actor===0 && e.move==='kick')),1500);
   await until(()=>{const events=window.__combat.flatMap(s=>s.events),start=events.find(e=>e.type==='AttackStarted' && e.actor===0 && e.move==='kick');return start && events.some(e=>e.tick>=start.tick && (
-   (e.move==='kick' && ((e.actor===0 && ['Hit','AttackMissed'].includes(e.type)) || (e.type==='Dodged' && e.target===0))) ||
+   (e.move==='kick' && ((e.actor===0 && ['Hit','AttackMissed'].includes(e.type)) || (['Dodged','Blocked'].includes(e.type) && e.target===0))) ||
    (e.type==='Staggered' && e.actor===0)));},2000);
   const sequence=await page.evaluate(()=>window.__combat),events=sequence.flatMap(s=>s.events);
   const start=events.find(e=>e.type==='AttackStarted' && e.actor===0 && e.move==='kick');
+  // Directional guard: a warden who read the kick braces it low — a Blocked kick is a completed player kick too.
   const outcome=events.find(e=>e.tick>=start.tick && e.move==='kick' &&
-   ((e.actor===0 && ['Hit','AttackMissed'].includes(e.type)) || (e.type==='Dodged' && e.target===0)));
+   ((e.actor===0 && ['Hit','AttackMissed'].includes(e.type)) || (['Dodged','Blocked'].includes(e.type) && e.target===0)));
   receipt.kickAttempts.push({before,start,outcome:outcome??null,events});
   if(!outcome)continue;
   const result=sequence.find(s=>s.events.some(e=>e.tick===outcome.tick && e.type===outcome.type && e.actor===outcome.actor));
@@ -80,7 +88,7 @@ try {
   assert.equal(result.enemy,before.enemy-applied.filter(e=>e.actor===0 && e.target===1).reduce((n,e)=>n+e.damage,0),'enemy HP follows outgoing hits only');
   assert.equal(result.health,before.health-applied.filter(e=>e.actor===1 && e.target===0).reduce((n,e)=>n+e.damage,0),'player HP follows incoming hits only');
   if(outcome.type==='Hit') {assert.equal(outcome.target,1);assert.ok([4,5].includes(outcome.damage),'clean kick 4 or counter kick 5');}
-  receipt.kick=await snapshot();receipt.kickOutcome=outcome;receipt.kickEscaped=['AttackMissed','Dodged'].includes(outcome.type);
+  receipt.kick=await snapshot();receipt.kickOutcome=outcome;receipt.kickEscaped=['AttackMissed','Dodged','Blocked'].includes(outcome.type);
   break;
  }
  assert.ok(receipt.kickOutcome,'a player kick must complete within three attempts; enemy counters alone do not pass');

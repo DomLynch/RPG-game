@@ -423,6 +423,7 @@ element('recenter-button').addEventListener('click', () => view.recenter());
 canvas.addEventListener('pointerdown', (event) => {
   if (paused() || orbitId !== null || event.button !== 0) return;
   canvas.focus();
+  view.stopTour();   // after the kill the arena cam drifts on its own; a touch on the arena hands the camera back
   orbitId = event.pointerId;
   orbitX = event.clientX;
   orbitY = event.clientY;
@@ -486,6 +487,7 @@ function frame(now: number) {
           move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
           action: intent.action,
           guard: intent.guard,
+          guardDirection: intent.guardDirection ?? undefined,
           held: intent.held,
           lock: locked,
           cancel: intent.cancel,

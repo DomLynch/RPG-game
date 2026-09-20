@@ -420,6 +420,25 @@ against the rig, the hand-plane roll went from 44.0° to 14.1° (the fingertip f
 knuckle line); index joints 9/12/14 → 6/4/8 mm, pinky 14/15/21 → 4/5/4. Both fighters rebuilt — the Veteran shares the function. `humanoid-v42/hands-before-after.png`,
 `hand-rest-after.png`, `hands-phone-before-after.png`.
 
+v43 (2026-09-20, "spider fingers" — owner's screenshots of the empty hand and the grip): two causes, both in the hero
+build. (1) Cross-wired finger weights: the nearest-surface transfer from the CC0 body reads whichever of ITS fingers is
+closest, and the Studio hand's fingers sit ~1.5 cm towards the thumb from the rig's, so the middle finger was 51 %
+index-chain, the ring 21 % middle-chain, the pinky 15 % ring-chain; a finger pulled by two chains stretches and splays
+when a clip curls it. `parts.clean_finger_weights` re-homes each finger to its own chain (same phalanx). (2) The mesh's
+relaxed hand is curled and fanned in the bind pose while the rig's rest fingers are straight, and every clip's finger
+curl is authored on top of that rest — so the hero's fingers curled twice. `parts.straighten_fingers` un-curls each
+finger THROUGH THE RIG after the weights are in: the finger's three weight regions give its knuckle→middle→tip shape,
+each joint is posed by the flexion (about the across-the-palm axis, ±70° cap; no fan — the region centres' lateral
+offsets are the regions' shapes, and a fan from them spread the hand like a starfish) that lays its phalanx along the
+rig's straight finger, and the skinned result becomes the bind mesh (the sculpt copy takes the same displacement, so the
+normal map stays aligned). Joints are the rig's own, so the clips curl the finger about exactly the pivots that
+straightened it. Measured un-curl: 2–16° per joint. Six attempts documented in this session's history: an arc-length
+re-lay of the mesh shredded the fingers; per-bone axis fits were polluted by palm skin and stubby tip regions; the free
+minimal rotation tilted fingers sideways. Guarded by `tests/hero-hands.test.ts` (weight purity < 5 %, every phalanx
+within 18° of the rig's finger in the bind pose), which fails on the previous live GLB (`index_l 19°`) and passes now.
+`humanoid-v43/hands-stock-live-fixed.png` (the stock body the clips were made for / live / fixed, Sword_Idle),
+`hands-poses-live-fixed.png` (Idle, Guard, Attack, grip), `hand-rest.png`.
+
 ## Weapons (weapons lane, 2026-09-16) — the trident
 
 `src/assets/weapons/trident/`: `trident.glb` (the part alone). Since slice V the shipped `veteran.glb` IS the Veteran carrying it (every sword

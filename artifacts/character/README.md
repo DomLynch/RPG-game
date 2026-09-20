@@ -51,3 +51,5 @@ Leather and Antique brass are untextured flat PBR. The whole character is effect
 `SEQUENCE` in character-preview.html: armed walk → strafe left → light attack (opponent guards/blocks) → heavy (opponent hit) →
 guard → block (opponent light) → parry (opponent deflected) → riposte (opponent hit) → opponent light → death. 360 ticks = 6.0 s.
 Phase lengths are the game's own recovery/reaction constants.
+
+`humanoid-v43` (2026-09-20, hero hands: finger weights re-homed per chain and the bind-pose fingers straightened through the rig — no more spider fingers; `hands-stock-live-fixed.png`, `hands-poses-live-fixed.png`, `hand-rest.png`; guarded by `tests/hero-hands.test.ts`).

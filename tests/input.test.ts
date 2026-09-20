@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
+import { GUARD_SLIDE_PX, guardSide } from '../src/input.ts';
 
 test('combat buttons stay DOM hit targets during cooldown so repeated touches are consumed', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -37,4 +38,11 @@ test('the thumb cluster is the one touch layout: the markup carries it and nothi
   assert.match(html, /<div class="actions" id="actions" data-gestures="cluster">/);
   assert.doesNotMatch(html, /controls-mode|strike circle|guard ring/);
   for (const file of ['main.ts', 'input.ts', 'hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
+});
+
+test('guard side: the thumb still is the straight guard; past the slide threshold the dominant axis picks left, right, overhead or low', () => {
+  assert.equal(guardSide(0, 0), null); assert.equal(guardSide(GUARD_SLIDE_PX - 1, 0), null); assert.equal(guardSide(NaN, 4), null, 'a hostile delta is the straight guard');
+  assert.equal(guardSide(-GUARD_SLIDE_PX, 0), 'left'); assert.equal(guardSide(40, 12), 'right');
+  assert.equal(guardSide(6, -30), 'overhead'); assert.equal(guardSide(-10, 30), 'low');
+  assert.equal(guardSide(30, 30), 'low', 'a perfect diagonal is the vertical: up and down are the rarer, deliberate slides');
 });
