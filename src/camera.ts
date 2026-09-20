@@ -41,6 +41,7 @@ export function finisherSidePose(
   aspect: number,
   finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough',
   bodyScale = 1,
+  reach = 0,   // Opened: farthest horizontal extent of any landed piece from the fallen's origin (0 = not measured)
 ) {
   const dx = fallen.x - killer.x,
     dz = fallen.z - killer.z,
@@ -51,7 +52,7 @@ export function finisherSidePose(
     lookZ = (killer.z + fallen.z) / 2;
   const back = Math.max(
     finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8,
-    (gap / 2 + (finisher === 'opened' ? 1.5 * bodyScale : finisher === 'quietOne' ? 1.5 : 0.42)) /
+    (gap / 2 + (finisher === 'opened' ? Math.max(1.5 * bodyScale, reach + 0.3) : finisher === 'quietOne' ? 1.5 : 0.42)) /
       (Math.tan((51 * Math.PI) / 360) * Math.min(aspect, 1)),
   );
   // Split Crown (owner 2026-09-20): the seam runs front-to-back over a head that bows toward the killer, so a profile
@@ -93,6 +94,10 @@ export type CameraFinish = {
   clock: number;
   head: { x: number; z: number } | null;
   big: boolean;
+  // Opened (2026-09-21): how far, horizontally, the farthest settled piece (torso, legs, dropped weapon) reaches from the
+  // fallen fighter's origin — measured from the pieces' world bounds, never shrinking, so the side view fits what actually
+  // landed. A fixed margin let a large body's legs slide under the portrait controls (release check 17 on 54d2c70).
+  reach?: number;
 };
 
 // Reduced motion: no camera kick, no finisher push-in, no side-view reveal — the frame holds still.
@@ -229,6 +234,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
           camera.aspect,
           finisher,
           finish.big ? 1.5 : 1,
+          finish.reach ?? 0,
         );
         desired.lerp(new THREE.Vector3(side.x, side.y, side.z), reveal);
         look.lerp(new THREE.Vector3(side.lookX, side.lookY, side.lookZ), reveal);

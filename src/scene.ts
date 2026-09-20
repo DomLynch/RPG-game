@@ -231,6 +231,7 @@ export function createScene(
   // fight showed and feeds this fight's pick; `fightFinisher` is this fight's, rolled into `lastFinisher` when the next
   // fight starts (practice.finish clears on rematch). Presentation state only — the simulation never sees it.
   let lastFinisher: FinisherId | null = null, fightFinisher: FinisherId | null = null;
+  let openedReach = 0;   // Opened: farthest horizontal extent of the landed pieces from the fallen's origin (camera fit)
   let impact = 0,
     lastHealth: number = RULES.health,
     lastPlayerHealth: number = RULES.health;
@@ -659,10 +660,27 @@ export function createScene(
           canScuff(theirs.pose, enemyTravel),
         ],
       );
+      // Opened: measure how far the landed pieces reach from the fallen's origin (world bounds of torso, legs and the dropped
+      // weapon), so the side view fits what actually landed. Monotonic — the camera only ever backs off, never creeps in.
+      // Only while the pieces can still move (the victim clip places them until progress 1); after that the value is frozen —
+      // a precise bounds traversal of the corpse meshes has no business running 60× a second while the player sits on the tableau.
+      if (finisher === 'opened' && practice.finish?.victim === 1 && warriors && victimProgress < 1) {
+        const pieces = warriors.opponent.anchor.getObjectByName('Opened');
+        if (pieces?.visible) {
+          const origin = warriors.opponent.anchor.getWorldPosition(new THREE.Vector3());
+          for (const piece of pieces.children) {
+            if (!piece.visible || !piece.children.length) continue;
+            const box = new THREE.Box3().setFromObject(piece, true);
+            if (box.isEmpty()) continue;
+            for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) openedReach = Math.max(openedReach, Math.hypot(x - origin.x, z - origin.z));
+          }
+        }
+      } else if (!practice.finish) openedReach = 0;
       rig.update(dt, state, practice.enemy, locked, practice.finish ? {
         finisher, posed: !!finisherPose, draw: !!practice.finish.draw, victim: practice.finish.victim, clock: finishClock,
         head: severHead ? { x: severHead.group.position.x, z: severHead.group.position.z } : null,
         big: ['wraith', 'minotaur'].includes(opponentId),
+        reach: openedReach,
       } : null);
       const exposure = renderer.toneMappingExposure;
       if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
