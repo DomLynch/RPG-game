@@ -1065,7 +1065,7 @@ dialog>p {
   }
 }
 
-#gesture-pad,#thrust-button {
+#thrust-button {
   display: none;
 }
 .actions {

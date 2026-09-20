@@ -225,7 +225,7 @@ element('name-button').addEventListener('click', () => {
   welcome.hidden = false;
   input.focus();
 });
-// The beta scorecard: one row per offered opponent plus the total; the per-scheme control trial dump stays for the debug view only.
+// The beta scorecard: one row per offered opponent plus the total; the control trial tally stays for the debug view only.
 function renderScorecard() {
   const cell = (tag: 'th' | 'td', text: string | number) => { const el = document.createElement(tag); el.textContent = String(text); return el; };
   const table = element('scorecard-table');
@@ -252,8 +252,6 @@ const paused = () => graphicsLost || !welcome.hidden || journal.open || document
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),
-  setTimeout: (cb, ms) => setTimeout(cb, ms),
-  clearTimeout: (id) => clearTimeout(id),
   matchMedia: (query) => matchMedia(query),
   innerWidth: () => innerWidth,
   ready: () => assetsReady,

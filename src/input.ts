@@ -1,6 +1,6 @@
-// The input layer: keyboard, the strike/kick/dodge/guard buttons, the guard-ring strike circle (v8), the sprint button and the
+// The input layer: keyboard, the strike/kick/dodge/guard buttons (the thumb cluster), the sprint button and the
 // joystick, folded into one intent per tick for the simulation. At most one edge-triggered action per tick plus the held guard level;
-// the simulation owns legality and buffering. Everything the layer touches is injected — the DOM lookup, window, clock, timers, media
+// the simulation owns legality and buffering. Everything the layer touches is injected — the DOM lookup, window, clock, media
 // query, viewport width — so the entry point's own globals (and the VM harness's fakes in tests/graphics.test.ts) are what it binds to.
 import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
 
@@ -9,8 +9,6 @@ export type InputEnv = {
   element: Lookup;
   window: Pick<Window, 'addEventListener'>;
   now: () => number;
-  setTimeout: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
-  clearTimeout: (id: ReturnType<typeof setTimeout>) => void;
   matchMedia: (query: string) => { matches: boolean };
   innerWidth: () => number;
   paused: () => boolean;

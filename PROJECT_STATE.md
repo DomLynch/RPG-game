@@ -23,7 +23,7 @@ prompt stay pinned; under them a browser-style strip with three tabs — Fighter
 hit-stop, blood until the lead removes it) and Settings (controls chips, "How to fight", then the quiet Test tools). The
 duplicate cloud-save sentence under the Google button is gone. Tabs are CSS radio inputs: every bound id is unchanged and
 unique, no `main.ts` change. The journal opens on Fighter, so a browser check that reaches `#opponent-select`,
-`#finisher-select` or `#controls-mode` must click that tab's label first — the lead wires that into the gate scripts with
+`#finisher-select` (or `#controls-mode`, retired 2026-09-20) must click that tab's label first — the lead wires that into the gate scripts with
 the queued blood/hit-stop changes. The record table is restyled in the light journal's ink (its first rules were for the dark
 sheet). Gate: node tests 333/333, build, audit, budget PASS. Not pushed until the lead calls the window (#218 ahead in the queue).
 
