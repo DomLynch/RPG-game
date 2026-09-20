@@ -18,6 +18,8 @@ try {
  page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')receipt.console=[...(receipt.console||[]).slice(-19),m.text().slice(0,300)];});   // diagnostics for a failing run: what the page said
  receipt.diagnose=async()=>{try{receipt.state={art:await page.locator('#art-status').textContent(),attack:await page.locator('#attack-button').getAttribute('aria-disabled'),welcomeHidden:await page.evaluate(()=>document.querySelector('#welcome')?.hidden)};}catch(e){receipt.state=String(e).slice(0,200);}};
  await page.route('**/*sentry.io/**',route=>route.abort()); // Deliberate GPU failure checks must not create production incidents.
+ // Damage numbers are a journal setting, off by default (#219); this gate asserts the float works when a player turns it on, so seed it.
+ await page.addInitScript(()=>{try{localStorage.setItem('frankendom.damage-numbers.v1','on');}catch{}});
  page.on('pageerror',e=>receipt.errors.push(String(e)));
   // The first two waits are load waits (the two rigs are ~13 MB; a slow link to the live site is not a behaviour failure): 90 s, like the rig wait.
  const gameUrl=new URL(url);gameUrl.searchParams.set('debug','1');
