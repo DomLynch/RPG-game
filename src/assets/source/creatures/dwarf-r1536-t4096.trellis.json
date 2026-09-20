@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1536",
+  "faces": 100000,
+  "texture": 4096,
+  "image": "docs/character-references/dwarf-source-v1.png",
+  "preprocess_s": 12.1,
+  "image_to_3d_s": 67.6,
+  "extract_glb_s": 64.0,
+  "glb": "src/assets/source/creatures/dwarf-r1536-t4096.glb",
+  "bytes": 8787044,
+  "sha256": "4946f0332f97eb2ba6a21dfc7f56e00564a2c34854c597df9bee8adbd7c05702",
+  "attempts": 2
+}

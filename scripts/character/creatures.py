@@ -15,9 +15,13 @@ recipes = {
     "wraith": ("nightborn", 45, 0.97, (0, -0.20, -0.015), 1.88, 8),
     "werewolf": ("pitborn", 65, 1.10, (0.025, -0.08, -0.045), 1.85, 16),
     "skeleton": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),
-    "dwarf": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.60, 8),
+    # Re-proportioned donor (build-warrior.mjs BUILD.dwarf, 1.494 m standing): true dwarf height, fingers follow the donor's finger tracks.
+    "dwarf": ("source/creatures/dwarf-donor", 60, 1.0, (0, -0.04, -0.025), 1.494, 8),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
+# The absolute heights below were tuned on ~1.80 m donors; a shorter donor scales them. Shipped creatures keep k = 1 (byte-identical).
+k = height / 1.80 if family == "dwarf" else 1.0
+fingers = family == "dwarf"   # keep transferred finger weights so the donor's 40 finger tracks curl the hands onto the weapon
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=str(Path(f"src/assets/{base}.glb").resolve()))
 rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
@@ -133,7 +137,7 @@ for v in mesh.data.vertices:
     # Crown and horns are one rigid skull. Wisps hang from the pelvis, never knee joints.
     rigid = (
         head
-        if z > 1.62 or (abs(x) < 0.20 and z > 1.53)
+        if z > 1.62 * k or (abs(x) < 0.20 and z > 1.53 * k)
         else pelvis
         if (family == "wraith" and z < 1.04)
         or (family == "minotaur" and abs(x) < 0.11 and z < 0.98 and y > 0.16)
@@ -151,13 +155,19 @@ for v in mesh.data.vertices:
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf") else 0.27
     if family == "skeleton":
         edge = 0.185 + max(0, 1.4 - z) * 0.26
+    if family == "dwarf":
+        edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
     arm_mix = max(
         0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf") else 0.055))
-    ) * max(0, min(1, (1.62 - z) / 0.10))
+    ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 if family in ("minotaur", "werewolf", "skeleton", "dwarf") else 0.92)) / 0.10))
-    if not rigid:
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf") else 0.92)) / 0.10))
+    finger_names = ("thumb", "index", "middle", "ring", "pinky")
+    if fingers and ws and mesh.vertex_groups[ws[0][0]].name.startswith(finger_names):
+        rigid = None
+        arm_mix = 0   # a finger vertex: keep the donor's finger/hand blend exactly as transferred
+    if not rigid and not (fingers and ws and mesh.vertex_groups[ws[0][0]].name.startswith(finger_names)):
         arm_names = (
             "upperarm",
             "lowerarm",
@@ -181,19 +191,19 @@ for v in mesh.data.vertices:
             side = "l" if x > 0 else "r"
             name = (
                 "neck_01"
-                if z > 1.48
+                if z > 1.48 * k
                 else "spine_03"
-                if z > 1.30
+                if z > 1.30 * k
                 else "spine_02"
-                if z > 1.10
+                if z > 1.10 * k
                 else "spine_01"
-                if z > 0.98
+                if z > 0.98 * k
                 else "pelvis"
-                if z > 0.84
+                if z > 0.84 * k
                 else "thigh_" + side
-                if z > 0.52
+                if z > 0.52 * k
                 else "calf_" + side
-                if z > 0.18
+                if z > 0.18 * k
                 else "foot_" + side
             )
             ws = [(mesh.vertex_groups[name].index, 1)]

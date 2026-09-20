@@ -98,7 +98,10 @@ def compact(d, b):
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[1]
-base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "veteran", "dwarf": "veteran"}[family]
+base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "veteran", "dwarf": "source/creatures/dwarf-donor"}[family]
+# Surface material factors per family: the retained maps stay byte-identical; a factor only scales them (glTF spec).
+# The Dwarf's TRELLIS metallic map reads his dented iron as polished steel in the arena lighting; 0.6 keeps the plate iron, not chrome.
+SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.6}}
 
 
 def read(p):
@@ -271,6 +274,7 @@ def material(v, key=""):
 for m in new.get("materials", []):
     m["name"] = family.title() + "Surface"
     material(m)
+    m.setdefault("pbrMetallicRoughness", {}).update(SURFACE_FACTORS.get(family, {}))
 for mesh in new["meshes"]:
     for p in mesh["primitives"]:
         p["attributes"] = {

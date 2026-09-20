@@ -395,6 +395,10 @@ export type Level = keyof typeof PROFILES;
 export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
 const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon'>> = {
   veteran: { scale: 1, health: RULES.health, poise: 0, profiles: PROFILES },   // the trident since slice V (2026-09-16)
+  // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf,
+  // 1.494 m standing → 0.83 of the hero, the hit capsule follows the measured height like the goblin's). Sturdier than a man: 170 health and
+  // poise 12 — a stab (11) never stops him, a plain cut (14) or heavier does. Same AI profiles as the Veteran until the combat lane tunes him.
+  dwarf: { scale: .83, health: 170, poise: 12, profiles: PROFILES },
   // The pit brute: relentless light chains (aggression, pressure), a low parry rate, slower to notice, a low discipline floor so he
   // swings himself hot; poise 16 — a plain cut (14) or stab (11) never stops him, a heavy (18) or any counter does.
   // Health 190: with the Veteran's brain driving the hero he took 150 in ~22 s (probe, 24 seeds); the brute is meant to take more killing than a man.

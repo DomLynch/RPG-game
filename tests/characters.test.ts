@@ -34,7 +34,7 @@ const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 
 const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale };
 // The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver, the Nightborn's estoc and the goblin's knife (sword clips until the weapons lane lands them).
 const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon };
-async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' = 'warrior.glb') {
+async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
@@ -264,6 +264,15 @@ const GOBLIN = { legs: .84, arms: 1.16, root: .835, stride: .835 * .84, hunched:
 // the strafes, the kick, the defences) are solved on the rig with the two-bone reach, so their limb tracks legitimately follow his longer arms
 // and shorter legs; everything else in them (pelvis, spine_01, fingers, clavicles) is still the hero's.
 const RETARGETED = ['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Hit', 'Death', 'Guard', 'ArmedWalk', 'Roll'], SOLVED = /^(upperarm|lowerarm|hand|thigh|calf|foot)_[lr]\.quaternion$/;
+test('the dwarf is the re-proportioned donor rig (BUILD.dwarf) under his reconstructed surface: OPPONENTS.dwarf.scale is his measured standing height', async () => {
+  const [hero, dwarf] = await Promise.all([readWarrior(), readWarrior('dwarf.glb')]);
+  // The Trident idle is his rest: the hero's Idle is a sword stance of the same height class, so the ratio is the standing-height ratio the hit capsule follows.
+  const ratio = standingTop(dwarf, 'Trident_Idle') / standingTop(hero), k = OPPONENTS.dwarf.scale;
+  assert.ok(Math.abs(ratio - k) <= .03, `standing height ratio ${ratio.toFixed(3)} for OPPONENTS.dwarf.scale ${k} (${standingTop(dwarf, 'Trident_Idle').toFixed(3)} / ${standingTop(hero).toFixed(3)} m)`);
+  assert.ok(ratio < .9, 'a dwarf, not a short man: under 90 % of the hero');
+  console.log(`dwarf stands ${standingTop(dwarf, 'Trident_Idle').toFixed(3)} m to the hero's ${standingTop(hero).toFixed(3)} (×${ratio.toFixed(3)}, OPPONENTS.dwarf.scale ${k})`);
+});
+
 test('the goblin is the warrior\'s rig re-proportioned: short legs, long arms, a big head on a thin neck, the feet still on the floor; the same clips at the same durations (the finisher is additive) — library clips bit-identical except the hunched spine (and the rolling arms), authored clips identical except the hunch and the re-solved limbs; the sword in the same hand; and he stands OPPONENTS.goblin.scale of the hero', async () => {
   const [hero, goblin] = await Promise.all([readWarrior('warrior.glb'), readWarrior('goblin.glb')]);
   assert.deepEqual(goblin.animations.map(a => a.name), hero.animations.map(a => a.name));
