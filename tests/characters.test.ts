@@ -1,6 +1,6 @@
 import test from 'node:test';
 import {finisherBloodSources} from '../src/finisher-blood.ts';
-import {finisherSidePose} from '../src/scene.ts';
+import {finisherSidePose} from '../src/camera.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Group, Triangle } from 'three';
