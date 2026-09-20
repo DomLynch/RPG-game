@@ -25,7 +25,8 @@ test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, 
   const [hero, warden] = initialDuel().fighters;
   assert.equal(hero.weapon, 'longsword'); assert.equal(warden.weapon, 'trident');
   for (const f of [hero, warden]) { assert.equal(f.scale, 1); assert.equal(f.poise, 0); assert.equal(f.health, RULES.health); assert.equal(f.maxHealth, RULES.health); }
-  assert.equal(OPPONENTS.veteran.profiles, PROFILES);
+  assert.deepEqual(OPPONENTS.veteran.profiles.easy, PROFILES.easy); assert.deepEqual(OPPONENTS.veteran.profiles.normal, PROFILES.normal);   // his own table since the hard tune (owner, 2026-09-20)
+  assert.deepEqual(OPPONENTS.veteran.profiles.hard, { ...PROFILES.hard, pressure: .7, discipline: 30 }, 'hard differs from the shared table in pressure and discipline only');
   assert.equal(WEAPONS.cleaver.placeholder, undefined); assert.notEqual(WEAPONS.cleaver.moves, MOVES); assert.notDeepEqual(bladePaths.cleaver, bladePaths.longsword, 'baked from the cleaver rig');
 });
 
