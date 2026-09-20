@@ -22,7 +22,7 @@ const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, PLAY_RADIUS, CAMERA_CLAMP } from '/src/arena.ts';
-import { cameraPose } from '/src/scene.ts';
+import { cameraPose } from '/src/camera.ts';
 import { createFootDust } from '/src/foot-dust.ts';
 import { loadWarriors } from '/src/characters.ts';
 import { actorPose, initialPractice } from '/src/combat.ts';
