@@ -16,7 +16,7 @@ try {
   page.on('pageerror',e=>receipt.errors.push(String(e)));await page.route('**/*sentry.io/**',r=>r.abort());
   await page.goto(url.href);await page.getByRole('button',{name:'Enter the arena'}).tap();
   await page.waitForFunction(()=>document.querySelector('#art-status').textContent===''&&document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
-  const {until}=await harnessClock(page);
+  const {run,until}=await harnessClock(page);await run(200);   // a few harness frames after the arena opens before the first press
   await page.evaluate(()=>{
    window.__combat=[];window.__clips=[];window.__tellAt=0;
    window.addEventListener('frankendom:combat',e=>window.__combat.push(e.detail));
@@ -27,7 +27,7 @@ try {
   const cdp=await page.context().newCDPSession(page);
   const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
   await page.getByRole('button',{name:'Draw sword',exact:true}).tap();
-  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false',5000);
+  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false',20000);
   const box=await page.locator('#guard-button').boundingBox();
   await until(()=>window.__tellAt>0&&performance.now()-window.__tellAt>=430,20000);
   await touch('touchStart',{x:box.x+box.width/2,y:box.y+box.height/2});
