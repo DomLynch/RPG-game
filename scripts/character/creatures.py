@@ -190,6 +190,11 @@ if family == "veteran":
     )
     bm.to_mesh(mesh.data)
     bm.free()
+    mesh.data.update()
+
+
+def tuck_neck():
+    """Runs after decimation, so no edge collapse can move a neck vertex back outside the scanned outline."""
     tucked = 0
     for v in mesh.data.vertices:
         x, y, z = v.co
@@ -205,6 +210,8 @@ if family == "veteran":
                 tucked += 1
     mesh.data.update()
     print("NECK CUT", NECK_CUT, "top", round(max(v.co.z for v in mesh.data.vertices), 4), "tucked", tucked, flush=True)
+
+
 bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 bpy.context.view_layer.objects.active = mesh
@@ -268,6 +275,8 @@ if tris > budget:
         bpy.ops.object.modifier_move_to_index(modifier=relax.name, index=1)
     for m in list(mesh.modifiers):
         bpy.ops.object.modifier_apply(modifier=m.name)
+if family == "veteran":
+    tuck_neck()
 bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 body.select_set(True)
