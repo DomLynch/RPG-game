@@ -11,3 +11,43 @@ Use case: stylized-concept. Asset type: high fidelity dark medieval fantasy crea
 ## Wraith
 
 Use case: stylized-concept. Asset type: high fidelity dark medieval fantasy spectral creature production reference sheet, seven consistent views of ONE original Wraith. Input images 1 and 2 are direction references: terrifying ghostly gaunt crowned apparition with skeletal face, long clawed hands, smoky airy semi-transparent body and drifting torn vapor. Do not copy an exact existing character. Landscape sheet with four full-body views across upper two-thirds (front, left profile, rear, front three-quarter), same suspended open-arm pose and exact anatomy, and three detailed head busts along lower third (front, profile, three-quarter). Same identity, gaunt skull, broken crown, shoulder silhouette and ragged garment in all seven. Wraith upper torso remains legible through wisps: charcoal skeletal rib cage and long lean arms, recessed yellow-gray pinpoint eyes, hollow elongated screaming mouth, jagged sparse iron-black crown. Tattered dark funerary wrappings disintegrate into long curling smoke strands. Below pelvis body completely dissolves into tapering ragged smoke: no human legs, boots or solid skirt. Semi-transparent smoky layers visibly allow plain background to show through, broken edges and open spaces, wisps thread from elbows shoulders and fingers. Muted charcoal, smoke gray, cold ash and tiny restrained yellow eyes. The creature must feel weightless, ancient, threatening, semi-corporeal; no solid armored hooded human, no clean fabric hem, no neon blue glow, no giant effects hiding anatomy, no smooth ghost blob. Sophisticated realistic dark fantasy concept painting, meticulous skull/rib anatomy, soft translucent material edges contrasted with sharp sparse crown and claws. Uniform medium-gray background, even readable light; enough contrast to examine dark core and pale vapor. Small discreet top text 'WRAITH — CONCEPT REFERENCE', bottom text 'NOT A GAME RENDER'. Large sharp high-resolution landscape sheet.
+
+## Veteran (v2 reconstruction source) — prepared 2026-09-20, not yet generated
+
+Purpose: put the existing Veteran through the same TRELLIS.2 path as the Minotaur and Wraith (one authored surface for
+body, skin and kit) while keeping his approved head. Attach his seven approved portraits
+(`artifacts/source/face/veteran/*.png`) as identity references. Bare-headed on purpose: the game supplies his plain
+Chalcidian helm as a fitted item, and a bare head lets the KeenTools head be grafted at the collar if the reconstruction's
+face is too soft. No weapon: the trident is the weapons lane's part.
+
+### Sheet
+
+Use case: stylized-concept. Asset type: high fidelity dark medieval fantasy human fighter production reference sheet,
+seven consistent views of ONE original man, the arena veteran. Input images 1–7 are the face identity: the same man —
+mid-forties, weathered, blond-grey hair swept back off the forehead and over the ears, salt-and-pepper stubble, blue-grey
+eyes, a healed diagonal scar on the left cheek, a nick through the left brow, a short scar across the bridge of the nose.
+Create him faithfully, not a replica of any photograph. Landscape sheet, four evenly sized full-body views across the
+upper two-thirds (front, left profile, rear, front three-quarter), same relaxed A-pose — arms straight, held about 40°
+below horizontal, palms turned toward the thighs, fingers relaxed and slightly open, feet planted shoulder-width — and
+exact proportions, then three detailed head busts across the lower third (front, profile, three-quarter). Same
+individual, hair, scars, build and materials in every panel. Heavy frame: broad shoulders and traps, thick forearms,
+deep chest, strong thighs; skin sun-browned on the arms, shins, nape and upper chest, pale under the tunic line; body
+hair on chest, forearms and shins; healed pale scars across the bare right pectoral, the outer right bicep, the outside
+of the left forearm and down the outside of the right thigh. Kit: a darker undyed grey-brown linen exomis pinned over
+the LEFT shoulder, the right shoulder and arm bare, worn and grimy at hem and armpits; a skirt of dark oiled umber leather
+pteruges strips over a short under-skirt; a worn leather baldric over the left shoulder and a leather belt with a small
+brass buckle; leather wrist wraps; bare-toed leather sandals with an ankle strap; bronze greaves from ankle to kneecap,
+faded pale greige-tan museum bronze, dull satin, hammered and pitted, open behind the calf. Bare head, no helmet, no
+weapon, no shield. Materials only bronze, iron, leather, linen, ash, blood: no saturated colour, no glow, no polished
+fantasy plate. Realistic hand-painted anatomical concept rendering with rich subtle PBR-like materials and credible
+detail, no plastic, no toy, no smooth mannequin. Plain neutral medium-gray background, even readable studio light,
+clear silhouette with no atmospheric occlusion. Small discreet top text 'VETERAN — CONCEPT REFERENCE', bottom text
+'NOT A GAME RENDER'. Large sharp high-resolution landscape image; make each view big enough to study.
+
+### Reconstruction source (the single image TRELLIS.2 receives)
+
+Same man, same kit, same A-pose as the sheet's front view, alone: one full-body front view, bare head, no weapon, whole
+figure in frame with a margin above the head and below the feet, feet planted on nothing (no ground shadow, no floor
+line), plain neutral medium-gray background, even frontal studio light with soft shadows only on the body itself, arms
+clear of the torso so every limb reads as separate, hands slightly open with fingers apart, portrait orientation at least
+1536 px tall. No text.
