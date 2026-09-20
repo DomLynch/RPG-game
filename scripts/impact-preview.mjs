@@ -59,7 +59,7 @@ function play(name, captureAt) {
       view.render(state(p), true, TICK, p, f === 0 ? events : [], f === 0 ? stop > 0 : f < frozenFrames);
       if (k === at - 1) { const point = view.project(mid(p)); trace.push({ frame: -1, x: point ? +point[0].toFixed(2) : null, y: point ? +point[1].toFixed(2) : null, frozen: false, probe: null }); }   // the origin: the frame before contact
       if (k >= at) { const since = frame; const point = view.project(mid(p)); trace.push({ frame: since, x: point ? +point[0].toFixed(2) : null, y: point ? +point[1].toFixed(2) : null, frozen: f > 0 || (f === 0 && stop > 0), probe: view.probe?.() ?? null });
-        if (captureAt.includes(since)) cells.push({ since, image: grab(point) }); frame++; }
+        if (captureAt.includes(since)) { const image = grab(point); cells.push({ since, image, brightness: brightness(image) }); } frame++; }
     }
   }
   return { cells, trace, events: list[at].events.map(e => e.type + (e.move ? ':' + e.move : '')) };
@@ -69,11 +69,14 @@ function grab(point) {   // a crop around the fighters at the canvas' physical r
   const cx = (point ? point[0] : innerWidth / 2) * r, cy = (point ? point[1] : innerHeight / 2) * r;
   g.drawImage(canvas, cx - cell.w / 2, cy - cell.h / 2, cell.w, cell.h, 0, 0, cell.w, cell.h); return c;
 }
+function brightness(c) {   // mean of the crop's pixels (sRGB bytes): the kill dip's receipt
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let sum = 0; for (let i = 0; i < d.length; i += 16) sum += d[i] + d[i + 1] + d[i + 2]; return +(sum / (d.length / 16) / 3).toFixed(2);
+}
 function strip(name, captureAt) {
   const { cells, trace, events } = play(name, captureAt);
   sheet.width = cells.length * cell.w; sheet.height = cell.h + 22; ctx.fillStyle = '#111'; ctx.fillRect(0, 0, sheet.width, sheet.height);
   cells.forEach((c, i) => { ctx.drawImage(c.image, i * cell.w, 22); ctx.fillStyle = '#eee'; ctx.font = '13px system-ui'; ctx.fillText(\`\${name} · contact+\${c.since} frames (\${Math.round(c.since * 1000 / 60)} ms)\`, i * cell.w + 8, 15); });
-  return { image: sheet.toDataURL('image/png'), trace, events };
+  return { image: sheet.toDataURL('image/png'), trace, events, brightness: cells.map(c => [c.since, c.brightness]) };
 }
 window.__preview = { ready: view.ready.then(() => true).catch(e => String(e)), strip };
 </script></body></html>`;
@@ -92,14 +95,14 @@ try {
   console.log(`Capturing ${label} (${commit}) →`);
   const stats = { label, commit, date: new Date().toISOString().slice(0, 10) };
   for (const [name, at] of [['block', [0, 2, 5, 9]], ['parry', [0, 2, 5, 9]], ['heavy', [0, 2, 5, 9]], ['kill', [0, 1, 3, 8]]]) {
-    const { image, trace, events } = await page.evaluate(([n, a]) => __preview.strip(n, a), [name, at]);
+    const { image, trace, events, brightness } = await page.evaluate(([n, a]) => __preview.strip(n, a), [name, at]);
     await fs.writeFile(`${dir}/${name}.png`, Buffer.from(image.split(',')[1], 'base64')); console.log(`  ${dir}/${name}.png  events: ${events.join(', ')}`);
     // Camera kick trace: how far (CSS px) a fixed world point between the fighters moves on screen from the frame before contact, frame by frame.
     const origin = trace[0], shift = trace.slice(1).map(t => t.x === null || origin.x === null ? null : +Math.hypot(t.x - origin.x, t.y - origin.y).toFixed(2));
-    stats[name] = { events, cameraShiftPx: shift.slice(0, 16), peakShiftPx: Math.max(...shift.filter(v => v !== null)), probes: trace.slice(1, 17).map(t => t.probe) };
+    stats[name] = { events, cameraShiftPx: shift.slice(0, 16), peakShiftPx: Math.max(...shift.filter(v => v !== null)), brightness, probes: trace.slice(1, 17).map(t => t.probe) };
   }
   await fs.writeFile(`${dir}/stats.json`, JSON.stringify(stats, null, 1));
   const previous = against ? JSON.parse(await fs.readFile(`artifacts/presentation/${against}/stats.json`, 'utf8')) : null;
-  for (const name of ['block', 'parry', 'heavy', 'kill']) console.log(`  ${name}: peak camera shift ${stats[name].peakShiftPx} px${previous?.[name] ? ` (was ${previous[name].peakShiftPx})` : ''}; trace ${stats[name].cameraShiftPx.join(' ')}`);
+  for (const name of ['block', 'parry', 'heavy', 'kill']) console.log(`  ${name}: peak camera shift ${stats[name].peakShiftPx} px${previous?.[name] ? ` (was ${previous[name].peakShiftPx})` : ''}; trace ${stats[name].cameraShiftPx.join(' ')}; brightness ${stats[name].brightness.map(([f, b]) => `+${f}:${b}`).join(' ')}`);
   if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`);
 } finally { await browser.close(); await server.close(); }

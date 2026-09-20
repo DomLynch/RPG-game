@@ -417,6 +417,10 @@ export function createScene(
     kickRate = 1 / 0.15, // 1/s: how fast the offset settles
     shoved = 0; // the kick applied to the camera for the last draw; taken off before the next frame's settle so it never compounds
   const kickOffset = new THREE.Vector3();
+  // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
+  // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
+  let dip = 0; // frames remaining, counted down per drawn frame while time passes
+  const DIP_FRAMES = 4, DIP_DEPTH = 0.06;
   const blockHeavy = [false, false]; // which fighter's standing block just caught a heavy (his recoil is deeper while `blocked` lasts)
   let ratio = Math.min(devicePixelRatio, PIXEL_CAP); // the context-loss recovery path lowers this to 1 from the tier's ceiling
   const resize = () => {
@@ -595,6 +599,7 @@ export function createScene(
         kickRate = 1 / shove.settle;
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
+      if (killed && dt > 0) dip = DIP_FRAMES;
       // A heavy landing on a planted man (or caught on his guard) kicks sand off his rear foot — the foot farther from the attacker. Feet are
       // last frame's world positions (a frame old, a centimetre); no puff for a kick, a light, or a fighter who is not on his feet.
       const planted = shoveEvent && dt > 0 && shoveEvent.type !== 'Parried' && HEAVY_CLASS.has(shoveEvent.move ?? '') ? shoveEvent : undefined;
@@ -1023,7 +1028,11 @@ export function createScene(
       // before settling — a shove left inside the lerped position would compound.
       shoved = kick;
       camera.position.addScaledVector(kickOffset, shoved);
+      const exposure = renderer.toneMappingExposure;
+      if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
       renderer.render(scene, camera);
+      renderer.toneMappingExposure = exposure;
+      if (dip > 0 && dt > 0) dip--;
       if (kick > 0) {
         if (kickHold > 0) kickHold -= dt;
         else kick = Math.max(0, kick - dt * kickRate);
