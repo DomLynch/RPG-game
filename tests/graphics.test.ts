@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
-import * as gestures from '../src/gestures.ts';
 import * as feedback from '../src/feedback.ts';
 import * as sim from '../src/sim.ts';
 import * as combat from '../src/combat.ts';
@@ -42,7 +41,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -135,53 +134,23 @@ test('menu sound and camera controls stay synchronized with desktop controls', (
   app.element('camera-button').click();assert.equal(app.element('mobile-camera').attributes.get('aria-pressed'),'true');
 });
 
-test('the thumb cluster is the mobile layout: round buttons incl. a Stab button that thrusts and holds; Controls swaps to the v8 guard ring and back', () => {
+test('the thumb cluster is the one mobile layout: round buttons incl. a Stab button that thrusts and holds', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  const me = () => app.rendered.duel.fighters[0], actions = app.element('actions');
+  const me = () => app.rendered.duel.fighters[0];
   const press = (el: Element, type: string, id = 5) => el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: 0, clientY: 0 }));
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
-  assert.equal(app.element('controls-mode').textContent, 'Controls: thumb cluster'); assert.equal(actions.dataset.gestures, 'cluster');
   const thrust = app.element('thrust-button'); assert.equal(thrust.hidden, false); assert.equal(app.element('attack-button').dataset.mobile, 'Slash'); assert.equal(app.element('kick-button').hidden, false);
   settle(); press(thrust, 'pointerdown'); app.tick(); assert.equal(me().move, 'thrust');
   for (let i = 0; i < 12; i++) app.tick(); assert.equal(me().age, MOVES.thrust.chamber!, 'held Stab loads the thrust'); press(thrust, 'pointerup'); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > MOVES.thrust.chamber!, 'released, it goes');
-  app.element('controls-mode').click(); app.tick();   // → ring8 (v8)
-  // v8 guard ring: one strike circle owns every attack — no Heavy or Stab buttons; then back to the cluster.
-  assert.equal(actions.dataset.gestures, 'ring8'); assert.equal(app.element('controls-mode').textContent, 'Controls: guard ring · v8');
-  assert.equal(thrust.hidden, true, 'v8: Stab is a flick, not a button'); assert.equal(app.element('heavy-button').hidden, true, 'v8: no Heavy button');
-  assert.equal(app.element('attack-button').dataset.mobile, 'Strike');
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).scheme, 'ring8'); app.element('controls-mode').click(); app.tick(); assert.equal(actions.dataset.gestures, 'cluster');
 });
 
-test('guard ring v8: the strike circle owns every attack — a tap slashes as the thumb lifts, a flick up stabs, holding loads the heavy', () => {
-  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  const me = () => app.rendered.duel.fighters[0];
-  const at = (type: string, x: number, y: number, id = 9) => Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: x, clientY: y });
-  const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
-  for (let i = 0; i < 1; i++) { app.element('controls-mode').click(); app.tick(); }
-  assert.equal(app.element('actions').dataset.gestures, 'ring8');
-  const strike = app.element('attack-button');
-  settle(); strike.dispatchEvent(at('pointerdown', 0, 0)); strike.dispatchEvent(at('pointerup', 0, 0)); app.tick();
-  assert.ok(me().move?.startsWith('light'), `a quick tap is the slash, got ${me().move}`);
-  settle(); strike.dispatchEvent(at('pointerdown', 0, 0)); strike.dispatchEvent(at('pointermove', 0, -40)); app.tick();
-  assert.equal(me().move, 'thrust', 'a flick up is the stab');
-  strike.dispatchEvent(at('pointerup', 0, -40));
-  settle(); strike.dispatchEvent(at('pointerdown', 0, 0));
-  const arm = [...app.timers.values()].pop(); assert.ok(arm, 'holding arms a pending heavy'); app.timers.clear(); arm();
-  app.tick();
-  assert.equal(me().move, 'heavy_overhead', 'the loaded heavy');
-  for (let i = 0; i < 16; i++) app.tick();
-  assert.ok(me().charge >= 1, `keeping it held starts the charge (charge ${me().charge})`);
-  strike.dispatchEvent(at('pointerup', 0, 0));
-});
-
-
-test('the scorecard tallies fights, wins, rematches and damage per scheme', () => {
+test('the scorecard tallies fights, wins, rematches and damage', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();   // stand still until the warden wins
-  assert.ok(app.rendered.finish, 'the fight ends'); const card = () => JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.cluster;
+  assert.ok(app.rendered.finish, 'the fight ends'); const card = () => JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card;
   assert.equal(card().fights, 1); assert.equal(card().wins, 0); assert.equal(card().taken, moves.RULES.health); assert.ok(card().ticks > 600);
   app.element('reset-button').click(); app.tick(); assert.equal(card().rematches, 1); assert.equal(card().fights, 1, 'a rematch is not a fight until it ends');
-  app.element('journal-button').click(); assert.match(app.element('scorecard').textContent, /^thumb cluster — 1 fights · 0 won · 1 rematches/);
+  app.element('journal-button').click(); assert.match(app.element('scorecard').textContent, /^1 fights · 0 won · 1 rematches/);
 });
 
 test('dodge control: a tap is an instant backstep, a hold grows it into a roll, and interruption releases it', () => {
@@ -242,10 +211,6 @@ test('a tap that ends before the next tick still lands: only pointercancel withd
   settle(); tap(app.element('dodge-button')); app.tick(); assert.equal(me().phase, 'backstep', 'a same-frame step tap lands'); for (let i = 0; i < 20; i++) app.tick();
   settle(); tap(app.element('guard-button')); app.tick(); assert.equal(me().phase, 'guard', 'a same-frame guard tap opens the parry window'); assert.equal(me().parrying, true); for (let i = 0; i < 40; i++) app.tick();
   settle(); tap(app.element('thrust-button')); app.tick(); assert.equal(me().move, 'thrust', 'a same-frame Stab tap lands'); for (let i = 0; i < 50; i++) app.tick();
-  app.element('controls-mode').click(); app.tick();   // the v8 guard ring
-  const strike = app.element('attack-button'); settle(); press(strike, 'pointerdown', 60, 60); press(strike, 'pointermove', 60, 20); press(strike, 'pointerup', 60, 20); app.tick();
-  assert.equal(me().move, 'thrust', 'a same-frame flick lands'); for (let i = 0; i < 50; i++) app.tick();
-  settle(); press(strike, 'pointerdown', 60, 60); press(strike, 'pointermove', 100, 60); press(strike, 'pointercancel', 100, 60); app.tick(); assert.notEqual(me().phase, 'attack', 'a cancelled pointer withdraws the press');
 });
 
 test('the stick never stays pushed: a release delivered outside the pad, a touchend with no fingers, or a new touch all clear it', () => {
@@ -487,7 +452,7 @@ test('the identity aside shows the career rank from the saved mark count at boot
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
   for (let i = 0; i < 60; i++) app.tick();
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.fight.v1')!).scheme, 'cluster', 'a live fight is marked');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fight.v1')!).opponent, 'veteran', 'a live fight is marked');
   assert.equal(app.rendered.finish, null);
   app.document.hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
   app.tick(120000);
@@ -496,10 +461,10 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   app.tick();
   assert.equal(app.rendered.finish?.victim, 0, 'the idle fighter is dead when the player comes back');
   assert.equal(app.storage.getItem('frankendom.fight.v1'), '', 'a decided fight is no longer marked');
-  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.cluster.fights, 1);
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.fights, 1);
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran, { fights: 1, wins: 0, losses: 1, left: 1 }, 'the scorecard shows the walk-away as a loss, flagged left');
-  const again = boot({ id: 'tester-0001' }, undefined, { 'frankendom.fight.v1': JSON.stringify({ scheme: 'cluster', opponent: 'goblin' }) });
-  const card = JSON.parse(again.storage.getItem('frankendom.controls.v1')!).card.cluster;
+  const again = boot({ id: 'tester-0001' }, undefined, { 'frankendom.fight.v1': JSON.stringify({ opponent: 'goblin' }) });
+  const card = JSON.parse(again.storage.getItem('frankendom.controls.v1')!).card;
   assert.deepEqual([card.fights, card.wins], [1, 0], 'closing the page mid-fight scored a loss at the next boot');
   assert.deepEqual(JSON.parse(again.storage.getItem('frankendom.scorecard.v1')!).rows.goblin, { fights: 1, wins: 0, losses: 1, left: 1 }, 'and on the scorecard against the opponent it was');
   assert.equal(again.storage.getItem('frankendom.fight.v1'), '');

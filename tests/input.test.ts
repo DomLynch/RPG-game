@@ -31,3 +31,10 @@ test('page declares double-tap suppression and locks page zoom (owner, 2026-09-1
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(main, /gesturestart/);
 });
+
+test('the thumb cluster is the one touch layout: the markup carries it and nothing offers another scheme', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /<div class="actions" id="actions" data-gestures="cluster">/);
+  assert.doesNotMatch(html, /controls-mode|strike circle|guard ring/);
+  for (const file of ['main.ts', 'input.ts', 'hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
+});

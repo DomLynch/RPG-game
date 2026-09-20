@@ -583,6 +583,46 @@ dialog>p {
   display: none;
 }
 
+.versus {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: #0e1214;
+  pointer-events: none;
+  transition: opacity 0.45s ease-out;
+}
+.versus[hidden] {
+  display: none;
+}
+.versus[data-out] {
+  opacity: 0;
+}
+.versus img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+}
+.versus-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14%;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 14px;
+  color: #e9ddc5;
+  font: 15px Arial;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px #000c;
+}
+.versus-caption b {
+  font-size: 12px;
+  color: #c1ad79;
+}
+
 .combat-hud {
   position: fixed;
   top: 220px;
@@ -945,6 +985,9 @@ dialog>p {
     grid-column: 2;
     grid-row: 5;
     --bar-color: #dec58c;
+    /* The desktop #stamina rule (the lost-ceiling shading) outranks `.combat-hud meter`, so on phones it replaced the fill gradient and only
+       the shading showed (owner screenshot 2026-09-20). Layer both: shading on top, the fill underneath. */
+    background-image: linear-gradient(to right,transparent var(--max,100%),#5a2d2a99 var(--max,100%)),linear-gradient(to right,var(--bar-color) var(--fill,100%),#172329a0 var(--fill,100%));
   }
   .combat-hud meter.posture {
     height: 2px;
@@ -1062,7 +1105,7 @@ dialog>p {
   }
 }
 
-#gesture-pad,#thrust-button {
+#thrust-button {
   display: none;
 }
 .actions {
@@ -1106,7 +1149,7 @@ dialog>p {
     width: 176px;
     height: 210px;
   }
-  .actions[data-gestures=cluster] button,.actions[data-gestures=ring8] button {
+  .actions[data-gestures=cluster] button{
     position: absolute;
     border-radius: 50%;
     padding: 0 !important;
@@ -1119,27 +1162,27 @@ dialog>p {
     transition:
       background .08s,transform .08s;
   }
-  .actions[data-gestures=cluster] button[data-mobile]::after,.actions[data-gestures=ring8] button[data-mobile]::after {
+  .actions[data-gestures=cluster] button[data-mobile]::after{
     font: 600 11px/1 Arial;
     letter-spacing: 1px;
     text-transform: uppercase;
     text-shadow: 0 1px 2px #000a;
   }
-  .actions[data-gestures=cluster] button:active,.actions[data-gestures=ring8] button:active {
+  .actions[data-gestures=cluster] button:active{
     background: #f0e3c94a;
     transform: scale(.95);
   }
-  .actions[data-gestures=cluster] button[aria-disabled=true],.actions[data-gestures=ring8] button[aria-disabled=true] {
+  .actions[data-gestures=cluster] button[aria-disabled=true]{
     opacity: .5;
   }
-  .actions[data-gestures=cluster] .primary,.actions[data-gestures=ring8] .primary {
+  .actions[data-gestures=cluster] .primary{
     background: #b7a27680;
     border-color: #e9d9b3a6;
   }
-  .actions[data-gestures=cluster] .primary:active,.actions[data-gestures=ring8] .primary:active {
+  .actions[data-gestures=cluster] .primary:active{
     background: #d9c69ac0;
   }
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true],.actions[data-gestures=ring8] #guard-button[aria-pressed=true] {
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]{
     background: #c6af7873;
     border-color: #f0e3c9;
   }
@@ -1172,7 +1215,7 @@ dialog>p {
     font-size: 0;
     background: #17232952;
   } /* 44 px: the platform minimum for the innermost target */
-  .actions[data-gestures=cluster] #kick-button[data-reach=true],.actions[data-gestures=ring8] #kick-button[data-reach=true] {
+  .actions[data-gestures=cluster] #kick-button[data-reach=true]{
     background: #b7a27666;
     border-color: #e9d9b3a6;
   }
@@ -1196,71 +1239,8 @@ dialog>p {
     border-radius: 16px;
     background: #b7a276c8;
   }
-  .actions[data-gestures=cluster] #camera-button,.actions[data-gestures=cluster] #run-button,.actions[data-gestures=cluster] #recenter-button,.actions[data-gestures=ring8] #camera-button,.actions[data-gestures=ring8] #run-button,.actions[data-gestures=ring8] #recenter-button {
+  .actions[data-gestures=cluster] #camera-button,.actions[data-gestures=cluster] #run-button,.actions[data-gestures=cluster] #recenter-button{
     display: none;
-  }
-  /* Guard ring v8 (owner-approved 2026-09-18, replacing the v7 prototype and the flick disc): the strike circle is the whole grammar — tap = slash, hold = heavy (long hold charges),
-    flick up = stab, sideways = that side's cut, back = guard. No Heavy or Stab buttons (the circle owns them). The strike circle is
-    15% larger than v7 (66 → 76 px) and the ring's hole grows with it; Step and Kick keep their places. */
-  .actions[data-gestures=ring8] {
-    display: block;
-    position: relative;
-    width: 208px;
-    height: 248px;
-  }
-  .actions[data-gestures=ring8] #heavy-button,.actions[data-gestures=ring8] #thrust-button {
-    display: none;
-  }
-  .actions[data-gestures=ring8] #guard-button {
-    width: 132px;
-    height: 132px;
-    left: 30px;
-    top: 60px;
-    background: radial-gradient(circle,#0000 41px,#17232952 42px);
-    box-shadow:
-      inset 0 0 0 3px #f0e3c912,inset 0 0 0 41px #0000,0 1px 3px #0003;
-  }
-  .actions[data-gestures=ring8] #guard-button[aria-pressed=true] {
-    background: radial-gradient(circle,#0000 41px,#c6af7873 42px);
-  }
-  .actions[data-gestures=ring8] #guard-button::after {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 9px;
-    text-align: center;
-  }
-  .actions[data-gestures=ring8] #attack-button {
-    width: 76px;
-    height: 76px;
-    left: 58px;
-    top: 88px;
-    z-index: 2;
-  }
-  .actions[data-gestures=ring8] #kick-button {
-    width: 44px;
-    height: 44px;
-    min-height: 0;
-    left: 163px;
-    top: 100px;
-    border-radius: 50%;
-    font-size: 0;
-    background: #17232952;
-  }
-  .actions[data-gestures=ring8] #dodge-button {
-    width: 56px;
-    height: 56px;
-    left: 4px;
-    top: 192px;
-  }
-  .actions[data-gestures=ring8] #reset-button {
-    left: 0;
-    top: 96px;
-    width: 208px;
-    height: 56px;
-    border-radius: 16px;
-    background: #b7a276c8;
-    z-index: 3;
   }
 }
 
@@ -1371,7 +1351,8 @@ dialog button {
 }
 dialog button:hover { border-color: var(--jf); background: #fff; }
 dialog button[aria-pressed=true] { border-color: var(--jf); background: var(--jf); color: #fff; }
-dialog #close-journal { width: 34px; height: 34px; min-height: 0; padding: 0; }
+dialog #close-journal { position: absolute; top: 12px; right: 14px; width: 34px; height: 34px; min-height: 0; padding: 0; z-index: 1; }   /* no heading row (owner, 2026-09-20): the sheet opens on the fighter card */
+dialog #mobile-name { align-self: end; }   /* Rename sits at the foot of the card row, clear of the close button above it */
 dialog .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 dialog .chips.quiet button { color: var(--jm); border-style: dashed; }
 .fighter {
@@ -1431,3 +1412,36 @@ dialog output { display: block; margin-top: 8px; font: 12px "Instrument Sans", A
 @media (max-width: 900px), (pointer: coarse) {
   .mobile-tools { display: block; margin: 0; }
 }
+
+/* Field Journal tabs (owner, 2026-09-20): the fighter card and sign-in stay pinned; Fighter / Arena / Settings sit under a
+   browser-style strip. Pure CSS (radio inputs), so the game binds the same ids and no script changes. The journal opens on
+   Fighter; a browser check that reaches into Arena or Settings clicks that tab's label first. */
+.journal-tabs { position: relative; }
+.journal-tabs > input { position: absolute; opacity: 0; pointer-events: none; }
+.tab-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--jp); border-radius: 12px; }
+.tab-strip label { text-align: center; padding: 9px 6px; border-radius: 9px; font: 600 12.5px "Instrument Sans", Arial, sans-serif; color: var(--jm); cursor: pointer; white-space: nowrap; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+#journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: #fff; color: var(--jf); box-shadow: 0 1px 2px #0002; }
+.tab-pane { display: none; padding-top: 4px; }
+#journal-tab-fighter:checked ~ .pane-fighter, #journal-tab-profile:checked ~ .pane-profile, #journal-tab-arena:checked ~ .pane-arena, #journal-tab-settings:checked ~ .pane-settings { display: block; }
+.tab-pane .chips + .chips { margin-top: 8px; }
+.tab-pane .note { margin: 12px 0 0; }
+dialog .references { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--jl); }
+/* The record table in the light journal's ink (its first rules were written for the dark sheet). */
+dialog .scorecard-table { margin: 4px 0 0; font: 14px "Instrument Sans", Arial, sans-serif; color: var(--jf); font-variant-numeric: tabular-nums; }
+dialog .scorecard-table th, dialog .scorecard-table td { padding: 8px 4px; border-bottom: 1px solid var(--jl); }
+dialog .scorecard-table th { font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--jm); }
+dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
+
+/* Profile tab (owner, 2026-09-20): the five stats and the gear slots, read-only and greyed until builds and gear ship after the beta. */
+.statgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.statgrid div { text-align: center; padding: 10px 2px; border: 1px solid var(--jl); border-radius: 12px; background: #fff9; }
+.statgrid b { display: block; font: 800 13px "Bricolage", Arial, sans-serif; color: var(--ja); letter-spacing: .02em; }
+.statgrid span { display: block; font: 800 20px/1.1 "Bricolage", Arial, sans-serif; color: var(--jf); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.statgrid small { display: block; font: 600 9px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--jm); margin-top: 4px; }
+.gear { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.gear.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.slot { padding: 10px 10px 9px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: transparent; }
+.slot span { display: block; font: 600 10px "Instrument Sans", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.slot i { display: block; font: 600 13px "Instrument Sans", Arial, sans-serif; font-style: normal; margin-top: 4px; }
+.slot.on { border-style: solid; border-color: var(--jf); color: var(--jf); background: #fff9; }
+.gear[aria-disabled=true] .slot:not(.on) { opacity: .7; }

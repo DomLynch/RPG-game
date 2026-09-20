@@ -11,6 +11,7 @@
     "test:all": "node --test tests/*.test.ts",
     "quality:stop": "eslint src && npm test",
     "quality": "eslint src && npm run test:all && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
+    "quality:deploy": "eslint src && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
     "quality:ci": "eslint src && npm run test:all && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs",
     "build:warrior": "node scripts/build-warrior.mjs && node scripts/bake-blades.mjs",
     "test:browser": "node scripts/browser-check.mjs"

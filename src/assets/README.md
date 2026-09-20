@@ -619,6 +619,15 @@ too); the fit, bake, lathe, grain and all clips are original project work. No do
 |---|---|---|---|---|
 | trident (Veteran; Skeleton/Dwarf donors) | `veteran.glb` | 3,998 tris | FLUX seed 190926 | 0.76–1.22 m |
 | cleaver (Pitborn; Werewolf donor) | `pitborn.glb` | 3,979 tris | FLUX seed 7, rotated 180° | 0.14–0.86 m |
+| knife (Goblin) | `goblin.glb` | 3,194 tris | FLUX seed 3 (kukri-style sica prompt) | 0.12–0.52 m |
+| estoc (Nightborn) | `nightborn.glb` | 1,993 tris | FLUX seed 7, rotated 180° | 0.75–1.15 m |
+| longsword (the hero; hand + scabbard) | `warrior.glb` | 2,991 tris | FLUX seed 7, 768×1152 | 0.18–0.86 m |
+| scythe (Executioner) | source + part only, not yet on a rig | 4,483 tris | FLUX seed 3 (a double moon; the fit keeps one blade, laid flat) | 1.22–1.32 m |
+
+Lessons kept in `scripts/weapon-fit.py` (v2): `/image_to_3d` must get the PREPROCESSED cut-out (the photo reconstructs as a box);
+thin blades are welded before decimation (`weld`), the trident never (its coil shells go non-manifold); a picture's chunky handle
+does not set the grip (`grip_r`); a cross-guarded sword's head is the guard's underside (`head: guard`), a hanging moon's the root
+(`wide-top`); the handle is re-centred on the axis before any radius is read; wraps the picture lacks are authored leather rows.
 
 ## Executioner reconstructed (TRELLIS.2) — 2026-09-20
 `executioner.glb` is now a fitted derivative of a TRELLIS.2 reconstruction, replacing the procedural
@@ -648,3 +657,17 @@ Face account: a prompted reference image per prop (Z-Image-Turbo, Apache-2.0 mod
 (microsoft/TRELLIS.2-4B, MIT), then decimated to 3–5k triangles and re-textured at 512–768² WebP in Blender 5.2 (evidence and the
 prompts' inputs: `artifacts/presentation/props-v1/`). Original project work; no third-party assets were copied. Build packing (meshopt,
 WebP) brings the five to 672 KB gzip. Placement and the exclusion volume are held by `tests/arena-props.test.ts`.
+
+## Weapons (weapons lane, 2026-09-20) — the warhammer (the Dwarf's, on the shelf)
+
+`src/assets/weapons/warhammer/`: `warhammer.glb` (the part alone, 460 tris) and `veteran-warhammer.glb` (the Veteran's 1.0× rig
+carrying it — the shelf record, the bake source in `scripts/blade-manifest.json`, and the polearm-test rig). Owner (2026-09-20):
+"Create the dwarf hammer / war hammer - should be medium size"; the character lane's brief (two-handed, grounded, ~0.95 m ash haft,
+leather over the lower third, square striking face + back-spike, riveted langets). Built by `scripts/build-weapon.mjs` (`warhammer()`,
+variant A: 0.93 m butt to crown, head 0.705–0.815 m as the contact segment, the FACE on local +x — the side that leads the forehand
+swing — the spike on −x) and `warhammerClips()`: the 12-clip `Warhammer_*` family on the base humanoid rig via `twoHandFamily()`
+(the trident's clip machinery, extracted unchanged — the Veteran rebuilds byte-identical). `src/moves.ts WEAPONS.warhammer` is the
+maul's blunt set flagged `placeholder` on `Warhammer_Slash/Heavy/Thrust` paths (Combat sets the .78-fighter reach); `characters.ts
+WEAPON_CLIPS.warhammer` maps the maul's roles onto the family. The character lane integrates (`WARRIOR_WEAPON=warhammer` on the
+Dwarf donor, refit, roster flip). Provenance: original project work — Three.js primitives, the cleaver's pitted iron / the trident's
+ash / the shared leather; the clips are authored on the same CC0 body loops as the trident's. Sheets: `artifacts/weapons/warhammer-v1/`.

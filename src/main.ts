@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
+import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
@@ -66,7 +66,7 @@ function persist() {
     ['rank', rank.label], ['journal-rank', rank.label], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
 }
 persist();
-// Control-scheme trial: the right thumb is the button cluster or the v8 guard ring (one strike circle owns every attack); the scorecard is per scheme.
+// The right thumb is the button cluster (the v8 strike circle was retired 2026-09-20: one grammar, built and tested once).
 const trial = loadTrial(storage);
 // AFK is not an escape (owner 2026-09-20): a fight that never reached its end because the page was closed is a loss on the card.
 // The marker is written on the first tick of a live fight and cleared when its result is recorded.
@@ -74,22 +74,14 @@ const AFK_KEY = 'frankendom.fight.v1';
 const scorecard = loadScorecard(storage);
 try {
   const left = JSON.parse(storage.getItem(AFK_KEY) || 'null');
-  if (left && SCHEMES.includes(left.scheme)) {
-    recordFight(trial, left.scheme, false, 0, 0, 0); saveTrial(storage, trial);
+  if (left && typeof left === 'object') {
+    recordFight(trial, false, 0, 0, 0); saveTrial(storage, trial);
     if (isOpponentId(left.opponent)) { recordResult(scorecard, left.opponent, 'loss', true); saveScorecard(storage, scorecard); }
     storage.setItem(AFK_KEY, '');
   }
 } catch { /* unreadable storage: nothing to score */ }
-let scheme = trial.scheme,
-  recorded = false,
+let recorded = false,
   activeMs = 0; // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
-const ring8 = () => scheme === 'ring8';
-function applyScheme() {
-  element('actions').dataset.gestures = scheme;
-  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`;
-  element('controls-mode').setAttribute('aria-pressed', String(ring8()));
-  hud.invalidate();
-}
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 // Who stands opposite: the rung this device has reached (profile.encounter), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
 const opponent = opponentFor(
@@ -207,7 +199,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(practice, { controlsReady: assetsReady && !graphicsLost, ring8: ring8(), debug, opponentId: opponent.id });
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost, debug, opponentId: opponent.id });
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -233,7 +225,7 @@ element('name-button').addEventListener('click', () => {
   welcome.hidden = false;
   input.focus();
 });
-// The beta scorecard: one row per offered opponent plus the total; the per-scheme control trial dump stays for the debug view only.
+// The beta scorecard: one row per offered opponent plus the total; the control trial tally stays for the debug view only.
 function renderScorecard() {
   const cell = (tag: 'th' | 'td', text: string | number) => { const el = document.createElement(tag); el.textContent = String(text); return el; };
   const table = element('scorecard-table');
@@ -260,13 +252,10 @@ const paused = () => graphicsLost || !welcome.hidden || journal.open || document
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),
-  setTimeout: (cb, ms) => setTimeout(cb, ms),
-  clearTimeout: (id) => clearTimeout(id),
   matchMedia: (query) => matchMedia(query),
   innerWidth: () => innerWidth,
   ready: () => assetsReady,
   practice: () => practice,
-  ring8,
   quiet: () => feedback.quiet(),
 });
 resetButton.addEventListener('click', () => {
@@ -278,7 +267,7 @@ resetButton.addEventListener('click', () => {
     return;
   } // the next fighter is another rig: a fresh page loads it
   clearInput();
-  recordRematch(trial, scheme);
+  recordRematch(trial);
   saveTrial(storage, trial);
   recorded = false;
   activeMs = 0;
@@ -300,17 +289,16 @@ element('debug-mode').addEventListener('click', () => {
   element('debug-mode').setAttribute('aria-pressed', String(debug));
   hud.invalidate();
 });
-element('controls-mode').addEventListener('click', () => {
-  clearInput();
-  scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length];
-  trial.scheme = scheme;
-  saveTrial(storage, trial);
-  applyScheme();
-  element('scorecard').textContent = formatCard(trial);
-});
-applyScheme();
 if (typeof document !== 'undefined' && document.body)
   document.body.dataset.gfxTier = phoneTier() ? 'phone' : 'full'; // support surface: which graphics budget the session is on (the iPhone black-fighters defect)
+// The versus card: a still of this fight from the real models (public/versus/<id>.webp) while the rigs download. No card for an
+// opponent (a fresh rung without one yet) just means the arena shows through as before; a card that fails to fetch hides itself.
+const versus = element('versus'), versusStill = element<HTMLImageElement>('versus-still');
+const hideVersus = () => { if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
+versusStill.addEventListener('error', () => { versus.hidden = true; });
+versusStill.addEventListener('load', () => { if (!assetsReady) versus.hidden = false; });
+element('versus-foe').textContent = ROSTER[opponent.id].name.replace(/^the /, '');
+versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>;
 try {
   view = createScene(
@@ -318,6 +306,7 @@ try {
     (status) => {
       element('art-status').textContent = status;
       assetsReady = status === '';
+      if (status !== 'Loading warriors…') hideVersus();   // the rigs are in (or failed: the banner must be readable)
     },
     opponent.id,
   );
@@ -330,13 +319,7 @@ try {
   attackButton.setAttribute('aria-disabled', 'true');
   throw error; // Preserve the GPU/renderer cause and stack for monitoring.
 }
-let bloodMode = 0;
-element('blood-mode').addEventListener('click', () => {
-  bloodMode = (bloodMode + 1) % 3;
-  const mode = (['red', 'dark', 'off'] as const)[bloodMode];
-  view.setBloodMode(mode);
-  element('blood-mode').textContent = `Blood: ${mode}`;
-});
+// Blood is red, always (owner 2026-09-20: the dark/off toggle leaves the journal; the renderer keeps the modes for a later setting).
 const showTempo = () => {
   element('tempo-mode').textContent = `Tempo: ${tempoHz} Hz`;
   element('tempo-mode').setAttribute('aria-pressed', String(tempoHz === 50));
@@ -496,7 +479,7 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       const intent = controls.intent();
-      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ scheme, opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       practice = stepPractice(
         practice,
         {
@@ -529,7 +512,7 @@ function frame(now: number) {
                   finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId),
                   view.previousFinisher(),
                 ) ?? 'plainDeath',
-              gore: bloodMode !== 2,
+              gore: true,
             }
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
@@ -547,7 +530,7 @@ function frame(now: number) {
       accumulator -= step();
       if (practice.finish && !recorded) {
         recorded = true;
-        recordPractice(trial, scheme, practice, Math.round(activeMs));
+        recordPractice(trial, practice, Math.round(activeMs));
         saveTrial(storage, trial);
         marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
         recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk);   // a fight lost while away is a loss, flagged left

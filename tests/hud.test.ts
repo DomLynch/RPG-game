@@ -17,7 +17,7 @@ function dom(poolSize = 4) {
   const pool = element<FakeElement>('dmg-pool'); pool.children = Array.from({ length: poolSize }, () => new FakeElement());
   return { element, get: (id: string) => elements.get(id)! };
 }
-const view = (over: Partial<HudView> = {}): HudView => ({ controlsReady: true, ring8: false, debug: false, opponentId: 'veteran', ...over });
+const view = (over: Partial<HudView> = {}): HudView => ({ controlsReady: true, debug: false, opponentId: 'veteran', ...over });
 
 test('update binds meters, values, labels and the combat buttons from the practice state', () => {
   const { element, get } = dom(), hud = createHud(element as never);
@@ -43,19 +43,19 @@ test('update binds meters, values, labels and the combat buttons from the practi
   assert.equal(get('debug').hidden, true);
 });
 
-test('update: a control-scheme, readiness or debug change relabels; an unchanged frame writes nothing until invalidated', () => {
+test('update: a readiness or debug change relabels; an unchanged frame writes nothing until invalidated', () => {
   const { element, get } = dom(), hud = createHud(element as never);
   const practice = initialPractice();
-  hud.update(practice, view({ ring8: true }));
-  assert.equal(get('attack-button').textContent, 'Draw sword'); assert.equal(get('heavy-button').hidden, true, 'the ring owns every attack');
-  hud.update(practice, view({ ring8: true, debug: true }));
+  hud.update(practice, view());
+  assert.equal(get('attack-button').textContent, 'Draw sword'); assert.equal(get('heavy-button').hidden, false, 'the cluster shows Heavy');
+  hud.update(practice, view({ debug: true }));
   assert.equal(get('debug').hidden, true, 'debug is not part of the memo key: same key, no rewrite (as before the move)');
   const writes = get('attack-button').writes;
-  hud.update(practice, view({ ring8: true, debug: true }));
+  hud.update(practice, view({ debug: true }));
   assert.equal(get('attack-button').writes, writes, 'identical frame: no DOM writes');
-  hud.invalidate(); hud.update(practice, view({ ring8: true, debug: true }));
+  hud.invalidate(); hud.update(practice, view({ debug: true }));
   assert.ok(get('attack-button').writes > writes && get('debug').hidden === false, 'invalidate forces the rewrite');
-  hud.update(practice, view({ ring8: true, debug: true, controlsReady: false }));
+  hud.update(practice, view({ debug: true, controlsReady: false }));
   assert.equal(get('attack-button').attributes.get('aria-disabled'), 'true', 'not ready: every control reads disabled');
   assert.equal(get('dodge-button').attributes.get('aria-disabled'), 'true');
 });

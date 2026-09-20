@@ -170,7 +170,7 @@ export type AiProfile = {
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
-export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe' | 'maul' | 'reaper';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
 export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
 export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true;
   guardProfile?: Partial<GuardProfile>;   // how this weapon's guard takes a blow (absent = the longsword defaults in RULES)
@@ -374,8 +374,24 @@ const creaturePaths = (paths: Record<PathId, PathSpec>, prefix: string): Record<
 ) as Record<PathId, PathSpec>;
 const MAUL: Weapon = { ...CLEAVER, id: 'maul', moves: { ...CLEAVER_MOVES, thrust: { ...CLEAVER_MOVES.thrust, stepIn: .3, reach: 1.4 } }, paths: creaturePaths(CLEAVER_PATHS, 'Maul'), guard: 'shaft', material: 'wood', fight: { thrustShare: .1, close: 1.15 } };
 // The Wraith reaps with a long crescent; stepping inside its edge earns a kick/backstep, not a phantom close hit.
+// The Dwarf's warhammer (weapons lane part + Warhammer_* clips, 2026-09-20; Combat slice, owner: "less dangerous and balanced with the
+// other weapons", hammer identity kept). Blunt, on the cleaver-family clips: symmetrical 15-point swings that shove (posture 30, no chip),
+// a 24-point overhead that can be cut into (poise 0 — the maul's hyper-armour was the wall: a .78 man walking in behind an uninterruptible
+// heavy), and a blunt punish set (18/24, counter 14, critical 34 — under the sword's 24/30/20/40): the sim showed most of his damage was
+// the cleaver's 28/34 ripostes, not the swings. Shaft guard like the trident and scythe (blocks ×1.15, a heavy breaks it). Reach is the
+// maul's on a .78 body — swing 1.29 m, heavy 1.48 m — he gets inside. Hero's brain at normal: 11/24 (maul placeholder was 2/24).
+const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
+  light_right: { ...CLEAVER_MOVES.light_right, damage: 15, chip: 0, staminaDamage: 20, stagger: 28, posture: 30 },
+  light_left: { ...CLEAVER_MOVES.light_left, damage: 15, chip: 0, staminaDamage: 20, stagger: 28, posture: 30, stamina: 28 },
+  heavy_overhead: { ...CLEAVER_MOVES.heavy_overhead, damage: 24, poise: 0, posture: 48, staminaDamage: 40, chip: .3, stagger: 32 },
+  thrust: { ...CLEAVER_MOVES.thrust, stepIn: .3, reach: 1.4 },
+  slash_riposte: { ...CLEAVER_MOVES.slash_riposte, damage: 18 }, riposte: { ...CLEAVER_MOVES.riposte, damage: 18 },
+  heavy_riposte: { ...CLEAVER_MOVES.heavy_riposte, damage: 24 }, heavy_counter: { ...CLEAVER_MOVES.heavy_counter, damage: 14 },
+  critical: { ...CLEAVER_MOVES.critical, damage: 34 },
+};
+const WARHAMMER: Weapon = { id: 'warhammer', moves: WARHAMMER_MOVES, paths: creaturePaths(CLEAVER_PATHS, 'Warhammer'), guard: 'shaft', material: 'iron', reach: WARHAMMER_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.15 } };
 const REAPER: Weapon = { ...ESTOC, id: 'reaper', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
@@ -401,7 +417,13 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
   // a barrel body; the hit capsule follows the measured height like the goblin's. Sturdier than a man: 170 health and poise 12 — a stab (11)
   // never stops him, a plain cut (14) or heavier does. Same AI profiles as the Veteran until the combat lane tunes him.
-  dwarf: { scale: .78, health: 170, poise: 12, profiles: PROFILES },
+  // His own brain (Combat slice, 2026-09-20): the Veteran's pressure 0 made ~85 % of his openers hammer heavies; a chopper's mix
+  // (pressure .5), a low parry (the blunt punish is not his game) and a normal reaction. Hero's brain 24 seeds: see the battery.
+  dwarf: { scale: .78, health: 170, poise: 12, profiles: {
+    easy: { reaction: 24, accuracy: .5, parry: .05, dodge: .1, aggression: .55, pressure: .4, discipline: 55, lapse: .45 },
+    normal: { reaction: 14, accuracy: .8, parry: .15, dodge: .15, aggression: .85, pressure: .5, discipline: 45, lapse: .3 },   // aggression .7 → .85, lapse .25 → .3 (owner: align with the others): 12/24 in 32 s, was 11/24 in 38 s — the longest fights on the ladder
+    hard: { reaction: 12, accuracy: .85, parry: .25, dodge: .25, aggression: .85, pressure: .55, discipline: 40, lapse: .15 },   // accuracy .9 → .85, lapse .1 → .15: 7/24 like the Pitborn's hard, was 4/24
+  } },
   // The pit brute: relentless light chains (aggression, pressure), a low parry rate, slower to notice, a low discipline floor so he
   // swings himself hot; poise 16 — a plain cut (14) or stab (11) never stops him, a heavy (18) or any counter does.
   // Health 190: with the Veteran's brain driving the hero he took 150 in ~22 s (probe, 24 seeds); the brute is meant to take more killing than a man.

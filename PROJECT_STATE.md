@@ -1,5 +1,38 @@
 # Project state
 
+## Strike circle retired — lead implementation, 2026-09-20 (owner: "I tried both and prefer buttons"; one grammar = every control feature built and tested once)
+The thumb cluster is the one touch layout. Gone: the v8 strike circle (input.ts ring8 handlers, `gestures.ts` + its test), the
+Controls chip in the journal Settings tab and its scheme cycling in main.ts, the `ring8` HUD relabelling, the `data-gestures=ring8`
+CSS block (the cluster block stays; index.html carries `data-gestures="cluster"` statically). trial.ts keeps one tally instead of a
+per-scheme card (`frankendom.controls.v1` migrates: an old `{ scheme, card: { cluster, ring8 } }` loads as its cluster tally, the
+ring's numbers are dropped); the AFK marker `frankendom.fight.v1` is `{ opponent }` only. browser-check no longer cycles Controls:
+one `layoutClean('cluster')` pass (44 px targets, no overlaps) at both phone sizes. Directional guard (five sides, owner 2026-09-20)
+is built on the buttons next. Evidence: 327 tests, eslint src, build + budget PASS; CI browser gate on the PR.
+
+## Tabbed Field Journal wiring — lead implementation, 2026-09-20 (owner: "get it live")
+On top of the design lane's markup/CSS (529bb6d, rebased onto trunk): the blood toggle is gone — `#blood-mode` button removed, its
+red/dark/off cycling removed from main.ts, gore always on (the renderer keeps `BloodMode` for a later setting); hit-stop chip sits in
+the Arena tab (design's markup, no JS change); test tools stay visible under Settings. Gates learned the tabs: browser-check and
+quiet-one click `label[for=journal-tab-settings]` before #controls-mode / #finisher-select, roster-browser-check clicks
+`label[for=journal-tab-arena]` before #opponent-select; browser-check's blood-mode cycle and quiet-one's dark/off cycling under
+--blood-check are retired (the finisher's own blood assertions still run). Evidence recorded in PR #228.
+
+## Field Journal tabs — web/design lane draft, 2026-09-20 (owner direction; markup + CSS only)
+Owner's read of the live journal: still messy. New layout (approved from a clickable mock): the fighter card and the sign-in
+prompt stay pinned; under them a browser-style strip with three tabs — Fighter (record table), Arena (opponent, warden,
+hit-stop, blood until the lead removes it) and Settings (controls chips, "How to fight", then the quiet Test tools). The
+duplicate cloud-save sentence under the Google button is gone. Tabs are CSS radio inputs: every bound id is unchanged and
+unique, no `main.ts` change. The journal opens on Fighter, so a browser check that reaches `#opponent-select`,
+`#finisher-select` (or `#controls-mode`, retired 2026-09-20) must click that tab's label first — the lead wires that into the gate scripts with
+the queued blood/hit-stop changes. The record table is restyled in the light journal's ink (its first rules were for the dark
+sheet). Gate: node tests 333/333, build, audit, budget PASS. Not pushed until the lead calls the window (#218 ahead in the queue).
+
+## Dwarf finishers enabled (2026-09-20)
+Owner won two fights against the Dwarf and got plain deaths: the roster entry shipped with `finishers: []` (the rule for
+reconstructed bodies — only validated finishers, listed explicitly). The Dwarf rig already carries every finisher clip.
+Validated on him with the finisher harness (real kills, blood modes, rematch, camera): Split Crown, Decapitation, Run
+Through, Opened, plain death — now listed. The Quiet One (picker-only) failed its spray check on him and stays off.
+
 ## Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentation lane, 2026-09-20 (branch presentation/arena-props)
 Five authored props generated on the owner's Hugging Face Pro account (TRELLIS.2 from prompted reference images) and dieted in Blender
 (3–5k tris, 512–768² WebP, metallic-roughness → factors): a portcullis that replaces the procedural gate bars once loaded, a weapon rack
@@ -62,6 +95,14 @@ seeded pick was already even (19.6–20.6 % each over 20 000 kill events) but me
 that memory (`lastFinisher`, rolled at rematch) and hands it to the audio resolver via `view.previousFinisher()`, so
 scene and audio still agree. Presentation state only; replays with the same history are identical. The preview harness
 resets the memory per captured window. Test: 20 000-event sweep asserts no repeat, 16–24 % share each, determinism.
+
+## Dwarf warhammer — integration of the weapons lane's shelf package (2026-09-20)
+Owner: the Dwarf gets a warhammer instead of the Veteran's trident. Weapons shipped `warhammer` on the shelf (#233, weapons/warhammer-v1:
+part, 12 `Warhammer_*` clips on the base humanoid rig, WEAPON_CLIPS, `WEAPONS.warhammer = {...MAUL, placeholder}`). Character lane
+(`char/dwarf-warhammer`, on top of #233): the donor is rebuilt with `WARRIOR_WEAPON=warhammer`, the Dwarf refitted and packed (37 clips,
+185 finite poses, both hands on the haft < 0.08 m, source maps retained; sha 82dab728…), roster `weapon: 'warhammer'`, the creature
+browser check keys on the `Warhammer_*` family, and the role-table test maps the warhammer to dwarf.glb. Still Combat's: the reach band and
+lifting the `placeholder` flag (the sim uses the maul's numbers until then); the browser gate and the deploy stay with the deployer.
 
 ## Dwarf v2 — owner-approved look, character lane (2026-09-20)
 Owner reviewed v1 in the arena and asked for four fixes ("A grade"): support-hand grip, chrome shoulder plate, soft face, true dwarf
@@ -126,11 +167,19 @@ clears it on Veteran, Pitborn, Goblin and Executioner. Harness now asserts the v
 the killer (camera ray). Run Through alignment (owner: blade reads off-centre) remains open.
 
 
+## Warhammer — the Dwarf's, on the shelf (weapons lane, 2026-09-20)
+Owner: "Create the dwarf hammer / war hammer - should be medium size". Part (0.93 m, square face on +x, back-spike, langets), the
+12-clip `Warhammer_*` family on the humanoid rig (the trident's machinery shared as `twoHandFamily()`, Veteran byte-identical),
+`WEAPONS.warhammer` = the maul's set, PLACEHOLDER (Combat sets the .78-fighter reach), `WEAPON_CLIPS.warhammer`, manifest + baked
+table, shelf rig `veteran-warhammer.glb`, pose sheets. Grip check at the Dwarf's .78: both wrists ≤ 0.071 m from the haft on the five
+grip roles. Next: character lane integrates (donor rebuild `WARRIOR_WEAPON=warhammer` → refit → roster `weapon: 'warhammer'`).
+
 ## Weapons Phase 2 polish — reconstructed parts, in progress (weapons lane, 2026-09-20)
 Owner reversed the freeze for weapons: polish all of them now for beta, keep the procedural parts as the revert. Trident (Veteran)
 and cleaver (Pitborn) ship as TRELLIS.2 reconstructions fitted by `scripts/weapon-fit.py` on the unchanged contact segments
-(`bake-blades` tables identical; `WEAPON_VARIANT=short|A` rebuilds byte-identical to the previous rigs). Knife, estoc, scythe and
-longsword are concept-approved and queued on the ZeroGPU quota reset; maul/claws/reaper (creature injector) not started. Skeleton,
+(`bake-blades` tables identical; `WEAPON_VARIANT=short|A` rebuilds byte-identical to the previous rigs). Knife (Goblin), estoc
+(Nightborn) and longsword (hero, hand + scabbard) followed in v2 the same way; the scythe part is fitted but not on a rig (the
+Executioner's donor re-pack is the character lane's) and maul/claws/reaper (creature injector) are not started. Skeleton,
 dwarf and werewolf pick the new parts up on their next creature pack. Evidence: `artifacts/weapons/REPORT.md` "Phase 2 polish".
 
 ## Wraith reaper scythe — weapons lane, in progress
