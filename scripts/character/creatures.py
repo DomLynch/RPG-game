@@ -78,11 +78,10 @@ parts = [bpy.data.objects[n] for n in ["Skin", "Photo"] if n in bpy.data.objects
 # photographed skin covers the seam, the reconstruction's grey beard stub and its nape hair all round with no ledge: the
 # exposed part is a smooth taper from the reconstruction's shoulders to the scan's neck. The helm then fits by construction.
 NECK_CUT, NECK_TUCK, NECK_BAND, NECK_SECTORS, NECK_STEP = 1.585, 0.008, 0.125, 24, 0.005
-# In front the reconstruction is drawn inside the scan from below the chin up, so the chin and beard show. At the sides
-# and nape the reconstruction's top 3 cm are crumpled hair, which rendered as bright shards under the hairline whether
-# tucked or not; that region is cut away at 1.555 m and the smooth neck below tapers 3 cm into the scanned neck.
-NECK_CROSS, NECK_RAMP = 1.515, 0.02
-NECK_CUT_BACK, NECK_RAMP_BACK, NECK_FRONTNESS = 1.555, 0.03, 0.35
+# The reconstruction's own beard and nape hair are crumpled geometry that renders as bright shards wherever it shows, tucked
+# or not, so the neck is cut where the smooth skin ends and the scan takes over: at the throat (1.53 m, under the scanned
+# beard) in front, at 1.555 m at the sides and nape; the smooth neck below each cut tapers 3 cm into the scanned neck.
+NECK_CUT_FRONT, NECK_CUT_BACK, NECK_RAMP_BACK, NECK_FRONTNESS = 1.53, 1.555, 0.03, 0.35
 
 
 def neck_sector(x, y):
@@ -258,14 +257,18 @@ if family == "veteran":
     bmesh.ops.bisect_plane(
         bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, NECK_CUT), plane_no=(0, 0, 1), clear_outer=True
     )
-    back = [f for f in bm.faces if -f.calc_center_median().y / max(1e-6, f.calc_center_median().xy.length) <= NECK_FRONTNESS]
-    bmesh.ops.bisect_plane(
-        bm,
-        geom=list({v for f in back for v in f.verts}) + list({e for f in back for e in f.edges}) + back,
-        plane_co=(0, 0, NECK_CUT_BACK),
-        plane_no=(0, 0, 1),
-        clear_outer=True,
-    )
+    for keep_front, cut in ((False, NECK_CUT_BACK), (True, NECK_CUT_FRONT)):
+        region = [
+            f for f in bm.faces
+            if (-f.calc_center_median().y / max(1e-6, f.calc_center_median().xy.length) > NECK_FRONTNESS) == keep_front
+        ]
+        bmesh.ops.bisect_plane(
+            bm,
+            geom=list({v for f in region for v in f.verts}) + list({e for f in region for e in f.edges}) + region,
+            plane_co=(0, 0, cut),
+            plane_no=(0, 0, 1),
+            clear_outer=True,
+        )
     bm.to_mesh(mesh.data)
     bm.free()
     mesh.data.update()
@@ -277,7 +280,7 @@ def tuck_neck():
     for v in mesh.data.vertices:
         x, y, z = v.co
         front = -y / max(1e-6, math.hypot(x, y))  # 1 straight ahead (glTF +z is Blender -y), -1 at the nape
-        cross, ramp = (NECK_CROSS, NECK_RAMP) if front > NECK_FRONTNESS else (NECK_CUT_BACK - NECK_RAMP_BACK, NECK_RAMP_BACK)
+        cross, ramp = (NECK_CUT_FRONT if front > NECK_FRONTNESS else NECK_CUT_BACK) - NECK_RAMP_BACK, NECK_RAMP_BACK
         if z > cross:
             s, zb = neck_sector(x, y), round(z / NECK_STEP)
             # The nearest three 5 mm rows, innermost wins: on the beard's sloping underside the row above is wider.
