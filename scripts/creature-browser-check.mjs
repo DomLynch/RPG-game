@@ -16,7 +16,7 @@ let inspectedPage;
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
-  for (const opponent of ['minotaur', 'wraith', 'werewolf', 'skeleton'].filter(id => !ROSTER[id].hold)) {   // held recipes are not in the bundle
+  for (const opponent of ['minotaur', 'wraith', 'werewolf', 'skeleton', 'dwarf'].filter(id => !ROSTER[id].hold)) {   // held recipes are not in the bundle
     const context = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const page = inspectedPage = await context.newPage();
     page.on('pageerror', e => receipt.errors.push(String(e)));
@@ -37,6 +37,7 @@ try {
       wraith: { family: /^\w+:Reaper_\w+@ReaperEdge$/, heavy: 'Heavy:Reaper_Heavy@ReaperEdge' },   // the reaper's contact node is its blade edge, not the grip
       werewolf: { family: /^\w+:(?:Idle|Walk|Jog|Run|Armed|Attack|Hit|Death|Draw|Roll|Guard|Return|Heavy|Riposte|ArmedWalk|StrafeLeft|StrafeRight|Kick|BlockImpact|Parry|Deflected)@WeaponDrawn$/, heavy: 'Heavy:Heavy@WeaponDrawn' },
       skeleton: { family: /^(?:\w+:Trident_\w+|Roll:Roll|Kick:Kick)@WeaponDrawn$/, heavy: 'Heavy:Trident_High@WeaponDrawn' },
+      dwarf: { family: /^(?:\w+:Trident_\w+|Roll:Roll|Kick:Kick)@WeaponDrawn$/, heavy: 'Heavy:Trident_High@WeaponDrawn' },
     }[opponent];
     const frames = [];
     const shot = async label => {

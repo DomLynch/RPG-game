@@ -1,5 +1,17 @@
 # Project state
 
+## Dwarf — character lane candidate, not approved, not released (2026-09-20)
+Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
+`black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft
+TRELLIS.2 Space by the new scripted runner `scripts/character/trellis2.py` (seed 190926, 1024, 100000 faces, 2048 textures;
+74 s on the owner's PRO quota; source SHA-256 `2213ef49…`). Fitted to the Veteran donor at 1.60 m with the existing
+`creatures.py` recipe seam: bind error 2.2e-6, 38 clips preserved, 190 finite poses, grip checks pass (`creature-check.mjs dwarf`).
+Roster recipe `dwarf` (veteran archetype, trident, plain death only) is the tenth recipe and, on the owner's instruction
+("ignore caps, use what you need", 2026-09-20), NOT held: he is the sixth live rung after the Executioner while the four
+creatures stay held; one `hold: true` flag parks him. Ladder/roster/graphics pins updated; cloud-profile migration `202609200001_dwarf_encounter.sql` staged, NOT applied to the hosted project.
+Open decisions for lead/combat: a `dwarf` archetype (shorter reach, higher poise) and weapon instead of the Veteran's
+profile/trident; whether he belongs in the beta ladder at all (the freeze analysis says Phase 2). Budget impact recorded in
+`artifacts/character/dwarf/quality.log`. No browser gate, no publication, no owner approval of the concept yet.
 ## AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, the game continues as if")
 Leaving a live fight (tab hidden, phone call, lock screen) no longer freezes it in the player's favour. The browser cannot run the
 fight while hidden, so the hidden time is owed to the fight and simulated on return with no input (`owed` in `main.ts`, both clocks
