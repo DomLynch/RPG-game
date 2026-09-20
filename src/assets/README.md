@@ -568,3 +568,33 @@ representation is kept; dimensions, decoded RGBA pixels, ICC/EXIF/colour metadat
 are independently checked. Source GLBs and their embedded maps remain untouched. The build needs
 `jpegtran` (`brew install jpeg-turbo` on macOS; `apt install libjpeg-turbo-progs` on Linux); CI installs it.
 `jpeg-js` is a development-only independent pixel judge, not a browser/runtime dependency.
+
+## Weapons Phase 2 polish — reconstructed parts (weapons lane, 2026-09-20)
+
+Owner's call (2026-09-20): the beta ships the weapons polished, all of them, with the procedural parts kept as the revert. A weapon
+may now be a RECONSTRUCTED part in place of the primitives, on the same contract (one node `WeaponDrawn`, local Y along the weapon,
+the hand at 0, `extras.contact` exactly where the procedural part had it — so `scripts/bake-blades.mjs` writes the same tables and
+the sim never moves). Files, per weapon `<id>`:
+
+- `src/assets/source/weapons/<id>.glb` — the immutable source: the official `microsoft/TRELLIS.2` Space's 100k-face extraction,
+  via `scripts/weapon-recon.py` (`~/.venvs/face/bin/python scripts/weapon-recon.py --name <id> --prompt "…"` or `--image PATH`;
+  seed 190926, resolution 1024, 1024² maps; the Space's extraction floor is 100,000 faces). Beside it `<id>.trellis.json` records
+  the Space, seed, sampler settings, the concept image (`docs/weapon-references/<id>-concept-v1.png`, its generator and prompt,
+  any rotation) and the SHA-256 of the source.
+- `src/assets/source/weapons/<id>.part.glb` (+ `<id>.fit.json`) — the game part, from `blender -b --python-exit-code 1 -P
+  scripts/weapon-fit.py -- <id>`: principal-axis orientation, the head landmark measured from the width profile, one uniform scale
+  onto the contract; the HEAD (fork, blade, guard) keeps the reconstruction decimated to the phone budget; the handle below it is a
+  clean lathe whose colour is BAKED from the reconstruction (Cycles, selected → active), with the bare rows authored as ash/haft
+  grain where the reconstruction painted them near black. 512² JPEG maps: colour + metal/rough on `Weapon<Id>`, colour on
+  `Weapon<Id>Shaft`.
+- `scripts/build-weapon.mjs` `sourced(id, procedural)` loads the part as the weapon's default; every named silhouette still builds
+  the primitives — the revert is `WEAPON_VARIANT=<variant>` and a rebuild (checked byte-identical against the shipped rigs).
+
+Provenance and licence: the concept pictures are generated (FLUX.1-dev via its Hugging Face Space, prompts on record) and used only
+as the reconstruction's input; the meshes and maps are TRELLIS.2 output (MIT — `source/creatures/TRELLIS-LICENSE.txt` applies here
+too); the fit, bake, lathe, grain and all clips are original project work. No downloaded asset, no third-party texture.
+
+| weapon | carried by | part | source picture | contact (unchanged) |
+|---|---|---|---|---|
+| trident (Veteran; Skeleton/Dwarf donors) | `veteran.glb` | 3,998 tris | FLUX seed 190926 | 0.76–1.22 m |
+| cleaver (Pitborn; Werewolf donor) | `pitborn.glb` | 3,979 tris | FLUX seed 7, rotated 180° | 0.14–0.86 m |

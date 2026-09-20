@@ -267,8 +267,14 @@ function bladeGeometry(base, tip, width, thickness, pointFraction = .14, segment
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
   g.computeVertexNormals(); return g;
 }
+// Phase 2 polish (weapons lane, 2026-09-20): the hero's longsword is the reconstructed part when it exists (scripts/weapon-fit.py →
+// src/assets/source/weapons/longsword.part.glb), in the hand AND the scabbard node — the same geometry, one buffer in the export.
+// WEAPON_VARIANT=procedural rebuilds the primitives below, byte-identical to before.
+const longswordPart = weaponId === 'longsword' && process.env.WEAPON_VARIANT !== 'procedural' && await fs.stat('src/assets/source/weapons/longsword.part.glb').then(() => true, () => false)
+  ? await (await import('./build-weapon.mjs')).sourced('longsword', null)({}) : null;
 function sword(name, parent) {
   const group = new T.Group(); group.name = name; parent.add(group);
+  if (longswordPart) { for (const child of longswordPart.children) group.add(child.clone()); return group; }
   const piece = (geometry, material, y) => { const mesh = new T.Mesh(withAoUv(geometry), material); mesh.position.y = y; group.add(mesh); };
   piece(bladeGeometry(.10, .86, .046, .007), blade, 0);
   piece(new T.CapsuleGeometry(.011, .21, 3, 10).rotateZ(Math.PI / 2), trim, .092);           // rounded bronze crossguard
@@ -780,7 +786,7 @@ for (const [name, maps] of Object.entries(manifest)) {
 }
 const textures = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Textures');
 if (!realistic) authored.set('Eyes', { baseColor: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Brown.png')), mime: 'image/png' }, normal: { bytes: await fs.readFile(path.join(textures, 'T_Eye_Normal.png')), mime: 'image/png' } });
-for (const [name, maps] of Object.entries(weaponNode?.maps ?? {})) authored.set(name, { ...maps, occlusionTexCoord: 0 }); // a reconstructed weapon's own maps, by material name
+for (const [name, maps] of Object.entries(weaponNode?.maps ?? longswordPart?.maps ?? {})) authored.set(name, { ...maps, occlusionTexCoord: 0 }); // a reconstructed weapon's own maps, by material name
 let finished = finishMaterials(Buffer.from(result), authored);
 if (fighter === 'veteran') {
   finished = fitVeteranNeck(finished).glb;

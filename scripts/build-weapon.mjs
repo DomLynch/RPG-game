@@ -578,7 +578,9 @@ export function scytheClips({ T: three = T, base, skeleton, poseMixer, clips, we
 // Node's GLTFLoader cannot decode images, so the maps are stripped here and handed to build-warrior's finishMaterials by material
 // name (`part.maps`, outside userData: the exporter writes userData as extras).
 export function sourced(id, procedural) {
-  return async function part({ variant, ...rest } = {}) {
+  part.reconstructed = id; part.procedural = procedural;   // the tests walk WEAPON_BUILDS for these
+  return part;
+  async function part({ variant, ...rest } = {}) {
     if (variant && variant !== 'trellis') return procedural({ variant, ...rest });
     const fs = await import('node:fs/promises'), { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
     const glb = await fs.readFile(`src/assets/source/weapons/${id}.part.glb`);
@@ -602,7 +604,7 @@ export function sourced(id, procedural) {
     node.removeFromParent(); node.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
     node.userData.weapon = id; node.userData.variant = 'trellis'; node.maps = maps;
     return node;
-  };
+  }
 }
 
 // What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.

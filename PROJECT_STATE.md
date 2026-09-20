@@ -55,6 +55,13 @@ clears it on Veteran, Pitborn, Goblin and Executioner. Harness now asserts the v
 the killer (camera ray). Run Through alignment (owner: blade reads off-centre) remains open.
 
 
+## Weapons Phase 2 polish — reconstructed parts, in progress (weapons lane, 2026-09-20)
+Owner reversed the freeze for weapons: polish all of them now for beta, keep the procedural parts as the revert. Trident (Veteran)
+and cleaver (Pitborn) ship as TRELLIS.2 reconstructions fitted by `scripts/weapon-fit.py` on the unchanged contact segments
+(`bake-blades` tables identical; `WEAPON_VARIANT=short|A` rebuilds byte-identical to the previous rigs). Knife, estoc, scythe and
+longsword are concept-approved and queued on the ZeroGPU quota reset; maul/claws/reaper (creature injector) not started. Skeleton,
+dwarf and werewolf pick the new parts up on their next creature pack. Evidence: `artifacts/weapons/REPORT.md` "Phase 2 polish".
+
 ## Wraith reaper scythe — weapons lane, in progress
 Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
 ## Werewolf and Skeleton — integrated locally, publication pending (2026-09-19)
