@@ -1,5 +1,17 @@
 # Project state
 
+## /game marketing page + Field Journal redesign — web/design lane, 2026-09-20 (owner picked direction E of nine)
+`public/game/` is a static, one-page mobile-first site at frankendom.com/game (Vite copies `public/` verbatim; nginx `try_files $uri/`
+serves the folder index). Direction "Pocket Arena": light ground, the live game inside a phone frame, bento tiles, Bricolage Grotesque +
+Instrument Sans (SIL OFL, `public/game/fonts/LICENSES.txt`). Images are the shipped GLBs rendered offline (transparent WebP portraits)
+plus two HUD-less captures of the live arena; total folder 644 KB, no inline script (site CSP is `script-src 'self'`; `game.js` is the
+only script). frankendom.com itself is untouched: the game still loads on `/`.
+The Field Journal (`<dialog id="journal">`) is restyled in the same brand as a light bottom sheet: fighter card (name · rank pips · save
+state, mirrored from `persist()` into `#journal-name/-sigil/-rank/-save`), account, Controls chips + "How to fight" folded, record ledger,
+Arena (opponent, warden, blood), Test tools (finisher, hit-stop, tempo, debug). Every bound element id, aria label and button text is
+unchanged, and everything the browser gates tap stays visible when the journal opens; the milestones copy and the retired ESO/Black Desert
+reference links are gone (`/game/` is linked instead). Evidence and remaining validation: see the PR.
+
 ## Opponent picker shows live rungs only — lead implementation, 2026-09-20 (owner)
 The journal's opponent picker is built from `LADDER` (held recipes filtered out) instead of every `ENCOUNTERS` entry greyed as
 "(on hold)": Minotaur, Wraith, Werewolf and Skeleton no longer appear in the beta menu at all (they stay valid ids, so saved
