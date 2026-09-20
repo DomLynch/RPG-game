@@ -7,7 +7,7 @@ import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 // Offline rendering host (scripts/audio-preview.mjs): a supplied OfflineAudioContext and a scripted clock stand in for the
 // page's AudioContext and its wall clock, so a fixed exchange renders to the same WAV every time. `sprite` null forces the
 // synth fallback; a buffer skips loading. Absent in the game.
-export type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null };
+export type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null; balance?: { combat: number; finish: number } };   // balance: evidence renders of the mix stage at other levels
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
 const COMBAT_LEVEL = .5, FINISH_LEVEL = 1.5; // owner phone mix: half ordinary FX, +50% for the fatal sequence
@@ -22,6 +22,7 @@ export function createFeedback(host?: FeedbackHost) {
   let pendingDraw: number | undefined;
   let arenaAudio: ReturnType<typeof createArenaAudio> | undefined, arenaOutput: AudioNode;
   let context: BaseAudioContext | undefined, master: GainNode | undefined, balance: GainNode | undefined, bus: DynamicsCompressorNode | undefined, noise: AudioBuffer | undefined;
+  const level = host?.balance ?? { combat: COMBAT_LEVEL, finish: FINISH_LEVEL };
   let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, quieted = false, duel = 0, random = seeded(BASE_SEED);
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
@@ -47,7 +48,7 @@ export function createFeedback(host?: FeedbackHost) {
     master = context.createGain(); master.gain.value = 1; master.connect(context.destination);
     // Apply the requested levels AFTER compression, so it cannot squash away the volume change.
     const safety = context.createWaveShaper(); safety.curve = outputCeiling(); safety.oversample = '4x'; safety.connect(master); arenaOutput = safety;
-    balance = context.createGain(); balance.gain.value = COMBAT_LEVEL; balance.connect(safety);
+    balance = context.createGain(); balance.gain.value = level.combat; balance.connect(safety);
     const ceiling = context.createWaveShaper(); ceiling.curve = softCeiling(); ceiling.connect(balance);
     // Glue and density: the compressor leans on stacked hits and the makeup pushes the mix into the ceiling, which is what makes impacts read as big on a small speaker.
     const makeup = context.createGain(); makeup.gain.value = 2.1; makeup.connect(ceiling);   // +6.4 dB: restores the 4 dB of codec headroom baked into the sprite, plus glue
@@ -89,7 +90,7 @@ export function createFeedback(host?: FeedbackHost) {
     arenaAudio?.stop();
     for (const source of sources) { try { source.stop(now()); } catch { /* already ended */ } }
     sources.clear();
-    balance!.gain.cancelScheduledValues(now()); balance!.gain.setValueAtTime(COMBAT_LEVEL, now());
+    balance!.gain.cancelScheduledValues(now()); balance!.gain.setValueAtTime(level.combat, now());
     for (const voice of voices) { voice.source = null; voice.until = 0; voice.gain.gain.cancelScheduledValues(now()); voice.send.gain.cancelScheduledValues(now()); }
   }
   return {
@@ -110,7 +111,7 @@ export function createFeedback(host?: FeedbackHost) {
       if (frame) { arenaAudio ??= createArenaAudio(context, arenaOutput, now); arenaAudio.update(events, frame, pendingDraw === frame.match); pendingDraw = undefined; }
       // Death ends the duel: the impact, voice, delayed body and crowd share the finishing level.
       // Empty post-death ticks keep it; fresh combat or quiet/mute returns to the ordinary level.
-      if (events.length) balance!.gain.setValueAtTime(events.some(e => e.type === 'Killed') ? FINISH_LEVEL : COMBAT_LEVEL, time);
+      if (events.length) balance!.gain.setValueAtTime(events.some(e => e.type === 'Killed') ? level.finish : level.combat, time);
       if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
