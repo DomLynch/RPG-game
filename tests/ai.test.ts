@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, initialDuel, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
+import { createFighter, elapsed, idleIntent, initialDuel, stepDuel, type Duel, type Intent, opponentFighter } from '../src/duel.ts';
+import { MOVES, PROFILES, RULES, type AiProfile, OPPONENTS, WEAPONS } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
 const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
@@ -547,4 +547,16 @@ test('a fighter with no guard respects a read poker\'s or kicker\'s reach: he ho
   assert.ok(at(1.7, { lights: 4 }, guardless) > 0, 'guard 0 vs a cutter: closes as ever');
   assert.ok(at(1.7, { thrusts: 4 }, guardless, { phase: 'attack', move: 'thrust', lastMove: 'thrust', age: 40, landed: false, attackFrom: { x: 0, z: TARGET.z + 1.7, gap: 1.7 } }) > 0, 'the whiff is the opening: in he goes');
   assert.ok(at(1.4, { kicks: 4 }, guardless) <= 0 && at(1.4, { kicks: 4 }, PROFILES.normal) > 0, 'the same respect for a kicker\'s cone plus its lunge');
+});
+
+test('inside a pole\'s point the kick counts from where it lands (its cone plus the lunge), not from inReach\'s margin: the reaper Wraith at 1.2 m kicks a parked man instead of freezing; a man\'s kick logic is unchanged', () => {
+  const reaper = OPPONENTS.wraith, at = (gap: number, seed: number) => { const d: Duel = { tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready'), opponentFighter(reaper, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] }; return decide(d, 1, fresh(seed, { retreatUntil: 0 }), reaper.profiles.normal).intent.action; };
+  assert.equal(reaper.weapon, 'reaper'); assert.ok((WEAPONS.reaper.moves.light_right.minReach ?? 0) >= 1.2, 'the reaper has its point on every blade');
+  let kicks = 0; for (let s = 1; s <= 30; s++) if (at(1.2, s * 7919) === 'kick') kicks++;
+  assert.ok(kicks >= 27, `inside the point at 1.2 m (kick cone 1.2, lunge to ~1.5): the kick goes (${kicks}/30)`);
+  let far = 0; for (let s = 1; s <= 30; s++) if (at(1.6, s * 7919) === 'kick') far++;
+  assert.equal(far, 0, 'past the lunge the kick is not thrown');
+  // The sword's kick has no point to be inside of: its rule is untouched — at 1.2 m a longsword warden with nothing to answer does not kick a standing man.
+  let sword = 0; for (let s = 1; s <= 30; s++) if (decide(arena(1.2), 1, fresh(s * 7919), PROFILES.normal).intent.action === 'kick') sword++;
+  assert.equal(sword, 0);
 });
