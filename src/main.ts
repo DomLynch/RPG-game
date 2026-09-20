@@ -230,14 +230,16 @@ const HEAVY_HIT = 90,
   HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
 const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const HITSTOP_KEY = 'frankendom.hitstop.v1',
-  TEMPO_KEY = 'frankendom.tempo.v1';
+  TEMPO_KEY = 'frankendom.tempo.v1',
+  DAMAGE_KEY = 'frankendom.damage-numbers.v1';
 // Damage numbers (owner mockup, 2026-09-19): a clean hit floats its damage off the victim — white for dealt, warm red for taken, gold and
 // bigger for the heavy-class ones (charged, counter, riposte, critical). Four pooled spans round-robin (a duel never shows four at once);
 // positions come from the scene's world→screen projection. Presentation-only.
 const dmgPool = Array.from(element('dmg-pool').children) as HTMLElement[];
-let dmgCursor = 0;
+let dmgCursor = 0,
+  damageNumbersOn = storage.getItem(DAMAGE_KEY) === 'on'; // owner 2026-09-20: off by default, a journal setting for those who want them
 function floatDamage(events: CombatEvent[]): void {
-  if (!dmgPool.length || typeof view.project !== 'function') return; // the VM harness ships an empty pool and a stub view: nothing to float there
+  if (!damageNumbersOn || !dmgPool.length || typeof view.project !== 'function') return; // the VM harness ships an empty pool and a stub view: nothing to float there
   for (const e of events) {
     if (e.type !== 'Hit' || e.target === undefined || !e.damage) continue;
     const victim = practice.duel.fighters[e.target];
@@ -917,6 +919,21 @@ element('hitstop-mode').addEventListener('click', () => {
   showHitStop();
 });
 showHitStop();
+const showDamageNumbers = () => {
+  element('damage-mode').textContent = `Damage numbers: ${damageNumbersOn ? 'on' : 'off'}`;
+  element('damage-mode').setAttribute('aria-pressed', String(damageNumbersOn));
+};
+element('damage-mode').addEventListener('click', () => {
+  damageNumbersOn = !damageNumbersOn;
+  if (!damageNumbersOn) for (const span of dmgPool) span.hidden = true;
+  try {
+    storage.setItem(DAMAGE_KEY, damageNumbersOn ? 'on' : 'off');
+  } catch {
+    /* a full store just loses the preference */
+  }
+  showDamageNumbers();
+});
+showDamageNumbers();
 function graphicsFailure() {
   message.hidden = false;
   message.textContent = 'Graphics could not recover. Reload to return to the arena. ';
