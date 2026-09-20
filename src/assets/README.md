@@ -266,15 +266,22 @@ second pass removed a forearm tattoo, the FLUX corner stamp erased), reconstruct
 with the KeenTools head — byte-identical to the last shipped v1; also the Skeleton's donor now). Recipe: arm angle 62°,
 height 1.82 m, human hands keep the donor's finger weights so the clips curl round the trident. `creature_pack.py` retains
 the fitted `Helmet`, `Face` and `Eyes` slot draws alongside the weapon (`KEEP_SLOTS`), so he fights in the plain Chalcidian
-helm with his v1 KeenTools head: the reconstruction's own head (soft face, wire hair, a skull the helm did not fit) is cut
-at the jaw line (1.585 m, `NECK_CUT`) and its top 7 cm tucked 8 mm inside the scanned neck's outline row by row, so the
-photographed skin covers the seam, the grey beard stub and the nape hair all round. The reconstruction bakes its skin
-darker and redder than the photograph; `match_skin` scales skin-weighted texels per channel to the donor neck tile's
-mean (gain ≈ 1.07/1.21/1.13 RGB) and writes `artifacts/character/creatures/veteran-basecolor.webp`, which the pack ships
-in place of the source map. ~45k surface triangles + head + trident + helm; the packed GLB is 9.0 MB (4.7 MB gzip; v1 was
-8.5 / 4.6). The generator hash change re-stamps the Dwarf and Executioner (rebuilt byte-identical but for that hash);
-the held creatures are untouched. The v1-specific release checks (`veteran-neck-check.mjs`, `veteran-polish-check.mjs`)
-now audit the v1 backup they were written for. Open: the owner's render review.
+helm with his v1 KeenTools head. The reconstruction's own head (soft face, wire hair, a skull the helm did not fit) is cut
+at the jaw line (1.585 m, `NECK_CUT`); its beard and nape hair are crumpled geometry that renders as bright shards
+wherever it shows, so the neck is cut again where the smooth skin ends and the scan takes over (throat 1.53 m in front,
+1.555 m at the sides and nape) and the smooth neck below each cut tapers 3 cm into the scanned neck's outline
+(`tuck_neck`, after decimation). The exposed strip of reconstruction neck is painted bare skin, matte (`paint_neck`, base
+colour and metallic-roughness texels of every face above 1.46 m). The reconstruction bakes its skin darker and redder
+than the photograph: `match_skin` scales skin-weighted texels per channel to the mean of the texels the scanned neck
+strip actually shows (gain ≈ 1.24/1.35/1.25 RGB). Both matched maps are written to `artifacts/character/creatures/`
+as WebP, the pack ships them in place of the source maps and stamps `skinMatched` {image index: sha256}, and
+`creature-check` verifies exactly those swaps. ~39k surface triangles (`budget`, so the 12.7k scanned head fits under
+the 60k ceiling) + head + trident + helm = 58k; packed 9.8 MB gzip per fight of 12 (v1 fight was ~9.7). The generator
+hash change re-stamps the Dwarf and Executioner (rebuilt byte-identical but for that hash); the held creatures are
+untouched. The v1-specific release checks (`veteran-neck-check.mjs`, `veteran-polish-check.mjs`) now audit the v1 backup
+they were written for. In-game renders (harness, 2b4067d): face, helm, neck and nape clean; a faint lighter patch of the
+scanned collar tile remains at the nape in close-ups. The reconstruction's grey tunic/dark skirt kit is kept (starter
+"poor veteran"); v1's beige gambeson/umber is not recoloured onto the bake.
 
 ## Combat audio (audio lane, 2026-09-15; reconciled 2026-09-20)
 `src/assets/audio/sprite.m4a` (AAC-LC 128 kb/s, Apple AudioToolbox encoder via ffmpeg `aac_at`, for Safari) and `sprite.ogg`
