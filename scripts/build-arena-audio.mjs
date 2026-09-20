@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { bellSamples } from '../src/audio/bell.ts';
 const RATE = 48000, n = t => Math.round(t * RATE), recordings = {};
+const PITCH = .7;   // owner 2026-09-20: audience 30 % deeper
 const sources = { ...JSON.parse(await fs.readFile('artifacts/audio/SOURCES.json')), ...JSON.parse(await fs.readFile('artifacts/audio/arena-life/SOURCES.json')) };
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
 for (const name of ['murmur', 'jeer', 'crowd', 'gasp', 'grunt', 'grunt2']) {
@@ -13,7 +14,7 @@ for (const name of ['murmur', 'jeer', 'crowd', 'gasp', 'grunt', 'grunt2']) {
   if (!bytes) { const r = await fetch(pin.url, { signal: AbortSignal.timeout(30000) }); if (!r.ok) throw Error(`${name}: HTTP ${r.status}`); bytes = Buffer.from(await r.arrayBuffer()); }
   if (createHash('sha256').update(bytes).digest('hex') !== pin.sha256) throw Error(`${name}: source hash mismatch`);
   await fs.writeFile(file, bytes);
-  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-ac', '1', '-ar', `${RATE}`, '-f', 'f32le', '-'], { maxBuffer: 32e6 });
+  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-af', `asetrate=${RATE * PITCH},aresample=${RATE},atempo=${1 / PITCH}`, '-ac', '1', '-ar', `${RATE}`, '-f', 'f32le', '-'], { maxBuffer: 32e6 });   // owner 2026-09-20: audience 30 % deeper, same length; the generated bell is untouched
   recordings[name] = new Float32Array(raw.buffer, raw.byteOffset, raw.length / 4);
 }
 function cut(name, start, duration, rate = 1) {
@@ -25,9 +26,10 @@ function cut(name, start, duration, rate = 1) {
 function add(out, input, at = 0, gain = 1) { for (let i = 0; i < input.length && i + n(at) < out.length; i++) out[i + n(at)] += input[i] * gain; return out; }
 function fade(x, attack = .03, release = .15) { return x.map((v, i) => v * Math.min(1, i / n(attack), (x.length - i - 1) / n(release))); }
 function band(x, lo = 180, hi = 3400) {
-  // Two cascaded one-pole filters each side remove rumble and distant-crowd hiss.
+  // Two cascaded one-pole filters each side remove rumble and distant-crowd hiss. The top follows PITCH like the content; the
+  // low cut stays — below ~180 Hz a handset speaker plays nothing, so lowering it only feeds the codec and the phone-band gate.
   for (let pass = 0; pass < 2; pass++) {
-    let low = 0, high = 0; const a = 1 - Math.exp(-2 * Math.PI * lo / RATE), b = 1 - Math.exp(-2 * Math.PI * hi / RATE);
+    let low = 0, high = 0; const a = 1 - Math.exp(-2 * Math.PI * lo / RATE), b = 1 - Math.exp(-2 * Math.PI * hi * PITCH / RATE);
     x = x.map(v => { low += a * (v - low); high += b * (v - low - high); return high; });
   }
   return x;
