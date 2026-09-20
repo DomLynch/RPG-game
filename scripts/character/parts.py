@@ -126,6 +126,8 @@ def realistic_body():
     # Weights from the CC0 body at rest, both now in T.
     select_only([body, hbm])
     bpy.ops.object.data_transfer(data_type='VGROUP_WEIGHTS', vert_mapping='POLYINTERP_NEAREST', layers_select_src='ALL', layers_select_dst='NAME', use_create=True)
+    clean_finger_weights(hbm)
+    straighten_fingers(hbm, HIGH)
     for poly in hbm.data.polygons:
         poly.use_smooth = True
     arm_mod = hbm.modifiers.new('Armature', 'ARMATURE')
@@ -524,6 +526,146 @@ def ao_white(part):
     for d in layer.data:
         d.uv = AO_WHITE
     return part
+
+
+def straighten_fingers(mesh_obj, high=None):
+    """The body's relaxed fingers are curled and fanned; the rig's rest fingers are straight and together, and every clip's
+    finger curl is authored on top of that rest. Skinned as-is, the clips' curl stacked on the mesh's own: the empty hand
+    read as a splayed claw and the grip as spider fingers (owner, 2026-09-20). With the (cleaned) finger weights in, each
+    finger is un-curled THROUGH THE RIG: per phalanx the mesh's own axis (the vertices that bone owns) is measured, the
+    rotation that lays it along the rig's straight finger is applied to that pose bone about its own joint, in chain
+    order, and the skinned result becomes the bind mesh. The joints are the rig's, so the clips later curl the finger
+    about exactly the pivots that straightened it. The sculpt copy's base vertices take the same displacement."""
+    from mathutils import Matrix, Vector
+    fingers = ('index', 'middle', 'ring', 'pinky')
+    names = {g.index: g.name for g in mesh_obj.vertex_groups}
+    verts = mesh_obj.data.vertices
+    dominant = {}
+    for v in verts:
+        if v.groups:
+            g = max(v.groups, key=lambda g: g.weight)
+            if g.weight > 0.45:
+                dominant.setdefault(names[g.group], []).append(v.co.copy())
+    select_only([armature])
+    for p in armature.pose.bones:
+        p.matrix_basis.identity()
+    bpy.context.view_layer.update()
+    report = []
+    for side in ('l', 'r'):
+        for finger in fingers:
+            u = (bone_tail(f'{finger}_04_leaf_{side}') - joint(f'{finger}_01_{side}')).normalized()  # the rig's straight finger
+            mcp = joint(f'{finger}_01_{side}')
+            # the finger's shape from its three weight regions' centres (a phalanx region is too stubby for a fit of its
+            # own axis — bone 01 owns the knuckle bulge, bone 03 the fingertip): knuckle → middle → tip
+            cents = []
+            for seg in ('01', '02', '03'):
+                pts = [q for q in dominant.get(f'{finger}_{seg}_{side}', []) if (q - mcp).dot(u) > 0.004]  # bone 01 also owns palm skin behind the knuckle
+                if len(pts) < 12:
+                    cents = []
+                    break
+                cents.append(sum(pts, Vector()) / len(pts))
+            if not cents:
+                report.append(f'{finger}_{side} SKIPPED')
+                continue
+            bends = {'01': (cents[1] - cents[0]).normalized(), '02': (cents[2] - cents[1]).normalized()}  # the tip region is too short to give the last joint a direction
+            acc = Matrix.Identity(3)
+            for seg in ('01', '02'):
+                name = f'{finger}_{seg}_{side}'
+                tangent = acc @ bends[seg]  # this phalanx's direction, after the joints before it were straightened
+                # a finger joint flexes about the across-the-palm axis and (the knuckle only) fans about the palm normal:
+                # un-curl with those two bounded rotations, never the free minimal rotation (it tilted fingers sideways)
+                across = (joint(f'pinky_01_{side}') - joint(f'index_01_{side}')).normalized()
+                normal = u.cross(across).normalized()
+                def turn(vec, axis, cap):  # signed angle from vec to u about axis, in the plane perpendicular to it
+                    a = (vec - axis * vec.dot(axis)).normalized()
+                    b = (u - axis * u.dot(axis)).normalized()
+                    ang = math.atan2(a.cross(b).dot(axis), a.dot(b))
+                    return max(-cap, min(cap, ang))
+                flex = turn(tangent, across, math.radians(70))
+                fan = 0.0  # no fan correction: the region centres' lateral offsets are the regions' shapes, not the finger's aim (a ±25° fan from them spread the hand like a starfish)
+                rot = (Matrix.Rotation(fan, 3, normal) @ Matrix.Rotation(flex, 3, across)).to_quaternion()
+                if abs(flex) < math.radians(1) and abs(fan) < math.radians(1):
+                    continue
+                pb = armature.pose.bones[name]
+                pivot = armature.matrix_world @ pb.head
+                R = Matrix.Translation(pivot) @ rot.to_matrix().to_4x4() @ Matrix.Translation(-pivot)
+                pb.matrix = armature.matrix_world.inverted() @ R @ armature.matrix_world @ pb.matrix
+                bpy.context.view_layer.update()
+                acc = rot.to_matrix() @ acc
+                report.append(f'{name} flex {math.degrees(flex):+.0f}°' + (f' fan {math.degrees(fan):+.0f}°' if seg == '01' else ''))
+    # bake the posed skin into the bind mesh
+    mod = mesh_obj.modifiers.new('StraightenFingers', 'ARMATURE')
+    mod.object = armature
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = mesh_obj.evaluated_get(dg)
+    posed = [v.co.copy() for v in ev.data.vertices]
+    mesh_obj.modifiers.remove(mod)
+    moved = 0
+    for v, q in zip(verts, posed):
+        if (q - v.co).length > 1e-6:
+            moved += 1
+        if high is not None:
+            high.data.vertices[v.index].co += q - v.co
+        v.co = q
+    mesh_obj.data.update()
+    if high is not None:
+        high.data.update()
+    for p in armature.pose.bones:
+        p.matrix_basis.identity()
+    bpy.context.view_layer.update()
+    print(f'FINGERS STRAIGHTENED through the rig: {moved} vertices; ' + ', '.join(report))
+
+
+def clean_finger_weights(mesh_obj):
+    """Each finger's vertices weighted to that finger's own bone chain. The nearest-surface transfer from the CC0 body
+    reads whichever of ITS fingers lies closest, and this body's fingers sit ~1.5 cm towards the thumb from the rig's
+    and fan a little wider, so the middle finger came out half index-weighted and the ring finger a fifth middle
+    (measured 2026-09-20): when a clip curls the fingers, a finger pulled by two chains stretches and splays — the
+    "spider fingers" the owner saw. The four fingers are found as four rods beyond the knuckles (k-means in the plane
+    across the fingers), matched to the rig's fingers in the same order along the spread, and each keeps only its own
+    chain's weights: a neighbour chain's weight moves to the same phalanx of its own chain, so the joint blends stay."""
+    from mathutils import Vector
+    names = {g.index: g.name for g in mesh_obj.vertex_groups}
+    index_of = {g.name: g.index for g in mesh_obj.vertex_groups}
+    fingers = ('index', 'middle', 'ring', 'pinky')
+    verts = mesh_obj.data.vertices
+    for side, sgn in (('l', 1), ('r', -1)):
+        wrist = joint(f'hand_{side}')
+        knuckle_x = max(abs(joint(f'{f}_01_{side}').x) for f in fingers)
+        rig_order = sorted(fingers, key=lambda f: joint(f'{f}_01_{side}').y)  # index .. pinky along the spread
+        spread = (joint(f'{rig_order[-1]}_01_{side}') - joint(f'{rig_order[0]}_01_{side}')).normalized()
+        cand = [v for v in verts if v.co.x * sgn > knuckle_x + 0.005 and (v.co - wrist).length < 0.25 and not (v.co.z < wrist.z - 0.02 and v.co.y < wrist.y - 0.04)]  # beyond the knuckles; not the thumb (it hangs low and forward)
+        pts = [Vector((0, v.co.y, v.co.z)) for v in cand]
+        c = sum(pts, Vector()) / len(pts)
+        coord = [(p - c).dot(spread) for p in pts]
+        lo, hi = min(coord), max(coord)
+        cents = [c + spread * (lo + (hi - lo) * q) for q in (0.125, 0.375, 0.625, 0.875)]
+        for _ in range(30):
+            lab = [min(range(4), key=lambda k: (p - cents[k]).length_squared) for p in pts]
+            for k in range(4):
+                members = [p for p, l in zip(pts, lab) if l == k]
+                if members:
+                    cents[k] = sum(members, Vector()) / len(members)
+        by_spread = sorted(range(4), key=lambda k: (cents[k] - c).dot(spread))  # cluster ids from index to pinky
+        moved = 0
+        for k, finger in zip(by_spread, rig_order):
+            own = {f'{finger}_{seg}_{side}' for seg in ('01', '02', '03', '04_leaf')}
+            for v, l in zip(cand, lab):
+                if l != k:
+                    continue
+                groups = {names[g.group]: g.weight for g in v.groups}
+                foreign = {n: w for n, w in groups.items() if n.split('_')[0] in fingers and n.endswith(f'_{side}') and n not in own}
+                if not foreign:
+                    continue
+                for n, w in foreign.items():
+                    seg = n[len(n.split('_')[0]) + 1:-len(f'_{side}')]  # '01', '02', '03' or '04_leaf'
+                    target = f'{finger}_{seg}_{side}'
+                    mesh_obj.vertex_groups[index_of[n]].remove([v.index])
+                    if target in index_of:
+                        groups[target] = groups.get(target, 0.0) + w
+                        mesh_obj.vertex_groups[index_of[target]].add([v.index], groups[target], 'REPLACE')
+                moved += 1
+        print(f'FINGER WEIGHTS {side}: {len(cand)} finger vertices, {moved} re-homed to their own chain')
 
 
 def transfer_weights(part):
