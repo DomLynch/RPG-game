@@ -28,19 +28,30 @@
       <strong id="account-identity">Guest</strong>
       <p id="account-status" role="status">Opening account…</p>
       <div class="account-actions"><button id="account-login" disabled>Continue with Google</button><button id="account-save" hidden>Save fighter</button><button id="account-load" hidden>Load saved fighter · restart practice</button><button id="account-logout" hidden>Sign out</button><button id="account-retry" hidden>Retry account</button></div>
-      <small>Cloud saves keep your name, opponent and career marks. Practice scores stay on this device. Loading restarts the fight and never lowers your marks.</small>
     </section>
-    <section class="mobile-tools" aria-label="Game settings">
-      <h4>Controls</h4>
-      <div class="chips"><button id="mobile-sound" aria-pressed="true">Sound on</button><button id="mobile-camera" aria-pressed="true">Camera locked</button><button id="controls-mode" aria-pressed="false">Controls: thumb cluster</button></div>
-      <details class="howto"><summary>How to fight</summary><p>Move with the left stick. Push to its outer edge to sprint.<br>Light → light → heavy for a combo (the heavy comes out faster). Hold Heavy (about a second) to charge it: the raised blade glows and shrugs off lights, and the release hits half again as hard and breaks a guard. A quick press is the plain heavy. Thrust (T on a keyboard, a flick ↑ on the strike circle) lunges furthest and fastest but never opens a guard.<br>Right thumb: the round cluster — Slash (alternates sides), Stab and Heavy above (hold either to load; hold Heavy to charge), Kick inside, Step and Guard below. Controls switches to the guard ring (v8): one strike circle owns every attack — tap to slash, hold for the heavy (keep holding to charge), flick ↑ to stab, ← → to cut, pull back to guard. The scorecard above keeps each scheme's fights, wins, rematches and damage on this device. A light straight out of a step or roll is quick too. After a parry: Slash cuts (24), Stab thrusts (24), Heavy smashes (30). A guard takes a plain heavy for chip and 40 stamina; only a charged heavy, a riposte, a kick or an empty stamina bar breaks it.<br>Hold guard to block (raise it just in time and it costs half), then Heavy straight out of the block for a fast, armoured counter; tap guard just before impact to parry. Tap guard early in your own swing to feint it. Attacks come straight out of a guard.<br>Tap dodge to step back (no invulnerability); hold it to roll. Kick at close range to open a guard (25 stamina).<br>Sword wounds reduce stamina recovery 20% for 4 seconds. Rematch clears them.</p></details>
-      <h4>Your record</h4><table id="scorecard-table" class="scorecard-table" aria-label="Scorecard: fights, wins and losses per opponent"></table><pre id="scorecard" class="scorecard" aria-label="Control trial scorecard" hidden></pre><output id="menu-performance">Loading courtyard…</output>
-    </section>
-    <h4>Arena</h4>
-    <div class="chips"><label class="menu-select">Opponent <select id="opponent-select" aria-label="Choose the opponent"></select></label><button id="difficulty" aria-label="Warden difficulty">Warden: normal</button><button id="blood-mode">Blood: red</button></div>
-    <h4>Test tools</h4>
-    <div class="chips quiet"><label class="menu-select">Finisher <select id="finisher-select" aria-label="Choose the finisher (test override)"></select></label><button id="hitstop-mode" aria-pressed="true">Hit-stop: on</button><button id="damage-mode" aria-pressed="false">Damage numbers: off</button><button id="tempo-mode" aria-pressed="false">Tempo: 60 Hz</button><button id="debug-mode" aria-pressed="false">Combat debug: off</button></div>
-    <p class="note">Local practice against a moving AI opponent, not an online duel. Guest saves live in this browser until you sign in.</p>
+    <div class="journal-tabs">
+      <input type="radio" name="journal-tab" id="journal-tab-fighter" checked><input type="radio" name="journal-tab" id="journal-tab-arena"><input type="radio" name="journal-tab" id="journal-tab-settings">
+      <div class="tab-strip" role="tablist" aria-label="Journal sections"><label for="journal-tab-fighter" class="tab-fighter">Fighter</label><label for="journal-tab-arena" class="tab-arena">Arena</label><label for="journal-tab-settings" class="tab-settings">Settings</label></div>
+      <section class="tab-pane pane-fighter" aria-label="Your record">
+        <h4>Your record</h4><table id="scorecard-table" class="scorecard-table" aria-label="Scorecard: fights, wins and losses per opponent"></table><pre id="scorecard" class="scorecard" aria-label="Control trial scorecard" hidden></pre><output id="menu-performance">Loading courtyard…</output>
+      </section>
+      <section class="tab-pane pane-arena" aria-label="Next fight">
+        <h4>Next fight</h4>
+        <div class="chips"><label class="menu-select">Opponent <select id="opponent-select" aria-label="Choose the opponent"></select></label></div>
+        <div class="chips"><button id="difficulty" aria-label="Warden difficulty">Warden: normal</button><button id="hitstop-mode" aria-pressed="true">Hit-stop: on</button><button id="blood-mode">Blood: red</button></div>
+        <p class="note">Changing the opponent restarts the fight. Local practice against a moving AI opponent, not an online duel.</p>
+      </section>
+      <section class="tab-pane pane-settings" aria-label="Settings">
+        <section class="mobile-tools" aria-label="Controls">
+          <h4>Controls</h4>
+          <div class="chips"><button id="mobile-sound" aria-pressed="true">Sound on</button><button id="mobile-camera" aria-pressed="true">Camera locked</button><button id="controls-mode" aria-pressed="false">Controls: thumb cluster</button></div>
+          <details class="howto"><summary>How to fight</summary><p>Move with the left stick. Push to its outer edge to sprint.<br>Light → light → heavy for a combo (the heavy comes out faster). Hold Heavy (about a second) to charge it: the raised blade glows and shrugs off lights, and the release hits half again as hard and breaks a guard. A quick press is the plain heavy. Thrust (T on a keyboard, a flick ↑ on the strike circle) lunges furthest and fastest but never opens a guard.<br>Right thumb: the round cluster — Slash (alternates sides), Stab and Heavy above (hold either to load; hold Heavy to charge), Kick inside, Step and Guard below. Controls switches to the guard ring (v8): one strike circle owns every attack — tap to slash, hold for the heavy (keep holding to charge), flick ↑ to stab, ← → to cut, pull back to guard. The scorecard above keeps each scheme's fights, wins, rematches and damage on this device. A light straight out of a step or roll is quick too. After a parry: Slash cuts (24), Stab thrusts (24), Heavy smashes (30). A guard takes a plain heavy for chip and 40 stamina; only a charged heavy, a riposte, a kick or an empty stamina bar breaks it.<br>Hold guard to block (raise it just in time and it costs half), then Heavy straight out of the block for a fast, armoured counter; tap guard just before impact to parry. Tap guard early in your own swing to feint it. Attacks come straight out of a guard.<br>Tap dodge to step back (no invulnerability); hold it to roll. Kick at close range to open a guard (25 stamina).<br>Sword wounds reduce stamina recovery 20% for 4 seconds. Rematch clears them.</p></details>
+        </section>
+        <h4>Test tools</h4>
+        <div class="chips quiet"><label class="menu-select">Finisher <select id="finisher-select" aria-label="Choose the finisher (test override)"></select></label></div>
+        <div class="chips quiet"><button id="damage-mode" aria-pressed="false">Damage numbers: off</button><button id="tempo-mode" aria-pressed="false">Tempo: 60 Hz</button><button id="debug-mode" aria-pressed="false">Combat debug: off</button></div>
+      </section>
+    </div>
     <div class="references"><a href="/game/">About Frankendom ↗</a><a href="/privacy.html" target="_blank" rel="noopener">Privacy &amp; account data</a><a href="https://quaternius.com/" target="_blank" rel="noopener">Rig &amp; animations: Quaternius · CC0</a></div>
   </dialog>
   <noscript><p class="failure">JavaScript is needed to enter the arena.</p></noscript>

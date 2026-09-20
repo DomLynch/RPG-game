@@ -1430,3 +1430,22 @@ dialog output { display: block; margin-top: 8px; font: 12px "Instrument Sans", A
 @media (max-width: 900px), (pointer: coarse) {
   .mobile-tools { display: block; margin: 0; }
 }
+
+/* Field Journal tabs (owner, 2026-09-20): the fighter card and sign-in stay pinned; Fighter / Arena / Settings sit under a
+   browser-style strip. Pure CSS (radio inputs), so the game binds the same ids and no script changes. The journal opens on
+   Fighter; a browser check that reaches into Arena or Settings clicks that tab's label first. */
+.journal-tabs { position: relative; }
+.journal-tabs > input { position: absolute; opacity: 0; pointer-events: none; }
+.tab-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--jp); border-radius: 12px; }
+.tab-strip label { text-align: center; padding: 9px 6px; border-radius: 9px; font: 600 13px "Instrument Sans", Arial, sans-serif; color: var(--jm); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: #fff; color: var(--jf); box-shadow: 0 1px 2px #0002; }
+.tab-pane { display: none; padding-top: 4px; }
+#journal-tab-fighter:checked ~ .pane-fighter, #journal-tab-arena:checked ~ .pane-arena, #journal-tab-settings:checked ~ .pane-settings { display: block; }
+.tab-pane .chips + .chips { margin-top: 8px; }
+.tab-pane .note { margin: 12px 0 0; }
+dialog .references { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--jl); }
+/* The record table in the light journal's ink (its first rules were written for the dark sheet). */
+dialog .scorecard-table { margin: 4px 0 0; font: 14px "Instrument Sans", Arial, sans-serif; color: var(--jf); font-variant-numeric: tabular-nums; }
+dialog .scorecard-table th, dialog .scorecard-table td { padding: 8px 4px; border-bottom: 1px solid var(--jl); }
+dialog .scorecard-table th { font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--jm); }
+dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
