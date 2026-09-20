@@ -1,6 +1,7 @@
 """Weight the intact reconstructed A-pose, then bind to original combat joints."""
 
 import bpy
+import bmesh
 import math
 import sys
 import json
@@ -14,12 +15,15 @@ recipes = {
     "minotaur": ("pitborn", 65, 1.35, (0.055, -0.16, -0.045), 1.85, 48),
     "wraith": ("nightborn", 45, 0.97, (0, -0.20, -0.015), 1.88, 8),
     "werewolf": ("pitborn", 65, 1.10, (0.025, -0.08, -0.045), 1.85, 16),
-    "skeleton": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),
+    "skeleton": ("source/backups/veteran-v1", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),  # the v1 Veteran (Studio body): the shipped veteran.glb is now the v2 reconstruction
     # Re-proportioned donor (build-warrior.mjs BUILD.dwarf, 1.494 m standing): true dwarf height; fingers follow the donor's finger tracks.
     "dwarf": ("source/creatures/dwarf-donor", 60, 1.0, (0, -0.04, -0.025), 1.494, 8),
     # The Executioner is his own donor: the v5 rig (backup) carries his 1.32x root, scythe and clips. Arm pose solved
     # numerically so the posed WeaponDrawn origin lands in the reconstruction's palm (angle 64, reach 1.15, 0.011 m).
     "executioner": ("source/backups/executioner-v5", 64, 1.15, (0.02, -0.12, 0), 1.87, 16),
+    # The Veteran is his own donor too: v1 (KeenTools head on the Studio body, backup) carries his rig, trident and
+    # clips. The Kontext source stands in a 62° A-pose (docs/character-references/veteran-source-v1.png).
+    "veteran": ("source/backups/veteran-v1", 62, 1.0, (0, -0.04, -0.025), 1.82, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
@@ -68,6 +72,43 @@ binds = {
 }
 (root / f"{family}-binds.json").write_text(json.dumps(binds))
 parts = [bpy.data.objects[n] for n in ["Skin", "Photo"] if n in bpy.data.objects]
+# The Veteran keeps his v1 KeenTools head: the Photo/Face/Eyes draws ride along in the pack (creature_pack KEEP_SLOTS), the
+# reconstruction is cut at the jaw line (its own soft face, wire hair and mis-sized skull go) and its neck, from the top of
+# the shoulders up, is drawn in 8 mm inside the scanned neck's outline row by row (full from 6 cm below the cut), so the
+# photographed skin covers the seam, the reconstruction's grey beard stub and its nape hair all round with no ledge: the
+# exposed part is a smooth taper from the reconstruction's shoulders to the scan's neck. The helm then fits by construction.
+NECK_CUT, NECK_TUCK, NECK_BAND, NECK_SECTORS, NECK_STEP = 1.585, 0.008, 0.125, 24, 0.005
+# The reconstruction's own beard and nape hair are crumpled geometry that renders as bright shards wherever it shows, tucked
+# or not, so the neck is cut where the smooth skin ends and the scan takes over: at the throat (1.53 m, under the scanned
+# beard) in front, at 1.555 m at the sides and nape; the smooth neck below each cut tapers 3 cm into the scanned neck.
+NECK_CUT_FRONT, NECK_CUT_BACK, NECK_RAMP_BACK, NECK_FRONTNESS = 1.53, 1.555, 0.03, 0.35
+
+
+def neck_sector(x, y):
+    return int((math.atan2(y, x) + math.pi) / (2 * math.pi) * NECK_SECTORS) % NECK_SECTORS
+
+
+neck_outline = {}  # (sector, z bin) -> the v1 head/neck's outermost radius there
+if family == "veteran":
+    for x, y, z in (
+        obj.matrix_world @ v.co for name in ("Photo", "Face") for obj in [bpy.data.objects[name]] for v in obj.data.vertices
+    ):  # the scanned head with its neck stub, and the Studio neck/collar tiles that ship with it
+        if NECK_CUT - NECK_BAND - 0.02 <= z <= NECK_CUT + 0.03:
+            key = (neck_sector(x, y), round(z / NECK_STEP))
+            neck_outline[key] = max(neck_outline.get(key, 0.0), math.hypot(x, y))
+    # The scan's neck tiles thin out at the sides below the collar; fill a row's missing sectors round the circle from
+    # its nearest measured neighbours (rows with fewer than a quarter measured are left out and never tuck).
+    for zb in {zb for _, zb in neck_outline}:
+        have = {s: r for (s, z), r in neck_outline.items() if z == zb}
+        if len(have) < NECK_SECTORS // 4:
+            continue
+        for s in range(NECK_SECTORS):
+            if s in have:
+                continue
+            lo = next(d for d in range(1, NECK_SECTORS) if (s - d) % NECK_SECTORS in have)
+            hi = next(d for d in range(1, NECK_SECTORS) if (s + d) % NECK_SECTORS in have)
+            a, b = have[(s - lo) % NECK_SECTORS], have[(s + hi) % NECK_SECTORS]
+            neck_outline[(s, zb)] = a + (b - a) * lo / (lo + hi)
 for obj in parts:
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
@@ -92,6 +133,111 @@ bpy.ops.import_scene.gltf(
 )
 mesh = next(o for o in bpy.data.objects if o not in before and o.type == "MESH")
 mesh.name = "CreatureBody"
+
+
+def base_colour_image(obj):
+    for slot in obj.material_slots:
+        for node in slot.material.node_tree.nodes:
+            if node.type == "TEX_IMAGE" and any(l.to_socket.name == "Base Color" for l in node.outputs[0].links):
+                return node.image
+
+
+def metal_rough_image(obj):
+    """The material's other map (glTF metallicRoughness: G roughness, B metallic)."""
+    base = base_colour_image(obj)
+    for slot in obj.material_slots:
+        for node in slot.material.node_tree.nodes:
+            if node.type == "TEX_IMAGE" and node.image is not base:
+                return node.image
+
+
+def skin_weight(px):
+    """0..1 per texel: how much it reads as bare skin (warm hue, moderate saturation), in the image's stored encoding."""
+    r, g, b = px[:, 0], px[:, 1], px[:, 2]
+    top, low = np.maximum(np.maximum(r, g), b), np.minimum(np.minimum(r, g), b)
+    sat = (top - low) / np.maximum(top, 1e-4)
+    ramp = lambda x, lo, hi: np.clip((x - lo) / (hi - lo), 0, 1)
+    return ramp(sat, 0.10, 0.16) * ramp(0.72 - sat, 0, 0.06) * ramp(r - g, 0.02, 0.05) * ramp(r - b, 0.06, 0.10) * ramp(g - b, 0.0, 0.02) * ramp(r, 0.2, 0.28)
+
+
+def match_skin(image, reference):
+    """The reconstruction bakes its skin darker and redder than the photographed head it now wears. Per-channel gains
+    on skin-weighted texels bring its mean skin to the donor neck tile's, so the collar seam is geometry, not colour."""
+    read = lambda img: np.array(img.pixels[:], dtype=np.float32).reshape(-1, 4)
+    ref = read(reference)
+    # Only the texels the scan's neck strip shows (its collar tile is darker at the edges), still skin-weighted.
+    strip, _ = uv_mask(bpy.data.objects["Face"], reference, lambda lo, hi: lo >= NECK_CUT - NECK_BAND + 0.03 and hi <= NECK_CUT - 0.03)
+    w_ref = skin_weight(ref) * strip
+    target = (ref[:, :3] * w_ref[:, None]).sum(0) / w_ref.sum()
+    px = read(image)
+    w = skin_weight(px)
+    have = (px[:, :3] * w[:, None]).sum(0) / w.sum()
+    gain = np.clip(target / have, 0.8, 1.35)
+    px[:, :3] = np.clip(px[:, :3] * (1 + (gain - 1)[None, :] * w[:, None]), 0, 1)
+    image.pixels.foreach_set(px.reshape(-1))
+    print("SKIN MATCH", image.name, "skin texels", int((w > 0.5).sum()), "have", have.round(3), "target", target.round(3), "gain", gain.round(3), flush=True)
+    return px, target
+
+
+def uv_mask(obj, image, keep):
+    """Texels touched by obj's faces that pass keep(min z, max z), with ~2 texels of bleed past each edge."""
+    w, h = image.size
+    uv = obj.data.uv_layers.active.data
+    mask = np.zeros((h, w), dtype=bool)
+    faces = 0
+    for poly in obj.data.polygons:
+        zs = [(obj.matrix_world @ obj.data.vertices[i].co).z for i in poly.vertices]
+        if not keep(min(zs), max(zs)):
+            continue
+        faces += 1
+        pts = np.array([(uv[l].uv.x * w, (1 - uv[l].uv.y) * h) for l in poly.loop_indices])
+        for tri in range(1, len(pts) - 1):
+            a, b, c = pts[0], pts[tri], pts[tri + 1]
+            x0, y0 = np.floor(np.minimum.reduce([a, b, c])).astype(int) - 2
+            x1, y1 = np.ceil(np.maximum.reduce([a, b, c])).astype(int) + 2
+            ys, xs = np.mgrid[max(y0, 0) : min(y1, h), max(x0, 0) : min(x1, w)]
+            pxy = np.stack([xs + 0.5, ys + 0.5], -1)
+            d = (b - a)[0] * (c - a)[1] - (b - a)[1] * (c - a)[0]
+            if abs(d) < 1e-9:
+                continue
+            u = ((pxy - a)[..., 0] * (c - a)[1] - (pxy - a)[..., 1] * (c - a)[0]) / d
+            v = ((b - a)[0] * (pxy - a)[..., 1] - (b - a)[1] * (pxy - a)[..., 0]) / d
+            pad = 2.5 / max(1.0, math.sqrt(abs(d)))
+            mask[ys, xs] |= (u >= -pad) & (v >= -pad) & (u + v <= 1 + pad)
+    return mask.reshape(-1), faces
+
+
+def paint_neck(image, px, tone, z_from):
+    """The visible strip of reconstruction between its shoulders and the scanned neck carries its own baked nape hair and
+    beard stub. Every texel a face above z_from touches is painted the matched skin tone (a little grain kept), so the
+    strip reads as bare neck under the scan's ragged lower edge."""
+    mask, faces = uv_mask(mesh, image, lambda lo, hi: lo >= z_from)
+    idx = np.flatnonzero(mask)
+    rng = np.random.default_rng(190926)
+    grain = 1 + rng.normal(0, 0.025, (len(idx), 1))
+    px[idx, :3] = np.clip(tone[None, :] * grain, 0, 1)
+    image.pixels.foreach_set(px.reshape(-1))
+    # The reconstruction bakes its nape hair metallic and glossy; as bare skin those texels render as mirror shards
+    # under the hairline. Same mask on the metallic-roughness map: matte, non-metal skin.
+    mr = metal_rough_image(mesh)
+    mpx = np.array(mr.pixels[:], dtype=np.float32).reshape(-1, 4)
+    assert mpx.shape[0] == px.shape[0], "metallic-roughness map is not the base colour map's size"
+    was = mpx[idx, 2].mean()
+    mpx[idx, 1], mpx[idx, 2] = 0.65, 0.0
+    mr.pixels.foreach_set(mpx.reshape(-1))
+    print("NECK PAINT faces", faces, "texels", len(idx), "tone", tone.round(3), "metallic there was", round(float(was), 3), flush=True)
+
+
+def save_matched(image):
+    # creature_pack.py ships the source WebPs byte-for-byte; the matched maps go beside the surface for it to swap in.
+    for img, name in [(image, "basecolor"), (metal_rough_image(mesh), "metalrough")]:
+        img.file_format = "WEBP"
+        img.filepath_raw = str((root / f"{family}-{name}.webp").resolve())
+        img.save(quality=92)
+
+
+if family == "veteran":
+    skin_px, skin_tone = match_skin(base_colour_image(mesh), base_colour_image(bpy.data.objects["Face"]))
 coords = [mesh.matrix_world @ v.co for v in mesh.data.vertices]
 lo = min(v.z for v in coords)
 hi = max(v.z for v in coords)
@@ -105,6 +251,52 @@ for v, p in zip(mesh.data.vertices, coords):
     )
 mesh.matrix_world.identity()
 mesh.data.update()
+if family == "veteran":
+    bm = bmesh.new()
+    bm.from_mesh(mesh.data)
+    bmesh.ops.bisect_plane(
+        bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, NECK_CUT), plane_no=(0, 0, 1), clear_outer=True
+    )
+    for keep_front, cut in ((False, NECK_CUT_BACK), (True, NECK_CUT_FRONT)):
+        region = [
+            f for f in bm.faces
+            if (-f.calc_center_median().y / max(1e-6, f.calc_center_median().xy.length) > NECK_FRONTNESS) == keep_front
+        ]
+        bmesh.ops.bisect_plane(
+            bm,
+            geom=list({v for f in region for v in f.verts}) + list({e for f in region for e in f.edges}) + region,
+            plane_co=(0, 0, cut),
+            plane_no=(0, 0, 1),
+            clear_outer=True,
+        )
+    bm.to_mesh(mesh.data)
+    bm.free()
+    mesh.data.update()
+
+
+def tuck_neck():
+    """Runs after decimation, so no edge collapse can move a neck vertex back outside the scanned outline."""
+    tucked = 0
+    for v in mesh.data.vertices:
+        x, y, z = v.co
+        front = -y / max(1e-6, math.hypot(x, y))  # 1 straight ahead (glTF +z is Blender -y), -1 at the nape
+        cross, ramp = (NECK_CUT_FRONT if front > NECK_FRONTNESS else NECK_CUT_BACK) - NECK_RAMP_BACK, NECK_RAMP_BACK
+        if z > cross:
+            s, zb = neck_sector(x, y), round(z / NECK_STEP)
+            # The nearest three 5 mm rows, innermost wins: on the beard's sloping underside the row above is wider.
+            outline = min([neck_outline[(s, zb + d)] for d in (-1, 0, 1) if (s, zb + d) in neck_outline] or [0.0])
+            r = math.hypot(x, y)
+            if outline and r > outline - NECK_TUCK:
+                t = min(1.0, (z - cross) / ramp)
+                nr = r + (outline - NECK_TUCK - r) * t
+                v.co.x, v.co.y = x * nr / r, y * nr / r
+                tucked += 1
+    mesh.data.update()
+    print("NECK CUT", NECK_CUT, "top", round(max(v.co.z for v in mesh.data.vertices), 4), "tucked", tucked, flush=True)
+    paint_neck(base_colour_image(mesh), skin_px, skin_tone, NECK_CUT - NECK_BAND)
+    save_matched(base_colour_image(mesh))
+
+
 bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 bpy.context.view_layer.objects.active = mesh
@@ -117,9 +309,11 @@ bpy.ops.mesh.remove_doubles(threshold=0.00001)
 bpy.ops.object.mode_set(mode="OBJECT")
 mesh.data.calc_loop_triangles()
 tris = len(mesh.data.loop_triangles)
-if tris > 45000:
+# The Veteran's surface stops at the jaw; his scanned head (12.7k with eyes and teeth) rides on top under the 60k ceiling.
+budget = 39000 if family == "veteran" else 45000
+if tris > budget:
     mod = mesh.modifiers.new("Mobile surface", "DECIMATE")
-    mod.ratio = 45000 / tris
+    mod.ratio = budget / tris
     if family == "dwarf":
         # A 1536-res reconstruction carries fine face/beard/finger detail that a uniform collapse turns into shards. Spend the
         # 45k budget where the camera goes: the head (top 24 % of the body) and the hands keep their triangles, the torso,
@@ -166,6 +360,8 @@ if tris > 45000:
         bpy.ops.object.modifier_move_to_index(modifier=relax.name, index=1)
     for m in list(mesh.modifiers):
         bpy.ops.object.modifier_apply(modifier=m.name)
+if family == "veteran":
+    tuck_neck()
 bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 body.select_set(True)
@@ -200,7 +396,7 @@ for v in mesh.data.vertices:
     )
     # Disallow nearest-body transfer from attaching claws to the adjacent thigh.
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
-    if family == "skeleton":
+    if family in ("skeleton", "veteran"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
         edge = 0.185 + max(0, 1.4 - z) * 0.26
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
@@ -209,10 +405,10 @@ for v in mesh.data.vertices:
     ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner") else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran") else 0.92)) / 0.10))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
-    keep_fingers = family in ("executioner", "dwarf") and arm_mix > 0.5
+    keep_fingers = family in ("executioner", "dwarf", "veteran") and arm_mix > 0.5
     if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",

@@ -36,12 +36,13 @@ async function geometryOnly({ doc, bin }) {
   return new GLTFLoader().parseAsync(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength), '');
 }
 const receipts = [];
-for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'veteran'], ['dwarf', 'source/creatures/dwarf-donor'], ['executioner', 'source/backups/executioner-v5']].filter(([id]) => !ROSTER[id].hold).filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
+for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'source/backups/veteran-v1'], ['dwarf', 'source/creatures/dwarf-donor'], ['executioner', 'source/backups/executioner-v5'], ['veteran', 'source/backups/veteran-v1']].filter(([id]) => !ROSTER[id].hold).filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
   const [raw, baseRaw, sourceRaw] = await Promise.all([`src/assets/${family}.glb`, `src/assets/${base}.glb`, `src/assets/source/creatures/${family}.glb`].map(p => fs.readFile(p)));
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
   const weaponKind = ROSTER[family].weapon;
   if (['maul', 'reaper'].includes(weaponKind)) assert.equal(doc.extras.creatureWeapon?.generator, digest(await fs.readFile('scripts/build-creature-weapons.mjs')), 'Stale creature weapon generator');
-  assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw) }, 'Stale creature: rebuild with build-creatures.mjs');
+  const { skinMatched } = doc.extras.creatureSource ?? {};   // set when the fitter colour-matched the base colour map to the donor's skin (the Veteran)
+  assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw), ...(skinMatched ? { skinMatched } : {}) }, 'Stale creature: rebuild with build-creatures.mjs');
   // Death_QuietOne is authored per body on its own skin envelope (build-quiet-one.mjs), so it is the one clip not inherited verbatim.
   const inherited = a => a.doc.animations.filter(c => c.name !== 'Death_QuietOne');
   assert.deepEqual(inherited(output).slice(0, inherited(original).length).map(c => animation(output, c)), inherited(original).map(c => animation(original, c)), 'Combat clips changed');
@@ -65,7 +66,12 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
     assert.deepEqual(after, expected, `Joint/attachment changed: ${before.name}`);
   }
   const imageBytes = a => a.doc.images.map(img => { const v = a.doc.bufferViews[img.bufferView]; return digest(a.bin.subarray(v.byteOffset || 0, (v.byteOffset || 0) + v.byteLength)); });
-  for (const hash of imageBytes(source)) assert(imageBytes(output).includes(hash), 'Original compressed map lost');
+  const outImages = imageBytes(output), lost = imageBytes(source).filter(hash => !outImages.includes(hash));
+  if (skinMatched) { // exactly the stamped source images are replaced, each by the matched WebP the pack recorded
+    const srcImages = imageBytes(source), swapped = Object.keys(skinMatched).map(Number);
+    assert.deepEqual(lost, swapped.map(i => srcImages[i]), 'Only the colour-matched maps may be replaced');
+    for (const hash of Object.values(skinMatched)) assert(outImages.includes(hash), 'Matched map lost');
+  } else assert.deepEqual(lost, [], 'Original compressed map lost');
   const asset = await geometryOnly(output), body = asset.scene.getObjectByName('CreatureBody');
   assert(body?.isSkinnedMesh && body.userData.creature === family);
   const g = body.geometry, weights = g.attributes.skinWeight, joints = g.attributes.skinIndex;
@@ -105,7 +111,7 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
       body.applyBoneTransform(i, point.fromBufferAttribute(g.attributes.position, i));
       assert(point.toArray().every(Number.isFinite), `${clip.name}: nonfinite posed vertex`);
       assert(point.length() < 6, `${clip.name}: runaway skin vertex`);
-      if (handVertices.has(i) || (['skeleton', 'dwarf'].includes(family) && supportVertices.has(i))) {
+      if (handVertices.has(i) || (['skeleton', 'dwarf', 'veteran'].includes(family) && supportVertices.has(i))) {
         const world = body.localToWorld(point);
         if (handVertices.has(i)) handGap = Math.min(handGap, world.distanceTo(grip));
         if (supportVertices.has(i)) supportGap = Math.min(supportGap, world.distanceTo(supportGrip));
@@ -113,7 +119,7 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
     }
     if (gripClips.has(clip.name) && process.env.GRIP_DEBUG) console.log('gripgap', family, clip.name, fraction, handGap.toFixed(4));
     if (gripClips.has(clip.name) && !process.env.GRIP_DEBUG) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
-    if (['skeleton', 'dwarf'].includes(family) && gripClips.has(clip.name)) assert(supportGap < .08, `${family} ${clip.name}: supporting hand detached (${supportGap}m)`);
+    if (['skeleton', 'dwarf', 'veteran'].includes(family) && gripClips.has(clip.name)) assert(supportGap < .08, `${family} ${clip.name}: supporting hand detached (${supportGap}m)`);
     poses++;
   }
   receipts.push({ family, sha256: digest(raw), triangles, clipsPreserved: original.doc.animations.length, totalClips: asset.animations.length, finitePoses: poses, mapsPreserved: imageBytes(source).length });

@@ -2,8 +2,8 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import { appendQuietOne } from './build-quiet-one.mjs';
-const selected=process.argv[2],families=selected?[selected]:['minotaur','wraith','werewolf','skeleton','dwarf','executioner'];
-if(families.some(f=>!['minotaur','wraith','werewolf','skeleton','dwarf','executioner'].includes(f)))throw new Error('Choose minotaur, wraith, werewolf, skeleton, dwarf or executioner');
+const selected=process.argv[2],families=selected?[selected]:['minotaur','wraith','werewolf','skeleton','dwarf','executioner','veteran'];
+if(families.some(f=>!['minotaur','wraith','werewolf','skeleton','dwarf','executioner','veteran'].includes(f)))throw new Error('Choose minotaur, wraith, werewolf, skeleton, dwarf, executioner or veteran');
 await fs.mkdir('artifacts/character/creatures',{recursive:true});
 for(const family of families){
  // The dwarf's donor is a re-proportioned build of the CC0 rig wearing the Veteran's parts (BUILD.dwarf in build-warrior.mjs); rebuild it first.

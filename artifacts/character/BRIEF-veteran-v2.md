@@ -25,3 +25,10 @@ Veteran to the creatures' standard. Beta freeze (owner FYI 2026-09-20) allows po
 
 ## Not in scope
 New opponents (Werewolf, Skeleton, Troll…) — parked for Phase 2 per the freeze. The hero: the owner called him done.
+
+## Status 2026-09-21 (00:51)
+Done on `char/veteran-v2-fit` (PR #237 head 2b4067d): source, reconstruction, fit, v1 head graft (cut at the jaw line;
+beard and nape hair cut where the smooth neck ends, 3 cm taper), skin colour-matched to the scanned neck, exposed neck
+strip painted matte skin. CPU gates green (327 tests, creature-check, build, budget 9.8/12 MB gzip). In-game renders of
+2b4067d reviewed: clean bar a faint collar-tile patch at the nape in close-ups. Owner decisions taken (2026-09-21):
+grey kit kept; nape fixed before ready. Awaiting the owner's look at the final side-by-side.

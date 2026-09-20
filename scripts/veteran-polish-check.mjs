@@ -14,7 +14,8 @@ function parse(raw) {
   const bin = raw.subarray(28 + size);
   return { doc, bin, view: i => { const v = doc.bufferViews[i], start = v.byteOffset ?? 0; return bin.subarray(start, start + v.byteLength); } };
 }
-const bytes = await fs.readFile('src/assets/veteran.glb'), current = parse(bytes), manifest = JSON.parse(await fs.readFile(`${root}/manifest_veteran.json`));
+const shipped = process.argv.includes('--file') ? args[args.indexOf('--file') + 1] : 'src/assets/source/backups/veteran-v1.glb'; // v2 (2026-09-20) ships a TRELLIS.2 body; these reviewed maps belong to the v1 Studio-body Veteran, kept as the Skeleton's donor
+const bytes = await fs.readFile(shipped), current = parse(bytes), manifest = JSON.parse(await fs.readFile(`${root}/manifest_veteran.json`));
 const changes = new Set();
 for (const name of ['Bronze', 'Leather', 'Gambeson', 'Photo', 'Face']) {
   const m = current.doc.materials.find(m => m.name === name), p = m.pbrMetallicRoughness;
@@ -70,7 +71,7 @@ try {
   page.on('console', message => { if(message.type()==='error')errors.push(message.text()); });
   page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) errors.push(`${r.status()} ${r.url()}`); });
   const shots = {};
-  for (const [label, file] of [...(before ? [['before', before]] : []), ['after', 'src/assets/veteran.glb']]) {
+  for (const [label, file] of [...(before ? [['before', before]] : []), ['after', shipped]]) {
     await page.goto(`${server.resolvedUrls.local[0]}character-preview.html?enemy=/${file}`);
     await page.waitForFunction(() => window.__preview?.loaded || window.__preview?.error, null, { timeout: 90000 });
     assert.equal(await page.evaluate(() => window.__preview.error), null);

@@ -98,7 +98,7 @@ def compact(d, b):
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[1]
-base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "veteran", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5"}[family]
+base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "source/backups/veteran-v1", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5", "veteran": "source/backups/veteran-v1"}[family]
 # Surface material factors per family: the retained maps stay byte-identical; a factor only scales them (glTF spec).
 # The Dwarf's TRELLIS metallic map reads his dented iron as polished steel under the arena lighting; 0.6 keeps the plate iron, not chrome.
 SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.35}}
@@ -131,18 +131,29 @@ d["animations"] = [a for a in d.get("animations", []) if a["name"] != "Death_Qui
 new, nb = read(root / f"{family}-surface.glb")
 frozen = copy.deepcopy(d)
 original = bytes(b)
-# UVs are preserved by the fitter; retain the original WebP maps byte-for-byte.
+# UVs are preserved by the fitter; retain the original WebP maps byte-for-byte, except a base colour map the fitter
+# colour-matched to the donor's skin (creatures.py match_skin writes it beside the surface).
 source, sb = read(Path(f"src/assets/source/creatures/{family}.glb"))
 new["images"] = copy.deepcopy(source.get("images", []))
-for img in new["images"]:
+def image_of(texture_ref):
+    tex = source["textures"][texture_ref["index"]]
+    return next(v["source"] for v in [tex, *tex.get("extensions", {}).values()] if "source" in v)
+
+
+pbr = source["materials"][0]["pbrMetallicRoughness"]
+matched = {  # image index -> the fitter's colour-matched map beside the surface, when it wrote one
+    image_of(pbr[key]): root / f"{family}-{name}.webp"
+    for key, name in [("baseColorTexture", "basecolor"), ("metallicRoughnessTexture", "metalrough")]
+    if key in pbr and (root / f"{family}-{name}.webp").exists()
+}
+for i, img in enumerate(new["images"]):
     view = source["bufferViews"][img["bufferView"]]
     at = view.get("byteOffset", 0)
+    data = matched[i].read_bytes() if i in matched else sb[at : at + view["byteLength"]]
     nb += b"\0" * (-len(nb) % 4)
     img["bufferView"] = len(new["bufferViews"])
-    new["bufferViews"].append(
-        {"buffer": 0, "byteOffset": len(nb), "byteLength": view["byteLength"]}
-    )
-    nb += sb[at : at + view["byteLength"]]
+    new["bufferViews"].append({"buffer": 0, "byteOffset": len(nb), "byteLength": len(data)})
+    nb += data
 for key in ["textures", "samplers", "materials"]:
     new[key] = copy.deepcopy(source.get(key, []))
 for key in ["extensionsUsed", "extensionsRequired"]:
@@ -210,10 +221,14 @@ for mesh in new["meshes"]:
             values = struct.unpack_from("<" + fmt * 4, nb, at)
             struct.pack_into("<" + fmt * 4, nb, at, *[remap[j] for j in values])
 # Hide inherited body art, retain every rigid weapon attachment and all bones/clips.
+# Fitted items that stay with the fighter across the rebuild (a rigid slot draw, its skin weights all on one bone).
+# The Veteran also keeps his v1 KeenTools head and neck (creatures.py cuts the reconstruction at the jaw line).
+KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}}
 weaponroots = [
     i
     for i, n in enumerate(d["nodes"])
     if n.get("name") in ["WeaponDrawn", "SwordDrawn", "SwordSheathed"]
+    or (n.get("extras", {}).get("slot") in KEEP_SLOTS.get(family, set()))
 ]
 keep = set()
 
@@ -358,6 +373,8 @@ d.setdefault("extras", {})["creatureSource"] = {
     "sourceSha256": hashlib.sha256(
         (Path(f"src/assets/source/creatures/{family}.glb")).read_bytes()
     ).hexdigest(),
+    # The maps the fitter may replace, by source image index (creature-check.mjs verifies exactly these swaps).
+    **({"skinMatched": {str(i): hashlib.sha256(f.read_bytes()).hexdigest() for i, f in sorted(matched.items())}} if matched else {}),
 }
 assert b[: len(original)] == original
 assert d["animations"] == frozen["animations"]
