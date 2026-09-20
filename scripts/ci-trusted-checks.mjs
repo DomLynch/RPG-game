@@ -5,6 +5,9 @@
 // RELEASE_CHECKS_TRUST_CI=0 leaves a check off the list, which means it runs on the Mac as before.
 //   node scripts/ci-trusted-checks.mjs <full-sha>   -> stdout "1,3,4"  (may be empty); one summary line on stderr
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const sha = process.argv[2];
 const gh = process.env.CI_TRUST_GH || 'gh';
@@ -23,14 +26,26 @@ try {
   if (!match) { say(`no completed release-checks run for ${sha.slice(0, 7)}; all checks run locally`); process.exit(0); }
   const jobs = run(['run', 'view', String(match.databaseId), '--json', 'jobs', '--jq', '[.jobs[] | {name, conclusion}]']);
   const artifacts = new Set(run(['api', `repos/{owner}/{repo}/actions/runs/${match.databaseId}/artifacts?per_page=100`, '--jq', '[.artifacts[].name]']));
+  // The checks' own receipts, from the one combined artifact the summary job uploads. A green job alone is not
+  // enough: the receipt must say the check exited 0, so a workflow edit that softens job conclusions cannot widen trust.
+  const dir = mkdtempSync(join(tmpdir(), 'ci-trusted-checks-'));
+  const download = spawnSync(gh, ['run', 'download', String(match.databaseId), '--name', 'release-checks-summary', '--dir', dir], { encoding: 'utf8' });
+  if (download.error || download.status !== 0) throw new Error('release-checks-summary artifact not available');
+  const summary = JSON.parse(readFileSync(join(dir, 'release-checks-summary.json'), 'utf8'));
+  if (summary.sha !== sha) throw new Error(`summary receipt is for ${String(summary.sha).slice(0, 7)}, not ${sha.slice(0, 7)}`);
+  const receiptStatus = new Map((summary.checks || []).map(c => [Number(c.index), Number(c.status)]));
   const trusted = [];
   const skipped = [];
   for (const job of jobs) {
     const m = /^check (\d+) /.exec(job.name || '');
     if (!m) continue;
     const index = Number(m[1]);
-    if (job.conclusion === 'success' && artifacts.has(`release-check-${index}`)) trusted.push(index);
-    else skipped.push(`${index}:${job.conclusion}${artifacts.has(`release-check-${index}`) ? '' : '/no-artifact'}`);
+    const reasons = [];
+    if (job.conclusion !== 'success') reasons.push(job.conclusion);
+    if (!artifacts.has(`release-check-${index}`)) reasons.push('no-artifact');
+    if (receiptStatus.get(index) !== 0) reasons.push(`receipt-status=${receiptStatus.has(index) ? receiptStatus.get(index) : 'missing'}`);
+    if (reasons.length) skipped.push(`${index}:${reasons.join('/')}`);
+    else trusted.push(index);
   }
   trusted.sort((a, b) => a - b);
   say(`${match.url}: trusting ${trusted.length} check(s) [${trusted.join(',')}]; running locally: [${skipped.join(' ')}]`);

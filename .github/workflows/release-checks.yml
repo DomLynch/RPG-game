@@ -123,5 +123,14 @@ jobs:
               "", "Measurement only: this run gates nothing. Compare against the Mac receipt in artifacts/release-checks.json before trusting any check here.",
             ];
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            fs.writeFileSync("release-checks-summary.json", JSON.stringify({ sha: process.env.GITHUB_SHA, checks: rows.sort((a, b) => a.index - b.index) }) + "\n");
             console.log(lines.join("\n"));
           '
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+      # One combined receipt per run: scripts/ci-trusted-checks.mjs downloads this single artifact and trusts a check
+      # only when its own receipt says status 0, in addition to the job being green.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-checks-summary
+          path: release-checks-summary.json
