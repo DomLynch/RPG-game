@@ -945,6 +945,9 @@ dialog>p {
     grid-column: 2;
     grid-row: 5;
     --bar-color: #dec58c;
+    /* The desktop #stamina rule (the lost-ceiling shading) outranks `.combat-hud meter`, so on phones it replaced the fill gradient and only
+       the shading showed (owner screenshot 2026-09-20). Layer both: shading on top, the fill underneath. */
+    background-image: linear-gradient(to right,transparent var(--max,100%),#5a2d2a99 var(--max,100%)),linear-gradient(to right,var(--bar-color) var(--fill,100%),#172329a0 var(--fill,100%));
   }
   .combat-hud meter.posture {
     height: 2px;
