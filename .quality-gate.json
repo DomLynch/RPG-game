@@ -141,14 +141,6 @@
     ],
     [
       "node",
-      "scripts/creature-check.mjs"
-    ],
-    [
-      "node",
-      "scripts/creature-browser-check.mjs"
-    ],
-    [
-      "node",
       "scripts/finisher-preview.mjs",
       "--only",
       "splitCrown,decapitation,runThrough,quietOne,opened,plainDeath",
@@ -159,11 +151,49 @@
     ],
     [
       "node",
-      "scripts/creature-weapon-pose-check.mjs"
+      "scripts/bell-start-check.mjs"
     ],
     [
       "node",
-      "scripts/bell-start-check.mjs"
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "decapitation",
+      "--opponent",
+      "goblin",
+      "--no-video",
+      "--label",
+      "decap-front-goblin-gate"
+    ],
+    [
+      "node",
+      "scripts/quiet-one-browser-check.mjs",
+      "--finisher",
+      "decapitation",
+      "--opponent",
+      "goblin",
+      "--blood-check"
+    ],
+    [
+      "node",
+      "scripts/veteran-polish-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/veteran-neck-check.mjs"
+    ]
+  ],
+  "extended_commands": [
+    [
+      "node",
+      "scripts/creature-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/creature-browser-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/creature-weapon-pose-check.mjs"
     ],
     [
       "node",
@@ -206,34 +236,6 @@
       "--opponent",
       "wraith",
       "--blood-check"
-    ],
-    [
-      "node",
-      "scripts/finisher-preview.mjs",
-      "--only",
-      "decapitation",
-      "--opponent",
-      "goblin",
-      "--no-video",
-      "--label",
-      "decap-front-goblin-gate"
-    ],
-    [
-      "node",
-      "scripts/quiet-one-browser-check.mjs",
-      "--finisher",
-      "decapitation",
-      "--opponent",
-      "goblin",
-      "--blood-check"
-    ],
-    [
-      "node",
-      "scripts/veteran-polish-check.mjs"
-    ],
-    [
-      "node",
-      "scripts/veteran-neck-check.mjs"
     ],
     [
       "node",
