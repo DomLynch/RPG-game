@@ -16,6 +16,9 @@ recipes = {
     "werewolf": ("pitborn", 65, 1.10, (0.025, -0.08, -0.045), 1.85, 16),
     "skeleton": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),
     "dwarf": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.60, 8),
+    # The Executioner is his own donor: the v5 rig (backup) carries his 1.32x root, scythe and clips. Arm pose solved
+    # numerically so the posed WeaponDrawn origin lands in the reconstruction's palm (angle 64, reach 1.15, 0.011 m).
+    "executioner": ("source/backups/executioner-v5", 64, 1.15, (0.02, -0.12, 0), 1.87, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -148,16 +151,19 @@ for v in mesh.data.vertices:
         )[:4]
     )
     # Disallow nearest-body transfer from attaching claws to the adjacent thigh.
-    edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf") else 0.27
+    edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
     if family == "skeleton":
         edge = 0.185 + max(0, 1.4 - z) * 0.26
     arm_mix = max(
-        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf") else 0.055))
+        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf", "executioner") else 0.055))
     ) * max(0, min(1, (1.62 - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 if family in ("minotaur", "werewolf", "skeleton", "dwarf") else 0.92)) / 0.10))
-    if not rigid:
+    arm_mix *= max(0, min(1, (z - (0.50 if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner") else 0.92)) / 0.10))
+    # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
+    # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
+    keep_fingers = family == "executioner" and arm_mix > 0.5
+    if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",
             "lowerarm",
@@ -197,7 +203,7 @@ for v in mesh.data.vertices:
                 else "foot_" + side
             )
             ws = [(mesh.vertex_groups[name].index, 1)]
-    if arm_mix:
+    if arm_mix and not keep_fingers:
         side = "l" if x > 0 else "r"
         dist = []
         for name in ["upperarm_" + side, "lowerarm_" + side, "hand_" + side]:

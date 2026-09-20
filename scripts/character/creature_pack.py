@@ -98,7 +98,7 @@ def compact(d, b):
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[1]
-base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "veteran", "dwarf": "veteran"}[family]
+base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "veteran", "dwarf": "veteran", "executioner": "source/backups/executioner-v5"}[family]
 
 
 def read(p):
@@ -122,6 +122,9 @@ def write(p, d, b):
 
 
 d, b = read(f"src/assets/{base}.glb")
+# The Quiet One corpse is authored per body against its own skin envelope (build-quiet-one.mjs grounds it), so the
+# donor's is not inherited; build-creatures.mjs appends a fresh one on the packed surface.
+d["animations"] = [a for a in d.get("animations", []) if a["name"] != "Death_QuietOne"]
 new, nb = read(root / f"{family}-surface.glb")
 frozen = copy.deepcopy(d)
 original = bytes(b)
