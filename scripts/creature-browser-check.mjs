@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { builtRig, assertGlbEquivalent } from './glb-equivalence.mjs';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
@@ -14,7 +15,7 @@ let inspectedPage;
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
-  for (const opponent of ['minotaur', 'wraith']) {
+  for (const opponent of ['minotaur', 'wraith', 'werewolf', 'skeleton']) {
     const context = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const page = inspectedPage = await context.newPage();
     page.on('pageerror', e => receipt.errors.push(String(e)));
@@ -24,20 +25,28 @@ try {
     await page.goto(`${origin}/?opponent=${opponent}&debug=1`);
     const response = await asset; assert.equal(response.status(), 200);
     const rigSha256 = hash(await response.body());
-    assert.equal(rigSha256, hash(await fs.readFile(`src/assets/${opponent}.glb`)), 'Served reconstruction differs');
+    const packed = await fs.readFile(await builtRig(opponent));
+    const equivalence = await assertGlbEquivalent(await fs.readFile(`src/assets/${opponent}.glb`), packed);
+    assert.equal(rigSha256, hash(packed), 'Served compressed reconstruction differs from the verified build');
     await page.getByRole('button', { name: 'Enter the arena' }).click();
     const ready = () => page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
     await ready(); await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });
+    const expected = {
+      minotaur: { family: /^\w+:Maul_\w+@WeaponDrawn$/, heavy: 'Heavy:Maul_Heavy@WeaponDrawn' },
+      wraith: { family: /^\w+:Reaper_\w+@ReaperEdge$/, heavy: 'Heavy:Reaper_Heavy@ReaperEdge' },   // the reaper's contact node is its blade edge, not the grip
+      werewolf: { family: /^\w+:(?:Idle|Walk|Jog|Run|Armed|Attack|Hit|Death|Draw|Roll|Guard|Return|Heavy|Riposte|ArmedWalk|StrafeLeft|StrafeRight|Kick|BlockImpact|Parry|Deflected)@WeaponDrawn$/, heavy: 'Heavy:Heavy@WeaponDrawn' },
+      skeleton: { family: /^(?:\w+:Trident_\w+|Roll:Roll|Kick:Kick)@WeaponDrawn$/, heavy: 'Heavy:Trident_High@WeaponDrawn' },
+    }[opponent];
     const frames = [];
     const shot = async label => {
       const state = await page.evaluate(() => ({ clips: document.querySelector('#debug').dataset.clips, art: document.querySelector('#art-status').textContent, overflow: document.documentElement.scrollWidth > innerWidth, hp: document.querySelector('#player-health').value }));
-      assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(`(?:Maul|Reaper)_.*@WeaponDrawn`));
+      assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips.split(' ')[1], expected.family, 'Opponent must use its own weapon clip family');
       const path = `${dir}/${opponent}-${label}.png`; await page.screenshot({ path }); frames.push({ label, path, ...state });
     };
     await shot('landscape-ready');
     await page.keyboard.down('w'); await page.waitForTimeout(900); await page.keyboard.up('w');
     await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
-    await page.waitForFunction(prefix => document.querySelector('#debug').dataset.clips.includes(prefix + '_Heavy'), opponent === 'minotaur' ? 'Maul' : 'Reaper', { timeout: 45000 });
+    await page.waitForFunction(clip => document.querySelector('#debug').dataset.clips.split(' ')[1] === clip, expected.heavy, { timeout: 45000 });
     await shot('heavy-attack');
     await page.waitForFunction(() => Number(document.querySelector('#player-health').value) < Number(document.querySelector('#player-health').max), null, { timeout: 45000 });
     await shot('landscape-fight');
@@ -47,7 +56,7 @@ try {
     await shot('death'); await page.getByRole('button', { name: 'Rematch', exact: true }).click(); await ready();
     assert.equal(await page.locator('#player-health').getAttribute('value'), await page.locator('#player-health').getAttribute('max'));
     await shot('rematch');
-    receipt.views.push({ opponent, asset: response.url(), rigSha256, opponentLanded: true, rematch: true, frames });
+    receipt.views.push({ opponent, asset: response.url(), rigSha256, equivalence, opponentLanded: true, rematch: true, frames });
     await context.close();
   }
   assert.deepEqual(receipt.errors, []); receipt.passed = true;

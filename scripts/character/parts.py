@@ -278,7 +278,8 @@ def align_legs(mesh_obj):
             centres[k] = sum((c * w for c, w in near), Vector()) / sum(w for _, w in near)
         def mesh_at(z):
             k = max(keys[0], min(keys[-1], z * 100))
-            lo = max(q for q in keys if q <= k); hi = min(q for q in keys if q >= k)
+            lo = max(q for q in keys if q <= k)
+            hi = min(q for q in keys if q >= k)
             return centres[lo] if lo == hi else centres[lo].lerp(centres[hi], (k - lo) / (hi - lo))
         moved = 0
         for v in verts:
@@ -1483,7 +1484,6 @@ def heraldry_maps(size=512):
     the opponent's), so this map is light — leather grain, dye pooling in the low noise, the strips' bottom edge scuffed
     pale, a stitch line along the top, thin lengthwise wear."""
     v = (np.arange(size) / size)[:, None] * np.ones((1, size))
-    u = np.ones((size, 1)) * (np.arange(size) / size)[None, :]
     grain = fbm(size, 71, octaves=(8, 16, 32, 64, 128))
     pool = fbm(size, 72, octaves=(2, 4, 8))
     streak = fbm(size, 73, octaves=(1, 2, 4, 64))  # lengthwise (v) grain once tiled around
@@ -2015,3 +2015,6 @@ if not proof:
     manifest['Gambeson']['normal'] = os.path.basename(GAMBESON_NORMAL)  # baked folds in the tunic's own layout
     manifest['Gambeson']['normalScale'] = 1.5  # the folds read flat at 1.0 once the cloth had a real colour map
     json.dump(manifest, open(manifest_path, 'w'), indent=1)
+    if FIGHTER == 'veteran':
+        from veteran_materials import bake
+        bake()  # retained art tiles + fitted fold normals; the regular GLB builder reads this manifest

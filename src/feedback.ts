@@ -111,7 +111,7 @@ export function createFeedback(host?: FeedbackHost) {
       // Death ends the duel: the impact, voice, delayed body and crowd share the finishing level.
       // Empty post-death ticks keep it; fresh combat or quiet/mute returns to the ordinary level.
       if (events.length) balance!.gain.setValueAtTime(events.some(e => e.type === 'Killed') ? FINISH_LEVEL : COMBAT_LEVEL, time);
-      if (sprite) { for (const cue of cuesFor(events, presentation)) play(cue, time); return; }
+      if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);
       else if (events.some(e => e.type === 'Blocked')) synth('steel', time);

@@ -1049,6 +1049,7 @@ function frame(now: number) {
         ended: !!practice.finish,
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
+        opponent: opponent.id,
       });
       frameEvents.push(...practice.events);
       floatDamage(practice.events);

@@ -3,7 +3,7 @@
     [
       "npm",
       "run",
-      "quality"
+      "quality:ci"
     ]
   ],
   "manual": [
@@ -12,6 +12,13 @@
     "Two-pass code review"
   ],
   "completion_commands": [
+    [
+      "npm",
+      "run",
+      "test:browser"
+    ]
+  ],
+  "release_commands": [
     [
       "node",
       "scripts/finisher-preview.mjs",
@@ -219,6 +226,23 @@
       "--opponent",
       "goblin",
       "--blood-check"
+    ],
+    [
+      "node",
+      "scripts/veteran-polish-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/veteran-neck-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/creature-impact-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/check-glb-compression.mjs",
+      "--browser"
     ]
   ]
 }

@@ -10,7 +10,13 @@ from mathutils import Matrix, Vector
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[sys.argv.index("--") + 1]
-base = "pitborn" if family == "minotaur" else "nightborn"
+recipes = {
+    "minotaur": ("pitborn", 65, 1.35, (0.055, -0.16, -0.045), 1.85, 48),
+    "wraith": ("nightborn", 45, 0.97, (0, -0.20, -0.015), 1.88, 8),
+    "werewolf": ("pitborn", 65, 1.10, (0.025, -0.08, -0.045), 1.85, 16),
+    "skeleton": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),
+}
+base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=str(Path(f"src/assets/{base}.glb").resolve()))
 rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
@@ -24,13 +30,9 @@ bpy.context.view_layer.update()
 for side, sgn in [("l", 1), ("r", -1)]:
     p = rig.pose.bones["upperarm_" + side]
     pivot = p.head.copy()
-    angle = math.radians(65 if family == "minotaur" else 45) * sgn
-    stretch = 1.35 if family == "minotaur" else 0.97
-    shift = (
-        Vector((sgn * 0.055, -0.16, -0.045))
-        if family == "minotaur"
-        else Vector((0, -0.20, -0.015))
-    )
+    angle = math.radians(arm_angle) * sgn
+    stretch = arm_stretch
+    shift = Vector((sgn * arm_shift[0], arm_shift[1], arm_shift[2]))
     p.matrix = (
         Matrix.Translation(pivot + shift)
         @ Matrix.Rotation(angle, 4, "Y")
@@ -86,7 +88,6 @@ mesh.name = "CreatureBody"
 coords = [mesh.matrix_world @ v.co for v in mesh.data.vertices]
 lo = min(v.z for v in coords)
 hi = max(v.z for v in coords)
-height = 1.85 if family == "minotaur" else 1.88
 for v, p in zip(mesh.data.vertices, coords):
     v.co = Vector(
         (
@@ -146,13 +147,15 @@ for v in mesh.data.vertices:
         )[:4]
     )
     # Disallow nearest-body transfer from attaching claws to the adjacent thigh.
-    edge = (0.23 + max(0, 1.30 - z) * 0.23) if family == "minotaur" else 0.27
+    edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf") else 0.27
+    if family == "skeleton":
+        edge = 0.185 + max(0, 1.4 - z) * 0.26
     arm_mix = max(
-        0, min(1, (abs(x) - edge) / (0.10 if family == "minotaur" else 0.055))
+        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf") else 0.055))
     ) * max(0, min(1, (1.62 - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 if family == "minotaur" else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 if family in ("minotaur", "werewolf", "skeleton") else 0.92)) / 0.10))
     if not rigid:
         arm_names = (
             "upperarm",
@@ -210,6 +213,16 @@ for v in mesh.data.vertices:
         for i, w in manual:
             merged[i] = merged.get(i, 0) + arm_mix * w / total
         ws = sorted(merged.items(), key=lambda a: -a[1])[:4]
+    if family == "skeleton":
+        # Exposed ribs and long bones are rigid; broad flesh blends bend the tibia.
+        if arm_mix == 0 and 1.04 < z < 1.48:
+            ws = [(mesh.vertex_groups["spine_03"].index, 1)]
+        elif arm_mix > 0.95:
+            ws = [(max(ws, key=lambda pair: pair[1])[0], 1)]
+        elif z < 0.84 and arm_mix == 0:
+            side = "l" if x > 0 else "r"
+            name = ("foot_" if z < 0.15 else "calf_" if z < 0.52 else "thigh_") + side
+            ws = [(mesh.vertex_groups[name].index, 1)]
     for group in [g.group for g in v.groups]:
         mesh.vertex_groups[group].remove([v.index])
     total = sum(w for _, w in ws)
@@ -234,7 +247,7 @@ a = tri[:, [0, 1, 2]].reshape(-1)
 b = tri[:, [1, 2, 0]].reshape(-1)
 a, b = np.concatenate([a, b]), np.concatenate([b, a])
 degree = np.bincount(a, minlength=len(w))
-for _ in range(48 if family == "minotaur" else 8):
+for _ in range(smooth_steps):
     sums = np.zeros_like(w)
     np.add.at(sums, a, w[b])
     w = 0.35 * w + 0.65 * sums / np.maximum(1, degree)[:, None]

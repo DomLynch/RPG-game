@@ -98,7 +98,7 @@ def compact(d, b):
 
 root = Path("artifacts/character/creatures")
 family = sys.argv[1]
-base = "pitborn" if family == "minotaur" else "nightborn"
+base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "veteran"}[family]
 
 
 def read(p):
