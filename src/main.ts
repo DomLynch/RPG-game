@@ -5,6 +5,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
+import { awardMark, marksOf, rankFor } from './career.ts';
 import {
   initialPractice,
   stepPractice,
@@ -69,6 +70,9 @@ input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
 function persist() {
   element('name-button').textContent = profile.name;
+  const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
+  element('rank-sigil').textContent = rank.numeral || '✦';
+  element('rank').textContent = rank.label;
   element('save-status').textContent = saveProfile(storage, profile)
     ? 'Guest · saved on this device'
     : 'Storage unavailable · name will not be saved';
@@ -1070,6 +1074,7 @@ function frame(now: number) {
         recorded = true;
         recordPractice(trial, scheme, practice, Math.round(activeMs));
         saveTrial(storage, trial);
+        if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
       }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.

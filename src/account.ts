@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile } from './profile.ts';
 import { readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { marksOf } from './career.ts';
 
 export async function mountAccount(url: string, key: string) {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -33,7 +34,7 @@ export async function mountAccount(url: string, key: string) {
       if (turn !== generation) return;
       saved = result;
       status.textContent = saved ? `Cloud fighter: ${saved.display_name}. Load it here, or replace it with this device’s fighter.`
-        : userId ? 'Save your fighter name and chosen opponent to this account.' : 'Sign in to keep your fighter name and chosen opponent across devices.';
+        : userId ? 'Save your fighter name, chosen opponent and career marks to this account.' : 'Sign in to keep your fighter name, opponent and career marks across devices.';
     } catch {
       if (turn !== generation) return;
       status.textContent = 'Could not read your account. Retry before saving; your local fighter is safe.';
@@ -81,8 +82,10 @@ export async function mountAccount(url: string, key: string) {
       if (turn !== generation) return;
       if (!latest) throw Error('Save no longer exists');
       const { profile } = loadProfile(localStorage, () => crypto.randomUUID());
-      // Explicit load restarts practice. Keep the device ID; do not import or invent career marks.
+      // Explicit load restarts practice. Keep the device ID. Marks never fall: the higher of the device and cloud counts survives a load.
       profile.name = latest.display_name; profile.encounter = latest.encounter ?? undefined;
+      const victoryMarks = Math.max(marksOf(profile), latest.victory_marks);
+      if (victoryMarks) profile.career = { victoryMarks };
       if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
       const target = new URL(location.href); target.searchParams.delete('opponent');
       location.replace(target.href);
