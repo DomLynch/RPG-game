@@ -1570,7 +1570,7 @@ def select_fighter(name):
     """Point the scan pipeline at one fighter's portraits and tuning (parts.py --fighter <name>; default hero)."""
     global FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE
     f = FIGHTERS[name]
-    FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE = name, f['kt_glb'], f['cams'], f['chin'], f['hair_lum'], f['hair'], f['scars'], f['decimate']
+    FIGHTER, KT_GLB, CAMS, CHIN, HAIR_LUM, HAIR, SCARS, DECIMATE = name, os.environ.get('HEAD_KT_GLB') or f['kt_glb'], f['cams'], f['chin'], f['hair_lum'], f['hair'], f['scars'], f['decimate']   # HEAD_KT_GLB: try another head (a trellis_head.py adapter output) without editing the table
 
 
 SKIN_TONE = None  # linear skin colour sampled from the scanned neck; the painted body and neck stub take it as their base
