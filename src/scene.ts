@@ -9,7 +9,7 @@ import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
-import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
+import { bloodiesMaterial, createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 
 export function cameraPose(
@@ -372,7 +372,7 @@ export function createScene(
       node?.traverse((object) => {
         if (!(object instanceof THREE.Mesh) || !(object.material instanceof THREE.MeshStandardMaterial))
           return;
-        if (!twoHanded && object.material.name !== 'Blade') return; // a sword bloodies its blade only; a one-piece weapon tints whole
+        if (!bloodiesMaterial(object.material.name, !!twoHanded)) return; // the blade, never the haft
         const original = bladeOriginals.get(object) ?? (object.material as THREE.MeshStandardMaterial);
         if (on) {
           if (!bladeOriginals.has(object)) {
