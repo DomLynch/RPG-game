@@ -111,7 +111,9 @@
     ],
     [
       "node",
-      "scripts/quiet-one-browser-check.mjs"
+      "scripts/quiet-one-browser-check.mjs",
+      "--opponent",
+      "goblin"
     ],
     [
       "node",
@@ -155,6 +157,8 @@
       "scripts/quiet-one-browser-check.mjs",
       "--finisher",
       "opened",
+      "--opponent",
+      "goblin",
       "--blood-check"
     ],
     [
@@ -267,6 +271,13 @@
       "node",
       "scripts/check-glb-compression.mjs",
       "--browser"
+    ],
+    [
+      "node",
+      "scripts/quiet-one-browser-check.mjs",
+      "--finisher",
+      "opened",
+      "--blood-check"
     ]
   ],
   "timeout_seconds": 300

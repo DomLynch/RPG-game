@@ -57,6 +57,7 @@ async function fight(name) {
   // A real duel against the live warden: the AI is seeded per match, so the scripted player wins most duels, not every one.
   // Up to three duels; a lost or timed-out one is rematched in place (no win → no next-rung reload) and fought again.
   // The kill assertion below is unchanged — a real UI duel must kill the opponent.
+  let killed = false;
   for (let attempt = 1; attempt <= 3; attempt++) {
   await draw();
   console.log('difficulty',await page.locator('#difficulty').textContent(), 'attempt', attempt);
@@ -102,13 +103,15 @@ async function fight(name) {
     }
     await step(40);
   }
-  if (await page.locator('#target-health').evaluate(e => +e.value) === 0) break;
+  if (await page.locator('#target-health').evaluate(e => +e.value) === 0) { killed = true; break; }
   if (attempt === 3) break;
   console.log(`duel ${attempt} did not kill (page time ${elapsed} ms) — rematch\n`, await page.locator('#debug').textContent());
   await page.locator('#reset-button').tap();
   await until(() => document.querySelector('#target-health').value > 0 && document.querySelector('#player-health').value > 0 && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', 20000);
   }
   console.log('end state',await page.locator('#debug').textContent());
+  // Exhausting the rematch budget is a FAILURE, never a pass: the receipt names it as such.
+  assert.ok(killed, `real UI duel must kill the opponent — three duels fought, none killed (opponent ${opponent}, finisher ${finisher})`);
   assert.equal(await page.locator('#target-health').evaluate(e => e.value),0,'real UI duel must kill the opponent');
   await run(300);
   console.log(`${name} kill — clips at reset: "${await clips()}"`);

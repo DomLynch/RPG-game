@@ -3,6 +3,13 @@
 // 16 ms frame at a time. A scripted press therefore lands on the same simulation tick on any machine — a MacBook at load 60, a
 // GPU-less VPS, a CI runner — which is what made the old wall-clock waits ("parry 430 ms after the tell") flake or fail elsewhere.
 // The game is untouched. Real-time responsiveness is the physical-phone acceptance's job, not this gate's.
+//
+// The clock persists across navigations. A win reloads the next rung as a fresh document (main.ts reset-button →
+// location.reload), and that document boots with the fake clock already installed and PAUSED: nothing rAF- or timer-driven
+// runs in it until the gate advances time, so a plain evaluate loop (or waitForFunction, which polls on rAF) sees a page
+// that never writes its debug data. Pattern (quiet-one-browser-check.mjs): arm page.waitForEvent('framenavigated') before
+// the press; if it fires, wait on REAL time (Node-side sleep + evaluate) for the new document's assets/ready flag — boot is
+// promise-driven and needs no page time — then continue with run()/until() on the new document as with the old one.
 export async function harnessClock(page) {
   // The fake performance.now() restarts from 0 at install (probed: real 3021 ms → fake 60000 after a 60 s jump), while the game already
   // holds frame timestamps taken from the real clock before install; if page time sits below them the game sees negative frame time
