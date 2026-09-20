@@ -3,7 +3,6 @@
 // the simulation owns legality and buffering. Everything the layer touches is injected — the DOM lookup, window, clock, timers, media
 // query, viewport width — so the entry point's own globals (and the VM harness's fakes in tests/graphics.test.ts) are what it binds to.
 import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
-import { swipeAction, type Flick } from './gestures.ts';
 
 type Lookup = <T extends HTMLElement>(id: string) => T;
 export type InputEnv = {
@@ -17,7 +16,6 @@ export type InputEnv = {
   paused: () => boolean;
   ready: () => boolean;      // assets loaded and graphics up: only then do presses reach the simulation
   practice: () => Practice;
-  ring8: () => boolean;
   quiet: () => void;         // feedback.quiet — clearing input also silences pending cues
 };
 export type Intent = { x: number; z: number; run: boolean; action: Action | null; guard: boolean; held: boolean; cancel: boolean };
@@ -38,7 +36,6 @@ const ownerOf = (move: string | null): Strike | null =>
         ? 'light'
         : null;
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'];
-const RING8_ARM_MS = 300;
 
 export function createInput(env: InputEnv) {
   const { element, paused } = env;
@@ -173,12 +170,10 @@ export function createInput(env: InputEnv) {
   runButton.addEventListener('keyup', () => setRun(false));
   runButton.addEventListener('blur', () => setRun(false));
   // A strike button with pointer capture: press = strike (held while down); the pointer leaving the circle while down = guard press (drag-off feint).
-  // `pointer` lets a scheme hand the button's touch grammar to its own handler (v8's strike circle) without disturbing the others.
   function strikeControl(
     button: HTMLButtonElement,
     name: Strike,
     start: () => void,
-    pointer: () => boolean = () => true,
   ) {
     let id: number | null = null,
       dragged = false;
@@ -187,7 +182,7 @@ export function createInput(env: InputEnv) {
       return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 + 6 };
     }; // 6 px of slack before a press counts as dragged off
     button.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0 || id !== null || !pointer()) return;
+      if (event.button !== 0 || id !== null) return;
       event.preventDefault();
       id = event.pointerId;
       dragged = false;
@@ -229,12 +224,7 @@ export function createInput(env: InputEnv) {
     button.addEventListener('keyup', () => unhold(name));
     button.addEventListener('blur', () => unhold(name));
   }
-  strikeControl(
-    attackButton,
-    'light',
-    () => requestStrike(),
-    () => !env.ring8(),
-  );
+  strikeControl(attackButton, 'light', () => requestStrike());
   kickButton.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
       event.preventDefault();
@@ -250,102 +240,6 @@ export function createInput(env: InputEnv) {
   });
   strikeControl(heavyButton, 'heavy', () => requestStrike(true));
   strikeControl(thrustButton, 'thrust', () => request('thrust'));
-  // Guard ring v8 (owner trial, 2026-09-18): the strike circle is the whole grammar — no Heavy or Stab buttons. A quick tap is the slash (it
-  // fires as the thumb lifts, the fastest blow); holding loads the heavy (release early = plain, keep holding through the chamber = charged);
-  // a flick up is the stab, sideways is that side's cut, back is guard. A loaded heavy dragged off the circle feints into guard, as the strike
-  // buttons always have. Every intent is the one the dedicated button sends — the simulation owns every rule and timer, none are re-timed here.
-  let ring8Stroke: {
-    id: number;
-    x: number;
-    y: number;
-    armed: boolean;
-    feint: boolean;
-    flick: Flick | null;
-    timer: ReturnType<typeof setTimeout>;
-  } | null = null;
-  attackButton.addEventListener('pointerdown', (event) => {
-    if (!env.ring8() || event.button !== 0 || ring8Stroke !== null) return;
-    event.preventDefault();
-    const stroke = {
-      id: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      armed: false,
-      feint: false,
-      flick: null as Flick | null,
-      timer: 0 as unknown as ReturnType<typeof setTimeout>,
-    };
-    stroke.timer = env.setTimeout(() => {
-      if (ring8Stroke !== stroke || stroke.flick) return;
-      stroke.armed = true;
-      unhold('light');
-      hold('heavy');
-      requestStrike(true); // held long enough: the heavy loads; keeping it held charges
-    }, RING8_ARM_MS);
-    ring8Stroke = stroke;
-    try {
-      attackButton.setPointerCapture(event.pointerId);
-    } catch {
-      /* capture is a convenience: an uncaptured press still strikes */
-    }
-    hold('light');
-  });
-  attackButton.addEventListener('pointermove', (event) => {
-    const s = ring8Stroke;
-    if (!s || event.pointerId !== s.id) return;
-    if (s.armed) {
-      // a loaded heavy leaves the circle: the feint, exactly as dragging a strike button off its circle always was
-      if (s.feint) return;
-      const r = attackButton.getBoundingClientRect();
-      if (
-        Math.hypot(event.clientX - (r.left + r.width / 2), event.clientY - (r.top + r.height / 2)) >
-        r.width / 2 + 6
-      ) {
-        s.feint = true;
-        unhold('heavy');
-        dragGuard = true;
-        requestParry();
-      }
-      return;
-    }
-    if (s.flick) return;
-    const flick = swipeAction(event.clientX - s.x, event.clientY - s.y);
-    if (!flick) return;
-    env.clearTimeout(s.timer);
-    unhold('light');
-    s.flick = flick;
-    if (flick === 'up') {
-      hold('thrust');
-      request('thrust');
-    } else if (flick === 'down') {
-      dragGuard = true;
-      requestParry();
-    } else request(flick === 'left' ? 'light_left' : 'light_right');
-  });
-  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'])
-    attackButton.addEventListener(type, (event) => {
-      const s = ring8Stroke;
-      if (!s || (event as PointerEvent).pointerId !== s.id) return;
-      ring8Stroke = null;
-      env.clearTimeout(s.timer);
-      unhold('light');
-      unhold('heavy');
-      unhold('thrust');
-      if (s.flick === 'down' || s.feint) dragGuard = false;
-      else if (!s.flick && !s.armed && type === 'pointerup') requestStrike(); // the quick tap: the slash fires as the thumb lifts
-      if (type === 'pointercancel')
-        withdraw(
-          s.armed
-            ? 'heavy'
-            : s.flick
-              ? s.flick === 'up'
-                ? 'thrust'
-                : s.flick === 'down'
-                  ? 'parry'
-                  : `light_${s.flick}`
-              : 'light',
-        );
-    });
   dodgeButton.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
       event.preventDefault();
@@ -483,10 +377,6 @@ export function createInput(env: InputEnv) {
     },
     // Every press, hold, key and stick released: the welcome/journal/rename/visibility paths, a rematch, a graphics loss.
     clear() {
-      if (ring8Stroke) {
-        env.clearTimeout(ring8Stroke.timer);
-        ring8Stroke = null;
-      }
       action = null;
       cancel = true;
       dodgeHeld = null;

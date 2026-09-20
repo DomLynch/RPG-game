@@ -1,5 +1,14 @@
 # Project state
 
+## Strike circle retired — lead implementation, 2026-09-20 (owner: "I tried both and prefer buttons"; one grammar = every control feature built and tested once)
+The thumb cluster is the one touch layout. Gone: the v8 strike circle (input.ts ring8 handlers, `gestures.ts` + its test), the
+Controls chip in the journal Settings tab and its scheme cycling in main.ts, the `ring8` HUD relabelling, the `data-gestures=ring8`
+CSS block (the cluster block stays; index.html carries `data-gestures="cluster"` statically). trial.ts keeps one tally instead of a
+per-scheme card (`frankendom.controls.v1` migrates: an old `{ scheme, card: { cluster, ring8 } }` loads as its cluster tally, the
+ring's numbers are dropped); the AFK marker `frankendom.fight.v1` is `{ opponent }` only. browser-check no longer cycles Controls:
+one `layoutClean('cluster')` pass (44 px targets, no overlaps) at both phone sizes. Directional guard (five sides, owner 2026-09-20)
+is built on the buttons next. Evidence: 327 tests, eslint src, build + budget PASS; CI browser gate on the PR.
+
 ## Tabbed Field Journal wiring — lead implementation, 2026-09-20 (owner: "get it live")
 On top of the design lane's markup/CSS (529bb6d, rebased onto trunk): the blood toggle is gone — `#blood-mode` button removed, its
 red/dark/off cycling removed from main.ts, gore always on (the renderer keeps `BloodMode` for a later setting); hit-stop chip sits in

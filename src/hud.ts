@@ -9,7 +9,7 @@ import type { OpponentId } from './moves.ts';
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const KICK_LANDS = 1.5;
 
-export type HudView = { controlsReady: boolean; ring8: boolean; debug: boolean; opponentId: OpponentId };
+export type HudView = { controlsReady: boolean; debug: boolean; opponentId: OpponentId };
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -31,7 +31,7 @@ export function createHud(element: Lookup) {
   let dmgCursor = 0;
   let lastHud = '';
   return {
-    // Force the next update to write everything (a control-scheme change relabels the buttons).
+    // Force the next update to write everything (the debug toggle relabels the buttons).
     invalidate() {
       lastHud = '';
     },
@@ -92,16 +92,15 @@ export function createHud(element: Lookup) {
       combatStatus.dataset.threat = String(practice.threat);
       combatStatus.dataset.move = practice.threatMove ?? '';
       attackButton.textContent =
-        practice.phase === 'sheathed' ? 'Draw sword' : view.ring8 ? 'Strike — tap, hold or flick' : 'Light attack';
-      attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : view.ring8 ? 'Strike' : 'Slash';
+        practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
+      attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Slash';
       attackButton.setAttribute('aria-label', attackButton.textContent);
-      thrustButton.hidden =
-        view.ring8 || !practice.health || !practice.playerHealth || practice.phase === 'sheathed';
+      thrustButton.hidden = !practice.health || !practice.playerHealth || practice.phase === 'sheathed';
       thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
       // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
       attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
       const ended = !practice.health || !practice.playerHealth;
-      heavyButton.hidden = ended || view.ring8;
+      heavyButton.hidden = ended;
       heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
       attackButton.hidden = ended;
       resetButton.hidden = !ended;

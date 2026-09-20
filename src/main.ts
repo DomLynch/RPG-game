@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
+import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
@@ -66,7 +66,7 @@ function persist() {
     ['rank', rank.label], ['journal-rank', rank.label], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
 }
 persist();
-// Control-scheme trial: the right thumb is the button cluster or the v8 guard ring (one strike circle owns every attack); the scorecard is per scheme.
+// The right thumb is the button cluster (the v8 strike circle was retired 2026-09-20: one grammar, built and tested once).
 const trial = loadTrial(storage);
 // AFK is not an escape (owner 2026-09-20): a fight that never reached its end because the page was closed is a loss on the card.
 // The marker is written on the first tick of a live fight and cleared when its result is recorded.
@@ -74,22 +74,14 @@ const AFK_KEY = 'frankendom.fight.v1';
 const scorecard = loadScorecard(storage);
 try {
   const left = JSON.parse(storage.getItem(AFK_KEY) || 'null');
-  if (left && SCHEMES.includes(left.scheme)) {
-    recordFight(trial, left.scheme, false, 0, 0, 0); saveTrial(storage, trial);
+  if (left && typeof left === 'object') {
+    recordFight(trial, false, 0, 0, 0); saveTrial(storage, trial);
     if (isOpponentId(left.opponent)) { recordResult(scorecard, left.opponent, 'loss', true); saveScorecard(storage, scorecard); }
     storage.setItem(AFK_KEY, '');
   }
 } catch { /* unreadable storage: nothing to score */ }
-let scheme = trial.scheme,
-  recorded = false,
+let recorded = false,
   activeMs = 0; // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
-const ring8 = () => scheme === 'ring8';
-function applyScheme() {
-  element('actions').dataset.gestures = scheme;
-  element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`;
-  element('controls-mode').setAttribute('aria-pressed', String(ring8()));
-  hud.invalidate();
-}
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 // Who stands opposite: the rung this device has reached (profile.encounter), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
 const opponent = opponentFor(
@@ -207,7 +199,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(practice, { controlsReady: assetsReady && !graphicsLost, ring8: ring8(), debug, opponentId: opponent.id });
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost, debug, opponentId: opponent.id });
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -266,7 +258,6 @@ const controls = createInput({
   innerWidth: () => innerWidth,
   ready: () => assetsReady,
   practice: () => practice,
-  ring8,
   quiet: () => feedback.quiet(),
 });
 resetButton.addEventListener('click', () => {
@@ -278,7 +269,7 @@ resetButton.addEventListener('click', () => {
     return;
   } // the next fighter is another rig: a fresh page loads it
   clearInput();
-  recordRematch(trial, scheme);
+  recordRematch(trial);
   saveTrial(storage, trial);
   recorded = false;
   activeMs = 0;
@@ -300,15 +291,6 @@ element('debug-mode').addEventListener('click', () => {
   element('debug-mode').setAttribute('aria-pressed', String(debug));
   hud.invalidate();
 });
-element('controls-mode').addEventListener('click', () => {
-  clearInput();
-  scheme = SCHEMES[(SCHEMES.indexOf(scheme) + 1) % SCHEMES.length];
-  trial.scheme = scheme;
-  saveTrial(storage, trial);
-  applyScheme();
-  element('scorecard').textContent = formatCard(trial);
-});
-applyScheme();
 if (typeof document !== 'undefined' && document.body)
   document.body.dataset.gfxTier = phoneTier() ? 'phone' : 'full'; // support surface: which graphics budget the session is on (the iPhone black-fighters defect)
 let view: ReturnType<typeof createScene>;
@@ -490,7 +472,7 @@ function frame(now: number) {
     while (accumulator >= step()) {
       previous = state;
       const intent = controls.intent();
-      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ scheme, opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       practice = stepPractice(
         practice,
         {
@@ -541,7 +523,7 @@ function frame(now: number) {
       accumulator -= step();
       if (practice.finish && !recorded) {
         recorded = true;
-        recordPractice(trial, scheme, practice, Math.round(activeMs));
+        recordPractice(trial, practice, Math.round(activeMs));
         saveTrial(storage, trial);
         marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
         recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk);   // a fight lost while away is a loss, flagged left
