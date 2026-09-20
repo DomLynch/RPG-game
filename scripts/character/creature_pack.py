@@ -135,17 +135,21 @@ original = bytes(b)
 # colour-matched to the donor's skin (creatures.py match_skin writes it beside the surface).
 source, sb = read(Path(f"src/assets/source/creatures/{family}.glb"))
 new["images"] = copy.deepcopy(source.get("images", []))
-matched = root / f"{family}-basecolor.webp"
-base_texture = source["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"]["index"]
-base_image = next(
-    v["source"]
-    for v in [source["textures"][base_texture], *source["textures"][base_texture].get("extensions", {}).values()]
-    if "source" in v
-)
+def image_of(texture_ref):
+    tex = source["textures"][texture_ref["index"]]
+    return next(v["source"] for v in [tex, *tex.get("extensions", {}).values()] if "source" in v)
+
+
+pbr = source["materials"][0]["pbrMetallicRoughness"]
+matched = {  # image index -> the fitter's colour-matched map beside the surface, when it wrote one
+    image_of(pbr[key]): root / f"{family}-{name}.webp"
+    for key, name in [("baseColorTexture", "basecolor"), ("metallicRoughnessTexture", "metalrough")]
+    if key in pbr and (root / f"{family}-{name}.webp").exists()
+}
 for i, img in enumerate(new["images"]):
     view = source["bufferViews"][img["bufferView"]]
     at = view.get("byteOffset", 0)
-    data = matched.read_bytes() if i == base_image and matched.exists() else sb[at : at + view["byteLength"]]
+    data = matched[i].read_bytes() if i in matched else sb[at : at + view["byteLength"]]
     nb += b"\0" * (-len(nb) % 4)
     img["bufferView"] = len(new["bufferViews"])
     new["bufferViews"].append({"buffer": 0, "byteOffset": len(nb), "byteLength": len(data)})
@@ -369,8 +373,8 @@ d.setdefault("extras", {})["creatureSource"] = {
     "sourceSha256": hashlib.sha256(
         (Path(f"src/assets/source/creatures/{family}.glb")).read_bytes()
     ).hexdigest(),
-    # The one map the fitter may replace: its colour-matched base colour (creature-check.mjs verifies the swap).
-    **({"skinMatched": hashlib.sha256(matched.read_bytes()).hexdigest()} if matched.exists() else {}),
+    # The maps the fitter may replace, by source image index (creature-check.mjs verifies exactly these swaps).
+    **({"skinMatched": {str(i): hashlib.sha256(f.read_bytes()).hexdigest() for i, f in sorted(matched.items())}} if matched else {}),
 }
 assert b[: len(original)] == original
 assert d["animations"] == frozen["animations"]

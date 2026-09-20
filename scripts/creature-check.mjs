@@ -67,10 +67,10 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
   }
   const imageBytes = a => a.doc.images.map(img => { const v = a.doc.bufferViews[img.bufferView]; return digest(a.bin.subarray(v.byteOffset || 0, (v.byteOffset || 0) + v.byteLength)); });
   const outImages = imageBytes(output), lost = imageBytes(source).filter(hash => !outImages.includes(hash));
-  if (skinMatched) { // exactly the source base colour map is replaced, by the matched WebP the pack stamped
-    const tex = source.doc.textures[source.doc.materials[0].pbrMetallicRoughness.baseColorTexture.index], baseImage = tex.source ?? Object.values(tex.extensions).find(e => 'source' in e).source;
-    assert.deepEqual(lost, [imageBytes(source)[baseImage]], 'Only the base colour map may be colour-matched');
-    assert(outImages.includes(skinMatched), 'Matched base colour map lost');
+  if (skinMatched) { // exactly the stamped source images are replaced, each by the matched WebP the pack recorded
+    const srcImages = imageBytes(source), swapped = Object.keys(skinMatched).map(Number);
+    assert.deepEqual(lost, swapped.map(i => srcImages[i]), 'Only the colour-matched maps may be replaced');
+    for (const hash of Object.values(skinMatched)) assert(outImages.includes(hash), 'Matched map lost');
   } else assert.deepEqual(lost, [], 'Original compressed map lost');
   const asset = await geometryOnly(output), body = asset.scene.getObjectByName('CreatureBody');
   assert(body?.isSkinnedMesh && body.userData.creature === family);

@@ -78,6 +78,11 @@ parts = [bpy.data.objects[n] for n in ["Skin", "Photo"] if n in bpy.data.objects
 # photographed skin covers the seam, the reconstruction's grey beard stub and its nape hair all round with no ledge: the
 # exposed part is a smooth taper from the reconstruction's shoulders to the scan's neck. The helm then fits by construction.
 NECK_CUT, NECK_TUCK, NECK_BAND, NECK_SECTORS, NECK_STEP = 1.585, 0.008, 0.125, 24, 0.005
+# In front the reconstruction is drawn inside the scan from below the chin up, so the chin and beard show. At the sides
+# and nape the reconstruction's top 3 cm are crumpled hair, which rendered as bright shards under the hairline whether
+# tucked or not; that region is cut away at 1.555 m and the smooth neck below tapers 3 cm into the scanned neck.
+NECK_CROSS, NECK_RAMP = 1.515, 0.02
+NECK_CUT_BACK, NECK_RAMP_BACK, NECK_FRONTNESS = 1.555, 0.03, 0.35
 
 
 def neck_sector(x, y):
@@ -135,6 +140,15 @@ def base_colour_image(obj):
     for slot in obj.material_slots:
         for node in slot.material.node_tree.nodes:
             if node.type == "TEX_IMAGE" and any(l.to_socket.name == "Base Color" for l in node.outputs[0].links):
+                return node.image
+
+
+def metal_rough_image(obj):
+    """The material's other map (glTF metallicRoughness: G roughness, B metallic)."""
+    base = base_colour_image(obj)
+    for slot in obj.material_slots:
+        for node in slot.material.node_tree.nodes:
+            if node.type == "TEX_IMAGE" and node.image is not base:
                 return node.image
 
 
@@ -204,14 +218,23 @@ def paint_neck(image, px, tone, z_from):
     grain = 1 + rng.normal(0, 0.025, (len(idx), 1))
     px[idx, :3] = np.clip(tone[None, :] * grain, 0, 1)
     image.pixels.foreach_set(px.reshape(-1))
-    print("NECK PAINT faces", faces, "texels", len(idx), "tone", tone.round(3), flush=True)
+    # The reconstruction bakes its nape hair metallic and glossy; as bare skin those texels render as mirror shards
+    # under the hairline. Same mask on the metallic-roughness map: matte, non-metal skin.
+    mr = metal_rough_image(mesh)
+    mpx = np.array(mr.pixels[:], dtype=np.float32).reshape(-1, 4)
+    assert mpx.shape[0] == px.shape[0], "metallic-roughness map is not the base colour map's size"
+    was = mpx[idx, 2].mean()
+    mpx[idx, 1], mpx[idx, 2] = 0.65, 0.0
+    mr.pixels.foreach_set(mpx.reshape(-1))
+    print("NECK PAINT faces", faces, "texels", len(idx), "tone", tone.round(3), "metallic there was", round(float(was), 3), flush=True)
 
 
 def save_matched(image):
-    # creature_pack.py ships the source WebP byte-for-byte; the matched map goes beside the surface for it to swap in.
-    image.file_format = "WEBP"
-    image.filepath_raw = str((root / f"{family}-basecolor.webp").resolve())
-    image.save(quality=92)
+    # creature_pack.py ships the source WebPs byte-for-byte; the matched maps go beside the surface for it to swap in.
+    for img, name in [(image, "basecolor"), (metal_rough_image(mesh), "metalrough")]:
+        img.file_format = "WEBP"
+        img.filepath_raw = str((root / f"{family}-{name}.webp").resolve())
+        img.save(quality=92)
 
 
 if family == "veteran":
@@ -235,6 +258,14 @@ if family == "veteran":
     bmesh.ops.bisect_plane(
         bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, NECK_CUT), plane_no=(0, 0, 1), clear_outer=True
     )
+    back = [f for f in bm.faces if -f.calc_center_median().y / max(1e-6, f.calc_center_median().xy.length) <= NECK_FRONTNESS]
+    bmesh.ops.bisect_plane(
+        bm,
+        geom=list({v for f in back for v in f.verts}) + list({e for f in back for e in f.edges}) + back,
+        plane_co=(0, 0, NECK_CUT_BACK),
+        plane_no=(0, 0, 1),
+        clear_outer=True,
+    )
     bm.to_mesh(mesh.data)
     bm.free()
     mesh.data.update()
@@ -245,13 +276,15 @@ def tuck_neck():
     tucked = 0
     for v in mesh.data.vertices:
         x, y, z = v.co
-        if z > NECK_CUT - NECK_BAND:
+        front = -y / max(1e-6, math.hypot(x, y))  # 1 straight ahead (glTF +z is Blender -y), -1 at the nape
+        cross, ramp = (NECK_CROSS, NECK_RAMP) if front > NECK_FRONTNESS else (NECK_CUT_BACK - NECK_RAMP_BACK, NECK_RAMP_BACK)
+        if z > cross:
             s, zb = neck_sector(x, y), round(z / NECK_STEP)
             # The nearest three 5 mm rows, innermost wins: on the beard's sloping underside the row above is wider.
             outline = min([neck_outline[(s, zb + d)] for d in (-1, 0, 1) if (s, zb + d) in neck_outline] or [0.0])
             r = math.hypot(x, y)
             if outline and r > outline - NECK_TUCK:
-                t = min(1.0, (z - (NECK_CUT - NECK_BAND)) / (NECK_BAND - 0.06))
+                t = min(1.0, (z - cross) / ramp)
                 nr = r + (outline - NECK_TUCK - r) * t
                 v.co.x, v.co.y = x * nr / r, y * nr / r
                 tucked += 1
