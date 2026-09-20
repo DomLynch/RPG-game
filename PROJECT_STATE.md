@@ -1,5 +1,14 @@
 # Project state
 
+## Arena cam after the kill — lead implementation, 2026-09-20 (owner: "after 5 seconds it does the different angles, views")
+camera.ts `TOUR`: five seconds after a finish begins (the finisher's push-in and side reveal have settled) the rig drifts — a slow orbit
+around the fallen (one lap per 40 s) that breathes in and out (5.2 ± 1.3 m) and rises toward a wider view (1.6 → 3.2 m; lower on the
+player's own death), looking at the fallen (corpse–head midpoint after a decapitation), blended in over 3 s from wherever the camera
+stands so there is no jump, clamped to the colonnade, looping until Rematch. Never a cut. A touch on the arena (`canvas` pointerdown →
+`view.stopTour()`) hands the camera back for that finish; a rematch forgets the stop. No tour on a draw or under reduced motion.
+Tuning is the Visuals and World lane's from here (path, timings in `TOUR`). Evidence: tests/camera.test.ts arena-cam test (orbit rate,
+no-cut, breathing/rising bounds, look, lower on a loss, touch stop, draw/still hold, rematch reset, edge clamp); 332 tests, eslint src.
+
 ## Strike circle retired — lead implementation, 2026-09-20 (owner: "I tried both and prefer buttons"; one grammar = every control feature built and tested once)
 The thumb cluster is the one touch layout. Gone: the v8 strike circle (input.ts ring8 handlers, `gestures.ts` + its test), the
 Controls chip in the journal Settings tab and its scheme cycling in main.ts, the `ring8` HUD relabelling, the `data-gestures=ring8`

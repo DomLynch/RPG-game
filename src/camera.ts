@@ -99,8 +99,15 @@ export type CameraFinish = {
 export const prefersStillCamera = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Arena cam after the kill (owner 2026-09-20): TOUR.delay seconds after the finish begins — the finisher's own push-in and reveal have
+// settled by then — the camera drifts: a slow orbit around the fallen that breathes in and out and rises toward a wider view of the ring,
+// looping until Rematch. Slow moves, never a cut. The orbit starts from wherever the camera stands, so there is no jump. Any touch on the
+// arena stops it for that finish (the player wants to look for themselves). On the player's own death it runs lower. A draw has no fallen
+// to circle; reduced motion keeps the frame still.
+export const TOUR = { delay: 5, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3 } as const;   // seconds and metres
 export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefersStillCamera()) {
   let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
+  let finishAge = 0, tourStopped = false, tourAngle: number | null = null;   // the tour's clock, the stop-on-touch, and the orbit angle it started from
   const desired = new THREE.Vector3(),
     look = new THREE.Vector3(),
     aim = new THREE.Vector3(0, 1, 0);
@@ -133,6 +140,13 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       yaw = 0;
       pitch = 0.45;
       started = false;
+    },
+    // A touch on the arena after the kill: the player takes the camera back for the rest of this finish.
+    stopTour() {
+      tourStopped = true;
+    },
+    get touring() {
+      return tourAngle !== null;
     },
     // A contact's kick (camera-kick.ts's table) along `heading`: a landed blow carries its own heading; a block or parry takes the attacker's.
     shove(heading: number, shove: Shove) {
@@ -224,6 +238,20 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
           desired.z *= 11.5 / radius;
         }
       }
+      // The arena cam, on top of whatever the finisher's own moves settled on.
+      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; }
+      if (finish && !finish.draw && !still && !tourStopped && finishAge > TOUR.delay) {
+        const t = finishAge - TOUR.delay, fallen = finish.victim === 1 ? enemy : state, low = finish.victim === 0;
+        const focusX = finish.head ? (fallen.x + finish.head.x) / 2 : fallen.x, focusZ = finish.head ? (fallen.z + finish.head.z) / 2 : fallen.z;
+        tourAngle ??= Math.atan2(camera.position.x - focusX, camera.position.z - focusZ);
+        const angle = tourAngle + (t * 2 * Math.PI) / TOUR.lap, radius = TOUR.radius + TOUR.breath * Math.sin((t * 2 * Math.PI) / TOUR.breathe);
+        const height = (low ? 1.2 : 1.6) + (low ? 1 : 1.6) * (1 - Math.cos((t * 2 * Math.PI) / TOUR.rise)) / 2;
+        const tour = new THREE.Vector3(focusX + Math.sin(angle) * radius, height, focusZ + Math.cos(angle) * radius), r = Math.hypot(tour.x, tour.z);
+        if (r > 11.5) { tour.x *= 11.5 / r; tour.z *= 11.5 / r; }
+        const s = Math.min(1, t / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
+        desired.lerp(tour, blendIn);
+        look.lerp(new THREE.Vector3(focusX, 0.7, focusZ), blendIn);
+      } else tourAngle = null;
       camera.position.addScaledVector(kickOffset, -shoved); // last draw's shove comes off before the settle
       shoved = 0;
       camera.position.lerp(desired, started ? blend : 1);
