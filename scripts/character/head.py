@@ -1542,7 +1542,7 @@ FIGHTERS = {
     'pitborn': {'kt_glb': 'artifacts/source/keentools/01a0ab5b-b143-7531-ad79-6de9bacbf0fa.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16
                 'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84), 'photo_orm_1k': True},   # photo_orm_1k: the head's roughness ships at 1K (texture diet, 2026-09-20)  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
     'goblin': {'kt_glb': 'artifacts/source/keentools/01a0ab81-4cff-7871-bac7-adfa28d57d0b.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16 22:33
-               'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.42, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.80, 0.77, 0.78), 'backdrop_cool': True},  # stubbled bald scalp (hair_lum .42: the photographed stubble is lum ~.32 — at .30 the fill took only its shadows and printed a dark band round a pale crown); no helm; skin_mul: v1 body rendered (178,154,125) beside a (143,115,97) cheek — tan and 25–30 % too bright for the grey-brown face; backdrop_cool: the grey backdrop smeared onto the crown
+               'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.42, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.77, 0.77, 0.80), 'backdrop_cool': True, 'ear_fill': True},  # stubbled bald scalp (hair_lum .42: the photographed stubble is lum ~.32 — at .30 the fill took only its shadows and printed a dark band round a pale crown); no helm; skin_mul: v1 body rendered (178,154,125) beside a (143,115,97) cheek — tan and 25–30 % too bright for the grey-brown face; polish pass (09-20): R down, B up a little — the body still read warmer than the grey face at the collar; backdrop_cool: the grey backdrop smeared onto the crown
     # The Executioner (opponent 6): seven GPT portraits (front, ±35, ±90, from below ~25°, from above ~20°), 2026-09-17,
     # artifacts/source/face/executioner/. kt_glb is a STAND-IN (the hero's scan) until the KeenTools account has credits —
     # the 22:1x job stopped at 402 AFTER the uploads; resume with
@@ -1808,6 +1808,14 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
             scalp_vg.add([v.index], w, 'REPLACE')
     scalp = bake_attribute(head, 'scalp', select_only, size)
     head.vertex_groups.remove(head.vertex_groups['scalp'])
+    ear_zone = None
+    if FIGHTERS[FIGHTER].get('ear_fill'):  # a fighter whose ears are geometry (the goblin): the scan's own ears, and the band of skull behind them the photos
+        ear_vg = head.vertex_groups.new(name='ear_zone')  # smeared with that pink at grazing angles, are unseen — the fill paints them as the skull beside them
+        for v in head.data.vertices:
+            if abs(v.co.x) > 0.055 and 0.03 < v.co.y - rig_mid.y < 0.17 and -0.095 < v.co.z - rig_mid.z < 0.05:   # the flaps and the skull band behind them (the skull curves in to |x| ~.06 there)
+                ear_vg.add([v.index], 1.0, 'REPLACE')
+        ear_zone = bake_attribute(head, 'ear_zone', select_only, size)
+        head.vertex_groups.remove(head.vertex_groups['ear_zone'])
     cams = [Vector((math.sin(math.radians(a)) * math.cos(math.radians(e)), -math.cos(math.radians(a)) * math.cos(math.radians(e)), -math.sin(math.radians(e))))
             for a, e in CAMS]  # this fighter's portraits (azimuth, elevation from below): the direction the surface must face to have been photographed
     cover = head.vertex_groups.new(name='coverage')  # how squarely the best photograph saw each vertex
@@ -1843,8 +1851,18 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     if FIGHTERS[FIGHTER].get('backdrop_cool'):  # the portraits' neutral backdrop projected onto the crown at grazing angles: a cool texel (blue ≥ 85 % of red) above the hairline is neither skin nor stubble — unseen, so the fill covers it (per fighter: grey hair is cool too)
         backdrop = (hair_zone > 0.5) & (colour[:, :, 2] >= colour[:, :, 0] * 0.85)   # skin and stubble here run b ≈ .6–.7 r; the backdrop's graded edge ~.9
         print(f'KEENTOOLS backdrop on the crown: {int((backdrop & ~dark).sum())} cool texels marked unseen')
-        dark = dark | backdrop  # black; the crown, back and nape seen only at a grazing angle (a smear, or the portrait's grey backdrop); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
-    filled = crown_fill(colour, dark, size, hair_zone, coverage=coverage, scalp=scalp)
+        dark = dark | backdrop
+    if ear_zone is not None:
+        # the scan unwraps the skull band behind each ear to the tile's outer edges (measured on this scan: u .86–.97 and .03–.14 at v .44–.74);
+        # the projection painted the photographed ear onto that band at grazing angles, and the vertex bake stops short of the edge — force the fill there
+        v0, v1 = int(0.40 * size), int(0.78 * size)
+        edge = np.zeros_like(ear_zone, dtype=bool)
+        edge[v0:v1, :int(0.15 * size)] = True
+        edge[v0:v1, int(0.85 * size):] = True
+        ear_zone = np.maximum(ear_zone, edge.astype(ear_zone.dtype))
+        print(f'KEENTOOLS ear zone: {int(((ear_zone > 0.5) & ~dark).sum())} texels of the scan\'s ears and the skull behind them marked unseen')
+        dark = dark | (ear_zone > 0.5)  # black; the crown, back and nape seen only at a grazing angle (a smear, or the portrait's grey backdrop); elsewhere only what no camera saw at all — the under-chin stubble is real and stays
+    filled = crown_fill(colour, dark, size, hair_zone, coverage=coverage, scalp=scalp, force=None if ear_zone is None else ear_zone > 0.5)
     crown_w = np.clip(1 - blur((~dark).astype(np.float32), 16) * 1.6, 0, 1) * dark * (scalp > 0.5) if HAIR == 'full' else np.zeros((size, size), np.float32)  # where the crown is synthesised strands (crown_fill's own blend weight)
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
     filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size, front=front)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
@@ -1995,7 +2013,7 @@ def hair_streaks(size, seed=9):
     return total / weight
 
 
-def crown_fill(colour, dark, size, hair_zone, stubble=None, coverage=None, scalp=None):
+def crown_fill(colour, dark, size, hair_zone, stubble=None, coverage=None, scalp=None, force=None):
     """The scan photographs the front and sides; the crown and the back of the skull are smeared from grazing views
     (`dark`). Growing the boundary inward leaves streaks, so beyond a short feather the fill is flat: the photographed
     hair's own tone (buzz-cut grain on top, or swept strands for `HAIR` 'full') where the head is above the hairline, the
@@ -2032,6 +2050,8 @@ def crown_fill(colour, dark, size, hair_zone, stubble=None, coverage=None, scalp
         stubble_synth = skin_synth * (1 - 0.55 * (dots > 0.55))[..., None] * (0.9 + 0.2 * grain)[..., None]
         synth = synth * (1 - stubble[..., None]) + stubble_synth * stubble[..., None]
     w = np.clip(1 - reach * 1.6, 0, 1)[..., None] * dark[..., None]
+    if force is not None:  # a zone that must be synthesised outright (small islands the boundary feather would otherwise keep): the ears of a fighter whose ears are geometry
+        w = np.maximum(w, blur(force.astype(np.float32), 4)[..., None])   # a 4-texel feather (the tile is 2048: the block blur needs a divisor)
     print(f'KEENTOOLS crown fill: hair tone {np.round(hair, 3)} from {int(band.sum())} texels')
     return filled * (1 - w) + synth * w
 

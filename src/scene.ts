@@ -60,12 +60,14 @@ export function finisherSidePose(
     (gap / 2 + (finisher === 'opened' ? 1.5 * bodyScale : finisher === 'quietOne' ? 1.5 : 0.42)) /
       (Math.tan((51 * Math.PI) / 360) * Math.min(aspect, 1)),
   );
-  const angle = finisher !== 'runThrough' ? Math.PI / 3 : (5 * Math.PI) / 12,
+  // Split Crown (owner 2026-09-20): the seam runs front-to-back over a head that bows toward the killer, so a profile
+  // hides it — a raised front-quarter (45°, higher eye) looks down onto the opened crown past the killer's shoulder.
+  const angle = finisher === 'splitCrown' ? Math.PI / 4 : finisher !== 'runThrough' ? Math.PI / 3 : (5 * Math.PI) / 12,
     sideward = Math.sin(angle),
     rearward = Math.cos(angle);
   const side = (sign: number, front = 1) => ({
     x: lookX + (-uz * sign * sideward - ux * rearward * front) * back,
-    y: finisher === 'opened' ? 3.7 + 3 * (bodyScale - 1) : 3.1,
+    y: finisher === 'opened' ? 3.7 + 3 * (bodyScale - 1) : finisher === 'splitCrown' ? 4.2 : 3.1,
     z: lookZ + (ux * sign * sideward - uz * rearward * front) * back,
     lookX,
     lookY: 0.85,
@@ -855,23 +857,35 @@ export function createScene(
       if (practice.finish && finisherPose && !practice.finish.draw && !stillCamera)
         finishPush = Math.min(1, finishPush + dt / (1.3 / 0.75));
       else if (!practice.finish) finishPush = 0;
-      if (finishPush > 0 && finisher !== 'decapitation') {
+      if (finishPush > 0) {
         const fallen = practice.finish!.victim === 1 ? practice.enemy : state;
         const killer = practice.finish!.victim === 1 ? state : practice.enemy;
-        desired.x += (fallen.x - desired.x) * 0.38 * finishPush;
-        desired.z += (fallen.z - desired.z) * 0.38 * finishPush;
+        // Owner phone review 2026-09-20: Decapitation keeps its front view — no push-in and no look change, so the
+        // detached head stays in frame (#167) — but slides to camera-right so the killer's back stops hiding the corpse.
+        const push = finisher === 'decapitation' ? 0 : 0.38,
+          slide = finisher === 'decapitation' ? 0.8 : 0.95,
+          turn = finisher === 'decapitation' ? 0.85 : 0.6;
+        desired.x += (fallen.x - desired.x) * push * finishPush;
+        desired.z += (fallen.z - desired.z) * push * finishPush;
         // Framing tune (same authorized dolly — still no cut, no FOV, no slow-mo): slide the camera laterally off the
         // killer→fallen axis and a touch higher, so the settled frame reads the kneeling corpse past the killer's
         // shoulder instead of hiding it behind his back.
         const axisX = fallen.x - killer.x,
           axisZ = fallen.z - killer.z,
           axisLen = Math.hypot(axisX, axisZ) || 1;
-        desired.x += (-axisZ / axisLen) * 0.95 * finishPush;
-        desired.z += (axisX / axisLen) * 0.95 * finishPush;
-        desired.y += (1.55 - desired.y) * 0.3 * finishPush;
-        look.x += (fallen.x - look.x) * 0.6 * finishPush;
-        look.z += (fallen.z - look.z) * 0.6 * finishPush;
-        look.y += (0.8 - look.y) * 0.7 * finishPush;
+        desired.x += (-axisZ / axisLen) * slide * finishPush;
+        desired.z += (axisX / axisLen) * slide * finishPush;
+        // The look turns onto the fallen for every finisher: with the slide, the killer reads left and the corpse centre.
+        // Decapitation looks at the midpoint of corpse and severed head — the head lands beside the corpse wherever the
+        // blow sent it, and framing the corpse alone left it at the portrait edge (deploy gate, trunk 63f4cd9).
+        const focusX = severHead ? (fallen.x + severHead.group.position.x) / 2 : fallen.x,
+          focusZ = severHead ? (fallen.z + severHead.group.position.z) / 2 : fallen.z;
+        look.x += (focusX - look.x) * turn * finishPush;
+        look.z += (focusZ - look.z) * turn * finishPush;
+        if (push) {
+          desired.y += (1.55 - desired.y) * 0.3 * finishPush;
+          look.y += (0.8 - look.y) * 0.7 * finishPush;
+        }
       }
       heading += wrapAngle(state.heading - heading) * blend;
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase))

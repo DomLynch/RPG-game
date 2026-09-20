@@ -1,5 +1,15 @@
 # Project state
 
+## Finisher cameras — Split Crown front-quarter, Decapitation corpse+head framing (2026-09-20)
+Owner phone review: the Split Crown side reveal turned the victim into profile and hid the skull seam; Decapitation's
+front camera let the killer's back hide the headless corpse. Split Crown now reveals on a raised 45° front-quarter
+(`finisherSidePose`); Decapitation keeps its front view with a camera-right slide and a look at the corpse/head midpoint.
+The deploy gate's blood-gate check (decapitation "detached head stays visible above portrait controls") failed on trunk
+63f4cd9 independent of this work — the head landed at the portrait edge on Veteran and Pitborn; the midpoint framing
+clears it on Veteran, Pitborn, Goblin and Executioner. Harness now asserts the victim's chest/skull are not hidden behind
+the killer (camera ray). Run Through alignment (owner: blade reads off-centre) remains open.
+
+
 ## Wraith reaper scythe — weapons lane, in progress
 Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
 ## Werewolf and Skeleton — integrated locally, publication pending (2026-09-19)
@@ -1031,6 +1041,8 @@ Full offline mix across AAC/Opus/fallback passes truepeak<=-1dBTP; bell-only tru
 Source/state audit completed. Evidence: artifacts/audio/bell-weight/. Game-browser/release work waits for lead window;
 latest npm audit returned503maintenance, not bypassed. Full inherited gates and public verification required before done.
 
+## Goblin polish — 2026-09-20 (character lane, char/goblin-polish)
+Ears lofted with a lobe and a torn notch; body tone greyed to the face; the pink band behind each ear (the scan's ear photo projected onto the skull band the tile unwraps to its outer edges, past the crown fill's feather) painted out by forcing the fill on that measured UV band (`head.FIGHTERS.goblin.ear_fill`, `crown_fill(force=)`); the scan's real ear flaps flattened and re-mapped. Goblin-only flags; other fighters' builds untouched. 300/300 tests, quality:ci, browser gate and the dist probe green; goblin.glb 3.31 MB gzip (+48 KB); budget 30.84/32 MB. Evidence `artifacts/character/goblin-polish/`. Still open from the brief: the lock camera hides him behind the hero at close range on 393×852 (REQUESTS #8, camera lane).
 ## Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five passes; beta freeze)
 Docs-and-hygiene pass only: no sound, gain, timing or simulation change (rebuilt sprite byte-identical: m4a 88c3e2b1…, ogg d3358aef…).
 Read this section first; the dated audio entries above (2026-09-15 … 2026-09-19) are its history.
