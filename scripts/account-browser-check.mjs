@@ -114,9 +114,10 @@ try {
   assert.equal(await page.locator('#account-load').isVisible(), false);
   assert.equal(await page.evaluate(() => localStorage.getItem('frankendom.auth.v1')), null);
   receipt.checks.push('Service failure cannot overwrite cloud; retry recovers; sign-out clears session and cloud controls');
-  const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.close();   // the phone page's game loop would starve the desktop page's load on a software-GL runner (third Linux run: page.goto timed out at 30 s)
+  const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } }); desktop.setDefaultTimeout(60000);
   desktop.on('pageerror', error => receipt.errors.push(String(error)));
-  await desktop.goto(origin); await ready(desktop); await desktop.locator('#journal-button').click();
+  await desktop.goto(origin, { timeout: 120000 }); await ready(desktop); await desktop.locator('#journal-button').click();
   await desktop.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
   assert.equal(await desktop.locator('#journal-button span').isVisible(), true, 'Actual desktop media path');
   assert.equal(await desktop.locator('#account-login').isVisible(), true);
@@ -126,7 +127,7 @@ try {
   receipt.checks.push('Account controls inside journal on desktop and mobile, hidden when journal closes');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify(receipt, null, 2));
-} catch (error) { receipt.failure = String(error); receipt.ui = await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }
+} catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }
 finally {
   await fs.writeFile('artifacts/account/browser-receipt.json', JSON.stringify(receipt, null, 2));
   await browser.close(); await new Promise(resolve => server.httpServer.close(resolve));
