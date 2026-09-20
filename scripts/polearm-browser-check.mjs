@@ -13,9 +13,13 @@ const dir = process.env.POLEARM_RECEIPT_DIR || 'artifacts/weapons/polearm-browse
 await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const receipt = { origin, physicalPhone: false, views: [], errors: [] };
-// `--opponents executioner` runs one warden (the release contract may list the check once per opponent to keep a CI job short).
-const flag = process.argv.indexOf('--opponents');
-const opponents = flag < 0 ? ['executioner', 'veteran'] : process.argv[flag + 1].split(',');
+// `--opponents executioner --screens phone` narrows the run to one view: the release contract lists the check once per view so a
+// CI job stays short — on the software-GL runner a fixed-step frame costs ~1.2 s and a view needs 315–400 of them, four in one job
+// took 1595–1704 s (runs 35537212537, 35542553950; two pages side by side gained nothing, the GPU process serialises them).
+const arg = (name, all) => { const i = process.argv.indexOf(name); return i < 0 ? all : process.argv[i + 1].split(','); };
+const opponents = arg('--opponents', ['executioner', 'veteran']);
+const screens = arg('--screens', ['desktop', 'phone']);
+const narrowed = opponents.length + screens.length < 4; // a narrowed run keeps its own receipt beside the full run's
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
@@ -37,7 +41,7 @@ try {
       const packed = await fs.readFile(await builtRig(opponent));
       await assertGlbEquivalent(await fs.readFile(`src/assets/${opponent}.glb`), packed);
       assert.equal(rigSha256, hash(packed), 'served rig must match the verified build of the tested file');
-      // Boot is machine-dependent (a second page booting beside this one on the runner held the button past Playwright's 30 s default).
+      // Boot is machine-dependent: the same 90 s budget as the asset and readiness waits (30 s was passed on the runner, run 35542288055).
       await page.getByRole('button', { name: 'Enter the arena' }).click({ timeout: 90000 });
       await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
       await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });
@@ -80,14 +84,10 @@ try {
       await context.close();
     }
   };
-  // The two opponents run side by side: on a software-GL runner a frame costs ~1 s and the four views need ~1,400 of them
-  // (release check #9 measured 1704 s serial, 2026-09-21), so the wall time halves where the cores are free. Page time is per page,
-  // so the views stay on the same ticks; the receipt order is fixed below, not by finish time.
-  await Promise.all(opponents.map(async opponent => { await view(opponent, false); await view(opponent, true); }));
-  receipt.views.sort((a, b) => a.opponent.localeCompare(b.opponent) || Number(a.mobile) - Number(b.mobile));
+  for (const opponent of opponents) for (const screen of screens) await view(opponent, screen === 'phone');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify({ passed: true, views: receipt.views.length, release: receipt.release }));
 } finally {
-  await fs.writeFile(`${dir}/receipt.json`, JSON.stringify(receipt, null, 2));
+  await fs.writeFile(`${dir}/receipt${narrowed ? `-${opponents.join('+')}-${screens.join('+')}` : ''}.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); if (server) await new Promise(resolve => server.httpServer.close(resolve));
 }

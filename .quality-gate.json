@@ -62,7 +62,35 @@
     ],
     [
       "node",
-      "scripts/polearm-browser-check.mjs"
+      "scripts/polearm-browser-check.mjs",
+      "--opponents",
+      "executioner",
+      "--screens",
+      "desktop"
+    ],
+    [
+      "node",
+      "scripts/polearm-browser-check.mjs",
+      "--opponents",
+      "executioner",
+      "--screens",
+      "phone"
+    ],
+    [
+      "node",
+      "scripts/polearm-browser-check.mjs",
+      "--opponents",
+      "veteran",
+      "--screens",
+      "desktop"
+    ],
+    [
+      "node",
+      "scripts/polearm-browser-check.mjs",
+      "--opponents",
+      "veteran",
+      "--screens",
+      "phone"
     ],
     [
       "node",
