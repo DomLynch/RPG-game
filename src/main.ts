@@ -69,13 +69,11 @@ const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
 function persist() {
-  element('name-button').textContent = profile.name;
   const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
-  element('rank-sigil').textContent = rank.numeral || '✦';
-  element('rank').textContent = rank.label;
-  element('save-status').textContent = saveProfile(storage, profile)
-    ? 'Guest · saved on this device'
-    : 'Storage unavailable · name will not be saved';
+  const saved = saveProfile(storage, profile) ? 'Guest · saved on this device' : 'Storage unavailable · name will not be saved';
+  // The HUD identity and the journal's fighter card show the same three facts.
+  for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
+    ['rank', rank.label], ['journal-rank', rank.label], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
 }
 persist();
 // Control-scheme trial: the right thumb is the button cluster or the v8 guard ring (one strike circle owns every attack); the scorecard is per scheme.
