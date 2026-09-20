@@ -229,14 +229,17 @@ reconstructed part ships by default on the same contact segment, so `bake-blades
 |---|---|---|---|---|---|
 | trident | veteran.glb | 3,998 (652) | +221 KB | `WEAPON_VARIANT=short` rebuild == HEAD veteran.glb (cmp) | blade-paths.ts unchanged |
 | cleaver | pitborn.glb | 3,979 (615) | +192 KB | `WEAPON_VARIANT=A` rebuild == HEAD pitborn.glb (cmp) | blade-paths.ts unchanged |
+| knife (v2) | goblin.glb | 3,194 (943) | +134 KB | `WEAPON_VARIANT=A` rebuild == HEAD goblin.glb (cmp) | unchanged |
+| estoc (v2) | nightborn.glb | 1,993 (1,252) | +112 KB | `WEAPON_VARIANT=A` rebuild == HEAD nightborn.glb (cmp) | unchanged |
+| longsword (v2) | warrior.glb | 2,991 (364) | +166 KB | `WEAPON_VARIANT=procedural` == trunk code without the part (cmp; the committed hero predates the integrated Quiet-One flow) | unchanged |
 
 Sheets: `artifacts/weapons/before-<id>/`, `after-<id>/` (harness `--weapons`), `after-<id>/before-after.png` (part alone under
 identical Blender lighting + the harness's guard / in-hand / thrust frames). Tools: `tools/weapon-render.py`, `tools/before-after.py`.
 
 ## Not done / risks
-- Knife, estoc, scythe, longsword: concepts chosen (knife = sica seed 3; estoc = seed 7 rotated; scythe = seed 3, a double moon the fit
-  cuts to one blade and lays flat; longsword prompt queued); the Hugging Face Pro ZeroGPU quota ran out after 7 concept + 3
-  reconstruction runs ("try again in 4:18") — queued to run on the reset, no credits bought (the owner's purchase, not the lane's).
+- Scythe: source + part fitted (4,483 tris), the second moon cut is still wrong (both moons survive the −x delete — open) and the
+  Executioner is now a creature pack whose scythe comes from the `executioner-v5` donor rig: shipping it means rebuilding that donor
+  with `WARRIOR_WEAPON=scythe` and re-packing (character lane's pipeline). Not in v2.
 - Maul / claws / reaper live in `build-creature-weapons.mjs` (creature lane, factor-coloured primitives injected into the creature
   GLBs); a reconstructed part there needs images added to that injector — not started.
 - The creature packs (skeleton, dwarf, werewolf) inherit the donor's `WeaponDrawn` subtree at pack time: they carry the new parts
