@@ -11,6 +11,7 @@ import { execSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
+import { cuesFor } from '../src/audio/cues.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 4, PROBE_AT = .05, PROBE_LENGTH = 1.2;
@@ -27,7 +28,8 @@ const server = await createServer({ configFile: false, appType: 'custom', logLev
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 let browser;
-const rendered = {}; let path_ = '';
+const rendered = {}, flat = {}; let path_ = '';
+const probeLength = probe => ['quietOne','opened'].includes(probe.presentation?.override) ? 6.5 : probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH;
 const checks = process.argv.includes('--check') ? {} : null;
 try {
   browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
@@ -36,10 +38,10 @@ try {
   await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; import { spriteFormats, loadSprite } from '/src/audio/sprite.ts'; import { MANIFEST } from '/src/audio/manifest.ts'; window.harness = { createFeedback, spriteFormats, loadSprite, MANIFEST };</script>` }));
   await page.goto(`${origin}/harness`);
   await page.waitForFunction(() => !!window.harness, null, { timeout: 20000 });
-  const render = (cues, seconds) => page.evaluate(async ({ cues, seconds, rate, seed, fallback }) => {
+  const render = (cues, seconds, balance) => page.evaluate(async ({ cues, seconds, rate, seed, fallback, balance }) => {
     const context = new OfflineAudioContext(1, Math.ceil(seconds * rate), rate);
     let now = 0;
-    const feedback = window.harness.createFeedback({ context, now: () => now, seed, ...(fallback ? { sprite: null } : {}) });
+    const feedback = window.harness.createFeedback({ context, now: () => now, seed, ...(fallback ? { sprite: null } : {}), ...(balance ? { balance } : {}) });
     feedback.unlock(); const decoded = await feedback.ready();
     for (const { t, events, presentation, control } of cues) { now = t; if (control) feedback[control](); else feedback.update(events, presentation); }
     const data = (await context.startRendering()).getChannelData(0);
@@ -47,7 +49,7 @@ try {
     const pcm = new Int16Array(data.length); for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
     const bytes = new Uint8Array(pcm.buffer); let text = ''; for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     return { pcm: btoa(text), decoded };
-  }, { cues, seconds, rate: RATE, seed, fallback });
+  }, { cues, seconds, rate: RATE, seed, fallback, balance });
   const pcm = async (...args) => { const { pcm, decoded } = await render(...args); if (!fallback && !decoded) throw new Error('sprite did not decode in Chromium; rerun with --fallback to render the synth path'); const bytes = Buffer.from(pcm, 'base64'); return new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2); };
   path_ = fallback ? 'synth fallback (--fallback)' : `sprite, formats tried in order ${JSON.stringify(await page.evaluate(() => window.harness.spriteFormats()))}`;
   rendered.exchange = await pcm(cues, seconds);
@@ -83,7 +85,9 @@ try {
     checks.stackedPeakDbfs = 20 * Math.log10(peak / 32768);
     assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
   }
-  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], ['quietOne','opened'].includes(probe.presentation?.override) ? 6.5 : probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH);
+  for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe));
+  // Phone-mix pin (checked after the loudness pass): the same probes with the balance stage at ×1.
+  if (checks && !fallback && seed === 731) for (const probe of CUE_PROBES) if (rendered[`events/${probe.name}`].some(v => v !== 0)) flat[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe), { combat: 1, finish: 1 });
   if (checks) {
     const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
     assert.ok(fatal, 'decapitation probe exists');
@@ -181,12 +185,16 @@ function phoneLoudness(x) {
 }
 const loudness = Object.fromEntries(Object.entries(rendered).map(([name, pcm]) => [name, measure(pcm, name === 'exchange' ? cues[0].t : PROBE_AT)]));
 if (checks && !fallback && seed === 731) {
-  // Frozen pre-change renders: catches accidental compressor compensation or a finishing-gain reset.
-  const reference = JSON.parse(await fs.readFile('artifacts/audio/phone-mix/reference.json', 'utf8'));
+  // The owner's phone mix (ordinary ×0.5, fatal ×1.5, 2026-09-19) measured against the same render with the balance stage at
+  // ×1 — self-contained, so it survives re-voicing and still catches a compensating compressor or a reset finishing gain.
   checks.phoneMix = { ordinary: 0, crowd: 0, fatal: 0 };
+  // The 2.4–2.7 s tail is the cheer alone: a cheer that starts on the contact tick, a render long enough to hold it, no other cue landing in the window.
+  const crowdTail = probe => { const cues = cuesFor(probe.events, probe.presentation); return probeLength(probe) >= 2.7 && cues.some(c => c.name === 'crowd_cheer' && (c.delay ?? 0) < .5) && !cues.some(c => (c.delay ?? 0) > 1.9 && (c.delay ?? 0) < 2.7); };
+  const tailRms = pcm => { const tail = pcm.subarray(Math.round(2.4 * RATE), Math.round(2.7 * RATE)); return 10 * Math.log10(tail.reduce((sum, v) => sum + (v / 32768) ** 2, 0) / tail.length); };
   for (const probe of CUE_PROBES) {
-    const name = `events/${probe.name}`, before = reference.probes[name];
-    if (!before) continue; // intentionally silent simulation events
+    const name = `events/${probe.name}`;
+    if (!flat[name]) continue; // intentionally silent simulation events
+    const before = { lufsIntegrated: measure(flat[name], PROBE_AT).lufsIntegrated, tailRmsDbfs: crowdTail(probe) ? tailRms(flat[name]) : undefined };
     const delta = loudness[name].lufsIntegrated - before.lufsIntegrated;
     if (!probe.events.some(e => e.type === 'Killed')) {
       assert.ok(Math.abs(delta - 20 * Math.log10(.5)) < .15, `${name}: ordinary level changed ${delta} dB, expected half gain`);
@@ -196,13 +204,13 @@ if (checks && !fallback && seed === 731) {
       checks.phoneMix.fatal++;
     }
     if (before.tailRmsDbfs !== undefined) {
-      const tail = rendered[name].subarray(Math.round(2.4 * RATE), Math.round(2.7 * RATE));
-      const rmsDbfs = 10 * Math.log10(tail.reduce((sum, v) => sum + (v / 32768) ** 2, 0) / tail.length);
-      assert.ok(Math.abs(rmsDbfs - before.tailRmsDbfs - 20 * Math.log10(1.5)) < .15, `${name}: crowd tail must increase 50%`);
+      assert.ok(Math.abs(tailRms(rendered[name]) - before.tailRmsDbfs - 20 * Math.log10(1.5)) < .15, `${name}: crowd tail must increase 50%`);
       checks.phoneMix.crowd++;
     }
   }
-  assert.deepEqual(checks.phoneMix, { ordinary: 17, crowd: 8, fatal: 12 });
+  // Coverage pinned from CUE_PROBES: 17 audible ordinary probes; 16 fatal; 12 of those with a clean cheer tail (Quiet One's gasp
+  // starts at 2.8 s, gory Opened lands its second body cue at 2.68 s, a double death gasps).
+  assert.deepEqual(checks.phoneMix, { ordinary: 17, crowd: 12, fatal: 16 });
 }
 
 // --- Payload: the shipped audio assets, raw and gzip; delta against the committed baseline when this is not the baseline.

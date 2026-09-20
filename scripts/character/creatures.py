@@ -15,13 +15,15 @@ recipes = {
     "wraith": ("nightborn", 45, 0.97, (0, -0.20, -0.015), 1.88, 8),
     "werewolf": ("pitborn", 65, 1.10, (0.025, -0.08, -0.045), 1.85, 16),
     "skeleton": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),
-    # Re-proportioned donor (build-warrior.mjs BUILD.dwarf, 1.494 m standing): true dwarf height, fingers follow the donor's finger tracks.
+    # Re-proportioned donor (build-warrior.mjs BUILD.dwarf, 1.494 m standing): true dwarf height; fingers follow the donor's finger tracks.
     "dwarf": ("source/creatures/dwarf-donor", 60, 1.0, (0, -0.04, -0.025), 1.494, 8),
+    # The Executioner is his own donor: the v5 rig (backup) carries his 1.32x root, scythe and clips. Arm pose solved
+    # numerically so the posed WeaponDrawn origin lands in the reconstruction's palm (angle 64, reach 1.15, 0.011 m).
+    "executioner": ("source/backups/executioner-v5", 64, 1.15, (0.02, -0.12, 0), 1.87, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
-# The absolute heights below were tuned on ~1.80 m donors; a shorter donor scales them. Shipped creatures keep k = 1 (byte-identical).
+# The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
 k = height / 1.80 if family == "dwarf" else 1.0
-fingers = family == "dwarf"   # keep transferred finger weights so the donor's 40 finger tracks curl the hands onto the weapon
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=str(Path(f"src/assets/{base}.glb").resolve()))
 rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
@@ -152,22 +154,21 @@ for v in mesh.data.vertices:
         )[:4]
     )
     # Disallow nearest-body transfer from attaching claws to the adjacent thigh.
-    edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf") else 0.27
+    edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
     if family == "skeleton":
         edge = 0.185 + max(0, 1.4 - z) * 0.26
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
     arm_mix = max(
-        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf") else 0.055))
+        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf", "executioner") else 0.055))
     ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf") else 0.92)) / 0.10))
-    finger_names = ("thumb", "index", "middle", "ring", "pinky")
-    if fingers and ws and mesh.vertex_groups[ws[0][0]].name.startswith(finger_names):
-        rigid = None
-        arm_mix = 0   # a finger vertex: keep the donor's finger/hand blend exactly as transferred
-    if not rigid and not (fingers and ws and mesh.vertex_groups[ws[0][0]].name.startswith(finger_names)):
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner") else 0.92)) / 0.10))
+    # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
+    # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
+    keep_fingers = family in ("executioner", "dwarf") and arm_mix > 0.5
+    if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",
             "lowerarm",
@@ -207,7 +208,7 @@ for v in mesh.data.vertices:
                 else "foot_" + side
             )
             ws = [(mesh.vertex_groups[name].index, 1)]
-    if arm_mix:
+    if arm_mix and not keep_fingers:
         side = "l" if x > 0 else "r"
         dist = []
         for name in ["upperarm_" + side, "lowerarm_" + side, "hand_" + side]:

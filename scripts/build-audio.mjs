@@ -9,6 +9,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const RATE = 48000, GAP = .04, LEAD = .02;
+// Owner's ear, 2026-09-20: everything 30 % deeper. Applied to every frequency the recipes touch (filters, sweeps, modes) and
+// as a length-preserving pitch shift on the recordings, so decays, lengths and timing are unchanged.
+const PITCH = .7;
 const S = seconds => Math.round(seconds * RATE);
 const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
@@ -25,7 +28,7 @@ for (const [name, source] of Object.entries(sourceList)) {
   }
   if (createHash('sha256').update(bytes).digest('hex') !== source.sha256) throw new Error(`${name}: source hash mismatch`);
   await fs.writeFile(file, bytes);
-  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 64 * 1024 * 1024 });
+  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-af', `asetrate=${RATE * PITCH},aresample=${RATE},atempo=${1 / PITCH}`, '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 64 * 1024 * 1024 });   // pitch × PITCH, same length
   recordings[name] = Float32Array.from(new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4));
 }
 function recording(name, start, seconds, rate = 1) {
@@ -42,7 +45,7 @@ const noise = (n, r) => Float32Array.from({ length: n }, () => r() * 2 - 1);
 const silence = n => new Float32Array(n);
 // RBJ biquad; type in lowpass | highpass | bandpass | peaking | lowshelf | highshelf. Returns a new array.
 function biquad(x, type, f, Q = .707, gainDb = 0) {
-  const w = 2 * Math.PI * f / RATE, cw = Math.cos(w), sw = Math.sin(w), A = 10 ** (gainDb / 40), alpha = sw / (2 * Q);
+  const w = 2 * Math.PI * f * PITCH / RATE, cw = Math.cos(w), sw = Math.sin(w), A = 10 ** (gainDb / 40), alpha = sw / (2 * Q);
   let b0, b1, b2, a0, a1, a2;
   if (type === 'lowpass') { b0 = (1 - cw) / 2; b1 = 1 - cw; b2 = b0; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; }
   else if (type === 'highpass') { b0 = (1 + cw) / 2; b1 = -(1 + cw); b2 = b0; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; }
@@ -58,14 +61,14 @@ function biquad(x, type, f, Q = .707, gainDb = 0) {
 // low-pass output for an impact body that darkens as it decays.
 function sweep(x, fc, Q, output = 'band') {
   const y = new Float32Array(x.length); let low = 0, band = 0; const q = 1 / Q;
-  for (let i = 0; i < x.length; i++) { const f = 2 * Math.sin(Math.PI * Math.min(fc(i / x.length), 12000) / RATE); low += f * band; const high = x[i] - low - q * band; band += f * high; y[i] = output === 'band' ? band : low; }
+  for (let i = 0; i < x.length; i++) { const f = 2 * Math.sin(Math.PI * Math.min(fc(i / x.length) * PITCH, 12000) / RATE); low += f * band; const high = x[i] - low - q * band; band += f * high; y[i] = output === 'band' ? band : low; }
   return y;
 }
 const sweepBandpass = (x, fc, Q) => sweep(x, fc, Q, 'band');
 // Exponentially decaying sinusoid: one resonant mode. t60 = seconds to −60 dB; slide = optional multiplier on f at t = 0 decaying with tau.
 function mode(n, f, t60, amp = 1, { slide = 1, tau = .03, phase = 0 } = {}) {
   const y = new Float32Array(n), k = 6.9078 / (t60 * RATE); let ph = phase;
-  for (let i = 0; i < n; i++) { const t = i / RATE, freq = f * (1 + (slide - 1) * Math.exp(-t / tau)); ph += 2 * Math.PI * freq / RATE; y[i] = amp * Math.exp(-k * i) * Math.sin(ph); }
+  for (let i = 0; i < n; i++) { const t = i / RATE, freq = f * PITCH * (1 + (slide - 1) * Math.exp(-t / tau)); ph += 2 * Math.PI * freq / RATE; y[i] = amp * Math.exp(-k * i) * Math.sin(ph); }
   return y;
 }
 // Envelopes: linear-segment (times in s, levels) and the classic percussive attack/decay.
@@ -226,7 +229,7 @@ const RECIPES = {
     const n = S(.5), f = vary(r, 1, .04);
     const swell = envelope(n, [[0, 0], [.36, 1], [.42, .8], [.5, 0]]);
     const y = new Float32Array(n);
-    [1, 1.5, 2.7, 3.9].forEach((ratio, k) => { let ph = r() * 6.28; for (let i = 0; i < n; i++) { const t = i / n; ph += 2 * Math.PI * 700 * f * ratio * (.96 + .04 * t) / RATE; y[i] += Math.sin(ph) * (.7 ** k) * swell[i]; } });
+    [1, 1.5, 2.7, 3.9].forEach((ratio, k) => { let ph = r() * 6.28; for (let i = 0; i < n; i++) { const t = i / n; ph += 2 * Math.PI * 700 * PITCH * f * ratio * (.96 + .04 * t) / RATE; y[i] += Math.sin(ph) * (.7 ** k) * swell[i]; } });
     const drone = mul(biquad(biquad(noise(n, r), 'bandpass', 180 * f, 1.2), 'lowpass', 500), swell);
     const bow = mul(broad(n, r, 600 * f, 2400 * f), swell);
     return densify(mix(n, [y, 0, .7], [drone, 0, .9], [bow, 0, .4]), 1.6, { lift: 2 });
@@ -321,7 +324,7 @@ const header = Buffer.alloc(44); header.write('RIFF', 0); header.writeUInt32LE(3
 await fs.writeFile(wavPath, Buffer.concat([header, Buffer.from(pcm.buffer)]));
 const encode = (args, file) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-map_metadata', '-1', '-fflags', '+bitexact', '-flags', '+bitexact', ...args, path.join(dir, file)]);   // bit-exact: no encoder tags, timestamps or random stream serials, so two builds are byte-identical
 encode(['-c:a', 'aac_at', '-b:a', '128k', '-movflags', '+faststart'], 'sprite.m4a');   // Apple AudioToolbox AAC-LC; Safari decodes it and honours its gapless padding
-encode(['-c:a', 'libopus', '-b:a', '96k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');
+encode(['-c:a', 'libopus', '-b:a', '92k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 92k: the deeper content encodes 3 kB larger at 96k and crossed the 1 MB lane budget by 478 B
 // Codec check: decode each encode and compare with the source over the impact cues — waveform SNR (dense transients are the
 // hard case for both codecs) and the decoded peak, which must stay under full scale for integer decoders.
 const codec = {};

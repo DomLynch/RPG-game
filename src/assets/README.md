@@ -568,3 +568,24 @@ representation is kept; dimensions, decoded RGBA pixels, ICC/EXIF/colour metadat
 are independently checked. Source GLBs and their embedded maps remain untouched. The build needs
 `jpegtran` (`brew install jpeg-turbo` on macOS; `apt install libjpeg-turbo-progs` on Linux); CI installs it.
 `jpeg-js` is a development-only independent pixel judge, not a browser/runtime dependency.
+
+## Executioner reconstructed (TRELLIS.2) — 2026-09-20
+`executioner.glb` is now a fitted derivative of a TRELLIS.2 reconstruction, replacing the procedural
+v5 body (owner, 2026-09-20: "rebuild improve via trellis … grade elite level char … keep the old as a backup").
+The v5 rig is retained byte-for-byte at `source/backups/executioner-v5.glb` (SHA-256
+`d5b149d279ef9e91951ee91fca231354d73b3149fa8226a052a796fb2aedba3c`) and is the **weight/clip/weapon donor**
+for the rebuild: its 1.32× root, scythe `WeaponDrawn`, and all clips are inherited unchanged except
+`Death_QuietOne`, which `build-quiet-one.mjs` re-authors on the new body's own skin envelope.
+Source image: `docs/character-references/executioner-source-v1.png` — FLUX.1 Kontext [dev] edit of the
+owner-approved masked reference set (local, git-ignored) into a full-body A-pose, run through the signed-in
+official Hugging Face Space `black-forest-labs/FLUX.1-Kontext-Dev` (seed 190926, then a second pass removing a
+chest stain); prompt in `docs/character-references/PROMPTS.md`. Reconstruction: official Microsoft TRELLIS.2
+Space via `gradio_client` with the owner's signed-in PRO token, seed 190926, resolution 1024, 100000 export
+faces, 2048 textures. No separately billed GPU job. The TRELLIS software licence and inherited
+rig/weapon/animation licences above apply. FLUX.1 Kontext [dev] is distributed under Black Forest Labs'
+FLUX.1 [dev] Non-Commercial License — **owner to confirm that licence's terms on output use before commercial launch**.
+Raw source SHA-256: `56708c69f043e3ee22f9f058d488e45998396f3adcf5d3d9bf045a435c7ea1c5`.
+Fit recipe (`scripts/character/creatures.py`): donor arm 64°, reach 1.15, shift (0.02, −0.12, 0), 1.87 m,
+solved so the posed `WeaponDrawn` origin lands in the reconstruction's palm (0.011 m); finger weights are kept
+on the arms so the clips curl his fingers round the haft (grip gap 0.019 m in every scythe clip vs the v5 rig's
+0.003 m; 0.04–0.08 m without finger weights). Build: `node scripts/build-creatures.mjs executioner`.

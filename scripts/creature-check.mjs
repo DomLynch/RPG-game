@@ -36,13 +36,15 @@ async function geometryOnly({ doc, bin }) {
   return new GLTFLoader().parseAsync(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength), '');
 }
 const receipts = [];
-for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'veteran'], ['dwarf', 'source/creatures/dwarf-donor']].filter(([id]) => !ROSTER[id].hold).filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
+for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'veteran'], ['dwarf', 'source/creatures/dwarf-donor'], ['executioner', 'source/backups/executioner-v5']].filter(([id]) => !ROSTER[id].hold).filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
   const [raw, baseRaw, sourceRaw] = await Promise.all([`src/assets/${family}.glb`, `src/assets/${base}.glb`, `src/assets/source/creatures/${family}.glb`].map(p => fs.readFile(p)));
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
   const weaponKind = ROSTER[family].weapon;
   if (['maul', 'reaper'].includes(weaponKind)) assert.equal(doc.extras.creatureWeapon?.generator, digest(await fs.readFile('scripts/build-creature-weapons.mjs')), 'Stale creature weapon generator');
   assert.deepEqual(doc.extras.creatureSource, { family, stage: 'in-game-playtest', baseSha256: digest(baseRaw), generatorSha256: generator, sourceSha256: digest(sourceRaw) }, 'Stale creature: rebuild with build-creatures.mjs');
-  assert.deepEqual(doc.animations.slice(0, original.doc.animations.length).map(c => animation(output, c)), original.doc.animations.map(c => animation(original, c)), 'Combat clips changed');
+  // Death_QuietOne is authored per body on its own skin envelope (build-quiet-one.mjs), so it is the one clip not inherited verbatim.
+  const inherited = a => a.doc.animations.filter(c => c.name !== 'Death_QuietOne');
+  assert.deepEqual(inherited(output).slice(0, inherited(original).length).map(c => animation(output, c)), inherited(original).map(c => animation(original, c)), 'Combat clips changed');
   if (!doc.extras.creatureWeapon) assert.equal(doc.animations.length, original.doc.animations.length, 'No unauthored clips');
   for (const [i, before] of original.doc.nodes.entries()) {
     const after = structuredClone(doc.nodes[i]), expected = structuredClone(before);
@@ -68,17 +70,22 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
   assert(body?.isSkinnedMesh && body.userData.creature === family);
   const g = body.geometry, weights = g.attributes.skinWeight, joints = g.attributes.skinIndex;
   assert(g.index.count > 0 && g.index.count / 3 <= 45000, '45k surface ceiling');
-  const hand = body.skeleton.bones.findIndex(b => b.name === 'hand_r'), handVertices = new Set();
-  const support = body.skeleton.bones.findIndex(b => b.name === 'hand_l'), supportVertices = new Set();
+  // A hand is the hand joint and everything under it: a human-handed reconstruction keeps finger weights, so its palm and
+  // fingers follow the grip through the finger joints, not hand_r directly.
+  const under = name => { const root = body.skeleton.bones.find(b => b.name === name), ids = new Set(); root?.traverse(b => { const i = body.skeleton.bones.indexOf(b); if (i >= 0) ids.add(i); }); return ids; };
+  const hand = under('hand_r'), handVertices = new Set();
+  const support = under('hand_l'), supportVertices = new Set();
   for (let i = 0; i < weights.count; i++) {
-    let sum = 0;
+    let sum = 0, inHand = 0, inSupport = 0;
     for (let k = 0; k < 4; k++) {
       const w = weights.getComponent(i, k), j = joints.getComponent(i, k);
       assert(Number.isFinite(w) && w >= 0 && w <= 1 && Number.isInteger(j) && j < body.skeleton.bones.length);
-      if (j === hand && w > .5) handVertices.add(i);
-      if (j === support && w > .5) supportVertices.add(i);
+      if (hand.has(j)) inHand += w;
+      if (support.has(j)) inSupport += w;
       sum += w;
     }
+    if (inHand > .5) handVertices.add(i);
+    if (inSupport > .5) supportVertices.add(i);
     assert(Math.abs(sum - 1) < 1e-5, 'Unnormalised skin');
   }
   let triangles = 0;
@@ -93,7 +100,7 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
     mixer.stopAllAction(); const action = mixer.clipAction(clip).play(); action.time = clip.duration * fraction; mixer.update(0);
     asset.scene.updateMatrixWorld(true); body.skeleton.update();
     weapon.getWorldPosition(grip); let handGap = Infinity, supportGap = Infinity;
-    const supportGrip = body.skeleton.bones[support].getWorldPosition(new Vector3());
+    const supportGrip = body.skeleton.bones.find(b => b.name === 'hand_l').getWorldPosition(new Vector3());
     for (let i = 0; i < g.attributes.position.count; i++) {
       body.applyBoneTransform(i, point.fromBufferAttribute(g.attributes.position, i));
       assert(point.toArray().every(Number.isFinite), `${clip.name}: nonfinite posed vertex`);
@@ -104,7 +111,8 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
         if (supportVertices.has(i)) supportGap = Math.min(supportGap, world.distanceTo(supportGrip));
       }
     }
-    if (gripClips.has(clip.name)) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
+    if (gripClips.has(clip.name) && process.env.GRIP_DEBUG) console.log('gripgap', family, clip.name, fraction, handGap.toFixed(4));
+    if (gripClips.has(clip.name) && !process.env.GRIP_DEBUG) assert(handGap < .08, `${family} ${clip.name}: hand detached from weapon (${handGap}m)`);
     if (['skeleton', 'dwarf'].includes(family) && gripClips.has(clip.name)) assert(supportGap < .08, `${family} ${clip.name}: supporting hand detached (${supportGap}m)`);
     poses++;
   }
