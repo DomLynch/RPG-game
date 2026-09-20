@@ -18,6 +18,12 @@ unique, no `main.ts` change. The journal opens on Fighter, so a browser check th
 the queued blood/hit-stop changes. The record table is restyled in the light journal's ink (its first rules were for the dark
 sheet). Gate: node tests 333/333, build, audit, budget PASS. Not pushed until the lead calls the window (#218 ahead in the queue).
 
+## Dwarf finishers enabled (2026-09-20)
+Owner won two fights against the Dwarf and got plain deaths: the roster entry shipped with `finishers: []` (the rule for
+reconstructed bodies — only validated finishers, listed explicitly). The Dwarf rig already carries every finisher clip.
+Validated on him with the finisher harness (real kills, blood modes, rematch, camera): Split Crown, Decapitation, Run
+Through, Opened, plain death — now listed. The Quiet One (picker-only) failed its spray check on him and stays off.
+
 ## Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentation lane, 2026-09-20 (branch presentation/arena-props)
 Five authored props generated on the owner's Hugging Face Pro account (TRELLIS.2 from prompted reference images) and dieted in Blender
 (3–5k tris, 512–768² WebP, metallic-roughness → factors): a portcullis that replaces the procedural gate bars once loaded, a weapon rack
