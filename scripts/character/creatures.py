@@ -1,6 +1,7 @@
 """Weight the intact reconstructed A-pose, then bind to original combat joints."""
 
 import bpy
+import bmesh
 import math
 import sys
 import json
@@ -71,6 +72,39 @@ binds = {
 }
 (root / f"{family}-binds.json").write_text(json.dumps(binds))
 parts = [bpy.data.objects[n] for n in ["Skin", "Photo"] if n in bpy.data.objects]
+# The Veteran keeps his v1 KeenTools head: the Photo/Face/Eyes draws ride along in the pack (creature_pack KEEP_SLOTS), the
+# reconstruction is cut at the jaw line (its own soft face, wire hair and mis-sized skull go) and its neck, from the top of
+# the shoulders up, is drawn in 8 mm inside the scanned neck's outline row by row (full from 6 cm below the cut), so the
+# photographed skin covers the seam, the reconstruction's grey beard stub and its nape hair all round with no ledge: the
+# exposed part is a smooth taper from the reconstruction's shoulders to the scan's neck. The helm then fits by construction.
+NECK_CUT, NECK_TUCK, NECK_BAND, NECK_SECTORS, NECK_STEP = 1.585, 0.008, 0.125, 24, 0.005
+
+
+def neck_sector(x, y):
+    return int((math.atan2(y, x) + math.pi) / (2 * math.pi) * NECK_SECTORS) % NECK_SECTORS
+
+
+neck_outline = {}  # (sector, z bin) -> the v1 head/neck's outermost radius there
+if family == "veteran":
+    for x, y, z in (
+        obj.matrix_world @ v.co for name in ("Photo", "Face") for obj in [bpy.data.objects[name]] for v in obj.data.vertices
+    ):  # the scanned head with its neck stub, and the Studio neck/collar tiles that ship with it
+        if NECK_CUT - NECK_BAND - 0.02 <= z <= NECK_CUT + 0.03:
+            key = (neck_sector(x, y), round(z / NECK_STEP))
+            neck_outline[key] = max(neck_outline.get(key, 0.0), math.hypot(x, y))
+    # The scan's neck tiles thin out at the sides below the collar; fill a row's missing sectors round the circle from
+    # its nearest measured neighbours (rows with fewer than a quarter measured are left out and never tuck).
+    for zb in {zb for _, zb in neck_outline}:
+        have = {s: r for (s, z), r in neck_outline.items() if z == zb}
+        if len(have) < NECK_SECTORS // 4:
+            continue
+        for s in range(NECK_SECTORS):
+            if s in have:
+                continue
+            lo = next(d for d in range(1, NECK_SECTORS) if (s - d) % NECK_SECTORS in have)
+            hi = next(d for d in range(1, NECK_SECTORS) if (s + d) % NECK_SECTORS in have)
+            a, b = have[(s - lo) % NECK_SECTORS], have[(s + hi) % NECK_SECTORS]
+            neck_outline[(s, zb)] = a + (b - a) * lo / (lo + hi)
 for obj in parts:
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
@@ -95,6 +129,46 @@ bpy.ops.import_scene.gltf(
 )
 mesh = next(o for o in bpy.data.objects if o not in before and o.type == "MESH")
 mesh.name = "CreatureBody"
+
+
+def base_colour_image(obj):
+    for slot in obj.material_slots:
+        for node in slot.material.node_tree.nodes:
+            if node.type == "TEX_IMAGE" and any(l.to_socket.name == "Base Color" for l in node.outputs[0].links):
+                return node.image
+
+
+def skin_weight(px):
+    """0..1 per texel: how much it reads as bare skin (warm hue, moderate saturation), in the image's stored encoding."""
+    r, g, b = px[:, 0], px[:, 1], px[:, 2]
+    top, low = np.maximum(np.maximum(r, g), b), np.minimum(np.minimum(r, g), b)
+    sat = (top - low) / np.maximum(top, 1e-4)
+    ramp = lambda x, lo, hi: np.clip((x - lo) / (hi - lo), 0, 1)
+    return ramp(sat, 0.10, 0.16) * ramp(0.72 - sat, 0, 0.06) * ramp(r - g, 0.02, 0.05) * ramp(r - b, 0.06, 0.10) * ramp(g - b, 0.0, 0.02) * ramp(r, 0.2, 0.28)
+
+
+def match_skin(image, reference):
+    """The reconstruction bakes its skin darker and redder than the photographed head it now wears. Per-channel gains
+    on skin-weighted texels bring its mean skin to the donor neck tile's, so the collar seam is geometry, not colour."""
+    read = lambda img: np.array(img.pixels[:], dtype=np.float32).reshape(-1, 4)
+    ref = read(reference)
+    w_ref = skin_weight(ref)
+    target = (ref[:, :3] * w_ref[:, None]).sum(0) / w_ref.sum()
+    px = read(image)
+    w = skin_weight(px)
+    have = (px[:, :3] * w[:, None]).sum(0) / w.sum()
+    gain = np.clip(target / have, 0.8, 1.35)
+    px[:, :3] = np.clip(px[:, :3] * (1 + (gain - 1)[None, :] * w[:, None]), 0, 1)
+    image.pixels.foreach_set(px.reshape(-1))
+    # creature_pack.py ships the source WebP byte-for-byte; the matched map goes beside the surface for it to swap in.
+    image.file_format = "WEBP"
+    image.filepath_raw = str((root / f"{family}-basecolor.webp").resolve())
+    image.save(quality=92)
+    print("SKIN MATCH", image.name, "skin texels", int((w > 0.5).sum()), "have", have.round(3), "target", target.round(3), "gain", gain.round(3), flush=True)
+
+
+if family == "veteran":
+    match_skin(base_colour_image(mesh), base_colour_image(bpy.data.objects["Face"]))
 coords = [mesh.matrix_world @ v.co for v in mesh.data.vertices]
 lo = min(v.z for v in coords)
 hi = max(v.z for v in coords)
@@ -108,6 +182,29 @@ for v, p in zip(mesh.data.vertices, coords):
     )
 mesh.matrix_world.identity()
 mesh.data.update()
+if family == "veteran":
+    bm = bmesh.new()
+    bm.from_mesh(mesh.data)
+    bmesh.ops.bisect_plane(
+        bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, NECK_CUT), plane_no=(0, 0, 1), clear_outer=True
+    )
+    bm.to_mesh(mesh.data)
+    bm.free()
+    tucked = 0
+    for v in mesh.data.vertices:
+        x, y, z = v.co
+        if z > NECK_CUT - NECK_BAND:
+            s, zb = neck_sector(x, y), round(z / NECK_STEP)
+            # The nearest three 5 mm rows, innermost wins: on the beard's sloping underside the row above is wider.
+            outline = min([neck_outline[(s, zb + d)] for d in (-1, 0, 1) if (s, zb + d) in neck_outline] or [0.0])
+            r = math.hypot(x, y)
+            if outline and r > outline - NECK_TUCK:
+                t = min(1.0, (z - (NECK_CUT - NECK_BAND)) / (NECK_BAND - 0.06))
+                nr = r + (outline - NECK_TUCK - r) * t
+                v.co.x, v.co.y = x * nr / r, y * nr / r
+                tucked += 1
+    mesh.data.update()
+    print("NECK CUT", NECK_CUT, "top", round(max(v.co.z for v in mesh.data.vertices), 4), "tucked", tucked, flush=True)
 bpy.ops.object.select_all(action="DESELECT")
 mesh.select_set(True)
 bpy.context.view_layer.objects.active = mesh

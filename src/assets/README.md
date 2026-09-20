@@ -265,11 +265,16 @@ second pass removed a forearm tattoo, the FLUX corner stamp erased), reconstruct
 `creatures.py` with the v1 Veteran as his own weight donor (`src/assets/source/backups/veteran-v1.glb`, the Studio body
 with the KeenTools head — byte-identical to the last shipped v1; also the Skeleton's donor now). Recipe: arm angle 62°,
 height 1.82 m, human hands keep the donor's finger weights so the clips curl round the trident. `creature_pack.py` retains
-the fitted `Helmet` slot draw alongside the weapon (`KEEP_SLOTS`), so he still fights in the plain Chalcidian helm. 44,964
-surface triangles + trident + helm = 47.5k skinned; 2.79 MB gzip packed (v1 was 4.6). The generator hash change re-stamps
-the Dwarf and Executioner (rebuilt byte-identical but for that hash); the held creatures are untouched. The v1-specific
-release checks (`veteran-neck-check.mjs`, `veteran-polish-check.mjs`) now audit the v1 backup they were written for.
-Open: the owner's render review; the KeenTools head graft if the reconstruction's face reads soft in the close-ups.
+the fitted `Helmet`, `Face` and `Eyes` slot draws alongside the weapon (`KEEP_SLOTS`), so he fights in the plain Chalcidian
+helm with his v1 KeenTools head: the reconstruction's own head (soft face, wire hair, a skull the helm did not fit) is cut
+at the jaw line (1.585 m, `NECK_CUT`) and its top 7 cm tucked 8 mm inside the scanned neck's outline row by row, so the
+photographed skin covers the seam, the grey beard stub and the nape hair all round. The reconstruction bakes its skin
+darker and redder than the photograph; `match_skin` scales skin-weighted texels per channel to the donor neck tile's
+mean (gain ≈ 1.07/1.21/1.13 RGB) and writes `artifacts/character/creatures/veteran-basecolor.webp`, which the pack ships
+in place of the source map. ~45k surface triangles + head + trident + helm; the packed GLB is 9.0 MB (4.7 MB gzip; v1 was
+8.5 / 4.6). The generator hash change re-stamps the Dwarf and Executioner (rebuilt byte-identical but for that hash);
+the held creatures are untouched. The v1-specific release checks (`veteran-neck-check.mjs`, `veteran-polish-check.mjs`)
+now audit the v1 backup they were written for. Open: the owner's render review.
 
 ## Combat audio (audio lane, 2026-09-15; reconciled 2026-09-20)
 `src/assets/audio/sprite.m4a` (AAC-LC 128 kb/s, Apple AudioToolbox encoder via ffmpeg `aac_at`, for Safari) and `sprite.ogg`

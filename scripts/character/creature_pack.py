@@ -131,18 +131,25 @@ d["animations"] = [a for a in d.get("animations", []) if a["name"] != "Death_Qui
 new, nb = read(root / f"{family}-surface.glb")
 frozen = copy.deepcopy(d)
 original = bytes(b)
-# UVs are preserved by the fitter; retain the original WebP maps byte-for-byte.
+# UVs are preserved by the fitter; retain the original WebP maps byte-for-byte, except a base colour map the fitter
+# colour-matched to the donor's skin (creatures.py match_skin writes it beside the surface).
 source, sb = read(Path(f"src/assets/source/creatures/{family}.glb"))
 new["images"] = copy.deepcopy(source.get("images", []))
-for img in new["images"]:
+matched = root / f"{family}-basecolor.webp"
+base_texture = source["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"]["index"]
+base_image = next(
+    v["source"]
+    for v in [source["textures"][base_texture], *source["textures"][base_texture].get("extensions", {}).values()]
+    if "source" in v
+)
+for i, img in enumerate(new["images"]):
     view = source["bufferViews"][img["bufferView"]]
     at = view.get("byteOffset", 0)
+    data = matched.read_bytes() if i == base_image and matched.exists() else sb[at : at + view["byteLength"]]
     nb += b"\0" * (-len(nb) % 4)
     img["bufferView"] = len(new["bufferViews"])
-    new["bufferViews"].append(
-        {"buffer": 0, "byteOffset": len(nb), "byteLength": view["byteLength"]}
-    )
-    nb += sb[at : at + view["byteLength"]]
+    new["bufferViews"].append({"buffer": 0, "byteOffset": len(nb), "byteLength": len(data)})
+    nb += data
 for key in ["textures", "samplers", "materials"]:
     new[key] = copy.deepcopy(source.get(key, []))
 for key in ["extensionsUsed", "extensionsRequired"]:
@@ -211,7 +218,8 @@ for mesh in new["meshes"]:
             struct.pack_into("<" + fmt * 4, nb, at, *[remap[j] for j in values])
 # Hide inherited body art, retain every rigid weapon attachment and all bones/clips.
 # Fitted items that stay with the fighter across the rebuild (a rigid slot draw, its skin weights all on one bone).
-KEEP_SLOTS = {"veteran": {"Helmet"}}
+# The Veteran also keeps his v1 KeenTools head and neck (creatures.py cuts the reconstruction at the jaw line).
+KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}}
 weaponroots = [
     i
     for i, n in enumerate(d["nodes"])
