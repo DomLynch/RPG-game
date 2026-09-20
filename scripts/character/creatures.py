@@ -15,6 +15,7 @@ recipes = {
     "wraith": ("nightborn", 45, 0.97, (0, -0.20, -0.015), 1.88, 8),
     "werewolf": ("pitborn", 65, 1.10, (0.025, -0.08, -0.045), 1.85, 16),
     "skeleton": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.80, 0),
+    "dwarf": ("veteran", 60, 1.0, (0, -0.04, -0.025), 1.60, 8),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -155,7 +156,7 @@ for v in mesh.data.vertices:
     ) * max(0, min(1, (1.62 - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 if family in ("minotaur", "werewolf", "skeleton") else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 if family in ("minotaur", "werewolf", "skeleton", "dwarf") else 0.92)) / 0.10))
     if not rigid:
         arm_names = (
             "upperarm",

@@ -7,7 +7,7 @@ import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
 import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 
 test('every recipe resolves to its shipped rig, simulation weapon and offline build', () => {
-  assert.equal(ENCOUNTERS.length, 9);
+  assert.equal(ENCOUNTERS.length, 10);
   for (const { id } of ENCOUNTERS) {
     const recipe = ROSTER[id], opponent = OPPONENTS[id];
     assert.equal(opponent.id, id); assert.equal(opponent.weapon, recipe.weapon);
@@ -52,7 +52,7 @@ test('Opened is supported on Wraith and Minotaur without enabling other creature
 
 
 test('new creatures retain ordinary death for Auto and every manual finisher choice', () => {
-  for (const id of ['werewolf', 'skeleton'] as const) {
+  for (const id of ['werewolf', 'skeleton', 'dwarf'] as const) {
     const weapons = ['longsword', ROSTER[id].weapon] as const;
     for (let heading = 0; heading < 10; heading++) {
       const finish = { victim: 1 as const, location: 'torso' as const, move: 'light_right' as const, heading, draw: false };

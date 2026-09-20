@@ -1,5 +1,17 @@
 # Project state
 
+## Dwarf — character lane candidate, not approved, not released (2026-09-20)
+Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
+`black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft
+TRELLIS.2 Space by the new scripted runner `scripts/character/trellis2.py` (seed 190926, 1024, 100000 faces, 2048 textures;
+74 s on the owner's PRO quota; source SHA-256 `2213ef49…`). Fitted to the Veteran donor at 1.60 m with the existing
+`creatures.py` recipe seam: bind error 2.2e-6, 38 clips preserved, 190 finite poses, grip checks pass (`creature-check.mjs dwarf`).
+Roster recipe `dwarf` (veteran archetype, trident, plain death only) appended as the tenth encounter; ladder/roster/graphics
+pins updated; cloud-profile migration `202609200001_dwarf_encounter.sql` staged, NOT applied to the hosted project.
+Open decisions for lead/combat: a `dwarf` archetype (shorter reach, higher poise) and weapon instead of the Veteran's
+profile/trident; whether he belongs in the beta ladder at all (the freeze analysis says Phase 2). Budget impact recorded in
+`artifacts/character/dwarf/quality.log`. No browser gate, no publication, no owner approval of the concept yet.
+
 ## Wraith reaper scythe — weapons lane, in progress
 Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
 ## Werewolf and Skeleton — integrated locally, publication pending (2026-09-19)

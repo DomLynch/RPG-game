@@ -4,7 +4,7 @@ import { LADDER, opponentFor, won, nextAfter } from '../src/ladder.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 test('existing encounter order is preserved and Werewolf then Skeleton follow Wraith', () => {
-  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'minotaur', 'wraith', 'werewolf', 'skeleton']);
+  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'minotaur', 'wraith', 'werewolf', 'skeleton', 'dwarf']);
   assert.equal(nextAfter('veteran')?.id, 'pitborn'); assert.equal(nextAfter('veteran')?.name, 'the Pitborn');
   assert.equal(nextAfter('pitborn')?.id, 'goblin'); assert.equal(nextAfter('pitborn')?.name, 'the Goblin');
   assert.equal(nextAfter('goblin')?.id, 'nightborn'); assert.equal(nextAfter('goblin')?.name, 'the Nightborn');
@@ -13,7 +13,8 @@ test('existing encounter order is preserved and Werewolf then Skeleton follow Wr
   assert.equal(nextAfter('minotaur')?.id, 'wraith');
   assert.equal(nextAfter('wraith')?.id, 'werewolf');
   assert.equal(nextAfter('werewolf')?.id, 'skeleton');
-  assert.equal(nextAfter('skeleton'), undefined, 'the last rung offers no next opponent');
+  assert.equal(nextAfter('skeleton')?.id, 'dwarf');
+  assert.equal(nextAfter('dwarf'), undefined, 'the last rung offers no next opponent');
   for (const rung of LADDER) assert.ok(OPPONENTS[rung.id], `${rung.id} exists in the roster`);
 });
 
