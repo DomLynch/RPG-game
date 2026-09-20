@@ -11,10 +11,11 @@ import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
 import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { shoveFor } from './camera-kick.ts';
-import { bloodiesMaterial, createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
+import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
+import { createBladeBlood, createSplatPool, createWoundDecals } from './gore.ts';
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
@@ -219,25 +220,8 @@ export function createScene(
     scene.add(light);
     return light;
   });
-  const splats = Array.from({ length: 12 }, () => {
-    const splat = new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2),
-      new THREE.MeshBasicMaterial({
-        color: '#591415',
-        map: splatTexture,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    splat.rotation.x = -Math.PI / 2;
-    splat.visible = false;
-    scene.add(splat);
-    return { mesh: splat, life: 0, grow: 0 }; // grow: a kill pool spreads over ~2 s instead of appearing at once
-  });
+  const splats = createSplatPool(scene, splatTexture);
   let bloodMode: 'red' | 'dark' | 'off' = 'red',
-    splatIndex = 0,
     impactDuration = 0.18,
     impactHeading = 0,
     flesh = false,
@@ -254,79 +238,8 @@ export function createScene(
   let severHead: SeveredHead | null = null,
     killHeading = 0;
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
-  // Wound-site mark + drips (finishers & gore 2026-09-17): a small dark mark at the wound site with three drips below it,
-  // living the four-second wound window (the sim's wound refreshes without stacking — so does the mark: a fresh hit on the
-  // same fighter re-arms his decal). One pooled decal per fighter; hidden in 'off' like every blood effect.
-  const wounds = [0, 1].map((side) => {
-    const group = new THREE.Group();
-    group.name = `Wound_${side}`;
-    const mark = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.15, 0.2),
-      new THREE.MeshBasicMaterial({
-        color: '#4a1213',
-        map: splatTexture,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    const drips = [0, 1, 2].map((i) => {
-      const drip = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.014, 0.1),
-        new THREE.MeshBasicMaterial({
-          color: '#4a1213',
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-      );
-      drip.position.set((i - 1) * 0.045, -0.13, 0);
-      group.add(drip);
-      return drip;
-    });
-    group.add(mark);
-    group.visible = false;
-    scene.add(group);
-    return { group, mark, drips, life: 0, side: 0 as 0 | 1, site: 'torso' as 'head' | 'torso' | 'legs' };
-  });
-  // Blood on the blade (finishers & gore 2026-09-17): the killer's weapon tints after a kill and stays bloodied until the next
-  // fight. Materials are cloned before tinting so a shared GLB never bloodies both swords.
-  const bladeOriginals = new Map<THREE.Mesh, THREE.MeshStandardMaterial>();
-  let bloodiedBlade = false,
-    bloodiedSide: 0 | 1 = 0;
-  function setBladeBlood(on: boolean, side: 0 | 1 = bloodiedSide) {
-    bloodiedSide = side;
-    if (!warriors) return;
-    const anchors = on
-      ? [side === 0 ? warriors.player.anchor : warriors.opponent.anchor]
-      : [warriors.player.anchor, warriors.opponent.anchor];
-    for (const anchor of anchors) {
-      const twoHanded = anchor.getObjectByName('WeaponDrawn'),
-        node = twoHanded ?? anchor.getObjectByName('SwordDrawn');
-      node?.traverse((object) => {
-        if (!(object instanceof THREE.Mesh) || !(object.material instanceof THREE.MeshStandardMaterial))
-          return;
-        if (!bloodiesMaterial(object.material.name, !!twoHanded)) return; // the blade, never the haft
-        const original = bladeOriginals.get(object) ?? (object.material as THREE.MeshStandardMaterial);
-        if (on) {
-          if (!bladeOriginals.has(object)) {
-            bladeOriginals.set(object, object.material as THREE.MeshStandardMaterial);
-            object.material = object.material.clone();
-          }
-          (object.material as THREE.MeshStandardMaterial).color
-            .copy(original.color)
-            .lerp(new THREE.Color(bloodMode === 'dark' ? '#2a1516' : '#7a1410'), 0.55);
-        } else if (bladeOriginals.has(object)) {
-          object.material.dispose();
-          object.material = original;
-          bladeOriginals.delete(object);
-        }
-      });
-    }
-    bloodiedBlade = on;
-  }
+  const wounds = createWoundDecals(scene, splatTexture);
+  const blade = createBladeBlood();
   let heading = Math.PI;
   const rig = createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
@@ -384,20 +297,13 @@ export function createScene(
     setBloodMode(mode: 'red' | 'dark' | 'off') {
       bloodMode = mode;
       finisherBlood.group.visible = mode !== 'off' && bloodSources.length > 0;
-      for (const splat of splats) {
-        splat.life = 0;
-        splat.grow = 0;
-        splat.mesh.visible = false;
-      }
+      splats.clear(true);
       if (flesh) {
         impact = 0;
         sparks.visible = false;
       }
-      if (mode === 'off') setBladeBlood(false);
-      else if (bloodiedBlade) {
-        bloodiedBlade = false;
-        setBladeBlood(true);
-      }
+      if (mode === 'off') blade.set(false, warriors, mode);
+      else if (blade.bloodied) blade.set(true, warriors, mode);
     },
     // The ceremony the previous fight showed (main.ts hands it to the audio resolver so both sides pick alike).
     previousFinisher(): FinisherId | null {
@@ -490,12 +396,9 @@ export function createScene(
         finisherBlood.reset();
         bloodSources = [];
         impact = 0;
-        for (const splat of splats) {
-          splat.life = 0;
-          splat.grow = 0;
-        }
-        for (const wound of wounds) wound.life = 0;
-        setBladeBlood(false);
+        splats.clear(false);
+        wounds.clear();
+        blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
           severHead.group.traverse((o) => {
@@ -581,35 +484,16 @@ export function createScene(
             spine = warriors.opponent.boneWorld('spine_01');
           if (hip && spine) sparks.position.copy(hip.lerp(spine, 0.6));
         }
-        if (flesh && !(killed && detailedBlood)) {
-          const splat = splats[splatIndex++ % splats.length];
-          splat.life = 20;
-          splat.grow = 0;
-          splat.mesh.position.set(target.x, 0.022 + (splatIndex % 12) * 0.0001, target.z);
-          splat.mesh.scale.set(0.22 + (splatIndex % 3) * 0.05, 0.13 + (splatIndex % 4) * 0.035, 1);
-          splat.mesh.rotation.z = splatIndex * 2.4;
-          splat.mesh.material.color.set(bloodMode === 'dark' ? '#352426' : '#681a19');
-        }
-        if (flesh) {
-          const wound = wounds[enemyHurt ? 1 : 0];
-          wound.life = 4;
-          wound.side = enemyHurt ? 1 : 0;
-          wound.site = site;
-        } // the wound-site mark: refreshed, never stacked
+        if (flesh && !(killed && detailedBlood)) splats.splash(target, bloodMode);
+        if (flesh) wounds.arm(enemyHurt ? 1 : 0, site); // the wound-site mark: refreshed, never stacked
         if (killed && flesh && !detailedBlood) {
           // the corpse keeps pooling after the splashes fade (cleared on rematch like everything else)
-          const pool = splats[splatIndex++ % splats.length];
-          pool.life = 1e9;
-          pool.grow = 1e-6;
-          pool.mesh.position.set(target.x, 0.03, target.z);
-          pool.mesh.rotation.z = splatIndex * 2.4;
-          pool.mesh.scale.set(0.3, 0.2, 1);
-          pool.mesh.material.color.set(bloodMode === 'dark' ? '#352426' : '#681a19');
-          setBladeBlood(true, killed.actor as 0 | 1);
+          splats.pool(target, bloodMode);
+          blade.set(true, warriors, bloodMode, killed.actor as 0 | 1);
         }
         if (killed && flesh && detailedBlood) {
           impact = 0;
-          setBladeBlood(true, killed.actor as 0 | 1);
+          blade.set(true, warriors, bloodMode, killed.actor as 0 | 1);
         }
       }
       lastHealth = practice.health;
@@ -631,42 +515,8 @@ export function createScene(
         }
         sparkGeometry.attributes.position.needsUpdate = true;
       }
-      for (const splat of splats) {
-        splat.life = Math.max(0, splat.life - dt);
-        splat.mesh.visible = splat.life > 0;
-        if (splat.life > 1e8) {
-          splat.grow = Math.min(1, splat.grow + dt / 2.2);
-          splat.mesh.scale.set(0.3 + 0.7 * splat.grow, (0.2 + 0.55 * splat.grow) * 0.8, 1);
-          splat.mesh.material.opacity = 0.7 * splat.grow;
-        } // the kill pool spreads
-        else splat.mesh.material.opacity = Math.min(0.65, splat.life / 4);
-      }
-      for (const wound of wounds) {
-        // the wound-site mark rides the wounded fighter for his four-second window
-        if (wound.life > 0) {
-          wound.life = Math.max(0, wound.life - dt);
-          const body = wound.side === 1 ? practice.enemy : state;
-          wound.group.position.set(
-            body.x,
-            wound.site === 'head' ? 1.55 : wound.site === 'legs' ? 0.6 : 1.15,
-            body.z,
-          );
-          wound.group.rotation.set(0, body.heading, 0);
-          wound.mark.scale.set(1, 1, 1);
-          const fade = Math.min(1, wound.life),
-            seep = Math.min(1, (4 - wound.life) / 1.2); // drips run in the first ~1.2 s, the mark fades over the last
-          const tone = bloodMode === 'dark' ? '#241314' : '#4a1213';
-          wound.mark.material.color.set(tone);
-          wound.mark.material.opacity = 0.55 * fade;
-          wound.drips.forEach((drip, i) => {
-            drip.position.set((i - 1) * 0.045, -0.13, 0);
-            drip.material.color.set(tone);
-            drip.material.opacity = 0.5 * fade * seep;
-            drip.scale.set(1, 0.4 + 0.6 * seep, 1);
-          });
-          wound.group.visible = bloodMode !== 'off' && wound.life > 0;
-        } else wound.group.visible = false;
-      }
+      splats.update(dt);
+      wounds.update(dt, [state, practice.enemy], bloodMode);
       // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
       if (severHead) {
         severHead.group.visible = bloodMode !== 'off';
@@ -729,10 +579,10 @@ export function createScene(
         practice.result === 'enemyBlocked' ? (blockHeavy[1] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
       );
       // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
-      if (detailedBlood) wounds[1].group.visible = false;
+      if (detailedBlood) wounds.hide(1);
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
-        wounds[1].group.visible = false;
+        wounds.hide(1);
       }
       if (finisher === 'splitCrown' && practice.finish?.victim === 1)
         warriors?.opponent.splitCrown(victimProgress, bloodMode);
@@ -784,32 +634,8 @@ export function createScene(
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
-      if (quietFinish && warriors) {
-        // Reuse the pooled wound at the animated neck: a narrow cut, covered partly by the clutching hand.
-        const neck = warriors.opponent.boneWorld('neck_01')!,
-          head = warriors.opponent.boneWorld('Head')!;
-        const up = head.clone().sub(neck).normalize(),
-          forward = new THREE.Vector3(Math.sin(practice.enemy.heading), 0, Math.cos(practice.enemy.heading));
-        forward.addScaledVector(up, -forward.dot(up)).normalize();
-        const size = head.distanceTo(neck) / 0.075,
-          wound = wounds[1];
-        wound.life = 4;
-        wound.group.position.copy(neck).addScaledVector(forward, 0.075 * size);
-        wound.group.quaternion.setFromRotationMatrix(
-          new THREE.Matrix4().makeBasis(up.clone().cross(forward), up, forward),
-        );
-        wound.mark.scale.set(0.85 * size, 0.14 * size, 1);
-        wound.mark.material.opacity = 0.82;
-        const tone = bloodMode === 'dark' ? '#241314' : '#581017';
-        wound.mark.material.color.set(tone);
-        wound.drips.forEach((drip, i) => {
-          drip.position.set((i - 1) * 0.025 * size, -0.05 * size, 0);
-          drip.scale.set(0.55, 0.5 * size, 1);
-          drip.material.color.set(tone);
-          drip.material.opacity = 0.6 * Math.min(1, finishClock / 0.25);
-        });
-        wound.group.visible = bloodMode !== 'off';
-      }
+      if (quietFinish && warriors)
+        wounds.throatCut(warriors.opponent.boneWorld('neck_01')!, warriors.opponent.boneWorld('Head')!, practice.enemy.heading, finishClock, bloodMode);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
