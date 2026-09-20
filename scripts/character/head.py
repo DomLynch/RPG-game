@@ -1540,7 +1540,7 @@ FIGHTERS = {
                   'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.16, 'hair': 'full', 'scars': True, 'decimate': 0.26,  # decimate: the Veteran's — the budget goes to the sleeves, hose and boots
                   'skin_mul': (1.34, 1.42, 1.58), 'pallor': True, 'dark_eyes': True, 'red_eyes': True},  # skin_mul: the hero's olive scan paled and cooled to his brief's grey-white; red_eyes: the owner, 2026-09-17 — the brief's "no red eyes" yielded (a deep ember, no glow)
     'pitborn': {'kt_glb': 'artifacts/source/keentools/01a0ab5b-b143-7531-ad79-6de9bacbf0fa.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16
-                'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84)},  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
+                'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.38, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.74, 0.80, 0.84), 'photo_orm_1k': True},   # photo_orm_1k: the head's roughness ships at 1K (texture diet, 2026-09-20)  # shaved green scalp: stubble darker than skin; no helm, so the crown keeps its budget; skin_mul: v1 body came out tan [.479 .425 .315] beside a grey-green head — darker, less red
     'goblin': {'kt_glb': 'artifacts/source/keentools/01a0ab81-4cff-7871-bac7-adfa28d57d0b.glb',  # seven owner portraits (front, ±35, ±90, from below, from above), 2026-09-16 22:33
                'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.42, 'hair': 'buzz', 'scars': True, 'decimate': 0.28, 'skin_mul': (0.77, 0.77, 0.80), 'backdrop_cool': True, 'ear_fill': True},  # stubbled bald scalp (hair_lum .42: the photographed stubble is lum ~.32 — at .30 the fill took only its shadows and printed a dark band round a pale crown); no helm; skin_mul: v1 body rendered (178,154,125) beside a (143,115,97) cheek — tan and 25–30 % too bright for the grey-brown face; polish pass (09-20): R down, B up a little — the body still read warmer than the grey face at the collar; backdrop_cool: the grey backdrop smeared onto the crown
     # The Executioner (opponent 6): seven GPT portraits (front, ±35, ±90, from below ~25°, from above ~20°), 2026-09-17,
@@ -1953,7 +1953,10 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     maps['Photo']['normal'] = save_two_sizes_fn('kt_face_normal', normal, 'Non-Color')
     rough = 0.62 + 0.38 * fade  # the photographed skin's sheen, going fully matte where the collar meets the body's matte skin
     rough = np.maximum(rough, 0.86 * crown_w)  # hair is matte: no broad skin sheen across the synthesised crown
-    maps['Photo']['metallicRoughness'] = save_jpeg_fn('kt_face_orm', np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2), 'Non-Color')
+    orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], axis=2)
+    # A fighter may ship the head's roughness at 1K (FIGHTERS 'photo_orm_1k'): roughness carries no detail the phone resolves at 2K,
+    # and the 2K map alone is ~21 MB of GPU texture. Others keep the full-size bake (their shipped GLBs are untouched by this line).
+    maps['Photo']['metallicRoughness'] = save_two_sizes_fn('kt_face_orm', orm, 'Non-Color') if FIGHTERS[FIGHTER].get('photo_orm_1k') else save_jpeg_fn('kt_face_orm', orm, 'Non-Color')
     bpy.data.objects.remove(full, do_unlink=True)
     if kt not in (head, kt_eye_l, kt_eye_r, teeth) and kt.name in bpy.data.objects:  # the original object survives the split as one of the pieces
         bpy.data.objects.remove(kt, do_unlink=True)

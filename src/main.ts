@@ -16,7 +16,7 @@ import {
   type Action,
   type CombatEvent,
 } from './combat.ts';
-import { ROSTER, resolveFinisher } from './roster.ts';
+import { ENCOUNTERS, ROSTER, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -100,10 +100,11 @@ const opponent = opponentFor(
 // Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
 // URL override is dropped so the pick wins. Picking the Veteran is a reset.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
-for (const rung of LADDER) {
+for (const rung of ENCOUNTERS) {   // every recipe, held ones greyed: the journal shows what is built and what waits for after beta
   const option = document.createElement('option') as HTMLOptionElement;
   option.value = rung.id;
-  option.textContent = rung.name;
+  option.textContent = rung.hold ? `${rung.name} (on hold)` : rung.name;
+  option.disabled = rung.hold;
   opponentSelect.append(option);
 }
 opponentSelect.value = opponent.id;
