@@ -254,3 +254,36 @@ invisible on the sheets and at game distance: a contrast failure, not geometry).
   hole via minReach; the stance field is his spacing).
 - **Not measured**: his fairness battery, AI-vs-AI, and guard-feel (the haft guard at costScale 1.15 with a plain heavy breaking it is
   the trident's profile transplanted — his is a heavier weapon and may want heavyBreaks off).
+
+---
+
+# Phase 2 — Weapons v2: TRELLIS.2 polish of the existing weapons (parked 2026-09-20, owner's call under the beta freeze)
+
+Why: every weapon in the game (longsword, trident, cleaver, knife, estoc, scythe, maul, claws, reaper scythe) is still hand-built from
+flat primitives with no textures, beside photogrammetry heads and TRELLIS.2 creature bodies. A weapon is a rigid part under `hand_r`, so a
+better mesh swaps in without touching the sim, the clips, the contact segment or the reach — provided it is scaled to the same length and
+aligned to the node (Y along the blade, edge on +x). tests/weapons.test.ts already pins length, contact and edge-leading per weapon.
+
+What was verified (2026-09-20):
+- The official Space `microsoft/TRELLIS.2` exposes an API reachable from `~/.venvs/face` (gradio_client 2.7): `/preprocess_image` →
+  `/image_to_3d` (image, seed, resolution 512|1024|1536, guidance/steps) → `/extract_glb` (decimation_target, texture_size) → GLB. The repo's
+  `scripts/character/hunyuan.py` is the client recipe to adapt (retry on ZeroGPU quota, provenance JSON, saves under artifacts/source/).
+- Space invocation through the Hugging Face MCP connector is disabled (`gradio=none`); the CLI is not logged in (`hf auth whoami`: not logged
+  in), and the creature records say anonymous quota fails at the extraction step → the script needs `hf auth login` (PRO quota) or the
+  Space's web UI in a signed-in browser (how the creatures were exported: seed 190926, 1024, 100k faces, 2048 textures, per README).
+- Blender 5.2.1 with the Blender Lab MCP add-on is installed and autostarts its server (port 9876): decimation, texture downsizing and
+  alignment can be done interactively with viewport renders, or headless as scripts/character/creatures.py does (Decimate ratio, export
+  with original images). The Werewolf/Skeleton PR's `scripts/optimize-glb.mjs` (meshoptimizer + lossless JPEG) is the production packer.
+
+Recipe when it starts:
+1. Inputs the owner supplies: one concept image per weapon in the materials rule (bronze, iron, bone, leather, worn not polished), made
+   the way the creature sheets were (docs/character-references/PROMPTS.md), and `hf auth login`.
+2. `scripts/weapon-recon.py` (from hunyuan.py): image → Space → raw GLB + provenance (seed, params, SHA-256) in `artifacts/source/weapons/`.
+3. Blender step: decimate to ≤ 4k tris, textures to 1K WebP/JPEG, orient Y along the blade with the grip at the origin, scale so the tip sits at
+   the current contact `to`, edge on +x (verify with artifacts/weapons/tools/edge-check.mjs), export the part.
+4. `build-weapon.mjs`: a `sourced` part type that loads that GLB under `WeaponDrawn` with the existing `extras.contact`; rebuild the fighter
+   with `WARRIOR_WEAPON=<id>`; bake unchanged if the length matches (the tests say so); harness `--weapons` A/B against today's sheets.
+5. Scope: ALL weapons (owner, 2026-09-20) — longsword, trident, cleaver, knife, estoc, scythe, maul, claws, reaper scythe. Order: trident and
+   cleaver first (most visible), then estoc, knife, scythe, maul, claws, reaper scythe, longsword last (the player's, seen closest). Budget:
+   per-fight 8.25 / 12 MB today; a 1K-textured weapon is ~200–400 KB.
+Not started; nothing on trunk changes until the owner reopens the weapons lane after beta.
