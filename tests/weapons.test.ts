@@ -551,3 +551,26 @@ test('the scythe\'s data is the brief\'s: slower tells than the sword\'s, the ja
   assert.deepEqual([SCYTHE_MOVES.light_right.reach, SCYTHE_MOVES.heavy_overhead.reach, SCYTHE_MOVES.thrust.reach], [2.1, 2.3, 2.1]);
   assert.equal(SCYTHE.reach, SCYTHE_MOVES.thrust.reach);
 });
+
+// Phase 2 polish (2026-09-20): a reconstructed part (TRELLIS.2 → scripts/weapon-fit.py) ships in place of the primitives, on the
+// same contract. The procedural part stays as the revert variant, so the two must agree on the striking segment.
+test('every reconstructed part loads on the contract — one WeaponDrawn node, the procedural part\'s exact contact segment, its own colour and metal/rough maps under Weapon<Id>, a baked handle under Weapon<Id>Shaft, inside the phone budget — and the procedural variant still builds', async () => {
+  const { WEAPON_BUILDS } = await import('../scripts/build-weapon.mjs');
+  const budget: Record<string, number> = { trident: 4000, cleaver: 4000, knife: 2500, estoc: 2000, scythe: 4500, longsword: 3000 };
+  const reconstructed = Object.entries(WEAPON_BUILDS).filter(([, b]) => (b.part as { reconstructed?: string }).reconstructed);
+  assert.ok(reconstructed.length >= 2, 'the trident and the cleaver are reconstructed');
+  for (const [id, build] of reconstructed) {
+    const part = await build.part({}) as { name: string; userData: { contact: { from: number; to: number }; variant: string }; maps: Record<string, { baseColor?: object; metallicRoughness?: object }>; traverse: (fn: (o: object) => void) => void };
+    assert.equal(part.name, 'WeaponDrawn', id); assert.equal(part.userData.variant, 'trellis', id);
+    const fit = JSON.parse(readFileSync(`src/assets/source/weapons/${id}.fit.json`, 'utf8'));
+    assert.deepEqual([part.userData.contact.from, part.userData.contact.to], fit.contact, `${id}: the fitted contact segment is the shipped one`);
+    const capital = id[0].toUpperCase() + id.slice(1);
+    assert.ok(part.maps[`Weapon${capital}`]?.baseColor && part.maps[`Weapon${capital}`]?.metallicRoughness, `${id}: the head carries its own colour and metal/rough maps`);
+    assert.ok(part.maps[`Weapon${capital}Shaft`]?.baseColor, `${id}: the handle carries its baked colour map`);
+    let triangles = 0; part.traverse(o => { const m = o as { isMesh?: boolean; geometry?: { index: { count: number } | null; attributes: { position: { count: number } } } }; if (m.isMesh && m.geometry) triangles += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
+    assert.ok(triangles > 1000 && triangles <= budget[id], `${id}: ${triangles} triangles within ${budget[id]}`);
+    const procedural = (build.part as { procedural: ((o: object) => { userData: { contact: { from: number; to: number } } }) | null }).procedural;
+    if (procedural) assert.deepEqual(procedural({ variant: undefined }).userData.contact, { from: part.userData.contact.from, to: part.userData.contact.to }, `${id}: the revert variant strikes with the same segment`);
+    else assert.equal(id, 'longsword', 'only the hero\'s sword keeps its primitives in build-warrior.mjs (WEAPON_VARIANT=procedural)');
+  }
+});

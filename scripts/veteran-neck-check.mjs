@@ -61,8 +61,14 @@ for(const name of ['Photo','Face']) {
 assert.ok(fitVeteranNeck(raw).glb.equals(raw),'Idempotent geometry finish');
 assert.ok(textureVeteranTrident(raw).equals(raw),'Idempotent weapon finish');
 const metal=asset.doc.materials.find(m=>m.name==='TridentBronze'),bronze=asset.doc.materials.find(m=>m.name==='Bronze');
-assert.deepEqual(metal.pbrMetallicRoughness,bronze.pbrMetallicRoughness,'Weapon shares approved worn bronze maps');
-assert.equal(metal.normalTexture.index,bronze.normalTexture.index);assert.equal(metal.normalTexture.scale,.35);
+if(metal){ // the procedural trident (WEAPON_VARIANT=short|A|B|C) borrows the helm's maps
+  assert.deepEqual(metal.pbrMetallicRoughness,bronze.pbrMetallicRoughness,'Weapon shares approved worn bronze maps');
+  assert.equal(metal.normalTexture.index,bronze.normalTexture.index);assert.equal(metal.normalTexture.scale,.35);
+}else{ // the reconstructed trident (weapons lane Phase 2, scripts/weapon-fit.py) carries its own colour and metal/rough maps
+  const head=asset.doc.materials.find(m=>m.name==='WeaponTrident'),shaft=asset.doc.materials.find(m=>m.name==='WeaponTridentShaft');
+  assert.ok(head?.pbrMetallicRoughness.baseColorTexture&&head.pbrMetallicRoughness.metallicRoughnessTexture,'Reconstructed head has its own colour and metal/rough maps');
+  assert.ok(shaft?.pbrMetallicRoughness.baseColorTexture&&shaft.pbrMetallicRoughness.metallicFactor===0,'Reconstructed shaft has its baked colour map and no metal');
+}
 const rig=await geometryOnly(asset),head=rig.scene.getObjectByName('Photo'),face=rig.scene.getObjectByName('Face');
 const p=head.geometry.attributes.position,q=face.geometry.attributes.position;
 const key=i=>[p.getX(i),p.getY(i),p.getZ(i)].map(v=>v.toFixed(6)).join(','),edges=new Map(),ix=head.geometry.index.array;
