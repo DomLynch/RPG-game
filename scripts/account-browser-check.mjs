@@ -3,11 +3,17 @@ import { chromium } from 'playwright';
 import { build, preview } from 'vite';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';
 await build({ logLevel: 'error', build: { outDir }, define: { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(api), 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify('sb_publishable_test_only') } });
 console.log(execFileSync(process.execPath, ['scripts/check-budget.mjs', outDir], { encoding: 'utf8' }));
-const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0 } });
+// The preview serves the hosted CSP (vite.config.mjs); its connect-src names the live Supabase project, so this build's QA host
+// takes that origin's place and every other directive stays exactly as deployed.
+const hostedCsp = readFileSync('deploy/frankendom.com.conf', 'utf8').match(/Content-Security-Policy "([^"]+)"/)[1];
+const csp = hostedCsp.replace(/https:\/\/[a-z0-9-]+\.supabase\.co/, api);
+assert.notEqual(csp, hostedCsp, 'hosted CSP must name a Supabase origin for the QA host to replace');
+const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', port: 0, headers: { 'Content-Security-Policy': csp } } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 let inspectedPage;
