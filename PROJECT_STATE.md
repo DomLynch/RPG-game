@@ -1,5 +1,17 @@
 # Project state
 
+## Release check 9 (polearm-browser-check) became checks 9–12; everything after renumbered +3 — 2026-09-21
+Lead's deploy-speed ask: check 9 failed on ubuntu-latest on wall-clock waits. `scripts/polearm-browser-check.mjs` now boots on real
+time and then owns page time through `scripts/lib/harness-clock.mjs` (walk-in, orbit settle, fight frames and both predicates advance
+by `run()`/`until()`); no assertion dropped; needs the frame-clock resync (#265) or the sim froze under `page.clock`. Runner receipts:
+1704 s serial (run 35537212537, cancelled by the 30-min job cap during upload), 1595 s with the two opponents side by side (run
+35542553950; receipt wallMs desktop 1099/1144 s for 397/398 frames, phone 403/448 s for 315 — the GPU process serialises pages, so
+parallelism was removed again). A view is 315–400 fixed-step frames at ~1.2–1.4 s each on software GL; 945 of the 1,424 frames sit
+between "Draw sword" and the warden's first polearm clip (game behaviour, not the harness). So `.quality-gate.json` lists the check
+once per view — `--opponents executioner|veteran --screens desktop|phone`, checks 9–12 — and every later release check index moved
++3 (deploy notes, runner-v2 duration ordering and `ci-trusted-checks.mjs` are index-keyed; trust is per exact sha, so it self-heals).
+A narrowed run writes `receipt-<opponent>-<screen>.json`; the receipt carries `deviceScaleFactor`, `wallMs` and per-frame `pageMs`
+(CI renders receipts at DPR 1, `HARNESS_DPR` overrides; pixels were not the cost). PR #267.
 ## Opened side view fits the landed pieces (2026-09-21)
 Release check 17 (`finisher-preview --only opened --opponent executioner`) failed on trunk after #262 (directional guard):
 the harness duel now kills at heading 0.99 instead of 1.86 and the 1.36× body's leg half slid under the portrait margin
