@@ -10,7 +10,10 @@ import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 export type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null; balance?: { combat: number; finish: number } };   // balance: evidence renders of the mix stage at other levels
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
-const COMBAT_LEVEL = .5, FINISH_LEVEL = 1.5; // owner phone mix: half ordinary FX, +50% for the fatal sequence
+// Owner phone mix (2026-09-19): half ordinary FX, +50 % for the fatal sequence. Owner 2026-09-20, phone at 20 % volume still loud:
+// everything but the bell another −30 %, so the bell (arena.ts, exempt) leads by contrast and the handset volume slider gets headroom.
+const MIX = .7;
+export const COMBAT_LEVEL = .5 * MIX, FINISH_LEVEL = 1.5 * MIX;
 
 // Combat Foley: the simulation's events pick cues from one decoded sprite (src/audio/manifest.ts, built by
 // scripts/build-audio.mjs); seeded variant rotation and ±5 % pitch keep two hits from ever sounding identical. Voices feed a

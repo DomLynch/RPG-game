@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
 import { cuesFor } from '../src/audio/cues.ts';
+import { COMBAT_LEVEL, FINISH_LEVEL } from '../src/feedback.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 4, PROBE_AT = .05, PROBE_LENGTH = 1.2;
@@ -197,14 +198,16 @@ if (checks && !fallback && seed === 731) {
     const before = { lufsIntegrated: measure(flat[name], PROBE_AT).lufsIntegrated, tailRmsDbfs: crowdTail(probe) ? tailRms(flat[name]) : undefined };
     const delta = loudness[name].lufsIntegrated - before.lufsIntegrated;
     if (!probe.events.some(e => e.type === 'Killed')) {
-      assert.ok(Math.abs(delta - 20 * Math.log10(.5)) < .15, `${name}: ordinary level changed ${delta} dB, expected half gain`);
+      assert.ok(Math.abs(delta - 20 * Math.log10(COMBAT_LEVEL)) < .15, `${name}: ordinary level changed ${delta} dB, expected ${(20 * Math.log10(COMBAT_LEVEL)).toFixed(2)} (COMBAT_LEVEL)`);
       checks.phoneMix.ordinary++;
     } else {
-      assert.ok(delta >= 2.7 - .05 && delta <= 3.7 + .05, `${name}: boosted fatal loudness changed ${delta} dB (peak protection may reduce the boost)`);   // ± .05: measure() rounds LUFS to .1, so a delta is quantised to that
+      // FINISH_LEVEL nominal, −.82 … +.18 as when the pin was set (the output guard may take some of the boost); ± .05 for the .1 LUFS rounding.
+      const boost = 20 * Math.log10(FINISH_LEVEL);
+      assert.ok(delta >= boost - .87 && delta <= boost + .23, `${name}: boosted fatal loudness changed ${delta} dB, expected about ${boost.toFixed(2)} (FINISH_LEVEL)`);
       checks.phoneMix.fatal++;
     }
     if (before.tailRmsDbfs !== undefined) {
-      assert.ok(Math.abs(tailRms(rendered[name]) - before.tailRmsDbfs - 20 * Math.log10(1.5)) < .15, `${name}: crowd tail must increase 50%`);
+      assert.ok(Math.abs(tailRms(rendered[name]) - before.tailRmsDbfs - 20 * Math.log10(FINISH_LEVEL)) < .15, `${name}: crowd tail must follow FINISH_LEVEL`);
       checks.phoneMix.crowd++;
     }
   }
