@@ -5,6 +5,7 @@
 // The game is untouched. Real-time responsiveness is the physical-phone acceptance's job, not this gate's.
 export async function harnessClock(page) {
   await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 1);   // installed clocks keep pace with real time until paused; from here only run()/until() move it
   const run = ms => page.clock.runFor(ms);
   // Advance whole frames until the page predicate holds. `ms` is a budget in page time, never wall time.
   const until = async (predicate, ms = 5000, arg) => {
