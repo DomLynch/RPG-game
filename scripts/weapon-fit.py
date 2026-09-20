@@ -28,7 +28,8 @@ SOURCE = Path("src/assets/source/weapons")
 TEX_U, TEX_V = 256, 1024  # the baked strip: around × along
 
 # Each recipe: the shipped contact segment, where the head starts on the contract (`head_at`), how to find it on the
-# reconstruction (`head`: 'wide' = the first point clearly outside the shaft; 'flat' = where the section turns blade-thin), which
+# reconstruction (`head`: 'wide' = the first point clearly outside the shaft; 'flat' = where the section turns blade-thin; 'guard' = the
+# cross-guard's underside, the widest band in the lower half), which
 # end is up (`up`: wide | flat | narrow), the
 # handle's layout on the contract, and the phone budget. `edge`: 'bend' turns the part so its hook faces +x (the sword family's
 # edge side); the fork needs nothing.
@@ -44,12 +45,12 @@ RECIPES = {
     "knife": dict(contact=(0.12, 0.52), head_at=0.09, head="flat", up="flat", edge="bend", butt=-0.11, grips=[], grip_r=0.017, weld=True, cut=0.014, shaft_rgb=(0.07, 0.036, 0.015), tris=3200, texture=512),  # cut above the picture's hollow collar; its grip's back baked black
     # The Nightborn's estoc (A): the point 0.75–1.15 m, the cross under the blade at 0.088, wire grip −0.11–0.088, wheel pommel.
     # The hero's longsword (build-warrior.mjs sword()): the blade 0.18–0.86 m, the cross under it at 0.081, leather grip, wheel pommel.
-    "longsword": dict(contact=(0.18, 0.86), head_at=0.081, head="wide", up="narrow", butt=-0.105, grips=[], tris=3000, texture=512),
-    "estoc": dict(contact=(0.75, 1.15), head_at=0.088, head="wide", up="narrow", butt=-0.13, grips=[], tris=2000, texture=512),  # the brief: ≤ 2k tris (tests)
+    "longsword": dict(contact=(0.18, 0.86), head_at=0.081, head="guard", up="narrow", butt=-0.105, grips=[], grip_r=0.015, weld=True, tris=3000, texture=512),
+    "estoc": dict(contact=(0.75, 1.15), head_at=0.088, head="guard", up="narrow", butt=-0.13, grips=[], grip_r=0.013, weld=True, tris=2000, texture=512),  # the brief: ≤ 2k tris (tests)
     # The Executioner's scythe (owner's pick B): head at 1.32 m (contact 1.22–1.32), butt −0.40, grips under both hands, the blade
     # out along +x in the HORIZONTAL plane sweeping toward game +z (Blender −y). The picture shows a moon in the pole's plane on
     # both sides: the fit keeps the bigger blade, cuts the other off and lays the blade flat; the pole is fitted butt-to-socket.
-    "scythe": dict(contact=(1.22, 1.32), head_at=1.31, head="wide", up="wide", fit=("bottom", "head"), butt=-0.40, grips=[(-0.11, 0.11), (0.39, 0.61)],
+    "scythe": dict(contact=(1.22, 1.32), head_at=1.33, head="wide-top", up="wide", fit=("bottom", "head"), butt=-0.40, grips=[(-0.11, 0.11), (0.39, 0.61)],
                    socket=0.13, blade="flat", shaft_rgb=(0.36, 0.22, 0.13), tris=4500, texture=512),
 }
 recipe = RECIPES[weapon]
@@ -127,12 +128,27 @@ if recipe.get("edge") == "bend":  # the tip's side of the axis is the edge's sid
         apply_transform()
         P = coords()
 
+# The handle onto the axis: the principal frame is centred on the bounding box, so a heavy head (a moon to one side) leaves the
+# pole beside the Z axis and every radius below reads wrong. Centre the lower third's mean on x = y = 0.
+lower_pts = [p for p in P if p.z < z_bottom + 0.33 * (z_tip - z_bottom)]
+cx, cy = sum(p.x for p in lower_pts) / len(lower_pts), sum(p.y for p in lower_pts) / len(lower_pts)
+me.transform(Matrix.Translation((-cx, -cy, 0)))
+me.update()
+P = coords()
+
 # 2. Landmarks from the profile, then one uniform scale and shift: the head's start and the tip land on the contract.
 # The handle's radius: the narrowest 1 cm band in the lower third (a pommel or a guard in that span must not fatten the grip).
 lower = [z_bottom + i * 0.01 for i in range(int(0.33 * (z_tip - z_bottom) / 0.01))]
-shaft_r = min(r for r in (max((math.hypot(p.x, p.y) for p in P if z <= p.z < z + 0.01), default=0) for z in lower) if r > 0)
+radii = sorted(r for r in (max((math.hypot(p.x, p.y) for p in P if z <= p.z < z + 0.01), default=0) for z in lower) if r > 0)
+shaft_r = radii[len(radii) // 2]  # the median band: a pommel's tang or a flared cap must not set the grip
 if recipe["head"] == "wide":
     z_head = min(p.z for p in P if abs(p.x) > 4 * shaft_r)
+elif recipe["head"] == "wide-top":  # a mounted moon hangs from its root: the highest point outside the shaft is where it leaves the socket
+    z_head = max(p.z for p in P if abs(p.x) > 4 * shaft_r)
+elif recipe["head"] == "guard":  # a cross-guarded sword: the widest band in the lower half is the cross; its underside is the head
+    widths = [(z, extent([p for p in P if z <= p.z < z + 0.01] or [Vector((0, 0, 0))], 0)) for z in [z_bottom + i * 0.01 for i in range(int(0.5 * (z_tip - z_bottom) / 0.01))]]
+    z_max, w_max = max(widths, key=lambda zw: zw[1])
+    z_head = min(z for z, w in widths if z <= z_max and all(w2 > 0.6 * w_max for z2, w2 in widths if z <= z2 <= z_max))
 else:  # 'flat': the lowest 1 cm slice whose section is more than twice as wide as thick
     slices = [(z, [p for p in P if z <= p.z < z + 0.01]) for z in [z_bottom + i * 0.01 for i in range(int((z_tip - z_bottom) / 0.01))]]
     z_head = next(z for z, S in slices if S and extent(S, 0) > 2.5 * extent(S, 1) and extent(S, 0) > 1.5 * shaft_r)  # a blade is thin; a knife's need not be much wider than its grip
@@ -169,7 +185,7 @@ ferrule = (recipe["head_at"] - 0.035, recipe["head_at"] - 0.005)
 def runs(ok):  # maximal runs of consecutive bands satisfying ok, as (lo, hi) in z, longest first
     out, start = [], None
     for z, r in bands + [(None, None)]:
-        if z is not None and ok(z, r) and z < ferrule[0] - 0.01:
+        if z is not None and ok(z, r) and z_bottom + 0.06 <= z < ferrule[0] - 0.01:  # not the butt cap, not the ferrule
             start = z if start is None else start
         elif start is not None:
             out.append((start, z if z is not None else bands[-1][0] + 0.01))
@@ -180,7 +196,8 @@ def runs(ok):  # maximal runs of consecutive bands satisfying ok, as (lo, hi) in
 wraps = runs(lambda z, r: 1.25 * shaft_r < r < 2.2 * shaft_r) if recipe["grips"] else []
 wrap = bool(wraps)
 wrap_lo, wrap_hi = wraps[0] if wrap else (None, None)  # the longest wrap on the picture is the one every grip copies
-wrap_r = max(r for z_, r in bands if wrap_lo <= z_ < wrap_hi) if wrap else shaft_r
+wrap_r = max(r for z_, r in bands if wrap_lo <= z_ < wrap_hi) if wrap else shaft_r * 1.35
+authored_wrap = bool(recipe["grips"]) and not wrap  # the picture shows no wrap: the grips get authored leather rows (below)
 if recipe.get("socket"):
     z_cut = recipe["head_at"] - recipe["socket"]  # a mounted blade: the lathe runs up to the socket
 elif wrap:
@@ -190,12 +207,18 @@ else:
 r_cut, z_top = min(radius_at(z_cut), shaft_r * 1.4), z_cut + 0.022  # the ring under the head: at most a ferrule's flare over the grip
 bares = runs(lambda z, r: r <= 1.25 * shaft_r) or [(z_bottom, z_cut)]
 bare_rows = (bares[0][0] + 0.012, min(bares[0][1], z_cut) - 0.012)  # the reconstruction's longest bare handle rows
+assert bare_rows[1] - bare_rows[0] > 0.02 and z_cut > z_bottom, f"{weapon}: no usable handle rows ({bare_rows}, cut {z_cut:.3f}, bottom {z_bottom:.3f}) — landmark wrong?"
 print(f"[weapon-fit] handle: bare rows {bare_rows[0]:.3f}–{bare_rows[1]:.3f}" + (f", wrap {wrap_lo:.3f}–{wrap_hi:.3f} (r {wrap_r:.4f})" if wrap else "") + f", head from {z_cut:.3f}")
-assert recipe["grips"] == [] or wrap, f"{weapon}: the recipe wants wraps but none was found on the reconstruction ({bands[:6]}…)"
+if authored_wrap:  # virtual wrap rows above the picture's extent: the strip runs on past z_top and those rows are painted, not baked
+    wrap_lo, wrap_hi = z_top + 0.03, z_top + 0.25
+    wrap = True
 
 
-def v_of(z):  # the baked strip's V along the reconstruction's handle
-    return (z - z_bottom) / (z_top - z_bottom)
+strip_top = wrap_hi + 0.02 if authored_wrap else z_top
+
+
+def v_of(z):  # the strip's V along the handle (the baked extent, then any authored wrap rows)
+    return (z - z_bottom) / (strip_top - z_bottom)
 
 
 def lathe(name, rings, material, segments=16):
@@ -295,8 +318,7 @@ if recipe.get("blade") == "flat":  # the scythe: cut the second moon off, lay th
             src = next((lp for lp in loop.vert.link_loops if lp.face is not f), None)
             if src:
                 loop[uv].uv = src[uv].uv
-    root = [v for v in bm.verts if r_sock <= v.co.x < r_sock + 0.03]
-    H = sum(v.co.z for v in root) / len(root)  # the blade's centreline height where it leaves the socket
+    H = c1 - 0.02  # the blade's plane: the head's contact end (the procedural blade sits at the socket's top; the moon's root above it becomes a short heel)
     lay = Matrix.Translation((0, 0, H)) @ Matrix.Rotation(-math.pi / 2, 4, "X") @ Matrix.Translation((0, 0, -H))
     for v in bm.verts:
         if math.hypot(v.co.x, v.co.y) > r_sock and v.co.z > z_cut:
@@ -352,6 +374,17 @@ if recipe.get("shaft_rgb"):
     if wrap:
         rows[int(v_of(wrap_hi + 0.012) * TEX_V):int(v_of(z_cut) * TEX_V)] = True
     px[rows, :, :3] = np.clip(tone[rows], 0, 1)
+    baked.pixels.foreach_set(px.ravel())
+    baked.pack()
+if authored_wrap:  # leather turns: a dark hide tone with a ridge every 1.2 cm along the wrap, seamless around it
+    rows = np.zeros(TEX_V, dtype=bool)
+    rows[int(v_of(wrap_lo - 0.012) * TEX_V):int(v_of(wrap_hi + 0.012) * TEX_V)] = True
+    v = np.linspace(0, 1, TEX_V, endpoint=False)[:, None] * (strip_top - z_bottom)
+    ridge = 0.5 + 0.5 * np.cos(2 * np.pi * v / 0.012)
+    rng = np.random.default_rng(7)
+    scuff = 1 + 0.08 * rng.standard_normal((TEX_V, TEX_U)).astype(np.float32)
+    leather = np.array((0.075, 0.048, 0.033), dtype=np.float32)[None, None, :] * (0.72 + 0.34 * ridge)[:, :, None] * scuff[:, :, None]
+    px[rows, :, :3] = np.clip(leather[rows], 0, 1)
     baked.pixels.foreach_set(px.ravel())
     baked.pack()
 bare_mean = px[int(v_of(bare_rows[0]) * TEX_V):int(v_of(bare_rows[1]) * TEX_V), :, :3].mean(axis=(0, 1))

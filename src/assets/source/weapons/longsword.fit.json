@@ -1,0 +1,21 @@
+{
+ "weapon": "longsword",
+ "source": "src/assets/source/weapons/longsword.glb",
+ "part": "src/assets/source/weapons/longsword.part.glb",
+ "source_tris": 99356,
+ "part_tris": 2991,
+ "scale": 1.14409,
+ "extent_y": [
+  -0.105,
+  0.8602
+ ],
+ "width_x": 0.3373,
+ "thickness_z": 0.09,
+ "head_from": 0.076,
+ "contact": [
+  0.18,
+  0.86
+ ],
+ "texture": 512,
+ "bytes": 228344
+}

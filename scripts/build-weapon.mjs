@@ -611,8 +611,8 @@ export function sourced(id, procedural) {
 export const WEAPON_BUILDS = {
   trident: { part: sourced('trident', trident), clips: tridentClips, keys: {} },   // reconstructed part by default; WEAPON_VARIANT=short|A|B|C → the primitives
   cleaver: { part: sourced('cleaver', cleaver), clips: null, keys: CLEAVER_KEYS },   // reconstructed by default; WEAPON_VARIANT=A|B|C → the primitives
-  knife: { part: knife, clips: null, keys: CLEAVER_KEYS },   // the same diagonal Heavy: a knife's overhead is a hack too, edge-leading
-  estoc: { part: estoc, clips: null, keys: {} },              // no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
+  knife: { part: sourced('knife', knife), clips: null, keys: CLEAVER_KEYS },   // reconstructed by default (WEAPON_VARIANT=A|B|C → the primitives); the same diagonal Heavy: a knife's overhead is a hack too, edge-leading
+  estoc: { part: sourced('estoc', estoc), clips: null, keys: {} },              // reconstructed by default; no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
   scythe: { part: scythe, clips: scytheClips, keys: {} },      // mesh + the own 13-clip family (owner's pick: variant B)
 };
 
@@ -621,7 +621,7 @@ if (process.argv[1] && /build-weapon\.mjs$/.test(process.argv[1])) {
   const fs = await import('node:fs/promises');
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   globalThis.FileReader ??= class { async readAsArrayBuffer(blob) { this.result = await blob.arrayBuffer(); this.onloadend?.(); } async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); } };
-  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ trident: 'trellis', cleaver: 'trellis', knife: KNIFE_DEFAULT, estoc: ESTOC_DEFAULT, scythe: SCYTHE_DEFAULT }[weapon] ?? DEFAULT_VARIANT); // no variant: what the fighter build ships (the reconstructed part where one exists)
+  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ trident: 'trellis', cleaver: 'trellis', knife: 'trellis', estoc: 'trellis', scythe: SCYTHE_DEFAULT }[weapon] ?? DEFAULT_VARIANT); // no variant: what the fighter build ships (the reconstructed part where one exists)
   const scene = new T.Scene(), part = await WEAPON_BUILDS[weapon].part({ variant }); scene.add(part);
   const glb = part.maps ? await fs.readFile(`src/assets/source/weapons/${weapon}.part.glb`) : await new GLTFExporter().parseAsync(scene, { binary: true }); // the reconstructed part's record keeps its maps
   const out = process.env.WEAPON_OUT || `src/assets/weapons/${weapon}/${weapon}.glb`;

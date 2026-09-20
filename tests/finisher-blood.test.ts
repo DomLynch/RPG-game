@@ -71,4 +71,7 @@ test('a kill bloodies the striking part of every shipped weapon and never its ha
   // The owner's screenshot: the scythe read fully red after a kill because "tint whole" painted the haft and its leather.
   assert.deepEqual(['ScytheIron', 'Haft', 'Leather'].map((m) => bloodiesMaterial(m, true)), [true, false, false]);
   assert.deepEqual(['Blade', 'Steel', 'Leather'].map((m) => bloodiesMaterial(m, false)), [true, false, false], 'the sword rule is unchanged');
+  // Reconstructed parts (weapons Phase 2): the head is the striking part, the baked shaft is the handle — on a two-hander and on the hero's sword.
+  assert.deepEqual(['WeaponTrident', 'WeaponTridentShaft'].map((m) => bloodiesMaterial(m, true)), [true, false], 'the trident\'s baked shaft stays clean');
+  assert.deepEqual(['WeaponLongsword', 'WeaponLongswordShaft', 'Blade'].map((m) => bloodiesMaterial(m, false)), [true, false, true], 'the reconstructed longsword bloodies its blade only');
 });
