@@ -152,10 +152,7 @@ export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, s
   return pixels(width, height, (u, v) => {
     const up = Math.max(0, (v - 0.5) * 2), du = Math.min(Math.abs(u - sunU), 1 - Math.abs(u - sunU)) * 2.2, dv = (v - sunV) * 2.8, sun = Math.exp(-(du * du + dv * dv) * 2.4);
     const c = cloud(u, v * 2) - 0.5, w = wisp(u, v * 3) - 0.5, shade = 1 - 0.32 * up + 0.14 * c + 0.05 * w;
-    // Below the horizon the dome is never seen, but as the scene's environment map this half is what metal reflects from underneath:
-    // the sand's own warm tone, blending into the horizon over the last few degrees (audit 2026-09-20: reflections of this sky, not a studio).
-    const ground = Math.min(1, Math.max(0, (0.5 - v) * 14)), sky: [number, number, number] = [169 * shade + 70 * sun, 168 * shade * 0.98 + 52 * sun, 156 * shade * 0.94 + 30 * sun];
-    return [sky[0] + (128 - sky[0]) * ground, sky[1] + (104 - sky[1]) * ground, sky[2] + (78 - sky[2]) * ground];
+    return [169 * shade + 70 * sun, 168 * shade * 0.98 + 52 * sun, 156 * shade * 0.94 + 30 * sun];
   });
 }
 // A torn banner: a cut mask. Ragged hem, frayed sides, a few holes; the cloth colour is the material's.

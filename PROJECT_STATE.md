@@ -1,19 +1,16 @@
 # Project state
 
-## Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentation lane, 2026-09-20 (branch presentation/arena-props)
-Five authored props generated on the owner's Hugging Face Pro account (TRELLIS.2 from prompted reference images) and dieted in Blender
-(3–5k tris, 512–768² WebP, metallic-roughness → factors): a portcullis that replaces the procedural gate bars once loaded, a weapon rack
-on the walkway, a fallen shield, a column drum and a bone pile in the sand band — 672 KB gzip after build packing, +7 MB GPU desktop /
-+1.75 MB phone (maps capped 512²/256²), placement held to the exclusion volume by `tests/arena-props.test.ts` from a size table.
-Startup: the arena's heavy maps generate in a Web Worker behind flat stand-ins (`buildArena` on the main thread 1,067 → 204 ms) and
-`scene.ts` `ready` waits for `arena.ready` so uploads land in the loading screen (p95 18–19 ms in every window; load at trunk parity).
-Crowd: spectators outside the camera frustum collapse per frame (~33 of 291 stand at the portrait lock). Sun shadow frustum ±12 m.
-The environment map is the arena's own sky once it has landed (warm sand below the horizon), intensity 1.0. Banners stop casting shadows
-(the slab on the fighting sand); the gate light is a wider, fainter patch. Sparks v2 on the owner's live feedback: struck off the visible
-blade, 3–7, staggered, thin, pale straw → ember, tone-mapped. Evidence `artifacts/presentation/{REPORT-arena-props.md,props-v1,sparks-v2}`,
-`artifacts/world/{base,props}-{full,phone}`. Not done: baked AO (needs an unwrapped lightmap pipeline), KTX2 textures (needs the
-basis_universal encoder — owner's OK), the phone AA decision and one-pass post (after KTX2). check-budget counts prop GLBs as opponent
-candidates: true per-fight ≈ 10.4 of 12 MB.
+## /game marketing page + Field Journal redesign — web/design lane, 2026-09-20 (owner picked direction E of nine)
+`public/game/` is a static, one-page mobile-first site at frankendom.com/game (Vite copies `public/` verbatim; nginx `try_files $uri/`
+serves the folder index). Direction "Pocket Arena": light ground, the live game inside a phone frame, bento tiles, Bricolage Grotesque +
+Instrument Sans (SIL OFL, `public/game/fonts/LICENSES.txt`). Images are the shipped GLBs rendered offline (transparent WebP portraits)
+plus two HUD-less captures of the live arena; total folder 644 KB, no inline script (site CSP is `script-src 'self'`; `game.js` is the
+only script). frankendom.com itself is untouched: the game still loads on `/`.
+The Field Journal (`<dialog id="journal">`) is restyled in the same brand as a light bottom sheet: fighter card (name · rank pips · save
+state, mirrored from `persist()` into `#journal-name/-sigil/-rank/-save`), account, Controls chips + "How to fight" folded, record ledger,
+Arena (opponent, warden, blood), Test tools (finisher, hit-stop, tempo, debug). Every bound element id, aria label and button text is
+unchanged, and everything the browser gates tap stays visible when the journal opens; the milestones copy and the retired ESO/Black Desert
+reference links are gone (`/game/` is linked instead). Evidence and remaining validation: see the PR.
 
 ## Opponent picker shows live rungs only — lead implementation, 2026-09-20 (owner)
 The journal's opponent picker is built from `LADDER` (held recipes filtered out) instead of every `ENCOUNTERS` entry greyed as
