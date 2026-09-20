@@ -1,16 +1,43 @@
 # Project state
 
+# Project state
+
 ## Dwarf — character lane candidate, not approved, not released (2026-09-20)
 Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
 `black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft
 TRELLIS.2 Space by the new scripted runner `scripts/character/trellis2.py` (seed 190926, 1024, 100000 faces, 2048 textures;
 74 s on the owner's PRO quota; source SHA-256 `2213ef49…`). Fitted to the Veteran donor at 1.60 m with the existing
 `creatures.py` recipe seam: bind error 2.2e-6, 38 clips preserved, 190 finite poses, grip checks pass (`creature-check.mjs dwarf`).
-Roster recipe `dwarf` (veteran archetype, trident, plain death only) appended as the tenth encounter; ladder/roster/graphics
-pins updated; cloud-profile migration `202609200001_dwarf_encounter.sql` staged, NOT applied to the hosted project.
+Roster recipe `dwarf` (veteran archetype, trident, plain death only) is the tenth recipe and, on the owner's instruction
+("ignore caps, use what you need", 2026-09-20), NOT held: he is the sixth live rung after the Executioner while the four
+creatures stay held; one `hold: true` flag parks him. Ladder/roster/graphics pins updated; cloud-profile migration `202609200001_dwarf_encounter.sql` staged, NOT applied to the hosted project.
 Open decisions for lead/combat: a `dwarf` archetype (shorter reach, higher poise) and weapon instead of the Veteran's
 profile/trident; whether he belongs in the beta ladder at all (the freeze analysis says Phase 2). Budget impact recorded in
 `artifacts/character/dwarf/quality.log`. No browser gate, no publication, no owner approval of the concept yet.
+## Combat: Pitborn tune, Executioner gate, a planned-cut fix — 2026-09-20
+- Pitborn normal reaction 18 → 14, lapse .3 → .1 (hard 12 / .08): hero brain 17/24 → 13/24 (Veteran 13); gate + a win-share pin. Executioner gets a fairness gate (caps, touched, honest answer, parked probes, AI-vs-AI 18–45 s). Fix found by the gate: a planned cut inside its own point (scythe 1.4 m) becomes the heavy/thrust when throwable — the hard Executioner froze over a man at 1.2 m. Other wardens' battery tables byte-identical. 312/312.
+- Reaper Wraith (#186, draft — on hold with the Wraith for Season 2): inside the point the kick counts to its landing range; check 28 is a wall-clock UI duel that also fails on a trunk build on this Mac (61/78 hp left), so it is not a receipt here.
+## Career marks — career lane, 2026-09-20 (owner decision: marks on the Google account via Supabase)
+Every won duel awards one victory mark on the device (`awardMark` in `src/career.ts`, called once per fight in the same block that
+records the practice tally); rank is a pure function of the count per GAME_SPEC's ladder (3 marks per sub-rank for Recruit and
+Legionary, 5 from Gladiator, Origin at 205) and shows in the identity aside (`#rank-sigil` numeral, `#rank` label with pips).
+Cloud save carries `victory_marks` (migration `202609200004`, integer 0–100000, owner insert/update grants, default 0); Load keeps
+the higher of device and cloud so marks never fall. Client-reported beta data, never competitive rank authority (table comment).
+Evidence at this head: eslint + tsc clean; full `npm test` 314/314 (graphics harness now maps `./career.ts`; rank render asserted at boot); `account-database-check` PASS on a disposable PostgreSQL 17 with all four migrations (marks writable, −1 and 100001 rejected);
+build + audit 0 + budget PASS (30,098,480 gzip of 32 MB; per fight 9,807,338 of 12 MB); `account-browser-check` passed (POST/PATCH
+bodies now carry `victory_marks`; cloud 80 lifts device 77; save echoes 80); `test:browser` passed. Hosted project: the migration is
+applied by the career lane through the Supabase MCP before the lead deploys (additive; the live client ignores the column).
+Remaining: rematch loop after the last rung and the beta roster cut are the lead's; automatic save after a win for signed-in
+players is a follow-up (v1 syncs on the explicit Save/Load buttons only).
+## Finisher cameras — Split Crown front-quarter, Decapitation corpse+head framing (2026-09-20)
+Owner phone review: the Split Crown side reveal turned the victim into profile and hid the skull seam; Decapitation's
+front camera let the killer's back hide the headless corpse. Split Crown now reveals on a raised 45° front-quarter
+(`finisherSidePose`); Decapitation keeps its front view with a camera-right slide and a look at the corpse/head midpoint.
+The deploy gate's blood-gate check (decapitation "detached head stays visible above portrait controls") failed on trunk
+63f4cd9 independent of this work — the head landed at the portrait edge on Veteran and Pitborn; the midpoint framing
+clears it on Veteran, Pitborn, Goblin and Executioner. Harness now asserts the victim's chest/skull are not hidden behind
+the killer (camera ray). Run Through alignment (owner: blade reads off-centre) remains open.
+
 
 ## Wraith reaper scythe — weapons lane, in progress
 Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
@@ -30,6 +57,18 @@ Nine software-rendered impact assertions and Skeleton framing pass; corrected la
 Previous full CPU regression:297/297; current compression regression3/3. Full inherited35-command suite must run on the frozen combined candidate.
 No live/completion claim.
 Evidence: artifacts/character/werewolf-skeleton/ and artifacts/character/compression/.
+
+## Contact grit — presentation lane, 2026-09-20 (branch presentation/impact-grit)
+Owner-directed small realistic contact feedback, four steps behind the existing event stream, no sim change: (1) metal sparks
+(`src/clash-sparks.ts`) off the defender's guard on a blade-to-blade block or parry — steel on steel only (a shaft, wood, a kick, a landed
+blow: none), 4–8 hot streaks under gravity, one bounce off the sand, out ≤ 0.45 s; (2) guard shudder (`src/camera-kick.ts`): the trunk
+camera kick was applied before `lookAt` and along the view axis, so it measured 0 px; it is now a world offset applied after the look-at
+for the draw only — a heavy drops the camera 6 cm and holds two frames (11 px at phone framing), a heavy block 2.8 cm (6 px), a parry
+flicks 2 cm sideways (4 px), all settled within 13 frames; a heavy caught on the guard deepens the body recoil ×1.5; (3) sand puff off
+the defender's rear foot on a heavy that lands or is caught (`foot-dust.ts` `puff`); (4) kill dip: exposure −6 % for two frames, eased
+back over two, kill only (−2.4 % crop brightness). Harness `scripts/impact-preview.mjs` (scripted block/parry/heavy/kill through the real
+`createScene`, hit-stop reproduced) with before/after strips and camera traces in `artifacts/presentation/`; 4 new test files (7 tests).
+Gate 314/314 + browser gate on cbec4cd. Phone amplitudes unverified on device; the shove table is one place to halve.
 
 ## Veteran neck and material finish — 2026-09-19 (PR #172)
 Owner approved the matched before/after previews and authorized publication. The existing Veteran now has a continuous neck contour, shared collar skin weights and blended skin colour/normal/roughness maps. The trident shares restrained worn-bronze maps; armour, leather and linen receive the earlier material polish. Facial features, weapon geometry/reach, skeleton, clips, topology, UVs and unrelated surfaces remain preserved. The offline build is repeatable; alternate Veteran weapon builds also pass.
@@ -1043,6 +1082,8 @@ Full offline mix across AAC/Opus/fallback passes truepeak<=-1dBTP; bell-only tru
 Source/state audit completed. Evidence: artifacts/audio/bell-weight/. Game-browser/release work waits for lead window;
 latest npm audit returned503maintenance, not bypassed. Full inherited gates and public verification required before done.
 
+## Goblin polish — 2026-09-20 (character lane, char/goblin-polish)
+Ears lofted with a lobe and a torn notch; body tone greyed to the face; the pink band behind each ear (the scan's ear photo projected onto the skull band the tile unwraps to its outer edges, past the crown fill's feather) painted out by forcing the fill on that measured UV band (`head.FIGHTERS.goblin.ear_fill`, `crown_fill(force=)`); the scan's real ear flaps flattened and re-mapped. Goblin-only flags; other fighters' builds untouched. 300/300 tests, quality:ci, browser gate and the dist probe green; goblin.glb 3.31 MB gzip (+48 KB); budget 30.84/32 MB. Evidence `artifacts/character/goblin-polish/`. Still open from the brief: the lock camera hides him behind the hero at close range on 393×852 (REQUESTS #8, camera lane).
 ## Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five passes; beta freeze)
 Docs-and-hygiene pass only: no sound, gain, timing or simulation change (rebuilt sprite byte-identical: m4a 88c3e2b1…, ogg d3358aef…).
 Read this section first; the dated audio entries above (2026-09-15 … 2026-09-19) are its history.
@@ -1102,3 +1143,9 @@ the owner's ear pass on 63c57e2 is the next audio action and needs no code. Hygi
 - His two 2048² maps (rag-sash colour, scan-head roughness) ship at 1024: GPU texture estimate 116 → 80 MB (image headers, RGBA8 + mips), gzip 2.94 → 2.90 MB, no visible change at the lock camera or the face harness zoom. Scoped by his rows only: `linen_maps(size=1024 if KIT['bare'])`, `FIGHTERS.pitborn.photo_orm_1k`; every other fighter's bake path is unchanged.
 - The black specks on his back and chest were the kit's 22 baldric rivets, still placed along the baldric a bare fighter does not wear (not the scars pass): none for `KIT['bare']`. Belt rivets stay (his belt is iron).
 - Evidence: 300/300, `npm run quality` green incl. the browser gate; before/after in `artifacts/character/pitborn-0920` vs `pitborn-diet2`. Measurement gap found on the way: `character-preview.html`'s texture table counts the hero only — the opponent has never been in the phone number (lead/QA to decide).
+
+## Roster hold — 2026-09-20 (owner: Minotaur and Werewolf wait for after beta)
+- The #179 Pitborn diet was reverted (63f4cd9) because the Minotaur and Werewolf are creature bakes on the Pitborn base and record its sha256 — the new `pitborn.glb` made them "stale" at `creature-check`. Owner's decision: don't rebuild, **hold** them until after beta (Season 2). #185 (the rebuild route) is closed; the diet is re-landed here on top of the hold with no creature rebuilds.
+- `hold: true` on a ROSTER recipe: still built and a valid OpponentId (saves resolve; `opponentFor` falls back to the first rung), off the ladder (`LADDER`/`nextAfter` skip it; a held id has no next), listed disabled "(on hold)" in the journal picker, its GLB left out of the bundle by scene.ts's asset glob (a literal — `tests/ladder.test.ts` pins the exclusions to exactly the held bodies), and skipped by `creature-check`/`creature-browser-check` (still runnable on demand). `.quality-gate.json` untouched (the lead's gate split #187 owns the creature-only release checks).
+- Held now: minotaur, wraith, werewolf, skeleton. The owner named Minotaur and Werewolf; Wraith and Skeleton are held on the lead's reading of the same beta freeze (the plan the owner forwarded puts them in Phase 2) — one flag each to reverse, and the owner was told so. The beta ladder is the five men. Per-fight worst opponent is now the Veteran; quality gate green incl. the browser gate.
+- Rule that still holds mechanically: a change to a base rig makes any *live* creature baked on it stale — rebuild those, or hold them.

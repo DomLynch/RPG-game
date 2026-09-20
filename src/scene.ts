@@ -4,11 +4,13 @@ import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadWarriors } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
-import { OPPONENTS, RULES, type OpponentId, type WeaponId } from './moves.ts';
+import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
+import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { shoveFor } from './camera-kick.ts';
 import { bloodiesMaterial, createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 
@@ -60,12 +62,14 @@ export function finisherSidePose(
     (gap / 2 + (finisher === 'opened' ? 1.5 * bodyScale : finisher === 'quietOne' ? 1.5 : 0.42)) /
       (Math.tan((51 * Math.PI) / 360) * Math.min(aspect, 1)),
   );
-  const angle = finisher !== 'runThrough' ? Math.PI / 3 : (5 * Math.PI) / 12,
+  // Split Crown (owner 2026-09-20): the seam runs front-to-back over a head that bows toward the killer, so a profile
+  // hides it — a raised front-quarter (45°, higher eye) looks down onto the opened crown past the killer's shoulder.
+  const angle = finisher === 'splitCrown' ? Math.PI / 4 : finisher !== 'runThrough' ? Math.PI / 3 : (5 * Math.PI) / 12,
     sideward = Math.sin(angle),
     rearward = Math.cos(angle);
   const side = (sign: number, front = 1) => ({
     x: lookX + (-uz * sign * sideward - ux * rearward * front) * back,
-    y: finisher === 'opened' ? 3.7 + 3 * (bodyScale - 1) : 3.1,
+    y: finisher === 'opened' ? 3.7 + 3 * (bodyScale - 1) : finisher === 'splitCrown' ? 4.2 : 3.1,
     z: lookZ + (ux * sign * sideward - uz * rearward * front) * back,
     lookX,
     lookY: 0.85,
@@ -161,7 +165,8 @@ export function createScene(
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
   const arena = buildArena(scene),
-    footDust = createFootDust(scene);
+    footDust = createFootDust(scene),
+    clash = createClashSparks(scene);
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
     scene.add(group);
@@ -187,7 +192,9 @@ export function createScene(
     WeaponId,
     WeaponId,
   ];
-  const fighterUrls = import.meta.glob<string>('./assets/*.glb', { eager: true, query: '?url', import: 'default' });
+  // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
+  // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
+  const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
   const ready = loadWarriors(
     fighterUrls['./assets/warrior.glb'],
     fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`],
@@ -405,8 +412,18 @@ export function createScene(
   // (readable brutality: nothing may obscure a pose); off when the viewer prefers reduced motion. Placeholder for the visual lane's impact pass.
   const stillCamera =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The kick is a world-space offset scaled by `kick` (1 → 0): a landing blow drops the camera and shoves it a little along the blow; a parry
+  // flicks it sideways with the deflection. A push along the blow alone is a dolly down the view axis and reads as nothing on screen.
   let kick = 0,
-    kickHeading = 0;
+    kickHold = 0, // a heavy-class contact holds its full displacement for two frames before settling: the weight lands, then the camera recovers
+    kickRate = 1 / 0.15, // 1/s: how fast the offset settles
+    shoved = 0; // the kick applied to the camera for the last draw; taken off before the next frame's settle so it never compounds
+  const kickOffset = new THREE.Vector3();
+  // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
+  // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
+  let dip = 0; // frames remaining, counted down per drawn frame while time passes
+  const DIP_FRAMES = 4, DIP_DEPTH = 0.06;
+  const blockHeavy = [false, false]; // which fighter's standing block just caught a heavy (his recoil is deeper while `blocked` lasts)
   let ratio = Math.min(devicePixelRatio, PIXEL_CAP); // the context-loss recovery path lowers this to 1 from the tier's ceiling
   const resize = () => {
     camera.aspect = innerWidth / innerHeight;
@@ -508,6 +525,9 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
+    probe(): { sparks: number; burst: [number, number, number] } {
+      return { sparks: clash.alive(), burst: clash.last() };
+    }, // debug probe for the presentation harness: live contact effects
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
         drawn = anchor?.getObjectByName('WeaponDrawn') ?? anchor?.getObjectByName('SwordDrawn');
@@ -568,16 +588,28 @@ export function createScene(
         warriors?.opponent.unsever();
         if (supportsFinishers(opponentId, 'opened')) warriors?.opponent.prepareOpened();
       } // a fresh match: both bars full again
-      if (blow && dt > 0 && !stillCamera) {
-        const heavy =
-          blow.charged ||
-          blow.move === 'heavy_overhead' ||
-          blow.move === 'heavy_riposte' ||
-          blow.move === 'heavy_counter' ||
-          blow.move === 'critical' ||
-          blow.type === 'GuardBroken';
-        kick = heavy ? 0.045 : 0.02;
-        kickHeading = blow.heading ?? state.heading;
+      // Camera kick: what each contact does to the camera is camera-kick.ts's table (a heavy drops it 6 cm and holds, a light 1.2 cm, a
+      // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
+      const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
+      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && shoveFor(shoveEvent);
+      if (shoveEvent && shove && dt > 0 && !stillCamera) {
+        // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
+        const heading = shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading);
+        kickOffset.set(Math.sin(heading) * shove.along + Math.cos(heading) * shove.side, -shove.drop, Math.cos(heading) * shove.along - Math.sin(heading) * shove.side);
+        kick = 1;
+        kickHold = shove.hold;
+        kickRate = 1 / shove.settle;
+      }
+      if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
+      if (killed && dt > 0) dip = DIP_FRAMES;
+      // A heavy landing on a planted man (or caught on his guard) kicks sand off his rear foot — the foot farther from the attacker. Feet are
+      // last frame's world positions (a frame old, a centimetre); no puff for a kick, a light, or a fighter who is not on his feet.
+      const planted = shoveEvent && dt > 0 && shoveEvent.type !== 'Parried' && HEAVY_CLASS.has(shoveEvent.move ?? '') ? shoveEvent : undefined;
+      if (planted && planted.target !== undefined && dustFeet.length === 4) {
+        const defender = blow ? planted.target : planted.actor, attackerAt = defender ? state : practice.enemy;
+        const feet = [dustPositions[defender * 2], dustPositions[defender * 2 + 1]].filter((_f, i) => dustFeet[defender * 2 + i]);
+        const rear = feet.sort((a, b) => Math.hypot(b.x - attackerAt.x, b.z - attackerAt.z) - Math.hypot(a.x - attackerAt.x, a.z - attackerAt.z))[0];
+        if (rear && rear.y < 0.25) footDust.puff(rear, blow ? 1 : 0.6);
       }
       if (contact && dt > 0) {
         const enemyHurt = blow?.target === 1,
@@ -591,6 +623,25 @@ export function createScene(
         if (killed && flesh) killHeading = blow?.heading ?? state.heading; // the decapitation pop flies the way the blow did
         const site = enemyHurt ? practice.enemyWoundSite : practice.woundSite;
         const target = enemyHurt ? practice.enemy : state;
+        // Steel on steel: a block or parry of a metal blade by a blade guard throws metal sparks from the attacker's blade (clash-sparks.ts);
+        // the generic contact dots stay for everything else (a shaft catching a blade, a kick, a fist).
+        const clashEvent = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
+        const strength = clashEvent ? clashStrength(clashEvent, weaponOf(practice.duel.fighters[clashEvent.actor].weapon)) : 0;
+        if (clashEvent && strength > 0 && clashEvent.target !== undefined) {
+          const attacker = clashEvent.target,
+            rig = attacker ? warriors?.opponent : warriors?.player,
+            weapon = rig?.anchor.getObjectByName('WeaponDrawn') ?? rig?.anchor.getObjectByName('SwordDrawn'),
+            contactRange = weapon?.userData.contact as { from: number; to: number } | undefined;
+          // The blades meet at the defender's guard: a third of a metre in front of his chest toward the attacker's hand, at the height the
+          // attacking blade is passing (on the contact tick the rig's blade already reaches into the defender's body, so its own points are not the meeting point).
+          const defenderBody = attacker ? state : practice.enemy,
+            hand = weapon?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3(attacker ? practice.enemy.x : state.x, 1.1, attacker ? practice.enemy.z : state.z),
+            bladeHeight = weapon && contactRange ? (weapon.localToWorld(new THREE.Vector3(0, contactRange.from, 0)).y + weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)).y) / 2 : 1.15;
+          const at = new THREE.Vector3(defenderBody.x, 0, defenderBody.z);
+          at.add(hand.clone().setY(0).sub(at).normalize().multiplyScalar(0.35)).setY(Math.min(1.6, Math.max(0.8, bladeHeight)));
+          clash.burst(at, attacker ? practice.enemy.heading : state.heading, strength);
+          impact = 0; // the dedicated sparks replace the generic dots for this contact
+        }
         sparks.position.set(
           hurt ? target.x : (state.x + practice.enemy.x) / 2,
           hurt ? (site === 'head' ? 1.55 : site === 'legs' ? 0.6 : 1.15) : 1.2,
@@ -643,6 +694,7 @@ export function createScene(
       }
       lastHealth = practice.health;
       lastPlayerHealth = practice.playerHealth;
+      clash.update(dt); // contact effects run on the frame's dt through a hit-stop, like the generic sparks and the camera kick
       impact = Math.max(0, impact - dt);
       sparks.visible = impact > 0;
       if (impact > 0) {
@@ -768,7 +820,7 @@ export function createScene(
         mine.attack,
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,
-        practice.result === 'blocked' ? Math.max(0, 1 - practice.resultAge / 12) : 0,
+        practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
       );
       warriors?.opponent.update(
         ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
@@ -783,7 +835,7 @@ export function createScene(
           ? (ex * Math.cos(practice.enemy.heading) - ez * Math.sin(practice.enemy.heading)) /
               (enemyTravel * dt)
           : 0,
-        practice.result === 'enemyBlocked' ? Math.max(0, 1 - practice.resultAge / 12) : 0,
+        practice.result === 'enemyBlocked' ? (blockHeavy[1] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
       );
       // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
       if (detailedBlood) wounds[1].group.visible = false;
@@ -853,23 +905,35 @@ export function createScene(
       if (practice.finish && finisherPose && !practice.finish.draw && !stillCamera)
         finishPush = Math.min(1, finishPush + dt / (1.3 / 0.75));
       else if (!practice.finish) finishPush = 0;
-      if (finishPush > 0 && finisher !== 'decapitation') {
+      if (finishPush > 0) {
         const fallen = practice.finish!.victim === 1 ? practice.enemy : state;
         const killer = practice.finish!.victim === 1 ? state : practice.enemy;
-        desired.x += (fallen.x - desired.x) * 0.38 * finishPush;
-        desired.z += (fallen.z - desired.z) * 0.38 * finishPush;
+        // Owner phone review 2026-09-20: Decapitation keeps its front view — no push-in and no look change, so the
+        // detached head stays in frame (#167) — but slides to camera-right so the killer's back stops hiding the corpse.
+        const push = finisher === 'decapitation' ? 0 : 0.38,
+          slide = finisher === 'decapitation' ? 0.8 : 0.95,
+          turn = finisher === 'decapitation' ? 0.85 : 0.6;
+        desired.x += (fallen.x - desired.x) * push * finishPush;
+        desired.z += (fallen.z - desired.z) * push * finishPush;
         // Framing tune (same authorized dolly — still no cut, no FOV, no slow-mo): slide the camera laterally off the
         // killer→fallen axis and a touch higher, so the settled frame reads the kneeling corpse past the killer's
         // shoulder instead of hiding it behind his back.
         const axisX = fallen.x - killer.x,
           axisZ = fallen.z - killer.z,
           axisLen = Math.hypot(axisX, axisZ) || 1;
-        desired.x += (-axisZ / axisLen) * 0.95 * finishPush;
-        desired.z += (axisX / axisLen) * 0.95 * finishPush;
-        desired.y += (1.55 - desired.y) * 0.3 * finishPush;
-        look.x += (fallen.x - look.x) * 0.6 * finishPush;
-        look.z += (fallen.z - look.z) * 0.6 * finishPush;
-        look.y += (0.8 - look.y) * 0.7 * finishPush;
+        desired.x += (-axisZ / axisLen) * slide * finishPush;
+        desired.z += (axisX / axisLen) * slide * finishPush;
+        // The look turns onto the fallen for every finisher: with the slide, the killer reads left and the corpse centre.
+        // Decapitation looks at the midpoint of corpse and severed head — the head lands beside the corpse wherever the
+        // blow sent it, and framing the corpse alone left it at the portrait edge (deploy gate, trunk 63f4cd9).
+        const focusX = severHead ? (fallen.x + severHead.group.position.x) / 2 : fallen.x,
+          focusZ = severHead ? (fallen.z + severHead.group.position.z) / 2 : fallen.z;
+        look.x += (focusX - look.x) * turn * finishPush;
+        look.z += (focusZ - look.z) * turn * finishPush;
+        if (push) {
+          desired.y += (1.55 - desired.y) * 0.3 * finishPush;
+          look.y += (0.8 - look.y) * 0.7 * finishPush;
+        }
       }
       heading += wrapAngle(state.heading - heading) * blend;
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase))
@@ -956,16 +1020,25 @@ export function createScene(
           canScuff(theirs.pose, enemyTravel),
         ],
       );
+      camera.position.addScaledVector(kickOffset, -shoved); // last draw's shove comes off before the settle
+      shoved = 0;
       camera.position.lerp(desired, started ? blend : 1);
       aim.lerp(look, started ? blend : 1);
-      if (kick > 0) {
-        camera.position.x += Math.sin(kickHeading) * kick;
-        camera.position.z += Math.cos(kickHeading) * kick;
-        kick = Math.max(0, kick - dt * 0.3);
-      }
       camera.lookAt(aim);
       started = true;
+      // The kick is applied after the look-at (so the frame itself shifts) and stays on the camera until the next frame takes it off
+      // before settling — a shove left inside the lerped position would compound.
+      shoved = kick;
+      camera.position.addScaledVector(kickOffset, shoved);
+      const exposure = renderer.toneMappingExposure;
+      if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
       renderer.render(scene, camera);
+      renderer.toneMappingExposure = exposure;
+      if (dip > 0 && dt > 0) dip--;
+      if (kick > 0) {
+        if (kickHold > 0) kickHold -= dt;
+        else kick = Math.max(0, kick - dt * kickRate);
+      }
     },
   };
 }

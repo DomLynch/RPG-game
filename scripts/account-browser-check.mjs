@@ -37,9 +37,9 @@ try {
     assert.equal(url.searchParams.get('user_id'), request.method() === 'POST' ? null : `eq.${user.id}`);
     if (request.method() === 'GET') return failRead ? json({ message: 'Temporary service failure' }, 503) : json(row);
     const body = request.postDataJSON(); writes.push(body);
-    assert.deepEqual(Object.keys(body).sort(), request.method() === 'POST' ? ['display_name', 'encounter', 'user_id'] : ['display_name', 'encounter']);
+    assert.deepEqual(Object.keys(body).sort(), request.method() === 'POST' ? ['display_name', 'encounter', 'user_id', 'victory_marks'] : ['display_name', 'encounter', 'victory_marks']);
     if (request.method() === 'PATCH' && url.searchParams.get('revision') !== `eq.${row.revision}`) return json([]);
-    row = { display_name: body.display_name, encounter: body.encounter, revision: (row?.revision ?? 0) + 1 };
+    row = { display_name: body.display_name, encounter: body.encounter, victory_marks: body.victory_marks, revision: (row?.revision ?? 0) + 1 };
     return json([row]);
   });
   await page.addInitScript(() => {
@@ -66,7 +66,7 @@ try {
   assert.equal(new URL(page.url()).search, '');
   receipt.checks.push('Cancelled OAuth returns to usable journal and removes callback parameters');
   await page.evaluate(() => localStorage.setItem('frankendom.auth.v1-code-verifier', JSON.stringify('qa-verifier')));
-  row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4 };
+  row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80 };
   await page.goto(`${origin}/?account=return&code=qa-code`);
   await page.getByText('Cloud fighter: Cloud fighter.', { exact: false }).waitFor();
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')).name), 'Local fighter');
@@ -75,12 +75,12 @@ try {
   await page.locator('#account-load').tap();
   await page.waitForFunction(() => document.querySelector('#opponent-select').value === 'goblin');
   const loaded = await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')));
-  assert.equal(loaded.name, 'Cloud fighter'); assert.equal(loaded.id, 'guest-qa-123'); assert.deepEqual(loaded.career, { victoryMarks: 77 });
+  assert.equal(loaded.name, 'Cloud fighter'); assert.equal(loaded.id, 'guest-qa-123'); assert.deepEqual(loaded.career, { victoryMarks: 80 }, 'a higher cloud count lifts the device; a lower one never drops it');
   await page.locator('#journal-button').tap();
   await page.getByText('Cloud fighter: Cloud fighter.', { exact: false }).waitFor();
   await page.locator('#account-save').tap();
   await page.getByText('Saved Cloud fighter.', { exact: false }).waitFor();
-  assert.equal(row.revision, 5);
+  assert.equal(row.revision, 5); assert.equal(row.victory_marks, 80, 'marks travel with the save');
   row = { ...row, revision: 6, display_name: 'Newer device' };
   await page.locator('#account-save').tap();
   await page.getByText('Save failed or changed on another device.', { exact: false }).waitFor();
@@ -88,7 +88,7 @@ try {
   assert.equal(row.display_name, 'Newer device');
   await page.locator('#account-retry').tap();
   await page.getByText('Cloud fighter: Newer device.', { exact: false }).waitFor();
-  receipt.checks.push('Real SDK code exchange/session recovery; explicit cloud load; whitelisted save; stale-write conflict and retry');
+  receipt.checks.push('Real SDK code exchange/session recovery; explicit cloud load; whitelisted save with career marks; load never lowers the device count; stale-write conflict and retry');
   failRead = true;
   await page.reload(); await page.locator('#journal-button').tap();
   await page.getByText('Could not read your account.', { exact: false }).waitFor();

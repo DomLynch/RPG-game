@@ -1164,18 +1164,20 @@ def tusks(head_obj, eye_l, eye_r):
 
 
 def ears(head_obj, eye_l, eye_r):
-    """The goblin's long ears: two flattened cones rooted where the scan's own ears sit (a ray from beside the head at the ear canal's
-    height, a little behind the eye plane), pointing up, out and back, riding rigid on the Head bone like the tusks. They wear the
-    scan head's own photo tile: every vertex is mapped to one patch of cheek skin (the tile's texel under the eye, walked a few texels
-    along the ear) so the colour is the face's, whatever the skin correction did. The scan's small human ears stay under their roots."""
+    """The goblin's long ears: two leaves lofted from rings (a fat lobe at the root, widest a third of the way up, a torn notch on the
+    outer rim, thin front-to-back) rooted where the scan's own ears sit (a ray from beside the head at the ear canal's height, a little
+    behind the eye plane), pointing up, out and back, riding rigid on the Head bone like the tusks. They wear the scan head's own photo
+    tile: every vertex is mapped to a patch of temple skin beside them (walked a few texels along the ear) so the colour is the face's,
+    whatever the skin correction did. The scan's small human ears are flattened against the skull under the new roots; their pink, and
+    the pink the scan smeared behind them, is painted out on the tile itself (head.FIGHTERS.<f>.ear_fill)."""
     eyes = (eye_l + eye_r) / 2
     m = head_obj.matrix_world
     inv = m.inverted()
-    # the cheek patch the ears borrow their colour from: the closest surface point below the left eye, and its face's first UV
-    ok, cheek, _, face_index = head_obj.closest_point_on_mesh(inv @ Vector((-0.045, eyes.y - 0.012, eyes.z - 0.045)))
     uv_layer = head_obj.data.uv_layers[0].data
-    poly = head_obj.data.polygons[face_index]
-    cheek_uv = sum((uv_layer[i].uv for i in poly.loop_indices), Vector((0.0, 0.0))) / len(poly.loop_indices)
+    def skin_uv(point):  # the photo tile's texel at the closest surface point: a polygon's mean UV
+        ok, _, _, face_index = head_obj.closest_point_on_mesh(inv @ point)
+        poly = head_obj.data.polygons[face_index]
+        return sum((uv_layer[i].uv for i in poly.loop_indices), Vector((0.0, 0.0))) / len(poly.loop_indices)
     out = []
     for side in (-1, 1):
         origin = inv @ Vector((side * 0.35, eyes.y + 0.072, eyes.z - 0.006))  # beside the head at the ear canal
@@ -1185,30 +1187,63 @@ def ears(head_obj, eye_l, eye_r):
             continue
         base = m @ loc
         n = (m.to_3x3() @ normal).normalized()
+        temple_uv = skin_uv(Vector((side * 0.07, eyes.y + 0.02, eyes.z + 0.045)))  # this side's temple, above and in front of the ear: the leaf's skin
+        stubble_uv = skin_uv(Vector((side * 0.06, eyes.y + 0.16, eyes.z - 0.01)))  # the skull behind the ear: what the flattened flap should look like
         # the scan's own small ear would show beside the goblin's: flatten its pinna against the skull (the skull's side is a ray at the
         # temple, above and in front of the ear), 92 % of whatever stands proud of it, so it hides under the new ear's root
         hit, temple, _, _ = head_obj.ray_cast(inv @ Vector((side * 0.35, eyes.y + 0.03, eyes.z + 0.035)), (inv.to_3x3() @ Vector((-side, 0, 0))).normalized())
         skull_x = (m @ temple).x if hit else base.x - side * 0.018
-        flattened = 0
+        # the scan's own ear flap: the widest vertices of the head, 6–15 cm behind the eyes, from 4 cm above eye level to 8 cm below (measured
+        # on this scan: |x| .10–.13, not where the canal ray lands, which is the skull beside it). Flatten it 92 % of what stands proud of the
+        # skull line, and re-map its faces to the stubbled skull texels behind it (its own UV island is the photographed pink ear, which no fill reaches)
+        flat = set()
         for v in head_obj.data.vertices:
             w = m @ v.co
             excess = side * w.x - (side * skull_x - 0.004)
-            if excess > 0 and abs(w.z - base.z) < 0.045 and abs(w.y - base.y) < 0.032:
+            if excess > 0 and 0.06 < w.y - eyes.y < 0.15 and -0.08 < w.z - eyes.z < 0.04:
                 w.x -= side * excess * 0.92
                 v.co = inv @ w
-                flattened += 1
-        print(f'EAR {side}: skull side x {skull_x:.3f}, pinna rim x {base.x:.3f}, {flattened} vertices flattened')
+                flat.add(v.index)
+        remapped = 0
+        for poly in head_obj.data.polygons:
+            if sum(i in flat for i in poly.vertices) * 3 < len(poly.vertices) * 2:
+                continue
+            for li in poly.loop_indices:
+                w = m @ head_obj.data.vertices[head_obj.data.loops[li].vertex_index].co
+                uv_layer[li].uv = stubble_uv + Vector(((w.y - base.y) * 0.12, (w.z - base.z) * 0.12))
+            remapped += 1
+        print(f'EAR {side}: skull side x {skull_x:.3f}, {len(flat)} flap vertices flattened, {remapped} faces re-mapped to the skull behind')
+        # the leaf: rings from root (t 0) to tip (t 1) — radius tapers, width peaks a third up, thickness stays thin, the lobe is fatter,
+        # and the outer rim is bitten out between t .5 and .7 (a torn notch: a pit-runner's ear)
+        segments, length, r0 = 14, 0.125, 0.036
+        rings = [0.0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.74, 0.86, 0.94]
         bm = bmesh.new()
-        bmesh.ops.create_cone(bm, cap_ends=True, segments=12, radius1=0.036, radius2=0.0025, depth=0.125)
-        for v in bm.verts:
-            t = (v.co.z + 0.0625) / 0.125  # 0 root → 1 tip
-            v.co.y *= 0.36 + 0.14 * t  # a leaf, not a spike: thin, thinnest at the root where it meets the skull
-            v.co.x *= 1.0 + 0.35 * t * (1 - t)  # widest a third of the way up
+        ring_verts = []
+        for t in rings:
+            radius = r0 * (1 - t) ** 0.85
+            width = 1.0 + 0.35 * t * (1 - t)
+            thick = (0.36 + 0.14 * t) * (1.35 if t < 0.2 else 1.0)
+            row = []
+            for k in range(segments):
+                a = 2 * math.pi * k / segments
+                u, v = math.cos(a), math.sin(a)
+                bite = 1.0
+                if side * u > 0.45 and 0.45 < t < 0.78:  # the outer rim, mid-height: the notch
+                    bite = 0.5 + 0.5 * abs((t - 0.62) / 0.16)
+                row.append(bm.verts.new((radius * width * u * bite, radius * thick * v * bite, t * length)))
+            ring_verts.append(row)
+        tip = bm.verts.new((0.0, 0.0, length))
+        for a, b in zip(ring_verts, ring_verts[1:]):
+            for k in range(segments):
+                bm.faces.new((a[k], a[(k + 1) % segments], b[(k + 1) % segments], b[k]))
+        for k in range(segments):
+            bm.faces.new((ring_verts[-1][k], ring_verts[-1][(k + 1) % segments], tip))
+        bm.faces.new(tuple(reversed(ring_verts[0])))  # the root cap, inside the skull
         uv = bm.loops.layers.uv.new('UVMap')
         for f in bm.faces:
             for loop in f.loops:
-                t = (loop.vert.co.z + 0.0625) / 0.125
-                loop[uv].uv = cheek_uv + Vector((0.006 * t, 0.004 * math.sin(t * 9)))  # a short walk over the cheek texels: mottling, not one flat texel
+                t = loop.vert.co.z / length
+                loop[uv].uv = temple_uv + Vector((0.008 * t, 0.005 * math.sin(t * 9)))  # a short walk over the temple texels: mottling, not one flat texel
         me = bpy.data.meshes.new(f'ear_{"l" if side > 0 else "r"}')
         bm.to_mesh(me)
         bm.free()
@@ -1217,12 +1252,12 @@ def ears(head_obj, eye_l, eye_r):
         axis = Vector((side * 0.62, 0.30, 0.74)).normalized()  # up, out and back (owner: "long ears")
         obj.rotation_mode = 'QUATERNION'
         obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(axis)
-        obj.location = base - n * 0.014 + axis * (0.0625 - 0.010) + Vector((0, 0.012, -0.008))  # cone centre: the root 14 mm inside the skull, 12 mm behind and 8 mm below the canal (the base covers the flattened pinna), ~11 of the 12.5 cm showing
+        obj.location = base - n * 0.014 - axis * 0.010 + Vector((0, 0.012, -0.008))  # the root 14 mm inside the skull, 12 mm behind and 8 mm below the canal (the lobe covers the flattened pinna), ~11 of the 12.5 cm showing
         select_only([obj])
         bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
         bpy.ops.object.shade_smooth()
         out.append(tag(obj, me.name, 'Photo', bone='Head', slot='Face'))
-        print(f'EAR {side}: base {tuple(round(c, 3) for c in base)} cheek uv {tuple(round(c, 4) for c in cheek_uv)}')
+        print(f'EAR {side}: base {tuple(round(c, 3) for c in base)} temple uv {tuple(round(c, 4) for c in temple_uv)}')
     return out
 
 

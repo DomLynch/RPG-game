@@ -5,6 +5,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
+import { awardMark, marksOf, rankFor } from './career.ts';
 import {
   initialPractice,
   stepPractice,
@@ -15,7 +16,7 @@ import {
   type Action,
   type CombatEvent,
 } from './combat.ts';
-import { ROSTER, resolveFinisher } from './roster.ts';
+import { ENCOUNTERS, ROSTER, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -69,6 +70,9 @@ input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
 function persist() {
   element('name-button').textContent = profile.name;
+  const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
+  element('rank-sigil').textContent = rank.numeral || '✦';
+  element('rank').textContent = rank.label;
   element('save-status').textContent = saveProfile(storage, profile)
     ? 'Guest · saved on this device'
     : 'Storage unavailable · name will not be saved';
@@ -96,10 +100,11 @@ const opponent = opponentFor(
 // Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
 // URL override is dropped so the pick wins. Picking the Veteran is a reset.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
-for (const rung of LADDER) {
+for (const rung of ENCOUNTERS) {   // every recipe, held ones greyed: the journal shows what is built and what waits for after beta
   const option = document.createElement('option') as HTMLOptionElement;
   option.value = rung.id;
-  option.textContent = rung.name;
+  option.textContent = rung.hold ? `${rung.name} (on hold)` : rung.name;
+  option.disabled = rung.hold;
   opponentSelect.append(option);
 }
 opponentSelect.value = opponent.id;
@@ -1070,6 +1075,7 @@ function frame(now: number) {
         recorded = true;
         recordPractice(trial, scheme, practice, Math.round(activeMs));
         saveTrial(storage, trial);
+        if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
       }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
