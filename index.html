@@ -30,10 +30,20 @@
       <div class="account-actions"><button id="account-login" disabled>Continue with Google</button><button id="account-save" hidden>Save fighter</button><button id="account-load" hidden>Load saved fighter · restart practice</button><button id="account-logout" hidden>Sign out</button><button id="account-retry" hidden>Retry account</button></div>
     </section>
     <div class="journal-tabs">
-      <input type="radio" name="journal-tab" id="journal-tab-fighter" checked><input type="radio" name="journal-tab" id="journal-tab-arena"><input type="radio" name="journal-tab" id="journal-tab-settings">
-      <div class="tab-strip" role="tablist" aria-label="Journal sections"><label for="journal-tab-fighter" class="tab-fighter">Fighter</label><label for="journal-tab-arena" class="tab-arena">Arena</label><label for="journal-tab-settings" class="tab-settings">Settings</label></div>
+      <input type="radio" name="journal-tab" id="journal-tab-fighter" checked><input type="radio" name="journal-tab" id="journal-tab-profile"><input type="radio" name="journal-tab" id="journal-tab-arena"><input type="radio" name="journal-tab" id="journal-tab-settings">
+      <div class="tab-strip" role="tablist" aria-label="Journal sections"><label for="journal-tab-fighter" class="tab-fighter">Stats</label><label for="journal-tab-profile" class="tab-profile">Profile</label><label for="journal-tab-arena" class="tab-arena">Options</label><label for="journal-tab-settings" class="tab-settings">Settings</label></div>
       <section class="tab-pane pane-fighter" aria-label="Your record">
         <h4>Your record</h4><table id="scorecard-table" class="scorecard-table" aria-label="Scorecard: fights, wins and losses per opponent"></table><pre id="scorecard" class="scorecard" aria-label="Control trial scorecard" hidden></pre><output id="menu-performance">Loading courtyard…</output>
+      </section>
+      <section class="tab-pane pane-profile" aria-label="Profile">
+        <h4>Stats</h4>
+        <div class="statgrid" aria-label="Fighter stats (equal for everyone in the beta)"><div><b>STR</b><span>100</span><small>damage</small></div><div><b>DEX</b><span>100</span><small>stamina use</small></div><div><b>VIG</b><span>100</span><small>health</small></div><div><b>END</b><span>100</span><small>stamina</small></div><div><b>POISE</b><span>100</span><small>stagger</small></div></div>
+        <p class="note">Everyone fights at 100 in the beta. Builds open at Origin.</p>
+        <h4>Armour</h4>
+        <div class="gear" aria-disabled="true"><div class="slot"><span>Head</span><i>Empty</i></div><div class="slot"><span>Chest</span><i>Empty</i></div><div class="slot"><span>Arms</span><i>Empty</i></div><div class="slot"><span>Hands</span><i>Empty</i></div><div class="slot"><span>Legs</span><i>Empty</i></div><div class="slot"><span>Feet</span><i>Empty</i></div></div>
+        <h4>Weapons</h4>
+        <div class="gear two" aria-disabled="true"><div class="slot on"><span>Main hand</span><i>Longsword</i></div><div class="slot"><span>Off hand</span><i>Empty</i></div></div>
+        <p class="note">Gear and weapon choice arrive after the beta.</p>
       </section>
       <section class="tab-pane pane-arena" aria-label="Next fight">
         <h4>Next fight</h4>

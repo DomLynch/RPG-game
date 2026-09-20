@@ -1437,11 +1437,11 @@ dialog output { display: block; margin-top: 8px; font: 12px "Instrument Sans", A
    Fighter; a browser check that reaches into Arena or Settings clicks that tab's label first. */
 .journal-tabs { position: relative; }
 .journal-tabs > input { position: absolute; opacity: 0; pointer-events: none; }
-.tab-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--jp); border-radius: 12px; }
-.tab-strip label { text-align: center; padding: 9px 6px; border-radius: 9px; font: 600 13px "Instrument Sans", Arial, sans-serif; color: var(--jm); cursor: pointer; -webkit-tap-highlight-color: transparent; }
-#journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: #fff; color: var(--jf); box-shadow: 0 1px 2px #0002; }
+.tab-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--jp); border-radius: 12px; }
+.tab-strip label { text-align: center; padding: 9px 6px; border-radius: 9px; font: 600 12.5px "Instrument Sans", Arial, sans-serif; color: var(--jm); cursor: pointer; white-space: nowrap; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+#journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: #fff; color: var(--jf); box-shadow: 0 1px 2px #0002; }
 .tab-pane { display: none; padding-top: 4px; }
-#journal-tab-fighter:checked ~ .pane-fighter, #journal-tab-arena:checked ~ .pane-arena, #journal-tab-settings:checked ~ .pane-settings { display: block; }
+#journal-tab-fighter:checked ~ .pane-fighter, #journal-tab-profile:checked ~ .pane-profile, #journal-tab-arena:checked ~ .pane-arena, #journal-tab-settings:checked ~ .pane-settings { display: block; }
 .tab-pane .chips + .chips { margin-top: 8px; }
 .tab-pane .note { margin: 12px 0 0; }
 dialog .references { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--jl); }
@@ -1450,3 +1450,17 @@ dialog .scorecard-table { margin: 4px 0 0; font: 14px "Instrument Sans", Arial, 
 dialog .scorecard-table th, dialog .scorecard-table td { padding: 8px 4px; border-bottom: 1px solid var(--jl); }
 dialog .scorecard-table th { font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--jm); }
 dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
+
+/* Profile tab (owner, 2026-09-20): the five stats and the gear slots, read-only and greyed until builds and gear ship after the beta. */
+.statgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.statgrid div { text-align: center; padding: 10px 2px; border: 1px solid var(--jl); border-radius: 12px; background: #fff9; }
+.statgrid b { display: block; font: 800 13px "Bricolage", Arial, sans-serif; color: var(--ja); letter-spacing: .02em; }
+.statgrid span { display: block; font: 800 20px/1.1 "Bricolage", Arial, sans-serif; color: var(--jf); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.statgrid small { display: block; font: 600 9px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--jm); margin-top: 4px; }
+.gear { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.gear.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.slot { padding: 10px 10px 9px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: transparent; }
+.slot span { display: block; font: 600 10px "Instrument Sans", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.slot i { display: block; font: 600 13px "Instrument Sans", Arial, sans-serif; font-style: normal; margin-top: 4px; }
+.slot.on { border-style: solid; border-color: var(--jf); color: var(--jf); background: #fff9; }
+.gear[aria-disabled=true] .slot:not(.on) { opacity: .7; }
