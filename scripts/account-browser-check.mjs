@@ -47,7 +47,10 @@ try {
   });
   const requests = []; page.on('request', request => requests.push(request.url()));
   await page.goto(origin);
-  await page.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+  // Readiness = the attack button enables (assets decoded, renderer up). 120 s: a software-GL runner spends most of a minute here, and the
+  // page's main thread is blocked meanwhile — a click attempted before this hangs until Playwright's own timeout (CI run 35534160181, check 11).
+  const ready = p => p.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
+  await ready(page);
   assert.equal(await page.locator('#account-login').isVisible(), false);
   assert.equal(requests.some(url => url.startsWith(api) || /\/account-[^/]+\.js/.test(url)), false);
   await page.locator('#journal-button').tap();
@@ -113,7 +116,7 @@ try {
   receipt.checks.push('Service failure cannot overwrite cloud; retry recovers; sign-out clears session and cloud controls');
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   desktop.on('pageerror', error => receipt.errors.push(String(error)));
-  await desktop.goto(origin); await desktop.locator('#journal-button').click();
+  await desktop.goto(origin); await ready(desktop); await desktop.locator('#journal-button').click();
   await desktop.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
   assert.equal(await desktop.locator('#journal-button span').isVisible(), true, 'Actual desktop media path');
   assert.equal(await desktop.locator('#account-login').isVisible(), true);
