@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-auth-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
-const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+// A locale-less shell (hooks, CI, a non-interactive deploy) makes PostgreSQL 17 on macOS abort with
+// "postmaster became multithreaded during startup"; a valid LC_ALL keeps the check independent of who runs it.
+const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 'C' };
+const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env });
 let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
