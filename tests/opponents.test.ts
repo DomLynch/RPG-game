@@ -309,3 +309,46 @@ test('AI vs AI at normal: the Veteran\'s brain in the hero body against the Exec
   assert.ok(median >= 18 && median <= 45, `median ${median.toFixed(1)} s (${lengths.map(t => (t / 60).toFixed(0)).join(' ')})`);
   console.log(`executioner AI vs AI: median ${median.toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[23] / 60).toFixed(1)} s`);
 });
+
+// ---- the Dwarf: the warhammer (Combat slice, owner 2026-09-20: "less dangerous and balanced with the other weapons") ----
+const DW = OPPONENTS.dwarf;
+
+test('the Dwarf is set up from his data: the live warhammer (own blunt table, shaft guard), .78× scale, 170 health, poise 12, his own profiles; the hero is unchanged', () => {
+  const [hero, him] = initialDuel(DW).fighters;
+  assert.deepEqual(hero, initialDuel().fighters[0]);
+  assert.equal(him.weapon, 'warhammer'); assert.equal(WEAPONS.warhammer.placeholder, undefined); assert.notEqual(WEAPONS.warhammer.moves, MOVES); assert.notEqual(WEAPONS.warhammer.moves, WEAPONS.maul.moves);
+  assert.equal(him.scale, .78); assert.equal(him.health, 170); assert.equal(him.poise, 12);
+  assert.deepEqual(him.guardProfile, { costScale: 1.15, heavyBreaks: true }, 'a shaft guard like the trident: a heavy breaks it');
+  const w = WEAPONS.warhammer.moves;
+  assert.equal(w.light_right.damage, w.light_left.damage, 'a hammer head has no backhand edge: symmetrical swings');
+  assert.equal(w.light_right.chip, 0); assert.equal(w.heavy_overhead.poise, 0, 'the overhead can be cut into: the maul\'s hyper-armour was the wall');
+  for (const id of ['slash_riposte', 'riposte', 'heavy_riposte', 'heavy_counter', 'critical'] as const) assert.ok(w[id].damage < WEAPONS.cleaver.moves[id].damage && w[id].damage <= MOVES[id].damage, `${id}: a blunt punish under the cleaver's and the sword's`);
+  assert.notEqual(DW.profiles, PROFILES); assert.ok(DW.profiles.normal.pressure >= .4 && DW.profiles.normal.parry <= .2, 'a chopper\'s mix, not the Veteran\'s heavy-first opener');
+});
+
+test('fight identity — inside: the Dwarf passes the fairness battery at normal and hard (no cheese over the caps, every strategy touched) and an honest script can beat him [slow]', () => {
+  for (const [level, cap] of [['normal', .5], ['hard', .35]] as const) {
+    const rows = battery(level, 24, 7200, DW, { ...STRATEGIES, 'whiff punisher': whiffPunisher });
+    const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');
+    for (const [name, r] of Object.entries(rows)) {
+      if (name !== 'perfect parry') assert.ok(r.wins / 24 <= cap, `${level} · ${name} wins ${r.wins}/24 (cap ${cap * 100} %)\n  ${table}`);
+      assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
+    }
+    console.log(`dwarf battery ${level}\n  ${table}`);
+  }
+});
+
+test('the Dwarf sits in the rung-6 band: the Veteran\'s brain in the hero body wins 8–15 of 24 at normal and at least 2 at hard (the maul placeholder was 2 and 1), every fight finishing, median 20–45 s', () => {
+  for (const [level, lo, hi] of [['normal', 8, 15], ['hard', 2, 12]] as const) {
+    let wins = 0; const lengths: number[] = [];
+    for (let s = 1; s <= 24; s++) {
+      let d = ring(DW, 1.6), hero = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), him = initialAi((s * 2654435761) >>> 0);
+      for (let i = 0; i < 7200 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, him, DW.profiles[level]); hero = a.ai; him = b.ai; d = stepDuel(d, [a.intent, b.intent]); }
+      assert.ok(d.finish, `${level} seed ${s} did not finish`); lengths.push(d.tick); if (d.finish!.victim === 1) wins++;
+    }
+    const median = lengths.sort((a, b) => a - b)[12] / 60;
+    assert.ok(wins >= lo && wins <= hi, `${level} · hero wins ${wins}/24, band ${lo}–${hi}`);
+    assert.ok(median >= 20 && median <= 45, `${level} · median ${median.toFixed(1)} s`);
+    console.log(`dwarf ${level}: hero wins ${wins}/24, median ${median.toFixed(1)} s`);
+  }
+});
