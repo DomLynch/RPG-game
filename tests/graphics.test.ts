@@ -33,7 +33,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
-  const view = { yaw: 0, recenter() {}, lowerResolution() {}, orbit() {}, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  const view = { yaw: 0, recenter() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
@@ -459,7 +459,7 @@ test('the ladder: the first rung is the Veteran and his label stays the warden',
 test('the journal opponent picker lists the ladder, shows the current rung, and a pick saves the rung and reloads without the URL override', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
   const select = app.element('opponent-select');
-  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'minotaur', 'wraith', 'werewolf', 'skeleton', 'dwarf']);
+  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf'], 'live rungs only: held Season 2 creatures are not offered');
   assert.equal(select.value, 'goblin', 'the picker shows the rung this device is on');
   select.value = 'nightborn'; select.dispatchEvent(new Event('change')); app.tick();
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn', 'the pick is saved as the rung');

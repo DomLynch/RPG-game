@@ -1,5 +1,23 @@
 # Project state
 
+## Opponent picker shows live rungs only — lead implementation, 2026-09-20 (owner)
+The journal's opponent picker is built from `LADDER` (held recipes filtered out) instead of every `ENCOUNTERS` entry greyed as
+"(on hold)": Minotaur, Wraith, Werewolf and Skeleton no longer appear in the beta menu at all (they stay valid ids, so saved
+encounters still fall back). The beta list is Veteran, Pitborn, Goblin, Nightborn, Executioner, Dwarf. Roles as of today: the
+former lead is the deploy/GitHub/CI dev; this lane is lead implementation (features, integration, add/remove); character dev
+builds bodies; the design/web dev designs only and hands designs to implementation.
+Evidence: tsc + eslint clean; graphics/roster/ladder tests 37/37 (picker test updated); build + audit 0 + budget PASS
+(20,820,778 gzip of 32 MB, per fight 8,821,562 of 12 MB with the Dwarf). Full `npm test` and `test:browser` deferred until the
+deploy dev posts FREE (load-gated deploy in progress); receipts go on the PR.
+
+## Finisher rotation: even pool, never the same ceremony twice in a row (2026-09-20)
+Owner: "random, but the same finish can't appear twice in a row — keeps it fresh". Measured before the change: the
+seeded pick was already even (19.6–20.6 % each over 20 000 kill events) but memoryless (19.9 % back-to-back repeats).
+`selectFinisher(finish, weapons, previous)` now excludes the previous fight's ceremony from the pool; the scene keeps
+that memory (`lastFinisher`, rolled at rematch) and hands it to the audio resolver via `view.previousFinisher()`, so
+scene and audio still agree. Presentation state only; replays with the same history are identical. The preview harness
+resets the memory per captured window. Test: 20 000-event sweep asserts no repeat, 16–24 % share each, determinism.
+
 ## Dwarf — character lane candidate, not approved, not released (2026-09-20)
 Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
 `black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft

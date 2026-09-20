@@ -313,6 +313,10 @@ export function createScene(
     flesh = false,
     killSpray = false;
   let finisherOverride: FinisherId | null = null; // dev/test pick (owner 2026-09-19): swap which finisher plays on a ceremonial kill; null = the spec's selection
+  // Rotation memory (owner 2026-09-20: never the same ceremony twice in a row). `lastFinisher` is the ceremony the previous
+  // fight showed and feeds this fight's pick; `fightFinisher` is this fight's, rolled into `lastFinisher` when the next
+  // fight starts (practice.finish clears on rematch). Presentation state only — the simulation never sees it.
+  let lastFinisher: FinisherId | null = null, fightFinisher: FinisherId | null = null;
   let impact = 0,
     lastHealth: number = RULES.health,
     lastPlayerHealth: number = RULES.health;
@@ -489,6 +493,15 @@ export function createScene(
         setBladeBlood(true);
       }
     },
+    // The ceremony the previous fight showed (main.ts hands it to the audio resolver so both sides pick alike).
+    previousFinisher(): FinisherId | null {
+      return lastFinisher;
+    },
+    // Test/harness reset (the preview harness replays independent kills; each starts as a first fight).
+    setPreviousFinisher(id: FinisherId | null) {
+      lastFinisher = id;
+      fightFinisher = null;
+    },
     setFinisherOverride(id: FinisherId | null) {
       finisherOverride = id;
     },
@@ -558,8 +571,11 @@ export function createScene(
             practice.finish,
             [practice.duel.fighters[0].weapon, practice.duel.fighters[1].weapon],
             finisherOverride,
+            lastFinisher,
           )
         : null;
+      if (finisher) fightFinisher = finisher;
+      else if (!practice.finish && fightFinisher) { lastFinisher = fightFinisher; fightFinisher = null; }
       const finisherPose = finisher ? FINISHER_POSE[finisher] : null;
       const detailedBlood = finisher !== null && practice.finish?.victim === 1;
       const quietFinish = finisher === 'quietOne' && practice.finish?.victim === 1;

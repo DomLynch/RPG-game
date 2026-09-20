@@ -11,3 +11,18 @@ Use case: stylized-concept. Asset type: high fidelity dark medieval fantasy crea
 ## Wraith
 
 Use case: stylized-concept. Asset type: high fidelity dark medieval fantasy spectral creature production reference sheet, seven consistent views of ONE original Wraith. Input images 1 and 2 are direction references: terrifying ghostly gaunt crowned apparition with skeletal face, long clawed hands, smoky airy semi-transparent body and drifting torn vapor. Do not copy an exact existing character. Landscape sheet with four full-body views across upper two-thirds (front, left profile, rear, front three-quarter), same suspended open-arm pose and exact anatomy, and three detailed head busts along lower third (front, profile, three-quarter). Same identity, gaunt skull, broken crown, shoulder silhouette and ragged garment in all seven. Wraith upper torso remains legible through wisps: charcoal skeletal rib cage and long lean arms, recessed yellow-gray pinpoint eyes, hollow elongated screaming mouth, jagged sparse iron-black crown. Tattered dark funerary wrappings disintegrate into long curling smoke strands. Below pelvis body completely dissolves into tapering ragged smoke: no human legs, boots or solid skirt. Semi-transparent smoky layers visibly allow plain background to show through, broken edges and open spaces, wisps thread from elbows shoulders and fingers. Muted charcoal, smoke gray, cold ash and tiny restrained yellow eyes. The creature must feel weightless, ancient, threatening, semi-corporeal; no solid armored hooded human, no clean fabric hem, no neon blue glow, no giant effects hiding anatomy, no smooth ghost blob. Sophisticated realistic dark fantasy concept painting, meticulous skull/rib anatomy, soft translucent material edges contrasted with sharp sparse crown and claws. Uniform medium-gray background, even readable light; enough contrast to examine dark core and pale vapor. Small discreet top text 'WRAITH — CONCEPT REFERENCE', bottom text 'NOT A GAME RENDER'. Large sharp high-resolution landscape sheet.
+
+## Executioner (reconstruction source, 2026-09-20)
+
+Image edit (FLUX.1 Kontext [dev], signed-in Hugging Face Space, seed 190926) of the owner-approved masked
+head-and-shoulders reference `masked-06.png` (local set, not committed). Prompt: "Show this exact same character
+full body from the top of his hood to his bare feet, standing upright in a symmetrical A-pose facing the camera
+directly, arms held out slightly from the body with open relaxed hands, legs shoulder-width apart. Remove the sword
+and its handle from his back; no weapon anywhere. Keep his ragged near-black hood, riveted iron half-mask, heavy
+buckled leather harness straps exactly as they are; his bare skin is deep dark chocolate brown. Arms raised out to
+about 40 degrees from his sides. Add a heavy studded dark leather kilt apron over dark trousers, iron greaves on
+the shins, bare muscular giant arms. Plain flat uniform light grey studio background, soft even lighting, no
+shadows on the background, photorealistic, sharp detail." Second pass (same seed): "Remove the dark stain and the
+smear on the chest of his leather harness so the leather is clean and even; keep everything else exactly identical."
+Three seeds were generated; seed 7 was chosen (dark-chocolate skin, giant build, clean A-pose); a T-posed,
+sleeved candidate was rejected. This is a reconstruction source, not a game screenshot.
