@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Frankendom: Origins</title>
+<meta name="description" content="A sword fight in your pocket. One opponent at a time, four buttons, free in your browser.">
+<meta name="theme-color" content="#f4f0e8">
+<link rel="canonical" href="https://frankendom.com/game/">
+<meta property="og:type" content="website"><meta property="og:title" content="Frankendom: Origins"><meta property="og:description" content="A sword fight in your pocket. One opponent at a time, four buttons, free in your browser."><meta property="og:url" content="https://frankendom.com/game/"><meta property="og:image" content="https://frankendom.com/game/img/og.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23171e20'/%3E%3Cpath d='M20 48V16h28M20 30h20' fill='none' stroke='%23cbb58a' stroke-width='5'/%3E%3C/svg%3E">
+<link rel="preload" href="/game/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Bricolage";src:url(/game/fonts/bricolage.woff2) format("woff2");font-weight:800;font-display:swap}
+@font-face{font-family:"Instrument Sans";src:url(/game/fonts/instrument.woff2) format("woff2");font-weight:400 600;font-display:swap}
+:root{
+  --bg:#f4f0e8;--tile:#ebe5d9;--tile-2:#e1d9c9;--dark:#1b1916;--dark-2:#2a2723;--ink:#1b1916;--ink-2:#4a453d;--ink-3:#807a6f;
+  --red:#b3231c;--red-2:#d02a22;--sand:#d7c39a;
+  --d:"Bricolage",ui-sans-serif,-apple-system,"Helvetica Neue",Arial,sans-serif;--s:"Instrument Sans",ui-sans-serif,-apple-system,"Helvetica Neue",Arial,sans-serif;--m:ui-monospace,"SF Mono",Menlo,monospace;
+  --r:22px;--g:16px;
+
+}
+*{box-sizing:border-box}
+html{background:var(--bg);color:var(--ink);font:17px/1.5 var(--s);-webkit-text-size-adjust:100%;scroll-padding-top:80px}
+@media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+body{margin:0;overflow-x:hidden;background:var(--bg)}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+img{display:block;max-width:100%}
+h1,h2,h3{margin:0;font-family:var(--d);font-weight:800;line-height:1;letter-spacing:-.025em}
+h1{font-size:clamp(44px,11vw,104px);text-wrap:balance}
+h2{font-size:clamp(30px,7vw,54px);text-wrap:balance}
+h3{font-size:22px}
+p{margin:0 0 .8em;max-width:56ch}
+.wrap{padding-inline:max(var(--g),env(safe-area-inset-left)) max(var(--g),env(safe-area-inset-right));max-width:1120px;margin-inline:auto}
+@media(min-width:760px){:root{--g:32px}}
+.k{font:600 12px/1 var(--s);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+/* Floating pill nav. */
+.nav{position:sticky;top:10px;z-index:40;display:flex;justify-content:center;padding:0 12px}
+.nav div{display:flex;align-items:center;gap:6px;background:#1b1916e6;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#fff;border-radius:999px;padding:6px 6px 6px 16px;box-shadow:0 10px 30px -14px #0009}
+.nav .mark{font:800 17px var(--d);letter-spacing:-.02em;margin-right:8px}
+.nav nav{display:none;gap:14px;font:600 13px var(--s);color:#cfc9bd;margin-right:10px}
+@media(min-width:900px){.nav nav{display:flex}}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:999px;font:600 15px var(--s);color:var(--ink);background:var(--tile);-webkit-tap-highlight-color:transparent;transition:.15s;white-space:nowrap}
+.pill:hover{background:var(--tile-2)}
+.pill.red{background:var(--red);color:#fff}.pill.red:hover{background:var(--red-2)}
+.pill.big{min-height:56px;padding:0 28px;font-size:17px}
+.nav .pill{min-height:36px;padding:0 16px;font-size:14px}
+/* Hero: phone in hand. */
+.hero{padding:40px 0 0;text-align:center}
+.hero .k{margin-bottom:16px;display:block}
+.hero p.sub{margin:18px auto 24px;max-width:34ch;color:var(--ink-2);font-size:clamp(17px,4.3vw,20px)}
+.hero .cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.phone{position:relative;width:min(300px,78vw);margin:36px auto 0;aspect-ratio:9/19.5;border-radius:44px;background:#0c0c0c;padding:12px;box-shadow:0 40px 80px -30px #0008,0 0 0 1px #0004;overflow:hidden}
+.phone::before{content:"";position:absolute;top:18px;left:50%;transform:translateX(-50%);width:96px;height:26px;border-radius:999px;background:#0c0c0c;z-index:2}
+.phone img{width:100%;height:100%;object-fit:cover;object-position:50% 40%;border-radius:34px}
+.hero-fade{height:120px;margin-top:-120px;background:linear-gradient(180deg,transparent,var(--bg));position:relative}
+/* Bento. */
+.bento{display:grid;gap:10px;grid-template-columns:repeat(2,1fr);grid-auto-rows:minmax(150px,auto)}
+@media(min-width:760px){.bento{grid-template-columns:repeat(4,1fr);gap:12px;grid-auto-rows:minmax(190px,auto)}}
+.t{border-radius:var(--r);background:var(--tile);padding:20px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;min-width:0;overflow:hidden;position:relative}
+.t.dark{background:var(--dark);color:#f2ede3}.t.dark .k{color:#a39c8f}
+.t.red{background:var(--red);color:#fff}.t.red .k{color:#f5c6c2}
+.t.sand{background:var(--sand)}
+.t.w2{grid-column:span 2}.t.h2{grid-row:span 2}
+.t h3{font-size:clamp(22px,5.6vw,30px);letter-spacing:-.02em}
+.t .big{font:800 clamp(56px,14vw,96px)/.9 var(--d);letter-spacing:-.04em}
+.t p{font-size:15px;color:inherit;opacity:.85;margin:0}
+.keys{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.keys span{background:#fff8;border-radius:12px;padding:10px;font:600 14px var(--s)}
+.keys span small{display:block;font-weight:400;color:var(--ink-2);margin-top:2px;font-size:12px}
+.faces{display:flex;margin-top:auto}
+.faces img{width:54px;height:54px;border-radius:50%;object-fit:cover;object-position:50% 8%;transform:scale(1.02);border:3px solid var(--tile);margin-left:-12px;background:var(--tile-2)}
+.faces img:first-child{margin-left:0}
+.reach{display:grid;gap:6px;font:12px var(--m)}
+.reach div{display:grid;grid-template-columns:78px 1fr 44px;gap:8px;align-items:center}
+.reach i{display:block;height:6px;border-radius:3px;background:#fff8}.reach i b{display:block;height:100%;border-radius:3px;background:var(--red);width:var(--w)}
+.t .stamps{display:flex;flex-wrap:wrap;gap:6px}.t .stamps span{border:1.5px solid #fff9;border-radius:999px;padding:6px 10px;font:600 12px var(--s)}
+.sil{display:flex;gap:6px;align-items:flex-end;height:80px}.sil img{height:100%;object-fit:contain;opacity:.25}
+/* Roster tiles. */
+.roster{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+@media(min-width:900px){.roster{grid-template-columns:repeat(5,1fr)}}
+.foe{border-radius:var(--r);background:var(--tile);overflow:hidden;display:flex;flex-direction:column}
+.foe figure{margin:0;aspect-ratio:1/1.05;background:radial-gradient(80% 70% at 50% 50%,#ffffff70,transparent);overflow:hidden}
+.foe img{width:100%;height:100%;object-fit:cover;object-position:50% 8%;transform:scale(1.25);transform-origin:50% 22%;mix-blend-mode:multiply}
+.foe div{padding:14px 16px 18px}
+.foe h3{font-size:20px;letter-spacing:-.02em}
+.foe .k{display:block;margin:4px 0 8px;color:var(--red)}
+.foe p{font-size:14px;color:var(--ink-2);margin:0 0 8px}
+.foe small{font:12px var(--m);color:var(--ink-3)}
+@media(max-width:899px){.foe:last-child{grid-column:1/-1;flex-direction:row}.foe:last-child figure{width:44%;aspect-ratio:auto}.foe:last-child div{align-self:center}}
+section{padding-block:44px}
+@media(min-width:760px){section{padding-block:72px}}
+.lead{margin-bottom:22px}
+.lead p{color:var(--ink-2);margin-top:10px}
+/* Ladder list. */
+.ladder{display:grid;gap:6px}
+.ladder div{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--tile);border-radius:14px;padding:12px 16px}
+.ladder b{font:800 18px var(--d);letter-spacing:-.02em}.ladder small{color:var(--ink-3);font-size:12px}.ladder .n{font:13px var(--m);color:var(--ink-2)}
+.ladder .r{width:28px;height:28px;border-radius:50%;background:var(--dark);color:#fff;display:grid;place-items:center;font:600 12px var(--s)}
+.ladder .origin{background:var(--dark);color:#fff}.ladder .origin .r{background:var(--red)}.ladder .origin small{color:#a39c8f}.ladder .origin .n{color:#cfc9bd}
+.hud{display:inline-flex;align-items:center;gap:12px;padding:10px 14px;border-radius:14px;background:#fff;font:13px var(--s);color:var(--ink-2);margin-top:14px}
+.hud b{display:block;color:var(--ink);font-weight:600}
+.origins{display:grid;gap:8px;grid-template-columns:repeat(2,1fr)}
+@media(min-width:760px){.origins{grid-template-columns:repeat(6,1fr)}}
+.origins div{background:var(--tile);border-radius:14px;padding:14px}
+.origins b{display:block;font:800 18px var(--d);letter-spacing:-.02em}.origins span{font-size:13px;color:var(--ink-2)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.stats div{background:var(--tile);border-radius:14px;padding:12px 4px;text-align:center}
+.stats b{display:block;font:800 18px var(--d);color:var(--red)}.stats span{display:block;font:600 10px var(--s);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+footer{padding:40px 0 calc(90px + env(safe-area-inset-bottom));color:var(--ink-3);font-size:13px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:10px 20px}footer a{color:var(--ink-2)}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:45;padding:10px max(16px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:center;transform:translateY(120%);transition:transform .3s cubic-bezier(.2,.7,.2,1)}
+.dock.show{transform:none}.dock .pill{box-shadow:0 14px 30px -10px #0008;width:100%;max-width:420px}
+@media(min-width:760px){.dock{display:none}}
+@media(prefers-reduced-motion:no-preference){[data-js] .rv{opacity:0;transform:translateY(10px);transition:.55s ease}[data-js] .rv.in{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="nav"><div><a class="mark" href="#top">Frankendom</a><nav><a href="#what">What it is</a><a href="#ladder">Opponents</a><a href="#ranks">Ranks</a></nav><a class="pill red" href="https://frankendom.com/">Play</a></div></div>
+<main id="top">
+<section class="hero wrap">
+  <span class="k">Frankendom: Origins · arena beta</span>
+  <h1>A sword fight in your pocket.</h1>
+  <p class="sub">One fighter. One arena. One opponent at a time. Free in your browser, no download, no sign-in.</p>
+  <div class="cta"><a class="pill red big" href="https://frankendom.com/">Play now</a><a class="pill big" href="#what">How it works</a></div>
+  <div class="phone"><img src="/game/img/hero-phone.webp" width="1000" height="2168" alt="Frankendom running on a phone: a gladiator faces the Nightborn in a stone arena." fetchpriority="high"></div>
+</section>
+<div class="hero-fade"></div>
+
+<section id="what" class="wrap rv">
+  <div class="bento">
+    <div class="t w2"><span class="k">Four buttons</span><h3>Light. Heavy. Guard. Dodge.</h3><div class="keys"><span>Light<small>Fast cuts. Chain them.</small></span><span>Heavy<small>Breaks a guard. Hold to charge.</small></span><span>Guard<small>Hold to block. Tap late to parry.</small></span><span>Dodge<small>Tap to step. Hold to roll.</small></span></div></div>
+    <div class="t dark"><span class="k">Career</span><div class="big">205</div><p>wins from Recruit to Origin. Losses cost nothing.</p></div>
+    <div class="t sand"><span class="k">The ladder</span><h3>Five opponents</h3><p>Each one teaches you something.</p><div class="faces"><img src="/game/img/veteran.webp" alt="" loading="lazy"><img src="/game/img/pitborn.webp" alt="" loading="lazy"><img src="/game/img/goblin.webp" alt="" loading="lazy"><img src="/game/img/nightborn.webp" alt="" loading="lazy"><img src="/game/img/executioner.webp" alt="" loading="lazy"></div></div>
+    <div class="t w2"><span class="k">Weapons · reach in metres</span><div class="reach"><div><b>Longsword</b><i><b style="--w:87%"></b></i><span>2.0</span></div><div>Trident<i><b style="--w:98%"></b></i><span>2.25</span></div><div>Cleaver<i><b style="--w:87%"></b></i><span>2.0</span></div><div>Knife<i><b style="--w:67%"></b></i><span>1.55</span></div><div>Estoc<i><b style="--w:87%"></b></i><span>2.0</span></div><div>Scythe<i><b style="--w:100%"></b></i><span>2.3</span></div></div><p>No random stats. A weapon is its reach, its speed and how it guards.</p></div>
+    <div class="t red"><span class="k">Finishers</span><h3>Where the blade lands decides the death.</h3><div class="stamps"><span>Split Crown</span><span>Decapitation</span><span>Run Through</span><span>Plain fall</span></div></div>
+    <div class="t"><span class="k">Blood</span><h3>Red, dark, or off.</h3><p>Your call. Clips stay shareable.</p></div>
+    <div class="t"><span class="k">Your fighter</span><h3>Guest first.</h3><p>Sign in with Google to keep name, opponent and ranks on every device.</p></div>
+    <div class="t w2"><span class="k">Season 2</span><h3>Built and waiting.</h3><div class="sil"><img src="/game/img/sil-minotaur.webp" alt="Minotaur" loading="lazy"><img src="/game/img/sil-wraith.webp" alt="Wraith" loading="lazy"><img src="/game/img/sil-werewolf.webp" alt="Werewolf" loading="lazy"><img src="/game/img/sil-skeleton.webp" alt="Skeleton" loading="lazy"></div></div>
+  </div>
+</section>
+
+<section id="ladder" class="wrap rv">
+  <div class="lead"><h2>Meet the ladder.</h2><p>Five opponents, in order. Each one is built to teach a single thing.</p></div>
+  <div class="roster">
+    <article class="foe"><figure><img src="/game/img/veteran.webp" alt="The Veteran" loading="lazy"></figure><div><h3>Veteran</h3><span class="k">Trident</span><p>Long reach. Get past the point.</p><small>×1.00 · 150 hp</small></div></article>
+    <article class="foe"><figure><img src="/game/img/pitborn.webp" alt="The Pitborn" loading="lazy"></figure><div><h3>Pitborn</h3><span class="k">Cleaver</span><p>Never stops swinging. Manage stamina, then parry.</p><small>×1.13 · 190 hp</small></div></article>
+    <article class="foe"><figure><img src="/game/img/goblin.webp" alt="The Goblin" loading="lazy"></figure><div><h3>Goblin</h3><span class="k">Knife</span><p>Fast and dirty. Read the tell, not the blade.</p><small>×0.78 · 120 hp</small></div></article>
+    <article class="foe"><figure><img src="/game/img/nightborn.webp" alt="The Nightborn" loading="lazy"></figure><div><h3>Nightborn</h3><span class="k">Estoc</span><p>Parries everything. Bait him, then punish.</p><small>×1.03 · 150 hp</small></div></article>
+    <article class="foe"><figure><img src="/game/img/executioner.webp" alt="The Executioner" loading="lazy"></figure><div><h3>Executioner</h3><span class="k">Scythe</span><p>Huge. Everything you learned, at once.</p><small>×1.36 · 160 hp</small></div></article>
+  </div>
+</section>
+
+<section id="ranks" class="wrap rv">
+  <div class="lead"><h2>Ten ranks. One rule.</h2><p>Every win adds a mark. Losses cost nothing. Rank is who you are, not how hard you hit.</p></div>
+  <div class="ladder">
+    <div><span class="r">1</span><div><b>Recruit</b> <small>I–V · 3 wins each</small></div><span class="n">from 0</span></div>
+    <div><span class="r">2</span><div><b>Legionary</b> <small>I–V · 3 wins each</small></div><span class="n">15</span></div>
+    <div><span class="r">3</span><div><b>Gladiator</b> <small>I–V · 5 wins each</small></div><span class="n">30</span></div>
+    <div><span class="r">4</span><div><b>Veteran</b> <small>I–V</small></div><span class="n">55</span></div>
+    <div><span class="r">5</span><div><b>Champion</b> <small>I–V</small></div><span class="n">80</span></div>
+    <div><span class="r">6</span><div><b>Praetorian</b> <small>I–V</small></div><span class="n">105</span></div>
+    <div><span class="r">7</span><div><b>Master</b> <small>I–V</small></div><span class="n">130</span></div>
+    <div><span class="r">8</span><div><b>Primus</b> <small>I–V</small></div><span class="n">155</span></div>
+    <div><span class="r">9</span><div><b>Invictus</b> <small>I–V</small></div><span class="n">180</span></div>
+    <div class="origin"><span class="r">10</span><div><b>Origin</b> <small>singular</small></div><span class="n">205</span></div>
+  </div>
+  <div class="hud"><span style="font:800 18px var(--d)">III</span><div><b>Gladiator III · ● ● ● ○ ○</b>two more wins to Gladiator IV</div></div>
+</section>
+
+<section id="story" class="wrap rv">
+  <div class="lead"><h2>The story, short.</h2><p>A ruined arena at the edge of worlds. Dead civilisations bleed into one place, and all of them end up here. No map, no quest. The sand, the crowd, the next fight. You start as a Recruit with a longsword. What you become is up to you.</p></div>
+  <span class="k" style="display:block;margin-bottom:8px">Origins · after the beta · look and kit, not power</span>
+  <div class="origins"><div><b>Hoplite</b><span>Bronze, spear, shield.</span></div><div><b>Northman</b><span>Fur and axe.</span></div><div><b>Pitborn</b><span>Bone and iron.</span></div><div><b>Nightborn</b><span>Gothic, vampiric.</span></div><div><b>Imperial</b><span>Sword and shield.</span></div><div><b>Wildblood</b><span>Wolf and totem.</span></div></div>
+  <span class="k" style="display:block;margin:22px 0 8px">At Origin the builds open · same points for everyone</span>
+  <div class="stats"><div><b>STR</b><span>damage</span></div><div><b>DEX</b><span>stamina use</span></div><div><b>VIG</b><span>health</span></div><div><b>END</b><span>stamina</span></div><div><b>POISE</b><span>stagger</span></div></div>
+</section>
+</main>
+<footer><div class="wrap"><span>© 2026 Frankendom · Arena beta: local fights against AI. Online duels next.</span><a href="https://frankendom.com/">Play</a><a href="/privacy.html">Privacy</a><a href="https://quaternius.com/">Quaternius · CC0</a><a href="/game/fonts/LICENSES.txt">Type · OFL</a></div></footer>
+<div class="dock" id="dock"><a class="pill red big" href="https://frankendom.com/">Play now</a></div>
+<script src="/game/game.js" defer></script>
+</body>
+</html>
