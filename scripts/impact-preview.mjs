@@ -47,7 +47,7 @@ const cell = { w: 360, h: 420 }, sheet = document.createElement('canvas'), ctx =
 // Render one moment the way main.ts does: settle the camera on the pre-contact state, then step frame by frame with the frame loop's hit-stop
 // (the contact frame carries the events and is frozen; later frozen frames carry none; effects keep running on dt, the rigs hold).
 function play(name, captureAt) {
-  const { list, at } = MOMENTS[name](), start = Math.max(0, at - 30), cells = [], trace = [], probes = [];
+  const { list, at } = MOMENTS[name](), start = Math.max(0, at - 30), cells = [], trace = [];
   const state = p => p.fighter, mid = p => [(p.fighter.x + p.enemy.x) / 2, 1.1, (p.fighter.z + p.enemy.z) / 2];
   view.recenter(); for (let i = 0; i < 90; i++) view.render(state(list[start]), true, TICK, list[start], [], false);
   let frame = 0, stop = 0;
@@ -57,7 +57,8 @@ function play(name, captureAt) {
     stop = ms; const frozenFrames = Math.round(stop / (1000 * TICK));
     for (let f = 0; f <= frozenFrames; f++) {   // f = 0 is the contact frame itself (events + frozen when a stop applies)
       view.render(state(p), true, TICK, p, f === 0 ? events : [], f === 0 ? stop > 0 : f < frozenFrames);
-      if (k >= at) { const since = frame - 0; const point = view.project(mid(p)); trace.push({ frame: since, x: point ? +point[0].toFixed(2) : null, y: point ? +point[1].toFixed(2) : null, frozen: f > 0 || (f === 0 && stop > 0), probe: view.probe?.() ?? null });
+      if (k === at - 1) { const point = view.project(mid(p)); trace.push({ frame: -1, x: point ? +point[0].toFixed(2) : null, y: point ? +point[1].toFixed(2) : null, frozen: false, probe: null }); }   // the origin: the frame before contact
+      if (k >= at) { const since = frame; const point = view.project(mid(p)); trace.push({ frame: since, x: point ? +point[0].toFixed(2) : null, y: point ? +point[1].toFixed(2) : null, frozen: f > 0 || (f === 0 && stop > 0), probe: view.probe?.() ?? null });
         if (captureAt.includes(since)) cells.push({ since, image: grab(point) }); frame++; }
     }
   }
@@ -93,9 +94,9 @@ try {
   for (const [name, at] of [['block', [0, 2, 5, 9]], ['parry', [0, 2, 5, 9]], ['heavy', [0, 2, 5, 9]], ['kill', [0, 1, 3, 8]]]) {
     const { image, trace, events } = await page.evaluate(([n, a]) => __preview.strip(n, a), [name, at]);
     await fs.writeFile(`${dir}/${name}.png`, Buffer.from(image.split(',')[1], 'base64')); console.log(`  ${dir}/${name}.png  events: ${events.join(', ')}`);
-    // Camera kick trace: how far (CSS px) a fixed world point between the fighters moves on screen after the contact, frame by frame.
-    const origin = trace[0], shift = trace.map(t => t.x === null || origin.x === null ? null : +Math.hypot(t.x - origin.x, t.y - origin.y).toFixed(2));
-    stats[name] = { events, cameraShiftPx: shift.slice(0, 16), peakShiftPx: Math.max(...shift.filter(v => v !== null)), probes: trace.slice(0, 16).map(t => t.probe) };
+    // Camera kick trace: how far (CSS px) a fixed world point between the fighters moves on screen from the frame before contact, frame by frame.
+    const origin = trace[0], shift = trace.slice(1).map(t => t.x === null || origin.x === null ? null : +Math.hypot(t.x - origin.x, t.y - origin.y).toFixed(2));
+    stats[name] = { events, cameraShiftPx: shift.slice(0, 16), peakShiftPx: Math.max(...shift.filter(v => v !== null)), probes: trace.slice(1, 17).map(t => t.probe) };
   }
   await fs.writeFile(`${dir}/stats.json`, JSON.stringify(stats, null, 1));
   const previous = against ? JSON.parse(await fs.readFile(`artifacts/presentation/${against}/stats.json`, 'utf8')) : null;

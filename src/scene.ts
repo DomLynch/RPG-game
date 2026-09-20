@@ -9,7 +9,8 @@ import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
-import { clashStrength, createClashSparks } from './clash-sparks.ts';
+import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
+import { shoveFor } from './camera-kick.ts';
 import { bloodiesMaterial, createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 
@@ -409,8 +410,14 @@ export function createScene(
   // (readable brutality: nothing may obscure a pose); off when the viewer prefers reduced motion. Placeholder for the visual lane's impact pass.
   const stillCamera =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The kick is a world-space offset scaled by `kick` (1 → 0): a landing blow drops the camera and shoves it a little along the blow; a parry
+  // flicks it sideways with the deflection. A push along the blow alone is a dolly down the view axis and reads as nothing on screen.
   let kick = 0,
-    kickHeading = 0;
+    kickHold = 0, // a heavy-class contact holds its full displacement for two frames before settling: the weight lands, then the camera recovers
+    kickRate = 1 / 0.15, // 1/s: how fast the offset settles
+    shoved = 0; // the kick applied to the camera for the last draw; taken off before the next frame's settle so it never compounds
+  const kickOffset = new THREE.Vector3();
+  const blockHeavy = [false, false]; // which fighter's standing block just caught a heavy (his recoil is deeper while `blocked` lasts)
   let ratio = Math.min(devicePixelRatio, PIXEL_CAP); // the context-loss recovery path lowers this to 1 from the tier's ceiling
   const resize = () => {
     camera.aspect = innerWidth / innerHeight;
@@ -575,17 +582,19 @@ export function createScene(
         warriors?.opponent.unsever();
         if (supportsFinishers(opponentId, 'opened')) warriors?.opponent.prepareOpened();
       } // a fresh match: both bars full again
-      if (blow && dt > 0 && !stillCamera) {
-        const heavy =
-          blow.charged ||
-          blow.move === 'heavy_overhead' ||
-          blow.move === 'heavy_riposte' ||
-          blow.move === 'heavy_counter' ||
-          blow.move === 'critical' ||
-          blow.type === 'GuardBroken';
-        kick = heavy ? 0.045 : 0.02;
-        kickHeading = blow.heading ?? state.heading;
+      // Camera kick: a landed blow shoves the camera along its heading (7 cm for a heavy class, 2 cm for a light), a block or parry rocks
+      // it less (1.2–2.8 cm) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
+      const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
+      const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && shoveFor(shoveEvent);
+      if (shoveEvent && shove && dt > 0 && !stillCamera) {
+        // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
+        const heading = shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading);
+        kickOffset.set(Math.sin(heading) * shove.along + Math.cos(heading) * shove.side, -shove.drop, Math.cos(heading) * shove.along - Math.sin(heading) * shove.side);
+        kick = 1;
+        kickHold = shove.hold;
+        kickRate = 1 / shove.settle;
       }
+      if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (contact && dt > 0) {
         const enemyHurt = blow?.target === 1,
           hurt = !!blow;
@@ -795,7 +804,7 @@ export function createScene(
         mine.attack,
         mine.contact,
         travel && dt ? (dx * Math.cos(state.heading) - dz * Math.sin(state.heading)) / (travel * dt) : 0,
-        practice.result === 'blocked' ? Math.max(0, 1 - practice.resultAge / 12) : 0,
+        practice.result === 'blocked' ? (blockHeavy[0] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
       );
       warriors?.opponent.update(
         ex * Math.sin(practice.enemy.heading) + ez * Math.cos(practice.enemy.heading) < -0.0001
@@ -810,7 +819,7 @@ export function createScene(
           ? (ex * Math.cos(practice.enemy.heading) - ez * Math.sin(practice.enemy.heading)) /
               (enemyTravel * dt)
           : 0,
-        practice.result === 'enemyBlocked' ? Math.max(0, 1 - practice.resultAge / 12) : 0,
+        practice.result === 'enemyBlocked' ? (blockHeavy[1] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
       );
       // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
       if (detailedBlood) wounds[1].group.visible = false;
@@ -995,16 +1004,21 @@ export function createScene(
           canScuff(theirs.pose, enemyTravel),
         ],
       );
+      camera.position.addScaledVector(kickOffset, -shoved); // last draw's shove comes off before the settle
+      shoved = 0;
       camera.position.lerp(desired, started ? blend : 1);
       aim.lerp(look, started ? blend : 1);
-      if (kick > 0) {
-        camera.position.x += Math.sin(kickHeading) * kick;
-        camera.position.z += Math.cos(kickHeading) * kick;
-        kick = Math.max(0, kick - dt * 0.3);
-      }
       camera.lookAt(aim);
       started = true;
+      // The kick is applied after the look-at (so the frame itself shifts) and stays on the camera until the next frame takes it off
+      // before settling — a shove left inside the lerped position would compound.
+      shoved = kick;
+      camera.position.addScaledVector(kickOffset, shoved);
       renderer.render(scene, camera);
+      if (kick > 0) {
+        if (kickHold > 0) kickHold -= dt;
+        else kick = Math.max(0, kick - dt * kickRate);
+      }
     },
   };
 }
