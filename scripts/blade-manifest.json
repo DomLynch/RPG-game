@@ -7,6 +7,7 @@
     {"weapon": "knife", "glb": "src/assets/goblin.glb", "node": "WeaponDrawn", "contact": [0.12, 0.52]},
     {"weapon": "estoc", "glb": "src/assets/weapons/estoc/nightborn-estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15]},
     {"weapon": "scythe", "glb": "src/assets/weapons/scythe/warrior-scythe.glb", "node": "WeaponDrawn", "contact": [1.22, 1.32]},
+    {"weapon": "warhammer", "glb": "src/assets/weapons/warhammer/veteran-warhammer.glb", "node": "WeaponDrawn", "contact": [0.705, 0.815]},
     {"weapon": "maul", "glb": "src/assets/minotaur.glb", "node": "WeaponDrawn", "contact": [0.73, 1.11], "scale": 1},
     {"weapon": "reaper", "glb": "src/assets/wraith.glb", "node": "ReaperEdge", "contact": [0, 0.868], "scale": 1.5}
   ]
