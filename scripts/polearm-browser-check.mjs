@@ -20,7 +20,9 @@ try {
     const prefix = opponent === 'executioner' ? 'Scythe' : 'Trident';
     for (const mobile of [false, true]) {
       const viewport = mobile ? { width: 852, height: 393 } : { width: 1100, height: 1050 };
-      const context = await browser.newContext({ viewport, deviceScaleFactor: mobile ? 2 : 1.5, isMobile: mobile, hasTouch: mobile });
+      // Receipts render at native DPR on the Mac; on the software-GL runner every extra pixel is wall time (HARNESS_DPR / CI → 1).
+      const deviceScaleFactor = Number(process.env.HARNESS_DPR) || (process.env.CI ? 1 : mobile ? 2 : 1.5);
+      const context = await browser.newContext({ viewport, deviceScaleFactor, isMobile: mobile, hasTouch: mobile });
       const page = await context.newPage(); page.on('pageerror', e => receipt.errors.push(String(e)));
       await page.route('**/*sentry.io/**', r => r.abort());
       const asset = page.waitForResponse(r => new RegExp(`/${opponent}(?:-[\\w-]+)?\\.glb(?:\\?|$)`).test(r.url()), { timeout: 90000 });
@@ -65,7 +67,7 @@ try {
       await until(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), 30000, prefix);
       await shot('fight');
       for (let i = 0; i < 3; i++) { await run(120); await shot(`fight-${i}`); }
-      receipt.views.push({ opponent, mobile, viewport, asset: response.url(), rigSha256, frames });
+      receipt.views.push({ opponent, mobile, viewport, deviceScaleFactor, asset: response.url(), rigSha256, frames });
       await context.close();
     }
   }
