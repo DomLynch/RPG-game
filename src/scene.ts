@@ -14,6 +14,7 @@ import { shoveFor } from './camera-kick.ts';
 import { bloodiesMaterial, createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 import { createCameraRig } from './camera.ts';
+import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
@@ -250,13 +251,7 @@ export function createScene(
     lastHealth: number = RULES.health,
     lastPlayerHealth: number = RULES.health;
   // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
-  let severHead: {
-      group: THREE.Group;
-      velocity: THREE.Vector3;
-      spin: THREE.Vector3;
-      radius: number;
-      resting: boolean;
-    } | null = null,
+  let severHead: SeveredHead | null = null,
     killHeading = 0;
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
   // Wound-site mark + drips (finishers & gore 2026-09-17): a small dark mark at the wound site with three drips below it,
@@ -332,7 +327,6 @@ export function createScene(
     }
     bloodiedBlade = on;
   }
-  const spinAxis = new THREE.Vector3();
   let heading = Math.PI;
   const rig = createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
@@ -676,36 +670,7 @@ export function createScene(
       // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
       if (severHead) {
         severHead.group.visible = bloodMode !== 'off';
-        const head = severHead;
-        if (!head.resting && dt > 0) {
-          head.velocity.y -= 12 * dt; // a touch heavier than life: reads on a phone screen
-          head.group.position.addScaledVector(head.velocity, dt);
-          const rate = head.spin.length();
-          if (rate > 0) {
-            spinAxis.copy(head.spin).multiplyScalar(1 / rate);
-            head.group.rotateOnWorldAxis(spinAxis, rate * dt);
-          }
-          if (head.group.position.y < head.radius) {
-            head.group.position.y = head.radius;
-            const speed = Math.hypot(head.velocity.x, head.velocity.z);
-            if (head.velocity.y < -1) {
-              head.velocity.y = -head.velocity.y * 0.28;
-              head.velocity.x *= 0.68;
-              head.velocity.z *= 0.68;
-            } // a real bounce
-            else {
-              head.velocity.y = 0;
-              const decay = Math.max(0, 1 - 2.1 * dt);
-              head.velocity.x *= decay;
-              head.velocity.z *= decay; // rolling friction
-              if (speed > 0.05)
-                head.spin.set(head.velocity.z / head.radius, 0, -head.velocity.x / head.radius);
-              else {
-                head.resting = true;
-              }
-            }
-          }
-        }
+        stepSeveredHead(severHead, dt);
       }
       const animationDt = frozen ? 0 : dt;
       arena.update(animationDt, events, rig.started ? camera : undefined);   // the crowd culls against the settled camera; the first frame draws everyone
@@ -797,13 +762,7 @@ export function createScene(
             0,
             practice.enemy.z - state.z,
           ).normalize();
-          severHead = {
-            group: built.group,
-            velocity: new THREE.Vector3(-axis.z * 1.1, 1.8, axis.x * 1.1),
-            spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9),
-            radius: built.radius,
-            resting: false,
-          };
+          severHead = launchSeveredHead(built.group, built.radius, axis, killHeading);
         }
       }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
