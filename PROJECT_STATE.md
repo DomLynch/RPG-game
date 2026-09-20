@@ -1,5 +1,17 @@
 # Project state
 
+## Career marks — career lane, 2026-09-20 (owner decision: marks on the Google account via Supabase)
+Every won duel awards one victory mark on the device (`awardMark` in `src/career.ts`, called once per fight in the same block that
+records the practice tally); rank is a pure function of the count per GAME_SPEC's ladder (3 marks per sub-rank for Recruit and
+Legionary, 5 from Gladiator, Origin at 205) and shows in the identity aside (`#rank-sigil` numeral, `#rank` label with pips).
+Cloud save carries `victory_marks` (migration `202609200004`, integer 0–100000, owner insert/update grants, default 0); Load keeps
+the higher of device and cloud so marks never fall. Client-reported beta data, never competitive rank authority (table comment).
+Evidence at this head: eslint + tsc clean; full `npm test` 314/314 (graphics harness now maps `./career.ts`; rank render asserted at boot); `account-database-check` PASS on a disposable PostgreSQL 17 with all four migrations (marks writable, −1 and 100001 rejected);
+build + audit 0 + budget PASS (30,098,480 gzip of 32 MB; per fight 9,807,338 of 12 MB); `account-browser-check` passed (POST/PATCH
+bodies now carry `victory_marks`; cloud 80 lifts device 77; save echoes 80); `test:browser` passed. Hosted project: the migration is
+applied by the career lane through the Supabase MCP before the lead deploys (additive; the live client ignores the column).
+Remaining: rematch loop after the last rung and the beta roster cut are the lead's; automatic save after a win for signed-in
+players is a follow-up (v1 syncs on the explicit Save/Load buttons only).
 ## Finisher cameras — Split Crown front-quarter, Decapitation corpse+head framing (2026-09-20)
 Owner phone review: the Split Crown side reveal turned the victim into profile and hid the skull seam; Decapitation's
 front camera let the killer's back hide the headless corpse. Split Crown now reveals on a raised 45° front-quarter
