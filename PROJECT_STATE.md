@@ -1,7 +1,5 @@
 # Project state
 
-# Project state
-
 ## Dwarf — character lane candidate, not approved, not released (2026-09-20)
 Owner asked for a Dwarf as a pipeline demonstration during the beta-freeze discussion. Concept image from the official
 `black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832x1216); reconstruction through the official Microsoft
