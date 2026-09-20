@@ -152,7 +152,9 @@ def match_skin(image, reference):
     on skin-weighted texels bring its mean skin to the donor neck tile's, so the collar seam is geometry, not colour."""
     read = lambda img: np.array(img.pixels[:], dtype=np.float32).reshape(-1, 4)
     ref = read(reference)
-    w_ref = skin_weight(ref)
+    # Only the texels the scan's neck strip shows (its collar tile is darker at the edges), still skin-weighted.
+    strip, _ = uv_mask(bpy.data.objects["Face"], reference, lambda lo, hi: lo >= NECK_CUT - NECK_BAND + 0.03 and hi <= NECK_CUT - 0.03)
+    w_ref = skin_weight(ref) * strip
     target = (ref[:, :3] * w_ref[:, None]).sum(0) / w_ref.sum()
     px = read(image)
     w = skin_weight(px)
@@ -160,15 +162,60 @@ def match_skin(image, reference):
     gain = np.clip(target / have, 0.8, 1.35)
     px[:, :3] = np.clip(px[:, :3] * (1 + (gain - 1)[None, :] * w[:, None]), 0, 1)
     image.pixels.foreach_set(px.reshape(-1))
+    print("SKIN MATCH", image.name, "skin texels", int((w > 0.5).sum()), "have", have.round(3), "target", target.round(3), "gain", gain.round(3), flush=True)
+    return px, target
+
+
+def uv_mask(obj, image, keep):
+    """Texels touched by obj's faces that pass keep(min z, max z), with ~2 texels of bleed past each edge."""
+    w, h = image.size
+    uv = obj.data.uv_layers.active.data
+    mask = np.zeros((h, w), dtype=bool)
+    faces = 0
+    for poly in obj.data.polygons:
+        zs = [(obj.matrix_world @ obj.data.vertices[i].co).z for i in poly.vertices]
+        if not keep(min(zs), max(zs)):
+            continue
+        faces += 1
+        pts = np.array([(uv[l].uv.x * w, (1 - uv[l].uv.y) * h) for l in poly.loop_indices])
+        for tri in range(1, len(pts) - 1):
+            a, b, c = pts[0], pts[tri], pts[tri + 1]
+            x0, y0 = np.floor(np.minimum.reduce([a, b, c])).astype(int) - 2
+            x1, y1 = np.ceil(np.maximum.reduce([a, b, c])).astype(int) + 2
+            ys, xs = np.mgrid[max(y0, 0) : min(y1, h), max(x0, 0) : min(x1, w)]
+            pxy = np.stack([xs + 0.5, ys + 0.5], -1)
+            d = (b - a)[0] * (c - a)[1] - (b - a)[1] * (c - a)[0]
+            if abs(d) < 1e-9:
+                continue
+            u = ((pxy - a)[..., 0] * (c - a)[1] - (pxy - a)[..., 1] * (c - a)[0]) / d
+            v = ((b - a)[0] * (pxy - a)[..., 1] - (b - a)[1] * (pxy - a)[..., 0]) / d
+            pad = 2.5 / max(1.0, math.sqrt(abs(d)))
+            mask[ys, xs] |= (u >= -pad) & (v >= -pad) & (u + v <= 1 + pad)
+    return mask.reshape(-1), faces
+
+
+def paint_neck(image, px, tone, z_from):
+    """The visible strip of reconstruction between its shoulders and the scanned neck carries its own baked nape hair and
+    beard stub. Every texel a face above z_from touches is painted the matched skin tone (a little grain kept), so the
+    strip reads as bare neck under the scan's ragged lower edge."""
+    mask, faces = uv_mask(mesh, image, lambda lo, hi: lo >= z_from)
+    idx = np.flatnonzero(mask)
+    rng = np.random.default_rng(190926)
+    grain = 1 + rng.normal(0, 0.025, (len(idx), 1))
+    px[idx, :3] = np.clip(tone[None, :] * grain, 0, 1)
+    image.pixels.foreach_set(px.reshape(-1))
+    print("NECK PAINT faces", faces, "texels", len(idx), "tone", tone.round(3), flush=True)
+
+
+def save_matched(image):
     # creature_pack.py ships the source WebP byte-for-byte; the matched map goes beside the surface for it to swap in.
     image.file_format = "WEBP"
     image.filepath_raw = str((root / f"{family}-basecolor.webp").resolve())
     image.save(quality=92)
-    print("SKIN MATCH", image.name, "skin texels", int((w > 0.5).sum()), "have", have.round(3), "target", target.round(3), "gain", gain.round(3), flush=True)
 
 
 if family == "veteran":
-    match_skin(base_colour_image(mesh), base_colour_image(bpy.data.objects["Face"]))
+    skin_px, skin_tone = match_skin(base_colour_image(mesh), base_colour_image(bpy.data.objects["Face"]))
 coords = [mesh.matrix_world @ v.co for v in mesh.data.vertices]
 lo = min(v.z for v in coords)
 hi = max(v.z for v in coords)
@@ -210,6 +257,8 @@ def tuck_neck():
                 tucked += 1
     mesh.data.update()
     print("NECK CUT", NECK_CUT, "top", round(max(v.co.z for v in mesh.data.vertices), 4), "tucked", tucked, flush=True)
+    paint_neck(base_colour_image(mesh), skin_px, skin_tone, NECK_CUT - NECK_BAND)
+    save_matched(base_colour_image(mesh))
 
 
 bpy.ops.object.select_all(action="DESELECT")
