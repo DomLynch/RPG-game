@@ -1011,3 +1011,57 @@ rematch silence is measured after the full ring. Focused units/typecheck and ten
 Full offline mix across AAC/Opus/fallback passes truepeak<=-1dBTP; bell-only truepeak-13.3dBTP;401719B gzip under450KB.
 Source/state audit completed. Evidence: artifacts/audio/bell-weight/. Game-browser/release work waits for lead window;
 latest npm audit returned503maintenance, not bypassed. Full inherited gates and public verification required before done.
+
+## Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five passes; beta freeze)
+Docs-and-hygiene pass only: no sound, gain, timing or simulation change (rebuilt sprite byte-identical: m4a 88c3e2b1…, ogg d3358aef…).
+Read this section first; the dated audio entries above (2026-09-15 … 2026-09-19) are its history.
+
+**Three subsystems, one contract.** `main.ts` calls `feedback.unlock/quiet/toggle/update(events, deathAudio?, frame?)` and nothing else.
+1. Combat Foley — `src/feedback.ts` + `src/audio/{cues,sprite,manifest}.ts`, sprite `src/assets/audio/sprite.{m4a,ogg}` built by
+   `scripts/build-audio.mjs`: 21 cues / 73 regions / 36.65 s; original procedural impacts, air, roll, backstep + five CC0 recordings for
+   the fatal pass (`artifacts/audio/SOURCES.json`, credited in `src/assets/README.md`). Event→cue map is pure data in `cues.ts`
+   (impacts before air, ≤ 4 cues per ordinary tick, ≤ 8 on a death tick, seeded variant rotation reseeded per duel, ±5 % pitch).
+2. Arena life — `src/audio/arena.ts` + `arena-manifest.ts`, bank `src/assets/arena-audio/arena.{m4a,ogg}` built by
+   `scripts/build-arena-audio.mjs`: 6 cues / 15 regions (bed, reaction, jeer, chant, grunt, bell); own 6-voice pool and RNG, cannot
+   steal combat voices; stops on death, quiet, mute and match change.
+3. Opening bell — `src/audio/bell.ts`, generated once per context (3.9 s, gain .44), fired only by the player's `ActionStarted(draw)`;
+   the same samples ship inside the arena bank so the bank and the network-independent fallback agree.
+
+**Signal chain (feedback.ts, numbers as shipped).** voice gain → compressor (−20 dB, knee 10, 5:1, 2 ms / 150 ms) → makeup ×2.1
+(restores the sprite's −4 dBFS codec headroom) → soft ceiling (tanh, −1 dBFS) → balance ×0.5 ordinary / ×1.5 from the death tick
+(owner's phone mix, 2026-09-19) → output guard (4× oversampled, linear to 0.55, −3 dBFS knee) → master (1 / 0 on mute) → out.
+Per-voice sends → convolution room (0.8 s seeded stone decay) → compressor. Arena voices join at the output guard, bypassing the
+combat compressor and balance. Fallback synth (pre-sprite) plays into the compressor until the sprite decodes.
+
+**Budgets (measured 2026-09-20).** Combat sprite 996,816 B gzip of the 1,000,000 B lane limit enforced in `tests/audio.test.ts`
+(99.7 % — any beta audio change must be a swap, not an addition, or the lead raises the limit); arena bank 401,719 B of 450,000 B
+(`build-arena-audio.mjs`); audio total 1,398,535 B gzip, inside every fight's 12 MB (per fight 9,857,608 B; all of dist 30,815,447 B
+of 32 MB). Audio is loaded per fight regardless of opponent.
+
+**Ruler.** `node scripts/audio-preview.mjs --label <x> --against trunk-63c57e2` renders the fixed exchange (`src/audio/exchange.ts`,
+now 829 ticks after the combat lane's chamber/thrust changes; the 12 beats are unchanged and pinned by `tests/audio.test.ts`) plus
+every cue probe through the real `createFeedback` in Chromium's OfflineAudioContext. `artifacts/audio/trunk-63c57e2/REPORT.md` is
+the baseline for any beta polish: ordinary hits −23.7 … −20.3 LUFS-I (peak −8.8 dBFS), swings 5 LU under them, deaths −11 LUFS-I
+(peak −2.1 dBFS), exchange −14 LUFS-I. Columns: LUFS-I, phone-band LUFS (300 Hz high-pass), momentary max, peak, onset, length,
+Δ against the reference. WAVs are regenerated, not committed (owner rule); reports and tables are.
+
+**Gates (measured in a fresh worktree on 63c57e2).** `audio-preview --check` 68 s, `artifacts/audio/fatal-crowd/browser.mjs` 37 s,
+`bell-start-check.mjs` 7 s — all pass. Both browser gates need a current `dist/` (`npm run build`); against a stale build the fatal
+gate fails with a Playwright timeout, which is the build, not the audio. `arena-audio-check.mjs` (≈ 5 min) failed 4/4 in this
+worktree at the "Enter the arena" tap (locator resolved, never actionable; `--ui-only` fails the same way) and the cause is the
+launch, not the audio: it was the only audio gate calling `launch({ headless: true })`, which on Playwright 1.62 runs the separate
+headless-shell binary; the same tap succeeds in ~2 s under the full Chrome for Testing binary that the other 14 gates select with
+`executablePath`. Fixed here by launching like the others; the gate then passes load → enter → menu → resume → rematch. Three
+non-audio scripts still launch the headless shell (`polearm-pose-check`, `creature-weapon-pose-check`, `veteran-polish-check`) —
+noted for their lanes, untouched. For PR #175's fast-Stop/full-release split: `audio-preview --check` (68 s, offline,
+deterministic) is the only audio command that belongs on Stop if any does; the three browser gates are release checks, and
+`arena-audio-check` already takes `--offline` / `--ui-only` if the lead wants them split.
+
+**Beta freeze (owner + lead, 2026-09-20).** Ships: current impacts, fatal sounds, crowd ambience, bell. Parked as Phase 2, in this
+order when reopened: (a) material-aware impacts for the grown roster (bronze/iron/bone/wood; needs the struck material, the weapon
+is already in `Hit.weapon`); (b) footsteps by gait/surface (blocked on the `Step` event, REQUESTS.md #1), breath by stamina,
+exertion grunts on heavy; (c) `PostureBroken` cue; (d) music. No new music lane.
+
+**Still open.** Physical handset audition of the live mix (silent switch both ways) remains unverified in every audio entry —
+the owner's ear pass on 63c57e2 is the next audio action and needs no code. Hygiene applied here: dead helpers removed from
+`build-audio.mjs` (`gain`, `sub`, `modal`), README audio paragraph reconciled with the recordings, REQUESTS.md statuses set.
