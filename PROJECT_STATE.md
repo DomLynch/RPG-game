@@ -1,5 +1,18 @@
 # Project state
 
+## Career marks — career lane, 2026-09-20 (owner decision: marks on the Google account via Supabase)
+Every won duel awards one victory mark on the device (`awardMark` in `src/career.ts`, called once per fight in the same block that
+records the practice tally); rank is a pure function of the count per GAME_SPEC's ladder (3 marks per sub-rank for Recruit and
+Legionary, 5 from Gladiator, Origin at 205) and shows in the identity aside (`#rank-sigil` numeral, `#rank` label with pips).
+Cloud save carries `victory_marks` (migration `202609200004`, integer 0–100000, owner insert/update grants, default 0); Load keeps
+the higher of device and cloud so marks never fall. Client-reported beta data, never competitive rank authority (table comment).
+Evidence at this head: eslint + tsc clean; full `npm test` 314/314 (graphics harness now maps `./career.ts`; rank render asserted at boot); `account-database-check` PASS on a disposable PostgreSQL 17 with all four migrations (marks writable, −1 and 100001 rejected);
+build + audit 0 + budget PASS (30,098,480 gzip of 32 MB; per fight 9,807,338 of 12 MB); `account-browser-check` passed (POST/PATCH
+bodies now carry `victory_marks`; cloud 80 lifts device 77; save echoes 80); `test:browser` passed. Hosted project: the migration is
+applied by the career lane through the Supabase MCP before the lead deploys (additive; the live client ignores the column).
+Remaining: rematch loop after the last rung and the beta roster cut are the lead's; automatic save after a win for signed-in
+players is a follow-up (v1 syncs on the explicit Save/Load buttons only).
+
 ## Wraith reaper scythe — weapons lane, in progress
 Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
 ## Werewolf and Skeleton — integrated locally, publication pending (2026-09-19)

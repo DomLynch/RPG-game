@@ -2,6 +2,8 @@
 
 Owner approved Google login and Supabase, with all account controls inside Field Journal. This slice saves a fighter's name and selected practice opponent across devices. It does not award career marks, import browser scores as verified results, or implement the remaining Season 1 progression service.
 
+2026-09-20 (career marks, owner decision): migration `202609200004_victory_marks.sql` adds `victory_marks` (integer 0–100000, owner-writable, default 0). Save uploads the device's won-duel count; Load keeps the higher of device and cloud, so marks never fall. Client-reported beta data for rank display only — never result, rank or unlock authority for competitive play.
+
 ## Smallest safe implementation
 
 Use the official Supabase SDK with PKCE, loaded only when the journal opens or Google returns. Rejected: hand-written token/session handling; copying Calibre's Next.js backend into a static game; making visitors log in before practice. No simulation, rendering or input modules change.
