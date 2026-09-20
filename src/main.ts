@@ -10,7 +10,6 @@ import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './sco
 import {
   initialPractice,
   stepPractice,
-  practiceHint,
   accepts,
   describe,
   PROFILES,
@@ -24,6 +23,7 @@ import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor, won, nextAfter } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
+import { HEAVY_MOVES, createHud } from './hud.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('world');
 // Page zoom is locked (owner, 2026-09-17: an accidental pinch cost the HUD mid-fight; the accessibility trade is recorded in
@@ -52,11 +52,8 @@ const kickButton = element<HTMLButtonElement>('kick-button');
 const heavyButton = element<HTMLButtonElement>('heavy-button');
 const dodgeButton = element<HTMLButtonElement>('dodge-button');
 const guardButton = element<HTMLButtonElement>('guard-button');
-const playerHealth = element<HTMLMeterElement>('player-health');
-const stamina = element<HTMLMeterElement>('stamina');
 const resetButton = element<HTMLButtonElement>('reset-button');
-const health = element<HTMLMeterElement>('target-health');
-const combatStatus = element('combat-status');
+const hud = createHud(element);
 const runButton = element<HTMLButtonElement>('run-button');
 const joystick = element('joystick');
 const stick = element('stick');
@@ -100,7 +97,7 @@ function applyScheme() {
   element('actions').dataset.gestures = scheme;
   element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`;
   element('controls-mode').setAttribute('aria-pressed', String(ring8()));
-  lastHud = '';
+  hud.invalidate();
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 // Who stands opposite: the rung this device has reached (profile.encounter), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
@@ -176,8 +173,7 @@ let action: Action | null = null,
   guardId: number | null = null,
   cancel = false,
   assetsReady = false,
-  graphicsLost = false,
-  lastHud = '';
+  graphicsLost = false;
 let difficulty: keyof typeof PROFILES = 'normal',
   debug = /[?&]debug\b/.test(window.location?.search ?? ''),
   frameEvents: CombatEvent[] = [];
@@ -217,7 +213,6 @@ let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // This is the one owner of the impact pause: the renderer is told the sim is frozen and holds its combat animation (effects run on),
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
-const KICK_LANDS = 1.5;
 const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
   Blocked: 30,
   Hit: 50,
@@ -228,45 +223,11 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
 };
 const HEAVY_HIT = 90,
   HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
-const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const HITSTOP_KEY = 'frankendom.hitstop.v1',
   TEMPO_KEY = 'frankendom.tempo.v1',
   DAMAGE_KEY = 'frankendom.damage-numbers.v1';
-// Damage numbers (owner mockup, 2026-09-19): a clean hit floats its damage off the victim — white for dealt, warm red for taken, gold and
-// bigger for the heavy-class ones (charged, counter, riposte, critical). Four pooled spans round-robin (a duel never shows four at once);
-// positions come from the scene's world→screen projection. Presentation-only.
-const dmgPool = Array.from(element('dmg-pool').children) as HTMLElement[];
-let dmgCursor = 0,
-  damageNumbersOn = storage.getItem(DAMAGE_KEY) === 'on'; // owner 2026-09-20: off by default, a journal setting for those who want them
-function floatDamage(events: CombatEvent[]): void {
-  if (!damageNumbersOn || !dmgPool.length || typeof view.project !== 'function') return; // the VM harness ships an empty pool and a stub view: nothing to float there
-  for (const e of events) {
-    if (e.type !== 'Hit' || e.target === undefined || !e.damage) continue;
-    const victim = practice.duel.fighters[e.target];
-    const at = view.project([victim.body.x, 1.62 * victim.scale, victim.body.z]);
-    if (!at) continue;
-    const span = dmgPool[dmgCursor++ % dmgPool.length];
-    span.textContent = String(Math.round(e.damage));
-    span.className = `dmg${e.target === 0 ? ' taken' : ''}${e.counter || e.charged || HEAVY_MOVES.has(e.move ?? '') ? ' heavy' : ''}`;
-    span.style.left = `${at[0]}px`;
-    span.style.top = `${at[1]}px`;
-    span.hidden = false;
-    if (typeof span.animate === 'function')
-      span.animate(
-        [
-          { transform: 'translate(-50%, 0)', opacity: 1 },
-          { transform: 'translate(-50%, -44px)', opacity: 0 },
-        ],
-        { duration: 900, easing: 'ease-out', fill: 'forwards' },
-      ).onfinish = () => {
-        span.hidden = true;
-      };
-    else
-      setTimeout(() => {
-        span.hidden = true;
-      }, 900);
-  }
-}
+// Damage numbers: off by default (owner 2026-09-20), a journal setting for those who want them; the HUD floats them.
+let damageNumbersOn = storage.getItem(DAMAGE_KEY) === 'on';
 // Tempo: the simulation is written in ticks; stepping it at 50 Hz instead of 60 plays the same fight a fifth slower in wall-clock (wind-ups,
 // windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
 // re-timing of the moves (which needs the blade paths re-baked).
@@ -289,81 +250,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  const hint = practiceHint(practice),
-    controlsReady = assetsReady && !graphicsLost;
-  const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
-    (a) => accepts(practice, a) || (a === 'backstep' && accepts(practice, 'dodge')),
-  );
-  const inKickReach =
-    Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z) <= KICK_LANDS;
-  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}`;
-  if (key === lastHud) return;
-  lastHud = key;
-  health.max = practice.enemyMaxHealth;
-  playerHealth.max = practice.maxHealth; // an opponent may carry more than a man (moves.ts `Opponent.health`)
-  health.value = practice.health;
-  element('health-value').textContent = `${practice.health} / ${practice.enemyMaxHealth}`;
-  playerHealth.value = practice.playerHealth;
-  element('player-health-value').textContent = `${practice.playerHealth} / ${practice.maxHealth}`;
-  for (const [meter, value, max] of [
-    [health, practice.health, practice.enemyMaxHealth],
-    [playerHealth, practice.playerHealth, practice.maxHealth],
-    [stamina, practice.stamina, 100],
-  ] as const)
-    meter.style.setProperty('--fill', `${(value / max) * 100}%`);
-  stamina.style.setProperty('--max', `${practice.maxStamina}%`);
-  stamina.dataset.leg = String(practice.legWound); // attrition: the lost ceiling is shaded; a leg wound marks the bar
-  stamina.value = practice.stamina;
-  element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
-  for (const [id, value] of [
-    ['posture', practice.posture],
-    ['target-posture', practice.enemyPosture],
-  ] as const) {
-    const meter = element<HTMLMeterElement>(id);
-    meter.value = value;
-    meter.style.setProperty('--fill', `${value}%`);
-    meter.dataset.critical = String(value >= 70);
-  }
-  combatStatus.textContent = hint;
-  element('stamina-label').dataset.mobile = practice.exhausted
-    ? 'Stamina · exhausted'
-    : practice.wound
-      ? 'Stamina · wound'
-      : 'Stamina';
-  stamina.setAttribute(
-    'aria-label',
-    practice.exhausted
-      ? 'Stamina — exhausted: no attacks or guard until it recovers'
-      : practice.wound
-        ? 'Stamina — wounded: recovery reduced 20 percent'
-        : 'Stamina',
-  );
-  kickButton.hidden =
-    practice.phase === 'sheathed' || practice.phase === 'draw' || !practice.health || !practice.playerHealth;
-  kickButton.setAttribute('aria-disabled', String(!controlsReady || !ok[2]));
-  kickButton.dataset.reach = String(inKickReach); // a kick has a short cone: the button brightens when it can land
-  combatStatus.dataset.threat = String(practice.threat);
-  combatStatus.dataset.move = practice.threatMove ?? '';
-  attackButton.textContent =
-    practice.phase === 'sheathed' ? 'Draw sword' : ring8() ? 'Strike — tap, hold or flick' : 'Light attack';
-  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : ring8() ? 'Strike' : 'Slash';
-  attackButton.setAttribute('aria-label', attackButton.textContent);
-  thrustButton.hidden =
-    ring8() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed';
-  thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
-  // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
-  attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
-  const ended = !practice.health || !practice.playerHealth;
-  heavyButton.hidden = ended || ring8();
-  heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
-  attackButton.hidden = ended;
-  resetButton.hidden = !ended;
-  const next = ended && won(practice.finish) ? nextAfter(opponent.id) : undefined;
-  resetButton.textContent = next ? `Next: ${next.name}` : 'Rematch';
-  dodgeButton.setAttribute('aria-disabled', String(!controlsReady || !ok[3]));
-  guardButton.setAttribute('aria-disabled', String(!controlsReady || !(ok[4] || practice.phase === 'guard')));
-  guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));
-  element('debug').hidden = !debug;
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost, ring8: ring8(), debug, opponentId: opponent.id });
 }
 function request(next: Action) {
   if (!paused() && assetsReady && accepts(practice, next)) action = next;
@@ -801,7 +688,7 @@ element('debug-mode').addEventListener('click', () => {
   debug = !debug;
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
   element('debug-mode').setAttribute('aria-pressed', String(debug));
-  lastHud = '';
+  hud.invalidate();
 });
 element('controls-mode').addEventListener('click', () => {
   clearInput();
@@ -925,7 +812,7 @@ const showDamageNumbers = () => {
 };
 element('damage-mode').addEventListener('click', () => {
   damageNumbersOn = !damageNumbersOn;
-  if (!damageNumbersOn) for (const span of dmgPool) span.hidden = true;
+  if (!damageNumbersOn) hud.hideDamage();
   try {
     storage.setItem(DAMAGE_KEY, damageNumbersOn ? 'on' : 'off');
   } catch {
@@ -1108,7 +995,7 @@ function frame(now: number) {
         opponent: opponent.id,
       });
       frameEvents.push(...practice.events);
-      if (!quiet) floatDamage(practice.events);
+      if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
       // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
       if (
         cancel ||
