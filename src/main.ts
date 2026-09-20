@@ -463,7 +463,11 @@ function frame(now: number) {
     pauseGraphics();
     return;
   }
-  const elapsed = (now - last) / 1000;
+  // A frame's elapsed time is bounded both ways. Forward: a tab thaw or a long stall injects at most 0.1 s of fight (the AFK path owes
+  // real absence separately). Backward or absurd: a clock that jumped — a frozen timeline, a test harness installing a fake clock — is a
+  // resync, not fight time. Unbounded, a backward jump drove the accumulator negative and froze the simulation for as long as the
+  // jump (every release check under page.clock on the Linux runner: frames ran, page time advanced, the tick never moved).
+  const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
   const dt = Math.min(elapsed, 0.1);
   if (!paused()) {
@@ -581,6 +585,7 @@ function frame(now: number) {
     d.textContent = describe(practice, difficulty);
     d.dataset.frozen = String(hitStop > 0);
     d.dataset.tick = String(practice.duel.tick);
+    d.dataset.clock = `${raw.toFixed(4)}/${accumulator.toFixed(4)}/${paused() ? 'paused' : 'live'}`;   // last frame's raw elapsed s, the sim accumulator, whether the sim steps
     d.dataset.tip = (view.bladeTip?.() ?? []).map((v) => v.toFixed(4)).join(',');
     d.dataset.clips = view.playing?.() ?? '';
     d.dataset.blood = JSON.stringify(view.bloodState());
