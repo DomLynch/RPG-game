@@ -1,5 +1,15 @@
 # Project state
 
+## Opened side view fits the landed pieces (2026-09-21)
+Release check 17 (`finisher-preview --only opened --opponent executioner`) failed on trunk after #262 (directional guard):
+the harness duel now kills at heading 0.99 instead of 1.86 and the 1.36× body's leg half slid under the portrait margin
+(x −0.3 vs > 5). Fix is framing, not a seed re-bake: the scene measures the farthest horizontal reach of the Opened pieces
+from the fallen's origin (world bounds, monotonic) and hands it to the camera as `finish.reach`; `finisherSidePose` fits
+`max(1.5·bodyScale, reach + 0.3)`. Same authorized dolly — no cut, no FOV change; Decapitation's no-push rule untouched.
+Verified locally: opened on executioner, veteran, pitborn, goblin, nightborn, dwarf all exit 0 (worst maxCameraStep 0.227).
+Minotaur/Wraith opened checks fail on clean trunk too on "waist separation obeys blood mode" — a stale blood-toggle
+expectation since #228, on held bodies in the extended list; separate item.
+
 ## Directional guard — combat half (sim rule + warden), 2026-09-21
 Owner (2026-09-20): five-sided guard on the Guard button, ON by default; lead owns input/pose (#257), Combat the rule and the brain.
 `duel.ts covers()`: the defender's side must mirror the attack's direction (LEFT meets a RIGHT cut), null = thrust, a held guard follows
