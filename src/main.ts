@@ -127,7 +127,7 @@ const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],
   ['runThrough', 'Run Through'],
-  ['quietOne', 'The Quiet One'],
+  ['quietOne', 'The Quiet One (test only)'],   // out of the beta rotation (owner 2026-09-20); still forceable here
   ['opened', 'Opened'],
   ['plainDeath', 'Plain death'],
 ];

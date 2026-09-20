@@ -87,6 +87,15 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
     provenance.push({ seed, finisher, finish });
   }
 }
+// Outcomes outside the automatic rotation (The Quiet One since the beta cut, owner 2026-09-20) are still shipped and
+// forceable from the dev picker; the harness reaches them the same way — the production override on a real kill from a
+// seed that drew another outcome — and labels the window so nothing reads as an organic draw.
+for (const id of wanted) if (windows[id] === undefined) {
+  const donor = provenance.find(p => !p.override);
+  if (!donor) break;
+  windows[id] = { ...windows[donor.finisher], override: id };
+  provenance.push({ seed: donor.seed, finisher: id, override: true, finish: donor.finish });
+}
 window.__provenance = provenance;
 if (wanted.some(id => windows[id] === undefined)) throw new Error('could not draw requested outcomes from the requested seeds: ' + JSON.stringify(provenance));
 window.__step = 'simulated';
@@ -147,6 +156,7 @@ window.__finisher = {
       draws: view.renderer.info.render.calls, triangles: view.renderer.info.render.triangles };
   },
   async rear(which, index = windows[which].frames.length - 1) {
+    view.setFinisherOverride(windows[which].override ?? null);
     const rearYaw = view.yaw + Math.PI; view.recenter(); view.orbit(-rearYaw / .005, 35);
     const f = windows[which].frames[index];
     present = true; view.render(f.state, false, 0, f.practice, [], false);
@@ -154,6 +164,7 @@ window.__finisher = {
   },
   front() { view.recenter(); },
   modesAndRematch(which) {
+    view.setFinisherOverride(windows[which].override ?? null);
     const f = windows[which].frames.at(-1), receipts = [];
     for (const mode of ['dark', 'off', 'red']) {
       view.setBloodMode(mode); view.render(f.state, true, 0, f.practice, [], false);
@@ -175,6 +186,7 @@ window.__finisher = {
     // Render inside a rAF double-tick: without preserveDrawingBuffer a synchronous render never reaches the compositor,
     // and screenshots would show a stale frame. A fresh playback resets the cursor so the scene state rebuilds from tick 0.
     return new Promise(resolve => requestAnimationFrame(() => {
+      view.setFinisherOverride(windows[which].override ?? null);   // the picker's own path for outcomes outside the rotation
       if (mode && mode !== currentMode) { view.setBloodMode(mode); currentMode = mode; }
       if (i <= cursor) { cursor = -1; maxCameraStep = 0; view.recenter(); }
       for (let j = cursor + 1; j <= i; j++) { const f = windows[which].frames[j], before = renderedCamera?.position.clone(); present = j === i; view.render(f.state, true, TICK, f.practice, f.events, false); if (before && j > windows[which].killIndex+(which === 'quietOne' ? 10 : 60)) maxCameraStep = Math.max(maxCameraStep, before.distanceTo(renderedCamera.position)); cursor = j; }
@@ -210,7 +222,7 @@ try {
   const first = await open({ width: 393, height: 852 });
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
   await first.context().close();
-  for (const p of info.provenance) console.log(`  ${p.finisher}: seed ${p.seed}, kill ${JSON.stringify(p.finish)}`);
+  for (const p of info.provenance) console.log(`  ${p.finisher}: seed ${p.seed}${p.override ? ' (picker override — outside the automatic rotation)' : ''}, kill ${JSON.stringify(p.finish)}`);
   // Mode stills: one clean playthrough per blood mode per outcome (scene state evolves with playback, so each mode replays from scratch).
   for (const which of ORDER) {
     for (const [mode, name] of [['red', ''], ['dark', '-dark'], ['off', '-off']]) {

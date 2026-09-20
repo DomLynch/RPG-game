@@ -15,6 +15,14 @@ bodies now carry `victory_marks`; cloud 80 lifts device 77; save echoes 80); `te
 applied by the career lane through the Supabase MCP before the lead deploys (additive; the live client ignores the column).
 Remaining: rematch loop after the last rung and the beta roster cut are the lead's; automatic save after a win for signed-in
 players is a follow-up (v1 syncs on the explicit Save/Load buttons only).
+
+## Beta rotation: five outcomes, The Quiet One picker-only (2026-09-20)
+Owner (directly to the finishers lane, 2026-09-20): Split Crown, Decapitation, Run Through and Opened stay; The Quiet One
+leaves the automatic rotation (`selectFinisher` now `% 5`). Its clip, pose, gore and audio stay shipped and the dev picker
+can still force it ("The Quiet One (test only)"). The finisher preview harness reaches outcomes outside the rotation through
+the production picker override on a real kill and labels the window as such; the Quiet One release checks keep passing
+that way. No new finishers until beta metrics.
+
 ## Finisher cameras — Split Crown front-quarter, Decapitation corpse+head framing (2026-09-20)
 Owner phone review: the Split Crown side reveal turned the victim into profile and hid the skull seam; Decapitation's
 front camera let the killer's back hide the headless corpse. Split Crown now reveals on a raised 45° front-quarter
