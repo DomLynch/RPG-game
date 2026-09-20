@@ -610,6 +610,9 @@ export function sourced(id, procedural) {
     const node = asset.scene.getObjectByName('WeaponDrawn'); if (!node?.userData.contact) throw new Error(`${id}.part.glb: no WeaponDrawn node with extras.contact`);
     node.removeFromParent(); node.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
     node.userData.weapon = id; node.userData.variant = 'trellis'; node.maps = maps;
+    const contract = procedural?.({ variant: undefined });   // the procedural part owns the contract's hand conventions: the grip flag (the knife's forward grip) and any authored tilt in the hand (the estoc's 10°)
+    if (contract?.userData.grip) node.userData.grip = contract.userData.grip;
+    if (contract) { node.position.copy(contract.position); node.quaternion.copy(contract.quaternion); }
     return node;
   }
 }
