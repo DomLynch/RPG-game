@@ -113,6 +113,14 @@ window.__finisher = {
       detachedHead.occludedByVictor=ray.intersectObject(actors[0],true).some(hit=>hit.object.visible);
     }
     const blade = actors[0]?.getObjectByName('SwordDrawn'), chest = actors[1]?.getObjectByName('spine_02')?.getWorldPosition(new Vector3());
+    // Owner 2026-09-20: is the victim hidden behind the killer? A camera ray to the victim's chest, and to the (split) skull.
+    const hiddenByVictor = (point) => {
+      if(!point || !actors[0]) return null;
+      actors[0].traverse(o=>{if(o.isSkinnedMesh){o.computeBoundingSphere();o.computeBoundingBox();}});
+      const toward=point.clone().sub(renderedCamera.position);
+      return new Raycaster(renderedCamera.position,toward.clone().normalize(),0,Math.max(0,toward.length()-.05)).intersectObject(actors[0],true).some(hit=>hit.object.visible);
+    };
+    const victim = { chestHidden: hiddenByVictor(chest), skullHidden: hiddenByVictor(crown ? new Box3().setFromObject(crown,true).getCenter(new Vector3()) : actors[1]?.getObjectByName('Head')?.getWorldPosition(new Vector3())) };
     let framing;
     if (actors.length === 2) {
       const a = actors[0].children[0].getWorldPosition(new Vector3()), b = actors[1].children[0].getWorldPosition(new Vector3());
@@ -131,7 +139,7 @@ window.__finisher = {
     actors[1]?.traverse(o => { if (o.isSkinnedMesh) body.expandByObject(o,true); });
     const bodyFrame = body.isEmpty() ? [] : [body.min.x,body.max.x].flatMap(x=>[body.min.y,body.max.y].flatMap(y=>[body.min.z,body.max.z].map(z=>view.project([x,y,z]))));
     const quiet = neck && hand && head ? { bodyFrame, handMiss: hand.distanceTo(neck), headHeight: head.y, woundVisible: wound?.visible, woundDistance: wound?.position.distanceTo(neck), woundWidth: wound?.children.at(-1)?.scale.x, headScale: actors[1].getObjectByName('Head').scale.x } : null;
-    return { detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
+    return { victim, detachedHead, blood: view.bloodState(), opened: {visible:opened?.visible ?? false,pieces:pieces ?? [],weapon:weaponBox ? {min:weaponBox.min.toArray(),max:weaponBox.max.toArray(),frame:[weaponBox.min.x,weaponBox.max.x].flatMap(x=>[weaponBox.min.y,weaponBox.max.y].flatMap(y=>[weaponBox.min.z,weaponBox.max.z].map(z=>view.project([x,y,z]))))} : null}, quiet, framing, impalement, crown: !!crown, visible: crown?.visible ?? false, halves: crown?.children.length ?? 0,
       headScale: crown?.parent.getObjectByName('Head')?.scale.x ?? 1,
       bounds: crown ? new Box3().setFromObject(crown).getSize(new Vector3()).toArray() : [],
       position: crown ? new Box3().setFromObject(crown).getCenter(new Vector3()).toArray() : [],
@@ -218,22 +226,28 @@ try {
           assert.ok(framing.side < .6, 'the side move waits until after the impact');
         }
         if (['runThrough', 'splitCrown'].includes(which) && suffix === 'settled') {
-          const { framing } = await page.evaluate(() => __finisher.inspect());
-          cameraChecks.push({ opponent, which, mode, framing });
-          assert.ok(framing.side > .8, 'the settled finisher moves far enough sideways to expose the victim');
-          assert.ok(framing.maxCameraStep < .25, 'the late side move is continuous, without a camera cut');
+          const { framing, victim } = await page.evaluate(() => __finisher.inspect());
+          cameraChecks.push({ opponent, which, mode, framing, victim });
+          if (which === 'runThrough') assert.ok(framing.side > .8, 'the settled finisher moves far enough sideways to expose the victim');
+          else {
+            // Owner 2026-09-20: the seam only reads from the front — a raised front-quarter (45°), never the profile.
+            assert.ok(framing.side > .55 && framing.side < .85, 'Split Crown settles on a front-quarter, not a profile ' + JSON.stringify(framing));
+            assert.equal(victim.skullHidden, false, 'the split skull is not hidden behind the killer ' + JSON.stringify({ framing, victim }));
+          }
+          assert.ok(framing.maxCameraStep < .25, 'the late camera move is continuous, without a camera cut');
           assert.ok(framing.heads.every(p => p && p[0] > 10 && p[0] < 383 && p[1] > 20 && p[1] < 700), 'both heads stay in the portrait frame above the controls');
           assert.ok(Math.hypot(framing.camera[0], framing.camera[2]) <= 11.5, 'finisher camera stays inside the arena');
         }
         if (which === 'decapitation') {
-          const {detachedHead,framing} = await page.evaluate(()=>__finisher.inspect());
-          assert.ok(framing.side<.08,'Decapitation retains the original front-facing camera');
+          const {detachedHead,framing,victim} = await page.evaluate(()=>__finisher.inspect());
+          assert.ok(framing.side<.5,'Decapitation keeps the front-facing camera (a slide to camera-right, no side reveal) '+JSON.stringify(framing));
+          if(suffix==='settled') assert.equal(victim.chestHidden,false,'owner 2026-09-20: the headless corpse is seen past the killer '+JSON.stringify({framing,victim}));
           if(mode!=='off') {
             assert.ok(detachedHead,'head is detached');
             if(suffix!=='contact') assert.equal(detachedHead.occludedByVictor,false,'landed head is not hidden behind the victor');
             assert.ok(detachedHead.frame.every(p=>p && p[0]>5 && p[0]<388 && p[1]>20 && p[1]<700),'detached head stays visible above portrait controls '+JSON.stringify({suffix,detachedHead,framing}));
           }
-          cameraChecks.push({opponent,which,mode,suffix,framing,detachedHead});
+          cameraChecks.push({opponent,which,mode,suffix,framing,detachedHead,victim});
         }
         if (which === 'opened') {
           const {opened,framing} = await page.evaluate(() => __finisher.inspect());

@@ -1,5 +1,15 @@
 # Project state
 
+## Finisher cameras — Split Crown front-quarter, Decapitation corpse+head framing (2026-09-20)
+Owner phone review: the Split Crown side reveal turned the victim into profile and hid the skull seam; Decapitation's
+front camera let the killer's back hide the headless corpse. Split Crown now reveals on a raised 45° front-quarter
+(`finisherSidePose`); Decapitation keeps its front view with a camera-right slide and a look at the corpse/head midpoint.
+The deploy gate's blood-gate check (decapitation "detached head stays visible above portrait controls") failed on trunk
+63f4cd9 independent of this work — the head landed at the portrait edge on Veteran and Pitborn; the midpoint framing
+clears it on Veteran, Pitborn, Goblin and Executioner. Harness now asserts the victim's chest/skull are not hidden behind
+the killer (camera ray). Run Through alignment (owner: blade reads off-centre) remains open.
+
+
 ## Wraith reaper scythe — weapons lane, in progress
 Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
 ## Werewolf and Skeleton — integrated locally, publication pending (2026-09-19)
