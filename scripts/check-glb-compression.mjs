@@ -4,6 +4,8 @@ import fs from 'node:fs/promises';
 import { preview } from 'vite';
 import { chromium, webkit } from 'playwright';
 import { assertGlbEquivalent, builtRig, sha256, parseGlb } from './glb-equivalence.mjs';
+import { PROPS } from '../src/arena-props.ts';
+const isProp = url => PROPS.some(p => new URL(url).pathname.split('/').at(-1).startsWith(p.id + '-'));   // arena props load on every page; the rig count excludes them
 
 function checkCsp(value) {
   const directive = value?.split(';').map(s => s.trim()).find(s => s.startsWith('script-src '));
@@ -41,7 +43,7 @@ if (process.argv.includes('--hosted-csp')) {
             const navigation = await page.goto(`${origin}/?opponent=${id}`);
             checkCsp(await navigation.headerValue('content-security-policy'));
             await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-            assert.equal(responses.filter(r => /\.glb(?:\?|$)/.test(r.url())).length, 2, 'URL catalogue must fetch only the hero and selected opponent');
+            assert.equal(responses.filter(r => /\.glb(?:\?|$)/.test(r.url()) && !isProp(r.url())).length, 2, 'URL catalogue must fetch only the hero and selected opponent (arena props aside)');
             for (const name of ['warrior', id]) {
               const expected = receipt.rigs.find(r => r.id === name), response = responses.find(r => new URL(r.url()).pathname.endsWith(expected.file.slice(5)));
               assert.ok(response, `Missing ${name}`); assert.equal(response.status(), 200);

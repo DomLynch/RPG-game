@@ -619,3 +619,11 @@ Fit recipe (`scripts/character/creatures.py`): donor arm 64°, reach 1.15, shift
 solved so the posed `WeaponDrawn` origin lands in the reconstruction's palm (0.011 m); finger weights are kept
 on the arms so the clips curl his fingers round the haft (grip gap 0.019 m in every scythe clip vs the v5 rig's
 0.003 m; 0.04–0.08 m without finger weights). Build: `node scripts/build-creatures.mjs executioner`.
+
+# Arena props (presentation lane, 2026-09-20)
+
+`src/assets/arena/props/{portcullis,weapon-rack,shield,column-drum,bone-pile}.glb` were generated for this project on the owner's Hugging
+Face account: a prompted reference image per prop (Z-Image-Turbo, Apache-2.0 model) turned into a mesh with PBR maps by TRELLIS.2
+(microsoft/TRELLIS.2-4B, MIT), then decimated to 3–5k triangles and re-textured at 512–768² WebP in Blender 5.2 (evidence and the
+prompts' inputs: `artifacts/presentation/props-v1/`). Original project work; no third-party assets were copied. Build packing (meshopt,
+WebP) brings the five to 672 KB gzip. Placement and the exclusion volume are held by `tests/arena-props.test.ts`.
