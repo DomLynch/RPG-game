@@ -11,7 +11,13 @@ import path from 'node:path';
 const RATE = 48000, GAP = .04, LEAD = .02;
 // Owner's ear, 2026-09-20: everything 30 % deeper. Applied to every frequency the recipes touch (filters, sweeps, modes) and
 // as a length-preserving pitch shift on the recordings, so decays, lengths and timing are unchanged.
-const PITCH = .7;
+// Owner again, evening: "still pitch too high and tin-like, a deeper sound" — another 30 % (.7 × .7 ≈ .5), and weight (heft()) under
+// every weapon, guard and shield impact.
+const PITCH = .5;
+// Owner 2026-09-20, after playing the −30 % mix: the end-of-match cheer is still high — the crowd recordings go another 30 %.
+const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7 };
+// Length-preserving pitch shift: asetrate lowers pitch and slows; atempo (≤ 2 per stage, chained) restores the length.
+const pitchFilter = pitch => { const tempo = 1 / pitch, stages = Math.ceil(Math.log(tempo) / Math.log(2)); return `asetrate=${RATE * pitch},aresample=${RATE},${Array.from({ length: stages }, () => `atempo=${tempo ** (1 / stages)}`).join(',')}`; };
 const S = seconds => Math.round(seconds * RATE);
 const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
@@ -28,7 +34,7 @@ for (const [name, source] of Object.entries(sourceList)) {
   }
   if (createHash('sha256').update(bytes).digest('hex') !== source.sha256) throw new Error(`${name}: source hash mismatch`);
   await fs.writeFile(file, bytes);
-  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-af', `asetrate=${RATE * PITCH},aresample=${RATE},atempo=${1 / PITCH}`, '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 64 * 1024 * 1024 });   // pitch × PITCH, same length
+  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-af', pitchFilter(PITCH_BY_SOURCE[name] ?? PITCH), '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 64 * 1024 * 1024 });   // pitch × PITCH, same length
   recordings[name] = Float32Array.from(new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4));
 }
 function recording(name, start, seconds, rate = 1) {
@@ -108,6 +114,10 @@ const punch = (n, f, r, { t60 = .08, tone = .9, burst = 1 } = {}) => normalize(m
 // Thud: the body of a real impact — broadband noise whose low-pass sweeps from `from` down to `to` over `fall` seconds while it
 // decays, so it is bright at the strike and dark in the tail, broadband throughout.
 const thud = (n, r, { from = 6000, to = 320, fall = .12, t60 = .2, Q = .6 } = {}) => normalize(mul(sweep(noise(n, r), t => to + (from - to) * Math.exp(-t * n / RATE / (fall / 3)), Q, 'low'), decay(n, t60, .002)), 0);
+// Heft: the weight the owner asked for under weapons and guards. A phone speaker plays nothing at the fundamental, so the low
+// tone is driven hard into tanh: its odd harmonics (3f, 5f, 7f) land in the 200–700 Hz band the speaker has, and the ear
+// reconstructs the missing fundamental from them. A slow pitch drop over the first 60 ms gives it the "sag" of mass landing.
+const heft = (n, f, r, { t60 = .3, drive = 4 } = {}) => normalize(saturate(mode(n, vary(r, f, .05), t60, 1, { slide: 2.4, tau: .06 }), drive), 0);
 // Rumble: a broad low-mid tail (150–800 Hz) that lingers after the strike.
 const rumble = (n, t60, r, f = 900) => mul(biquad(biquad(noise(n, r), 'lowpass', f, .5), 'highpass', 260, .5), decay(n, t60, .01));
 // Dense steel: `count` inharmonic partials from f0 up to ~f0 × top with jittered decays, amplitude-roughened by slow noise.
@@ -153,8 +163,9 @@ const RECIPES = {
     const body = thud(n, r, { from: 5000 * f, to: 420 * f, fall: .1, t60: .18 });
     const tone = punch(n, 380 * f, r, { t60: .08, tone: .5, burst: .3 });
     const thump = mode(n, 150 * f, .28, 1, { slide: 2.2, tau: .035 });
+    const weight = heft(n, 110 * f, r, { t60: .26 });
     const tail = rumble(n, .32, r);
-    return densify(mix(n, [crack, 0, .5], [splash, .002, .6], [body, .002, 1.2], [tone, .002, .5], [thump, .004, .12], [tail, .02, dbfs(-4)]), 3);
+    return densify(mix(n, [crack, 0, .5], [splash, .002, .6], [body, .002, 1.2], [tone, .002, .5], [thump, .004, .12], [weight, .004, .45], [tail, .02, dbfs(-4)]), 3);
   },
   hit_heavy(r) {
     const n = S(.46), f = vary(r, 1, .08);
@@ -166,8 +177,9 @@ const RECIPES = {
     const second = thud(S(.24), r, { from: 2500 * f, to: 220 * f, fall: .08, t60: .12 });
     const thump = mode(n, 100 * f, .35, 1, { slide: 2.6, tau: .045 });
     const sub = mode(n, 50 * f, .4, 1, { slide: 1.6, tau: .06 });
+    const weight = heft(n, 90 * f, r, { t60: .38, drive: 5 });
     const tail = rumble(n, .42, r);
-    return densify(mix(n, [crack, 0, .5], [edge, .001, .4], [splash, .003, .6], [body, .003, 1.3], [tone, .003, .5], [second, .028, .55], [thump, .004, .14], [sub, .012, .08], [tail, .03, dbfs(-3)]), 3.5);
+    return densify(mix(n, [crack, 0, .5], [edge, .001, .4], [splash, .003, .6], [body, .003, 1.3], [tone, .003, .5], [second, .028, .55], [thump, .004, .14], [sub, .012, .08], [weight, .004, .6], [tail, .03, dbfs(-3)]), 3.5);
   },
   // Kick: a cloth slap and a dull mid thud, no edge, no ring.
   hit_kick(r) {
@@ -176,8 +188,9 @@ const RECIPES = {
     const body = thud(n, r, { from: 3000 * f, to: 360 * f, fall: .08, t60: .14 });
     const tone = punch(n, 340 * f, r, { t60: .07, tone: .4, burst: .3 });
     const thump = mode(n, 120 * f, .14, 1, { slide: 1.9, tau: .03 });
+    const weight = heft(n, 100 * f, r, { t60: .2 });
     const tail = rumble(n, .2, r);
-    return densify(mix(n, [slap, 0, .55], [body, .003, 1.2], [tone, .003, .4], [thump, .004, .08], [tail, .02, dbfs(-6)]), 2.6);
+    return densify(mix(n, [slap, 0, .55], [body, .003, 1.2], [tone, .003, .4], [thump, .004, .08], [weight, .004, .4], [tail, .02, dbfs(-6)]), 2.6);
   },
   // Block: iron on iron into a braced guard — a hard broadband click, a dense clang the arms damp, the guard's own body.
   block(r) {
@@ -187,8 +200,9 @@ const RECIPES = {
     const muffle = mul(broad(n, r, 250, 1600), decay(n, .04, .001));
     const body = thud(n, r, { from: 4000 * f, to: 320 * f, fall: .07, t60: .14 });
     const tone = punch(n, 330 * f, r, { t60: .08, tone: .6, burst: .3 });
+    const weight = heft(n, 95 * f, r, { t60: .28 });
     const tail = rumble(n, .24, r);
-    return densify(mix(n, [click, 0, .45], [clang, .001, .85], [muffle, .001, .5], [body, .002, 1], [tone, .002, .4], [tail, .02, dbfs(-8)]), 2.6);
+    return densify(mix(n, [click, 0, .45], [clang, .001, .85], [muffle, .001, .5], [body, .002, 1], [tone, .002, .4], [weight, .003, .5], [tail, .02, dbfs(-8)]), 2.6);
   },
   // Perfect block: the same steel caught clean — brighter and tighter, a smaller body, a touch of edge.
   block_perfect(r) {
@@ -197,7 +211,8 @@ const RECIPES = {
     const clang = dense(n, 980 * f, 12, vary(r, .16, .1), r, { top: 3.4, roll: .8, grit: .25 });
     const sparkle = mul(broad(n, r, 3000, 9000), decay(n, .015));
     const body = thud(n, r, { from: 5000 * f, to: 400 * f, fall: .05, t60: .09 });
-    return densify(mix(n, [click, 0, .5], [clang, .001, .8], [sparkle, .001, .2], [body, .002, 1]), 2.2);
+    const weight = heft(n, 110 * f, r, { t60: .2 });
+    return densify(mix(n, [click, 0, .5], [clang, .001, .8], [sparkle, .001, .2], [body, .002, 1], [weight, .003, .4]), 2.2);
   },
   // Parry: bright and decisive — an edge scrape sliding up, a long dense ring with beating partials, the hand's jolt underneath.
   parry(r) {
@@ -209,8 +224,9 @@ const RECIPES = {
     const zing = mul(broad(n, r, 3500, 8000), decay(n, .03));
     const body = thud(n, r, { from: 4500 * f, to: 340 * f, fall: .09, t60: .16 });
     const tone = punch(n, 380 * f, r, { t60: .1, tone: .6, burst: .3 });
+    const weight = heft(n, 100 * f, r, { t60: .3 });
     const tail = rumble(n, .3, r);
-    return densify(mix(n, [click, 0, .5], [scrape, 0, .45], [ring, .002, .7], [beat, .002, .25], [zing, .001, .1], [body, .002, 1.2], [tone, .002, .5], [tail, .02, dbfs(-5)]), 2.4);
+    return densify(mix(n, [click, 0, .5], [scrape, 0, .45], [ring, .002, .7], [beat, .002, .25], [zing, .001, .1], [body, .002, 1.2], [tone, .002, .5], [weight, .003, .45], [tail, .02, dbfs(-5)]), 2.4);
   },
   // Guard break: dull and wrong — close detuned low partials beating, a choked mid burst, a low thump, driven hard so it crunches.
   guard_break(r) {
@@ -221,8 +237,9 @@ const RECIPES = {
     const body = thud(n, r, { from: 3500 * f, to: 460 * f, fall: .12, t60: .24 });
     const tone = punch(n, 330 * f, r, { t60: .12, tone: .6, burst: .3 });
     const thump = mode(n, 70 * f, .17, 1, { slide: 1.8, tau: .05 });
+    const weight = heft(n, 80 * f, r, { t60: .4, drive: 5 });
     const tail = rumble(n, .36, r);
-    return fadeOut(densify(mix(n, [crack, 0, .7], [rattle, .002, .8], [choke, .002, .7], [body, .003, 1.3], [tone, .003, .5], [thump, .006, .14], [tail, .03, dbfs(-5)]), 3), .1);
+    return fadeOut(densify(mix(n, [crack, 0, .7], [rattle, .002, .8], [choke, .002, .7], [body, .003, 1.3], [tone, .003, .5], [thump, .006, .14], [weight, .005, .6], [tail, .03, dbfs(-5)]), 3), .1);
   },
   // Charge: the raised blade gathers — iron partials swelling under a noise bow, a low drone rising with them.
   charge(r) {
@@ -324,7 +341,7 @@ const header = Buffer.alloc(44); header.write('RIFF', 0); header.writeUInt32LE(3
 await fs.writeFile(wavPath, Buffer.concat([header, Buffer.from(pcm.buffer)]));
 const encode = (args, file) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-map_metadata', '-1', '-fflags', '+bitexact', '-flags', '+bitexact', ...args, path.join(dir, file)]);   // bit-exact: no encoder tags, timestamps or random stream serials, so two builds are byte-identical
 encode(['-c:a', 'aac_at', '-b:a', '128k', '-movflags', '+faststart'], 'sprite.m4a');   // Apple AudioToolbox AAC-LC; Safari decodes it and honours its gapless padding
-encode(['-c:a', 'libopus', '-b:a', '92k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 92k: the deeper content encodes 3 kB larger at 96k and crossed the 1 MB lane budget by 478 B
+encode(['-c:a', 'libopus', '-b:a', '88k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 88k: the heft layers and the .5 pitch cost ~4 kB at 92k, 819 B over the 1 MB lane budget
 // Codec check: decode each encode and compare with the source over the impact cues — waveform SNR (dense transients are the
 // hard case for both codecs) and the decoded peak, which must stay under full scale for integer decoders.
 const codec = {};

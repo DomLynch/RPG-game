@@ -95,7 +95,9 @@ export function trident({ T: three = T, withAoUv = g => g, leather, variant = DE
 // Goals are given in the chest's frame (spine_03: x left, y up, z forward at rest) so the weapon rides the body's own motion —
 // the walk's bob, the hit's flinch, the death's fall. Each key: { t, body: [clip, time], r: [x, y, z] rear-hand goal, dir: shaft
 // direction, l: the front hand's distance along the shaft, spine: [yaw, pitch] added on top of the body pose }.
-export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, weapon }) {
+// The two-hand pole family's machinery (the trident's, shared since the warhammer): the mirrored left grip, pose() with the two-bone
+// reach on both arms, make() with densified keys, loop() over a body clip. Each weapon supplies its own REST/GUARD and keys.
+export function twoHandFamily({ T: three = T, base, skeleton, poseMixer, clips, weapon }) {
   const bone = name => base.scene.getObjectByName(name);
   const chest = bone('spine_03'), handR = bone('hand_r'), handL = bone('hand_l');
   const play = (name, t) => { const clip = clips.find(c => c.name === name); if (!clip) throw new Error(`build-weapon: the rig has no ${name} clip`); poseMixer.clipAction(clip).play(); poseMixer.setTime(Math.min(t, .999999) * clip.duration); base.scene.updateMatrixWorld(true); };
@@ -173,6 +175,11 @@ export function tridentClips({ T: three = T, base, skeleton, poseMixer, clips, w
   };
   // A loop: the body clip sampled at n frames with one constant grip; the last key repeats the first so it joins seamlessly.
   const loop = (name, body, duration, n, grip, wrap = true) => make(name, duration, Array.from({ length: n + 1 }, (_, i) => ({ t: i / n * duration, body: [body, wrap && i === n ? 0 : i / n], ...grip })));
+  return { make, loop };
+}
+
+export function tridentClips(ctx) {
+  const { make, loop } = twoHandFamily(ctx);
   // The rest grip: rear hand at the right hip, tines forward and a little up at the opponent's chest, front hand a forearm along the shaft.
   // Grips along the shaft (`l`) fit the short trident (front grip at .40; the socket at .66): at full extension the rear hand drives
   // up to the front one, the classic spear thrust. Rear-hand goals stay on -X,
@@ -607,6 +614,101 @@ export function sourced(id, procedural) {
   }
 }
 
+// ── The warhammer (the Dwarf's; owner 2026-09-20: "Create the dwarf hammer / war hammer - should be medium size"; the character lane's
+// brief: two-handed, grounded, short thick ash haft ~0.95 m with a leather wrap over the lower third, an iron head with a flat square
+// striking face one side and a tapered back-spike the other, riveted langets down the haft; short + top-heavy at phone size).
+// The FACE is on local +x — the side that leads the forehand swing (the cleaver's measurement: the Attack's tip moves along +x at
+// contact) — the spike on −x, so the backhand hits with the spike. Rear hand at y = 0 a fist above the butt, front hand ~0.32 up
+// the haft (the Dwarf's thick forearms want clearance, not stacked fists). `extras.contact` is the head's span along the haft.
+export const WARHAMMER_VARIANTS = {
+  A: { name: 'A · medium war hammer: 0.93 m butt to crown, 0.13 m square face, 0.16 m back-spike', butt: -.12, head: .76, block: [.16, .09, .07], face: [.03, .10, .08], spike: .16, langet: .30 },
+};
+export const WARHAMMER_DEFAULT = 'A';
+export function warhammer({ T: three = T, withAoUv = g => g, leather, variant = WARHAMMER_DEFAULT } = {}) {
+  const v = WARHAMMER_VARIANTS[variant] ?? WARHAMMER_VARIANTS[WARHAMMER_DEFAULT];
+  const iron = new three.MeshStandardMaterial({ name: 'WarhammerIron', color: '#4c4946', metalness: .8, roughness: .66 });   // the cleaver's pitted iron: dull, no chrome
+  const ash = new three.MeshStandardMaterial({ name: 'Ash', color: '#64452f', roughness: .86 });                            // the trident's brown oiled ash
+  const wrap = leather ?? new three.MeshStandardMaterial({ name: 'Leather', color: '#4a3527', roughness: .8 });
+  const group = new three.Group(); group.name = 'WeaponDrawn';
+  const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
+  const cyl = (rTop, rBottom, from, to, seg = 12) => new three.CylinderGeometry(rTop, rBottom, to - from, seg).translate(0, (from + to) / 2, 0);
+  const H = v.head, [bx, by, bz] = v.block, [fx, fy, fz] = v.face;
+  piece(cyl(.019, .017, v.butt + .03, H + .05, 10), ash);                                   // the haft, a shade thicker toward the head
+  piece(cyl(.020, .020, v.butt, v.butt + .03), iron);                                       // butt cap
+  piece(cyl(.022, .022, v.butt + .03, .22, 12), wrap);                                      // the leather wrap: the lower third, under the rear hand
+  piece(cyl(.030, .030, H - by / 2 - .01, H + by / 2 + .01), iron);                         // the eye: the collar the head is set on
+  piece(new three.BoxGeometry(bx, by, bz), iron, H, bx / 2 - .05, 0);                        // the head block: −0.05 … +0.11 along x
+  piece(new three.BoxGeometry(fx, fy, fz), iron, H, bx - .05 + fx / 2, 0);                   // the striking face: a squarer, slightly larger plate on +x
+  piece(new three.ConeGeometry(.032, v.spike, 6).rotateZ(Math.PI / 2).translate(-v.spike / 2, 0, 0), iron, H, -.05, 0); // the back-spike, tapering along −x
+  for (const z of [-1, 1]) {                                                               // langets: two riveted iron straps down the haft
+    piece(new three.BoxGeometry(.012, v.langet, .022), iron, H - by / 2 - v.langet / 2 + .01, 0, z * .026);
+    for (const y of [.06, .15, .24]) piece(new three.SphereGeometry(.006, 6, 4), iron, H - by / 2 - y, 0, z * .034);
+  }
+  group.userData.contact = { from: +(H - by / 2 - .01).toFixed(3), to: +(H + by / 2 + .01).toFixed(3) };   // the head: what the sim sweeps
+  group.userData.weapon = 'warhammer'; group.userData.variant = variant;
+  return group;
+}
+// The Warhammer_* family on the base humanoid rig (the char lane's donor is build-warrior's, not the Minotaur's creature-authored
+// Maul_* set). Twelve clips on the trident's machinery; the sim placeholder is MAUL-based (moves.ts WEAPONS.warhammer), whose paths
+// name Warhammer_Slash / _Heavy / _Thrust, so those three carry the contact keys (.34 / .48 / .34 like the sword's).
+export function warhammerClips(ctx) {
+  const { make, loop } = twoHandFamily(ctx);
+  // Rest: rear hand at the right hip, the head up and forward at 45° (a hammer is carried, not pointed), front hand a forearm up.
+  const REST = { r: [-.22, -.30, .10], dir: [.34, .50, .79], l: .32, spine: [.10, 0] };   // head up-forward, clear of the helm on a shorter frame
+  const GUARD = { r: [-.26, -.22, .26], dir: [.78, .45, .43], l: .34, spine: [-.05, 0] };   // the haft across the body: a guard of wood
+  return [
+    loop('Warhammer_Idle', 'Armed', 1.667, 8, REST),
+    loop('Warhammer_Walk', 'ArmedWalk', 1.333, 8, REST),
+    loop('Warhammer_StrafeLeft', 'StrafeLeft', .8, 6, REST),
+    loop('Warhammer_StrafeRight', 'StrafeRight', .8, 6, REST),
+    // Slash: the horizontal strike, both light paths — wound up behind the right shoulder, the head swung across the front at chest height,
+    // contact at .34 with the head out in front (the face leads along +x), the follow-through carrying it to the left.
+    make('Warhammer_Slash', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .16, body: ['Armed', 0], r: [-.34, -.14, .10], dir: [.80, .42, .42], l: .30, spine: [.30, 0] },   // cocked out to the right, hands in front of the chest plane: wound up BEHIND the shoulder the front arm crossed into the torso and lost the grip (measured)
+      { t: .34, body: ['Armed', 0], r: [-.22, -.18, .30], dir: [.16, .10, .98], l: .30, spine: [-.10, .06] },
+      { t: .50, body: ['Armed', 0], r: [-.24, -.22, .24], dir: [-.52, .12, .85], l: .32, spine: [-.30, .04] },
+      { t: .70, body: ['Armed', 0], r: [-.22, -.28, .14], dir: [.10, .40, .91], l: .32, spine: [-.08, 0] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // Heavy: the overhead smash — raised straight up behind the head, driven down onto the crown/chest line; contact at .48.
+    make('Warhammer_Heavy', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .28, body: ['Armed', 0], r: [-.22, .30, .06], dir: [.16, .96, .22], l: .28, spine: [.14, -.10] },
+      { t: .38, body: ['Armed', 0], r: [-.26, -.06, .22], dir: [.40, .22, .89], l: .28, spine: [.06, .02] },
+      { t: .48, body: ['Armed', 0], r: [-.22, -.12, .26], dir: [.14, -.30, .94], l: .30, spine: [-.08, .14] },
+      { t: .64, body: ['Armed', 0], r: [-.22, -.24, .18], dir: [.14, -.50, .85], l: .32, spine: [-.08, .16] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    // Thrust: the short haft-and-head jab — both hands drive the head straight forward from the hip; contact at .34.
+    make('Warhammer_Thrust', 1, [
+      { t: 0, body: ['Armed', 0], ...REST },
+      { t: .18, body: ['Armed', 0], r: [-.28, -.30, -.08], dir: [.24, .24, .94], l: .34, spine: [.20, 0] },
+      { t: .34, body: ['Armed', 0], r: [-.20, -.16, .30], dir: [.14, .14, .98], l: .30, spine: [-.12, .08] },
+      { t: .52, body: ['Armed', 0], r: [-.20, -.16, .30], dir: [.14, .14, .98], l: .30, spine: [-.12, .08] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    make('Warhammer_Guard', 1, [{ t: 0, body: ['Armed', 0], ...REST }, { t: .5, body: ['Armed', 0], ...GUARD }, { t: 1, body: ['Armed', 0], ...GUARD }]),
+    make('Warhammer_BlockImpact', 1, [
+      { t: 0, body: ['Armed', 0], ...GUARD },
+      { t: .12, body: ['Armed', 0], r: [-.26, -.24, .18], dir: [.78, .45, .43], l: .34, spine: [-.05, .08] },
+      { t: .35, body: ['Armed', 0], r: [-.26, -.23, .22], dir: [.78, .45, .43], l: .34, spine: [-.05, .05] },
+      { t: .65, body: ['Armed', 0], ...GUARD },
+      { t: 1, body: ['Armed', 0], ...GUARD },
+    ]),
+    // Deflected: the strike turned aside — the head knocked out to the right and up — then the rest grip again.
+    make('Warhammer_Deflected', 1, [
+      { t: 0, body: ['Armed', 0], r: [-.22, -.18, .30], dir: [.16, .10, .98], l: .30, spine: [-.10, .06] },
+      { t: .12, body: ['Armed', 0], r: [-.28, -.20, .16], dir: [.50, .30, .81], l: .30, spine: [.10, 0] },
+      { t: .35, body: ['Armed', 0], r: [-.34, -.16, .04], dir: [.64, .40, .66], l: .32, spine: [.24, -.04] },
+      { t: .65, body: ['Armed', 0], r: [-.26, -.30, .10], dir: [.24, .44, .86], l: .32, spine: [.16, 0] },
+      { t: 1, body: ['Armed', 0], ...REST },
+    ]),
+    loop('Warhammer_Hit', 'Hit', .333, 4, REST, false),
+    loop('Warhammer_Death', 'Death', 2.4, 10, { ...REST, follow: 'full' }, false),
+  ];
+}
+
 // What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.
 export const WEAPON_BUILDS = {
   trident: { part: sourced('trident', trident), clips: tridentClips, keys: {} },   // reconstructed part by default; WEAPON_VARIANT=short|A|B|C → the primitives
@@ -614,6 +716,7 @@ export const WEAPON_BUILDS = {
   knife: { part: sourced('knife', knife), clips: null, keys: CLEAVER_KEYS },   // reconstructed by default (WEAPON_VARIANT=A|B|C → the primitives); the same diagonal Heavy: a knife's overhead is a hack too, edge-leading
   estoc: { part: sourced('estoc', estoc), clips: null, keys: {} },              // reconstructed by default; no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
   scythe: { part: scythe, clips: scytheClips, keys: {} },      // mesh + the own 13-clip family (owner's pick: variant B)
+  warhammer: { part: warhammer, clips: warhammerClips, keys: {} },   // the Dwarf's (on the shelf, 2026-09-20): part + the 12-clip Warhammer_* family
 };
 
 // Standalone: the part alone (no rig), for the record and the harness turntable.
@@ -621,12 +724,12 @@ if (process.argv[1] && /build-weapon\.mjs$/.test(process.argv[1])) {
   const fs = await import('node:fs/promises');
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   globalThis.FileReader ??= class { async readAsArrayBuffer(blob) { this.result = await blob.arrayBuffer(); this.onloadend?.(); } async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); } };
-  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ trident: 'trellis', cleaver: 'trellis', knife: 'trellis', estoc: 'trellis', scythe: SCYTHE_DEFAULT }[weapon] ?? DEFAULT_VARIANT); // no variant: what the fighter build ships (the reconstructed part where one exists)
+  const weapon = WEAPON_BUILDS[process.argv[2]] ? process.argv[2] : 'trident', variant = process.argv[WEAPON_BUILDS[process.argv[2]] ? 3 : 2] || ({ trident: 'trellis', cleaver: 'trellis', knife: 'trellis', estoc: 'trellis', scythe: SCYTHE_DEFAULT, warhammer: WARHAMMER_DEFAULT }[weapon] ?? DEFAULT_VARIANT); // no variant: what the fighter build ships (the reconstructed part where one exists)
   const scene = new T.Scene(), part = await WEAPON_BUILDS[weapon].part({ variant }); scene.add(part);
   const glb = part.maps ? await fs.readFile(`src/assets/source/weapons/${weapon}.part.glb`) : await new GLTFExporter().parseAsync(scene, { binary: true }); // the reconstructed part's record keeps its maps
   const out = process.env.WEAPON_OUT || `src/assets/weapons/${weapon}/${weapon}.glb`;
   await fs.mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true }); await fs.writeFile(out, Buffer.from(glb));
   let triangles = 0; part.traverse(o => { if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
-  const names = { cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS, estoc: ESTOC_VARIANTS, scythe: SCYTHE_VARIANTS }[weapon] ?? VARIANTS;
+  const names = { cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS, estoc: ESTOC_VARIANTS, scythe: SCYTHE_VARIANTS, warhammer: WARHAMMER_VARIANTS }[weapon] ?? VARIANTS;
   console.log(`${weapon} ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${names[variant]?.name ?? `${part.userData.variant}: the reconstructed part (scripts/weapon-fit.py), its own maps`})`);
 }

@@ -10,7 +10,7 @@ const pack = (json: object, binary: Buffer) => {
   const raw=Buffer.from(JSON.stringify(json)), js=Buffer.concat([raw,Buffer.alloc((4-raw.length%4)%4,32)]), bin=Buffer.concat([binary,Buffer.alloc((4-binary.length%4)%4)]);
   const h=Buffer.alloc(20),b=Buffer.alloc(8);[0x46546c67,2,28+js.length+bin.length,js.length,0x4e4f534a].forEach((v,i)=>h.writeUInt32LE(v,i*4));b.writeUInt32LE(bin.length);b.writeUInt32LE(0x004e4942,4);return Buffer.concat([h,js,b,bin]);
 };
-test('Quiet One append preserves every existing animation, skin, material and binary byte; reruns are identical and refuse newer clips', async () => {
+test('Quiet One append preserves every existing animation, skin, material and binary byte; reruns are identical and refuse newer clips [slow]', async () => {
   for (const rig of ['veteran', 'warrior']) { // full exporter and additive shipped rigs
     const {json,binary}=unpack(await readFile(new URL(`../src/assets/${rig}.glb`,import.meta.url)));
     let base=json.extras?.quietOneBase;

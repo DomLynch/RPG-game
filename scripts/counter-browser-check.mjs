@@ -1,5 +1,7 @@
-// Real touch input and passive combat/animation observations; no simulation overrides.
+// Real touch input and passive combat/animation observations; no simulation overrides. Page time is the gate's after boot
+// (scripts/lib/harness-clock.mjs), so the parry-then-counter presses land on the same ticks on any machine.
 import { chromium } from 'playwright';
+import { harnessClock } from './lib/harness-clock.mjs';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -10,10 +12,12 @@ const receipt={url:url.href,physicalPhone:false,counters:[],errors:[]};
 const dir='artifacts/weapons/counter-buttons';await fs.mkdir(dir,{recursive:true});
 try {
  for(const [button,move,clip,damage] of [['attack-button','slash_riposte','Attack',24],['thrust-button','riposte','Riposte',24],['heavy-button','heavy_riposte','Heavy',30]]) {
-  const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+  // 1× pixel density: this gate asserts events, clips and health, not pixels, and software-GL runners render every harness frame.
+  const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:1});
   page.on('pageerror',e=>receipt.errors.push(String(e)));await page.route('**/*sentry.io/**',r=>r.abort());
-  await page.goto(url.href);await page.getByRole('button',{name:'Enter the arena'}).tap();
+  await page.goto(url.href);await page.getByRole('button',{name:'Enter the arena'}).tap({timeout:120000});   // a load wait: the runner's first render compiles shaders on software GL
   await page.waitForFunction(()=>document.querySelector('#art-status').textContent===''&&document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
+  const {run,until}=await harnessClock(page);await run(200);   // a few harness frames after the arena opens before the first press
   await page.evaluate(()=>{
    window.__combat=[];window.__clips=[];window.__tellAt=0;
    window.addEventListener('frankendom:combat',e=>window.__combat.push(e.detail));
@@ -23,14 +27,18 @@ try {
   });
   const cdp=await page.context().newCDPSession(page);
   const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,radiusX:2,radiusY:2,force:1}]:[]});
+  // Diagnosis for a runner where the fight never starts under harness time: what the page looks like right after the press and on failure.
+  const diagnose=()=>page.evaluate(()=>({visibility:document.visibilityState,welcomeHidden:document.querySelector('#welcome')?.hidden,message:document.querySelector('#message')?.textContent,messageHidden:document.querySelector('#message')?.hidden,attack:document.querySelector('#attack-button')?.textContent,attackDisabled:document.querySelector('#attack-button')?.getAttribute('aria-disabled'),guard:document.querySelector('#guard-button')?.getAttribute('aria-disabled'),status:document.querySelector('#combat-status')?.textContent,debug:{...document.querySelector('#debug')?.dataset},performance:document.querySelector('#performance')?.textContent,combatEvents:window.__combat.length,lastTick:window.__combat.at(-1)?.tick??null,now:Math.round(performance.now())}));
   await page.getByRole('button',{name:'Draw sword',exact:true}).tap();
-  await page.waitForFunction(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false');
+  receipt.afterDraw=await diagnose();
+  try { await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false',20000); }
+  catch(error){ receipt.onFailure=await diagnose(); receipt.error=String(error).slice(0,300); throw error; }
   const box=await page.locator('#guard-button').boundingBox();
-  await page.waitForFunction(()=>window.__tellAt>0&&performance.now()-window.__tellAt>=430);
+  await until(()=>window.__tellAt>0&&performance.now()-window.__tellAt>=430,20000);
   await touch('touchStart',{x:box.x+box.width/2,y:box.y+box.height/2});
-  await page.waitForFunction(()=>window.__combat.some(s=>s.events.some(e=>e.type==='Parried'&&e.actor===0)),null,{timeout:1500});
+  await until(()=>window.__combat.some(s=>s.events.some(e=>e.type==='Parried'&&e.actor===0)),1500);
   await touch('touchEnd');await page.locator('#'+button).tap();
-  await page.waitForFunction(move=>window.__combat.some(s=>s.events.some(e=>e.type==='Hit'&&e.actor===0&&e.move===move)),move,{timeout:2000});
+  await until(move=>window.__combat.some(s=>s.events.some(e=>e.type==='Hit'&&e.actor===0&&e.move===move)),2000,move);
   const state=await page.evaluate(()=>({events:window.__combat.flatMap(s=>s.events),clips:window.__clips,health:document.querySelector('#target-health').value}));
   assert.ok(state.events.some(e=>e.type==='AttackStarted'&&e.actor===0&&e.move===move));
   const hit=state.events.find(e=>e.type==='Hit'&&e.actor===0&&e.move===move);assert.equal(hit.damage,damage);assert.equal(state.health,150-damage);

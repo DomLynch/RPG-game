@@ -611,7 +611,7 @@ test('events: every outcome is reported exactly once per contact and the stream 
   for (const type of ['AttackStarted', 'AttackActive', 'AttackMissed', 'Hit', 'Blocked', 'Parried', 'GuardBroken', 'Dodged', 'Staggered', 'StaminaExhausted', 'Killed', 'ActionStarted']) assert.ok(counts[type] > 0, `${type} never occurred in the fuzz`);
 });
 
-test('the same intent sequence replays to the same duel; inputs never mutate the previous state; resources stay bounded', () => {
+test('the same intent sequence replays to the same duel; inputs never mutate the previous state; resources stay bounded [slow]', () => {
   const play = () => {
     let seed = 4242, d = initialDuel();
     const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);

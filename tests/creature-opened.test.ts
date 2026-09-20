@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Box3, Group, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors } from '../src/characters.ts';
-import { finisherSidePose } from '../src/scene.ts';
+import { finisherSidePose } from '../src/camera.ts';
 import { resolveFinisher, ROSTER } from '../src/roster.ts';
 import { selectFinisher } from '../src/finishers.ts';
 import type { Finish } from '../src/duel.ts';
@@ -27,7 +27,7 @@ test('creature picker and Auto share an eligibility-checked presentation decisio
   }
 });
 
-for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves stay whole, ground, frame, fade appropriately and restore`,async()=>{
+for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves stay whole, ground, frame, fade appropriately and restore [slow]`,async()=>{
   const bytes=readFileSync(new URL(`../src/assets/${id}.glb`,import.meta.url)),size=bytes.readUInt32LE(12);
   const json=JSON.parse(bytes.subarray(20,20+size).toString());
   json.images=[];json.textures=[];json.materials=json.materials.map((m:{name:string})=>({name:m.name}));

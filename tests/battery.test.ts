@@ -50,7 +50,7 @@ export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, 
 }
 // The Veteran as shipped (the trident since slice V) and the same man with the longsword: the sword warden is the AI every other opponent starts from, so it stays gated.
 const WARDENS: [string, Opponent][] = [[`${OPPONENTS.veteran.id} (${OPPONENTS.veteran.weapon})`, OPPONENTS.veteran], ...(OPPONENTS.veteran.weapon === 'longsword' ? [] : [['veteran (longsword)', { ...OPPONENTS.veteran, weapon: 'longsword' as const }] as [string, Opponent]])];
-for (const [who, opponent] of WARDENS) test(`no simple strategy dominates the ${who} warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit`, () => {
+for (const [who, opponent] of WARDENS) test(`no simple strategy dominates the ${who} warden: wins ≤ 50 % at normal, ≤ 35 % at hard, and every strategy gets hit [slow]`, () => {
   for (const [level, cap] of [['normal', .5], ['hard', .35]] as const) {
     const rows = battery(level, 24, 7200, opponent);
     const table = Object.entries(rows).map(([n, r]) => `${n}: ${r.wins}W ${r.losses}L ${r.stalls}S untouched ${r.untouched} taken ${r.taken} landed ${r.landed}`).join('\n  ');

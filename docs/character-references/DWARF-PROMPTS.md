@@ -2,7 +2,9 @@
 
 Generated 2026-09-20 through the official `black-forest-labs/FLUX.1-Krea-dev` Space API (seed 190926, 832×1216, 28 steps,
 guidance 4.5) on the owner's Hugging Face PRO quota, then reconstructed with the official Microsoft TRELLIS.2 Space
-(seed 190926, resolution 1024, 100000 export faces, 2048 textures) by `scripts/character/trellis2.py`. This is a
+(seed 190926, resolution 1536, 100000 export faces, 2048 textures) by `scripts/character/trellis2.py` — the
+v2 pass (2026-09-20) replaced the first 1024-resolution reconstruction: at 1024 the face baked as a smear; at 1536 brow, eyes,
+nose, scar and beard resolve. A 4096-texture variant was rendered and rejected (+3 MB per fight, phones cap fighter maps at 1024). This is a
 reconstruction source image, not a game screenshot; the owner has not yet approved its direction.
 
 ## Dwarf

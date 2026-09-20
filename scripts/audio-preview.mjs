@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
 import { cuesFor } from '../src/audio/cues.ts';
+import { COMBAT_LEVEL, FINISH_LEVEL } from '../src/feedback.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 4, PROBE_AT = .05, PROBE_LENGTH = 1.2;
@@ -28,7 +29,7 @@ const server = await createServer({ configFile: false, appType: 'custom', logLev
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 let browser;
-const rendered = {}, flat = {}; let path_ = '';
+const rendered = {}, flat = {}, REFERENCE = .25; let path_ = '';
 const probeLength = probe => ['quietOne','opened'].includes(probe.presentation?.override) ? 6.5 : probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH;
 const checks = process.argv.includes('--check') ? {} : null;
 try {
@@ -86,8 +87,10 @@ try {
     assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
   }
   for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe));
-  // Phone-mix pin (checked after the loudness pass): the same probes with the balance stage at ×1.
-  if (checks && !fallback && seed === 731) for (const probe of CUE_PROBES) if (rendered[`events/${probe.name}`].some(v => v !== 0)) flat[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe), { combat: 1, finish: 1 });
+  // Phone-mix pin (checked after the loudness pass): the same probes with the balance stage flat at REFERENCE. Not ×1: there the
+  // ordinary peaks (~.89 after the soft ceiling) sit above the output guard's .55 knee and the reference is itself compressed,
+  // which read as a spurious .18 dB error the moment the mix dropped to .4 (deploy #21, 2026-09-20). At .25 both renders are linear.
+  if (checks && !fallback && seed === 731) for (const probe of CUE_PROBES) if (rendered[`events/${probe.name}`].some(v => v !== 0)) flat[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe), { combat: REFERENCE, finish: REFERENCE });
   if (checks) {
     const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
     assert.ok(fatal, 'decapitation probe exists');
@@ -185,8 +188,8 @@ function phoneLoudness(x) {
 }
 const loudness = Object.fromEntries(Object.entries(rendered).map(([name, pcm]) => [name, measure(pcm, name === 'exchange' ? cues[0].t : PROBE_AT)]));
 if (checks && !fallback && seed === 731) {
-  // The owner's phone mix (ordinary ×0.5, fatal ×1.5, 2026-09-19) measured against the same render with the balance stage at
-  // ×1 — self-contained, so it survives re-voicing and still catches a compensating compressor or a reset finishing gain.
+  // The owner's phone mix (COMBAT_LEVEL / FINISH_LEVEL) measured against the same render with the balance stage flat at
+  // REFERENCE — self-contained, so it survives re-voicing and still catches a compensating compressor or a reset finishing gain.
   checks.phoneMix = { ordinary: 0, crowd: 0, fatal: 0 };
   // The 2.4–2.7 s tail is the cheer alone: a cheer that starts on the contact tick, a render long enough to hold it, no other cue landing in the window.
   const crowdTail = probe => { const cues = cuesFor(probe.events, probe.presentation); return probeLength(probe) >= 2.7 && cues.some(c => c.name === 'crowd_cheer' && (c.delay ?? 0) < .5) && !cues.some(c => (c.delay ?? 0) > 1.9 && (c.delay ?? 0) < 2.7); };
@@ -197,14 +200,16 @@ if (checks && !fallback && seed === 731) {
     const before = { lufsIntegrated: measure(flat[name], PROBE_AT).lufsIntegrated, tailRmsDbfs: crowdTail(probe) ? tailRms(flat[name]) : undefined };
     const delta = loudness[name].lufsIntegrated - before.lufsIntegrated;
     if (!probe.events.some(e => e.type === 'Killed')) {
-      assert.ok(Math.abs(delta - 20 * Math.log10(.5)) < .15, `${name}: ordinary level changed ${delta} dB, expected half gain`);
+      assert.ok(Math.abs(delta - 20 * Math.log10(COMBAT_LEVEL / REFERENCE)) < .15, `${name}: ordinary level changed ${delta} dB, expected ${(20 * Math.log10(COMBAT_LEVEL / REFERENCE)).toFixed(2)} (COMBAT_LEVEL / REFERENCE)`);
       checks.phoneMix.ordinary++;
     } else {
-      assert.ok(delta >= 2.7 && delta <= 3.7, `${name}: boosted fatal loudness changed ${delta} dB (peak protection may reduce the boost)`);
+      // FINISH_LEVEL nominal, −.82 … +.18 as when the pin was set (the output guard may take some of the boost); ± .05 for the .1 LUFS rounding.
+      const boost = 20 * Math.log10(FINISH_LEVEL / REFERENCE);
+      assert.ok(delta >= boost - .87 && delta <= boost + .23, `${name}: boosted fatal loudness changed ${delta} dB, expected about ${boost.toFixed(2)} (FINISH_LEVEL)`);
       checks.phoneMix.fatal++;
     }
     if (before.tailRmsDbfs !== undefined) {
-      assert.ok(Math.abs(tailRms(rendered[name]) - before.tailRmsDbfs - 20 * Math.log10(1.5)) < .15, `${name}: crowd tail must increase 50%`);
+      assert.ok(Math.abs(tailRms(rendered[name]) - before.tailRmsDbfs - 20 * Math.log10(FINISH_LEVEL / REFERENCE)) < .15, `${name}: crowd tail must follow FINISH_LEVEL`);
       checks.phoneMix.crowd++;
     }
   }

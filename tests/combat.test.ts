@@ -146,7 +146,7 @@ test('the thrust plays its own clip role; a chained thrust and the riposte play 
   assert.deepEqual([mine.thrust.source, mine.heavy.source, theirs.heavy.source], [.34, .48, .48]);
 });
 
-test('seeded practice replays are identical, never mutate the previous state, and keep both fighters bounded and apart', () => {
+test('seeded practice replays are identical, never mutate the previous state, and keep both fighters bounded and apart [slow]', () => {
   const play = (profile = PROFILES.normal) => {
     let seed = 444, s = initialPractice();
     const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);

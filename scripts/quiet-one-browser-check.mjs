@@ -21,6 +21,7 @@ for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== '
 await page.getByRole('button', { name: 'Enter the arena' }).tap();
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();
+await page.locator('label[for=journal-tab-settings]').tap();   // the finisher picker sits under Test tools on the Settings tab
 await page.locator('#finisher-select').selectOption(finisher);
 await page.getByRole('button', {name:'Close journal'}).tap();
 
@@ -104,19 +105,9 @@ if(process.argv.includes('--blood-check')) {
 }
 await page.addStyleTag({content:'#debug{visibility:hidden}'});
 await page.screenshot({path:`${dir}/live-held.png`});
-if(process.argv.includes('--blood-check')) {
-  receipt.bloodModes=[];
-  for(const mode of ['dark','off','red']) {
-    await page.getByRole('button',{name:'Menu and field journal'}).tap();
-    await page.locator('#blood-mode').tap();assert.equal(await page.locator('#blood-mode').textContent(),`Blood: ${mode}`);
-    await page.getByRole('button',{name:'Close journal'}).tap();await page.waitForTimeout(150);
-    const blood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));
-    assert.equal(blood.visible,mode!=='off');
-    if(mode!=='off')assert.equal(blood.color,mode==='dark' ? '2b2226' : '68121a');
-    receipt.bloodModes.push({mode,visible:blood.visible,color:blood.color,pools:blood.pools.length});
-    await page.screenshot({path:`${dir}/live-blood-${mode}.png`});
-  }
-}
+// Blood is red only (owner 2026-09-20): the journal's blood toggle is gone, so the dark/off cycling that used to run under
+// --blood-check is retired; the finisher's own blood assertions above still run under the same flag.
+
 await page.locator('#reset-button').tap();
 await page.waitForFunction(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips),null,{timeout:90000});
 assert.doesNotMatch(await clips(), expected, 'rematch clears the finisher');

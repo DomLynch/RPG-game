@@ -5,6 +5,9 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 import { OPPONENTS } from '../src/moves.ts';
+import { PROPS } from '../src/arena-props.ts';
+// The fighter rigs are the .glb responses that are not the arena's authored props (src/arena-props.ts) — those load on every page.
+const isRig=u=>{const name=new URL(u).pathname.split('/').at(-1);return name.endsWith('.glb')&&!PROPS.some(p=>name.startsWith(p.id+'-'));};
 const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0,strictPort:true}});
 const url=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser=await chromium.launch({headless:true,executablePath:chromium.executablePath()});
@@ -17,7 +20,7 @@ try {
   if(!localStorage.getItem('frankendom.fighter.v1'))localStorage.setItem('frankendom.fighter.v1',JSON.stringify({version:1,id:'catalogue-guest-123',name:'Aldren',ladder:'pitborn',career:{victoryMarks:12}}));
  });
  let rigs=[];
- page.on('response',r=>{if(new URL(r.url()).pathname.endsWith('.glb'))rigs.push({url:r.url(),status:r.status()});});
+ page.on('response',r=>{if(isRig(r.url()))rigs.push({url:r.url(),status:r.status()});});
  for(const {id} of ENCOUNTERS.filter(o=>!o.hold)) {   // the live rungs; held recipes are checked below as fallbacks, not as fights
   console.log('Checking roster:',id);
   rigs=[];
@@ -50,6 +53,7 @@ try {
  await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
  assert.equal(await page.locator('#target-health').getAttribute('max'),'190');
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
+ await page.locator('label[for=journal-tab-arena]').tap();   // the opponent picker sits on the Arena tab
  await page.locator('#opponent-select').selectOption('goblin');
  await page.waitForFunction(()=>document.querySelector('#target-health').max===120 && document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
  const profile=await page.evaluate(()=>JSON.parse(localStorage.getItem('frankendom.fighter.v1')));

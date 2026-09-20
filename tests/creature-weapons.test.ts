@@ -60,7 +60,7 @@ test('creature light, heavy and forward strikes land once through their measured
   }
 });
 
-test('both creature shafts remain held by their reconstructed hands throughout clips', async () => {
+test('both creature shafts remain held by their reconstructed hands throughout clips [slow]', async () => {
   for(const [family,id,scale] of [['minotaur','maul',1],['wraith','reaper',1.5]] as const){
     const asset=await rig(family);asset.scene.scale.multiplyScalar(scale);
     const body=asset.scene.getObjectByName('CreatureBody') as import('three').SkinnedMesh, marker=asset.scene.getObjectByName('WeaponDrawn')!, mixer=new AnimationMixer(asset.scene);

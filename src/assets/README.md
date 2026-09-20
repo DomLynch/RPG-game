@@ -628,3 +628,25 @@ Fit recipe (`scripts/character/creatures.py`): donor arm 64°, reach 1.15, shift
 solved so the posed `WeaponDrawn` origin lands in the reconstruction's palm (0.011 m); finger weights are kept
 on the arms so the clips curl his fingers round the haft (grip gap 0.019 m in every scythe clip vs the v5 rig's
 0.003 m; 0.04–0.08 m without finger weights). Build: `node scripts/build-creatures.mjs executioner`.
+
+# Arena props (presentation lane, 2026-09-20)
+
+`src/assets/arena/props/{portcullis,weapon-rack,shield,column-drum,bone-pile}.glb` were generated for this project on the owner's Hugging
+Face account: a prompted reference image per prop (Z-Image-Turbo, Apache-2.0 model) turned into a mesh with PBR maps by TRELLIS.2
+(microsoft/TRELLIS.2-4B, MIT), then decimated to 3–5k triangles and re-textured at 512–768² WebP in Blender 5.2 (evidence and the
+prompts' inputs: `artifacts/presentation/props-v1/`). Original project work; no third-party assets were copied. Build packing (meshopt,
+WebP) brings the five to 672 KB gzip. Placement and the exclusion volume are held by `tests/arena-props.test.ts`.
+
+## Weapons (weapons lane, 2026-09-20) — the warhammer (the Dwarf's, on the shelf)
+
+`src/assets/weapons/warhammer/`: `warhammer.glb` (the part alone, 460 tris) and `veteran-warhammer.glb` (the Veteran's 1.0× rig
+carrying it — the shelf record, the bake source in `scripts/blade-manifest.json`, and the polearm-test rig). Owner (2026-09-20):
+"Create the dwarf hammer / war hammer - should be medium size"; the character lane's brief (two-handed, grounded, ~0.95 m ash haft,
+leather over the lower third, square striking face + back-spike, riveted langets). Built by `scripts/build-weapon.mjs` (`warhammer()`,
+variant A: 0.93 m butt to crown, head 0.705–0.815 m as the contact segment, the FACE on local +x — the side that leads the forehand
+swing — the spike on −x) and `warhammerClips()`: the 12-clip `Warhammer_*` family on the base humanoid rig via `twoHandFamily()`
+(the trident's clip machinery, extracted unchanged — the Veteran rebuilds byte-identical). `src/moves.ts WEAPONS.warhammer` is the
+maul's blunt set flagged `placeholder` on `Warhammer_Slash/Heavy/Thrust` paths (Combat sets the .78-fighter reach); `characters.ts
+WEAPON_CLIPS.warhammer` maps the maul's roles onto the family. The character lane integrates (`WARRIOR_WEAPON=warhammer` on the
+Dwarf donor, refit, roster flip). Provenance: original project work — Three.js primitives, the cleaver's pitted iron / the trident's
+ash / the shared leather; the clips are authored on the same CC0 body loops as the trident's. Sheets: `artifacts/weapons/warhammer-v1/`.

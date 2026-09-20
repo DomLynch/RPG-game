@@ -11,84 +11,11 @@ import { buildArena } from './arena.ts';
 import { createFootDust } from './foot-dust.ts';
 import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { shoveFor } from './camera-kick.ts';
-import { bloodiesMaterial, createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
+import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
-
-export function cameraPose(
-  state: State,
-  yaw: number,
-  pitch: number,
-  locked: boolean,
-  target: { x: number; z: number } = TARGET,
-) {
-  const distance = Math.hypot(state.x - target.x, state.z - target.z);
-  // Duel lock sits ~30% closer and lower than the first pass; the distance terms still pull back to frame both fighters.
-  const back = locked ? Math.max(4.2, distance * 0.62 + 2.8) : 7.5 * Math.cos(pitch);
-  let x = state.x + Math.sin(yaw) * back,
-    z = state.z + Math.cos(yaw) * back;
-  // Camera stays inside the colonnade even when the fighter reaches the arena edge.
-  const radius = Math.hypot(x, z);
-  if (radius > 11.5) {
-    x *= 11.5 / radius;
-    z *= 11.5 / radius;
-  }
-  return {
-    x,
-    y: locked ? Math.max(3.2, distance * 1.3) : 1 + 7.5 * Math.sin(pitch),
-    z,
-    lookX: locked ? (state.x + target.x) / 2 : state.x,
-    lookZ: locked ? (state.z + target.z) / 2 : state.z,
-  };
-}
-
-// Late finisher reveal: a three-quarter side view, fitted to the phone's horizontal field of view.
-// Choose the inward side from the frozen duel positions so the camera cannot switch sides as the corpse moves.
-export function finisherSidePose(
-  killer: { x: number; z: number },
-  fallen: { x: number; z: number },
-  aspect: number,
-  finisher: 'runThrough' | 'splitCrown' | 'quietOne' | 'opened' = 'runThrough',
-  bodyScale = 1,
-) {
-  const dx = fallen.x - killer.x,
-    dz = fallen.z - killer.z,
-    gap = Math.hypot(dx, dz) || 1;
-  const ux = dx / gap,
-    uz = dz / gap,
-    lookX = (killer.x + fallen.x) / 2,
-    lookZ = (killer.z + fallen.z) / 2;
-  const back = Math.max(
-    finisher === 'opened' ? 5.2 : finisher === 'quietOne' ? 4.5 : 3.8,
-    (gap / 2 + (finisher === 'opened' ? 1.5 * bodyScale : finisher === 'quietOne' ? 1.5 : 0.42)) /
-      (Math.tan((51 * Math.PI) / 360) * Math.min(aspect, 1)),
-  );
-  // Split Crown (owner 2026-09-20): the seam runs front-to-back over a head that bows toward the killer, so a profile
-  // hides it — a raised front-quarter (45°, higher eye) looks down onto the opened crown past the killer's shoulder.
-  const angle = finisher === 'splitCrown' ? Math.PI / 4 : finisher !== 'runThrough' ? Math.PI / 3 : (5 * Math.PI) / 12,
-    sideward = Math.sin(angle),
-    rearward = Math.cos(angle);
-  const side = (sign: number, front = 1) => ({
-    x: lookX + (-uz * sign * sideward - ux * rearward * front) * back,
-    y: finisher === 'opened' ? 3.7 + 3 * (bodyScale - 1) : finisher === 'splitCrown' ? 4.2 : 3.1,
-    z: lookZ + (ux * sign * sideward - uz * rearward * front) * back,
-    lookX,
-    lookY: 0.85,
-    lookZ,
-  });
-  // Large halves need the inward front-quarter option when the killer stands against the wall;
-  // clamping an outward rear view alone squeezes the corpse out of the portrait frame.
-  const candidates =
-    finisher === 'opened' && bodyScale > 1
-      ? [side(1), side(-1), side(1, -1), side(-1, -1)]
-      : [side(1), side(-1)];
-  const pose = candidates.reduce((best, p) => (Math.hypot(p.x, p.z) < Math.hypot(best.x, best.z) ? p : best));
-  const radius = Math.hypot(pose.x, pose.z);
-  if (radius > 11.5) {
-    pose.x *= 11.5 / radius;
-    pose.z *= 11.5 / radius;
-  }
-  return pose;
-}
+import { createCameraRig } from './camera.ts';
+import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
+import { createBladeBlood, createSplatPool, createWoundDecals } from './gore.ts';
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
@@ -110,21 +37,23 @@ export function createScene(
   scene.background = new THREE.Color('#a9a89c');
   scene.fog = new THREE.FogExp2('#a9a89c', 0.018);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
+  // The environment map: the arena's own ash sky (an equirect the world lane paints, warm sand below the horizon) once it has landed,
+  // so bronze and iron reflect this place; the studio RoomEnvironment only until then (audit 2026-09-20).
+  let arenaSky: THREE.Texture | undefined;
   function rebuildEnvironment() {
-    const environment = new RoomEnvironment(),
-      pmrem = new THREE.PMREMGenerator(renderer);
+    const pmrem = new THREE.PMREMGenerator(renderer), environment = arenaSky ? null : new RoomEnvironment();
     try {
-      const target = pmrem.fromScene(environment, 0.04);
+      const target = environment ? pmrem.fromScene(environment, 0.04) : pmrem.fromEquirectangular(arenaSky!);
       environmentTarget?.dispose();
       environmentTarget = target;
       scene.environment = target.texture;
+      scene.environmentIntensity = environment ? 0.45 : 1.0;
     } finally {
-      environment.dispose();
+      environment?.dispose();
       pmrem.dispose();
     }
   }
   rebuildEnvironment();
-  scene.environmentIntensity = 0.45;
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
   const metal = new THREE.MeshStandardMaterial({ color: '#89949b', metalness: 0.72, roughness: 0.4 });
   // The target marker's brass is a combat tell (it warms on a threat); the arena has its own materials in arena.ts.
@@ -134,7 +63,7 @@ export function createScene(
   sun.position.set(-15, 26, -18);
   sun.castShadow = true;
   sun.shadow.mapSize.set(PHONE ? 512 : 1024, PHONE ? 512 : 1024);
-  Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 70 });
+  Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 70 });   // the pit floor to the wall's foot (11.7 m), not the tiers: 1.25× sharper shadows on the sand for free (audit 2026-09-20)
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
   function mesh(
@@ -167,6 +96,7 @@ export function createScene(
   const arena = buildArena(scene),
     footDust = createFootDust(scene),
     clash = createClashSparks(scene);
+  arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {
     const group = new THREE.Group();
     scene.add(group);
@@ -195,12 +125,13 @@ export function createScene(
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
-  const ready = loadWarriors(
-    fighterUrls['./assets/warrior.glb'],
-    fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`],
-    weapons,
-  )
-    .then((loaded) => {
+  // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
+  // loading screen instead of stalling the first exchange (measured 69 ms p95 in the first window when they arrived late under load).
+  const ready = Promise.all([
+    loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
+    arena.ready,
+  ])
+    .then(([loaded]) => {
       warriors = loaded;
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       for (const proxy of [player, opponent]) {
@@ -289,25 +220,8 @@ export function createScene(
     scene.add(light);
     return light;
   });
-  const splats = Array.from({ length: 12 }, () => {
-    const splat = new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2),
-      new THREE.MeshBasicMaterial({
-        color: '#591415',
-        map: splatTexture,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    splat.rotation.x = -Math.PI / 2;
-    splat.visible = false;
-    scene.add(splat);
-    return { mesh: splat, life: 0, grow: 0 }; // grow: a kill pool spreads over ~2 s instead of appearing at once
-  });
+  const splats = createSplatPool(scene, splatTexture);
   let bloodMode: 'red' | 'dark' | 'off' = 'red',
-    splatIndex = 0,
     impactDuration = 0.18,
     impactHeading = 0,
     flesh = false,
@@ -321,108 +235,13 @@ export function createScene(
     lastHealth: number = RULES.health,
     lastPlayerHealth: number = RULES.health;
   // Decapitation (owner 2026-09-18): the severed head, its ballistic state, and the killing blow's heading (the pop direction).
-  let severHead: {
-      group: THREE.Group;
-      velocity: THREE.Vector3;
-      spin: THREE.Vector3;
-      radius: number;
-      resting: boolean;
-    } | null = null,
+  let severHead: SeveredHead | null = null,
     killHeading = 0;
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
-  // Wound-site mark + drips (finishers & gore 2026-09-17): a small dark mark at the wound site with three drips below it,
-  // living the four-second wound window (the sim's wound refreshes without stacking — so does the mark: a fresh hit on the
-  // same fighter re-arms his decal). One pooled decal per fighter; hidden in 'off' like every blood effect.
-  const wounds = [0, 1].map((side) => {
-    const group = new THREE.Group();
-    group.name = `Wound_${side}`;
-    const mark = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.15, 0.2),
-      new THREE.MeshBasicMaterial({
-        color: '#4a1213',
-        map: splatTexture,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    const drips = [0, 1, 2].map((i) => {
-      const drip = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.014, 0.1),
-        new THREE.MeshBasicMaterial({
-          color: '#4a1213',
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-          toneMapped: false,
-        }),
-      );
-      drip.position.set((i - 1) * 0.045, -0.13, 0);
-      group.add(drip);
-      return drip;
-    });
-    group.add(mark);
-    group.visible = false;
-    scene.add(group);
-    return { group, mark, drips, life: 0, side: 0 as 0 | 1, site: 'torso' as 'head' | 'torso' | 'legs' };
-  });
-  // Blood on the blade (finishers & gore 2026-09-17): the killer's weapon tints after a kill and stays bloodied until the next
-  // fight. Materials are cloned before tinting so a shared GLB never bloodies both swords.
-  const bladeOriginals = new Map<THREE.Mesh, THREE.MeshStandardMaterial>();
-  let bloodiedBlade = false,
-    bloodiedSide: 0 | 1 = 0;
-  function setBladeBlood(on: boolean, side: 0 | 1 = bloodiedSide) {
-    bloodiedSide = side;
-    if (!warriors) return;
-    const anchors = on
-      ? [side === 0 ? warriors.player.anchor : warriors.opponent.anchor]
-      : [warriors.player.anchor, warriors.opponent.anchor];
-    for (const anchor of anchors) {
-      const twoHanded = anchor.getObjectByName('WeaponDrawn'),
-        node = twoHanded ?? anchor.getObjectByName('SwordDrawn');
-      node?.traverse((object) => {
-        if (!(object instanceof THREE.Mesh) || !(object.material instanceof THREE.MeshStandardMaterial))
-          return;
-        if (!bloodiesMaterial(object.material.name, !!twoHanded)) return; // the blade, never the haft
-        const original = bladeOriginals.get(object) ?? (object.material as THREE.MeshStandardMaterial);
-        if (on) {
-          if (!bladeOriginals.has(object)) {
-            bladeOriginals.set(object, object.material as THREE.MeshStandardMaterial);
-            object.material = object.material.clone();
-          }
-          (object.material as THREE.MeshStandardMaterial).color
-            .copy(original.color)
-            .lerp(new THREE.Color(bloodMode === 'dark' ? '#2a1516' : '#7a1410'), 0.55);
-        } else if (bladeOriginals.has(object)) {
-          object.material.dispose();
-          object.material = original;
-          bladeOriginals.delete(object);
-        }
-      });
-    }
-    bloodiedBlade = on;
-  }
-  let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
-  const desired = new THREE.Vector3(),
-    look = new THREE.Vector3(),
-    aim = new THREE.Vector3(0, 1, 0),
-    spinAxis = new THREE.Vector3();
-  let yaw = 0,
-    pitch = 0.45,
-    heading = Math.PI,
-    started = false;
-  // Camera kick: a blow nudges the camera a few centimetres along the blow's heading and it settles in ~0.15 s. Small on purpose
-  // (readable brutality: nothing may obscure a pose); off when the viewer prefers reduced motion. Placeholder for the visual lane's impact pass.
-  const stillCamera =
-    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // The kick is a world-space offset scaled by `kick` (1 → 0): a landing blow drops the camera and shoves it a little along the blow; a parry
-  // flicks it sideways with the deflection. A push along the blow alone is a dolly down the view axis and reads as nothing on screen.
-  let kick = 0,
-    kickHold = 0, // a heavy-class contact holds its full displacement for two frames before settling: the weight lands, then the camera recovers
-    kickRate = 1 / 0.15, // 1/s: how fast the offset settles
-    shoved = 0; // the kick applied to the camera for the last draw; taken off before the next frame's settle so it never compounds
-  const kickOffset = new THREE.Vector3();
+  const wounds = createWoundDecals(scene, splatTexture);
+  const blade = createBladeBlood();
+  let heading = Math.PI;
+  const rig = createCameraRig(camera);
   // Kill dip: the killing blow darkens the frame 6 % for two frames and recovers over two more — the cinematic reserve (GAME_SPEC 80/15/5),
   // never on an ordinary hit. Applied around the draw on top of whatever exposure the renderer holds, so nothing else has to know.
   let dip = 0; // frames remaining, counted down per drawn frame while time passes
@@ -478,20 +297,13 @@ export function createScene(
     setBloodMode(mode: 'red' | 'dark' | 'off') {
       bloodMode = mode;
       finisherBlood.group.visible = mode !== 'off' && bloodSources.length > 0;
-      for (const splat of splats) {
-        splat.life = 0;
-        splat.grow = 0;
-        splat.mesh.visible = false;
-      }
+      splats.clear(true);
       if (flesh) {
         impact = 0;
         sparks.visible = false;
       }
-      if (mode === 'off') setBladeBlood(false);
-      else if (bloodiedBlade) {
-        bloodiedBlade = false;
-        setBladeBlood(true);
-      }
+      if (mode === 'off') blade.set(false, warriors, mode);
+      else if (blade.bloodied) blade.set(true, warriors, mode);
     },
     // The ceremony the previous fight showed (main.ts hands it to the audio resolver so both sides pick alike).
     previousFinisher(): FinisherId | null {
@@ -506,16 +318,13 @@ export function createScene(
       finisherOverride = id;
     },
     get yaw() {
-      return yaw;
+      return rig.yaw;
     },
     orbit(dx: number, dy: number) {
-      yaw -= dx * 0.005;
-      pitch = THREE.MathUtils.clamp(pitch + dy * 0.003, 0.22, 0.9);
+      rig.orbit(dx, dy);
     },
     recenter() {
-      yaw = 0;
-      pitch = 0.45;
-      started = false;
+      rig.recenter();
     },
     lowerResolution() {
       if (ratio > 1) {
@@ -587,12 +396,9 @@ export function createScene(
         finisherBlood.reset();
         bloodSources = [];
         impact = 0;
-        for (const splat of splats) {
-          splat.life = 0;
-          splat.grow = 0;
-        }
-        for (const wound of wounds) wound.life = 0;
-        setBladeBlood(false);
+        splats.clear(false);
+        wounds.clear();
+        blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
           severHead.group.traverse((o) => {
@@ -608,13 +414,9 @@ export function createScene(
       // heavy block 2.8 cm, a parry flicks 2 cm sideways) — the guard shudders, the screen never shakes. Off under prefers-reduced-motion.
       const clashKick = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
       const shoveEvent = blow ?? (clashKick?.target !== undefined ? clashKick : undefined), shove = shoveEvent && shoveFor(shoveEvent);
-      if (shoveEvent && shove && dt > 0 && !stillCamera) {
+      if (shoveEvent && shove && dt > 0) {
         // The blow's heading: a landed blow carries it; a block or parry takes the attacker's facing (the attacker is the event's target).
-        const heading = shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading);
-        kickOffset.set(Math.sin(heading) * shove.along + Math.cos(heading) * shove.side, -shove.drop, Math.cos(heading) * shove.along - Math.sin(heading) * shove.side);
-        kick = 1;
-        kickHold = shove.hold;
-        kickRate = 1 / shove.settle;
+        rig.shove(shoveEvent.heading ?? (shoveEvent.target && !blow ? practice.enemy.heading : state.heading), shove);
       }
       if (clashKick?.type === 'Blocked') blockHeavy[clashKick.actor] = HEAVY_CLASS.has(clashKick.move ?? '');
       if (killed && dt > 0) dip = DIP_FRAMES;
@@ -648,14 +450,19 @@ export function createScene(
             rig = attacker ? warriors?.opponent : warriors?.player,
             weapon = rig?.anchor.getObjectByName('WeaponDrawn') ?? rig?.anchor.getObjectByName('SwordDrawn'),
             contactRange = weapon?.userData.contact as { from: number; to: number } | undefined;
-          // The blades meet at the defender's guard: a third of a metre in front of his chest toward the attacker's hand, at the height the
-          // attacking blade is passing (on the contact tick the rig's blade already reaches into the defender's body, so its own points are not the meeting point).
-          const defenderBody = attacker ? state : practice.enemy,
-            hand = weapon?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3(attacker ? practice.enemy.x : state.x, 1.1, attacker ? practice.enemy.z : state.z),
-            bladeHeight = weapon && contactRange ? (weapon.localToWorld(new THREE.Vector3(0, contactRange.from, 0)).y + weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)).y) / 2 : 1.15;
-          const at = new THREE.Vector3(defenderBody.x, 0, defenderBody.z);
-          at.add(hand.clone().setY(0).sub(at).normalize().multiplyScalar(0.35)).setY(Math.min(1.6, Math.max(0.8, bladeHeight)));
-          clash.burst(at, attacker ? practice.enemy.heading : state.heading, strength);
+          // Struck off the attacking blade itself (owner 2026-09-20): the outer part of its contact zone as the rig draws it this frame,
+          // with a fallback segment at the defender's guard when a rig is not loaded.
+          const defenderBody = attacker ? state : practice.enemy, guard = new THREE.Vector3(defenderBody.x, 1.15, defenderBody.z);
+          let a: THREE.Vector3, b: THREE.Vector3;
+          if (weapon && contactRange) {
+            // The rig's contact pose already drives the blade into the defender; sparks belong on the visible length, so the zone ends
+            // where the blade enters his body (0.3 m off his axis) and runs 0.4 m back toward the attacker's hand.
+            const hand = weapon.localToWorld(new THREE.Vector3(0, 0, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, contactRange.to, 0)), length = hand.distanceTo(tip) || 1;   // the grip to the tip: the whole visible length
+            let entry = 1;
+            for (let t = 0; t <= 1; t += 0.05) { const q = hand.clone().lerp(tip, t); if (Math.hypot(q.x - guard.x, q.z - guard.z) < 0.3) { entry = t; break; } }
+            b = hand.clone().lerp(tip, Math.max(0.25, entry - 0.02)); a = b.clone().sub(tip.clone().sub(hand).multiplyScalar(Math.min(0.4, length * 0.35) / length));
+          } else { const towardAttacker = new THREE.Vector3(attacker ? practice.enemy.x : state.x, 0, attacker ? practice.enemy.z : state.z).sub(new THREE.Vector3(guard.x, 0, guard.z)).normalize(); a = guard.clone().addScaledVector(towardAttacker, 0.2); b = guard.clone().addScaledVector(towardAttacker, 0.6); }
+          clash.burst(a, b, attacker ? practice.enemy.heading : state.heading, strength);
           impact = 0; // the dedicated sparks replace the generic dots for this contact
         }
         sparks.position.set(
@@ -677,35 +484,16 @@ export function createScene(
             spine = warriors.opponent.boneWorld('spine_01');
           if (hip && spine) sparks.position.copy(hip.lerp(spine, 0.6));
         }
-        if (flesh && !(killed && detailedBlood)) {
-          const splat = splats[splatIndex++ % splats.length];
-          splat.life = 20;
-          splat.grow = 0;
-          splat.mesh.position.set(target.x, 0.022 + (splatIndex % 12) * 0.0001, target.z);
-          splat.mesh.scale.set(0.22 + (splatIndex % 3) * 0.05, 0.13 + (splatIndex % 4) * 0.035, 1);
-          splat.mesh.rotation.z = splatIndex * 2.4;
-          splat.mesh.material.color.set(bloodMode === 'dark' ? '#352426' : '#681a19');
-        }
-        if (flesh) {
-          const wound = wounds[enemyHurt ? 1 : 0];
-          wound.life = 4;
-          wound.side = enemyHurt ? 1 : 0;
-          wound.site = site;
-        } // the wound-site mark: refreshed, never stacked
+        if (flesh && !(killed && detailedBlood)) splats.splash(target, bloodMode);
+        if (flesh) wounds.arm(enemyHurt ? 1 : 0, site); // the wound-site mark: refreshed, never stacked
         if (killed && flesh && !detailedBlood) {
           // the corpse keeps pooling after the splashes fade (cleared on rematch like everything else)
-          const pool = splats[splatIndex++ % splats.length];
-          pool.life = 1e9;
-          pool.grow = 1e-6;
-          pool.mesh.position.set(target.x, 0.03, target.z);
-          pool.mesh.rotation.z = splatIndex * 2.4;
-          pool.mesh.scale.set(0.3, 0.2, 1);
-          pool.mesh.material.color.set(bloodMode === 'dark' ? '#352426' : '#681a19');
-          setBladeBlood(true, killed.actor as 0 | 1);
+          splats.pool(target, bloodMode);
+          blade.set(true, warriors, bloodMode, killed.actor as 0 | 1);
         }
         if (killed && flesh && detailedBlood) {
           impact = 0;
-          setBladeBlood(true, killed.actor as 0 | 1);
+          blade.set(true, warriors, bloodMode, killed.actor as 0 | 1);
         }
       }
       lastHealth = practice.health;
@@ -727,86 +515,23 @@ export function createScene(
         }
         sparkGeometry.attributes.position.needsUpdate = true;
       }
-      for (const splat of splats) {
-        splat.life = Math.max(0, splat.life - dt);
-        splat.mesh.visible = splat.life > 0;
-        if (splat.life > 1e8) {
-          splat.grow = Math.min(1, splat.grow + dt / 2.2);
-          splat.mesh.scale.set(0.3 + 0.7 * splat.grow, (0.2 + 0.55 * splat.grow) * 0.8, 1);
-          splat.mesh.material.opacity = 0.7 * splat.grow;
-        } // the kill pool spreads
-        else splat.mesh.material.opacity = Math.min(0.65, splat.life / 4);
-      }
-      for (const wound of wounds) {
-        // the wound-site mark rides the wounded fighter for his four-second window
-        if (wound.life > 0) {
-          wound.life = Math.max(0, wound.life - dt);
-          const body = wound.side === 1 ? practice.enemy : state;
-          wound.group.position.set(
-            body.x,
-            wound.site === 'head' ? 1.55 : wound.site === 'legs' ? 0.6 : 1.15,
-            body.z,
-          );
-          wound.group.rotation.set(0, body.heading, 0);
-          wound.mark.scale.set(1, 1, 1);
-          const fade = Math.min(1, wound.life),
-            seep = Math.min(1, (4 - wound.life) / 1.2); // drips run in the first ~1.2 s, the mark fades over the last
-          const tone = bloodMode === 'dark' ? '#241314' : '#4a1213';
-          wound.mark.material.color.set(tone);
-          wound.mark.material.opacity = 0.55 * fade;
-          wound.drips.forEach((drip, i) => {
-            drip.position.set((i - 1) * 0.045, -0.13, 0);
-            drip.material.color.set(tone);
-            drip.material.opacity = 0.5 * fade * seep;
-            drip.scale.set(1, 0.4 + 0.6 * seep, 1);
-          });
-          wound.group.visible = bloodMode !== 'off' && wound.life > 0;
-        } else wound.group.visible = false;
-      }
+      splats.update(dt);
+      wounds.update(dt, [state, practice.enemy], bloodMode);
       // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
       if (severHead) {
         severHead.group.visible = bloodMode !== 'off';
-        const head = severHead;
-        if (!head.resting && dt > 0) {
-          head.velocity.y -= 12 * dt; // a touch heavier than life: reads on a phone screen
-          head.group.position.addScaledVector(head.velocity, dt);
-          const rate = head.spin.length();
-          if (rate > 0) {
-            spinAxis.copy(head.spin).multiplyScalar(1 / rate);
-            head.group.rotateOnWorldAxis(spinAxis, rate * dt);
-          }
-          if (head.group.position.y < head.radius) {
-            head.group.position.y = head.radius;
-            const speed = Math.hypot(head.velocity.x, head.velocity.z);
-            if (head.velocity.y < -1) {
-              head.velocity.y = -head.velocity.y * 0.28;
-              head.velocity.x *= 0.68;
-              head.velocity.z *= 0.68;
-            } // a real bounce
-            else {
-              head.velocity.y = 0;
-              const decay = Math.max(0, 1 - 2.1 * dt);
-              head.velocity.x *= decay;
-              head.velocity.z *= decay; // rolling friction
-              if (speed > 0.05)
-                head.spin.set(head.velocity.z / head.radius, 0, -head.velocity.x / head.radius);
-              else {
-                head.resting = true;
-              }
-            }
-          }
-        }
+        stepSeveredHead(severHead, dt);
       }
       const animationDt = frozen ? 0 : dt;
-      arena.update(animationDt, events);
+      arena.update(animationDt, events, rig.started ? camera : undefined);   // the crowd culls against the settled camera; the first frame draws everyone
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
         ex = practice.enemy.x - opponent.position.x,
         ez = practice.enemy.z - opponent.position.z;
       const travel =
-        started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
+        rig.started && dt > 0 ? Math.hypot(state.x - player.position.x, state.z - player.position.z) / dt : 0;
       const enemyTravel =
-        started && dt > 0
+        rig.started && dt > 0
           ? Math.hypot(practice.enemy.x - opponent.position.x, practice.enemy.z - opponent.position.z) / dt
           : 0;
       player.position.set(state.x, 0, state.z);
@@ -854,10 +579,10 @@ export function createScene(
         practice.result === 'enemyBlocked' ? (blockHeavy[1] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
       );
       // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
-      if (detailedBlood) wounds[1].group.visible = false;
+      if (detailedBlood) wounds.hide(1);
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
-        wounds[1].group.visible = false;
+        wounds.hide(1);
       }
       if (finisher === 'splitCrown' && practice.finish?.victim === 1)
         warriors?.opponent.splitCrown(victimProgress, bloodMode);
@@ -887,13 +612,7 @@ export function createScene(
             0,
             practice.enemy.z - state.z,
           ).normalize();
-          severHead = {
-            group: built.group,
-            velocity: new THREE.Vector3(-axis.z * 1.1, 1.8, axis.x * 1.1),
-            spin: new THREE.Vector3(Math.cos(killHeading), 0, -Math.sin(killHeading)).multiplyScalar(9),
-            radius: built.radius,
-            resting: false,
-          };
+          severHead = launchSeveredHead(built.group, built.radius, axis, killHeading);
         }
       }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
@@ -908,49 +627,6 @@ export function createScene(
       marker.visible = practice.health > 0;
       if (practice.health) opponent.rotation.y = practice.enemy.heading;
       const blend = 1 - Math.exp(-dt * 8);
-      if (locked) {
-        const lockYaw = Math.atan2(state.x - practice.enemy.x, state.z - practice.enemy.z);
-        yaw += wrapAngle(lockYaw - yaw) * blend;
-      }
-      const cameraTarget = cameraPose(state, yaw, pitch, locked, practice.enemy);
-      look.set(cameraTarget.lookX, locked ? 0.8 : 1, cameraTarget.lookZ);
-      desired.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
-      // The authorized slow push-in over the death window (finishers & gore 2026-09-17): a dolly toward the fallen, never a cut,
-      // never an FOV change. Off when the viewer prefers reduced motion; the frame loop's hit-stop stays the one impact pause.
-      // Paced to the slowed finisher clock (1.3 s / 0.75); a plain-death pick gets no dolly — an ordinary kill stays ordinary.
-      if (practice.finish && finisherPose && !practice.finish.draw && !stillCamera)
-        finishPush = Math.min(1, finishPush + dt / (1.3 / 0.75));
-      else if (!practice.finish) finishPush = 0;
-      if (finishPush > 0) {
-        const fallen = practice.finish!.victim === 1 ? practice.enemy : state;
-        const killer = practice.finish!.victim === 1 ? state : practice.enemy;
-        // Owner phone review 2026-09-20: Decapitation keeps its front view — no push-in and no look change, so the
-        // detached head stays in frame (#167) — but slides to camera-right so the killer's back stops hiding the corpse.
-        const push = finisher === 'decapitation' ? 0 : 0.38,
-          slide = finisher === 'decapitation' ? 0.8 : 0.95,
-          turn = finisher === 'decapitation' ? 0.85 : 0.6;
-        desired.x += (fallen.x - desired.x) * push * finishPush;
-        desired.z += (fallen.z - desired.z) * push * finishPush;
-        // Framing tune (same authorized dolly — still no cut, no FOV, no slow-mo): slide the camera laterally off the
-        // killer→fallen axis and a touch higher, so the settled frame reads the kneeling corpse past the killer's
-        // shoulder instead of hiding it behind his back.
-        const axisX = fallen.x - killer.x,
-          axisZ = fallen.z - killer.z,
-          axisLen = Math.hypot(axisX, axisZ) || 1;
-        desired.x += (-axisZ / axisLen) * slide * finishPush;
-        desired.z += (axisX / axisLen) * slide * finishPush;
-        // The look turns onto the fallen for every finisher: with the slide, the killer reads left and the corpse centre.
-        // Decapitation looks at the midpoint of corpse and severed head — the head lands beside the corpse wherever the
-        // blow sent it, and framing the corpse alone left it at the portrait edge (deploy gate, trunk 63f4cd9).
-        const focusX = severHead ? (fallen.x + severHead.group.position.x) / 2 : fallen.x,
-          focusZ = severHead ? (fallen.z + severHead.group.position.z) / 2 : fallen.z;
-        look.x += (focusX - look.x) * turn * finishPush;
-        look.z += (focusZ - look.z) * turn * finishPush;
-        if (push) {
-          desired.y += (1.55 - desired.y) * 0.3 * finishPush;
-          look.y += (0.8 - look.y) * 0.7 * finishPush;
-        }
-      }
       heading += wrapAngle(state.heading - heading) * blend;
       if (['kick', 'attack', 'roll', 'guard', 'hurt', 'dead'].includes(practice.phase))
         heading = state.heading;
@@ -958,71 +634,13 @@ export function createScene(
       // Poses and headings must be final before aiming at the animated torso. Simulation positions stay untouched.
       const chest = runThroughHold ? warriors?.opponent.boneWorld('spine_02') : null;
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
-      if (quietFinish && warriors) {
-        // Reuse the pooled wound at the animated neck: a narrow cut, covered partly by the clutching hand.
-        const neck = warriors.opponent.boneWorld('neck_01')!,
-          head = warriors.opponent.boneWorld('Head')!;
-        const up = head.clone().sub(neck).normalize(),
-          forward = new THREE.Vector3(Math.sin(practice.enemy.heading), 0, Math.cos(practice.enemy.heading));
-        forward.addScaledVector(up, -forward.dot(up)).normalize();
-        const size = head.distanceTo(neck) / 0.075,
-          wound = wounds[1];
-        wound.life = 4;
-        wound.group.position.copy(neck).addScaledVector(forward, 0.075 * size);
-        wound.group.quaternion.setFromRotationMatrix(
-          new THREE.Matrix4().makeBasis(up.clone().cross(forward), up, forward),
-        );
-        wound.mark.scale.set(0.85 * size, 0.14 * size, 1);
-        wound.mark.material.opacity = 0.82;
-        const tone = bloodMode === 'dark' ? '#241314' : '#581017';
-        wound.mark.material.color.set(tone);
-        wound.drips.forEach((drip, i) => {
-          drip.position.set((i - 1) * 0.025 * size, -0.05 * size, 0);
-          drip.scale.set(0.55, 0.5 * size, 1);
-          drip.material.color.set(tone);
-          drip.material.opacity = 0.6 * Math.min(1, finishClock / 0.25);
-        });
-        wound.group.visible = bloodMode !== 'off';
-      }
+      if (quietFinish && warriors)
+        wounds.throatCut(warriors.opponent.boneWorld('neck_01')!, warriors.opponent.boneWorld('Head')!, practice.enemy.heading, finishClock, bloodMode);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
           : [];
       finisherBlood.update(dt, detailedBlood ? finisher : null, victimProgress, bloodSources, bloodMode);
-      if (
-        locked &&
-        !stillCamera &&
-        practice.finish?.victim === 1 &&
-        (finisher === 'runThrough' ||
-          finisher === 'splitCrown' ||
-          finisher === 'quietOne' ||
-          finisher === 'opened')
-      ) {
-        const t = THREE.MathUtils.clamp(
-            finisher === 'opened'
-              ? (finishClock - 0.04) / (['wraith', 'minotaur'].includes(opponentId) ? 0.6 : 0.4)
-              : finisher === 'quietOne'
-                ? (finishClock - 0.12) / 0.43
-                : (finishClock - 0.45) / 0.55,
-            0,
-            1,
-          ),
-          reveal = t * t * (3 - 2 * t);
-        const side = finisherSidePose(
-          state,
-          practice.enemy,
-          camera.aspect,
-          finisher,
-          ['wraith', 'minotaur'].includes(opponentId) ? 1.5 : 1,
-        );
-        desired.lerp(new THREE.Vector3(side.x, side.y, side.z), reveal);
-        look.lerp(new THREE.Vector3(side.lookX, side.lookY, side.lookZ), reveal);
-        const radius = Math.hypot(desired.x, desired.z);
-        if (radius > 11.5) {
-          desired.x *= 11.5 / radius;
-          desired.z *= 11.5 / radius;
-        }
-      }
       // Read feet after the rigs and headings settle; only grounded locomotion kicks up sand.
       const canScuff = (pose: string, speed: number) =>
         ['sheathed', 'ready', 'guard'].includes(pose) && speed > 0.25 && speed < 6;
@@ -1036,25 +654,17 @@ export function createScene(
           canScuff(theirs.pose, enemyTravel),
         ],
       );
-      camera.position.addScaledVector(kickOffset, -shoved); // last draw's shove comes off before the settle
-      shoved = 0;
-      camera.position.lerp(desired, started ? blend : 1);
-      aim.lerp(look, started ? blend : 1);
-      camera.lookAt(aim);
-      started = true;
-      // The kick is applied after the look-at (so the frame itself shifts) and stays on the camera until the next frame takes it off
-      // before settling — a shove left inside the lerped position would compound.
-      shoved = kick;
-      camera.position.addScaledVector(kickOffset, shoved);
+      rig.update(dt, state, practice.enemy, locked, practice.finish ? {
+        finisher, posed: !!finisherPose, draw: !!practice.finish.draw, victim: practice.finish.victim, clock: finishClock,
+        head: severHead ? { x: severHead.group.position.x, z: severHead.group.position.z } : null,
+        big: ['wraith', 'minotaur'].includes(opponentId),
+      } : null);
       const exposure = renderer.toneMappingExposure;
       if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
       renderer.render(scene, camera);
       renderer.toneMappingExposure = exposure;
       if (dip > 0 && dt > 0) dip--;
-      if (kick > 0) {
-        if (kickHold > 0) kickHold -= dt;
-        else kick = Math.max(0, kick - dt * kickRate);
-      }
+      rig.settle(dt);
     },
   };
 }

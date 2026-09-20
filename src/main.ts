@@ -1,4 +1,4 @@
-import { swipeAction, type Flick } from './gestures.ts';
+import { createInput } from './input.ts';
 import { LABELS, SCHEMES, formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
@@ -6,23 +6,22 @@ import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
+import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import {
   initialPractice,
   stepPractice,
-  practiceHint,
-  accepts,
   describe,
   PROFILES,
-  type Action,
   type CombatEvent,
 } from './combat.ts';
-import { ROSTER, resolveFinisher } from './roster.ts';
+import { ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
 import { LADDER, opponentFor, won, nextAfter } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
+import { HEAVY_MOVES, createHud } from './hud.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('world');
 // Page zoom is locked (owner, 2026-09-17: an accidental pinch cost the HUD mid-fight; the accessibility trade is recorded in
@@ -47,18 +46,9 @@ const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
-const kickButton = element<HTMLButtonElement>('kick-button');
-const heavyButton = element<HTMLButtonElement>('heavy-button');
-const dodgeButton = element<HTMLButtonElement>('dodge-button');
-const guardButton = element<HTMLButtonElement>('guard-button');
-const playerHealth = element<HTMLMeterElement>('player-health');
-const stamina = element<HTMLMeterElement>('stamina');
 const resetButton = element<HTMLButtonElement>('reset-button');
-const health = element<HTMLMeterElement>('target-health');
-const combatStatus = element('combat-status');
+const hud = createHud(element);
 const runButton = element<HTMLButtonElement>('run-button');
-const joystick = element('joystick');
-const stick = element('stick');
 const input = element<HTMLInputElement>('fighter-name');
 const storage: StoragePort = {
   getItem: (key) => localStorage.getItem(key),
@@ -81,20 +71,24 @@ const trial = loadTrial(storage);
 // AFK is not an escape (owner 2026-09-20): a fight that never reached its end because the page was closed is a loss on the card.
 // The marker is written on the first tick of a live fight and cleared when its result is recorded.
 const AFK_KEY = 'frankendom.fight.v1';
+const scorecard = loadScorecard(storage);
 try {
   const left = JSON.parse(storage.getItem(AFK_KEY) || 'null');
-  if (left && SCHEMES.includes(left.scheme)) { recordFight(trial, left.scheme, false, 0, 0, 0); saveTrial(storage, trial); storage.setItem(AFK_KEY, ''); }
+  if (left && SCHEMES.includes(left.scheme)) {
+    recordFight(trial, left.scheme, false, 0, 0, 0); saveTrial(storage, trial);
+    if (isOpponentId(left.opponent)) { recordResult(scorecard, left.opponent, 'loss', true); saveScorecard(storage, scorecard); }
+    storage.setItem(AFK_KEY, '');
+  }
 } catch { /* unreadable storage: nothing to score */ }
 let scheme = trial.scheme,
   recorded = false,
   activeMs = 0; // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
 const ring8 = () => scheme === 'ring8';
-const thrustButton = element<HTMLButtonElement>('thrust-button');
 function applyScheme() {
   element('actions').dataset.gestures = scheme;
   element('controls-mode').textContent = `Controls: ${LABELS[scheme]}`;
   element('controls-mode').setAttribute('aria-pressed', String(ring8()));
-  lastHud = '';
+  hud.invalidate();
 }
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 // Who stands opposite: the rung this device has reached (profile.encounter), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
@@ -165,53 +159,17 @@ let matchSeed = 731,
   accumulator = 0,
   locked = true;
 // Input layer: at most one edge-triggered action per tick plus the held guard level. The simulation owns legality and buffering.
-let action: Action | null = null,
-  guard = false,
-  guardId: number | null = null,
-  cancel = false,
-  assetsReady = false,
-  graphicsLost = false,
-  lastHud = '';
+let assetsReady = false,
+  graphicsLost = false;
 let difficulty: keyof typeof PROFILES = 'normal',
   debug = /[?&]debug\b/.test(window.location?.search ?? ''),
   frameEvents: CombatEvent[] = [];
-// Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
-const HOLD_MS = 150,
-  SPRINT_PUSH = 1.4;
-let dodgeHeld: { since: number; rolled: boolean } | null = null;
-// Strike controls: the press swings at once; keeping it held charges (Heavy), loads (Stab) or chambers (Slash) the swing — the simulation owns
-// the timing. The held level belongs to the control that raised it: releasing one never drops another's. Dragging a held strike off its
-// circle turns the press into a guard press (a feint inside the wind-up's feint window, a parry or a raised guard after it) until it lifts.
-type Strike = 'light' | 'heavy' | 'thrust';
-const holders = new Set<Strike>();
-let dragGuard = false;
-const ownerOf = (move: string | null): Strike | null =>
-  move === 'heavy_overhead'
-    ? 'heavy'
-    : move === 'thrust'
-      ? 'thrust'
-      : move?.startsWith('light_')
-        ? 'light'
-        : null;
-// The held level the simulation sees: during a swing, whether the control that threw it is still down; otherwise whether any strike control is.
-const held = () => {
-  const f = practice.duel.fighters[0],
-    owner = f.phase === 'attack' ? ownerOf(f.move) : null;
-  return owner ? holders.has(owner) : holders.size > 0;
-};
-function hold(by: Strike) {
-  holders.add(by);
-}
-function unhold(by: Strike) {
-  holders.delete(by);
-}
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
 // pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
 // This is the one owner of the impact pause: the renderer is told the sim is frozen and holds its combat animation (effects run on),
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
-const KICK_LANDS = 1.5;
 const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
   Blocked: 30,
   Hit: 50,
@@ -222,43 +180,11 @@ const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
 };
 const HEAVY_HIT = 90,
   HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
-const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const HITSTOP_KEY = 'frankendom.hitstop.v1',
-  TEMPO_KEY = 'frankendom.tempo.v1';
-// Damage numbers (owner mockup, 2026-09-19): a clean hit floats its damage off the victim — white for dealt, warm red for taken, gold and
-// bigger for the heavy-class ones (charged, counter, riposte, critical). Four pooled spans round-robin (a duel never shows four at once);
-// positions come from the scene's world→screen projection. Presentation-only.
-const dmgPool = Array.from(element('dmg-pool').children) as HTMLElement[];
-let dmgCursor = 0;
-function floatDamage(events: CombatEvent[]): void {
-  if (!dmgPool.length || typeof view.project !== 'function') return; // the VM harness ships an empty pool and a stub view: nothing to float there
-  for (const e of events) {
-    if (e.type !== 'Hit' || e.target === undefined || !e.damage) continue;
-    const victim = practice.duel.fighters[e.target];
-    const at = view.project([victim.body.x, 1.62 * victim.scale, victim.body.z]);
-    if (!at) continue;
-    const span = dmgPool[dmgCursor++ % dmgPool.length];
-    span.textContent = String(Math.round(e.damage));
-    span.className = `dmg${e.target === 0 ? ' taken' : ''}${e.counter || e.charged || HEAVY_MOVES.has(e.move ?? '') ? ' heavy' : ''}`;
-    span.style.left = `${at[0]}px`;
-    span.style.top = `${at[1]}px`;
-    span.hidden = false;
-    if (typeof span.animate === 'function')
-      span.animate(
-        [
-          { transform: 'translate(-50%, 0)', opacity: 1 },
-          { transform: 'translate(-50%, -44px)', opacity: 0 },
-        ],
-        { duration: 900, easing: 'ease-out', fill: 'forwards' },
-      ).onfinish = () => {
-        span.hidden = true;
-      };
-    else
-      setTimeout(() => {
-        span.hidden = true;
-      }, 900);
-  }
-}
+  TEMPO_KEY = 'frankendom.tempo.v1',
+  DAMAGE_KEY = 'frankendom.damage-numbers.v1';
+// Damage numbers: off by default (owner 2026-09-20), a journal setting for those who want them; the HUD floats them.
+let damageNumbersOn = storage.getItem(DAMAGE_KEY) !== 'off';   // owner 2026-09-20: ON by default, greyed (style.css .dmg) — #219 read "greyed out" as "off"; the toggle stays for those who want them gone
 // Tempo: the simulation is written in ticks; stepping it at 50 Hz instead of 60 plays the same fight a fifth slower in wall-clock (wind-ups,
 // windows, reactions, movement alike — hit-stop is in ms and unchanged). A journal toggle so the owner can feel the slower tempo before any
 // re-timing of the moves (which needs the blade paths re-baked).
@@ -281,153 +207,16 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  const hint = practiceHint(practice),
-    controlsReady = assetsReady && !graphicsLost;
-  const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
-    (a) => accepts(practice, a) || (a === 'backstep' && accepts(practice, 'dodge')),
-  );
-  const inKickReach =
-    Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z) <= KICK_LANDS;
-  const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}`;
-  if (key === lastHud) return;
-  lastHud = key;
-  health.max = practice.enemyMaxHealth;
-  playerHealth.max = practice.maxHealth; // an opponent may carry more than a man (moves.ts `Opponent.health`)
-  health.value = practice.health;
-  element('health-value').textContent = `${practice.health} / ${practice.enemyMaxHealth}`;
-  playerHealth.value = practice.playerHealth;
-  element('player-health-value').textContent = `${practice.playerHealth} / ${practice.maxHealth}`;
-  for (const [meter, value, max] of [
-    [health, practice.health, practice.enemyMaxHealth],
-    [playerHealth, practice.playerHealth, practice.maxHealth],
-    [stamina, practice.stamina, 100],
-  ] as const)
-    meter.style.setProperty('--fill', `${(value / max) * 100}%`);
-  stamina.style.setProperty('--max', `${practice.maxStamina}%`);
-  stamina.dataset.leg = String(practice.legWound); // attrition: the lost ceiling is shaded; a leg wound marks the bar
-  stamina.value = practice.stamina;
-  element('stamina-value').textContent = `${Math.floor(practice.stamina)} / 100`;
-  for (const [id, value] of [
-    ['posture', practice.posture],
-    ['target-posture', practice.enemyPosture],
-  ] as const) {
-    const meter = element<HTMLMeterElement>(id);
-    meter.value = value;
-    meter.style.setProperty('--fill', `${value}%`);
-    meter.dataset.critical = String(value >= 70);
-  }
-  combatStatus.textContent = hint;
-  element('stamina-label').dataset.mobile = practice.exhausted
-    ? 'Stamina · exhausted'
-    : practice.wound
-      ? 'Stamina · wound'
-      : 'Stamina';
-  stamina.setAttribute(
-    'aria-label',
-    practice.exhausted
-      ? 'Stamina — exhausted: no attacks or guard until it recovers'
-      : practice.wound
-        ? 'Stamina — wounded: recovery reduced 20 percent'
-        : 'Stamina',
-  );
-  kickButton.hidden =
-    practice.phase === 'sheathed' || practice.phase === 'draw' || !practice.health || !practice.playerHealth;
-  kickButton.setAttribute('aria-disabled', String(!controlsReady || !ok[2]));
-  kickButton.dataset.reach = String(inKickReach); // a kick has a short cone: the button brightens when it can land
-  combatStatus.dataset.threat = String(practice.threat);
-  combatStatus.dataset.move = practice.threatMove ?? '';
-  attackButton.textContent =
-    practice.phase === 'sheathed' ? 'Draw sword' : ring8() ? 'Strike — tap, hold or flick' : 'Light attack';
-  attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : ring8() ? 'Strike' : 'Slash';
-  attackButton.setAttribute('aria-label', attackButton.textContent);
-  thrustButton.hidden =
-    ring8() || !practice.health || !practice.playerHealth || practice.phase === 'sheathed';
-  thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
-  // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
-  attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
-  const ended = !practice.health || !practice.playerHealth;
-  heavyButton.hidden = ended || ring8();
-  heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
-  attackButton.hidden = ended;
-  resetButton.hidden = !ended;
-  const next = ended && won(practice.finish) ? nextAfter(opponent.id) : undefined;
-  resetButton.textContent = next ? `Next: ${next.name}` : 'Rematch';
-  dodgeButton.setAttribute('aria-disabled', String(!controlsReady || !ok[3]));
-  guardButton.setAttribute('aria-disabled', String(!controlsReady || !(ok[4] || practice.phase === 'guard')));
-  guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));
-  element('debug').hidden = !debug;
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost, ring8: ring8(), debug, opponentId: opponent.id });
 }
-function request(next: Action) {
-  if (!paused() && assetsReady && accepts(practice, next)) action = next;
-}
-function requestKick() {
-  request('kick');
-}
-// Step: a tap is a backstep, a hold (150 ms) becomes a roll. With the stick already deflected (or a movement key down) the intent is a roll in
-// that direction, so it rolls at once: the invulnerability arrives with the press, not 150 ms later.
-const moving = () =>
-  moveX !== 0 ||
-  moveZ !== 0 ||
-  ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].some((k) =>
-    keys.has(k),
-  );
-function pressDodge(now: number) {
-  if (dodgeHeld) return;
-  const roll = moving();
-  dodgeHeld = { since: now, rolled: roll };
-  request(roll ? 'dodge' : 'backstep');
-}
-// Releasing a control only drops its held level; a queued press survives until the next tick consumes it. Only a cancelled pointer
-// (pointercancel, focus loss) withdraws the press: lostpointercapture follows every ordinary pointerup and must not eat a quick tap.
-// A press the simulation has already taken into its buffer is withdrawn there too (`cancel`), but only if that control owns the
-// buffered request — a cancelled thumb must not erase another finger's valid press.
-let sent: Action | null = null; // the last request handed to the simulation (the one its buffer can hold)
-function withdraw(owned: Action | Action[]) {
-  const mine = ([] as Action[]).concat(owned);
-  if (action && mine.includes(action)) action = null;
-  else if (sent && mine.includes(sent)) cancel = true;
-}
-function releaseDodge(cancelled = false) {
-  dodgeHeld = null;
-  if (cancelled) withdraw(['backstep', 'dodge']);
-}
-function requestParry() {
-  request('parry');
-}
-function requestStrike(isHeavy = false) {
-  request(isHeavy ? 'heavy' : 'light');
-}
-let run = false,
-  stickRun = false,
-  moveId: number | null = null,
-  orbitId: number | null = null;
-let moveX = 0,
-  moveZ = 0,
-  orbitX = 0,
+let orbitId: number | null = null;
+let orbitX = 0,
   orbitY = 0;
-const keys = new Set<string>();
 function clearInput() {
-  if (ring8Stroke) {
-    clearTimeout(ring8Stroke.timer);
-    ring8Stroke = null;
-  }
-  action = null;
-  cancel = true;
-  dodgeHeld = null;
-  holders.clear();
-  dragGuard = false;
+  controls.clear();
   hitStop = 0;
-  feedback.quiet();
-  keys.clear();
-  guard = false;
-  guardId = null;
-  run = stickRun = false;
-  moveX = moveZ = 0;
-  moveId = orbitId = null;
+  orbitId = null;
   accumulator = 0;
-  stick.style.transform = '';
-  stick.dataset.run = 'false';
-  runButton.setAttribute('aria-pressed', 'false');
 }
 element('name-form').addEventListener('submit', (event) => {
   event.preventDefault();
@@ -444,9 +233,19 @@ element('name-button').addEventListener('click', () => {
   welcome.hidden = false;
   input.focus();
 });
+// The beta scorecard: one row per offered opponent plus the total; the per-scheme control trial dump stays for the debug view only.
+function renderScorecard() {
+  const cell = (tag: 'th' | 'td', text: string | number) => { const el = document.createElement(tag); el.textContent = String(text); return el; };
+  const table = element('scorecard-table');
+  table.replaceChildren();
+  const head = document.createElement('tr'); for (const label of ['Opponent', 'Fights', 'Wins', 'Losses']) head.append(cell('th', label)); table.append(head);
+  for (const row of scorecardRows(scorecard, LADDER)) { const tr = document.createElement('tr'); tr.append(cell('td', row.name), cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr); }
+  element('scorecard').textContent = formatCard(trial);
+  element('scorecard').hidden = !debug;
+}
 element('journal-button').addEventListener('click', () => {
   clearInput();
-  element('scorecard').textContent = formatCard(trial);
+  renderScorecard();
   journal.showModal();
 });
 element('mobile-name').addEventListener('click', () => {
@@ -458,301 +257,17 @@ journal.addEventListener('close', clearInput);
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 const paused = () => graphicsLost || !welcome.hidden || journal.open || document.hidden;
-window.addEventListener('keydown', (event) => {
-  if (paused() || event.target instanceof HTMLInputElement) return;
-  if (
-    [
-      'KeyW',
-      'KeyA',
-      'KeyS',
-      'KeyD',
-      'ArrowUp',
-      'ArrowLeft',
-      'ArrowDown',
-      'ArrowRight',
-      'ShiftLeft',
-      'ShiftRight',
-    ].includes(event.code)
-  ) {
-    event.preventDefault();
-    keys.add(event.code);
-  }
-  if (event.code === 'KeyF' && !event.repeat) {
-    event.preventDefault();
-    requestStrike();
-  }
-  if (event.code === 'KeyC' && !event.repeat) {
-    event.preventDefault();
-    requestKick();
-  }
-  if (event.code === 'KeyG' && !event.repeat) {
-    event.preventDefault();
-    hold('heavy');
-    requestStrike(true);
-  }
-  if (event.code === 'KeyT' && !event.repeat) {
-    event.preventDefault();
-    hold('thrust');
-    request('thrust');
-  }
-  if (event.code === 'KeyE' && !event.repeat) {
-    event.preventDefault();
-    pressDodge(performance.now());
-  }
-  if (event.code === 'KeyQ') {
-    event.preventDefault();
-    keys.add(event.code);
-    if (!event.repeat) requestParry();
-  }
-  if (event.code === 'KeyR' && !event.repeat) element('recenter-button').click();
-});
-window.addEventListener('keyup', (event) => {
-  keys.delete(event.code);
-  if (event.code === 'KeyE') releaseDodge();
-  if (event.code === 'KeyG') unhold('heavy');
-  if (event.code === 'KeyT') unhold('thrust');
-});
-function setRun(value: boolean) {
-  run = value;
-  runButton.setAttribute('aria-pressed', String(value));
-}
-runButton.addEventListener('pointerdown', (event) => {
-  if (!paused()) {
-    runButton.setPointerCapture(event.pointerId);
-    setRun(true);
-  }
-});
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
-  runButton.addEventListener(name, () => setRun(false));
-runButton.addEventListener('keydown', (event) => {
-  if (['Space', 'Enter'].includes(event.code) && !paused()) {
-    event.preventDefault();
-    setRun(true);
-  }
-});
-runButton.addEventListener('keyup', () => setRun(false));
-runButton.addEventListener('blur', () => setRun(false));
-// A strike button with pointer capture: press = strike (held while down); the pointer leaving the circle while down = guard press (drag-off feint).
-// `pointer` lets a scheme hand the button's touch grammar to its own handler (v8's strike circle) without disturbing the others.
-function strikeControl(
-  button: HTMLButtonElement,
-  name: Strike,
-  start: () => void,
-  pointer: () => boolean = () => true,
-) {
-  let id: number | null = null,
-    dragged = false;
-  const radius = () => {
-    const r = button.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 + 6 };
-  }; // 6 px of slack before a press counts as dragged off
-  button.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || id !== null || !pointer()) return;
-    event.preventDefault();
-    id = event.pointerId;
-    dragged = false;
-    try {
-      button.setPointerCapture(id);
-    } catch {
-      /* capture is a convenience: an uncaptured press still strikes */
-    }
-    hold(name);
-    start();
-  });
-  button.addEventListener('pointermove', (event) => {
-    if (event.pointerId !== id || dragged) return;
-    const c = radius();
-    if (Math.hypot(event.clientX - c.x, event.clientY - c.y) <= c.r) return;
-    dragged = true;
-    unhold(name);
-    dragGuard = true;
-    requestParry(); // off the circle: the swing is abandoned into a guard press
-  });
-  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'])
-    button.addEventListener(type, (event) => {
-      if ((event as PointerEvent).pointerId !== id) return;
-      id = null;
-      unhold(name);
-      if (dragged) {
-        dragged = false;
-        dragGuard = false;
-      }
-      if (type === 'pointercancel') withdraw(name);
-    });
-  button.addEventListener('keydown', (event) => {
-    if (['Space', 'Enter'].includes(event.code) && !event.repeat) {
-      event.preventDefault();
-      hold(name);
-      start();
-    }
-  });
-  button.addEventListener('keyup', () => unhold(name));
-  button.addEventListener('blur', () => unhold(name));
-}
-strikeControl(
-  attackButton,
-  'light',
-  () => requestStrike(),
-  () => !ring8(),
-);
-kickButton.addEventListener('pointerdown', (event) => {
-  if (event.button === 0) {
-    event.preventDefault();
-    requestKick();
-  }
-});
-kickButton.addEventListener('pointercancel', () => withdraw('kick'));
-kickButton.addEventListener('keydown', (event) => {
-  if (['Space', 'Enter'].includes(event.code) && !event.repeat) {
-    event.preventDefault();
-    requestKick();
-  }
-});
-strikeControl(heavyButton, 'heavy', () => requestStrike(true));
-strikeControl(thrustButton, 'thrust', () => request('thrust'));
-// Guard ring v8 (owner trial, 2026-09-18): the strike circle is the whole grammar — no Heavy or Stab buttons. A quick tap is the slash (it
-// fires as the thumb lifts, the fastest blow); holding loads the heavy (release early = plain, keep holding through the chamber = charged);
-// a flick up is the stab, sideways is that side's cut, back is guard. A loaded heavy dragged off the circle feints into guard, as the strike
-// buttons always have. Every intent is the one the dedicated button sends — the simulation owns every rule and timer, none are re-timed here.
-const RING8_ARM_MS = 300;
-let ring8Stroke: {
-  id: number;
-  x: number;
-  y: number;
-  armed: boolean;
-  feint: boolean;
-  flick: Flick | null;
-  timer: ReturnType<typeof setTimeout>;
-} | null = null;
-attackButton.addEventListener('pointerdown', (event) => {
-  if (!ring8() || event.button !== 0 || ring8Stroke !== null) return;
-  event.preventDefault();
-  const stroke = {
-    id: event.pointerId,
-    x: event.clientX,
-    y: event.clientY,
-    armed: false,
-    feint: false,
-    flick: null as Flick | null,
-    timer: 0 as unknown as ReturnType<typeof setTimeout>,
-  };
-  stroke.timer = setTimeout(() => {
-    if (ring8Stroke !== stroke || stroke.flick) return;
-    stroke.armed = true;
-    unhold('light');
-    hold('heavy');
-    requestStrike(true); // held long enough: the heavy loads; keeping it held charges
-  }, RING8_ARM_MS);
-  ring8Stroke = stroke;
-  try {
-    attackButton.setPointerCapture(event.pointerId);
-  } catch {
-    /* capture is a convenience: an uncaptured press still strikes */
-  }
-  hold('light');
-});
-attackButton.addEventListener('pointermove', (event) => {
-  const s = ring8Stroke;
-  if (!s || event.pointerId !== s.id) return;
-  if (s.armed) {
-    // a loaded heavy leaves the circle: the feint, exactly as dragging a strike button off its circle always was
-    if (s.feint) return;
-    const r = attackButton.getBoundingClientRect();
-    if (
-      Math.hypot(event.clientX - (r.left + r.width / 2), event.clientY - (r.top + r.height / 2)) >
-      r.width / 2 + 6
-    ) {
-      s.feint = true;
-      unhold('heavy');
-      dragGuard = true;
-      requestParry();
-    }
-    return;
-  }
-  if (s.flick) return;
-  const flick = swipeAction(event.clientX - s.x, event.clientY - s.y);
-  if (!flick) return;
-  clearTimeout(s.timer);
-  unhold('light');
-  s.flick = flick;
-  if (flick === 'up') {
-    hold('thrust');
-    request('thrust');
-  } else if (flick === 'down') {
-    dragGuard = true;
-    requestParry();
-  } else request(flick === 'left' ? 'light_left' : 'light_right');
-});
-for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'])
-  attackButton.addEventListener(type, (event) => {
-    const s = ring8Stroke;
-    if (!s || (event as PointerEvent).pointerId !== s.id) return;
-    ring8Stroke = null;
-    clearTimeout(s.timer);
-    unhold('light');
-    unhold('heavy');
-    unhold('thrust');
-    if (s.flick === 'down' || s.feint) dragGuard = false;
-    else if (!s.flick && !s.armed && type === 'pointerup') requestStrike(); // the quick tap: the slash fires as the thumb lifts
-    if (type === 'pointercancel')
-      withdraw(
-        s.armed
-          ? 'heavy'
-          : s.flick
-            ? s.flick === 'up'
-              ? 'thrust'
-              : s.flick === 'down'
-                ? 'parry'
-                : `light_${s.flick}`
-            : 'light',
-      );
-  });
-dodgeButton.addEventListener('pointerdown', (event) => {
-  if (event.button === 0) {
-    event.preventDefault();
-    dodgeButton.setPointerCapture(event.pointerId);
-    pressDodge(performance.now());
-  }
-});
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
-  dodgeButton.addEventListener(name, () => releaseDodge(name === 'pointercancel'));
-dodgeButton.addEventListener('keydown', (event) => {
-  if (['Space', 'Enter'].includes(event.code) && !event.repeat) {
-    event.preventDefault();
-    pressDodge(performance.now());
-  }
-});
-dodgeButton.addEventListener('keyup', () => releaseDodge());
-dodgeButton.addEventListener('blur', () => releaseDodge(true));
-guardButton.addEventListener('pointerdown', (event) => {
-  if (event.button !== 0 || paused() || guardId !== null) return;
-  event.preventDefault();
-  guardId = event.pointerId;
-  guardButton.setPointerCapture(guardId);
-  guard = true;
-  requestParry();
-});
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
-  guardButton.addEventListener(name, (event) => {
-    if ((event as PointerEvent).pointerId === guardId) {
-      guardId = null;
-      guard = false;
-      if (name === 'pointercancel') withdraw('parry');
-    }
-  });
-guardButton.addEventListener('keydown', (event) => {
-  if (['Space', 'Enter'].includes(event.code) && !paused()) {
-    event.preventDefault();
-    guard = true;
-    if (!event.repeat) requestParry();
-  }
-});
-guardButton.addEventListener('keyup', () => {
-  guard = false;
-});
-guardButton.addEventListener('blur', () => {
-  guard = false;
-  if (action === 'parry') action = null;
+const controls = createInput({
+  element, window, paused,
+  now: () => performance.now(),
+  setTimeout: (cb, ms) => setTimeout(cb, ms),
+  clearTimeout: (id) => clearTimeout(id),
+  matchMedia: (query) => matchMedia(query),
+  innerWidth: () => innerWidth,
+  ready: () => assetsReady,
+  practice: () => practice,
+  ring8,
+  quiet: () => feedback.quiet(),
 });
 resetButton.addEventListener('click', () => {
   const next = won(practice.finish) ? nextAfter(opponent.id) : undefined;
@@ -783,7 +298,7 @@ element('debug-mode').addEventListener('click', () => {
   debug = !debug;
   element('debug-mode').textContent = `Combat debug: ${debug ? 'on' : 'off'}`;
   element('debug-mode').setAttribute('aria-pressed', String(debug));
-  lastHud = '';
+  hud.invalidate();
 });
 element('controls-mode').addEventListener('click', () => {
   clearInput();
@@ -794,55 +309,6 @@ element('controls-mode').addEventListener('click', () => {
   element('scorecard').textContent = formatCard(trial);
 });
 applyScheme();
-function moveStick(event: PointerEvent) {
-  const rect = joystick.getBoundingClientRect();
-  const x = (event.clientX - rect.left - rect.width / 2) / 42;
-  const z = (event.clientY - rect.top - rect.height / 2) / 42;
-  const length = Math.hypot(x, z),
-    scale = Math.max(1, length);
-  moveX = length < 0.12 ? 0 : x / scale;
-  moveZ = length < 0.12 ? 0 : z / scale;
-  // Sprint is a deliberate push well past the knob's rim (the rim is length 1; 1.4 is ~17 px beyond it), and the knob shows it.
-  stickRun = (innerWidth <= 900 || matchMedia('(pointer:coarse)').matches) && length > SPRINT_PUSH;
-  stick.style.transform = `translate(${moveX * 34}px, ${moveZ * 34}px)`;
-  stick.dataset.run = String(stickRun);
-}
-// The stick must never stay pushed after the thumb has gone: a new touch always takes it over, and its release is honoured wherever the
-// browser delivers it (a pointerup that lands outside the pad when capture was lost, or a touchend with no fingers left on the screen).
-function releaseStick() {
-  moveId = null;
-  stickRun = false;
-  moveX = moveZ = 0;
-  stick.style.transform = '';
-  stick.dataset.run = 'false';
-}
-joystick.addEventListener('pointerdown', (event) => {
-  if (paused()) return;
-  moveId = event.pointerId;
-  try {
-    joystick.setPointerCapture(moveId);
-  } catch {
-    /* the pad still follows this pointer through the window listeners */
-  }
-  moveStick(event);
-});
-joystick.addEventListener('pointermove', (event) => {
-  if (event.pointerId === moveId) moveStick(event);
-});
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
-  joystick.addEventListener(name, (event) => {
-    if ((event as PointerEvent).pointerId === moveId) releaseStick();
-  });
-for (const name of ['pointerup', 'pointercancel'])
-  window.addEventListener(name, (event) => {
-    if ((event as PointerEvent).pointerId === moveId) releaseStick();
-  });
-window.addEventListener('touchend', (event) => {
-  if (moveId !== null && event.touches.length === 0) releaseStick();
-});
-window.addEventListener('touchcancel', (event) => {
-  if (moveId !== null && event.touches.length === 0) releaseStick();
-});
 if (typeof document !== 'undefined' && document.body)
   document.body.dataset.gfxTier = phoneTier() ? 'phone' : 'full'; // support surface: which graphics budget the session is on (the iPhone black-fighters defect)
 let view: ReturnType<typeof createScene>;
@@ -864,13 +330,7 @@ try {
   attackButton.setAttribute('aria-disabled', 'true');
   throw error; // Preserve the GPU/renderer cause and stack for monitoring.
 }
-let bloodMode = 0;
-element('blood-mode').addEventListener('click', () => {
-  bloodMode = (bloodMode + 1) % 3;
-  const mode = (['red', 'dark', 'off'] as const)[bloodMode];
-  view.setBloodMode(mode);
-  element('blood-mode').textContent = `Blood: ${mode}`;
-});
+// Blood is red, always (owner 2026-09-20: the dark/off toggle leaves the journal; the renderer keeps the modes for a later setting).
 const showTempo = () => {
   element('tempo-mode').textContent = `Tempo: ${tempoHz} Hz`;
   element('tempo-mode').setAttribute('aria-pressed', String(tempoHz === 50));
@@ -901,6 +361,21 @@ element('hitstop-mode').addEventListener('click', () => {
   showHitStop();
 });
 showHitStop();
+const showDamageNumbers = () => {
+  element('damage-mode').textContent = `Damage numbers: ${damageNumbersOn ? 'on' : 'off'}`;
+  element('damage-mode').setAttribute('aria-pressed', String(damageNumbersOn));
+};
+element('damage-mode').addEventListener('click', () => {
+  damageNumbersOn = !damageNumbersOn;
+  if (!damageNumbersOn) hud.hideDamage();
+  try {
+    storage.setItem(DAMAGE_KEY, damageNumbersOn ? 'on' : 'off');
+  } catch {
+    /* a full store just loses the preference */
+  }
+  showDamageNumbers();
+});
+showDamageNumbers();
 function graphicsFailure() {
   message.hidden = false;
   message.textContent = 'Graphics could not recover. Reload to return to the arena. ';
@@ -1002,10 +477,7 @@ function frame(now: number) {
   last = now;
   const dt = Math.min(elapsed, 0.1);
   if (!paused()) {
-    if (dodgeHeld && !dodgeHeld.rolled && now - dodgeHeld.since >= HOLD_MS) {
-      dodgeHeld.rolled = true;
-      request('dodge');
-    }
+    controls.promoteDodge(now);
     const afk = owed > 0;   // the fight the player missed runs before this frame draws: no hit-stop, no per-hit sound or number, one final picture
     if (afk) { hitStop = 0; accumulator += owed; activeMs += owed * 1000; owed = 0; }
     // The pause spends the frame's time first; whatever the frame has left after the pause ends goes on to the simulation (no discarded time).
@@ -1015,31 +487,19 @@ function frame(now: number) {
       if (!hitStop) accumulator += Math.max(0, dt - spent / 1000);
     } else accumulator += dt;
     activeMs += elapsed * 1000;
-    const x =
-      moveX +
-      Number(keys.has('KeyD') || keys.has('ArrowRight')) -
-      Number(keys.has('KeyA') || keys.has('ArrowLeft'));
-    const z =
-      moveZ +
-      Number(keys.has('KeyS') || keys.has('ArrowDown')) -
-      Number(keys.has('KeyW') || keys.has('ArrowUp'));
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ scheme })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      const intent = controls.intent();
+      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ scheme, opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       practice = stepPractice(
         practice,
         {
-          move: {
-            x,
-            z,
-            yaw: view.yaw,
-            run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight'),
-          },
-          action: assetsReady ? action : null,
-          guard: assetsReady && (guard || dragGuard || keys.has('KeyQ')),
-          held: assetsReady && held(),
+          move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
+          action: intent.action,
+          guard: intent.guard,
+          held: intent.held,
           lock: locked,
-          cancel,
+          cancel: intent.cancel,
         },
         opponent.profiles[difficulty],
       );
@@ -1063,7 +523,7 @@ function frame(now: number) {
                   finisherSelect.value === 'auto' ? null : (finisherSelect.value as FinisherId),
                   view.previousFinisher(),
                 ) ?? 'plainDeath',
-              gore: bloodMode !== 2,
+              gore: true,
             }
           : undefined;
       const quiet = afk && !practice.finish;   // skipped time makes no sound and floats no numbers; the killing tick still does
@@ -1075,18 +535,8 @@ function frame(now: number) {
         opponent: opponent.id,
       });
       frameEvents.push(...practice.events);
-      if (!quiet) floatDamage(practice.events);
-      // Track what the simulation's buffer can still hold: a request we sent this tick, until something of ours starts (or a cancel).
-      if (
-        cancel ||
-        practice.events.some(
-          (e) => e.actor === 0 && (e.type === 'AttackStarted' || e.type === 'ActionStarted'),
-        )
-      )
-        sent = null;
-      if (action) sent = action;
-      action = null;
-      cancel = false;
+      if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
+      controls.consumed(practice.events);
       state = practice.fighter;
       accumulator -= step();
       if (practice.finish && !recorded) {
@@ -1094,6 +544,8 @@ function frame(now: number) {
         recordPractice(trial, scheme, practice, Math.round(activeMs));
         saveTrial(storage, trial);
         marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
+        recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk);   // a fight lost while away is a loss, flagged left
+        saveScorecard(storage, scorecard);
         if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent
         if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
       }

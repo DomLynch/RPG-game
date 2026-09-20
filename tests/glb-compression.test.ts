@@ -7,7 +7,7 @@ import { jpegFingerprint } from '../scripts/jpeg-equivalence.mjs';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
 import { assertGlbEquivalent, parseGlb, sha256 } from '../scripts/glb-equivalence.mjs';
 
-test('production packing preserves the real Skeleton buffers, materials and clips; the judge rejects corruption', async () => {
+test('production packing preserves the real Skeleton buffers, materials and clips; the judge rejects corruption [slow]', async () => {
   const source = readFileSync(new URL('../src/assets/skeleton.glb', import.meta.url)), hash = sha256(source);
   const packed = await optimizeGlb(source);
   const result = await assertGlbEquivalent(source, packed);
@@ -46,7 +46,7 @@ test('JPEG packing preserves decoded pixels and metadata; a valid coefficient ch
   assert.notDeepEqual(jpegFingerprint(changed), expected, 'pixel changes must not pass as lossless packing');
 });
 
-test('shared external textures preserve the real rig and reject missing or corrupted image bytes', async () => {
+test('shared external textures preserve the real rig and reject missing or corrupted image bytes [slow]', async () => {
   const source = readFileSync(new URL('../src/assets/skeleton.glb', import.meta.url));
   const images = new Map();
   const packed = await optimizeGlb(source, (bytes, mime) => {

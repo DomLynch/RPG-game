@@ -14,6 +14,9 @@ import * as ladder from '../src/ladder.ts';
 import * as roster from '../src/roster.ts';
 import * as trial from '../src/trial.ts';
 import * as career from '../src/career.ts';
+import * as scorecard from '../src/scorecard.ts';
+import * as hud from '../src/hud.ts';
+import * as input from '../src/input.ts';
 
 // Execute the actual entry point with a controllable GPU/clock, keeping real combat and input wiring.
 const code = ts.transpileModule(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -21,7 +24,8 @@ class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
   style = { props: new Map<string, string>(), setProperty(k: string, v: string) { this.props.set(k, v); }, getPropertyValue(k: string) { return this.props.get(k) ?? ''; } } as { props: Map<string, string>; setProperty(k: string, v: string): void; getPropertyValue(k: string): string; transform?: string }; dataset: Record<string, string> = {}; attributes = new Map<string, string>(); children: Element[] = [];
   setAttribute(key: string, value: string) { this.attributes.set(key, value); }
-  append(child: Element) { this.children.push(child); }
+  append(...nodes: Element[]) { this.children.push(...nodes); }
+  replaceChildren(...nodes: Element[]) { this.children = nodes; }
   setPointerCapture() {}
   getBoundingClientRect() { return { left: 0, top: 0, width: 108, height: 108 }; }
   click() { this.dispatchEvent(new Event('click')); }
@@ -38,7 +42,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './career.ts': career, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './gestures.ts': gestures, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -493,8 +497,15 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   assert.equal(app.rendered.finish?.victim, 0, 'the idle fighter is dead when the player comes back');
   assert.equal(app.storage.getItem('frankendom.fight.v1'), '', 'a decided fight is no longer marked');
   assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.cluster.fights, 1);
-  const again = boot({ id: 'tester-0001' }, undefined, { 'frankendom.fight.v1': JSON.stringify({ scheme: 'cluster' }) });
+  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran, { fights: 1, wins: 0, losses: 1, left: 1 }, 'the scorecard shows the walk-away as a loss, flagged left');
+  const again = boot({ id: 'tester-0001' }, undefined, { 'frankendom.fight.v1': JSON.stringify({ scheme: 'cluster', opponent: 'goblin' }) });
   const card = JSON.parse(again.storage.getItem('frankendom.controls.v1')!).card.cluster;
   assert.deepEqual([card.fights, card.wins], [1, 0], 'closing the page mid-fight scored a loss at the next boot');
+  assert.deepEqual(JSON.parse(again.storage.getItem('frankendom.scorecard.v1')!).rows.goblin, { fights: 1, wins: 0, losses: 1, left: 1 }, 'and on the scorecard against the opponent it was');
   assert.equal(again.storage.getItem('frankendom.fight.v1'), '');
+  again.element('journal-button').click();
+  const rows = again.element('scorecard-table').children.map(tr => tr.children.map(c => c.textContent));
+  assert.deepEqual(rows[0], ['Opponent', 'Fights', 'Wins', 'Losses']);
+  assert.deepEqual(rows.find(r => r[0] === 'the Goblin'), ['the Goblin', '1', '0', '1 (1 left)']);
+  assert.deepEqual(rows.at(-1), ['All fights', '1', '0', '1 (1 left)']);
 });

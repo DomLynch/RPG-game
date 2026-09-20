@@ -626,15 +626,16 @@ dialog>p {
   z-index: 5;
   font:
     700 15px/1 Arial,sans-serif;
-  color: #f4ead8;
+  color: #b8b4ad; /* owner 2026-09-20: greyed out, cosmetic only */
+  opacity: 0.7;
   text-shadow: 0 1px 3px #000c;
   pointer-events: none;
 }
 .dmg.taken {
-  color: #e8b3a0;
+  color: #b39a92;
 }
 .dmg.heavy {
-  color: #ffd97a;
+  color: #c9c1a8;
   font-size: 19px;
 }
 .actions .primary {
@@ -1067,6 +1068,29 @@ dialog>p {
 .actions {
   touch-action: none;
 }
+.scorecard-table {
+  width: 100%;
+  margin: .6em 0;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #eee7d9;
+}
+.scorecard-table th,.scorecard-table td {
+  padding: 4px 6px;
+  text-align: right;
+  border-bottom: 1px solid #d2bd8c40;
+}
+.scorecard-table th:first-child,.scorecard-table td:first-child {
+  text-align: left;
+}
+.scorecard-table th {
+  font-weight: normal;
+  color: #d2bd8c;
+}
+.scorecard-table tr:last-child td {
+  border-bottom: 0;
+  color: #d2bd8c;
+}
 .scorecard {
   white-space: pre-wrap;
   font:
@@ -1407,3 +1431,36 @@ dialog output { display: block; margin-top: 8px; font: 12px "Instrument Sans", A
 @media (max-width: 900px), (pointer: coarse) {
   .mobile-tools { display: block; margin: 0; }
 }
+
+/* Field Journal tabs (owner, 2026-09-20): the fighter card and sign-in stay pinned; Fighter / Arena / Settings sit under a
+   browser-style strip. Pure CSS (radio inputs), so the game binds the same ids and no script changes. The journal opens on
+   Fighter; a browser check that reaches into Arena or Settings clicks that tab's label first. */
+.journal-tabs { position: relative; }
+.journal-tabs > input { position: absolute; opacity: 0; pointer-events: none; }
+.tab-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--jp); border-radius: 12px; }
+.tab-strip label { text-align: center; padding: 9px 6px; border-radius: 9px; font: 600 12.5px "Instrument Sans", Arial, sans-serif; color: var(--jm); cursor: pointer; white-space: nowrap; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+#journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: #fff; color: var(--jf); box-shadow: 0 1px 2px #0002; }
+.tab-pane { display: none; padding-top: 4px; }
+#journal-tab-fighter:checked ~ .pane-fighter, #journal-tab-profile:checked ~ .pane-profile, #journal-tab-arena:checked ~ .pane-arena, #journal-tab-settings:checked ~ .pane-settings { display: block; }
+.tab-pane .chips + .chips { margin-top: 8px; }
+.tab-pane .note { margin: 12px 0 0; }
+dialog .references { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--jl); }
+/* The record table in the light journal's ink (its first rules were written for the dark sheet). */
+dialog .scorecard-table { margin: 4px 0 0; font: 14px "Instrument Sans", Arial, sans-serif; color: var(--jf); font-variant-numeric: tabular-nums; }
+dialog .scorecard-table th, dialog .scorecard-table td { padding: 8px 4px; border-bottom: 1px solid var(--jl); }
+dialog .scorecard-table th { font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--jm); }
+dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
+
+/* Profile tab (owner, 2026-09-20): the five stats and the gear slots, read-only and greyed until builds and gear ship after the beta. */
+.statgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.statgrid div { text-align: center; padding: 10px 2px; border: 1px solid var(--jl); border-radius: 12px; background: #fff9; }
+.statgrid b { display: block; font: 800 13px "Bricolage", Arial, sans-serif; color: var(--ja); letter-spacing: .02em; }
+.statgrid span { display: block; font: 800 20px/1.1 "Bricolage", Arial, sans-serif; color: var(--jf); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.statgrid small { display: block; font: 600 9px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--jm); margin-top: 4px; }
+.gear { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.gear.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.slot { padding: 10px 10px 9px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: transparent; }
+.slot span { display: block; font: 600 10px "Instrument Sans", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.slot i { display: block; font: 600 13px "Instrument Sans", Arial, sans-serif; font-style: normal; margin-top: 4px; }
+.slot.on { border-style: solid; border-color: var(--jf); color: var(--jf); background: #fff9; }
+.gear[aria-disabled=true] .slot:not(.on) { opacity: .7; }

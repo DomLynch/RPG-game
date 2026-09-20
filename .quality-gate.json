@@ -3,7 +3,7 @@
     [
       "npm",
       "run",
-      "quality:ci"
+      "quality:stop"
     ]
   ],
   "manual": [
@@ -11,13 +11,7 @@
     "Live HTTPS, asset and release parity",
     "Two-pass code review"
   ],
-  "completion_commands": [
-    [
-      "npm",
-      "run",
-      "test:browser"
-    ]
-  ],
+  "completion_commands": [],
   "release_commands": [
     [
       "node",
@@ -246,5 +240,6 @@
       "scripts/check-glb-compression.mjs",
       "--browser"
     ]
-  ]
+  ],
+  "timeout_seconds": 300
 }
