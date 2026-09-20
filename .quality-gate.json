@@ -234,6 +234,15 @@
     [
       "node",
       "scripts/veteran-neck-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/creature-impact-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/check-glb-compression.mjs",
+      "--browser"
     ]
   ]
 }

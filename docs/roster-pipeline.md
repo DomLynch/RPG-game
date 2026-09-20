@@ -37,3 +37,5 @@ The owner's skill-first / Origin-build proposal and its unresolved balance decis
 ## Known gates
 
 The physical iPhone/Pixel five-minute test and external uncoached-player gate remain open. Existing finisher/contact defects are owned by their lanes and cannot be closed by this catalogue refactor. Unit/CI success is not hardware or player acceptance.
+
+Production builds emit identical retained textures once under content-hashed `assets/textures/` paths. GLBs reference these relative URLs; deploy the complete `dist` directory. Source GLBs remain self-contained. The independent compression gate reads shared image bytes and verifies the same pixels and metadata. JPEG entropy packing requires `jpegtran` (macOS: `brew install jpeg-turbo`; Linux: `apt install libjpeg-turbo-progs`).

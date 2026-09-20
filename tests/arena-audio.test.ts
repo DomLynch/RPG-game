@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { ARENA_MANIFEST } from '../src/audio/arena-manifest.ts';
-import { loadArena } from '../src/audio/arena.ts';
+import { createArenaAudio, loadArena } from '../src/audio/arena.ts';
 import { BELL_SECONDS, bellSamples } from '../src/audio/bell.ts';
 
 test('optional arena assets stay within their own 450KB budget and expose non-overlapping regions', () => {
@@ -26,4 +26,32 @@ test('optional arena network/decoder failure tries both codecs then returns sile
   });
   assert.equal(result, null); assert.equal(requests.length, 2);
   assert.ok(requests[0].endsWith('.ogg') && requests[1].endsWith('.m4a'));
+});
+
+
+test('arena hit grunts follow the struck body across Skeleton fights and rematches', async () => {
+  const originalFetch = globalThis.fetch;
+  const starts: number[] = [];
+  const param = { setValueAtTime() {}, linearRampToValueAtTime() {} };
+  const context = {
+    decodeAudioData: async () => ({}),
+    createGain: () => ({ gain: param, connect() {}, disconnect() {} }),
+    createBufferSource: () => ({ playbackRate: { value: 1 }, connect() {}, disconnect() {}, stop() {}, start(_when: number, offset: number) { starts.push(offset); } }),
+  } as unknown as BaseAudioContext;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }) as Response;
+  try {
+    let now = 0;
+    const audio = createArenaAudio(context, {} as AudioNode, () => now);
+    await audio.ready();
+    const grunts = () => starts.filter(offset => ARENA_MANIFEST.grunt.some(([start]) => start === offset)).length;
+    audio.update([{ type: 'Hit', tick: 0, actor: 0, target: 1 }], { match: 1, tick: 0, ended: false, opponent: 'skeleton' });
+    assert.equal(grunts(), 0, 'exposed bone has no human pain grunt');
+    now = 1;
+    audio.update([{ type: 'Hit', tick: 60, actor: 1, target: 0 }], { match: 1, tick: 60, ended: false, opponent: 'skeleton' });
+    assert.equal(grunts(), 1, 'the player still reacts when struck');
+    now = 2;
+    audio.update([{ type: 'Hit', tick: 0, actor: 0, target: 1 }], { match: 2, tick: 0, ended: false, opponent: 'werewolf' });
+    assert.equal(grunts(), 2, 'changing opponent restores flesh feedback');
+    audio.stop();
+  } finally { globalThis.fetch = originalFetch; }
 });
