@@ -133,8 +133,15 @@ await page.screenshot({path:`${dir}/live-held.png`});
 // Blood is red only (owner 2026-09-20): the journal's blood toggle is gone, so the dark/off cycling that used to run under
 // --blood-check is retired; the finisher's own blood assertions above still run under the same flag.
 
+// Rematch after a WIN loads the next rung as a fresh document (main.ts reset-button → location.reload) — the harness clock dies
+// with the old document, and Playwright's own waitForFunction survives that where a plain evaluate loop cannot. Arm for the
+// navigation before the tap: a new document is waited for on real time (its boot is machine-dependent, not timing-sensitive);
+// an in-place rematch (last rung) is driven on the harness clock as before. Same predicate either way.
+const rematchPredicate = ()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips);
+const navigated = page.waitForEvent('framenavigated', { timeout: 3000 }).then(() => true, () => false);
 await page.locator('#reset-button').tap();
-await until(()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips), 20000);
+if (await navigated) await page.waitForFunction(rematchPredicate, null, { timeout: 90000 });
+else await until(rematchPredicate, 20000);
 assert.doesNotMatch(await clips(), expected, 'rematch clears the finisher');
 receipt.rematchClips = await clips();
 if(process.argv.includes('--blood-check')) {receipt.rematchBlood=JSON.parse(await page.locator('#debug').getAttribute('data-blood'));assert.equal(receipt.rematchBlood.visible,false);assert.equal(receipt.rematchBlood.pools.length,0);}
