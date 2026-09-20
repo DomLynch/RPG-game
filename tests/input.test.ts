@@ -9,12 +9,14 @@ test('combat buttons stay DOM hit targets during cooldown so repeated touches ar
     const button = html.match(new RegExp(`<button\\b[^>]*id="${id}"[^>]*>`))![0];
     assert.doesNotMatch(button, /\sdisabled(?:\s|=|>)/);
   }
-  const source = ts.createSourceFile('main.ts', readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-  function visit(node: ts.Node) {
-    if (ts.isPropertyAccessExpression(node) && ['attackButton', 'dodgeButton', 'guardButton'].includes(node.expression.getText(source))) assert.notEqual(node.name.text, 'disabled', 'Use aria-disabled with the input guard; native disabled drops touch handling');
-    ts.forEachChild(node, visit);
+  for (const file of ['main.ts', 'input.ts']) {   // the button grammar lives in input.ts; the entry point keeps the fallback disables
+    const source = ts.createSourceFile(file, readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
+    function visit(node: ts.Node) {
+      if (ts.isPropertyAccessExpression(node) && ['attackButton', 'dodgeButton', 'guardButton'].includes(node.expression.getText(source))) assert.notEqual(node.name.getText(source), 'disabled', 'buttons stay hit targets; use aria-disabled');
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
   }
-  visit(source);
 });
 
 test('page declares double-tap suppression and locks page zoom (owner, 2026-09-17)', () => {
