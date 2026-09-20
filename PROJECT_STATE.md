@@ -1,5 +1,24 @@
 # Project state
 
+## Wraith reaper scythe — weapons lane, in progress
+Owner replaces claws with a massive two-handed reaper, explicitly distinct from Executioner. New crescent geometry, dark swept haft, twelve Reaper clips and dedicated blade-edge contact marker; original25 base/finisher clips, body maps/skin and1.5 spectral scale retained. Minotaur differs only in shared generator provenance; all seven non-Wraith baked paths unchanged. CPU grip, torso, exact animation/contact, inner/outer reach and AI approach/escape tests pass; visual acceptance and public deployment remain pending the lead-coordinated GPU/release window. Evidence: artifacts/weapons/wraith-reaper/. PR167 finisher repair integrated; rerun Wraith Opened split/fade/ground behavior before release.
+## Werewolf and Skeleton — integrated locally, publication pending (2026-09-19)
+Both official TRELLIS.2 exports are fitted to the shared animation pipeline: Werewolf/Pitborn/cleaver and
+Skeleton/Veteran/trident. References, prompts, source hashes and licences are retained. Skeleton receives bone
+impact audio and no opponent blood; player blood/feedback remains. Local encounter migration passes PostgreSQL
+checks but is not hosted yet. New creatures retain ordinary death, with paired finishers disabled.
+Published maul/claw68ccdf2, cleanup0f50814, audio4408215, finisher3803433 and Veteran63c57e are integrated.
+Skeleton was rebuilt against the polished Veteran donor: 38 original clips and 190 pose checks pass; idle/thrust/guard CPU renders reviewed.
+Production packing preserves decoded accessor bytes, animation and materials. JPEG entropy recoding preserves pixels and colour/orientation metadata;
+identical used textures are emitted once and shared by rigs. Source GLBs remain self-contained. Independent checks cover all ten rigs and 40,388 accessors;
+corrupted geometry, materials, clips and missing/corrupted external textures are rejected. Actual final build: 30,077,291 bytes gzip total /32 MB,
+conservative per-fight including every shared texture 9,806,495 /12 MB. No cap increase or texture resizing.
+Narrow WASM CSP and hosted encounter migration are staged, not applied to VPS. Browser checks/publication remain pending in the reserved creature window.
+Nine software-rendered impact assertions and Skeleton framing pass; corrected landscape previews reviewed. Portrait resize capture correction awaits final browser pass.
+Previous full CPU regression:297/297; current compression regression3/3. Full inherited35-command suite must run on the frozen combined candidate.
+No live/completion claim.
+Evidence: artifacts/character/werewolf-skeleton/ and artifacts/character/compression/.
+
 ## Veteran neck and material finish — 2026-09-19 (PR #172)
 Owner approved the matched before/after previews and authorized publication. The existing Veteran now has a continuous neck contour, shared collar skin weights and blended skin colour/normal/roughness maps. The trident shares restrained worn-bronze maps; armour, leather and linen receive the earlier material polish. Facial features, weapon geometry/reach, skeleton, clips, topology, UVs and unrelated surfaces remain preserved. The offline build is repeatable; alternate Veteran weapon builds also pass.
 

@@ -1,4 +1,4 @@
-import { ROSTER, supportsFinishers, resolveFinisher } from './roster.ts';
+import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -187,9 +187,10 @@ export function createScene(
     WeaponId,
     WeaponId,
   ];
+  const fighterUrls = import.meta.glob<string>('./assets/*.glb', { eager: true, query: '?url', import: 'default' });
   const ready = loadWarriors(
-    new URL('./assets/warrior.glb', import.meta.url).href,
-    new URL(`./assets/${ROSTER[opponentId].body}.glb`, import.meta.url).href,
+    fighterUrls['./assets/warrior.glb'],
+    fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`],
     weapons,
   )
     .then((loaded) => {
@@ -582,7 +583,7 @@ export function createScene(
         const enemyHurt = blow?.target === 1,
           hurt = !!blow;
         const kick = blow?.move === 'kick';
-        flesh = hurt && !kick && bloodMode !== 'off';
+        flesh = hurt && (!enemyHurt || hasBlood(opponentId)) && !kick && bloodMode !== 'off';
         impactDuration = flesh && killed ? (quietFinish ? 0.2 : 0.55) : flesh ? 0.34 : 0.18;
         impact = impactDuration;
         impactHeading = blow?.heading ?? state.heading;

@@ -87,7 +87,12 @@ for(const id of ['minotaur','wraith'] as const) test(`${id}: actual waist halves
   actor.openWaist(1,'dark');assert.equal(group.visible,true);assert.equal(root.visible,false);
   for(let i=0;i<25;i++){actor.update(0,.1,'opened',1);actor.openWaist(1,'red');}
   assert.equal(halves[0].visible,id!=='wraith');assert.equal(halves[1].visible,id!=='wraith');
-  const dropped=group.getObjectByName('OpenedWeapon')!;assert.equal(dropped.visible,id!=='wraith','claws leave no separate dropped weapon');assert.equal(dropped.children.length>0,id!=='wraith');
+  const dropped=group.getObjectByName('OpenedWeapon')!;
+  assert.equal(dropped.visible,true,'carried weapon remains after the body fades');
+  assert.ok(dropped.children.length>0,'actual weapon geometry is retained');
+  parent.updateMatrixWorld(true);
+  const droppedBounds=new Box3().setFromObject(dropped,true);
+  assert.ok(Number.isFinite(droppedBounds.min.y) && droppedBounds.min.y>-.012 && droppedBounds.min.y<.04,`weapon lands on sand ${droppedBounds.min.y}`);
   if(id==='wraith')assert.equal(partMaterial.opacity,0);
   assert.deepEqual(body.geometry.attributes.position.array,original,'source mesh untouched');
   let disposed=0;partMaterial.addEventListener('dispose',()=>disposed++);
