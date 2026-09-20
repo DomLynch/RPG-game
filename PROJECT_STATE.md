@@ -1085,8 +1085,3 @@ exertion grunts on heavy; (c) `PostureBroken` cue; (d) music. No new music lane.
 **Still open.** Physical handset audition of the live mix (silent switch both ways) remains unverified in every audio entry —
 the owner's ear pass on 63c57e2 is the next audio action and needs no code. Hygiene applied here: dead helpers removed from
 `build-audio.mjs` (`gain`, `sub`, `modal`), README audio paragraph reconciled with the recordings, REQUESTS.md statuses set.
-
-## Pitborn texture diet + phantom rivets — 2026-09-20 (character lane, Pitborn only)
-- His two 2048² maps (rag-sash colour, scan-head roughness) ship at 1024: GPU texture estimate 116 → 80 MB (image headers, RGBA8 + mips), gzip 2.94 → 2.90 MB, no visible change at the lock camera or the face harness zoom. Scoped by his rows only: `linen_maps(size=1024 if KIT['bare'])`, `FIGHTERS.pitborn.photo_orm_1k`; every other fighter's bake path is unchanged.
-- The black specks on his back and chest were the kit's 22 baldric rivets, still placed along the baldric a bare fighter does not wear (not the scars pass): none for `KIT['bare']`. Belt rivets stay (his belt is iron).
-- Evidence: 300/300, `npm run quality` green incl. the browser gate; before/after in `artifacts/character/pitborn-0920` vs `pitborn-diet2`. Measurement gap found on the way: `character-preview.html`'s texture table counts the hero only — the opponent has never been in the phone number (lead/QA to decide).

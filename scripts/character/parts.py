@@ -729,7 +729,7 @@ def level1_kit():
     studs = []
     axis_u = n.cross(Vector((0, 0, 1))).normalized()
     axis_v = n.cross(axis_u)
-    for k in range(0 if KIT['bare'] else 22):  # rivets along the baldric loop, skipping the underarm — none for a bare fighter with no baldric (they floated on the Pitborn's skin as black specks)
+    for k in range(22):  # rivets along the baldric loop, skipping the underarm
         th = (k + 0.5) / 22 * math.pi * 2
         radial = axis_u * math.cos(th) + axis_v * math.sin(th)
         surface, normal = nearest_surface(centre + radial * 0.30)
@@ -1981,7 +1981,7 @@ else:
     tunic = next(o for o in kit if o.name == 'tunic')
     folds = bake_folds(tunic, 'tunic')
     GAMBESON_NORMAL = save_jpeg('gambeson_normal', folds, 'Non-Color')
-    GAMBESON_MAPS = linen_maps(tunic, folds, size=1024 if KIT['bare'] else 2048)  # the tunic's colour and roughness in the same layout; a bare fighter's rag sash needs no 2K (texture diet, 2026-09-20)
+    GAMBESON_MAPS = linen_maps(tunic, folds)  # the tunic's colour and roughness in the same layout
     export_kit(kit, os.path.join(out, f'level1_{VARIANT}.glb' if realistic else 'level1.glb'))
     ITEM = '' if FIGHTER == 'hero' else f'_{FIGHTER}'  # the helm is shelled from this fighter's own skull: one per head
     if FIGHTER == 'hero':
