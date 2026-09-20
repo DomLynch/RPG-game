@@ -171,6 +171,17 @@ test('guard side: a slide on the Guard button or Q + an arrow sets the guard dir
   app.key('ArrowUp'); for (let i = 0; i < 5; i++) app.tick(); assert.notEqual(me().body.z, z, 'without Q the arrow walks as before'); app.release('ArrowUp');
 });
 
+test('frame clock: a backward or absurd timestamp jump is a resync, never negative fight time — the simulation keeps stepping right after it', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 30; i++) app.tick();
+  const tick = () => app.rendered.duel.tick, before = tick();
+  app.tick(-90000);   // the frame clock jumps 90 s backward (a fake clock installed under the page, a frozen timeline)
+  for (let i = 0; i < 6; i++) app.tick();
+  assert.ok(tick() > before, `six normal frames after a backward jump advance the fight: ${before} → ${tick()}`);
+  const mid = tick(); app.tick(600000);   // ten minutes forward: a stall, not absence — at most one tenth of a second of fight
+  assert.ok(tick() - mid <= 7, `a forward stall injects at most 0.1 s of fight: +${tick() - mid} ticks`);
+  const after = tick(); for (let i = 0; i < 12; i++) app.tick(); assert.ok(tick() - after >= 8, `and the fight goes on normally after it: +${tick() - after} ticks in 12 frames`);
+});
+
 test('dodge control: a tap is an instant backstep, a hold grows it into a roll, and interruption releases it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   assert.equal(app.element('stamina').value, 100);
