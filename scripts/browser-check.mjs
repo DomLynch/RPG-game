@@ -43,7 +43,14 @@ try {
  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden,5000);
  const guardPoint=await center('guard-button');
  await until(()=>window.__tellAt>0 && performance.now()-window.__tellAt>=430,20000);
+ // Directional guard: the parry must be on the side the blow arrives on — the mirror of the attack's direction (a right cut arrives on the
+ // defender's left; overhead, thrust and low by name). The tell's AttackStarted carries `direction`; a straight thrust needs no slide.
+ const incoming=await page.evaluate(()=>{const e=[...window.__combat].reverse().flatMap(s=>s.events).find(e=>e.type==='AttackStarted' && e.actor===1);return e?e.direction:null;});
+ const side={right:'left',left:'right',overhead:'overhead',low:'low',thrust:null}[incoming] ?? null;
+ const slide={left:{x:-30,y:0},right:{x:30,y:0},overhead:{x:0,y:-30},low:{x:0,y:30}}[side];
+ receipt.parrySide={incoming,side};
  await touch('touchStart',guardPoint);
+ if(slide){await touch('touchMove',{x:guardPoint.x+slide.x,y:guardPoint.y+slide.y});}
  receipt.guardAfterTellMs=await page.evaluate(()=>window.__guardAt-window.__tellAt);assert.ok(receipt.guardAfterTellMs>0,'Guard must receive the real touch after the tell');
  await until(()=>/Parried|Blocked|Hit taken|Guard broken/.test(document.querySelector('#combat-status').textContent),1500);
  receipt.parry=await snapshot();assert.match(receipt.parry.status,/Parried/);await touch('touchEnd');
