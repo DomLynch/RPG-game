@@ -5,7 +5,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Lane | File | Entries | Latest entry |
 |---|---|---|---|
 | Lead | [docs/state/lead.md](docs/state/lead.md) | 20 | 2026-09-21 — Release check 9 (polearm-browser-check) became checks 9–12; everything after ren |
-| Combat | [docs/state/combat.md](docs/state/combat.md) | 35 | 2026-09-21 — Anti-turtling — combat half (sim rules + warden), 2026-09-21 |
+| Combat | [docs/state/combat.md](docs/state/combat.md) | 34 | 2026-09-21 — Anti-turtling — combat half (sim rules + warden), 2026-09-21 |
 | Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 15 | 2026-09-21 — Player-wieldable weapons — equip files + blade tables by rig (weapons lane, Brief ) |
 | Character | [docs/state/character.md](docs/state/character.md) | 16 | 2026-09-20 — Dwarf v2 — owner-approved look, character lane (2026-09-20) |
 | Finishers & gore | [docs/state/finishers.md](docs/state/finishers.md) | 14 | 2026-09-21 — Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-li |
@@ -15,4 +15,4 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
 | Archive (pre-lane history) | [docs/state/archive-2026-09-21.md](docs/state/archive-2026-09-21.md) | 8 | 2026-09-13 — First-hit slice — implemented 2026-09-13 |
 
-Split on 2026-09-21 from a single 1,351-line file (129 entries, 66 edits in the preceding 48 h): every entry moved once, verbatim, into the file of the lane named in its heading; entries without a lane went to Lead, and the pre-lane slices to the archive. Lanes correct their own file when a heading was read wrong.
+Split on 2026-09-21 from a single 1,351-line file (129 entries, 66 edits in the preceding 48 h): every entry moved once, verbatim, into the file of the lane named in its heading (one byte-identical duplicate entry, "Slice V — the opponent seam", dropped); entries without a lane went to Lead, and the pre-lane slices to the archive. Lanes correct their own file when a heading was read wrong.
