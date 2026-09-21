@@ -9,7 +9,7 @@
 // repeated or zero bytes gzip well: a 30 s fight (1,800 ticks) lands well under 2 KB (tests/record.test.ts measures a real one).
 // Nothing here talks to the network; recording stays in memory until a later slice's Share.
 import type { Action, Intent } from './duel.ts';
-import { WEAPONS, type Direction, type WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
 export const RECORD_VERSION = 2;   // 2: the player's weapon after the opponent id (2026-09-21). A version-1 record predates the choice and decodes as the longsword.
@@ -103,7 +103,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   let o = 3;
   const str = () => { const len = bytes[o++]; if (o + len > bytes.length) throw Error('Fight record: truncated'); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(bytes[o + i]); o += len; return s; };
   const build = str(), opponent = str() as OpponentId, weapon = (v >= 2 ? str() : 'longsword') as WeaponId;   // version 1: every fight was the longsword
-  if (!(weapon in WEAPONS)) throw Error('Fight record: unknown weapon');
+  if (!PLAYER_WEAPONS.includes(weapon)) throw Error('Fight record: unknown weapon');   // the hero rig bakes blade tables for these only; an opponent-only weapon (maul, reaper) would throw inside the frame loop
   if (o + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
   const profile = PROFILES[bytes[o++]], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (!profile || !outcome) throw Error('Fight record: unknown profile or outcome');

@@ -13,10 +13,14 @@ import * as ladder from '../src/ladder.ts';
 import * as roster from '../src/roster.ts';
 import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
+import * as loot from '../src/loot.ts';
 import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
 import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
+import * as daily from '../src/daily.ts';
+// The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
+const dailyModule: Record<string, unknown> = { ...daily }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
@@ -29,6 +33,7 @@ class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
   style = { props: new Map<string, string>(), setProperty(k: string, v: string) { this.props.set(k, v); }, getPropertyValue(k: string) { return this.props.get(k) ?? ''; } } as { props: Map<string, string>; setProperty(k: string, v: string): void; getPropertyValue(k: string): string; transform?: string }; dataset: Record<string, string> = {}; attributes = new Map<string, string>(); children: Element[] = [];
   setAttribute(key: string, value: string) { this.attributes.set(key, value); }
+  className = ''; classList = { set: new Set<string>(), toggle(name: string, force?: boolean) { const on = force ?? !this.set.has(name); if (on) this.set.add(name); else this.set.delete(name); return on; }, contains(name: string) { return this.set.has(name); } };
   append(...nodes: Element[]) { this.children.push(...nodes); }
   replaceChildren(...nodes: Element[]) { this.children = nodes; }
   setPointerCapture() {}
@@ -43,20 +48,20 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0;
-  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
-  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
+  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
-  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
-    document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
+    document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }) }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, window: win, document: doc, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { element, errors, callbacks, timers, storage, window: win, document: doc, get worn() { return [...view.worn]; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -552,6 +557,9 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   const ticksA = a.rendered.duel.tick, finishA = a.rendered.finish!, cardA = a.storage.getItem('frankendom.controls.v1');
   // B opens the link with nothing saved: no welcome, a replay banner, buttons asleep, the same fight.
   const b = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
+  b.tick();   // a frame lands before the record has decoded (the browser's rAF beats the async decode): it must not mark a fight
+  assert.equal(b.storage.getItem('frankendom.fight.v1'), null, 'no AFK mark while the link is still decoding');
+  const cardBefore = b.storage.getItem('frankendom.scorecard.v1');
   await settle(() => b.element('replay-banner').textContent !== 'Loading the fight…');   // the record decodes asynchronously
   assert.equal(b.element('welcome').hidden, true, 'no welcome on a replay link');
   assert.equal(b.element('replay-banner').hidden, false); assert.match(b.element('replay-banner').textContent, /^Replay/);
@@ -562,6 +570,8 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.equal(b.rendered.duel.tick, ticksA, 'same final tick as the recorded fight');
   assert.deepEqual(b.rendered.finish, finishA, 'same finish');
   assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'a replay writes nothing to the card');
+  assert.ok(!b.storage.getItem('frankendom.fight.v1'), 'a watched fight is never marked as walked away from (the viewer\'s next boot would score a loss)');
+  assert.equal(b.storage.getItem('frankendom.scorecard.v1'), cardBefore, 'a replay scores nothing');
   assert.equal(b.element('reset-button').textContent, 'Avenge him');
   assert.equal(b.element('share-button').hidden, true, 'a replay is not re-shared from the viewer');
   // Avenge him: live, same seed, practice only.
@@ -590,6 +600,9 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   assert.equal(broken.element('replay-banner').textContent, 'Loading the fight…', 'the link is picked up at boot');
   await settle(() => broken.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(broken.element('replay-banner').textContent, /cannot be played/);
+  broken.tick(); wrong.tick();
+  assert.equal(broken.storage.getItem('frankendom.fight.v1'), null, 'a refused link leaves the page a viewer: no AFK mark');
+  assert.equal(wrong.storage.getItem('frankendom.fight.v1'), null, 'a link for another opponent: no AFK mark either');
 });
 test('kill links: a signed-in fighter\'s Share stores the record and the link carries the short id; a guest\'s link carries the record; a short link without a fight store is refused', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -624,6 +637,55 @@ test('autopsy: a death puts at most two plain lines on the death screen, the sam
   assert.deepEqual(card.rows.veteran.last, lines, 'the journal keeps the last fight\'s lines under the opponent');
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
   assert.equal(el.hidden, true, 'a rematch clears the autopsy');
+});
+test('daily warden: a build without the account service refuses ?daily=1 with a banner and fights as usual; the journal says so too', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const app = boot({}, undefined, {}, '?opponent=veteran&daily=1');
+  assert.equal(app.element('welcome').hidden, true, 'a daily link is picked up at boot');
+  await settle(() => app.element('replay-banner').textContent !== 'Asking for today\'s warden…');
+  assert.match(app.element('replay-banner').textContent, /^No daily warden: this build has no daily warden/);
+  app.tick(); app.key('KeyF'); app.tick(); assert.ok(app.rendered, 'the ordinary fight runs');
+  app.element('journal-button').dispatchEvent(new Event('click'));
+  await settle(() => app.element('daily-status').textContent !== '');
+  assert.equal(app.element('daily-status').textContent, 'The daily warden needs the account service.');
+  assert.equal(app.element('daily-board').hidden, true);
+});
+test('daily warden: the attempt is spent the moment the fight starts, a reload mid-fight finds it spent and fights as usual, and the result posts exactly once', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const fetchDaily = dailyModule.fetchDaily, inserts: Record<string, unknown>[] = [];
+  dailyModule.fetchDaily = async () => ({ day: '2026-09-22', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  session.db = { from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }) } as never; session.userId = 'user-7';
+  try {
+    const a = boot({}, undefined, {}, '?opponent=veteran&daily=1');
+    await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
+    assert.equal(a.element('replay-banner').textContent, 'Daily #0 · the Veteran');
+    assert.deepEqual(JSON.parse(a.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: false }, 'the attempt is spent at the start, before any result');
+    // The frustrated reload mid-fight: same device, same day, no result yet — the day is spent, the page fights as usual, nothing posts.
+    const b = boot({}, undefined, { 'frankendom.daily.v1': a.storage.getItem('frankendom.daily.v1')! }, '?opponent=veteran&daily=1');
+    await settle(() => /^Daily #0/.test(b.element('replay-banner').textContent));
+    assert.equal(b.element('replay-banner').textContent, 'Daily #0 · today\'s attempt is spent');
+    b.tick(); b.key('KeyF'); for (let i = 0; i < 6000 && !b.rendered.finish; i++) b.tick();
+    assert.ok(b.rendered.finish, 'the ordinary fight ends'); await new Promise((r) => setTimeout(r, 40));
+    assert.equal(inserts.length, 0, 'a spent day posts nothing');
+    assert.deepEqual(JSON.parse(b.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: false }, 'the reload changed nothing');
+    // The live attempt ends: one post, then the device says posted; a second death on the same page cannot post again.
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish, 'the daily fight ends');
+    await settle(() => /Posted|Not posted/.test(a.element('share-status').textContent));
+    assert.equal(a.element('share-status').textContent, 'Posted to today\'s board.');
+    assert.equal(inserts.length, 1); assert.equal(inserts[0].day, '2026-09-22'); assert.equal(inserts[0].user_id, 'user-7'); assert.equal(inserts[0].outcome, 'died'); assert.equal(inserts[0].number, 0);
+    assert.deepEqual(JSON.parse(a.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: true, outcome: 'died', ticks: inserts[0].ticks });
+    a.element('reset-button').dispatchEvent(new Event('click')); a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish); await new Promise((r) => setTimeout(r, 40));
+    assert.equal(inserts.length, 1, 'the rematch after the daily is practice: no second post');
+  } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; session.db = null; session.userId = null; }
+});
+test('account: every persist of the fighter fires the profile beat the account listens to for its automatic cloud save', () => {
+  const app = boot(); let beats = 0; app.window.addEventListener('frankendom:profile', () => { beats++; });
+  (app.element('fighter-name') as unknown as { value: string }).value = 'Aldren';
+  app.element('name-form').dispatchEvent(new Event('submit', { cancelable: true }));   // the name form persists, like a won fight or a journal pick
+  assert.equal(beats, 1, 'persist() fires the beat once');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).name, 'Aldren', 'and the fighter is saved on the device first');
 });
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
@@ -677,4 +739,29 @@ test('a failed rig load retries when the page returns to the foreground, when th
   assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the rigs landed: controls enable');
   status.dispatchEvent(new Event('click')); app.document.dispatchEvent(new Event('visibilitychange'));
   assert.equal(app.retries, 3, 'after success nothing retries');
+});
+
+test('loot: the equipped set dresses the rig at boot, the journal shows the paperdoll and the rack, and Wear / Worn / Store change both', () => {
+  const app = boot({ loot: { owned: ['veteran.Helmet', 'nightborn.Body'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 3, healthLeft: 12, recordId: 'k7Qm2x_A', day: '2026-09-21' } } } });
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'the scene is told the worn set at boot, before any fight');
+  app.element('journal-button').click();
+  const rack = () => app.element('loot-rack').children, row = (i: number) => rack()[i]!;
+  assert.equal(rack().length, 5, 'five tiles, owned first, the rest empty');
+  assert.equal(row(0).attributes.get('data-loot'), 'veteran.Helmet'); assert.equal(row(0).attributes.get('data-worn'), 'true'); assert.equal(row(0).attributes.get('tabindex'), '0');
+  assert.deepEqual(row(0).children.map(c => c.textContent), ["the Veteran's helmet", '', 'Worn'], 'name, the caption (its text is in its children), the button');
+  assert.deepEqual(row(0).children[1]!.children.map(c => c.textContent), ["The Veteran's helmet", ' · your 3rd attempt, 12 health left', ' ', 'Watch'], 'brief 9: the caption starts with the piece name in bold, the Watch link only once the fight is published');
+  assert.equal(row(0).children[1]!.children[3]!.attributes.get('href'), '/?r=k7Qm2x_A');
+  assert.equal(row(1).attributes.get('data-worn'), 'false'); assert.equal(row(1).children.length, 2, 'no provenance, no caption'); assert.equal(row(1).children[1]!.textContent, 'Wear');
+  assert.equal(row(2).className, 'rack-empty'); assert.equal(row(4).className, 'rack-empty');
+  assert.equal(app.element('slot-head-name').textContent, "the Veteran's helmet"); assert.ok(app.element('slot-head').classList.contains('on')); assert.equal(app.element('slot-head-off').hidden, false);
+  assert.equal(app.element('slot-chest-name').textContent, 'Empty'); assert.ok(!app.element('slot-chest').classList.contains('on')); assert.equal(app.element('slot-chest-off').hidden, true);
+  assert.equal(app.element('slot-main-name').textContent, 'Longsword'); assert.ok(app.element('slot-main').classList.contains('on'));
+  row(1).children[1]!.click();
+  assert.deepEqual(app.worn, ['veteran.Helmet', 'nightborn.Body']); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.equipped.chest, 'nightborn.Body', 'a Wear persists');
+  assert.equal(row(1).children[1]!.textContent, 'Worn'); assert.equal(app.element('slot-chest-name').textContent, "the Nightborn's body");
+  row(1).children[1]!.click();
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Worn taps off again'); assert.equal(app.element('slot-chest-name').textContent, 'Empty');
+  app.element('slot-head-off').click();
+  assert.deepEqual(app.worn, []); assert.equal(app.element('slot-head-name').textContent, 'Empty'); assert.equal(app.element('slot-head-off').hidden, true); assert.equal(row(0).attributes.get('data-worn'), 'false');
+  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.owned, ['veteran.Helmet', 'nightborn.Body'], 'nothing is lost by taking it off');
 });

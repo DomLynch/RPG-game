@@ -83,6 +83,7 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('Blocked', { perfect: false })]), ['block']);
   assert.deepEqual(names([ev('Blocked', { perfect: true })]), ['block_perfect']);
   assert.deepEqual(names([ev('Parried')]), ['parry']);
+  assert.deepEqual(names([ev('Whipped')]), ['whip']);   // the anti-turtling lash's only feedback
   assert.deepEqual(names([ev('GuardBroken')]), ['guard_break', 'hit_flesh']);
   assert.deepEqual(names([ev('AttackStarted', { move: 'light_right' })]), ['whoosh_light']);
   assert.deepEqual(names([ev('AttackStarted', { move: 'heavy_riposte' })]), ['whoosh_heavy']);

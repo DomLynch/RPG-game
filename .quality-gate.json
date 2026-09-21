@@ -210,6 +210,10 @@
     [
       "node",
       "scripts/record-replay-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/kill-link-check.mjs"
     ]
   ],
   "extended_commands": [
