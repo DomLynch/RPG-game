@@ -687,7 +687,9 @@ test('Opened cuts each shipped humanoid at the waist, keeps its materials, groun
     const fleshBox=new Box3(); for(const part of torso.children)if(!part.userData.openedWeapon)fleshBox.expandByObject(part,true);
     assert.ok(fleshBox.min.y<.04 && fleshBox.min.y>-.012,`${file}: the torso itself rests on sand, not floating on its weapon`);
     const killer={x:placed.position.x+Math.sin(.8)*1.9,z:placed.position.z+Math.cos(.8)*1.9};
-    const cameraPose=finisherSidePose(killer,{x:placed.position.x,z:placed.position.z},393/852,'opened');
+    // The scene fits the side view to the measured reach of the landed pieces (camera.ts `reach`); feed the same measurement.
+    let reach=0; for(const half of opened.children.slice(0,2)){ const b=new Box3().setFromObject(half,true); for(const x of [b.min.x,b.max.x])for(const z of [b.min.z,b.max.z]) reach=Math.max(reach,Math.hypot(x-placed.position.x,z-placed.position.z)); }
+    const cameraPose=finisherSidePose(killer,{x:placed.position.x,z:placed.position.z},393/852,'opened',1,reach);
     const camera=new PerspectiveCamera(51,393/852,.1,180);camera.position.set(cameraPose.x,cameraPose.y,cameraPose.z);camera.lookAt(cameraPose.lookX,cameraPose.lookY,cameraPose.lookZ);camera.updateMatrixWorld();
     for(const half of opened.children.slice(0,2)) {
       const b=new Box3().setFromObject(half,true);

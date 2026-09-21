@@ -244,7 +244,7 @@ export function createScene(
   // fight showed and feeds this fight's pick; `fightFinisher` is this fight's, rolled into `lastFinisher` when the next
   // fight starts (practice.finish clears on rematch). Presentation state only — the simulation never sees it.
   let lastFinisher: FinisherId | null = null, fightFinisher: FinisherId | null = null;
-  let openedReach = 0;   // Opened: farthest horizontal extent of the landed pieces from the fallen's origin (camera fit)
+  let openedReach = 0;   // Opened / Quiet One: farthest horizontal extent of what lies on the sand, from the fallen's origin (camera fit)
   let impact = 0,
     lastHealth: number = RULES.health,
     lastPlayerHealth: number = RULES.health;
@@ -675,21 +675,24 @@ export function createScene(
           canScuff(theirs.pose, enemyTravel),
         ],
       );
-      // Opened: measure how far the landed pieces reach from the fallen's origin (world bounds of torso, legs and the dropped
-      // weapon), so the side view fits what actually landed. Monotonic — the camera only ever backs off, never creeps in.
-      // Only while the pieces can still move (the victim clip places them until progress 1); after that the value is frozen —
-      // a precise bounds traversal of the corpse meshes has no business running 60× a second while the player sits on the tableau.
-      if (finisher === 'opened' && practice.finish?.victim === 1 && warriors && victimProgress < 1) {
-        const pieces = warriors.opponent.anchor.getObjectByName('Opened');
-        if (pieces?.visible) {
-          const origin = warriors.opponent.anchor.getWorldPosition(new THREE.Vector3());
-          for (const piece of pieces.children) {
-            if (!piece.visible || !piece.children.length) continue;
+      // Reach: the farthest horizontal extent of what actually lies on the sand — Opened's pieces, or the Quiet One's fallen
+      // rig (it settles onto its side, up to a body length from its origin; a heading-π kill by the wall put the Executioner
+      // off the portrait's left edge, release check 17 on fdd6032) — from the fallen's origin, for the side-view fit.
+      // Measured only while the victim clip still moves things, then frozen; monotonic, and its growth is rate-limited so
+      // the camera's back-off never exceeds the reveal's per-frame step when a toppling piece's bounds jump (check 20).
+      if ((finisher === 'opened' || finisher === 'quietOne') && practice.finish?.victim === 1 && warriors && victimProgress < 1) {
+        const anchor = warriors.opponent.anchor, subject = finisher === 'opened' ? anchor.getObjectByName('Opened') : anchor;
+        let measured = 0;
+        if (subject?.visible) {
+          const origin = anchor.getWorldPosition(new THREE.Vector3());
+          for (const piece of finisher === 'opened' ? subject.children : [subject]) {
+            if (!piece.visible || (finisher === 'opened' && !piece.children.length)) continue;
             const box = new THREE.Box3().setFromObject(piece, true);
             if (box.isEmpty()) continue;
-            for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) openedReach = Math.max(openedReach, Math.hypot(x - origin.x, z - origin.z));
+            for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) measured = Math.max(measured, Math.hypot(x - origin.x, z - origin.z));
           }
         }
+        openedReach = Math.min(Math.max(openedReach, measured), openedReach + 0.015);   // ≤ 1.5 cm of reach per frame
       } else if (!practice.finish) openedReach = 0;
       rig.update(dt, state, practice.enemy, locked, practice.finish ? {
         finisher, posed: !!finisherPose, draw: !!practice.finish.draw, victim: practice.finish.victim, clock: finishClock,
