@@ -6,6 +6,9 @@ import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { ARENA_MANIFEST } from '../src/audio/arena-manifest.ts';
+import { SPRITE_SECONDS } from '../src/audio/manifest.ts';
+// Which decoded buffer is which: the combat sprite is recognised by its own length (the manifest's), the arena bank is the other
+// long buffer. The old rule 'longer than 39 s is the bank' broke the moment the sprite passed 39 s (#286, deploy #44 check 22).
 import { CUE_PROBES } from '../src/audio/exchange.ts';
 const out = process.env.ARENA_RECEIPT_DIR || 'artifacts/audio/arena-life'; await fs.mkdir(out, { recursive: true });
 const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'error', server: { host: '127.0.0.1', port: 0 }, optimizeDeps: { noDiscovery: true, include: [] } }); await server.listen();
@@ -17,7 +20,7 @@ let production, inspectedUi;
 try {
  if (!process.argv.includes('--ui-only')) {
  const page = await browser.newPage(); page.on('pageerror', e => report.errors.push(String(e)));
- await page.route(`${origin}/harness`, r => r.fulfill({ contentType: 'text/html', body: `<script type="module">import {createFeedback} from '/src/feedback.ts';import {loadArena} from '/src/audio/arena.ts';import {ARENA_MANIFEST} from '/src/audio/arena-manifest.ts';window.h={createFeedback,loadArena,ARENA_MANIFEST};</script>` }));
+ await page.route(`${origin}/harness`, r => r.fulfill({ contentType: 'text/html', body: `<script type="module">import {createFeedback} from '/src/feedback.ts';import {loadArena} from '/src/audio/arena.ts';import {ARENA_MANIFEST} from '/src/audio/arena-manifest.ts';import {SPRITE_SECONDS} from '/src/audio/manifest.ts';window.h={createFeedback,loadArena,ARENA_MANIFEST,isBank:d=>d>20&&Math.abs(d-SPRITE_SECONDS)>=.05};</script>` }));
  await page.goto(`${origin}/harness`); await page.waitForFunction(() => !!window.h);
  report.codecs = await page.evaluate(async () => {
   const ctx = new OfflineAudioContext(1, 48000, 48000), results = {};
@@ -35,7 +38,7 @@ try {
  const render = async (script, duration = 42, failure = false, startTick = 0) => page.evaluate(async ({ script, duration, failure, startTick }) => {
   const ctx = new OfflineAudioContext(1, duration * 48000, 48000), starts = [], original = ctx.createBufferSource.bind(ctx); let now = 0;
   ctx.createBufferSource = () => { const source = original(), start = source.start.bind(source), stop = source.stop.bind(source); let entry;
-   source.start = (...args) => { const name = source.buffer.duration > 39 ? Object.entries(window.h.ARENA_MANIFEST).find(([, r]) => r.some(([offset]) => Math.abs(offset - args[1]) < .00001))?.[0] : source.buffer.duration === window.h.ARENA_MANIFEST.bell[0][1] ? 'bell' : 'combat'; entry = { name, at: args[0], offset: args[1], end: args[0] + args[2] / source.playbackRate.value }; starts.push(entry); return start(...args); };
+   source.start = (...args) => { const name = window.h.isBank(source.buffer.duration) ? Object.entries(window.h.ARENA_MANIFEST).find(([, r]) => r.some(([offset]) => Math.abs(offset - args[1]) < .00001))?.[0] : source.buffer.duration === window.h.ARENA_MANIFEST.bell[0][1] ? 'bell' : 'combat'; entry = { name, at: args[0], offset: args[1], end: args[0] + args[2] / source.playbackRate.value }; starts.push(entry); return start(...args); };
    source.stop = (time) => { if (entry) entry.end = Math.min(entry.end, time); return stop(time); }; return source;
   };
   const fetchOriginal = window.fetch;
@@ -91,7 +94,7 @@ try {
  report.delayed = await page.evaluate(async () => {
   const ctx = new OfflineAudioContext(1, 48000, 48000); let now = 0, count = 0, release; const original = ctx.decodeAudioData.bind(ctx), create = ctx.createBufferSource.bind(ctx);
   ctx.createBufferSource = () => { count++; return create(); };
-  ctx.decodeAudioData = async data => { const b = await original(data); if (b.duration > 39) await new Promise(resolve => { release = resolve; }); return b; };
+  ctx.decodeAudioData = async data => { const b = await original(data); if (window.h.isBank(b.duration)) await new Promise(resolve => { release = resolve; }); return b; };
   const f = window.h.createFeedback({ context: ctx, now: () => now }); f.unlock(); f.update([], undefined, { match: 1, ended: false, tick: 1 });
   while (!release) await new Promise(resolve => setTimeout(resolve, 10));
   const before = count; f.quiet(); release(); await f.ready(); now = .1; f.update([], undefined, { match: 1, ended: false, tick: 1 }); if (count !== before) throw Error('decode resurrected playback'); return true;
@@ -127,11 +130,12 @@ try {
  const ui = await browser.newPage({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true }); inspectedUi = ui;
  const stage = name => { report.nativeStep = name; console.log(name); };
  ui.on('pageerror', e => report.errors.push(String(e))); await ui.route('**/*sentry.io/**', r => r.abort());
- await ui.addInitScript(([bellOffset, bellSeconds]) => {
+ await ui.addInitScript(([bellOffset, bellSeconds, spriteSeconds]) => {
+  const isBank = d => d > 20 && Math.abs(d - spriteSeconds) >= .05;
   window.__arena = []; const start = AudioBufferSourceNode.prototype.start, stop = AudioBufferSourceNode.prototype.stop; let id = 0; const entries = new WeakMap();
-  AudioBufferSourceNode.prototype.start = function(...args) { if (this.buffer?.duration > 39 || this.buffer?.duration === bellSeconds) { const entry = { id: ++id, offset: this.buffer.duration === bellSeconds ? bellOffset : args[1], when: args[0] }; entries.set(this, entry); this.addEventListener('ended', () => { entry.ended = true; }); window.__arena.push(entry); } return start.apply(this, args); };
+  AudioBufferSourceNode.prototype.start = function(...args) { if ((this.buffer && isBank(this.buffer.duration)) || this.buffer?.duration === bellSeconds) { const entry = { id: ++id, offset: this.buffer.duration === bellSeconds ? bellOffset : args[1], when: args[0] }; entries.set(this, entry); this.addEventListener('ended', () => { entry.ended = true; }); window.__arena.push(entry); } return start.apply(this, args); };
   AudioBufferSourceNode.prototype.stop = function(...args) { const entry = entries.get(this); if (entry) entry.stopped = true; return stop.apply(this, args); };
- }, ARENA_MANIFEST.bell[0]);
+ }, [...ARENA_MANIFEST.bell[0], SPRITE_SECONDS]);
  stage('load');
  await ui.goto(process.env.QA_URL || `http://127.0.0.1:${production.httpServer.address().port}`);
  await ui.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
