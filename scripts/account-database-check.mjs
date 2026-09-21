@@ -1,4 +1,6 @@
-// Real PostgreSQL role/RLS verification in a disposable, socket-only cluster. Never touches a hosted project.
+// Real PostgreSQL role/RLS verification in a disposable, socket-only cluster: a fresh `initdb` cluster on a Unix socket in a
+// tempdir, torn down in `finally`. No DATABASE_URL, no SUPABASE_* env var and no service-role key is ever read here — this
+// check cannot reach a hosted project even if one were configured, and it never should be made to.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,7 +15,8 @@ let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
   run('pg_ctl', ['-D', join(root, 'data'), '-l', join(root, 'server.log'), '-o', `-k ${root} -c listen_addresses=''`, '-w', 'start']); started = true;
-  const bootstrap = `create role anon; create role authenticated;
+  const bootstrap = `create extension pgcrypto;
+    create role anon; create role authenticated;
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
@@ -89,8 +92,52 @@ try {
       begin update public.fighter_profiles set victory_marks=-1 where user_id=auth.uid(); raise exception 'Negative marks allowed'; exception when check_violation then null; end;
       begin update public.fighter_profiles set victory_marks=100001 where user_id=auth.uid(); raise exception 'Absurd marks allowed'; exception when check_violation then null; end;
     end$$;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures);
-  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes. No hosted database changed.');
+  // Brief 3/4/5 (fight_records, the daily warden, loot). Owner = user 1 throughout; user 2 exercises the cross-owner and
+  // wrong-day refusals so a duplicate-key error never masks what's actually under test.
+  const dailyLoot = `set time zone 'UTC';   -- the migration's future-day guard keys on the UTC date; current_date below must agree east or west of Greenwich
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    insert into public.fight_records(id,user_id,opponent,record) values('AAAAAAAA',auth.uid(),'veteran','abc123_-ABC');
+    do $$begin
+      if not exists(select 1 from public.fight_records where id='AAAAAAAA') then raise exception 'Fight record insert failed'; end if;
+      begin insert into public.fight_records(id,user_id,opponent,record) values('BBBBBBBB','22222222-2222-4222-8222-222222222222','veteran','abc'); raise exception 'Cross-owner fight record insert allowed'; exception when insufficient_privilege then null; end;
+      begin update public.fight_records set opponent='pitborn' where id='AAAAAAAA'; raise exception 'Fight record update allowed'; exception when insufficient_privilege then null; end;
+      begin delete from public.fight_records where id='AAAAAAAA'; raise exception 'Fight record delete allowed'; exception when insufficient_privilege then null; end;
+      begin perform secret from public.daily_secret; raise exception 'Authenticated read of the daily secret allowed'; exception when insufficient_privilege then null; end;
+      if (select seed from public.daily_fight(current_date)) is null then raise exception 'Authenticated cannot fetch today''s daily seed'; end if;
+      if exists(select 1 from public.daily_fight(current_date + 1)) then raise exception 'A future daily seed was answered'; end if;
+    end$$;
+    insert into public.daily_results(day,user_id,number,opponent,weapon,outcome,ticks,location,taken,record)
+      values(current_date,auth.uid(),(current_date - date '2026-09-22')::integer,'veteran','longsword','killed',120,'torso',3,'abc123_-ABC');
+    do $$begin
+      if (select count(*) from public.daily_results where day=current_date) <> 1 then raise exception 'Daily result insert failed'; end if;
+      begin insert into public.daily_results(day,user_id,number,opponent,weapon,outcome,ticks,record) values(current_date,auth.uid(),(current_date - date '2026-09-22')::integer,'veteran','longsword','killed',5,'xyz'); raise exception 'A second daily result today was allowed'; exception when unique_violation then null; end;
+      begin update public.daily_results set outcome='draw' where day=current_date; raise exception 'Daily result update allowed'; exception when insufficient_privilege then null; end;
+      begin delete from public.daily_results where day=current_date; raise exception 'Daily result delete allowed'; exception when insufficient_privilege then null; end;
+      update public.fighter_profiles set loot='{"owned":["helm.veteran"],"equipped":{"head":"helm.veteran"}}'::jsonb where user_id=auth.uid();
+      if (select loot->'owned' from public.fighter_profiles where user_id=auth.uid()) is null then raise exception 'Loot save failed'; end if;
+      begin update public.fighter_profiles set loot='"not an object"'::jsonb where user_id=auth.uid(); raise exception 'Non-object loot allowed'; exception when check_violation then null; end;
+      begin update public.fighter_profiles set loot='{"owned":"not-array","equipped":{}}'::jsonb where user_id=auth.uid(); raise exception 'Malformed loot owned array allowed'; exception when check_violation then null; end;
+    end$$;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    do $$begin
+      begin insert into public.daily_results(day,user_id,number,opponent,weapon,outcome,ticks,record) values(current_date,auth.uid(),999,'veteran','longsword','killed',5,'xyz'); raise exception 'A mismatched day/number was allowed'; exception when check_violation then null; end;
+      begin insert into public.daily_results(day,user_id,number,opponent,weapon,outcome,ticks,record) values(current_date - 1,auth.uid(),(current_date - 1 - date '2026-09-22')::integer,'veteran','longsword','killed',5,'xyz'); raise exception 'Posting yesterday''s result was allowed'; exception when insufficient_privilege then null; end;
+    end$$;
+    set role anon;
+    do $$begin
+      if not exists(select 1 from public.fight_records where id='AAAAAAAA') then raise exception 'Guest cannot read a shared fight record'; end if;
+      begin insert into public.fight_records(id,user_id,opponent,record) values('CCCCCCCC','11111111-1111-4111-8111-111111111111','veteran','abc'); raise exception 'Anonymous fight record insert allowed'; exception when insufficient_privilege then null; end;
+      begin perform secret from public.daily_secret; raise exception 'Anonymous read of the daily secret allowed'; exception when insufficient_privilege then null; end;
+      if (select seed from public.daily_fight(current_date)) is null then raise exception 'Guest cannot fetch today''s daily seed'; end if;
+      if not exists(select 1 from public.daily_results where day=current_date) then raise exception 'Guest cannot read the day''s results'; end if;
+      begin perform user_id from public.daily_results where day=current_date limit 1; raise exception 'Anonymous read of daily_results.user_id allowed'; exception when insufficient_privilege then null; end;
+      begin perform record from public.daily_results where day=current_date limit 1; raise exception 'Anonymous read of daily_results.record allowed'; exception when insufficient_privilege then null; end;
+      if not exists(select 1 from public.daily_board where day=current_date) then raise exception 'Guest cannot read the daily board'; end if;
+    end$$;
+    reset role;`;
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + dailyLoot);
+  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records/daily warden/loot RLS (public read minus secret columns, owner-once insert, no update or delete, future-day refusal, day/number integrity, loot shape bounds). No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
