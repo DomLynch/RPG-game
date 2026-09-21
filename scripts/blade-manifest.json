@@ -1,14 +1,16 @@
 {
-  "_comment": "One entry per weapon: the rig that carries it, the node whose local Y runs along the striking part, and the contact segment (metres along that Y) the simulation sweeps. If the node carries extras.contact = { from, to } in the GLB it overrides `contact` here. The weapons lane adds an entry per weapon; scripts/bake-blades.mjs writes src/blade-paths.ts keyed by weapon.",
+  "_comment": "One entry per weapon: the rig that carries it, the node whose local Y runs along the striking part, and the contact segment (metres along that Y) the simulation sweeps. If the node carries extras.contact = { from, to } in the GLB it overrides `contact` here. The weapons lane adds an entry per weapon; scripts/bake-blades.mjs writes src/blade-paths.ts keyed by weapon. `rig` names the model a table was baked on ('hero' = the man/player skeleton; a re-proportioned or creature rig gets its own name and the sim never serves its table to another rig). `attach` bakes a player equip file (scripts/build-player-weapon.mjs) worn by the rig in `glb`. The first entry per weapon is the one the flat bladePaths export carries.",
   "weapons": [
-    {"weapon": "longsword", "glb": "src/assets/warrior.glb", "node": "SwordDrawn", "contact": [0.18, 0.86]},
-    {"weapon": "trident", "glb": "src/assets/veteran.glb", "node": "WeaponDrawn", "contact": [0.76, 1.22]},
-    {"weapon": "cleaver", "glb": "src/assets/weapons/cleaver/veteran-cleaver.glb", "node": "WeaponDrawn", "contact": [0.14, 0.86]},
-    {"weapon": "knife", "glb": "src/assets/goblin.glb", "node": "WeaponDrawn", "contact": [0.12, 0.52]},
-    {"weapon": "estoc", "glb": "src/assets/weapons/estoc/nightborn-estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15]},
-    {"weapon": "scythe", "glb": "src/assets/weapons/scythe/warrior-scythe.glb", "node": "WeaponDrawn", "contact": [1.22, 1.32]},
-    {"weapon": "warhammer", "glb": "src/assets/weapons/warhammer/veteran-warhammer.glb", "node": "WeaponDrawn", "contact": [0.705, 0.815]},
-    {"weapon": "maul", "glb": "src/assets/minotaur.glb", "node": "WeaponDrawn", "contact": [0.73, 1.11], "scale": 1},
-    {"weapon": "reaper", "glb": "src/assets/wraith.glb", "node": "ReaperEdge", "contact": [0, 0.868], "scale": 1.5}
+    {"weapon": "longsword", "rig": "hero", "glb": "src/assets/warrior.glb", "node": "SwordDrawn", "contact": [0.18, 0.86]},
+    {"weapon": "trident", "rig": "hero", "glb": "src/assets/veteran.glb", "node": "WeaponDrawn", "contact": [0.76, 1.22]},
+    {"weapon": "cleaver", "rig": "hero", "glb": "src/assets/weapons/cleaver/veteran-cleaver.glb", "node": "WeaponDrawn", "contact": [0.14, 0.86]},
+    {"weapon": "knife", "rig": "goblin", "glb": "src/assets/goblin.glb", "node": "WeaponDrawn", "contact": [0.12, 0.52]},
+    {"weapon": "estoc", "rig": "nightborn", "glb": "src/assets/weapons/estoc/nightborn-estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15]},
+    {"weapon": "scythe", "rig": "hero", "glb": "src/assets/weapons/scythe/warrior-scythe.glb", "node": "WeaponDrawn", "contact": [1.22, 1.32]},
+    {"weapon": "warhammer", "rig": "hero", "glb": "src/assets/weapons/warhammer/veteran-warhammer.glb", "node": "WeaponDrawn", "contact": [0.705, 0.815]},
+    {"weapon": "maul", "rig": "minotaur", "glb": "src/assets/minotaur.glb", "node": "WeaponDrawn", "contact": [0.73, 1.11], "scale": 1},
+    {"weapon": "reaper", "rig": "wraith", "glb": "src/assets/wraith.glb", "node": "ReaperEdge", "contact": [0, 0.868], "scale": 1.5},
+    {"weapon": "knife", "rig": "hero", "glb": "src/assets/warrior.glb", "attach": "src/assets/weapons/player/knife.glb", "node": "WeaponDrawn", "contact": [0.12, 0.52]},
+    {"weapon": "estoc", "rig": "hero", "glb": "src/assets/warrior.glb", "attach": "src/assets/weapons/player/estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15]}
   ]
 }
