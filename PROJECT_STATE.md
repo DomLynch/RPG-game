@@ -7,7 +7,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Lead | [docs/state/lead.md](docs/state/lead.md) | 20 | 2026-09-21 — Release check 9 (polearm-browser-check) became checks 9–12; everything after ren |
 | Combat | [docs/state/combat.md](docs/state/combat.md) | 34 | 2026-09-21 — Anti-turtling — combat half (sim rules + warden), 2026-09-21 |
 | Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 15 | 2026-09-21 — Player-wieldable weapons — equip files + blade tables by rig (weapons lane, Brief ) |
-| Character | [docs/state/character.md](docs/state/character.md) | 16 | 2026-09-20 — Dwarf v2 — owner-approved look, character lane (2026-09-20) |
+| Character | [docs/state/character.md](docs/state/character.md) | 17 | 2026-09-21 — Loot export v1 — Brief 5, Scalable Chars lane, 2026-09-21 (Strategy's assignment on the owner's "take t |
 | Finishers & gore | [docs/state/finishers.md](docs/state/finishers.md) | 14 | 2026-09-21 — Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-li |
 | Visuals & world | [docs/state/world.md](docs/state/world.md) | 11 | 2026-09-20 — Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentati |
 | Sounds & music | [docs/state/audio.md](docs/state/audio.md) | 7 | 2026-09-20 — Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five p |
