@@ -196,7 +196,7 @@ test('the renderer builds a trident fighter without throwing, keeps the weapon i
   assert.throws(() => buildWarriors(hero, hero, ['longsword', 'trident']), /Warrior is missing Trident_Idle/);
   assert.throws(() => buildWarriors(hero, undefined, ['longsword', 'trident']), /one weapon/);
   // The trail: the ribbon's first live sample spans the contact segment (from → to) on the weapon node, not the sword's blade constants.
-  const ribbon = opponent.anchor.children.find(c => c !== opponent.anchor.children[0]) as { geometry: { attributes: { position: { array: Float32Array } }, drawRange: { count: number } } };
+  const ribbon = opponent.anchor.children.find(c => c !== opponent.anchor.children[0]) as unknown as { geometry: { attributes: { position: { array: Float32Array } }, drawRange: { count: number } } };
   for (let i = 0; i < 30; i++) opponent.update(0, 1 / 60, 'ready', 1);
   opponent.update(0, 1 / 60, 'attack', .4, 'light', .35); opponent.update(0, 1 / 60, 'attack', .42, 'light', .35);
   assert.ok(ribbon.geometry.drawRange.count > 0, 'a live swing frame samples the trail');

@@ -213,7 +213,7 @@ export const feintAndPunish = (d: Duel): Intent => {
 export const chargePast = (d: Duel): Intent => {
   const p = d.fighters[0], w = d.fighters[1];
   if (p.phase === 'attack' && p.move === 'heavy_overhead' && !p.landed) return { ...idle(), held: !(p.charged && (w.phase !== 'guard' || !w.parrying)) };
-  if (p.phase === 'ready' && !p.exposed && gap(d) <= 1.8) return act('heavy', { held: true } as Partial<Intent>);
+  if (p.phase === 'ready' && !p.exposed && gap(d) <= 1.8) return { ...act('heavy'), held: true };
   return idle();
 };
 

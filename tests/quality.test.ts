@@ -35,13 +35,13 @@ function fighterLike() {
   const root = new Group();
   const a = new Mesh(undefined, new MeshStandardMaterial({ map: big, normalMap: mid }));
   const b = new Mesh(undefined, new MeshStandardMaterial({ map: big, roughnessMap: small }));   // shares `big` with a
-  const c = new Mesh(undefined, [new MeshStandardMaterial({ normalMap: mid }), undefined]);      // mid shared; array materials
+  const c = new Mesh(undefined, [new MeshStandardMaterial({ normalMap: mid }), undefined as never]);      // mid shared; array materials
   root.add(a, b, c);
   return { root, big, mid, small };
 }
 
 test('budgetTextures resizes only the oversized unique textures, once each', () => {
-  const { root, big, mid, small } = fighterLike();
+  const { root, big, mid } = fighterLike();
   const calls: [Texture, number][] = [];
   const resize = (t: Texture, max: number) => { calls.push([t, max]); return Math.max((t.image as { width: number; height: number }).width, (t.image as { width: number; height: number }).height) > max; };
   const result = budgetTextures(root, FIGHTER_TEXTURE_CAP, resize);
