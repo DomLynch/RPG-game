@@ -94,6 +94,15 @@ try {
   const fightRecords = `set role authenticated;
     select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
     insert into public.fight_records(id,user_id,opponent,record) values('AAAAAAAA',auth.uid(),'veteran','abc123_-ABC');
+    do $$begin
+      -- fight_records_recent (the definer function backing the rate-limit policy) must still count correctly and still cap at
+      -- 30/hour after the select grant was narrowed: 29 more bring the owner to 30 (must all succeed), the 31st must be refused.
+      for i in 1..29 loop
+        insert into public.fight_records(id,user_id,opponent,record) values('RATE' || lpad(i::text, 4, '0'), auth.uid(), 'veteran', 'abc');
+      end loop;
+      if (select count(*) from public.fight_records) <> 30 then raise exception 'Rate-limited insert count is not 30 after 30 allowed inserts'; end if;
+      begin insert into public.fight_records(id,user_id,opponent,record) values('RATE0030',auth.uid(),'veteran','abc'); raise exception 'A 31st fight record within the hour was allowed'; exception when insufficient_privilege then null; end;
+    end$$;
     set role anon;
     do $$begin
       if not exists(select 1 from public.fight_records where id='AAAAAAAA') then raise exception 'Guest cannot find a shared fight record by id'; end if;
