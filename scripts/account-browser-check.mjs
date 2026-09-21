@@ -37,6 +37,9 @@ try {
       assert.equal(request.method(), 'GET'); assert.equal(url.searchParams.get('select'), 'user_id'); assert.equal(url.searchParams.get('user_id'), `eq.${user.id}`);
       return json(admin ? { user_id: user.id } : null);
     }
+    // The journal's daily line (PR #327) asks the server on every journal open, guest or not: today's warden and the day's board.
+    if (url.pathname === '/rest/v1/rpc/daily_fight') { assert.equal(request.method(), 'POST'); return json({ day: new Date().toISOString().slice(0, 10), number: 1, seed: 12345 }); }
+    if (url.pathname === '/rest/v1/daily_board') return json([]);
     assert.equal(url.pathname, '/rest/v1/fighter_profiles');
     assert.equal(url.searchParams.get('user_id'), request.method() === 'POST' ? null : `eq.${user.id}`);
     if (request.method() === 'GET') return failRead ? json({ message: 'Temporary service failure' }, 503) : json(row);
