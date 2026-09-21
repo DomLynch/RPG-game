@@ -71,7 +71,7 @@ test('guard side: the thumb still is the straight guard; past the slide threshol
 
 test('the versus card drifts from its first frame (owner: like the arena cam, no wait), and holds still under reduced motion', () => {
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  assert.match(css, /\.versus img \{[^}]*animation: versus-drift 5s ease-out infinite alternate;/, 'no delay, ease-out so the move reads inside the card hold');
-  assert.match(css, /@keyframes versus-drift \{[\s\S]{0,300}?scale\(1\.1\)/, 'a push-in, never a cut');
+  assert.match(css, /\.versus img \{[^}]*animation: versus-drift 6s ease-out infinite alternate;/, 'no delay, ease-out so the move reads inside the card hold');
+  assert.match(css, /@keyframes versus-drift \{[\s\S]{0,300}?scale\(1\.22\)/, 'a real push-in (owner: more movement), never a cut');
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.versus img \{ animation: none; \}/, 'reduced motion keeps the still');
 });
