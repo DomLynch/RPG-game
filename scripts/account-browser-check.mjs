@@ -76,7 +76,7 @@ try {
   assert.equal(new URL(page.url()).search, '');
   receipt.checks.push('Cancelled OAuth returns to usable journal and removes callback parameters');
   await page.evaluate(() => localStorage.setItem('frankendom.auth.v1-code-verifier', JSON.stringify('qa-verifier')));
-  row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80 };
+  row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80, loot: { owned: [], equipped: {} } };   // the cloud row carries the loot column (PR #330); a row without it is refused as invalid
   await page.goto(`${origin}/?account=return&code=qa-code`); await ready(page);
   // The sign-in merges the cloud fighter into the device and restarts once on it: the cloud's name and opponent, the higher mark count;
   // nothing is written up because the device had nothing the cloud lacked. No Save / Load buttons (owner 2026-09-21).
