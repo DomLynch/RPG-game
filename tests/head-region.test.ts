@@ -9,19 +9,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact, type HitLocation } from '../src/blade.ts';
-import { bladePaths } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/duel.ts';
 import { OPPONENTS, PATHS, PROFILES, WEAPONS, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 // The duel's registering rule (src/duel.ts): only the move's ACTIVE window is swept, and the first sweep sample inside
 // the 0.31·k capsule decides — replicated here against a static pair so the classification is tested without AI noise.
-function registeringLocation(weapon: string, kind: string, d: number, scale = 1): HitLocation | null {
+function registeringLocation(rig: string, weapon: string, kind: string, d: number, scale = 1): HitLocation | null {
   const spec = WEAPONS[weapon as WeaponId].paths[kind];
   assert.ok(spec, `${kind} is a combat path`);
   const at = { x: 0, z: d, heading: Math.PI, distance: 0 }, df = { x: 0, z: 0, heading: 0, distance: 0 };
   for (let age = spec.windup; age < spec.windup + spec.active; age++) {
-    const hit = bladeImpact(weapon, kind, age - 1, age, at, at, df, df, scale);
+    const hit = bladeImpact(rig, weapon, kind, age - 1, age, at, at, df, df, scale);
     if (hit) return hit;
   }
   return null;
@@ -29,11 +29,15 @@ function registeringLocation(weapon: string, kind: string, d: number, scale = 1)
 
 test('hit locations by the registering rule: only the cleaver arcs reach the head; every other weapon is torso/legs at every range', () => {
   const headPaths: string[] = [], surprises: string[] = [];
-  for (const [weapon, kinds] of Object.entries(bladePaths)) {
+  // The pairs in play: every opponent on his own rig (held ones too) and the player's longsword on the hero rig. The shelf's hero bakes of
+  // the loot weapons (blade seam, 2026-09-21) join this sweep when the player weapon flip ships and each pair is signed off by Combat.
+  const inPlay = new Set([...Object.values(OPPONENTS).map(o => `${o.rig}/${o.weapon}`), 'hero/longsword']);
+  for (const [rig, weapons] of Object.entries(bladePathsByRig)) for (const [weapon, kinds] of Object.entries(weapons)) {
+    if (!inPlay.has(`${rig}/${weapon}`)) continue;
     for (const kind of Object.keys(kinds)) {
       if (!PATHS[kind]) continue;   // death/finisher clips are not combat paths
       for (let d = 85; d <= 190; d += 5) {
-        const hit = registeringLocation(weapon, kind, d / 100);
+        const hit = registeringLocation(rig, weapon, kind, d / 100);
         if (!hit) continue;
         if (hit === 'head') headPaths.push(`${weapon}/${kind}`);
         if (hit === 'head' && weapon !== 'cleaver') surprises.push(`${weapon}/${kind}@${(d / 100).toFixed(2)}`);
