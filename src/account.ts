@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { loadProfile, saveProfile } from './profile.ts';
-import { readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { loadProfile, saveProfile, type Profile } from './profile.ts';
+import { fighterDetails, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
@@ -9,7 +9,7 @@ export async function mountAccount(url: string, key: string) {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const status = get('account-status'), identity = get('account-identity');
   const login = get<HTMLButtonElement>('account-login'), logout = get<HTMLButtonElement>('account-logout');
-  const save = get<HTMLButtonElement>('account-save'), restore = get<HTMLButtonElement>('account-load'), retry = get<HTMLButtonElement>('account-retry');
+  const retry = get<HTMLButtonElement>('account-retry');
   const db = createClient(url, key, {
     auth: { flowType: 'pkce', detectSessionInUrl: false, storageKey: 'frankendom.auth.v1' },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(10000)]) }) },
@@ -20,13 +20,28 @@ export async function mountAccount(url: string, key: string) {
   // Test tools follow the admins roster; ?debug (main.ts) keeps them open for the release checks whatever the account says.
   const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; };
   function render() {
-    login.hidden = !!userId; logout.hidden = save.hidden = restore.hidden = !userId;
-    for (const button of [login, logout, save, restore, retry]) button.disabled = busy;
-    save.disabled = busy || !retry.hidden;
-    restore.disabled = busy || !saved || !retry.hidden;
-    save.textContent = saved ? 'Replace cloud save' : 'Save fighter';
+    login.hidden = !!userId; logout.hidden = !userId;
+    for (const button of [login, logout, retry]) button.disabled = busy;
+    for (const id of ['save-status', 'journal-save']) get(id).textContent = userId ? 'Signed in · saved to your account' : 'Guest · saved on this device';   // the fighter card's save line (main.ts persist() writes the same)
   }
-  async function refresh() {
+  const local = () => loadProfile(localStorage, () => crypto.randomUUID()).profile;
+  // What the device would write, against what the cloud holds: a change of name or opponent, more marks, or a piece the cloud lacks.
+  const differs = (profile: Profile, cloud: CloudProfile) => { const mine = fighterDetails(profile); return mine.display_name !== cloud.display_name || mine.encounter !== cloud.encounter || mine.victory_marks > cloud.victory_marks || mine.loot.owned.some(id => !cloud.loot.owned.includes(id)); };
+  // The cloud save is automatic (owner 2026-09-21: no Save / Load buttons): the device writes whenever it has something the cloud lacks.
+  async function sync(profile: Profile, turn: number): Promise<boolean> {
+    if (!userId) return false;
+    try {
+      const result = await writeFighter(db, userId, profile, saved?.revision ?? null);
+      if (turn !== generation) return false;
+      saved = result; status.textContent = `Saved to your account as ${saved.display_name}.`; return true;
+    } catch {
+      if (turn === generation) { status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; retry.hidden = false; }
+      return false;
+    }
+  }
+  // A fresh sign-in on this device (merge = true): the cloud comes down — its name and opponent, the higher mark count, every piece of loot
+  // from either side — and the page restarts once on the merged fighter. Every later refresh only sends up what the device has gained.
+  async function refresh(merge = false) {
     const turn = ++generation;
     busy = true; saved = null; retry.hidden = true; render();
     status.textContent = 'Checking your account…';
@@ -43,8 +58,20 @@ export async function mountAccount(url: string, key: string) {
       const admin = userId ? await readAdmin(db, userId).catch(() => false) : false;
       if (turn !== generation) return;
       showTools(admin);
-      status.textContent = saved ? `Cloud fighter: ${saved.display_name}. Load it here, or replace it with this device’s fighter.`
-        : userId ? 'Save your fighter name, chosen opponent and career marks to this account.' : 'Sign in to keep your fighter name, opponent and career marks across devices.';
+      if (!userId) status.textContent = 'Sign in to keep your fighter name, opponent and career marks across devices.';
+      else if (!saved) await sync(local(), turn);   // the account's first fighter: this device's
+      else if (merge) {
+        const profile = local();
+        profile.name = saved.display_name; profile.encounter = saved.encounter ?? undefined;
+        const victoryMarks = Math.max(marksOf(profile), saved.victory_marks);
+        if (victoryMarks) profile.career = { victoryMarks };
+        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length) profile.loot = loot;   // loot: the union of both, nothing lost
+        if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
+        if (differs(profile, saved) && !(await sync(profile, turn))) return;
+        const target = new URL(location.href); target.searchParams.delete('opponent');
+        location.replace(target.href); return;
+      } else if (differs(local(), saved)) await sync(local(), turn);
+      else status.textContent = `Saved to your account as ${saved.display_name}.`;
     } catch {
       if (turn !== generation) return;
       status.textContent = 'Could not read your account. Retry before saving; your local fighter is safe.';
@@ -68,40 +95,8 @@ export async function mountAccount(url: string, key: string) {
     } catch { status.textContent = 'Sign-out failed. Please retry.'; busy = false; render(); }
   });
   retry.addEventListener('click', () => { void refresh(); });
-  save.addEventListener('click', async () => {
-    if (!userId || busy) return;
-    const turn = generation, owner = userId;
-    busy = true; render(); status.textContent = 'Saving fighter…';
-    try {
-      const local = loadProfile(localStorage, () => crypto.randomUUID());
-      if (!local.returning) throw Error('No readable local fighter');
-      const result = await writeFighter(db, owner, local.profile, saved?.revision ?? null);
-      if (turn !== generation) return;
-      saved = result; status.textContent = `Saved ${saved.display_name}. Save again here after changing your name or opponent.`;
-    } catch {
-      if (turn !== generation) return;
-      status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; retry.hidden = false;
-    } finally { if (turn === generation) { busy = false; render(); } }
-  });
-  restore.addEventListener('click', async () => {
-    if (!userId || busy || !saved) return;
-    const turn = generation;
-    busy = true; render();
-    try {
-      const latest = await readFighter(db, userId);
-      if (turn !== generation) return;
-      if (!latest) throw Error('Save no longer exists');
-      const { profile } = loadProfile(localStorage, () => crypto.randomUUID());
-      // Explicit load restarts practice. Keep the device ID. Marks never fall: the higher of the device and cloud counts survives a load.
-      profile.name = latest.display_name; profile.encounter = latest.encounter ?? undefined;
-      const victoryMarks = Math.max(marksOf(profile), latest.victory_marks);
-      if (victoryMarks) profile.career = { victoryMarks };
-      const loot = mergeLoot(profile.loot, latest.loot); if (loot.owned.length) profile.loot = loot;   // loot: the union of both, nothing lost
-      if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
-      const target = new URL(location.href); target.searchParams.delete('opponent');
-      location.replace(target.href);
-    } catch { if (turn === generation) { status.textContent = 'Could not load your fighter. Your current practice is unchanged.'; busy = false; render(); } }
-  });
+  // Every recorded result persists the device's fighter (main.ts persist()); a signed-in account sends the gain up on the same beat.
+  window.addEventListener('frankendom:profile', () => { if (userId && saved && !busy && retry.hidden && differs(local(), saved)) void sync(local(), generation); });
   const callback = new URL(location.href), code = callback.searchParams.get('code');
   const flowId = callback.searchParams.get('sb_flow_id');
   const denied = callback.searchParams.has('error');
@@ -112,7 +107,7 @@ export async function mountAccount(url: string, key: string) {
     if (code) {
       try {
         const { error } = await db.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
-        await refresh();
+        await refresh(!error);
         if (error) status.textContent = 'Sign-in expired or failed. Please continue with Google again.';
       } catch { await refresh(); status.textContent = 'Sign-in expired or failed. Please continue with Google again.'; }
     } else { await refresh(); if (denied) status.textContent = 'Sign-in cancelled. You can keep playing as a guest.'; }

@@ -76,55 +76,53 @@ try {
   assert.equal(new URL(page.url()).search, '');
   receipt.checks.push('Cancelled OAuth returns to usable journal and removes callback parameters');
   await page.evaluate(() => localStorage.setItem('frankendom.auth.v1-code-verifier', JSON.stringify('qa-verifier')));
-  row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80 };
+  row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80, loot: { owned: [], equipped: {} } };   // the cloud row carries the loot column (PR #330); a row without it is refused as invalid
   await page.goto(`${origin}/?account=return&code=qa-code`); await ready(page);
-  await page.getByText('Cloud fighter: Cloud fighter.', { exact: false }).waitFor();
-  const toolsHidden = p => p.evaluate(() => document.querySelector('#test-tools').hidden);
-  assert.equal(await toolsHidden(page), true, 'a signed-in account off the admins roster never sees the journal test tools');
-  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')).name), 'Local fighter');
-  assert.equal(writes.length, 0, 'Signing in never overwrites either save');
-  await page.screenshot({ path: 'artifacts/account/mobile-signed-in.png' });
-  await page.locator('#account-load').tap();
+  // The sign-in merges the cloud fighter into the device and restarts once on it: the cloud's name and opponent, the higher mark count;
+  // nothing is written up because the device had nothing the cloud lacked. No Save / Load buttons (owner 2026-09-21).
   await page.waitForFunction(() => document.querySelector('#opponent-select').value === 'goblin');
   const loaded = await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')));
-  assert.equal(loaded.name, 'Cloud fighter'); assert.equal(loaded.id, 'guest-qa-123'); assert.deepEqual(loaded.career, { victoryMarks: 80 }, 'a higher cloud count lifts the device; a lower one never drops it');
+  assert.equal(loaded.name, 'Cloud fighter'); assert.equal(loaded.id, 'guest-qa-123'); assert.deepEqual(loaded.career, { victoryMarks: 80 }, 'a higher cloud count lifts the device count');
+  assert.equal(writes.length, 0, 'a sign-in with nothing new on the device writes nothing');
   await page.locator('#journal-button').tap();
-  await page.getByText('Cloud fighter: Cloud fighter.', { exact: false }).waitFor();
-  await page.locator('#account-save').tap();
-  await page.getByText('Saved Cloud fighter.', { exact: false }).waitFor();
-  assert.equal(row.revision, 5); assert.equal(row.victory_marks, 80, 'marks travel with the save');
+  await page.getByText('Saved to your account as Cloud fighter.', { exact: false }).waitFor();
+  const toolsHidden = p => p.evaluate(() => document.querySelector('#test-tools').hidden);
+  assert.equal(await toolsHidden(page), true, 'a signed-in account off the admins roster never sees the journal test tools');
+  assert.equal(await page.locator('#account-save').count(), 0); assert.equal(await page.locator('#account-load').count(), 0);
+  await page.screenshot({ path: 'artifacts/account/mobile-signed-in.png' });
+  // A change on this device goes up on the next persist beat, with no button.
+  const rename = (name) => page.evaluate(n => { const p = JSON.parse(localStorage.getItem('frankendom.fighter.v1')); p.name = n; localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); window.dispatchEvent(new Event('frankendom:profile')); }, name);
+  await rename('Renamed');
+  await page.getByText('Saved to your account as Renamed.', { exact: false }).waitFor();
+  assert.equal(row.revision, 5); assert.equal(row.display_name, 'Renamed'); assert.equal(row.victory_marks, 80, 'marks travel with the save');
+  // Another device wrote meanwhile: the stale write is refused, retry reads the latest, and the device's change goes up on top of it.
   row = { ...row, revision: 6, display_name: 'Newer device' };
-  await page.locator('#account-save').tap();
+  await rename('Renamed again');
   await page.getByText('Save failed or changed on another device.', { exact: false }).waitFor();
-  assert.equal(await page.locator('#account-save').isEnabled(), false);
   assert.equal(row.display_name, 'Newer device');
   await page.locator('#account-retry').tap();
-  await page.getByText('Cloud fighter: Newer device.', { exact: false }).waitFor();
-  receipt.checks.push('Real SDK code exchange/session recovery; explicit cloud load; whitelisted save with career marks; load never lowers the device count; stale-write conflict and retry');
+  await page.getByText('Saved to your account as Renamed again.', { exact: false }).waitFor();
+  assert.equal(row.revision, 7); assert.equal(row.display_name, 'Renamed again');
+  receipt.checks.push('Real SDK code exchange/session recovery; automatic cloud merge on sign-in (never lowers the device count, writes nothing when nothing is new); automatic save on the persist beat with career marks; stale-write refusal and retry');
   failRead = true;
   await page.reload(); await ready(page); await page.locator('#journal-button').tap();
   await page.getByText('Could not read your account.', { exact: false }).waitFor();
-  assert.equal(await page.locator('#account-save').isEnabled(), false);
-  assert.equal(await page.locator('#account-load').isEnabled(), false);
   failLogout = true; await page.locator('#account-logout').tap();
   // Supabase clears the local session even if remote revocation fails; no stale account controls may survive.
   await page.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
-  assert.equal(await page.locator('#account-save').isVisible(), false);
-  assert.equal(await page.locator('#account-load').isVisible(), false);
   assert.equal(await page.evaluate(() => localStorage.getItem('frankendom.auth.v1')), null);
   failLogout = false;
   await page.evaluate(value => localStorage.setItem('frankendom.auth.v1', JSON.stringify(value)), session);
   await page.reload(); await ready(page); await page.locator('#journal-button').tap();
   await page.getByText('Could not read your account.', { exact: false }).waitFor();
   failRead = false; admin = true; await page.locator('#account-retry').tap();
-  await page.getByText('Cloud fighter: Newer device.', { exact: false }).waitFor();
+  await page.getByText('Saved to your account as Renamed again.', { exact: false }).waitFor();
   await page.waitForFunction(() => document.querySelector('#test-tools').hidden === false);
   assert.equal(await page.evaluate(() => document.querySelector('#test-tools').dataset.admin), 'true', 'a roster row reveals the test tools');
   await page.locator('#account-logout').tap();
   await page.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
   assert.equal(await toolsHidden(page), true, 'sign-out hides the test tools again');
   admin = false;
-  assert.equal(await page.locator('#account-load').isVisible(), false);
   assert.equal(await page.evaluate(() => localStorage.getItem('frankendom.auth.v1')), null);
   receipt.checks.push('Service failure cannot overwrite cloud; retry recovers; admins roster gates the journal test tools; sign-out clears session, cloud controls and test tools');
   await page.close();   // the phone page's game loop would starve the desktop page's load on a software-GL runner (third Linux run: page.goto timed out at 30 s)
