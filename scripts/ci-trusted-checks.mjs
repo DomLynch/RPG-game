@@ -74,7 +74,8 @@ try {
     }
   }
   const list = [...trusted.keys()].sort((a, b) => a - b);
-  const local = [...reasons.entries()].sort((a, b) => a[0] - b[0]).map(([i, why]) => `${i}:${why}`);
+  // A run whose matrix has not started (or was gated off) lists no "check N" jobs at all: say so instead of "[]".
+  const local = reasons.size || list.length ? [...reasons.entries()].sort((a, b) => a[0] - b[0]).map(([i, why]) => `${i}:${why}`) : ['all: no check jobs in the run(s) yet'];
   say(`${[...new Set(trusted.values())].join(' ') || runs[0].url}: trusting ${list.length} check(s) [${list.join(',')}] for tree ${tree.slice(0, 7)}; running locally: [${local.join(' ')}]`);
   process.stdout.write(list.join(','));
 } catch (error) {
