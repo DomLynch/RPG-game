@@ -15,6 +15,8 @@ import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
 import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
+import * as ai from '../src/ai.ts';
+import * as autopsyModule from '../src/autopsy.ts';
 import { session } from '../src/session.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
@@ -46,7 +48,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -585,6 +587,21 @@ test('kill links: a signed-in fighter\'s Share stores the record and the link ca
   await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(s.element('replay-banner').textContent, /cannot be played: this build has no fight store/);
 });
+test('autopsy: a death puts at most two plain lines on the death screen, the same lines go under the opponent\'s journal row for the last fight, and a rematch clears them', () => {
+  const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+  assert.ok(app.rendered.finish, 'the idle fighter dies'); assert.equal(app.rendered.finish.victim, 0);
+  const el = app.element('autopsy');
+  assert.equal(el.hidden, false, 'the autopsy shows on the death screen');
+  const lines = el.children.map((c) => c.textContent);
+  assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);
+  assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
+  for (const line of lines) assert.ok(!/[!?]/.test(line), 'no exclamation marks');
+  const card = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!);
+  assert.deepEqual(card.rows.veteran.last, lines, 'the journal keeps the last fight\'s lines under the opponent');
+  app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
+  assert.equal(el.hidden, true, 'a rematch clears the autopsy');
+});
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
   for (let i = 0; i < 60; i++) app.tick();
@@ -598,11 +615,11 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   assert.equal(app.rendered.finish?.victim, 0, 'the idle fighter is dead when the player comes back');
   assert.equal(app.storage.getItem('frankendom.fight.v1'), '', 'a decided fight is no longer marked');
   assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.fights, 1);
-  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran, { fights: 1, wins: 0, losses: 1, left: 1 }, 'the scorecard shows the walk-away as a loss, flagged left');
+  const { last, ...walkAway } = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran; assert.deepEqual(walkAway, { fights: 1, wins: 0, losses: 1, left: 1 }, 'the scorecard shows the walk-away as a loss, flagged left'); assert.ok(Array.isArray(last) && last.length >= 1, 'the walk-away death still has its autopsy');
   const again = boot({ id: 'tester-0001' }, undefined, { 'frankendom.fight.v1': JSON.stringify({ opponent: 'goblin' }) });
   const card = JSON.parse(again.storage.getItem('frankendom.controls.v1')!).card;
   assert.deepEqual([card.fights, card.wins], [1, 0], 'closing the page mid-fight scored a loss at the next boot');
-  assert.deepEqual(JSON.parse(again.storage.getItem('frankendom.scorecard.v1')!).rows.goblin, { fights: 1, wins: 0, losses: 1, left: 1 }, 'and on the scorecard against the opponent it was');
+  assert.deepEqual(JSON.parse(again.storage.getItem('frankendom.scorecard.v1')!).rows.goblin, { fights: 1, wins: 0, losses: 1, left: 1, last: [] }, 'and on the scorecard against the opponent it was');
   assert.equal(again.storage.getItem('frankendom.fight.v1'), '');
   again.element('journal-button').click();
   const rows = again.element('scorecard-table').children.map(tr => tr.children.map(c => c.textContent));

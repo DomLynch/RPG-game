@@ -1508,6 +1508,16 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
   white-space: nowrap;
   touch-action: manipulation;
 }
+.autopsy {   /* the death-screen autopsy (src/autopsy.ts): two plain lines between the kill and the rematch; Web design owns the type at 390 px */
+  display: block;
+  margin: 0;
+  max-width: 480px;
+  color: #e9ddc5;
+  font: 13px/1.35 Arial;
+  opacity: 0.85;
+  text-align: center;
+}
+.autopsy span { display: block; }
 .share-status {
   display: block;
   color: #e9ddc5;
