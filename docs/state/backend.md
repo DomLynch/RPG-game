@@ -62,25 +62,29 @@ Client calls: `POST /rest/v1/fight_records` (src/share-store.ts), `GET /rest/v1/
 **Review note (follow-up 0006, not blocking):** the whole-table select grant exposes `user_id` of every poster to anyone holding an id;
 the client only reads `record`. Tighten to `grant select (id, opponent, record, created_at)` in a follow-up; no client change needed.
 
-### daily_secret / daily_fight() / daily_results / daily_board (0003, PR #327) — apply-ready AFTER two one-line changes
+### daily_secret / daily_fight() / daily_results / daily_board (0003, PR #327) — apply-ready, both changes landed
+Both changes requested below have landed in the migration file (PR #354, merged into lead/daily-warden) plus a pgcrypto fix CI caught
+afterward; current apply-ready head is lead/daily-warden `8550b1d` (diffed against `e0f7380`, the fixed file itself is byte-identical —
+only unrelated trunk merges since). File content, as it will apply:
 - `daily_secret (id boolean pk default true check (id), secret text)`: RLS on, no policies, all grants revoked from anon/authenticated;
-  one row `encode(gen_random_bytes(32),'hex')` (pgcrypto — present on hosted; the local DB check must `create extension pgcrypto`).
+  one row `encode(gen_random_bytes(32),'hex')`. The migration now opens with `create extension if not exists pgcrypto;` — hosted
+  Supabase already has it enabled, this is a no-op there; the local RLS check's `initdb` cluster does not, so this line is required
+  for the check to run at all (CI caught its absence).
 - `daily_fight(on_day date default today-UTC) returns (day, number, seed)`: `security definer`, `set search_path = public`, stable; execute
   revoked from public, granted to anon+authenticated. `number = on_day - 2026-09-22`; `seed = first 8 hex of md5(day||secret) as int4`
   (the client uses it unsigned, `>>> 0`). The security advisor will WARN "anon can execute a definer function" — intentional, the seed is
-  public by design and the secret never leaves the function.
-  **CHANGE REQUESTED before apply:** the function answers for ANY date, so a client can fetch tomorrow's seed today and rehearse the
-  one-attempt fight. Add `where on_day <= (now() at time zone 'utc')::date` (past days stay answerable for the verifier). One line.
+  public by design and the secret never leaves the function. Now has `where on_day <= (now() at time zone 'utc')::date`, so a future
+  day returns no row; `src/daily.ts fetchDaily` already treats that as "no daily warden today," no client change needed.
 - `daily_results`: pk `(day, user_id)` = "insert own once"; `number int`, `opponent`/`weapon` 1–32, `outcome in (killed, died, draw,
   abandoned)`, `ticks 0–100000`, `location in (head, torso, legs) null`, `taken 0–1000 default 0`, `record` ≤ 16 KB base64url,
   `verified boolean default false` (server-only), `created_at`. Index `(day, outcome, ticks)`. RLS on. Policies: select public
   (anon+authenticated); insert to authenticated with check `auth.uid() = user_id and day = today-UTC`. No update/delete for clients.
-  Grants: select whole table; insert `(day, user_id, number, opponent, weapon, outcome, ticks, location, taken, record)`.
-  **CHANGE REQUESTED before apply:** the whole-table select grant lets anyone read every poster's `record` (the day's input stream, i.e.
-  the solution to a one-attempt fight) and `user_id` straight from `/rest/v1/daily_results`, although the board view deliberately omits
-  both. Replace with `grant select (day, number, opponent, weapon, outcome, ticks, location, taken, verified, created_at)`; the client reads
-  the board view and inserts with `return=minimal`, so nothing changes client-side. Also add `check (number = day - date '2026-09-22')`
-  so a client cannot post a mismatched day number (no client change: #327's insert already sends the derived value).
+  Grants: insert `(day, user_id, number, opponent, weapon, outcome, ticks, location, taken, record)`; select is now the narrowed column
+  list `(day, number, opponent, weapon, outcome, ticks, location, taken, verified, created_at)` — `user_id` and `record` (the day's raw
+  input stream, i.e. the solution to a one-attempt fight) are excluded, closing what a direct `/rest/v1/daily_results?select=*` call
+  could otherwise read even though the board view never carried them. Also has `check (number = day - date '2026-09-22')`, so a client
+  cannot post a mismatched day/number pair. Neither needs a client change: the board view still resolves (next line), and #327's insert
+  already sends the derived `number`.
 - `daily_board` view: the day's rows joined to `fighter_profiles.display_name`, never `record` or `user_id`; select granted to
   anon+authenticated. The view has no `security_invoker`, so it reads `fighter_profiles` as its owner — that is what lets a public board
   show a poster's display name past `owner_read`; the advisor will flag it (lint 0010), accepted and documented here.
@@ -113,3 +117,9 @@ daily_results. Nothing else. The VPS connects through the Supabase pooler as `fr
 - A migration that needs a Postgres extension (e.g. `pgcrypto` for `gen_random_bytes`) must `create extension if not exists` it in the
   migration file itself, not assume it's already enabled — hosted Supabase has several pre-enabled, the check's local `initdb` cluster
   has none (caught by CI on 202609210003; fixed at lead/daily-warden `e0f7380`).
+- A date used in `scripts/account-database-check.mjs` must be computed in the same zone as the guard it exercises: an unqualified
+  `current_date` takes the *machine's* local timezone, while the daily-warden guards compare against `(now() at time zone 'utc')::date`.
+  Past local midnight on a machine east of Greenwich (e.g. UTC+4, still yesterday in UTC), the two dates disagree and a genuinely correct
+  guard reads as broken. The daily/loot block now opens with `set time zone 'UTC';`. Reproduced independently: the pre-fix check run
+  under `TZ=Asia/Dubai` failed with "Authenticated cannot fetch today's daily seed"; the fixed check (lead/loot-data `d5b0a89`) passes
+  under the same `TZ`.
