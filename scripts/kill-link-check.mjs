@@ -3,13 +3,15 @@
 // through createRecorder.push and the sim steps the quantized intent), encoded to the share string, decoded back and
 // replayed with stepPractice from initialPractice(seed, opponent). The gate passes only when every replay reaches the
 // SAME finish on the SAME tick with the SAME outcome and byte-identical final fighters, and when a record carrying a
-// foreign version byte is refused with the version error rather than decoded best-effort. Any other result, including
+// foreign version byte is refused with the version error rather than decoded best-effort, and when src/replay.ts verifyRecord
+// (the replay page's own check) accepts every record this gate replays. Any other result, including
 // a replay that quietly ends elsewhere, exits 1 with the seed, opponent and both sides of the mismatch printed.
 // The player is driven by the same brain the AI uses (src/ai.ts decide for side 0) so the fights are real: both sides
 // attack, guard, parry and kill. Usage: node scripts/kill-link-check.mjs [--seeds N] [--profile normal|hard|easy]
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { createRecorder, decodeRecord, encodeRecord, fromBase64Url, toBase64Url } from '../src/record.ts';
 import { decide, initialAi } from '../src/ai.ts';
+import { verifyRecord } from '../src/replay.ts';
 import { OPPONENTS, PROFILES } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 
@@ -58,6 +60,9 @@ for (const opponent of opponents) for (let s = 0; s < SEEDS; s++) {
   if (decoded.ticks !== live.record.ticks || decoded.outcome !== live.outcome) { fail(where, `decode changed the header: ticks ${decoded.ticks}/${live.record.ticks} outcome ${decoded.outcome}/${live.outcome}`); continue; }
   const back = replay(decoded);
   fights++;
+  // The game's own verifier (src/replay.ts, what the replay page runs) must agree with this gate's independent replay.
+  const verdict = verifyRecord(decoded);
+  if (!verdict.ok) { fail(where, `verifyRecord refused a live record: ${verdict.reason}`); continue; }
   if (live.outcome !== 'abandoned') finished++;
   if (back.early >= 0) { fail(where, `replay finished early at intent ${back.early} of ${decoded.ticks} (${back.outcome} on tick ${back.tick})`); continue; }
   if (back.tick !== live.tick || back.outcome !== live.outcome) { fail(where, `replay ended on tick ${back.tick} as ${back.outcome}; live fight ended on tick ${live.tick} as ${live.outcome}`); continue; }
