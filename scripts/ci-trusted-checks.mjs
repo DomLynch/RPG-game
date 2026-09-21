@@ -36,7 +36,9 @@ try {
   const runs = [];
   for (const commit of candidates) {
     for (const run of ghJson(['run', 'list', '--workflow', 'release-checks.yml', '--commit', commit, '--json', 'databaseId,headSha,url,status', '--limit', '5'])) {
-      if (run.headSha === commit && (run.status === 'completed' || run.status === 'in_progress') && !runs.some(r => r.databaseId === run.databaseId)) runs.push(run);
+      // Any run status: GitHub reports a run as `queued` while any job still waits, even with jobs already green.
+      // The job-level checks below decide; a run with nothing finished simply vouches for nothing.
+      if (run.headSha === commit && !runs.some(r => r.databaseId === run.databaseId)) runs.push(run);
     }
   }
   if (!runs.length) { say(`no release-checks run for ${sha.slice(0, 7)} or its merged branch; all checks run locally`); process.exit(0); }

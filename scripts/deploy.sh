@@ -13,7 +13,17 @@ export VITE_SENTRY_RELEASE="$revision"
 # A merge commit of a rebased branch onto an unmoved trunk has the branch head's tree, so the head's own green
 # pull_request run tested this exact code: accept it when the trees are identical (git decides, nothing else).
 # Any doubt (gh unavailable, no green run, trees differ) falls back to the full gate.
-quality_green() { gh run list --workflow quality.yml --commit "$1" --status success --json url --jq '.[0].url' 2>/dev/null || true; }
+# Green means the REQUIRED quality.yml jobs (`quality`, `browser (combat)`) concluded success on the newest run for the
+# revision. Run-level success would wait for the optional counter gate (continue-on-error, often a ~16 min stall).
+quality_green() {
+  gh run list --workflow quality.yml --commit "$1" --json databaseId,url --limit 3 --jq '.[0] | "\(.databaseId) \(.url)"' 2>/dev/null | {
+    read -r run_id run_url || exit 0
+    [[ -n "$run_id" ]] || exit 0
+    green=$(gh run view "$run_id" --json jobs --jq '[.jobs[] | select(.name == "quality" or .name == "browser (combat)") | .conclusion] | if length == 2 and all(. == "success") then "yes" else "no" end' 2>/dev/null || true)
+    [[ "$green" == "yes" ]] && echo "$run_url"
+    exit 0
+  }
+}
 ci_green=$(quality_green "$revision")
 ci_green_for="$revision"
 if [[ -z "$ci_green" ]]; then

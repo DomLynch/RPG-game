@@ -105,13 +105,14 @@ test('ci-trusted-checks trusts a check only when its job is green and its receip
   const receipt = (index: number, status: number, forTree = tree) => JSON.stringify({ index, status, tree: forTree, sha: b });
   const dir = mkdtempSync(join(tmpdir(), 'ci-trust-'));
   const fake = join(dir, 'gh');
-  // Fake gh: run 7 (in progress) is recorded against branch head B, run 9 (completed) against trunk T0.
+  // Fake gh: run 7 (still `queued` at run level, jobs already concluding) is recorded against branch head B, run 9
+  // (completed) against trunk T0.
   // Receipts: run 7 has 1 (ok), 2 (exit 3), 4 (ok); 3 is still running with no receipt. Run 9 has 3 ok but for T0's tree.
   writeFileSync(fake, `#!/bin/bash
 case "$1 $2" in
   "run list")
     for i in "$@"; do case "$prev" in --commit) commit="$i";; esac; prev="$i"; done
-    if [ "$commit" = "${b}" ]; then echo '[{"databaseId":7,"headSha":"${b}","url":"https://x/runs/7","status":"in_progress"}]'
+    if [ "$commit" = "${b}" ]; then echo '[{"databaseId":7,"headSha":"${b}","url":"https://x/runs/7","status":"queued"}]'
     elif [ "$commit" = "${t0}" ]; then echo '[{"databaseId":9,"headSha":"${t0}","url":"https://x/runs/9","status":"completed"}]'
     else echo '[]'; fi;;
   "run view")
@@ -136,7 +137,7 @@ esac
   const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI_TRUST_GH: fake, ...env } });
   let r = call([m]);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout, '1,4', 'merge commit M: branch run vouches for 1 and 4 (green + receipt 0 + same tree); 2 failed; 3 unfinished: ' + r.stderr);
+  assert.equal(r.stdout, '1,4', 'merge commit M: queued branch run vouches for 1 and 4 (green + receipt 0 + same tree); 2 failed; 3 unfinished: ' + r.stderr);
   assert.match(r.stderr, /trusting 2 check\(s\) \[1,4\] for tree/);
   assert.match(r.stderr, /running locally: \[2:failure\/receipt-status=3 3:unfinished\/no-receipt\]/);
   r = call([t0]);
