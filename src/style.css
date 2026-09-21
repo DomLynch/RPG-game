@@ -1534,3 +1534,13 @@ dialog .scorecard-table .autopsy-row td { padding: 0 4px 9px; text-align: left; 
   opacity: 0.8;
   overflow-wrap: anywhere;
 }
+
+/* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the
+   drop line's slot above the thumb cluster, shown once each on a new fighter's first fight; src/main.ts sets textContent and
+   keeps the seen list in localStorage "frankendom.cues". Show: hidden=false, then data-on="1" on the next frame (fades in
+   120 ms); hide: remove data-on (fades out 300 ms), then hidden=true after it — [hidden] is display:none !important, so the
+   fade needs the attribute, not hidden. Never two at once. */
+.cue { position: fixed; left: 50%; bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px + 60px); transform: translateX(-50%); width: min(360px, calc(100vw - 32px)); margin: 0; z-index: 4; pointer-events: none; color: #f3e9cf; font: 700 22px/1.2 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.01em; text-align: center; text-shadow: 0 1px 2px #000c, 0 0 16px #000a; opacity: 0; transition: opacity 300ms ease-in; }
+.cue[data-on='1'] { opacity: 1; transition: opacity 120ms ease-out; }
+@media (max-width: 900px), (pointer: coarse) { .cue { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 226px + 56px); font-size: 20px; } }
+@media (prefers-reduced-motion: reduce) { .cue { transition: none; } }

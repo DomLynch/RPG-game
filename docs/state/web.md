@@ -2,6 +2,16 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Brief 8 — three first-fight cues — web/design lane, 2026-09-21 (markup + CSS; the lead wires the triggers)
+Copy approved by the lead: "Block it." (the warden's first telegraphed cut, before contact), "Other side." (the first block on
+the wrong side that lets a hit land), "Now." (the first time the warden is open after a parry or a whiffed heavy). Each once,
+on a new fighter's first fight only, never two at once, no tooltip. Element `<p id="cue" class="cue" role="status" hidden>`
+in the footer actions; the lead sets textContent, hidden and data-on="1" (the fade needs the attribute: [hidden] is display:none !important) and keeps the seen list in localStorage `frankendom.cues` (comma
+list of block,side,now). Placement: the drop line's slot above the thumb cluster, 22 px bold sans (20 px on phones) in cream
+with the text shadow; fade in 120 ms / hold 1.4 s (lead's timer) / fade out 300 ms, keyed on data-on; reduced motion drops
+the fades. Evidence: static preview at 375×812 with the cue shown. Remaining: the lead's three triggers from the fight log
+after the loader lands.
+
 ## Field Journal tabs — web/design lane draft, 2026-09-20 (owner direction; markup + CSS only)
 Owner's read of the live journal: still messy. New layout (approved from a clickable mock): the fighter card and the sign-in
 prompt stay pinned; under them a browser-style strip with three tabs — Fighter (record table), Arena (opponent, warden,
