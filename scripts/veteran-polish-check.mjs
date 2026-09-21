@@ -14,7 +14,7 @@ function parse(raw) {
   const bin = raw.subarray(28 + size);
   return { doc, bin, view: i => { const v = doc.bufferViews[i], start = v.byteOffset ?? 0; return bin.subarray(start, start + v.byteLength); } };
 }
-const shipped = process.argv.includes('--file') ? args[args.indexOf('--file') + 1] : 'src/assets/source/backups/veteran-v1.glb'; // v2 (2026-09-20) ships a TRELLIS.2 body; these reviewed maps belong to the v1 Studio-body Veteran, kept as the Skeleton's donor
+const shipped = process.argv.includes('--file') ? args[args.indexOf('--file') + 1] : 'src/assets/veteran.glb';
 const bytes = await fs.readFile(shipped), current = parse(bytes), manifest = JSON.parse(await fs.readFile(`${root}/manifest_veteran.json`));
 const changes = new Set();
 for (const name of ['Bronze', 'Leather', 'Gambeson', 'Photo', 'Face']) {
