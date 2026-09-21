@@ -1299,14 +1299,9 @@ dialog>p {
   pointer-events: none;
 }
 
-/* Field Journal — the /game brand brought into the arena: a light sheet, rounded, Bricolage + Instrument Sans (licences in
-   public/game/fonts/LICENSES.txt). The fonts are only fetched once the dialog first renders, so guest start-up pays nothing. */
-@font-face {
-  font-family: "Bricolage";
-  src: url(/game/fonts/bricolage.woff2) format("woff2");
-  font-weight: 800;
-  font-display: swap;
-}
+/* Field Journal — the /game brand brought into the arena: a light sheet, rounded; bold system sans (SF on the phone) for names
+   and headings, Georgia for reading text, gold tracked eyebrows, Instrument Sans (OFL, public/game/fonts/LICENSES.txt) for chips and
+   labels. The web font is only fetched once the dialog first renders, so guest start-up pays nothing. */
 @font-face {
   font-family: "Instrument Sans";
   src: url(/game/fonts/instrument.woff2) format("woff2");
@@ -1323,7 +1318,7 @@ dialog {
   max-height: 88dvh;
   padding: 16px 18px 22px;
   box-shadow: 0 40px 90px -30px #000c;
-  font: 15px/1.45 "Instrument Sans", Arial, sans-serif;
+  font: 15px/1.5 Georgia, "Iowan Old Style", "Times New Roman", serif;
   color-scheme: light;
 }
 dialog::backdrop {
@@ -1348,9 +1343,9 @@ dialog .eyebrow {
 dialog h4 {
   margin: 18px 0 8px;
   font: 600 11px/1 "Instrument Sans", Arial, sans-serif;
-  letter-spacing: .14em;
+  letter-spacing: .16em;
   text-transform: uppercase;
-  color: var(--jm);
+  color: #9a7a3a;
 }
 dialog button {
   width: auto;
@@ -1384,14 +1379,14 @@ dialog .chips.quiet button { color: var(--jm); border-style: dashed; }
   border-radius: 50%;
   border: 1.5px solid var(--ja);
   display: grid; place-items: center;
-  font: 800 18px "Bricolage", Arial, sans-serif;
+  font: 700 18px -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif;
   color: var(--ja);
 }
-.fighter strong { display: block; font: 800 22px/1 "Bricolage", Arial, sans-serif; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.fighter strong { display: block; font: 700 22px/1 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .fighter-rank { display: block; font-size: 13px; color: var(--ja); margin-top: 4px; }
 .fighter-save { display: block; font-size: 12px; color: var(--jm); }
 .account { padding: 14px 0; border-bottom: 1px solid var(--jl); overflow-wrap: anywhere; }
-.account > strong { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--jm); }
+.account > strong { display: block; font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #9a7a3a; }
 .account p { margin: 4px 0 10px; font-size: 14px; }
 .account small { display: block; margin-top: 8px; font-size: 12px; color: var(--jm); }
 .account-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1411,7 +1406,7 @@ dialog #account-login { flex-basis: 100%; min-height: 48px; background: #fff; bo
 }
 .howto { border-top: 1px solid var(--jl); margin-top: 12px; }
 .howto summary { cursor: pointer; padding: 12px 0; font: 600 13px "Instrument Sans", Arial, sans-serif; color: var(--jf); }
-.howto p { margin: 0 0 12px; font: 13px/1.55 "Instrument Sans", Arial, sans-serif; color: var(--jf); }
+.howto p { margin: 0 0 12px; font: 13px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jf); }
 .scorecard {
   white-space: pre-wrap;
   margin: 0;
@@ -1451,9 +1446,9 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 /* Profile tab (owner, 2026-09-20): the five stats and the gear slots, read-only and greyed until builds and gear ship after the beta. */
 .statgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .statgrid div { text-align: center; padding: 10px 2px; border: 1px solid var(--jl); border-radius: 12px; background: #fff9; }
-.statgrid b { display: block; font: 800 13px "Bricolage", Arial, sans-serif; color: var(--ja); letter-spacing: .02em; }
-.statgrid span { display: block; font: 800 20px/1.1 "Bricolage", Arial, sans-serif; color: var(--jf); margin-top: 4px; font-variant-numeric: tabular-nums; }
-.statgrid small { display: block; font: 600 9px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--jm); margin-top: 4px; }
+.statgrid b { display: block; font: 700 13px -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; color: var(--ja); letter-spacing: .02em; }
+.statgrid span { display: block; font: 700 20px/1.1 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; color: var(--jf); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.statgrid small { display: block; font: 600 9px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #9a7a3a; margin-top: 4px; }
 .gear { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .gear.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .slot { padding: 10px 10px 9px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: transparent; }
