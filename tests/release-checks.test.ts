@@ -19,17 +19,16 @@ function repo(commands: string[][]) {
   mkdirSync(join(root, 'scripts'));
   // a script that sleeps, and one that also declares a fixed port
   // Each mock logs its own start/end so a test can prove overlap (or its absence) directly, independent of machine load.
-  const log = "import { appendFileSync } from 'node:fs'; const ms = Number(process.argv[2]), t0 = Date.now(); setTimeout(() => { appendFileSync('spans.log', `${t0} ${Date.now()}\\n`); process.exit(Number(process.argv[3] || 0)); }, ms);\n";
-  writeFileSync(join(root, 'scripts', 'sleep.mjs'), log);
-  writeFileSync(join(root, 'scripts', 'fixed.mjs'), '// strictPort: true\n' + log);
+  const log = (tag: string) => `import { appendFileSync } from 'node:fs'; const ms = Number(process.argv[2]), t0 = Date.now(); setTimeout(() => { appendFileSync('spans.log', \`${tag} \${t0} \${Date.now()}\\n\`); process.exit(Number(process.argv[3] || 0)); }, ms);\n`;
+  writeFileSync(join(root, 'scripts', 'sleep.mjs'), log('sleep'));
+  writeFileSync(join(root, 'scripts', 'fixed.mjs'), '// strictPort: true\n' + log('fixed'));
   writeFileSync(join(root, '.quality-gate.json'), JSON.stringify({ commands: [['true']], release_commands: commands }));
   return root;
 }
-// The most checks alive at once, from the spans the mocks logged.
-const maxOverlap = (root: string) => {
-  const spans = readFileSync(join(root, 'spans.log'), 'utf8').trim().split('\n').map(l => l.split(' ').map(Number) as [number, number]);
-  return Math.max(...spans.map(([a, b]) => spans.filter(([c, d]) => c < b && a < d).length));
-};
+// What the mocks logged: for every check, how many checks (itself included) were alive at some instant of its span.
+const spans = (root: string) => readFileSync(join(root, 'spans.log'), 'utf8').trim().split('\n').map(l => { const [tag, a, b] = l.split(' '); return { tag, a: Number(a), b: Number(b) }; });
+const alive = (root: string) => { const all = spans(root); return all.map(s => ({ tag: s.tag, n: all.filter(o => o.a < s.b && s.a < o.b).length })); };
+const maxOverlap = (root: string) => Math.max(...alive(root).map(s => s.n));
 
 const run = (root: string, env: Record<string, string> = {}) =>
   spawnSync(process.execPath, [runner, root], { encoding: 'utf8', env: { ...process.env, ...env } });
@@ -48,6 +47,7 @@ test('independent checks run concurrently; fixed-port checks run alone; receipt 
   // suite's own files in parallel, 2026-09-21) eight node startups took a still-overlapped run past the old 3.5 s bound and even past
   // the 4.8 s serial sleep floor (5.75 s measured) — wall time says nothing about overlap there.
   assert.ok(maxOverlap(root) >= 4, `checks overlapped: at most ${maxOverlap(root)} alive at once (wall ${wall}s)`);
+  assert.ok(alive(root).filter(s => s.tag === 'fixed').every(s => s.n === 1), `a fixed-port check runs alone: ${JSON.stringify(alive(root))}`);
   assert.match(result.stdout, /8 total, 0 trusted from CI, 8 to run, concurrency 6, 2 fixed-port \(one at a time\)/);
   assert.ok(existsSync(join(root, 'artifacts', 'release-checks.json')));
   const written = JSON.parse(readFileSync(join(root, 'artifacts', 'release-checks.json'), 'utf8'));
