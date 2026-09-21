@@ -69,9 +69,9 @@ test('guard side: the thumb still is the straight guard; past the slide threshol
   assert.equal(guardSide(30, 30), 'low', 'a perfect diagonal is the vertical: up and down are the rarer, deliberate slides');
 });
 
-test('the versus card drifts after a second (owner: like the arena cam), and holds still under reduced motion', () => {
+test('the versus card drifts from its first frame (owner: like the arena cam, no wait), and holds still under reduced motion', () => {
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  assert.match(css, /\.versus img \{[^}]*animation: versus-drift 14s ease-in-out 1s infinite alternate;/, 'one second still, then a slow alternating drift');
+  assert.match(css, /\.versus img \{[^}]*animation: versus-drift 14s ease-in-out infinite alternate;/, 'no delay, a slow alternating drift');
   assert.match(css, /@keyframes versus-drift \{[\s\S]{0,300}?scale\(1\.06\)/, 'a gentle push-in, never a cut');
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.versus img \{ animation: none; \}/, 'reduced motion keeps the still');
 });
