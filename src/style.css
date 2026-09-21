@@ -1518,6 +1518,8 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
   text-align: center;
 }
 .autopsy span { display: block; }
+.daily-board { list-style: none; margin: 8px 0 0; padding: 0; font: 13px/1.4 Arial; color: #e9ddc5; }   /* the daily warden's board (src/daily.ts): five lines; Web design draws the real board */
+.daily-board li[data-verified='false'] { opacity: .55; }
 .share-status {
   display: block;
   color: #e9ddc5;
