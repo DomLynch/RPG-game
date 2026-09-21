@@ -6,7 +6,9 @@ import { gzipSync } from 'node:zlib';
 // GLBs reference. That is what the per-fight budget gates, at the worst opponent. The whole of dist/ is the host's storage, not
 // the player's wait, and gets a looser ceiling so the roster can grow without the gate being raised every fighter.
 // GLBs are classified from the source tree, never by name pattern: src/assets/*.glb are fighters (warrior is the hero),
-// src/assets/arena/props/*.glb are props. A dist GLB matching neither fails the gate rather than being guessed at.
+// src/assets/arena/props/*.glb are props, src/assets/weapons/player/*.glb are player-equipped weapons (loaded only when worn, so
+// they count toward the whole-of-dist storage cap below but never the per-fight download, same as loot.glb). A dist GLB
+// matching none of these fails the gate rather than being guessed at.
 const PER_FIGHT = 12_000_000, TOTAL = 32_000_000, LOOT = 1_500_000;   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched after the first fight, never part of one.
 // Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
 const dist = process.argv[2] || 'dist', src = process.argv[3] || 'src';
@@ -32,11 +34,12 @@ export function glbImageUris(bytes) {
 
 export async function measure(distDir = dist, srcDir = src) {
   const all = await files(distDir), sum = (list, k) => list.reduce((n, f) => n + f[k], 0), byPath = new Map(all.map(f => [f.path, f]));
-  const fighterNames = await names(srcDir + '/assets'), propNames = await names(srcDir + '/assets/arena/props');
+  const fighterNames = await names(srcDir + '/assets'), propNames = await names(srcDir + '/assets/arena/props'), equipNames = await names(srcDir + '/assets/weapons/player');
   const glbs = all.filter(f => f.name.endsWith('.glb'));
   const hero = glbs.filter(f => stem(f.name) === 'warrior'), props = glbs.filter(f => propNames.has(stem(f.name)));
   const loot = glbs.filter(f => stem(f.name) === 'loot'), opponents = glbs.filter(f => !['warrior', 'loot'].includes(stem(f.name)) && fighterNames.has(stem(f.name)));
-  const unknown = glbs.filter(f => !hero.includes(f) && !props.includes(f) && !opponents.includes(f) && !loot.includes(f));
+  const equip = glbs.filter(f => equipNames.has(stem(f.name)));
+  const unknown = glbs.filter(f => !hero.includes(f) && !props.includes(f) && !opponents.includes(f) && !loot.includes(f) && !equip.includes(f));
   if (unknown.length) throw new Error(`dist GLBs that are neither a fighter nor an arena prop in ${srcDir}: ${unknown.map(f => f.name).join(', ')}`);
   if (hero.length !== 1 || !opponents.length) throw new Error(`dist needs exactly one hero and at least one opponent GLB (${glbs.map(f => f.name).join(', ') || 'none'})`);
   const textures = (list) => {

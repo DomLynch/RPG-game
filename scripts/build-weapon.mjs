@@ -714,6 +714,9 @@ export function warhammerClips(ctx) {
 
 // What build-warrior.mjs needs per weapon: the part, the clips it adds (if any) and the sword-clip keys it re-authors on its rig.
 export const WEAPON_BUILDS = {
+  // The hero's own sword: build-warrior.mjs calls sourced('longsword', null) directly (the sword hangs in both hand_r AND the
+  // scabbard, a case none of the other weapons have) — listed here only so the contract test and the standalone CLI below walk it too.
+  longsword: { part: sourced('longsword', null), clips: null, keys: {} },
   trident: { part: sourced('trident', trident), clips: tridentClips, keys: {} },   // reconstructed part by default; WEAPON_VARIANT=short|A|B|C → the primitives
   cleaver: { part: sourced('cleaver', cleaver), clips: null, keys: CLEAVER_KEYS },   // reconstructed by default; WEAPON_VARIANT=A|B|C → the primitives
   knife: { part: sourced('knife', knife), clips: null, keys: CLEAVER_KEYS },   // reconstructed by default (WEAPON_VARIANT=A|B|C → the primitives); the same diagonal Heavy: a knife's overhead is a hack too, edge-leading
