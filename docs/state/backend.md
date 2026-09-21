@@ -106,6 +106,26 @@ usage on schema public; `select (day, user_id, opponent, weapon, outcome, ticks,
 `update (verified, checked_at)` on daily_results; execute on `daily_fight(date)`; its own RLS policies (select all, update all) on
 daily_results. Nothing else. The VPS connects through the Supabase pooler as `frankendom_verifier.rxbewmzmovelckzoosss`.
 
+**#348 arming checklist (takeover from Dev/Deploy; read from their PR branch, not written by this lane — no VPS writes here):**
+1. Apply 0005 (this section) to hosted; confirm `frankendom_verifier` exists and its grants match above.
+2. Set the role's password on the host: `alter role frankendom_verifier password '<generated>';` — this lane generates and sets it,
+   hands the value to Dev/Deploy through a channel Dom's approved (never in chat), never commits it.
+3. `/etc/frankendom/verifier.env` on the VPS (Dev/Deploy writes; root:600, checked by `deploy.sh` before it arms the timer):
+   ```
+   DATABASE_URL=postgres://frankendom_verifier:<password>@<pooler-host>:<pooler-port>/postgres
+   ```
+   (the `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` pair is `verify-daily.mjs`'s alternate route — a service-role key bypasses RLS
+   entirely, wider than this role needs, so the scoped `DATABASE_URL` role is the one to use, not the service-role fallback.)
+4. `scripts/deploy.sh` (already in #348) rsyncs `src/**/*.ts`, `scripts/verify-daily.mjs` and the two `ops/frankendom-verify-daily.*`
+   unit files to `/opt/frankendom-verifier/<revision>`, symlinks `current`, and — only if `verifier.env` already exists at root:600 —
+   installs the units and runs `systemctl enable --now --quiet frankendom-verify-daily.timer`. Until the env file exists, it ships the
+   code and leaves the timer alone (prints why); this is deploy.sh's existing behavior, not something new to build.
+5. Unit shape: `frankendom-verify-daily.service` is a `oneshot` running `node scripts/verify-daily.mjs` with that env file, logging to
+   `/var/log/frankendom-verify-daily.log`; `frankendom-verify-daily.timer` fires it every 2 minutes (`OnBootSec=2min`,
+   `OnUnitActiveSec=2min`). `node scripts/verify-daily.mjs --dry` replays without writing; `--recheck` re-sweeps refused rows.
+6. After arming: confirm a `daily_results` row moves from `verified=false` to `true` (or gets `checked_at` stamped with a refusal
+   reason) within one timer cycle, and post that receipt here.
+
 ## Rules every lane inherits
 - Client-reported data is never rank, result or unlock authority for anything competitive; only server-verified rows count.
 - No secret readable by anon or authenticated; secrets live in RLS-on tables with no grants, read only by definer functions.
