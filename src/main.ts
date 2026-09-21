@@ -203,7 +203,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp, debug, opponentId: opponent.id });   // buttons wake when the card lifts, so a press is never swallowed behind it
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !introUp, debug, opponentId: opponent.id });   // buttons wake when the card and the opening move are done, so a press is never swallowed
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -222,6 +222,7 @@ element('name-form').addEventListener('submit', (event) => {
   clearInput();
   feedback.unlock();
   canvas.focus();
+  beginIntro();   // the rigs may already be in: the opening move plays now that the arena shows
 });
 element('name-button').addEventListener('click', () => {
   clearInput();
@@ -257,8 +258,11 @@ element('close-journal').addEventListener('click', () => journal.close());
 journal.addEventListener('close', clearInput);
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
-let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
-const paused = () => graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
+// The fight waits (paused) behind the versus card and through the opening camera move; the frame itself only stops (stalled) when
+// nothing may move at all — lost graphics, the welcome, the journal, a hidden tab. Declared here so paused() can read them early.
+let versusUp = false, introUp = false;
+const stalled = () => graphicsLost || !welcome.hidden || journal.open || document.hidden;
+const paused = () => stalled() || versusUp || introUp;
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),
@@ -304,18 +308,20 @@ if (typeof document !== 'undefined' && document.body)
 // The versus card: a still of this fight from the real models (public/versus/<id>.webp) while the rigs download. No card for an
 // opponent (a fresh rung without one yet) just means the arena shows through as before; a card that fails to fetch hides itself.
 const versus = element('versus'), versusStill = element<HTMLImageElement>('versus-still');
-// Owner 2026-09-21: the card is a title shot and the rigs load faster than its drift can read, so it holds for VERSUS_HOLD_MS
-// from the moment it shows before it lifts; the fight is paused behind it (versusUp) and starts as the card fades.
-const VERSUS_HOLD_MS = 2500;
-let versusShownAt = 0, versusHold: ReturnType<typeof setTimeout> | undefined;
-const dropVersus = () => { versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
-const hideVersus = () => {
-  const left = versusShownAt + VERSUS_HOLD_MS - performance.now();
-  if (!versusUp || left <= 0) dropVersus();
-  else if (versusHold === undefined) versusHold = setTimeout(dropVersus, left);
-};
+// The fight waits behind the card (versusUp: buttons asleep, no ticks). Owner 2026-09-21: the card lifts the moment the rigs are in
+// and the opening camera move (camera.ts INTRO) takes over — the same 3D move as the arena cam after the kill, not a drifting still.
+const hideVersus = () => { versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
-versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; versusShownAt = performance.now(); updateHud(); } });
+versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; updateHud(); } });
+// The opening move plays once the rigs are in and the arena is on screen (after the welcome, if it was up); the fight waits behind it
+// with the buttons asleep, and a touch on the arena skips it (canvas pointerdown → stopTour). Reduced motion: the rig declines and the
+// fight starts at once.
+const beginIntro = () => {
+  if (!assetsReady || artFailed || !welcome.hidden || introUp || !view) return;   // no view yet: the status callback can fire inside createScene
+  view.startIntro();
+  introUp = view.intro;
+  updateHud();
+};
 element('versus-foe').textContent = ROSTER[opponent.id].name.replace(/^the /, '');
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
@@ -327,7 +333,7 @@ try {
       assetsReady = status === '';
       artFailed = status !== '' && status !== 'Loading warriors…';   // the notice becomes a tap target; the next foreground return retries
       element('art-status').dataset.retry = String(artFailed);
-      if (status !== 'Loading warriors…') hideVersus();   // the rigs are in (or failed: the banner must be readable)
+      if (status !== 'Loading warriors…') { hideVersus(); beginIntro(); }   // the rigs are in (or failed: the banner must be readable)
     },
     opponent.id,
   );
@@ -496,6 +502,7 @@ function frame(now: number) {
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
   const dt = Math.min(elapsed, 0.1);
+  if (introUp && !view.intro) { introUp = false; updateHud(); }   // the opening move ended (or was skipped): the fight starts
   if (!paused()) {
     controls.promoteDodge(now);
     const afk = owed > 0;   // the fight the player missed runs before this frame draws: no hit-stop, no per-hit sound or number, one final picture
@@ -593,7 +600,7 @@ function frame(now: number) {
         heading: previous.heading + wrapAngle(state.heading - previous.heading) * alpha,
       },
       locked,
-      paused() ? 0 : dt,
+      stalled() ? 0 : dt,   // the camera keeps moving through the card and the opening move; only a true stall freezes the frame
       practice,
       frameEvents,
       hitStop > 0,
