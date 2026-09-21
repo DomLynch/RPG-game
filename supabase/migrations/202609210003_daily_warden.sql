@@ -5,6 +5,7 @@ begin;
 -- no client ever updates or deletes a row. Brief 3's record shape is reused as is.
 
 -- The secret behind the day's seed: no client can read it (RLS on, no policies, no grants); only the definer function below does.
+create extension if not exists pgcrypto;   -- gen_random_bytes below; hosted Supabase already has it (extensions schema), the CI's local cluster does not
 create table public.daily_secret (id boolean primary key default true check (id), secret text not null);
 alter table public.daily_secret enable row level security;
 revoke all on public.daily_secret from anon, authenticated;
