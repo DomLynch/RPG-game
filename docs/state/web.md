@@ -2,18 +2,21 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Brief 5 — paperdoll, trophy rack, lockers and the Wear / Store choice — web/design lane, 2026-09-21 (markup + CSS only)
-On the lead's `lead/loot-data` (#330). Journal Profile tab: the Armour/Weapons grids become one `.doll` grid laid out as the
-body (head; arms, chest, hands; main hand, legs, off hand; feet), each `.slot[data-slot]` with an `<i>` for the piece and a
-hidden `.slot-off[data-unwear]` Store button; then `#loot-rack` (`li[data-loot][data-worn]` + `button[data-wear]`, empty
-state in serif) and six `.locker` tiles, one open with `#locker-count`, five drawn shut. Win screen: `#loot-drop` loses the
-`autopsy` class (it is fixed above the autopsy in the house bold sans) and gains a sibling `#loot-choice` row, Wear + Store
-(Store pressed by default, already done — nothing is lost); Leave dropped as a third verb that does what Store does. The row
-follows `#loot-drop[hidden]` in CSS, so `showLootDrop()` needs no change. Buttons inside `#actions` need the id selector plus
-!important padding/min-height to escape the thumb-cluster pads. Evidence: static previews at 375×812 — doll 339×282, no
-sideways scroll, choice row 148×40 at y 432 above the drop (y 480) and the autopsy (y 514); 1280×800 the same stack centred.
-Remaining: the lead wires `wearLoot`/`unwearLoot` to these ids on the loader slice; the share/versus card view of the doll is
-brief 3's renderer, not in this PR.
+## Brief 5 — silhouette paperdoll, 1–5 inventory, and the Wear / Store choice — web/design lane, 2026-09-21 (markup + CSS only)
+On the lead's `lead/loot-data` (#330). Owner direction (screenshots of Ultima/EverQuest-style sheets): a player-figure silhouette
+with the slots around it, minimal and gritty, fewer slots, a 1–5 inventory. Profile tab: `.doll` is a three-column grid — the
+figure (`public/game/img/doll.webp`, 3 KB flat silhouette of the player model rendered front-on from the portrait rig, Idle clip)
+in the middle column spanning four rows; Head / Chest / Arms / Main hand down the left, Hands / Legs / Feet / Off hand down the
+right. Each `.slot[data-slot]` has an `<i>` for the piece and a hidden `.slot-off[data-unwear]` Store button; `.on` marks a worn
+slot. Under it `#loot-rack` is a five-tile numbered inventory grid (`li[data-loot][data-worn]` with `<span>name</span><button
+data-wear>`; the builder pads to five with `li.rack-empty`). The six-locker row is gone. Win screen: `#loot-drop` loses the
+`autopsy` class (fixed above the autopsy in the house bold sans) and gains a sibling `#loot-choice` row, Wear + Store (Store
+pressed, already done — nothing is lost); Leave dropped as a third verb that does what Store does. The row follows
+`#loot-drop[hidden]` in CSS, so `showLootDrop()` needs no change. Buttons inside `#actions` need the id selector plus !important
+padding/min-height to escape the thumb-cluster pads. Evidence: static previews at 375×812 — doll 339×272, figure 94×250, side
+slots 112 wide, inventory tiles 63×92, `scrollWidth` 375; choice row 148×40 at y 432 above the drop (y 480) and the autopsy
+(y 514, with #328's CSS). Remaining: the lead wires `wearLoot`/`unwearLoot` and pads the inventory to five; the share/versus card
+view of the doll is brief 3's renderer, not in this PR.
 
 ## Field Journal tabs — web/design lane draft, 2026-09-20 (owner direction; markup + CSS only)
 Owner's read of the live journal: still messy. New layout (approved from a clickable mock): the fighter card and the sign-in
