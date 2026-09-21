@@ -40,7 +40,7 @@ export async function measure(distDir = dist, srcDir = src) {
   const loot = glbs.filter(f => stem(f.name) === 'loot'), opponents = glbs.filter(f => !['warrior', 'loot'].includes(stem(f.name)) && fighterNames.has(stem(f.name)));
   const equip = glbs.filter(f => equipNames.has(stem(f.name)));
   const unknown = glbs.filter(f => !hero.includes(f) && !props.includes(f) && !opponents.includes(f) && !loot.includes(f) && !equip.includes(f));
-  if (unknown.length) throw new Error(`dist GLBs that are neither a fighter nor an arena prop in ${srcDir}: ${unknown.map(f => f.name).join(', ')}`);
+  if (unknown.length) throw new Error(`dist GLBs that are none of fighter, arena prop, loot or player-equipped weapon in ${srcDir}: ${unknown.map(f => f.name).join(', ')}`);
   if (hero.length !== 1 || !opponents.length) throw new Error(`dist needs exactly one hero and at least one opponent GLB (${glbs.map(f => f.name).join(', ') || 'none'})`);
   const textures = (list) => {
     const seen = new Map();

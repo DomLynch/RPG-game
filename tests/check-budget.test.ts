@@ -75,11 +75,11 @@ test('the per-fight figure is the shell, one audio format per sound, hero, every
   } finally { f.cleanup(); }
 });
 
-test('a GLB that is neither a fighter nor a prop, or a texture a GLB references but dist lacks, fails the gate', async () => {
+test('a GLB that is none of fighter, arena prop, loot or player-equip weapon, or a texture a GLB references but dist lacks, fails the gate', async () => {
   const f = fixture();
   try {
     writeFileSync(join(f.dist, 'assets/mystery-MMMMMMMM.glb'), glb([]));
-    await assert.rejects(measure(f.dist, f.src), /neither a fighter nor an arena prop.*mystery-MMMMMMMM\.glb/);
+    await assert.rejects(measure(f.dist, f.src), /none of fighter, arena prop, loot or player-equipped weapon.*mystery-MMMMMMMM\.glb/);
     rmSync(join(f.dist, 'assets/mystery-MMMMMMMM.glb'));
     rmSync(join(f.dist, 'assets/textures/c.jpg'));
     await assert.rejects(measure(f.dist, f.src), /goblin-GGGGGGGG\.glb references textures\/c\.jpg/);
