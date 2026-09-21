@@ -2,6 +2,33 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Loot export v1 — Brief 5, Scalable Chars lane, 2026-09-21 (Strategy's assignment on the owner's "take the decision")
+`WARRIOR_LOOT=1 node scripts/build-warrior.mjs` → `src/assets/loot.glb` (1.11 MB gzip packed; cap 1.5 MB in check-budget, its own
+line, never a pairing). Eleven skinned draws `<opponent>.<slot>.<material>` bound to the hero rig (same bind as warrior.glb, no
+BUILD.bones, no clips, no body): Veteran helm + crest + bronze greaves, Executioner mask + hood + greaves, Nightborn crown + closed
+tunic/collar + boots, Pitborn bone plates (the script's own primitives, rigid to the hero's joints), Dwarf iron greaves. Manifest
+`src/assets/source/loot/loot.json` names each piece's source (parts.py/items output, or `@build:` for primitives), slot, and `layer`:
+`replace` (the runtime hides the player's draws in that slot — helm hides Hair, tunic hides Body, boots hide Boots) or `over` (worn on
+top: greaves over bare shins, plates over wraps). Slots: Helmet, Crest, Body, Arms, Gloves, Greaves, Boots — Greaves, not Legs, because
+the player's Legs draws are his kilt. Materials: the runtime takes a draw's material from the player by name when he has one (Steel,
+Leather, Gambeson, Heraldry, Wrap → his own maps); loot.glb carries complete materials only for what he lacks: Bronze (hero-tone maps
+from manifest_realistic.json), DwarfIron (baked), Ruby/BoneWorn (plain). `loot-preview.html?opponent=veteran|…|all&slot=…` shows the
+player wearing a set with exactly that recipe (`mesh.bind(player.skeleton, player.bindMatrix)`).
+The Dwarf has no authored kit (his iron is baked into the TRELLIS surface): `scripts/character/loot_dwarf.py` (Blender) samples the
+baked metallic map per vertex on the position-merged graph (the surface is split along every UV seam), smooths it, takes the iron
+patches ≥ 100 faces per slot by dominant bone (≥ 300 faces per slot), and writes them in his re-proportioned rest space with his
+transferred weights + 1024/512 JPEG crops of his maps; the loot build's `unscale: "dwarf"` inverts BUILD.dwarf's per-bone field
+through those weights (`proportionField()`, the same code the donor build uses) — the greaves land 0.8 cm median / 2.9 cm max from
+the hero's skin (tests/loot.test.ts pins median < 1.5 cm, p90 < 2.5 cm, max < 5 cm, span on the shins; without the unscale the same
+metric reads 2.6 / 5.8 / 7.3 cm on the Dwarf's shorter legs). Only the greaves survive as a piece, and as scattered iron scraps rather
+than solid plates — the metallic mask is what it is; a v2 could shell the whole shin instead. Body/Helmet/Arms iron is speckle. They
+follow the knee through Guard and Walk without cutting the kilt hem (renders in `artifacts/character/loot/v1/`).
+Byte-neutral: with WARRIOR_LOOT unset the script's output is unchanged (cmp against the untouched trunk script: identical hero and
+dwarf-donor builds). Open: the Goblin's trophies (necklace raycast needs the hero body loaded
+in loot mode), the five parametric kits re-run on the hero body via a parts.py `--kit` (Character Main; today's pieces are the
+opponents' own fits — the Executioner's mask/hood are shelled from HIS skull), runtime attach + slot swap + wearing state (Lead Dev),
+paperdoll (Web design), helm-on-severed-head (Finishers).
+
 ## Dwarf v2 — owner-approved look, character lane (2026-09-20)
 Owner reviewed v1 in the arena and asked for four fixes ("A grade"): support-hand grip, chrome shoulder plate, soft face, true dwarf
 proportions. v2 (`char/dwarf-v2`):

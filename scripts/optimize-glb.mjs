@@ -16,6 +16,7 @@ export async function optimizeGlb(raw, externalImage = () => undefined, { quanti
  const n=raw.readUInt32LE(12),d=JSON.parse(raw.subarray(20,20+n)),bin=raw.subarray(28+n);
  assert.equal(d.buffers.length,1,'Optimizer requires one embedded buffer');
  assert.ok(!d.extensionsUsed?.some(x=>['EXT_meshopt_compression','KHR_meshopt_compression','KHR_draco_mesh_compression'].includes(x)),'Source must be uncompressed');
+ d.textures??=[];d.images??=[];   // a file with no textures (loot.glb: palette materials only) has neither array
  assert.ok(d.images.every(i=>i.bufferView!==undefined),'Textures must be embedded');
  // Offline equipment rollback document; the source GLB retains it for rebuilding.
  delete d.extras?.creatureWeaponBase;
