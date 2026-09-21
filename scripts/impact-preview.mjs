@@ -12,7 +12,7 @@ import fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const commit = execSync('git rev-parse --short HEAD').toString().trim();
-const label = option('label') || commit, against = option('against'), opponentId = option('opponent') || 'veteran', free = args.includes('--free');   // --opponent goblin: the same moments against another rung
+const label = option('label') || commit, against = option('against'), opponentId = option('opponent') || 'veteran', free = args.includes('--free'), finisher = option('finisher');   // --opponent goblin: the same moments against another rung
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom impact preview</title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
@@ -44,9 +44,10 @@ const MOMENTS = {
   heavy() { let s = ready(); const list = [s]; s = stepPractice(s, act('heavy'), passive); list.push(s); for (let i = 0; i < 80 && !s.events.some(e => e.type === 'Hit'); i++) { s = stepPractice(s, idle(), passive); list.push(s); } return tail(list, s, idle(), passive); },
   kill() { let s = ready(1.2, 5); const list = [s]; s = stepPractice(s, act('heavy'), passive); list.push(s); for (let i = 0; i < 80 && !s.events.some(e => e.type === 'Killed'); i++) { s = stepPractice(s, idle(), passive); list.push(s); } return tail(list, s, idle(), passive); },
 };
-function tail(list, s, intent, profile) { const at = list.length - 1; for (let i = 0; i < 24; i++) { s = stepPractice(s, intent, profile); list.push(s); } return { list, at }; }
-const PARAMS = new URLSearchParams(location.search), OPPONENT = PARAMS.get('opponent') || 'veteran', LOCK = !PARAMS.has('free');   // ?free: the three-quarter side view (versus-cards framing) instead of the duel lock
+function tail(list, s, intent, profile) { const at = list.length - 1; for (let i = 0; i < (FINISHER ? 120 : 24); i++) { s = stepPractice(s, intent, profile); list.push(s); } return { list, at }; }   // a forced finisher plays out over two seconds
+const PARAMS = new URLSearchParams(location.search), OPPONENT = PARAMS.get('opponent') || 'veteran', LOCK = !PARAMS.has('free'), FINISHER = PARAMS.get('finisher');   // ?finisher=quietOne: force a finisher on the kill   // ?free: the three-quarter side view (versus-cards framing) instead of the duel lock
 const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, OPPONENT);
+if (FINISHER) view.setFinisherOverride(FINISHER);
 const cell = { w: 360, h: 560 }, sheet = document.createElement('canvas'), ctx = sheet.getContext('2d');
 // Render one moment the way main.ts does: settle the camera on the pre-contact state, then step frame by frame with the frame loop's hit-stop
 // (the contact frame carries the events and is frozen; later frozen frames carry none; effects keep running on dt, the rigs hold).
@@ -87,7 +88,7 @@ window.__preview = { ready: view.ready.then(() => true).catch(e => String(e)), s
 
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'impact-preview', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/impact-preview.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml('/impact-preview.html', PAGE)); }); } }] });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}impact-preview.html?opponent=${opponentId}${free ? '&free' : ''}`;
+const url = `${server.resolvedUrls.local[0]}impact-preview.html?opponent=${opponentId}${free ? '&free' : ''}${finisher ? `&finisher=${finisher}` : ''}`;
 if (args.includes('--serve')) { console.log(`Impact preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 const dir = `artifacts/presentation/${label}`; await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() }), errors = [];
@@ -98,7 +99,7 @@ try {
   await page.goto(url); const ready = await page.evaluate(() => window.__preview.ready); if (ready !== true) throw new Error(ready);
   console.log(`Capturing ${label} (${commit}) →`);
   const stats = { label, commit, date: new Date().toISOString().slice(0, 10) };
-  for (const [name, at] of [['block', [0, 2, 5, 9]], ['lightBlock', [0, 2, 5, 9]], ['parry', [0, 2, 5, 9]], ['heavy', [0, 2, 5, 9, 30]], ['kill', [0, 1, 3, 8]]]) {   // heavy +30: the wound mark has seeped by then
+  for (const [name, at] of [['block', [0, 2, 5, 9]], ['lightBlock', [0, 2, 5, 9]], ['parry', [0, 2, 5, 9]], ['heavy', [0, 2, 5, 9]], ['kill', finisher ? [8, 40, 90, 118] : [0, 1, 3, 8]]]) {   // a forced finisher: later frames, when it has played
     const { image, trace, events, brightness } = await page.evaluate(([n, a]) => __preview.strip(n, a), [name, at]);
     await fs.writeFile(`${dir}/${name}.png`, Buffer.from(image.split(',')[1], 'base64')); console.log(`  ${dir}/${name}.png  events: ${events.join(', ')}`);
     // Camera kick trace: how far (CSS px) a fixed world point between the fighters moves on screen from the frame before contact, frame by frame.

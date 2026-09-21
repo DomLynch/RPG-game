@@ -366,9 +366,12 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number] } {
-      return { sparks: clash.alive(), burst: clash.last() };
-    }, // debug probe for the presentation harness: live contact effects
+    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null } {
+      // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
+      const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
+      const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
+      return { sparks: clash.alive(), burst: clash.last(), wound };
+    }, // debug probe for the presentation harness: live contact effects and the throat-cut decal
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
         drawn = anchor?.getObjectByName('WeaponDrawn') ?? anchor?.getObjectByName('SwordDrawn');
