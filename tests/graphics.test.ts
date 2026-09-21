@@ -168,7 +168,8 @@ test('guard side: a slide on the Guard button or Q + an arrow sets the guard dir
   for (let i = 0; i < 40; i++) app.tick();
   settle(); const x = me().body.x, z = me().body.z; app.key('KeyQ'); app.key('ArrowUp'); app.tick();
   assert.equal(me().guardDirection, 'overhead', 'Q + an arrow is that side'); assert.deepEqual([me().body.x, me().body.z], [x, z], 'the arrow picks the side, it does not walk');
-  app.release('ArrowUp'); app.release('KeyQ'); for (let i = 0; i < 40; i++) app.tick();
+  assert.equal(guardButton.dataset.side, 'overhead', 'the Guard button shows the keyboard side too (side hint)');
+  app.release('ArrowUp'); app.tick(); assert.equal(guardButton.dataset.side, 'straight', 'arrow released: straight again'); app.release('KeyQ'); for (let i = 0; i < 40; i++) app.tick();
   app.key('ArrowUp'); for (let i = 0; i < 5; i++) app.tick(); assert.notEqual(me().body.z, z, 'without Q the arrow walks as before'); app.release('ArrowUp');
 });
 

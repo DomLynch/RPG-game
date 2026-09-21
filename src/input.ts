@@ -264,28 +264,30 @@ export function createInput(env: InputEnv) {
   });
   dodgeButton.addEventListener('keyup', () => releaseDodge());
   dodgeButton.addEventListener('blur', () => releaseDodge(true));
-  const showSide = () => { guardButton.dataset.side = guardDir ?? 'straight'; };
+  // The Guard button shows the side it covers (data-side, styled by the side hint): the thumb's slide, or Q + an arrow on a keyboard.
+  // Written from intent() every tick with the effective direction, so the keyboard user sees the arrow's side too, and read back unchanged.
+  const showSide = (side: Direction | null): Direction | null => { const label = side ?? 'straight'; if (guardButton.dataset.side !== label) guardButton.dataset.side = label; return side; };
   guardButton.addEventListener('pointerdown', (event) => {
     if (event.button !== 0 || paused() || guardId !== null) return;
     event.preventDefault();
     guardId = event.pointerId;
     guardButton.setPointerCapture(guardId);
     guardFrom = { x: event.clientX, y: event.clientY };
-    guardDir = null; showSide();
+    guardDir = null; showSide(null);
     guard = true;
     requestParry();
   });
   guardButton.addEventListener('pointermove', (event) => {
     if (event.pointerId !== guardId || !guardFrom) return;
     const side = guardSide(event.clientX - guardFrom.x, event.clientY - guardFrom.y);
-    if (side !== guardDir) { guardDir = side; showSide(); }
+    if (side !== guardDir) { guardDir = side; showSide(side); }
   });
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
     guardButton.addEventListener(name, (event) => {
       if ((event as PointerEvent).pointerId === guardId) {
         guardId = null;
         guardFrom = null;
-        guardDir = null; showSide();
+        guardDir = null; showSide(null);
         guard = false;
         if (name === 'pointercancel') withdraw('parry');
       }
@@ -376,7 +378,7 @@ export function createInput(env: InputEnv) {
         run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight'),
         action: ready ? action : null,
         guard: ready && (guard || dragGuard || q),
-        guardDirection: guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null),
+        guardDirection: showSide(guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null)),
         held: ready && held(),
         cancel,
       };
@@ -405,7 +407,7 @@ export function createInput(env: InputEnv) {
       guard = false;
       guardId = null;
       guardFrom = null;
-      guardDir = null; showSide();
+      guardDir = null; showSide(null);
       run = stickRun = false;
       moveX = moveZ = 0;
       moveId = null;
