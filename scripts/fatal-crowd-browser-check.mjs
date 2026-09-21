@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
-import { MANIFEST } from '../../../src/audio/manifest.ts';
+import { MANIFEST } from '../src/audio/manifest.ts';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`); url.searchParams.set('debug', '1');
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });

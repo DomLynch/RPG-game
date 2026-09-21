@@ -44,7 +44,7 @@
     ],
     [
       "node",
-      "artifacts/audio/fatal-crowd/browser.mjs"
+      "scripts/fatal-crowd-browser-check.mjs"
     ],
     [
       "node",
