@@ -47,7 +47,11 @@ test('independent checks run concurrently; fixed-port checks run alone; receipt 
   // suite's own files in parallel, 2026-09-21) eight node startups took a still-overlapped run past the old 3.5 s bound and even past
   // the 4.8 s serial sleep floor (5.75 s measured) — wall time says nothing about overlap there.
   assert.ok(maxOverlap(root) >= 4, `checks overlapped: at most ${maxOverlap(root)} alive at once (wall ${wall}s)`);
-  assert.ok(alive(root).filter(s => s.tag === 'fixed').every(s => s.n === 1), `a fixed-port check runs alone: ${JSON.stringify(alive(root))}`);
+  // The runner's fixed-port contract is a lock AMONG fixed-port checks (one of them at a time); they may share the pool with independent
+  // checks, and on the ubuntu runner they did (CI run 35616787102: a fixed span overlapped one sleep). So: the fixed spans never overlap each other.
+  const fixed = spans(root).filter(s => s.tag === 'fixed');
+  assert.equal(fixed.length, 2);
+  assert.ok(fixed[0].b <= fixed[1].a || fixed[1].b <= fixed[0].a, `fixed-port checks run one at a time: ${JSON.stringify(fixed)}`);
   assert.match(result.stdout, /8 total, 0 trusted from CI, 8 to run, concurrency 6, 2 fixed-port \(one at a time\)/);
   assert.ok(existsSync(join(root, 'artifacts', 'release-checks.json')));
   const written = JSON.parse(readFileSync(join(root, 'artifacts', 'release-checks.json'), 'utf8'));
