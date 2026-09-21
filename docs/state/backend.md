@@ -125,20 +125,24 @@ confirm `taken` and `location`, and boards must rank verified rows only.
 insert/update grant on `(loot)` to authenticated. Client-reported cosmetics; `src/loot.ts cleanLoot` validates on read (known ids only, worn ⊆
 owned). Never rank/result/unlock authority.
 
-### frankendom_verifier role + daily_results.checked_at (0005, PR #348) — apply-ready; password set by Dev/Deploy, not this lane
-`alter table daily_results add column checked_at timestamptz` (refused rows are stamped so the sweep moves on; `--recheck` revisits).
-`create role frankendom_verifier login` (Dev/Deploy sets the password on the host at apply time, straight into the VPS unit's env
-file, never in the repo and never held by this lane — see the checklist below);
-usage on schema public; `select (day, user_id, opponent, weapon, outcome, ticks, record, verified, checked_at, created_at)` and
-`update (verified, checked_at)` on daily_results; execute on `daily_fight(date)`; its own RLS policies (select all, update all) on
-daily_results. Nothing else. The VPS connects through the Supabase pooler as `frankendom_verifier.rxbewmzmovelckzoosss`.
+### frankendom_verifier role + daily_results.checked_at (0005, PR #348) — APPLIED, verified live
+Applied by Dev/Deploy (hosted migration `20260921211755 202609210005_daily_verifier`, PR #348 merged `bca49b9`). Verified
+independently here (fresh queries against pg_roles/information_schema/pg_proc/pg_policies, not taken on Dev/Deploy's report):
+`frankendom_verifier` role exists with `rolcanlogin = true`; `daily_results.checked_at` column exists; column grants are exactly
+`select` on `(day, user_id, opponent, weapon, outcome, ticks, record, verified, checked_at, created_at)` and `update` on
+`(verified, checked_at)` — 10 select columns + 2 update columns, matching the reviewed file exactly, nothing extra; `execute` on
+`daily_fight(date)` confirmed via `has_function_privilege`; both RLS policies (`the verifier reads every result` SELECT, `the
+verifier marks results verified` UPDATE) confirmed scoped to `frankendom_verifier` only. **Not independently checked, and never
+will be by this lane:** the password itself and Dev/Deploy's `select current_user` connection test — this lane never holds that
+credential, so that half of their report is taken as theirs to state, not verified here. `alter table daily_results add column
+checked_at timestamptz` (refused rows are stamped so the sweep moves on; `--recheck` revisits). The VPS connects through the
+Supabase pooler as `frankendom_verifier.rxbewmzmovelckzoosss`.
 
 **#348 arming checklist (takeover from Dev/Deploy; read from their PR branch, not written by this lane — no VPS writes here):**
-1. Apply 0005 (this section) to hosted; confirm `frankendom_verifier` exists and its grants match above.
-2. Dev/Deploy generates the password and runs `alter role frankendom_verifier password '<generated>';` themselves, at the moment
-   they apply 0005, and writes it straight into `/etc/frankendom/verifier.env` (root:600) on the VPS. This lane never holds or
-   sets the secret — one hand stays on the hosted DB, and nothing leaves the VPS onto the shared Mac or into chat. Backend verifies
-   afterward (below), it doesn't generate.
+1. ✅ DONE — 0005 applied, `frankendom_verifier` exists and its grants verified against the above, independently, this lane's own queries.
+2. ✅ DONE (Dev/Deploy's own report, password itself not and never independently checkable by this lane) — they generated the
+   password, ran `alter role frankendom_verifier password '<generated>';` at apply time, wrote it straight into
+   `/etc/frankendom/verifier.env` (root:600, confirmed by their own `stat`) on the VPS. This lane never held or set the secret.
 3. `/etc/frankendom/verifier.env` on the VPS (Dev/Deploy writes; root:600, checked by `deploy.sh` before it arms the timer):
    ```
    DATABASE_URL=postgres://frankendom_verifier:<password>@<pooler-host>:<pooler-port>/postgres
@@ -152,8 +156,13 @@ daily_results. Nothing else. The VPS connects through the Supabase pooler as `fr
 5. Unit shape: `frankendom-verify-daily.service` is a `oneshot` running `node scripts/verify-daily.mjs` with that env file, logging to
    `/var/log/frankendom-verify-daily.log`; `frankendom-verify-daily.timer` fires it every 2 minutes (`OnBootSec=2min`,
    `OnUnitActiveSec=2min`). `node scripts/verify-daily.mjs --dry` replays without writing; `--recheck` re-sweeps refused rows.
-6. After arming: confirm a `daily_results` row moves from `verified=false` to `true` (or gets `checked_at` stamped with a refusal
-   reason) within one timer cycle, and post that receipt here.
+4. IN PROGRESS — Dev/Deploy's deploy #72 (`bca49b9`) is running now, shipping `verify-daily.mjs` + unit files and arming the timer
+   (their report: the env file already exists at 600, so `deploy.sh`'s guard should arm it — not yet independently confirmed here).
+5. Unit shape (reference, unchanged): `frankendom-verify-daily.service` is a `oneshot` running `node scripts/verify-daily.mjs` with
+   that env file, logging to `/var/log/frankendom-verify-daily.log`; `frankendom-verify-daily.timer` fires it every 2 minutes.
+6. OPEN — waiting on Dev/Deploy's promised first-sweep receipt, then this lane confirms independently: a `daily_results` row moves
+   from `verified=false` to `true` (or gets `checked_at` stamped with a refusal reason). Not yet posted; there are no `daily_results`
+   rows to sweep yet either (table was 0 rows as of the last check), so the first real signal may wait for an actual daily post.
 
 ## Rules every lane inherits
 - Client-reported data is never rank, result or unlock authority for anything competitive; only server-verified rows count.
