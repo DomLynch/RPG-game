@@ -401,8 +401,11 @@ async function showDailyBoard() {
     status.textContent = `Daily #${fight.number} · ${rung.name} · ${mine.submitted ? 'posted' : mine.started ? 'attempt spent' : 'not fought yet'}`;
     const rows = await fetchDailyBoard(api, fight.day);
     board.replaceChildren(...dailyBoard(rows).map(({ title, row }) => {
-      const li = document.createElement('li'); li.dataset.verified = String(row ? row.verified : true);
-      li.textContent = row ? `${title}: ${row.display_name ?? 'a fighter'} · ${(row.ticks / 60).toFixed(1)} s${row.verified ? '' : ' (unverified)'}` : `${title}: —`;
+      // Web design's two hooks (#331): the title in <b> so the columns split, and this device's own posted row marked (the public view carries no
+      // user ids, so the match is the posted result itself: outcome, ticks and the fighter's display name).
+      const li = document.createElement('li'), b = document.createElement('b'); b.textContent = title; li.dataset.verified = String(row ? row.verified : true);
+      li.append(b, row ? ` ${row.display_name ?? 'a fighter'} · ${(row.ticks / 60).toFixed(1)} s${row.verified ? '' : ' (unverified)'}` : ' —');
+      if (row && mine.submitted && row.outcome === mine.outcome && row.ticks === mine.ticks && row.display_name === profile.name) li.dataset.you = 'true';
       return li;
     }));
     board.hidden = false;
