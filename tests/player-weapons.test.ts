@@ -67,13 +67,14 @@ const KNOWN_UNFAIR = [
   // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
   'cleaver vs executioner normal: light spam wins 17/24',
   'knife vs veteran normal: thrust from range wins 18/24',
-  'knife vs goblin normal: kick only untouched 3/24',
+  'knife vs goblin normal: thrust from range wins 15/24',   // Goblin normal reaction 11 (ladder slice, 2026-09-22): the slower read lets a poker park at range; the knife's "kick only untouched" row clears at the same time
   'knife vs goblin hard: kick only untouched 3/24',
-  'estoc vs goblin normal: thrust from range wins 23/24',
+  'estoc vs goblin normal: thrust from range wins 24/24',
   'estoc vs goblin hard: light spam wins 11/24',
   'estoc vs goblin hard: thrust from range wins 22/24',
   'estoc vs dwarf hard: thrust from range wins 10/24',
   'scythe vs veteran normal: thrust from range wins 19/24',
+  'scythe vs goblin normal: thrust from range wins 19/24',   // Goblin normal reaction 11 (ladder slice, 2026-09-22)
 ];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {
