@@ -286,9 +286,20 @@ if (LOOT) {
 // lowerarm_l. The cord is fitted by raycast: from the neck's axis outward at 36 azimuths, lower at the front (the clavicles) than at the nape,
 // the outermost thing already on him (skin, the scan's neck, tunic, baldric — every bucket so far, in rest space) plus 7 mm; the teeth and the
 // finger hang from it, each set just off the chest at its own height. It rests on the man, whatever the build.
-if (fighter === 'goblin') {
+if (fighter === 'goblin' || LOOT) {
   const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
-  const worn = [...parts.values()].flat().map(g => new T.Mesh(g, new T.MeshBasicMaterial({ side: T.DoubleSide })));   // everything on him so far (rest space): skin, the scan head's neck, tunic, baldric
+  // Loot: the cord is fitted over the PLAYER — his skin and level-1 kit loaded for the rays only, never exported; the necklace is a Body
+  // piece worn over the tunic, the bracer an Arms piece over the wraps.
+  const wornGeometries = LOOT ? await (async () => {
+    const list = [];
+    for (const file of ['body_realistic.glb', 'level1_realistic.glb']) {
+      const glb = await fs.readFile(path.join(partsDir, file)), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
+      asset.scene.updateMatrixWorld(true); asset.scene.traverse(o => { if (o.isMesh) list.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); });
+    }
+    return list;
+  })() : [...parts.values()].flat();
+  if (LOOT) { lootOf = 'goblin'; lootSlot = 'Body'; }
+  const worn = wornGeometries.map(g => new T.Mesh(g, new T.MeshBasicMaterial({ side: T.DoubleSide })));   // everything on him so far (rest space): skin, the scan head's neck, tunic, baldric
   const ray = new T.Raycaster(); ray.far = .35;
   const axis = at('neck_01').clone().add(new T.Vector3(0, 0, .03));   // the neck's own axis at the collar
   const surface = (y, a, gap) => {   // from the axis at height y, outward at azimuth a (0 = +z, the front): the outermost thing worn there, plus a gap
@@ -308,9 +319,11 @@ if (fighter === 'goblin') {
   const elbow = at('lowerarm_l'), wrist = at('hand_l'), arm = wrist.clone().sub(elbow), length = arm.length(); arm.normalize();
   const along = new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), arm);
   const sleeve = (t0, t1, r0, r1, material) => { const g = new T.CylinderGeometry(r1, r0, (t1 - t0) * length, 18, 1, true).applyQuaternion(along); const c = elbow.clone().addScaledVector(arm, (t0 + t1) / 2 * length); add(g, material, 'lowerarm_l', c.x, c.y, c.z); };
+  if (LOOT) lootSlot = 'Arms';
   sleeve(.28, .82, .052, .042, steel);   // the bracer: elbow end wider, a rust-brown iron sleeve
   sleeve(.30, .34, .055, .054, trim); sleeve(.76, .80, .046, .045, trim);   // two bronze rivet bands (mismatched furniture)
   console.log(`  goblin trophies: cord front ${ring[0].toArray().map(v => v.toFixed(3))}, nape ${ring[18].toArray().map(v => v.toFixed(3))}`);
+  if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.

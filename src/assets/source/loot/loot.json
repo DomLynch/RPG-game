@@ -68,6 +68,18 @@
       ]
     }
   ],
+  "goblin": [
+    {
+      "slot": "Body",
+      "layer": "over",
+      "file": "@build:goblin-necklace"
+    },
+    {
+      "slot": "Arms",
+      "layer": "over",
+      "file": "@build:goblin-bracer"
+    }
+  ],
   "pitborn": [
     {
       "slot": "Arms",
