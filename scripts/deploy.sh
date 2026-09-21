@@ -84,6 +84,7 @@ ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
 set -euo pipefail
 ln -sfn "$1" /opt/frankendom-verifier/current
 if test -s /etc/frankendom/verifier.env; then
+  test "$(stat -c %U:%a /etc/frankendom/verifier.env)" = root:600 || { echo "/etc/frankendom/verifier.env must be root:600"; exit 1; }
   install -m 644 "$1/frankendom-verify-daily.service" "$1/frankendom-verify-daily.timer" /etc/systemd/system/
   systemctl daemon-reload
   systemctl enable --now --quiet frankendom-verify-daily.timer
