@@ -110,9 +110,15 @@ export const prefersStillCamera = (): boolean =>
 // arena stops it for that finish (the player wants to look for themselves). On the player's own death it runs lower. A draw has no fallen
 // to circle; reduced motion keeps the frame still.
 export const TOUR = { delay: 5, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3 } as const;   // seconds and metres
+// Opening move (owner 2026-09-21: "whatever u did for end credits do same for start"): when the rigs are in and the arena shows, the
+// camera leaves the lock framing on a slow swing — out wide, up, and around the pair — and comes back to rest on it, sin-shaped so
+// both ends sit exactly on the lock pose: no cut at the start, no cut into the fight. The fight waits behind it (main.ts); a touch
+// on the arena skips it. Reduced motion never plays it.
+export const INTRO = { duration: 3.5, sweep: 1.1, radius: 2.4, rise: 1.4 } as const;   // seconds, radians of orbit, metres out and up
 export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefersStillCamera()) {
   let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
   let finishAge = 0, tourStopped = false, tourAngle: number | null = null;   // the tour's clock, the stop-on-touch, and the orbit angle it started from
+  let introAge: number | null = null;   // the opening move's clock (null = not playing)
   const desired = new THREE.Vector3(),
     look = new THREE.Vector3(),
     aim = new THREE.Vector3(0, 1, 0);
@@ -147,8 +153,15 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       started = false;
     },
     // A touch on the arena after the kill: the player takes the camera back for the rest of this finish.
+    startIntro() {
+      if (!still) introAge = 0;
+    },
+    get intro() {
+      return introAge !== null;
+    },
     stopTour() {
       tourStopped = true;
+      introAge = null;
     },
     get touring() {
       return tourAngle !== null;
@@ -242,6 +255,21 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         if (radius > 11.5) {
           desired.x *= 11.5 / radius;
           desired.z *= 11.5 / radius;
+        }
+      }
+      // The opening move: a swing off the lock pose and back onto it, around the midpoint of the pair.
+      if (introAge !== null) {
+        introAge += dt;
+        if (introAge >= INTRO.duration) introAge = null;
+        else {
+          const p = introAge / INTRO.duration, ease = p * p * (3 - 2 * p), arc = Math.sin(Math.PI * ease);
+          const focusX = (state.x + enemy.x) / 2, focusZ = (state.z + enemy.z) / 2;
+          const base = Math.atan2(desired.x - focusX, desired.z - focusZ), radius = Math.hypot(desired.x - focusX, desired.z - focusZ) + INTRO.radius * arc;
+          const angle = base + INTRO.sweep * arc, height = desired.y + INTRO.rise * arc;
+          desired.set(focusX + Math.sin(angle) * radius, height, focusZ + Math.cos(angle) * radius);
+          const r = Math.hypot(desired.x, desired.z);
+          if (r > 11.5) { desired.x *= 11.5 / r; desired.z *= 11.5 / r; }
+          look.lerp(new THREE.Vector3(focusX, 1, focusZ), arc);
         }
       }
       // The arena cam, on top of whatever the finisher's own moves settled on.

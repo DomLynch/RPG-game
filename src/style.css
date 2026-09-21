@@ -606,15 +606,15 @@ dialog>p {
   height: 100%;
   object-fit: cover;
   object-position: center 40%;
-  /* Owner 2026-09-21: the card drifts like the arena cam after the kill — from its first frame (the card loads fast, no wait), a
-     slow push-in and pan across the still (a 6% zoom over 14 s, back and forth while the rigs download). Transform only. */
+  /* Owner 2026-09-21: the card drifts like the arena cam after the kill — from its first frame, a push-in and pan across the still
+     (owner saw "very slight movement" at 10%: now a 22% push-in with a 6% pan over 6 s, ease-out so most of it lands inside the 2.5 s hold, back and forth if the rigs take longer). Transform only. */
   transform-origin: 62% 42%;
-  animation: versus-drift 14s ease-in-out infinite alternate;
+  animation: versus-drift 6s ease-out infinite alternate;
   will-change: transform;
 }
 @keyframes versus-drift {
   from { transform: scale(1) translate(0, 0); }
-  to { transform: scale(1.06) translate(-1.5%, 1%); }
+  to { transform: scale(1.22) translate(-6%, 3%); }
 }
 @media (prefers-reduced-motion: reduce) {
   .versus img { animation: none; }
