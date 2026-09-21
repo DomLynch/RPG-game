@@ -16,12 +16,13 @@ function glb(path: string) {
     return out;
   };
   const jointNames = (skin: number) => json.skins[skin].joints.map(i => json.nodes[i].name);
+  const ibm = (skin: number) => { const a = json.accessors[json.skins[skin].inverseBindMatrices], bv = json.bufferViews[a.bufferView], off = (bv.byteOffset ?? 0) + (a.byteOffset ?? 0); return bin.subarray(off, off + a.count * 64); };
   const jointY = (skin: number, name: string) => {   // a joint's rest height from its inverse bind matrix: j = −Rᵀ t
     const a = json.accessors[json.skins[skin].inverseBindMatrices], bv = json.bufferViews[a.bufferView], base = ((bv.byteOffset ?? 0) + (a.byteOffset ?? 0)) / 4;
     const f = new Float32Array(bin.buffer, bin.byteOffset, bin.byteLength / 4), m = f.subarray(base + jointNames(skin).indexOf(name) * 16);
     return -(m[1] * m[12] + m[5] * m[13] + m[9] * m[14]);
   };
-  return { json, positions, jointNames, jointY, draws: json.nodes.filter(n => n.mesh !== undefined && n.skin !== undefined) };
+  return { json, positions, jointNames, jointY, ibm, draws: json.nodes.filter(n => n.mesh !== undefined && n.skin !== undefined) };
 }
 const SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];
 
@@ -37,6 +38,7 @@ test('every loot draw is skinned to the hero bone order and names its opponent, 
     assert.ok(['replace', 'over'].includes(d.extras?.layer ?? ''), `${d.name}: layer ${d.extras?.layer}`);
     assert.ok(material, `${d.name}: material`);
     assert.deepEqual(loot.jointNames(d.skin!), heroJoints, `${d.name}: same joints, same order, as warrior.glb`);
+    assert.ok(loot.ibm(d.skin!).equals(hero.ibm(hero.draws[0].skin!)), `${d.name}: inverse bind matrices byte-identical to the player's — the loader binds every piece with his Body bindMatrix`);
   }
   assert.ok(loot.draws.some(d => d.name === 'dwarf.Greaves.DwarfIron'), 'the Dwarf drops his greaves');
 });

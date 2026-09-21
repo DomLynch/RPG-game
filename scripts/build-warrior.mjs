@@ -453,6 +453,8 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
     for (const slot of ['baseColor', 'metallicRoughness', 'normal']) if (maps[slot]) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, maps[slot])), mime: /\.jpe?g$/i.test(maps[slot]) ? 'image/jpeg' : 'image/png' };
     lootMaps.set(name, entry);
   }
+  base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y = .025;   // the same scene-root transform warrior.glb ships (below): a loot draw and the hero share one space whichever root it is added under
+  base.scene.updateMatrixWorld(true);
   const bytes = finishMaterials(Buffer.from(await new GLTFExporter().parseAsync(base.scene, { binary: true, animations: [], onlyVisible: true })), lootMaps, false);
   await fs.writeFile(output, bytes);
   console.log(`Loot → ${output}: ${bytes.byteLength} bytes; ${draws.length} draws: ${draws.map(m => m.name).join(', ')}`);
