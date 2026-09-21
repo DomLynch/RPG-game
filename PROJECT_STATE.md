@@ -1,5 +1,15 @@
 # Project state
 
+## Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-limited back-off (2026-09-21)
+Deploy #57 on fdd6032 (#303 anti-turtling) failed release checks 17 and 20: the passive test Executioner is now lashed off the
+wall and dies at heading π nearer the wall. Quiet One's body left the portrait frame (x −40); Opened's reach-driven back-off
+stepped 0.267 in one frame (> .25). Fixes (camera.ts, scene.ts): the fallen rig's world bounds feed `finish.reach` for
+Quiet One as they already did for Opened's pieces; reach growth is capped at 1.5 cm/frame; the side-view half-width uses
+the foreshortened axis (gap/2·sin angle + beyond) — the unforeshortened ask pushed the fit past the 11.5 m arena clamp,
+which silently undid it; Quiet One (and any measured reach) gets the inward front-quarter camera candidates near the wall.
+Receipts: checks 17 and 20 exit 0 locally on this head; camera/creature-opened/characters 50/50 (the characters test now
+feeds the measured reach like the scene does).
+
 ## Release check 9 (polearm-browser-check) became checks 9–12; everything after renumbered +3 — 2026-09-21
 Lead's deploy-speed ask: check 9 failed on ubuntu-latest on wall-clock waits. `scripts/polearm-browser-check.mjs` now boots on real
 time and then owns page time through `scripts/lib/harness-clock.mjs` (walk-in, orbit settle, fight frames and both predicates advance
