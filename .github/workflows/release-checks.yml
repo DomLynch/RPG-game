@@ -8,11 +8,13 @@ name: release-checks
 on:
   push:
     branches: [codex/01a09a76/task-1]
-  # Ready (non-draft) pull requests run too, on GitHub's merge ref, so that by the time the branch is merged the deploy
-  # can already trust these checks by tree (scripts/ci-trusted-checks.mjs). Checks that the runner cannot finish in a
-  # useful time are left out on pull requests (RUNNER_SKIP_ON_PR); they run on the Mac at deploy time as before.
+  # Pull requests run too, on GitHub's merge ref, so that by the time the branch is merged the deploy can already trust
+  # these checks by tree (scripts/ci-trusted-checks.mjs) — but only opt-in, with the `ci:release-checks` label, and never
+  # for drafts: the shared runner pool is capped (20 jobs), and 23 jobs per push of every PR would queue every lane's
+  # required quality.yml behind ~25 min of release checks. Checks the runner cannot finish in a useful time are left
+  # out on pull requests (RUNNER_SKIP_ON_PR); they run on the Mac at deploy time as before.
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [labeled, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       ref:
@@ -29,7 +31,7 @@ env:
   RUNNER_SKIP_ON_PR: quiet-one-browser-check
 jobs:
   plan:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && contains(github.event.pull_request.labels.*.name, 'ci:release-checks'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -55,6 +57,8 @@ jobs:
     needs: plan
     strategy:
       fail-fast: false
+      # Leave runners for every lane's required quality.yml jobs (pool cap is 20).
+      max-parallel: 8
       matrix:
         check: ${{ fromJson(needs.plan.outputs.checks) }}
     name: check ${{ matrix.check.index }} (${{ matrix.check.name }})
