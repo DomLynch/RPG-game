@@ -56,7 +56,7 @@ try {
  const side={right:'left',left:'right',overhead:'overhead',low:'low',thrust:null}[incoming] ?? null;
  const slide={left:{x:-30,y:0},right:{x:30,y:0},overhead:{x:0,y:-30},low:{x:0,y:30}}[side];
  const waitAfterTellMs={light_right:200,light_left:200,heavy_overhead:430,thrust:100}[incomingEvent?.move]??430;
- await until(()=>performance.now()-window.__tellAt>=waitAfterTellMs,20000);
+ await until(wait=>performance.now()-window.__tellAt>=wait,20000,waitAfterTellMs);   // page.evaluate serializes the predicate into the browser: a Node-side const inside it is a ReferenceError there, so it must travel as until()'s own arg
  receipt.parryWaitMs={move:incomingEvent?.move,waitAfterTellMs};
  receipt.parrySide={incoming,side};
  await touch('touchStart',guardPoint);
