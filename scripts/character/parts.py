@@ -31,6 +31,16 @@ VARIANT = ('realistic' if FIGHTER == 'hero' else FIGHTER) if realistic else ''  
 HBM = 'artifacts/source/human-base-meshes/human_base_meshes_bundle.blend'
 out = args[args.index('--proof') + 1] if proof else 'src/assets/source/parts'
 materials_out = 'src/assets/source/materials'
+# --loot <dir> (Brief 5, 2026-09-21): the same hero build, but every hero output (parts, materials, manifest, items) goes to <dir>
+# and the only files written under src/ are the loot pieces shelled from the HERO's skull: the Executioner's mask + hood and the
+# Nightborn's crown, src/assets/source/loot/<opponent>_hero.glb. Their own fighters' items fit their own heads; a drop the player
+# wears must fit his. Everything else an opponent drops is authored on the shared body and already fits (loot.json).
+loot = '--loot' in args
+if loot:
+    if FIGHTER != 'hero' or not realistic:
+        raise SystemExit('--loot is the hero build (--body realistic, no --fighter)')
+    out = os.path.join(args[args.index('--loot') + 1], 'parts')
+    materials_out = os.path.join(args[args.index('--loot') + 1], 'materials')
 SUFFIX = ('_r' if FIGHTER == 'hero' else f'_{FIGHTER}') if realistic else ''  # material file suffix; the hero keeps its shipped names
 # What each fighter wears over the shared level-1 cut (GAME_SPEC materials: bronze, iron, bone, leather, stone, ash, blood).
 # The hero's values are the shipped ones. The Veteran: a darker, dirtier undyed tunic and bronze greaves; his pteruges dye
@@ -2161,9 +2171,16 @@ else:
     GAMBESON_MAPS = linen_maps(tunic, folds, size=1024 if KIT['bare'] else 2048)  # the tunic's colour and roughness in the same layout; a bare fighter's rag sash needs no 2K (texture diet, 2026-09-20)
     export_kit(kit, os.path.join(out, f'level1_{VARIANT}.glb' if realistic else 'level1.glb'))
     ITEM = '' if FIGHTER == 'hero' else f'_{FIGHTER}'  # the helm is shelled from this fighter's own skull: one per head
-    if FIGHTER == 'hero':
+    if FIGHTER == 'hero' and not loot:
         export_kit(ranger_items(), 'src/assets/source/items/ranger.glb')  # fitted to the shared body: one copy
-    if KIT['helm']:
+    if loot:
+        helm, crest = bronze_helmet()  # the hero's own helm: built for HELM_RIM_Z and hidden — the mask's rays must see the bare face, not its cheek guards
+        for o in (helm, crest):
+            o.hide_viewport = o.hide_render = True
+        mask, hood = executioner_mask(), executioner_hood()
+        export_kit([mask, hood], 'src/assets/source/loot/executioner_hero.glb')
+        export_kit(nightborn_crown(bpy.data.objects['kt_head'], el, er), 'src/assets/source/loot/nightborn_hero.glb')
+    elif KIT['helm']:
         if FIGHTER == 'executioner':
             mask, hood = HELM
             export_kit([mask], f'src/assets/source/items/mask_iron{ITEM}.glb')   # the half-mask: iron plate, the eyes and brow stay free
