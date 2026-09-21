@@ -13,6 +13,8 @@ import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
+import { readOpponent } from './ai.ts';
+import { autopsy } from './autopsy.ts';
 import {
   initialPractice,
   stepPractice,
@@ -55,6 +57,9 @@ for (const id of ['sound-button', 'mobile-sound'])
 const welcome = element('welcome');
 const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
+const autopsyLines = element('autopsy');
+// The death-screen autopsy: at most two lines between the kill and the rematch button; hidden when there is nothing confident to say.
+function showAutopsy(lines: string[]) { autopsyLines.hidden = !lines.length; autopsyLines.replaceChildren(...lines.map((line) => { const span = document.createElement('span'); span.textContent = line; return span; })); }
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
 const resetButton = element<HTMLButtonElement>('reset-button');
@@ -167,7 +172,8 @@ let assetsReady = false,
   graphicsLost = false;
 let difficulty: keyof typeof PROFILES = 'normal',
   debug = /[?&]debug\b/.test(window.location?.search ?? ''),
-  frameEvents: CombatEvent[] = [];
+  frameEvents: CombatEvent[] = [],
+  fightLog: CombatEvent[] = [];   // every event of the current fight, for the death-screen autopsy (src/autopsy.ts reads the whole fight)
 // Every fight is recorded in memory (beta plan brief 3: kill links): the seed, the warden profile and every quantized intent the
 // simulation stepped, so the fight can be replayed elsewhere. Nothing leaves the device here; a later slice adds Share. The
 // build id is <html data-release>, 'dev' until the deploy stamps the revision there (a replay must run on the same rules; the
@@ -258,7 +264,11 @@ function renderScorecard() {
   const table = element('scorecard-table');
   table.replaceChildren();
   const head = document.createElement('tr'); for (const label of ['Opponent', 'Fights', 'Wins', 'Losses']) head.append(cell('th', label)); table.append(head);
-  for (const row of scorecardRows(scorecard, LADDER)) { const tr = document.createElement('tr'); tr.append(cell('td', row.name), cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr); }
+  for (const row of scorecardRows(scorecard, LADDER)) {
+    const tr = document.createElement('tr'); tr.append(cell('td', row.name), cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
+    // The last fight's autopsy under the opponent's row (beta plan brief 2): one line, nothing after a win.
+    if (row.last.length) { const note = document.createElement('tr'); note.className = 'autopsy-row'; const td = cell('td', row.last.join(' ')); td.setAttribute('colspan', '4'); note.append(td); table.append(note); }
+  }
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debug;
 }
@@ -295,7 +305,7 @@ resetButton.addEventListener('click', () => {
   if (replay) {   // Avenge him: the same warden and seed, live, practice only
     practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -315,7 +325,7 @@ resetButton.addEventListener('click', () => {
   practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
-  frameEvents = [];
+  frameEvents = []; fightLog = []; showAutopsy([]);
   state = previous = practice.fighter;
   view.recenter();
   canvas.focus();
@@ -352,7 +362,7 @@ if (replayText || sharedId) {
     if (record.opponent !== opponent.id) throw Error('the link names another opponent');
     matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
     recorder = null; recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
     replay = { record, cursor: 0 }; shareButton.hidden = true; say(null);
     banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
     updateHud();
@@ -627,7 +637,7 @@ function frame(now: number) {
         drawing: practice.duel.fighters[0].phase === 'draw',
         opponent: opponent.id,
       });
-      frameEvents.push(...practice.events);
+      frameEvents.push(...practice.events); fightLog.push(...practice.events);
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
       controls.consumed(practice.events);
       state = practice.fighter;
@@ -642,10 +652,13 @@ function frame(now: number) {
             shareButton.hidden = false; say(null);
             void encodeRecord(lastRecord).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
           }
+          // The autopsy (brief 2): two plain lines on the death screen, and the same lines under the opponent's journal row for the last fight.
+          const lines = autopsy(practice.ai.habits, readOpponent(practice.ai.habits), fightLog, practice.duel);
+          showAutopsy(lines);
           if (!practiceOnly) {   // an avenged fight is practice: it never touches the card, the scorecard or the marks
             recordPractice(trial, practice, Math.round(activeMs));
             saveTrial(storage, trial);
-            recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk);   // a fight lost while away is a loss, flagged left
+            recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk, lines);   // a fight lost while away is a loss, flagged left
             saveScorecard(storage, scorecard);
             if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
           }

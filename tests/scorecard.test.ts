@@ -7,16 +7,16 @@ const memory = () => { const store = new Map<string, string>(); return { getItem
 test('results tally per opponent: wins, losses, left inside losses, draws as fights only', () => {
   const card = loadScorecard(memory());
   recordResult(card, 'veteran', 'win'); recordResult(card, 'veteran', 'loss'); recordResult(card, 'veteran', 'loss', true); recordResult(card, 'goblin', 'draw');
-  assert.deepEqual(card.rows.veteran, { fights: 3, wins: 1, losses: 2, left: 1 });
-  assert.deepEqual(card.rows.goblin, { fights: 1, wins: 0, losses: 0, left: 0 });
-  assert.deepEqual(totals(card), { fights: 4, wins: 1, losses: 2, left: 1 });
+  assert.deepEqual(card.rows.veteran, { fights: 3, wins: 1, losses: 2, left: 1, last: [] });
+  assert.deepEqual(card.rows.goblin, { fights: 1, wins: 0, losses: 0, left: 0, last: [] });
+  assert.deepEqual(totals(card), { fights: 4, wins: 1, losses: 2, left: 1, last: [] });
 });
 test('the card survives a reload and a bad or unknown row is dropped, never trusted', () => {
   const storage = memory(); const card = loadScorecard(storage);
   recordResult(card, 'pitborn', 'win'); assert.equal(saveScorecard(storage, card), true);
-  assert.deepEqual(loadScorecard(storage).rows, { pitborn: { fights: 1, wins: 1, losses: 0, left: 0 } });
+  assert.deepEqual(loadScorecard(storage).rows, { pitborn: { fights: 1, wins: 1, losses: 0, left: 0, last: [] } });
   storage.setItem('frankendom.scorecard.v1', JSON.stringify({ version: 1, rows: { cyclops: { fights: 9 }, goblin: { fights: -1, wins: 1.5, losses: '2', left: 1 } } }));
-  assert.deepEqual(loadScorecard(storage).rows, { goblin: { fights: 0, wins: 0, losses: 0, left: 1 } });
+  assert.deepEqual(loadScorecard(storage).rows, { goblin: { fights: 0, wins: 0, losses: 0, left: 1, last: [] } });
   for (const raw of ['{broken', 'null', '{"version":2}']) { storage.setItem('frankendom.scorecard.v1', raw); assert.deepEqual(loadScorecard(storage).rows, {}); }
   const blocked = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('quota'); } };
   assert.deepEqual(loadScorecard(blocked).rows, {}); assert.equal(saveScorecard(blocked, card), false);
@@ -26,8 +26,8 @@ test('journal rows list every offered opponent, mark walk-aways, and end with th
   recordResult(card, 'veteran', 'loss', true); recordResult(card, 'veteran', 'win');
   const rows = scorecardRows(card, [{ id: 'veteran', name: 'the Veteran' }, { id: 'goblin', name: 'the Goblin' }]);
   assert.deepEqual(rows, [
-    { name: 'the Veteran', fights: 2, wins: 1, losses: '1 (1 left)' },
-    { name: 'the Goblin', fights: 0, wins: 0, losses: '0' },
-    { name: 'All fights', fights: 2, wins: 1, losses: '1 (1 left)' },
+    { name: 'the Veteran', fights: 2, wins: 1, losses: '1 (1 left)', last: [] },
+    { name: 'the Goblin', fights: 0, wins: 0, losses: '0', last: [] },
+    { name: 'All fights', fights: 2, wins: 1, losses: '1 (1 left)', last: [] },
   ]);
 });
