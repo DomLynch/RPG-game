@@ -9,7 +9,7 @@ import type { OpponentId } from './moves.ts';
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const KICK_LANDS = 1.5;
 
-export type HudView = { controlsReady: boolean; debug: boolean; opponentId: OpponentId };
+export type HudView = { controlsReady: boolean; debug: boolean; opponentId: OpponentId; replay?: boolean; practiceOnly?: boolean };   // replay: watching a record (Avenge him after); practiceOnly: an avenged fight, no ladder step
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -43,7 +43,7 @@ export function createHud(element: Lookup) {
       );
       const inKickReach =
         Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z) <= KICK_LANDS;
-      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}`;
+      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}`;
       if (key === lastHud) return;
       lastHud = key;
       health.max = practice.enemyMaxHealth;
@@ -108,8 +108,8 @@ export function createHud(element: Lookup) {
       heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
       attackButton.hidden = ended;
       resetButton.hidden = !ended;
-      const next = ended && won(practice.finish) ? nextAfter(view.opponentId) : undefined;
-      resetButton.textContent = next ? `Next: ${next.name}` : 'Rematch';
+      const next = ended && !view.practiceOnly && !view.replay && won(practice.finish) ? nextAfter(view.opponentId) : undefined;
+      resetButton.textContent = view.replay ? 'Avenge him' : next ? `Next: ${next.name}` : 'Rematch';
       dodgeButton.setAttribute('aria-disabled', String(!controlsReady || !ok[3]));
       guardButton.setAttribute('aria-disabled', String(!controlsReady || !(ok[4] || practice.phase === 'guard')));
       guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));

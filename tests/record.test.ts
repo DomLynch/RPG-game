@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, PROFILES } from '../src/moves.ts';
+import { OPPONENTS } from '../src/moves.ts';
 import type { Intent } from '../src/duel.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, fromBase64Url, packRecord, quantizeIntent, toBase64Url, unpackRecord, type FightRecord } from '../src/record.ts';
 
@@ -61,7 +61,7 @@ function scriptedFight(seed = 731, ticks = 1800) {
       action: phase === 95 ? 'light' : phase === 110 ? 'light' : phase === 130 ? 'heavy' : phase === 170 ? 'thrust' : phase === 190 ? 'kick' : null,
       guard: phase >= 140 && phase < 165, guardDirection: phase >= 140 && phase < 165 ? 'overhead' : undefined, held: phase > 125 && phase < 135,
     });
-    practice = stepPractice(practice, rec.push(raw), PROFILES.normal);
+    practice = stepPractice(practice, rec.push(raw), OPPONENTS.veteran.profiles.normal);
   }
   return { record: rec.finish(practice.finish ? (practice.finish.victim === 1 ? 'killed' : 'died') : 'abandoned'), practice };
 }
@@ -73,7 +73,7 @@ test('record: a real 30 s fight against the Veteran encodes under 2 KB and repla
   assert.ok(text.length < 2048, `encoded ${record.ticks}-tick fight is ${text.length} chars (target < 2048)`);
   const decoded = await decodeRecord(text);
   let replay = initialPractice(decoded.seed, OPPONENTS[decoded.opponent]);
-  for (const it of decoded.intents) replay = stepPractice(replay, it, PROFILES[decoded.profile]);
+  for (const it of decoded.intents) replay = stepPractice(replay, it, OPPONENTS[decoded.opponent].profiles[decoded.profile]);
   assert.equal(replay.duel.tick, practice.duel.tick, 'same final tick');
   assert.deepEqual(replay.duel.fighters, practice.duel.fighters, 'same fighters, bit for bit');
   assert.deepEqual(replay.finish, practice.finish, 'same finish');

@@ -1487,3 +1487,31 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .slot i { display: block; font: 600 13px "Instrument Sans", Arial, sans-serif; font-style: normal; margin-top: 4px; }
 .slot.on { border-style: solid; border-color: var(--jf); color: var(--jf); background: #fff9; }
 .gear[aria-disabled=true] .slot:not(.on) { opacity: .7; }
+
+/* Kill links (brief 3): the replay banner sits under the header; Share and its status sit beside Rematch on the death screen.
+   Web design owns the final look; these are plain, readable defaults. */
+.replay-banner {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  text-align: center;
+  color: #e9ddc5;
+  font: 13px Arial;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px #000c;
+  pointer-events: none;
+}
+.share-button {
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+.share-status {
+  display: block;
+  color: #e9ddc5;
+  font: 12px Arial;
+  opacity: 0.8;
+  overflow-wrap: anywhere;
+}

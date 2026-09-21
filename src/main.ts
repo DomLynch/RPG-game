@@ -1,6 +1,7 @@
 import { createInput } from './input.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
-import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
+import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
+import { replayParam, shareUrl, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
@@ -169,6 +170,14 @@ let difficulty: keyof typeof PROFILES = 'normal',
 const BUILD = document.documentElement?.dataset?.release || 'dev';
 const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, profile: difficulty, seed: matchSeed });
 let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRecord: FightRecord | null = null;
+// Kill links (brief 3, second slice): `?replay=<record>` plays a shared fight back — the same seed, warden profile and intents, so
+// the viewer watches exactly what happened — with the buttons asleep; afterwards "Avenge him" starts a live fight against the
+// same warden and seed, practice only (practiceOnly: no ladder step, no mark, no scorecard or trial line). Share on the death
+// screen encodes the last record, replays it headless first, and only then hands the link to the share sheet or clipboard.
+let replay: { record: FightRecord; cursor: number } | null = null, practiceOnly = false;
+const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
+const banner = (text: string | null) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; };
+const say = (text: string | null) => { shareStatus.textContent = text ?? ''; shareStatus.hidden = !text; };
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
 // pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
@@ -212,7 +221,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp, debug, opponentId: opponent.id });   // buttons wake when the card lifts, so a press is never swallowed behind it
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !replay, debug, opponentId: opponent.id, replay: !!replay, practiceOnly });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -278,7 +287,14 @@ const controls = createInput({
   quiet: () => feedback.quiet(),
 });
 resetButton.addEventListener('click', () => {
-  const next = won(practice.finish) ? nextAfter(opponent.id) : undefined;
+  if (replay) {   // Avenge him: the same warden and seed, live, practice only
+    practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
+    clearInput(); recorded = false; activeMs = 0;
+    practice = initialPractice(matchSeed, opponent); recorder = startRecorder(); frameEvents = []; state = previous = practice.fighter;
+    shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
+    return;
+  }
+  const next = !practiceOnly && won(practice.finish) ? nextAfter(opponent.id) : undefined;
   if (next) {
     profile.encounter = next.id;
     persist();
@@ -293,11 +309,42 @@ resetButton.addEventListener('click', () => {
   matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0;
   practice = initialPractice(matchSeed, opponent);
   recorder = startRecorder();
+  shareButton.hidden = true; say(null);
   frameEvents = [];
   state = previous = practice.fighter;
   view.recenter();
   canvas.focus();
 });
+shareButton.addEventListener('click', async () => {
+  if (!lastRecord || replay) return;
+  shareButton.disabled = true; say('Checking the fight…');
+  try {
+    const check = verifyRecord(lastRecord);
+    if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
+    const link = await shareUrl(lastRecord, location.origin);
+    if ('tooLong' in link) { say('This fight is too long to share as a link yet.'); return; }
+    const nav = typeof navigator === 'undefined' ? undefined : navigator;
+    if (nav?.share) { try { await nav.share({ url: link.url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(link.url); say('Link copied.'); return; }
+    say(link.url);
+  } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
+  finally { shareButton.disabled = false; }
+});
+// A shared link: decode the record, put the fight on its seed and warden profile, hide the welcome (a viewer needs no name) and
+// let the frame loop feed the recorded intents. A link for another opponent than the page booted is refused rather than mis-played.
+const replayText = replayParam(window.location?.search ?? '');
+if (replayText) {
+  welcome.hidden = true; banner('Loading the fight…');
+  void decodeRecord(replayText).then((record) => {
+    if (record.opponent !== opponent.id) throw Error('the link names another opponent');
+    matchSeed = record.seed; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
+    recorder = null; recorded = false; activeMs = 0; clearInput();
+    practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter;
+    replay = { record, cursor: 0 }; shareButton.hidden = true; say(null);
+    banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
+    updateHud();
+  }).catch((error: unknown) => { banner(`This link cannot be played: ${error instanceof Error ? error.message : String(error)}`); });
+}
 element('difficulty').addEventListener('click', () => {
   const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[];
   difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length];
@@ -513,20 +560,27 @@ function frame(now: number) {
     activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      const intent = controls.intent();
-      if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
-      const duelIntent = {
-        move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
-        action: intent.action,
-        guard: intent.guard,
-        guardDirection: intent.guardDirection ?? undefined,
-        held: intent.held,
-        lock: locked,
-        cancel: intent.cancel,
-      };
+      if (!marked && !practice.finish && !replay) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (replay && replay.cursor >= replay.record.ticks) {   // the record ran out without its finish: this build stepped it differently
+        banner('This replay could not be played back on this build.'); replay = { record: replay.record, cursor: replay.cursor }; accumulator = 0; updateHud();
+        break;
+      }
+      const stepped = replay ? replay.record.intents[replay.cursor++] : (() => {
+        const intent = controls.intent();
+        const duelIntent = {
+          move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
+          action: intent.action,
+          guard: intent.guard,
+          guardDirection: intent.guardDirection ?? undefined,
+          held: intent.held,
+          lock: locked,
+          cancel: intent.cancel,
+        };
+        return recorder ? recorder.push(duelIntent) : quantizeIntent(duelIntent);   // the sim always steps the quantized intent: live and replay see the same bits
+      })();
       practice = stepPractice(
         practice,
-        recorder ? recorder.push(duelIntent) : quantizeIntent(duelIntent),   // the sim always steps the quantized intent: live and replay see the same bits
+        stepped,
         opponent.profiles[difficulty],
       );
       if (debug && practice.events.length)
@@ -567,14 +621,24 @@ function frame(now: number) {
       accumulator -= step();
       if (practice.finish && !recorded) {
         recorded = true;
-        if (recorder) { lastRecord = recorder.finish(practice.finish.draw ? 'draw' : practice.finish.victim === 1 ? 'killed' : 'died'); element('debug').dataset.record = `${lastRecord.ticks}/${lastRecord.outcome}/${lastRecord.seed}`; }
-        recordPractice(trial, practice, Math.round(activeMs));
-        saveTrial(storage, trial);
-        marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
-        recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk);   // a fight lost while away is a loss, flagged left
-        saveScorecard(storage, scorecard);
-        if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent
-        if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
+        if (replay) { banner(`Replay over · ${practice.finish.victim === 1 ? 'the warden fell' : 'the fighter fell'}`); updateHud(); }
+        else {
+          if (recorder) {
+            lastRecord = recorder.finish(practice.finish.draw ? 'draw' : practice.finish.victim === 1 ? 'killed' : 'died');
+            element('debug').dataset.record = `${lastRecord.ticks}/${lastRecord.outcome}/${lastRecord.seed}`;
+            shareButton.hidden = false; say(null);
+            void encodeRecord(lastRecord).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
+          }
+          if (!practiceOnly) {   // an avenged fight is practice: it never touches the card, the scorecard or the marks
+            recordPractice(trial, practice, Math.round(activeMs));
+            saveTrial(storage, trial);
+            recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk);   // a fight lost while away is a loss, flagged left
+            saveScorecard(storage, scorecard);
+            if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
+          }
+          marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
+          if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent
+        }
       }
       // Freeze on the contact tick: the frame ends here and the leftover time is dropped, so no catch-up jump follows. The frozen frames show the
       // contact tick's bodies (previous = state), not a blend back toward the tick before it.
