@@ -24,8 +24,9 @@ metric reads 2.6 / 5.8 / 7.3 cm on the Dwarf's shorter legs). Only the greaves s
 than solid plates — the metallic mask is what it is; a v2 could shell the whole shin instead. Body/Helmet/Arms iron is speckle. They
 follow the knee through Guard and Walk without cutting the kilt hem (renders in `artifacts/character/loot/v1/`).
 Byte-neutral: with WARRIOR_LOOT unset the script's output is unchanged (cmp against the untouched trunk script: identical hero and
-dwarf-donor builds). Open: the Goblin's trophies (necklace raycast needs the hero body loaded
-in loot mode), the five parametric kits re-run on the hero body via a parts.py `--kit` (Character Main; today's pieces are the
+dwarf-donor builds). Goblin (second pass, same day): his trophies are the loot build's own primitives — the tooth-and-finger cord raycast over the
+PLAYER's skin and level-1 kit (loaded for the rays only, never exported) as `goblin.Body` (over), the iron bracer with its brass bands as
+`goblin.Arms` (over); 15 draws, 0.99 MB gzip. Open: the five parametric kits re-run on the hero body via a parts.py `--kit` (Character Main; today's pieces are the
 opponents' own fits — the Executioner's mask/hood are shelled from HIS skull), runtime attach + slot swap + wearing state (Lead Dev),
 paperdoll (Web design), helm-on-severed-head (Finishers).
 

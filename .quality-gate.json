@@ -206,6 +206,10 @@
     [
       "node",
       "scripts/veteran-neck-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/record-replay-check.mjs"
     ]
   ],
   "extended_commands": [

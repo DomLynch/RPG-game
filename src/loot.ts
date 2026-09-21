@@ -24,6 +24,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Boots'],
   pitborn: ['pitborn.Arms'],
   dwarf: ['dwarf.Greaves'],
+  goblin: ['goblin.Body', 'goblin.Arms'],   // the Goblin's trophies (PR #333): the necklace and the bone bracers, both over his own kit
 };
 export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat());
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
