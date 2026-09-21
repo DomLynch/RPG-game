@@ -22,7 +22,7 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'frankendom-budget-')), dist = join(root, 'dist'), src = join(root, 'src');
   for (const dir of ['assets/textures', 'game']) mkdirSync(join(dist, dir), { recursive: true });
   for (const dir of ['assets/arena/props']) mkdirSync(join(src, dir), { recursive: true });
-  for (const name of ['warrior', 'goblin', 'veteran']) writeFileSync(join(src, 'assets', `${name}.glb`), '');
+  for (const name of ['warrior', 'goblin', 'veteran', 'loot']) writeFileSync(join(src, 'assets', `${name}.glb`), '');
   writeFileSync(join(src, 'assets/arena/props/shield.glb'), '');
   const files: Record<string, Buffer | string> = {
     'index.html': '<!doctype html><script type="module" src="/assets/index-AAAAAAAA.js"></script>',
@@ -41,6 +41,7 @@ function fixture() {
     'assets/goblin-GGGGGGGG.glb': glb(['textures/b.jpg', 'textures/c.jpg']),     // smaller GLB, but c.jpg makes it the worst pairing
     'assets/veteran-VVVVVVVV.glb': glb(['textures/a.jpg'], 400),                 // larger GLB, shares everything with the hero
     'assets/shield-SSSSSSSS.glb': glb([]),
+    'assets/loot-LLLLLLLL.glb': glb(['textures/a.jpg', 'textures/c.jpg'], 300),     // Brief 5 loot: its own line, never a pairing
   };
   for (const [name, bytes] of Object.entries(files)) writeFileSync(join(dist, name), bytes);
   return { root, dist, src, files, cleanup: () => rmSync(root, { recursive: true, force: true }) };
@@ -63,6 +64,8 @@ test('the per-fight figure is the shell, one audio format per sound, hero, every
     assert.equal(m.props, g('assets/shield-SSSSSSSS.glb'), 'props are counted in full, never as opponent candidates');
     assert.equal(m.sharedTextures, g('assets/textures/a.jpg') + g('assets/textures/b.jpg'), 'hero + prop textures, each once');
     assert.equal(m.opponent, 'goblin-GGGGGGGG.glb', 'worst pairing is by GLB plus its own textures, not GLB size alone');
+    assert.ok(!m.fights.some(x => x.opponent === 'loot'), 'loot.glb is not a fight');
+    assert.equal(m.loot, g('assets/loot-LLLLLLLL.glb') + g('assets/textures/c.jpg'), 'loot is its GLB plus the textures the base does not already fetch');
     assert.equal(m.opponentTextures, g('assets/textures/c.jpg'), 'only the textures the hero and props do not already fetch');
     assert.equal(m.fight, m.shell + m.audio + m.hero + m.props + m.sharedTextures + m.opponentGzip + m.opponentTextures);
     const veteran = m.fights.find(x => x.opponent === 'veteran')!;
