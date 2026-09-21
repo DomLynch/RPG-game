@@ -72,4 +72,24 @@ mv -Tf next current
 REMOTE
 cmp dist/index.html <(curl --fail --silent --show-error https://frankendom.com/)
 cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com/release.json)
+# The daily warden's replay verifier (scripts/verify-daily.mjs) must run the deployed rules: ship the sim source beside the release,
+# outside the web root, and (re)install its timer. It runs as the least-privilege role of migration 202609210005 from
+# /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
+verifier="/opt/frankendom-verifier/$revision"
+ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier/src' '$verifier/scripts'"
+rsync -az --delete --include='*/' --include='*.ts' --exclude='*' -e "$remote_shell" src/ "$host:$verifier/src/"
+rsync -az -e "$remote_shell" scripts/verify-daily.mjs "$host:$verifier/scripts/"
+rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer "$host:$verifier/"
+ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
+set -euo pipefail
+ln -sfn "$1" /opt/frankendom-verifier/current
+if test -s /etc/frankendom/verifier.env; then
+  install -m 644 "$1/frankendom-verify-daily.service" "$1/frankendom-verify-daily.timer" /etc/systemd/system/
+  systemctl daemon-reload
+  systemctl enable --now --quiet frankendom-verify-daily.timer
+  echo "verifier timer armed on $1"
+else
+  echo "verifier shipped to $1; /etc/frankendom/verifier.env missing, timer not armed"
+fi
+REMOTE
 printf '\nPublished %s\n' "$revision"
