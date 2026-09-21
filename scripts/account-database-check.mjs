@@ -89,8 +89,24 @@ try {
       begin update public.fighter_profiles set victory_marks=-1 where user_id=auth.uid(); raise exception 'Negative marks allowed'; exception when check_violation then null; end;
       begin update public.fighter_profiles set victory_marks=100001 where user_id=auth.uid(); raise exception 'Absurd marks allowed'; exception when check_violation then null; end;
     end$$;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures);
-  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes. No hosted database changed.');
+  // fight_records (202609210002, narrowed by 202609220006): a guest holding a link reads exactly (id, opponent, record) — not the
+  // sharer's user_id or created_at — and cannot insert, update or delete.
+  const fightRecords = `set role authenticated;
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    insert into public.fight_records(id,user_id,opponent,record) values('AAAAAAAA',auth.uid(),'veteran','abc123_-ABC');
+    set role anon;
+    do $$begin
+      if not exists(select 1 from public.fight_records where id='AAAAAAAA') then raise exception 'Guest cannot find a shared fight record by id'; end if;
+      if (select record from public.fight_records where id='AAAAAAAA') is null then raise exception 'Guest cannot read the record column'; end if;
+      begin perform user_id from public.fight_records where id='AAAAAAAA'; raise exception 'Anonymous read of fight_records.user_id allowed'; exception when insufficient_privilege then null; end;
+      begin perform created_at from public.fight_records where id='AAAAAAAA'; raise exception 'Anonymous read of fight_records.created_at allowed'; exception when insufficient_privilege then null; end;
+      begin insert into public.fight_records(id,user_id,opponent,record) values('BBBBBBBB','11111111-1111-4111-8111-111111111111','veteran','abc'); raise exception 'Anonymous fight record insert allowed'; exception when insufficient_privilege then null; end;
+      begin update public.fight_records set opponent='pitborn' where id='AAAAAAAA'; raise exception 'Anonymous fight record update allowed'; exception when insufficient_privilege then null; end;
+      begin delete from public.fight_records where id='AAAAAAAA'; raise exception 'Anonymous fight record delete allowed'; exception when insufficient_privilege then null; end;
+    end$$;
+    reset role;`;
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords);
+  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
