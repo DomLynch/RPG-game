@@ -119,5 +119,5 @@ export async function assertGlbEquivalent(original, emitted, loadImage = uri => 
   }
   const normalizeMeshes = (asset, read) => asset.doc.meshes.map(mesh => ({ ...mesh, primitives: mesh.primitives.map(p => ({ ...p, material: material(asset, read, p.material) })) }));
   assert.deepEqual(normalizeMeshes(output, right), normalizeMeshes(source, left), 'Geometry or used material/texture changed');
-  return { accessors: source.doc.accessors.length, clips: source.doc.animations.length, sourceSha256: sha256(original), emittedSha256: sha256(emitted) };
+  return { accessors: source.doc.accessors.length, clips: source.doc.animations?.length ?? 0, sourceSha256: sha256(original), emittedSha256: sha256(emitted) };
 }
