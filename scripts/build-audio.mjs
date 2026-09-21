@@ -303,6 +303,17 @@ const RECIPES = {
   },
   parry(r, v) { return v >= 3 ? RECIPES.parry_steel(r) : recording('shield', .75 * v, .72); },
   // Guard break: dull and wrong — close detuned low partials beating, a choked mid burst, a low thump, driven hard so it crunches.
+  // Whip crack (Whipped: the lorarii/wall lash) — a real whip's supersonic tip, not a weapon: near-zero low end, a very fast
+  // broadband burst that leans high (2–9 kHz), a thin descending sting as the leather uncoils, and a short dry tail (no ring,
+  // no metal). Two takes so the no-repeat rotation has somewhere to go.
+  whip(r, v) {
+    const n = S(.28), f = vary(r, 1, v % 2 ? .1 : -.1);
+    const crack = mul(broad(n, r, abs(2200 * f), abs(11000)), decay(n, .008, 0));
+    const snap = mul(sweepBandpass(noise(n, r), t => abs((6500 - 4000 * Math.min(1, t * 26)) * f), 3), envelope(n, [[0, 1], [.03, .5], [.09, 0], [n / RATE, 0]]));
+    const sting = mode(n, abs(3200 * f), .05, .5, { slide: .5, tau: .02 });
+    const tail = mul(broad(n, r, abs(600), abs(3000)), decay(n, .05, .001));
+    return densify(mix(n, [crack, 0, 1], [snap, 0, .7], [sting, .002, .3], [tail, .006, dbfs(-6)]), 2);
+  },
   guard_break(r) {
     const n = S(.46), f = vary(r, 1, .07);
     const crack = mul(broad(n, r, 600, 5000), decay(n, .01));
@@ -376,7 +387,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 2, hit_heavy: 2, hit_kick: 4, block: 7, block_perfect: 7, parry: 6, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 2, hit_heavy: 2, hit_kick: 4, block: 7, block_perfect: 7, parry: 6, guard_break: 4, whip: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];

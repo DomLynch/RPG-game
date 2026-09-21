@@ -1,21 +1,16 @@
 // Catalogue/guest migration integration: real built assets and persisted UI, no sim overrides.
-import { chromium } from 'playwright';
-import { preview } from 'vite';
-import fs from 'node:fs/promises';
+import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 import assert from 'node:assert/strict';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 import { OPPONENTS } from '../src/moves.ts';
 import { PROPS } from '../src/arena-props.ts';
 // The fighter rigs are the .glb responses that are not the arena's authored props (src/arena-props.ts) — those load on every page.
 const isRig=u=>{const name=new URL(u).pathname.split('/').at(-1);return name.endsWith('.glb')&&!PROPS.some(p=>name.startsWith(p.id+'-'));};
-const server=process.env.QA_URL ? null : await preview({preview:{host:'127.0.0.1',port:0,strictPort:true}});
-const url=process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser=await chromium.launch({headless:true,executablePath:chromium.executablePath()});
+const site=await serveDist(), url=site.url;
+const browser=await launch();
 const receipt={url,physicalPhone:false,opponents:[],errors:[]};
 try {
- const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});page.setDefaultTimeout(12000);
- await page.route('**/*sentry.io/**',route=>route.abort());
- page.on('pageerror',e=>receipt.errors.push(String(e)));
+ const {page}=await phonePage(browser,{errors:receipt.errors});
  await page.addInitScript(()=>{
   if(!localStorage.getItem('frankendom.fighter.v1'))localStorage.setItem('frankendom.fighter.v1',JSON.stringify({version:1,id:'catalogue-guest-123',name:'Aldren',ladder:'pitborn',career:{victoryMarks:12}}));
  });
@@ -26,7 +21,7 @@ try {
   rigs=[];
   const target=new URL(url);target.searchParams.set('opponent',id);
   await page.goto(target.href);
-  await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false' && document.querySelector('#art-status').textContent==='',null,{timeout:90000});
+  await waitForGame(page,{art:true});
   const state=await page.evaluate(()=>({enemy:document.querySelector('#target-health').max,overflow:document.documentElement.scrollWidth>innerWidth,welcome:document.querySelector('#welcome').hidden}));
   assert.equal(state.enemy,OPPONENTS[id].health);assert.equal(state.overflow,false);assert.equal(state.welcome,true);
   assert.equal(rigs.length,2,'fetch only hero and selected opponent');assert.ok(rigs.every(r=>r.status===200));
@@ -40,7 +35,7 @@ try {
   rigs=[];
   const target=new URL(url);target.searchParams.set('opponent',id);
   await page.goto(target.href);
-  await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false' && document.querySelector('#art-status').textContent==='',null,{timeout:90000});
+  await waitForGame(page,{art:true});
   assert.equal(await page.evaluate(()=>document.querySelector('#target-health').max),OPPONENTS.veteran.health,`${id} is held: the first rung stands in`);
   assert.equal(rigs.length,2,'fetch only hero and the fallback opponent');assert.ok(rigs.every(r=>r.status===200));
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER.veteran.body+'-')),'the Veteran rig is fetched');
@@ -50,7 +45,7 @@ try {
  // No URL override: the old profile's Pitborn rung survives. Selecting another encounter
  // persists the migrated profile, preserving identity and independent career marks.
  await page.goto(url);
- await page.waitForFunction(()=>document.querySelector('#attack-button').getAttribute('aria-disabled')==='false',null,{timeout:90000});
+ await waitForGame(page);
  assert.equal(await page.locator('#target-health').getAttribute('max'),'190');
  await page.getByRole('button',{name:'Menu and field journal'}).tap();
  await page.locator('label[for=journal-tab-arena]').tap();   // the opponent picker sits on the Arena tab
@@ -61,6 +56,6 @@ try {
  receipt.migration=profile;assert.deepEqual(receipt.errors,[]);receipt.passed=true;
  console.log(JSON.stringify(receipt,null,2));
 } catch(error) { receipt.failure=String(error); throw error; } finally {
- await fs.mkdir('artifacts',{recursive:true});await fs.writeFile(process.env.ROSTER_RECEIPT || 'artifacts/roster-browser-check.json',JSON.stringify(receipt,null,2));
- await browser.close();if(server)await new Promise(resolve=>server.httpServer.close(resolve));
+ await writeReceipt(process.env.ROSTER_RECEIPT || 'artifacts/roster-browser-check.json',receipt);
+ await browser.close();await site.close();
 }
