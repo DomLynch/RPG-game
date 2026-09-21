@@ -299,13 +299,15 @@ versusStill.addEventListener('error', () => { versus.hidden = true; });
 versusStill.addEventListener('load', () => { if (!assetsReady) versus.hidden = false; });
 element('versus-foe').textContent = ROSTER[opponent.id].name.replace(/^the /, '');
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
-let view: ReturnType<typeof createScene>;
+let view: ReturnType<typeof createScene>, artFailed = false;
 try {
   view = createScene(
     canvas,
     (status) => {
       element('art-status').textContent = status;
       assetsReady = status === '';
+      artFailed = status !== '' && status !== 'Loading warriors…';   // the notice becomes a tap target; the next foreground return retries
+      element('art-status').dataset.retry = String(artFailed);
       if (status !== 'Loading warriors…') hideVersus();   // the rigs are in (or failed: the banner must be readable)
     },
     opponent.id,
@@ -450,7 +452,12 @@ let last = performance.now(),
 const AFK_CAP = 300;
 let hiddenPerf = 0, hiddenWall = 0, owed = 0, marked = false;
 const fightLive = () => welcome.hidden && !journal.open && !practice.finish;
+// A failed rig load retries on its own when the page comes back (a sleeping phone aborts the download) or the network returns, and on a tap.
+const retryArt = () => { if (artFailed) void view.retryArt(); };
+window.addEventListener('online', retryArt);
+element('art-status').addEventListener('click', retryArt);
 document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) retryArt();
   if (document.hidden) { hiddenPerf = performance.now(); hiddenWall = Date.now(); }
   else if (hiddenPerf && fightLive()) owed += Math.min(Math.max(performance.now() - hiddenPerf, Date.now() - hiddenWall) / 1000, AFK_CAP);
   if (!document.hidden) hiddenPerf = hiddenWall = 0;

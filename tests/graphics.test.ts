@@ -36,12 +36,13 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
-  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  let report: (value: string) => void = () => {}, retries = 0;
+  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, retryArt() { retries++; report('Loading warriors…'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -49,7 +50,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, window: win, document: doc, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { element, errors, callbacks, timers, storage, window: win, document: doc, report: (value: string) => report(value), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -502,4 +503,31 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   assert.deepEqual(rows[0], ['Opponent', 'Fights', 'Wins', 'Losses']);
   assert.deepEqual(rows.find(r => r[0] === 'the Goblin'), ['the Goblin', '1', '0', '1 (1 left)']);
   assert.deepEqual(rows.at(-1), ['All fights', '1', '0', '1 (1 left)']);
+});
+
+test('a failed rig load retries when the page returns to the foreground, when the network returns, and on a tap; never while loading or after success', () => {
+  const app = boot(); app.tick();
+  const status = app.element('art-status');
+  app.document.dispatchEvent(new Event('visibilitychange')); status.dispatchEvent(new Event('click')); app.window.dispatchEvent(new Event('online'));
+  assert.equal(app.retries, 0, 'rigs are in: nothing to retry');
+  app.report('Warrior art could not load. Movement still works; tap here to retry.'); app.tick();
+  assert.equal(status.dataset.retry, 'true', 'the notice is a tap target only while failed');
+  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'true', 'controls stay disabled while the art is missing');
+  status.dispatchEvent(new Event('click'));
+  assert.equal(app.retries, 1, 'a tap retries');
+  assert.equal(status.textContent, 'Loading warriors…'); assert.equal(status.dataset.retry, 'false', 'while loading the notice is not a tap target');
+  status.dispatchEvent(new Event('click')); app.document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(app.retries, 1, 'no second retry while the load is running');
+  app.report('Warrior art could not load. Movement still works; tap here to retry.');
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(app.retries, 1, 'going hidden does not retry');
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(app.retries, 2, 'coming back to the foreground retries');
+  app.report('Warrior art could not load. Movement still works; tap here to retry.');
+  app.window.dispatchEvent(new Event('online'));
+  assert.equal(app.retries, 3, 'the network returning retries');
+  app.report(''); app.tick();
+  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the rigs landed: controls enable');
+  status.dispatchEvent(new Event('click')); app.document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(app.retries, 3, 'after success nothing retries');
 });
