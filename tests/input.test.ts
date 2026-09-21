@@ -31,6 +31,15 @@ test('page declares double-tap suppression and locks page zoom (owner, 2026-09-1
   assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(main, /gesturestart/);
+  assert.match(main, /addEventListener\('touchstart'[^\n]*touches\.length > 1[^\n]*preventDefault/, 'the second finger is refused at touchstart, not only touchmove');
+  // iOS Safari zooms the page into any focused form control whose font is under 16px and leaves it zoomed after the control
+  // closes (owner's phone, 2026-09-21: the journal's 14px opponent select). Every rule that styles a focusable control keeps a 16px floor.
+  const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(([, selector]) => /(^|[\s>+~,])(input|select|textarea)\b/.test(selector) && !/type=/.test(selector));   // element selectors only: .menu-select is a label wrapper
+  assert.ok(rules.length >= 2, 'the stylesheet styles the name input and the journal selects');
+  for (const [, selector, body] of rules) {
+    const size = body.match(/font(?:-size)?\s*:[^;]*?(\d+(?:\.\d+)?)px/);
+    if (size) assert.ok(Number(size[1]) >= 16, `${selector.trim()} sets ${size[1]}px; focusable controls must be 16px or larger so iOS does not zoom`);
+  }
   // Free-camera orbit + a second finger still zoomed the page on iPhone (owner, 2026-09-21): two-finger moves are refused at the document.
   assert.match(main, /addEventListener\('touchmove', \(event\) => \{ if \(event\.touches\.length > 1\) event\.preventDefault\(\); \}, \{ passive: false \}\)/);
 });
