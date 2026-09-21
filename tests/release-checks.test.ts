@@ -116,6 +116,7 @@ case "$1 $2" in
     else echo '[]'; fi;;
   "run view")
     if [ "$3" = "7" ]; then echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 2 (b)","conclusion":"failure"},{"name":"check 3 (c)","conclusion":null},{"name":"check 4 (d)","conclusion":"success"},{"name":"plan","conclusion":"success"}]'
+    elif [ -n "$NO_CHECK_JOBS" ]; then echo '[{"name":"plan","conclusion":null},{"name":"check","conclusion":null}]'
     else echo '[{"name":"check 3 (c)","conclusion":"success"}]'; fi;;
   "run download")
     for i in "$@"; do case "$prev" in --dir) dir="$i";; esac; prev="$i"; done
@@ -141,6 +142,9 @@ esac
   r = call([t0]);
   assert.equal(r.stdout, '', 'T0 has a green job 3 but its receipt is for another tree -> nothing trusted');
   assert.match(r.stderr, /3:other-tree/);
+  r = call([t0], { NO_CHECK_JOBS: '1' });
+  assert.equal(r.stdout, '', 'run found but its matrix has not started -> nothing trusted');
+  assert.match(r.stderr, /running locally: \[all: no check jobs in the run\(s\) yet\]/);
   r = call([b]);
   assert.equal(r.stdout, '1,4', 'deploying the branch head itself uses the same run');
   r = call([m], { RELEASE_CHECKS_TRUST_CI: '0' });
