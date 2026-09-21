@@ -6,20 +6,31 @@ import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import { builtRig, assertGlbEquivalent } from './glb-equivalence.mjs';
+import { harnessClock } from './lib/harness-clock.mjs';
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const dir = process.env.POLEARM_RECEIPT_DIR || 'artifacts/weapons/polearm-browser';
 await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const receipt = { origin, physicalPhone: false, views: [], errors: [] };
+// `--opponents executioner --screens phone` narrows the run to one view: the release contract lists the check once per view so a
+// CI job stays short — on the software-GL runner a fixed-step frame costs ~1.2 s and a view needs 315–400 of them, four in one job
+// took 1595–1704 s (runs 35537212537, 35542553950; two pages side by side gained nothing, the GPU process serialises them).
+const arg = (name, all) => { const i = process.argv.indexOf(name); return i < 0 ? all : process.argv[i + 1].split(','); };
+const opponents = arg('--opponents', ['executioner', 'veteran']);
+const screens = arg('--screens', ['desktop', 'phone']);
+const narrowed = opponents.length + screens.length < 4; // a narrowed run keeps its own receipt beside the full run's
 const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
-  for (const opponent of ['executioner', 'veteran']) {
+  const view = async (opponent, mobile) => {
     const prefix = opponent === 'executioner' ? 'Scythe' : 'Trident';
-    for (const mobile of [false, true]) {
+    const started = Date.now();
+    {
       const viewport = mobile ? { width: 852, height: 393 } : { width: 1100, height: 1050 };
-      const context = await browser.newContext({ viewport, deviceScaleFactor: mobile ? 2 : 1.5, isMobile: mobile, hasTouch: mobile });
+      // Receipts render at native DPR on the Mac; on the software-GL runner every extra pixel is wall time (HARNESS_DPR / CI → 1).
+      const deviceScaleFactor = Number(process.env.HARNESS_DPR) || (process.env.CI ? 1 : mobile ? 2 : 1.5);
+      const context = await browser.newContext({ viewport, deviceScaleFactor, isMobile: mobile, hasTouch: mobile });
       const page = await context.newPage(); page.on('pageerror', e => receipt.errors.push(String(e)));
       await page.route('**/*sentry.io/**', r => r.abort());
       const asset = page.waitForResponse(r => new RegExp(`/${opponent}(?:-[\\w-]+)?\\.glb(?:\\?|$)`).test(r.url()), { timeout: 90000 });
@@ -30,43 +41,53 @@ try {
       const packed = await fs.readFile(await builtRig(opponent));
       await assertGlbEquivalent(await fs.readFile(`src/assets/${opponent}.glb`), packed);
       assert.equal(rigSha256, hash(packed), 'served rig must match the verified build of the tested file');
-      await page.getByRole('button', { name: 'Enter the arena' }).click();
+      // Boot is machine-dependent: the same 90 s budget as the asset and readiness waits (30 s was passed on the runner, run 35542288055).
+      await page.getByRole('button', { name: 'Enter the arena' }).click({ timeout: 90000 });
       await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
       await page.locator('#debug').evaluate(el => { el.style.display = 'none'; });
+      // Booted for real (asset loads are machine-dependent, not timing-sensitive); from here page time moves only when this gate
+      // advances it, so the walk-in, the orbit's settle and the fight frames land on the same ticks on a MacBook, the VPS or a GPU-less
+      // runner (release check #9 failed on ubuntu-latest on wall-clock waits, 2026-09-21; the combat gate moved first).
+      const clock = await harnessClock(page);
+      // Page time spent per frame, in the receipt: the frame count is machine-independent, so it prices the check on any runner.
+      let pageMs = 0;
+      const run = async ms => { await clock.run(ms); pageMs += ms; };
+      const until = async (...a) => { pageMs += await clock.until(...a); };
       const frames = [];
       const shot = async label => {
         const state = await page.evaluate(() => ({ clips: document.querySelector('#debug').dataset.clips, art: document.querySelector('#art-status').textContent, overflow: document.documentElement.scrollWidth > innerWidth }));
         assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(`${prefix}_`));
         const path = `${dir}/${opponent}-${mobile ? 'phone' : 'desktop'}-${label}.png`;
-        await page.screenshot({ path }); frames.push({ label, path, ...state });
+        await page.screenshot({ path }); frames.push({ label, path, pageMs, ...state });
       };
       await shot('start');
-      await page.keyboard.down('w'); await page.waitForTimeout(900); await page.keyboard.up('w');
+      await page.keyboard.down('w'); await run(900); await page.keyboard.up('w');
       await shot('approach');
       if (!mobile) {
         await page.keyboard.down('w');
-        await page.waitForFunction(() => Number(document.querySelector('#debug').textContent.match(/gap ([\d.]+)/)?.[1]) < 2.3, null, { timeout: 15000 });
+        await until(() => Number(document.querySelector('#debug').textContent.match(/gap ([\d.]+)/)?.[1]) < 2.3, 15000);
         await page.keyboard.up('w');
         await page.getByRole('button', { name: 'Camera locked', exact: true }).click();
         const orbit = async dx => {
           await page.mouse.move(250, 450); await page.mouse.down();
           await page.mouse.move(250 + dx, 450, { steps: 20 }); await page.mouse.up();
-          await page.waitForTimeout(400);
+          await run(400);
         };
         await orbit(628); await shot('start-rear');
         await orbit(-220); await shot('start-side');
       }
       await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
-      await page.waitForFunction(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), prefix, { timeout: 30000 });
+      await until(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), 30000, prefix);
       await shot('fight');
-      for (let i = 0; i < 3; i++) { await page.waitForTimeout(120); await shot(`fight-${i}`); }
-      receipt.views.push({ opponent, mobile, viewport, asset: response.url(), rigSha256, frames });
+      for (let i = 0; i < 3; i++) { await run(120); await shot(`fight-${i}`); }
+      receipt.views.push({ opponent, mobile, viewport, deviceScaleFactor, asset: response.url(), rigSha256, wallMs: Date.now() - started, frames });
       await context.close();
     }
-  }
+  };
+  for (const opponent of opponents) for (const screen of screens) await view(opponent, screen === 'phone');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify({ passed: true, views: receipt.views.length, release: receipt.release }));
 } finally {
-  await fs.writeFile(`${dir}/receipt.json`, JSON.stringify(receipt, null, 2));
+  await fs.writeFile(`${dir}/receipt${narrowed ? `-${opponents.join('+')}-${screens.join('+')}` : ''}.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); if (server) await new Promise(resolve => server.httpServer.close(resolve));
 }
