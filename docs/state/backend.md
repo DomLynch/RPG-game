@@ -74,14 +74,22 @@ says go.
 Applied by Dev/Deploy (hosted migration `20260921211439 202609210003_daily_warden`, head lead/daily-warden `8550b1d`). Verified
 independently here (fresh `list_tables`/`list_migrations`/`pg_views`/`pg_proc` plus role-scoped queries, not taken on Dev/Deploy's
 report): `daily_secret` (1 row, RLS on) and `daily_results` (0 rows, RLS on) exist; `daily_board` view and `daily_fight()` function
-both exist; `set role anon; select count(*) from daily_board` resolves (0); `set role anon; select user_id from daily_results` is
-refused (`42501 permission denied`); `daily_fight()` for tomorrow (UTC) returns no row, for today returns `{day, number:-1, seed}` —
-`-1` is correct, day zero is `2026-09-22`.
+both exist; `set role anon; select count(*) from daily_board` resolves (0); `daily_fight()` for tomorrow (UTC) returns no row, for
+today returns `{day, number:-1, seed}` — `-1` is correct, day zero is `2026-09-22`.
 
-**Display note (Lead, 2026-09-22, not a migration issue — do not "fix" the check constraint):** the client maps `number` to a rung
-with a positive modulo (`src/daily.ts:21`), so `-1` plays the last rung safely, but the banner reads "Daily #-1" / "Daily #0" before
-the count is right for a player. Fix is display-only: show `number + 1` in the three banner strings (`main.ts:385/390/401`) and the
-share text. `day` zero staying `2026-09-22` in the DB is correct and intentional; Lead takes the display fix in the PR after #327.
+The narrowed `daily_results` select grant was verified both ways, not just the refusal: `set role anon; select user_id from
+daily_results` → refused (`42501 permission denied`); `set role anon; select day, number, opponent, weapon, outcome, ticks, location,
+taken, verified, created_at from daily_results` → resolves (empty, no error) — so the grant is scoped, not accidentally revoked
+entirely. Not that the client needs direct table access at all: confirmed in `src/daily.ts` (trunk) that the client only ever
+`insert`s into `daily_results` and reads exclusively through the `daily_board` view (`fetchDailyBoard`) — the table-level select grant
+on the permitted columns is defensive/pattern-consistency with `fight_records`, not load-bearing for anything shipped today.
+
+**OPEN ACTION for Lead (not resolved by this lane, tracked here so it isn't lost — recorded 2026-09-22, not verified against the live
+client code by me, only described by Lead in chat):** the client maps `number` to a rung with a positive modulo (`src/daily.ts:21`),
+so `-1` plays the last rung safely, but the banner reportedly reads "Daily #-1" / "Daily #0" before the count is right for a player.
+Proposed fix (Lead's, not this lane's, and NOT independently checked against `main.ts` here): show `number + 1` in the three banner
+strings (`main.ts:385/390/401`) and the share text. Do **not** "fix" the check constraint — `day` zero staying `2026-09-22` in the DB
+is correct and intentional. Lead owns this in the PR after #327; strike this note once it ships.
 
 File content, as applied:
 - `daily_secret (id boolean pk default true check (id), secret text)`: RLS on, no policies, all grants revoked from anon/authenticated;
