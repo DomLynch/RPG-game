@@ -302,6 +302,7 @@ const controls = createInput({
   quiet: () => feedback.quiet(),
 });
 resetButton.addEventListener('click', () => {
+  watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
   if (replay) {   // Avenge him: the same warden and seed, live, practice only
     practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
     clearInput(); recorded = false; activeMs = 0;
@@ -355,6 +356,10 @@ shareButton.addEventListener('click', async () => {
 // let the frame loop feed the recorded intents. A link for another opponent than the page booted is refused rather than mis-played.
 // The link carries the record (`replay=`, a guest's share) or a short id (`r=`, a signed-in fighter's share, read from the fight store).
 const replayText = replayParam(window.location?.search ?? ''), sharedId = shortParam(window.location?.search ?? '');
+// A kill link makes this page a viewer: set before the welcome screen drops so the frame loop never marks an AFK fight (fight.v1)
+// for a fight nobody is fighting. A refused link keeps the page a viewer; the reset button (Avenge him / Rematch) is the player
+// choosing to fight, and clears it.
+let watching = Boolean(replayText || sharedId);
 if (replayText || sharedId) {
   welcome.hidden = true; banner('Loading the fight…');
   const text = replayText ? Promise.resolve(replayText) : api ? fetchSharedRecord(api, sharedId!) : Promise.reject(Error('this build has no fight store'));
@@ -583,7 +588,7 @@ function frame(now: number) {
     activeMs += elapsed * 1000;
     while (accumulator >= step()) {
       previous = state;
-      if (!marked && !practice.finish && !replay) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      if (!marked && !practice.finish && !replay && !watching) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       if (replay && replay.cursor >= replay.record.ticks) {   // the record ran out without its finish: this build stepped it differently
         banner('This replay could not be played back on this build.'); replay = { record: replay.record, cursor: replay.cursor }; accumulator = 0; updateHud();
         break;
@@ -644,7 +649,10 @@ function frame(now: number) {
       accumulator -= step();
       if (practice.finish && !recorded) {
         recorded = true;
-        if (replay) { banner(`Replay over · ${practice.finish.victim === 1 ? 'the warden fell' : 'the fighter fell'}`); updateHud(); }
+        if (replay) {
+          banner(`Replay over · ${practice.finish.victim === 1 ? 'the warden fell' : 'the fighter fell'}`); updateHud();
+          marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* nothing was fought, nothing to score */ }   // a watched fight is never a walk-away
+        }
         else {
           if (recorder) {
             lastRecord = recorder.finish(practice.finish.draw ? 'draw' : practice.finish.victim === 1 ? 'killed' : 'died');
