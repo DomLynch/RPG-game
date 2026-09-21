@@ -8,6 +8,13 @@ name: release-checks
 on:
   push:
     branches: [codex/01a09a76/task-1]
+  # Pull requests run too, on GitHub's merge ref, so that by the time the branch is merged the deploy can already trust
+  # these checks by tree (scripts/ci-trusted-checks.mjs) — but only opt-in, with the `ci:release-checks` label, and never
+  # for drafts: the shared runner pool is capped (20 jobs), and 23 jobs per push of every PR would queue every lane's
+  # required quality.yml behind ~25 min of release checks. Checks the runner cannot finish in a useful time are left
+  # out on pull requests (RUNNER_SKIP_ON_PR); they run on the Mac at deploy time as before.
+  pull_request:
+    types: [labeled, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       ref:
@@ -19,8 +26,12 @@ on:
 concurrency:
   group: release-checks-${{ github.ref }}-${{ inputs.ref }}
   cancel-in-progress: true
+env:
+  # Release checks the runner takes ~28 min on (80 s on the Mac): never worth waiting for from a pull request.
+  RUNNER_SKIP_ON_PR: quiet-one-browser-check
 jobs:
   plan:
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && contains(github.event.pull_request.labels.*.name, 'ci:release-checks'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -34,17 +45,20 @@ jobs:
         run: |
           node -e '
             const gate = require("./.quality-gate.json");
+            const skip = process.env.GITHUB_EVENT_NAME === "pull_request" ? (process.env.RUNNER_SKIP_ON_PR || "").split(/[\s,]+/).filter(Boolean) : [];
             const checks = gate.release_commands.map((command, i) => ({
               index: i + 1,
               name: (command.find(a => a.endsWith(".mjs")) || command[0]).replace(/^(scripts|artifacts)\//, "").replace(/\.mjs$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40),
               argv: JSON.stringify(command),
-            }));
+            })).filter(check => !skip.some(name => check.name.includes(name)));
             require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "checks=" + JSON.stringify(checks) + "\n");
           '
   check:
     needs: plan
     strategy:
       fail-fast: false
+      # Leave runners for every lane's required quality.yml jobs (pool cap is 20).
+      max-parallel: 8
       matrix:
         check: ${{ fromJson(needs.plan.outputs.checks) }}
     name: check ${{ matrix.check.index }} (${{ matrix.check.name }})
@@ -79,11 +93,21 @@ jobs:
             const seconds = Math.round((Date.now() - started) / 100) / 10;
             const status = result.status ?? 1;
             require("fs").mkdirSync("artifacts", { recursive: true });
+            // sha/tree are what the job actually checked out (a pull_request run checks out the merge ref, a dispatch
+            // may name another ref): deploy.sh trusts a receipt only for the tree it is deploying.
+            const rev = a => require("child_process").execFileSync("git", ["rev-parse", a], { encoding: "utf8" }).trim();
             require("fs").writeFileSync(`artifacts/release-check-${process.env.CHECK_INDEX}.json`,
-              JSON.stringify({ index: Number(process.env.CHECK_INDEX), name: process.env.CHECK_NAME, command: argv.join(" "), seconds, status, runner: "ubuntu-latest" }) + "\n");
+              JSON.stringify({ index: Number(process.env.CHECK_INDEX), name: process.env.CHECK_NAME, command: argv.join(" "), seconds, status, runner: "ubuntu-latest", sha: rev("HEAD"), tree: rev("HEAD^{tree}"), event: process.env.GITHUB_EVENT_NAME }) + "\n");
             console.log(`check ${process.env.CHECK_INDEX} ${status === 0 ? "passed" : "FAILED (exit " + status + ")"} in ${seconds}s`);
             process.exit(status);
           '
+      - if: always()
+        # The receipt alone, tiny: what deploy.sh downloads (scripts/ci-trusted-checks.mjs).
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-check-${{ matrix.check.index }}-receipt
+          path: artifacts/release-check-${{ matrix.check.index }}.json
+          if-no-files-found: ignore
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -111,6 +135,7 @@ jobs:
             const fs = require("fs"), path = require("path");
             const rows = [];
             for (const dir of fs.readdirSync("receipts")) {
+              if (dir.endsWith("-receipt")) continue;
               const file = path.join("receipts", dir, `${dir}.json`);
               if (fs.existsSync(file)) rows.push(JSON.parse(fs.readFileSync(file, "utf8")));
             }
