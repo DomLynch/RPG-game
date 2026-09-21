@@ -23,7 +23,7 @@ test('loot: one fixed piece per opponent per career sub-rank, never a duplicate,
   assert.equal(dropFor('veteran', 0, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 3, []), 'veteran.Crest'); assert.equal(dropFor('veteran', 6, []), 'veteran.Greaves'); assert.equal(dropFor('veteran', 9, []), 'veteran.Helmet', 'the fourth sub-rank comes round to the first piece');
   assert.equal(dropFor('veteran', 9, ['veteran.Helmet']), null, 'a piece already owned never drops twice');
   assert.equal(dropFor('pitborn', 0, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Arms', 'one piece: the same at every sub-rank until owned');
-  assert.equal(dropFor('goblin', 0, []), null, 'the Goblin has no pieces yet');
+  assert.equal(dropFor('goblin', 0, []), 'goblin.Body'); assert.equal(dropFor('goblin', 3, []), 'goblin.Arms'); assert.equal(dropFor('goblin', 6, ['goblin.Body', 'goblin.Arms']), null, 'both Goblin pieces owned: nothing more');
   for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`)); }
 });
 
