@@ -7,7 +7,7 @@ import { initialPractice, stepPractice, type Practice } from './combat.ts';
 import { OPPONENTS } from './moves.ts';
 import { encodeRecord, type FightRecord } from './record.ts';
 
-export const MAX_SHARE_CHARS = 2000;   // a link that fits every share sheet and SMS; longer fights wait for the short-id route (Dev/Deploy)
+export const MAX_SHARE_CHARS = 4096;   // a guest's link carries the record itself: 4 KB rides every share sheet and SMS; a signed-in fighter's link carries a short id instead (share-store.ts)
 
 export type Verification = { ok: true; practice: Practice } | { ok: false; reason: string; practice: Practice | null };
 
