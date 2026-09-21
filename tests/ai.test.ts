@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HOVER_PATIENCE, READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
+import { READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
 import { createFighter, elapsed, idleIntent, initialDuel, mirror, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -552,13 +552,16 @@ test('a fighter with no guard respects a read poker\'s or kicker\'s reach: he ho
   assert.ok(at(1.3, { kicks: 4 }, guardless) <= 0 && at(1.3, { kicks: 4 }, PROFILES.normal) > 0, 'the same respect for a kicker\'s cone plus its lunge (the hold sits a hand inside it since the reach fix)');
 });
 
-test('brief 5 reach fix: the guardless hover on a kicker has a patience — after HOVER_PATIENCE ticks of no opening he walks in; on a poker it holds (a guardless man cannot take a point that never whiffs); a warden poked by a read poker does not back off through the reach band', () => {
+// Brief 5 reach fix: the guardless hover holds a hand INSIDE a read poker's/kicker's reach (not on its edge), and holds for as long as the
+// read holds — no patience clock, since a reads.poker/reads.kicker fighter has already proven he attacks (READ.after landed blows); an
+// earlier draft's patience just handed a live kicker free hits and is gone.
+test('brief 5 reach fix: the guardless hover holds a hand inside the reach and holds for as long as the read holds; a warden poked by a read poker does not back off through the reach band', () => {
   const guardless = knobs({ guard: 0, parry: 0 }), poker = { habits: habit({ attacks: 4, thrusts: 4 }) }, kicker = { habits: habit({ attacks: 4, kicks: 4 }) };
   const closes = (gap: number, ai: AiState) => { const f = facing(gap, {}, {}); const r = decide(f, 1, ai, guardless); const to = f.fighters[0].body, me = f.fighters[1].body; const dx = to.x - me.x, dz = to.z - me.z, n = Math.hypot(dx, dz); return (r.intent.move.x * dx + r.intent.move.z * dz) / n; };
   const kick = MOVES.kick.reach + .3, stab = MOVES.thrust.reach;
   assert.ok(closes(kick - .2, fresh(4, kicker)) <= 0, 'kicker, fresh: holds a hand inside the cone (reach − .15)');
-  assert.ok(closes(kick - .2, fresh(4, { ...kicker, hovered: HOVER_PATIENCE })) > 0, 'kicker, patience spent: walks in');
-  assert.ok(closes(stab - .2, fresh(4, { ...poker, hovered: HOVER_PATIENCE * 4 })) <= 0, 'poker: no patience — the hover holds however long');
+  assert.ok(closes(kick - .2, fresh(20, kicker)) <= 0, 'kicker, many ticks later: still holds — no patience clock to run out');
+  assert.ok(closes(stab - .2, fresh(20, poker)) <= 0, 'poker, many ticks later: still holds — a guardless man cannot take a point that never whiffs');
   assert.ok(closes(stab - .05, fresh(4, poker)) > 0, 'a hand outside the hold band: still creeping in, so the poke is drawn (the old edge at reach − .05 drew nothing)');
   // freshly landed by a read poker's thrust: no 48-tick retreat — the next decision is now and the mode is not retreat. Guardless only (this
   // is the reach fix's own hover gate, guardShare === 0): a fighter who can block answers a poke as any blow is, so the pin uses `guardless`
