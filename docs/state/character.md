@@ -2,6 +2,40 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Spider-hand fix reaches the opponents — pitborn, goblin, nightborn rebuilt (Scalable Chars, 2026-09-22)
+#255 (hero v43) fixed clean_finger_weights/straighten_fingers in parts.py's realistic_body(), but only warrior.glb was
+rebuilt after; every opponent still shipped the pre-fix bind (Lead Dev's assignment, verified by Character Main and Auditer).
+tests/hero-hands.test.ts generalised from warrior.glb alone to six bodies (BODIES table: file, mesh node, minVerts floor —
+warrior/pitborn/goblin/nightborn are 'Skin' via parts.py's realistic_body path; veteran/executioner are 'CreatureBody' via
+creatures.py's TRELLIS reconstruction, see below). Run against trunk before any rebuild: pitborn, goblin, nightborn, veteran
+and executioner ALL failed (only warrior passed) — the fault reaches every opponent, not the three named in the assignment.
+
+Rebuilt (`blender ... parts.py -- --body realistic --fighter <X>` then `WARRIOR_FIGHTER=<X> node scripts/build-warrior.mjs`):
+pitborn, goblin, nightborn now pass. File size deltas are the geometry/bake noise expected from finger and AO changes, not a
+regression: pitborn +2,992 B, goblin +3,524 B, nightborn +2,908 B against the committed files. `nightborn-estoc.glb` (the
+weapon shelf twin, byte-identical to nightborn.glb by contract — tests/weapons.test.ts:459, and it HANGS ~280s on a mismatch
+rather than failing fast, a real trap) rebuilt to match. check-budget PASS (worst pairing veteran 8.82 MB of 12; dist 23.84 MB
+of 32 — unchanged category, no regression). `npm test`: 368/368 excluding the two known-out-of-scope failures below.
+
+**Veteran and executioner still fail, and "rebuild through parts.py" does not fix them.** Their shipped GLBs are TRELLIS
+reconstructions (`node scripts/build-creatures.mjs veteran|executioner`, mesh node `CreatureBody`) that never call parts.py's
+realistic_body() — `creatures.py`'s `keep_fingers` (family in executioner/dwarf/veteran) copies the DONOR's already-baked
+finger weights verbatim. Their donors are static backups — `src/assets/source/backups/veteran-v1.glb` (2026-09-20 19:59),
+`executioner-v5.glb` (2026-09-20 14:11) — both older than the finger fix (23:04) and never regenerated since; both are also
+referenced elsewhere (`skeleton`'s recipe uses veteran-v1 as its base too; `veteran-polish-check.mjs`/`veteran-neck-check.mjs`
+check the donor file directly). Fixing them means regenerating those donor backups through a realistic-body parts.py run and
+re-running the TRELLIS transfer — a bigger, shared-file-touching job than this one; left out on purpose, flagged to Lead Dev,
+not silently skipped.
+
+**Environment note, not code:** this worktree was missing ~485 MB of gitignored static source assets
+(`artifacts/source/{face,human-base-meshes,hunyuan,keentools,lps,outfits}`) that `parts.py` needs to run at all, including
+three fighter-specific KeenTools reconstructions (pitborn, goblin, hero id also used by executioner) that exist only in the
+`frankendom-pitborn` worktree and the Nightborn's own TRELLIS head (`nightborn-trellis-01.glb`, gitignored, `frankendom-
+nightborn` only). The first two rebuild attempts ran anyway — `os.path.exists(HEADMOD.KT_GLB)` fails silently to a generic
+stand-in head instead of erroring — and had to be discarded once the size/log mismatch was caught before committing (a
+stand-in head would have shipped as a visible face regression). Copied from the worktrees that hold them; not committed
+(gitignored, unchanged from what's already shared across worktrees).
+
 ## Loot export v1 — Brief 5, Scalable Chars lane, 2026-09-21 (Strategy's assignment on the owner's "take the decision")
 `WARRIOR_LOOT=1 node scripts/build-warrior.mjs` → `src/assets/loot.glb` (1.11 MB gzip packed; cap 1.5 MB in check-budget, its own
 line, never a pairing). Eleven skinned draws `<opponent>.<slot>.<material>` bound to the hero rig (same bind as warrior.glb, no
