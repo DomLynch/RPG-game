@@ -278,3 +278,21 @@ test('asset loaders never start the codec fallback once the page is unloading', 
     assert.equal(urls.length, 2, `${load.name}: on a live page the fallback is still tried`);
   }
 });
+
+// Owner 2026-09-21: the guard cues carry two voicings (three variants each) and must rotate at random with no immediate repeat.
+// The rotation reads the variant count from the built manifest, so this pins both halves being reachable and the no-repeat rule.
+test('guard cues rotate all six variants, never the same one twice in a row', () => {
+  for (const name of ['block', 'block_perfect', 'parry'] as const) {
+    const count = MANIFEST[name].length;
+    assert.equal(count, 6, `${name} carries the new voicing (0–2) and the e1d0436 steel voicing (3–5)`);
+    const random = seeded(name.length), seen = new Set<number>();
+    let last = -1;
+    for (let i = 0; i < 3000; i++) {
+      const next = nextVariant(random, count, last);
+      assert.notEqual(next, last, `${name}: variant ${next} played twice in a row`);
+      assert.ok(next >= 0 && next < count);
+      seen.add(next); last = next;
+    }
+    assert.deepEqual([...seen].sort(), [0, 1, 2, 3, 4, 5], `${name}: both voicings come up in rotation`);
+  }
+});

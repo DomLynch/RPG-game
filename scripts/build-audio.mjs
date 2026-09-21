@@ -142,6 +142,9 @@ function dense(n, f0, count, t60, r, { top = 4.6, roll = .86, grit = .35, spread
   for (let i = 0; i < n; i++) y[i] *= 1 + grit * rough[i] * 3;
   return normalize(y, 0);
 }
+// The steel guard voicing that was live at e1d0436 (deploy #35): kept as the second half of each guard cue's rotation.
+const STEEL = .7;
+const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0 * STEEL), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
 const RECIPES = {
   // Air: a wide, breathy wash whose centre sweeps low (220 → 900 Hz), never a whistle.
   whoosh_light(r) {
@@ -205,11 +208,55 @@ const RECIPES = {
     const tail = rumble(n, .2, r);
     return densify(mix(n, [slap, 0, .55], [body, .003, 1.2], [tone, .003, .4], [thump, .004, .08], [weight, .004, .4], [tail, .02, dbfs(-6)]), 2.6);
   },
+  // Owner 2026-09-21 10:40: "new sounds for the swords/metal are ok, but I also like the older ones — add them back and put on random
+  // rotation, same sound never twice in a row." Each guard cue's variants are half the new voicing, half the e1d0436 steel voicing;
+  // the runtime's nextVariant() already forbids an immediate repeat.
+
+  // Block: iron on iron into a braced guard — a hard broadband click, a dense clang the arms damp, the guard's own body.
+  block_steel(r) {
+    const n = S(.5), f = vary(r, 1, .07);
+    const click = mul(broad(n, r, 1500 * STEEL, 10000 * STEEL), decay(n, .004));
+    const clang = steel(n, 900 * f, vary(r, .5, .12), r);
+    const muffle = mul(broad(n, r, 250, 1600), decay(n, .04, .001));
+    const body = thud(n, r, { from: 4000 * f, to: 320 * f, fall: .07, t60: .14 });
+    const tone = punch(n, 330 * f, r, { t60: .08, tone: .6, burst: .3 });
+    const weight = heft(n, 95 * f, r, { t60: .28 });
+    const zing = blade(n, r, { lo: 2000 * STEEL, hi: 10000 * STEEL, t60: .05 });
+    const tail = rumble(n, .24, r);
+    return densify(mix(n, [click, 0, .45], [clang, .001, 1], [muffle, .001, .4], [body, .002, .9], [tone, .002, .35], [weight, .003, .5], [zing, 0, .35], [tail, .02, dbfs(-8)]), 2.6);
+  },
+
+  // Perfect block: the same steel caught clean — brighter and tighter, a smaller body, a touch of edge.
+  block_perfect_steel(r) {
+    const n = S(.42), f = vary(r, 1, .06);
+    const click = mul(broad(n, r, 2000 * STEEL, 10000 * STEEL), decay(n, .004));
+    const clang = steel(n, 1300 * f, vary(r, .4, .1), r, { top: 5, roll: .85, grit: .25 });
+    const sparkle = mul(broad(n, r, 3000 * STEEL, 9000 * STEEL), decay(n, .015));
+    const body = thud(n, r, { from: 5000 * f, to: 400 * f, fall: .05, t60: .09 });
+    const weight = heft(n, 110 * f, r, { t60: .2 });
+    return densify(mix(n, [click, 0, .5], [clang, .001, .8], [sparkle, .001, .2], [body, .002, 1], [weight, .003, .4]), 2.2);
+  },
+
+  // Parry: bright and decisive — an edge scrape sliding up, a long dense ring with beating partials, the hand's jolt underneath.
+  parry_steel(r) {
+    const n = S(.66), f = vary(r, 1, .06);
+    const click = mul(broad(n, r, 1500 * STEEL, 10000 * STEEL), decay(n, .005));
+    const scrape = mul(sweepBandpass(noise(n, r), t => (1100 + 1500 * Math.min(1, t * 6)) * STEEL, 2), envelope(n, [[0, .3], [.05, 1], [.09, 0], [n / RATE, 0]]));
+    const ring = steel(n, 1100 * f, vary(r, .7, .1), r, { spread: .02 });
+    const beat = mode(n, abs(1100 * f * STEEL) * 1.011, .6, .5, { phase: r() * 6 });
+    const zing = mul(broad(n, r, 3500 * STEEL, 8000 * STEEL), decay(n, .03));
+    const body = thud(n, r, { from: 4500 * f, to: 340 * f, fall: .09, t60: .16 });
+    const tone = punch(n, 380 * f, r, { t60: .1, tone: .6, burst: .3 });
+    const weight = heft(n, 100 * f, r, { t60: .3 });
+    const tail = rumble(n, .3, r);
+    return densify(mix(n, [click, 0, .5], [scrape, 0, .45], [ring, .002, .7], [beat, .002, .25], [zing, .001, .1], [body, .002, 1.2], [tone, .002, .5], [weight, .003, .45], [tail, .02, dbfs(-5)]), 2.4);
+  },
   // Owner 2026-09-21 01:00, two references. Guards ("Medieval Armor and Impacts", no reuse terms → measured, not copied): a low
   // thump (first 80 ms centred 150–180 Hz), a dull body at 220–900 Hz, −30 dB in .2–.9 s, almost nothing above 300 Hz — so the
   // low end is driven into harmonics (heft) or a phone hears none of it. Parry: the Jochi SFX "Shield Block" recording itself
   // (licensed for use, see SOURCES.json), three hits rotating, at the owner's chosen raw pitch.
-  block(r) {
+  block(r, v) {
+    if (v >= 3) return RECIPES.block_steel(r);
     const n = S(.55), f = vary(r, 1, .08);
     const thump = heft(n, abs(65 * f), r, { t60: .5, drive: 5 });
     const slam = punch(n, abs(170 * f), r, { t60: .12, tone: .8, burst: .6 });
@@ -220,7 +267,8 @@ const RECIPES = {
     return densify(mix(n, [muffle, 0, .5], [slam, .001, .8], [body, .002, 1.1], [thump, .003, .7], [rattle, .004, .45], [tail, .03, dbfs(-5)]), 2.8);
   },
   // Perfect block: the same armour, caught square — tighter, a touch more snap, shorter tail.
-  block_perfect(r) {
+  block_perfect(r, v) {
+    if (v >= 3) return RECIPES.block_perfect_steel(r);
     const n = S(.4), f = vary(r, 1, .06);
     const snap = mul(broad(n, r, abs(700), abs(2600)), decay(n, .012, .001));
     const thump = heft(n, abs(70 * f), r, { t60: .35, drive: 5 });
@@ -229,7 +277,7 @@ const RECIPES = {
     const rattle = dense(n, abs(330 * f), 8, vary(r, .2, .1), r, { top: 2.4, roll: .8, grit: .4, spread: .06 });
     return densify(mix(n, [snap, 0, .5], [slam, .001, .8], [body, .002, 1], [thump, .003, .6], [rattle, .004, .4]), 2.6);
   },
-  parry(r, v) { return recording('shield', .75 * (v % 3), .72, v < 3 ? 1 : vary(r, 1, .03)); },
+  parry(r, v) { return v >= 3 ? RECIPES.parry_steel(r) : recording('shield', .75 * v, .72); },
   // Guard break: dull and wrong — close detuned low partials beating, a choked mid burst, a low thump, driven hard so it crunches.
   guard_break(r) {
     const n = S(.46), f = vary(r, 1, .07);
@@ -295,7 +343,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [fall, 0, .2], [body, 0, 1.3], [tone, 0, .5], [low, 0, .2], [slump, .19, .7], [tail, .05, dbfs(-3)]), 2.8), .15);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 4, hit_kick: 4, block: 5, block_perfect: 4, parry: 5, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 4, hit_kick: 4, block: 6, block_perfect: 6, parry: 6, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];
