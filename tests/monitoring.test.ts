@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { init, captureException, type Envelope } from '@sentry/browser';
+import { init, captureException } from '@sentry/browser';
 import { monitoringOptions } from '../src/monitoring.ts';
 
 test('production CSP permits only self, blobs and the exact Sentry and Supabase origins', () => {
@@ -24,6 +24,7 @@ test('monitoring is disabled without a DSN and excludes high-volume integrations
 });
 
 test('real SDK sends error and release but strips guest identity and request details', async () => {
+  type Envelope = [headers: unknown, items: [header: { type?: string }, payload: unknown][]];   // the SDK's envelope shape; @sentry/browser 10 no longer exports the type
   const envelopes: Envelope[] = [];
   const client = init({
     ...monitoringOptions('https://public@example.com/1', 'test-revision', 'test'),

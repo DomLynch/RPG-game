@@ -8,7 +8,7 @@ import { bladePaths, bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
 import { RADIUS, TARGET, type State } from '../src/sim.ts';
-import { STRATEGIES, battery, side } from './battery.test.ts';
+import { STRATEGIES, battery, side } from './strategies.ts';
 
 const P = OPPONENTS.pitborn;
 const idle = (): Intent => ({ ...idleIntent(), lock: true }), act = (action: Intent['action']): Intent => ({ ...idle(), action });
@@ -213,7 +213,7 @@ export const feintAndPunish = (d: Duel): Intent => {
 export const chargePast = (d: Duel): Intent => {
   const p = d.fighters[0], w = d.fighters[1];
   if (p.phase === 'attack' && p.move === 'heavy_overhead' && !p.landed) return { ...idle(), held: !(p.charged && (w.phase !== 'guard' || !w.parrying)) };
-  if (p.phase === 'ready' && !p.exposed && gap(d) <= 1.8) return act('heavy', { held: true } as Partial<Intent>);
+  if (p.phase === 'ready' && !p.exposed && gap(d) <= 1.8) return { ...act('heavy'), held: true };
   return idle();
 };
 
