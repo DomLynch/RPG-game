@@ -5,17 +5,23 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
-## Hosted project as it stands — verified 2026-09-21 ~23:40 UTC
+## Hosted project as it stands — verified 2026-09-22 ~00:20 UTC
 
-Tables: `public.fighter_profiles` (1 row), `public.admins` (1 row). `auth.users`: 2. Roles named `frankendom*`: none.
-Hosted migration history (`supabase_migrations.schema_migrations`): `20260920031013 werewolf_skeleton_encounters`,
-`20260920031925 revert_werewolf_skeleton_encounters`, `20260920041658 werewolf_skeleton_encounters_v2`,
-`20260920055946 werewolf_skeleton_encounters`, `20260920070348 victory_marks`, `20260920083450 dwarf_encounter`, `20260921065907 admins`.
-The first two repo files (`202609190001_fighter_profiles`, `202609190002_creature_encounters`) were applied by hand and are not in
-the history; the werewolf/skeleton change was applied three times with one revert. The history is therefore NOT `supabase db push`-able
-against the repo; applies stay manual (MCP `apply_migration` named after the repo file) and this table is the map between the two.
+Tables: `public.fighter_profiles` (1 row), `public.admins` (1 row), `public.fight_records` (0 rows, RLS on — see below). `auth.users`: 2.
+Roles named `frankendom*`: none yet (0005 not applied). Hosted migration history (`supabase_migrations.schema_migrations`):
+`20260920031013 werewolf_skeleton_encounters`, `20260920031925 revert_werewolf_skeleton_encounters`, `20260920041658
+werewolf_skeleton_encounters_v2`, `20260920055946 werewolf_skeleton_encounters`, `20260920070348 victory_marks`, `20260920083450
+dwarf_encounter`, `20260921065907 admins`, `20260921200632 202609210002_fight_records`. The first two repo files
+(`202609190001_fighter_profiles`, `202609190002_creature_encounters`) were applied by hand and are not in the history; the
+werewolf/skeleton change was applied three times with one revert. The history is therefore NOT `supabase db push`-able against the
+repo; applies stay manual (MCP `apply_migration` named after the repo file) and this table is the map between the two.
 `public.rls_auto_enable()` (event trigger `ensure_rls`) is Supabase's own platform function, not ours; the security advisor's WARN on it
 is expected and stays.
+
+**0002 fight_records — APPLIED** (Dev/Deploy, hosted migration `20260921200632`, carried by deploy #70 / trunk `3a11413`). Verified
+independently here via `list_tables`(verbose)/`list_migrations`: schema matches what was reviewed byte-for-byte (see the table below),
+RLS enabled, 0 rows. Deploy dev's own report of deploy #70 being live (release.json/VPS symlink match) was not independently checked
+by this lane — that's Lead/Deploy's domain, not re-verified here.
 
 ### fighter_profiles (0001, 0002 creature encounters, 0003/20260920 werewolf+skeleton, 20260920 dwarf, 0004 victory_marks)
 | column | type | rule |
@@ -36,12 +42,12 @@ grant `select (user_id)` to authenticated only. No client insert/update/delete p
 Rows are owner-managed in SQL. Current roster: one row (dom123dxb, inserted by the lead via SQL on Dom's word, 2026-09-21).
 Client call: `GET /rest/v1/admins?select=user_id&user_id=eq.<uid>` (src/cloud-profile.ts `readAdmin`).
 
-## After 202609210002–0005 land (files in PRs #324, #327, #330, #348 — reviewed by this lane 2026-09-21; NOT applied yet)
+## After 202609210003–0005 land (files in PRs #327, #330, #348 — reviewed by this lane 2026-09-21; NOT applied yet)
 
-Apply order and carrier, per Dom's standing yes in the deploy session: 0002 at #324's deploy, 0003 at #327's, 0004 BEFORE #330's code,
-0005 at #348's. All four are additive: the live client is unaffected by an early apply. Dev/Deploy applies; this lane verifies after.
+Apply order and carrier, per Dom's standing yes in the deploy session: 0002 applied (above), 0003 at #327's deploy, 0004 BEFORE #330's
+code, 0005 at #348's. All are additive: the live client is unaffected by an early apply. Dev/Deploy applies; this lane verifies after.
 
-### fight_records (0002, PR #324) — apply-ready, one tightening requested below
+### fight_records (0002) — APPLIED, schema below as it exists on the hosted project today; one tightening still open
 | column | rule |
 |---|---|
 | id text pk | `^[A-Za-z0-9_-]{8}$`, client-chosen; a collision is a 23505 the client must retry |
@@ -104,3 +110,6 @@ daily_results. Nothing else. The VPS connects through the Supabase pooler as `fr
 - Every new client REST/RPC path is told to the lead before it lands so release check 14's route mock learns it.
 - `scripts/account-database-check.mjs` (real local PostgreSQL, zero production writes) is the RLS suite: every table's policies are
   proven there — second insert refused, update refused, secret unreadable, guest read-only. Supabase branching is not used (owner spend).
+- A migration that needs a Postgres extension (e.g. `pgcrypto` for `gen_random_bytes`) must `create extension if not exists` it in the
+  migration file itself, not assume it's already enabled — hosted Supabase has several pre-enabled, the check's local `initdb` cluster
+  has none (caught by CI on 202609210003; fixed at lead/daily-warden `e0f7380`).
