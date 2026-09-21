@@ -43,10 +43,12 @@ test('the goblin is set up from his data: the knife (live, slice X), 0.78× scal
   const o: State = { x: 0, z: 0, heading: 0, distance: 0 };
   try { assert.equal(bladeImpact('hero', 'probe', 'flat', 0, 1, o, o, o, o, G.scale), null); assert.equal(bladeImpact('hero', 'probe', 'low', 0, 1, o, o, o, o, G.scale), 'head'); assert.equal(bladeImpact('hero', 'probe', 'low', 0, 1, o, o, o, o), 'torso'); }
   finally { delete bladePathsByRig.hero.probe; }
+  // 9000 ticks (150 s), not 7200: the reach fix (2026-09-21) holds a guardless Goblin a hand inside a read poker's/kicker's reach rather
+  // than on its edge, so a couple of seeds now resolve slightly later — genuinely, not stalled (verified past 7200).
   const lengths: number[] = [];
   for (let s = 1; s <= 12; s++) {
     let d = ring(G, 1.6), a = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), b = initialAi((s * 2654435761) >>> 0);
-    for (let i = 0; i < 7200 && !d.finish; i++) { const x = decide(d, 0, a, PROFILES.normal), y = decide(d, 1, b, G.profiles.normal); a = x.ai; b = y.ai; d = stepDuel(d, [x.intent, y.intent]); }
+    for (let i = 0; i < 9000 && !d.finish; i++) { const x = decide(d, 0, a, PROFILES.normal), y = decide(d, 1, b, G.profiles.normal); a = x.ai; b = y.ai; d = stepDuel(d, [x.intent, y.intent]); }
     assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
   }
   console.log(`goblin AI vs AI (12 seeds): median ${(lengths.sort((x, y) => x - y)[6] / 60).toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[11] / 60).toFixed(1)} s`);
@@ -99,11 +101,14 @@ test('fight identity — read the feint: the goblin passes the fairness battery 
   }
 });
 
+// The reach fix (2026-09-21) holds a guardless warden a hand inside a read poker's/kicker's reach rather than on its edge, so a handful of
+// seeds against the Goblin (guardless) resolve slightly later; 9000 ticks (150 s) gives that margin without weakening what is asserted —
+// the fight must still finish, and the length/win-rate assertions below are unchanged.
 test('AI vs AI at normal: the Veteran\'s brain in the hero body against the goblin finishes every fight, median 25–45 s', () => {
   const lengths: number[] = [];
   for (let s = 1; s <= 24; s++) {
     let d = ring(G, 1.6), hero = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), him = initialAi((s * 2654435761) >>> 0);
-    for (let i = 0; i < 7200 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, him, G.profiles.normal); hero = a.ai; him = b.ai; d = stepDuel(d, [a.intent, b.intent]); }
+    for (let i = 0; i < 9000 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, him, G.profiles.normal); hero = a.ai; him = b.ai; d = stepDuel(d, [a.intent, b.intent]); }
     assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
   }
   const median = lengths.sort((a, b) => a - b)[12] / 60;

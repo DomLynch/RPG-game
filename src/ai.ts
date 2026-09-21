@@ -10,6 +10,7 @@ type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 // tail punishes, a light-spammer gets parried more. Reads need evidence first, so the first exchanges are always the honest ones.
 export type Habits = { ticks: number; guard: number; parries: number; rolls: number; steps: number; lights: number; heavies: number; thrusts: number; kicks: number; attacks: number; parks: number };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
+export const HOVER_PATIENCE = 150;   // ticks a guardless warden holds outside a read kicker's cone with no opening before walking in anyway
 export const READ = { feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12, parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5 } as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 export const readOpponent = (h: Habits): Reads => ({
   parryHappy: h.attacks >= READ.after && h.parries / h.attacks >= READ.parry,
@@ -21,8 +22,8 @@ export const readOpponent = (h: Habits): Reads => ({
   poker: h.lights + h.heavies + h.thrusts >= READ.after && h.thrusts / (h.lights + h.heavies + h.thrusts) >= .5,   // thrusts more than he cuts: a fighter with no guard respects his reach and goes in on the whiff
   kicker: h.kicks >= READ.after && h.kicks / (h.lights + h.heavies + h.thrusts + h.kicks) >= .5,   // kicks more than he swings: the same respect for the kick's reach   // swings mostly held at their chamber (baits, charges): the park is a habit, not a read of the moment
 });
-export type AiState = { seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; readSide: Direction | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; disengageUntil: number; habits: Habits; scores: Record<string, number> };   // disengageUntil: the tick until which a landed blow is followed by a hop back out (profile.disengage)
-export const initialAi = (seed = 731): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, readSide: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, disengageUntil: 0, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, steps: 0, lights: 0, heavies: 0, thrusts: 0, kicks: 0, attacks: 0, parks: 0 }, scores: {} });
+export type AiState = { seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; readSide: Direction | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; disengageUntil: number; hovered: number; habits: Habits; scores: Record<string, number> };   // hovered: ticks spent holding outside a read poker's/kicker's reach with no opening (the patience the guardless hover has left)   // disengageUntil: the tick until which a landed blow is followed by a hop back out (profile.disengage)
+export const initialAi = (seed = 731): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, readSide: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, disengageUntil: 0, hovered: 0, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, steps: 0, lights: 0, heavies: 0, thrusts: 0, kicks: 0, attacks: 0, parks: 0 }, scores: {} });
 const lcg = (seed: number) => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 
 export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): { intent: Intent; ai: AiState } {
@@ -56,7 +57,12 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   intent.held = next.hold && M.phase === 'attack' && (M.move === 'heavy_overhead' ? M.charge < RULES.charge.min : M.charge < READ.baitHold);
   const charging = (f: typeof F) => f.phase === 'attack' && f.move !== null && f.charge > 0 && movesOf(f)[f.move].charges;   // a chambered light is a bait, not a guard breaker
   // Being hit: back off briefly, then decide afresh (re-engage or keep distance) rather than drifting away.
-  if (M.phase === 'hurt' && M.age === 1) { next.retreatUntil = tick + 48; next.decision = 48; next.mode = 'retreat'; next.plan = null; next.next = null; next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); }   // a landed blow earns the player a window; no instant retaliation
+  // …unless the man is GUARDLESS and the blow was a read poker's thrust: backing off from a poke walks straight back out through his point's
+  // reach band, and the next poke lands on the way. Inside the point is the one place a poker cannot use it (brief 5 reach fix, 2026-09-21):
+  // stay in and re-decide at once. Guardless only — a fighter who can block answers a poke as any blow is (this is the reach fix's hover
+  // logic's own gate, guardShare === 0; without it the rule reached into ordinary rung-vs-rung fights that have nothing to do with the brief).
+  if (M.phase === 'hurt' && M.age === 1 && guardShare === 0 && reads.poker && F.phase === 'attack' && F.move === 'thrust') { next.decision = 0; next.plan = null; next.next = null; }
+  else if (M.phase === 'hurt' && M.age === 1) { next.retreatUntil = tick + 48; next.decision = 48; next.mode = 'retreat'; next.plan = null; next.next = null; next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); }   // a landed blow earns the player a window; no instant retaliation
   // Perception. An attack is noticed `reaction` ticks after it starts; one response is planned per attack.
   const threat = F.phase === 'attack' && !F.landed && F.move !== null && F.age < timing(F).windup + timing(F).active;   // a swing is a threat until its active window closes
   // Perception runs on elapsed time, not the animation clock: a swing parked at its chamber is still a swing that started `reaction` ticks ago.
@@ -205,8 +211,15 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   let forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : fight.close) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : cramped ? -.4 : 0;
   // A fighter who cannot block, against a read poker: hover just outside the thrust's reach and go in on the whiff (the opening), never walk onto the point.
   // (Standing at the edge of the reach, not beyond it: a poker who is never given the shot never whiffs. The step out answers the thrust; the whiff opens him.)
+  // Brief 5 reach fix (2026-09-21): the hover on a KICKER has a patience — a kicker who never kicks (a man standing still just outside his own
+  // cone) gives no whiff, so after `HOVER_PATIENCE` ticks of nothing the warden walks in and takes his chances with the kick (a poke it cannot
+  // take: a guardless man who walks onto a point that never whiffs dies to it, so against a poker the hover stays — the stalemate is the poker's).
   const hover = guardShare === 0 ? (reads.poker ? theirs.thrust.reach : reads.kicker ? theirs.kick.reach + .3 : 0) : 0;   // the reach respected: the thrust's, or the kick's cone plus its lunge
-  if (hover && !opening && (F.phase === 'ready' || F.phase === 'guard' || (threat && (!noticed || next.plan === 'ignore'))) && gap < hover - .05 && forward > 0) forward = gap < hover - .3 ? -.4 : 0;   // a blow not yet noticed is not walked into either
+  // The hold sits a hand INSIDE the reach (reach − .15 … − .35), not on its edge: a hover parked one centimetre outside the point drew no
+  // poke at all (the trident's Goblin stood at 2.20 m against a thumb that pokes to 2.19, for two minutes), and the whiff is the whole plan.
+  const hovering = hover > 0 && !opening && (F.phase === 'ready' || F.phase === 'guard' || (threat && (!noticed || next.plan === 'ignore'))) && gap < hover - .15 && forward > 0;
+  next.hovered = hovering ? next.hovered + 1 : 0;
+  if (hovering && !(reads.kicker && !reads.poker && next.hovered >= HOVER_PATIENCE)) forward = gap < hover - .35 ? -.4 : 0;   // a blow not yet noticed is not walked into either
   const lateral = next.mode === 'circle' ? next.side * .25 : next.mode === 'approach' && forward ? next.side * .25 * (profile.circle ?? 0) : 0;   // a circler drifts sideways while closing in
   // The dart: a sprint into an opening from outside reach (profile.dash), so the whiff is punished before it closes.
   const dash = !!profile.dash && opening && forward > 0 && gap > fight.close + .3 && M.stamina > RULES.rollCost && roll() < profile.dash;

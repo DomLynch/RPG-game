@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
+import { HOVER_PATIENCE, READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
 import { createFighter, elapsed, idleIntent, initialDuel, mirror, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -549,5 +549,28 @@ test('a fighter with no guard respects a read poker\'s or kicker\'s reach: he ho
   assert.ok(at(1.7, { thrusts: 4 }, PROFILES.normal) > 0, 'the default warden closes (it can block a stab)');
   assert.ok(at(1.7, { lights: 4 }, guardless) > 0, 'guard 0 vs a cutter: closes as ever');
   assert.ok(at(1.7, { thrusts: 4 }, guardless, { phase: 'attack', move: 'thrust', lastMove: 'thrust', age: 40, landed: false, attackFrom: { x: 0, z: TARGET.z + 1.7, gap: 1.7 } }) > 0, 'the whiff is the opening: in he goes');
-  assert.ok(at(1.4, { kicks: 4 }, guardless) <= 0 && at(1.4, { kicks: 4 }, PROFILES.normal) > 0, 'the same respect for a kicker\'s cone plus its lunge');
+  assert.ok(at(1.3, { kicks: 4 }, guardless) <= 0 && at(1.3, { kicks: 4 }, PROFILES.normal) > 0, 'the same respect for a kicker\'s cone plus its lunge (the hold sits a hand inside it since the reach fix)');
+});
+
+test('brief 5 reach fix: the guardless hover on a kicker has a patience — after HOVER_PATIENCE ticks of no opening he walks in; on a poker it holds (a guardless man cannot take a point that never whiffs); a warden poked by a read poker does not back off through the reach band', () => {
+  const guardless = knobs({ guard: 0, parry: 0 }), poker = { habits: habit({ attacks: 4, thrusts: 4 }) }, kicker = { habits: habit({ attacks: 4, kicks: 4 }) };
+  const closes = (gap: number, ai: AiState) => { const f = facing(gap, {}, {}); const r = decide(f, 1, ai, guardless); const to = f.fighters[0].body, me = f.fighters[1].body; const dx = to.x - me.x, dz = to.z - me.z, n = Math.hypot(dx, dz); return (r.intent.move.x * dx + r.intent.move.z * dz) / n; };
+  const kick = MOVES.kick.reach + .3, stab = MOVES.thrust.reach;
+  assert.ok(closes(kick - .2, fresh(4, kicker)) <= 0, 'kicker, fresh: holds a hand inside the cone (reach − .15)');
+  assert.ok(closes(kick - .2, fresh(4, { ...kicker, hovered: HOVER_PATIENCE })) > 0, 'kicker, patience spent: walks in');
+  assert.ok(closes(stab - .2, fresh(4, { ...poker, hovered: HOVER_PATIENCE * 4 })) <= 0, 'poker: no patience — the hover holds however long');
+  assert.ok(closes(stab - .05, fresh(4, poker)) > 0, 'a hand outside the hold band: still creeping in, so the poke is drawn (the old edge at reach − .05 drew nothing)');
+  // freshly landed by a read poker's thrust: no 48-tick retreat — the next decision is now and the mode is not retreat. Guardless only (this
+  // is the reach fix's own hover gate, guardShare === 0): a fighter who can block answers a poke as any blow is, so the pin uses `guardless`
+  // both here and for the contrast cases. The player's own phase carries the blow that just landed (F, index 0): only a landed thrust waives
+  // the back-off, so the fixture puts him mid-thrust.
+  const thrustLanded = { phase: 'attack' as const, move: 'thrust' as const, age: 6, landed: true };
+  const r = decide(facing(1.3, { phase: 'hurt', age: 1, stun: 20 }, thrustLanded), 1, fresh(4, poker), guardless);
+  assert.equal(r.ai.retreatUntil, 0, 'no retreat window against a landed thrust from a read poker (guardless)'); assert.notEqual(r.ai.mode, 'retreat');
+  const guardedPoked = decide(facing(1.3, { phase: 'hurt', age: 1, stun: 20 }, thrustLanded), 1, fresh(4, poker), PROFILES.normal);
+  assert.ok(guardedPoked.ai.retreatUntil > 0, 'a fighter who can block still gets the ordinary back-off — the guardless carve-out does not reach into rung-vs-rung fights');
+  const cut = decide(facing(1.3, { phase: 'hurt', age: 1, stun: 20 }, { phase: 'attack', move: 'light_right', age: 6, landed: true }), 1, fresh(4, { habits: habit({ attacks: 4, lights: 4 }) }), guardless);
+  assert.ok(cut.ai.retreatUntil > 0, 'against a cutter the brief back-off stays');
+  const pokerButCut = decide(facing(1.3, { phase: 'hurt', age: 1, stun: 20 }, { phase: 'attack', move: 'light_right', age: 6, landed: true }), 1, fresh(4, poker), guardless);
+  assert.ok(pokerButCut.ai.retreatUntil > 0, 'a read poker who lands a cut, not a thrust, still gets the ordinary back-off');
 });
