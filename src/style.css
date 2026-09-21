@@ -1183,10 +1183,11 @@ dialog>p {
   /* Side hints (owner 2026-09-21, v3 "apply everywhere consistently"): every combat button carries the SAME compass — four rim
      ticks (overhead / low / left / right) and a centre ring (straight) — and lights the mark for the side it works on: Slash the
      NEXT cut (they alternate; data-next from hud.ts), Stab the ring, Heavy the up tick, Kick the down tick, Guard the side under the
-     thumb / Q + arrow while held (data-side from input.ts), the ring for straight. Ticks sit at the rim and the label is kept narrow
-     so the left/right marks never hide under it. Strokes are non-scaling so the 44 px Kick draws as fine as the 66 px Slash. */
+     thumb / Q + arrow while held (data-side from input.ts), the ring for straight. v5 (owner): the ticks sit just OUTSIDE the rim
+     (viewBox coordinates past 0..64, overflow visible) so the label has the whole face. Strokes are non-scaling so the 44 px Kick
+     draws as fine as the 60 px Slash. */
   .actions[data-gestures=cluster] button .side-marks{
-    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible;   /* the ticks sit just outside the rim */
     fill: none; stroke: #fff; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;
     transition: opacity .12s;
   }
@@ -1209,8 +1210,8 @@ dialog>p {
     .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }
   }
   .actions[data-gestures=cluster] button[data-mobile]::after{
-    font: 600 10px/1 Arial;
-    letter-spacing: .5px;
+    font: 600 11px/1 Arial;
+    letter-spacing: 1px;
     text-transform: uppercase;
     text-shadow: 0 1px 2px #000a;
   }
@@ -1240,10 +1241,10 @@ dialog>p {
     top: 0;
   }
   .actions[data-gestures=cluster] #attack-button {
-    width: 66px;
-    height: 66px;
-    left: 10px;
-    top: 38px;
+    width: 60px;
+    height: 60px;
+    left: 13px;
+    top: 41px;
   }
   .actions[data-gestures=cluster] #heavy-button {
     width: 58px;
