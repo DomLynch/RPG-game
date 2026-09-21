@@ -10,10 +10,21 @@ revision=$(git rev-parse HEAD)
 export VITE_SENTRY_RELEASE="$revision"
 # CI runs `quality:ci` (lint + full suite + build + audit + budget) on every trunk push. When it already passed for
 # this exact revision, re-running the 6-minute suite here only duplicates it: run the deploy-only parts instead.
-# Any doubt (gh unavailable, no green run for this SHA) falls back to the full gate.
-ci_green=$(gh run list --workflow quality.yml --commit "$revision" --status success --json url --jq '.[0].url' 2>/dev/null || true)
+# A merge commit of a rebased branch onto an unmoved trunk has the branch head's tree, so the head's own green
+# pull_request run tested this exact code: accept it when the trees are identical (git decides, nothing else).
+# Any doubt (gh unavailable, no green run, trees differ) falls back to the full gate.
+quality_green() { gh run list --workflow quality.yml --commit "$1" --status success --json url --jq '.[0].url' 2>/dev/null || true; }
+ci_green=$(quality_green "$revision")
+ci_green_for="$revision"
+if [[ -z "$ci_green" ]]; then
+  merged_head=$(git rev-parse -q --verify "$revision^2" 2>/dev/null || true)
+  if [[ -n "$merged_head" && "$(git rev-parse "$revision^{tree}")" == "$(git rev-parse "$merged_head^{tree}")" ]]; then
+    ci_green=$(quality_green "$merged_head")
+    ci_green_for="$merged_head (merged branch head, same tree as $revision)"
+  fi
+fi
 if [[ -n "$ci_green" ]]; then
-  echo "CI quality is green for $revision ($ci_green); running quality:deploy"
+  echo "CI quality is green for $ci_green_for ($ci_green); running quality:deploy"
   npm run quality:deploy
 else
   echo "No green CI quality run found for $revision; running the full quality gate"
