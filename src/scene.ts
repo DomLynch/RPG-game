@@ -56,7 +56,8 @@ export function createScene(
   rebuildEnvironment();
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
   const metal = new THREE.MeshStandardMaterial({ color: '#89949b', metalness: 0.72, roughness: 0.4 });
-  // The target marker's brass is a combat tell (it warms on a threat); the arena has its own materials in arena.ts.
+  // Brass for the capsule stand-ins (it warms on a threat while they stand in); the arena has its own materials in arena.ts.
+  // The brass target ring under the opponent is gone (owner 2026-09-21: a UI shape on the sand, and the hero never had one).
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
   scene.add(new THREE.HemisphereLight('#c9cfc6', '#4a4238', 1.6));
   const sun = new THREE.DirectionalLight('#ffe2b8', 4.2);
@@ -163,9 +164,6 @@ export function createScene(
     return loading;
   }
   const ready = loadFighters();
-  const marker = mesh(new THREE.RingGeometry(0.56, 0.59, 48), brass, TARGET.x, 0.04, TARGET.z);
-  marker.rotation.x = -Math.PI / 2;
-  marker.castShadow = false;
   // Two original alpha sprites, generated once; all impacts reuse the same GPU resources.
   function impactTexture(splash: boolean) {
     const canvas = document.createElement('canvas');
@@ -557,7 +555,6 @@ export function createScene(
           : 0;
       player.position.set(state.x, 0, state.z);
       opponent.position.set(practice.enemy.x, 0, practice.enemy.z);
-      marker.position.set(practice.enemy.x, 0.04, practice.enemy.z);
       const playerDefence = defenceReaction(practice),
         enemyDefence = defenceReaction(practice, true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
@@ -644,7 +641,6 @@ export function createScene(
           f.phase === 'attack' && f.charge ? (f.charged ? 8 : 1 + (4 * f.charge) / RULES.charge.min) : 0;
         glow.color.set(f.charged ? '#fff3d0' : '#ff9a3c');
       });
-      marker.visible = practice.health > 0;
       if (practice.health) opponent.rotation.y = practice.enemy.heading;
       const blend = 1 - Math.exp(-dt * 8);
       heading += wrapAngle(state.heading - heading) * blend;
