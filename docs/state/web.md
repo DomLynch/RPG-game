@@ -4,7 +4,7 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 
 ## Brief 9 — provenance under the inventory — web/design lane, 2026-09-21 (CSS only, on top of #335)
 Data lands with #330 (`profile.loot.taken[id] = { opponent, attempt, healthLeft, recordId|null, day }`). The line is far too
-long for a 63 px inventory tile, so it reads beneath the grid, one caption at a time: the worn piece's by default, any tile's
+long for a 63 px inventory tile, so it reads beneath the grid, one caption at a time: the first worn piece's by default (a second worn caption stays hidden), any tile's
 while it is hovered or focused (a tap focuses it: the li carries `tabindex="0"`; `:has()` hides the worn one meanwhile). Row
 shape for the builder: `<li data-loot data-worn tabindex="0"><span>name</span><small data-taken><b>Name</b> · your 5th
 attempt, 12 health left <a data-watch href="/?r=…">Watch</a></small><button data-wear>…</button></li>`, the link only when
