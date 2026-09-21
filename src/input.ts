@@ -20,9 +20,16 @@ export type InputEnv = {
 export type Intent = { x: number; z: number; run: boolean; action: Action | null; guard: boolean; guardDirection: Direction | null; held: boolean; cancel: boolean };
 // Guard side (owner 2026-09-20, five sides): the thumb still on the Guard button is the straight guard (null: the simulation reads it as the
 // stab's side); slid past GUARD_SLIDE_PX it is that side — left, right, up = overhead, down = low. Keyboard: Q held + an arrow key.
-export const GUARD_SLIDE_PX = 18;
-export const guardSide = (dx: number, dy: number): Direction | null =>
-  !(Math.hypot(dx, dy) >= GUARD_SLIDE_PX) ? null : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'overhead' : 'low';
+// Hysteresis (brief 7, 2026-09-21): the sectors meet on the diagonals, and a thumb wobbling near one flipped the side every frame. A side
+// already held keeps its axis until the thumb is GUARD_DEAD_BAND_DEG past the diagonal into the next sector; a fresh slide (no side
+// held) picks the dominant axis as before. Intent only — nothing about parry timing, block cost or the exposure changes.
+export const GUARD_SLIDE_PX = 18, GUARD_DEAD_BAND_DEG = 15;
+export const guardSide = (dx: number, dy: number, held: Direction | null = null): Direction | null => {
+  if (!(Math.hypot(dx, dy) >= GUARD_SLIDE_PX)) return null;
+  const fromHorizontal = Math.atan2(Math.abs(dy), Math.abs(dx)) * 180 / Math.PI;   // 0 = along the horizontal axis, 90 = along the vertical
+  const horizontal = held === 'left' || held === 'right' ? fromHorizontal < 45 + GUARD_DEAD_BAND_DEG : held === 'overhead' || held === 'low' ? fromHorizontal < 45 - GUARD_DEAD_BAND_DEG : Math.abs(dx) > Math.abs(dy);
+  return horizontal ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'overhead' : 'low';
+};
 const ARROW_SIDE: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'overhead', ArrowDown: 'low' };
 
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
@@ -287,7 +294,7 @@ export function createInput(env: InputEnv) {
   });
   guardButton.addEventListener('pointermove', (event) => {
     if (event.pointerId !== guardId || !guardFrom) return;
-    const side = guardSide(event.clientX - guardFrom.x, event.clientY - guardFrom.y);
+    const side = guardSide(event.clientX - guardFrom.x, event.clientY - guardFrom.y, guardDir);
     if (side !== guardDir) { guardDir = side; showSide(); }
   });
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
