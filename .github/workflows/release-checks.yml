@@ -121,8 +121,9 @@ jobs:
             artifacts/**/*.webm
           if-no-files-found: ignore
   summary:
-    needs: check
-    if: always()
+    needs: [plan, check]
+    # Not when the matrix never ran (plan gated off on an unlabelled PR push): a red "summary" there means nothing.
+    if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -135,7 +136,7 @@ jobs:
           node -e '
             const fs = require("fs"), path = require("path");
             const rows = [];
-            for (const dir of fs.readdirSync("receipts")) {
+            for (const dir of fs.existsSync("receipts") ? fs.readdirSync("receipts") : []) {
               if (dir.endsWith("-receipt")) continue;
               const file = path.join("receipts", dir, `${dir}.json`);
               if (fs.existsSync(file)) rows.push(JSON.parse(fs.readFileSync(file, "utf8")));
