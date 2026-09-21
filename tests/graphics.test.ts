@@ -141,8 +141,9 @@ test('the thumb cluster is the one mobile layout: round buttons incl. a Stab but
   const press = (el: Element, type: string, id = 5) => el.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { pointerId: id, button: 0, clientX: 0, clientY: 0 }));
   const settle = () => { for (let i = 0; i < 900 && !(me().phase === 'ready' && !app.rendered.threat && !app.rendered.enemyAttacking && me().stamina > 60); i++) app.tick(); };
   const thrust = app.element('thrust-button'); assert.equal(thrust.hidden, false); assert.equal(app.element('attack-button').dataset.mobile, 'Slash'); assert.equal(app.element('kick-button').hidden, false);
-  settle(); press(thrust, 'pointerdown'); app.tick(); assert.equal(me().move, 'thrust');
-  for (let i = 0; i < 12; i++) app.tick(); assert.equal(me().age, MOVES.thrust.chamber!, 'held Stab loads the thrust'); press(thrust, 'pointerup'); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > MOVES.thrust.chamber!, 'released, it goes');
+  settle(); press(thrust, 'pointerdown'); app.tick(); assert.equal(me().move, 'thrust'); assert.equal(thrust.dataset.held, '', 'data-held lights the ring while Stab is down');
+  const kick = app.element('kick-button'); press(kick, 'pointerdown', 6); assert.equal(kick.dataset.held, ''); press(kick, 'pointerup', 6); assert.equal(kick.dataset.held, undefined, 'Kick: held for the press only');
+  for (let i = 0; i < 12; i++) app.tick(); assert.equal(me().age, MOVES.thrust.chamber!, 'held Stab loads the thrust'); press(thrust, 'pointerup'); assert.equal(thrust.dataset.held, undefined, 'lifted: the ring goes back to rest'); for (let i = 0; i < 4; i++) app.tick(); assert.ok(me().age > MOVES.thrust.chamber!, 'released, it goes');
 });
 
 test('the scorecard tallies fights, wins, rematches and damage', () => {

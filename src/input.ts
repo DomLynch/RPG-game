@@ -199,6 +199,7 @@ export function createInput(env: InputEnv) {
         /* capture is a convenience: an uncaptured press still strikes */
       }
       hold(name);
+      button.dataset.held = ''; // the button's side mark lights while held (see .side-marks in style.css)
       start();
     });
     button.addEventListener('pointermove', (event) => {
@@ -215,6 +216,7 @@ export function createInput(env: InputEnv) {
         if ((event as PointerEvent).pointerId !== id) return;
         id = null;
         unhold(name);
+        delete button.dataset.held;
         if (dragged) {
           dragged = false;
           dragGuard = false;
@@ -225,23 +227,31 @@ export function createInput(env: InputEnv) {
       if (['Space', 'Enter'].includes(event.code) && !event.repeat) {
         event.preventDefault();
         hold(name);
+        button.dataset.held = '';
         start();
       }
     });
-    button.addEventListener('keyup', () => unhold(name));
-    button.addEventListener('blur', () => unhold(name));
+    for (const type of ['keyup', 'blur'])
+      button.addEventListener(type, () => {
+        unhold(name);
+        delete button.dataset.held;
+      });
   }
   strikeControl(attackButton, 'light', () => requestStrike());
   kickButton.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
       event.preventDefault();
+      kickButton.dataset.held = '';
       requestKick();
     }
   });
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave', 'keyup', 'blur'])
+    kickButton.addEventListener(type, () => delete kickButton.dataset.held);
   kickButton.addEventListener('pointercancel', () => withdraw('kick'));
   kickButton.addEventListener('keydown', (event) => {
     if (['Space', 'Enter'].includes(event.code) && !event.repeat) {
       event.preventDefault();
+      kickButton.dataset.held = '';
       requestKick();
     }
   });

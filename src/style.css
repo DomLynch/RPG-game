@@ -1175,8 +1175,8 @@ dialog>p {
   .actions[data-gestures=cluster] {
     display: block;
     position: relative;
-    width: 176px;
-    height: 210px;
+    width: 184px;
+    height: 216px;
   }
   .actions[data-gestures=cluster] button{
     position: absolute;
@@ -1202,12 +1202,13 @@ dialog>p {
     transition: opacity .12s;
   }
   .actions[data-gestures=cluster] button .side{ vector-effect: non-scaling-stroke; opacity: .3; transition: opacity .12s, stroke-width .12s; }
-  /* one lit mark per button */
-  .actions[data-gestures=cluster] #attack-button[data-next=left] .side-left,
-  .actions[data-gestures=cluster] #attack-button[data-next=right] .side-right,
-  .actions[data-gestures=cluster] #thrust-button .side-straight,
-  .actions[data-gestures=cluster] #heavy-button .side-overhead,
-  .actions[data-gestures=cluster] #kick-button .side-low,
+  /* one lit mark per button, and only while that button is being pressed (data-held from input.ts; :active is unreliable on touch) — the same as Guard, so every button rests at the
+     same faint weight (owner 2026-09-21: "keep them all standard semi-transparent like the guard one") */
+  .actions[data-gestures=cluster] #attack-button[data-held][data-next=left] .side-left,
+  .actions[data-gestures=cluster] #attack-button[data-held][data-next=right] .side-right,
+  .actions[data-gestures=cluster] #thrust-button[data-held] .side-straight,
+  .actions[data-gestures=cluster] #heavy-button[data-held] .side-overhead,
+  .actions[data-gestures=cluster] #kick-button[data-held] .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=left] .side-left,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .side-right,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .side-overhead,
@@ -1244,9 +1245,9 @@ dialog>p {
   }
   .actions[data-gestures=cluster] #thrust-button:not([hidden]) {
     display: block;
-    width: 50px;
-    height: 50px;
-    left: 88px;
+    width: 56px;
+    height: 56px;
+    left: 78px;
     top: 0;
   }
   .actions[data-gestures=cluster] #attack-button {
@@ -1256,17 +1257,17 @@ dialog>p {
     top: 38px;
   }
   .actions[data-gestures=cluster] #heavy-button {
-    width: 50px;
-    height: 50px;
-    left: 122px;
-    top: 52px;
+    width: 58px;
+    height: 58px;
+    left: 126px;
+    top: 58px;
   }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;
     height: 44px;
     min-height: 0;
-    left: 77px;
-    top: 100px;
+    left: 78px;
+    top: 106px;
     border-radius: 50%;
     font-size: 0;
     background: #17232952;
@@ -1284,8 +1285,8 @@ dialog>p {
   .actions[data-gestures=cluster] #guard-button {
     width: 64px;
     height: 64px;
-    left: 109px;
-    top: 145px;
+    left: 120px;
+    top: 152px;
   }
   .actions[data-gestures=cluster] #reset-button {
     left: 0;
