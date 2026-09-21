@@ -21,9 +21,22 @@ Tests: `gore.test.ts` — `woundSite` direction/location table, `createBodyWound
 false, threshold show/hide, follows the bone, `off` hides, severity scaling on opacity and drip, rematch clear); mutation on
 the threshold comparison caught. `test:all` 412/412. Harness: `finisher-preview.mjs` gained an opt-in `--wounds` still
 (a scripted duel to the first landed blow at ≤60% health, +30 settle frames) + a dedicated `wounds-gate` release row
-(`--only plainDeath --wounds`) so the other 7 finisher-preview rows don't pay the extra page load. Not yet run against a
-live browser (deploy #70 BUSY at the time of this entry) — release row not yet green, stills not yet reviewed by the owner.
-Remaining: run `wounds-gate` once FREE, screenshot review, PR.
+(`--only plainDeath --wounds`) so the other 7 finisher-preview rows don't pay the extra page load. `wounds-gate` ran green
+(exit 0; `wounds: warden 4 mark(s) showing (opacity 0.58, drip 0.58); off → 0`) on the goblin harness and again on the
+release-row fixture; owner reviewed the rendered stills (`artifacts/character/wounds-gate/wounds-phone-rear.png`) before
+the PR went up.
+
+**Audit follow-up (2026-09-22):** peer review of the pushed head (`fcc835b`) found three real items, fixed here: (1)
+`bodyWounds.update` re-ran a recursive `root.getObjectByName(mark.bone)` every frame for every used mark (≤10) — `hit()`
+already resolves the bone, so it's now cached on the mark at hit time and reused, dropping the per-frame search entirely
+(mutation-checked: nulling the cache assignment fails the existing test). (2) `.quality-gate.json` had lost its trailing
+newline — restored. (3) Check 5 (`fatal-crowd-browser-check.mjs`) failed on the pushed head with the same wall-clock
+timeout signature as an unrelated PR's (#366) known-flaky run, and trunk's own baseline for that check is cancelled, so
+flake vs. this PR's heavier per-frame cost wasn't settled by the auditor's read alone — re-running it locally, alone, with
+no deploy in flight, to get a clean receipt before pushing the fix. Also: the "mutation caught" claims throughout this
+entry are a manual verification step done during development (temporarily break the assertion's target, confirm the test
+fails, revert) — not an automated mutation-testing framework wired into the repo; noting this since the audit read it as
+possibly a claim about tooling that doesn't exist here.
 
 ## Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-limited back-off (2026-09-21)
 Deploy #57 on fdd6032 (#303 anti-turtling) failed release checks 17 and 20: the passive test Executioner is now lashed off the

@@ -179,13 +179,13 @@ export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>): WoundS
   return { bone: side ? 'spine_02' : 'spine_03', dir: side ? [side * .9, .05, .45] : [0, 0, 1], radius: side ? .17 : .15, width: side ? .7 : 1 };
 }
 export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture | null) {
-  type Mark = { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>; drips: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; bone: string; dir: THREE.Vector3; radius: number; width: number; scale: number; age: number; used: boolean };
+  type Mark = { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>; drips: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; bone: THREE.Object3D | null; dir: THREE.Vector3; radius: number; width: number; scale: number; age: number; used: boolean };
   const material = () => new THREE.MeshBasicMaterial({ color: '#581017', transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
   const fighters = [0, 1].map(() => Array.from({ length: WOUNDS_PER_FIGHTER }, (): Mark => {
     const group = new THREE.Group(), mark = new THREE.Mesh(new THREE.PlaneGeometry(.12, .12), Object.assign(material(), { map: splatTexture }));
     const drips = [0, 1, 2].map((i) => { const drip = new THREE.Mesh(new THREE.PlaneGeometry(.011, .1), material()); drip.position.x = (i - 1) * .028; group.add(drip); return drip; });
     group.add(mark); group.visible = false; scene.add(group);
-    return { group, mark, drips, bone: '', dir: new THREE.Vector3(), radius: 0, width: 1, scale: 1, age: 0, used: false };
+    return { group, mark, drips, bone: null, dir: new THREE.Vector3(), radius: 0, width: 1, scale: 1, age: 0, used: false };
   }));
   let next = [0, 0];
   const tone = (mode: BloodMode) => (mode === 'dark' ? '#241314' : '#581017');
@@ -198,7 +198,8 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
       const world = new THREE.Vector3(...site.dir).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), hit.heading);
       root.updateWorldMatrix(true, true);
       mark.dir.copy(world).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert());
-      mark.bone = site.bone; mark.radius = site.radius * scale; mark.width = site.width; mark.scale = scale; mark.age = 0; mark.used = true;
+      mark.bone = bone;   // cached (audit, 2026-09-22): update() ran a recursive getObjectByName search every frame for every used mark
+      mark.radius = site.radius * scale; mark.width = site.width; mark.scale = scale; mark.age = 0; mark.used = true;
       return true;
     },
     // Each frame, after the rigs animate: follow the bones; strength from the fighter's health fraction (nothing above the threshold).
@@ -206,8 +207,8 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
       for (const side of [0, 1] as const) {
         const severity = Math.min(1, Math.max(0, (WOUND_THRESHOLD - health[side]) / WOUND_THRESHOLD)), root = roots[side];
         for (const mark of fighters[side]) {
-          const bone = mark.used && root ? root.getObjectByName(mark.bone) : null;
-          const show = !!bone && health[side] <= WOUND_THRESHOLD && bloodMode !== 'off' && !hidden[side];
+          const bone = mark.used ? mark.bone : null;
+          const show = !!bone && !!root && health[side] <= WOUND_THRESHOLD && bloodMode !== 'off' && !hidden[side];
           mark.group.visible = show;
           if (!show || !bone) continue;
           mark.age += dt;
@@ -226,7 +227,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
         }
       }
     },
-    clear() { for (const side of fighters) for (const mark of side) { mark.used = false; mark.group.visible = false; } next = [0, 0]; },
+    clear() { for (const side of fighters) for (const mark of side) { mark.used = false; mark.bone = null; mark.group.visible = false; } next = [0, 0]; },
     get entries() { return fighters as readonly (readonly Mark[])[]; },
   };
 }
