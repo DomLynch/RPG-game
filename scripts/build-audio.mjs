@@ -15,7 +15,7 @@ const RATE = 48000, GAP = .04, LEAD = .02;
 // every weapon, guard and shield impact.
 const PITCH = .5;
 // Owner 2026-09-20, after playing the −30 % mix: the end-of-match cheer is still high — the crowd recordings go another 30 %.
-const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, shield: 1, flesh: 1, slashkill: 1 };   // shield: the owner chose the raw recording, not the deeper one
+const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, shield: 1, slashkill: 1 };   // shield: the owner chose the raw recording, not the deeper one
 // Length-preserving pitch shift: asetrate lowers pitch and slows; atempo (≤ 2 per stage, chained) restores the length.
 const pitchFilter = pitch => { const tempo = 1 / pitch, stages = Math.ceil(Math.log(tempo) / Math.log(2)); return `asetrate=${RATE * pitch},aresample=${RATE},${Array.from({ length: stages }, () => `atempo=${tempo ** (1 / stages)}`).join(',')}`; };
 const S = seconds => Math.round(seconds * RATE);
@@ -145,12 +145,8 @@ function dense(n, f0, count, t60, r, { top = 4.6, roll = .86, grit = .35, spread
 // The steel guard voicing that was live at e1d0436 (deploy #35): kept as the second half of each guard cue's rotation.
 const STEEL = .7;
 const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0 * STEEL), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
-// The five weapon-landing voicings (see hit_flesh). `heavy` = slower recording playback + more heft + longer body.
+// The four weapon-landing voicings (see hit_flesh). `heavy` = slower recording playback + more heft + longer body.
 const HITS = [
-  (r, heavy) => {   // #1 recording: SoundFlakes sword-hit-flesh (CC BY 4.0)
-    const n = S(heavy ? .55 : .45), take = recording('flesh', .0, heavy ? .55 : .45, heavy ? .9 : vary(r, 1, .03));
-    return heavy ? mix(n, [take, 0, 1], [heft(n, 80, r, { t60: .3, drive: 5 }), .004, .5]) : take;
-  },
   (r, heavy) => {   // #6 recording: slash & kill (stated free use)
     const n = S(heavy ? .62 : .5), take = recording('slashkill', .02, heavy ? .62 : .5, heavy ? .92 : vary(r, 1, .03));
     return heavy ? mix(n, [take, 0, 1], [heft(n, 75, r, { t60: .35, drive: 5 }), .004, .45]) : take;
@@ -204,13 +200,13 @@ const RECIPES = {
     return densify(mix(n, [slide], [leather, 0, .9], [ring, .2, dbfs(-16)]), 1.5, { lift: 2 });
   },
   // Owner 2026-09-21 13:40: "remove all of these except the kick; for the weapon lands on opponent use these" — six clips, five
-  // kept for hits (the sixth, a shield clang, went to the guards). Two ship as recordings: #1 SoundFlakes "Sword Hit Flesh 02"
-  // (freesound, CC BY 4.0) and #6 "Sword Slash & Beheading" (stated free use); #2 / #4 / #5 carry no reuse grant and are voiced
-  // here to their measurements — #2 a low thud with a mid body (centroid ~870 Hz, mostly below 300 Hz), #4 a sharp slap
-  // (4–6 kHz transient, 700 Hz–12 kHz) over a body that settles in ~.65 s, #5 a bright stab with a wet squelch, ~.66 s.
-  // hit_flesh = the five at strike weight; hit_heavy = the same five hit harder (slower, more heft, longer tail).
-  hit_flesh(r, v) { return HITS[v % 5](r, false); },
-  hit_heavy(r, v) { return HITS[v % 5](r, true); },
+  // kept for hits (the sixth, a shield clang, went to the guards). #1 (SoundFlakes, CC BY) is out: the owner wants no credit line
+  // ("if its easier just remove this"). One ships as a recording: #6 "Sword Slash & Beheading" (stated free use); #2 / #4 / #5
+  // carry no reuse grant and are voiced here to their measurements — #2 a low thud with a mid body (centroid ~870 Hz, mostly
+  // below 300 Hz), #4 a sharp slap (4–6 kHz transient, 700 Hz–12 kHz) over a body that settles in ~.65 s, #5 a bright stab
+  // with a wet squelch, ~.66 s. hit_flesh = the four at strike weight; hit_heavy = the same four hit harder.
+  hit_flesh(r, v) { return HITS[v % 4](r, false); },
+  hit_heavy(r, v) { return HITS[v % 4](r, true); },
   // Kick: a cloth slap and a dull mid thud, no edge, no ring.
   hit_kick(r) {
     const n = S(.28), f = vary(r, 1, .08);
@@ -347,7 +343,7 @@ const RECIPES = {
   flesh_stab(r, v) { return mul(biquad(recording('tear', v * .2, .16, 1.15), 'lowpass', 2200), decay(S(.16), .2, .002)); },
   flesh_tear(r, v) { return biquad(recording('tear', .02 + v * .29, .34, vary(r, .92, .025)), 'lowpass', 3800); },
   // Bloodless opponents (bone instead of flesh): the same weapon-landing pool — the owner replaced the old synths outright.
-  bone_crack(r, v) { return RECIPES.hit_flesh(r, v % 5); },
+  bone_crack(r, v) { return RECIPES.hit_flesh(r, v % 4); },
   crowd_gasp(r, v) { return biquad(recording('gasp', v ? 5.55 : 3.9, .42, vary(r, 1, .015)), 'highpass', 180); },
   crowd_cheer(r, v) {
     const n = S(2.5), cheer = biquad(biquad(recording('crowd', [.5, 21.85, 44.9][v], 2.28), 'highpass', 180), 'lowpass', 5500);
@@ -367,7 +363,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [fall, 0, .2], [body, 0, 1.3], [tone, 0, .5], [low, 0, .2], [slump, .19, .7], [tail, .05, dbfs(-3)]), 2.8), .15);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 5, hit_heavy: 5, hit_kick: 4, block: 7, block_perfect: 7, parry: 6, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 4, hit_heavy: 4, hit_kick: 4, block: 7, block_perfect: 7, parry: 6, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];
