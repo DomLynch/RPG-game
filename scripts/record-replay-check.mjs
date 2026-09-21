@@ -37,7 +37,7 @@ const REFERENCES = {
     };
   },
 };
-const META = { build: 'reference', opponent: 'veteran', profile: 'normal', seed: 731 };
+const META = { build: 'reference', opponent: 'veteran', weapon: 'longsword', profile: 'normal', seed: 731 };   // record v2 (#324) names the player's weapon
 const MAX_TICKS = 6000;
 
 const outcomeOf = practice => (practice.finish ? (practice.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
