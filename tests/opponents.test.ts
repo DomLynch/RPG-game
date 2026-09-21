@@ -8,7 +8,7 @@ import { bladePaths, bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
 import { RADIUS, TARGET, type State } from '../src/sim.ts';
-import { STRATEGIES, battery, side } from './battery.test.ts';
+import { STRATEGIES, battery, side } from './strategies.ts';
 
 const P = OPPONENTS.pitborn;
 const idle = (): Intent => ({ ...idleIntent(), lock: true }), act = (action: Intent['action']): Intent => ({ ...idle(), action });
