@@ -293,7 +293,7 @@ cue → variants → [start, duration]. Two kinds of source, both listed in this
   hit_flesh/heavy/kick, block, block_perfect, parry, guard_break, charge, kill, roll, backstep; 2–5 seeded variants each).
   No third-party sample, no AI generator, no licence.
 - Five CC0 recordings from Freesound for the fatal pass (death voice, flesh cut/stab/tear, bone crack, crowd gasp/cheer),
-  hash-pinned in `artifacts/audio/SOURCES.json` and credited under "Fatal contact and crowd — 2026-09-19" below. Downloads
+  hash-pinned in `src/assets/audio/SOURCES.json` and credited under "Fatal contact and crowd — 2026-09-19" below. Downloads
   are build inputs, never runtime requests.
 The separate optional arena bank (`src/assets/arena-audio/arena.m4a|ogg`, `scripts/build-arena-audio.mjs`, crowd bed,
 reactions, jeers, chants, close grunts, opening bell) is documented under "Arena life" in PROJECT_STATE.md; the bell is
@@ -524,7 +524,7 @@ These cues mark movement start only; no footfall/landing events or material infe
 ## Fatal contact and crowd — 2026-09-19
 The 73-region AAC/Opus sprite adds human death voices, restrained organic fatal contact, and three 2.5 s crowd variations.
 These are CC0 public recordings, verified on the linked Freesound source pages on 2026-09-19. Source URLs, authors,
-licence URLs and SHA-256 hashes are pinned in `artifacts/audio/SOURCES.json`; downloads are build inputs, never runtime requests.
+licence URLs and SHA-256 hashes are pinned in `src/assets/audio/SOURCES.json`; downloads are build inputs, never runtime requests.
 
 | Source | Author | Licence | Use |
 |---|---|---|---|
@@ -565,8 +565,8 @@ Arena-life audio (2026-09-19): `scripts/build-arena-audio.mjs` builds the separa
 (https://freesound.org/people/SpliceSound/sounds/260122/). Jeers/wordless group calls: deleted_user_2104797,
 “Crowd Boo.wav” (https://freesound.org/people/deleted_user_2104797/sounds/324893/). Both CC0 1.0,
 https://creativecommons.org/publicdomain/zero/1.0/, retrieved 2026-09-19; URL/hash pins in
-`artifacts/audio/arena-life/SOURCES.json`. Reuses the pinned CC0 crowd/gasp/tonsil5 grunt recordings in
-`artifacts/audio/SOURCES.json`. Seven offset recorded groups form the bed; shortened cheer/gasp takes react to
+`src/assets/audio/arena-life.SOURCES.json`. Reuses the pinned CC0 crowd/gasp/tonsil5 grunt recordings in
+`src/assets/audio/SOURCES.json`. Seven offset recorded groups form the bed; shortened cheer/gasp takes react to
 combat; rhythmic open-vowel edits form wordless chants. Bell is original modal synthesis. No music or modern songs.
 Existing combat bank and its 1 MB cap are unchanged; optional arena bank cap is 450 KB combined gzip.
 ## The Quiet One — 2026-09-19

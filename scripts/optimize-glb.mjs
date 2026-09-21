@@ -9,6 +9,7 @@ import { losslessJpeg } from './lossless-jpeg.mjs';
 // `quantize` (build default): vertex normals go to int8 normalized and skin weights to uint8 normalized with each vertex's weights
 // still summing to exactly 255 — the two attributes the runtime never reads back as numbers. Positions, joints, UVs (they tile
 // beyond 0..1 on the fighters), indices and animation stay bit-exact. KHR_mesh_quantization is declared for the int8 normals.
+/** @param {Uint8Array} raw @param {(bytes: Uint8Array, mime: string) => string | undefined} [externalImage] @param {{ quantize?: boolean }} [options] */
 export async function optimizeGlb(raw, externalImage = () => undefined, { quantize = true } = {}) {
  await MeshoptEncoder.ready;
  assert.equal(raw.readUInt32LE(0),0x46546c67,'Expected GLB');
@@ -16,6 +17,7 @@ export async function optimizeGlb(raw, externalImage = () => undefined, { quanti
  const n=raw.readUInt32LE(12),d=JSON.parse(raw.subarray(20,20+n)),bin=raw.subarray(28+n);
  assert.equal(d.buffers.length,1,'Optimizer requires one embedded buffer');
  assert.ok(!d.extensionsUsed?.some(x=>['EXT_meshopt_compression','KHR_meshopt_compression','KHR_draco_mesh_compression'].includes(x)),'Source must be uncompressed');
+ d.textures??=[];d.images??=[];   // a file with no textures (loot.glb: palette materials only) has neither array
  assert.ok(d.images.every(i=>i.bufferView!==undefined),'Textures must be embedded');
  // Offline equipment rollback document; the source GLB retains it for rebuilding.
  delete d.extras?.creatureWeaponBase;

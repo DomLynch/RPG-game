@@ -196,10 +196,10 @@ test('dodge control: a tap is an instant backstep, a hold grows it into a roll, 
   app.key('KeyE'); app.tick(); app.release('KeyE');
   assert.equal(app.element('stamina').value, 90, 'the press itself is a backstep');
   for (let i = 0; i < 60; i++) app.tick();
-  assert.ok(app.element('stamina').value >= 90, 'a released tap never becomes a roll');
+  assert.ok(Number(app.element('stamina').value) >= 90, 'a released tap never becomes a roll');
   for (let i = 0; i < 120; i++) app.tick();
   app.key('KeyE'); for (let i = 0; i < 12; i++) app.tick();
-  assert.ok(app.element('stamina').value <= 70.5, `holding past 150 ms rolled: ${app.element('stamina').value}`);
+  assert.ok(Number(app.element('stamina').value) <= 70.5, `holding past 150 ms rolled: ${app.element('stamina').value}`);
   app.release('KeyE'); for (let i = 0; i < 200; i++) app.tick();
   app.key('KeyE'); app.lose(); app.restore();
   let rolled = false; for (let i = 0; i < 20; i++) { app.tick(); rolled ||= app.rendered.duel.fighters[0].phase === 'roll'; }   // the fighter's phase, not the bar: the warden may have wounded the ceiling by now
@@ -590,12 +590,13 @@ test('an AFK fight runs on: hidden time is simulated on return with no input, an
   for (let i = 0; i < 60; i++) app.tick();
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fight.v1')!).opponent, 'veteran', 'a live fight is marked');
   assert.equal(app.rendered.finish, null);
-  app.document.hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
+  (app.document as unknown as { hidden: boolean }).hidden = true; app.document.dispatchEvent(new Event('visibilitychange'));
   app.tick(120000);
   assert.equal(app.rendered.finish, null, 'nothing runs while hidden');
-  app.document.hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
+  (app.document as unknown as { hidden: boolean }).hidden = false; app.document.dispatchEvent(new Event('visibilitychange'));
   app.tick();
-  assert.equal(app.rendered.finish?.victim, 0, 'the idle fighter is dead when the player comes back');
+  const back = app.rendered;   // a fresh reference: assert.equal(…, null) above narrowed app.rendered.finish to null for the checker
+  assert.equal(back.finish?.victim, 0, 'the idle fighter is dead when the player comes back');
   assert.equal(app.storage.getItem('frankendom.fight.v1'), '', 'a decided fight is no longer marked');
   assert.equal(JSON.parse(app.storage.getItem('frankendom.controls.v1')!).card.fights, 1);
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran, { fights: 1, wins: 0, losses: 1, left: 1 }, 'the scorecard shows the walk-away as a loss, flagged left');

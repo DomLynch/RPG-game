@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- Brief 5 loot review (2026-09-21, Scalable Chars): the player wearing an opponent's dropped kit from src/assets/loot.glb, bound to his
+     own skeleton the way the runtime will (mesh.bind(player.skeleton, player.bindMatrix); the player's draw in that slot hidden, Hair
+     under a Helmet). ?opponent=veteran|executioner|nightborn|pitborn|dwarf|all, ?slot=Helmet,Legs to wear a subset, ?pose=Idle|Armed
+     (clip name), ?bare=1 to show the loot draws' own palette materials instead of the player's mapped ones. Review only; the game's
+     paperdoll (web design) and the attach code (lead) are theirs. -->
+<html lang="en"><head><meta charset="utf-8"><title>Loot preview</title>
+<style>html,body{margin:0;height:100%;background:#9ca8a6;font:13px system-ui;color:#222}#status{position:fixed;left:8px;top:8px;white-space:pre}</style></head>
+<body><canvas id="world"></canvas><div id="status">loading…</div>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const P = new URLSearchParams(location.search), status = t => document.getElementById('status').textContent = t;
+const opponent = P.get('opponent') || 'veteran', only = P.get('slot')?.split(',') ?? null, pose = P.get('pose') || 'Idle';
+const canvas = document.getElementById('world'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(devicePixelRatio); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.shadowMap.enabled = true;
+const pmrem = new THREE.PMREMGenerator(renderer), env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#9ca8a6'); scene.environment = env; scene.environmentIntensity = 0.65;
+scene.add(new THREE.HemisphereLight('#d2e0e4', '#575c4c', 2.5));
+const sun = new THREE.DirectionalLight('#ffdfad', 3.6); sun.position.set(-15, 26, -18); sun.castShadow = true; scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 0.1, 80), new THREE.MeshStandardMaterial({ color: '#878579', roughness: 0.98 })); floor.position.y = -0.05; floor.receiveShadow = true; scene.add(floor);
+const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 50); camera.position.set(1.9, 1.25, 2.6); camera.lookAt(0, 0.95, 0);
+const loader = new GLTFLoader();
+const [player, loot] = await Promise.all(['/src/assets/warrior.glb', '/src/assets/loot.glb'].map(u => loader.loadAsync(new URL(u, location.href).href)));
+const draws = []; player.scene.traverse(o => { if (o.isSkinnedMesh) draws.push(o); o.castShadow = o.receiveShadow = true; });
+const body = draws.find(m => m.name === 'Skin') ?? draws[0], materials = new Map(draws.map(m => [m.material.name, m.material]));
+const worn = []; loot.scene.traverse(o => { if (o.isSkinnedMesh) worn.push(o); });
+const chosen = worn.filter(m => (opponent === 'all' || m.userData.opponent === opponent) && (!only || only.includes(m.userData.slot)));
+const covered = new Set(chosen.map(m => m.userData.slot)); if (covered.has('Helmet')) covered.add('Hair');
+for (const m of draws) if (covered.has(m.userData.slot)) m.visible = false;
+for (const m of chosen) {   // the runtime recipe: same bone order (same base rig), bound to the player's skeleton and bind matrix
+  const mesh = new THREE.SkinnedMesh(m.geometry, P.get('bare') ? m.material : materials.get(m.material.name) ?? m.material);
+  mesh.name = m.name; mesh.userData = { ...m.userData }; mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false;
+  mesh.bind(body.skeleton, body.bindMatrix); body.parent.add(mesh);
+}
+scene.add(player.scene);
+const mixer = new THREE.AnimationMixer(player.scene), clip = player.animations.find(a => a.name === pose);
+if (clip) mixer.clipAction(clip).play(); mixer.update(0.4);
+status(`${opponent}: ${chosen.map(m => m.name).join(', ') || 'nothing'}\nhidden on the player: ${[...covered].join(', ') || '—'}\npose ${clip ? pose : 'bind'}`);
+function frame() { const w = innerWidth, h = innerHeight; if (canvas.width !== w * devicePixelRatio) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); } renderer.render(scene, camera); }
+frame(); addEventListener('resize', frame);
+window.__loot = { chosen: chosen.map(m => m.name), hidden: [...covered], ready: true };
+</script></body></html>
