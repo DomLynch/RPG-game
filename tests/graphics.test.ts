@@ -13,6 +13,7 @@ import * as ladder from '../src/ladder.ts';
 import * as roster from '../src/roster.ts';
 import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
+import * as replay from '../src/replay.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
@@ -31,8 +32,8 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
   focus() {} close() { this.open = false; } showModal() { this.open = true; }
 }
-function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}) {
-  const elements = new Map<string, Element>(), doc = new EventTarget(), win = new EventTarget();
+function boot(profileExtras: Record<string, unknown> = {}, initializationError?: Error, seed: Record<string, string> = {}, search = '') {
+  const elements = new Map<string, Element>(), doc = new EventTarget(), win = Object.assign(new EventTarget(), { location: { search } });   // window.location.search is what main.ts reads for ?opponent / ?replay / ?debug
   const element = (id: string) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id)!; };
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
@@ -43,10 +44,10 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
-    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', replace: (href: string) => { replaced.push(href); } }, URL,
+    innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
@@ -510,6 +511,56 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   app.element('difficulty').click();   // mid-fight change: this fight is not replayable
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
+});
+test('kill links: a finished fight offers Share; the link replays the same fight tick for tick with the buttons asleep and nothing scored; Avenge him starts a live practice fight on the same seed that never touches the card', async () => {
+  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
+  const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick();
+  for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+  assert.ok(a.rendered.finish, 'fight A ends');
+  assert.equal(a.element('share-button').hidden, false, 'Share appears on the death screen');
+  await settle();
+  const text = a.element('debug').dataset.share as string | undefined;
+  assert.ok(text && /^[A-Za-z0-9_-]+$/.test(text), 'the encoded record is exposed for the gates');
+  const ticksA = a.rendered.duel.tick, finishA = a.rendered.finish!, cardA = a.storage.getItem('frankendom.controls.v1');
+  // B opens the link with nothing saved: no welcome, a replay banner, buttons asleep, the same fight.
+  const b = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
+  await settle();   // the record decodes asynchronously
+  assert.equal(b.element('welcome').hidden, true, 'no welcome on a replay link');
+  assert.equal(b.element('replay-banner').hidden, false); assert.match(b.element('replay-banner').textContent, /^Replay/);
+  assert.equal(b.element('attack-button').attributes.get('aria-disabled'), 'true', 'buttons asleep during a replay');
+  b.tick();
+  for (let i = 0; i < 6000 && !b.rendered.finish; i++) b.tick();
+  assert.ok(b.rendered.finish, 'the replay reaches the finish');
+  assert.equal(b.rendered.duel.tick, ticksA, 'same final tick as the recorded fight');
+  assert.deepEqual(b.rendered.finish, finishA, 'same finish');
+  assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'a replay writes nothing to the card');
+  assert.equal(b.element('reset-button').textContent, 'Avenge him');
+  assert.equal(b.element('share-button').hidden, true, 'a replay is not re-shared from the viewer');
+  // Avenge him: live, same seed, practice only.
+  b.element('reset-button').click(); b.tick();
+  assert.equal(b.element('replay-banner').hidden, true);
+  assert.equal(b.element('attack-button').attributes.get('aria-disabled'), 'false', 'the avenging fight is live');
+  b.key('KeyF'); for (let i = 0; i < 45; i++) b.tick();
+  for (let i = 0; i < 6000 && !b.rendered.finish; i++) b.tick();
+  assert.ok(b.rendered.finish, 'the avenging fight ends');
+  assert.equal(b.rendered.duel.tick, ticksA, 'standing still on the same seed meets the same warden: same ending tick');
+  assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'practice only: still nothing on the card');
+  assert.equal(b.element('reset-button').textContent, 'Rematch', 'after avenging, a plain rematch, never the next rung');
+  assert.equal(b.element('share-button').hidden, false, 'the avenging fight itself can be shared');
+  assert.ok(cardA, 'the original fight was scored on A');
+});
+test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
+  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
+  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', profile: 'normal', seed: 5 });
+  rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const text = await record.encodeRecord(rec.finish('abandoned'));
+  const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle();
+  assert.match(wrong.element('replay-banner').textContent, /cannot be played: the link names another opponent/);
+  const broken = boot({}, undefined, {}, '?opponent=veteran&replay=AAAA');
+  assert.equal((broken.window as unknown as { location: { search: string } }).location.search, '?opponent=veteran&replay=AAAA', 'the harness passes the search string');
+  assert.equal(broken.element('replay-banner').textContent, 'Loading the fight…', 'the link is picked up at boot');
+  await settle();
+  assert.match(broken.element('replay-banner').textContent, /cannot be played/);
 });
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
