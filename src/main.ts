@@ -12,6 +12,7 @@ import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
+import { dropFor, lootName, store } from './loot.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { readOpponent } from './ai.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailyBoard, loadDaily, postDaily, saveDaily, type DailyFight } from './daily.ts';
@@ -61,6 +62,8 @@ const message = element('message');
 const autopsyLines = element('autopsy');
 // The death-screen autopsy: at most two lines between the kill and the rematch button; hidden when there is nothing confident to say.
 function showAutopsy(lines: string[]) { autopsyLines.hidden = !lines.length; autopsyLines.replaceChildren(...lines.map((line) => { const span = document.createElement('span'); span.textContent = line; return span; })); }
+const lootDrop = element('loot-drop');
+function showLootDrop(text: string | null) { lootDrop.hidden = !text; lootDrop.textContent = text ?? ''; }
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
 const resetButton = element<HTMLButtonElement>('reset-button');
@@ -307,7 +310,7 @@ resetButton.addEventListener('click', () => {
   if (replay) {   // Avenge him: the same warden and seed, live, practice only
     practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -328,7 +331,7 @@ resetButton.addEventListener('click', () => {
   practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
-  frameEvents = []; fightLog = []; showAutopsy([]);
+  frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null);
   state = previous = practice.fighter;
   view.recenter();
   canvas.focus();
@@ -367,7 +370,7 @@ if (replayText || sharedId) {
     if (record.opponent !== opponent.id) throw Error('the link names another opponent');
     matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
     recorder = null; recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); state = previous = practice.fighter;
     replay = { record, cursor: 0 }; shareButton.hidden = true; say(null);
     banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
     updateHud();
@@ -386,7 +389,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Warden: normal';
     saveDaily(storage, { day: fight.day, started: true, submitted: false });
     recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); state = previous = practice.fighter;
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); updateHud();
   }).catch((error: unknown) => { banner(`No daily warden: ${error instanceof Error ? error.message : String(error)}`); });
 }
@@ -709,7 +712,14 @@ function frame(now: number) {
             saveTrial(storage, trial);
             recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk, lines);   // a fight lost while away is a loss, flagged left
             saveScorecard(storage, scorecard);
-            if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
+            if (won(practice.finish)) {
+              // The drop (brief 5): one fixed piece per opponent per the sub-rank the fight was fought at, never a duplicate; it goes straight to the
+              // trophy rack (nothing is lost) and the journal wears it. Web design's Wear / Store / Leave selector replaces this line when it lands.
+              const drop = dropFor(opponent.id, marksOf(profile), profile.loot?.owned ?? []);
+              awardMark(profile);   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
+              if (drop) { profile.loot = store(profile.loot, drop); showLootDrop(`Taken: ${lootName(drop, ROSTER[opponent.id].name)}. Wear it from the journal.`); }
+              persist();
+            }
           }
           marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
           if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent

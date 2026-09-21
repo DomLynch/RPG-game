@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile } from './profile.ts';
 import { readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
+import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
 
 export async function mountAccount(url: string, key: string) {
@@ -95,6 +96,7 @@ export async function mountAccount(url: string, key: string) {
       profile.name = latest.display_name; profile.encounter = latest.encounter ?? undefined;
       const victoryMarks = Math.max(marksOf(profile), latest.victory_marks);
       if (victoryMarks) profile.career = { victoryMarks };
+      const loot = mergeLoot(profile.loot, latest.loot); if (loot.owned.length) profile.loot = loot;   // loot: the union of both, nothing lost
       if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
       const target = new URL(location.href); target.searchParams.delete('opponent');
       location.replace(target.href);

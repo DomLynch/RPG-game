@@ -41,9 +41,9 @@ try {
     assert.equal(url.searchParams.get('user_id'), request.method() === 'POST' ? null : `eq.${user.id}`);
     if (request.method() === 'GET') return failRead ? json({ message: 'Temporary service failure' }, 503) : json(row);
     const body = request.postDataJSON(); writes.push(body);
-    assert.deepEqual(Object.keys(body).sort(), request.method() === 'POST' ? ['display_name', 'encounter', 'user_id', 'victory_marks'] : ['display_name', 'encounter', 'victory_marks']);
+    assert.deepEqual(Object.keys(body).sort(), request.method() === 'POST' ? ['display_name', 'encounter', 'loot', 'user_id', 'victory_marks'] : ['display_name', 'encounter', 'loot', 'victory_marks']);
     if (request.method() === 'PATCH' && url.searchParams.get('revision') !== `eq.${row.revision}`) return json([]);
-    row = { display_name: body.display_name, encounter: body.encounter, victory_marks: body.victory_marks, revision: (row?.revision ?? 0) + 1 };
+    row = { display_name: body.display_name, encounter: body.encounter, victory_marks: body.victory_marks, loot: body.loot, revision: (row?.revision ?? 0) + 1 };
     return json([row]);
   });
   await page.addInitScript(() => {
