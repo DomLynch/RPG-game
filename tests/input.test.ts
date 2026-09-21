@@ -52,17 +52,22 @@ test('the thumb cluster is the one touch layout: the markup carries it and nothi
   for (const file of ['main.ts', 'input.ts', 'hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
 });
 
-test('side hints (owner 2026-09-21): every combat button carries fine marks for its side; the Guard button all five, lit from aria-pressed + data-side; Slash lights the next cut from data-next', () => {
+test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): every combat button carries the same five marks; one is lit per button — Slash the next cut (data-next), Stab the ring, Heavy up, Kick down, Guard the held side (aria-pressed + data-side)', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   const button = (id: string) => html.match(new RegExp(`<button id="${id}-button"[\\s\\S]*?<\\/button>`))![0];
-  const guard = button('guard');
-  for (const side of ['overhead', 'low', 'left', 'right', 'straight']) assert.match(guard, new RegExp(`class="side side-${side}"`), `guard: ${side} mark`);
-  assert.match(button('attack'), /side-left[\s\S]*side-right/, 'Slash: both cuts'); assert.match(button('thrust'), /side-straight/, 'Stab: the centre ring');
-  assert.match(button('heavy'), /side-overhead/, 'Heavy: the up tick'); assert.match(button('kick'), /side-low/, 'Kick: the down tick');
-  for (const id of ['guard', 'attack', 'thrust', 'heavy', 'kick']) assert.match(button(id), /<svg class="[^"]*side-marks[^"]*"[^>]*aria-hidden="true"/, `${id}: decorative, hidden from the accessibility tree`);
-  for (const side of ['left', 'right', 'overhead', 'low']) assert.match(css, new RegExp(`#guard-button\\[aria-pressed=true\\]\\[data-side=${side}\\] \\.side-${side}`), `guard ${side} lights while held`);
-  assert.match(css, /#guard-button\[aria-pressed=true\]\[data-side=straight\] \.side-straight/); assert.match(css, /#guard-button\[aria-pressed=true\]:not\(\[data-side\]\) \.side-straight/, 'Q on the keyboard lights straight');
-  assert.match(css, /#attack-button\[data-next=left\] \.side-left/); assert.match(css, /#attack-button\[data-next=right\] \.side-right/, 'the next cut is the bright one');
+  const compass = button('guard').match(/<svg class="[^"]*side-marks[^"]*"[\s\S]*?<\/svg>/)![0].replace(/class="[^"]*side-marks[^"]*"/, '');
+  for (const id of ['guard', 'attack', 'thrust', 'heavy', 'kick']) {
+    const b = button(id);
+    for (const side of ['overhead', 'low', 'left', 'right', 'straight']) assert.match(b, new RegExp(`class="side side-${side}"`), `${id}: ${side} mark`);
+    assert.match(b, /<svg class="[^"]*side-marks[^"]*"[^>]*aria-hidden="true"/, `${id}: decorative, hidden from the accessibility tree`);
+    assert.equal(b.match(/<svg[\s\S]*?<\/svg>/)![0].replace(/class="[^"]*side-marks[^"]*"/, ''), compass, `${id}: the same compass as Guard`);
+  }
+  const rule = css.match(/\/\* one lit mark per button \*\/([\s\S]*?)\{ opacity: \.95; stroke-width: 2; \}/)![1];
+  for (const sel of ['#attack-button[data-next=left] .side-left', '#attack-button[data-next=right] .side-right', '#thrust-button .side-straight', '#heavy-button .side-overhead', '#kick-button .side-low',
+    ...['left', 'right', 'overhead', 'low', 'straight'].map((s) => `#guard-button[aria-pressed=true][data-side=${s}] .side-${s}`), '#guard-button[aria-pressed=true]:not([data-side]) .side-straight'])
+    assert.ok(rule.includes(sel), `${sel} lights`);
+  assert.match(css, /button \.side\{ vector-effect: non-scaling-stroke; opacity: \.3;/, 'the other four rest at .3, same weight on every button size');
+  assert.match(css, /#attack-button:not\(\[data-next\]\) \.side-marks\{ opacity: 0; \}/, 'sheathed: no cut is next');
   assert.match(css, /prefers-reduced-motion: reduce[\s\S]*side-marks/, 'the fade respects reduced motion');
 });
 
