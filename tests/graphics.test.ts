@@ -13,6 +13,7 @@ import * as ladder from '../src/ladder.ts';
 import * as roster from '../src/roster.ts';
 import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
+import * as loot from '../src/loot.ts';
 import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
 import * as ai from '../src/ai.ts';
@@ -32,6 +33,7 @@ class Element extends EventTarget {
   hidden = false; open = false; value: string | number = ''; textContent = ''; disabled = false;
   style = { props: new Map<string, string>(), setProperty(k: string, v: string) { this.props.set(k, v); }, getPropertyValue(k: string) { return this.props.get(k) ?? ''; } } as { props: Map<string, string>; setProperty(k: string, v: string): void; getPropertyValue(k: string): string; transform?: string }; dataset: Record<string, string> = {}; attributes = new Map<string, string>(); children: Element[] = [];
   setAttribute(key: string, value: string) { this.attributes.set(key, value); }
+  className = ''; classList = { set: new Set<string>(), toggle(name: string, force?: boolean) { const on = force ?? !this.set.has(name); if (on) this.set.add(name); else this.set.delete(name); return on; }, contains(name: string) { return this.set.has(name); } };
   append(...nodes: Element[]) { this.children.push(...nodes); }
   replaceChildren(...nodes: Element[]) { this.children = nodes; }
   setPointerCapture() {}
@@ -46,20 +48,20 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string) => void = () => {}, retries = 0;
-  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, retryArt() { retries++; report('Loading warriors…'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
-  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
+  const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
-    document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
+    document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }) }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, window: win, document: doc, report: (value: string) => report(value), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { element, errors, callbacks, timers, storage, window: win, document: doc, get worn() { return [...view.worn]; }, report: (value: string) => report(value), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -714,4 +716,29 @@ test('a failed rig load retries when the page returns to the foreground, when th
   assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the rigs landed: controls enable');
   status.dispatchEvent(new Event('click')); app.document.dispatchEvent(new Event('visibilitychange'));
   assert.equal(app.retries, 3, 'after success nothing retries');
+});
+
+test('loot: the equipped set dresses the rig at boot, the journal shows the paperdoll and the rack, and Wear / Worn / Store change both', () => {
+  const app = boot({ loot: { owned: ['veteran.Helmet', 'nightborn.Body'], equipped: { head: 'veteran.Helmet' }, taken: { 'veteran.Helmet': { opponent: 'veteran', attempt: 3, healthLeft: 12, recordId: 'k7Qm2x_A', day: '2026-09-21' } } } });
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'the scene is told the worn set at boot, before any fight');
+  app.element('journal-button').click();
+  const rack = () => app.element('loot-rack').children, row = (i: number) => rack()[i]!;
+  assert.equal(rack().length, 5, 'five tiles, owned first, the rest empty');
+  assert.equal(row(0).attributes.get('data-loot'), 'veteran.Helmet'); assert.equal(row(0).attributes.get('data-worn'), 'true'); assert.equal(row(0).attributes.get('tabindex'), '0');
+  assert.deepEqual(row(0).children.map(c => c.textContent), ["the Veteran's helmet", '', 'Worn'], 'name, the caption (its text is in its children), the button');
+  assert.deepEqual(row(0).children[1]!.children.map(c => c.textContent), ["The Veteran's helmet", ' · your 3rd attempt, 12 health left', ' ', 'Watch'], 'brief 9: the caption starts with the piece name in bold, the Watch link only once the fight is published');
+  assert.equal(row(0).children[1]!.children[3]!.attributes.get('href'), '/?r=k7Qm2x_A');
+  assert.equal(row(1).attributes.get('data-worn'), 'false'); assert.equal(row(1).children.length, 2, 'no provenance, no caption'); assert.equal(row(1).children[1]!.textContent, 'Wear');
+  assert.equal(row(2).className, 'rack-empty'); assert.equal(row(4).className, 'rack-empty');
+  assert.equal(app.element('slot-head-name').textContent, "the Veteran's helmet"); assert.ok(app.element('slot-head').classList.contains('on')); assert.equal(app.element('slot-head-off').hidden, false);
+  assert.equal(app.element('slot-chest-name').textContent, 'Empty'); assert.ok(!app.element('slot-chest').classList.contains('on')); assert.equal(app.element('slot-chest-off').hidden, true);
+  assert.equal(app.element('slot-main-name').textContent, 'Longsword'); assert.ok(app.element('slot-main').classList.contains('on'));
+  row(1).children[1]!.click();
+  assert.deepEqual(app.worn, ['veteran.Helmet', 'nightborn.Body']); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.equipped.chest, 'nightborn.Body', 'a Wear persists');
+  assert.equal(row(1).children[1]!.textContent, 'Worn'); assert.equal(app.element('slot-chest-name').textContent, "the Nightborn's body");
+  row(1).children[1]!.click();
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Worn taps off again'); assert.equal(app.element('slot-chest-name').textContent, 'Empty');
+  app.element('slot-head-off').click();
+  assert.deepEqual(app.worn, []); assert.equal(app.element('slot-head-name').textContent, 'Empty'); assert.equal(app.element('slot-head-off').hidden, true); assert.equal(row(0).attributes.get('data-worn'), 'false');
+  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.owned, ['veteran.Helmet', 'nightborn.Body'], 'nothing is lost by taking it off');
 });

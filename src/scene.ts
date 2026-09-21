@@ -2,7 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { defenceReaction, loadWarriors } from './characters.ts';
+import { defenceReaction, loadLoot, loadWarriors, lootId } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
@@ -133,6 +133,18 @@ export function createScene(
   // The load is retryable: a phone that sleeps mid-download aborts the fetch (2 MiB of the Nightborn's 5.1 MB, 2026-09-21 09:15) and
   // the page is restored with the failure still showing. The capsules stay, the failure is reported, and `retryArt` runs the same
   // load again — the entry point calls it when the page returns to the foreground, the network comes back, or the player taps the notice.
+  // Loot (brief 5): the worn ids the entry point last gave (`wear`), the pieces of loot.glb once fetched, and the fetch in flight. The fetch
+  // starts only once the rigs are in and the worn set is non-empty, so it never shares the wire with a fight's download and never gates
+  // readiness: the fight starts on the rigs alone and the pieces go on when they land.
+  let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
+  function dress() {
+    if (!warriors) return;
+    if (!lootPieces) {
+      if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+      return;
+    }
+    warriors.player.wear(lootPieces.filter((piece) => worn.includes(lootId(piece))));
+  }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
     if (warriors) return Promise.resolve();
@@ -156,6 +168,7 @@ export function createScene(
       player.visible = opponent.visible = true;
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
+      dress();
       assetStatus('');
     })
     .catch((error) => {
@@ -280,6 +293,8 @@ export function createScene(
     ready,
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
+    // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
+    wear(ids: readonly string[]) { worn = ids; dress(); },
     arena,
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
