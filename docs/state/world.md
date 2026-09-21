@@ -2,6 +2,53 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Wound-site mark removed — presentation lane, 2026-09-21 (PR #305, merge d379696)
+Owner, from a phone screenshot of the Goblin: the flesh-hit wound mark (a dark mark with three drips for the sim's four-second
+wound window) floated in the air behind him. Root cause: the mark was drawn at a fixed human torso height (1.15 m) while the
+Goblin's own chest bone sits at 0.74 m; on full-height rigs the same fixed height buried it inside the mesh, so nobody noticed
+it there either. First fix pinned the mark to the rig's own site bone (PR #304, superseded); owner then asked for outright
+removal instead ("lets remove the wound mark, no need"). `gore.ts`'s `arm`/`hide` API and the standing-mark positioning are
+gone; the pooled decal itself survives only because The Quiet One's throat-cut finisher still draws it at the animated neck
+(`tests/gore.test.ts` pins both: no standing-mark API, throat cut still fades/hides/clears). Receipt: a landed heavy on the
+Goblin, side view — floating mark vs nothing, `artifacts/presentation/wound-mark-removed/goblin-before-after.png`.
+Remaining: `GAME_SPEC.md`'s gore-upgrades paragraph still described the mark as shipped until this same pass (audit finding,
+2026-09-22) — corrected there too.
+
+## Versus card — presentation lane, 2026-09-21 (PR #254, merge 0cd0ac2)
+Owner, from the loading screen: "can we have a static actual player image that matches the fight about to happen … rather
+than these weird pillar things?" (the capsule stand-ins while the rigs download). A full-bleed `#versus` card now covers the
+arena from page load with a still of the real upcoming fight — the hero and the actual opponent, armed, rendered from the
+game's own models and arena via `scripts/versus-cards.mjs` (one WebP per live ladder rung, 40–43 KB each, 256 KB total) — and
+a "You vs `<Name>`" caption; it fades out (0.45 s) the instant `createScene` reports the rigs are in. Six stills committed:
+Veteran, Pitborn, Goblin, Nightborn, Executioner, Dwarf. `tests/graphics.test.ts:497` pins the lifecycle.
+Audit finding (2026-09-22, corrected same pass): the hide condition was keyed on the literal display string
+`status !== 'Loading warriors…'`, which happened to work only because scene.ts emits exactly three status strings today; any
+future in-progress status line would have lifted the card early. `scene.ts`'s `assetStatus` callback now carries an explicit
+`kind: 'loading' | 'ready' | 'failed'` alongside the display text, and main.ts keys off `kind` only — two new regression tests
+cover a re-worded in-progress status (must not lift) and a load failure (must lift, so the retry notice stays readable).
+
+## Mobile stamina bar fix — presentation lane, 2026-09-20 (PR #248, merge f9a6d1c)
+Owner, from an iPhone screenshot: the player's stamina bar showed only a dark-red stub at its right end, never the fill. Cause:
+on phones every meter draws as a CSS gradient on the element, but the desktop `#stamina` rule (the lost-ceiling attrition
+shading) has id specificity and silently replaced the phone gradient — health has no such rule, which is why it alone drew
+correctly. Fix layers both gradients (shading over fill) in the phone `#stamina` rule — 3 lines. Receipt: Playwright at
+393×852 with `--fill: 55%; --max: 80%` forced on the meter, before/after, `artifacts/presentation/hud-stamina/before-after.png`.
+
+## Sparks: silver, fanned, glinting, then a visibility step-up — presentation lane, 2026-09-20/21 (PRs #219, #227, #242, merges 5e08ce9 / e07aa0f / 3ea6ceb)
+Four owner passes on the clash-sparks effect (`clash-sparks.ts`), each with before/after impact-preview strips:
+1. **#219** — grey, thinner, uneven, 70% opaque (from bright uniform orange dots); damage numbers made an optional journal
+   setting, default off (`main.ts`, `frankendom.damage-numbers.v1`).
+2. **#227** — "maybe a silver reflection then, rather than just grey": cool silver-white cooling to dull silver, no yellow, no
+   additive glow; sparks re-aimed to fan sideways/upward across the blades instead of a jet straight away from the defender
+   (the strips showed the old jet flew behind his own head and shoulders at the over-the-shoulder camera — the only sparks the
+   owner ever saw were the few that cleared his arm); one 3-frame silver glint at the contact point.
+3. **#242** — "i cant see the sparks now… a bit more visible": size 0.075 → 0.1, white on strike, glint 3 → 5 frames, one more
+   spark per clash (4–8, was 3–7), streaks 3–8 points.
+Live sparks today are still these dot-based ones (`PointsMaterial`); a from-scratch streak renderer (thin motion-blurred
+lines, per the owner's reference photos — a round sprite reads as a circle) was rewritten in `clash-sparks.ts` after the
+owner flagged the dots looked fake, but is uncommitted pending capture and a laptop-free window — not reflected here yet.
+
+
 ## Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentation lane, 2026-09-20 (branch presentation/arena-props)
 Five authored props generated on the owner's Hugging Face Pro account (TRELLIS.2 from prompted reference images) and dieted in Blender
 (3–5k tris, 512–768² WebP, metallic-roughness → factors): a portcullis that replaces the procedural gate bars once loaded, a weapon rack
