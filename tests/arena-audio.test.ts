@@ -44,13 +44,16 @@ test('arena hit grunts follow the struck body across Skeleton fights and rematch
     const audio = createArenaAudio(context, {} as AudioNode, () => now);
     await audio.ready();
     const grunts = () => starts.filter(offset => ARENA_MANIFEST.grunt.some(([start]) => start === offset)).length;
-    audio.update([{ type: 'Hit', tick: 0, actor: 0, target: 1 }], { match: 1, tick: 0, ended: false, opponent: 'skeleton' });
+    const bells = () => starts.filter(offset => offset === ARENA_MANIFEST.bell[0][0]).length;
+    audio.update([{ type: 'Hit', tick: 0, actor: 0, target: 1 }], { match: 1, tick: 0, ended: false, opponent: 'skeleton' }, false);
     assert.equal(grunts(), 0, 'exposed bone has no human pain grunt');
+    assert.equal(bells(), 0, 'no bell before the draw');
     now = 1;
-    audio.update([{ type: 'Hit', tick: 60, actor: 1, target: 0 }], { match: 1, tick: 60, ended: false, opponent: 'skeleton' });
+    audio.update([{ type: 'Hit', tick: 60, actor: 1, target: 0 }], { match: 1, tick: 60, ended: false, opponent: 'skeleton' }, true);
     assert.equal(grunts(), 1, 'the player still reacts when struck');
+    assert.equal(bells(), 1, 'the draw rings the bell once');
     now = 2;
-    audio.update([{ type: 'Hit', tick: 0, actor: 0, target: 1 }], { match: 2, tick: 0, ended: false, opponent: 'werewolf' });
+    audio.update([{ type: 'Hit', tick: 0, actor: 0, target: 1 }], { match: 2, tick: 0, ended: false, opponent: 'werewolf' }, false);
     assert.equal(grunts(), 2, 'changing opponent restores flesh feedback');
     audio.stop();
   } finally { globalThis.fetch = originalFetch; }
