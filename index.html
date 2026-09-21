@@ -51,14 +51,16 @@
         <p class="note">Gear and weapon choice arrive after the beta.</p>
       </section>
       <section class="tab-pane pane-arena" aria-label="Next fight">
+        <section class="daily" aria-label="Daily warden">
+          <h4>Daily warden</h4>
+          <p id="daily-status" class="daily-status">One fight a day, the same warden for everyone. Sign in to post your time.</p>
+          <button id="daily-button" class="daily-go">Today's warden</button>
+          <ul id="daily-board" class="daily-board" aria-label="Today's board" hidden></ul>
+        </section>
         <h4>Next fight</h4>
         <div class="chips"><label class="menu-select">Opponent <select id="opponent-select" aria-label="Choose the opponent"></select></label></div>
         <div class="chips"><button id="difficulty" aria-label="Warden difficulty">Warden: normal</button><button id="hitstop-mode" aria-pressed="true">Hit-stop: on</button></div>
         <p class="note">Changing the opponent restarts the fight. Local practice against a moving AI opponent, not an online duel.</p>
-        <h4>Daily warden</h4>
-        <div class="chips"><button id="daily-button">Today's warden</button></div>
-        <p id="daily-status" class="note">One fight a day, the same warden for everyone. Sign in to post your time.</p>
-        <ul id="daily-board" class="daily-board" aria-label="Today's board" hidden></ul>
       </section>
       <section class="tab-pane pane-settings" aria-label="Settings">
         <section class="mobile-tools" aria-label="Controls">
