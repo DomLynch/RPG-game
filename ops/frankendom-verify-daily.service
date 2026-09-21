@@ -1,0 +1,12 @@
+# Replays the daily warden's pending results against the deployed rules (scripts/verify-daily.mjs) — one sweep per timer tick.
+[Unit]
+Description=Frankendom daily warden replay verifier
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/frankendom-verifier/current
+EnvironmentFile=/etc/frankendom/verifier.env
+ExecStart=/usr/bin/env node scripts/verify-daily.mjs
+StandardOutput=append:/var/log/frankendom-verify-daily.log
+StandardError=append:/var/log/frankendom-verify-daily.log
