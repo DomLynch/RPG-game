@@ -647,6 +647,13 @@ test('daily warden: the attempt is spent the moment the fight starts, a reload m
     assert.equal(inserts.length, 1, 'the rematch after the daily is practice: no second post');
   } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; session.db = null; session.userId = null; }
 });
+test('account: every persist of the fighter fires the profile beat the account listens to for its automatic cloud save', () => {
+  const app = boot(); let beats = 0; app.window.addEventListener('frankendom:profile', () => { beats++; });
+  app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+  assert.ok(app.rendered.finish, 'the fight ends');
+  assert.ok(beats >= 1, `a recorded result persists the fighter and fires the beat (${beats})`);
+});
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
   for (let i = 0; i < 60; i++) app.tick();
