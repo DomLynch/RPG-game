@@ -152,7 +152,7 @@ test('a fresh parry tap that meets nothing leaves the fighter exposed: guard is 
   assert.equal(legal(d.fighters[0], 'parry'), false, 'the control gate agrees with the engine while exposed');
   assert.equal(run(d, RULES.parryRecovery - 1, hold()).fighters[0].phase, 'ready');
   assert.equal(run(d, RULES.parryRecovery + 1, hold()).fighters[0].phase, 'guard', 'exposure ends and the held guard engages');
-  const off = { ...RULES, parryRecovery: 0 };
+  const off = { ...RULES, parryRecovery: 0 } as unknown as typeof RULES;   // RULES is `as const`; an override is the same shape with one literal widened
   assert.equal(run(stepDuel(duel(), [act('parry', { guard: true, guardDirection: 'left' }), idle()], off), RULES.parry + 2, hold(), idle(), off).fighters[0].phase, 'guard', 'with the rule off a held guard simply stays up');
   // A parry that connects is never punished: the punish window proves it.
   const parried = stepDuel({ ...duel(), fighters: [duel().fighters[0], { ...duel().fighters[1], phase: 'attack', move: 'light_left', age: light.windup - 1, lastMove: 'light_left' }] } as Duel, [act('parry', { guard: true, guardDirection: 'right' }), idle()]);
@@ -659,7 +659,7 @@ test('events: every outcome is reported exactly once per contact and the stream 
   // The guard's side (directional guard) comes from its own stream so the walk above is unchanged: half the time the side that meets the
   // foe's current swing (so blocks, breaks and parries keep happening), otherwise any of the six (five sides or none).
   let sideSeed = 4242; const sideRoll = () => ((sideSeed = (Math.imul(sideSeed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
-  const sideOf = (k: number): Intent['guardDirection'] => { const foe = d.fighters[1 - k]; const r = sideRoll(); if (foe.phase === 'attack' && foe.move && r < .5) return mirror(MOVES[foe.move].direction); return ([undefined, 'left', 'right', 'overhead', 'thrust', 'low'] as const)[Math.floor(sideRoll() * 6)] ?? null; };
+  const sideOf = (k: number): Intent['guardDirection'] => { const foe = d.fighters[1 - k]; const r = sideRoll(); if (foe.phase === 'attack' && foe.move && r < .5) return mirror(MOVES[foe.move].direction) ?? undefined; return ([undefined, 'left', 'right', 'overhead', 'thrust', 'low'] as const)[Math.floor(sideRoll() * 6)] ?? undefined; };
   for (let i = 0; i < 24000; i++) {
     if (!d.fighters[0].health || !d.fighters[1].health) d = { ...duel(1.2), tick: d.tick };
     // Coverage fuzz, not an economy test: re-centre wanderers without healing them and top up stamina so every outcome keeps occurring.
@@ -968,5 +968,5 @@ test('anti-turtling 2: no rest at the wall — inside the wall band a tick that 
   d = run(start(true), 30); assert.ok(d.fighters[0].stamina > 40, 'standing regenerates');
   d = run(run(start(true), 30, back), 2); assert.ok(d.fighters[0].stamina > 40, 'it resumes the tick after the retreat stops');
   d = run(start(false), 30, back); assert.ok(d.fighters[0].stamina > 40, 'in open ground backing off still regenerates (owner: the band form, wallOnly)');
-  d = run(start(false), 30, back, idle(), { ...RULES, retreat: { ...RULES.retreat, wallOnly: false } }); assert.equal(d.fighters[0].stamina, 40, 'wallOnly off: the everywhere form');
+  d = run(start(false), 30, back, idle(), { ...RULES, retreat: { ...RULES.retreat, wallOnly: false } } as unknown as typeof RULES); assert.equal(d.fighters[0].stamina, 40, 'wallOnly off: the everywhere form');
 });

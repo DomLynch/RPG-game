@@ -35,7 +35,7 @@ test('unlock creates one context inside the gesture and opts into an iOS playbac
   feedback.unlock(); feedback.unlock();
   assert.equal(FakeContext.made, 1, 'one context for the page');
   assert.equal(FakeContext.last!.resumed, 1, 'a suspended context is resumed once');
-  assert.equal((globalThis.navigator as { audioSession: { type: string } }).audioSession.type, 'playback');
+  assert.equal((globalThis.navigator as unknown as { audioSession: { type: string } }).audioSession.type, 'playback');
 }));
 
 test('unlock resumes an interrupted context (iOS after a call or app switch), and leaves a running one alone', () => withFakeAudio(undefined, () => {

@@ -13,12 +13,13 @@ const kill = (move: MoveId, location: HitLocation, victim: 0 | 1 = 1, draw = fal
 const LONGSWORDS: readonly [WeaponId, WeaponId] = ['longsword', 'longsword'];
 // Beta rotation (owner 2026-09-20): five outcomes; The Quiet One stays shipped (clip/pose/gore, picker) but is not auto-picked.
 const SHIPPED = ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'opened'] as const;
+const shipped = (id: FinisherId | null): boolean => id !== null && (SHIPPED as readonly FinisherId[]).includes(id);
 
 test('selection is the owner rule: ANY blade kill plays an outcome, whatever the move or location', () => {
   // owner 2026-09-18: every blade kill draws one of the five — Split Crown, Decapitation, Run Through, The Quiet One, or plain death —
   // picked by the kill event's seed. Light, thrust, riposte, heavy, critical, any location.
   for (const [move, location] of [['light_right', 'torso'], ['light_left', 'head'], ['thrust', 'torso'], ['riposte', 'legs'], ['heavy_overhead', 'torso'], ['heavy_overhead', 'head'], ['heavy_riposte', 'legs'], ['heavy_counter', 'head'], ['critical', 'torso'], ['critical', 'head'], ['light_right', 'legs']] as [MoveId, HitLocation][])
-    assert.ok(SHIPPED.includes(selectFinisher(kill(move, location), LONGSWORDS)), `${move} @ ${location} draws a shipped outcome`);
+    assert.ok(shipped(selectFinisher(kill(move, location), LONGSWORDS)), `${move} @ ${location} draws a shipped outcome`);
 });
 
 test('the rotation is seeded from the kill event: same event, same outcome; the spread covers all five', () => {
@@ -32,7 +33,7 @@ test('the rotation is seeded from the kill event: same event, same outcome; the 
   const picks = new Set<FinisherId>();
   for (const move of ['light_right', 'light_left', 'thrust', 'riposte', 'heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical'] as MoveId[])
     for (const location of ['head', 'torso', 'legs'] as HitLocation[])
-      picks.add(selectFinisher(kill(move, location), LONGSWORDS));
+      picks.add(selectFinisher(kill(move, location), LONGSWORDS)!);
   assert.deepEqual([...picks].sort(), [...SHIPPED].sort());
   // determinism: the same event twice is the same outcome
   const finish = kill('heavy_overhead', 'head');
@@ -50,8 +51,8 @@ test('no ceremony for a draw, the player\'s own death, or a killing kick', () =>
 test('selection is deterministic and reads only the event and the weapons', () => {
   const finish = kill('heavy_overhead', 'head');
   assert.equal(selectFinisher(finish, LONGSWORDS), selectFinisher({ ...finish }, LONGSWORDS));
-  assert.ok(SHIPPED.includes(selectFinisher(kill('light_right', 'torso'), ['longsword', 'trident'])));   // v1: one table for every weapon
-  assert.ok(SHIPPED.includes(selectFinisher(kill('thrust', 'legs'), LONGSWORDS)));   // the owner 2026-09-18 rule: blade kills are move- and location-independent
+  assert.ok(shipped(selectFinisher(kill('light_right', 'torso'), ['longsword', 'trident'])));   // v1: one table for every weapon
+  assert.ok(shipped(selectFinisher(kill('thrust', 'legs'), LONGSWORDS)));   // the owner 2026-09-18 rule: blade kills are move- and location-independent
   assert.notEqual(selectFinisher(kill('heavy_overhead', 'torso'), LONGSWORDS), selectFinisher(kill('kick', 'torso'), LONGSWORDS));
   assert.notEqual(selectFinisher(kill('light_right', 'head'), LONGSWORDS), selectFinisher(kill('light_right', 'head', 0), LONGSWORDS));
 });
@@ -77,7 +78,7 @@ test('owner 2026-09-20: the same ceremony never plays twice in a row, the pool s
   let previous: FinisherId | null = null;
   for (let i = 0; i < 20000; i++) {
     const finish: Finish = { victim: 1, location: locations[i % 3], move: moves[(i >> 2) % 8], heading: (rnd() * 2 - 1) * Math.PI };
-    const pick = selectFinisher(finish, LONGSWORDS, previous)!;
+    const pick: FinisherId = selectFinisher(finish, LONGSWORDS, previous)!;
     assert.ok(ROTATION.includes(pick as (typeof ROTATION)[number]), 'a rotation outcome');
     assert.notEqual(pick, previous, `never the previous fight's ceremony (${previous}) again`);
     assert.equal(pick, selectFinisher({ ...finish }, LONGSWORDS, previous), 'same kill, same history, same outcome');

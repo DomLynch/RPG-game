@@ -32,7 +32,7 @@ test('the live duel: the player carries the longsword and the Veteran the triden
 test('a second weapon with a longer reach resolves contact from its own table: the trident lands a thrust from where the longsword whiffs, costs its own stamina, and the AI-facing reach follows it', () => {
   // A synthetic trident for the test only: the longsword's moves and paths, with the thrust's reach and cost changed, and its blade paths
   // stretched 0.5 m forward along the thrust so the baked contact really is longer (the sim sweeps the table, not the number).
-  const trident: Weapon = { id: 'trident', guard: 'shaft', material: 'bronze', reach: 2.5, moves: { ...MOVES, thrust: { ...MOVES.thrust, reach: 2.5, stamina: 30 } }, paths: PATHS };
+  const trident: Weapon = { id: 'trident', guard: 'shaft', material: 'bronze', reach: 2.5, moves: { ...MOVES, thrust: { ...MOVES.thrust, reach: 2.5, stamina: 30 } }, paths: PATHS, fight: LONGSWORD.fight };
   const stretched = Object.fromEntries(Object.entries(bladePaths.longsword).map(([k, frames]) => [k, k === 'thrust' ? frames.map(f => [f[0], f[1], f[2] + .5, f[3], f[4], f[5] + .5]) : frames]));
   const before = { weapon: WEAPONS.trident, paths: bladePathsByRig.hero.trident };
   WEAPONS.trident = trident; bladePathsByRig.hero.trident = stretched;
@@ -562,7 +562,7 @@ test('the scythe\'s authored contact poses meet the target line: at each path\'s
   };
   for (const [path, spec] of Object.entries(SCYTHE_PATHS)) {
     const clip = asset.animations.find(c => c.name === spec.clip)!, action = mixer.clipAction(clip).play(), n = total(spec);
-    mixer.setTime(Math.min(.999999, swingProgress(spec.windup / n, spec.windup / n, spec.source)) * clip.duration); asset.scene.updateMatrix(true);
+    mixer.setTime(Math.min(.999999, swingProgress(spec.windup / n, spec.windup / n, spec.source)) * clip.duration); asset.scene.updateMatrix();
     asset.scene.updateMatrixWorld(true);
     const tip = weapon.localToWorld(new Vector3(0, contact.to, 0)), [minZ, minY, maxY, maxX] = bands[path];
     assert.ok(tip.z > minZ && tip.y > minY && tip.y < maxY && Math.abs(tip.x) < maxX, `${path} (${spec.clip} @${spec.source}) tip ${tip.toArray().map(v => v.toFixed(2))}`);

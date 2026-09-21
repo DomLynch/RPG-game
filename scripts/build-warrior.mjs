@@ -1,6 +1,6 @@
 import { quietOneClip } from './build-quiet-one.mjs';
 import { fitVeteranNeck, textureVeteranTrident } from './veteran-finish.mjs';
-import { warriorRecipe } from './warrior-recipe.mjs';
+import { warriorRecipe, DWARF_BONES } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
 // No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
@@ -22,6 +22,12 @@ const realistic = process.env.WARRIOR_BODY !== 'classic'; // the Blender Studio 
 // WARRIOR_FIGHTER=veteran builds the opponent from scripts/character/parts.py --fighter veteran (its own scan, helm and maps)
 // into src/assets/veteran.glb; the default (hero) is the player's warrior.glb. Same rig and body clips; the Veteran carries the trident.
 const fighter = process.env.WARRIOR_FIGHTER || 'hero';
+// WARRIOR_LOOT=1 (Brief 5, 2026-09-21): the loot file. The hero rig and materials, no body, no weapon, no clips — only the opponents'
+// kit pieces named in src/assets/source/loot/loot.json, each bound to the player's skeleton as its own skinned draw
+// `<opponent>.<slot>.<material>` (userData.opponent/slot). The runtime binds a draw to the player's Skeleton and hides the player's
+// own draw in that slot. Output src/assets/loot.glb; warrior.glb is untouched (LOOT=false is byte-identical).
+const LOOT = process.env.WARRIOR_LOOT === '1';
+if (LOOT && fighter !== 'hero') throw new Error('WARRIOR_LOOT builds on the hero rig only');
 const recipe = warriorRecipe(fighter, process.env.WARRIOR_WEAPON), variant = realistic ? process.env.WARRIOR_PARTS_VARIANT || recipe.body : '';   // WARRIOR_PARTS_VARIANT: a reconstruction's donor rig borrows another fighter's parts (the surface is replaced by creature_pack.py)
 // WARRIOR_WEAPON=trident (weapons lane, scripts/build-weapon.mjs): the fighter carries that weapon instead of the sword — no scabbard, the
 // sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
@@ -31,7 +37,7 @@ if (recipe.pipeline === 'reconstruction' && !process.env.WARRIOR_PARTS_VARIANT) 
 const weaponId = recipe.weapon;
 const appearance = warriorAppearance(process.env.WARRIOR_PARTS_VARIANT || fighter);   // a donor rig wears the borrowed fighter's palette too
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
-const output = process.env.WARRIOR_OUT || (fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
+const output = process.env.WARRIOR_OUT || (LOOT ? 'src/assets/loot.glb' : fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
 const json = JSON.parse(await fs.readFile(path.join(baseDir, 'Superhero_Male_FullBody.gltf'), 'utf8'));
 // The foundation supplies topology and weights. Our covered warrior needs none of its face/hair textures.
@@ -101,10 +107,7 @@ const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] },
   // inverse binds, stride and the trident matter. Legs lose 28 %, torso/limbs gain 20–25 % girth, a short thick neck and a bigger head;
   // `scale` .95 lands ~1.45 m standing. Owner asked for true dwarf proportions rather than the 1.60 m Veteran fit.
   dwarf: { scale: .95, hunch: [['spine_02', 4], ['spine_03', 4], ['neck_01', -3], ['Head', -3]], bob: .72, stride: .95 * .72, floor: .10,
-    bones: { thigh_l: [1.25, .72, 1.25], thigh_r: [1.25, .72, 1.25], calf_l: [1.25, .72, 1.25], calf_r: [1.25, .72, 1.25],
-      pelvis: [1.2, 1, 1.2], spine_01: [1.22, 1, 1.22], spine_02: [1.22, 1, 1.22], spine_03: [1.22, 1, 1.22], clavicle_l: [1, 1.1, 1], clavicle_r: [1, 1.1, 1],
-      upperarm_l: [1.2, 1, 1.2], upperarm_r: [1.2, 1, 1.2], lowerarm_l: [1.2, 1, 1.2], lowerarm_r: [1.2, 1, 1.2], hand_l: [1.1, 1.1, 1.1], hand_r: [1.1, 1.1, 1.1],
-      neck_01: [1.15, .75, 1.15], Head: [1.12, 1.12, 1.12] } } }[fighter] ?? { scale: 1, hunch: [] };
+    bones: DWARF_BONES } }[fighter] ?? { scale: 1, hunch: [] };
 const boneIndex = name => {
   const index = skeleton.bones.findIndex(b => b.name === name);
   if (index < 0) throw new Error(`Missing attachment bone ${name}`);
@@ -114,9 +117,10 @@ const boneIndex = name => {
 // Equipment slots: authored parts declare extras.slot; each (slot, material) pair becomes its own skinned draw so a slot
 // can be shown, hidden or swapped without touching the others. Built-in pieces (hair, scabbard) sit in the '' slot.
 const slotOf = new Map();
-function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = '') {
+let lootOf = '', lootSlot = ''; const lootLayer = new Map();   // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
+function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = lootSlot) {
   if (g.index) g = g.toNonIndexed();
-  g.userData.slot = slot;
+  g.userData.slot = LOOT ? `${lootOf}:${slot}` : slot;   // loot: draws group per (opponent, slot, material)
   g.rotateZ(rotation); g.translate(x, y, z);
   if (bone) { // rigid: every vertex follows one bone; otherwise the geometry already carries remapped skin weights
     const count = g.getAttribute('position').count, index = boneIndex(bone);
@@ -152,12 +156,14 @@ function knee(x, bone) {
 }
 // The Pitborn's bone plates (owner's brief: lashed at shoulder and forearm): rigid ellipsoids on the left shoulder cap and down the
 // upper arm, two along the sword forearm. Iron knee plates wait for a kit pass in parts.py (the classic-body knee() primitive read as boxes).
-if (fighter === 'pitborn') {
+if (fighter === 'pitborn' || LOOT) {
+  if (LOOT) { lootOf = 'pitborn'; lootSlot = 'Arms'; }
   const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
   const shoulder = at('upperarm_l'), elbow = at('lowerarm_l'), wrist = at('hand_r'), elbowR = at('lowerarm_r');
   for (let i = 0; i < 3; i++) { const p = new T.Vector3().lerpVectors(shoulder, elbow, .04 + i * .16); plate(p.x + .012, p.y + .045 - i * .012, p.z + .01, .074 - i * .008, .024, .06, boneWorn, 'upperarm_l'); }
   for (let i = 0; i < 2; i++) { const p = new T.Vector3().lerpVectors(elbowR, wrist, .30 + i * .28); plate(p.x, p.y, p.z + .028, .03, .058, .02, boneWorn, 'lowerarm_r'); }
 }
+if (LOOT) { lootOf = ''; lootSlot = ''; }
 // Peaked closed sallet: elliptical rings give it a forged silhouette, tapered neck and brow.
 function shell(rings, material, bone, z = 0) {
   const vertices = [], uvs = [], segments = 48;
@@ -186,7 +192,7 @@ else {
 // Authored parts from scripts/character/parts.py: meshes in this same unscaled rest space, rigid to extras.bone,
 // merged into the per-material skinned draws exactly like the primitives above. No parts → identical output.
 const partsDir = process.env.WARRIOR_PARTS || 'src/assets/source/parts';
-const partFiles = (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb') && (variant ? f.endsWith(`_${variant}.glb`) : !/_\w+\.glb$/.test(f))).sort(); // body_<variant>.glb + level1_<variant>.glb; the classic build takes the untagged level1.glb
+const partFiles = LOOT ? [] : (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb') && (variant ? f.endsWith(`_${variant}.glb`) : !/_\w+\.glb$/.test(f))).sort(); // body_<variant>.glb + level1_<variant>.glb; the classic build takes the untagged level1.glb
 for (const file of partFiles) {
   const glb = await fs.readFile(path.join(partsDir, file)), part = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
   part.scene.updateMatrixWorld(true);
@@ -204,7 +210,7 @@ for (const file of partFiles) {
 }
 // Equipped items (WARRIOR_ITEMS=ranger,...): src/assets/source/items/<name>.glb, same contract as parts. An item replaces
 // whatever the level-1 kit put in the same slot. Demo builds only until the runtime swaps slots itself.
-const items = process.env.WARRIOR_ITEMS ?? appearance.items; // An explicit empty override keeps the fighter bareheaded.
+const items = LOOT ? '' : process.env.WARRIOR_ITEMS ?? appearance.items; // An explicit empty override keeps the fighter bareheaded.
 for (const item of items.split(',').filter(Boolean)) {
   const own = `src/assets/source/items/${item}_${fighter}.glb`, file = fighter !== 'hero' && await fs.stat(own).then(() => true, () => false) ? own : `src/assets/source/items/${item}.glb`; // a helm is shelled from its fighter's skull
   const glb = await fs.readFile(file), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
@@ -218,6 +224,62 @@ for (const item of items.split(',').filter(Boolean)) {
     if (o.isSkinnedMesh) { const map = o.skeleton.bones.map(b => skeleton.bones.some(x => x.name === b.name) ? boneIndex(b.name) : boneIndex(b.name.replace(/[._]\d{1,3}$/, ''))), index = g.getAttribute('skinIndex'); g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4)); }
     add(g, material, o.userData.bone, 0, 0, 0, 0, o.userData.slot);
   });
+}
+// Loot (WARRIOR_LOOT=1): src/assets/source/loot/loot.json names, per opponent, the authored pieces they drop and the player slot each
+// fills. Sources are parts.py/items outputs (same contract as the parts above); `slots`/`names` pick meshes out of a shared file.
+if (LOOT) {
+  const lootDir = 'src/assets/source', manifest = JSON.parse(await fs.readFile(path.join(lootDir, 'loot/loot.json'), 'utf8'));
+  // The Dwarf's iron keeps his baked look (scripts/character/loot_dwarf.py writes the maps beside its GLB); every other piece wears the palette.
+  parts.set(new T.MeshStandardMaterial({ name: 'DwarfIron', roughness: 1, metalness: .35 }), []);
+  // A piece cut from a re-proportioned body (loot.json "unscale": the BUILD name) comes back to a man's frame by inverting that field
+  // through the piece's own weights: forward, v' = v + Σ w (shift + M (v − j)) with M = R (S − I) R⁻¹, so v = A⁻¹ (v' − c) with
+  // A = I + Σ w M and c = Σ w (shift − M j). Weights are the transferred ones the piece already carries.
+  const unscalers = new Map();
+  const unscaler = name => {
+    if (unscalers.has(name)) return unscalers.get(name);
+    const bones = { dwarf: DWARF_BONES }[name]; if (!bones) throw new Error(`loot: no proportion table for ${name}`);
+    const { joint, frame, S, shift } = proportionField(bones);
+    const M = skeleton.bones.map((_, i) => { const R = new T.Matrix4().makeRotationFromQuaternion(frame[i]), D = new T.Matrix4().makeScale(S[i].x - 1, S[i].y - 1, S[i].z - 1); return new T.Matrix3().setFromMatrix4(R.clone().multiply(D).multiply(R.clone().invert())); });
+    const c = skeleton.bones.map((_, i) => shift[i].clone().sub(joint[i].clone().applyMatrix3(M[i])));
+    const fn = g => {
+      const position = g.getAttribute('position'), index = g.getAttribute('skinIndex'), weight = g.getAttribute('skinWeight'), v = new T.Vector3(), A = new T.Matrix3(), cc = new T.Vector3();
+      for (let k = 0; k < position.count; k++) {
+        v.fromBufferAttribute(position, k); A.identity(); cc.set(0, 0, 0);
+        for (let q = 0; q < 4; q++) { const w = weight.getComponent(k, q); if (!w) continue; const i = index.getComponent(k, q); const e = A.elements, m = M[i].elements; for (let t = 0; t < 9; t++) e[t] += w * m[t]; cc.addScaledVector(c[i], w); }
+        v.sub(cc).applyMatrix3(A.invert()); position.setXYZ(k, v.x, v.y, v.z);
+      }
+      return g;
+    };
+    unscalers.set(name, fn); return fn;
+  };
+  for (const [opponent, entries] of Object.entries(manifest)) {
+    if (opponent === '_') continue;
+    lootOf = opponent;
+    for (const entry of entries) {
+      if (!['replace', 'over'].includes(entry.layer)) throw new Error(`loot ${opponent}.${entry.slot}: layer must be replace|over`);
+      lootLayer.set(`${opponent}:${entry.slot}`, entry.layer);
+      if (entry.file.startsWith('@build:')) continue;   // primitives this script builds itself (the Pitborn's plates above)
+      const glb = await fs.readFile(path.join(lootDir, entry.file)), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
+      asset.scene.updateMatrixWorld(true);
+      let taken = 0;
+      asset.scene.traverse(o => {
+        if (!o.isMesh) return;
+        if (entry.slots && !entry.slots.includes(o.userData.slot)) return;
+        if (entry.names && !entry.names.some(n => o.name === n || o.name.startsWith(`${n}_`))) return;
+        const material = [...parts.keys()].find(m => m.name === o.userData.material);
+        if (!material || (!o.userData.bone && !o.isSkinnedMesh)) throw new Error(`${entry.file}: mesh ${o.name} needs extras.material and extras.bone or skin weights`);
+        const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+        if (o.isSkinnedMesh && !o.userData.bone) {
+          const map = o.skeleton.bones.map(b => skeleton.bones.some(x => x.name === b.name) ? boneIndex(b.name) : boneIndex(b.name.replace(/[._]\d{1,3}$/, ''))), index = g.getAttribute('skinIndex');
+          g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
+        }
+        if (entry.unscale) { if (!o.isSkinnedMesh) throw new Error(`${entry.file}: unscale needs skin weights on ${o.name}`); unscaler(entry.unscale)(g); }
+        add(g, material, o.userData.bone, 0, 0, 0, 0, entry.slot); taken++;
+      });
+      if (!taken && !entry.optional) throw new Error(`loot ${opponent}: nothing matched in ${entry.file} (${JSON.stringify({ slots: entry.slots, names: entry.names })})`);
+    }
+  }
+  lootOf = '';
 }
 // The goblin's trophies (owner's brief): a bone-and-string necklace — five teeth and a finger on a cord that hugs the collar, rigid to spine_03 —
 // and one iron bracer that doesn't match on the left forearm (the sword hand stays free): a tapered sleeve with two rivet bands, rigid to
@@ -253,7 +315,7 @@ if (fighter === 'goblin') {
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
-if (weaponId === 'longsword') {
+if (weaponId === 'longsword' && !LOOT) {
   add(bladeGeometry(-.33, .33, .06, .026, .12).rotateZ(Math.PI), leather, 'pelvis', -.24, .79, -.13, -.19);
   add(new T.CylinderGeometry(.031, .031, .03, 12), trim, 'pelvis', -.24, .79 + .30, -.13, -.19);
   add(new T.TorusGeometry(.036, .007, 6, 18).rotateX(Math.PI / 2), leather, 'pelvis', -.24, .79 + .26, -.13, -.19); // belt loop holding the scabbard
@@ -310,12 +372,14 @@ if (weaponId !== 'longsword') {
 // went because of its ancestors' scaling (and the pelvis drop that puts the feet back on the floor). Then each bone's rest position is
 // set to its moved joint and the inverse binds are recomputed, so the deformed mesh IS the new bind pose. Rest rotations are untouched.
 const PROPORTION = { drop: 0 };
-if (BUILD.bones) {
+// The re-proportioning field of a `bones` table on the unscaled rig: per bone its rest joint j, rest frame R, scale S, the shift its joint
+// takes from its ancestors' scaling (plus the pelvis drop that keeps the soles on the floor), and field(i, v) = R (S − I) R⁻¹ (v − j).
+function proportionField(bones) {
   const bind = i => new T.Matrix4().copy(skeleton.boneInverses[i]).invert();   // rest == bind on this rig (checked: 3e-7 m)
   const joint = skeleton.bones.map((_, i) => new T.Vector3().setFromMatrixPosition(bind(i)));
   const frame = skeleton.bones.map((_, i) => new T.Quaternion().setFromRotationMatrix(bind(i)));
-  const S = skeleton.bones.map(b => { const s = BUILD.bones[b.name]; if (s && s.length !== 3) throw new Error(`bones: ${b.name} needs [x, y, z]`); return new T.Vector3(...(s ?? [1, 1, 1])); });
-  for (const name of Object.keys(BUILD.bones)) boneIndex(name);   // every named bone exists
+  const S = skeleton.bones.map(b => { const s = bones[b.name]; if (s && s.length !== 3) throw new Error(`bones: ${b.name} needs [x, y, z]`); return new T.Vector3(...(s ?? [1, 1, 1])); });
+  for (const name of Object.keys(bones)) boneIndex(name);   // every named bone exists
   const field = (i, v) => v.clone().sub(joint[i]).applyQuaternion(frame[i].clone().invert()).multiply(S[i]).applyQuaternion(frame[i]).add(joint[i]).sub(v);   // R (S − I) R⁻¹ (v − j)
   const shift = skeleton.bones.map(() => new T.Vector3()), order = [];
   const visit = b => { order.push(b); for (const c of b.children) if (c.isBone) visit(c); };
@@ -324,8 +388,13 @@ if (BUILD.bones) {
   // The feet rose by what the legs lost: everything below the root drops by that, so the soles stay where they were.
   const feet = ['foot_l', 'foot_r'].map(n => shift[boneIndex(n)].y);
   if (Math.abs(feet[0] - feet[1]) > 1e-6) throw new Error(`reproportion: uneven legs ${feet}`);
-  PROPORTION.drop = -feet[0];
-  for (const b of skeleton.bones) if (b.parent?.isBone) shift[boneIndex(b.name)].y += PROPORTION.drop;
+  const drop = -feet[0];
+  for (const b of skeleton.bones) if (b.parent?.isBone) shift[boneIndex(b.name)].y += drop;
+  return { joint, frame, S, field, shift, drop };
+}
+if (BUILD.bones) {
+  const { joint, frame, field, shift, drop } = proportionField(BUILD.bones);
+  PROPORTION.drop = drop;
   let vertices = 0;
   for (const geometries of parts.values()) for (const g of geometries) {
     const position = g.getAttribute('position'), index = g.getAttribute('skinIndex'), weight = g.getAttribute('skinWeight'), v = new T.Vector3(), d = new T.Vector3();
@@ -349,6 +418,32 @@ for (const [material, geometries] of parts) {
     mesh.name = slotOf.has(material) ? `${material.name}.${slot}` : material.name; slotOf.set(material, true);
     mesh.userData.slot = slot; mesh.bind(skeleton, body.bindMatrix); body.parent.add(mesh);
   }
+}
+if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the file but the rig it binds to
+  for (const mesh of [...body.parent.children]) if (mesh.isSkinnedMesh && mesh !== body) {
+    const [opponent, slot] = mesh.userData.slot.split(':');
+    if (!opponent || !slot) throw new Error(`loot draw without opponent/slot: ${mesh.userData.slot}`);
+    mesh.name = `${opponent}.${slot}.${mesh.material.name}`; mesh.userData.opponent = opponent; mesh.userData.slot = slot; mesh.userData.layer = lootLayer.get(`${opponent}:${slot}`);
+  }
+  for (const name of ['SwordSheathed', 'SwordDrawn']) base.scene.getObjectByName(name)?.removeFromParent();
+  base.scene.traverse(o => { if (o.isMesh && !o.isSkinnedMesh) o.visible = false; });
+  base.scene.updateMatrixWorld(true);
+  const draws = body.parent.children.filter(m => m.isSkinnedMesh && m !== body);
+  // Materials: the runtime takes a loot draw's material from the player by name where he has one (Steel, Leather, Gambeson, Heraldry,
+  // Wrap — the same maps his own kit wears), so those ship here as bare palette entries. What he has no material for ships complete:
+  // the Dwarf's baked iron, and Bronze with the hero-tone maps from the materials manifest (Ruby and BoneWorn are plain colours).
+  const lootMaps = new Map(), lootDir = 'src/assets/source/loot', used = new Set(draws.map(m => m.material.name));
+  if (used.has('DwarfIron')) lootMaps.set('DwarfIron', { baseColor: { bytes: await fs.readFile(path.join(lootDir, 'dwarf_iron_color.jpg')), mime: 'image/jpeg' }, metallicRoughness: { bytes: await fs.readFile(path.join(lootDir, 'dwarf_iron_orm.jpg')), mime: 'image/jpeg' }, occlusionTexCoord: 0 });
+  const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials', heroManifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest_realistic.json'), 'utf8'));
+  for (const name of ['Bronze']) if (used.has(name)) {
+    const maps = heroManifest[name], entry = { normalScale: maps.normalScale, occlusionTexCoord: 0 };
+    for (const slot of ['baseColor', 'metallicRoughness', 'normal']) if (maps[slot]) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, maps[slot])), mime: /\.jpe?g$/i.test(maps[slot]) ? 'image/jpeg' : 'image/png' };
+    lootMaps.set(name, entry);
+  }
+  const bytes = finishMaterials(Buffer.from(await new GLTFExporter().parseAsync(base.scene, { binary: true, animations: [], onlyVisible: true })), lootMaps, false);
+  await fs.writeFile(output, bytes);
+  console.log(`Loot → ${output}: ${bytes.byteLength} bytes; ${draws.length} draws: ${draws.map(m => m.name).join(', ')}`);
+  process.exit(0);
 }
 // Retarget rotation deltas onto the body rest pose; preserve its own bone lengths. A window [t0, t1] of the source can be
 // cut out and retimed to a fixed duration, so a library clip can fill a contract clip without changing its length.
@@ -817,7 +912,7 @@ function png(width, height, pixel) {
   const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=6;
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);
 }
-function finishMaterials(glb, authored = new Map()) {
+function finishMaterials(glb, authored = new Map(), procedural = true) {   // procedural=false (loot.glb): palette materials carry no maps — the runtime takes the player's by name
   const length=glb.readUInt32LE(12), j=JSON.parse(glb.subarray(20,20+length).toString());
   const chunks=[glb.subarray(28+length)]; let offset=chunks[0].length;
   j.images=[];j.textures=[];j.samplers=[{magFilter:9729,minFilter:9987,wrapS:10497,wrapT:10497}];
@@ -826,7 +921,7 @@ function finishMaterials(glb, authored = new Map()) {
     j.bufferViews.push({buffer:0,byteOffset:offset,byteLength:bytes.length});offset+=bytes.length+padding.length;chunks.push(bytes,padding);
     j.images.push({bufferView:j.bufferViews.length-1,mimeType});j.textures.push({source:j.images.length-1,sampler:0});return j.textures.length-1;
   }
-  const texture=pixel=>image(png(256,256,pixel),'image/png');
+  const texture=pixel=>procedural?image(png(256,256,pixel),'image/png'):null;
   const noise=(x,y)=>((Math.imul(x+1,374761393)^Math.imul(y+1,668265263))>>>0)%97/97;
   const metal=texture((x,y)=>{const wear=noise(x,y)*13+Math.sin(y*1.7)*3;return [218+wear,222+wear,224+wear,255]});
   const rough=texture((x,y)=>[255,125+noise(x,y)*40,255,255]);
@@ -842,10 +937,10 @@ function finishMaterials(glb, authored = new Map()) {
     if(a.metallicRoughness) {p.metallicRoughnessTexture={index:image(a.metallicRoughness.bytes,a.metallicRoughness.mime)};p.metallicFactor=1;p.roughnessFactor=1;}
     if(a.normal) m.normalTexture={index:image(a.normal.bytes,a.normal.mime),scale:a.normalScale ?? 1};
     if(a.occlusion) {a.occlusion.index ??= image(a.occlusion.bytes,a.occlusion.mime); m.occlusionTexture={index:a.occlusion.index,texCoord:a.occlusionTexCoord,strength:1};} // one shared image across materials
-    if(m.name==='Blade') {p.metallicRoughnessTexture={index:rough};p.roughnessFactor=.7;m.normalTexture={index:grain,scale:.15};}
-    if(m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
-    if(m.name==='Gambeson'||m.name==='Heraldry') {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
-    if(m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
+    if(procedural&&m.name==='Blade') {p.metallicRoughnessTexture={index:rough};p.roughnessFactor=.7;m.normalTexture={index:grain,scale:.15};}
+    if(procedural&&m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
+    if(procedural&&(m.name==='Gambeson'||m.name==='Heraldry')) {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
+    if(procedural&&m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
     // The Executioner's blackened iron (owner, v3 review: the mask and greaves read darker and shinier than the hood — fake):
     // drop the ORM map for scalar matte factors; with metalness down the diffuse returns and they read as charcoal iron beside the hood's cloth.
     if(appearance.matteIron&&(m.name==='Steel'||m.name==='Bronze')) {delete p.metallicRoughnessTexture;p.metallicFactor=0.45;p.roughnessFactor=0.88;}
