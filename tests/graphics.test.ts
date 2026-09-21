@@ -37,7 +37,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string) => void = () => {}, retries = 0;
-  const view = { yaw: 0, intro: false, startIntro() { this.intro = true; }, recenter() {}, stopTour() { this.intro = false; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, retryArt() { retries++; report('Loading warriors…'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, retryArt() { retries++; report('Loading warriors…'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
@@ -50,7 +50,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { view, element, errors, callbacks, timers, storage, window: win, document: doc, report: (value: string) => report(value), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { element, errors, callbacks, timers, storage, window: win, document: doc, report: (value: string) => report(value), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -487,26 +487,17 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
   assert.equal(app.element('test-tools').dataset.debug, undefined);
   assert.equal(app.element('opponent-select').hidden, false);
 });
-test('the versus card lifts when the rigs land and the opening camera move plays with the fight waiting; the fight starts when it ends or the first input skips it; the move waits for the welcome', () => {
+test('the versus card: the fight waits behind it with the buttons asleep, and it lifts the moment the rigs land with the fight on at once', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
-  app.report('Loading warriors…'); versus.hidden = true; delete versus.dataset.out; app.view.intro = false;   // the harness boots with the rigs in; back into the download
+  app.report('Loading warriors…'); versus.hidden = true; delete versus.dataset.out;   // the harness boots with the rigs in; back into the download
   still.dispatchEvent(new Event('load'));                       // the still arrives before the rigs: the card shows and the fight waits
   assert.equal(versus.hidden, false); assert.equal(attack(), 'true', 'buttons asleep behind the card');
   app.tick(); app.key('KeyF'); app.tick(); app.tick();
   assert.equal(app.rendered.duel.tick, 0, 'no sim ticks behind the card');
   app.report('');                                                // the rigs are in
   assert.equal(versus.dataset.out, 'true', 'the card lifts at once'); assert.equal(app.timers.size, 0, 'no hold timer');
-  assert.equal(app.view.intro, true, 'the opening camera move starts'); assert.equal(attack(), 'false', 'buttons are live through the move');
-  app.tick(); app.tick(); assert.equal(app.rendered.duel.tick, 0, 'the fight waits through the move');
-  app.view.intro = false; app.tick();                            // the rig reports the move over
-  app.tick(); app.tick(); assert.ok(app.rendered.duel.tick > 0, 'the fight runs once the move ends');
-  const eager = boot(); eager.report('Loading warriors…'); eager.view.intro = false; eager.report('');
-  assert.equal(eager.view.intro, true); eager.key('KeyF');        // the first input skips the move and lands
-  assert.equal(eager.view.intro, false, 'a key skips the move'); eager.tick(); eager.tick(); assert.ok(eager.rendered.duel.tick > 0, 'and the fight is on at once');
-  const late = boot(); late.report('Loading warriors…'); late.view.intro = false; late.element('welcome').hidden = false;
-  late.report(''); assert.equal(late.view.intro, false, 'no move behind the welcome');
-  late.element('name-form').dispatchEvent(Object.assign(new Event('submit', { cancelable: true })));
-  assert.equal(late.element('welcome').hidden, true); assert.equal(late.view.intro, true, 'the move plays once the arena shows');
+  assert.equal(attack(), 'false', 'buttons wake as the card lifts');
+  app.tick(); app.tick(); assert.ok(app.rendered.duel.tick > 0, 'the fight runs once the card lifts');
 });
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
@@ -556,8 +547,7 @@ test('a failed rig load retries when the page returns to the foreground, when th
   app.window.dispatchEvent(new Event('online'));
   assert.equal(app.retries, 3, 'the network returning retries');
   app.report(''); app.tick();
-  assert.equal(app.view.intro, true, 'the rigs landed: the opening move plays');
-  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the rigs landed: controls enable (the move keeps them live)');
+  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the rigs landed: controls enable');
   status.dispatchEvent(new Event('click')); app.document.dispatchEvent(new Event('visibilitychange'));
   assert.equal(app.retries, 3, 'after success nothing retries');
 });

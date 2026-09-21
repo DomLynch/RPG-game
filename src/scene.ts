@@ -339,12 +339,6 @@ export function createScene(
     orbit(dx: number, dy: number) {
       rig.orbit(dx, dy);
     },
-    startIntro() {
-      rig.startIntro();
-    },
-    get intro() {
-      return rig.intro;
-    },
     stopTour() {
       rig.stopTour();
     },

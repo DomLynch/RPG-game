@@ -606,18 +606,6 @@ dialog>p {
   height: 100%;
   object-fit: cover;
   object-position: center 40%;
-  /* Owner 2026-09-21: the card drifts like the arena cam after the kill — from its first frame, a push-in and pan across the still
-     (owner 2026-09-21: "it zooms in and gets too close… same effect but zoom out and pan slowly" — starts close and pulls back 22% with a 6% pan over 12 s, back and forth while the rigs download). Transform only. */
-  transform-origin: 62% 42%;
-  animation: versus-drift 12s ease-in-out infinite alternate;
-  will-change: transform;
-}
-@keyframes versus-drift {
-  from { transform: scale(1.22) translate(-6%, 3%); }
-  to { transform: scale(1) translate(0, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .versus img { animation: none; }
 }
 .versus-caption {
   position: absolute;
@@ -638,13 +626,14 @@ dialog>p {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 8%;
+  top: 28%;
   margin: 0;
   text-align: center;
   color: #e9ddc5;
-  opacity: 0.5;
-  font: 12px Arial;
-  letter-spacing: 2px;
+  opacity: 0.6;
+  font: 22px Arial;
+  letter-spacing: 5px;
+  text-transform: uppercase;
   text-shadow: 0 1px 6px #000c;
 }
 .versus-caption b {
