@@ -12,6 +12,7 @@ import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
+import { PAPERDOLL, dropFor, emptyLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { readOpponent } from './ai.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailyBoard, loadDaily, postDaily, saveDaily, type DailyFight } from './daily.ts';
@@ -23,7 +24,7 @@ import {
   PROFILES,
   type CombatEvent,
 } from './combat.ts';
-import { ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
+import { ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -61,6 +62,47 @@ const message = element('message');
 const autopsyLines = element('autopsy');
 // The death-screen autopsy: at most two lines between the kill and the rematch button; hidden when there is nothing confident to say.
 function showAutopsy(lines: string[]) { autopsyLines.hidden = !lines.length; autopsyLines.replaceChildren(...lines.map((line) => { const span = document.createElement('span'); span.textContent = line; return span; })); }
+const lootDrop = element('loot-drop');
+function showLootDrop(text: string | null) { lootDrop.hidden = !text; lootDrop.textContent = text ?? ''; }
+// Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
+// journal's paperdoll and rack show it, and every change persists (the cloud follows on the profile beat). Rack rows are Web design's
+// shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
+const pieceName = (id: LootId) => lootName(id, ROSTER[id.split('.')[0] as OpponentId].name);
+const wornIds = (): LootId[] => Object.values(profile.loot?.equipped ?? {});
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds()); renderLoot(); }
+function renderLoot() {
+  const loot = profile.loot ?? emptyLoot(), worn = wornIds();
+  for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) {
+    const id = loot.equipped[key];
+    element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? playerWeapon[0]!.toUpperCase() + playerWeapon.slice(1) : 'Empty';
+    element(`slot-${key}`).classList.toggle('on', !!id || key === 'main');
+    element(`slot-${key}-off`).hidden = !id;
+  }
+  const rows = loot.owned.map((id) => {
+    const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
+    li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
+    name.textContent = pieceName(id);
+    button.setAttribute('data-wear', id); button.textContent = isWorn ? 'Worn' : 'Wear';
+    button.addEventListener('click', () => setLoot(isWorn ? unwear(profile.loot ?? emptyLoot(), paperdollOf(slotOf(id))) : wear(profile.loot ?? emptyLoot(), id)));
+    li.append(name);
+    if (taken) {
+      const small = document.createElement('small'), bold = document.createElement('b');
+      small.setAttribute('data-taken', ''); bold.textContent = pieceName(id); bold.textContent = bold.textContent[0]!.toUpperCase() + bold.textContent.slice(1);
+      small.append(bold, document.createTextNode(` · your ${ordinal(taken.attempt)} attempt, ${taken.healthLeft} health left`));
+      if (taken.recordId) { const watch = document.createElement('a'); watch.setAttribute('data-watch', ''); watch.setAttribute('href', `/?r=${taken.recordId}`); watch.textContent = 'Watch'; small.append(document.createTextNode(' '), watch); }
+      li.append(small);
+    }
+    li.append(button);
+    return li;
+  });
+  while (rows.length < 5) { const li = document.createElement('li'); li.className = 'rack-empty'; rows.push(li); }
+  element('loot-rack').replaceChildren(...rows);
+}
+for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(unwear(profile.loot ?? emptyLoot(), key)));
+// The drop's choice (Web design's row under the drop line): Wear puts it on now; Store leaves it on the rack, where it already is.
+element('loot-wear').addEventListener('click', () => { if (lastDrop && profile.loot) setLoot(wear(profile.loot, lastDrop)); showLootDrop(null); });
+element('loot-store').addEventListener('click', () => showLootDrop(null));
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
 const resetButton = element<HTMLButtonElement>('reset-button');
@@ -77,7 +119,8 @@ input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
 function persist() {
   const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
-  const saved = saveProfile(storage, profile) ? 'Guest · saved on this device' : 'Storage unavailable · name will not be saved';
+  const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saved to your account' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';
+  window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts)
   // The HUD identity and the journal's fighter card show the same three facts.
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
     ['rank', rank.label], ['journal-rank', rank.label], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
@@ -182,6 +225,7 @@ let difficulty: keyof typeof PROFILES = 'normal',
 const BUILD = document.documentElement?.dataset?.release || 'dev';
 const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, weapon: playerWeapon, profile: difficulty, seed: matchSeed });
 let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRecord: FightRecord | null = null;
+let lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
 // Kill links (brief 3, second slice): `?replay=<record>` plays a shared fight back — the same seed, warden profile and intents, so
 // the viewer watches exactly what happened — with the buttons asleep; afterwards "Avenge him" starts a live fight against the
 // same warden and seed, practice only (practiceOnly: no ladder step, no mark, no scorecard or trial line). Share on the death
@@ -281,7 +325,7 @@ if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
 element('journal-button').addEventListener('click', () => {
   clearInput();
-  renderScorecard();
+  renderScorecard(); renderLoot();
   journal.showModal();
 });
 element('mobile-name').addEventListener('click', () => {
@@ -308,7 +352,7 @@ resetButton.addEventListener('click', () => {
   if (replay) {   // Avenge him: the same warden and seed, live, practice only
     practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -329,7 +373,7 @@ resetButton.addEventListener('click', () => {
   practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
-  frameEvents = []; fightLog = []; showAutopsy([]);
+  frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null;
   state = previous = practice.fighter;
   view.recenter();
   canvas.focus();
@@ -342,7 +386,7 @@ shareButton.addEventListener('click', async () => {
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
     // A signed-in fighter's link carries a short id (the record is stored); a guest's, or a store that refused, carries the record itself.
     let url: string | null = null;
-    if (session?.db && session.userId) { try { url = shortLink(location.origin, lastRecord.opponent, await publishRecord(session.db, session.userId, lastRecord)); } catch { url = null; } }
+    if (session?.db && session.userId) { try { const id = await publishRecord(session.db, session.userId, lastRecord); url = shortLink(location.origin, lastRecord.opponent, id); if (lastDrop && profile.loot) { profile.loot = recordTaken(profile.loot, lastDrop, id); persist(); } } catch { url = null; } }
     if (!url) {
       const link = await shareUrl(lastRecord, location.origin);
       if ('tooLong' in link) { say('This fight is too long to share as a link; sign in to share it by id.'); return; }
@@ -372,7 +416,7 @@ if (replayText || sharedId) {
     if (record.opponent !== opponent.id) throw Error('the link names another opponent');
     matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
     recorder = null; recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
     replay = { record, cursor: 0 }; shareButton.hidden = true; say(null);
     banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
     updateHud();
@@ -391,7 +435,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Warden: normal';
     saveDaily(storage, { day: fight.day, started: true, submitted: false });
     recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); updateHud();
   }).catch((error: unknown) => { banner(`No daily warden: ${error instanceof Error ? error.message : String(error)}`); });
 }
@@ -454,6 +498,7 @@ try {
     },
     opponent.id,
   );
+  view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
 } catch (error) {
   element('performance').textContent = '3D unavailable';
   message.hidden = false;
@@ -720,7 +765,15 @@ function frame(now: number) {
             saveTrial(storage, trial);
             recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk, lines);   // a fight lost while away is a loss, flagged left
             saveScorecard(storage, scorecard);
-            if (won(practice.finish)) { awardMark(profile); persist(); }   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
+            if (won(practice.finish)) {
+              // The drop (brief 5): one fixed piece per opponent per the sub-rank the fight was fought at, never a duplicate; it goes straight to the
+              // trophy rack (nothing is lost) and the journal wears it. Web design's Wear / Store / Leave selector replaces this line when it lands.
+              const drop = dropFor(opponent.id, marksOf(profile), profile.loot?.owned ?? []);
+              awardMark(profile);   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
+              lastDrop = drop;
+              if (drop) { profile.loot = store(profile.loot, drop, { opponent: opponent.id, attempt: scorecard.rows[opponent.id]?.fights ?? 1, healthLeft: Math.max(0, Math.round(practice.playerHealth)), recordId: null, day: new Date().toISOString().slice(0, 10) }); showLootDrop(`Won: ${pieceName(drop)}.`); }
+              persist();
+            }
           }
           marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
           if (afk) accumulator = 0;   // the death is the picture the player comes back to; whatever time was left is not spent

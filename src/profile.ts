@@ -1,5 +1,6 @@
 import { isOpponentId, type OpponentId } from './roster.ts';
-export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; career?: { victoryMarks: number } }; // career: won duels on this device; client-reported to a cloud save (beta), never competitive rank authority
+import { cleanLoot, type Loot } from './loot.ts';
+export type Profile = { version: 1; id: string; name: string; encounter?: OpponentId; career?: { victoryMarks: number }; loot?: Loot }; // career: won duels on this device; client-reported to a cloud save (beta), never competitive rank authority
 export type StoragePort = Pick<Storage, 'getItem' | 'setItem'>;
 const KEY = 'frankendom.fighter.v1';
 export const cleanName = (name: string) => Array.from(name).filter(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127).join('').trim().slice(0, 24) || 'Wanderer';
@@ -13,7 +14,8 @@ export function loadProfile(storage: StoragePort, createId: () => string): { pro
       const encounter = isOpponentId(candidate) ? candidate : undefined;
       const marks = value.career?.victoryMarks;
       const career = Number.isSafeInteger(marks) && marks >= 0 ? { victoryMarks: marks } : undefined;
-      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(career ? { career } : {}) }, returning: true };
+      const loot = cleanLoot(value.loot);   // owned pieces and the worn set (src/loot.ts), kept only when there is something to keep
+      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(career ? { career } : {}), ...(loot.owned.length ? { loot } : {}) }, returning: true };
     }
   } catch { /* Corrupt/unavailable storage must never prevent entering the arena. */ }
   return { profile: { version: 1, id: createId(), name: 'Wanderer' }, returning: false };
