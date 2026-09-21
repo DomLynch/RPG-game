@@ -14,12 +14,12 @@ const repo = process.cwd();
 const fixture = JSON.parse(readFileSync(join(repo, 'tests', 'fixtures', 'fight-records.json'), 'utf8'));
 
 // Run the check against a modified copy of the fixture, pointed at through RECORD_REPLAY_FIXTURE.
-function runWith(mutate: (f: typeof fixture) => void) {
+function runWith(mutate: (f: typeof fixture) => void, args: string[] = []) {
   const dir = mkdtempSync(join(tmpdir(), 'record-replay-'));
   const copy = JSON.parse(JSON.stringify(fixture)); mutate(copy);
   const file = join(dir, 'fight-records.json');
   writeFileSync(file, JSON.stringify(copy));
-  return spawnSync(process.execPath, [join(repo, 'scripts', 'record-replay-check.mjs')], { cwd: repo, encoding: 'utf8', env: { ...process.env, RECORD_REPLAY_FIXTURE: file } });
+  return spawnSync(process.execPath, [join(repo, 'scripts', 'record-replay-check.mjs'), ...args], { cwd: repo, encoding: 'utf8', env: { ...process.env, RECORD_REPLAY_FIXTURE: file } });
 }
 
 test('record-replay-check: the committed references replay identically on this build (exit 0)', () => {
@@ -28,7 +28,7 @@ test('record-replay-check: the committed references replay identically on this b
   const out = JSON.parse(r.stdout.trim().split('\n').pop()!);
   assert.equal(out.passed, true);
   assert.equal(out.results.length, fixture.records.length);
-  for (const res of out.results) assert.equal(res.outcome, 'died', `${res.name} ends in the recorded kill`);
+  for (const res of out.results) { assert.equal(res.outcome, 'died', `${res.name} ends in the recorded kill`); assert.equal(typeof res.digestMatch, 'boolean', 'the state digest is reported'); }
 });
 
 test('record-replay-check: a silent mismatch fails loudly and names the drift', () => {
@@ -36,6 +36,15 @@ test('record-replay-check: a silent mismatch fails loudly and names the drift', 
   assert.equal(r.status, 1);
   assert.match(r.stdout, /SILENT MISMATCH.*killedTick: expected \d+, got \d+/);
   assert.match(r.stderr, /no longer replay identically/);
+});
+
+test('record-replay-check: a state-digest drift alone is reported, and gates only with --strict', () => {
+  const soft = runWith(f => { f.records[0].expect.digest = '0000000000000000'; });
+  assert.equal(soft.status, 0, soft.stdout + soft.stderr);
+  assert.equal(JSON.parse(soft.stdout.trim().split('\n').pop()!).results[0].digestMatch, false, 'reported, not fatal');
+  const hard = runWith(f => { f.records[0].expect.digest = '0000000000000000'; }, ['--strict']);
+  assert.equal(hard.status, 1, 'strict: the digest gates too');
+  assert.match(hard.stdout, /digest: expected 0000000000000000, got [0-9a-f]{16}/);
 });
 
 test('record-replay-check: a record whose version is refused passes with a clean refusal, never a silent pass', async () => {
