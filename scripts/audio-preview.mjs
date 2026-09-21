@@ -29,7 +29,7 @@ const server = await createServer({ configFile: false, appType: 'custom', logLev
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 let browser;
-const rendered = {}, flat = {}, REFERENCE = .25; let path_ = '';
+const rendered = {}, flat = {}, REFERENCE = .5; let path_ = '';   // .5: linear on both sides (peak .445 < the guard's .55 knee) and clear of the LUFS −70 absolute gate that a .25 reference straddled on peaky recorded hits
 const probeLength = probe => ['quietOne','opened'].includes(probe.presentation?.override) ? 6.5 : probe.events.some(e => e.type === 'Killed') ? 4.5 : PROBE_LENGTH;
 const checks = process.argv.includes('--check') ? {} : null;
 try {
@@ -89,7 +89,8 @@ try {
   for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe));
   // Phone-mix pin (checked after the loudness pass): the same probes with the balance stage flat at REFERENCE. Not ×1: there the
   // ordinary peaks (~.89 after the soft ceiling) sit above the output guard's .55 knee and the reference is itself compressed,
-  // which read as a spurious .18 dB error the moment the mix dropped to .4 (deploy #21, 2026-09-20). At .25 both renders are linear.
+  // which read as a spurious .18 dB error the moment the mix dropped to .4 (deploy #21, 2026-09-20). At .5 both renders are linear, and
+  // the reference sits well above the meter's −70 LUFS absolute gate (at .25, the tail blocks of a peaky recorded hit straddled it).
   if (checks && !fallback && seed === 731) for (const probe of CUE_PROBES) if (rendered[`events/${probe.name}`].some(v => v !== 0)) flat[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe), { combat: REFERENCE, finish: REFERENCE });
   if (checks) {
     const fatal = CUE_PROBES.find(p => p.name === 'finish-decapitation');
@@ -193,12 +194,16 @@ if (checks && !fallback && seed === 731) {
   checks.phoneMix = { ordinary: 0, crowd: 0, fatal: 0 };
   // The 2.4–2.7 s tail is the cheer alone: a cheer that starts on the contact tick, a render long enough to hold it, no other cue landing in the window.
   const crowdTail = probe => { const cues = cuesFor(probe.events, probe.presentation); return probeLength(probe) >= 2.7 && cues.some(c => c.name === 'crowd_cheer' && (c.delay ?? 0) < .5) && !cues.some(c => (c.delay ?? 0) > 1.9 && (c.delay ?? 0) < 2.7); };
+  const probeRms = pcm => { const from = Math.round(PROBE_AT * RATE); let sum = 0; for (let i = from; i < pcm.length; i++) sum += (pcm[i] / 32768) ** 2; return 10 * Math.log10(sum / Math.max(1, pcm.length - from)); };
   const tailRms = pcm => { const tail = pcm.subarray(Math.round(2.4 * RATE), Math.round(2.7 * RATE)); return 10 * Math.log10(tail.reduce((sum, v) => sum + (v / 32768) ** 2, 0) / tail.length); };
   for (const probe of CUE_PROBES) {
     const name = `events/${probe.name}`;
     if (!flat[name]) continue; // intentionally silent simulation events
-    const before = { lufsIntegrated: measure(flat[name], PROBE_AT).lufsIntegrated, tailRmsDbfs: crowdTail(probe) ? tailRms(flat[name]) : undefined };
-    const delta = loudness[name].lufsIntegrated - before.lufsIntegrated;
+    // Level delta as whole-probe RMS, not LUFS-I: the balance stage is a plain gain, and RMS reads it exactly. LUFS-I is not
+    // scale-invariant — its −70 LUFS absolute gate admits different blocks at the two levels once a hit has a long fading tail
+    // (the recorded flesh hit, 2026-09-21), which read as a spurious .8 dB error whatever the reference level.
+    const before = { rmsDbfs: probeRms(flat[name]), tailRmsDbfs: crowdTail(probe) ? tailRms(flat[name]) : undefined };
+    const delta = probeRms(rendered[name]) - before.rmsDbfs;
     if (!probe.events.some(e => e.type === 'Killed')) {
       assert.ok(Math.abs(delta - 20 * Math.log10(COMBAT_LEVEL / REFERENCE)) < .15, `${name}: ordinary level changed ${delta} dB, expected ${(20 * Math.log10(COMBAT_LEVEL / REFERENCE)).toFixed(2)} (COMBAT_LEVEL / REFERENCE)`);
       checks.phoneMix.ordinary++;

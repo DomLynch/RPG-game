@@ -281,10 +281,11 @@ test('asset loaders never start the codec fallback once the page is unloading', 
 
 // Owner 2026-09-21: the guard cues carry two voicings (three variants each) and must rotate at random with no immediate repeat.
 // The rotation reads the variant count from the built manifest, so this pins both halves being reachable and the no-repeat rule.
-test('guard cues rotate all six variants, never the same one twice in a row', () => {
-  for (const name of ['block', 'block_perfect', 'parry'] as const) {
+test('guard cues rotate every variant, never the same one twice in a row', () => {
+  // block / block_perfect: 3 armour + 2 e1d0436 steel + 2 metal-shield (owner's option 3); parry: 3 shield-recording hits + 3 steel.
+  for (const [name, expected] of [['block', 7], ['block_perfect', 7], ['parry', 6]] as const) {
     const count = MANIFEST[name].length;
-    assert.equal(count, 6, `${name} carries the new voicing (0–2) and the e1d0436 steel voicing (3–5)`);
+    assert.equal(count, expected, `${name} carries every voicing the owner put on rotation`);
     const random = seeded(name.length), seen = new Set<number>();
     let last = -1;
     for (let i = 0; i < 3000; i++) {
@@ -293,6 +294,6 @@ test('guard cues rotate all six variants, never the same one twice in a row', ()
       assert.ok(next >= 0 && next < count);
       seen.add(next); last = next;
     }
-    assert.deepEqual([...seen].sort(), [0, 1, 2, 3, 4, 5], `${name}: both voicings come up in rotation`);
+    assert.deepEqual([...seen].sort((x, y) => x - y), [...Array(count).keys()], `${name}: every voicing comes up in rotation`);
   }
 });
