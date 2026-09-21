@@ -15,7 +15,7 @@ const RATE = 48000, GAP = .04, LEAD = .02;
 // every weapon, guard and shield impact.
 const PITCH = .5;
 // Owner 2026-09-20, after playing the −30 % mix: the end-of-match cheer is still high — the crowd recordings go another 30 %.
-const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7 };
+const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, shield: 1 };   // shield: the owner chose the raw recording, not the deeper one
 // Length-preserving pitch shift: asetrate lowers pitch and slows; atempo (≤ 2 per stage, chained) restores the length.
 const pitchFilter = pitch => { const tempo = 1 / pitch, stages = Math.ceil(Math.log(tempo) / Math.log(2)); return `asetrate=${RATE * pitch},aresample=${RATE},${Array.from({ length: stages }, () => `atempo=${tempo ** (1 / stages)}`).join(',')}`; };
 const S = seconds => Math.round(seconds * RATE);
@@ -25,15 +25,19 @@ const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(se
 const recordings = {}, sourceList = JSON.parse(await fs.readFile('artifacts/audio/SOURCES.json', 'utf8'));
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
 for (const [name, source] of Object.entries(sourceList)) {
-  const file = `artifacts/audio/source-cache/${name}.mp3`;
+  // A source is either a public URL (cached under source-cache) or a local file with no stable public URL (the Jochi SFX shield
+  // block: licensed for use but not for redistribution, so it lives in the gitignored cache — SOURCES.json says how to rebuild it);
+  // both are hash-pinned.
+  const file = source.file ?? `artifacts/audio/source-cache/${name}.mp3`;
   let bytes = await fs.readFile(file).catch(() => null);
+  if (!bytes && source.file) throw new Error(`${name}: committed source ${source.file} missing`);
   if (!bytes) {
     const response = await fetch(source.url, { signal: AbortSignal.timeout(30000) });
     if (!response.ok) throw new Error(`${name}: source HTTP ${response.status}`);
     bytes = Buffer.from(await response.arrayBuffer());
   }
   if (createHash('sha256').update(bytes).digest('hex') !== source.sha256) throw new Error(`${name}: source hash mismatch`);
-  await fs.writeFile(file, bytes);
+  if (!source.file) await fs.writeFile(file, bytes);
   const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-af', pitchFilter(PITCH_BY_SOURCE[name] ?? PITCH), '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 64 * 1024 * 1024 });   // pitch × PITCH, same length
   recordings[name] = Float32Array.from(new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4));
 }
@@ -125,9 +129,6 @@ const abs = hz => hz / PITCH;
 // Edge: the blade's bright slice — a broadband burst 1–7 kHz that is over in ~120 ms, laid over the weighted body.
 const blade = (n, r, { lo = 1000, hi = 7000, t60 = .12 } = {}) => mul(broad(n, r, abs(lo), abs(hi)), decay(n, t60, .001));
 // Steel ring: a dense inharmonic cluster placed where a real clash rings (f0 ~ 900–1300 Hz, partials to ~6 kHz), long decay.
-// Owner 2026-09-21 00:30, after hearing the steel pass: "weapon/metal noise on block and ricochet 30 % deeper" — the ring and its zing × .7.
-const STEEL = .7;
-const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0 * STEEL), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
 // Rumble: a broad low-mid tail (150–800 Hz) that lingers after the strike.
 const rumble = (n, t60, r, f = 900) => mul(biquad(biquad(noise(n, r), 'lowpass', f, .5), 'highpass', 260, .5), decay(n, t60, .01));
 // Dense steel: `count` inharmonic partials from f0 up to ~f0 × top with jittered decays, amplitude-roughened by slow noise.
@@ -204,43 +205,31 @@ const RECIPES = {
     const tail = rumble(n, .2, r);
     return densify(mix(n, [slap, 0, .55], [body, .003, 1.2], [tone, .003, .4], [thump, .004, .08], [weight, .004, .4], [tail, .02, dbfs(-6)]), 2.6);
   },
-  // Block: iron on iron into a braced guard — a hard broadband click, a dense clang the arms damp, the guard's own body.
+  // Owner 2026-09-21 01:00, two references. Guards ("Medieval Armor and Impacts", no reuse terms → measured, not copied): a low
+  // thump (first 80 ms centred 150–180 Hz), a dull body at 220–900 Hz, −30 dB in .2–.9 s, almost nothing above 300 Hz — so the
+  // low end is driven into harmonics (heft) or a phone hears none of it. Parry: the Jochi SFX "Shield Block" recording itself
+  // (licensed for use, see SOURCES.json), three hits rotating, at the owner's chosen raw pitch.
   block(r) {
-    const n = S(.5), f = vary(r, 1, .07);
-    const click = mul(broad(n, r, 1500 * STEEL, 10000 * STEEL), decay(n, .004));
-    const clang = steel(n, 900 * f, vary(r, .5, .12), r);
-    const muffle = mul(broad(n, r, 250, 1600), decay(n, .04, .001));
-    const body = thud(n, r, { from: 4000 * f, to: 320 * f, fall: .07, t60: .14 });
-    const tone = punch(n, 330 * f, r, { t60: .08, tone: .6, burst: .3 });
-    const weight = heft(n, 95 * f, r, { t60: .28 });
-    const zing = blade(n, r, { lo: 2000 * STEEL, hi: 10000 * STEEL, t60: .05 });
-    const tail = rumble(n, .24, r);
-    return densify(mix(n, [click, 0, .45], [clang, .001, 1], [muffle, .001, .4], [body, .002, .9], [tone, .002, .35], [weight, .003, .5], [zing, 0, .35], [tail, .02, dbfs(-8)]), 2.6);
+    const n = S(.55), f = vary(r, 1, .08);
+    const thump = heft(n, abs(65 * f), r, { t60: .5, drive: 5 });
+    const slam = punch(n, abs(170 * f), r, { t60: .12, tone: .8, burst: .6 });
+    const body = thud(n, r, { from: abs(1600 * f), to: abs(230 * f), fall: .1, t60: .32 });
+    const muffle = mul(broad(n, r, abs(250), abs(1400)), decay(n, .06, .002));
+    const rattle = dense(n, abs(300 * f), 8, vary(r, .28, .12), r, { top: 2.4, roll: .8, grit: .45, spread: .06 });
+    const tail = rumble(n, .5, r, abs(700));
+    return densify(mix(n, [muffle, 0, .5], [slam, .001, .8], [body, .002, 1.1], [thump, .003, .7], [rattle, .004, .45], [tail, .03, dbfs(-5)]), 2.8);
   },
-  // Perfect block: the same steel caught clean — brighter and tighter, a smaller body, a touch of edge.
+  // Perfect block: the same armour, caught square — tighter, a touch more snap, shorter tail.
   block_perfect(r) {
-    const n = S(.42), f = vary(r, 1, .06);
-    const click = mul(broad(n, r, 2000 * STEEL, 10000 * STEEL), decay(n, .004));
-    const clang = steel(n, 1300 * f, vary(r, .4, .1), r, { top: 5, roll: .85, grit: .25 });
-    const sparkle = mul(broad(n, r, 3000 * STEEL, 9000 * STEEL), decay(n, .015));
-    const body = thud(n, r, { from: 5000 * f, to: 400 * f, fall: .05, t60: .09 });
-    const weight = heft(n, 110 * f, r, { t60: .2 });
-    return densify(mix(n, [click, 0, .5], [clang, .001, .8], [sparkle, .001, .2], [body, .002, 1], [weight, .003, .4]), 2.2);
+    const n = S(.4), f = vary(r, 1, .06);
+    const snap = mul(broad(n, r, abs(700), abs(2600)), decay(n, .012, .001));
+    const thump = heft(n, abs(70 * f), r, { t60: .35, drive: 5 });
+    const slam = punch(n, abs(190 * f), r, { t60: .09, tone: .8, burst: .6 });
+    const body = thud(n, r, { from: abs(1800 * f), to: abs(260 * f), fall: .07, t60: .22 });
+    const rattle = dense(n, abs(330 * f), 8, vary(r, .2, .1), r, { top: 2.4, roll: .8, grit: .4, spread: .06 });
+    return densify(mix(n, [snap, 0, .5], [slam, .001, .8], [body, .002, 1], [thump, .003, .6], [rattle, .004, .4]), 2.6);
   },
-  // Parry: bright and decisive — an edge scrape sliding up, a long dense ring with beating partials, the hand's jolt underneath.
-  parry(r) {
-    const n = S(.66), f = vary(r, 1, .06);
-    const click = mul(broad(n, r, 1500 * STEEL, 10000 * STEEL), decay(n, .005));
-    const scrape = mul(sweepBandpass(noise(n, r), t => (1100 + 1500 * Math.min(1, t * 6)) * STEEL, 2), envelope(n, [[0, .3], [.05, 1], [.09, 0], [n / RATE, 0]]));
-    const ring = steel(n, 1100 * f, vary(r, .7, .1), r, { spread: .02 });
-    const beat = mode(n, abs(1100 * f * STEEL) * 1.011, .6, .5, { phase: r() * 6 });
-    const zing = mul(broad(n, r, 3500 * STEEL, 8000 * STEEL), decay(n, .03));
-    const body = thud(n, r, { from: 4500 * f, to: 340 * f, fall: .09, t60: .16 });
-    const tone = punch(n, 380 * f, r, { t60: .1, tone: .6, burst: .3 });
-    const weight = heft(n, 100 * f, r, { t60: .3 });
-    const tail = rumble(n, .3, r);
-    return densify(mix(n, [click, 0, .5], [scrape, 0, .45], [ring, .002, .7], [beat, .002, .25], [zing, .001, .1], [body, .002, 1.2], [tone, .002, .5], [weight, .003, .45], [tail, .02, dbfs(-5)]), 2.4);
-  },
+  parry(r, v) { return recording('shield', .75 * (v % 3), .72, v < 3 ? 1 : vary(r, 1, .03)); },
   // Guard break: dull and wrong — close detuned low partials beating, a choked mid burst, a low thump, driven hard so it crunches.
   guard_break(r) {
     const n = S(.46), f = vary(r, 1, .07);
