@@ -47,32 +47,22 @@ test('splat pool: the kill pool spreads over 2.2 s to 1.0 × 0.6 at 0.7 opacity 
   assert.ok(near(p.mesh.scale.x, 1) && near(p.mesh.scale.y, 0.6) && near(p.mesh.material.opacity, 0.7) && p.mesh.visible, 'fully spread and still there');
 });
 
-test('wound decals: the armed mark rides its fighter at the site height, seeps then fades, hides in off, and clears on rematch', () => {
+test('wound decals: no standing combat mark any more — the pool exists only for the throat cut, fades over its last second, hides in off, clears on rematch', () => {
   const scene = new Scene(), wounds = createWoundDecals(scene, null);
   assert.equal(wounds.entries.length, 2);
   assert.deepEqual(scene.children.map(c => c.name), ['Wound_0', 'Wound_1']);
-  const bodies = [{ x: 1, z: 2, heading: 0.3 }, { x: -3, z: 4, heading: 1.2 }] as const;
-  wounds.arm(1, 'head');
-  const w = wounds.entries[1];
-  assert.equal(w.life, 4); assert.equal(w.side, 1); assert.equal(w.site, 'head');
-  wounds.update(0.5, bodies, 'red');
-  assert.deepEqual(w.group.position.toArray(), [-3, 1.55, 4], 'at the enemy, head height');
-  assert.ok(near(w.group.rotation.y, 1.2));
-  assert.ok(near(w.life, 3.5));
-  const seep = (4 - 3.5) / 1.2;
-  assert.ok(near(w.mark.material.opacity, 0.55) && near(w.drips[0].material.opacity, 0.5 * seep) && near(w.drips[0].scale.y, 0.4 + 0.6 * seep), 'drips run in the first 1.2 s');
-  assert.ok(w.group.visible && !wounds.entries[0].group.visible);
-  wounds.arm(0, 'legs'); wounds.update(0, bodies, 'dark');
-  assert.equal(wounds.entries[0].group.position.y, 0.6);
-  assert.equal(wounds.entries[0].mark.material.color.getHexString(), new Color('#241314').getHexString());
-  wounds.update(0, bodies, 'off');
-  assert.ok(!w.group.visible && w.life > 0, 'off hides but keeps the window running');
-  wounds.update(0, bodies, 'red'); assert.ok(w.group.visible);
-  wounds.hide(1); assert.ok(!w.group.visible, 'a detailed finisher hides the standing mark');
-  wounds.update(3.6, bodies, 'red');
-  assert.equal(w.life, 0); assert.ok(!w.group.visible, 'the window ran out');
-  wounds.arm(1, 'torso'); wounds.clear();
-  assert.equal(w.life, 0);
+  assert.ok(!('arm' in wounds) && !('hide' in wounds), 'the flesh-hit mark API is gone (owner 2026-09-21)');
+  wounds.update(0.5, 'red');
+  assert.ok(wounds.entries.every(w => !w.group.visible && w.life === 0), 'nothing shows without a throat cut');
+  const neck = new Vector3(0, 1.5, 0), head = new Vector3(0, 1.65, 0), w = wounds.entries[1];
+  wounds.throatCut(neck, head, 0, 1, 'red');
+  assert.ok(w.group.visible && near(w.mark.material.opacity, 0.82) && near(w.life, 4));
+  wounds.update(3.5, 'red');
+  assert.ok(w.group.visible && near(w.life, 0.5) && near(w.mark.material.opacity, 0.82 * 0.5) && near(w.drips[0].material.opacity, 0.6 * 0.5), 'fades over the last second');
+  wounds.update(0, 'off'); assert.ok(!w.group.visible && w.life > 0, 'off hides but keeps the window running');
+  wounds.update(0.6, 'red'); assert.equal(w.life, 0); assert.ok(!w.group.visible, 'the window ran out');
+  wounds.throatCut(neck, head, 0, 1, 'red'); wounds.clear(); wounds.update(0, 'red');
+  assert.equal(w.life, 0); assert.ok(!w.group.visible, 'a rematch clears the mark');
 });
 
 test('wound decals: the Quiet One throat cut sits the mark on the neck, sized to the neck–head span, drips opening over the first quarter second', () => {
