@@ -1,4 +1,5 @@
 import { createInput } from './input.ts';
+import type { WeaponId } from './moves.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
 import { replayParam, shareUrl, verifyRecord } from './replay.ts';
@@ -151,8 +152,9 @@ if (opponent.id !== 'veteran') {
   label.textContent = `THE ${name.toUpperCase()}`;
   label.dataset.mobile = name;
 }
+let playerWeapon: WeaponId = 'longsword';   // the player's weapon (moves.ts PLAYER_WEAPONS): the longsword until the loot slice wires the equipped set; a replay takes the record's
 let matchSeed = 731,
-  practice = initialPractice(matchSeed, opponent),
+  practice = initialPractice(matchSeed, opponent, playerWeapon),
   state = practice.fighter,
   previous = state,
   accumulator = 0,
@@ -168,7 +170,7 @@ let difficulty: keyof typeof PROFILES = 'normal',
 // build id is <html data-release>, 'dev' until the deploy stamps the revision there (a replay must run on the same rules; the
 // harness has no document element). A difficulty change mid-fight drops the recorder: that fight is no longer replayable from one profile.
 const BUILD = document.documentElement?.dataset?.release || 'dev';
-const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, profile: difficulty, seed: matchSeed });
+const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, weapon: playerWeapon, profile: difficulty, seed: matchSeed });
 let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRecord: FightRecord | null = null;
 // Kill links (brief 3, second slice): `?replay=<record>` plays a shared fight back — the same seed, warden profile and intents, so
 // the viewer watches exactly what happened — with the buttons asleep; afterwards "Avenge him" starts a live fight against the
@@ -290,7 +292,7 @@ resetButton.addEventListener('click', () => {
   if (replay) {   // Avenge him: the same warden and seed, live, practice only
     practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent); recorder = startRecorder(); frameEvents = []; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -307,7 +309,7 @@ resetButton.addEventListener('click', () => {
   recorded = false;
   activeMs = 0;
   matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0;
-  practice = initialPractice(matchSeed, opponent);
+  practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
   frameEvents = [];
@@ -337,9 +339,9 @@ if (replayText) {
   welcome.hidden = true; banner('Loading the fight…');
   void decodeRecord(replayText).then((record) => {
     if (record.opponent !== opponent.id) throw Error('the link names another opponent');
-    matchSeed = record.seed; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
+    matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
     recorder = null; recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; state = previous = practice.fighter;
     replay = { record, cursor: 0 }; shareButton.hidden = true; say(null);
     banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
     updateHud();

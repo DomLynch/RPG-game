@@ -513,18 +513,19 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
 });
 test('kill links: a finished fight offers Share; the link replays the same fight tick for tick with the buttons asleep and nothing scored; Avenge him starts a live practice fight on the same seed that never touches the card', async () => {
-  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
+  // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick();
   for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
   assert.ok(a.rendered.finish, 'fight A ends');
   assert.equal(a.element('share-button').hidden, false, 'Share appears on the death screen');
-  await settle();
+  await settle(() => !!a.element('debug').dataset.share);
   const text = a.element('debug').dataset.share as string | undefined;
   assert.ok(text && /^[A-Za-z0-9_-]+$/.test(text), 'the encoded record is exposed for the gates');
   const ticksA = a.rendered.duel.tick, finishA = a.rendered.finish!, cardA = a.storage.getItem('frankendom.controls.v1');
   // B opens the link with nothing saved: no welcome, a replay banner, buttons asleep, the same fight.
   const b = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
-  await settle();   // the record decodes asynchronously
+  await settle(() => b.element('replay-banner').textContent !== 'Loading the fight…');   // the record decodes asynchronously
   assert.equal(b.element('welcome').hidden, true, 'no welcome on a replay link');
   assert.equal(b.element('replay-banner').hidden, false); assert.match(b.element('replay-banner').textContent, /^Replay/);
   assert.equal(b.element('attack-button').attributes.get('aria-disabled'), 'true', 'buttons asleep during a replay');
@@ -550,16 +551,17 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.ok(cardA, 'the original fight was scored on A');
 });
 test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
-  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
-  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', profile: 'normal', seed: 5 });
+  // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', profile: 'normal', seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
-  const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle();
+  const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(wrong.element('replay-banner').textContent, /cannot be played: the link names another opponent/);
   const broken = boot({}, undefined, {}, '?opponent=veteran&replay=AAAA');
   assert.equal((broken.window as unknown as { location: { search: string } }).location.search, '?opponent=veteran&replay=AAAA', 'the harness passes the search string');
   assert.equal(broken.element('replay-banner').textContent, 'Loading the fight…', 'the link is picked up at boot');
-  await settle();
+  await settle(() => broken.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(broken.element('replay-banner').textContent, /cannot be played/);
 });
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {

@@ -15,7 +15,7 @@ export type Verification = { ok: true; practice: Practice } | { ok: false; reaso
 export function verifyRecord(record: FightRecord): Verification {
   const opponent = OPPONENTS[record.opponent], profile = opponent?.profiles[record.profile];   // the warden's per-opponent profile, exactly as main.ts steps it
   if (!opponent || !profile) return { ok: false, reason: 'unknown opponent or warden profile', practice: null };
-  let practice = initialPractice(record.seed, opponent);
+  let practice = initialPractice(record.seed, opponent, record.weapon);
   for (let i = 0; i < record.intents.length; i++) {
     if (practice.finish) return { ok: false, reason: `the fight ended at tick ${practice.duel.tick}, before the record's last tick ${record.ticks}`, practice };
     practice = stepPractice(practice, record.intents[i], profile);
