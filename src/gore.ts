@@ -219,9 +219,17 @@ export function createBladeBlood() {
               bladeOriginals.set(object, object.material as THREE.MeshStandardMaterial);
               object.material = object.material.clone();
             }
-            (object.material as THREE.MeshStandardMaterial).color
+            // A sword's thin blade takes the blood colour as a smear; a broad hafted blade (the scythe's crescent) is a
+            // metallic mirror, so the same lerp turned the whole crescent into bright red plastic (owner, 2026-09-21).
+            // Blood on a broad blade is a dark wet film: darker tone, and it stops mirroring the sky.
+            const bloodied = object.material as THREE.MeshStandardMaterial;
+            bloodied.color
               .copy(original.color)
-              .lerp(new THREE.Color(bloodMode === 'dark' ? '#2a1516' : '#7a1410'), 0.55);
+              .lerp(new THREE.Color(bloodMode === 'dark' || twoHanded ? '#2a1516' : '#7a1410'), 0.55);
+            if (twoHanded) {
+              bloodied.metalness = Math.min(original.metalness, 0.3);
+              bloodied.roughness = Math.max(original.roughness, 0.7);
+            }
           } else if (bladeOriginals.has(object)) {
             object.material.dispose();
             object.material = original;
