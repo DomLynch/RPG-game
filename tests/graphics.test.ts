@@ -487,7 +487,7 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
   assert.equal(app.element('test-tools').dataset.debug, undefined);
   assert.equal(app.element('opponent-select').hidden, false);
 });
-test('the versus card lifts when the rigs land and the opening camera move plays with the fight waiting; the buttons wake and the fight starts when it ends; the move waits for the welcome', () => {
+test('the versus card lifts when the rigs land and the opening camera move plays with the fight waiting; the fight starts when it ends or the first input skips it; the move waits for the welcome', () => {
   const app = boot(), versus = app.element('versus'), still = app.element('versus-still'), attack = () => app.element('attack-button').attributes.get('aria-disabled');
   app.report('Loading warriors…'); versus.hidden = true; delete versus.dataset.out; app.view.intro = false;   // the harness boots with the rigs in; back into the download
   still.dispatchEvent(new Event('load'));                       // the still arrives before the rigs: the card shows and the fight waits
@@ -496,11 +496,13 @@ test('the versus card lifts when the rigs land and the opening camera move plays
   assert.equal(app.rendered.duel.tick, 0, 'no sim ticks behind the card');
   app.report('');                                                // the rigs are in
   assert.equal(versus.dataset.out, 'true', 'the card lifts at once'); assert.equal(app.timers.size, 0, 'no hold timer');
-  assert.equal(app.view.intro, true, 'the opening camera move starts'); assert.equal(attack(), 'true', 'buttons asleep through the move');
+  assert.equal(app.view.intro, true, 'the opening camera move starts'); assert.equal(attack(), 'false', 'buttons are live through the move');
   app.tick(); app.tick(); assert.equal(app.rendered.duel.tick, 0, 'the fight waits through the move');
-  app.view.intro = false; app.tick();                            // the rig reports the move over (or skipped by a touch)
-  assert.equal(attack(), 'false', 'buttons wake as the move ends');
+  app.view.intro = false; app.tick();                            // the rig reports the move over
   app.tick(); app.tick(); assert.ok(app.rendered.duel.tick > 0, 'the fight runs once the move ends');
+  const eager = boot(); eager.report('Loading warriors…'); eager.view.intro = false; eager.report('');
+  assert.equal(eager.view.intro, true); eager.key('KeyF');        // the first input skips the move and lands
+  assert.equal(eager.view.intro, false, 'a key skips the move'); eager.tick(); eager.tick(); assert.ok(eager.rendered.duel.tick > 0, 'and the fight is on at once');
   const late = boot(); late.report('Loading warriors…'); late.view.intro = false; late.element('welcome').hidden = false;
   late.report(''); assert.equal(late.view.intro, false, 'no move behind the welcome');
   late.element('name-form').dispatchEvent(Object.assign(new Event('submit', { cancelable: true })));
@@ -554,8 +556,8 @@ test('a failed rig load retries when the page returns to the foreground, when th
   app.window.dispatchEvent(new Event('online'));
   assert.equal(app.retries, 3, 'the network returning retries');
   app.report(''); app.tick();
-  assert.equal(app.view.intro, true, 'the rigs landed: the opening move plays first'); app.view.intro = false; app.tick();
-  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the rigs landed and the move ended: controls enable');
+  assert.equal(app.view.intro, true, 'the rigs landed: the opening move plays');
+  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'the rigs landed: controls enable (the move keeps them live)');
   status.dispatchEvent(new Event('click')); app.document.dispatchEvent(new Event('visibilitychange'));
   assert.equal(app.retries, 3, 'after success nothing retries');
 });

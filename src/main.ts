@@ -203,7 +203,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !introUp, debug, opponentId: opponent.id });   // buttons wake when the card and the opening move are done, so a press is never swallowed
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp, debug, opponentId: opponent.id });   // buttons wake when the card lifts; the opening move keeps them live (the first input skips it)
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -314,14 +314,17 @@ const hideVersus = () => { versusUp = false; updateHud(); if (versus.hidden || v
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
 versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; updateHud(); } });
 // The opening move plays once the rigs are in and the arena is on screen (after the welcome, if it was up); the fight waits behind it
-// with the buttons asleep, and a touch on the arena skips it (canvas pointerdown → stopTour). Reduced motion: the rig declines and the
-// fight starts at once.
+// until it ends or any input skips it. Reduced motion: the rig declines and the fight starts at once.
 const beginIntro = () => {
   if (!assetsReady || artFailed || !welcome.hidden || introUp || !view) return;   // no view yet: the status callback can fire inside createScene
   view.startIntro();
   introUp = view.intro;
-  updateHud();
 };
+// The buttons stay live through the move and the first input of any kind skips it, so no press is ever swallowed: the player who
+// wants to fight, fights (and the browser gates' first tap after boot lands, whatever their clock does with the 3.5 s).
+const skipIntro = () => { if (!introUp) return; view.stopTour(); introUp = false; };
+window.addEventListener('pointerdown', skipIntro, { capture: true, passive: true });
+window.addEventListener('keydown', skipIntro, { capture: true, passive: true });
 element('versus-foe').textContent = ROSTER[opponent.id].name.replace(/^the /, '');
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
@@ -502,7 +505,7 @@ function frame(now: number) {
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
   const dt = Math.min(elapsed, 0.1);
-  if (introUp && !view.intro) { introUp = false; updateHud(); }   // the opening move ended (or was skipped): the fight starts
+  if (introUp && !view.intro) introUp = false;   // the opening move ended: the fight starts
   if (!paused()) {
     controls.promoteDodge(now);
     const afk = owed > 0;   // the fight the player missed runs before this frame draws: no hit-stop, no per-hit sound or number, one final picture
