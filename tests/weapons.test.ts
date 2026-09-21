@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { bladePaths, bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { LONGSWORD, MOVES, PATHS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/moves.ts';
+import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 
@@ -261,6 +261,7 @@ test('the fight the trident gives (real tables): its thrust lands from 2.1 m whe
 // the part, the rig, the data and the proof; the combat lane flips `WEAPONS.cleaver` to CLEAVER, adds the manifest entry, bakes and
 // reviews the fight (artifacts/weapons/REQUESTS.md §5–6). Until then the Pitborn's slot borrows the longsword, exactly as before.
 import { CLEAVER, CLEAVER_PATHS, OPPONENTS } from '../src/moves.ts';
+import { ENCOUNTERS } from '../src/roster.ts';
 const CLEAVER_GLB = 'src/assets/weapons/cleaver/veteran-cleaver.glb';
 
 test('the cleaver is live (slice W): WEAPONS.cleaver is CLEAVER, the Pitborn carries it, and it is baked at a man\'s 1.0× from veteran-cleaver.glb (his sword\'s convention: the rendered blade runs past the simulated one, never the other way)', () => {
@@ -635,4 +636,23 @@ test('the warhammer shelf: WEAPONS.warhammer is real data (own blunt table since
   // The rig's own grip offset (SwordDrawn at (0, .08, .015) in hand_r) puts the right wrist 0.081 m off the axis at this 1.0× rig; the
   // character lane's 0.08 m gate is at the Dwarf's .78 scale (0.081 × .78 = 0.063), so the shelf asserts the same bound scaled up.
   assert.ok(worst < .08 / .78, `both wrists within 0.08 m of the haft at the Dwarf's scale through the grip roles (worst ${worst.toFixed(3)} m at 1.0×)`);
+});
+
+// Real reach (brief 5 reach fix, 2026-09-21): the warden judges dodges, backsteps and its hover from the move table's `reach`; the blade
+// table is what actually lands. The two must agree, or the warden misjudges a point by the difference. Measured here the way the sim
+// lands it: the largest standing-start gap at which the move hits a stationary man, per shipped (rig, weapon) pair and for every weapon a
+// player can carry on the hero rig. The estoc's table (ESTOC_MOVES) sits 0.3–0.4 m short of its bakes on both rigs — a pre-existing data
+// mismatch reported to the Weapons lane; it is snapshotted here so the pin turns red the moment the numbers are corrected (drop the entry then).
+const realReach = (weapon: Weapon['id'], rig: RigId, move: 'thrust' | 'light'): number => {
+  const lands = (gap: number) => { let d = duel(gap, weapon, rig); d = stepDuel(d, [{ ...idleIntent(), action: move }, idleIntent()]); for (let i = 0; i < 60; i++) { d = stepDuel(d, [idleIntent(), idleIntent()]); if (d.events.some(e => e.type === 'Hit' && e.actor === 0)) return true; if (d.fighters[0].phase === 'ready') break; } return false; };
+  let lo = .5, hi = 3.5; for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (lands(mid)) lo = mid; else hi = mid; } return lo;
+};
+const REACH_MISMATCH: Record<string, [number, number]> = { 'hero/estoc/thrust': [2.28, 2.36], 'hero/estoc/light': [1.96, 2.04], 'nightborn/estoc/thrust': [2.32, 2.40], 'nightborn/estoc/light': [2.00, 2.08] };   // measured real reach, ±.04
+test('real reach: every shipped (rig, weapon) pair and every player weapon on the hero rig lands its thrust and its cut within .15 m of the move table\'s reach — except the estoc, snapshotted until Weapons corrects its table', () => {
+  // The live roster only: the held creatures' tables (minotaur maul, wraith reaper) are their own lanes' data and are not in play.
+  const pairs = new Set<string>(); for (const e of ENCOUNTERS) if (!e.hold) { const o = OPPONENTS[e.id]; pairs.add(`${o.rig}/${o.weapon}`); } for (const w of PLAYER_WEAPONS) pairs.add(`hero/${w}`);
+  for (const pair of pairs) { const [rig, weapon] = pair.split('/') as [RigId, Weapon['id']];
+    for (const move of ['thrust', 'light'] as const) { const nominal = move === 'thrust' ? WEAPONS[weapon].moves.thrust.reach : WEAPONS[weapon].moves.light_right.reach, real = realReach(weapon, rig, move), key = `${pair}/${move}`;
+      if (REACH_MISMATCH[key]) { const [lo, hi] = REACH_MISMATCH[key]; assert.ok(real >= lo && real <= hi, `${key}: the snapshotted mismatch moved (real ${real.toFixed(2)}, nominal ${nominal}) — if the table was corrected, drop it from REACH_MISMATCH`); }
+      else assert.ok(Math.abs(real - nominal) <= .15, `${key}: real reach ${real.toFixed(2)} vs the table's ${nominal}`); } }
 });
