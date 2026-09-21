@@ -2118,7 +2118,12 @@ else:
     body_parts = realistic_body() if realistic else []
     if realistic:
         HIGH.hide_render = True  # only the game mesh occludes itself
-        use_kt = os.environ.get('HEAD_KT', '1') == '1' and os.path.exists(HEADMOD.KT_GLB)  # the photogrammetry head replaces ours
+        want_kt = os.environ.get('HEAD_KT', '1') == '1'
+        if want_kt and not os.path.exists(HEADMOD.KT_GLB):
+            raise SystemExit(f"{FIGHTER}: HEAD_KT wants the photogrammetry head but {HEADMOD.KT_GLB} is missing -- a stand-in "
+                              f"CC0 head would ship silently otherwise. Fetch the reconstruction, or pass HEAD_KT=0 to build "
+                              f"the stand-in on purpose.")
+        use_kt = want_kt and os.path.exists(HEADMOD.KT_GLB)  # the photogrammetry head replaces ours
         if use_kt:
             eye_l_o, eye_r_o = bpy.data.objects['eye_L'], bpy.data.objects['eye_R']
             el = sum((v.co for v in eye_l_o.data.vertices), Vector()) / len(eye_l_o.data.vertices)
