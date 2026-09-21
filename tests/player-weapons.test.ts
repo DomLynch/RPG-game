@@ -56,17 +56,21 @@ test('weapon flip: the strategies\' distances scale by the player weapon\'s reac
 // removed, so the list is edited only with a fresh table. Combat's ruling: every row is the warden's approach logic meeting a player reach
 // it has never seen (their slice), not weapon data and not a rung profile. A weapon with a row here is not in PLAYER_WEAPONS_OFFERED.
 const KNOWN_UNFAIR = [
+  // After the warden reach fix (combat/warden-reach, 2026-09-21): 11 rows → 8. Trident and warhammer come clean everywhere and are offered;
+  // scythe stays gated (still over on the Veteran at range). What is left, by cause: cleaver/executioner — a pre-existing cut-tempo row
+  // (Weapons: CLEAVER light 22/8/26 vs the sword's 20/8/22); knife/veteran and scythe/veteran — a poker parked at the Veteran's own range;
+  // knife/goblin ×2 — a pre-existing kicker-vs-knife mismatch on the guardless Goblin (present before this PR, not a reach regression);
+  // estoc/goblin ×2 and estoc/dwarf hard — the estoc's move table sits .3–.4 m short of its blade bake (tests/weapons.test.ts "real reach"),
+  // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
   'cleaver vs executioner normal: light spam wins 17/24',
   'knife vs veteran normal: thrust from range wins 18/24',
   'knife vs goblin normal: kick only untouched 3/24',
   'knife vs goblin hard: kick only untouched 3/24',
-  'estoc vs goblin normal: thrust from range wins 22/24',
+  'estoc vs goblin normal: thrust from range wins 23/24',
   'estoc vs goblin hard: light spam wins 11/24',
   'estoc vs goblin hard: thrust from range wins 22/24',
   'estoc vs dwarf hard: thrust from range wins 10/24',
-  'trident vs goblin hard: thrust from range untouched 4/24',
   'scythe vs veteran normal: thrust from range wins 19/24',
-  'scythe vs goblin hard: thrust from range untouched 4/24',
 ];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {

@@ -410,9 +410,9 @@ export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe'];
 // The weapons a player may be OFFERED (loot, paperdoll, equip): a subset of PLAYER_WEAPONS with no pairing over a cap in the 24-seed player
 // weapon battery (scripts/player-weapon-battery.mjs; tests/player-weapons.test.ts derives the excluded set from that table). Combat signed
-// the table 2026-09-21: the warhammer is fair on every live rung and is the first loot weapon; cleaver, knife, estoc, trident and scythe
-// wait for the warden's approach fix (Combat) and come off the table's over-cap list before they join this one.
-export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer'];
+// the table 2026-09-21: the warhammer is fair on every live rung and is the first loot weapon; after the warden reach fix (combat/warden-reach)
+// the trident is clean on every rung too. Cleaver, knife, estoc and scythe wait on the table's over-cap list (see KNOWN_UNFAIR there).
+export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident'];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.
