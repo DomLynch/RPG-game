@@ -33,18 +33,19 @@ export type Fighter = {
   regen: number;   // stamina regeneration multiplier (moves.ts `Opponent.regen`; 1 = a man)
   speed: number;   // pace multiplier: walking, sprinting, the wind-up lunge and the backstep (moves.ts `Opponent.speed`; 1 = a man)
   poise: number;   // a plain clean hit dealing less than this never staggers this fighter (moves.ts `Opponent`); 0 = human
+  loiter: number;   // ticks spent within the wall band without attacking (RULES.wall.loiter); the lorarii whip at `ticks`
 };
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed';
+type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number };
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number };   // Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0 });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0 });
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1);
 export const initialDuel = (opponent: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
@@ -203,6 +204,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') {
       const guarding = next.phase === 'guard', scale = (guarding ? R.guardSpeed : 1) * (next.exhausted ? R.exhaustedSpeed : 1) * (next.legWound ? R.attrition.legSpeed : 1), run = !guarding && !next.exhausted && intent.move.run && next.stamina > 0;
       const moved = advance(next.body, { x: intent.move.x * scale, z: intent.move.z * scale, yaw: intent.move.yaw, run }, foe, next.speed);
+      // Anti-turtling 2 (RULES.retreat): a tick that opens the gap to the opponent by more than `away` — inside the wall band, unless
+      // `wallOnly` is off — regenerates no stamina (the sprinting tick's one-tick rest: regen resumes the tick he stops, strafes or advances).
+      if (distance(moved, foe) - distance(next.body, foe) > R.retreat.away && (!R.retreat.wallOnly || Math.hypot(moved.x, moved.z) >= RADIUS - R.wall.loiter.band)) next.rest = Math.max(next.rest, 1);
       // Sprinting drains without the action delay: no regeneration on a sprinting tick, and it resumes the tick the sprint stops (an action's
       // regenDelay is for actions; a sprint that reset it every tick starved the bar for a second after every dash).
       if (run && moved.distance > next.body.distance) { next.stamina = Math.max(0, next.stamina - R.sprintCost); next.rest = Math.max(next.rest, 1); if (!next.stamina && !next.exhausted) { next.exhausted = true; events.push({ tick, type: 'StaminaExhausted', actor: i }); } }
@@ -221,6 +225,33 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       const clamp = (x: number, z: number) => { const r = Math.hypot(x, z); return r > RADIUS ? { x: x * RADIUS / r, z: z * RADIUS / r } : { x, z }; };
       fighters[0].body = { ...p, ...clamp(p.x - ux * push, p.z - uz * push) }; fighters[1].body = { ...q, ...clamp(q.x + ux * push, q.z + uz * push) };
     }
+  }
+  // Posture: `amount` on the target; at the maximum the target's posture breaks — a long stagger and a critical window for the other side.
+  const shake = (target: Side, amount: number) => {
+    const T = fighters[target], O = fighters[1 - target];
+    if (!T.health || amount <= 0) return;
+    T.posture = Math.min(R.posture.max, T.posture + amount); T.postureRest = R.posture.hold;
+    if (T.posture < R.posture.max) return;
+    T.posture = 0; T.phase = 'hurt'; T.age = 0; T.stun = Math.max(T.stun, R.posture.stun); T.buffer = null; T.counterWindow = 0; T.charge = 0; T.charged = false;
+    O.punish = R.posture.stun; O.critical = R.posture.stun;
+    events.push({ tick, type: 'PostureBroken', actor: (1 - target) as Side, target, ticks: R.posture.stun });
+  };
+  // 2b. The lorarii (RULES.wall.loiter): a fighter idling within `band` of the wall for `ticks` without attacking is whipped — chip (never
+  // the last point of health), posture, a shove toward the centre — and again every `again` ticks while he stays. Attacking, leaving the band
+  // or dying resets the clock.
+  // Both fighters, so the warden cannot camp the wall either. Event sides: actor = target = the whipped fighter.
+  for (const i of [0, 1] as const) {
+    const F = fighters[i], L = R.wall.loiter, r = Math.hypot(F.body.x, F.body.z);
+    F.loiter = F.health && !duel.finish && r >= RADIUS - L.band && F.phase !== 'attack' ? F.loiter + 1 : 0;
+    if (F.loiter < L.ticks) continue;
+    F.loiter = L.ticks - L.again;   // the next lash comes `again` ticks later while he stays
+    events.push({ tick, type: 'Whipped', actor: i, target: i, x: F.body.x, z: F.body.z, damage: L.chip });
+    F.health = Math.max(1, F.health - L.chip);
+    shake(i, L.posture);
+    // The shove drives him back into the fight: toward the opponent when he is near (a shove to the centre there pushed a cornered man OUT
+    // of his opponent's reach — the lash was rescuing the turtle), else toward the centre; a man already at grips is lashed but not moved.
+    const O = fighters[1 - i].body, g = Math.hypot(O.x - F.body.x, O.z - F.body.z), toward = g < L.into ? { x: (O.x - F.body.x) / g, z: (O.z - F.body.z) / g } : { x: -F.body.x / r, z: -F.body.z / r };
+    if (g >= 1) F.body = { ...F.body, x: F.body.x + toward.x * L.shove, z: F.body.z + toward.z * L.shove };   // already at grips (< 1 m): nothing to drive him into
   }
   // 3. Contacts resolve simultaneously against a snapshot, so a trade lands both blows and neither side is favoured by order.
   const snapshot = [{ ...fighters[0] }, { ...fighters[1] }] as const;
@@ -254,16 +285,6 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       D.phase = D.health ? 'hurt' : 'dead'; D.age = 0; D.stun = D.health ? ticks + wall : R.death; D.buffer = null; D.counterWindow = 0;
       events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun, ...(walledHit ? { walled: true } : {}) });
       if (walledHit) shake(j, R.wall.posture);
-    };
-    // Posture: `amount` on the target; at the maximum the target's posture breaks — a long stagger and a critical window for the other side.
-    const shake = (target: Side, amount: number) => {
-      const T = fighters[target], O = fighters[1 - target];
-      if (!T.health || amount <= 0) return;
-      T.posture = Math.min(R.posture.max, T.posture + amount); T.postureRest = R.posture.hold;
-      if (T.posture < R.posture.max) return;
-      T.posture = 0; T.phase = 'hurt'; T.age = 0; T.stun = Math.max(T.stun, R.posture.stun); T.buffer = null; T.counterWindow = 0; T.charge = 0; T.charged = false;
-      O.punish = R.posture.stun; O.critical = R.posture.stun;
-      events.push({ tick, type: 'PostureBroken', actor: (1 - target) as Side, target, ticks: R.posture.stun });
     };
     let walledHit = false;
     const wound = (damage: number, knockback: number, mark = !!def.path) => {
