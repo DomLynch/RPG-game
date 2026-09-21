@@ -17,6 +17,9 @@ import * as replay from '../src/replay.ts';
 import * as shareStore from '../src/share-store.ts';
 import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
+import * as daily from '../src/daily.ts';
+// The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
+const dailyModule: Record<string, unknown> = { ...daily }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
@@ -48,7 +51,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -529,6 +532,9 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   const ticksA = a.rendered.duel.tick, finishA = a.rendered.finish!, cardA = a.storage.getItem('frankendom.controls.v1');
   // B opens the link with nothing saved: no welcome, a replay banner, buttons asleep, the same fight.
   const b = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
+  b.tick();   // a frame lands before the record has decoded (the browser's rAF beats the async decode): it must not mark a fight
+  assert.equal(b.storage.getItem('frankendom.fight.v1'), null, 'no AFK mark while the link is still decoding');
+  const cardBefore = b.storage.getItem('frankendom.scorecard.v1');
   await settle(() => b.element('replay-banner').textContent !== 'Loading the fight…');   // the record decodes asynchronously
   assert.equal(b.element('welcome').hidden, true, 'no welcome on a replay link');
   assert.equal(b.element('replay-banner').hidden, false); assert.match(b.element('replay-banner').textContent, /^Replay/);
@@ -539,6 +545,8 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.equal(b.rendered.duel.tick, ticksA, 'same final tick as the recorded fight');
   assert.deepEqual(b.rendered.finish, finishA, 'same finish');
   assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'a replay writes nothing to the card');
+  assert.ok(!b.storage.getItem('frankendom.fight.v1'), 'a watched fight is never marked as walked away from (the viewer\'s next boot would score a loss)');
+  assert.equal(b.storage.getItem('frankendom.scorecard.v1'), cardBefore, 'a replay scores nothing');
   assert.equal(b.element('reset-button').textContent, 'Avenge him');
   assert.equal(b.element('share-button').hidden, true, 'a replay is not re-shared from the viewer');
   // Avenge him: live, same seed, practice only.
@@ -567,6 +575,9 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   assert.equal(broken.element('replay-banner').textContent, 'Loading the fight…', 'the link is picked up at boot');
   await settle(() => broken.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(broken.element('replay-banner').textContent, /cannot be played/);
+  broken.tick(); wrong.tick();
+  assert.equal(broken.storage.getItem('frankendom.fight.v1'), null, 'a refused link leaves the page a viewer: no AFK mark');
+  assert.equal(wrong.storage.getItem('frankendom.fight.v1'), null, 'a link for another opponent: no AFK mark either');
 });
 test('kill links: a signed-in fighter\'s Share stores the record and the link carries the short id; a guest\'s link carries the record; a short link without a fight store is refused', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -601,6 +612,48 @@ test('autopsy: a death puts at most two plain lines on the death screen, the sam
   assert.deepEqual(card.rows.veteran.last, lines, 'the journal keeps the last fight\'s lines under the opponent');
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
   assert.equal(el.hidden, true, 'a rematch clears the autopsy');
+});
+test('daily warden: a build without the account service refuses ?daily=1 with a banner and fights as usual; the journal says so too', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const app = boot({}, undefined, {}, '?opponent=veteran&daily=1');
+  assert.equal(app.element('welcome').hidden, true, 'a daily link is picked up at boot');
+  await settle(() => app.element('replay-banner').textContent !== 'Asking for today\'s warden…');
+  assert.match(app.element('replay-banner').textContent, /^No daily warden: this build has no daily warden/);
+  app.tick(); app.key('KeyF'); app.tick(); assert.ok(app.rendered, 'the ordinary fight runs');
+  app.element('journal-button').dispatchEvent(new Event('click'));
+  await settle(() => app.element('daily-status').textContent !== '');
+  assert.equal(app.element('daily-status').textContent, 'The daily warden needs the account service.');
+  assert.equal(app.element('daily-board').hidden, true);
+});
+test('daily warden: the attempt is spent the moment the fight starts, a reload mid-fight finds it spent and fights as usual, and the result posts exactly once', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const fetchDaily = dailyModule.fetchDaily, inserts: Record<string, unknown>[] = [];
+  dailyModule.fetchDaily = async () => ({ day: '2026-09-22', number: 0, seed: 5 }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  session.db = { from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }) } as never; session.userId = 'user-7';
+  try {
+    const a = boot({}, undefined, {}, '?opponent=veteran&daily=1');
+    await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
+    assert.equal(a.element('replay-banner').textContent, 'Daily #0 · the Veteran');
+    assert.deepEqual(JSON.parse(a.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: false }, 'the attempt is spent at the start, before any result');
+    // The frustrated reload mid-fight: same device, same day, no result yet — the day is spent, the page fights as usual, nothing posts.
+    const b = boot({}, undefined, { 'frankendom.daily.v1': a.storage.getItem('frankendom.daily.v1')! }, '?opponent=veteran&daily=1');
+    await settle(() => /^Daily #0/.test(b.element('replay-banner').textContent));
+    assert.equal(b.element('replay-banner').textContent, 'Daily #0 · today\'s attempt is spent');
+    b.tick(); b.key('KeyF'); for (let i = 0; i < 6000 && !b.rendered.finish; i++) b.tick();
+    assert.ok(b.rendered.finish, 'the ordinary fight ends'); await new Promise((r) => setTimeout(r, 40));
+    assert.equal(inserts.length, 0, 'a spent day posts nothing');
+    assert.deepEqual(JSON.parse(b.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: false }, 'the reload changed nothing');
+    // The live attempt ends: one post, then the device says posted; a second death on the same page cannot post again.
+    a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish, 'the daily fight ends');
+    await settle(() => /Posted|Not posted/.test(a.element('share-status').textContent));
+    assert.equal(a.element('share-status').textContent, 'Posted to today\'s board.');
+    assert.equal(inserts.length, 1); assert.equal(inserts[0].day, '2026-09-22'); assert.equal(inserts[0].user_id, 'user-7'); assert.equal(inserts[0].outcome, 'died'); assert.equal(inserts[0].number, 0);
+    assert.deepEqual(JSON.parse(a.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: true, outcome: 'died', ticks: inserts[0].ticks });
+    a.element('reset-button').dispatchEvent(new Event('click')); a.tick(); a.key('KeyF'); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick();
+    assert.ok(a.rendered.finish); await new Promise((r) => setTimeout(r, 40));
+    assert.equal(inserts.length, 1, 'the rematch after the daily is practice: no second post');
+  } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; session.db = null; session.userId = null; }
 });
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();

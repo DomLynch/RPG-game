@@ -1527,6 +1527,8 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 /* The last fight's autopsy under an opponent's row in the journal's Stats tab: a quiet serif sub-line that belongs to the row above. */
 dialog .scorecard-table tr:has(+ .autopsy-row) td { border-bottom: 0; padding-bottom: 2px; }
 dialog .scorecard-table .autopsy-row td { padding: 0 4px 9px; text-align: left; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); border-bottom: 1px solid var(--jl); font-variant-numeric: normal; }
+.daily-board { list-style: none; margin: 8px 0 0; padding: 0; font: 13px/1.4 Arial; color: #e9ddc5; }   /* the daily warden's board (src/daily.ts): five lines; Web design draws the real board */
+.daily-board li[data-verified='false'] { opacity: .55; }
 .share-status {
   display: block;
   color: #e9ddc5;
