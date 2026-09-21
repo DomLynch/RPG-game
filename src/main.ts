@@ -239,6 +239,11 @@ function renderScorecard() {
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debug;
 }
+// The journal's test tools (finisher override, damage numbers, tempo, combat debug) are for admins: ?debug reveals them for the
+// release checks, and account.ts reveals them for a signed-in account on the admins roster. Opponent choice stays for everyone.
+const testTools = element('test-tools');
+if (debug) testTools.dataset.debug = 'true';
+testTools.hidden = !debug;
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard();

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile } from './profile.ts';
-import { readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
 
 export async function mountAccount(url: string, key: string) {
@@ -12,7 +12,10 @@ export async function mountAccount(url: string, key: string) {
     auth: { flowType: 'pkce', detectSessionInUrl: false, storageKey: 'frankendom.auth.v1' },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(10000)]) }) },
   });
+  const tools = get('test-tools');
   let userId: string | null = null, saved: CloudProfile | null = null, generation = 0, busy = true;
+  // Test tools follow the admins roster; ?debug (main.ts) keeps them open for the release checks whatever the account says.
+  const showTools = (admin: boolean) => { tools.dataset.admin = String(admin); tools.hidden = !admin && tools.dataset.debug !== 'true'; };
   function render() {
     login.hidden = !!userId; logout.hidden = save.hidden = restore.hidden = !userId;
     for (const button of [login, logout, save, restore, retry]) button.disabled = busy;
@@ -33,6 +36,10 @@ export async function mountAccount(url: string, key: string) {
       const result = userId ? await readFighter(db, userId) : null;
       if (turn !== generation) return;
       saved = result;
+      // A failed roster read means no tools this visit, never a failed account: the fighter save is unaffected.
+      const admin = userId ? await readAdmin(db, userId).catch(() => false) : false;
+      if (turn !== generation) return;
+      showTools(admin);
       status.textContent = saved ? `Cloud fighter: ${saved.display_name}. Load it here, or replace it with this device’s fighter.`
         : userId ? 'Save your fighter name, chosen opponent and career marks to this account.' : 'Sign in to keep your fighter name, opponent and career marks across devices.';
     } catch {
