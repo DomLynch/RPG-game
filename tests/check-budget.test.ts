@@ -75,13 +75,30 @@ test('the per-fight figure is the shell, one audio format per sound, hero, every
   } finally { f.cleanup(); }
 });
 
-test('a GLB that is neither a fighter nor a prop, or a texture a GLB references but dist lacks, fails the gate', async () => {
+test('a GLB that is none of fighter, arena prop, loot or player-equip weapon, or a texture a GLB references but dist lacks, fails the gate', async () => {
   const f = fixture();
   try {
     writeFileSync(join(f.dist, 'assets/mystery-MMMMMMMM.glb'), glb([]));
-    await assert.rejects(measure(f.dist, f.src), /neither a fighter nor an arena prop.*mystery-MMMMMMMM\.glb/);
+    await assert.rejects(measure(f.dist, f.src), /none of fighter, arena prop, loot or player-equipped weapon.*mystery-MMMMMMMM\.glb/);
     rmSync(join(f.dist, 'assets/mystery-MMMMMMMM.glb'));
     rmSync(join(f.dist, 'assets/textures/c.jpg'));
     await assert.rejects(measure(f.dist, f.src), /goblin-GGGGGGGG\.glb references textures\/c\.jpg/);
+  } finally { f.cleanup(); }
+});
+
+// A player-equip GLB (weapons lane, 2026-09-21): once Combat's import lands, its built stem must be recognised, not thrown as
+// unknown — it is worn only when equipped, so it counts toward the whole-of-dist cap but never the mandatory per-fight download.
+test('a player-equip GLB (src/assets/weapons/player) is recognised, not thrown as unknown, and excluded from the per-fight sum', async () => {
+  const f = fixture();
+  try {
+    const before = await measure(f.dist, f.src);
+    mkdirSync(join(f.src, 'assets/weapons/player'), { recursive: true });
+    writeFileSync(join(f.src, 'assets/weapons/player/cleaver.glb'), '');
+    const equip = glb([]);
+    writeFileSync(join(f.dist, 'assets/cleaver-EQUIPPPP.glb'), equip);
+    const after = await measure(f.dist, f.src);
+    assert.deepEqual(after.fights, before.fights, 'no fighter/opponent pairing changed');
+    assert.equal(after.fight, before.fight, 'the equip GLB never rides the mandatory per-fight download');
+    assert.equal(after.total, before.total + gz(equip), 'it still counts toward the whole-of-dist storage cap');
   } finally { f.cleanup(); }
 });
