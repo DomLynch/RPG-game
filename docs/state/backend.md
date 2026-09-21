@@ -156,8 +156,8 @@ Supabase pooler as `frankendom_verifier.rxbewmzmovelckzoosss`.
 5. Unit shape: `frankendom-verify-daily.service` is a `oneshot` running `node scripts/verify-daily.mjs` with that env file, logging to
    `/var/log/frankendom-verify-daily.log`; `frankendom-verify-daily.timer` fires it every 2 minutes (`OnBootSec=2min`,
    `OnUnitActiveSec=2min`). `node scripts/verify-daily.mjs --dry` replays without writing; `--recheck` re-sweeps refused rows.
-4. IN PROGRESS — Dev/Deploy's deploy #72 (`bca49b9`) is running now, shipping `verify-daily.mjs` + unit files and arming the timer
-   (their report: the env file already exists at 600, so `deploy.sh`'s guard should arm it — not yet independently confirmed here).
+4. DONE per Dev/Deploy's report (VPS state, not checkable by this lane — no VPS/SSH access in this lane's tools): deploy #72
+   (`bca49b9`) is live, `frankendom-verify-daily.timer` confirmed active+enabled via their own `systemctl` check.
 5. Unit shape (reference, unchanged): `frankendom-verify-daily.service` is a `oneshot` running `node scripts/verify-daily.mjs` with
    that env file, logging to `/var/log/frankendom-verify-daily.log`; `frankendom-verify-daily.timer` fires it every 2 minutes.
 6. OPEN — waiting on Dev/Deploy's promised first-sweep receipt, then this lane confirms independently: a `daily_results` row moves
