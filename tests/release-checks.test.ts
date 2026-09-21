@@ -18,11 +18,18 @@ function repo(commands: string[][]) {
   execFileSync('git', ['-C', root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init']);
   mkdirSync(join(root, 'scripts'));
   // a script that sleeps, and one that also declares a fixed port
-  writeFileSync(join(root, 'scripts', 'sleep.mjs'), 'const ms = Number(process.argv[2]); setTimeout(() => process.exit(Number(process.argv[3] || 0)), ms);\n');
-  writeFileSync(join(root, 'scripts', 'fixed.mjs'), '// strictPort: true\nconst ms = Number(process.argv[2]); setTimeout(() => process.exit(0), ms);\n');
+  // Each mock logs its own start/end so a test can prove overlap (or its absence) directly, independent of machine load.
+  const log = "import { appendFileSync } from 'node:fs'; const ms = Number(process.argv[2]), t0 = Date.now(); setTimeout(() => { appendFileSync('spans.log', `${t0} ${Date.now()}\\n`); process.exit(Number(process.argv[3] || 0)); }, ms);\n";
+  writeFileSync(join(root, 'scripts', 'sleep.mjs'), log);
+  writeFileSync(join(root, 'scripts', 'fixed.mjs'), '// strictPort: true\n' + log);
   writeFileSync(join(root, '.quality-gate.json'), JSON.stringify({ commands: [['true']], release_commands: commands }));
   return root;
 }
+// The most checks alive at once, from the spans the mocks logged.
+const maxOverlap = (root: string) => {
+  const spans = readFileSync(join(root, 'spans.log'), 'utf8').trim().split('\n').map(l => l.split(' ').map(Number) as [number, number]);
+  return Math.max(...spans.map(([a, b]) => spans.filter(([c, d]) => c < b && a < d).length));
+};
 
 const run = (root: string, env: Record<string, string> = {}) =>
   spawnSync(process.execPath, [runner, root], { encoding: 'utf8', env: { ...process.env, ...env } });
@@ -37,9 +44,11 @@ test('independent checks run concurrently; fixed-port checks run alone; receipt 
   const result = run(root, { RELEASE_CHECK_CONCURRENCY: '6' });
   const wall = (Date.now() - started) / 1000;
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  // Parallelism is proved by beating the serial floor (6x700 + 2x300 = 4.8 s before any startup), not by an absolute wall time: on a loaded
-  // MacBook (load 41, 2026-09-21) the eight node startups alone pushed the old 3.5 s bound to 3.7–4.2 s while the checks still overlapped.
+  // Concurrency is proved two ways, neither an absolute wall time (on a loaded MacBook — load 41, 2026-09-21 — eight node startups pushed
+  // the old 3.5 s bound to 3.7–4.2 s while the checks still overlapped): the run beats the 4.8 s serial sleep floor, and the mocks' own
+  // spans show several alive at once.
   assert.ok(wall < 4.8, `6x700ms in parallel with 2x300ms fixed-port overlapping must beat the 4.8 s serial floor, took ${wall}s`);
+  assert.ok(maxOverlap(root) >= 4, `checks overlapped: at most ${maxOverlap(root)} alive at once`);
   assert.match(result.stdout, /8 total, 0 trusted from CI, 8 to run, concurrency 6, 2 fixed-port \(one at a time\)/);
   assert.ok(existsSync(join(root, 'artifacts', 'release-checks.json')));
   const written = JSON.parse(readFileSync(join(root, 'artifacts', 'release-checks.json'), 'utf8'));
@@ -64,6 +73,7 @@ test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
   const result = run(root, { RELEASE_CHECK_CONCURRENCY: '1' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.ok((Date.now() - started) / 1000 >= 0.8, 'serial: sum of durations');
+  assert.equal(maxOverlap(root), 1, 'serial: never two checks alive at once');
 });
 
 test('longest checks from the previous receipt start first; unknown checks sit at the median', () => {
