@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { bladePathsByRig } from '../src/blade-paths.ts';
 import { bladeFrames, bladePose } from '../src/blade.ts';
 import { createFighter, opponentFighter } from '../src/duel.ts';
-import { OPPONENTS, PLAYER_WEAPONS, WEAPONS } from '../src/moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, WEAPONS, type WeaponId } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 import { TARGET } from '../src/sim.ts';
 
@@ -18,7 +18,7 @@ test('blade rig pin: every opponent (held ones too) and every weapon the player 
   for (const [who, rig, weapon] of pairs()) {
     const table = bladePathsByRig[rig]?.[weapon];
     assert.ok(table, `${who}: ${weapon} has no table on the ${rig} rig`);
-    for (const kind of Object.keys(WEAPONS[weapon].paths)) {
+    for (const kind of Object.keys(WEAPONS[weapon as WeaponId].paths)) {
       const frames = bladeFrames(rig, weapon, kind);
       assert.ok(frames.length > 1 && frames.every(f => f.length === 6), `${who}: ${weapon} ${kind} on ${rig} is a sampled path`);
     }
