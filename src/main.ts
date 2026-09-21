@@ -318,6 +318,7 @@ resetButton.addEventListener('click', () => {
     location.reload();
     return;
   } // the next fighter is another rig: a fresh page loads it
+  daily = null;   // the daily's one attempt is over: the rematch is practice and never posts
   clearInput();
   recordRematch(trial);
   saveTrial(storage, trial);
