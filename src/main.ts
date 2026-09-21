@@ -12,7 +12,7 @@ import './style.css';
 import { wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
-import { dropFor, lootName, store } from './loot.ts';
+import { dropFor, lootName, recordTaken, store, type LootId } from './loot.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { readOpponent } from './ai.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailyBoard, loadDaily, postDaily, saveDaily, type DailyFight } from './daily.ts';
@@ -185,6 +185,7 @@ let difficulty: keyof typeof PROFILES = 'normal',
 const BUILD = document.documentElement?.dataset?.release || 'dev';
 const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, weapon: playerWeapon, profile: difficulty, seed: matchSeed });
 let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRecord: FightRecord | null = null;
+let lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
 // Kill links (brief 3, second slice): `?replay=<record>` plays a shared fight back — the same seed, warden profile and intents, so
 // the viewer watches exactly what happened — with the buttons asleep; afterwards "Avenge him" starts a live fight against the
 // same warden and seed, practice only (practiceOnly: no ladder step, no mark, no scorecard or trial line). Share on the death
@@ -310,7 +311,7 @@ resetButton.addEventListener('click', () => {
   if (replay) {   // Avenge him: the same warden and seed, live, practice only
     practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -331,7 +332,7 @@ resetButton.addEventListener('click', () => {
   practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
-  frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null);
+  frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null;
   state = previous = practice.fighter;
   view.recenter();
   canvas.focus();
@@ -344,7 +345,7 @@ shareButton.addEventListener('click', async () => {
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
     // A signed-in fighter's link carries a short id (the record is stored); a guest's, or a store that refused, carries the record itself.
     let url: string | null = null;
-    if (session?.db && session.userId) { try { url = shortLink(location.origin, lastRecord.opponent, await publishRecord(session.db, session.userId, lastRecord)); } catch { url = null; } }
+    if (session?.db && session.userId) { try { const id = await publishRecord(session.db, session.userId, lastRecord); url = shortLink(location.origin, lastRecord.opponent, id); if (lastDrop && profile.loot) { profile.loot = recordTaken(profile.loot, lastDrop, id); persist(); } } catch { url = null; } }
     if (!url) {
       const link = await shareUrl(lastRecord, location.origin);
       if ('tooLong' in link) { say('This fight is too long to share as a link; sign in to share it by id.'); return; }
@@ -370,7 +371,7 @@ if (replayText || sharedId) {
     if (record.opponent !== opponent.id) throw Error('the link names another opponent');
     matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
     recorder = null; recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
     replay = { record, cursor: 0 }; shareButton.hidden = true; say(null);
     banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
     updateHud();
@@ -389,7 +390,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Warden: normal';
     saveDaily(storage, { day: fight.day, started: true, submitted: false });
     recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); updateHud();
   }).catch((error: unknown) => { banner(`No daily warden: ${error instanceof Error ? error.message : String(error)}`); });
 }
@@ -720,7 +721,8 @@ function frame(now: number) {
               // trophy rack (nothing is lost) and the journal wears it. Web design's Wear / Store / Leave selector replaces this line when it lands.
               const drop = dropFor(opponent.id, marksOf(profile), profile.loot?.owned ?? []);
               awardMark(profile);   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
-              if (drop) { profile.loot = store(profile.loot, drop); showLootDrop(`Taken: ${lootName(drop, ROSTER[opponent.id].name)}. Wear it from the journal.`); }
+              lastDrop = drop;
+              if (drop) { profile.loot = store(profile.loot, drop, { opponent: opponent.id, attempt: scorecard.rows[opponent.id]?.fights ?? 1, healthLeft: Math.max(0, Math.round(practice.playerHealth)), recordId: null, day: new Date().toISOString().slice(0, 10) }); showLootDrop(`Taken: ${lootName(drop, ROSTER[opponent.id].name)}. Wear it from the journal.`); }
               persist();
             }
           }

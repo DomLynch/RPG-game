@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
-import { LOCKERS, LOOT_IDS, PAPERDOLL, cleanLoot, dropFor, emptyLoot, isLootId, lootName, mergeLoot, paperdollOf, slotOf, store, subRank, unwear, wear } from '../src/loot.ts';
+import { LOCKERS, LOOT_IDS, PAPERDOLL, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear } from '../src/loot.ts';
 
 // The draws of src/assets/loot.glb: `<opponent>.<slot>.<material>` with userData { opponent, slot, layer }.
 function lootDraws(): { id: string; slot: string; opponent: string; layer: string }[] {
@@ -37,4 +37,21 @@ test('loot: a saved record is cleaned — known ids only, no duplicates, worn pi
   assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } }, { owned: ['nightborn.Boots'], equipped: {} }), { owned: ['veteran.Helmet', 'nightborn.Boots'], equipped: { head: 'veteran.Helmet' } }, 'the union of both, the device\'s worn set when the cloud has none');
   assert.deepEqual(mergeLoot(undefined, { owned: ['nightborn.Boots'], equipped: { feet: 'nightborn.Boots' } }), { owned: ['nightborn.Boots'], equipped: { feet: 'nightborn.Boots' } });
   assert.equal(lootName('veteran.Helmet', 'the Veteran'), 'the Veteran\'s helmet');
+});
+
+test('loot: provenance is written once at the drop, cleaned like the rest, its record id fills once from null, and a merge keeps it', () => {
+  const p = { opponent: 'veteran' as const, attempt: 5, healthLeft: 12, recordId: null, day: '2026-09-22' };
+  let loot = store(undefined, 'veteran.Helmet', p);
+  assert.deepEqual(loot, { owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': p } });
+  assert.deepEqual(store(loot, 'veteran.Helmet', { ...p, attempt: 9 }), loot, 'a second drop of an owned piece changes nothing');
+  loot = recordTaken(loot, 'veteran.Helmet', 'Ab3_-9xZ');
+  assert.equal(loot.taken!['veteran.Helmet']!.recordId, 'Ab3_-9xZ');
+  assert.deepEqual(recordTaken(loot, 'veteran.Helmet', 'ZZZZZZZZ'), loot, 'the record id is written once');
+  assert.deepEqual(recordTaken(loot, 'veteran.Crest', 'Ab3_-9xZ'), loot, 'no provenance, nothing to fill');
+  assert.deepEqual(cleanLoot(JSON.parse(JSON.stringify(loot))), loot, 'a saved record round-trips');
+  assert.deepEqual(cleanLoot({ owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': { ...p, attempt: 0 } } }), { owned: ['veteran.Helmet'], equipped: {} }, 'a bad attempt count drops the provenance, never the piece');
+  assert.deepEqual(cleanLoot({ owned: [], equipped: {}, taken: { 'veteran.Helmet': p } }), emptyLoot(), 'provenance for a piece not owned is dropped');
+  assert.equal(cleanProvenance({ ...p, recordId: 'short' }), null); assert.equal(cleanProvenance({ ...p, day: 'yesterday' }), null); assert.equal(cleanProvenance({ ...p, opponent: 'nobody' }), null);
+  assert.deepEqual(mergeLoot({ owned: ['veteran.Helmet'], equipped: {}, taken: { 'veteran.Helmet': { ...p, recordId: 'Ab3_-9xZ' } } }, { owned: ['veteran.Helmet', 'nightborn.Boots'], equipped: {}, taken: { 'veteran.Helmet': p, 'nightborn.Boots': { ...p, opponent: 'nightborn' } } }).taken,
+    { 'veteran.Helmet': { ...p, recordId: 'Ab3_-9xZ' }, 'nightborn.Boots': { ...p, opponent: 'nightborn' } }, 'the device\'s filled id wins, the cloud\'s other pieces are kept');
 });

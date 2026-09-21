@@ -3,14 +3,17 @@
 // career sub-rank drops on a win, never a duplicate; nothing is ever lost (the trophy rack keeps everything owned). The paperdoll is the
 // six armour slots plus the two hands; the beta opens one locker and greys the rest. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
-import type { OpponentId } from './roster.ts';
+import { isOpponentId, type OpponentId } from './roster.ts';
 
 export const LOOT_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'] as const;   // the file's slots (userData.slot)
 export type LootSlot = (typeof LOOT_SLOTS)[number];
 export const PAPERDOLL = { head: ['Helmet', 'Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: [], off: [] } as const satisfies Record<string, readonly LootSlot[]>;
 export type Paperdoll = keyof typeof PAPERDOLL;
 export type LootId = `${OpponentId}.${LootSlot}`;
-export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>> };
+// Provenance (Strategy 2026-09-21): where a piece came from, written once at the drop and never edited; the record's short id fills once
+// from null when that fight is published (a Share happens after the drop). Cosmetic and historical: the paperdoll reads it, nothing else.
+export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string };
+export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; taken?: Partial<Record<LootId, Provenance>> };
 export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locker; lockers 2–6 greyed, no code behind them
 
 // The pieces in loot.glb by opponent, in drop order (tests/loot-data.test.ts pins this against the file's draws). An opponent without
@@ -49,11 +52,23 @@ export function cleanLoot(value: unknown): Loot {
   const owned = Array.isArray(raw.owned) ? [...new Set(raw.owned.filter(isLootId))] : [];
   const equipped: Loot['equipped'] = {};
   if (raw.equipped && typeof raw.equipped === 'object') for (const [key, id] of Object.entries(raw.equipped)) if (key in PAPERDOLL && isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
-  return { owned, equipped };
+  const taken: NonNullable<Loot['taken']> = {};
+  if (raw.taken && typeof raw.taken === 'object') for (const [id, p] of Object.entries(raw.taken)) if (isLootId(id) && owned.includes(id) && cleanProvenance(p)) taken[id] = cleanProvenance(p)!;
+  return Object.keys(taken).length ? { owned, equipped, taken } : { owned, equipped };
+}
+const DAY = /^\d{4}-\d{2}-\d{2}$/, SHORT_ID = /^[A-Za-z0-9_-]{8}$/;
+export function cleanProvenance(value: unknown): Provenance | null {
+  const p = value as Partial<Provenance> | null;
+  if (!p || typeof p !== 'object' || !isOpponentId(p.opponent) || !Number.isSafeInteger(p.attempt) || p.attempt! < 1 || !Number.isSafeInteger(p.healthLeft) || p.healthLeft! < 0 || p.healthLeft! > 1000
+    || !(p.recordId === null || (typeof p.recordId === 'string' && SHORT_ID.test(p.recordId))) || typeof p.day !== 'string' || !DAY.test(p.day)) return null;
+  return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day };
 }
 export const emptyLoot = (): Loot => ({ owned: [], equipped: {} });
-export const store = (loot: Loot | undefined, id: LootId): Loot => { const l = loot ?? emptyLoot(); return l.owned.includes(id) ? l : { ...l, owned: [...l.owned, id] }; };
+// A new piece joins the rack with its provenance; a piece already owned is left exactly as it was (written once).
+export const store = (loot: Loot | undefined, id: LootId, taken?: Provenance): Loot => { const l = loot ?? emptyLoot(); return l.owned.includes(id) ? l : { ...l, owned: [...l.owned, id], ...(taken ? { taken: { ...l.taken, [id]: taken } } : {}) }; };
+// The fight's short id, once it exists: fills a null recordId and nothing else.
+export const recordTaken = (loot: Loot, id: LootId, recordId: string): Loot => (loot.taken?.[id] && loot.taken[id]!.recordId === null ? { ...loot, taken: { ...loot.taken, [id]: { ...loot.taken[id]!, recordId } } } : loot);
 export const wear = (loot: Loot, id: LootId): Loot => (loot.owned.includes(id) ? { ...loot, equipped: { ...loot.equipped, [paperdollOf(slotOf(id))]: id } } : loot);
 export const unwear = (loot: Loot, key: Paperdoll): Loot => { const equipped = { ...loot.equipped }; delete equipped[key]; return { ...loot, equipped }; };
 // A device record and a cloud record together: nothing is lost (owned is the union); the cloud's worn set wins when it has one.
-export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {} });
+export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {}, taken: { ...cloud.taken, ...device?.taken } });
