@@ -1,6 +1,10 @@
 import { createInput } from './input.ts';
+import type { WeaponId } from './moves.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
+import { api } from './api.ts';
+import { session } from './session.ts';
+import { fetchSharedRecord, publishRecord, shortLink, shortParam } from './share-store.ts';
 import { replayParam, shareUrl, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
@@ -151,8 +155,9 @@ if (opponent.id !== 'veteran') {
   label.textContent = `THE ${name.toUpperCase()}`;
   label.dataset.mobile = name;
 }
+let playerWeapon: WeaponId = 'longsword';   // the player's weapon (moves.ts PLAYER_WEAPONS): the longsword until the loot slice wires the equipped set; a replay takes the record's
 let matchSeed = 731,
-  practice = initialPractice(matchSeed, opponent),
+  practice = initialPractice(matchSeed, opponent, playerWeapon),
   state = practice.fighter,
   previous = state,
   accumulator = 0,
@@ -168,7 +173,7 @@ let difficulty: keyof typeof PROFILES = 'normal',
 // build id is <html data-release>, 'dev' until the deploy stamps the revision there (a replay must run on the same rules; the
 // harness has no document element). A difficulty change mid-fight drops the recorder: that fight is no longer replayable from one profile.
 const BUILD = document.documentElement?.dataset?.release || 'dev';
-const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, profile: difficulty, seed: matchSeed });
+const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, weapon: playerWeapon, profile: difficulty, seed: matchSeed });
 let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRecord: FightRecord | null = null;
 // Kill links (brief 3, second slice): `?replay=<record>` plays a shared fight back — the same seed, warden profile and intents, so
 // the viewer watches exactly what happened — with the buttons asleep; afterwards "Avenge him" starts a live fight against the
@@ -290,7 +295,7 @@ resetButton.addEventListener('click', () => {
   if (replay) {   // Avenge him: the same warden and seed, live, practice only
     practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent); recorder = startRecorder(); frameEvents = []; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -307,7 +312,7 @@ resetButton.addEventListener('click', () => {
   recorded = false;
   activeMs = 0;
   matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0;
-  practice = initialPractice(matchSeed, opponent);
+  practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
   frameEvents = [];
@@ -321,25 +326,33 @@ shareButton.addEventListener('click', async () => {
   try {
     const check = verifyRecord(lastRecord);
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
-    const link = await shareUrl(lastRecord, location.origin);
-    if ('tooLong' in link) { say('This fight is too long to share as a link yet.'); return; }
+    // A signed-in fighter's link carries a short id (the record is stored); a guest's, or a store that refused, carries the record itself.
+    let url: string | null = null;
+    if (session?.db && session.userId) { try { url = shortLink(location.origin, lastRecord.opponent, await publishRecord(session.db, session.userId, lastRecord)); } catch { url = null; } }
+    if (!url) {
+      const link = await shareUrl(lastRecord, location.origin);
+      if ('tooLong' in link) { say('This fight is too long to share as a link; sign in to share it by id.'); return; }
+      url = link.url;
+    }
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
-    if (nav?.share) { try { await nav.share({ url: link.url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
-    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(link.url); say('Link copied.'); return; }
-    say(link.url);
+    if (nav?.share) { try { await nav.share({ url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(url); say('Link copied.'); return; }
+    say(url);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
   finally { shareButton.disabled = false; }
 });
 // A shared link: decode the record, put the fight on its seed and warden profile, hide the welcome (a viewer needs no name) and
 // let the frame loop feed the recorded intents. A link for another opponent than the page booted is refused rather than mis-played.
-const replayText = replayParam(window.location?.search ?? '');
-if (replayText) {
+// The link carries the record (`replay=`, a guest's share) or a short id (`r=`, a signed-in fighter's share, read from the fight store).
+const replayText = replayParam(window.location?.search ?? ''), sharedId = shortParam(window.location?.search ?? '');
+if (replayText || sharedId) {
   welcome.hidden = true; banner('Loading the fight…');
-  void decodeRecord(replayText).then((record) => {
+  const text = replayText ? Promise.resolve(replayText) : api ? fetchSharedRecord(api, sharedId!) : Promise.reject(Error('this build has no fight store'));
+  void text.then(decodeRecord).then((record) => {
     if (record.opponent !== opponent.id) throw Error('the link names another opponent');
-    matchSeed = record.seed; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
+    matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
     recorder = null; recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent); frameEvents = []; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; state = previous = practice.fighter;
     replay = { record, cursor: 0 }; shareButton.hidden = true; say(null);
     banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
     updateHud();

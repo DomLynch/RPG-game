@@ -7,7 +7,7 @@ import { initialPractice, stepPractice, type Practice } from './combat.ts';
 import { OPPONENTS } from './moves.ts';
 import { encodeRecord, type FightRecord } from './record.ts';
 
-export const MAX_SHARE_CHARS = 2000;   // a link that fits every share sheet and SMS; longer fights wait for the short-id route (Dev/Deploy)
+export const MAX_SHARE_CHARS = 4096;   // a guest's link carries the record itself: 4 KB rides every share sheet and SMS; a signed-in fighter's link carries a short id instead (share-store.ts)
 
 export type Verification = { ok: true; practice: Practice } | { ok: false; reason: string; practice: Practice | null };
 
@@ -15,7 +15,7 @@ export type Verification = { ok: true; practice: Practice } | { ok: false; reaso
 export function verifyRecord(record: FightRecord): Verification {
   const opponent = OPPONENTS[record.opponent], profile = opponent?.profiles[record.profile];   // the warden's per-opponent profile, exactly as main.ts steps it
   if (!opponent || !profile) return { ok: false, reason: 'unknown opponent or warden profile', practice: null };
-  let practice = initialPractice(record.seed, opponent);
+  let practice = initialPractice(record.seed, opponent, record.weapon);
   for (let i = 0; i < record.intents.length; i++) {
     if (practice.finish) return { ok: false, reason: `the fight ended at tick ${practice.duel.tick}, before the record's last tick ${record.ticks}`, practice };
     practice = stepPractice(practice, record.intents[i], profile);

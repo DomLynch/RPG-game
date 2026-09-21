@@ -1172,8 +1172,8 @@ dialog>p {
     border-radius: 50%;
     padding: 0 !important;
     min-height: 0 !important;
-    background: #17232952;
-    border: 1px solid #f0e3c94d;
+    background: #b7a27680;   /* owner 2026-09-21: every button wears the Slash button's sand tint (was a dark #17232952 for all but Slash) */
+    border: 1px solid #e9d9b3a6;
     box-shadow:
       inset 0 0 0 3px #f0e3c912,0 1px 3px #0003;
     color: #f4ead8;
@@ -1216,21 +1216,14 @@ dialog>p {
     text-shadow: 0 1px 2px #000a;
   }
   .actions[data-gestures=cluster] button:active{
-    background: #f0e3c94a;
+    background: #d9c69ac0;
     transform: scale(.95);
   }
   .actions[data-gestures=cluster] button[aria-disabled=true]{
     opacity: .5;
   }
-  .actions[data-gestures=cluster] .primary{
-    background: #b7a27680;
-    border-color: #e9d9b3a6;
-  }
-  .actions[data-gestures=cluster] .primary:active{
-    background: #d9c69ac0;
-  }
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true]{
-    background: #c6af7873;
+    background: #d9c69ac0;   /* held: the pressed tint, brighter than the cluster's sand */
     border-color: #f0e3c9;
   }
   .actions[data-gestures=cluster] #thrust-button:not([hidden]) {
@@ -1260,11 +1253,11 @@ dialog>p {
     top: 106px;
     border-radius: 50%;
     font-size: 0;
-    background: #17232952;
+    background: #b7a27680;   /* restated here: the legacy #kick-button rule below (id specificity) would otherwise darken it */
   } /* 44 px: the platform minimum for the innermost target */
   .actions[data-gestures=cluster] #kick-button[data-reach=true]{
-    background: #b7a27666;
-    border-color: #e9d9b3a6;
+    background: #d9c69ab3;   /* in reach: brighter than the sand the whole cluster now wears */
+    border-color: #f0e3c9cc;
   }
   .actions[data-gestures=cluster] #dodge-button {
     width: 56px;

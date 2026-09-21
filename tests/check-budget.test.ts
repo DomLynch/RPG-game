@@ -64,7 +64,7 @@ test('the per-fight figure is the shell, one audio format per sound, hero, every
     assert.equal(m.props, g('assets/shield-SSSSSSSS.glb'), 'props are counted in full, never as opponent candidates');
     assert.equal(m.sharedTextures, g('assets/textures/a.jpg') + g('assets/textures/b.jpg'), 'hero + prop textures, each once');
     assert.equal(m.opponent, 'goblin-GGGGGGGG.glb', 'worst pairing is by GLB plus its own textures, not GLB size alone');
-    assert.ok(!m.fights.some(x => x.opponent === 'loot'), 'loot.glb is not a fight');
+    assert.ok(!m.fights.some((x: { opponent: string }) => x.opponent === 'loot'), 'loot.glb is not a fight');
     assert.equal(m.loot, g('assets/loot-LLLLLLLL.glb') + g('assets/textures/c.jpg'), 'loot is its GLB plus the textures the base does not already fetch');
     assert.equal(m.opponentTextures, g('assets/textures/c.jpg'), 'only the textures the hero and props do not already fetch');
     assert.equal(m.fight, m.shell + m.audio + m.hero + m.props + m.sharedTextures + m.opponentGzip + m.opponentTextures);

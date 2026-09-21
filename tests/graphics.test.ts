@@ -14,6 +14,8 @@ import * as roster from '../src/roster.ts';
 import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
 import * as replay from '../src/replay.ts';
+import * as shareStore from '../src/share-store.ts';
+import { session } from '../src/session.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
 import * as hud from '../src/hud.ts';
@@ -44,7 +46,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -553,7 +555,7 @@ test('kill links: a finished fight offers Share; the link replays the same fight
 test('kill links: a link for another opponent than the page booted, or a broken record, is refused with a banner and no fight is stepped from it', async () => {
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
-  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', profile: 'normal', seed: 5 });
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', profile: 'normal', seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
@@ -563,6 +565,25 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   assert.equal(broken.element('replay-banner').textContent, 'Loading the fight…', 'the link is picked up at boot');
   await settle(() => broken.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(broken.element('replay-banner').textContent, /cannot be played/);
+});
+test('kill links: a signed-in fighter\'s Share stores the record and the link carries the short id; a guest\'s link carries the record; a short link without a fight store is refused', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const fight = () => { const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick(); assert.ok(a.rendered.finish, 'the fight ends'); return a; };
+  const inserts: Record<string, unknown>[] = [];
+  session.db = { from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }) } as never; session.userId = 'user-7';
+  try {
+    const a = fight(); a.element('share-button').dispatchEvent(new Event('click'));
+    await settle(() => /r=|Could not|too long/.test(a.element('share-status').textContent));
+    assert.match(a.element('share-status').textContent, /^https:\/\/frankendom\.com\/\?opponent=veteran&r=[A-Za-z0-9_-]{8}$/, 'the signed-in link carries the id');
+    assert.equal(inserts.length, 1); assert.equal(inserts[0].user_id, 'user-7'); assert.equal(inserts[0].opponent, 'veteran'); assert.equal(inserts[0].record, a.element('debug').dataset.share, 'the stored text is the encoded record');
+  } finally { session.db = null; session.userId = null; }
+  const g = fight(); g.element('share-button').dispatchEvent(new Event('click'));
+  await settle(() => /replay=|Could not|too long/.test(g.element('share-status').textContent));
+  assert.match(g.element('share-status').textContent, /^https:\/\/frankendom\.com\/\?opponent=veteran&replay=[A-Za-z0-9_-]+$/, 'the guest link carries the record');
+  const s = boot({}, undefined, {}, '?opponent=veteran&r=Ab3_-9xZ');
+  assert.equal(s.element('welcome').hidden, true, 'a short link is picked up at boot');
+  await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
+  assert.match(s.element('replay-banner').textContent, /cannot be played: this build has no fight store/);
 });
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();

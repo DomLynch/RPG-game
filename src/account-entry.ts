@@ -1,7 +1,7 @@
 // Guest startup never waits for an account request or downloads the account SDK.
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-if (url && key) {
+import { api } from './api.ts';
+if (api) {
+  const { url, key } = api;
   const panel = document.getElementById('account')!;
   const status = document.getElementById('account-status')!;
   const retry = document.getElementById('account-retry')!;

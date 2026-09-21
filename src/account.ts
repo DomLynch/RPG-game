@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile } from './profile.ts';
 import { readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
+import { session } from './session.ts';
 
 export async function mountAccount(url: string, key: string) {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -12,6 +13,7 @@ export async function mountAccount(url: string, key: string) {
     auth: { flowType: 'pkce', detectSessionInUrl: false, storageKey: 'frankendom.auth.v1' },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(10000)]) }) },
   });
+  session.db = db;   // Share (main.ts) stores a signed-in fighter's record through this client
   const tools = get('test-tools');
   let userId: string | null = null, saved: CloudProfile | null = null, generation = 0, busy = true;
   // Test tools follow the admins roster; ?debug (main.ts) keeps them open for the release checks whatever the account says.
@@ -31,7 +33,7 @@ export async function mountAccount(url: string, key: string) {
       const { data, error } = await db.auth.getSession();
       if (turn !== generation) return;
       if (error) throw error;
-      userId = data.session?.user.id ?? null;
+      userId = data.session?.user.id ?? null; session.userId = userId;
       identity.textContent = userId ? data.session!.user.email ?? 'Signed in' : 'Guest';
       const result = userId ? await readFighter(db, userId) : null;
       if (turn !== generation) return;

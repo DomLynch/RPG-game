@@ -5,13 +5,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { bladePaths, bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { LONGSWORD, MOVES, PATHS, RULES, WEAPONS, weaponOf, type Weapon } from '../src/moves.ts';
+import { LONGSWORD, MOVES, PATHS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
-const duel = (gap: number, weapon: Weapon['id'] = 'longsword'): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready', weapon), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
+const duel = (gap: number, weapon: Weapon['id'] = 'longsword', rig: RigId = 'hero'): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready', weapon, 1, 0, RULES.health, undefined, 1, 1, rig), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
 // Steps n ticks and returns the final duel with every tick's events gathered (stepDuel only carries the current tick's).
 const run = (d: Duel, n: number, a = idle(), b = idle()) => { const events: Duel['events'] = []; for (let i = 0; i < n; i++) { d = stepDuel(d, [a, b]); events.push(...d.events); } return { ...d, events }; };
 
@@ -34,8 +34,8 @@ test('a second weapon with a longer reach resolves contact from its own table: t
   // stretched 0.5 m forward along the thrust so the baked contact really is longer (the sim sweeps the table, not the number).
   const trident: Weapon = { id: 'trident', guard: 'shaft', material: 'bronze', reach: 2.5, moves: { ...MOVES, thrust: { ...MOVES.thrust, reach: 2.5, stamina: 30 } }, paths: PATHS, fight: LONGSWORD.fight };
   const stretched = Object.fromEntries(Object.entries(bladePaths.longsword).map(([k, frames]) => [k, k === 'thrust' ? frames.map(f => [f[0], f[1], f[2] + .5, f[3], f[4], f[5] + .5]) : frames]));
-  const before = { weapon: WEAPONS.trident, paths: bladePaths.trident };
-  WEAPONS.trident = trident; bladePaths.trident = stretched;
+  const before = { weapon: WEAPONS.trident, paths: bladePathsByRig.hero.trident };
+  WEAPONS.trident = trident; bladePathsByRig.hero.trident = stretched;
   try {
     const far = 2.35;   // beyond the longsword thrust's baked reach, inside the stretched trident's
     const sword = run(stepDuel(duel(far, 'longsword'), [act('thrust'), idle()]), MOVES.thrust.windup + MOVES.thrust.active);
@@ -48,7 +48,7 @@ test('a second weapon with a longer reach resolves contact from its own table: t
     const poor = (w: 'longsword' | 'trident') => { const d = duel(1.5, w); d.fighters[0] = { ...d.fighters[0], stamina: 25 }; return legal(d.fighters[0], 'thrust'); };
     assert.equal(poor('longsword'), true); assert.equal(poor('trident'), false);
     assert.equal(weaponOf('trident').reach, 2.5);
-  } finally { WEAPONS.trident = before.weapon; bladePaths.trident = before.paths; }
+  } finally { WEAPONS.trident = before.weapon; bladePathsByRig.hero.trident = before.paths; }
 });
 
 test('contact events name the weapon and its material for the audio lane: Hit, Blocked, Parried and GuardBroken', () => {
@@ -480,7 +480,7 @@ test('the live estoc keeps torso aim through its actual reach: cuts to 2.0 m, he
     const m = ESTOC.moves[move];
     let last = 0;
     for (let cm = 85; cm <= 270; cm += 5) {
-      const events = run(stepDuel(duel(cm / 100, 'estoc'), [act(action), idle()]), m.windup + m.active + 1).events;
+      const events = run(stepDuel(duel(cm / 100, 'estoc', 'nightborn'), [act(action), idle()]), m.windup + m.active + 1).events;
       for (const e of events.filter(e => e.type === 'Hit' && e.actor === 0)) {
         assert.notEqual(e.location, 'head', `${move} at ${cm / 100} m`);
         if (move === 'thrust') assert.equal(e.location, 'torso', 'a thrust earns the torso finisher');
