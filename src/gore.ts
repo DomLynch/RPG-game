@@ -81,6 +81,8 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
 // Wound-site mark + drips: a small dark mark at the wound site with three drips below it, living the four-second wound window
 // (the sim's wound refreshes without stacking — so does the mark: a fresh hit on the same fighter re-arms his decal). One pooled
 // decal per fighter; hidden in 'off' like every blood effect.
+// How far in front of the bone the skin is, per site: the mark must clear the mesh or the body hides it.
+const SKIN: Record<WoundSite, number> = { head: 0.11, torso: 0.16, legs: 0.09 };
 export function createWoundDecals(scene: THREE.Scene, splatTexture: THREE.Texture | null) {
   const wounds = [0, 1].map((side) => {
     const group = new THREE.Group();
@@ -124,17 +126,22 @@ export function createWoundDecals(scene: THREE.Scene, splatTexture: THREE.Textur
       wound.side = side;
       wound.site = site;
     },
-    // The wound-site mark rides the wounded fighter for his four-second window.
-    update(dt: number, bodies: readonly [Body, Body], bloodMode: BloodMode) {
+    // The wound-site mark rides the wounded fighter for his four-second window — on his rig's bone for the site (chest, head,
+    // thigh), pushed out to the skin in the direction he faces, so it sits on the body at every roster height (owner 2026-09-21:
+    // the fixed 1.15 m torso height floated 40 cm above the 0.75 m Goblin and Dwarf chests and hid inside everyone else's).
+    // Before the rigs are in, the old fixed heights stand in.
+    update(dt: number, bodies: readonly [Body, Body], bloodMode: BloodMode, rigs?: Rigs) {
       for (const wound of wounds) {
         if (wound.life > 0) {
           wound.life = Math.max(0, wound.life - dt);
-          const body = wound.side === 1 ? bodies[1] : bodies[0];
-          wound.group.position.set(
-            body.x,
-            wound.site === 'head' ? 1.55 : wound.site === 'legs' ? 0.6 : 1.15,
-            body.z,
-          );
+          const body = wound.side === 1 ? bodies[1] : bodies[0], anchor = wound.side === 1 ? rigs?.opponent.anchor : rigs?.player.anchor;
+          const bone = anchor?.getObjectByName(wound.site === 'head' ? 'Head' : wound.site === 'legs' ? 'thigh_l' : 'spine_02');   // rig bone names (characters.ts): Head, spine_02, thigh_l
+          if (bone) {
+            anchor!.updateWorldMatrix(true, true);
+            bone.getWorldPosition(wound.group.position);
+            if (wound.site === 'legs') wound.group.position.y -= 0.12;   // the thigh bone sits at the hip: the mark hangs on the thigh
+          } else wound.group.position.set(body.x, wound.site === 'head' ? 1.55 : wound.site === 'legs' ? 0.6 : 1.15, body.z);
+          wound.group.position.x += Math.sin(body.heading) * SKIN[wound.site]; wound.group.position.z += Math.cos(body.heading) * SKIN[wound.site];
           wound.group.rotation.set(0, body.heading, 0);
           wound.mark.scale.set(1, 1, 1);
           const fade = Math.min(1, wound.life),

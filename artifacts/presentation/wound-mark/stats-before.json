@@ -1,0 +1,2608 @@
+{
+ "label": "wound-goblin-before",
+ "commit": "ba337f5",
+ "date": "2026-09-21",
+ "block": {
+  "events": [],
+  "cameraShiftPx": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "peakShiftPx": 0,
+  "brightness": [
+   [
+    0,
+    110.94
+   ],
+   [
+    2,
+    110.93
+   ],
+   [
+    5,
+    110.94
+   ],
+   [
+    9,
+    110.94
+   ]
+  ],
+  "probes": [
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.023,
+      "spine_02": 0.751,
+      "spine_01": 0.667,
+      "pelvis": 0.563,
+      "thigh_l": 0.582
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.024,
+      "spine_02": 0.752,
+      "spine_01": 0.668,
+      "pelvis": 0.564,
+      "thigh_l": 0.583
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.025,
+      "spine_02": 0.753,
+      "spine_01": 0.668,
+      "pelvis": 0.564,
+      "thigh_l": 0.583
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.026,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.027,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.752,
+      "spine_01": 0.668,
+      "pelvis": 0.564,
+      "thigh_l": 0.583
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.752,
+      "spine_01": 0.667,
+      "pelvis": 0.564,
+      "thigh_l": 0.582
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.751,
+      "spine_01": 0.667,
+      "pelvis": 0.563,
+      "thigh_l": 0.582
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.75,
+      "spine_01": 0.666,
+      "pelvis": 0.562,
+      "thigh_l": 0.581
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.027,
+      "spine_02": 0.749,
+      "spine_01": 0.665,
+      "pelvis": 0.561,
+      "thigh_l": 0.58
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.026,
+      "spine_02": 0.748,
+      "spine_01": 0.664,
+      "pelvis": 0.56,
+      "thigh_l": 0.579
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.025,
+      "spine_02": 0.747,
+      "spine_01": 0.663,
+      "pelvis": 0.559,
+      "thigh_l": 0.578
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.024,
+      "spine_02": 0.746,
+      "spine_01": 0.662,
+      "pelvis": 0.558,
+      "thigh_l": 0.577
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   }
+  ]
+ },
+ "lightBlock": {
+  "events": [],
+  "cameraShiftPx": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "peakShiftPx": 0,
+  "brightness": [
+   [
+    0,
+    109.46
+   ],
+   [
+    2,
+    109.45
+   ],
+   [
+    5,
+    109.47
+   ],
+   [
+    9,
+    109.48
+   ]
+  ],
+  "probes": [
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.017,
+      "spine_02": 0.747,
+      "spine_01": 0.662,
+      "pelvis": 0.559,
+      "thigh_l": 0.577
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.018,
+      "spine_02": 0.748,
+      "spine_01": 0.664,
+      "pelvis": 0.56,
+      "thigh_l": 0.579
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.019,
+      "spine_02": 0.749,
+      "spine_01": 0.665,
+      "pelvis": 0.561,
+      "thigh_l": 0.58
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.021,
+      "spine_02": 0.75,
+      "spine_01": 0.665,
+      "pelvis": 0.562,
+      "thigh_l": 0.58
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.022,
+      "spine_02": 0.751,
+      "spine_01": 0.666,
+      "pelvis": 0.563,
+      "thigh_l": 0.581
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.023,
+      "spine_02": 0.751,
+      "spine_01": 0.667,
+      "pelvis": 0.563,
+      "thigh_l": 0.582
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.024,
+      "spine_02": 0.752,
+      "spine_01": 0.668,
+      "pelvis": 0.564,
+      "thigh_l": 0.583
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.025,
+      "spine_02": 0.753,
+      "spine_01": 0.668,
+      "pelvis": 0.564,
+      "thigh_l": 0.583
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.026,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.027,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.753,
+      "spine_01": 0.669,
+      "pelvis": 0.565,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.752,
+      "spine_01": 0.668,
+      "pelvis": 0.564,
+      "thigh_l": 0.583
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.752,
+      "spine_01": 0.667,
+      "pelvis": 0.564,
+      "thigh_l": 0.582
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 0.172,
+      "spine_02": 0.119,
+      "spine_01": 0.113,
+      "pelvis": 0.084,
+      "thigh_l": 0.117
+     },
+     "opponent": {
+      "Head": 1.028,
+      "spine_02": 0.751,
+      "spine_01": 0.667,
+      "pelvis": 0.563,
+      "thigh_l": 0.582
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   }
+  ]
+ },
+ "parry": {
+  "events": [],
+  "cameraShiftPx": [
+   0.02,
+   0.05,
+   0.07,
+   0.09,
+   0.1,
+   0.48,
+   0.47,
+   0.46,
+   0.45,
+   0.45,
+   1.82,
+   3.31,
+   4.8,
+   6.31,
+   7.13,
+   7.13
+  ],
+  "peakShiftPx": 15.4,
+  "brightness": [
+   [
+    0,
+    103.3
+   ],
+   [
+    2,
+    103.07
+   ],
+   [
+    5,
+    102.86
+   ],
+   [
+    9,
+    103.01
+   ]
+  ],
+  "probes": [
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.305,
+      "spine_02": 0.923,
+      "spine_01": 0.821,
+      "pelvis": 0.703,
+      "thigh_l": 0.72
+     },
+     "opponent": {
+      "Head": 1.005,
+      "spine_02": 0.734,
+      "spine_01": 0.65,
+      "pelvis": 0.546,
+      "thigh_l": 0.565
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.3,
+      "spine_02": 0.918,
+      "spine_01": 0.816,
+      "pelvis": 0.698,
+      "thigh_l": 0.715
+     },
+     "opponent": {
+      "Head": 1.006,
+      "spine_02": 0.735,
+      "spine_01": 0.65,
+      "pelvis": 0.546,
+      "thigh_l": 0.565
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.296,
+      "spine_02": 0.915,
+      "spine_01": 0.813,
+      "pelvis": 0.695,
+      "thigh_l": 0.712
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.736,
+      "spine_01": 0.651,
+      "pelvis": 0.548,
+      "thigh_l": 0.566
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.293,
+      "spine_02": 0.913,
+      "spine_01": 0.811,
+      "pelvis": 0.693,
+      "thigh_l": 0.71
+     },
+     "opponent": {
+      "Head": 1.009,
+      "spine_02": 0.738,
+      "spine_01": 0.653,
+      "pelvis": 0.549,
+      "thigh_l": 0.568
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.292,
+      "spine_02": 0.911,
+      "spine_01": 0.809,
+      "pelvis": 0.692,
+      "thigh_l": 0.709
+     },
+     "opponent": {
+      "Head": 1.011,
+      "spine_02": 0.74,
+      "spine_01": 0.655,
+      "pelvis": 0.552,
+      "thigh_l": 0.57
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.291,
+      "spine_02": 0.91,
+      "spine_01": 0.808,
+      "pelvis": 0.691,
+      "thigh_l": 0.708
+     },
+     "opponent": {
+      "Head": 1.013,
+      "spine_02": 0.742,
+      "spine_01": 0.658,
+      "pelvis": 0.554,
+      "thigh_l": 0.573
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.29,
+      "spine_02": 0.909,
+      "spine_01": 0.807,
+      "pelvis": 0.69,
+      "thigh_l": 0.707
+     },
+     "opponent": {
+      "Head": 1.017,
+      "spine_02": 0.748,
+      "spine_01": 0.663,
+      "pelvis": 0.56,
+      "thigh_l": 0.578
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.289,
+      "spine_02": 0.909,
+      "spine_01": 0.807,
+      "pelvis": 0.69,
+      "thigh_l": 0.707
+     },
+     "opponent": {
+      "Head": 1.019,
+      "spine_02": 0.749,
+      "spine_01": 0.665,
+      "pelvis": 0.561,
+      "thigh_l": 0.58
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.289,
+      "spine_02": 0.909,
+      "spine_01": 0.807,
+      "pelvis": 0.689,
+      "thigh_l": 0.706
+     },
+     "opponent": {
+      "Head": 1.019,
+      "spine_02": 0.748,
+      "spine_01": 0.664,
+      "pelvis": 0.56,
+      "thigh_l": 0.578
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.289,
+      "spine_02": 0.908,
+      "spine_01": 0.806,
+      "pelvis": 0.689,
+      "thigh_l": 0.706
+     },
+     "opponent": {
+      "Head": 1.019,
+      "spine_02": 0.745,
+      "spine_01": 0.661,
+      "pelvis": 0.557,
+      "thigh_l": 0.575
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.288,
+      "spine_02": 0.908,
+      "spine_01": 0.806,
+      "pelvis": 0.689,
+      "thigh_l": 0.706
+     },
+     "opponent": {
+      "Head": 1.018,
+      "spine_02": 0.741,
+      "spine_01": 0.657,
+      "pelvis": 0.553,
+      "thigh_l": 0.572
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.288,
+      "spine_02": 0.908,
+      "spine_01": 0.806,
+      "pelvis": 0.689,
+      "thigh_l": 0.706
+     },
+     "opponent": {
+      "Head": 1.018,
+      "spine_02": 0.739,
+      "spine_01": 0.655,
+      "pelvis": 0.551,
+      "thigh_l": 0.57
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.288,
+      "spine_02": 0.908,
+      "spine_01": 0.806,
+      "pelvis": 0.689,
+      "thigh_l": 0.706
+     },
+     "opponent": {
+      "Head": 1.019,
+      "spine_02": 0.737,
+      "spine_01": 0.653,
+      "pelvis": 0.549,
+      "thigh_l": 0.568
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.288,
+      "spine_02": 0.908,
+      "spine_01": 0.806,
+      "pelvis": 0.689,
+      "thigh_l": 0.706
+     },
+     "opponent": {
+      "Head": 1.02,
+      "spine_02": 0.735,
+      "spine_01": 0.652,
+      "pelvis": 0.548,
+      "thigh_l": 0.567
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.288,
+      "spine_02": 0.908,
+      "spine_01": 0.806,
+      "pelvis": 0.689,
+      "thigh_l": 0.706
+     },
+     "opponent": {
+      "Head": 1.021,
+      "spine_02": 0.734,
+      "spine_01": 0.651,
+      "pelvis": 0.547,
+      "thigh_l": 0.566
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.288,
+      "spine_02": 0.908,
+      "spine_01": 0.806,
+      "pelvis": 0.689,
+      "thigh_l": 0.706
+     },
+     "opponent": {
+      "Head": 1.022,
+      "spine_02": 0.733,
+      "spine_01": 0.651,
+      "pelvis": 0.547,
+      "thigh_l": 0.566
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   }
+  ]
+ },
+ "heavy": {
+  "events": [
+   "AttackActive:heavy_overhead",
+   "Hit:heavy_overhead",
+   "Staggered"
+  ],
+  "cameraShiftPx": [
+   8.78,
+   8.74,
+   8.71,
+   8.5,
+   8.31,
+   8.17,
+   8.06,
+   7.99,
+   7.95,
+   7.95,
+   7.98,
+   8.05,
+   8.16,
+   8.3,
+   8.47,
+   8.67
+  ],
+  "peakShiftPx": 9.75,
+  "brightness": [
+   [
+    0,
+    102.79
+   ],
+   [
+    2,
+    102.79
+   ],
+   [
+    5,
+    102.94
+   ],
+   [
+    9,
+    103.4
+   ]
+  ],
+  "probes": [
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.346,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.007,
+      "spine_02": 0.736,
+      "spine_01": 0.651,
+      "pelvis": 0.548,
+      "thigh_l": 0.566
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.346,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.007,
+      "spine_02": 0.736,
+      "spine_01": 0.651,
+      "pelvis": 0.548,
+      "thigh_l": 0.566
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.346,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.007,
+      "spine_02": 0.736,
+      "spine_01": 0.651,
+      "pelvis": 0.548,
+      "thigh_l": 0.566
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.346,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.007,
+      "spine_02": 0.736,
+      "spine_01": 0.651,
+      "pelvis": 0.548,
+      "thigh_l": 0.566
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.346,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.007,
+      "spine_02": 0.736,
+      "spine_01": 0.651,
+      "pelvis": 0.548,
+      "thigh_l": 0.566
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.346,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.007,
+      "spine_02": 0.736,
+      "spine_01": 0.652,
+      "pelvis": 0.548,
+      "thigh_l": 0.567
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.043,
+      "spine_02": 0.752,
+      "spine_01": 0.667,
+      "pelvis": 0.564,
+      "thigh_l": 0.584
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.095,
+      "spine_02": 0.776,
+      "spine_01": 0.692,
+      "pelvis": 0.588,
+      "thigh_l": 0.611
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.123,
+      "spine_02": 0.793,
+      "spine_01": 0.708,
+      "pelvis": 0.604,
+      "thigh_l": 0.629
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.348,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.138,
+      "spine_02": 0.803,
+      "spine_01": 0.719,
+      "pelvis": 0.615,
+      "thigh_l": 0.641
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.348,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.146,
+      "spine_02": 0.81,
+      "spine_01": 0.726,
+      "pelvis": 0.622,
+      "thigh_l": 0.649
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.348,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.151,
+      "spine_02": 0.815,
+      "spine_01": 0.73,
+      "pelvis": 0.627,
+      "thigh_l": 0.655
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.35,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.153,
+      "spine_02": 0.818,
+      "spine_01": 0.733,
+      "pelvis": 0.63,
+      "thigh_l": 0.659
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.351,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.154,
+      "spine_02": 0.821,
+      "spine_01": 0.735,
+      "pelvis": 0.633,
+      "thigh_l": 0.662
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.352,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.154,
+      "spine_02": 0.822,
+      "spine_01": 0.737,
+      "pelvis": 0.635,
+      "thigh_l": 0.664
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.353,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.154,
+      "spine_02": 0.823,
+      "spine_01": 0.738,
+      "pelvis": 0.636,
+      "thigh_l": 0.666
+     }
+    },
+    "wound": [
+     0,
+     1.15,
+     -2.52
+    ],
+    "px": [
+     null,
+     null
+    ]
+   }
+  ]
+ },
+ "kill": {
+  "events": [
+   "AttackActive:heavy_overhead",
+   "Killed:heavy_overhead",
+   "Hit:heavy_overhead",
+   "Staggered"
+  ],
+  "cameraShiftPx": [
+   8.76,
+   8.67,
+   8.57,
+   8.25,
+   7.93,
+   7.61,
+   7.29,
+   6.98,
+   6.66,
+   6.35,
+   6.04,
+   5.74,
+   5.45,
+   5.18,
+   4.91,
+   4.67
+  ],
+  "peakShiftPx": 8.76,
+  "brightness": [
+   [
+    0,
+    98.35
+   ],
+   [
+    1,
+    98.4
+   ],
+   [
+    3,
+    100.81
+   ],
+   [
+    8,
+    102.26
+   ]
+  ],
+  "probes": [
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.347,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.008,
+      "spine_02": 0.734,
+      "spine_01": 0.649,
+      "pelvis": 0.546,
+      "thigh_l": 0.564
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.351,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.025,
+      "spine_02": 0.736,
+      "spine_01": 0.652,
+      "pelvis": 0.549,
+      "thigh_l": 0.567
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.354,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.037,
+      "spine_02": 0.738,
+      "spine_01": 0.655,
+      "pelvis": 0.551,
+      "thigh_l": 0.57
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   },
+   {
+    "sparks": 0,
+    "burst": [
+     null,
+     null,
+     null
+    ],
+    "bones": {
+     "player": {
+      "Head": 1.355,
+      "spine_02": 0.981,
+      "spine_01": 0.88,
+      "pelvis": 0.755,
+      "thigh_l": 0.778
+     },
+     "opponent": {
+      "Head": 1.045,
+      "spine_02": 0.739,
+      "spine_01": 0.657,
+      "pelvis": 0.553,
+      "thigh_l": 0.572
+     }
+    },
+    "wound": null,
+    "px": [
+     null,
+     null
+    ]
+   }
+  ]
+ }
+}

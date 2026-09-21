@@ -4,13 +4,15 @@
 //   node scripts/impact-preview.mjs --label before          strips + trace into artifacts/presentation/<label>/
 //   node scripts/impact-preview.mjs --label after --against before
 //   node scripts/impact-preview.mjs --serve
+//   node scripts/impact-preview.mjs --label wound --opponent goblin [--free]   the same moments against another rung (a landed heavy is a
+//                                                                          wound mark); --free = three-quarter side view instead of the duel lock
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const commit = execSync('git rev-parse --short HEAD').toString().trim();
-const label = option('label') || commit, against = option('against');
+const label = option('label') || commit, against = option('against'), opponentId = option('opponent') || 'veteran', free = args.includes('--free');   // --opponent goblin: the same moments against another rung
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom impact preview</title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
@@ -23,7 +25,7 @@ const TICK = 1 / 60, HIT_STOP = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken
 const idle = () => ({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }), act = (action, extra = {}) => ({ ...idle(), action, ...extra });
 const guard = () => ({ ...idle(), guard: true }), passive = { ...PROFILES.easy, aggression: 0, parry: 0, dodge: 0, pressure: 0 }, light = { ...PROFILES.normal, pressure: 1 };   // pressure 1: the warden opens with a light cut
 function ready(gap = 1.2, enemyHealth) {   // both fighters armed and facing, the hero \`gap\` metres from the target (tests/combat.test.ts)
-  const p = initialPractice(731, OPPONENTS.veteran), f = p.duel.fighters;
+  const p = initialPractice(731, OPPONENTS[OPPONENT]), f = p.duel.fighters;
   return project({ ...p.duel, fighters: [{ ...f[0], phase: 'ready', body: { x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 } }, enemyHealth ? { ...f[1], health: enemyHealth } : f[1]] }, p.ai);
 }
 // Each moment: the practice states up to and past the contact tick; \`at\` is the index of the contact tick.
@@ -43,21 +45,22 @@ const MOMENTS = {
   kill() { let s = ready(1.2, 5); const list = [s]; s = stepPractice(s, act('heavy'), passive); list.push(s); for (let i = 0; i < 80 && !s.events.some(e => e.type === 'Killed'); i++) { s = stepPractice(s, idle(), passive); list.push(s); } return tail(list, s, idle(), passive); },
 };
 function tail(list, s, intent, profile) { const at = list.length - 1; for (let i = 0; i < 24; i++) { s = stepPractice(s, intent, profile); list.push(s); } return { list, at }; }
-const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, 'veteran');
+const PARAMS = new URLSearchParams(location.search), OPPONENT = PARAMS.get('opponent') || 'veteran', LOCK = !PARAMS.has('free');   // ?free: the three-quarter side view (versus-cards framing) instead of the duel lock
+const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, OPPONENT);
 const cell = { w: 360, h: 560 }, sheet = document.createElement('canvas'), ctx = sheet.getContext('2d');
 // Render one moment the way main.ts does: settle the camera on the pre-contact state, then step frame by frame with the frame loop's hit-stop
 // (the contact frame carries the events and is frozen; later frozen frames carry none; effects keep running on dt, the rigs hold).
 function play(name, captureAt) {
   const { list, at } = MOMENTS[name](), start = Math.max(0, at - 30), cells = [], trace = [];
   const state = p => p.fighter, mid = p => [(p.fighter.x + p.enemy.x) / 2, 0.75, (p.fighter.z + p.enemy.z) / 2];
-  view.recenter(); for (let i = 0; i < 90; i++) view.render(state(list[start]), true, TICK, list[start], [], false);
+  view.recenter(); if (!LOCK) view.orbit(-0.95 / 0.005, (0.3 - 0.45) / 0.003); for (let i = 0; i < 90; i++) view.render(state(list[start]), LOCK, TICK, list[start], [], false);
   let frame = 0, stop = 0;
   for (let k = start; k < list.length; k++) {
     const p = list[k], events = p.events; let ms = 0;
     for (const e of events) { const base = HIT_STOP[e.type] ?? 0; if (!base) continue; const heavy = !!e.charged || HEAVY.has(e.move ?? ''); ms = Math.max(ms, e.type === 'Hit' && heavy ? 90 : e.type === 'Blocked' && heavy ? 50 : base); }
     stop = ms; const frozenFrames = Math.round(stop / (1000 * TICK));
     for (let f = 0; f <= frozenFrames; f++) {   // f = 0 is the contact frame itself (events + frozen when a stop applies)
-      view.render(state(p), true, TICK, p, f === 0 ? events : [], f === 0 ? stop > 0 : f < frozenFrames);
+      view.render(state(p), LOCK, TICK, p, f === 0 ? events : [], f === 0 ? stop > 0 : f < frozenFrames);
       if (k === at - 1) { const point = view.project(mid(p)); trace.push({ frame: -1, x: point ? +point[0].toFixed(2) : null, y: point ? +point[1].toFixed(2) : null, frozen: false, probe: null }); }   // the origin: the frame before contact
       if (k >= at) { const since = frame; const point = view.project(mid(p)); const probe = view.probe?.() ?? null, burst = probe?.burst && view.project(probe.burst); trace.push({ frame: since, x: point ? +point[0].toFixed(2) : null, y: point ? +point[1].toFixed(2) : null, frozen: f > 0 || (f === 0 && stop > 0), probe: probe && { ...probe, px: burst ? burst.map(v => Math.round(v)) : null } });   // px: where the latest burst sits on screen (CSS px), for the zoom crops
         if (captureAt.includes(since)) { const image = grab(point); cells.push({ since, image, brightness: brightness(image) }); } frame++; }
@@ -84,7 +87,7 @@ window.__preview = { ready: view.ready.then(() => true).catch(e => String(e)), s
 
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'impact-preview', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/impact-preview.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml('/impact-preview.html', PAGE)); }); } }] });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}impact-preview.html`;
+const url = `${server.resolvedUrls.local[0]}impact-preview.html?opponent=${opponentId}${free ? '&free' : ''}`;
 if (args.includes('--serve')) { console.log(`Impact preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 const dir = `artifacts/presentation/${label}`; await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() }), errors = [];
@@ -95,7 +98,7 @@ try {
   await page.goto(url); const ready = await page.evaluate(() => window.__preview.ready); if (ready !== true) throw new Error(ready);
   console.log(`Capturing ${label} (${commit}) →`);
   const stats = { label, commit, date: new Date().toISOString().slice(0, 10) };
-  for (const [name, at] of [['block', [0, 2, 5, 9]], ['lightBlock', [0, 2, 5, 9]], ['parry', [0, 2, 5, 9]], ['heavy', [0, 2, 5, 9]], ['kill', [0, 1, 3, 8]]]) {
+  for (const [name, at] of [['block', [0, 2, 5, 9]], ['lightBlock', [0, 2, 5, 9]], ['parry', [0, 2, 5, 9]], ['heavy', [0, 2, 5, 9, 30]], ['kill', [0, 1, 3, 8]]]) {   // heavy +30: the wound mark has seeped by then
     const { image, trace, events, brightness } = await page.evaluate(([n, a]) => __preview.strip(n, a), [name, at]);
     await fs.writeFile(`${dir}/${name}.png`, Buffer.from(image.split(',')[1], 'base64')); console.log(`  ${dir}/${name}.png  events: ${events.join(', ')}`);
     // Camera kick trace: how far (CSS px) a fixed world point between the fighters moves on screen from the frame before contact, frame by frame.

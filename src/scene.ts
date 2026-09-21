@@ -366,9 +366,16 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number] } {
-      return { sparks: clash.alive(), burst: clash.last() };
-    }, // debug probe for the presentation harness: live contact effects
+    probe(): { sparks: number; burst: [number, number, number]; bones: Record<'player' | 'opponent', Record<string, number>>; wound: [number, number, number] | null } {
+      // Bone heights (world y) of both rigs, for the harness: where a wound mark or an effect really sits on each roster body.
+      const bones = { player: {} as Record<string, number>, opponent: {} as Record<string, number> };
+      for (const side of ['player', 'opponent'] as const) {
+        const anchor = warriors?.[side].anchor; if (!anchor) continue; anchor.updateWorldMatrix(true, true);
+        for (const name of ['Head', 'spine_02', 'spine_01', 'pelvis', 'thigh_l']) { const bone = anchor.getObjectByName(name); if (bone) bones[side][name] = +bone.getWorldPosition(new THREE.Vector3()).y.toFixed(3); }
+      }
+      const mark = wounds.entries[1].group;   // the opponent's wound mark, when it is showing: where it sits against his bones
+      return { sparks: clash.alive(), burst: clash.last(), bones, wound: mark.visible ? (mark.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null };
+    }, // debug probe for the presentation harness: live contact effects and rig landmarks
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
         drawn = anchor?.getObjectByName('WeaponDrawn') ?? anchor?.getObjectByName('SwordDrawn');
@@ -535,7 +542,7 @@ export function createScene(
         sparkGeometry.attributes.position.needsUpdate = true;
       }
       splats.update(dt);
-      wounds.update(dt, [state, practice.enemy], bloodMode);
+      wounds.update(dt, [state, practice.enemy], bloodMode, warriors);
       // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
       if (severHead) {
         severHead.group.visible = bloodMode !== 'off';

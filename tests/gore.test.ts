@@ -56,14 +56,15 @@ test('wound decals: the armed mark rides its fighter at the site height, seeps t
   const w = wounds.entries[1];
   assert.equal(w.life, 4); assert.equal(w.side, 1); assert.equal(w.site, 'head');
   wounds.update(0.5, bodies, 'red');
-  assert.deepEqual(w.group.position.toArray(), [-3, 1.55, 4], 'at the enemy, head height');
+  // No rig yet: the fixed site height, pushed 0.11 m out to the skin the way the fighter faces.
+  assert.ok(near(w.group.position.x, -3 + Math.sin(1.2) * 0.11) && near(w.group.position.y, 1.55) && near(w.group.position.z, 4 + Math.cos(1.2) * 0.11), `at the enemy, head height, on the skin: ${w.group.position.toArray()}`);
   assert.ok(near(w.group.rotation.y, 1.2));
   assert.ok(near(w.life, 3.5));
   const seep = (4 - 3.5) / 1.2;
   assert.ok(near(w.mark.material.opacity, 0.55) && near(w.drips[0].material.opacity, 0.5 * seep) && near(w.drips[0].scale.y, 0.4 + 0.6 * seep), 'drips run in the first 1.2 s');
   assert.ok(w.group.visible && !wounds.entries[0].group.visible);
   wounds.arm(0, 'legs'); wounds.update(0, bodies, 'dark');
-  assert.equal(wounds.entries[0].group.position.y, 0.6);
+  assert.ok(near(wounds.entries[0].group.position.y, 0.6));
   assert.equal(wounds.entries[0].mark.material.color.getHexString(), new Color('#241314').getHexString());
   wounds.update(0, bodies, 'off');
   assert.ok(!w.group.visible && w.life > 0, 'off hides but keeps the window running');
@@ -73,6 +74,18 @@ test('wound decals: the armed mark rides its fighter at the site height, seeps t
   assert.equal(w.life, 0); assert.ok(!w.group.visible, 'the window ran out');
   wounds.arm(1, 'torso'); wounds.clear();
   assert.equal(w.life, 0);
+});
+
+test('wound decals: with rigs the mark sits on the wounded fighter\'s own site bone, at the skin — the Goblin\'s 0.75 m chest, not a fixed 1.15 m', () => {
+  const wounds = createWoundDecals(new Scene(), null), w = wounds.entries[1];
+  const bodies = [{ x: 1, z: 2, heading: 0.3 }, { x: -3, z: 4, heading: 1.2 }] as const;
+  // A stub rig: named bones at world positions; the chest mark goes 0.16 m out to the skin, the thigh mark hangs 0.12 m below the hip bone.
+  const rig = (spineY: number) => { const anchor = new Object3D(); for (const [name, y] of [['spine_02', spineY], ['Head', spineY + 0.5], ['thigh_l', spineY - 0.2]] as const) { const bone = new Object3D(); bone.name = name; bone.position.set(-3, y, 4); anchor.add(bone); } return { anchor }; };
+  const rigs = { player: rig(1.12), opponent: rig(0.75) };
+  wounds.arm(1, 'torso'); wounds.update(0, bodies, 'red', rigs);
+  assert.ok(near(w.group.position.y, 0.75) && near(w.group.position.x, -3 + Math.sin(1.2) * 0.16), `goblin-height chest: ${w.group.position.toArray()}`);
+  wounds.arm(1, 'legs'); wounds.update(0, bodies, 'red', rigs);
+  assert.ok(near(w.group.position.y, 0.55 - 0.12), `thigh: ${w.group.position.y}`);
 });
 
 test('wound decals: the Quiet One throat cut sits the mark on the neck, sized to the neck–head span, drips opening over the first quarter second', () => {
