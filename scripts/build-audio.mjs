@@ -147,8 +147,8 @@ const STEEL = .7;
 const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0 * STEEL), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
 // The four weapon-landing voicings (see hit_flesh). `heavy` = slower recording playback + more heft + longer body.
 const HITS = [
-  (r, heavy) => {   // #6 recording: slash & kill (stated free use)
-    const n = S(heavy ? .62 : .5), take = recording('slashkill', .02, heavy ? .62 : .5, heavy ? .92 : vary(r, 1, .03));
+  (r, heavy, heavyRate = .92) => {   // #6 recording: slash & kill (stated free use)
+    const n = S(heavy ? .62 : .5), take = recording('slashkill', .02, heavy ? .62 : .5, heavy ? heavyRate : vary(r, 1, .03));
     return heavy ? mix(n, [take, 0, 1], [heft(n, 75, r, { t60: .35, drive: 5 }), .004, .45]) : take;
   },
   (r, heavy) => {   // #2 voiced: low thud, mid body, little above 300 Hz — a blunt landing
@@ -205,8 +205,10 @@ const RECIPES = {
   // carry no reuse grant and are voiced here to their measurements — #2 a low thud with a mid body (centroid ~870 Hz, mostly
   // below 300 Hz), #4 a sharp slap (4–6 kHz transient, 700 Hz–12 kHz) over a body that settles in ~.65 s, #5 a bright stab
   // with a wet squelch, ~.66 s. hit_flesh = the four at strike weight; hit_heavy = the same four hit harder.
-  hit_flesh(r, v) { return HITS[v % 4](r, false); },
-  hit_heavy(r, v) { return HITS[v % 4](r, true); },
+  // Owner 2026-09-21 16:5x (audit of the live set): light keeps the slash-kill recording and the stab (blunt thud + slap out); heavy
+  // keeps the slash-kill recording only — every synth heavy was cut. bone_crack still draws its two from the table.
+  hit_flesh(r, v) { return HITS[[0, 3][v % 2]](r, false); },
+  hit_heavy(r, v) { return HITS[0](r, true, v % 2 ? .86 : .92); },   // two takes of the one recording: the rotation rule wants ≥ 2
   // Kick: a cloth slap and a dull mid thud, no edge, no ring.
   hit_kick(r) {
     const n = S(.28), f = vary(r, 1, .08);
@@ -343,7 +345,7 @@ const RECIPES = {
   flesh_stab(r, v) { return mul(biquad(recording('tear', v * .2, .16, 1.15), 'lowpass', 2200), decay(S(.16), .2, .002)); },
   flesh_tear(r, v) { return biquad(recording('tear', .02 + v * .29, .34, vary(r, .92, .025)), 'lowpass', 3800); },
   // Bloodless opponents (bone instead of flesh): the same weapon-landing pool — the owner replaced the old synths outright.
-  bone_crack(r, v) { return RECIPES.hit_flesh(r, v % 4); },
+  bone_crack(r, v) { return HITS[v % 2](r, false); },
   crowd_gasp(r, v) { return biquad(recording('gasp', v ? 5.55 : 3.9, .42, vary(r, 1, .015)), 'highpass', 180); },
   crowd_cheer(r, v) {
     const n = S(2.5), cheer = biquad(biquad(recording('crowd', [.5, 21.85, 44.9][v], 2.28), 'highpass', 180), 'lowpass', 5500);
@@ -352,18 +354,29 @@ const RECIPES = {
     return fadeOut(mix(n, [RECIPES.crowd_gasp(r, v % 2), 0, .3], [cheer, .22, 1], [cheer, .266, .17], [cheer, .323, .1]), .6);
   },
   // Kill: the body falls — a deep thud with a mid punch, a second slump, a long low tail. Layered under the killing hit at runtime.
-  kill(r) {
-    const n = S(.72), f = vary(r, 1, .08);
-    const fall = mode(n, 80 * f, .32, 1, { slide: 1.7, tau: .06 });
-    const body = thud(n, r, { from: 3500 * f, to: 300 * f, fall: .16, t60: .3 });
-    const tone = punch(n, 330 * f, r, { t60: .12, tone: .6, burst: .3 });
-    const low = mul(biquad(noise(n, r), 'lowpass', 160, .9), decay(n, .14, .003));
-    const slump = thud(S(.32), r, { from: 2200 * f, to: 200 * f, fall: .1, t60: .16 });
-    const tail = rumble(n, .55, r);
-    return fadeOut(densify(mix(n, [fall, 0, .2], [body, 0, 1.3], [tone, 0, .5], [low, 0, .2], [slump, .19, .7], [tail, .05, dbfs(-3)]), 2.8), .15);
+  // Owner 2026-09-21: all three body-fall voicings cut ("not good sounds"); replaced by three steel strikes measured from his
+  // "Parry Sound Effects v2" reference (ripped game assets, no reuse grant → voiced to the measurements, never shipped as audio).
+  // Each = click (1.5–10 kHz, 5 ms) + the measured partial set + a sub thump at the measured ~35–80 Hz + low rumble.
+  // Envelopes from the clip: #2 flat 100 ms then −14 dB @ 300 ms (t60 ≈ .5 s); #3 long ring (−6 dB @ 500 ms); #6 −11 dB @ 500 ms.
+  kill(r, v) {
+    const SETS = [
+      { seconds: .62, partials: [[3167, .9], [3724, 1], [4421, .85], [4954, .95], [5558, .8], [10479, .5], [2660, .5], [1990, .3]], ring: .5, sub: [59, .2], subT: .3 },
+      { seconds: .82, partials: [[4649, 1], [5247, .7], [5909, .5], [3513, .45], [9894, .4], [2988, .35], [2733, .45], [2150, .3]], ring: 1.3, sub: [40, .24], subT: .34 },
+      { seconds: .7, partials: [[3349, 1], [4131, .65], [2783, .55], [5019, .5], [3519, .5], [7107, .3], [2399, .5], [1720, .3]], ring: .7, sub: [53, .22], subT: .3 },
+    ];
+    const { seconds, partials, ring, sub, subT } = SETS[v % 3], n = S(seconds), f = vary(r, 1, .04);
+    const click = mul(broad(n, r, abs(1500), abs(10000)), decay(n, .005));
+    const steelSet = normalize(mix(n, ...partials.map(([hz, a]) => [mode(n, abs(hz * f), ring * (.75 + .5 * r()), a, { phase: r() * 6.28 }), 0, 1])), 0);
+    const rough = biquad(noise(n, r), 'lowpass', 70);
+    for (let i = 0; i < n; i++) steelSet[i] *= 1 + .25 * rough[i] * 3;   // the beating between close partials the clip shows
+    const splash = mul(broad(n, r, abs(8000), abs(14000)), decay(n, .12, .001));   // the strike's top-octave sizzle
+    const body = mul(broad(n, r, abs(150), abs(900)), decay(n, .04, .002));
+    const thump = mode(n, abs(sub[0] * f), subT, 1, { slide: 1.8, tau: .025 });
+    const weight = heft(n, abs(sub[0] * f), r, { t60: subT, drive: 4 });
+    return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 4, hit_heavy: 4, hit_kick: 4, block: 7, block_perfect: 7, parry: 6, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 2, hit_heavy: 2, hit_kick: 4, block: 7, block_perfect: 7, parry: 6, guard_break: 4, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];

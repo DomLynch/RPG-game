@@ -1,0 +1,25 @@
+{
+  "note": "Reference fights for scripts/record-replay-check.mjs. Regenerate ONLY for an intentional rules change: node scripts/record-replay-check.mjs --write",
+  "records": [
+    {
+      "name": "veteran-walk-in",
+      "encoded": "H4sIAAAAAAAAE-3VwQ2CQBAAwIWHSGN8qMLg4occyWmgCiqkGcu4z0wTM839WHPNmmXJ4chf1lcZt718vude393dR1yPiC4AoLUVAFprnSEAAAAAEE8AaO0P3UlxRncnAAA",
+      "expect": {
+        "ticks": 1677,
+        "outcome": "died",
+        "killedTick": 1677,
+        "digest": "90c5013c41d0b3e5"
+      }
+    },
+    {
+      "name": "veteran-scripted",
+      "encoded": "H4sIAAAAAAAAE-2WeVBNURzH73v3vuo1lkFDxjKWIUORdeyGKIoQShFFryx5j1dKIaMdpaQs2UcIDYYGQ8jIWMZuLCPGMpaxjGUsQ-ld96z3Xt3IH28e5n5_v_M799533nm_z_l2Z_L00erNhnCD2WCcbrCPMUQbzKFGfaTJGBEVazKHacq1DFOkYxgNo3Os79S0ZdsObl179RvkMXzkmPEBk6ZOM8yYbZxrjo5ZEL9w0eKEhCWCEhIWL4qPi42JmmeKnBURFhIc6O_n6-05eECfHl06tW_dvEnDug6s5dunty-fPiq_ff0S81fq1TPQ3OXzZaeOHzm0f--ugq2b8tfm5mRlrliWlpqSlJS4FCgxKTklNX3ZiszsnLx1-Zu3FRQWHSg-WlJ69sKVm3fuP37--v3nCp7T12vk3KKNi2vXnn0HenjZmkxZru5Cc0O8fEaPCwiaEhoWMWuOCdgaJ7N1YdyCmGizaY5ga-iUoIBxo328PAb27enu6tKmhXOjenqOr_j8_vXzx_fv3Lhyoay0BJxcoa3JlFVacrT4QFFhwbbNG9bl5WQLtqanpiRTW5OSU9MEW7NW5a7N37R1-669-w8dOX6q7Pzl67fLHz179e7TNwvrULdhk-at23dy79FnwBBPb18__6Bg4eRsTaYsP__A4BDB1kjTvKj5sXHxMlvjga1zjbNnGKZNnTRx_JiRw4cO6term1uHti2bOtV31DGVXz68efHkwd2bVy-ePX0CnNzuHfDkVmevtDWZsnBzGcuRrdDXRPC6pqUvz8hatXrN-o1btu_cs-_g4WMnz5y7dO3WvYdPX779-LVKa1-nQeNmrdp17Ny9d__Bw0aMGjshcHLI9PCZkUZ0crYmUxZuDryuS8KtpuJfylbsKq_Kq_KqvP8irzMD_rkWpZFMtFS_kK1TEk8KLyYvTjwvu_ipyIIUvCeZJQ1oQNWgwAkHKtWkVXwqfgUm2VROKCHBKZEFDQspQliqXeDAiQuPtiL0IilDyWQsWpA4tHCIE6utQXgp_JbsDBAvJaWAEjDEAAdQFRowhaiSTTTQOiJ0BpSXF20lkBiRwFGxJFg4pOLkt3gJOANWyk15qauYEiSyjcAhJpBY30Gi8p0WMuFEQidAoJHNBBWCgp9GkKAjhAhbhW1zCEgIkEAsp-Oo6CWLBljPUW7KS51FoBgTu0jcw3igeYBCVCkNlDhAEiFwBIxhCSv6OeymaCM2j9ARHJ0OJZGd5AI95lAQbgRMYTEq_bvFmBgSMGLbRDSoCpA4UOICP8Ii0BJaAItJyQuKX0ehFeAjYcSAIo2dnZAS2cvuhA_hIkpMaBGshNS60vzyFoqr5VY6hWd2f9iO1aXyVpPKqyyVV-X9d8XWJFs3ZiWpvCrv_ySV17q8DjZVHSJ451iTarOVvnayKs5vpfKqvCqvolTe3_L-ADqm-HAxIgAA",
+      "expect": {
+        "ticks": 1452,
+        "outcome": "died",
+        "killedTick": 1452,
+        "digest": "4a6926d7cef783c0"
+      }
+    }
+  ]
+}
