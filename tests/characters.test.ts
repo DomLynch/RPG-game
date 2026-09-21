@@ -571,6 +571,10 @@ test('the Run Through hold aims its blade at the victim (owner 2026-09-19): the 
     const miss = grip.clone().addScaledVector(dir, along).distanceTo(chest);
     assert.ok(miss < .09, `the blade passes within 9 cm of the chest at [${x}, ${z}] (miss ${miss.toFixed(3)} m)`);
     assert.ok(along > .1 && along <= len + .01, 'the chest lies along the blade’s run, not beyond the tip');
+    // Owner 2026-09-21 ("giving the middle finger"): the hold is two-handed — after the aim the off-hand rides the hilt behind the sword hand
+    const offHand = player.boneWorld('hand_l')!, swordHand = player.boneWorld('hand_r')!, pommelward = blade.localToWorld(new Vector3(0, -1, 0)).sub(blade.localToWorld(new Vector3())).normalize();
+    const gap = offHand.clone().sub(swordHand);
+    assert.ok(gap.length() < .12 && gap.dot(pommelward) > .03, `the off-hand grips the hilt behind the sword hand at [${x}, ${z}] (gap ${gap.length().toFixed(3)} m, ${gap.dot(pommelward).toFixed(3)} down the hilt)`);
   }
   player.update(0, 1 / 60, 'ready', 1);
   assert.deepEqual(player.anchor.position.toArray(), [0, 0, 0], 'rematch clears the presentation step');

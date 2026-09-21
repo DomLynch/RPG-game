@@ -2,6 +2,23 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Run Through hold: two-handed grip, the off-hand rides the hilt (2026-09-21, owner: "giving the middle finger")
+Owner, on the phone hold: the killer's left hand read as a raised open palm / middle finger. Two causes. (1) Rig: the
+hold froze the Riposte contact frame's thrown-out left hand; even after moving it to the hilt the Armed pose's fingers
+are OPEN (tips 15–18 cm from the wrist), so on the hilt it still read as a raised palm. `build-warrior.mjs` now closes the
+off-hand on the grip 7 cm behind the sword hand with the RIGHT hand's fist mirrored onto the left fingers ((x,−y,−z,w)
+on the mirrored finger bones; tips 5–10 cm, matching the right). (2) Runtime: `aimBladeAt` turns only the sword arm
+onto the victim's chest, so the fist stayed where the clip left it — hanging by the face. `characters.ts` re-solves the
+left arm (two-bone reach, the clip's own elbow bend) onto the hilt after the aim, restored each frame like the aim itself.
+Rigs: hero rebuilt; goblin rebuilt from cached parts (only the 17 hold left-arm channels changed, mesh/texture bytes
+identical); Veteran/Pitborn/Nightborn/Executioner + their weapon twins (estoc, cleaver, warhammer, scythe ×5) took the
+hero's 18 left-arm hold keys in place (bytes overwritten inside the binary chunk, file length unchanged — the parity
+tests demand identical Fin_RunThrough tracks on the shared skeleton; the estoc twin stays byte-identical to nightborn).
+Creatures/Dwarf untouched (own skeletons, never the killer, tests green). Receipts: test:all 402/402 (new off-hand
+assertion in the hold-aim test; mutation without the re-solve fails it); release row 0 exit 0; harness
+`artifacts/character/runthrough-fist2` settled/rear/landscape stills show both fists stacked on the hilt.
+Remaining: owner look on the phone; row 22 (blood-gate, all outcomes) not rerun on this head.
+
 ## Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-limited back-off (2026-09-21)
 Deploy #57 on fdd6032 (#303 anti-turtling) failed release checks 17 and 20: the passive test Executioner is now lashed off the
 wall and dies at heading π nearer the wall. Quiet One's body left the portrait frame (x −40); Opened's reach-driven back-off

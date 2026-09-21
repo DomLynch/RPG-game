@@ -149,6 +149,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const contactByClip = weaponNode?.userData.contactByClip as Record<string, { from: number; to: number }> | undefined;
     const upperArm = root.getObjectByName('upperarm_r');
     let aimedRotation: Quaternion | undefined;
+    const offHand = ['upperarm_l', 'lowerarm_l', 'hand_l'].map(n => root.getObjectByName(n)), swordHand = root.getObjectByName('hand_r');
+    let aimedOffHand: [Quaternion, Quaternion] | undefined;
     // Guard side (owner 2026-09-20, five sides): the one Guard clip is the straight guard; a side tilts it after the mixer writes the
     // frame — the torso turns to that side, the sword arm lifts or drops. Measured on the warrior rig from the Guard pose (blade tip
     // relative to the pelvis, the fighter's right = −x): left +.14 m across, right −.23 m, overhead +.35 m up, low −.37 m down. Code-
@@ -191,6 +193,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         anchor.position.set(0, 0, 0); // only the presentation anchor steps into a Run Through
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
+        if (aimedOffHand) { offHand[0]!.quaternion.copy(aimedOffHand[0]); offHand[1]!.quaternion.copy(aimedOffHand[1]); aimedOffHand = undefined; }
         if (tiltApplied) { tilted.forEach((b, i) => b.quaternion.copy(untilted[i])); tiltApplied = false; }
         mixer.update(step);
         const guarding = guardSide && (pose === 'guard' || pose === 'block' || pose === 'parry') ? GUARD_TILT[guardSide] : GUARD_TILT.thrust, ease = 1 - Math.exp(-step * 16);
@@ -371,6 +374,27 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const turn = new Quaternion().setFromUnitVectors(from.normalize(), to.normalize());
         aimedRotation = upper.quaternion.clone();
         upper.quaternion.premultiply(new Quaternion().slerp(turn, amount));
+        root.updateWorldMatrix(true, true);
+        // The hold is two-handed (owner 2026-09-21): the clip closes the off-hand on the hilt, but the aim above turns only the sword
+        // arm, so the fist was left hanging in the air by the face. Re-solve the left arm onto the grip a hand's width behind the
+        // sword hand, keeping the clip's own elbow bend (two-bone reach; no bone or weapon stretches).
+        const [upperL, lowerL, handL] = offHand;
+        if (!upperL?.parent || !lowerL || !handL || !swordHand) return;
+        const s = upperL.getWorldPosition(new Vector3()), e = lowerL.getWorldPosition(new Vector3()), h = handL.getWorldPosition(new Vector3());
+        const pommelward = blade.localToWorld(new Vector3(0, -1, 0)).sub(blade.localToWorld(new Vector3())).normalize();
+        const goal = swordHand.getWorldPosition(new Vector3()).addScaledVector(pommelward, .07);
+        const a2 = s.distanceTo(e), b2 = e.distanceTo(h), dir = goal.clone().sub(s);
+        const d = Math.max(.03, Math.min(dir.length(), a2 + b2 - .001)); dir.normalize();
+        const along = (a2*a2 - b2*b2 + d*d) / (2*d), bend = e.clone().sub(s);
+        bend.addScaledVector(dir, -bend.dot(dir)); if (bend.lengthSq() < 1e-6) return; bend.normalize();
+        const elbow = s.clone().addScaledVector(dir, along).addScaledVector(bend, Math.sqrt(Math.max(0, a2*a2 - along*along)));
+        aimedOffHand = [upperL.quaternion.clone(), lowerL.quaternion.clone()];
+        for (const [bone, child, dest] of [[upperL, lowerL, elbow], [lowerL, handL, goal]] as const) {
+          root.updateWorldMatrix(true, true);
+          const origin = bone.getWorldPosition(new Vector3());
+          const delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dest.clone().sub(origin).normalize());
+          bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
+        }
         root.updateWorldMatrix(true, true);
       },
       // The world position of a named bone right now (the scene takes the victim's chest with it).
