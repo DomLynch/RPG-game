@@ -94,7 +94,8 @@ try {
     end$$;`;
   // Brief 3/4/5 (fight_records, the daily warden, loot). Owner = user 1 throughout; user 2 exercises the cross-owner and
   // wrong-day refusals so a duplicate-key error never masks what's actually under test.
-  const dailyLoot = `set role authenticated;
+  const dailyLoot = `set time zone 'UTC';   -- the migration's future-day guard keys on the UTC date; current_date below must agree east or west of Greenwich
+    set role authenticated;
     select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
     insert into public.fight_records(id,user_id,opponent,record) values('AAAAAAAA',auth.uid(),'veteran','abc123_-ABC');
     do $$begin
