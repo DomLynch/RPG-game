@@ -36,6 +36,13 @@ test('update binds meters, values, labels and the combat buttons from the practi
   assert.equal(get('attack-button').textContent, 'Draw sword', 'sheathed: the attack button draws');
   assert.equal(get('attack-button').dataset.mobile, 'Draw');
   assert.equal(get('attack-button').attributes.get('aria-label'), 'Draw sword');
+  assert.equal(get('attack-button').dataset.next, undefined, 'sheathed: no next cut to hint');
+  // Side hint (owner 2026-09-21): once drawn, Slash lights the side of the NEXT cut — right first, then left after a right cut lands its turn.
+  const drawn = { ...practice, phase: 'ready' as const, duel: { ...practice.duel, fighters: [{ ...practice.duel.fighters[0], phase: 'ready' as const }, practice.duel.fighters[1]] as typeof practice.duel.fighters } };
+  hud.update(drawn, view()); assert.equal(get('attack-button').dataset.next, 'right', 'first cut is the right one');
+  const afterRight = { ...drawn, duel: { ...drawn.duel, fighters: [{ ...drawn.duel.fighters[0], lastMove: 'light_right' as const }, drawn.duel.fighters[1]] as typeof drawn.duel.fighters } };
+  hud.update(afterRight, view()); assert.equal(get('attack-button').dataset.next, 'left', 'after a right cut the next is the left');
+  hud.update(practice, view());
   assert.equal(get('kick-button').hidden, true, 'no kick while sheathed');
   assert.equal(get('thrust-button').hidden, true);
   assert.equal(get('reset-button').hidden, true, 'the fight is on: no rematch button');
