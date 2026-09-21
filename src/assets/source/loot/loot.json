@@ -24,12 +24,18 @@
     {
       "slot": "Helmet",
       "layer": "replace",
-      "file": "items/mask_iron_executioner.glb"
+      "file": "loot/executioner_hero.glb",
+      "slots": [
+        "Helmet"
+      ]
     },
     {
       "slot": "Crest",
       "layer": "over",
-      "file": "items/hood_rag_executioner.glb"
+      "file": "loot/executioner_hero.glb",
+      "slots": [
+        "Crest"
+      ]
     },
     {
       "slot": "Greaves",
@@ -44,7 +50,7 @@
     {
       "slot": "Helmet",
       "layer": "replace",
-      "file": "parts/body_nightborn.glb",
+      "file": "loot/nightborn_hero.glb",
       "slots": [
         "Helmet"
       ]

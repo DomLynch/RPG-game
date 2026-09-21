@@ -1172,8 +1172,8 @@ dialog>p {
     border-radius: 50%;
     padding: 0 !important;
     min-height: 0 !important;
-    background: #17232952;
-    border: 1px solid #f0e3c94d;
+    background: #b7a27680;   /* owner 2026-09-21: every button wears the Slash button's sand tint (was a dark #17232952 for all but Slash) */
+    border: 1px solid #e9d9b3a6;
     box-shadow:
       inset 0 0 0 3px #f0e3c912,0 1px 3px #0003;
     color: #f4ead8;
@@ -1216,21 +1216,14 @@ dialog>p {
     text-shadow: 0 1px 2px #000a;
   }
   .actions[data-gestures=cluster] button:active{
-    background: #f0e3c94a;
+    background: #d9c69ac0;
     transform: scale(.95);
   }
   .actions[data-gestures=cluster] button[aria-disabled=true]{
     opacity: .5;
   }
-  .actions[data-gestures=cluster] .primary{
-    background: #b7a27680;
-    border-color: #e9d9b3a6;
-  }
-  .actions[data-gestures=cluster] .primary:active{
-    background: #d9c69ac0;
-  }
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true]{
-    background: #c6af7873;
+    background: #d9c69ac0;   /* held: the pressed tint, brighter than the cluster's sand */
     border-color: #f0e3c9;
   }
   .actions[data-gestures=cluster] #thrust-button:not([hidden]) {
@@ -1260,11 +1253,11 @@ dialog>p {
     top: 106px;
     border-radius: 50%;
     font-size: 0;
-    background: #17232952;
+    background: #b7a27680;   /* restated here: the legacy #kick-button rule below (id specificity) would otherwise darken it */
   } /* 44 px: the platform minimum for the innermost target */
   .actions[data-gestures=cluster] #kick-button[data-reach=true]{
-    background: #b7a27666;
-    border-color: #e9d9b3a6;
+    background: #d9c69ab3;   /* in reach: brighter than the sand the whole cluster now wears */
+    border-color: #f0e3c9cc;
   }
   .actions[data-gestures=cluster] #dodge-button {
     width: 56px;
@@ -1508,16 +1501,32 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
   white-space: nowrap;
   touch-action: manipulation;
 }
-.autopsy {   /* the death-screen autopsy (src/autopsy.ts): two plain lines between the kill and the rematch; Web design owns the type at 390 px */
-  display: block;
+/* The death-screen autopsy (src/autopsy.ts): at most two plain lines between the kill and the Rematch button. Fixed above the
+   controls and out of the layout flow, so on a 390 px phone it never pushes the thumb cluster or Rematch off-screen; pointer
+   events pass through it. Georgia, the game's reading face; a soft shadow keeps it legible over sand. (Web design, brief 2.) */
+.autopsy {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px);
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 32px));
   margin: 0;
-  max-width: 480px;
-  color: #e9ddc5;
-  font: 13px/1.35 Arial;
-  opacity: 0.85;
+  z-index: 4;
+  pointer-events: none;
+  color: #efe6d3;
+  font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
   text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
 }
 .autopsy span { display: block; }
+.autopsy span + span { margin-top: 4px; }
+@media (max-width: 900px), (pointer: coarse) {
+  .autopsy { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 226px); width: min(340px, calc(100vw - 32px)); font-size: 14px; }
+}
+/* The last fight's autopsy under an opponent's row in the journal's Stats tab: a quiet serif sub-line that belongs to the row above. */
+dialog .scorecard-table tr:has(+ .autopsy-row) td { border-bottom: 0; padding-bottom: 2px; }
+dialog .scorecard-table .autopsy-row td { padding: 0 4px 9px; text-align: left; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); border-bottom: 1px solid var(--jl); font-variant-numeric: normal; }
 .daily-board { list-style: none; margin: 8px 0 0; padding: 0; font: 13px/1.4 Arial; color: #e9ddc5; }   /* the daily warden's board (src/daily.ts): five lines; Web design draws the real board */
 .daily-board li[data-verified='false'] { opacity: .55; }
 .share-status {
