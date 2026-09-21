@@ -52,14 +52,18 @@ test('the thumb cluster is the one touch layout: the markup carries it and nothi
   for (const file of ['main.ts', 'input.ts', 'hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
 });
 
-test('guard side hint (owner 2026-09-21): the Guard button carries five marks — four rim ticks and the straight ring — and the CSS lights the held side from aria-pressed + data-side', () => {
+test('side hints (owner 2026-09-21): every combat button carries fine marks for its side; the Guard button all five, lit from aria-pressed + data-side; Slash lights the next cut from data-next', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  const button = html.match(/<button id="guard-button"[\s\S]*?<\/button>/)![0];
-  for (const side of ['overhead', 'low', 'left', 'right', 'straight']) assert.match(button, new RegExp(`class="side side-${side}"`), `${side} mark in the markup`);
-  assert.match(button, /<svg class="guard-sides"[^>]*aria-hidden="true"/, 'decorative: hidden from the accessibility tree');
-  for (const side of ['left', 'right', 'overhead', 'low']) assert.match(css, new RegExp(`#guard-button\\[aria-pressed=true\\]\\[data-side=${side}\\] \\.side-${side}`), `${side} lights while held`);
+  const button = (id: string) => html.match(new RegExp(`<button id="${id}-button"[\\s\\S]*?<\\/button>`))![0];
+  const guard = button('guard');
+  for (const side of ['overhead', 'low', 'left', 'right', 'straight']) assert.match(guard, new RegExp(`class="side side-${side}"`), `guard: ${side} mark`);
+  assert.match(button('attack'), /side-left[\s\S]*side-right/, 'Slash: both cuts'); assert.match(button('thrust'), /side-straight/, 'Stab: the centre ring');
+  assert.match(button('heavy'), /side-overhead/, 'Heavy: the up tick'); assert.match(button('kick'), /side-low/, 'Kick: the down tick');
+  for (const id of ['guard', 'attack', 'thrust', 'heavy', 'kick']) assert.match(button(id), /<svg class="[^"]*side-marks[^"]*"[^>]*aria-hidden="true"/, `${id}: decorative, hidden from the accessibility tree`);
+  for (const side of ['left', 'right', 'overhead', 'low']) assert.match(css, new RegExp(`#guard-button\\[aria-pressed=true\\]\\[data-side=${side}\\] \\.side-${side}`), `guard ${side} lights while held`);
   assert.match(css, /#guard-button\[aria-pressed=true\]\[data-side=straight\] \.side-straight/); assert.match(css, /#guard-button\[aria-pressed=true\]:not\(\[data-side\]\) \.side-straight/, 'Q on the keyboard lights straight');
-  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*guard-sides/, 'the fade respects reduced motion');
+  assert.match(css, /#attack-button\[data-next=left\] \.side-left/); assert.match(css, /#attack-button\[data-next=right\] \.side-right/, 'the next cut is the bright one');
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*side-marks/, 'the fade respects reduced motion');
 });
 
 test('guard side: the thumb still is the straight guard; past the slide threshold the dominant axis picks left, right, overhead or low', () => {

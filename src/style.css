@@ -1178,25 +1178,32 @@ dialog>p {
     transition:
       background .08s,transform .08s;
   }
-  /* Directional guard hint (owner 2026-09-21, option A + C's fade): four fine rim ticks, barely there at rest; while the guard is held the
-     side under the thumb lights (data-side from input.ts) and the others fade — straight (thumb still, or Q) = a thin inner ring, clear of the label. */
-  .actions[data-gestures=cluster] #guard-button .guard-sides{
+  /* Side hints (owner 2026-09-21): every combat button carries fine marks for the side it works on — the Guard button all five
+     (ticks + a centre ring, brighter while held on the side under the thumb / Q + arrow), Slash the two cuts with the NEXT one lit (the
+     cuts alternate; data-next from hud.ts), Stab the centre ring (straight), Heavy the up tick (overhead), Kick the down tick (low). */
+  .actions[data-gestures=cluster] button .side-marks{
     position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
-    fill: none; stroke: #fff; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round;
-    opacity: .18; transition: opacity .12s;
+    fill: none; stroke: #fff; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;
+    opacity: .42; transition: opacity .12s;
   }
-  .actions[data-gestures=cluster] #guard-button .side{ transition: opacity .12s, stroke-width .12s; }
-  .actions[data-gestures=cluster] #guard-button .side-straight{ opacity: 0; }   /* straight = a thin inner ring while held, clear of the label; nothing at rest */
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true] .guard-sides{ opacity: 1; }
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true] .side{ opacity: .14; }
+  .actions[data-gestures=cluster] button .side{ transition: opacity .12s, stroke-width .12s; }
+  /* guard: rest = four ticks + a faint centre ring; held = the read side to full, the rest fade; straight = the ring */
+  .actions[data-gestures=cluster] #guard-button .side-straight{ opacity: .55; }
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true] .side-marks{ opacity: 1; }
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true] .side{ opacity: .16; }
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=left] .side-left,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .side-right,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .side-overhead,
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .side-low{ opacity: .95; stroke-width: 1.8; }
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .side-low{ opacity: .95; stroke-width: 2; }
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=straight] .side-straight,
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight{ opacity: .85; stroke-width: 1.3; }
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight{ opacity: .9; stroke-width: 1.5; }
+  /* slash: the next cut's side is the bright one */
+  .actions[data-gestures=cluster] #attack-button .side{ opacity: .35; }
+  .actions[data-gestures=cluster] #attack-button[data-next=left] .side-left,
+  .actions[data-gestures=cluster] #attack-button[data-next=right] .side-right{ opacity: 1; stroke-width: 2; }
+  .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Draw, no cut is next */
   @media (prefers-reduced-motion: reduce){
-    .actions[data-gestures=cluster] #guard-button .guard-sides, .actions[data-gestures=cluster] #guard-button .side{ transition: none; }
+    .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }
   }
   .actions[data-gestures=cluster] button[data-mobile]::after{
     font: 600 11px/1 Arial;

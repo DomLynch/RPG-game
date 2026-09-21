@@ -43,7 +43,7 @@ export function createHud(element: Lookup) {
       );
       const inKickReach =
         Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z) <= KICK_LANDS;
-      const key = `${practice.phase}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}`;
+      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}`;
       if (key === lastHud) return;
       lastHud = key;
       health.max = practice.enemyMaxHealth;
@@ -91,10 +91,14 @@ export function createHud(element: Lookup) {
       kickButton.dataset.reach = String(inKickReach); // a kick has a short cone: the button brightens when it can land
       combatStatus.dataset.threat = String(practice.threat);
       combatStatus.dataset.move = practice.threatMove ?? '';
-      attackButton.textContent =
-        practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
+      const attackLabel = practice.phase === 'sheathed' ? 'Draw sword' : 'Light attack';
+      const labelNode = attackButton.firstChild;   // the text node; the side-mark SVG after it must survive the rewrite
+      if (labelNode && labelNode.nodeType === 3) { if (labelNode.textContent !== attackLabel) labelNode.textContent = attackLabel; } else attackButton.textContent = attackLabel;
+      // Side hint: the cuts alternate, so the button lights the side of the NEXT one (none while sheathed — the button says Draw).
+      const nextCut = practice.phase === 'sheathed' ? null : practice.duel.fighters[0].lastMove === 'light_right' ? 'left' : 'right';
+      if ((attackButton.dataset.next ?? null) !== nextCut) { if (nextCut) attackButton.dataset.next = nextCut; else delete attackButton.dataset.next; }
       attackButton.dataset.mobile = practice.phase === 'sheathed' ? 'Draw' : 'Slash';
-      attackButton.setAttribute('aria-label', attackButton.textContent);
+      attackButton.setAttribute('aria-label', attackLabel);
       thrustButton.hidden = !practice.health || !practice.playerHealth || practice.phase === 'sheathed';
       thrustButton.setAttribute('aria-disabled', String(!controlsReady || !accepts(practice, 'thrust')));
       // Keep receiving repeated touches while busy; native disabled can surrender them to browser zoom.
