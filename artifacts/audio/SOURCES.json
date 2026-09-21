@@ -48,5 +48,16 @@
     "license": "CC0-1.0",
     "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
     "retrieved": "2026-09-19"
+  },
+  "shield": {
+    "file": "src/assets/audio/sources/jochi-shield-block.flac",
+    "page": "https://www.youtube.com/watch?v=k895zKWPEIg",
+    "sha256": "783298abf450c17715c6f92fdcc97cde4ce6b71d5a6da34b663e56f831734189",
+    "title": "Shield Block | Free Sound Effect",
+    "author": "Jochi SFX",
+    "license": "Jochi SFX free-use terms (video description): \"You can use these sounds for free in any musical compositions, video projects and other creative work. You may not sell or re-distribute these sounds, nor claim them as your own work.\"",
+    "licenseUrl": "https://www.youtube.com/watch?v=k895zKWPEIg",
+    "note": "Three hits (1.30, 3.18, 5.10 s of the clip), 0.75 s each, mono 48 kHz FLAC, trimmed 2026-09-21; used as the parry cue at pitch 1 (owner chose the raw version).",
+    "retrieved": "2026-09-21"
   }
 }
