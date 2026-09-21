@@ -24,7 +24,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); inspectedPage = page; page.setDefaultTimeout(60000);   // a software-GL runner: text and taps wait behind the game's startup on every navigation
   page.on('pageerror', error => receipt.errors.push(String(error)));
-  let row = null, failRead = false, failLogout = false, writes = [], authUrl;
+  let row = null, admin = false, failRead = false, failLogout = false, writes = [], authUrl;
   await context.route('**/*sentry.io/**', route => route.abort());
   await context.route(`${api}/**`, async route => {
     const request = route.request(), url = new URL(request.url());
@@ -33,6 +33,10 @@ try {
     if (url.pathname === '/auth/v1/token') { assert.equal(request.postDataJSON().auth_code, 'qa-code'); return json(session); }
     if (url.pathname === '/auth/v1/logout') return failLogout ? json({ message: 'Sign-out rejected' }, 400) : route.fulfill({ status: 204 });
     if (url.pathname === '/auth/v1/user') return json(user);
+    if (url.pathname === '/rest/v1/admins') {   // the admins roster: the account reads only its own row (PR #282); null = not an admin
+      assert.equal(request.method(), 'GET'); assert.equal(url.searchParams.get('select'), 'user_id'); assert.equal(url.searchParams.get('user_id'), `eq.${user.id}`);
+      return json(admin ? { user_id: user.id } : null);
+    }
     assert.equal(url.pathname, '/rest/v1/fighter_profiles');
     assert.equal(url.searchParams.get('user_id'), request.method() === 'POST' ? null : `eq.${user.id}`);
     if (request.method() === 'GET') return failRead ? json({ message: 'Temporary service failure' }, 503) : json(row);
@@ -72,6 +76,8 @@ try {
   row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80 };
   await page.goto(`${origin}/?account=return&code=qa-code`); await ready(page);
   await page.getByText('Cloud fighter: Cloud fighter.', { exact: false }).waitFor();
+  const toolsHidden = p => p.evaluate(() => document.querySelector('#test-tools').hidden);
+  assert.equal(await toolsHidden(page), true, 'a signed-in account off the admins roster never sees the journal test tools');
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1')).name), 'Local fighter');
   assert.equal(writes.length, 0, 'Signing in never overwrites either save');
   await page.screenshot({ path: 'artifacts/account/mobile-signed-in.png' });
@@ -107,13 +113,17 @@ try {
   await page.evaluate(value => localStorage.setItem('frankendom.auth.v1', JSON.stringify(value)), session);
   await page.reload(); await ready(page); await page.locator('#journal-button').tap();
   await page.getByText('Could not read your account.', { exact: false }).waitFor();
-  failRead = false; await page.locator('#account-retry').tap();
+  failRead = false; admin = true; await page.locator('#account-retry').tap();
   await page.getByText('Cloud fighter: Newer device.', { exact: false }).waitFor();
+  await page.waitForFunction(() => document.querySelector('#test-tools').hidden === false);
+  assert.equal(await page.evaluate(() => document.querySelector('#test-tools').dataset.admin), 'true', 'a roster row reveals the test tools');
   await page.locator('#account-logout').tap();
   await page.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
+  assert.equal(await toolsHidden(page), true, 'sign-out hides the test tools again');
+  admin = false;
   assert.equal(await page.locator('#account-load').isVisible(), false);
   assert.equal(await page.evaluate(() => localStorage.getItem('frankendom.auth.v1')), null);
-  receipt.checks.push('Service failure cannot overwrite cloud; retry recovers; sign-out clears session and cloud controls');
+  receipt.checks.push('Service failure cannot overwrite cloud; retry recovers; admins roster gates the journal test tools; sign-out clears session, cloud controls and test tools');
   await page.close();   // the phone page's game loop would starve the desktop page's load on a software-GL runner (third Linux run: page.goto timed out at 30 s)
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } }); desktop.setDefaultTimeout(60000);
   desktop.on('pageerror', error => receipt.errors.push(String(error)));

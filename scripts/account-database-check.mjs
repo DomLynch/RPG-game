@@ -47,7 +47,26 @@ try {
       begin insert into public.fighter_profiles(user_id,display_name) values('11111111-1111-4111-8111-111111111111','Anon'); raise exception 'Anonymous write allowed'; exception when insufficient_privilege then null; end;
     end$$;
     reset role;
+    insert into public.admins(user_id) values('11111111-1111-4111-8111-111111111111');
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
     do $$begin
+      if not exists(select 1 from public.admins where user_id=auth.uid()) then raise exception 'Admin cannot read own roster row'; end if;
+      begin insert into public.admins(user_id) values(auth.uid()); raise exception 'Client admin insert allowed'; exception when insufficient_privilege then null; end;
+      begin delete from public.admins; raise exception 'Client admin delete allowed'; exception when insufficient_privilege then null; end;
+    end$$;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    do $$begin
+      if exists(select 1 from public.admins) then raise exception 'Other account''s admin row visible'; end if;
+      begin insert into public.admins(user_id) values(auth.uid()); raise exception 'Self-grant allowed'; exception when insufficient_privilege then null; end;
+    end$$;
+    set role anon;
+    do $$begin
+      begin perform * from public.admins; raise exception 'Anonymous admin read allowed'; exception when insufficient_privilege then null; end;
+    end$$;
+    reset role;
+    do $$begin
+      if (select count(*) from public.admins) <> 1 then raise exception 'Admin roster changed by a client'; end if;
       if (select count(*) from public.fighter_profiles) <> 2 then raise exception 'Unexpected rows'; end if;
       if not exists(select 1 from public.fighter_profiles where display_name='Aldren II' and revision=2) then raise exception 'Original save damaged'; end if;
     end$$;`;
