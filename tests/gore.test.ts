@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Color, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Vector3 } from 'three';
-import { createBladeBlood, createSplatPool, createWoundDecals } from '../src/gore.ts';
+import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, WOUND_THRESHOLD } from '../src/gore.ts';
 
 const near = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
 
@@ -116,4 +116,68 @@ test('blade blood: tints only the blade of the given side from its original colo
   blood.set(false, warriors, 'red');
   assert.equal(twoHanded.material, broad, 'off restores the original two-handed material, metalness intact');
   assert.equal(twoHanded.material.metalness, 0.9);
+});
+
+
+test('woundSite: a right cut lands on the victim\'s left flank, a left cut his right, an overhead his shoulder line, a thrust his front; legs mirror the same side', () => {
+  const torsoRight = woundSite({ location: 'torso', direction: 'right' });
+  assert.equal(torsoRight.bone, 'spine_02');
+  assert.ok(torsoRight.dir[0] > 0, 'a right cut crosses to the victim\'s own left (+x in his frame)');
+  const torsoLeft = woundSite({ location: 'torso', direction: 'left' });
+  assert.equal(torsoLeft.bone, 'spine_02');
+  assert.ok(torsoLeft.dir[0] < 0);
+  const overhead = woundSite({ location: 'torso', direction: 'overhead' });
+  assert.equal(overhead.bone, 'spine_03', 'the shoulder line, not the belly');
+  const thrust = woundSite({ location: 'torso', direction: 'thrust' });
+  assert.deepEqual(thrust.dir, [0, 0, 1], 'straight on the front, no side bias');
+  const headRight = woundSite({ location: 'head', direction: 'right' });
+  assert.equal(headRight.bone, 'Head');
+  assert.ok(headRight.dir[0] > 0);
+  const legsRight = woundSite({ location: 'legs', direction: 'right' });
+  assert.equal(legsRight.bone, 'thigh_l', 'a right-hand cut crosses to the victim\'s left thigh, same side convention as the torso');
+  const legsLeft = woundSite({ location: 'legs', direction: 'left' });
+  assert.equal(legsLeft.bone, 'thigh_r');
+});
+
+test('body wounds: a hit pins a pooled mark to the struck bone, follows it every frame, shows only at or below the 60% threshold, obeys blood off and clears on rematch', () => {
+  const scene = new Scene();
+  const wounds = createBodyWounds(scene, null);
+  assert.equal(wounds.entries[0].length, 5, 'five pooled marks per fighter');
+  assert.equal(wounds.entries[1].length, 5);
+  assert.ok(wounds.entries.flat().every(m => !m.group.visible));
+
+  const spine = new Object3D(); spine.name = 'spine_02'; spine.position.set(1, 1, -2);
+  const root = new Group(); root.add(spine); root.updateMatrixWorld(true);
+
+  const ok = wounds.hit(1, root, { location: 'torso', direction: 'right', heading: 0 }, 1);
+  assert.ok(ok, 'the struck bone exists: the hit registers');
+  assert.equal(wounds.hit(1, root, { location: 'torso', direction: 'right', heading: 0 }, 1) && true, true);
+
+  // Above the threshold: the mark is pinned but hidden.
+  wounds.update(1 / 60, [null, root], [1, 0.75], 'red');
+  assert.ok(wounds.entries[1].every(m => !m.group.visible), 'nothing shows above the 60% threshold');
+
+  // At the threshold: it shows, follows the bone, and fades in.
+  wounds.update(1 / 60, [null, root], [1, WOUND_THRESHOLD], 'red');
+  const marks = wounds.entries[1].filter(m => m.group.visible);
+  assert.equal(marks.length, 2, 'both hits show once the fighter drops to the threshold');
+  assert.ok(marks.every(m => m.group.position.distanceTo(spine.position) < 0.2), 'the mark sits at the struck bone, not the origin');
+
+  // Blood off hides every mark, even below the threshold.
+  wounds.update(1 / 60, [null, root], [1, 0.2], 'off');
+  assert.ok(wounds.entries[1].every(m => !m.group.visible), "blood 'off' hides body wounds like every other gore effect");
+
+  // A near-death fighter's marks are darker/heavier than a fresh one at exactly the threshold (severity scales opacity and drip length).
+  wounds.update(1 / 60, [null, root], [1, WOUND_THRESHOLD], 'red');
+  const atThresholdMark = wounds.entries[1].find(m => m.group.visible)!;
+  const atThresholdOpacity = atThresholdMark.mark.material.opacity, atThresholdDrip = atThresholdMark.drips[1].scale.y;   // snapshot: the mark below mutates in place
+  for (let i = 0; i < 30; i++) wounds.update(1 / 60, [null, root], [1, 0.02], 'red');
+  const nearDeath = wounds.entries[1].find(m => m.group.visible)!;
+  assert.ok(nearDeath.mark.material.opacity > atThresholdOpacity, 'closer to death reads stronger');
+  assert.ok(nearDeath.drips[1].scale.y > atThresholdDrip, 'and the drip runs longer');
+
+  wounds.clear();
+  assert.ok(wounds.entries.flat().every(m => !m.group.visible), 'rematch clears every mark');
+  wounds.update(1 / 60, [null, root], [1, 0.1], 'red');
+  assert.ok(wounds.entries[1].every(m => !m.group.visible), 'a cleared pool stays empty until the next hit');
 });

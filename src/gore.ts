@@ -4,6 +4,8 @@
 // with the scene's contact effects.
 import * as THREE from 'three';
 import { bloodiesMaterial } from './finisher-blood.ts';
+import type { HitLocation } from './blade.ts';
+import type { Direction } from './moves.ts';
 
 export type BloodMode = 'red' | 'dark' | 'off';
 type Rigs = { player: { anchor: THREE.Object3D }; opponent: { anchor: THREE.Object3D } };
@@ -157,6 +159,75 @@ export function createWoundDecals(scene: THREE.Scene, splatTexture: THREE.Textur
     get entries() {
       return wounds as readonly { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>; drips: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; life: number }[];
     },
+  };
+}
+
+// Body wounds (owner 2026-09-21): every landed blade blow leaves a mark on the struck body — head, torso or legs from the
+// simulation's hit location, on the side the swing came from (a right cut lands on the victim's left flank, an overhead on
+// top, a thrust on the front). Marks are pooled per fighter, ride their bone every frame, and show only once that fighter
+// is at 60 % health or below; from there the marks darken and the drips lengthen down to the death. Presentation only:
+// the simulation decides the hit, the damage and the location. Hidden in blood 'off', cleared on rematch.
+export const WOUND_THRESHOLD = 0.6, WOUNDS_PER_FIGHTER = 5;
+export type WoundHit = { location: HitLocation; direction: Direction; heading: number };   // heading = the struck fighter's facing
+type WoundSite = { bone: string; dir: [number, number, number]; radius: number; width: number };
+// The struck fighter's own frame: +x his left, +z his front (the rig convention). A blow from the attacker's right crosses to the victim's left.
+export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>): WoundSite {
+  const side = hit.direction === 'right' ? 1 : hit.direction === 'left' ? -1 : 0;
+  if (hit.location === 'head') return { bone: 'Head', dir: side ? [side * .9, .25, .35] : hit.direction === 'overhead' ? [0, .75, .65] : [0, .1, 1], radius: .105, width: .55 };
+  if (hit.location === 'legs') return { bone: side < 0 ? 'thigh_r' : 'thigh_l', dir: side ? [side * .85, 0, .5] : [0, 0, 1], radius: .085, width: .6 };
+  if (hit.direction === 'overhead') return { bone: 'spine_03', dir: [.35, .55, .75], radius: .16, width: .8 };   // the shoulder line, sword side up
+  return { bone: side ? 'spine_02' : 'spine_03', dir: side ? [side * .9, .05, .45] : [0, 0, 1], radius: side ? .17 : .15, width: side ? .7 : 1 };
+}
+export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture | null) {
+  type Mark = { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>; drips: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; bone: string; dir: THREE.Vector3; radius: number; width: number; scale: number; age: number; used: boolean };
+  const material = () => new THREE.MeshBasicMaterial({ color: '#581017', transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
+  const fighters = [0, 1].map(() => Array.from({ length: WOUNDS_PER_FIGHTER }, (): Mark => {
+    const group = new THREE.Group(), mark = new THREE.Mesh(new THREE.PlaneGeometry(.12, .12), Object.assign(material(), { map: splatTexture }));
+    const drips = [0, 1, 2].map((i) => { const drip = new THREE.Mesh(new THREE.PlaneGeometry(.011, .1), material()); drip.position.x = (i - 1) * .028; group.add(drip); return drip; });
+    group.add(mark); group.visible = false; scene.add(group);
+    return { group, mark, drips, bone: '', dir: new THREE.Vector3(), radius: 0, width: 1, scale: 1, age: 0, used: false };
+  }));
+  let next = [0, 0];
+  const tone = (mode: BloodMode) => (mode === 'dark' ? '#241314' : '#581017');
+  return {
+    // A blow landed on `side`: take the next pooled mark (the oldest when all are used) and pin it to the struck bone, on the struck face.
+    hit(side: 0 | 1, root: THREE.Object3D, hit: WoundHit, scale = 1) {
+      const site = woundSite(hit), bone = root.getObjectByName(site.bone);
+      if (!bone) return false;
+      const mark = fighters[side][next[side] % WOUNDS_PER_FIGHTER]; next[side]++;
+      const world = new THREE.Vector3(...site.dir).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), hit.heading);
+      root.updateWorldMatrix(true, true);
+      mark.dir.copy(world).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert());
+      mark.bone = site.bone; mark.radius = site.radius * scale; mark.width = site.width; mark.scale = scale; mark.age = 0; mark.used = true;
+      return true;
+    },
+    // Each frame, after the rigs animate: follow the bones; strength from the fighter's health fraction (nothing above the threshold).
+    update(dt: number, roots: readonly [THREE.Object3D | null, THREE.Object3D | null], health: readonly [number, number], bloodMode: BloodMode, hidden: readonly [boolean, boolean] = [false, false]) {
+      for (const side of [0, 1] as const) {
+        const severity = Math.min(1, Math.max(0, (WOUND_THRESHOLD - health[side]) / WOUND_THRESHOLD)), root = roots[side];
+        for (const mark of fighters[side]) {
+          const bone = mark.used && root ? root.getObjectByName(mark.bone) : null;
+          const show = !!bone && health[side] <= WOUND_THRESHOLD && bloodMode !== 'off' && !hidden[side];
+          mark.group.visible = show;
+          if (!show || !bone) continue;
+          mark.age += dt;
+          const normal = mark.dir.clone().applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion())).normalize();
+          mark.group.position.copy(bone.getWorldPosition(new THREE.Vector3())).addScaledVector(normal, mark.radius);
+          const right = new THREE.Vector3(0, 1, 0).cross(normal); if (right.lengthSq() < 1e-4) right.set(1, 0, 0); right.normalize();
+          mark.group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, normal.clone().cross(right).normalize(), normal));
+          const fade = Math.min(1, mark.age / .4), color = tone(bloodMode);
+          mark.mark.scale.set(mark.width * (.9 + .5 * severity) * mark.scale, (.9 + .5 * severity) * mark.scale, 1);
+          mark.mark.material.opacity = fade * (.5 + .4 * severity); mark.mark.material.color.set(color);
+          mark.drips.forEach((drip, i) => {
+            const length = (.25 + 1.75 * severity) * (i === 1 ? 1 : .7) * mark.scale;
+            drip.scale.set(mark.scale, length, 1); drip.position.set((i - 1) * .028 * mark.scale, -.05 * length - .04 * mark.scale, .001);
+            drip.material.opacity = fade * (.3 + .45 * severity) * (severity > .05 ? 1 : 0); drip.material.color.set(color);
+          });
+        }
+      }
+    },
+    clear() { for (const side of fighters) for (const mark of side) { mark.used = false; mark.group.visible = false; } next = [0, 0]; },
+    get entries() { return fighters as readonly (readonly Mark[])[]; },
   };
 }
 

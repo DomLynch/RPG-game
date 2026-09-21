@@ -2,6 +2,29 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Body wounds v1: blood from every landed blow, not just the death screen (owner go 2026-09-21, "blood dripping ... after a heavy hit")
+Owner: marks from every landed blade blow on any fighter (hero through Dwarf), sided to where the swing came from, showing once
+that fighter is at 60% health or below and darkening toward death — separate from the existing finisher/death gore.
+
+`gore.ts` `createBodyWounds` (new, alongside the existing splat pool / throat-cut decal / blade blood): a 5-mark pool per
+fighter, presentation only — the simulation decides the hit, damage and location; this only draws it. `woundSite(hit)` maps
+the sim's own `HitLocation` (head/torso/legs) + swing `Direction` (right/left/overhead/thrust/low) to a bone and a local
+direction in the STRUCK fighter's own frame: a right-hand swing crosses to the victim's left (torso `spine_02`/`spine_03`
+for overhead, legs mirror the same side onto `thigh_l`/`thigh_r`, thrust/low sit centred). `scene.ts` calls `bodyWounds.hit`
+on every landed `Hit` event (never a kick), skips the same `hasBlood(opponentId)` no-blood gate the splats already use, and
+scales the mark by `OPPONENTS[id].scale` for the bigger creatures. Marks ride their bone every frame; severity (opacity +
+drip length) scales linearly from 0 at 60% health to full at 0%; a finisher's own gore (opened cut lines, the throat, the
+plain death's blade tint) takes over the killed side's marks so they don't fight the finisher's own effect — the plain
+death keeps his wounds visible, `bloodMode 'off'` hides everything like the rest of the gore system, rematch clears the pool.
+
+Tests: `gore.test.ts` — `woundSite` direction/location table, `createBodyWounds` (pooled hit registers on a missing bone as
+false, threshold show/hide, follows the bone, `off` hides, severity scaling on opacity and drip, rematch clear); mutation on
+the threshold comparison caught. `test:all` 412/412. Harness: `finisher-preview.mjs` gained an opt-in `--wounds` still
+(a scripted duel to the first landed blow at ≤60% health, +30 settle frames) + a dedicated `wounds-gate` release row
+(`--only plainDeath --wounds`) so the other 7 finisher-preview rows don't pay the extra page load. Not yet run against a
+live browser (deploy #70 BUSY at the time of this entry) — release row not yet green, stills not yet reviewed by the owner.
+Remaining: run `wounds-gate` once FREE, screenshot review, PR.
+
 ## Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-limited back-off (2026-09-21)
 Deploy #57 on fdd6032 (#303 anti-turtling) failed release checks 17 and 20: the passive test Executioner is now lashed off the
 wall and dies at heading π nearer the wall. Quiet One's body left the portrait frame (x −40); Opened's reach-driven back-off

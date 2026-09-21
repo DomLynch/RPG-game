@@ -210,6 +210,16 @@
     [
       "node",
       "scripts/record-replay-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "plainDeath",
+      "--wounds",
+      "--no-video",
+      "--label",
+      "wounds-gate"
     ]
   ],
   "extended_commands": [
