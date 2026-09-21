@@ -14,6 +14,7 @@ import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile
 import { awardMark, marksOf, rankFor } from './career.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { readOpponent } from './ai.ts';
+import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailyBoard, loadDaily, postDaily, saveDaily, type DailyFight } from './daily.ts';
 import { autopsy } from './autopsy.ts';
 import {
   initialPractice,
@@ -186,6 +187,7 @@ let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRe
 // same warden and seed, practice only (practiceOnly: no ladder step, no mark, no scorecard or trial line). Share on the death
 // screen encodes the last record, replays it headless first, and only then hands the link to the share sheet or clipboard.
 let replay: { record: FightRecord; cursor: number } | null = null, practiceOnly = false;
+let daily: DailyFight | null = null;   // the daily warden's fight when this page is today's attempt (src/daily.ts): practice rules, its result posted once
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 const banner = (text: string | null) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; };
 const say = (text: string | null) => { shareStatus.textContent = text ?? ''; shareStatus.hidden = !text; };
@@ -316,6 +318,7 @@ resetButton.addEventListener('click', () => {
     location.reload();
     return;
   } // the next fighter is another rig: a fresh page loads it
+  daily = null;   // the daily's one attempt is over: the rematch is practice and never posts
   clearInput();
   recordRematch(trial);
   saveTrial(storage, trial);
@@ -344,10 +347,12 @@ shareButton.addEventListener('click', async () => {
       if ('tooLong' in link) { say('This fight is too long to share as a link; sign in to share it by id.'); return; }
       url = link.url;
     }
+    // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
+    const text = daily ? dailyShareText(daily, ROSTER[opponent.id].name, lastRecord.outcome, lastRecord.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
-    if (nav?.share) { try { await nav.share({ url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
-    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(url); say('Link copied.'); return; }
-    say(url);
+    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily warden' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
+    say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
   finally { shareButton.disabled = false; }
 });
@@ -368,6 +373,45 @@ if (replayText || sharedId) {
     updateHud();
   }).catch((error: unknown) => { banner(`This link cannot be played: ${error instanceof Error ? error.message : String(error)}`); });
 }
+// The daily warden (brief 4): `?daily=1` asks the server for today's fight, moves to the day's opponent when the page booted another,
+// spends the day's one attempt the moment the fight starts (a reload mid-fight is the attempt) and posts the record when it ends.
+// Practice rules: no marks, no scorecard; the daily has its own board. A build without a store, or a spent day, fights as usual.
+if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
+  welcome.hidden = true; banner('Asking for today\'s warden…');
+  void (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily warden'))).then((fight) => {
+    const rung = dailyOpponent(fight, LADDER);
+    if (rung.id !== opponent.id) { location.replace(`/?opponent=${rung.id}&daily=1`); return; }
+    const spent = loadDaily(storage, fight.day);
+    if (spent.started) { banner(spent.submitted ? `Daily #${fight.number} · posted today` : `Daily #${fight.number} · today's attempt is spent`); return; }
+    daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Warden: normal';
+    saveDaily(storage, { day: fight.day, started: true, submitted: false });
+    recorded = false; activeMs = 0; clearInput();
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); state = previous = practice.fighter;
+    banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); updateHud();
+  }).catch((error: unknown) => { banner(`No daily warden: ${error instanceof Error ? error.message : String(error)}`); });
+}
+element('daily-button').addEventListener('click', () => { location.assign('/?daily=1'); });
+// The journal's daily line and board, fetched when the journal opens (never at startup): today's number and opponent, this device's
+// standing, and the five board lines with unverified rows greyed.
+async function showDailyBoard() {
+  const status = element('daily-status'), board = element<HTMLUListElement>('daily-board');
+  if (!api) { status.textContent = 'The daily warden needs the account service.'; board.hidden = true; return; }
+  try {
+    const fight = await fetchDaily(api), rung = dailyOpponent(fight, LADDER), mine = loadDaily(storage, fight.day);
+    status.textContent = `Daily #${fight.number} · ${rung.name} · ${mine.submitted ? 'posted' : mine.started ? 'attempt spent' : 'not fought yet'}`;
+    const rows = await fetchDailyBoard(api, fight.day);
+    board.replaceChildren(...dailyBoard(rows).map(({ title, row }) => {
+      // Web design's two hooks (#331): the title in <b> so the columns split, and this device's own posted row marked (the public view carries no
+      // user ids, so the match is the posted result itself: outcome, ticks and the fighter's display name).
+      const li = document.createElement('li'), b = document.createElement('b'); b.textContent = title; li.dataset.verified = String(row ? row.verified : true);
+      li.append(b, row ? ` ${row.display_name ?? 'a fighter'} · ${(row.ticks / 60).toFixed(1)} s${row.verified ? '' : ' (unverified)'}` : ' —');
+      if (row && mine.submitted && row.outcome === mine.outcome && row.ticks === mine.ticks && row.display_name === profile.name) li.dataset.you = 'true';
+      return li;
+    }));
+    board.hidden = false;
+  } catch (error) { status.textContent = `No daily warden: ${error instanceof Error ? error.message : String(error)}`; }
+}
+element('journal-button').addEventListener('click', () => { void showDailyBoard(); });
 element('difficulty').addEventListener('click', () => {
   const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[];
   difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length];
@@ -655,6 +699,14 @@ function frame(now: number) {
           // The autopsy (brief 2): two plain lines on the death screen, and the same lines under the opponent's journal row for the last fight.
           const lines = autopsy(practice.ai.habits, readOpponent(practice.ai.habits), fightLog, practice.duel);
           showAutopsy(lines);
+          // The daily warden's one post (brief 4): the record, where the killing blow landed and the blows taken; guests are told to sign in.
+          if (daily && lastRecord) {
+            const taken = fightLog.filter((e) => e.target === 0 && (e.type === 'Hit' || e.type === 'GuardBroken' || (e.type === 'Blocked' && (e.damage ?? 0) > 0))).length;
+            const done = { day: daily.day, started: true, submitted: false, outcome: lastRecord.outcome, ticks: lastRecord.ticks };
+            saveDaily(storage, done);
+            if (session?.db && session.userId) void postDaily(session.db, session.userId, daily, lastRecord, practice.finish.location ?? null, taken).then(() => { saveDaily(storage, { ...done, submitted: true }); say('Posted to today\'s board.'); }, (error: unknown) => { say(`Not posted: ${error instanceof Error ? error.message : String(error)}`); });
+            else say('Sign in to post to today\'s board.');
+          }
           if (!practiceOnly) {   // an avenged fight is practice: it never touches the card, the scorecard or the marks
             recordPractice(trial, practice, Math.round(activeMs));
             saveTrial(storage, trial);
