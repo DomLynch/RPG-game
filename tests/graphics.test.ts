@@ -52,7 +52,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'test', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
   const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string) => void) => { if (initializationError) throw initializationError; report = status; status(''); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
-  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win,
+  runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element() }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
@@ -649,10 +649,10 @@ test('daily warden: the attempt is spent the moment the fight starts, a reload m
 });
 test('account: every persist of the fighter fires the profile beat the account listens to for its automatic cloud save', () => {
   const app = boot(); let beats = 0; app.window.addEventListener('frankendom:profile', () => { beats++; });
-  app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
-  for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
-  assert.ok(app.rendered.finish, 'the fight ends');
-  assert.ok(beats >= 1, `a recorded result persists the fighter and fires the beat (${beats})`);
+  (app.element('fighter-name') as unknown as { value: string }).value = 'Aldren';
+  app.element('name-form').dispatchEvent(new Event('submit', { cancelable: true }));   // the name form persists, like a won fight or a journal pick
+  assert.equal(beats, 1, 'persist() fires the beat once');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).name, 'Aldren', 'and the fighter is saved on the device first');
 });
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();

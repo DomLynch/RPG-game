@@ -22,6 +22,7 @@ export async function mountAccount(url: string, key: string) {
   function render() {
     login.hidden = !!userId; logout.hidden = !userId;
     for (const button of [login, logout, retry]) button.disabled = busy;
+    for (const id of ['save-status', 'journal-save']) get(id).textContent = userId ? 'Signed in · saved to your account' : 'Guest · saved on this device';   // the fighter card's save line (main.ts persist() writes the same)
   }
   const local = () => loadProfile(localStorage, () => crypto.randomUUID()).profile;
   // What the device would write, against what the cloud holds: a change of name or opponent, more marks, or a piece the cloud lacks.
