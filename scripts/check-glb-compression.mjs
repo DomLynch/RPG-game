@@ -5,6 +5,10 @@ import { preview } from 'vite';
 import { chromium, webkit } from 'playwright';
 import { assertGlbEquivalent, builtRig, sha256, parseGlb } from './glb-equivalence.mjs';
 import { PROPS } from '../src/arena-props.ts';
+import { ROSTER } from '../src/roster.ts';
+// Held recipes (roster.ts `hold`) stay in src/assets for their lanes but are excluded from the bundle (scene.ts glob), so there is no
+// content-hashed build to judge; the gate skips exactly those bodies and records them.
+const heldBodies = new Set(Object.values(ROSTER).filter(r => 'hold' in r && r.hold === true).map(r => r.body));
 const isProp = url => PROPS.some(p => new URL(url).pathname.split('/').at(-1).startsWith(p.id + '-'));   // arena props load on every page; the rig count excludes them
 
 function checkCsp(value) {
@@ -17,14 +21,16 @@ if (process.argv.includes('--hosted-csp')) {
   console.log('Hosted decoder CSP PASS');
 } else {
   const dir = 'artifacts/character/compression'; await fs.mkdir(dir, { recursive: true });
-  const receipt = { rigs: [], browsers: [], errors: [] };
+  const receipt = { rigs: [], held: [], browsers: [], errors: [] };
   for (const name of (await fs.readdir('src/assets')).filter(f => f.endsWith('.glb'))) {
-    const id = name.slice(0, -4), file = await builtRig(id);
+    const id = name.slice(0, -4);
+    if (heldBodies.has(id)) { receipt.held.push(id); continue; }
+    const file = await builtRig(id);
     const packed = await fs.readFile(file), textures = [];
     for (const image of parseGlb(packed).doc.images) if (image.uri) textures.push({ path: `assets/${image.uri}`, sha256: sha256(await fs.readFile(`dist/assets/${image.uri}`)) });
     receipt.rigs.push({ id, file, textures, ...await assertGlbEquivalent(await fs.readFile(`src/assets/${name}`), packed) });
   }
-  console.log(`Compressed build equivalence PASS: ${receipt.rigs.length} rigs, ${receipt.rigs.reduce((n, r) => n + r.accessors, 0)} accessors; clips/materials unchanged; JPEG pixels/colour/orientation data identical; other used image bytes unchanged`);
+  console.log(`Compressed build equivalence PASS: ${receipt.rigs.length} rigs (${receipt.held.length} held, not bundled: ${receipt.held.join(', ') || 'none'}), ${receipt.rigs.reduce((n, r) => n + r.accessors, 0)} accessors; clips/materials unchanged; JPEG pixels/colour/orientation data identical; other used image bytes unchanged`);
   if (process.argv.includes('--browser')) {
     const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
     const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
