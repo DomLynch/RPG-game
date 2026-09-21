@@ -42,7 +42,10 @@ if (process.argv.includes('--hosted-csp')) {
           page.on('pageerror', e => receipt.errors.push(String(e)));
           await page.route('**/*sentry.io/**', route => route.abort());
           await page.route(`${origin}/decoder-csp-probe.js`, route => route.fulfill({ contentType: 'text/javascript', body: `try { window.evalAllowed = new Function('return true')(); } catch { window.evalAllowed = false; } window.evalChecked = true;` }));
-          for (const id of ['werewolf', 'skeleton']) {
+          // The two heaviest bundled opponents (this pair used to be werewolf and skeleton, now held and not in dist).
+          const sized = await Promise.all(receipt.rigs.filter(r => r.id !== 'warrior').map(async r => [r.id, (await fs.stat(r.file)).size]));
+          const heaviest = sized.sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id]) => id);
+          for (const id of heaviest) {
             const responses = [];
             const collect = response => { if (/\.glb(?:\?|$)|\/assets\/textures\//.test(response.url())) responses.push(response); };
             page.on('response', collect);
