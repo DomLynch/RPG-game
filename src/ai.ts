@@ -102,6 +102,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // The first opener is always the heavy (the readable parry lesson); after that the warden also opens with the thrust — a faster tell
   // (16 ticks to the heavy's 32) with the longest reach, so it is the spacing opener from just outside cutting range.
   // A read parrier sees mostly cuts (held past the parry window as baits, or feinted), not the heavy whose long tell is what they are parrying.
+  // The lorarii: three quarters of a loiter clock at the wall and the next opener is now, not on the cadence, and a circler closes to
+  // deliver it (an attack resets the clock; circling at 1.3 m with a knife swings at nothing and gets lashed).
+  if (M.loiter >= RULES.wall.loiter.ticks * .75) { next.wait = 0; if (next.mode === 'circle' && M.stamina >= profile.discipline * M.maxStamina / 100) next.mode = 'approach'; }
   if (!next.wait && !next.next && canAct) next.next = roll() < (reads.parryHappy ? Math.max(profile.pressure, READ.baitShare) : profile.pressure) ? 'light' : h.attacks > 0 && roll() < fight.thrustShare ? 'thrust' : 'heavy';
   // An opener the bar's worn ceiling can no longer pay for (attrition; a weapon whose heavy costs more than the floor) would be waited for
   // for ever: it becomes a cut, which every weapon can always afford at the floor.
@@ -208,5 +211,11 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // The dart: a sprint into an opening from outside reach (profile.dash), so the whiff is punished before it closes.
   const dash = !!profile.dash && opening && forward > 0 && gap > fight.close + .3 && M.stamina > RULES.rollCost && roll() < profile.dash;
   intent.move = { x: Math.sin(facing) * forward + Math.cos(facing) * lateral, z: Math.cos(facing) * forward - Math.sin(facing) * lateral, yaw: 0, run: dash };
+  // The lorarii (RULES.wall.loiter): three quarters of a loiter clock spent in the wall band and the fighter walks off it, toward the centre, whatever his
+  // mode — the whip is a worse deal than a step. Same rule for every rung (the Goblin, circling along the wall, was lashed 17 times in 24 fights).
+  if (M.loiter >= RULES.wall.loiter.ticks * .75 && intent.action === null && gap > fight.close + .3) {   // in melee he attacks instead (that resets the clock)
+    const r = Math.hypot(M.body.x, M.body.z), inward = { x: -M.body.x / r, z: -M.body.z / r };
+    intent.move = { x: intent.move.x * .5 + inward.x * .5, z: intent.move.z * .5 + inward.z * .5, yaw: 0, run: false };
+  }
   return done();
 }

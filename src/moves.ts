@@ -129,7 +129,18 @@ export const RULES = {
   posture: { max: 100, decay: .2, hold: 45, stun: 90, parry: 25, perfect: .5 },   // slice Q: the drain pauses `hold` ticks after any gain, so a run of blocks can reach a break; swept to ~one break per two duels at normal
   // The ring wall: knockback that meets the wall adds stagger and posture (the wall hits back); a fighter with the wall at its back cannot
   // backstep. `edge` is how close to RADIUS counts as at the wall.
-  wall: { edge: .25, stagger: 12, posture: 15 },
+  // Anti-turtling (owner 2026-09-21, "both 1 and 2"): the lorarii. A fighter within `loiter.band` of the wall for `loiter.ticks` without
+  // attacking is whipped — `chip` health (never the last point), `posture`, and a `shove` back into the fight (toward an opponent within
+  // `into` metres, else toward the centre) — and the lorarii keep at it:
+  // the next lash comes `again` ticks later while he stays in the band (posture stacks toward a break). Attacking or leaving the band
+  // resets the clock. Both fighters: the warden cannot camp the wall either.
+  wall: { edge: .25, stagger: 12, posture: 15, loiter: { band: 1, ticks: 180, again: 60, chip: 3, posture: 15, shove: .6, into: 2 } },
+  // Anti-turtling 2: no rest at the wall. A tick that opens the gap to the opponent by more than `away` metres (a walk straight back is .05
+  // at 3 m/s; strafing is ~0) while the fighter is inside the wall band (`wallOnly`, the same `wall.loiter.band`) regenerates no stamina;
+  // regen resumes the tick he stops, strafes or advances. Owner 2026-09-21 chose the band form over "no regen while retreating anywhere":
+  // the everywhere form failed 3 of the 24 rung identity pins (a charged-heavy spammer beat the Veteran 13/24, goblin fights ran past
+  // 45 s) and halved the hero brain's Veteran-normal wins — the rungs were tuned to recover by backing off. Set `wallOnly: false` to try it.
+  retreat: { away: .02, wallOnly: true },
   // Attrition: every blade wound takes `stamina` off the wounded fighter's maximum for the duel (floor `floor`); a leg wound slows walking by `legSpeed`.
   attrition: { stamina: 8, floor: 40, legSpeed: .85 },
   // The thrust as the stop-hit: into a swinging opponent, or one that has walked `walk` metres onto the point since the thrust started, it

@@ -15,17 +15,17 @@ function arena(gap = 1.2): Duel {
 }
 // Play the warden through the same stepDuel as the player; `player` scripts the human side from the committed state.
 function play(profile: AiProfile, ticks: number, player: (d: Duel) => Intent, start = arena(), seed = 731, immortal = true) {
-  let d = start, ai = initialAi(seed); const events: Duel['events'] = [], modes = new Set<string>(); let travelled = 0;
+  let d = start, ai = initialAi(seed); const events: Duel['events'] = [], modes = new Set<string>(); let travelled = 0, lowest = 100;   // lowest: the warden's stamina floor over the fight
   for (let i = 0; i < ticks; i++) {
     const warden = decide(d, 1, ai, profile); ai = warden.ai;
     const before = d.fighters[1].body;
     d = stepDuel(d, [player(d), warden.intent]);
     travelled += Math.hypot(d.fighters[1].body.x - before.x, d.fighters[1].body.z - before.z);
-    events.push(...d.events); modes.add(ai.mode);
+    events.push(...d.events); modes.add(ai.mode); lowest = Math.min(lowest, d.fighters[1].stamina);
     // Keep the observation fight alive on both sides without touching the warden's decisions or resources.
     if (immortal) d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
   }
-  return { duel: d, ai, events, modes, travelled };
+  return { duel: d, ai, events, modes, travelled, lowest };
 }
 const wardenAttacks = (events: Duel['events']) => events.filter(e => e.type === 'AttackStarted' && e.actor === 1);
 
@@ -64,11 +64,11 @@ test('an unblockable swing it cannot parry or roll is answered with a backstep o
 });
 
 test('the warden uses the same combat API: its attacks cost stamina, obey range and resolve through the same contact rules', () => {
-  const { events, duel } = play(PROFILES.normal, 600, () => idle());
+  const { events, lowest } = play(PROFILES.normal, 600, () => idle());
   const first = wardenAttacks(events)[0];
   assert.ok(first, 'a stationary armed player is attacked');
   assert.ok(events.some(e => e.type === 'Hit' && e.actor === 1), 'and hit through the shared blade sweep');
-  assert.ok(duel.fighters[1].stamina < 100 || events.some(e => e.type === 'StaminaExhausted' && e.actor === 1));
+  assert.ok(lowest < 100, 'its attacks cost stamina (the floor over the fight, not the end state: a warden that rested back to full by tick 600 still paid)');
   let d = arena(6), ai = initialAi();
   for (let i = 0; i < 30; i++) { const w = decide(d, 1, ai, PROFILES.hard); ai = w.ai; d = stepDuel(d, [idle(), w.intent]); }
   assert.ok(!wardenAttacks(d.events).length && d.fighters[1].stamina === 100, 'out of reach it closes distance instead of swinging at air');

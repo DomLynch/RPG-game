@@ -906,3 +906,67 @@ test('gladiator identity (slice Q): posture pins — a gain pauses the drain for
   const draining = run(held, 20, idle(), idle());
   assert.ok(Math.abs(draining.fighters[1].posture - (gained - 20 * RULES.posture.decay)) < 1e-9 + RULES.posture.decay, `then it drains at .2 a tick: ${draining.fighters[1].posture}`);
 });
+
+// Anti-turtling (owner 2026-09-21, "both 1 and 2"): the lorarii whip a wall-loiterer; no stamina regenerates while backing away.
+const atWall = (gap = 1.2): Duel => {   // index 0 stands inside the wall band with the foe `gap` toward the centre, both on the z axis
+  const z0 = RADIUS - RULES.wall.loiter.band + .3;
+  return { tick: 0, fighters: [createFighter({ x: 0, z: z0, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ x: 0, z: z0 - gap, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] };
+};
+test('anti-turtling 1: the lorarii — idling in the wall band for loiter.ticks without attacking is whipped (chip, posture, a shove inward) and the clock restarts', () => {
+  const L = RULES.wall.loiter, hp = RULES.health;
+  let d = run(atWall(), L.ticks - 1); assert.equal(d.fighters[0].loiter, L.ticks - 1); assert.equal(d.fighters[0].health, hp); assert.ok(!types(d).includes('Whipped'));
+  const rBefore = Math.hypot(d.fighters[0].body.x, d.fighters[0].body.z);
+  d = stepDuel(d, [idle(), idle()]);
+  const w = d.events.find(e => e.type === 'Whipped')!; assert.ok(w, 'whipped on the tick the clock fills'); assert.equal(w.actor, 0); assert.equal(w.target, 0); assert.equal(w.damage, L.chip);
+  assert.equal(w.x, 0); assert.ok(Math.abs(w.z! - rBefore) < 1e-9, 'x, z = where the lash landed, before the shove');
+  assert.equal(d.fighters[0].health, hp - L.chip); assert.equal(d.fighters[0].posture, L.posture);
+  assert.ok(Math.abs(Math.hypot(d.fighters[0].body.x, d.fighters[0].body.z) - (rBefore - L.shove)) < 1e-9, 'shoved `shove` toward the foe, who stands 1.2 m inward: the same line as the centre here');
+  assert.equal(d.fighters[0].loiter, L.ticks - L.again, 'the next lash is `again` ticks away while he stays');
+  assert.equal(d.fighters[1].loiter, 0, 'the foe, inside the band? no — 1.2 m further in is outside it');
+  // shove direction: an opponent within `into` metres draws the shove toward him (never out of his reach); a far opponent, toward the centre
+  const side = atWall(1.2); side.fighters[1].body = { ...side.fighters[1].body, x: 1.2, z: side.fighters[0].body.z };   // foe 1.2 m to the east, same distance from the wall
+  const s1 = run(side, L.ticks); assert.ok(s1.fighters[0].body.x > .5, `shoved toward the foe at his side (x ${s1.fighters[0].body.x.toFixed(2)})`);
+  const far = atWall(1.2); far.fighters[1].body = { ...far.fighters[1].body, z: 0 };   // foe 7+ m away
+  const s2 = run(far, L.ticks); assert.ok(Math.abs(Math.hypot(s2.fighters[0].body.x, s2.fighters[0].body.z) - (RADIUS - L.band + .3 - L.shove)) < 1e-9, 'a far foe: toward the centre');
+  // the shove put him out of the band: no second lash
+  d = run(d, L.ticks); assert.equal(d.events.filter(e => e.type === 'Whipped').length, 0);
+  // a fighter hugging the wall (still in the band after the shove) is lashed again `again` ticks after the first, not a full clock later
+  const hugging = atWall(); hugging.fighters[0].body = { ...hugging.fighters[0].body, z: RADIUS - .05 };
+  let e = run(hugging, L.ticks); assert.equal(e.events.filter(x => x.type === 'Whipped').length, 1);
+  let lashes = 0; for (let i = 0; i < L.again; i++) { e = stepDuel(e, [idle(), idle()]); lashes += e.events.filter(x => x.type === 'Whipped').length; }
+  assert.equal(lashes, 1, 'the lorarii keep at a man who stays'); assert.ok(e.fighters[0].posture > L.posture, `posture stacks toward a break (${e.fighters[0].posture})`);
+});
+test('anti-turtling 1: attacking or leaving the band resets the loiter clock; the lash never takes the last point of health; a dead fighter is left alone', () => {
+  const L = RULES.wall.loiter;
+  let d = run(atWall(), L.ticks - 10);
+  d = stepDuel(d, [act('light'), idle()]); assert.equal(d.fighters[0].phase, 'attack'); assert.equal(d.fighters[0].loiter, 0, 'an attack resets it');
+  d = run(d, L.ticks - 1); assert.ok(!types(d).includes('Whipped'), 'no whip inside the next window');
+  d = run(atWall(), L.ticks - 10);
+  d = run(d, 20, { ...idle(), move: { x: 0, z: -1, yaw: 0, run: false } });   // walk inward: out of the band
+  assert.equal(d.fighters[0].loiter, 0); assert.ok(!types(d).includes('Whipped'));
+  const low = atWall(); low.fighters[0].health = 2;
+  d = run(low, L.ticks); assert.equal(d.fighters[0].health, 1, 'the lash stings, it never kills');
+  const dead = atWall(); dead.fighters[0].health = 0; dead.fighters[0].phase = 'dead';
+  d = run(dead, L.ticks); assert.equal(d.fighters[0].loiter, 0); assert.ok(!types(d).includes('Whipped'));
+});
+test('anti-turtling 1: both fighters — the second index is whipped by the same rule', () => {
+  const L = RULES.wall.loiter, z1 = RADIUS - L.band + .3;
+  let d: Duel = { tick: 0, fighters: [createFighter({ x: 0, z: z1 - 1.2, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ x: 0, z: z1, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] };
+  d = run(d, L.ticks); const w = d.events.find(e => e.type === 'Whipped')!; assert.ok(w); assert.equal(w.target, 1); assert.equal(d.fighters[1].health, RULES.health - L.chip);
+});
+test('anti-turtling 2: no rest at the wall — inside the wall band a tick that opens the gap by more than retreat.away regenerates nothing; strafing, advancing and standing do, and so does backing off in open ground', () => {
+  const L = RULES.wall.loiter;
+  const start = (wall: boolean): Duel => {   // index 0 faces north toward the foe; +z walks away from him. At the wall he stands inside the band with the wall at his back.
+    const z0 = wall ? RADIUS - L.band + .1 : TARGET.z + 2, d: Duel = { tick: 0, fighters: [createFighter({ x: 0, z: z0, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ x: 0, z: z0 - 2, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] };
+    d.fighters[0].stamina = 40; d.fighters[0].rest = 0; return d;
+  };
+  const back = { ...idle(), move: { x: 0, z: 1, yaw: 0, run: false } };
+  let d = run(start(true), 15, back); assert.equal(d.fighters[0].stamina, 40, 'backpedalling at the wall: no regeneration (15 ticks: the wall stops him after 18)');
+  d = run(start(true), 10, { ...idle(), move: { x: 0, z: 1, yaw: 0, run: true } }); assert.ok(d.fighters[0].stamina < 40, 'sprinting away at the wall drains and regenerates nothing (10 ticks: the wall stops him after ~11)');
+  d = run(start(true), 30, { ...idle(), move: { x: 1, z: 0, yaw: 0, run: false } }); assert.ok(d.fighters[0].stamina > 40, 'strafing along the wall still regenerates');
+  d = run(start(true), 30, { ...idle(), move: { x: 0, z: -1, yaw: 0, run: false } }); assert.ok(d.fighters[0].stamina > 40, 'advancing regenerates');
+  d = run(start(true), 30); assert.ok(d.fighters[0].stamina > 40, 'standing regenerates');
+  d = run(run(start(true), 30, back), 2); assert.ok(d.fighters[0].stamina > 40, 'it resumes the tick after the retreat stops');
+  d = run(start(false), 30, back); assert.ok(d.fighters[0].stamina > 40, 'in open ground backing off still regenerates (owner: the band form, wallOnly)');
+  d = run(start(false), 30, back, idle(), { ...RULES, retreat: { ...RULES.retreat, wallOnly: false } }); assert.equal(d.fighters[0].stamina, 40, 'wallOnly off: the everywhere form');
+});
