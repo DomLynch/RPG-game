@@ -1,5 +1,5 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
-import { OPPONENTS, RULES, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type Timing, type WeaponId } from './moves.ts';
+import { OPPONENTS, RULES, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, RADIUS, TARGET, wrapAngle, type Input, type State } from './sim.ts';
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
@@ -27,6 +27,7 @@ export type Fighter = {
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
   weapon: WeaponId;   // the tables this fighter fights with (moves, blade paths, guard kind, material): see moves.ts `WEAPONS`
+  rig: RigId;   // the skeleton family the blade table is baked for (roster.ts RigId): 'hero' for a man and for every body reproportioned from him
   stall: number;   // ticks the current attack's clock stands still (a thrust that met nothing hangs at full extension)
   maxHealth: number;   // the bar's ceiling (moves.ts `Opponent.health`; RULES.health for a man)
   scale: number;   // body scale: the hit capsule and its head/torso/legs regions the opponent's blade sweeps (moves.ts `Opponent`)
@@ -45,10 +46,11 @@ export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish 
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1): Fighter => ({ weapon, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0 });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero'): Fighter => ({ weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0 });
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
-export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1);
-export const initialDuel = (opponent: Opponent = OPPONENTS.veteran): Duel => ({ tick: 0, fighters: [createFighter(initialState(), 'sheathed'), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
+export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
+// The player's weapon (moves.ts PLAYER_WEAPONS). The longsword keeps its draw beat; any other weapon starts armed (the draw beat becomes a ready stance).
+export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword'): Duel => ({ tick: 0, fighters: [createFighter(initialState(), weapon === 'longsword' ? 'sheathed' : 'ready', weapon), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -266,7 +268,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (a.age < t.windup || a.age >= t.windup + t.active) continue;
       // A thrust started inside a pole's minimum reach drives the point past the target: it meets nothing (the sweep and the kick have no such hole).
       // Judged from where it started: the lunge closes any gap to touching, so the gap at contact says nothing about where the point went.
-      location = a.attackFrom !== null && a.attackFrom.gap < (def.minReach ?? 0) ? null : bladeImpact(a.weapon, pathId, a.age - 1, a.age, before[i].body, a.body, before[j].body, d.body, d.scale);
+      location = a.attackFrom !== null && a.attackFrom.gap < (def.minReach ?? 0) ? null : bladeImpact(a.rig, a.weapon, pathId, a.age - 1, a.age, before[i].body, a.body, before[j].body, d.body, d.scale);
       // A miss is reported once, as the window closes. A thrust that meets nothing overextends: its clock hangs at full extension for `whiff` ticks
       // (the window-closing tick repeats while stalled, so the report is keyed on the stall not having started).
       if (!location && a.age === t.windup + t.active - 1 && before[i].stall === 0) { events.push({ tick, type: 'AttackMissed', actor: i, move: a.move }); if (a.move === 'thrust') A.stall = R.stopHit.whiff; }

@@ -1,4 +1,4 @@
-import { bladePaths } from './blade-paths.ts';
+import { bladePathsByRig } from './blade-paths.ts';
 import type { State } from './sim.ts';
 
 // Preserve the authored contact pose while sharpening the release through contact.
@@ -28,18 +28,25 @@ export function segmentDistance(a: Point, b: Point, c: Point, d: Point): number 
   return Math.hypot(...sub(mix(a,b,s),mix(c,d,t)));
 }
 // Offline-sampled rig paths are immutable simulation data. Never query rendered bones for damage.
-export function bladePose(weapon: string, kind: string, age: number): number[] {
-  const frames = bladePaths[weapon][kind], frame = Math.max(0,Math.min(frames.length-1,age)), index = Math.floor(frame);
+// A table belongs to the rig it was baked on (blade-paths.ts `bladePathsByRig[rig][weapon]`): the lookup is strict, a weapon a rig has no
+// bake for is an error here, never another rig's sweep. tests/blade-rig.test.ts pins every shipped (rig, weapon) pair so this cannot throw in play.
+export function bladeFrames(rig: string, weapon: string, kind: string): number[][] {
+  const frames = bladePathsByRig[rig]?.[weapon]?.[kind];
+  if (!frames) throw new Error(`no blade table for ${weapon} ${kind} on the ${rig} rig`);
+  return frames;
+}
+export function bladePose(rig: string, weapon: string, kind: string, age: number): number[] {
+  const frames = bladeFrames(rig, weapon, kind), frame = Math.max(0,Math.min(frames.length-1,age)), index = Math.floor(frame);
   return mix(frames[index],frames[Math.min(index+1,frames.length-1)],frame-index);
 }
 export type HitLocation = 'head' | 'torso' | 'legs';
 // `targetScale` is the target's body scale (moves.ts `Opponent`): the upright capsule and its regions grow with the man.
-export function bladeImpact(weapon: string, kind: string, fromAge: number, toAge: number, before: State, after: State, targetBefore: State, targetAfter: State, targetScale = 1): HitLocation | null {
+export function bladeImpact(rig: string, weapon: string, kind: string, fromAge: number, toAge: number, before: State, after: State, targetBefore: State, targetAfter: State, targetScale = 1): HitLocation | null {
   const world = (pose: number[], actor: State, target: State) => [0,3].map(offset => {
     const [x,y,z] = pose.slice(offset,offset+3), c = Math.cos(actor.heading), s = Math.sin(actor.heading);
     return [actor.x-target.x+x*c+z*s,y,actor.z-target.z+z*c-x*s];
   });
-  const a = world(bladePose(weapon,kind,fromAge),before,targetBefore), b = world(bladePose(weapon,kind,toAge),after,targetAfter);
+  const a = world(bladePose(rig,weapon,kind,fromAge),before,targetBefore), b = world(bladePose(rig,weapon,kind,toAge),after,targetAfter);
   // Sample the swept segment at <=2cm intervals; conservative 1cm padding closes sampling gaps.
   const steps = Math.max(1,Math.ceil(Math.max(Math.hypot(...sub(a[0],b[0])),Math.hypot(...sub(a[1],b[1])))/.02));
   for (let i=0;i<=steps;i++) {

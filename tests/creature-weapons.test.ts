@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { AnimationMixer, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ROSTER } from '../src/roster.ts';
-import { WEAPONS } from '../src/moves.ts';
+import { RULES, WEAPONS } from '../src/moves.ts';
 import { bladePaths } from '../src/blade-paths.ts';
 import { swingProgress } from '../src/blade.ts';
 import { createFighter, idleIntent, stepDuel, type Duel } from '../src/duel.ts';
@@ -45,10 +45,12 @@ test('creatures carry the approved maul and reaper scythe; every role resolves a
   }
 });
 
+// A creature's weapon sweeps the creature's own bake (blade seam): the man in this test carries the maul on the Minotaur's rig, the reaper on the Wraith's.
+const RIG = { maul: 'minotaur', reaper: 'wraith' } as const;
 test('creature light, heavy and forward strikes land once through their measured strike bands with no phantom inner or outer reach', () => {
   for(const [weapon,action,frontier] of [['maul','light',2.1],['maul','heavy',2.5],['maul','thrust',1.4],['reaper','light',2.55],['reaper','heavy',2.1],['reaper','thrust',2.0]] as const) {
     const hits=(gap:number)=>{
-      let d:Duel={tick:0,fighters:[createFighter({x:0,z:gap,heading:Math.PI,distance:0},'ready',weapon),createFighter({x:0,z:0,heading:0,distance:0},'ready')],finish:null,events:[]};
+      let d:Duel={tick:0,fighters:[createFighter({x:0,z:gap,heading:Math.PI,distance:0},'ready',weapon,1,0,RULES.health,undefined,1,1,RIG[weapon]),createFighter({x:0,z:0,heading:0,distance:0},'ready')],finish:null,events:[]};
       const events:Duel['events']=[];
       for(let i=0;i<100;i++){d=stepDuel(d,[{...idleIntent(),lock:false,action:i===0?action:null},{...idleIntent(),lock:false}]);events.push(...d.events.filter(e=>e.type==='Hit'));}
       return events;

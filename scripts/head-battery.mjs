@@ -8,7 +8,7 @@
 import fs from 'node:fs/promises';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
-import { bladePaths } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, opponentFighter, stepDuel } from '../src/duel.ts';
 import { OPPONENTS, PATHS, PROFILES, WEAPONS } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
@@ -19,7 +19,7 @@ const at = (d) => body(0, d, Math.PI), df = () => body(0, 0, 0);
 // ── Instrument 1: the static grid, judged by the duel's registering rule (active window only, first contact wins) ──
 function grid() {
   const rows = [];
-  for (const [weapon, kinds] of Object.entries(bladePaths)) {
+  for (const [rig, weapons] of Object.entries(bladePathsByRig)) for (const [weapon, kinds] of Object.entries(weapons)) {
     for (const [kind, frames] of Object.entries(kinds)) {
       const spec = PATHS[kind];
       if (!spec) continue;   // death/finisher clips are not combat paths
@@ -28,13 +28,13 @@ function grid() {
       for (let d = 85; d <= 190; d += 5) {
         let first = null;
         for (let age = spec.windup; age < spec.windup + spec.active; age++) {
-          first = bladeImpact(weapon, kind, age - 1, age, at(d / 100), at(d / 100), df(), df(), 1);
+          first = bladeImpact(rig, weapon, kind, age - 1, age, at(d / 100), at(d / 100), df(), df(), 1);
           if (first) break;
         }
         tally[first ?? 'none']++;
         byDistance[(d / 100).toFixed(2)] = first ?? 'none';
       }
-      rows.push({ weapon, kind, tally, byDistance });
+      rows.push({ rig, weapon, kind, tally, byDistance });
     }
   }
   return rows;
