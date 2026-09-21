@@ -9,7 +9,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { OPPONENTS, PATHS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePaths } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -793,4 +793,19 @@ test('guard side tilts the held guard: left and right swing the blade across, ov
   settle('overhead'); player.update(0, 1 / 60, 'guard', .8, 'light', .35, 0, 0, null); const easing = tip();
   assert.ok(easing.y > straight.y + .05 && easing.y < high.y - .05, `releasing the side eases back over frames, never snaps: ${easing.y.toFixed(2)} between ${straight.y.toFixed(2)} and ${high.y.toFixed(2)}`);
   assert.deepEqual(Object.keys(GUARD_TILT).sort(), ['left', 'low', 'overhead', 'right', 'thrust'], 'one tilt per simulation direction');
+});
+
+test('a dropped fighter fetch is retried with back-off; a rig that parses but is wrong is not (Sentry FRANKENDOM-6)', async () => {
+  const waits: number[] = [], sleep = async (ms: number) => { waits.push(ms); };
+  let calls = 0;
+  const flaky = async () => { calls++; if (calls < 3) throw new TypeError('Load failed'); return 'rig'; };
+  assert.equal(await retryTransient(flaky, 3, 100, sleep), 'rig'); assert.equal(calls, 3); assert.deepEqual(waits, [100, 200], 'two retries, back-off grows');
+  calls = 0; waits.length = 0;
+  await assert.rejects(retryTransient(async () => { calls++; throw new TypeError('Failed to fetch'); }, 3, 50, sleep), /Failed to fetch/, 'gives up after the last attempt');
+  assert.equal(calls, 3); assert.deepEqual(waits, [50, 100]);
+  calls = 0; waits.length = 0;
+  await assert.rejects(retryTransient(async () => { calls++; throw new Error('Warrior textures did not load'); }, 3, 50, sleep), /textures/, 'a parsed-but-wrong rig is not retried');
+  assert.equal(calls, 1); assert.deepEqual(waits, []);
+  assert.equal(transientLoadError(new TypeError('Load failed')), true); assert.equal(transientLoadError(new Error('NetworkError when attempting to fetch resource.')), true);
+  assert.equal(transientLoadError(new Error('Warrior is missing Guard')), false); assert.equal(transientLoadError(new SyntaxError('Unexpected token')), false);
 });
