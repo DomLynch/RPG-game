@@ -116,7 +116,6 @@ export function createScene(
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
-  assetStatus('Loading warriors…');
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
   const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map((f) => f.weapon) as [
     WeaponId,
@@ -127,7 +126,15 @@ export function createScene(
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
   // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
   // loading screen instead of stalling the first exchange (measured 69 ms p95 in the first window when they arrived late under load).
-  const ready = Promise.all([
+  // The load is retryable: a phone that sleeps mid-download aborts the fetch (2 MiB of the Nightborn's 5.1 MB, 2026-09-21 09:15) and
+  // the page is restored with the failure still showing. The capsules stay, the failure is reported, and `retryArt` runs the same
+  // load again — the entry point calls it when the page returns to the foreground, the network comes back, or the player taps the notice.
+  let loading: Promise<void> | null = null;
+  function loadFighters(): Promise<void> {
+    if (warriors) return Promise.resolve();
+    if (loading) return loading;
+    assetStatus('Loading warriors…');
+    loading = Promise.all([
     loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
     arena.ready,
   ])
@@ -148,8 +155,14 @@ export function createScene(
     })
     .catch((error) => {
       captureException(error);
-      assetStatus('Warrior art could not load. Movement still works; reload to retry.');
+      assetStatus('Warrior art could not load. Movement still works; tap here to retry.');
+    })
+    .finally(() => {
+      loading = null;
     });
+    return loading;
+  }
+  const ready = loadFighters();
   const marker = mesh(new THREE.RingGeometry(0.56, 0.59, 48), brass, TARGET.x, 0.04, TARGET.z);
   marker.rotation.x = -Math.PI / 2;
   marker.castShadow = false;
@@ -259,6 +272,8 @@ export function createScene(
   return {
     renderer,
     ready,
+    // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
+    retryArt: loadFighters,
     arena,
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
