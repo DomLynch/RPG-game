@@ -19,7 +19,10 @@ baked metallic map per vertex on the position-merged graph (the surface is split
 patches ≥ 100 faces per slot by dominant bone (≥ 300 faces per slot), and writes them in his re-proportioned rest space with his
 transferred weights + 1024/512 JPEG crops of his maps; the loot build's `unscale: "dwarf"` inverts BUILD.dwarf's per-bone field
 through those weights (`proportionField()`, the same code the donor build uses) — the greaves land 0.8 cm median / 2.9 cm max from
-the hero's skin. Only the greaves survive as a piece: Body/Helmet/Arms iron is speckle (renders in `artifacts/character/loot/v1/`).
+the hero's skin (tests/loot.test.ts pins median < 1.5 cm, p90 < 2.5 cm, max < 5 cm, span on the shins; without the unscale the same
+metric reads 2.6 / 5.8 / 7.3 cm on the Dwarf's shorter legs). Only the greaves survive as a piece, and as scattered iron scraps rather
+than solid plates — the metallic mask is what it is; a v2 could shell the whole shin instead. Body/Helmet/Arms iron is speckle. They
+follow the knee through Guard and Walk without cutting the kilt hem (renders in `artifacts/character/loot/v1/`).
 Byte-neutral: with WARRIOR_LOOT unset the script's output is unchanged (cmp against the untouched trunk script: identical hero and
 dwarf-donor builds). Open: the Goblin's trophies (necklace raycast needs the hero body loaded
 in loot mode), the five parametric kits re-run on the hero body via a parts.py `--kit` (Character Main; today's pieces are the
