@@ -94,10 +94,12 @@ test('ci-trusted-checks trusts only green jobs with receipts on a completed run 
   const sha = 'a'.repeat(40);
   // A fake gh: run list -> one completed run for the sha; run view -> jobs; api -> artifact names (no receipt for #3).
   writeFileSync(fake, `#!/bin/bash
+if [ -z "$SUMMARY_JSON" ]; then SUMMARY_JSON='{"sha":"${sha}","checks":[{"index":1,"status":0},{"index":2,"status":3},{"index":3,"status":0},{"index":4,"status":5}]}'; fi
 case "$1 $2" in
   "run list") echo '[{"databaseId":42,"headSha":"${sha}","url":"https://x/runs/42"}]';;
-  "run view") echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 2 (b)","conclusion":"failure"},{"name":"check 3 (c)","conclusion":"success"},{"name":"summary","conclusion":"success"}]';;
-  "api "*) echo '["release-check-1","release-check-2"]';;
+  "run view") echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 2 (b)","conclusion":"failure"},{"name":"check 3 (c)","conclusion":"success"},{"name":"check 4 (d)","conclusion":"success"},{"name":"summary","conclusion":"success"}]';;
+  "api "*) echo '["release-check-1","release-check-2","release-check-4","release-checks-summary"]';;
+  "run download") for i in "$@"; do case "$prev" in --dir) dir="$i";; esac; prev="$i"; done; printf '%s' "$SUMMARY_JSON" > "$dir/release-checks-summary.json";;
   *) exit 1;;
 esac
 `);
@@ -106,8 +108,10 @@ esac
   const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { encoding: 'utf8', env: { ...process.env, CI_TRUST_GH: fake, ...env } });
   let r = call([sha]);
   assert.equal(r.status, 0);
-  assert.equal(r.stdout, '1', 'job 1 green + receipt -> trusted; job 2 failed; job 3 green but no receipt artifact');
-  assert.match(r.stderr, /trusting 1 check\(s\) \[1\]; running locally: \[2:failure 3:success\/no-artifact\]/);
+  assert.equal(r.stdout, '1', 'job 1 green + artifact + receipt status 0 -> trusted; 2 failed; 3 no artifact; 4 green job but receipt status 5');
+  assert.match(r.stderr, /trusting 1 check\(s\) \[1\]; running locally: \[2:failure\/receipt-status=3 3:no-artifact 4:receipt-status=5\]/);
+  r = call([sha], { SUMMARY_JSON: JSON.stringify({ sha: 'c'.repeat(40), checks: [{ index: 1, status: 0 }] }) });
+  assert.equal(r.stdout, '', 'combined receipt for another sha -> nothing trusted');
   r = call(['b'.repeat(40)]);
   assert.equal(r.stdout, '', 'run exists but for a different sha -> nothing trusted');
   r = call([sha], { RELEASE_CHECKS_TRUST_CI: '0' });
