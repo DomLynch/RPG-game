@@ -117,7 +117,7 @@ const boneIndex = name => {
 // Equipment slots: authored parts declare extras.slot; each (slot, material) pair becomes its own skinned draw so a slot
 // can be shown, hidden or swapped without touching the others. Built-in pieces (hair, scabbard) sit in the '' slot.
 const slotOf = new Map();
-let lootOf = '', lootSlot = ''; const lootLayer = new Map();   // loot: opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
+let lootOf = '', lootSlot = ''; const lootLayer = new Map();   // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
 function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = lootSlot) {
   if (g.index) g = g.toNonIndexed();
   g.userData.slot = LOOT ? `${lootOf}:${slot}` : slot;   // loot: draws group per (opponent, slot, material)
