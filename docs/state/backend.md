@@ -99,17 +99,20 @@ confirm `taken` and `location`, and boards must rank verified rows only.
 insert/update grant on `(loot)` to authenticated. Client-reported cosmetics; `src/loot.ts cleanLoot` validates on read (known ids only, worn ⊆
 owned). Never rank/result/unlock authority.
 
-### frankendom_verifier role + daily_results.checked_at (0005, PR #348) — apply-ready; password set out of band
+### frankendom_verifier role + daily_results.checked_at (0005, PR #348) — apply-ready; password set by Dev/Deploy, not this lane
 `alter table daily_results add column checked_at timestamptz` (refused rows are stamped so the sweep moves on; `--recheck` revisits).
-`create role frankendom_verifier login` (password set on the host afterwards, lives only in the VPS unit's env file, never in the repo);
+`create role frankendom_verifier login` (Dev/Deploy sets the password on the host at apply time, straight into the VPS unit's env
+file, never in the repo and never held by this lane — see the checklist below);
 usage on schema public; `select (day, user_id, opponent, weapon, outcome, ticks, record, verified, checked_at, created_at)` and
 `update (verified, checked_at)` on daily_results; execute on `daily_fight(date)`; its own RLS policies (select all, update all) on
 daily_results. Nothing else. The VPS connects through the Supabase pooler as `frankendom_verifier.rxbewmzmovelckzoosss`.
 
 **#348 arming checklist (takeover from Dev/Deploy; read from their PR branch, not written by this lane — no VPS writes here):**
 1. Apply 0005 (this section) to hosted; confirm `frankendom_verifier` exists and its grants match above.
-2. Set the role's password on the host: `alter role frankendom_verifier password '<generated>';` — this lane generates and sets it,
-   hands the value to Dev/Deploy through a channel Dom's approved (never in chat), never commits it.
+2. Dev/Deploy generates the password and runs `alter role frankendom_verifier password '<generated>';` themselves, at the moment
+   they apply 0005, and writes it straight into `/etc/frankendom/verifier.env` (root:600) on the VPS. This lane never holds or
+   sets the secret — one hand stays on the hosted DB, and nothing leaves the VPS onto the shared Mac or into chat. Backend verifies
+   afterward (below), it doesn't generate.
 3. `/etc/frankendom/verifier.env` on the VPS (Dev/Deploy writes; root:600, checked by `deploy.sh` before it arms the timer):
    ```
    DATABASE_URL=postgres://frankendom_verifier:<password>@<pooler-host>:<pooler-port>/postgres
