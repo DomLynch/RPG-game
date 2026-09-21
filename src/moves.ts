@@ -408,6 +408,11 @@ export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 // The weapons a player can carry (Brief 5 loot): each has an equip file under src/assets/weapons/player and a bake on the hero rig
 // (tests/blade-rig.test.ts pins both). The weapons lane appends here when a new equip file ships.
 export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe'];
+// The weapons a player may be OFFERED (loot, paperdoll, equip): a subset of PLAYER_WEAPONS with no pairing over a cap in the 24-seed player
+// weapon battery (scripts/player-weapon-battery.mjs; tests/player-weapons.test.ts derives the excluded set from that table). Combat signed
+// the table 2026-09-21: the warhammer is fair on every live rung and is the first loot weapon; cleaver, knife, estoc, trident and scythe
+// wait for the warden's approach fix (Combat) and come off the table's over-cap list before they join this one.
+export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer'];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.

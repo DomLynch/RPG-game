@@ -1,12 +1,12 @@
 // The player weapon flip (Brief 5): the sim takes the player's weapon at the door, a non-longsword weapon starts armed, the fight record
 // carries the weapon (a version-1 record still decodes as the longsword), and every weapon a player can carry is fair against every live
-// rung by the rung's own caps. The full 24-seed table for Combat's signature is scripts/player-weapon-battery.mjs; this pin runs 8 seeds.
+// rung by the rung's own caps. The pin below runs the same 24-seed table as scripts/player-weapon-battery.mjs (Combat signed it) and derives the offered set from it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/combat.ts';
 import { initialDuel } from '../src/duel.ts';
 import { LADDER } from '../src/ladder.ts';
-import { OPPONENTS, PLAYER_WEAPONS, WEAPONS } from '../src/moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/moves.ts';
 import { RECORD_VERSION, createRecorder, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/record.ts';
 import { verifyRecord } from '../src/replay.ts';
 import { STRATEGIES, arena, battery, k, kt } from './strategies.ts';
@@ -51,20 +51,26 @@ test('weapon flip: the strategies\' distances scale by the player weapon\'s reac
   }
 });
 
-// Pairings over a cap on 2026-09-21 (8 seeds; the 24-seed table in scripts/player-weapon-battery.mjs showed the same weapons and rungs plus
-// knife/trident/scythe pokes stalling the Goblin at hard). Combat's tuning list, weapon-side only (Weapons lane), never a rung profile:
-// entries LEAVE this list as pairings are tuned and signed; nothing may be added. A weapon with an entry here is not offered to the player.
+// The pairings over a cap on 2026-09-21, 24 seeds (the same table scripts/player-weapon-battery.mjs prints; Combat ran and signed it).
+// An EXACT snapshot: a new over-cap pairing fails this test, and a pairing that comes back under its cap fails it too until the entry is
+// removed, so the list is edited only with a fresh table. Combat's ruling: every row is the warden's approach logic meeting a player reach
+// it has never seen (their slice), not weapon data and not a rung profile. A weapon with a row here is not in PLAYER_WEAPONS_OFFERED.
 const KNOWN_UNFAIR = [
-  'cleaver vs executioner normal: light spam wins 5/8',
-  'knife vs veteran normal: thrust from range wins 7/8',
-  'estoc vs goblin normal: thrust from range wins 8/8',
-  'estoc vs goblin hard: thrust from range wins 7/8',
-  'estoc vs dwarf hard: thrust from range wins 3/8',
-  'scythe vs veteran normal: thrust from range wins 5/8',
+  'cleaver vs executioner normal: light spam wins 17/24',
+  'knife vs veteran normal: thrust from range wins 18/24',
+  'knife vs goblin normal: kick only untouched 3/24',
+  'knife vs goblin hard: kick only untouched 3/24',
+  'estoc vs goblin normal: thrust from range wins 22/24',
+  'estoc vs goblin hard: light spam wins 11/24',
+  'estoc vs goblin hard: thrust from range wins 22/24',
+  'estoc vs dwarf hard: thrust from range wins 10/24',
+  'trident vs goblin hard: thrust from range untouched 4/24',
+  'scythe vs veteran normal: thrust from range wins 19/24',
+  'scythe vs goblin hard: thrust from range untouched 4/24',
 ];
 
-test('weapon flip: every player weapon is fair against every live rung by the rung\'s caps, except the pairings on Combat\'s tuning list, which may only shrink (8 seeds; the 24-seed table is the script) [slow]', () => {
-  const seeds = 8, over: string[] = [];
+test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {
+  const seeds = 24, over: string[] = [];
   for (const weapon of PLAYER_WEAPONS) { if (weapon === 'longsword') continue;   // the longsword is the battery's own pin (tests/battery.test.ts)
     for (const rung of LADDER) for (const [level, cap] of [['normal', .5], ['hard', .35]] as const) {
       const rows = battery(level, seeds, 7200, OPPONENTS[rung.id], STRATEGIES, weapon);
@@ -74,5 +80,9 @@ test('weapon flip: every player weapon is fair against every live rung by the ru
       }
     }
   }
-  assert.deepEqual(over, KNOWN_UNFAIR, 'a pairing over a cap that is not on the tuning list, or a tuned one still over: neither ships (weapon-side tuning, never the rung)');
+  assert.deepEqual(over, KNOWN_UNFAIR, 'the over-cap pairings must match the signed snapshot exactly: a new one, or one that came back under its cap, means a fresh table and a fresh signature');
+  // Offered = fair everywhere: the excluded set is computed from the table, never typed in by hand.
+  const unfair = new Set(over.map(row => row.split(' vs ')[0]));
+  for (const weapon of PLAYER_WEAPONS_OFFERED) { assert.ok(PLAYER_WEAPONS.includes(weapon), `${weapon} is a player weapon`); assert.ok(!unfair.has(weapon), `${weapon} is offered but has a pairing over a cap`); }
+  for (const weapon of PLAYER_WEAPONS) if (!unfair.has(weapon)) assert.ok(PLAYER_WEAPONS_OFFERED.includes(weapon), `${weapon} is fair on every rung and must be offered`);
 });
