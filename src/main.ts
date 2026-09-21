@@ -257,7 +257,8 @@ element('close-journal').addEventListener('click', () => journal.close());
 journal.addEventListener('close', clearInput);
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
-const paused = () => graphicsLost || !welcome.hidden || journal.open || document.hidden;
+let versusUp = false;   // the versus card is on screen: the fight waits behind it (declared here so paused() can read it before the card wires up)
+const paused = () => graphicsLost || !welcome.hidden || journal.open || document.hidden || versusUp;
 const controls = createInput({
   element, window, paused,
   now: () => performance.now(),
@@ -303,9 +304,18 @@ if (typeof document !== 'undefined' && document.body)
 // The versus card: a still of this fight from the real models (public/versus/<id>.webp) while the rigs download. No card for an
 // opponent (a fresh rung without one yet) just means the arena shows through as before; a card that fails to fetch hides itself.
 const versus = element('versus'), versusStill = element<HTMLImageElement>('versus-still');
-const hideVersus = () => { if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
-versusStill.addEventListener('error', () => { versus.hidden = true; });
-versusStill.addEventListener('load', () => { if (!assetsReady) versus.hidden = false; });
+// Owner 2026-09-21: the card is a title shot and the rigs load faster than its drift can read, so it holds for VERSUS_HOLD_MS
+// from the moment it shows before it lifts; the fight is paused behind it (versusUp) and starts as the card fades.
+const VERSUS_HOLD_MS = 2500;
+let versusShownAt = 0, versusHold: ReturnType<typeof setTimeout> | undefined;
+const dropVersus = () => { versusUp = false; if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
+const hideVersus = () => {
+  const left = versusShownAt + VERSUS_HOLD_MS - performance.now();
+  if (!versusUp || left <= 0) dropVersus();
+  else if (versusHold === undefined) versusHold = setTimeout(dropVersus, left);
+};
+versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
+versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; versusShownAt = performance.now(); } });
 element('versus-foe').textContent = ROSTER[opponent.id].name.replace(/^the /, '');
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;

@@ -487,6 +487,21 @@ test('the journal test tools stay hidden without ?debug; the roster flag is the 
   assert.equal(app.element('test-tools').dataset.debug, undefined);
   assert.equal(app.element('opponent-select').hidden, false);
 });
+test('the versus card holds 2.5 s from when it shows, with the fight paused behind it, then lifts; a late card lifts at once', () => {
+  const app = boot(), versus = app.element('versus'), still = app.element('versus-still');
+  app.report('Loading warriors…'); versus.hidden = true; delete versus.dataset.out;   // the harness boots with the rigs in (card already dropped); put it back into the download
+  still.dispatchEvent(new Event('load'));                       // the still arrives before the rigs: the card shows and the fight waits
+  assert.equal(versus.hidden, false);
+  app.tick(); app.key('KeyF'); app.tick(); app.tick();
+  assert.equal(app.rendered.duel.tick, 0, 'no sim ticks behind the card');
+  app.report('');                                                // rigs in after ~50 ms: the card must not lift yet
+  assert.equal(versus.dataset.out, undefined); assert.equal(app.timers.size, 1, 'one hold timer');
+  app.tick(2500); for (const cb of [...app.timers.values()]) cb(); app.timers.clear();
+  assert.equal(versus.dataset.out, 'true', 'the card lifts when the hold ends');
+  app.tick(); app.tick(); assert.ok(app.rendered.duel.tick > 0, 'the fight runs once the card lifts');
+  const late = boot(); late.report('Loading warriors…'); delete late.element('versus').dataset.out; late.element('versus-still').dispatchEvent(new Event('load')); late.tick(3000); late.report('');
+  assert.equal(late.element('versus').dataset.out, 'true', 'past the hold, the card lifts immediately'); assert.equal(late.timers.size, 0);
+});
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
   for (let i = 0; i < 60; i++) app.tick();
