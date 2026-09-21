@@ -59,8 +59,13 @@ Index `(user_id, created_at desc)`. RLS on. Policies: select `to anon, authentic
 insert `to authenticated` with check `auth.uid() = user_id and` fewer than 30 own rows in the last hour. No update/delete policy or grant.
 Grants: select whole table to anon+authenticated; insert `(id, user_id, opponent, record)` to authenticated.
 Client calls: `POST /rest/v1/fight_records` (src/share-store.ts), `GET /rest/v1/fight_records?select=record&id=eq.<id>`.
-**Review note (follow-up 0006, not blocking):** the whole-table select grant exposes `user_id` of every poster to anyone holding an id;
-the client only reads `record`. Tighten to `grant select (id, opponent, record, created_at)` in a follow-up; no client change needed.
+**0006 (PR #359, code merges tonight; hosted apply HELD for Dom's direct word in the morning — first item):** written, tests +
+mutation-tests green (30/hour cap re-proven via a new `security definer` function keyed to `auth.uid()`, not a caller-supplied id —
+an earlier draft took a `uid` argument, which would have let any signed-in player query another player's recent-post count via RPC;
+fixed before merge). Narrows the select grant to `(id, opponent, record)`, dropping `user_id`/`created_at` from what a link-holder can
+read. Not additive (it's a revoke), so per tonight's rule it needs Dom's own yes, not Strategy's or this lane's — Dev/Deploy's
+authorization from Dom names 0002–0005 only. Apply-ready line already given to Dev/Deploy; nothing further from this lane until Dom
+says go.
 
 ### daily_secret / daily_fight() / daily_results / daily_board (0003, PR #327) — apply-ready, both changes landed
 Both changes requested below have landed in the migration file (PR #354, merged into lead/daily-warden) plus a pgcrypto fix CI caught
