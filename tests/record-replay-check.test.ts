@@ -48,15 +48,15 @@ test('record-replay-check: a state-digest drift alone is reported, and gates onl
 });
 
 test('record-replay-check: a record whose version is refused passes with a clean refusal, never a silent pass', async () => {
-  // Rewrite the first record's bytes with version 2 (magic F K then the version byte), re-gzip, re-encode.
+  // Rewrite the first record's bytes with an unknown version, 9 (magic F K then the version byte; 1 and 2 are the read set), re-gzip, re-encode.
   const r = runWith(f => {
     const bytes = gunzipSync(fromBase64Url(f.records[0].encoded));
-    bytes[2] = 2;
+    bytes[2] = 9;
     f.records[0].encoded = toBase64Url(new Uint8Array(gzipSync(bytes)));
   });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const out = JSON.parse(r.stdout.trim().split('\n').pop()!);
-  assert.match(out.results[0].refused, /version 2 is not supported/);
+  assert.match(out.results[0].refused, /version 9 is not supported/);
   assert.equal(out.results[1].outcome, 'died', 'the other reference still replays');
   await assert.rejects(decodeRecord(fixture.records[0].encoded.slice(0, -4) + 'zzzz'), 'sanity: a corrupt string is refused by decodeRecord');
 });
