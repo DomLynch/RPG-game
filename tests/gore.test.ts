@@ -116,7 +116,14 @@ test('blade blood: tints only the blade of the given side from its original colo
   blood.set(false, warriors, 'dark');
   assert.equal(edge.material, original, 'off restores the original material object');
   assert.equal(blood.bloodied, false);
+  const broad = twoHanded.material; broad.metalness = 0.9; broad.roughness = 0.4;
   blood.set(true, warriors, 'red', 1);
-  assert.equal(twoHanded.material.color.getHexString(), new Color('#ffffff').lerp(new Color('#7a1410'), 0.55).getHexString(), 'side 1: the two-handed weapon');
+  // A broad hafted blade is a metallic mirror: it takes the dark film (owner, 2026-09-21: the scythe crescent rendered bright red).
+  assert.equal(twoHanded.material.color.getHexString(), new Color('#ffffff').lerp(new Color('#2a1516'), 0.55).getHexString(), 'side 1: the two-handed weapon takes the dark film, never the red mirror');
+  assert.equal(twoHanded.material.metalness, 0.3, 'the film stops the blade mirroring the sky');
+  assert.equal(twoHanded.material.roughness, 0.7);
   assert.equal(edge.material, original);
+  blood.set(false, warriors, 'red');
+  assert.equal(twoHanded.material, broad, 'off restores the original two-handed material, metalness intact');
+  assert.equal(twoHanded.material.metalness, 0.9);
 });
