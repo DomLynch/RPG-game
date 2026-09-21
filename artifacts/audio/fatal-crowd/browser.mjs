@@ -38,7 +38,10 @@ try {
  const voice = source('death_voice'), crowd = source('crowd_cheer'), body = source('kill');
  assert.ok(voice && crowd && body, 'native death voice, crowd and body regions scheduled');
  assert.ok(crowd.when - crowd.calledAt >= .34 && crowd.when - voice.when >= .3, 'crowd follows fatal contact');
- await run(650); // let the crowd begin (page time), then pause it through the real menu
+ // The cheer is scheduled .35 s after contact in AUDIO time, which the page clock does not govern: on a slow runner one
+ // page frame is a second of wall time, so waiting in page time would let the whole 3 s cheer end before the menu opened
+ // (run 35566004241: 'menu stops the live crowd source' false). Wait a moment of real time instead, then pause it through the real menu.
+ await page.waitForTimeout(400);
  await page.getByRole('button', { name: 'Menu and field journal' }).tap();
  const paused = await page.evaluate(() => window.__audio);
  assert.ok(paused.some(a => a.stop === crowd.id), 'menu stops the live crowd source');
