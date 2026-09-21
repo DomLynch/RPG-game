@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
-import { bladePaths } from '../src/blade-paths.ts';
+import { bladePaths, bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
 import { RADIUS, TARGET, type State } from '../src/sim.ts';
@@ -39,14 +39,16 @@ test('the goblin is set up from his data: the knife (live, slice X), 0.78× scal
   assert.equal(WEAPONS.knife.placeholder, undefined); assert.notEqual(WEAPONS.knife.moves, MOVES); assert.notDeepEqual(bladePaths.knife, bladePaths.longsword, 'baked from his own rig');
   for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.parry, 0, `${level}: he never parries`); assert.ok(p.dodge >= .3 && p.reaction <= PROFILES[level].reaction, `${level}: dodges, reacts fast`); }
   // The capsule follows his height: a blade level at 1.40 m is a head hit on a man and passes over the goblin; at 1.13 m (1.45 × 0.78) it finds his head where a man takes it in the chest.
-  bladePaths.probe = { flat: [[-.5, 1.4, 0, .5, 1.4, 0], [-.5, 1.4, 0, .5, 1.4, 0]], low: [[-.5, 1.13, 0, .5, 1.13, 0], [-.5, 1.13, 0, .5, 1.13, 0]] };
+  bladePathsByRig.hero.probe = { flat: [[-.5, 1.4, 0, .5, 1.4, 0], [-.5, 1.4, 0, .5, 1.4, 0]], low: [[-.5, 1.13, 0, .5, 1.13, 0], [-.5, 1.13, 0, .5, 1.13, 0]] };
   const o: State = { x: 0, z: 0, heading: 0, distance: 0 };
-  try { assert.equal(bladeImpact('probe', 'flat', 0, 1, o, o, o, o, G.scale), null); assert.equal(bladeImpact('probe', 'low', 0, 1, o, o, o, o, G.scale), 'head'); assert.equal(bladeImpact('probe', 'low', 0, 1, o, o, o, o), 'torso'); }
-  finally { delete bladePaths.probe; }
+  try { assert.equal(bladeImpact('hero', 'probe', 'flat', 0, 1, o, o, o, o, G.scale), null); assert.equal(bladeImpact('hero', 'probe', 'low', 0, 1, o, o, o, o, G.scale), 'head'); assert.equal(bladeImpact('hero', 'probe', 'low', 0, 1, o, o, o, o), 'torso'); }
+  finally { delete bladePathsByRig.hero.probe; }
+  // 9000 ticks (150 s), not 7200: the reach fix (2026-09-21) holds a guardless Goblin a hand inside a read poker's/kicker's reach rather
+  // than on its edge, so a couple of seeds now resolve slightly later — genuinely, not stalled (verified past 7200).
   const lengths: number[] = [];
   for (let s = 1; s <= 12; s++) {
     let d = ring(G, 1.6), a = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), b = initialAi((s * 2654435761) >>> 0);
-    for (let i = 0; i < 7200 && !d.finish; i++) { const x = decide(d, 0, a, PROFILES.normal), y = decide(d, 1, b, G.profiles.normal); a = x.ai; b = y.ai; d = stepDuel(d, [x.intent, y.intent]); }
+    for (let i = 0; i < 9000 && !d.finish; i++) { const x = decide(d, 0, a, PROFILES.normal), y = decide(d, 1, b, G.profiles.normal); a = x.ai; b = y.ai; d = stepDuel(d, [x.intent, y.intent]); }
     assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
   }
   console.log(`goblin AI vs AI (12 seeds): median ${(lengths.sort((x, y) => x - y)[6] / 60).toFixed(1)} s, range ${(lengths[0] / 60).toFixed(1)}–${(lengths[11] / 60).toFixed(1)} s`);
@@ -99,11 +101,14 @@ test('fight identity — read the feint: the goblin passes the fairness battery 
   }
 });
 
+// The reach fix (2026-09-21) holds a guardless warden a hand inside a read poker's/kicker's reach rather than on its edge, so a handful of
+// seeds against the Goblin (guardless) resolve slightly later; 9000 ticks (150 s) gives that margin without weakening what is asserted —
+// the fight must still finish, and the length/win-rate assertions below are unchanged.
 test('AI vs AI at normal: the Veteran\'s brain in the hero body against the goblin finishes every fight, median 25–45 s', () => {
   const lengths: number[] = [];
   for (let s = 1; s <= 24; s++) {
     let d = ring(G, 1.6), hero = initialAi(((s * 2654435761) >>> 0) ^ 0x9e3779b9), him = initialAi((s * 2654435761) >>> 0);
-    for (let i = 0; i < 7200 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, him, G.profiles.normal); hero = a.ai; him = b.ai; d = stepDuel(d, [a.intent, b.intent]); }
+    for (let i = 0; i < 9000 && !d.finish; i++) { const a = decide(d, 0, hero, PROFILES.normal), b = decide(d, 1, him, G.profiles.normal); hero = a.ai; him = b.ai; d = stepDuel(d, [a.intent, b.intent]); }
     assert.ok(d.finish, `seed ${s} did not finish`); lengths.push(d.tick);
   }
   const median = lengths.sort((a, b) => a - b)[12] / 60;
@@ -137,12 +142,12 @@ test('poise: a plain cut never staggers or moves the Pitborn — it wounds him a
 });
 
 test('the hit capsule grows with the man: a horizontal blade at 1.40 m is a head hit on a man and a torso hit on the 1.13× brute; at 1.90 m it misses the man and finds the brute\'s head', () => {
-  bladePaths.probe = { flat: [[-.5, 1.4, 0, .5, 1.4, 0], [-.5, 1.4, 0, .5, 1.4, 0]], high: [[-.5, 1.9, 0, .5, 1.9, 0], [-.5, 1.9, 0, .5, 1.9, 0]] };
+  bladePathsByRig.hero.probe = { flat: [[-.5, 1.4, 0, .5, 1.4, 0], [-.5, 1.4, 0, .5, 1.4, 0]], high: [[-.5, 1.9, 0, .5, 1.9, 0], [-.5, 1.9, 0, .5, 1.9, 0]] };
   const o: State = { x: 0, z: 0, heading: 0, distance: 0 };
   try {
-    assert.equal(bladeImpact('probe', 'flat', 0, 1, o, o, o, o), 'head'); assert.equal(bladeImpact('probe', 'flat', 0, 1, o, o, o, o, P.scale), 'torso');
-    assert.equal(bladeImpact('probe', 'high', 0, 1, o, o, o, o), null); assert.equal(bladeImpact('probe', 'high', 0, 1, o, o, o, o, P.scale), 'head');
-  } finally { delete bladePaths.probe; }
+    assert.equal(bladeImpact('hero', 'probe', 'flat', 0, 1, o, o, o, o), 'head'); assert.equal(bladeImpact('hero', 'probe', 'flat', 0, 1, o, o, o, o, P.scale), 'torso');
+    assert.equal(bladeImpact('hero', 'probe', 'high', 0, 1, o, o, o, o), null); assert.equal(bladeImpact('hero', 'probe', 'high', 0, 1, o, o, o, o, P.scale), 'head');
+  } finally { delete bladePathsByRig.hero.probe; }
 });
 
 // The off-line punisher the brief prescribes: step back the moment he swings, cut him while he recovers from the whiff, heavy him when he is spent.
@@ -341,6 +346,9 @@ test('fight identity — inside: the Dwarf passes the fairness battery at normal
       if (name !== 'perfect parry') assert.ok(r.wins / 24 <= cap, `${level} · ${name} wins ${r.wins}/24 (cap ${cap * 100} %)\n  ${table}`);
       assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
     }
+    // The title promises an honest script beats him; what is pinned is that one does, at normal — the charged heavy walks through his guard when it lands loaded (the rest of the honest scripts do not).
+    const honest = Object.entries(rows).filter(([n]) => n !== 'perfect parry').map(([, r]) => r.wins);
+    if (level === 'normal') assert.ok(Math.max(...honest) >= 6, `${level} · no honest script wins 6 of 24 against him\n  ${table}`);
     console.log(`dwarf battery ${level}\n  ${table}`);
   }
 });

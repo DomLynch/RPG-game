@@ -21,9 +21,9 @@ async function geometryOnly({doc,bin}) {
   raw.writeUInt32LE(bin.length,20+json.length);raw.writeUInt32LE(0x004e4942,24+json.length);bin.copy(raw,28+json.length);
   return new GLTFLoader().parseAsync(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength),'');
 }
-// The shipped veteran.glb became a TRELLIS.2 reconstruction (v2, 2026-09-20); the Studio-body Veteran this collar fit belongs
-// to lives on as src/assets/source/backups/veteran-v1.glb (the Skeleton's donor). Check that file unless one is given.
-const path=process.argv[2]??'src/assets/source/backups/veteran-v1.glb',raw=await fs.readFile(path),asset=parse(raw);
+// v2 (2026-09-20) grafted the v1 scanned head (Photo/Face/PhotoEyes/PhotoTeeth) back onto a TRELLIS.2 body; the collar
+// fit this check audits lives on unchanged in those draws. Check the shipped file unless one is given.
+const path=process.argv[2]??'src/assets/veteran.glb',raw=await fs.readFile(path),asset=parse(raw);
 const source=parse(await fs.readFile('src/assets/source/parts/body_veteran.glb'));
 const authored=name=>source.doc.meshes[source.doc.nodes.find(n=>n.extras?.material===name).mesh].primitives[0];
 const current=name=>asset.doc.meshes.flatMap(m=>m.primitives).find(p=>asset.doc.materials[p.material].name===name);

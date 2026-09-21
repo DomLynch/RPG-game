@@ -15,14 +15,14 @@ test('finite blade distance handles crossing, parallel, endpoints and degenerate
 test('blade contact rejects empty space inside the old broad cone and targets behind the fighter', () => {
   for (const [x,z] of [[.85,.85],[0,-1.2],[0,2.5]]) {
     const target={...actor,x,z};
-    assert.equal(bladeContact('longsword', 'light_right',SWORD.contact-1,SWORD.contact,actor,actor,target,target),false,`${x},${z}`);
+    assert.equal(bladeContact('hero', 'longsword', 'light_right',SWORD.contact-1,SWORD.contact,actor,actor,target,target),false,`${x},${z}`);
   }
   const target={...actor,z:1.2};
-  assert.ok(bladeContact('longsword', 'light_right',SWORD.contact-1,SWORD.contact,actor,actor,target,target));
+  assert.ok(bladeContact('hero', 'longsword', 'light_right',SWORD.contact-1,SWORD.contact,actor,actor,target,target));
 });
 test('a moving target crossing the blade within a tick cannot tunnel through it', () => {
   const before={...actor,x:-1,z:1.1},after={...actor,x:1,z:1.1};
-  assert.ok(bladeContact('longsword', 'light_right',SWORD.contact,SWORD.contact,actor,actor,before,after));
+  assert.ok(bladeContact('hero', 'longsword', 'light_right',SWORD.contact,SWORD.contact,actor,actor,before,after));
 });
 const idle=():Intent=>({move:{x:0,z:0,yaw:0,run:false},action:null,guard:false,lock:true});
 const arena=(gap:number):Duel=>({tick:0,fighters:[createFighter({x:0,z:TARGET.z+gap,heading:Math.PI,distance:0},'ready' as const),createFighter({...TARGET,heading:0,distance:0},'ready' as const)],finish:null,events:[]});

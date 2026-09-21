@@ -2,6 +2,26 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Beta plan v3 lead stack — 2026-09-21/22 (owner: "go do it - always listen to the strategy dev")
+Built as one stack, each PR on the last, merged to trunk in order by the deploy session: #321 blade seam (`bladePathsByRig[rig][weapon][kind]`,
+`RigId` on every ROSTER entry, strict lookup); #323 warhammer as the second player weapon (`PLAYER_WEAPONS_OFFERED`); #324 short kill
+links (`fight_records` table + `/?r=<id>` route, record v2 carries the weapon; #326's refused-version test moved to version 9 and the
+replay fixtures re-recorded with `weapon` in META); #325 autopsy wiring (src/autopsy.ts cause/habit lines on the death screen and under
+the journal row); #327 daily warden (src/daily.ts: `daily_fight()` seed, one attempt per UTC day, board in the journal; migration 0003
+with pgcrypto created in the file, Backend's future-day guard + column-limited select via #354); #330 loot data (src/loot.ts LOOT table
+incl. the Goblin's two pieces, drop per opponent per career sub-rank, owned/equipped/taken provenance on the profile and the cloud row,
+migration 0004; Backend's RLS coverage #355 with the check pinned to UTC); #342 account autosave (no Save/Load buttons, every profile
+persist fires `frankendom:profile` and the account module syncs; "Signed in · saved to your account"); #349 loot on the rig and in the
+journal (characters.ts `loadLoot` + actor `wear`: each loot.glb piece bound to the player's skeleton with his Body draw's bindMatrix,
+`replace` pieces hide his own slot draws, a helmet hides hair, palette materials take his textured one by name; scene.ts fetches
+loot.glb only once the rigs are in and the worn set is non-empty, readiness never waits; main.ts fills the paperdoll slots and the
+five-tile rack in Web design's brief-9 row shape, Wear / Store under the drop line). Evidence per PR in its body: quality:stop, the
+harness (tests/graphics.test.ts, whose seeded profile id is now valid), tests/loot-wear.test.ts on the shipped GLBs, a Playwright probe
+of the built tree (fight ready before the loot response). Also this night: #332 kill-link gate row; #368 jpegtran via a temp file with
+a 60 s kill (deploy #71's hour-long wedge); #371 re-landed Combat's reach fix on trunk after #358 had merged into its lead base branch.
+Open on the lead: deterministic trig in the sim (arm64/x64 digest drift, root-caused), "Daily #n" display +1, docs for #257–#324 in
+this file, `quality.yml` counter gate still `required: false`.
+
 ## Release check 9 (polearm-browser-check) became checks 9–12; everything after renumbered +3 — 2026-09-21
 Lead's deploy-speed ask: check 9 failed on ubuntu-latest on wall-clock waits. `scripts/polearm-browser-check.mjs` now boots on real
 time and then owns page time through `scripts/lib/harness-clock.mjs` (walk-in, orbit settle, fight frames and both predicates advance

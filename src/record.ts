@@ -9,13 +9,13 @@
 // repeated or zero bytes gzip well: a 30 s fight (1,800 ticks) lands well under 2 KB (tests/record.test.ts measures a real one).
 // Nothing here talks to the network; recording stays in memory until a later slice's Share.
 import type { Action, Intent } from './duel.ts';
-import type { Direction } from './moves.ts';
+import { PLAYER_WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 1;
+export const RECORD_VERSION = 2;   // 2: the player's weapon after the opponent id (2026-09-21). A version-1 record predates the choice and decodes as the longsword.
 export type RecordProfile = 'easy' | 'normal' | 'hard';
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
-export type RecordMeta = { build: string; opponent: OpponentId; profile: RecordProfile; seed: number };
+export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; profile: RecordProfile; seed: number };
 export type FightRecord = RecordMeta & { v: typeof RECORD_VERSION; ticks: number; outcome: Outcome; intents: Intent[] };
 
 // Quantization: the stick to 1/127 per axis, the camera yaw to 1/128 of a half-turn (about 1.4°). The live game steps the
@@ -64,22 +64,22 @@ export function createRecorder(meta: RecordMeta) {
 }
 
 // ---- binary layout ---------------------------------------------------------------------------------------------------------
-// magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | profile u8 | seed u32 LE | ticks u32 LE | outcome u8
+// magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | weapon: len u8 + ascii (version 2) | profile u8 | seed u32 LE | ticks u32 LE | outcome u8
 // then six columns of `ticks` bytes each: x i8, z i8, yaw-delta u8 (byte yaw minus previous byte yaw, mod 256), action u8, dir u8, flags u8.
 const ascii = (s: string) => { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c > 127) throw Error(`Fight record: non-ASCII in "${s}"`); b[i] = c; } return b; };
 
 export function packRecord(r: FightRecord): Uint8Array {
   if (r.v !== RECORD_VERSION) throw Error(`Fight record: cannot pack version ${String(r.v)}`);
   if (r.intents.length !== r.ticks) throw Error('Fight record: ticks does not match the intent count');
-  const build = ascii(r.build), opp = ascii(r.opponent);
-  if (build.length > 255 || opp.length > 255) throw Error('Fight record: build or opponent id too long');
+  const build = ascii(r.build), opp = ascii(r.opponent), wpn = ascii(r.weapon);
+  if (build.length > 255 || opp.length > 255 || wpn.length > 255) throw Error('Fight record: build, opponent or weapon id too long');
   const profile = PROFILES.indexOf(r.profile), outcome = OUTCOMES.indexOf(r.outcome);
   if (profile < 0 || outcome < 0) throw Error('Fight record: unknown profile or outcome');
-  const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
+  const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
   let o = 0;
   out[o++] = 0x46; out[o++] = 0x4b; out[o++] = RECORD_VERSION;
   out[o++] = build.length; out.set(build, o); o += build.length;
-  out[o++] = opp.length; out.set(opp, o); o += opp.length;
+  out[o++] = opp.length; out.set(opp, o); o += opp.length; out[o++] = wpn.length; out.set(wpn, o); o += wpn.length;
   out[o++] = profile; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;
   const col = (k: number) => head + k * n;
   let prevYaw = 0;
@@ -97,11 +97,13 @@ export function packRecord(r: FightRecord): Uint8Array {
 
 export function unpackRecord(bytes: Uint8Array): FightRecord {
   if (bytes.length < 3 || bytes[0] !== 0x46 || bytes[1] !== 0x4b) throw Error('Fight record: not a fight record');
-  if (bytes[2] !== RECORD_VERSION) throw Error(`Fight record: version ${bytes[2]} is not supported (this build reads version ${RECORD_VERSION})`);
+  const v = bytes[2];
+  if (v !== 1 && v !== RECORD_VERSION) throw Error(`Fight record: version ${v} is not supported (this build reads versions 1 and ${RECORD_VERSION})`);
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let o = 3;
   const str = () => { const len = bytes[o++]; if (o + len > bytes.length) throw Error('Fight record: truncated'); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(bytes[o + i]); o += len; return s; };
-  const build = str(), opponent = str() as OpponentId;
+  const build = str(), opponent = str() as OpponentId, weapon = (v >= 2 ? str() : 'longsword') as WeaponId;   // version 1: every fight was the longsword
+  if (!PLAYER_WEAPONS.includes(weapon)) throw Error('Fight record: unknown weapon');   // the hero rig bakes blade tables for these only; an opponent-only weapon (maul, reaper) would throw inside the frame loop
   if (o + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
   const profile = PROFILES[bytes[o++]], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (!profile || !outcome) throw Error('Fight record: unknown profile or outcome');
@@ -119,7 +121,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
     if (dir) it.guardDirection = dir;
     intents[i] = it;
   }
-  return { v: RECORD_VERSION, build, opponent, profile, seed, ticks: n, outcome, intents };
+  return { v: RECORD_VERSION, build, opponent, weapon, profile, seed, ticks: n, outcome, intents };
 }
 
 // ---- transport: gzip + base64url (no padding). CompressionStream is in every browser the game targets and in Node ≥ 18. --------

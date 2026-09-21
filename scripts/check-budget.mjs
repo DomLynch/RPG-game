@@ -7,7 +7,7 @@ import { gzipSync } from 'node:zlib';
 // the player's wait, and gets a looser ceiling so the roster can grow without the gate being raised every fighter.
 // GLBs are classified from the source tree, never by name pattern: src/assets/*.glb are fighters (warrior is the hero),
 // src/assets/arena/props/*.glb are props. A dist GLB matching neither fails the gate rather than being guessed at.
-const PER_FIGHT = 12_000_000, TOTAL = 32_000_000, LOOT = 1_500_000;   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched after the first fight, never part of one.
+const PER_FIGHT = 12_000_000, TOTAL = 32_000_000, LOOT = 1_500_000;   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
 // Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
 const dist = process.argv[2] || 'dist', src = process.argv[3] || 'src';
 

@@ -220,6 +220,10 @@
       "--no-video",
       "--label",
       "wounds-gate"
+    ],
+    [
+      "node",
+      "scripts/kill-link-check.mjs"
     ]
   ],
   "extended_commands": [

@@ -1,5 +1,5 @@
-import { ROSTER, type OpponentId } from './roster.ts';
-export type { OpponentId } from './roster.ts';
+import { ROSTER, type OpponentId, type RigId } from './roster.ts';
+export type { OpponentId, RigId } from './roster.ts';
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
 // Damage is tuned for a Souls-length duel: AI vs AI at normal runs ~9 clean hits / ~35 s (light 11, heavy 18, riposte 24, heavy riposte 30, kick 4).
 // The engine (duel.ts) reads this table; nothing here may depend on rendering, clocks or browser state.
@@ -405,6 +405,14 @@ const WARHAMMER: Weapon = { id: 'warhammer', moves: WARHAMMER_MOVES, paths: crea
 const REAPER: Weapon = { ...ESTOC, id: 'reaper', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
 export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, likewise on the sword clip family until the weapons lane's data lands (artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
+// The weapons a player can carry (Brief 5 loot): each has an equip file under src/assets/weapons/player and a bake on the hero rig
+// (tests/blade-rig.test.ts pins both). The weapons lane appends here when a new equip file ships.
+export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe'];
+// The weapons a player may be OFFERED (loot, paperdoll, equip): a subset of PLAYER_WEAPONS with no pairing over a cap in the 24-seed player
+// weapon battery (scripts/player-weapon-battery.mjs; tests/player-weapons.test.ts derives the excluded set from that table). Combat signed
+// the table 2026-09-21: the warhammer is fair on every live rung and is the first loot weapon; after the warden reach fix (combat/warden-reach)
+// the trident is clean on every rung too. Cleaver, knife, estoc and scythe wait on the table's over-cap list (see KNOWN_UNFAIR there).
+export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident'];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.
@@ -420,8 +428,8 @@ export type Level = keyof typeof PROFILES;
 // counter-hits, stop-hits, rear hits and charged blows always do. 0 = staggered by everything, the human default.
 // guard: how this man's guard behaves on top of his weapon's (`Fighter.guardProfile`): the Nightborn's parry window is longer than a man's
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
-export type Opponent = { id: OpponentId; weapon: WeaponId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
-const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon'>> = {
+export type Opponent = { id: OpponentId; weapon: WeaponId; rig: RigId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
+const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon' | 'rig'>> = {
   // Hard (owner, 2026-09-20): the shared hard beat the hero's brain only 13/24 — two wins tighter than normal. Pressure .7 and a discipline
   // floor of 30 keep him cutting instead of resting: 18/24 (sweep, 24 seeds). His own table so the Executioner (shared PROFILES) is untouched.
   veteran: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },   // the trident since slice V (2026-09-16)
@@ -482,5 +490,5 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
 };
 
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) =>
-  [id, { id, weapon: recipe.weapon, ...ARCHETYPES[recipe.archetype] }],
+  [id, { id, weapon: recipe.weapon, rig: recipe.rig, ...ARCHETYPES[recipe.archetype] }],
 )) as Record<OpponentId, Opponent>;

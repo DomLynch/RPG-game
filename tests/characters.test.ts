@@ -418,7 +418,7 @@ test('baked collision paths match the shipped blade throughout every active stri
     for(let age=spec.windup-1;age<=spec.windup+spec.active;age++) {
       mixer.setTime(swingProgress(age/length,spec.windup/length,spec.source)*clip.duration);asset.scene.updateMatrixWorld(true);
       const actual=[.18,.86].flatMap(y=>blade.localToWorld(new Vector3(0,y,0)).toArray());
-      assert.ok(actual.every((v,i)=>Math.abs(v-bladePose('longsword',kind,age)[i])<.00002),`${kind} tick ${age}`);
+      assert.ok(actual.every((v,i)=>Math.abs(v-bladePose('hero','longsword',kind,age)[i])<.00002),`${kind} tick ${age}`);
     }
     action.stop();
   }

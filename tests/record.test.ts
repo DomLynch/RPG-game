@@ -22,7 +22,7 @@ test('record: quantization is idempotent, keeps every field, and maps the stick 
 });
 
 test('record: pack/unpack and encode/decode round-trip every intent shape, the seed and the metadata; the version comes first and an unknown one is refused', async () => {
-  const rec = createRecorder({ build: 'abc1234', opponent: 'goblin', profile: 'hard', seed: 0xdeadbeef });
+  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', profile: 'hard', seed: 0xdeadbeef });
   const shapes: Intent[] = [
     intent(), intent({ move: { x: 1, z: -1, yaw: -3.1, run: true } }), intent({ action: 'light_left', guardDirection: 'left' }),
     intent({ action: 'parry', guard: true, guardDirection: 'overhead' }), intent({ action: 'dodge', held: true }), intent({ action: 'kick', cancel: true, lock: false }),
@@ -39,7 +39,7 @@ test('record: pack/unpack and encode/decode round-trip every intent shape, the s
   assert.match(text, /^[A-Za-z0-9_-]+$/, 'base64url, no padding');
   assert.deepEqual(await decodeRecord(text), record, 'transport round trip is exact');
   const other = new Uint8Array(bytes); other[2] = RECORD_VERSION + 1;
-  assert.throws(() => unpackRecord(other), /version 2 is not supported/);
+  assert.throws(() => unpackRecord(other), new RegExp(`version ${RECORD_VERSION + 1} is not supported`));
   assert.throws(() => unpackRecord(new Uint8Array([1, 2, 3])), /not a fight record/);
   assert.throws(() => unpackRecord(bytes.subarray(0, bytes.length - 1)), /length does not match/);
   await assert.rejects(decodeRecord('not*base64'), /not base64url/);
@@ -52,7 +52,7 @@ test('record: pack/unpack and encode/decode round-trip every intent shape, the s
 // A scripted 30 s fight against the Veteran: the stick circles, the camera yaw drifts as the lock blends, attacks and guards come in
 // bursts. This is the shape of a real fight's intent stream (busy stick, busy yaw) — the worst case for the encoder, not the best.
 function scriptedFight(seed = 731, ticks = 1800) {
-  const rec = createRecorder({ build: 'abc1234', opponent: 'veteran', profile: 'normal', seed });
+  const rec = createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', profile: 'normal', seed });
   let practice = initialPractice(seed, OPPONENTS.veteran), yaw = 0.6;
   for (let t = 0; t < ticks && !practice.finish; t++) {
     yaw += 0.004 * Math.sin(t / 37);
@@ -81,7 +81,7 @@ test('record: a real 30 s fight against the Veteran encodes under 2 KB and repla
 });
 
 test('record: the recorder steps what it records — the quantized intent, not the raw one — and stops recording after finish', () => {
-  const rec = createRecorder({ build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
   const stepped = rec.push(intent({ move: { x: 0.123456, z: 0, yaw: 1.2345, run: false } }));
   assert.equal(stepped.move.x, Math.round(0.123456 * 127) / 127, 'the returned intent is the quantized one');
   assert.deepEqual(rec.finish('abandoned').intents[0], stepped);
@@ -90,9 +90,17 @@ test('record: the recorder steps what it records — the quantized intent, not t
 });
 
 test('record: packing refuses a record whose tick count and intents disagree, or an unknown profile/outcome', () => {
-  const rec = createRecorder({ build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
   rec.push(intent()); const r = rec.finish('draw');
   assert.throws(() => packRecord({ ...r, ticks: 2 }), /ticks does not match/);
   assert.throws(() => packRecord({ ...r, profile: 'insane' as FightRecord['profile'] }), /unknown profile or outcome/);
   assert.throws(() => packRecord({ ...r, build: 'sha-é' }), /non-ASCII/);
+});
+
+test('record: an opponent-only weapon (maul, reaper) is refused at decode — the hero rig bakes no blade table for it and a replay would throw mid-frame', () => {
+  const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const r = rec.finish('abandoned');
+  assert.throws(() => unpackRecord(packRecord({ ...r, weapon: 'maul' })), /unknown weapon/);
+  assert.throws(() => unpackRecord(packRecord({ ...r, weapon: 'reaper' })), /unknown weapon/);
+  assert.equal(unpackRecord(packRecord({ ...r, weapon: 'warhammer' })).weapon, 'warhammer', 'a player weapon still decodes');
 });

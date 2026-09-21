@@ -5,13 +5,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { bladePaths, bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { LONGSWORD, MOVES, PATHS, RULES, WEAPONS, weaponOf, type Weapon } from '../src/moves.ts';
+import { LONGSWORD, MOVES, PATHS, PLAYER_WEAPONS, RULES, WEAPONS, weaponOf, type RigId, type Weapon } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
-const duel = (gap: number, weapon: Weapon['id'] = 'longsword'): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready', weapon), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
+const duel = (gap: number, weapon: Weapon['id'] = 'longsword', rig: RigId = 'hero'): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + gap, heading: Math.PI, distance: 0 }, 'ready', weapon, 1, 0, RULES.health, undefined, 1, 1, rig), createFighter({ ...TARGET, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] });
 // Steps n ticks and returns the final duel with every tick's events gathered (stepDuel only carries the current tick's).
 const run = (d: Duel, n: number, a = idle(), b = idle()) => { const events: Duel['events'] = []; for (let i = 0; i < n; i++) { d = stepDuel(d, [a, b]); events.push(...d.events); } return { ...d, events }; };
 
@@ -34,8 +34,8 @@ test('a second weapon with a longer reach resolves contact from its own table: t
   // stretched 0.5 m forward along the thrust so the baked contact really is longer (the sim sweeps the table, not the number).
   const trident: Weapon = { id: 'trident', guard: 'shaft', material: 'bronze', reach: 2.5, moves: { ...MOVES, thrust: { ...MOVES.thrust, reach: 2.5, stamina: 30 } }, paths: PATHS, fight: LONGSWORD.fight };
   const stretched = Object.fromEntries(Object.entries(bladePaths.longsword).map(([k, frames]) => [k, k === 'thrust' ? frames.map(f => [f[0], f[1], f[2] + .5, f[3], f[4], f[5] + .5]) : frames]));
-  const before = { weapon: WEAPONS.trident, paths: bladePaths.trident };
-  WEAPONS.trident = trident; bladePaths.trident = stretched;
+  const before = { weapon: WEAPONS.trident, paths: bladePathsByRig.hero.trident };
+  WEAPONS.trident = trident; bladePathsByRig.hero.trident = stretched;
   try {
     const far = 2.35;   // beyond the longsword thrust's baked reach, inside the stretched trident's
     const sword = run(stepDuel(duel(far, 'longsword'), [act('thrust'), idle()]), MOVES.thrust.windup + MOVES.thrust.active);
@@ -48,7 +48,7 @@ test('a second weapon with a longer reach resolves contact from its own table: t
     const poor = (w: 'longsword' | 'trident') => { const d = duel(1.5, w); d.fighters[0] = { ...d.fighters[0], stamina: 25 }; return legal(d.fighters[0], 'thrust'); };
     assert.equal(poor('longsword'), true); assert.equal(poor('trident'), false);
     assert.equal(weaponOf('trident').reach, 2.5);
-  } finally { WEAPONS.trident = before.weapon; bladePaths.trident = before.paths; }
+  } finally { WEAPONS.trident = before.weapon; bladePathsByRig.hero.trident = before.paths; }
 });
 
 test('contact events name the weapon and its material for the audio lane: Hit, Blocked, Parried and GuardBroken', () => {
@@ -261,6 +261,7 @@ test('the fight the trident gives (real tables): its thrust lands from 2.1 m whe
 // the part, the rig, the data and the proof; the combat lane flips `WEAPONS.cleaver` to CLEAVER, adds the manifest entry, bakes and
 // reviews the fight (artifacts/weapons/REQUESTS.md §5–6). Until then the Pitborn's slot borrows the longsword, exactly as before.
 import { CLEAVER, CLEAVER_PATHS, OPPONENTS } from '../src/moves.ts';
+import { ENCOUNTERS } from '../src/roster.ts';
 const CLEAVER_GLB = 'src/assets/weapons/cleaver/veteran-cleaver.glb';
 
 test('the cleaver is live (slice W): WEAPONS.cleaver is CLEAVER, the Pitborn carries it, and it is baked at a man\'s 1.0× from veteran-cleaver.glb (his sword\'s convention: the rendered blade runs past the simulated one, never the other way)', () => {
@@ -480,7 +481,7 @@ test('the live estoc keeps torso aim through its actual reach: cuts to 2.0 m, he
     const m = ESTOC.moves[move];
     let last = 0;
     for (let cm = 85; cm <= 270; cm += 5) {
-      const events = run(stepDuel(duel(cm / 100, 'estoc'), [act(action), idle()]), m.windup + m.active + 1).events;
+      const events = run(stepDuel(duel(cm / 100, 'estoc', 'nightborn'), [act(action), idle()]), m.windup + m.active + 1).events;
       for (const e of events.filter(e => e.type === 'Hit' && e.actor === 0)) {
         assert.notEqual(e.location, 'head', `${move} at ${cm / 100} m`);
         if (move === 'thrust') assert.equal(e.location, 'torso', 'a thrust earns the torso finisher');
@@ -635,4 +636,23 @@ test('the warhammer shelf: WEAPONS.warhammer is real data (own blunt table since
   // The rig's own grip offset (SwordDrawn at (0, .08, .015) in hand_r) puts the right wrist 0.081 m off the axis at this 1.0× rig; the
   // character lane's 0.08 m gate is at the Dwarf's .78 scale (0.081 × .78 = 0.063), so the shelf asserts the same bound scaled up.
   assert.ok(worst < .08 / .78, `both wrists within 0.08 m of the haft at the Dwarf's scale through the grip roles (worst ${worst.toFixed(3)} m at 1.0×)`);
+});
+
+// Real reach (brief 5 reach fix, 2026-09-21): the warden judges dodges, backsteps and its hover from the move table's `reach`; the blade
+// table is what actually lands. The two must agree, or the warden misjudges a point by the difference. Measured here the way the sim
+// lands it: the largest standing-start gap at which the move hits a stationary man, per shipped (rig, weapon) pair and for every weapon a
+// player can carry on the hero rig. The estoc's table (ESTOC_MOVES) sits 0.3–0.4 m short of its bakes on both rigs — a pre-existing data
+// mismatch reported to the Weapons lane; it is snapshotted here so the pin turns red the moment the numbers are corrected (drop the entry then).
+const realReach = (weapon: Weapon['id'], rig: RigId, move: 'thrust' | 'light'): number => {
+  const lands = (gap: number) => { let d = duel(gap, weapon, rig); d = stepDuel(d, [{ ...idleIntent(), action: move }, idleIntent()]); for (let i = 0; i < 60; i++) { d = stepDuel(d, [idleIntent(), idleIntent()]); if (d.events.some(e => e.type === 'Hit' && e.actor === 0)) return true; if (d.fighters[0].phase === 'ready') break; } return false; };
+  let lo = .5, hi = 3.5; for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (lands(mid)) lo = mid; else hi = mid; } return lo;
+};
+const REACH_MISMATCH: Record<string, [number, number]> = { 'hero/estoc/thrust': [2.28, 2.36], 'hero/estoc/light': [1.96, 2.04], 'nightborn/estoc/thrust': [2.32, 2.40], 'nightborn/estoc/light': [2.00, 2.08] };   // measured real reach, ±.04
+test('real reach: every shipped (rig, weapon) pair and every player weapon on the hero rig lands its thrust and its cut within .15 m of the move table\'s reach — except the estoc, snapshotted until Weapons corrects its table', () => {
+  // The live roster only: the held creatures' tables (minotaur maul, wraith reaper) are their own lanes' data and are not in play.
+  const pairs = new Set<string>(); for (const e of ENCOUNTERS) if (!e.hold) { const o = OPPONENTS[e.id]; pairs.add(`${o.rig}/${o.weapon}`); } for (const w of PLAYER_WEAPONS) pairs.add(`hero/${w}`);
+  for (const pair of pairs) { const [rig, weapon] = pair.split('/') as [RigId, Weapon['id']];
+    for (const move of ['thrust', 'light'] as const) { const nominal = move === 'thrust' ? WEAPONS[weapon].moves.thrust.reach : WEAPONS[weapon].moves.light_right.reach, real = realReach(weapon, rig, move), key = `${pair}/${move}`;
+      if (REACH_MISMATCH[key]) { const [lo, hi] = REACH_MISMATCH[key]; assert.ok(real >= lo && real <= hi, `${key}: the snapshotted mismatch moved (real ${real.toFixed(2)}, nominal ${nominal}) — if the table was corrected, drop it from REACH_MISMATCH`); }
+      else assert.ok(Math.abs(real - nominal) <= .15, `${key}: real reach ${real.toFixed(2)} vs the table's ${nominal}`); } }
 });

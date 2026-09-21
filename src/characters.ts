@@ -91,6 +91,18 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
   const [hero, enemy] = await Promise.all([loadFighter(url), opponentUrl === url ? undefined : loadFighter(opponentUrl)]);
   return buildWarriors(hero, enemy, weapons);
 }
+// Loot (brief 5): the pieces of loot.glb, skinned to the hero rig with warrior.glb's bind (build-warrior.mjs WARRIOR_LOOT). Fetched on its own,
+// after the rigs, never as part of a fight's load; the player's actor wears the pieces (`wear`) once both are in. Each draw's userData names
+// its opponent, slot and layer; its id is `<opponent>.<slot>` (src/loot.ts).
+export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  const pieces: SkinnedMesh[] = [];
+  asset.scene.traverse(object => { if (object instanceof SkinnedMesh && typeof object.userData.slot === 'string') pieces.push(object); });
+  if (!pieces.length) throw new Error('loot.glb carries no pieces');
+  return pieces;
+}
+export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent}.${piece.userData.slot}`;
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
 function fighterClips(asset: FighterAsset, weapon: WeaponId): Record<Role, AnimationClip> {
   const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>();
@@ -128,6 +140,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       }
     });
     let opened: ReturnType<typeof openWaist> | undefined;
+    const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>();   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
     const mixer = new AnimationMixer(root);
@@ -161,6 +174,31 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     let crown: ReturnType<typeof splitSkull> | undefined;
     return {
       anchor,
+      // Wear these loot pieces (loadLoot) and nothing else: each is bound to this rig's skeleton beside his own body draw, so it follows every
+      // clip; a `replace` piece hides his own draws in that slot (a helmet hides hair too); an `over` piece sits on top of them. A piece's
+      // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson); the rest keep their own.
+      wear(pieces: readonly SkinnedMesh[]) {
+        for (const piece of worn) piece.removeFromParent(); worn.length = 0;
+        for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
+        let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
+        root.traverse(object => {
+          if (!(object instanceof Mesh)) return;
+          if (object instanceof SkinnedMesh && object.userData.slot === 'Body' && !body) body = object;
+          if (object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material);
+        });
+        if (!body) throw new Error('The rig has no Body draw to hang loot on');
+        const slots = new Set(pieces.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
+        if (slots.has('Helmet')) slots.add('Hair');
+        root.traverse(object => { if (object instanceof Mesh && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
+        for (const piece of pieces) {
+          const material = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
+          const copy = new SkinnedMesh(piece.geometry, material);
+          copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
+          copy.bind(body.skeleton, body.bindMatrix);
+          body.parent!.add(copy); worn.push(copy);
+        }
+      },
+      worn: (): readonly SkinnedMesh[] => worn,
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
       playing(): string { if (opened?.group.visible) return `Opened:WaistCut@${blade.name}`; let best: Role = 'Idle'; for (const role of ROLES) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
       update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'opened' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null) {
