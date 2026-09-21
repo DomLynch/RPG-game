@@ -717,8 +717,9 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   const rack = () => app.element('loot-rack').children, row = (i: number) => rack()[i]!;
   assert.equal(rack().length, 5, 'five tiles, owned first, the rest empty');
   assert.equal(row(0).attributes.get('data-loot'), 'veteran.Helmet'); assert.equal(row(0).attributes.get('data-worn'), 'true'); assert.equal(row(0).attributes.get('tabindex'), '0');
-  assert.deepEqual(row(0).children.map(c => c.textContent), ["the Veteran's helmet", "The Veteran's helmet · your 3rd attempt, 12 health left Watch", 'Worn']);
-  assert.equal(row(0).children[1]!.children[1]!.attributes.get('href'), '/?r=k7Qm2x_A');
+  assert.deepEqual(row(0).children.map(c => c.textContent), ["the Veteran's helmet", '', 'Worn'], 'name, the caption (its text is in its children), the button');
+  assert.deepEqual(row(0).children[1]!.children.map(c => c.textContent), ["The Veteran's helmet", ' · your 3rd attempt, 12 health left', ' ', 'Watch'], 'brief 9: the caption starts with the piece name in bold, the Watch link only once the fight is published');
+  assert.equal(row(0).children[1]!.children[3]!.attributes.get('href'), '/?r=k7Qm2x_A');
   assert.equal(row(1).attributes.get('data-worn'), 'false'); assert.equal(row(1).children.length, 2, 'no provenance, no caption'); assert.equal(row(1).children[1]!.textContent, 'Wear');
   assert.equal(row(2).className, 'rack-empty'); assert.equal(row(4).className, 'rack-empty');
   assert.equal(app.element('slot-head-name').textContent, "the Veteran's helmet"); assert.ok(app.element('slot-head').classList.contains('on')); assert.equal(app.element('slot-head-off').hidden, false);
