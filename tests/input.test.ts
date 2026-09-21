@@ -75,7 +75,10 @@ test('guard side: the thumb still is the straight guard; past the slide threshol
 
 test('the versus card drifts from its first frame (owner: like the arena cam, no wait), and holds still under reduced motion', () => {
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  assert.match(css, /\.versus img \{[^}]*animation: versus-drift 6s ease-out infinite alternate;/, 'no delay, ease-out so the move reads inside the card hold');
-  assert.match(css, /@keyframes versus-drift \{[\s\S]{0,300}?scale\(1\.22\)/, 'a real push-in (owner: more movement), never a cut');
+  assert.match(css, /\.versus img \{[^}]*animation: versus-drift 12s ease-in-out infinite alternate;/, 'no delay, a slow pull-back and pan');
+  assert.match(css, /@keyframes versus-drift \{\s*from \{ transform: scale\(1\.22\)[\s\S]{0,120}?to \{ transform: scale\(1\)/, 'starts close and pulls back (owner: zoom out, not in), never a cut');
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.versus img \{ animation: none; \}/, 'reduced motion keeps the still');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /<p class="versus-loading">loading…<\/p>/, 'a small loading line on the card (owner)');
+  assert.match(css, /\.versus-loading \{[^}]*opacity: 0\.5;/, 'semi-transparent');
 });
