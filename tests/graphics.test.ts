@@ -532,6 +532,9 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   const ticksA = a.rendered.duel.tick, finishA = a.rendered.finish!, cardA = a.storage.getItem('frankendom.controls.v1');
   // B opens the link with nothing saved: no welcome, a replay banner, buttons asleep, the same fight.
   const b = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
+  b.tick();   // a frame lands before the record has decoded (the browser's rAF beats the async decode): it must not mark a fight
+  assert.equal(b.storage.getItem('frankendom.fight.v1'), null, 'no AFK mark while the link is still decoding');
+  const cardBefore = b.storage.getItem('frankendom.scorecard.v1');
   await settle(() => b.element('replay-banner').textContent !== 'Loading the fight…');   // the record decodes asynchronously
   assert.equal(b.element('welcome').hidden, true, 'no welcome on a replay link');
   assert.equal(b.element('replay-banner').hidden, false); assert.match(b.element('replay-banner').textContent, /^Replay/);
@@ -542,6 +545,8 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.equal(b.rendered.duel.tick, ticksA, 'same final tick as the recorded fight');
   assert.deepEqual(b.rendered.finish, finishA, 'same finish');
   assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'a replay writes nothing to the card');
+  assert.ok(!b.storage.getItem('frankendom.fight.v1'), 'a watched fight is never marked as walked away from (the viewer\'s next boot would score a loss)');
+  assert.equal(b.storage.getItem('frankendom.scorecard.v1'), cardBefore, 'a replay scores nothing');
   assert.equal(b.element('reset-button').textContent, 'Avenge him');
   assert.equal(b.element('share-button').hidden, true, 'a replay is not re-shared from the viewer');
   // Avenge him: live, same seed, practice only.
@@ -570,6 +575,9 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   assert.equal(broken.element('replay-banner').textContent, 'Loading the fight…', 'the link is picked up at boot');
   await settle(() => broken.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(broken.element('replay-banner').textContent, /cannot be played/);
+  broken.tick(); wrong.tick();
+  assert.equal(broken.storage.getItem('frankendom.fight.v1'), null, 'a refused link leaves the page a viewer: no AFK mark');
+  assert.equal(wrong.storage.getItem('frankendom.fight.v1'), null, 'a link for another opponent: no AFK mark either');
 });
 test('kill links: a signed-in fighter\'s Share stores the record and the link carries the short id; a guest\'s link carries the record; a short link without a fight store is refused', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
