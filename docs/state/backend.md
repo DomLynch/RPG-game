@@ -7,11 +7,14 @@ TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tab
 
 ## Hosted project as it stands — verified 2026-09-22 ~00:20 UTC
 
-Tables: `public.fighter_profiles` (1 row), `public.admins` (1 row), `public.fight_records` (0 rows, RLS on — see below). `auth.users`: 2.
-Roles named `frankendom*`: none yet (0005 not applied). Hosted migration history (`supabase_migrations.schema_migrations`):
+Tables: `public.fighter_profiles` (1 row), `public.admins` (1 row), `public.fight_records` (0 rows), `public.daily_secret` (1 row, RLS
+on, unreadable — see below), `public.daily_results` (0 rows, RLS on). View `public.daily_board` and function `public.daily_fight()`
+both exist (confirmed directly via `pg_views`/`pg_proc`, since `list_tables` doesn't enumerate views). `auth.users`: 2. Roles named
+`frankendom*`: none yet (0005 not applied). Hosted migration history (`supabase_migrations.schema_migrations`):
 `20260920031013 werewolf_skeleton_encounters`, `20260920031925 revert_werewolf_skeleton_encounters`, `20260920041658
 werewolf_skeleton_encounters_v2`, `20260920055946 werewolf_skeleton_encounters`, `20260920070348 victory_marks`, `20260920083450
-dwarf_encounter`, `20260921065907 admins`, `20260921200632 202609210002_fight_records`. The first two repo files
+dwarf_encounter`, `20260921065907 admins`, `20260921200632 202609210002_fight_records`, `20260921211439 202609210003_daily_warden`.
+The first two repo files
 (`202609190001_fighter_profiles`, `202609190002_creature_encounters`) were applied by hand and are not in the history; the
 werewolf/skeleton change was applied three times with one revert. The history is therefore NOT `supabase db push`-able against the
 repo; applies stay manual (MCP `apply_migration` named after the repo file) and this table is the map between the two.
@@ -67,10 +70,20 @@ read. Not additive (it's a revoke), so per tonight's rule it needs Dom's own yes
 authorization from Dom names 0002–0005 only. Apply-ready line already given to Dev/Deploy; nothing further from this lane until Dom
 says go.
 
-### daily_secret / daily_fight() / daily_results / daily_board (0003, PR #327) — apply-ready, both changes landed
-Both changes requested below have landed in the migration file (PR #354, merged into lead/daily-warden) plus a pgcrypto fix CI caught
-afterward; current apply-ready head is lead/daily-warden `8550b1d` (diffed against `e0f7380`, the fixed file itself is byte-identical —
-only unrelated trunk merges since). File content, as it will apply:
+### daily_secret / daily_fight() / daily_results / daily_board (0003, PR #327) — APPLIED, verified live
+Applied by Dev/Deploy (hosted migration `20260921211439 202609210003_daily_warden`, head lead/daily-warden `8550b1d`). Verified
+independently here (fresh `list_tables`/`list_migrations`/`pg_views`/`pg_proc` plus role-scoped queries, not taken on Dev/Deploy's
+report): `daily_secret` (1 row, RLS on) and `daily_results` (0 rows, RLS on) exist; `daily_board` view and `daily_fight()` function
+both exist; `set role anon; select count(*) from daily_board` resolves (0); `set role anon; select user_id from daily_results` is
+refused (`42501 permission denied`); `daily_fight()` for tomorrow (UTC) returns no row, for today returns `{day, number:-1, seed}` —
+`-1` is correct, day zero is `2026-09-22`.
+
+**Display note (Lead, 2026-09-22, not a migration issue — do not "fix" the check constraint):** the client maps `number` to a rung
+with a positive modulo (`src/daily.ts:21`), so `-1` plays the last rung safely, but the banner reads "Daily #-1" / "Daily #0" before
+the count is right for a player. Fix is display-only: show `number + 1` in the three banner strings (`main.ts:385/390/401`) and the
+share text. `day` zero staying `2026-09-22` in the DB is correct and intentional; Lead takes the display fix in the PR after #327.
+
+File content, as applied:
 - `daily_secret (id boolean pk default true check (id), secret text)`: RLS on, no policies, all grants revoked from anon/authenticated;
   one row `encode(gen_random_bytes(32),'hex')`. The migration now opens with `create extension if not exists pgcrypto;` — hosted
   Supabase already has it enabled, this is a no-op there; the local RLS check's `initdb` cluster does not, so this line is required
