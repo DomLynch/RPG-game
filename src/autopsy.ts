@@ -20,6 +20,7 @@ export function cause(log: CombatEvent[], duel: Duel): string | null {
   const blow = BLOW[finish.move] ?? finish.move;
   if (finish.move === 'critical' || before('PostureBroken')) return `Your posture broke and the ${blow} went through it.`;
   if (before('GuardBroken')) return `Your guard broke and the ${blow} came through.`;
+  // `exhausted` is read from the finished duel: a dead fighter never regenerates, so the flag is still the state at the kill tick.
   if (duel.fighters[0].exhausted) return `You were out of stamina when the ${blow} landed.`;
   return `The ${blow} landed on your ${finish.location}.`;
 }

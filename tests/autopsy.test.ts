@@ -63,7 +63,7 @@ test('autopsy: the cause line names what the events say — a posture break, a g
   for (const [k, n] of Object.entries(seen)) assert.ok(n > 0, `no scripted death produced the "${k}" cause: ${JSON.stringify(seen)}`);
 });
 
-test('autopsy: nothing confident, nothing said — a fresh duel with no reads and no finish gives an empty list', () => {
+test('autopsy: nothing confident, nothing said — a fresh duel with no reads and no finish gives an empty list (fast: the stop gate keeps this pin)', () => {
   const ai = initialAi(1), d = arena();
   assert.deepEqual(autopsy(ai.habits, readOpponent(ai.habits), [], d), []);
 });
