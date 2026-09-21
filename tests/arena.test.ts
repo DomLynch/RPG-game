@@ -46,7 +46,7 @@ test('a visible boundary ring lies at the play radius', () => {
 
 test('the floor is sand, darker than the hero\'s skin, flat to the camera clamp, with planar decal UVs', () => {
   const { floor } = shared.arena, material = floor.material as THREE.MeshStandardMaterial, p = floor.geometry.attributes.position, uv = floor.geometry.attributes.uv, color = floor.geometry.attributes.color;
-  assert.equal(floor.name, 'sand'); assert.equal(material.map!.image.width, 1024);
+  assert.equal(floor.name, 'sand'); assert.equal((material.map!.image as { width: number }).width, 1024);
   let tint = 0; for (let i = 0; i < color.count; i++) tint += 0.2126 * color.getX(i) + 0.7152 * color.getY(i) + 0.0722 * color.getZ(i);
   const albedo = luminance(sandAlbedo()) * rgbLuminance(material.color) * (tint / color.count);   // texture × material colour × mean vertex tint: what the shader multiplies
   assert.ok(albedo < SKIN_SAMPLE, `sand albedo ${albedo.toFixed(3)} is not below the skin sample ${SKIN_SAMPLE}`); assert.ok(albedo < FLOOR_CAP);
@@ -107,7 +107,7 @@ test('arena cost: ≤ 40 draw calls (meshes), ≤ 120k triangles, ≤ 12 MB of t
   const { meshes } = shared, textures = new Set<THREE.Texture>();
   const triangles = meshes.reduce((n, m) => n + (m instanceof THREE.InstancedMesh ? m.count : 1) * (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
   for (const m of meshes) for (const material of [m.material].flat() as THREE.MeshStandardMaterial[]) for (const t of [material.map, material.normalMap, material.alphaMap, material.emissiveMap, material.aoMap, material.roughnessMap]) if (t) textures.add(t);
-  const bytes = [...textures].reduce((n, t) => n + t.image.width * t.image.height * 4 * (t.generateMipmaps ? 4 / 3 : 1), 0);
+  const bytes = [...textures].reduce((n, t) => { const image = t.image as { width: number; height: number }; return n + image.width * image.height * 4 * (t.generateMipmaps ? 4 / 3 : 1); }, 0);
   console.log(`arena cost: ${meshes.length} meshes (draw calls before shadows), ${Math.round(triangles)} triangles, ${textures.size} textures ${(bytes / 1e6).toFixed(1)} MB`);
   assert.ok(meshes.length <= 40, `${meshes.length} meshes`); assert.ok(triangles <= 120_000, `${triangles} triangles`); assert.ok(bytes <= 12e6, `${bytes} bytes of textures`);
 });

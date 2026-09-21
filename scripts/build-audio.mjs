@@ -1,4 +1,4 @@
-// Combat audio sprite build. Original procedural Foley plus hash-pinned CC0 recordings (artifacts/audio/SOURCES.json).
+// Combat audio sprite build. Original procedural Foley plus hash-pinned CC0 recordings (src/assets/audio/SOURCES.json).
 // Procedural layers use deterministic Node DSP
 // (seeded noise, modal iron resonators, pitch-dropping body thumps, swept-filter air) — so the sprite is reproducible from
 // this script and the source list; missing public recordings are cached under artifacts/audio/source-cache. Output: src/assets/audio/sprite.m4a (AAC, Safari) + sprite.ogg (Opus,
@@ -22,7 +22,7 @@ const S = seconds => Math.round(seconds * RATE);
 const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
 // Public CC0 previews are build inputs only, never additional runtime downloads. Hash changes fail closed.
-const recordings = {}, sourceList = JSON.parse(await fs.readFile('artifacts/audio/SOURCES.json', 'utf8'));
+const recordings = {}, sourceList = JSON.parse(await fs.readFile('src/assets/audio/SOURCES.json', 'utf8'));
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
 for (const [name, source] of Object.entries(sourceList)) {
   // A source is either a public URL (cached under source-cache) or a local file with no stable public URL (the Jochi SFX shield

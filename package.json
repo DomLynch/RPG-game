@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
+    "typecheck:tests": "tsc -p tsconfig.tests.json",
     "test": "node --test --test-skip-pattern=\"\\[slow\\]\" tests/*.test.ts",
     "test:slow": "node --test --test-name-pattern=\"\\[slow\\]\" tests/*.test.ts",
     "test:all": "node --test tests/*.test.ts",
-    "quality:stop": "eslint src && npm test",
-    "quality": "eslint src && npm run test:all && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
+    "quality:stop": "eslint src && npm run typecheck:tests && npm test",
+    "quality": "eslint src && npm run typecheck:tests && npm run test:all && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
     "quality:deploy": "eslint src && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
-    "quality:ci": "eslint src && npm run test:all && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs",
+    "quality:ci": "eslint src && npm run typecheck:tests && npm run test:all && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs",
     "build:warrior": "node scripts/build-warrior.mjs && node scripts/bake-blades.mjs",
     "test:browser": "node scripts/browser-check.mjs"
   },
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/node": "22.20.4",
     "@types/three": "^0.183.0",
     "eslint": "10.10.0",
     "jpeg-js": "0.4.4",

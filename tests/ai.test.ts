@@ -209,7 +209,7 @@ test('posture: a shaky warden gives ground so its bar drains, and finishes a bro
 });
 
 test('reads: habits become reads only with evidence, at the documented thresholds', () => {
-  const h = (o: Partial<Habits>): Habits => ({ ticks: 0, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, parks: 0, ...o });
+  const h = (o: Partial<Habits>): Habits => ({ ticks: 0, guard: 0, parries: 0, rolls: 0, steps: 0, lights: 0, heavies: 0, thrusts: 0, kicks: 0, attacks: 0, parks: 0, ...o });
   assert.deepEqual(readOpponent(h({})), { parryHappy: false, turtle: false, roller: false, stepper: false, spammer: false, parker: false, poker: false, kicker: false });
   assert.equal(readOpponent(h({ attacks: 1, parries: 1 })).parryHappy, false, 'one swing is not evidence'); assert.equal(readOpponent(h({ attacks: 2, parries: 1 })).parryHappy, true, 'two exchanges, half parried'); assert.equal(readOpponent(h({ attacks: 4, parries: 1 })).parryHappy, false);
   assert.equal(readOpponent(h({ ticks: 179, guard: 179 })).turtle, false); assert.equal(readOpponent(h({ ticks: 180, guard: 81 })).turtle, true); assert.equal(readOpponent(h({ ticks: 180, guard: 80 })).turtle, false);
@@ -245,8 +245,7 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   const plainHeavies = late.filter(e => e.move === 'heavy_overhead' && e.m.chain === 0).length, held = turtle.log.filter(e => e.type === 'Charging' && e.actor === 1 && e.move === 'heavy_overhead' && e.read.turtle).length;
   assert.ok(plainHeavies === 0 || held / plainHeavies >= .5, `plain heavies at a turtle are charged: ${held}/${plainHeavies}`);
   // The charge boost itself, over 40 seeds from the same state: a heavy thrown at an unguarded opponent is held only with a roller read, and then most of the time.
-  const roller = (dd: Duel) => (dd.fighters[1].phase === 'attack' && dd.fighters[1].age === 0 && dd.fighters[0].phase === 'ready' ? act('dodge') : idle());
-  const heldShare = (habits: Partial<Habits>) => { const throws = [...Array(40).keys()].map(seed => decide(arena(1.5), 1, { ...initialAi(seed + 1), mode: 'approach', decision: 500, wait: 0, next: 'heavy', habits: { ticks: 600, guard: 0, parries: 0, rolls: 0, lights: 0, heavies: 0, thrusts: 0, attacks: 0, ...habits } }, PROFILES.normal).intent).filter(i => i.action === 'heavy'); return { thrown: throws.length, held: throws.filter(i => i.held).length }; };
+  const heldShare = (habits: Partial<Habits>) => { const throws = [...Array(40).keys()].map(seed => decide(arena(1.5), 1, { ...initialAi(seed + 1), mode: 'approach', decision: 500, wait: 0, next: 'heavy', habits: { ticks: 600, guard: 0, parries: 0, rolls: 0, steps: 0, lights: 0, heavies: 0, thrusts: 0, kicks: 0, attacks: 0, parks: 0, ...habits } }, PROFILES.normal).intent).filter(i => i.action === 'heavy'); return { thrown: throws.length, held: throws.filter(i => i.held).length }; };
   const calm = heldShare({}), vsRoller = heldShare({ attacks: 5, rolls: 3 });
   assert.ok(calm.thrown >= 20 && calm.held === 0, `no read, no guard: a heavy is never held (${calm.held}/${calm.thrown})`); assert.ok(vsRoller.thrown >= 20 && vsRoller.held / vsRoller.thrown >= .65, `with a roller read most heavies are held: ${vsRoller.held}/${vsRoller.thrown}`);
   // Spammer: cuts whenever ready. Normal parries 30 % of noticed swings; doubled it plans a parry for most of a spammer's cuts — and a read
@@ -454,7 +453,7 @@ test('disengage knob: after a landed blow the fighter hops back out of range on 
   for (const [profile, expectHops] of [[PROFILES.normal, false], [knobs({ disengage: 1 }), true]] as const) {
     let d = arena(1.3), ai = initialAi(4242), hits = 0, hops = 0, pending = 0;
     for (let i = 0; i < 3000; i++) {
-      const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [standing(d), w.intent]);
+      const w = decide(d, 1, ai, profile); ai = w.ai; d = stepDuel(d, [standing(), w.intent]);
       if (d.events.some(e => e.type === 'Hit' && e.actor === 1)) { hits++; pending = 60; }
       if (pending > 0) { pending--; if (d.events.some(e => e.type === 'ActionStarted' && e.actor === 1 && e.action === 'backstep')) { hops++; pending = 0; } }
       d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP, stamina: 100, exhausted: false, phase: d.fighters[0].phase === 'dead' ? 'ready' : d.fighters[0].phase }, { ...d.fighters[1], health: HP, phase: d.fighters[1].phase === 'dead' ? 'ready' : d.fighters[1].phase }] };
