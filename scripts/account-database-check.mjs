@@ -15,7 +15,7 @@ let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
   run('pg_ctl', ['-D', join(root, 'data'), '-l', join(root, 'server.log'), '-o', `-k ${root} -c listen_addresses=''`, '-w', 'start']); started = true;
-  const bootstrap = `create extension pgcrypto;
+  const bootstrap = `create extension if not exists pgcrypto;
     create role anon; create role authenticated;
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
@@ -92,17 +92,36 @@ try {
       begin update public.fighter_profiles set victory_marks=-1 where user_id=auth.uid(); raise exception 'Negative marks allowed'; exception when check_violation then null; end;
       begin update public.fighter_profiles set victory_marks=100001 where user_id=auth.uid(); raise exception 'Absurd marks allowed'; exception when check_violation then null; end;
     end$$;`;
-  // Brief 3/4/5 (fight_records, the daily warden, loot). Owner = user 1 throughout; user 2 exercises the cross-owner and
+  // fight_records (202609210002, narrowed by 202609220006): a guest holding a link reads exactly (id, opponent, record) — not the
+  // sharer's user_id or created_at — and cannot insert, update or delete.
+  const fightRecords = `set role authenticated;
+    select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+    insert into public.fight_records(id,user_id,opponent,record) values('AAAAAAAA',auth.uid(),'veteran','abc123_-ABC');
+    do $$begin
+      -- fight_records_recent (the definer function backing the rate-limit policy) must still count correctly and still cap at
+      -- 30/hour after the select grant was narrowed: 29 more bring the owner to 30 (must all succeed), the 31st must be refused.
+      for i in 1..29 loop
+        insert into public.fight_records(id,user_id,opponent,record) values('RATE' || lpad(i::text, 4, '0'), auth.uid(), 'veteran', 'abc');
+      end loop;
+      if (select count(*) from public.fight_records) <> 30 then raise exception 'Rate-limited insert count is not 30 after 30 allowed inserts'; end if;
+      begin insert into public.fight_records(id,user_id,opponent,record) values('RATE0030',auth.uid(),'veteran','abc'); raise exception 'A 31st fight record within the hour was allowed'; exception when insufficient_privilege then null; end;
+    end$$;
+    set role anon;
+    do $$begin
+      if not exists(select 1 from public.fight_records where id='AAAAAAAA') then raise exception 'Guest cannot find a shared fight record by id'; end if;
+      if (select record from public.fight_records where id='AAAAAAAA') is null then raise exception 'Guest cannot read the record column'; end if;
+      begin perform user_id from public.fight_records where id='AAAAAAAA'; raise exception 'Anonymous read of fight_records.user_id allowed'; exception when insufficient_privilege then null; end;
+      begin perform created_at from public.fight_records where id='AAAAAAAA'; raise exception 'Anonymous read of fight_records.created_at allowed'; exception when insufficient_privilege then null; end;
+      begin insert into public.fight_records(id,user_id,opponent,record) values('BBBBBBBB','11111111-1111-4111-8111-111111111111','veteran','abc'); raise exception 'Anonymous fight record insert allowed'; exception when insufficient_privilege then null; end;
+      begin update public.fight_records set opponent='pitborn' where id='AAAAAAAA'; raise exception 'Anonymous fight record update allowed'; exception when insufficient_privilege then null; end;
+      begin delete from public.fight_records where id='AAAAAAAA'; raise exception 'Anonymous fight record delete allowed'; exception when insufficient_privilege then null; end;
+    end$$;
+    reset role;`;
   // wrong-day refusals so a duplicate-key error never masks what's actually under test.
   const dailyLoot = `set time zone 'UTC';   -- the migration's future-day guard keys on the UTC date; current_date below must agree east or west of Greenwich
     set role authenticated;
     select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
-    insert into public.fight_records(id,user_id,opponent,record) values('AAAAAAAA',auth.uid(),'veteran','abc123_-ABC');
     do $$begin
-      if not exists(select 1 from public.fight_records where id='AAAAAAAA') then raise exception 'Fight record insert failed'; end if;
-      begin insert into public.fight_records(id,user_id,opponent,record) values('BBBBBBBB','22222222-2222-4222-8222-222222222222','veteran','abc'); raise exception 'Cross-owner fight record insert allowed'; exception when insufficient_privilege then null; end;
-      begin update public.fight_records set opponent='pitborn' where id='AAAAAAAA'; raise exception 'Fight record update allowed'; exception when insufficient_privilege then null; end;
-      begin delete from public.fight_records where id='AAAAAAAA'; raise exception 'Fight record delete allowed'; exception when insufficient_privilege then null; end;
       begin perform secret from public.daily_secret; raise exception 'Authenticated read of the daily secret allowed'; exception when insufficient_privilege then null; end;
       if (select seed from public.daily_fight(current_date)) is null then raise exception 'Authenticated cannot fetch today''s daily seed'; end if;
       if exists(select 1 from public.daily_fight(current_date + 1)) then raise exception 'A future daily seed was answered'; end if;
@@ -126,8 +145,6 @@ try {
     end$$;
     set role anon;
     do $$begin
-      if not exists(select 1 from public.fight_records where id='AAAAAAAA') then raise exception 'Guest cannot read a shared fight record'; end if;
-      begin insert into public.fight_records(id,user_id,opponent,record) values('CCCCCCCC','11111111-1111-4111-8111-111111111111','veteran','abc'); raise exception 'Anonymous fight record insert allowed'; exception when insufficient_privilege then null; end;
       begin perform secret from public.daily_secret; raise exception 'Anonymous read of the daily secret allowed'; exception when insufficient_privilege then null; end;
       if (select seed from public.daily_fight(current_date)) is null then raise exception 'Guest cannot fetch today''s daily seed'; end if;
       if not exists(select 1 from public.daily_results where day=current_date) then raise exception 'Guest cannot read the day''s results'; end if;
@@ -136,8 +153,8 @@ try {
       if not exists(select 1 from public.daily_board where day=current_date) then raise exception 'Guest cannot read the daily board'; end if;
     end$$;
     reset role;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + dailyLoot);
-  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records/daily warden/loot RLS (public read minus secret columns, owner-once insert, no update or delete, future-day refusal, day/number integrity, loot shape bounds). No hosted database changed.');
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot);
+  console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
