@@ -754,6 +754,14 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
  const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
  const times=[0,.12,.25,1],positions=[],values=new Map(skeleton.bones.map(b=>[b.name,[]]));
  const armed=clips.find(c=>c.name==='Armed'),riposte=clips.find(c=>c.name==='Riposte');
+ // Off-hand (owner 2026-09-21): the Riposte's contact frame throws the left hand out, fingers spread — a swing follow-through
+ // that, frozen for the whole hold, read as a splayed hand turned the wrong way ("giving the middle finger"). The hold is a
+ // two-handed drive instead: the left hand closes onto the grip just behind the right — the Armed pose's wrist, and the RIGHT
+ // hand's fist mirrored onto the left fingers (the Armed left hand is open; frozen on the hilt it still read as a raised palm).
+ const OFF_FINGER=/^(index|middle|ring|pinky|thumb)_0\d_l$/;
+ poseMixer.stopAllAction();poseMixer.clipAction(armed).play();poseMixer.update(0);
+ const armedWrist=base.scene.getObjectByName('hand_l').quaternion.clone();
+ poseMixer.stopAllAction();
  // the Riposte's fullest-extension instant = this rig's natural thrust line
  let hit=0,best=-1e9;
  for(let t=0;t<=riposte.duration;t+=1/60){
@@ -773,6 +781,12 @@ for(const name of ['BlockImpact','Parry','Deflected']) {
    pelvis.position.y-=.12*settle;           // pelvis local +y is world back: a full lunge shift INTO the drive, the line stays at chest height
    base.scene.getObjectByName('Head').rotation.x-=.10*settle;   // eyes up on the victim
    reachArm('r',new T.Vector3(0,1.04,.69));   // extend the drive along the arm's own line (near-full extension) — carries the tip out the far side at close kills
+   base.scene.getObjectByName('hand_l').quaternion.copy(armedWrist);
+   for(const bone of skeleton.bones)if(OFF_FINGER.test(bone.name)){const q=base.scene.getObjectByName(bone.name.replace(/_l$/,'_r')).quaternion;bone.quaternion.set(q.x,-q.y,-q.z,q.w);}   // mirrored finger bones: the same curl is (x,-y,-z,w)
+   base.scene.updateMatrixWorld(true);
+   const grip=base.scene.getObjectByName('hand_r').getWorldPosition(new T.Vector3());
+   const pommelward=drawn.localToWorld(new T.Vector3(0,-1,0)).sub(drawn.localToWorld(new T.Vector3(0,0,0))).normalize();   // down the hilt, away from the tip
+   reachArm('l',grip.addScaledVector(pommelward,.07));   // the second hand on the grip, a hand's width behind the first
   }
   base.scene.updateMatrixWorld(true);
   if(phase===1){ const from=drawn.localToWorld(new T.Vector3(0,.12,0)),to=drawn.localToWorld(new T.Vector3(0,.86,0)); console.log(`  Fin_RunThrough blade line: [${from.x.toFixed(2)}, ${from.y.toFixed(2)}, ${from.z.toFixed(2)}] -> [${to.x.toFixed(2)}, ${to.y.toFixed(2)}, ${to.z.toFixed(2)}]`); }
