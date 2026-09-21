@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import { GUARD_SLIDE_PX, guardSide } from '../src/input.ts';
+import { GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, guardSide } from '../src/input.ts';
+import type { Direction } from '../src/moves.ts';
 
 test('combat buttons stay DOM hit targets during cooldown so repeated touches are consumed', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -90,6 +91,23 @@ test('guard side: the thumb still is the straight guard; past the slide threshol
   assert.equal(guardSide(-GUARD_SLIDE_PX, 0), 'left'); assert.equal(guardSide(40, 12), 'right');
   assert.equal(guardSide(6, -30), 'overhead'); assert.equal(guardSide(-10, 30), 'low');
   assert.equal(guardSide(30, 30), 'low', 'a perfect diagonal is the vertical: up and down are the rarer, deliberate slides');
+});
+
+test('guard side hysteresis (brief 7): a held side keeps its axis through a wobble near the diagonal; the thumb must go GUARD_DEAD_BAND_DEG past it to switch; a fresh slide still picks the dominant axis', () => {
+  const deg = (angle: number, r = 30) => [r * Math.cos(angle * Math.PI / 180), -r * Math.sin(angle * Math.PI / 180)] as const;   // angle from +x toward up (screen y is down)
+  const walk = (angles: number[], start: Direction | null = null) => { let side: Direction | null = start; const seen: (string | null)[] = []; for (const a of angles) { const [dx, dy] = deg(a); side = guardSide(dx, dy, side); seen.push(side); } return seen; };
+  assert.equal(GUARD_DEAD_BAND_DEG, 15, 'the band the owner tunes on the phone (12–18°)');
+  // a right-hand slide that wobbles across the 45° diagonal between right and overhead: right holds until 45 + band
+  assert.deepEqual(walk([10, 40, 50, 55, 44, 58, 62]), ['right', 'right', 'right', 'right', 'right', 'right', 'overhead'], 'right holds through 50–58°, switches past 60°');
+  // …and back: overhead now holds until 45 - band
+  assert.deepEqual(walk([62, 50, 40, 32, 28], 'overhead'), ['overhead', 'overhead', 'overhead', 'overhead', 'right'], 'overhead holds down to 32°, switches below 30°');
+  // no side held: the dominant axis decides at once (44° = right, 46° = overhead), as before
+  assert.deepEqual(walk([44]), ['right']); assert.deepEqual(walk([46]), ['overhead']);
+  // the other quadrants and signs
+  assert.equal(guardSide(...deg(190), 'low'), 'left', 'a held low gives way at 10° from horizontal: that is 35° past the diagonal, far outside the band');
+  assert.equal(guardSide(...deg(240), 'left'), 'left', 'left holds to 60° below horizontal'); assert.equal(guardSide(...deg(242), 'left'), 'low', 'past the band: low');
+  // the slide threshold and the straight guard are untouched by the band: inside GUARD_SLIDE_PX the side is null whatever was held
+  assert.equal(guardSide(5, 5, 'left'), null); assert.equal(guardSide(-GUARD_SLIDE_PX, 0, 'overhead'), 'left', 'a straight-left slide from a held overhead is left: 0° is far outside the band');
 });
 
 test('the versus card is a plain still (owner 2026-09-21: no drift), with a large centred loading line above the pair', () => {
