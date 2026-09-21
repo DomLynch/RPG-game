@@ -1191,36 +1191,36 @@ dialog>p {
     transition:
       background .08s,transform .08s;
   }
-  /* Side hints (owner 2026-09-21): every combat button carries fine marks for the side it works on — the Guard button all five
-     (ticks + a centre ring, brighter while held on the side under the thumb / Q + arrow), Slash the two cuts with the NEXT one lit (the
-     cuts alternate; data-next from hud.ts), Stab the centre ring (straight), Heavy the up tick (overhead), Kick the down tick (low). */
+  /* Side hints (owner 2026-09-21, v3 "apply everywhere consistently"): every combat button carries the SAME compass — four rim
+     ticks (overhead / low / left / right) and a centre ring (straight) — and lights the mark for the side it works on: Slash the
+     NEXT cut (they alternate; data-next from hud.ts), Stab the ring, Heavy the up tick, Kick the down tick, Guard the side under the
+     thumb / Q + arrow while held (data-side from input.ts), the ring for straight. Ticks sit at the rim and the label is kept narrow
+     so the left/right marks never hide under it. Strokes are non-scaling so the 44 px Kick draws as fine as the 66 px Slash. */
   .actions[data-gestures=cluster] button .side-marks{
     position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
     fill: none; stroke: #fff; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;
-    opacity: .42; transition: opacity .12s;
+    transition: opacity .12s;
   }
-  .actions[data-gestures=cluster] button .side{ transition: opacity .12s, stroke-width .12s; }
-  /* guard: rest = four ticks + a faint centre ring; held = the read side to full, the rest fade; straight = the ring */
-  .actions[data-gestures=cluster] #guard-button .side-straight{ opacity: .55; }
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true] .side-marks{ opacity: 1; }
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true] .side{ opacity: .16; }
+  .actions[data-gestures=cluster] button .side{ vector-effect: non-scaling-stroke; opacity: .3; transition: opacity .12s, stroke-width .12s; }
+  /* one lit mark per button */
+  .actions[data-gestures=cluster] #attack-button[data-next=left] .side-left,
+  .actions[data-gestures=cluster] #attack-button[data-next=right] .side-right,
+  .actions[data-gestures=cluster] #thrust-button .side-straight,
+  .actions[data-gestures=cluster] #heavy-button .side-overhead,
+  .actions[data-gestures=cluster] #kick-button .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=left] .side-left,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=right] .side-right,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=overhead] .side-overhead,
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .side-low{ opacity: .95; stroke-width: 2; }
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=low] .side-low,
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true][data-side=straight] .side-straight,
-  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight{ opacity: .9; stroke-width: 1.5; }
-  /* slash: the next cut's side is the bright one */
-  .actions[data-gestures=cluster] #attack-button .side{ opacity: .35; }
-  .actions[data-gestures=cluster] #attack-button[data-next=left] .side-left,
-  .actions[data-gestures=cluster] #attack-button[data-next=right] .side-right{ opacity: 1; stroke-width: 2; }
+  .actions[data-gestures=cluster] #guard-button[aria-pressed=true]:not([data-side]) .side-straight{ opacity: .95; stroke-width: 2; }
   .actions[data-gestures=cluster] #attack-button:not([data-next]) .side-marks{ opacity: 0; }   /* sheathed: the button says Draw, no cut is next */
   @media (prefers-reduced-motion: reduce){
     .actions[data-gestures=cluster] button .side-marks, .actions[data-gestures=cluster] button .side{ transition: none; }
   }
   .actions[data-gestures=cluster] button[data-mobile]::after{
-    font: 600 11px/1 Arial;
-    letter-spacing: 1px;
+    font: 600 10px/1 Arial;
+    letter-spacing: .5px;
     text-transform: uppercase;
     text-shadow: 0 1px 2px #000a;
   }
