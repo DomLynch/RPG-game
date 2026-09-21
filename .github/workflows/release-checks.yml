@@ -32,7 +32,7 @@ env:
   RUNNER_SKIP_ON_PR: quiet-one-browser-check
 jobs:
   plan:
-    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (github.event.action != 'synchronize' || contains(github.event.pull_request.labels.*.name, 'ci:release-checks')))
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (contains(fromJSON('["opened","reopened","ready_for_review"]'), github.event.action) || contains(github.event.pull_request.labels.*.name, 'ci:release-checks')))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
