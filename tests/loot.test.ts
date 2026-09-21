@@ -34,7 +34,7 @@ test('every loot draw is skinned to the hero bone order and names its opponent, 
     const [opponent, slot, material] = d.name.split('.');
     assert.deepEqual(d.extras, { opponent, slot, layer: d.extras?.layer }, `${d.name}: extras name the draw`);
     assert.ok(SLOTS.includes(slot), `${d.name}: slot ${slot}`);
-    assert.ok(['replace', 'over'].includes(d.extras!.layer), `${d.name}: layer ${d.extras?.layer}`);
+    assert.ok(['replace', 'over'].includes(d.extras?.layer ?? ''), `${d.name}: layer ${d.extras?.layer}`);
     assert.ok(material, `${d.name}: material`);
     assert.deepEqual(loot.jointNames(d.skin!), heroJoints, `${d.name}: same joints, same order, as warrior.glb`);
   }
