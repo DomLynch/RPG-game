@@ -25,8 +25,9 @@ const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(se
 const recordings = {}, sourceList = JSON.parse(await fs.readFile('artifacts/audio/SOURCES.json', 'utf8'));
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
 for (const [name, source] of Object.entries(sourceList)) {
-  // A source is either a public URL (cached under source-cache) or a file committed with the repo (licensed recordings that have
-  // no stable public URL, e.g. the Jochi SFX shield block); both are hash-pinned.
+  // A source is either a public URL (cached under source-cache) or a local file with no stable public URL (the Jochi SFX shield
+  // block: licensed for use but not for redistribution, so it lives in the gitignored cache — SOURCES.json says how to rebuild it);
+  // both are hash-pinned.
   const file = source.file ?? `artifacts/audio/source-cache/${name}.mp3`;
   let bytes = await fs.readFile(file).catch(() => null);
   if (!bytes && source.file) throw new Error(`${name}: committed source ${source.file} missing`);

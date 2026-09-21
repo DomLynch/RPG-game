@@ -50,14 +50,14 @@
     "retrieved": "2026-09-19"
   },
   "shield": {
-    "file": "src/assets/audio/sources/jochi-shield-block.flac",
+    "file": "artifacts/audio/source-cache/shield.flac",
     "page": "https://www.youtube.com/watch?v=k895zKWPEIg",
     "sha256": "783298abf450c17715c6f92fdcc97cde4ce6b71d5a6da34b663e56f831734189",
     "title": "Shield Block | Free Sound Effect",
     "author": "Jochi SFX",
     "license": "Jochi SFX free-use terms (video description): \"You can use these sounds for free in any musical compositions, video projects and other creative work. You may not sell or re-distribute these sounds, nor claim them as your own work.\"",
     "licenseUrl": "https://www.youtube.com/watch?v=k895zKWPEIg",
-    "note": "Three hits (1.30, 3.18, 5.10 s of the clip), 0.75 s each, mono 48 kHz FLAC, trimmed 2026-09-21; used as the parry cue at pitch 1 (owner chose the raw version).",
+    "note": "NOT committed (clause 2 forbids redistribution; only the transformed sprite ships). Rebuild the cache file from the clip: yt-dlp -f bestaudio -x --audio-format wav <page>, then ffmpeg -i clip.wav -filter_complex \"[0:a]atrim=start=1.30:duration=0.75,asetpts=PTS-STARTPTS[a];[0:a]atrim=start=3.18:duration=0.75,asetpts=PTS-STARTPTS[b];[0:a]atrim=start=5.10:duration=0.75,asetpts=PTS-STARTPTS[c];[a][b][c]concat=n=3:v=0:a=1[o]\" -map [o] -ac 1 -ar 48000 -c:a flac -compression_level 8 artifacts/audio/source-cache/shield.flac — the sha256 above must match. Used as the parry cue at pitch 1.",
     "retrieved": "2026-09-21"
   }
 }
