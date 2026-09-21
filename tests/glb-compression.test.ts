@@ -59,3 +59,37 @@ test('shared external textures preserve the real rig and reject missing or corru
   const damaged = Buffer.from(images.get(webp)); damaged[damaged.length - 1] ^= 1;
   await assert.rejects(assertGlbEquivalent(source, packed, async uri => uri === webp ? damaged : images.get(uri)), /material\/texture changed/);
 });
+
+test('build quantization: int8 normals and uint8 weights summing to 255 pass the judge within one step; a drifted normal or weight row is rejected; lossless packing is still bit-exact [slow]', async () => {
+  const source = readFileSync(new URL('../src/assets/warrior.glb', import.meta.url));
+  const exact = await optimizeGlb(source, undefined, { quantize: false }), packed = await optimizeGlb(source);
+  await assertGlbEquivalent(source, exact);
+  const { doc } = parseGlb(exact);
+  assert.ok(!doc.extensionsRequired.includes('KHR_mesh_quantization') && doc.accessors.every(a => a.componentType !== 5120), 'quantize:false leaves every accessor as the source typed it');
+  const result = await assertGlbEquivalent(source, packed), quant = parseGlb(packed);
+  assert.ok(quant.doc.extensionsRequired.includes('KHR_mesh_quantization'));
+  const semantics = new Map();
+  for (const m of quant.doc.meshes) for (const p of m.primitives) for (const [s, ai] of Object.entries(p.attributes)) semantics.set(ai, s.replace(/_\d+$/, ''));
+  const normals = [...semantics].filter(([, s]) => s === 'NORMAL').map(([i]) => quant.doc.accessors[i]), weights = [...semantics].filter(([, s]) => s === 'WEIGHTS').map(([i]) => quant.doc.accessors[i]);
+  assert.ok(normals.length > 0 && normals.every(a => a.componentType === 5120 && a.normalized && a.min === undefined), 'every normal accessor is int8 normalized');
+  assert.ok(weights.length > 0 && weights.every(a => a.componentType === 5121 && a.normalized), 'every weight accessor is uint8 normalized');
+  assert.ok(gzipSync(packed).length < gzipSync(exact).length * 0.92, `quantized build is at least 8% smaller gzipped (${gzipSync(packed).length} vs ${gzipSync(exact).length})`);
+  assert.equal(result.accessors, doc.accessors.length);
+  // Decode the emitted weights: every vertex's four bytes sum to exactly 255 (skinning never scales the mesh).
+  const { MeshoptDecoder } = await import('meshoptimizer'); await MeshoptDecoder.ready;
+  const decoded = view => { const v = quant.doc.bufferViews[view], ext = v.extensions?.EXT_meshopt_compression; if (!ext) return quant.bin.subarray(v.byteOffset || 0, (v.byteOffset || 0) + v.byteLength); const out = Buffer.alloc(v.byteLength); MeshoptDecoder.decodeGltfBuffer(out, ext.count, ext.byteStride, quant.bin.subarray(ext.byteOffset, ext.byteOffset + ext.byteLength), ext.mode, ext.filter); return out; };
+  let rows = 0;
+  for (const a of weights) { const bytes = decoded(a.bufferView); for (let i = 0; i < a.count; i++) { assert.equal(bytes[i * 4] + bytes[i * 4 + 1] + bytes[i * 4 + 2] + bytes[i * 4 + 3], 255, `weights row ${i} sums to 255`); rows++; } }
+  assert.ok(rows > 10000, `checked ${rows} vertices`);
+  // The judge's tolerance is one quantization step: nudge one SOURCE normal component by two steps (float, uncompressed view) and one
+  // source weight by four steps, and the untouched packed build must no longer match either.
+  const src = parseGlb(source), sourceSemantics = new Map();
+  for (const m of src.doc.meshes) for (const p of m.primitives) for (const [s, ai] of Object.entries(p.attributes)) sourceSemantics.set(ai, s.replace(/_\d+$/, ''));
+  const nudge = (semantic, delta) => {
+    const index = [...sourceSemantics].find(([, s]) => s === semantic)[0], a = src.doc.accessors[index], v = src.doc.bufferViews[a.bufferView];
+    const out = Buffer.from(source), at = 28 + out.readUInt32LE(12) + (v.byteOffset || 0) + (a.byteOffset || 0);
+    out.writeFloatLE(out.readFloatLE(at) + delta, at); return out;
+  };
+  await assert.rejects(assertGlbEquivalent(nudge('NORMAL', 2 / 127), packed), /Normal .* drifted/);
+  await assert.rejects(assertGlbEquivalent(nudge('WEIGHTS', 4 / 255), packed), /Weight/);
+});
