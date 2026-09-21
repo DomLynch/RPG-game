@@ -44,11 +44,10 @@ test('independent checks run concurrently; fixed-port checks run alone; receipt 
   const result = run(root, { RELEASE_CHECK_CONCURRENCY: '6' });
   const wall = (Date.now() - started) / 1000;
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  // Concurrency is proved two ways, neither an absolute wall time (on a loaded MacBook — load 41, 2026-09-21 — eight node startups pushed
-  // the old 3.5 s bound to 3.7–4.2 s while the checks still overlapped): the run beats the 4.8 s serial sleep floor, and the mocks' own
-  // spans show several alive at once.
-  assert.ok(wall < 4.8, `6x700ms in parallel with 2x300ms fixed-port overlapping must beat the 4.8 s serial floor, took ${wall}s`);
-  assert.ok(maxOverlap(root) >= 4, `checks overlapped: at most ${maxOverlap(root)} alive at once`);
+  // Concurrency is proved by the mocks' own spans (several alive at once), never by wall time: on a loaded MacBook (load 25–41 with the
+  // suite's own files in parallel, 2026-09-21) eight node startups took a still-overlapped run past the old 3.5 s bound and even past
+  // the 4.8 s serial sleep floor (5.75 s measured) — wall time says nothing about overlap there.
+  assert.ok(maxOverlap(root) >= 4, `checks overlapped: at most ${maxOverlap(root)} alive at once (wall ${wall}s)`);
   assert.match(result.stdout, /8 total, 0 trusted from CI, 8 to run, concurrency 6, 2 fixed-port \(one at a time\)/);
   assert.ok(existsSync(join(root, 'artifacts', 'release-checks.json')));
   const written = JSON.parse(readFileSync(join(root, 'artifacts', 'release-checks.json'), 'utf8'));
