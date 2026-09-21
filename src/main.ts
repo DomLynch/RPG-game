@@ -32,6 +32,7 @@ for (const type of ['gesturestart', 'gesturechange', 'gestureend'])
 // whole page on iPhone (owner, 2026-09-21). Refuse every two-finger move at the document, non-passive, so the pinch never
 // starts. A single finger keeps every tap, drag and stick move: only moves with two or more touches are refused.
 document.addEventListener('touchmove', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
+document.addEventListener('touchstart', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });   // a pinch whose first move slips through can still start Safari's zoom: refuse the second finger at touchstart too
 const feedback = createFeedback();
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
 // preventDefault on pointerdown, which suppresses click. Listen to the whole family so the first tap unlocks on iOS.

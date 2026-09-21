@@ -1429,7 +1429,7 @@ dialog #account-login { flex-basis: 100%; min-height: 48px; background: #fff; bo
   letter-spacing: .08em; text-transform: uppercase; color: var(--jm);
 }
 .menu-select select {
-  font: 600 14px "Instrument Sans", Arial, sans-serif;
+  font: 600 16px "Instrument Sans", Arial, sans-serif;   /* 16px floor: iOS Safari zooms the page into a focused control under 16px and leaves it zoomed (owner's "zoom bug", 2026-09-21) */
   color: var(--jf); background: #fff;
   border: 1px solid var(--jl); border-radius: 999px;
   padding: 0 12px; min-height: 40px;
