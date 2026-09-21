@@ -2,6 +2,33 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Brief 8 — the Veteran's authored opening, 2026-09-22
+A fresh fight against the Veteran now scripts its first exchanges instead of handing them straight to the ordinary brain: one clear
+side (right) repeated until it lands blocked or parried, then the other side (left) the same way, then one heavy thrown with none of
+the ordinary brain's own protection for its own recovery — a free, readable punish window — and only then does the ordinary AI (reads,
+discipline, all of it) take over. No stat or profile touched: `AiState.opener` (0..3) carries the stage, set once at fight start from a
+new `Opponent.opener` flag read by the archetype (moves.ts's own rule: an individual must not add an AI branch), not an id check — the
+skeleton (roster.ts, season-2, held) shares the Veteran's archetype and so shares the opener too; nothing else does. `decide()` never
+reads a profile flag for it; defence is untouched throughout (he still blocks and parries like himself).
+Capped at 3 tries a side (`OPENER_TRIES`) so a player who never blocks isn't held forever, and gated on the same stamina discipline
+floor the ordinary brain rests behind: an early draft threw the cap's swings back to back with no floor and ran the tank dry before
+ever reaching the recovery heavy (measured 0.2/100 stamina by stage 2, lost to the very pressure the opener exists to punish). Short of
+the floor he now raises his guard and waits, same as the plain brain would.
+Needs-change from review (Auditer, 2026-09-22), fixed here: (1) `scripts/browser-check.mjs`/`counter-browser-check.mjs` timed the guard
+press a fixed 430 ms after the tell, tuned to the old always-heavy first opener (trident heavy: windup 34, active 5); the authored
+opening's first exchange is a trident sweep (windup 22, active 8) whose whole contact window closes well inside that wait, so the
+scripted parry pressed after contact had already resolved — both gates now read the actual `AttackStarted` event's `move` and wait a
+per-move amount instead of one constant. (2) The PR description said Veteran-only; corrected to name the skeleton. (3) This entry.
+(4) RECORD_VERSION: reverted the bump attempted here — the lead is retiring v1 acceptance for a blanket "every shipped sim/AI change
+bumps the version" policy landing in the ladder retune first; this branch rebases onto that and bumps once more instead of twice
+against a moving base.
+Evidence: `npm test` 386/386, eslint clean, tsc clean (src + tests, excluding the two pre-existing check-budget.test.ts/loot.test.ts
+failures already on trunk), `npm run test:slow` 78/78. New coverage in tests/ai.test.ts: the stage order and cap against a foe who
+never blocks, an early exit when the first swing on a side is blocked, and that `opener===3` is byte-identical to no opener at all.
+Remaining: the browser-check timing fix needs a green CI run (not run locally — a deploy was in flight); no ladder/identity pin
+exercises the opener directly (every existing pin calls `initialAi(seed)`, which defaults it off) — the Veteran's win rate WITH the
+opener live is unmeasured, flagged for a follow-up rather than blocking this PR.
+
 ## Anti-turtling — combat half (sim rules + warden), 2026-09-21
 Owner, verbatim in the combat session: "both 1 and 2." (whip at the wall + no stamina regen while backing away, as the lead proposed) — then, shown the measurements, "lets do this - Ship whip + wall-band variant now (recommended) — keeps every rung's feel, still kills the wall-camp." Visuals & World own the presentation (lorarii on the walkway, lash line, crack, flinch) against the `Whipped` event.
 `duel.ts`: `Fighter.loiter` counts ticks within `RULES.wall.loiter.band` (1.0 m) without attacking; at `ticks` (180) the fighter is whipped — `Whipped` { actor = target, x, z, damage: chip }, health −3 floored at 1, +15 posture via the hoisted `shake()`, a 0.6 m shove toward an opponent within `into` (2 m) else toward the centre (none at grips < 1 m — a shove to the centre was pushing a cornered man out of his opponent's reach, rescuing the turtle), and again every `again` (60) ticks while he stays. `RULES.retreat` { away .02, wallOnly true }: inside the band a walking tick that opens the gap by more than `away` sets a one-tick rest (the sprint mechanism), so no regen while backpedalling at the wall; strafing, advancing, standing and open-ground retreats regenerate. `ai.ts`: at three quarters of the loiter clock the warden's next opener is now (wait 0), a circler with stamina above its floor closes to deliver it, and out of range it blends a 50 % inward step — the Goblin, who circled the patient man at 1.3 m with a knife that reaches 1.1, was lashed 17 times in 24 fights before this.

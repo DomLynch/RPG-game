@@ -42,12 +42,22 @@ try {
  await page.getByRole('button',{name:'Draw sword',exact:true}).tap();
  await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false' && !document.querySelector('#kick-button').hidden,5000);
  const guardPoint=await center('guard-button');
- await until(()=>window.__tellAt>0 && performance.now()-window.__tellAt>=430,20000);
+ await until(()=>window.__tellAt>0,20000);
  // Directional guard: the parry must be on the side the blow arrives on — the mirror of the attack's direction (a right cut arrives on the
  // defender's left; overhead, thrust and low by name). The tell's AttackStarted carries `direction`; a straight thrust needs no slide.
- const incoming=await page.evaluate(()=>{const e=[...window.__combat].reverse().flatMap(s=>s.events).find(e=>e.type==='AttackStarted' && e.actor===1);return e?e.direction:null;});
+ // The touch must land inside the guard's own parry window of the CONTACT tick, not the tell — and that gap is the move's own tell (its
+ // windup, less the reaction already spent noticing it), which is nowhere near the same for every move (brief 8, 2026-09-22: the Veteran's
+ // authored opening now opens on a trident sweep, not the pin his old first-opener always was — a wait tuned to the pin's longer tell
+ // landed the touch after a sweep's much shorter one had already resolved, past the guard entirely). Waited on real sim data instead of a
+ // single constant: the move that actually started, and per-move ms tuned to its own windup/active (src/moves.ts TRIDENT_PATHS) minus the
+ // reaction already spent on the tell — the trident sweep's own middle, not the pin's.
+ const incomingEvent=await page.evaluate(()=>{const e=[...window.__combat].reverse().flatMap(s=>s.events).find(e=>e.type==='AttackStarted' && e.actor===1);return e?{move:e.move,direction:e.direction}:null;});
+ const incoming=incomingEvent?.direction ?? null;
  const side={right:'left',left:'right',overhead:'overhead',low:'low',thrust:null}[incoming] ?? null;
  const slide={left:{x:-30,y:0},right:{x:30,y:0},overhead:{x:0,y:-30},low:{x:0,y:30}}[side];
+ const waitAfterTellMs={light_right:200,light_left:200,heavy_overhead:430,thrust:100}[incomingEvent?.move]??430;
+ await until(()=>performance.now()-window.__tellAt>=waitAfterTellMs,20000);
+ receipt.parryWaitMs={move:incomingEvent?.move,waitAfterTellMs};
  receipt.parrySide={incoming,side};
  await touch('touchStart',guardPoint);
  if(slide){await touch('touchMove',{x:guardPoint.x+slide.x,y:guardPoint.y+slide.y});}

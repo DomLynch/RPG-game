@@ -12,9 +12,10 @@ import type { Action, Intent } from './duel.ts';
 import { WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 3;   // 2: the player's weapon after the opponent id (2026-09-21). A version-1 record predates the choice and decodes as the longsword.
-// 3: the Veteran's brief 8 authored opening (2026-09-22) changes his fresh-fight behaviour; a v2 link would silently replay a
-// different fight against him, so it is refused rather than reproduced wrong (record-replay-check.mjs's own instruction).
+export const RECORD_VERSION = 2;   // 2: the player's weapon after the opponent id (2026-09-21). A version-1 record predates the choice and decodes as the longsword.
+// Brief 8 (2026-09-22) changes the Veteran's fresh-fight behaviour and would need its own bump, but the lead is retiring v1
+// acceptance and moving to "every shipped sim/AI change bumps RECORD_VERSION" in #366 first; this branch rebases onto that and
+// bumps once more (to 4) rather than bumping twice against a moving base.
 export type RecordProfile = 'easy' | 'normal' | 'hard';
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
 export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; profile: RecordProfile; seed: number };

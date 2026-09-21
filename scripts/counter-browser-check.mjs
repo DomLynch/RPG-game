@@ -34,12 +34,16 @@ try {
   try { await until(()=>document.querySelector('#guard-button').getAttribute('aria-disabled')==='false',20000); }
   catch(error){ receipt.onFailure=await diagnose(); receipt.error=String(error).slice(0,300); throw error; }
   const box=await page.locator('#guard-button').boundingBox();
-  await until(()=>window.__tellAt>0&&performance.now()-window.__tellAt>=430,20000);
+  await until(()=>window.__tellAt>0,20000);
   // Directional guard: the parry must be on the side the blow arrives on — the mirror of the attack's direction (AttackStarted carries it);
-  // a straight thrust needs no slide. Same rule as browser-check.mjs.
-  const incoming=await page.evaluate(()=>{const e=[...window.__combat].reverse().flatMap(s=>s.events).find(e=>e.type==='AttackStarted'&&e.actor===1);return e?e.direction:null;});
+  // a straight thrust needs no slide. Same rule as browser-check.mjs, including the per-move wait after the tell (brief 8, 2026-09-22: a
+  // wait tuned to the Veteran's old heavy-first opener missed his authored opening's much shorter trident sweep entirely).
+  const incomingEvent=await page.evaluate(()=>{const e=[...window.__combat].reverse().flatMap(s=>s.events).find(e=>e.type==='AttackStarted'&&e.actor===1);return e?{move:e.move,direction:e.direction}:null;});
+  const incoming=incomingEvent?.direction??null;
   const side={right:'left',left:'right',overhead:'overhead',low:'low',thrust:null}[incoming]??null;
   const slide={left:{x:-30,y:0},right:{x:30,y:0},overhead:{x:0,y:-30},low:{x:0,y:30}}[side];
+  const waitAfterTellMs={light_right:200,light_left:200,heavy_overhead:430,thrust:100}[incomingEvent?.move]??430;
+  await until(()=>performance.now()-window.__tellAt>=waitAfterTellMs,20000);
   receipt.parrySide={incoming,side};
   const centre={x:box.x+box.width/2,y:box.y+box.height/2};
   await touch('touchStart',centre);
