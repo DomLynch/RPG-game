@@ -51,7 +51,8 @@ export async function assertGlbEquivalent(original, emitted, loadImage = uri => 
   const left = reader(source), right = reader(output);
   assert.equal(source.doc.accessors.length, output.doc.accessors.length);
   // The build may quantize vertex normals (float → int8 normalized) and skin weights (float → uint8 normalized, rows still summing
-  // to 255). Those accessors are judged by their decoded values within one quantization step; everything else stays bit-exact.
+  // to 255). Normals are judged by their decoded values within half a quantization step; weights within three steps (rounding plus the
+// residual that keeps a row summing to 255 can land on a neighbour); everything else stays bit-exact.
   const semantics = new Map();
   for (const m of source.doc.meshes) for (const p of m.primitives) for (const [s, ai] of Object.entries(p.attributes)) semantics.set(ai, s.replace(/_\d+$/, ''));
   function floats(asset, read, a) {
