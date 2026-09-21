@@ -17,7 +17,9 @@ export type InputEnv = {
   practice: () => Practice;
   quiet: () => void;         // feedback.quiet — clearing input also silences pending cues
 };
-export type Intent = { x: number; z: number; run: boolean; action: Action | null; guard: boolean; guardDirection: Direction | null; held: boolean; cancel: boolean };
+// The controls' intent for one frame, named apart from the simulation's `Intent` (duel.ts) it is folded into by main.ts: the two
+// shapes differ (stick axes here, a camera-relative move plus lock there) and sharing a name at that seam misled the audit twice.
+export type ControlIntent = { x: number; z: number; run: boolean; action: Action | null; guard: boolean; guardDirection: Direction | null; held: boolean; cancel: boolean };
 // Guard side (owner 2026-09-20, five sides): the thumb still on the Guard button is the straight guard (null: the simulation reads it as the
 // stab's side); slid past GUARD_SLIDE_PX it is that side — left, right, up = overhead, down = low. Keyboard: Q held + an arrow key.
 export const GUARD_SLIDE_PX = 18;
@@ -372,7 +374,7 @@ export function createInput(env: InputEnv) {
       }
     },
     // What the simulation sees this tick. Presses reach it only once the assets are ready (the buttons read disabled until then).
-    intent(): Intent {
+    intent(): ControlIntent {
       const ready = env.ready(), q = keys.has('KeyQ'), arrow = (code: string) => !q && keys.has(code);
       // The side the simulation will see this tick: the thumb's slide, else Q + an arrow. The button's hint (data-side) follows it, so a
       // keyboard guard lights the arrow's side too and shows straight again on release.
@@ -430,4 +432,4 @@ export function createInput(env: InputEnv) {
     },
   };
 }
-export type Input = ReturnType<typeof createInput>;
+export type Controls = ReturnType<typeof createInput>;   // was `Input`, which sim.ts already uses for the movement input
