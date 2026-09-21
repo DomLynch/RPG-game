@@ -1474,19 +1474,37 @@ dialog .scorecard-table th, dialog .scorecard-table td { padding: 8px 4px; borde
 dialog .scorecard-table th { font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--jm); }
 dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 
-/* Profile tab (owner, 2026-09-20): the five stats and the gear slots, read-only and greyed until builds and gear ship after the beta. */
+/* Profile tab (owner, 2026-09-20): the five stats (read-only in the beta), then the paperdoll and the inventory below. */
 .statgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .statgrid div { text-align: center; padding: 10px 2px; border: 1px solid var(--jl); border-radius: 12px; background: #fff9; }
 .statgrid b { display: block; font: 700 13px -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; color: var(--ja); letter-spacing: .02em; }
 .statgrid span { display: block; font: 700 20px/1.1 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; color: var(--jf); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .statgrid small { display: block; font: 600 9px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #9a7a3a; margin-top: 4px; }
-.gear { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.gear.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.slot { padding: 10px 10px 9px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: transparent; }
+/* Paperdoll (brief 5, owner 2026-09-21: a figure with the slots around it, Ultima-style, minimal). The figure is a flat silhouette
+   of the player model (public/game/img/doll.webp, 3 KB); three armour slots down each side, the two hands beneath. src/main.ts
+   fills <i> from profile.loot.equipped, adds .on to a worn slot and un-hides its Store button (data-unwear). */
+.doll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 104px) minmax(0, 1fr); grid-template-rows: repeat(4, auto); gap: 6px; align-items: stretch; }
+.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; height: 100%; width: auto; max-height: 250px; margin-bottom: 4px; object-fit: contain; opacity: .82; filter: drop-shadow(0 1px 0 #fff8); }
+.doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 52px; }
+.doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }
+.doll [data-slot='hands'], .doll [data-slot='legs'], .doll [data-slot='feet'], .doll [data-slot='off'] { grid-column: 3; }
+.slot { padding: 9px 10px 8px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: #fff6; }
 .slot span { display: block; font: 600 10px "Instrument Sans", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
-.slot i { display: block; font: 600 13px "Instrument Sans", Arial, sans-serif; font-style: normal; margin-top: 4px; }
-.slot.on { border-style: solid; border-color: var(--jf); color: var(--jf); background: #fff9; }
-.gear[aria-disabled=true] .slot:not(.on) { opacity: .7; }
+.slot i { display: block; font: 600 13px "Instrument Sans", Arial, sans-serif; font-style: normal; margin-top: 3px; overflow-wrap: anywhere; }
+.slot.on { border-style: solid; border-color: var(--jf); color: var(--jf); background: #fff; }
+.slot[aria-disabled=true] { opacity: .6; }
+dialog .slot-off { display: block; margin: 6px 0 0; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 11px; align-self: flex-start; }
+/* Inventory: five numbered tiles (owner: "1–5 inventory"); src/main.ts renders owned pieces as
+   <li data-loot data-worn><span>name</span><button data-wear>Wear</button></li> and pads to five with <li class="rack-empty">. */
+.rack { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; counter-reset: inv; }
+.rack li { position: relative; display: flex; flex-direction: column; min-height: 84px; padding: 20px 6px 6px; border: 1px dashed var(--jl); border-radius: 12px; background: #fff6; counter-increment: inv; font: 600 10.5px/1.2 "Instrument Sans", Arial, sans-serif; color: var(--jf); overflow-wrap: anywhere; }
+.rack li::before { content: counter(inv); position: absolute; top: 5px; left: 8px; font: 600 10px "Instrument Sans", Arial, sans-serif; color: var(--jm); }
+.rack li[data-loot] { border-style: solid; border-color: var(--jf); background: #fff; }
+.rack li span { flex: 1; }
+.rack li span::first-letter { text-transform: uppercase; }
+dialog .rack button { margin: 6px -2px -2px; min-height: 22px; padding: 0 4px; border-radius: 8px; font-size: 10px; }
+.rack li[data-worn='true'] { border-color: var(--ja); }
+.rack li[data-worn='true'] button { border-color: var(--ja); background: var(--ja); color: #fff; }
 
 /* Kill links (brief 3): the replay banner sits under the header; Share and its status sit beside Rematch on the death screen.
    Web design owns the final look; these are plain, readable defaults. */
@@ -1526,4 +1544,18 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
   font: 12px Arial;
   opacity: 0.8;
   overflow-wrap: anywhere;
+}
+
+/* The drop (brief 5): on a win the piece is named above the autopsy and two choices sit under it. Store is the default and already
+   done (nothing is lost); Wear puts it on. #loot-drop follows src/main.ts showLootDrop(); the choice row follows it in CSS. */
+.loot-drop { position: fixed; left: 50%; bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px + 60px); transform: translateX(-50%); width: min(360px, calc(100vw - 32px)); margin: 0; z-index: 4; pointer-events: none; color: #f3e9cf; font: 700 17px/1.25 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.01em; text-align: center; text-wrap: balance; text-shadow: 0 1px 2px #000c, 0 0 14px #0009; }
+.loot-choice { position: fixed; left: 50%; bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px + 60px + 30px); transform: translateX(-50%); display: flex; gap: 8px; z-index: 4; }
+#loot-drop[hidden] + .loot-choice { display: none; }
+/* The row lives inside #actions, whose thumb-cluster rule turns every button into an absolute round pad with !important padding;
+   the id selector and the two !important lines are what it takes to opt these two out. */
+#actions .loot-choice button { position: static; width: auto; height: auto; white-space: nowrap; min-height: 40px !important; padding: 0 16px !important; border-radius: 999px; border: 1px solid #f3e9cf; box-shadow: 0 1px 3px #0006; background: #f3e9cf; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; cursor: pointer; touch-action: manipulation; }
+#actions .loot-choice button[aria-pressed='true'] { background: #0009; color: #f3e9cf; }
+@media (max-width: 900px), (pointer: coarse) {
+  .loot-drop { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 226px + 56px); font-size: 16px; }
+  .loot-choice { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 226px + 56px + 28px); }
 }
