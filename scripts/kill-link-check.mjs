@@ -25,9 +25,9 @@ const fail = (where, detail) => { failures.push(`${where}: ${detail}`); console.
 
 // Record one fight exactly as the live loop does: push, step the quantized intent, finish on the first finish.
 function record(opponent, seed) {
-  const meta = { build: 'kill-link-check', opponent, profile: PROFILE, seed };
+  const meta = { build: 'kill-link-check', opponent, weapon: 'longsword', profile: PROFILE, seed };   // the record carries the player's weapon since #323; the hero brain fights with the longsword
   const recorder = createRecorder(meta);
-  let practice = initialPractice(seed, OPPONENTS[opponent]), hero = initialAi(seed ^ 0x5bd1e995);
+  let practice = initialPractice(seed, OPPONENTS[opponent], 'longsword'), hero = initialAi(seed ^ 0x5bd1e995);
   while (!practice.finish && practice.duel.tick < MAX_TICKS) {
     const w = decide(practice.duel, 0, hero, PROFILES[PROFILE]);
     hero = w.ai;
