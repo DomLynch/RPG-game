@@ -17,15 +17,26 @@ function parse(raw) {
 const shipped = process.argv.includes('--file') ? args[args.indexOf('--file') + 1] : 'src/assets/veteran.glb';
 const bytes = await fs.readFile(shipped), current = parse(bytes), manifest = JSON.parse(await fs.readFile(`${root}/manifest_veteran.json`));
 const changes = new Set();
+// v2's reconstructed body ships one baked VeteranSurface material; the per-part Leather/Gambeson/Skin/etc. slots the
+// v1 Studio body carried are gone. Bronze/Photo/Face are the authored parts every Veteran build must still carry
+// (helm, scanned head, scanned neck); assert reviewed-source parity only for manifest parts actually present, and
+// record the rest so a real regression (an authored part silently dropped) still fails loudly.
+const skippedParts = [];
 for (const name of ['Bronze', 'Leather', 'Gambeson', 'Photo', 'Face']) {
-  const m = current.doc.materials.find(m => m.name === name), p = m.pbrMetallicRoughness;
+  const m = current.doc.materials.find(m => m.name === name);
+  if (!m) {
+    assert.ok(!['Bronze', 'Photo', 'Face'].includes(name), `${name} is a required authored part`);
+    skippedParts.push(name);
+    continue;
+  }
+  const p = m.pbrMetallicRoughness;
   for (const [key, info] of [['baseColor', p.baseColorTexture], ['normal', m.normalTexture], ['metallicRoughness', p.metallicRoughnessTexture]]) {
     const image = current.doc.images[current.doc.textures[info.index].source]; changes.add(image.bufferView);
     assert.deepEqual(current.view(image.bufferView), await fs.readFile(`${root}/${manifest[name][key]}`), `${name}.${key} is the reviewed source map`);
   }
   assert.equal(m.normalTexture.scale, manifest[name].normalScale);
 }
-const receipt = { sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length, gzip: gzipSync(bytes).length, materialSourceParity: true };
+const receipt = { sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length, gzip: gzipSync(bytes).length, materialSourceParity: true, skippedParts };
 if (before) {
   const old = parse(await fs.readFile(before));
   for (const key of ['nodes', 'skins', 'meshes', 'animations', 'textures', 'images', 'samplers']) assert.deepEqual(current.doc[key], old.doc[key], key);
