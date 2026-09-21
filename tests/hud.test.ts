@@ -73,7 +73,7 @@ test('update: a finished fight hides the attacks and shows Rematch, or Next: <na
   hud.update(lost, view());
   assert.equal(get('attack-button').hidden, true); assert.equal(get('heavy-button').hidden, true);
   assert.equal(get('reset-button').hidden, false); assert.equal(get('reset-button').textContent, 'Rematch');
-  const won: Practice = { ...initialPractice(), health: 0, finish: { victim: 1, location: 'torso', move: 'light', heading: 0 } as Practice['finish'] };
+  const won: Practice = { ...initialPractice(), health: 0, finish: { victim: 1, location: 'torso', move: 'light_right', heading: 0 } };   // a real MoveId: the HUD reads victim, not the move
   hud.update(won, view({ opponentId: 'veteran' }));
   assert.match(get('reset-button').textContent, /^Next: /, 'a win on a rung offers the next opponent');
 });

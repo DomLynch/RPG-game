@@ -6,7 +6,7 @@ import { gzipSync } from 'node:zlib';
 import { bellSamples } from '../src/audio/bell.ts';
 const RATE = 48000, n = t => Math.round(t * RATE), recordings = {};
 const PITCH = .7;   // owner 2026-09-20: audience 30 % deeper
-const sources = { ...JSON.parse(await fs.readFile('artifacts/audio/SOURCES.json')), ...JSON.parse(await fs.readFile('artifacts/audio/arena-life/SOURCES.json')) };
+const sources = { ...JSON.parse(await fs.readFile('src/assets/audio/SOURCES.json')), ...JSON.parse(await fs.readFile('src/assets/audio/arena-life.SOURCES.json')) };
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
 for (const name of ['murmur', 'jeer', 'crowd', 'gasp', 'grunt', 'grunt2']) {
   const pin = sources[name], file = `artifacts/audio/source-cache/${name}.mp3`;

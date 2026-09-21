@@ -11,13 +11,13 @@ import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact, type HitLocation } from '../src/blade.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/duel.ts';
-import { OPPONENTS, PATHS, PROFILES, WEAPONS, type WeaponId } from '../src/moves.ts';
+import { OPPONENTS, PATHS, PROFILES, WEAPONS, type PathId, type WeaponId } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 
 // The duel's registering rule (src/duel.ts): only the move's ACTIVE window is swept, and the first sweep sample inside
 // the 0.31·k capsule decides — replicated here against a static pair so the classification is tested without AI noise.
 function registeringLocation(rig: string, weapon: string, kind: string, d: number, scale = 1): HitLocation | null {
-  const spec = WEAPONS[weapon as WeaponId].paths[kind];
+  const spec = WEAPONS[weapon as WeaponId].paths[kind as PathId];
   assert.ok(spec, `${kind} is a combat path`);
   const at = { x: 0, z: d, heading: Math.PI, distance: 0 }, df = { x: 0, z: 0, heading: 0, distance: 0 };
   for (let age = spec.windup; age < spec.windup + spec.active; age++) {
@@ -35,7 +35,7 @@ test('hit locations by the registering rule: only the cleaver arcs reach the hea
   for (const [rig, weapons] of Object.entries(bladePathsByRig)) for (const [weapon, kinds] of Object.entries(weapons)) {
     if (!inPlay.has(`${rig}/${weapon}`)) continue;
     for (const kind of Object.keys(kinds)) {
-      if (!PATHS[kind]) continue;   // death/finisher clips are not combat paths
+      if (!PATHS[kind as PathId]) continue;   // death/finisher clips are not combat paths
       for (let d = 85; d <= 190; d += 5) {
         const hit = registeringLocation(rig, weapon, kind, d / 100);
         if (!hit) continue;

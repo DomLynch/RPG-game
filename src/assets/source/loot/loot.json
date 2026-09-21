@@ -1,0 +1,89 @@
+{
+  "_": "Brief 5 loot: which authored piece each opponent drops and the player slot it fills. Sources are parts.py/items outputs in the shared unscaled rest space (build-warrior.mjs contract: extras.material/slot + extras.bone or skin weights). `slots`/`names` pick meshes out of a shared file; `unscale` names the BUILD proportion table a piece was cut under. Slots: Helmet, Crest, Body, Arms, Gloves, Greaves, Boots. `layer`: 'replace' hides the player's own draws in that slot (a helm hides the hair, a tunic the tunic, boots the sandals); 'over' is worn on top of them (greaves over bare shins, a plate over a wrap).",
+  "veteran": [
+    {
+      "slot": "Helmet",
+      "layer": "replace",
+      "file": "items/helmet_bronze.glb"
+    },
+    {
+      "slot": "Crest",
+      "layer": "over",
+      "file": "items/crest_red.glb"
+    },
+    {
+      "slot": "Greaves",
+      "layer": "over",
+      "file": "parts/level1_veteran.glb",
+      "slots": [
+        "Greaves"
+      ]
+    }
+  ],
+  "executioner": [
+    {
+      "slot": "Helmet",
+      "layer": "replace",
+      "file": "items/mask_iron_executioner.glb"
+    },
+    {
+      "slot": "Crest",
+      "layer": "over",
+      "file": "items/hood_rag_executioner.glb"
+    },
+    {
+      "slot": "Greaves",
+      "layer": "over",
+      "file": "parts/level1_executioner.glb",
+      "slots": [
+        "Greaves"
+      ]
+    }
+  ],
+  "nightborn": [
+    {
+      "slot": "Helmet",
+      "layer": "replace",
+      "file": "parts/body_nightborn.glb",
+      "slots": [
+        "Helmet"
+      ]
+    },
+    {
+      "slot": "Body",
+      "layer": "replace",
+      "file": "parts/level1_nightborn.glb",
+      "names": [
+        "tunic",
+        "collar"
+      ]
+    },
+    {
+      "slot": "Boots",
+      "layer": "replace",
+      "file": "parts/level1_nightborn.glb",
+      "names": [
+        "boot_l",
+        "boot_r"
+      ]
+    }
+  ],
+  "pitborn": [
+    {
+      "slot": "Arms",
+      "layer": "over",
+      "file": "@build:pitborn-plates"
+    }
+  ],
+  "dwarf": [
+    {
+      "slot": "Greaves",
+      "layer": "over",
+      "file": "loot/dwarf.glb",
+      "slots": [
+        "Greaves"
+      ],
+      "unscale": "dwarf"
+    }
+  ]
+}
