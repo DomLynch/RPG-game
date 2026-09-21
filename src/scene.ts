@@ -113,6 +113,10 @@ export function createScene(
     TARGET.z,
     new THREE.MeshStandardMaterial({ color: '#6d5447', roughness: 0.8, metalness: 0.25 }),
   );
+  // The capsules are the fallback when the art cannot load, not a loading screen: hidden until the rigs are in or the load has
+  // failed. Owner's phone 2026-09-21: they showed for the split second between the first frame and the versus still's own
+  // load (main.ts shows the card only once its image arrives), so every opponent switch flashed two blocks in the arena.
+  player.visible = opponent.visible = false;
   let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined;
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -161,6 +165,7 @@ export function createScene(
       }
       player.add(loaded.player.anchor);
       opponent.add(loaded.opponent.anchor);
+      player.visible = opponent.visible = true;
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
       dress();
@@ -168,6 +173,7 @@ export function createScene(
     })
     .catch((error) => {
       captureException(error);
+      player.visible = opponent.visible = true;   // the capsules stand in so the fight is still readable while the notice offers a retry
       assetStatus('Warrior art could not load. Movement still works; tap here to retry.');
     })
     .finally(() => {
