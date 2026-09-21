@@ -203,7 +203,7 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(practice, { controlsReady: assetsReady && !graphicsLost, debug, opponentId: opponent.id });
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp, debug, opponentId: opponent.id });   // buttons wake when the card lifts, so a press is never swallowed behind it
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -308,14 +308,14 @@ const versus = element('versus'), versusStill = element<HTMLImageElement>('versu
 // from the moment it shows before it lifts; the fight is paused behind it (versusUp) and starts as the card fades.
 const VERSUS_HOLD_MS = 2500;
 let versusShownAt = 0, versusHold: ReturnType<typeof setTimeout> | undefined;
-const dropVersus = () => { versusUp = false; if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
+const dropVersus = () => { versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
 const hideVersus = () => {
   const left = versusShownAt + VERSUS_HOLD_MS - performance.now();
   if (!versusUp || left <= 0) dropVersus();
   else if (versusHold === undefined) versusHold = setTimeout(dropVersus, left);
 };
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
-versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; versusShownAt = performance.now(); } });
+versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; versusShownAt = performance.now(); updateHud(); } });
 element('versus-foe').textContent = ROSTER[opponent.id].name.replace(/^the /, '');
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;

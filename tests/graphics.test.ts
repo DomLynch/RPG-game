@@ -496,8 +496,10 @@ test('the versus card holds 2.5 s from when it shows, with the fight paused behi
   assert.equal(app.rendered.duel.tick, 0, 'no sim ticks behind the card');
   app.report('');                                                // rigs in after ~50 ms: the card must not lift yet
   assert.equal(versus.dataset.out, undefined); assert.equal(app.timers.size, 1, 'one hold timer');
+  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'true', 'buttons stay asleep behind the card, so a press is never swallowed');
   app.tick(2500); for (const cb of [...app.timers.values()]) cb(); app.timers.clear();
   assert.equal(versus.dataset.out, 'true', 'the card lifts when the hold ends');
+  assert.equal(app.element('attack-button').attributes.get('aria-disabled'), 'false', 'buttons wake as the card lifts');
   app.tick(); app.tick(); assert.ok(app.rendered.duel.tick > 0, 'the fight runs once the card lifts');
   const late = boot(); late.report('Loading warriors…'); delete late.element('versus').dataset.out; late.element('versus-still').dispatchEvent(new Event('load')); late.tick(3000); late.report('');
   assert.equal(late.element('versus').dataset.out, 'true', 'past the hold, the card lifts immediately'); assert.equal(late.timers.size, 0);
