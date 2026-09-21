@@ -346,6 +346,9 @@ test('fight identity — inside: the Dwarf passes the fairness battery at normal
       if (name !== 'perfect parry') assert.ok(r.wins / 24 <= cap, `${level} · ${name} wins ${r.wins}/24 (cap ${cap * 100} %)\n  ${table}`);
       assert.ok(r.untouched <= (name === 'perfect parry' ? 8 : 2), `${level} · ${name} untouched in ${r.untouched}/24 fights\n  ${table}`);
     }
+    // The title promises an honest script beats him; what is pinned is that one does, at normal — the charged heavy walks through his guard when it lands loaded (the rest of the honest scripts do not).
+    const honest = Object.entries(rows).filter(([n]) => n !== 'perfect parry').map(([, r]) => r.wins);
+    if (level === 'normal') assert.ok(Math.max(...honest) >= 6, `${level} · no honest script wins 6 of 24 against him\n  ${table}`);
     console.log(`dwarf battery ${level}\n  ${table}`);
   }
 });
