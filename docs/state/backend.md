@@ -5,16 +5,18 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
-## Hosted project as it stands — verified 2026-09-22 ~00:20 UTC
+## Hosted project as it stands — verified 2026-09-22 ~00:50 UTC (all of 0002–0005 applied)
 
-Tables: `public.fighter_profiles` (1 row), `public.admins` (1 row), `public.fight_records` (0 rows), `public.daily_secret` (1 row, RLS
-on, unreadable — see below), `public.daily_results` (0 rows, RLS on). View `public.daily_board` and function `public.daily_fight()`
-both exist (confirmed directly via `pg_views`/`pg_proc`, since `list_tables` doesn't enumerate views). `auth.users`: 2. Roles named
-`frankendom*`: none yet (0005 not applied). Hosted migration history (`supabase_migrations.schema_migrations`):
-`20260920031013 werewolf_skeleton_encounters`, `20260920031925 revert_werewolf_skeleton_encounters`, `20260920041658
-werewolf_skeleton_encounters_v2`, `20260920055946 werewolf_skeleton_encounters`, `20260920070348 victory_marks`, `20260920083450
-dwarf_encounter`, `20260921065907 admins`, `20260921200632 202609210002_fight_records`, `20260921211439 202609210003_daily_warden`.
-The first two repo files
+Tables: `public.fighter_profiles` (1 row, now with a `loot` column — see below), `public.admins` (1 row), `public.fight_records`
+(0 rows), `public.daily_secret` (1 row, RLS on, unreadable — see below), `public.daily_results` (0 rows, RLS on). View
+`public.daily_board` and function `public.daily_fight()` both exist (confirmed directly via `pg_views`/`pg_proc`, since `list_tables`
+doesn't enumerate views). `auth.users`: 2. Role `frankendom_verifier` exists (`rolcanlogin = true`). Hosted migration history
+(`supabase_migrations.schema_migrations`): `20260920031013 werewolf_skeleton_encounters`, `20260920031925
+revert_werewolf_skeleton_encounters`, `20260920041658 werewolf_skeleton_encounters_v2`, `20260920055946
+werewolf_skeleton_encounters`, `20260920070348 victory_marks`, `20260920083450 dwarf_encounter`, `20260921065907 admins`,
+`20260921200632 202609210002_fight_records`, `20260921211439 202609210003_daily_warden`, `20260921211755
+202609210005_daily_verifier`, `20260921214151 202609210004_loot` (applied out of numeric order relative to 0005 — fine, ordering was
+constrained by each migration's own PR/deploy timing, not by file number). The first two repo files
 (`202609190001_fighter_profiles`, `202609190002_creature_encounters`) were applied by hand and are not in the history; the
 werewolf/skeleton change was applied three times with one revert. The history is therefore NOT `supabase db push`-able against the
 repo; applies stay manual (MCP `apply_migration` named after the repo file) and this table is the map between the two.
@@ -120,10 +122,16 @@ Client calls: `POST /rest/v1/rpc/daily_fight`, `GET /rest/v1/daily_board?select=
 "where he killed people" boards, but `verify-daily.mjs` compares only opponent/weapon/outcome/ticks/seed/profile — the replay must also
 confirm `taken` and `location`, and boards must rank verified rows only.
 
-### fighter_profiles.loot (0004, PR #330) — apply-ready
-`loot jsonb not null default '{"owned":[],"equipped":{}}'`, check: object with `owned` array and `equipped` object, `pg_column_size ≤ 4096`;
-insert/update grant on `(loot)` to authenticated. Client-reported cosmetics; `src/loot.ts cleanLoot` validates on read (known ids only, worn ⊆
-owned). Never rank/result/unlock authority.
+### fighter_profiles.loot (0004, PR #330) — APPLIED, verified live
+Applied by Dev/Deploy (hosted migration `20260921214151 202609210004_loot`), ahead of #330's code merge as required. Verified
+independently here (fresh `information_schema.columns`/`pg_constraint`/`information_schema.column_privileges`, not taken on
+Dev/Deploy's report): `loot` column exists, `jsonb not null`, default `'{"owned": [], "equipped": {}}'`; check constraint
+`fighter_profiles_loot_check` matches exactly — object type, `owned` is an array, `equipped` is an object, `pg_column_size ≤ 4096`;
+column grants are `insert`/`select`/`update` to `authenticated` only (no `anon`). Client-reported cosmetics; `src/loot.ts cleanLoot`
+validates on read (known ids only, worn ⊆ owned). Never rank/result/unlock authority.
+
+**All four beta migrations (0002–0005) are now applied and independently verified.** Only `0006` (fight_records privacy fix) remains
+open, held for Dom's direct word.
 
 ### frankendom_verifier role + daily_results.checked_at (0005, PR #348) — APPLIED, verified live
 Applied by Dev/Deploy (hosted migration `20260921211755 202609210005_daily_verifier`, PR #348 merged `bca49b9`). Verified
