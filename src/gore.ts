@@ -6,8 +6,6 @@ import * as THREE from 'three';
 import { bloodiesMaterial } from './finisher-blood.ts';
 
 export type BloodMode = 'red' | 'dark' | 'off';
-export type WoundSite = 'head' | 'torso' | 'legs';
-type Body = { x: number; z: number; heading: number };
 type Rigs = { player: { anchor: THREE.Object3D }; opponent: { anchor: THREE.Object3D } };
 
 // Twelve pooled ground splats; a kill takes one as the corpse's spreading pool.
@@ -78,9 +76,9 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
   };
 }
 
-// Wound-site mark + drips: a small dark mark at the wound site with three drips below it, living the four-second wound window
-// (the sim's wound refreshes without stacking — so does the mark: a fresh hit on the same fighter re-arms his decal). One pooled
-// decal per fighter; hidden in 'off' like every blood effect.
+// The pooled wound decal: a dark mark with three drips, one per fighter. Since 2026-09-21 only the Quiet One's throat cut draws it
+// (owner: the standing combat wound mark — the mark at the hit site for the four-second wound window — is gone; it floated
+// beside short rigs and hid inside tall ones). The pool, the fade-out and the rematch clear stay so the finisher keeps working.
 export function createWoundDecals(scene: THREE.Scene, splatTexture: THREE.Texture | null) {
   const wounds = [0, 1].map((side) => {
     const group = new THREE.Group();
@@ -114,47 +112,20 @@ export function createWoundDecals(scene: THREE.Scene, splatTexture: THREE.Textur
     group.add(mark);
     group.visible = false;
     scene.add(group);
-    return { group, mark, drips, life: 0, side: 0 as 0 | 1, site: 'torso' as WoundSite };
+    return { group, mark, drips, life: 0 };
   });
   return {
-    // A flesh hit re-arms the struck fighter's mark at the wound site: refreshed, never stacked.
-    arm(side: 0 | 1, site: WoundSite) {
-      const wound = wounds[side];
-      wound.life = 4;
-      wound.side = side;
-      wound.site = site;
-    },
-    // The wound-site mark rides the wounded fighter for his four-second window.
-    update(dt: number, bodies: readonly [Body, Body], bloodMode: BloodMode) {
+    // The throat cut's own life runs out here: it fades over its last second and goes dark, like every blood effect in 'off'.
+    update(dt: number, bloodMode: BloodMode) {
       for (const wound of wounds) {
         if (wound.life > 0) {
           wound.life = Math.max(0, wound.life - dt);
-          const body = wound.side === 1 ? bodies[1] : bodies[0];
-          wound.group.position.set(
-            body.x,
-            wound.site === 'head' ? 1.55 : wound.site === 'legs' ? 0.6 : 1.15,
-            body.z,
-          );
-          wound.group.rotation.set(0, body.heading, 0);
-          wound.mark.scale.set(1, 1, 1);
-          const fade = Math.min(1, wound.life),
-            seep = Math.min(1, (4 - wound.life) / 1.2); // drips run in the first ~1.2 s, the mark fades over the last
-          const tone = bloodMode === 'dark' ? '#241314' : '#4a1213';
-          wound.mark.material.color.set(tone);
-          wound.mark.material.opacity = 0.55 * fade;
-          wound.drips.forEach((drip, i) => {
-            drip.position.set((i - 1) * 0.045, -0.13, 0);
-            drip.material.color.set(tone);
-            drip.material.opacity = 0.5 * fade * seep;
-            drip.scale.set(1, 0.4 + 0.6 * seep, 1);
-          });
+          const fade = Math.min(1, wound.life);
+          wound.mark.material.opacity = Math.min(wound.mark.material.opacity, 0.82 * fade);
+          for (const drip of wound.drips) drip.material.opacity = Math.min(drip.material.opacity, 0.6 * fade);
           wound.group.visible = bloodMode !== 'off' && wound.life > 0;
         } else wound.group.visible = false;
       }
-    },
-    // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
-    hide(side: 0 | 1) {
-      wounds[side].group.visible = false;
     },
     // The Quiet One: reuse the opponent's pooled wound at the animated neck — a narrow cut, covered partly by the clutching hand.
     throatCut(neck: THREE.Vector3, head: THREE.Vector3, heading: number, finishClock: number, bloodMode: BloodMode) {
@@ -184,7 +155,7 @@ export function createWoundDecals(scene: THREE.Scene, splatTexture: THREE.Textur
       for (const wound of wounds) wound.life = 0;
     },
     get entries() {
-      return wounds as readonly { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>; drips: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; life: number; side: 0 | 1; site: WoundSite }[];
+      return wounds as readonly { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>; drips: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; life: number }[];
     },
   };
 }

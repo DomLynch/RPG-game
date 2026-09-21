@@ -504,7 +504,6 @@ export function createScene(
           if (hip && spine) sparks.position.copy(hip.lerp(spine, 0.6));
         }
         if (flesh && !(killed && detailedBlood)) splats.splash(target, bloodMode);
-        if (flesh) wounds.arm(enemyHurt ? 1 : 0, site); // the wound-site mark: refreshed, never stacked
         if (killed && flesh && !detailedBlood) {
           // the corpse keeps pooling after the splashes fade (cleared on rematch like everything else)
           splats.pool(target, bloodMode);
@@ -535,7 +534,7 @@ export function createScene(
         sparkGeometry.attributes.position.needsUpdate = true;
       }
       splats.update(dt);
-      wounds.update(dt, [state, practice.enemy], bloodMode);
+      wounds.update(dt, bloodMode);
       // The severed head (decapitation): gravity, a bounce or two, then a roll without slipping until friction stops it.
       if (severHead) {
         severHead.group.visible = bloodMode !== 'off';
@@ -599,11 +598,8 @@ export function createScene(
         practice.result === 'enemyBlocked' ? (blockHeavy[1] ? 1.5 : 1) * Math.max(0, 1 - practice.resultAge / 12) : 0,
         practice.duel.fighters[1].guardDirection,
       );
-      // Detailed finishers use their animated cut sites; the standing combat mark would float above a fallen body.
-      if (detailedBlood) wounds.hide(1);
       if (finisher === 'opened' && practice.finish?.victim === 1) {
         warriors?.opponent.openWaist(victimProgress, bloodMode);
-        wounds.hide(1);
       }
       if (finisher === 'splitCrown' && practice.finish?.victim === 1)
         warriors?.opponent.splitCrown(victimProgress, bloodMode);
