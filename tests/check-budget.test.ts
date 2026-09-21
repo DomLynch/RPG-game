@@ -68,7 +68,7 @@ test('the per-fight figure is the shell, one audio format per sound, hero, every
     assert.equal(m.loot, g('assets/loot-LLLLLLLL.glb') + g('assets/textures/c.jpg'), 'loot is its GLB plus the textures the base does not already fetch');
     assert.equal(m.opponentTextures, g('assets/textures/c.jpg'), 'only the textures the hero and props do not already fetch');
     assert.equal(m.fight, m.shell + m.audio + m.hero + m.props + m.sharedTextures + m.opponentGzip + m.opponentTextures);
-    const veteran = m.fights.find(x => x.opponent === 'veteran')!;
+    const veteran = m.fights.find((x: { opponent: string }) => x.opponent === 'veteran')!;
     assert.equal(veteran.gzip, m.shell + m.audio + m.hero + m.props + m.sharedTextures + g('assets/veteran-VVVVVVVV.glb'), 'a pairing that shares every texture adds only its GLB');
     assert.ok(m.total > m.fight, 'the whole of dist (privacy, /game, both formats, unused textures) is larger than any fight');
     assert.equal(m.total, Object.values(f.files).reduce((n, bytes) => n + gz(bytes), 0));
