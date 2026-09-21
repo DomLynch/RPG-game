@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bladeContact, segmentDistance } from '../src/blade.ts';
 import { SWORD, initialPractice, stepPractice, PROFILES, type Intent } from '../src/combat.ts';
-import { createFighter, stepDuel } from '../src/duel.ts';
+import { createFighter, stepDuel, type Duel } from '../src/duel.ts';
 import { MOVES, RULES } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
 const actor = { x:0,z:0,heading:0,distance:0 };
@@ -25,7 +25,7 @@ test('a moving target crossing the blade within a tick cannot tunnel through it'
   assert.ok(bladeContact('longsword', 'light_right',SWORD.contact,SWORD.contact,actor,actor,before,after));
 });
 const idle=():Intent=>({move:{x:0,z:0,yaw:0,run:false},action:null,guard:false,lock:true});
-const arena=(gap:number)=>({tick:0,fighters:[createFighter({x:0,z:TARGET.z+gap,heading:Math.PI,distance:0},'ready' as const),createFighter({...TARGET,heading:0,distance:0},'ready' as const)],finish:null,events:[]});
+const arena=(gap:number):Duel=>({tick:0,fighters:[createFighter({x:0,z:TARGET.z+gap,heading:Math.PI,distance:0},'ready' as const),createFighter({...TARGET,heading:0,distance:0},'ready' as const)],finish:null,events:[]});
 test('locked armed footwork faces the opponent while moving laterally; sweep damage resolves once', () => {
   const s=arena(1.2);
   const next=stepDuel(s,[{...idle(),move:{x:1,z:0,yaw:0,run:false}},{...idle(),lock:false}]);

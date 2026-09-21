@@ -34,7 +34,7 @@ export const STRATEGIES: Record<string, (d: Duel) => Intent> = {
 export function battery(level: keyof typeof PROFILES, seeds = 24, ticks = 7200, opponent: Opponent = OPPONENTS.veteran, strategies = STRATEGIES) {
   const rows: Record<string, { wins: number; losses: number; stalls: number; untouched: number; taken: number; landed: number; firstBreak: number[] }> = {};
   for (const [name, strategy] of Object.entries(strategies)) {
-    const row = rows[name] = { wins: 0, losses: 0, stalls: 0, untouched: 0, taken: 0, landed: 0, firstBreak: [] };
+    const row = rows[name] = { wins: 0, losses: 0, stalls: 0, untouched: 0, taken: 0, landed: 0, firstBreak: [] as number[] };
     for (let s = 1; s <= seeds; s++) {
       let d = arena(opponent), ai = initialAi((s * 2654435761) >>> 0), taken = 0, landed = 0, broke = false;
       for (let i = 0; i < ticks && !d.finish; i++) {
