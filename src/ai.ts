@@ -21,8 +21,8 @@ export const readOpponent = (h: Habits): Reads => ({
   poker: h.lights + h.heavies + h.thrusts >= READ.after && h.thrusts / (h.lights + h.heavies + h.thrusts) >= .5,   // thrusts more than he cuts: a fighter with no guard respects his reach and goes in on the whiff
   kicker: h.kicks >= READ.after && h.kicks / (h.lights + h.heavies + h.thrusts + h.kicks) >= .5,   // kicks more than he swings: the same respect for the kick's reach   // swings mostly held at their chamber (baits, charges): the park is a habit, not a read of the moment
 });
-export type AiState = { seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; readSide: Direction | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; disengageUntil: number; habits: Habits; scores: Record<string, number> };   // disengageUntil: the tick until which a landed blow is followed by a hop back out (profile.disengage)
-export const initialAi = (seed = 731): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, readSide: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, disengageUntil: 0, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, steps: 0, lights: 0, heavies: 0, thrusts: 0, kicks: 0, attacks: 0, parks: 0 }, scores: {} });
+export type AiState = { seed: number; lastGap: number; lastTravel: number; mode: AiMode; side: 1 | -1; decision: number; wait: number; next: 'light' | 'heavy' | 'thrust' | null; plan: AiPlan | null; readSide: Direction | null; jitter: number; retreatUntil: number; hold: boolean; feint: boolean; disengageUntil: number; habits: Habits; scores: Record<string, number>; opener: number; openerHits: number };   // disengageUntil: the tick until which a landed blow is followed by a hop back out (profile.disengage); opener (brief 8): 0 = right side, 1 = left, 2 = the punishable recovery heavy, 3 = done (the ordinary brain from here); openerHits: authored swings thrown in the current side, capped so a player who never blocks is not held forever
+export const initialAi = (seed = 731, opener = false): AiState => ({ seed, lastGap: 99, lastTravel: 0, mode: 'approach', side: 1, decision: 90, wait: 90, next: null, plan: null, readSide: null, jitter: 0, retreatUntil: 0, hold: false, feint: false, disengageUntil: 0, habits: { ticks: 0, guard: 0, parries: 0, rolls: 0, steps: 0, lights: 0, heavies: 0, thrusts: 0, kicks: 0, attacks: 0, parks: 0 }, scores: {}, opener: opener ? 0 : 3, openerHits: 0 });   // opener: true only at fight setup, from Opponent.opener (brief 8) — every existing call keeps the default, disabled (3)
 const lcg = (seed: number) => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 
 export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): { intent: Intent; ai: AiState } {
@@ -150,6 +150,33 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     else if (next.plan === 'evade') { if (legal(M, 'backstep') && gap <= theirs[F.move!].reach + .2) intent.action = 'backstep'; else intent.move = { x: -Math.sin(facing), z: -Math.cos(facing), yaw: 0, run: false }; }   // step out of the blow's reach (one step while inside it), then keep walking back, still facing the blade
     else if (guardShare > 0) intent.guard = true;   // a block, or a roll whose moment has not come: wait behind the guard (a guardless fighter waits on his feet)
     return done();
+  }
+  // Brief 8, the Veteran's authored opening (2026-09-22; AiState.opener, set at fight start from Opponent.opener — no profile/stat
+  // touched). Defence above is untouched: he still blocks and parries like himself throughout. Offence is overridden while opener < 3:
+  // one clear side (right) until it is blocked or parried, the same on the other side (left), then one heavy thrown with none of the
+  // ordinary brain's own protection for its own recovery — ticks the player can freely punish — and only then does the ordinary
+  // scoring below take over. OPENER_TRIES bounds a side that a player never blocks (rather than dies first or figures it out): a
+  // teaching opener, not a stalemate. A light costs 25 stamina, entirely spent in the 'attack' phase where nothing regenerates
+  // (RULES.regenDelay outlasts the gap between two swings thrown back to back) — an early draft threw the cap's five swings a
+  // side with no stamina floor and ran the tank dry before ever reaching the recovery heavy (measured: 0.2/100 by stage 2, the
+  // fight then lost to the very pressure the opener was supposed to punish). The same discipline floor the ordinary brain
+  // rests behind now gates each authored swing too: short of it, he raises his guard and waits like himself, same as the plain
+  // brain would, and the side's own tries are unaffected (a rest never counts as a "no block seen").
+  const OPENER_TRIES = 3;
+  if (next.opener < 3) {
+    const stage = next.opener, side: MoveId = stage === 0 ? 'light_right' : 'light_left';
+    if (stage < 2) {
+      if (M.phase === 'attack' && M.age === 0 && M.move === side) next.openerHits++;
+      if (next.openerHits >= OPENER_TRIES || duel.events.some(e => (e.type === 'Blocked' || e.type === 'Parried') && e.target === me && e.move === side)) { next.opener = stage + 1; next.openerHits = 0; }
+    } else if (M.phase === 'attack' && M.age === 0 && M.move === 'heavy_overhead') next.opener = 3;   // committed: the recovery plays out on the move table's own timing, no special handling needed
+    if (next.opener < 3 && canAct && !M.exhausted && !threat) {
+      const [move, action]: [MoveId, Action] = next.opener === 0 ? ['light_right', 'light_right'] : next.opener === 1 ? ['light_left', 'light_left'] : ['heavy_overhead', 'heavy'];
+      const rested = M.stamina >= profile.discipline * M.maxStamina / 100;
+      if (rested && gap <= mine[move].reach - .1 && gap >= (mine[move].minReach ?? 0) + .1 && legal(M, next.opener === 2 ? 'heavy' : 'light')) { next.wait = 0; next.next = null; return { intent: { ...intent, action }, ai: next }; }
+      if (rested) intent.move = { x: Math.sin(facing) * .6, z: Math.cos(facing) * .6, yaw: 0, run: false };   // out of range but rested: close the gap, the ordinary approach's own walking speed
+      else if (guardShare > 0) intent.guard = true;   // short of the floor: rest behind the guard exactly as the plain brain would, never walk in empty-handed
+      return done();
+    }
   }
   // Offence: utility scores over what the opponent is committed to. A light is a punish or a chain; a heavy or kick is the
   // honest, readable attack against a standing opponent, so every difficulty shows the player the parry timing.

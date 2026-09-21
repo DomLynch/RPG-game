@@ -55,7 +55,7 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
     reaction: w.phase === 'hurt' || w.phase === 'dead' ? Math.max(0, w.stun - w.age) : 0,
   };
 }
-export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword'): Practice => project(initialDuel(opponent, weapon), initialAi(seed));
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword'): Practice => project(initialDuel(opponent, weapon), initialAi(seed, !!opponent.opener));
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal): Practice {
   const warden = decide(current.duel, 1, current.ai, profile);
   return project(stepDuel(current.duel, [intent, warden.intent]), warden.ai, current);

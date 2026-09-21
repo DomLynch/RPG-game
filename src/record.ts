@@ -12,7 +12,9 @@ import type { Action, Intent } from './duel.ts';
 import { WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 2;   // 2: the player's weapon after the opponent id (2026-09-21). A version-1 record predates the choice and decodes as the longsword.
+export const RECORD_VERSION = 3;   // 2: the player's weapon after the opponent id (2026-09-21). A version-1 record predates the choice and decodes as the longsword.
+// 3: the Veteran's brief 8 authored opening (2026-09-22) changes his fresh-fight behaviour; a v2 link would silently replay a
+// different fight against him, so it is refused rather than reproduced wrong (record-replay-check.mjs's own instruction).
 export type RecordProfile = 'easy' | 'normal' | 'hard';
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
 export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; profile: RecordProfile; seed: number };

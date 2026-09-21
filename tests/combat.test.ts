@@ -1,9 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
+import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, canDefend, canStrike, describe, initialPractice as bootPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
 import { PATHS, total } from '../src/moves.ts';
 import { movesOf } from '../src/duel.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
+
+// This suite fights the Veteran only as a generic stand-in for projection, hint and control mechanics — never his brief 8
+// authored opening (own coverage: tests/ai.test.ts, tests/opponents.test.ts). Disabled here so these scenarios stay the plain
+// brain they were written against.
+const initialPractice = (...args: Parameters<typeof bootPractice>): Practice => { const p = bootPractice(...args); return { ...p, ai: { ...p.ai, opener: 3 } }; };
 
 const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
 // Practice is the renderer/HUD view over the duel; these tests cover the projection, hints, control gating and replays.

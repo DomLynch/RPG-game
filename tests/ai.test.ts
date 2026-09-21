@@ -551,3 +551,37 @@ test('a fighter with no guard respects a read poker\'s or kicker\'s reach: he ho
   assert.ok(at(1.7, { thrusts: 4 }, guardless, { phase: 'attack', move: 'thrust', lastMove: 'thrust', age: 40, landed: false, attackFrom: { x: 0, z: TARGET.z + 1.7, gap: 1.7 } }) > 0, 'the whiff is the opening: in he goes');
   assert.ok(at(1.4, { kicks: 4 }, guardless) <= 0 && at(1.4, { kicks: 4 }, PROFILES.normal) > 0, 'the same respect for a kicker\'s cone plus its lunge');
 });
+
+// Brief 8, the Veteran's authored opening (2026-09-22): AiState.opener, set at fight start from Opponent.opener — decide() never
+// reads a profile flag for this, so every scenario below drives it directly with a fresh initialAi(seed, true).
+function playOpener(profile: AiProfile, ticks: number, player: (d: Duel) => Intent, seed = 731) {
+  let d = arena(), ai = initialAi(seed, true); const attacks: string[] = [], openerAt: number[] = [-1, -1, -1, -1];
+  for (let i = 0; i < ticks; i++) {
+    const warden = decide(d, 1, ai, profile);
+    if (warden.ai.opener !== ai.opener && openerAt[warden.ai.opener] < 0) openerAt[warden.ai.opener] = i;
+    ai = warden.ai;
+    if (d.fighters[1].phase !== 'attack' && warden.intent.action) attacks.push(warden.intent.action);
+    d = stepDuel(d, [player(d), warden.intent]);
+    if (d.finish) d = { ...d, finish: null, fighters: [{ ...d.fighters[0], health: HP }, { ...d.fighters[1], health: HP }] };   // an honest floor, not a kill race
+  }
+  return { ai, attacks, openerAt };
+}
+test('brief 8: a foe who never blocks gets the right side up to its cap, then the left the same way, then one heavy, then the ordinary brain — never spending below the discipline floor mid-side', () => {
+  const { ai, attacks, openerAt } = playOpener(PROFILES.normal, 4000, () => idle());
+  assert.equal(ai.opener, 3, 'reaches "done" well inside 4000 ticks against a foe who never blocks');
+  const rightOnly = attacks.slice(0, attacks.indexOf('light_left') < 0 ? attacks.length : attacks.indexOf('light_left'));
+  assert.ok(rightOnly.every(a => a === 'light_right') && rightOnly.length > 0 && rightOnly.length <= 3, `stage 0 throws only light_right, at most 3 tries: ${rightOnly.join(',')}`);
+  assert.ok(attacks.includes('heavy'), 'the recovery swing is thrown, not starved out by its own side\'s stamina cost');
+  assert.ok(openerAt[1] > openerAt[0] && openerAt[2] > openerAt[1] && openerAt[3] > openerAt[2], 'the stages run in order, right then left then the heavy then done');
+});
+test('brief 8: blocking the very first swing on a side ends that side at once — no need to run out the cap', () => {
+  const blockRight = (): Intent => ({ ...idle(), guard: true, guardDirection: mirror('right') });   // a standing guard, held throughout: catches the right, not the left that follows
+  const { attacks } = playOpener(PROFILES.normal, 1200, blockRight);
+  assert.equal(attacks.filter(a => a === 'light_right').length, 1, `one blocked right swing ends the side: ${attacks.join(',')}`);
+  assert.ok(attacks.includes('light_left'), 'moves straight on to the left side');
+});
+test('brief 8: opener 3 (already done) runs the plain brain untouched — identical to a profile with no opener at all', () => {
+  const done = (): AiState => ({ ...initialAi(731, true), opener: 3 });
+  const plain = decide(arena(1.7), 1, initialAi(731), PROFILES.normal), authored = decide(arena(1.7), 1, done(), PROFILES.normal);
+  assert.deepEqual(authored.intent, plain.intent);
+});
