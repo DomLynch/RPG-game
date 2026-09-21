@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
-// What a phone downloads for one duel: the shell (index.html + its script + its stylesheet), ONE audio format per sound file
+// What a phone downloads for one duel: the shell (index.html + its script + its stylesheet), the opponent's versus still, ONE audio format per sound file
 // (the browser picks Opus or AAC, never both), the hero, ONE opponent, every arena prop, and only the shared texture files those
 // GLBs reference. That is what the per-fight budget gates, at the worst opponent. The whole of dist/ is the host's storage, not
 // the player's wait, and gets a looser ceiling so the roster can grow without the gate being raised every fighter.
@@ -57,21 +57,23 @@ export async function measure(distDir = dist, srcDir = src) {
   for (const f of all.filter(f => /\.(ogg|m4a)$/.test(f.name))) { const key = stem(f.name); if ((audioBy.get(key)?.gzip ?? -1) < f.gzip) audioBy.set(key, f); }
   const audio = [...audioBy.values()];
   const base = [hero[0], ...props], baseTextures = textures(base), fixed = sum(shell, 'gzip') + sum(audio, 'gzip') + sum(base, 'gzip') + sum(baseTextures, 'gzip');
+  // The versus card: main.ts shows public/versus/<opponent>.webp while the rigs download, so one still is part of every fight's fetch.
+  const stills = new Map(all.filter(f => relative(distDir, f.path) === join('versus', f.name) && f.name.endsWith('.webp')).map(f => [f.name.slice(0, -5), f]));
   const fights = opponents.map(opponent => {
-    const own = textures([opponent]).filter(t => !baseTextures.includes(t));
-    return { opponent, textures: own, gzip: fixed + opponent.gzip + sum(own, 'gzip') };
+    const own = textures([opponent]).filter(t => !baseTextures.includes(t)), still = stills.get(stem(opponent.name));
+    return { opponent, textures: own, still, gzip: fixed + opponent.gzip + sum(own, 'gzip') + (still?.gzip ?? 0) };
   });
   const worst = fights.reduce((a, b) => (b.gzip > a.gzip ? b : a));
   return {
     shell: sum(shell, 'gzip'), audio: sum(audio, 'gzip'), hero: hero[0].gzip, props: sum(props, 'gzip'), sharedTextures: sum(baseTextures, 'gzip'),
-    opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentTextures: sum(worst.textures, 'gzip'),
+    opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0,
     fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), totalRaw: sum(all, 'raw'), total: sum(all, 'gzip'),
   };
 }
 
 if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   const m = await measure();
-  const breakdown = `shell ${m.shell} + audio ${m.audio} + hero ${m.hero} + props ${m.props} + shared textures ${m.sharedTextures} + worst opponent ${m.opponent} ${m.opponentGzip} (+ its textures ${m.opponentTextures})`;
+  const breakdown = `shell ${m.shell} + audio ${m.audio} + hero ${m.hero} + props ${m.props} + shared textures ${m.sharedTextures} + worst opponent ${m.opponent} ${m.opponentGzip} (+ its textures ${m.opponentTextures} + its versus still ${m.opponentStill})`;
   if (m.fight >= PER_FIGHT) throw new Error(`A duel exceeds ${PER_FIGHT / 1e6} MB gzip: ${breakdown} = ${m.fight}`);
   if (m.total >= TOTAL) throw new Error(`dist exceeds ${TOTAL / 1e6} MB gzip: ${m.total}`);
   if (m.loot >= LOOT) throw new Error(`loot.glb exceeds ${LOOT / 1e6} MB gzip: ${m.loot}`);
