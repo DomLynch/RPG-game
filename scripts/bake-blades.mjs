@@ -1,6 +1,11 @@
 // Bake licensed/authored blade trajectories as pure numeric simulation data; run after building a rig or changing a weapon.
 // One table per weapon and per (clip, timing) in that weapon's PATHS (src/moves.ts WEAPONS): the simulation sweeps these; renderer bones
 // never own hits. Which rig, node and contact segment each weapon bakes from is scripts/blade-manifest.json (the weapons lane adds entries).
+// A table belongs to the rig it was baked on (`rig`: the model identity that carries the scale; 'hero' = the man/player skeleton): the
+// same knife sweeps 0.82 m elsewhere in the Goblin's hand than in the player's (measured 2026-09-21). `bladePathsByRig[rig][weapon]`
+// holds every bake; the flat `bladePaths[weapon]` is the FIRST manifest entry per weapon (the shipped one) until the sim's lookup is
+// rig-aware (Combat lane), after which the flat export goes. An entry with `attach` bakes the player's equip file the way the runtime
+// wears it: the rig's skeleton, the file's WeaponDrawn under hand_r at its own transform, the file's clips when it has any.
 import fs from 'node:fs/promises';
 import { AnimationMixer, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -8,13 +13,24 @@ import { swingProgress } from '../src/blade.ts';
 import { WEAPONS, total } from '../src/moves.ts';
 globalThis.ProgressEvent=class {constructor(_,fields){Object.assign(this,fields)}};
 const manifest=JSON.parse(await fs.readFile('scripts/blade-manifest.json','utf8'));
-const tables={};
+const tables={}, byRig={};
+const load=async file=>{ // geometry-free load: nodes, transforms and clips are all a bake needs
+ const bytes=await fs.readFile(file), size=bytes.readUInt32LE(12), json=JSON.parse(bytes.subarray(20,20+size));
+ json.images=[];json.textures=[];json.materials=(json.materials||[]).map(m=>({name:m.name}));
+ json.buffers[0].uri='data:application/octet-stream;base64,'+bytes.subarray(28+size).toString('base64');
+ return new GLTFLoader().parseAsync(JSON.stringify(json),'');
+};
 for(const entry of manifest.weapons) {
  const weapon=WEAPONS[entry.weapon]; if(!weapon) throw new Error(`blade-manifest: unknown weapon ${entry.weapon}`);
- const bytes=await fs.readFile(entry.glb), size=bytes.readUInt32LE(12), json=JSON.parse(bytes.subarray(20,20+size));
- json.images=[];json.textures=[];json.materials=json.materials.map(m=>({name:m.name}));
- json.buffers[0].uri='data:application/octet-stream;base64,'+bytes.subarray(28+size).toString('base64');
- const asset=await new GLTFLoader().parseAsync(JSON.stringify(json),''), mixer=new AnimationMixer(asset.scene), blade=asset.scene.getObjectByName(entry.node);
+ if(!entry.rig) throw new Error(`blade-manifest: ${entry.weapon} needs a rig (the model the table is baked on; 'hero' = the player skeleton)`);
+ const asset=await load(entry.glb);
+ if(entry.attach) { // the equip file worn by this rig: its WeaponDrawn replaces the rig's sword in hand_r, its clips join the rig's
+  const part=await load(entry.attach), node=part.scene.getObjectByName('WeaponDrawn'), hand=asset.scene.getObjectByName('hand_r');
+  if(!node||!hand) throw new Error(`blade-manifest: ${entry.attach} needs WeaponDrawn and ${entry.glb} needs hand_r`);
+  for(const old of ['WeaponDrawn','SwordDrawn','SwordSheathed']) asset.scene.getObjectByName(old)?.removeFromParent();
+  hand.add(node); for(const clip of part.animations) { const i=asset.animations.findIndex(c=>c.name===clip.name); if(i<0) asset.animations.push(clip); else asset.animations[i]=clip; }   // the file's clips play over the rig's same-named ones (a re-keyed Heavy)
+ }
+ const mixer=new AnimationMixer(asset.scene), blade=asset.scene.getObjectByName(entry.node);
  if(entry.scale) asset.scene.scale.multiplyScalar(entry.scale);
  if(!blade) throw new Error(`blade-manifest: ${entry.glb} has no node ${entry.node}`);
  // The striking segment: the node's extras.contact wins over the manifest (a trident's tines, not its shaft).
@@ -29,10 +45,10 @@ for(const entry of manifest.weapons) {
    return strike.flatMap(y=>blade.localToWorld(new Vector3(0,y,0)).toArray().map(v=>+v.toFixed(5)));
   });action.stop();mixer.uncacheClip(clip);
  }
- tables[entry.weapon]=paths;
- console.log(`${entry.weapon}: ${Object.keys(paths).length} paths from ${entry.glb}#${entry.node} (contact ${contact[0]}–${contact[1]} m), `+Object.values(paths).reduce((n,p)=>n+p.length,0)+' fixed-tick poses');
+ tables[entry.weapon]??=paths; (byRig[entry.rig]??={})[entry.weapon]=paths;
+ console.log(`${entry.weapon}@${entry.rig}: ${Object.keys(paths).length} paths from ${entry.glb}${entry.attach?' + '+entry.attach:''}#${entry.node} (contact ${contact[0]}–${contact[1]} m), `+Object.values(paths).reduce((n,p)=>n+p.length,0)+' fixed-tick poses');
 }
 // A placeholder weapon (data borrowed from another) bakes nothing of its own: it points at the table it borrows.
 for(const [id,w] of Object.entries(WEAPONS)) if(w.placeholder && !tables[id]) { const source=Object.entries(WEAPONS).find(([k,o])=>!o.placeholder && o.moves===w.moves)?.[0]; if(source) tables[id]=tables[source]; }
-await fs.writeFile('src/blade-paths.ts','// Generated by scripts/bake-blades.mjs from scripts/blade-manifest.json. Do not hand-edit.\nexport const bladePaths: Record<string, Record<string, number[][]>> = '+JSON.stringify(tables)+';\n');
-console.log(`Baked ${Object.keys(tables).length} weapon table(s): ${Object.keys(tables).join(', ')}`);
+await fs.writeFile('src/blade-paths.ts','// Generated by scripts/bake-blades.mjs from scripts/blade-manifest.json. Do not hand-edit.\nexport const bladePaths: Record<string, Record<string, number[][]>> = '+JSON.stringify(tables)+';\n// Every bake by the rig it was baked on: [rig][weapon][kind]. A table never serves another rig.\nexport const bladePathsByRig: Record<string, Record<string, Record<string, number[][]>>> = '+JSON.stringify(byRig)+';\n');
+console.log(`Baked ${Object.keys(tables).length} weapon table(s): ${Object.keys(tables).join(', ')}; by rig: ${Object.entries(byRig).map(([r,w])=>`${r}[${Object.keys(w).join(',')}]`).join(' ')}`);

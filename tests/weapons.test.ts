@@ -3,10 +3,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { bladePaths } from '../src/blade-paths.ts';
+import { bladePaths, bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, idleIntent, initialDuel, legal, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { LONGSWORD, MOVES, PATHS, RULES, WEAPONS, weaponOf, type Weapon } from '../src/moves.ts';
 import { TARGET } from '../src/sim.ts';
+import { WEAPON_CLIPS } from '../src/characters.ts';
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Intent['action']): Intent => ({ ...idle(), action });
@@ -62,16 +63,46 @@ test('contact events name the weapon and its material for the audio lane: Hit, B
   for (const [name, e] of [['Hit', hit], ['Blocked', blocked], ['Parried', parried], ['GuardBroken', broken]] as const) { assert.ok(e, `${name} happened`); assert.deepEqual([e.weapon, e.material], ['longsword', 'iron'], `${name} carries the attacker's weapon and material`); }
 });
 
-test('the bake manifest is sound: every entry names a known weapon, an existing rig and node, a rising contact segment; every non-placeholder weapon has a baked table with all of its paths', () => {
-  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: [number, number] }[] };
+const glbJson = (file: string) => { const bytes = readFileSync(new URL('../' + file, import.meta.url)); const size = bytes.readUInt32LE(12); return { json: JSON.parse(bytes.subarray(20, 20 + size).toString()) as { nodes: { name: string; mesh?: number; children?: number[]; extras?: Record<string, unknown> }[]; animations?: { name: string }[]; asset: { extras?: Record<string, unknown> } }, bytes: bytes.length }; };
+test('the bake manifest is sound: every entry names a known weapon, the rig it bakes on, an existing rig and node, a rising contact segment; every non-placeholder weapon has a baked table with all of its paths; the flat table is the first entry per weapon and every entry is under its rig', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; rig: string; glb: string; attach?: string; node: string; contact: [number, number] }[] };
   assert.ok(manifest.weapons.length >= 1);
+  const first = new Set<string>();
   for (const entry of manifest.weapons) {
     assert.ok(entry.weapon in WEAPONS, `${entry.weapon} is a weapon`);
-    const bytes = readFileSync(new URL('../' + entry.glb, import.meta.url)); const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
-    assert.ok(json.nodes.some((n: { name: string }) => n.name === entry.node), `${entry.glb} has node ${entry.node}`);
+    assert.match(entry.rig, /^[a-z]+$/, `${entry.weapon} names the rig its table is baked on`);
+    const { json } = glbJson(entry.attach ?? entry.glb);
+    assert.ok(json.nodes.some(n => n.name === entry.node), `${entry.attach ?? entry.glb} has node ${entry.node}`);
+    if (entry.attach) assert.ok(glbJson(entry.glb).json.nodes.some(n => n.name === 'hand_r'), `${entry.glb} has hand_r to wear ${entry.attach}`);
     assert.ok(entry.contact[1] > entry.contact[0] && entry.contact[0] >= 0, 'a rising contact segment');
+    assert.ok(bladePathsByRig[entry.rig]?.[entry.weapon], `${entry.weapon}@${entry.rig} is baked`);
+    if (!first.has(entry.weapon)) { first.add(entry.weapon); assert.deepEqual(bladePaths[entry.weapon], bladePathsByRig[entry.rig][entry.weapon], `the flat ${entry.weapon} table is its first (shipped) bake, on ${entry.rig}`); }
   }
   for (const [id, w] of Object.entries(WEAPONS)) { if (w.placeholder) continue; assert.ok(bladePaths[id], `${id} has a baked table`); for (const path of Object.keys(w.paths)) assert.ok(bladePaths[id][path]?.length, `${id}/${path} baked`); }
+  // The player's hand is not the Goblin's nor the Nightborn's: their weapons carry a hero table of their own, and it differs (2026-09-21: knife max 0.82 m, estoc 0.15 m).
+  assert.notDeepEqual(bladePathsByRig.hero.knife, bladePathsByRig.goblin.knife); assert.notDeepEqual(bladePathsByRig.hero.estoc, bladePathsByRig.nightborn.estoc);
+});
+
+test('player equip files (Brief 5): each loot weapon is its own small file — WeaponDrawn under hand_r on the contract, the weapon\'s own clips (its family, a re-keyed sword clip, the Quiet One laid along its blade) and nothing of the body; warrior.glb does not carry them', () => {
+  const player = ['cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe'];
+  const swordRoles = new Set(['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected']);
+  const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; rig: string; contact: [number, number] }[] };
+  const hero = glbJson('src/assets/warrior.glb').json;
+  assert.ok(!hero.nodes.some(n => n.name === 'WeaponDrawn') && !hero.animations!.some(a => /^(Warhammer|Trident|Scythe)_/.test(a.name)), 'the base download carries no loot weapon');
+  for (const id of player) {
+    const { json, bytes } = glbJson(`src/assets/weapons/player/${id}.glb`);
+    assert.ok(bytes < 1.5e6, `${id}: ${bytes} bytes — a weapon file stays small`);
+    const drawn = json.nodes.findIndex(n => n.name === 'WeaponDrawn'), hand = json.nodes.find(n => n.children?.includes(drawn));
+    assert.equal(hand?.name, 'hand_r', `${id}: WeaponDrawn hangs from hand_r`);
+    const baked = manifest.weapons.find(e => e.weapon === id && e.rig === 'hero')!;
+    assert.deepEqual(json.nodes[drawn].extras?.contact, { from: baked.contact[0], to: baked.contact[1] }, `${id}: the node's contact segment is the one its hero table bakes`);
+    const inSubtree = new Set<number>(); (function walk(i: number) { inSubtree.add(i); for (const c of json.nodes[i].children ?? []) walk(c); })(drawn);
+    assert.ok(json.nodes.every((n, i) => n.mesh === undefined || inSubtree.has(i)), `${id}: the only meshes are the weapon's`);
+    const clips = new Set((json.animations ?? []).map(a => a.name));
+    for (const clip of Object.values(WEAPON_CLIPS[id as keyof typeof WEAPON_CLIPS] ?? {})) if (!swordRoles.has(clip)) assert.ok(clips.has(clip), `${id}: carries its own ${clip}`);
+    assert.ok(clips.has('Death_QuietOne'), `${id}: the Quiet One is solved from the weapon in hand, so the file carries its own`);
+    assert.equal(json.asset.extras?.weapon, id);
+  }
 });
 
 test('the warden reasons with its own weapon\'s reach: carrying a longer weapon it throws the thrust from where the longsword would only walk in', async () => {
@@ -238,7 +269,7 @@ test('the cleaver is live (slice W): WEAPONS.cleaver is CLEAVER, the Pitborn car
   assert.notDeepEqual(bladePaths.cleaver, bladePaths.longsword); assert.deepEqual(Object.keys(bladePaths.cleaver).sort(), Object.keys(CLEAVER.paths).sort(), 'every cleaver path baked');
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: [number, number] }[] };
   const entry = manifest.weapons.find(w => w.weapon === 'cleaver')!;
-  assert.deepEqual(entry, { weapon: 'cleaver', glb: CLEAVER_GLB, node: 'WeaponDrawn', contact: [.14, .86] });
+  assert.deepEqual(entry, { weapon: 'cleaver', rig: 'hero', glb: CLEAVER_GLB, node: 'WeaponDrawn', contact: [.14, .86] });
 });
 
 test('the cleaver rig carries WeaponDrawn with its edge as the contact segment, empty sword nodes for the loader, and exactly the sword\'s 21 clips in the sword\'s order — nothing for the renderer to learn; only Heavy is re-keyed', async () => {
@@ -373,7 +404,7 @@ test('the knife is live (slice X): WEAPONS.knife is KNIFE, the goblin carries it
   assert.notEqual(KNIFE.moves, MOVES); assert.notEqual(KNIFE.paths, PATHS); assert.equal(KNIFE.id, 'knife');
   assert.notDeepEqual(bladePaths.knife, bladePaths.longsword); assert.deepEqual(Object.keys(bladePaths.knife).sort(), Object.keys(KNIFE.paths).sort(), 'every knife path baked');
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: [number, number] }[] };
-  assert.deepEqual(manifest.weapons.find(w => w.weapon === 'knife'), { weapon: 'knife', glb: KNIFE_GLB, node: 'WeaponDrawn', contact: [.12, .52] });
+  assert.deepEqual(manifest.weapons.find(w => w.weapon === 'knife'), { weapon: 'knife', rig: 'goblin', glb: KNIFE_GLB, node: 'WeaponDrawn', contact: [.12, .52] });   // the shipped table is the Goblin's; the player's own hero bake follows it (Brief 5)
 });
 
 test('the goblin\'s rig carries the knife: WeaponDrawn under hand_r with a short blade as the contact segment and a forward grip, empty sword nodes, the sword\'s clip list in the sword\'s order, every knife path on a sword clip', async () => {
@@ -424,7 +455,7 @@ test('the live estoc uses its own moves, baked point, and the exact shipped Nigh
   assert.notEqual(ESTOC.moves, MOVES); assert.equal(ESTOC.paths, PATHS);
   assert.notDeepEqual(bladePaths.estoc, bladePaths.longsword);
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: number[] }[] };
-  assert.deepEqual(manifest.weapons.filter(w => w.weapon === 'estoc'), [{ weapon: 'estoc', glb: ESTOC_GLB, node: 'WeaponDrawn', contact: [.75, 1.15] }]);
+  assert.deepEqual(manifest.weapons.filter(w => w.weapon === 'estoc')[0], { weapon: 'estoc', rig: 'nightborn', glb: ESTOC_GLB, node: 'WeaponDrawn', contact: [.75, 1.15] });   // the Nightborn's; the player's hero bake follows (Brief 5)
   assert.deepEqual(readFileSync(new URL('../' + ESTOC_GLB, import.meta.url)), readFileSync(new URL('../src/assets/nightborn.glb', import.meta.url)), 'bake and rendered rig must match');
 });
 
@@ -483,7 +514,7 @@ test('the scythe is live (2026-09-18): WEAPONS.scythe is SCYTHE, the Executioner
   assert.notEqual(SCYTHE.moves, MOVES); assert.notEqual(SCYTHE.paths, PATHS); assert.equal(SCYTHE.id, 'scythe');
   assert.notDeepEqual(bladePaths.scythe, bladePaths.longsword); assert.deepEqual(Object.keys(bladePaths.scythe).sort(), Object.keys(SCYTHE.paths).sort(), 'every scythe path baked');
   const manifest = JSON.parse(readFileSync(new URL('../scripts/blade-manifest.json', import.meta.url), 'utf8')) as { weapons: { weapon: string; glb: string; node: string; contact: [number, number] }[] };
-  assert.deepEqual(manifest.weapons.find(w => w.weapon === 'scythe'), { weapon: 'scythe', glb: SCYTHE_BAKE_GLB, node: 'WeaponDrawn', contact: [1.22, 1.32] });
+  assert.deepEqual(manifest.weapons.find(w => w.weapon === 'scythe'), { weapon: 'scythe', rig: 'hero', glb: SCYTHE_BAKE_GLB, node: 'WeaponDrawn', contact: [1.22, 1.32] });
 });
 
 test('the fight the scythe gives (real tables): the reap lands 1.40–2.10 m and meets nothing inside 1.40 (the arc\'s dead band, minReach), the headsman\'s high lands to 2.30 and the heel-jab to 2.10 — the measured frontiers, not the spacing estimates', () => {

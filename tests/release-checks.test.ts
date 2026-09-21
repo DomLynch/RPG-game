@@ -18,11 +18,17 @@ function repo(commands: string[][]) {
   execFileSync('git', ['-C', root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init']);
   mkdirSync(join(root, 'scripts'));
   // a script that sleeps, and one that also declares a fixed port
-  writeFileSync(join(root, 'scripts', 'sleep.mjs'), 'const ms = Number(process.argv[2]); setTimeout(() => process.exit(Number(process.argv[3] || 0)), ms);\n');
-  writeFileSync(join(root, 'scripts', 'fixed.mjs'), '// strictPort: true\nconst ms = Number(process.argv[2]); setTimeout(() => process.exit(0), ms);\n');
+  // Each mock logs its own start/end so a test can prove overlap (or its absence) directly, independent of machine load.
+  const log = (tag: string) => `import { appendFileSync } from 'node:fs'; const ms = Number(process.argv[2]), t0 = Date.now(); setTimeout(() => { appendFileSync('spans.log', \`${tag} \${t0} \${Date.now()}\\n\`); process.exit(Number(process.argv[3] || 0)); }, ms);\n`;
+  writeFileSync(join(root, 'scripts', 'sleep.mjs'), log('sleep'));
+  writeFileSync(join(root, 'scripts', 'fixed.mjs'), '// strictPort: true\n' + log('fixed'));
   writeFileSync(join(root, '.quality-gate.json'), JSON.stringify({ commands: [['true']], release_commands: commands }));
   return root;
 }
+// What the mocks logged: for every check, how many checks (itself included) were alive at some instant of its span.
+const spans = (root: string) => readFileSync(join(root, 'spans.log'), 'utf8').trim().split('\n').map(l => { const [tag, a, b] = l.split(' '); return { tag, a: Number(a), b: Number(b) }; });
+const alive = (root: string) => { const all = spans(root); return all.map(s => ({ tag: s.tag, n: all.filter(o => o.a < s.b && s.a < o.b).length })); };
+const maxOverlap = (root: string) => Math.max(...alive(root).map(s => s.n));
 
 const run = (root: string, env: Record<string, string> = {}) =>
   spawnSync(process.execPath, [runner, root], { encoding: 'utf8', env: { ...process.env, ...env } });
@@ -37,7 +43,15 @@ test('independent checks run concurrently; fixed-port checks run alone; receipt 
   const result = run(root, { RELEASE_CHECK_CONCURRENCY: '6' });
   const wall = (Date.now() - started) / 1000;
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.ok(wall < 3.5, `6x700ms in parallel with 2x300ms fixed-port overlapping should take ~1s + startup, took ${wall}s`);
+  // Concurrency is proved by the mocks' own spans (several alive at once), never by wall time: on a loaded MacBook (load 25–41 with the
+  // suite's own files in parallel, 2026-09-21) eight node startups took a still-overlapped run past the old 3.5 s bound and even past
+  // the 4.8 s serial sleep floor (5.75 s measured) — wall time says nothing about overlap there.
+  assert.ok(maxOverlap(root) >= 4, `checks overlapped: at most ${maxOverlap(root)} alive at once (wall ${wall}s)`);
+  // The runner's fixed-port contract is a lock AMONG fixed-port checks (one of them at a time); they may share the pool with independent
+  // checks, and on the ubuntu runner they did (CI run 35616787102: a fixed span overlapped one sleep). So: the fixed spans never overlap each other.
+  const fixed = spans(root).filter(s => s.tag === 'fixed');
+  assert.equal(fixed.length, 2);
+  assert.ok(fixed[0].b <= fixed[1].a || fixed[1].b <= fixed[0].a, `fixed-port checks run one at a time: ${JSON.stringify(fixed)}`);
   assert.match(result.stdout, /8 total, 0 trusted from CI, 8 to run, concurrency 6, 2 fixed-port \(one at a time\)/);
   assert.ok(existsSync(join(root, 'artifacts', 'release-checks.json')));
   const written = JSON.parse(readFileSync(join(root, 'artifacts', 'release-checks.json'), 'utf8'));
@@ -62,6 +76,7 @@ test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
   const result = run(root, { RELEASE_CHECK_CONCURRENCY: '1' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.ok((Date.now() - started) / 1000 >= 0.8, 'serial: sum of durations');
+  assert.equal(maxOverlap(root), 1, 'serial: never two checks alive at once');
 });
 
 test('longest checks from the previous receipt start first; unknown checks sit at the median', () => {

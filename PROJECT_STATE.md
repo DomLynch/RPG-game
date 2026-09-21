@@ -1,5 +1,15 @@
 # Project state
 
+## Player-wieldable weapons — equip files + blade tables by rig (weapons lane, Brief 5, 2026-09-21)
+Six loot weapons on the shelf as their own files, `src/assets/weapons/player/<id>.glb` (`scripts/build-player-weapon.mjs`): the
+hero build's `WeaponDrawn` in `hand_r`, the skeleton as empties, and only the clips the weapon owns (family + re-keyed `Heavy` for the
+cleaver/knife + the Quiet One solved from the weapon) — packed 209–884 KB, nothing in `warrior.glb`, per-fight budget unchanged
+(8,817,201 gzip). `blade-manifest.json` gained `rig` and `attach`; `bake-blades.mjs` emits `bladePathsByRig[rig][weapon]` beside the
+unchanged flat table (Combat's nested lookup + `Fighter.rig` + the pin land from their lane; until then the flat export is what the sim
+reads). Facts: cleaver/warhammer/trident/scythe in the player's hand bake identically to their shipped tables; knife (Goblin rig,
+0.816 m off) and estoc (Nightborn body, 0.148 m off) have new `hero` tables baked from the equip files on `warrior.glb`; each equip
+file's bake equals a full hero-rig bake (verified all six). Draw vs armed: owner "go" on armed + ready stance (Strategy session).
+Open: Combat's runtime equip + sim lookup; the per-weapon battery per rung (Combat); `warrior.glb` lags a rebuild in `Death_QuietOne`.
 ## Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-limited back-off (2026-09-21)
 Deploy #57 on fdd6032 (#303 anti-turtling) failed release checks 17 and 20: the passive test Executioner is now lashed off the
 wall and dies at heading π nearer the wall. Quiet One's body left the portrait frame (x −40); Opened's reach-driven back-off

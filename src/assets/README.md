@@ -697,3 +697,27 @@ maul's blunt set flagged `placeholder` on `Warhammer_Slash/Heavy/Thrust` paths (
 WEAPON_CLIPS.warhammer` maps the maul's roles onto the family. The character lane integrates (`WARRIOR_WEAPON=warhammer` on the
 Dwarf donor, refit, roster flip). Provenance: original project work — Three.js primitives, the cleaver's pitted iron / the trident's
 ash / the shared leather; the clips are authored on the same CC0 body loops as the trident's. Sheets: `artifacts/weapons/warhammer-v1/`.
+
+## Player-wieldable weapons as equip files (weapons lane, Brief 5, 2026-09-21)
+
+`src/assets/weapons/player/<id>.glb`, one per loot weapon (cleaver, knife, estoc, warhammer, trident, scythe), built by
+`scripts/build-player-weapon.mjs <id>` from a hero rig built with `WARRIOR_WEAPON=<id>` (it runs `build-warrior.mjs` itself unless
+`--from` names one, and a hero-with-sword baseline unless `--hero` does). Each file carries exactly what the player needs beyond
+`warrior.glb`: the `WeaponDrawn` node as the hero build places it in `hand_r` (same local transform, `extras.contact/weapon/variant/grip`,
+its own `Weapon<Id>`/`Weapon<Id>Shaft` materials and textures), the skeleton as empties (so its clips bind by bone name), and the clips
+the weapon owns — its family (`Warhammer_*`, `Trident_*`, `Scythe_*`), any sword clip the weapon build re-keys (`CLEAVER_KEYS`: the
+cleaver's and knife's `Heavy` leads with the edge), and `Death_QuietOne`, which `build-quiet-one.mjs` solves from the weapon in hand.
+Found by byte comparison against the baseline, never by list. Nothing of the body, no skin: the base download does not grow (budget
+unchanged at 8,817,201 gzip per fight). Source / packed / gzip: cleaver 402 / 265 / 171 KB, knife 374 / 266 / 146, estoc 301 / 209 /
+127, warhammer 1266 / 884 / 373, trident 1290 / — / —, scythe 1372 / — / — (the polearms carry 13 clips + the Quiet One).
+
+Runtime contract (Combat/lead wire the equip): load the file, take `WeaponDrawn` and hang it under the player's `hand_r` in place of
+`SwordDrawn`/`SwordSheathed` at its own position/quaternion, play its `animations` OVER the rig's same-named clips, key the sim's
+blade table by rig. Loot weapons start armed (owner, 2026-09-21: the opening draw beat becomes a ready stance; no sheath poses).
+
+Blade tables by rig: `scripts/blade-manifest.json` entries carry `rig` (the model a table is baked on; `hero` = the player skeleton)
+and may carry `attach` (an equip file worn by the rig in `glb`; the bake wears it the way the runtime does, replacing same-named
+clips). `bake-blades.mjs` writes `bladePathsByRig[rig][weapon][kind]` beside the flat `bladePaths[weapon]` (the first manifest entry
+per weapon; byte-identical to before). Measured in the player's hand: cleaver, warhammer, trident and scythe bake identically to
+their shipped hero-rig tables (max |Δ| 0.0000 m); the knife's shipped table is the Goblin's rig (max |Δ| 0.816 m in the player's
+hand) and the estoc's the Nightborn's (0.148 m), so both now have a `hero` table baked from their equip file on `warrior.glb`.
