@@ -40,6 +40,16 @@ test('the thumb cluster is the one touch layout: the markup carries it and nothi
   for (const file of ['main.ts', 'input.ts', 'hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
 });
 
+test('guard side hint (owner 2026-09-21): the Guard button carries five marks — four rim ticks and the straight ring — and the CSS lights the held side from aria-pressed + data-side', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const button = html.match(/<button id="guard-button"[\s\S]*?<\/button>/)![0];
+  for (const side of ['overhead', 'low', 'left', 'right', 'straight']) assert.match(button, new RegExp(`class="side side-${side}"`), `${side} mark in the markup`);
+  assert.match(button, /<svg class="guard-sides"[^>]*aria-hidden="true"/, 'decorative: hidden from the accessibility tree');
+  for (const side of ['left', 'right', 'overhead', 'low']) assert.match(css, new RegExp(`#guard-button\\[aria-pressed=true\\]\\[data-side=${side}\\] \\.side-${side}`), `${side} lights while held`);
+  assert.match(css, /#guard-button\[aria-pressed=true\]\[data-side=straight\] \.side-straight/); assert.match(css, /#guard-button\[aria-pressed=true\]:not\(\[data-side\]\) \.side-straight/, 'Q on the keyboard lights straight');
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*guard-sides/, 'the fade respects reduced motion');
+});
+
 test('guard side: the thumb still is the straight guard; past the slide threshold the dominant axis picks left, right, overhead or low', () => {
   assert.equal(guardSide(0, 0), null); assert.equal(guardSide(GUARD_SLIDE_PX - 1, 0), null); assert.equal(guardSide(NaN, 4), null, 'a hostile delta is the straight guard');
   assert.equal(guardSide(-GUARD_SLIDE_PX, 0), 'left'); assert.equal(guardSide(40, 12), 'right');

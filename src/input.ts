@@ -364,6 +364,11 @@ export function createInput(env: InputEnv) {
     // What the simulation sees this tick. Presses reach it only once the assets are ready (the buttons read disabled until then).
     intent(): Intent {
       const ready = env.ready(), q = keys.has('KeyQ'), arrow = (code: string) => !q && keys.has(code);
+      // The side the simulation will see this tick: the thumb's slide, else Q + an arrow. The button's hint (data-side) follows it, so a
+      // keyboard guard lights the arrow's side too and shows straight again on release.
+      const guardDirection = guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null);
+      const sideLabel = guardDirection ?? 'straight';
+      if (guardId === null && guardButton.dataset.side !== sideLabel) guardButton.dataset.side = sideLabel;   // write only on change: no style invalidation 60× a second
       return {
         x:
           moveX +
@@ -376,7 +381,7 @@ export function createInput(env: InputEnv) {
         run: run || stickRun || keys.has('ShiftLeft') || keys.has('ShiftRight'),
         action: ready ? action : null,
         guard: ready && (guard || dragGuard || q),
-        guardDirection: guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null),
+        guardDirection,
         held: ready && held(),
         cancel,
       };
