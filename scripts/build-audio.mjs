@@ -125,7 +125,9 @@ const abs = hz => hz / PITCH;
 // Edge: the blade's bright slice — a broadband burst 1–7 kHz that is over in ~120 ms, laid over the weighted body.
 const blade = (n, r, { lo = 1000, hi = 7000, t60 = .12 } = {}) => mul(broad(n, r, abs(lo), abs(hi)), decay(n, t60, .001));
 // Steel ring: a dense inharmonic cluster placed where a real clash rings (f0 ~ 900–1300 Hz, partials to ~6 kHz), long decay.
-const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
+// Owner 2026-09-21 00:30, after hearing the steel pass: "weapon/metal noise on block and ricochet 30 % deeper" — the ring and its zing × .7.
+const STEEL = .7;
+const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0 * STEEL), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
 // Rumble: a broad low-mid tail (150–800 Hz) that lingers after the strike.
 const rumble = (n, t60, r, f = 900) => mul(biquad(biquad(noise(n, r), 'lowpass', f, .5), 'highpass', 260, .5), decay(n, t60, .01));
 // Dense steel: `count` inharmonic partials from f0 up to ~f0 × top with jittered decays, amplitude-roughened by slow noise.
@@ -205,22 +207,22 @@ const RECIPES = {
   // Block: iron on iron into a braced guard — a hard broadband click, a dense clang the arms damp, the guard's own body.
   block(r) {
     const n = S(.5), f = vary(r, 1, .07);
-    const click = mul(broad(n, r, 1500, 10000), decay(n, .004));
+    const click = mul(broad(n, r, 1500 * STEEL, 10000 * STEEL), decay(n, .004));
     const clang = steel(n, 900 * f, vary(r, .5, .12), r);
     const muffle = mul(broad(n, r, 250, 1600), decay(n, .04, .001));
     const body = thud(n, r, { from: 4000 * f, to: 320 * f, fall: .07, t60: .14 });
     const tone = punch(n, 330 * f, r, { t60: .08, tone: .6, burst: .3 });
     const weight = heft(n, 95 * f, r, { t60: .28 });
-    const zing = blade(n, r, { lo: 2000, hi: 10000, t60: .05 });
+    const zing = blade(n, r, { lo: 2000 * STEEL, hi: 10000 * STEEL, t60: .05 });
     const tail = rumble(n, .24, r);
     return densify(mix(n, [click, 0, .45], [clang, .001, 1], [muffle, .001, .4], [body, .002, .9], [tone, .002, .35], [weight, .003, .5], [zing, 0, .35], [tail, .02, dbfs(-8)]), 2.6);
   },
   // Perfect block: the same steel caught clean — brighter and tighter, a smaller body, a touch of edge.
   block_perfect(r) {
     const n = S(.42), f = vary(r, 1, .06);
-    const click = mul(broad(n, r, 2000, 10000), decay(n, .004));
+    const click = mul(broad(n, r, 2000 * STEEL, 10000 * STEEL), decay(n, .004));
     const clang = steel(n, 1300 * f, vary(r, .4, .1), r, { top: 5, roll: .85, grit: .25 });
-    const sparkle = mul(broad(n, r, 3000, 9000), decay(n, .015));
+    const sparkle = mul(broad(n, r, 3000 * STEEL, 9000 * STEEL), decay(n, .015));
     const body = thud(n, r, { from: 5000 * f, to: 400 * f, fall: .05, t60: .09 });
     const weight = heft(n, 110 * f, r, { t60: .2 });
     return densify(mix(n, [click, 0, .5], [clang, .001, .8], [sparkle, .001, .2], [body, .002, 1], [weight, .003, .4]), 2.2);
@@ -228,11 +230,11 @@ const RECIPES = {
   // Parry: bright and decisive — an edge scrape sliding up, a long dense ring with beating partials, the hand's jolt underneath.
   parry(r) {
     const n = S(.66), f = vary(r, 1, .06);
-    const click = mul(broad(n, r, 1500, 10000), decay(n, .005));
-    const scrape = mul(sweepBandpass(noise(n, r), t => 1100 + 1500 * Math.min(1, t * 6), 2), envelope(n, [[0, .3], [.05, 1], [.09, 0], [n / RATE, 0]]));
+    const click = mul(broad(n, r, 1500 * STEEL, 10000 * STEEL), decay(n, .005));
+    const scrape = mul(sweepBandpass(noise(n, r), t => (1100 + 1500 * Math.min(1, t * 6)) * STEEL, 2), envelope(n, [[0, .3], [.05, 1], [.09, 0], [n / RATE, 0]]));
     const ring = steel(n, 1100 * f, vary(r, .7, .1), r, { spread: .02 });
-    const beat = mode(n, abs(1100 * f) * 1.011, .6, .5, { phase: r() * 6 });
-    const zing = mul(broad(n, r, 3500, 8000), decay(n, .03));
+    const beat = mode(n, abs(1100 * f * STEEL) * 1.011, .6, .5, { phase: r() * 6 });
+    const zing = mul(broad(n, r, 3500 * STEEL, 8000 * STEEL), decay(n, .03));
     const body = thud(n, r, { from: 4500 * f, to: 340 * f, fall: .09, t60: .16 });
     const tone = punch(n, 380 * f, r, { t60: .1, tone: .6, burst: .3 });
     const weight = heft(n, 100 * f, r, { t60: .3 });
