@@ -367,7 +367,8 @@ export function createInput(env: InputEnv) {
       // The side the simulation will see this tick: the thumb's slide, else Q + an arrow. The button's hint (data-side) follows it, so a
       // keyboard guard lights the arrow's side too and shows straight again on release.
       const guardDirection = guardDir ?? (q ? (Object.keys(ARROW_SIDE).filter((k) => keys.has(k)).map((k) => ARROW_SIDE[k])[0] ?? null) : null);
-      if (guardId === null) guardButton.dataset.side = guardDirection ?? 'straight';
+      const sideLabel = guardDirection ?? 'straight';
+      if (guardId === null && guardButton.dataset.side !== sideLabel) guardButton.dataset.side = sideLabel;   // write only on change: no style invalidation 60× a second
       return {
         x:
           moveX +
