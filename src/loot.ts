@@ -13,7 +13,7 @@ export type LootId = `${OpponentId}.${LootSlot}`;
 export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>> };
 export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locker; lockers 2–6 greyed, no code behind them
 
-// The pieces in loot.glb by opponent, in drop order (tests/loot.test.ts pins this against the file's draws). An opponent without
+// The pieces in loot.glb by opponent, in drop order (tests/loot-data.test.ts pins this against the file's draws). An opponent without
 // pieces drops nothing. Scalable Chars appends here when a piece ships.
 export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Greaves'],
