@@ -100,3 +100,8 @@ test('the versus card is a plain still (owner 2026-09-21: no drift), with a larg
   const loading = css.match(/\.versus-loading \{([^}]*)\}/)![1];
   assert.match(loading, /top: 28%;/); assert.match(loading, /text-align: center;/); assert.match(loading, /font: 22px Arial;/); assert.match(loading, /opacity: 0\.6;/);
 });
+
+test('the page carries the release stamp the fight record reads (deploy replaces "dev" with the revision)', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /<html lang="en" data-release="dev">/);
+});

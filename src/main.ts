@@ -1,5 +1,6 @@
 import { createInput } from './input.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
+import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
@@ -161,6 +162,13 @@ let assetsReady = false,
 let difficulty: keyof typeof PROFILES = 'normal',
   debug = /[?&]debug\b/.test(window.location?.search ?? ''),
   frameEvents: CombatEvent[] = [];
+// Every fight is recorded in memory (beta plan brief 3: kill links): the seed, the warden profile and every quantized intent the
+// simulation stepped, so the fight can be replayed elsewhere. Nothing leaves the device here; a later slice adds Share. The
+// build id is <html data-release>, 'dev' until the deploy stamps the revision there (a replay must run on the same rules; the
+// harness has no document element). A difficulty change mid-fight drops the recorder: that fight is no longer replayable from one profile.
+const BUILD = document.documentElement?.dataset?.release || 'dev';
+const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, profile: difficulty, seed: matchSeed });
+let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRecord: FightRecord | null = null;
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
 // pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
@@ -284,6 +292,7 @@ resetButton.addEventListener('click', () => {
   activeMs = 0;
   matchSeed = (Math.imul(matchSeed, 1664525) + 1013904223) >>> 0;
   practice = initialPractice(matchSeed, opponent);
+  recorder = startRecorder();
   frameEvents = [];
   state = previous = practice.fighter;
   view.recenter();
@@ -293,6 +302,7 @@ element('difficulty').addEventListener('click', () => {
   const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[];
   difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length];
   element('difficulty').textContent = `Warden: ${difficulty}`;
+  if (recorder && recorder.ticks > 0 && !practice.finish) recorder = null;   // a fight that changed warden mid-way is not replayable
 });
 element('debug-mode').addEventListener('click', () => {
   debug = !debug;
@@ -505,17 +515,18 @@ function frame(now: number) {
       previous = state;
       const intent = controls.intent();
       if (!marked && !practice.finish) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
+      const duelIntent = {
+        move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
+        action: intent.action,
+        guard: intent.guard,
+        guardDirection: intent.guardDirection ?? undefined,
+        held: intent.held,
+        lock: locked,
+        cancel: intent.cancel,
+      };
       practice = stepPractice(
         practice,
-        {
-          move: { x: intent.x, z: intent.z, yaw: view.yaw, run: intent.run },
-          action: intent.action,
-          guard: intent.guard,
-          guardDirection: intent.guardDirection ?? undefined,
-          held: intent.held,
-          lock: locked,
-          cancel: intent.cancel,
-        },
+        recorder ? recorder.push(duelIntent) : quantizeIntent(duelIntent),   // the sim always steps the quantized intent: live and replay see the same bits
         opponent.profiles[difficulty],
       );
       if (debug && practice.events.length)
@@ -556,6 +567,7 @@ function frame(now: number) {
       accumulator -= step();
       if (practice.finish && !recorded) {
         recorded = true;
+        if (recorder) { lastRecord = recorder.finish(practice.finish.draw ? 'draw' : practice.finish.victim === 1 ? 'killed' : 'died'); element('debug').dataset.record = `${lastRecord.ticks}/${lastRecord.outcome}/${lastRecord.seed}`; }
         recordPractice(trial, practice, Math.round(activeMs));
         saveTrial(storage, trial);
         marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* the result is already on the card */ }
