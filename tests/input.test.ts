@@ -78,12 +78,11 @@ test('guard side: the thumb still is the straight guard; past the slide threshol
   assert.equal(guardSide(30, 30), 'low', 'a perfect diagonal is the vertical: up and down are the rarer, deliberate slides');
 });
 
-test('the versus card drifts from its first frame (owner: like the arena cam, no wait), and holds still under reduced motion', () => {
+test('the versus card is a plain still (owner 2026-09-21: no drift), with a large centred loading line above the pair', () => {
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  assert.match(css, /\.versus img \{[^}]*animation: versus-drift 12s ease-in-out infinite alternate;/, 'no delay, a slow pull-back and pan');
-  assert.match(css, /@keyframes versus-drift \{\s*from \{ transform: scale\(1\.22\)[\s\S]{0,120}?to \{ transform: scale\(1\)/, 'starts close and pulls back (owner: zoom out, not in), never a cut');
-  assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.versus img \{ animation: none; \}/, 'reduced motion keeps the still');
+  assert.doesNotMatch(css, /versus-drift|\.versus img \{[^}]*animation/, 'no card animation');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /<p class="versus-loading">loading…<\/p>/, 'a small loading line on the card (owner)');
-  assert.match(css, /\.versus-loading \{[^}]*opacity: 0\.5;/, 'semi-transparent');
+  assert.match(html, /<p class="versus-loading">loading…<\/p>/, 'the loading line on the card');
+  const loading = css.match(/\.versus-loading \{([^}]*)\}/)![1];
+  assert.match(loading, /top: 28%;/); assert.match(loading, /text-align: center;/); assert.match(loading, /font: 22px Arial;/); assert.match(loading, /opacity: 0\.6;/);
 });

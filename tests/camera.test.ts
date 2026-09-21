@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { INTRO, TOUR, cameraPose, finisherSidePose } from '../src/camera.ts';
+import { TOUR, cameraPose, finisherSidePose } from '../src/camera.ts';
 import { initialState, RADIUS, TARGET } from '../src/sim.ts';
 
 test('all edge angles and orbit positions keep camera inside scenery', () => {
@@ -224,28 +224,3 @@ test('rig: the arena cam — five seconds after a finish the camera orbits the f
   for (let i = 0; i < (TOUR.delay + 40) * 60; i++) { rig.update(1 / 60, state, edge, true, edgeFinish); assert.ok(Math.hypot(camera.position.x, camera.position.z) <= 11.5 + 1e-6, 'clamped to the colonnade'); }
 });
 
-test('rig: the opening move — from the lock pose the camera swings out, up and around the pair and settles back on the lock pose by INTRO.duration; a touch ends it; reduced motion never plays it', () => {
-  const run = (still: boolean, touchAt?: number) => {
-    const { camera, rig, state, enemy } = rigAt(3, 4, still), control = rigAt(3, 4, still), frames: Vector3[] = [];
-    const settle = (r: typeof rig, n: number) => { for (let i = 0; i < n; i++) r.update(1 / 60, state, enemy, true, null); };
-    settle(rig, 300); settle(control.rig, 300);   // both rigs settled on the lock pose (the lock yaw itself blends in over a few seconds)
-    const rest = camera.position.clone();
-    rig.startIntro();
-    for (let i = 0; i < (INTRO.duration + 1) * 60; i++) {
-      if (touchAt !== undefined && i === Math.round(touchAt * 60)) rig.stopTour();
-      rig.update(1 / 60, state, enemy, true, null); control.rig.update(1 / 60, state, enemy, true, null); frames.push(camera.position.clone());
-    }
-    return { rest: control.camera.position.clone(), start: rest, frames, rig };
-  };
-  const plain = run(false);
-  assert.ok(plain.frames[0].distanceTo(plain.start) < 0.05, 'no cut at the start: the first frame sits on the lock pose');
-  const mid = plain.frames[Math.round(INTRO.duration * 30)];
-  assert.ok(mid.distanceTo(plain.rest) > 1.5, `mid-move the camera is well off the lock pose (${mid.distanceTo(plain.rest).toFixed(2)} m)`);
-  assert.ok(mid.y > plain.rest.y + 0.5, 'and higher');
-  assert.ok(plain.frames.at(-1)!.distanceTo(plain.rest) < 0.01, 'and settles back exactly where a rig that never played it stands: no cut into the fight');
-  assert.equal(plain.rig.intro, false, 'the move reports over');
-  const touched = run(false, 1);
-  assert.equal(touched.rig.intro, false); assert.ok(touched.frames.at(-1)!.distanceTo(touched.rest) < 0.01, 'a touch ends it and the camera settles');
-  const still = run(true);
-  assert.equal(still.rig.intro, false); assert.ok(still.frames.every(f => f.distanceTo(still.rest) < 1e-6), 'reduced motion holds the frame');
-});
