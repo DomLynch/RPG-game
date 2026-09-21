@@ -9,7 +9,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 const args = process.argv.slice(2), option = (name, fallback) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : fallback; };
-const only = option('only'), yaw = +option('yaw', 0.95), pitch = +option('pitch', 0.3), gap = +option('gap', 1.7), quality = +option('quality', 0.72), crop = +option('crop', 0.56), cx = +option('cx', 0.66), cy = +option('cy', 0.47), lock = args.includes('--lock');
+const only = option('only'), yaw = +option('yaw', 0.95), pitch = +option('pitch', 0.3), gap = +option('gap', 1.7), quality = +option('quality', 0.72), crop = +option('crop', 0.86), cx = +option('cx', 0.66), cy = +option('cy', 0.47), lock = args.includes('--lock');   // 0.86: the shipped public/versus/*.webp are 1006×2180 = 0.86 of the 1170×2535 frame (audit 2026-09-22 — the default had drifted to 0.56, so a plain re-run would not reproduce them; cx/cy unverified against the shipped files, left as before)
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom versus cards</title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
