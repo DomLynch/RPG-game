@@ -30,3 +30,10 @@ export async function writeFighter(db: SupabaseClient, userId: string, profile: 
   if (!data) throw Error('Save changed on another device');
   return cloudProfile(data);
 }
+// Admin roster membership: the journal's test tools show only to listed accounts. The client can read its own row and nothing
+// else (RLS); rows are inserted by the owner in SQL, so there is no write path here.
+export async function readAdmin(db: SupabaseClient, userId: string): Promise<boolean> {
+  const { data, error } = await db.from('admins').select('user_id').eq('user_id', userId).maybeSingle();
+  if (error) throw error;
+  return !!data && (data as { user_id?: unknown }).user_id === userId;
+}

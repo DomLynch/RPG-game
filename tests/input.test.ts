@@ -31,6 +31,18 @@ test('page declares double-tap suppression and locks page zoom (owner, 2026-09-1
   assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(main, /gesturestart/);
+  // Free-camera orbit + a second finger still zoomed the page on iPhone (owner, 2026-09-21): two-finger moves are refused at the document.
+  assert.match(main, /addEventListener\('touchmove', \(event\) => \{ if \(event\.touches\.length > 1\) event\.preventDefault\(\); \}, \{ passive: false \}\)/);
+});
+
+test('the journal test tools ship hidden behind the admins roster; opponent choice stays open to everyone', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const tools = html.match(/<section id="test-tools"[^>]*>([\s\S]*?)<\/section>/);
+  assert.ok(tools, 'a test-tools section wraps the tools');
+  assert.match(tools![0], /<section id="test-tools"[^>]*\bhidden\b/);
+  for (const id of ['finisher-select', 'damage-mode', 'tempo-mode', 'debug-mode']) assert.match(tools![1], new RegExp(`id="${id}"`));
+  assert.doesNotMatch(tools![1], /opponent-select/);
+  assert.match(html.replace(tools![0], ''), /id="opponent-select"/);
 });
 
 test('the thumb cluster is the one touch layout: the markup carries it and nothing offers another scheme', () => {

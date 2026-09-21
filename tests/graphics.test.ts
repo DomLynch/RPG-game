@@ -481,6 +481,12 @@ test('the identity aside shows the career rank from the saved mark count at boot
   assert.equal(boot().element('rank').textContent, 'Recruit I · ○ ○ ○');
 });
 
+test('the journal test tools stay hidden without ?debug; the roster flag is the account module\'s to set', () => {
+  const app = boot();
+  assert.equal(app.element('test-tools').hidden, true);
+  assert.equal(app.element('test-tools').dataset.debug, undefined);
+  assert.equal(app.element('opponent-select').hidden, false);
+});
 test('an AFK fight runs on: hidden time is simulated on return with no input, and a fight abandoned by closing the page is a loss on the card', () => {
   const app = boot({ id: 'tester-0001' }); app.tick(); app.key('KeyF'); app.tick();
   for (let i = 0; i < 60; i++) app.tick();

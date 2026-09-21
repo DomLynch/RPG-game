@@ -28,6 +28,10 @@ const canvas = element<HTMLCanvasElement>('world');
 // tests/input.test.ts). iOS Safari ignores the viewport meta in the browser, so the pinch gesture itself is blocked here.
 for (const type of ['gesturestart', 'gesturechange', 'gestureend'])
   document.addEventListener(type, (event) => event.preventDefault());
+// Not enough on its own: with the camera free, a second finger landing while the first orbits the arena still zoomed the
+// whole page on iPhone (owner, 2026-09-21). Refuse every two-finger move at the document, non-passive, so the pinch never
+// starts. A single finger keeps every tap, drag and stick move: only moves with two or more touches are refused.
+document.addEventListener('touchmove', (event) => { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
 const feedback = createFeedback();
 // WebKit grants audio activation on touchend/click/keydown, not the touch-start phase; the combat buttons also
 // preventDefault on pointerdown, which suppresses click. Listen to the whole family so the first tap unlocks on iOS.
@@ -235,6 +239,11 @@ function renderScorecard() {
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debug;
 }
+// The journal's test tools (finisher override, damage numbers, tempo, combat debug) are for admins: ?debug reveals them for the
+// release checks, and account.ts reveals them for a signed-in account on the admins roster. Opponent choice stays for everyone.
+const testTools = element('test-tools');
+if (debug) testTools.dataset.debug = 'true';
+testTools.hidden = !debug;
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard();
