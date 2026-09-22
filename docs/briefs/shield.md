@@ -40,7 +40,17 @@ that visibly covers more of the body will be expected to cover more in the fight
 **Recommendation: (i) for beta.** (ii) needs Combat's balance work, and the shield does not block at all yet — its rules are queued behind
 the four wieldable weapons. Taking (i) now costs nothing later: moving from (i) to (ii) is a data change on three shapes, not a re-author.
 
-**This is flagged rather than decided here**, because "rank buys defence" is a game-design decision and it is Combat's and Dom's to make.
+**Deferred to Season 2 with damage, defence and stats (Dom, 2026-09-22)** — and that is the right place for it, because the shape question
+*is* the stats question: extra shapes only earn their cost once defence is a number, and before that a tower that guards like a buckler is
+a promise the fight does not keep.
+
+**The one thing that is not free to defer, and is therefore settled now:** the tier→shape mapping stays **data**, not geometry baked per
+rank. Adding the kite and the tower in Season 2 is then a table edit plus two meshes, never a re-author of what beta ships.
+
+**And one trap to carry into that design rather than discover in it:** the moment defence becomes a stat, the grade ladder stops being
+cosmetic *everywhere*, not only on shields — every tier becomes a power ladder unless "what it looks like" and "what it does" are
+deliberately kept as separate fields. Note also that loot is documented today as **visual cosmetics only, no stats**; shields with defence
+is the change that breaks that sentence, so Season 2 should expect to rewrite it on purpose rather than quietly.
 
 ## The Shieldmaiden
 Lead's ruling, taken as given: **one asset — a material variant and a size, not a second mesh.** Her brief has no owner yet, so nobody can
