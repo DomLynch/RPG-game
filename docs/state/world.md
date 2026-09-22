@@ -2,6 +2,68 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — presentation / world, 2026-09-22 (trunk cb4e0ef)
+
+### Now
+Nothing in flight. Brief 13 (the six lorarii) is merged; Deploy is publishing cb4e0ef.
+
+### Done today
+- **Brief 13 — six lorarii on the walkway** (PRs #430 capsules, #435 model → reverted #442, #450 re-land). `src/lorarii.ts`:
+  six guards on the ring wall at r 12.1, y = `LAYOUT.wall.top` 2.6, outside `CAMERA_CLAMP` 11.5, so never on the sand and never
+  in the fight camera's clear zone. Posts at each sixth's centre offset half a sixth (none on the gate axis); each paces
+  ±16° of his post and turns to watch the nearest fighter. `lorariusAngle(i, tick)` is pure in the SIM TICK so Combat can
+  source the whip's shove direction from the same guard and a replay places him identically. Bodies are Multi Chars'
+  `src/assets/guard.glb` (#428): SKINNED, so six `SkeletonUtils` clones with a mixer each, never one `InstancedMesh`; built one
+  per frame. Capsules remain the fallback; `?guards=<n>` caps the count. Whip timing comes from the event — the lead between
+  `WhipRaised` and `Whipped` is 60 ticks before the first lash and 30 before repeats (`RULES.wall.loiter`), so the hold is
+  `lead − raise` and Raise plays at `clip/lead` (clamp 0.4–2.5). The jeer reads `duel.fighters[i].loiter > 0` — no new event,
+  and Audio reads the same field. Seam: `arena.update`'s optional `SimView` ({ tick, fighters }), one line in `scene.ts:614`.
+- Versus card: loading line matched to the caption (15px Arial, 3px tracking, #e9ddc5, full opacity) with three dots pulsing in
+  turn (1.6 s, 25 → 100 → 25 %, stilled under prefers-reduced-motion); stills re-rendered 30 % wider (`--zoom` on
+  `scripts/versus-cards.mjs`, fov ×1.3). PRs #400, #408.
+- Death screen: Share is a 44 px link-styled button above Next, right-aligned with it; the status takes the link's place for
+  2 s and only for NAMED confirmations — an error must persist, and "Couldn't make a link, try again." is exactly 32
+  characters, so a length rule would have cleared it. PR #411.
+- End-of-fight camera: a touch anywhere during the arena-cam tour hands the camera back, gated on the tour actually running.
+  PR #394.
+- Thumb cluster look (owner's "D3"): grey glass fill `#a39f9722`, hairline `#c9c4b8a6`, no inset ring, ticks .55, centre ring 0
+  at rest but still lit to .95 for Stab held / straight Guard; stick ring and knob softened. PR #420.
+- Release row 33 (`endgame-hud-check`) made deterministic: it sampled during the 250 ms fade and skipped anything at opacity 0,
+  so it had been passing by accident. It now waits for the fade, then asserts the TOP BAND never covers the body and the
+  cluster buttons stay inside `#actions`. PR #424.
+
+### Open
+- Combat's `WhipRaised` is on trunk (#441) but this lane has not seen a real raise-then-lash in a live fight: the raise path is
+  exercised by `tests/lorarii.test.ts`, not by the sim. First thing to watch on the next fight capture.
+- The owner's bar for the guards is unverified by eye: six on the wall from the fighter's camera on an iPhone, raise visible
+  before the lash. The numbers pass; nobody has looked at it on the phone yet.
+- `Turn` is authored but never played (see Gotchas); if a patrol reversal ever wants it, the yaw-lerp has to go first.
+
+### Gotchas (2026-09-22 — each one cost real time)
+- **The boot fetch budget is a product rule, not a harness quirk.** Anything fetched before first paint costs EVERY cold load,
+  phones included. `guard.glb` on the boot path took down deploy #105 (DEPLOY_EXIT=1, nine rows, no flakes). Load after first
+  paint — and not inside a fight either: deferring it there stalled the main thread mid-exchange and
+  `quiet-one-browser-check` timed out waiting for the canvas to go stable. A hitch a harness can see is a hitch a player feels.
+- **A frame-time that never fetched the asset measured the capsules.** My first two phone runs looked fine and meant nothing:
+  `guard.glb` was never requested. Check `performance.getEntriesByType('resource')` for the asset in the SAME run before
+  trusting any perf number.
+- **`scripts/finisher-preview.mjs` counts an actor as "a top-level scene child with a pelvis bone".** The lorarii are built on
+  the hero skeleton and live in the arena group, so THE ARENA GROUP became a third actor, `framing` came back undefined, and
+  eight rows failed reading `.side` off undefined — for a reason with nothing to do with fetching. The arena group is now
+  excluded by name, and a genuine third FIGHTER still fails. Nobody would have guessed this from the symptom.
+- **Rebase before concluding a fix didn't work.** Two re-land attempts "failed" the blood gate on a stale base; the same code
+  passed on trunk c7d942a.
+- **`Turn` is a 180° about-face with a `root.quaternion` track INSIDE guard.glb**, one level under the node this lane
+  positions — playing it composes with the outer yaw and spins the guard 360°. The world lane never plays it
+  (`docs/state/character.md`, #438, records this).
+- **Keep `src/lorarii.ts` free of Vite-only syntax.** `?url` imports and `import.meta.glob` are not resolvable under node, and a
+  glob in `arena.ts` broke `tests/arena.test.ts`. The URL is handed in instead.
+- **`scripts/roster-browser-check.mjs` means fighter rigs.** Arena GLBs were always excluded (props); `guard.glb` is now named
+  in its `ARENA_GLB` list. Size is governed by check-budget's own `guard` row: 231,620 B packed gzip (504 KB is the unpacked
+  file — the number that got quoted wrongly during the incident).
+- Measured off guard.glb and not to be re-derived: Pace **0.963 m/s at timeScale 1** (walk them slower and the feet skate),
+  Raise 0.50 s, Lash 0.60 s, no `stride` userData, no finger or toe tracks.
+
 ## Wound-site mark removed — presentation lane, 2026-09-21 (PR #305, merge d379696)
 Owner, from a phone screenshot of the Goblin: the flesh-hit wound mark (a dark mark with three drips for the sim's four-second
 wound window) floated in the air behind him. Root cause: the mark was drawn at a fixed human torso height (1.15 m) while the
