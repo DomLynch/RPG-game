@@ -1,3 +1,31 @@
+## 2026-09-22 — Viewer page: PLAY NOW as a proper primary, the stale-link line out of the header band (lead's brief, the #426/#427 follow-up)
+
+The follow-up owed once #426 was live. Two findings from a static preview of the viewer state (index.html + src/style.css, no sim)
+at 390×844 and 1280×800, both evidence rather than taste. (1) PLAY NOW wore the same dark glass as Rematch, so on a page where
+every combat control is asleep the only live button read as the deadest one on the screen — at 1280×800 it sat between "Camera
+locked" and "Hold to run" in the same fill. `src/hud.ts` now sets `data-play` ('1' while `view.replay || view.stalled`, '0'
+otherwise — a VALUE toggle, not `removeAttribute`, which the VM harness's fake element does not have; gotcha (c) below), and
+`#reset-button[data-play='1']` takes the kill screen's primary: the Take button's sand `#b7a276`, `#e9d9b3` rim,
+`inset 0 0 0 3px #f0e3c93d` ring, ink `#1b1916`, 700/15px tracked. In the thumb cluster it takes the cluster's full 184 px and a
+64 px box at top 64 — bottom edge 128, still clear of the Take / Leave it row at top 137. Rematch and "Next: …" are untouched.
+(2) The stale-link lines ("This fight cannot be played here", "Recorded on an older build") are the page's own message, not a
+status about a fight that is playing, and the replay banner's header slot ran them straight THROUGH the centred Sound on button
+at 1280×800 and through the warden's meters at 390×844 — a collision, not a preference. `banner(text, true)` marks the two
+stalled sites (src/main.ts, the decode catch and the ran-out-of-record break); `.replay-banner[data-stale='1']` drops to the slot
+just above PLAY NOW ("one small line, PLAY NOW under it") in the autopsy's serif instead of the banner's 3 px tracked caps.
+"Loading the fight…", "Replay", "Replay over · …" and the daily lines keep the header band exactly as they were. Evidence on the
+head: phone PLAY NOW 190,670 184×64 sand `rgb(183,162,118)` on ink `rgb(27,25,22)`, the line 16,626 358×20 Georgia 15px, 24 px
+above the button; desktop PLAY NOW 990,613 144×52 in the same sand, the line 460,606 360×20, clear of the header and of the
+instructions footer; `scrollWidth` 390 / 1280; with the flags off both measure as before (reset 190,681 176×56 dark glass,
+banner y 56 uppercase 3 px tracked). `npm run quality:ci` EXIT=0 — 506 tests, 504 pass, 0 fail, 2 skipped, 0 vulnerabilities,
+Budget PASS (dist gz 24,678,687 of 32,000,000); `node scripts/endgame-hud-check.mjs` passed:true, overlaps [], floating []
+(the kill screen is unchanged — `data-play` is '0' there). New assertions live inside the existing kill-link tests in
+tests/graphics.test.ts: `data-play` '1' on a finished replay and on a refused link, '0' on a plain Rematch; `data-stale` '1' on
+both stalled lines, '0' for "Replay over · …" and once PLAY NOW clears the line. Remaining validation: the lead's merge gate
+(quality + base + both browser jobs green on the head); no live browser check from this lane. PR #458, which also carries the
+handover entry below — #444 was cut before #446's `scripts/release-rows-for.mjs` and was red on the plan job for that alone, so
+its entry was folded in here and #444 closed rather than rebased separately (lead's call, 2026-09-22).
+
 ## 2026-09-22 — Web lane handover (session close; live a2a901b)
 
 **Now.** Nothing in flight. All web-lane work of 2026-09-22 is merged and live; the branches web/sand-buttons, web/doll-layers, web/loot-panel and web/loot-panel-actions are spent.
