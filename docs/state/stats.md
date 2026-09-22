@@ -1,0 +1,81 @@
+# Stats, damage and defence — lane state
+
+Lane opened 2026-09-22 on Dom's word ("yes for stats, if we're going to do it, let's do it properly"), brief 19
+(`docs/briefs/gear-stats.md` on `origin/briefs/gear-stats`, PR #486, not yet merged). Worktree `~/Developer/frankendom-stats`,
+reports to Lead; Strategy reviews every PR body before Lead merges.
+
+## Now
+
+Deliverable 2 — the loadout in the fight record. `FightRecord` gains both sides' four multipliers, `RECORD_VERSION` bumps,
+pack/unpack round-trips, the replay verifier replays with them, daily and kill-link fixtures are re-recorded, and a naked
+loadout replays **byte-identical** to today's records behind a flag. `src/gear-stats.ts`'s `NAKED` is the identity that claim
+is proved against.
+
+Before starting it, rebase `stats/lane` onto a trunk where `src/arena.ts` compiles (see Gotchas).
+
+## Done today
+
+**2026-09-22 — Deliverable 1, the tier stat table (`src/gear-stats.ts`, `tests/gear-stats.test.ts`). Data and tests only; no sim
+change, and `src/loot.ts`'s "visual cosmetics only, no stats" header still stands.**
+
+One number per tier per slot, as the brief asks. The number is a slot's **coverage weight** (Helmet 20, Body 30, Greaves 18,
+Arms 12, Boots 12, Gloves 8, Crest 0 — summing to 100), scaled linearly by the tier's place on the ladder (`levelOf`, 1..10).
+A full set at Origin is therefore exactly 1000 points, and the four multipliers are integer divisions of that total:
+
+| stat | from | formula | naked | full Origin |
+|---|---|---|---|---|
+| Attack | the one weapon slot | `(100000 + 15·p) / 100000` | 1 | **1.15** |
+| Defence | the six armour slots | `(100000 − 20·p) / 100000` | 1 | **0.80** |
+| Poise | the same six | `(100000 − 25·p) / 100000` | 1 | **0.75** |
+| Stamina | the same six | `(100000 + 25·p) / 1000` | 100 | **125** |
+
+Because every cap is a whole set rather than a fitted constant, the Origin row is *exactly* on the caps and the naked kit is
+*exactly* the identity — both asserted with strict equality, not a tolerance.
+
+Numbers re-derived here rather than inherited: the six slot weights and the level/10 tier ramp are this lane's, invented for
+this table and defensible only as coverage judgement. The four caps, the ten tiers and the six armour slots came from brief 19
+and Brief 14 and were each checked against the code — `TIERS = career.ts TITLES` (`src/grades.ts:14`), ten rungs with Origin at
+level 10, and `ARMOUR_SLOTS` at `src/loot.ts:10` carrying **seven** entries, Crest included.
+
+14 tests, all passing; full suite 480 pass / 0 fail. Mutation-proved: Helmet 20→21 fails 9 of them, Crest 0→1 fails 10.
+
+## Open
+
+- **A piece has no tier yet, so nothing can resolve a real player's kit.** `LootId` is `<opponent>.<slot>` with no tier in it,
+  and `GradeRecord` (`src/grades.ts:74`) is declared but `OPPONENTS` carries no `grade` field on becec83 — `grep -n
+  "grade\|tier" src/roster.ts` returns nothing. Deliverable 1's API therefore takes `(tier, slot)` pairs directly. **Lead owns
+  landing the grade record onto OPPONENTS**; until then this table is data with no caller, which is what deliverable 1 should be.
+- **Decision on the record (lead, 2026-09-22): Defence and Poise share one armour total for beta**, so no piece is heavy but
+  soft. At a ≤25% ceiling the difference is under the noise floor and a second column would double the tuning surface. The
+  hedge is that all three armour multipliers are derived inside a single private `multipliers()` function, so a split later is
+  a second weight column and three changed lines, not a rewrite.
+- **Design claim, not arithmetic (also lead's, and it belongs in a review not a test suite):** `levelOf` is 1-based, so a full
+  Recruit set is p = 0.1 and rags are *not* identical to bare skin (Defence 0.98, Poise 0.975, Stamina 102.5). If that is ever
+  wrong it is `tests/gear-stats.test.ts` that has to change.
+- Deliverable 5 (the seam in `src/duel.ts`, opponents wearing their tier, the ladder retune) is **blocked by Lead** behind
+  Combat's queue: knife approach fix, Executioner profile, Nightborn retune, shield rule. Stats never jumps the four weapons.
+- Deliverable 3 (server-authoritative awards) needs Backend's review and Deploy's apply; loot stays cosmetic in play until it lands.
+- Format constraint received from Web via Strategy for deliverable 4: the loot card has five 56 px tiles in one row at 375 px
+  with no room inside a tile, so the take's delta gets its own line as short signed values per stat (`+3 DEF  +2 POI`), not a
+  sentence.
+
+## Gotchas
+
+- **Trunk becec83 does not compile, and the red is not yours.** `src/arena.ts:446` reads `get guards() { return
+  lorarii.standing; }` after #467 deleted the lorarii, so `npx tsc --noEmit`, `npm run build` and `npm run quality:stop` all
+  fail with `TS2304: Cannot find name 'lorarii'`. Four lanes had already re-diagnosed it before this lane opened. World's #485
+  is the one-line fix. Do not spend a minute on it; do not trust a local gate until it lands.
+  Receipt that it is the *only* break: both `npx tsc --noEmit` and `npm run typecheck:tests` return that single error and
+  nothing else, and with the line locally stubbed to `get guards() { return { built: 0, of: 0 }; }` — a throwaway probe,
+  reverted, `git status --porcelain src/arena.ts` empty afterwards — both come back completely clean.
+- **Never write a multiplier as the obvious float.** `1 − 0.25 · 280/1000` is `0.9299999999999999`; `(100000 − 25·280)/100000`
+  is `0.93`. This is not pedantry borrowed from a doc — the first version of the mixed-kit test was written the naive way and
+  failed against the module, which is why `tests/gear-stats.test.ts` now pins both forms. A paperdoll rounds it away; a
+  1500-tick fight does not, and that is what the arm64/x64 digest rule exists to stop.
+- `src/gear-stats.ts` is deliberately **not** in `eslint.config.js`'s `SIM` list and never needs to be. The sim takes a
+  `Loadout` — the four resolved numbers — and never sees a tier, a slot or a table, which keeps `src/duel.ts` free of any
+  import of `loot.ts` or `grades.ts` that `tests/sim-boundary.test.ts` would refuse.
+- A zero-weight slot and an omitted slot behave identically today and diverge the moment the slot carries something: the
+  omission silently under-weights every set while the total quietly stops being 100. Hence `Crest: 0` as an explicit row, with
+  a test that says so.
+- The worktree ships without `node_modules`; `npm ci` first or every gate reports the tools as missing rather than as failing.
