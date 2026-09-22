@@ -100,8 +100,16 @@ def render(fig, out, pad=8):
     Image.fromarray(canvas, "L").save(out)
 
 
-def sheet(figs, out, height=900, gap=40, label_h=46):
-    """Every figure on one baseline, scaled to a common height."""
+def sheet(figs, out, height=None, gap=40, label_h=46):
+    """Every figure on one baseline, scaled to a common height.
+
+    NEVER upscales (AGENTS.md, #499): normalising a short mask up to the
+    comparison height invents edge detail the render never had, on one side of
+    the pair only, which is a bias and not noise. So the common height is the
+    SHORTEST figure's own height and every other figure comes down to meet it.
+    """
+    native = min(crop(fig).shape[0] for _, fig in figs)
+    height = native if height is None else min(height, native)
     tiles = []
     for name, fig in figs:
         sub = crop(fig)
