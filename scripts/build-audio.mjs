@@ -15,7 +15,7 @@ const RATE = 48000, GAP = .04, LEAD = .02;
 // every weapon, guard and shield impact.
 const PITCH = .5;
 // Owner 2026-09-20, after playing the −30 % mix: the end-of-match cheer is still high — the crowd recordings go another 30 %.
-const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, shield: 1, slashkill: 1, swordhit: 1 };   // shield: the owner chose the raw recording, not the deeper one
+const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, swordhit: 1 };   // the recordings play at their own pitch; the synth layers carry PITCH
 // Length-preserving pitch shift: asetrate lowers pitch and slows; atempo (≤ 2 per stage, chained) restores the length.
 const pitchFilter = pitch => { const tempo = 1 / pitch, stages = Math.ceil(Math.log(tempo) / Math.log(2)); return `asetrate=${RATE * pitch},aresample=${RATE},${Array.from({ length: stages }, () => `atempo=${tempo ** (1 / stages)}`).join(',')}`; };
 const S = seconds => Math.round(seconds * RATE);
@@ -25,9 +25,8 @@ const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(se
 const recordings = {}, sourceList = JSON.parse(await fs.readFile('src/assets/audio/SOURCES.json', 'utf8'));
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
 for (const [name, source] of Object.entries(sourceList)) {
-  // A source is either a public URL (cached under source-cache) or a local file with no stable public URL (the Jochi SFX shield
-  // block: licensed for use but not for redistribution, so it lives in the gitignored cache — SOURCES.json says how to rebuild it);
-  // both are hash-pinned.
+  // A source is either a public URL (cached under source-cache) or a local file with no stable public URL; both are hash-pinned.
+  // Since 2026-09-23 every shipped recording is CC0 with a public URL, so a clean checkout rebuilds the sprite with no local cache.
   const file = source.file ?? `artifacts/audio/source-cache/${name}.mp3`;
   let bytes = await fs.readFile(file).catch(() => null);
   if (!bytes && source.file) throw new Error(`${name}: committed source ${source.file} missing`);
@@ -147,8 +146,9 @@ const STEEL = .7;
 const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0 * STEEL), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
 // The four weapon-landing voicings (see hit_flesh). `heavy` = slower recording playback + more heft + longer body.
 const HITS = [
-  (r, heavy, heavyRate = .92) => {   // #6 recording: slash & kill (stated free use)
-    const n = S(heavy ? .62 : .5), take = recording('slashkill', .02, heavy ? .62 : .5, heavy ? heavyRate : vary(r, 1, .03));
+  (r, heavy, heavyRate = .92) => {   // CC0 recording: the same "Hit Impact Sword 3" a sixth lower — the deeper of the two takes.
+    // Was the SoundFX "Sword Slash & Beheading" clip, dropped 2026-09-23: its stated terms carry no redistribution grant.
+    const n = S(heavy ? .62 : .5), take = recording('swordhit', 0, heavy ? .62 : .5, (heavy ? heavyRate : vary(r, 1, .03)) * .86);
     return heavy ? mix(n, [take, 0, 1], [heft(n, 75, r, { t60: .35, drive: 5 }), .004, .45]) : take;
   },
   (r, heavy) => {   // #2 voiced: low thud, mid body, little above 300 Hz — a blunt landing
@@ -277,9 +277,19 @@ const RECIPES = {
     const tail = rumble(n, .3, r);
     return densify(mix(n, [click, 0, .5], [scrape, 0, .45], [ring, .002, .7], [beat, .002, .25], [zing, .001, .1], [body, .002, 1.2], [tone, .002, .5], [weight, .003, .45], [tail, .02, dbfs(-5)]), 2.4);
   },
+  // Parry, shield half: the same voicing block_shield uses, held longer and centred at the parry's measured ring. It replaces the
+  // Jochi SFX "Shield Block" recording (dropped 2026-09-23 — its terms forbid redistribution); the recording measured 882-1116 Hz
+  // centroid, 31-43 % above 300 Hz, -30 dB in .29-.32 s across its three takes, and this is voiced to that.
+  parry_shield(r) {
+    const n = S(.72), f = vary(r, 1, .06);
+    const click = mul(broad(n, r, abs(1400), abs(9000)), decay(n, .005));
+    const ring = dense(n, abs(1050 * f), 16, vary(r, .5, .1), r, { top: 4.8, roll: .88, grit: .3 });
+    const body = thud(n, r, { from: abs(3200 * f), to: abs(300 * f), fall: .07, t60: .16 });
+    const weight = heft(n, abs(92 * f), r, { t60: .3 });
+    return densify(mix(n, [click, 0, .45], [ring, .001, 1], [body, .002, .8], [weight, .003, .45], [rumble(n, .26, r), .02, dbfs(-8)]), 2.4);
+  },
   // Owner 2026-09-22: the armour-synth branch (the first 3 in the rendered guard-metal preview) removed — "remove them from the
-  // game." Parry: the Jochi SFX "Shield Block" recording (licensed for use, see SOURCES.json). block/block_perfect now split
-  // evenly between the steel ring and the shield clang.
+  // game." block/block_perfect split evenly between the steel ring and the shield clang.
   block(r, v) {
     return v >= 2 ? RECIPES.block_shield(r, false) : RECIPES.block_steel(r);
   },
@@ -287,7 +297,7 @@ const RECIPES = {
   block_perfect(r, v) {
     return v >= 2 ? RECIPES.block_shield(r, true) : RECIPES.block_perfect_steel(r);
   },
-  parry(r, v) { return v >= 3 ? RECIPES.parry_steel(r) : recording('shield', .75 * v, .72); },
+  parry(r, v) { return v >= 3 ? RECIPES.parry_steel(r) : RECIPES.parry_shield(r); },
   // Guard break: dull and wrong — close detuned low partials beating, a choked mid burst, a low thump, driven hard so it crunches.
   // Whip crack (Whipped: the lorarii/wall lash) — a real whip's supersonic tip, not a weapon: near-zero low end, a very fast
   // broadband burst that leans high (2–9 kHz), a thin descending sting as the leather uncoils, and a short dry tail (no ring,

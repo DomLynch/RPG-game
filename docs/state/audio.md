@@ -2,6 +2,38 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — 2026-09-23 (Brief 13 closed by the guards' removal; the two non-CC0 clips re-sourced)
+
+### Now
+`docs/SCOPE.md` (Strategy, branch `docs/scope-2026-09-23`, PR #492) is the current scope and wins over older briefs. It removes the
+lorarii guards for perf — "replacement is baked silhouettes + a whip streak" — so **Brief 13's whip split is closed for this lane**:
+`WhipRaised` / `Whipped` never reached trunk and the guards they belonged to are gone. `#361`'s single whip crack is what ships.
+The streak is World's; if it wants a cue, World gives Audio the trigger point and Strategy sends a one-line brief.
+
+### Done today
+- The licensing row is settled by Strategy's ruling (2026-09-23): "credit and accept" is not an option when the licence forbids
+  redistribution — **re-source**. Neither non-CC0 clip is in the build any more, and the sprite now rebuilds from public CC0 URLs
+  alone (both cache files were moved out of the tree before the rebuild, which then succeeded — that is the receipt).
+  - Parry (was the Jochi SFX "Shield Block" recording, variants 0-2): now `RECIPES.parry_shield`, the same original voicing
+    `block_shield` already shipped, held to .72 s and centred on the measured ring of the clip it replaces.
+  - The first of the five weapon-landing voicings (was the SoundFX "Sword Slash & Beheading"): now the CC0 "Hit Impact Sword 3"
+    (freesound 547042, the owner's own 2026-09-22 pick) at rate .86 — a sixth below the fifth voicing, which plays it at rate 1.
+  - `shield` and `slashkill` are deleted from `src/assets/audio/SOURCES.json`; `src/assets/README.md` records what went and why.
+
+### Open
+- The owner has not heard either replacement. He picked both departing clips by ear, so the voicings are auditionable, not final:
+  a different CC0 pick is a one-line change and the measured candidate table is in the PR.
+- `#341` (fatal-crowd check on the harness clock) and Auditer's grade-C findings #4-#8 stay parked, per Strategy.
+
+### Gotchas
+- **Only two cue slots ever used those clips**, not the six cues the older note implies: `parry` variants 0-2 and `HITS[0]`.
+  `block` / `block_perfect` are `block_shield`, an *original* voicing measured from the Jochi clip — measurements are not the
+  recording, so the guards never carried the risk. Check what a slot actually plays before sizing a licensing swap.
+- **No CC0 shield clang measured anywhere near the one being replaced.** Nine CC0 candidates auditioned: every one sat at a
+  4.0-6.9 kHz centroid with ~100 % of its energy above 300 Hz, against the incumbent's 882-1116 Hz and 31-43 %. The thin, bright
+  clangs on Freesound are not the same object as a struck shield with a body. That is why the parry went to the existing voicing
+  rather than to a new recording.
+
 ## Lane state — 2026-09-22 (live a2a901b and after; owner's mix pass, jeer beds, Brief 13)
 
 ### Now

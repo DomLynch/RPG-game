@@ -296,15 +296,15 @@ not new content; SNR is printed by `audio-preview.mjs` but not yet asserted (Aud
   generator, no licence.
 - Five CC0 recordings from Freesound for the fatal pass (death voice, flesh cut/stab/tear, bone crack, crowd gasp/cheer),
   hash-pinned in `src/assets/audio/SOURCES.json` and credited under "Fatal contact and crowd — 2026-09-19" below.
-- Two clips the owner picked from YouTube references by ear (2026-09-21), neither CC0: **"Shield Block"** by Jochi SFX
-  (parry, block, block_perfect — the guard rotation's steel-shield voicing) under the video description's stated terms
-  ("free in any … creative work … may not sell or re-distribute … nor claim as your own"; no explicit redistribution
-  grant for a game build), and **"Sword Slash & Beheading"** by the YouTube channel "SoundFX" (hit_flesh, hit_heavy,
-  bone_crack — now the most-played cue in the game after the 2026-09-21 hit-set cuts) under a re-upload's stated
-  "royalty free … credit appreciated but not required," weaker provenance than a CC licence per `SOURCES.json`'s own
-  note. Both are hash-pinned in `SOURCES.json` with the exact rebuild recipe; raw source stays out of the tree
-  (gitignored `artifacts/audio/source-cache`). Neither is credited anywhere the shipped game exposes credits — that
-  gap plus the redistribution-terms question is Dom's decision (Auditer finding #3, open as of 2026-09-22).
+- No non-CC0 recording ships. Until 2026-09-23 two clips the owner picked from YouTube references by ear (2026-09-21) did:
+  "Shield Block" by Jochi SFX (the parry's first three variants) under terms that say "may not sell or re-distribute", and
+  "Sword Slash & Beheading" by the YouTube channel "SoundFX" (the first of the five weapon-landing voicings) under a re-upload's
+  "royalty free ... credit appreciated but not required". A game build redistributes the sound, so neither could stay: the parry's
+  shield half is now `RECIPES.parry_shield`, the same original voicing `block_shield` already used, measured from the clip it
+  replaces (882-1116 Hz centroid, 31-43 % above 300 Hz, -30 dB in .29-.32 s); the weapon-landing voicing now plays the CC0
+  "Hit Impact Sword 3" a sixth lower (rate .86) — the same recording the fifth voicing uses at rate 1, measured within 6 % of the
+  clip it replaces on centroid (2280 vs 2146 Hz), band split (68.8 vs 64.2 % above 300 Hz) and decay (.43 vs .39 s). Both entries
+  are gone from `SOURCES.json`; the sprite rebuilds from public CC0 URLs alone, with no local cache file.
 Downloads are build inputs, never runtime requests.
 The separate optional arena bank (`src/assets/arena-audio/arena.m4a|ogg`, `scripts/build-arena-audio.mjs`, crowd bed,
 reactions, jeers, chants, close grunts, opening bell) is documented under "Arena life" in PROJECT_STATE.md; the bell is
