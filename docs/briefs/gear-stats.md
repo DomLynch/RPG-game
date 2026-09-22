@@ -104,3 +104,17 @@ A docs PR, no code, to Lead with Strategy copied. Dom decides on his phone; the 
    passive RES with an outgoing or stamina penalty. Say which keeps "skill decides" and which makes the shield a must-pick.
 
 Format: tables, then one paragraph per decision with the number and the reason.
+
+## Addendum C (2026-09-23 00:45) — Dom's decisions on the proposal (PR #491)
+1. **One Attack multiplier for every weapon**, scaled by tier: nothing at Recruit, one step per tier, the cap at Origin. Dom's intent
+   "better tiers give more, by Origin the most" is this ramp. Grip is not a balance axis (`src/moves.ts` declares the grip field data-only
+   and the live tables do not sort by it). Displayed as whole points: an Origin weapon reads `+15 ATK`; a full Origin armour set reads
+   `20 RES`, each piece its slot's share. Dom floated `+10 / +10`; Strategy keeps 15 / 20 (the brackets are built on them, and 10 is
+   barely felt on a 150-health fight); changing either is one number in `CAPS`.
+2. **Speed is fixed per weapon.** No speed stat, no tier touches any timing.
+3. **Shield = option (b), guard profile only.** Two sides covered, stops heavies, cheaper hold, posture drains faster while held, no
+   flat incoming reduction, no outgoing penalty. This is the shield brief as written (2026-09-22 18:40); Combat builds that and nothing
+   else. Dom's earlier "−20 % incoming" is withdrawn: one item at Recruit would equal the whole Origin armour cap and stack to 36 %.
+
+Settled findings from #491, no action: the cleaver's left light is the back of the blade (blunt, half damage) by design; RES multiplies
+all damage taken including block chip, so armour is worth more against heavy hitters, which is armour doing its job.
