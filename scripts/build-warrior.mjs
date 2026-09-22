@@ -141,6 +141,7 @@ const slotOf = new Map();
 // has to be kept in step. Old-style per-opponent draws are untouched, so the runtime can resolve both ways while the loader catches up.
 const SHARED_PREFIX = '~';
 const lootPieces = new Map();   // `<opponent>.<slot>` → `~<family>.<slot>`
+let shieldStow = null;   // the shield's back transform, written onto its draws at export (the loader picks off-hand vs back by `grip`)
 let lootOf = '', lootSlot = ''; const lootLayer = new Map();   // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
 function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = lootSlot) {
   if (g.index) g = g.toNonIndexed();
@@ -422,6 +423,34 @@ if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Gloves`)) {
   }
   lootOf = ''; lootSlot = '';
 }
+// The shield (shield spec, 2026-09-22): ONE small round for beta — the gladiator-correct shape, the Shieldmaiden's identity shape, and
+// the cheapest thing to put in the slot a player sees least. Three shapes (round, kite, tower) are the Season-2 expansion; the tier→shape
+// mapping stays data, so adding them is a table edit and two meshes rather than a re-author of this one.
+//
+// A dished board on a lathe profile: leather face, iron rim, bronze boss — leather and trim so a grade has both classes to repaint.
+// Strapped to the forearm, so it is rigid to `hand_l` and sits a little up the arm toward the elbow, its face out along +Z (the rig's
+// front in the T rest). The stow transform — flat on the back — travels as DATA on the piece, not as a second draw: the loader picks
+// off-hand versus back by reading Weapons' `grip`, and until that lands nothing must render twice.
+if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Shield`)) {
+  const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  const hand = at('hand_l'), elbow = at('lowerarm_l'), along = hand.clone().sub(elbow).normalize();
+  const centre = hand.clone().addScaledVector(along, -.06);   // the grip is at the fist; the boss sits a little up the forearm
+  const RADIUS = .28, DISH = .045;
+  lootOf = SHARED_PREFIX + 'kit'; lootSlot = 'Shield';
+  // Lathe about Y, then laid face-out: the profile runs from the boss lip to the rim, dished away from the arm.
+  const face = new T.LatheGeometry([new T.Vector2(.052, DISH), new T.Vector2(.14, DISH * .62), new T.Vector2(.235, DISH * .24), new T.Vector2(RADIUS, 0)], 28);
+  const lie = g => g.rotateX(-Math.PI / 2).translate(centre.x, centre.y, centre.z);   // lathe axis Y → the shield's face normal is +Z
+  add(lie(face), leather, 'hand_l');
+  add(lie(new T.TorusGeometry(RADIUS - .012, .016, 6, 30)), trim, 'hand_l');                      // the iron rim, rolled over the boards
+  add(lie(new T.SphereGeometry(.055, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2)), trim, 'hand_l');     // the boss over the hand
+  add(lie(new T.CylinderGeometry(.056, .056, .014, 14)), leather, 'hand_l');                       // the boss collar
+  // Flat on the back, hung off the spine: centred between the shoulder blades, its face out along −Z, tilted so it does not clip the neck.
+  const back = at('spine_03');
+  shieldStow = { bone: 'spine_03', position: [+(back.x).toFixed(4), +(back.y - .06).toFixed(4), +(back.z - .10).toFixed(4)],
+                 rotation: [+(Math.PI).toFixed(4), 0, +(.18).toFixed(4)] };
+  console.log(`  shield: centre ${centre.toArray().map(v => v.toFixed(3))}, radius ${RADIUS}, stow at spine_03 ${shieldStow.position}`);
+  lootOf = ''; lootSlot = '';
+}
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
@@ -573,6 +602,7 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
     const [opponent, slot] = mesh.userData.slot.split(':');
     if (!opponent || !slot) throw new Error(`loot draw without opponent/slot: ${mesh.userData.slot}`);
     mesh.name = `${opponent}.${slot}.${mesh.material.name}`; mesh.userData.opponent = opponent; mesh.userData.slot = slot; mesh.userData.layer = lootLayer.get(`${opponent}:${slot}`);
+    if (slot === 'Shield' && shieldStow) mesh.userData.stow = shieldStow;   // data, not a second draw: nothing renders twice before the loader reads `grip`
   }
   for (const name of ['SwordSheathed', 'SwordDrawn']) base.scene.getObjectByName(name)?.removeFromParent();
   base.scene.traverse(o => { if (o.isMesh && !o.isSkinnedMesh) o.visible = false; });
