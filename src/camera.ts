@@ -114,9 +114,18 @@ export const prefersStillCamera = (): boolean =>
 // arena stops it for that finish (the player wants to look for themselves). On the player's own death it runs lower. A draw has no fallen
 // to circle; reduced motion keeps the frame still.
 export const TOUR = { delay: 5, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3 } as const;   // seconds and metres
+// When the end-of-fight text may appear (owner 2026-09-22: nothing over the body until the finisher camera has settled). The
+// finishers move the camera on different clocks (the push-in ends at 1.3 s / 0.75; the side-view reveals end anywhere from
+// ~1.4 s to the full finisher clock ~3.2 s; a plain death or reduced motion moves it not at all), and the position trails its
+// target by ~0.125 s, so `settled` measures the camera itself: it latches once the finish is SETTLE.min seconds old and the
+// camera has moved slower than SETTLE.speed for SETTLE.still seconds, and stays latched until the finish clears — the arena cam
+// moving again at TOUR.delay does not unsettle it. The HUD reads `settled`, `touring` and `finishAge`.
+export const SETTLE = { min: 1.5, still: 0.4, speed: 0.02 } as const;   // seconds, seconds, metres per second
 export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefersStillCamera()) {
   let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
   let finishAge = 0, tourStopped = false, tourAngle: number | null = null;   // the tour's clock, the stop-on-touch, and the orbit angle it started from
+  let stillFor = 0, settled = false;   // how long the drawn camera has been (nearly) motionless this finish, and the settle latch
+  const lastDrawn = new THREE.Vector3();
   const desired = new THREE.Vector3(),
     look = new THREE.Vector3(),
     aim = new THREE.Vector3(0, 1, 0);
@@ -156,6 +165,13 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     },
     get touring() {
       return tourAngle !== null;
+    },
+    // Seconds since the finish began (0 outside a finish) and whether the finisher camera has settled (see SETTLE).
+    get finishAge() {
+      return finishAge;
+    },
+    get settled() {
+      return settled;
     },
     // A contact's kick (camera-kick.ts's table) along `heading`: a landed blow carries its own heading; a block or parry takes the attacker's.
     shove(heading: number, shove: Shove) {
@@ -249,7 +265,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         }
       }
       // The arena cam, on top of whatever the finisher's own moves settled on.
-      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; }
+      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; stillFor = 0; settled = false; }
       if (finish && !finish.draw && !still && !tourStopped && finishAge > TOUR.delay) {
         const t = finishAge - TOUR.delay, fallen = finish.victim === 1 ? enemy : state, low = finish.victim === 0;
         const focusX = finish.head ? (fallen.x + finish.head.x) / 2 : fallen.x, focusZ = finish.head ? (fallen.z + finish.head.z) / 2 : fallen.z;
@@ -267,6 +283,12 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
       camera.position.lerp(desired, started ? blend : 1);
       aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim);
+      // The settle latch: measured on the smoothed position (the kick is added after this and taken off before the next settle).
+      if (finish && started && dt > 0) {
+        stillFor = camera.position.distanceTo(lastDrawn) / dt < SETTLE.speed ? stillFor + dt : 0;
+        if (finishAge >= SETTLE.min && stillFor >= SETTLE.still) settled = true;
+      }
+      lastDrawn.copy(camera.position);
       started = true;
       // The kick is applied after the look-at (so the frame itself shifts) and stays on the camera until the next frame takes it off
       // before settling — a shove left inside the lerped position would compound.
