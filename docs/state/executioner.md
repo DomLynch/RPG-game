@@ -5,9 +5,9 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-22
 
-Nothing building. **PR #398 is open and handed over** (Lead reviews, deploy session ships): the Executioner surface gets
-`KHR_materials_specular 0.4` and the creature donors get their Run Through hold keys back. Pick that up first — if it has
-merged, verify the served GLB and close it out; if Lead asked for changes, the branch is `char/executioner-polish`.
+Nothing building and nothing open from this lane. **#398 merged (`01b6642`) and is live** — verified on the served file,
+not on the merge: `assets/executioner-9s1ZxRnx.glb`, HTTP 200, 4,414,104 B, carrying
+`KHR_materials_specular { specularFactor: 0.4 }`, 38 clips, generator `54999ae9`.
 
 **Brief 15 — THE NORD** was written on Lead's 22:00 assignment and sent: `artifacts/character/BRIEF-nord.md` (ignored dir).
 Brief only, nothing built, and **the owner has not confirmed the lane expansion** — this session was scoped to the
@@ -33,11 +33,13 @@ the hero skeleton and clips, it never edits them.
 - **#293 the scythe's blade** (live `5debe58`). Owner, 09-21: "still turns red". The haft was fixed; the crescent was not —
   a broad metallic blade took the 55 % lerp toward `#7a1410` as a *red mirror*. Two-handed weapons now take the dark tone
   `#2a1516` with `metalness ≤ .3 / roughness ≥ .7` (a wet dark film); the sword path is unchanged. In `src/gore.ts`.
-- **#398 surface specular + donor hold keys** (open). See Now.
+- **#398 surface specular + donor hold keys** (live, merge `01b6642`, release `607126a`). Skin-strength specular on the
+  Executioner surface kills the wet-plastic sheen a normal-map-less reconstruction takes; `sync-hold-keys.mjs` puts
+  `cb1ee6a`'s Run Through hold channels into the `executioner-v5` and `veteran-v1` donors, so a creature rebuild stops
+  silently regressing the raised-palm hold. Dwarf and Veteran rebuilt in the same PR for the generator hash.
 
 ## Open
 
-- **#398** — Lead's review, then the deploy session's queue. Nothing else from this lane is in flight.
 - **The Nord** — blocked on the owner confirming the lane expansion, then on an owner-approved reference image, Multi
   Chars' kit schema, and Combat's shield slice. All four are in the brief.
 - **The mask reads dark under the hood in game.** A relit source was tried and **rejected**: the mask is recessed, so
