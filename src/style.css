@@ -1481,17 +1481,14 @@ dialog .scorecard-table th, dialog .scorecard-table td { padding: 8px 4px; borde
 dialog .scorecard-table th { font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--jm); }
 dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 
-/* Profile tab (owner, 2026-09-20): the five stats (read-only in the beta), then the paperdoll and the inventory below. */
-.statgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.statgrid div { text-align: center; padding: 10px 2px; border: 1px solid var(--jl); border-radius: 12px; background: #fff9; }
-.statgrid b { display: block; font: 700 13px -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; color: var(--ja); letter-spacing: .02em; }
-.statgrid span { display: block; font: 700 20px/1.1 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; color: var(--jf); margin-top: 4px; font-variant-numeric: tabular-nums; }
-.statgrid small { display: block; font: 600 9px "Instrument Sans", Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #9a7a3a; margin-top: 4px; }
-/* Paperdoll (brief 5, owner 2026-09-21: a figure with the slots around it, Ultima-style, minimal). The figure is a flat silhouette
-   of the player model (public/game/img/doll.webp, 3 KB); three armour slots down each side, the two hands beneath. src/main.ts
-   fills <i> from profile.loot.equipped, adds .on to a worn slot and un-hides its Store button (data-unwear). */
+/* Profile tab (owner, 2026-09-22): the paperdoll only — the stats grid and the inventory row are out until the one-piece-at-a-time
+   loot rule lands; #loot-rack stays in the DOM (hidden) because the loader still writes its rows and tests read them. */
+/* Paperdoll (brief 5, owner 2026-09-21: a figure with the slots around it, Ultima-style, minimal; 2026-09-22: the real fighter,
+   not a silhouette). The figure is a lit front-on render of the player model (public/game/img/fighter.webp, 21 KB, portrait rig
+   in the design scratchpad); three armour slots down each side, the two hands beneath. src/main.ts fills <i> from
+   profile.loot.equipped, adds .on to a worn slot and un-hides its Store button (data-unwear). */
 .doll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 104px) minmax(0, 1fr); grid-template-rows: repeat(4, auto); gap: 6px; align-items: stretch; }
-.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; height: 100%; width: auto; max-height: 250px; margin-bottom: 4px; object-fit: contain; opacity: .82; filter: drop-shadow(0 1px 0 #fff8); }
+.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; height: 100%; width: auto; max-height: 320px; margin-bottom: 4px; object-fit: contain; filter: drop-shadow(0 6px 10px #0003); }
 .doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 72px; }   /* room for the 40 px Store button */
 .doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }
 .doll [data-slot='hands'], .doll [data-slot='legs'], .doll [data-slot='feet'], .doll [data-slot='off'] { grid-column: 3; }

@@ -29,6 +29,18 @@ slots 112 wide, inventory tiles 63×92, `scrollWidth` 375; choice row 148×40 at
 (y 514, with #328's CSS). Remaining: the lead wires `wearLoot`/`unwearLoot` and pads the inventory to five; the share/versus card
 view of the doll is brief 3's renderer, not in this PR.
 
+## Profile tab trim — owner direction from phone screenshots, 2026-09-22 (markup + CSS + one image)
+Dom: "remove stats for now", "remove the inventory line for now also, as we will change the game features a bit, so you can
+replace 1 item at a time only", "the black silhouette — put our real character there". Done: the Stats grid, its note and
+its CSS are gone; the Inventory heading and note are gone and `#loot-rack` stays in the DOM with `hidden` (the loader still
+writes its rows — src/main.ts — and tests/graphics.test.ts reads them), so the provenance captions inside it are hidden
+with it; the figure is now a lit front-on render of the player model (`public/game/img/fighter.webp`, 271×720, 21 KB, from
+the design scratchpad's portrait rig, Idle clip, az 0) at full opacity, max-height 320. Evidence: static preview at 390×844
+— figure 120×320, doll 354×390, the whole tab fits one screen, `scrollWidth` 390. Routed to the lead, not done here: the
+signed-in status line "Saved to your account as <name>." (src/account.ts:36/74) — Dom wants it gone as repetitive, but
+scripts/account-browser-check.mjs waits on that exact text four times, so copy and gate move together; and the one-piece-
+at-a-time loot rule that makes the hidden rack redundant.
+
 ## Brief 8 — three first-fight cues — web/design lane, 2026-09-21 (markup + CSS; the lead wires the triggers)
 Copy approved by the lead: "Block it." (the warden's first telegraphed cut, before contact), "Other side." (the first block on
 the wrong side that lets a hit land), "Now." (the first time the warden is open after a parry or a whiffed heavy). Each once,
