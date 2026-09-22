@@ -1,7 +1,8 @@
 // The kill screen's Take-one panel (Strategy brief, owner 2026-09-22: the drop prompt "appeared for about 2 seconds then disappeared...
 // we need a better selector/visual menu for what gear we can take off fallen opponents"). DOM only: the caller (src/main.ts, the
 // lead's loot rules) decides which pieces to offer and what a take or a decline does; this file draws the row of pieces in
-// #loot-panel, keeps the tap selection, and calls back. Nothing here auto-dismisses: the panel goes only through hide()
+// #loot-panel (tiles) and #loot-panel-actions (the Take / Leave it row, which lives in the bottom thumb row, not the top band), keeps the
+// tap selection, and calls back. Nothing here auto-dismisses: the panel goes only through hide()
 // (take, decline, Rematch, Next). Thumbnails come from scripts/loot-layers.mjs (public/game/img/loot/<id>.thumb.webp); a piece
 // without one (a weapon, until the equip files render) shows its name alone.
 // createLootPanel takes main.ts's element lookup and document rather than reaching for globals, so the entry point's test harness
@@ -36,18 +37,18 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc) 
         li.append(button);
         return li;
       }));
-      take.disabled = true; take.hidden = false; element('loot-decline').hidden = false; list.hidden = false;
+      take.disabled = true; take.hidden = false; element('loot-decline').hidden = false; element('loot-panel-actions').hidden = false; list.hidden = false;
       panel.hidden = false;
       panel.setAttribute('data-on', '1');
     },
     // After a take: the row goes, one line stays ("the Veteran's helmet is on you") until the next fight clears the panel.
     confirm(text: string): void {
-      element('loot-panel-pieces').hidden = true; element('loot-take').hidden = true; element('loot-decline').hidden = true;
+      element('loot-panel-pieces').hidden = true; element('loot-panel-actions').hidden = true; element('loot-take').hidden = true; element('loot-decline').hidden = true;
       element('loot-panel-note').textContent = text;
     },
     hide(): void {
       const panel = element('loot-panel');
-      panel.hidden = true; panel.setAttribute('data-on', '0'); selected = null; handlers = null;   // '0', not removeAttribute: the CSS keys on data-on='1' and the entry point's harness element has no removeAttribute
+      panel.hidden = true; element('loot-panel-actions').hidden = true; panel.setAttribute('data-on', '0'); selected = null; handlers = null;   // '0', not removeAttribute: the CSS keys on data-on='1' and the entry point's harness element has no removeAttribute
     },
     wire(): void {
       element('loot-take').addEventListener('click', () => { if (selected && handlers) handlers.onTake(selected); });
