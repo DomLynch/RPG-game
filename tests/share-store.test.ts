@@ -50,8 +50,8 @@ test('share store: a shared record is fetched by id from the REST endpoint with 
   await assert.rejects(fetchSharedRecord(api, 'Ab3_-9xZ', answer(200, [{ record: 'not base64url!' }])), /no such fight/);
   await assert.rejects(fetchSharedRecord(api, 'Ab3_-9xZ', answer(200, [{ record: 'A'.repeat(MAX_STORED_CHARS + 1) }])), /no such fight/);
   await assert.rejects(fetchSharedRecord(api, 'Ab3_-9xZ', answer(503, null)), /answered 503/);
-  await assert.rejects(fetchSharedRecord(api, 'nope', answer(200, [])), /not a fight link/);
-  assert.equal(calls.length, 5, 'a malformed id never reaches the network');
+  await assert.rejects(fetchSharedRecord(api, 'nope', answer(200, [])), /no such fight/, 'a well-formed id with no row: unknown or expired'); await assert.rejects(fetchSharedRecord(api, 'no pe!', answer(200, [])), /not a fight link/);
+  assert.equal(calls.length, 6, 'a malformed id never reaches the network (the well-formed nope did, once)');
 });
 
 // One link shape for everyone (owner 2026-09-22): `/s/<id>` carries a store-minted id; the pre-2026-09-22 `?r=` form still resolves
@@ -69,4 +69,12 @@ test('share store: /s/<id> and the older ?r= form both name the shared record; m
   await mintShare(api, record(), 'user-jwt', ok('1b')); assert.equal(calls[1]!.headers.Authorization, 'Bearer user-jwt', 'a signed-in fighter mints as themself');
   await assert.rejects(mintShare(api, record(), null, ok(42)), /no id/);
   await assert.rejects(mintShare(api, record(), null, (async () => new Response('nope', { status: 429 })) as unknown as typeof fetch), /refused the record \(429\)/);
+});
+
+test('share store: a minted short id (1–6 lowercase base-36) passes the reader\'s id check and is fetched by id; provenance keeps it', async () => {
+  const calls: string[] = [];
+  const fetchFn = (async (url: string) => { calls.push(url); return new Response(JSON.stringify([{ record: 'AAAA' }]), { status: 200 }); }) as unknown as typeof fetch;
+  assert.equal(await fetchSharedRecord({ url: 'https://x.supabase.co', key: 'k' }, '1a', fetchFn), 'AAAA');
+  assert.match(calls[0]!, /id=eq\.1a$/);
+  await assert.rejects(fetchSharedRecord({ url: 'https://x.supabase.co', key: 'k' }, 'not an id at all', fetchFn), /not a fight link/);
 });

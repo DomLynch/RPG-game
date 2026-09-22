@@ -58,7 +58,7 @@ export async function publishRecord(db: SupabaseClient, userId: string, record: 
 
 // Reads a stored record by id as anyone (the row is readable by id; the key is the public one).
 export async function fetchSharedRecord(api: { url: string; key: string }, id: string, fetchFn: typeof fetch = fetch): Promise<string> {
-  if (!SHORT_ID.test(id)) throw Error('not a fight link');
+  if (!SHARE_ID.test(id)) throw Error('not a fight link');   // a minted 1–6 char id or an 8-char one from before 2026-09-22
   const response = await fetchFn(`${api.url}/rest/v1/fight_records?select=record&id=eq.${id}`, { headers: { apikey: api.key, Authorization: `Bearer ${api.key}`, Accept: 'application/json' } });
   if (!response.ok) throw Error(`the fight store answered ${response.status}`);
   const rows = await response.json() as { record?: unknown }[];

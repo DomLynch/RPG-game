@@ -671,6 +671,19 @@ test('kill links: Share mints a short id for signed-in fighters (with their toke
   await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(s.element('replay-banner').textContent, /cannot be played: this build has no fight store/);
 });
+test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const fetchSharedRecord = shareModule.fetchSharedRecord;
+  shareModule.fetchSharedRecord = async () => { throw Error('no such fight'); }; apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  try {
+    const s = boot({}, undefined, {}, '?r=Ab3_-9xZ');
+    assert.equal(s.element('welcome').hidden, true, 'the link is picked up at boot');
+    await settle(() => !s.element('welcome').hidden);
+    assert.equal(s.element('welcome').hidden, false, `the welcome (with its fight button) comes back; banner=${s.element('replay-banner').textContent}`);
+    assert.equal(s.element('welcome-eyebrow').textContent, 'THIS FIGHT HAS FADED'); assert.equal(s.element('welcome-title').textContent, 'Sign in and your kills are kept forever.');
+    assert.equal(s.element('welcome-lead').hidden, true); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
+  } finally { shareModule.fetchSharedRecord = fetchSharedRecord; apiModule.api = null; }
+});
 test('autopsy: a death puts at most two plain lines on the death screen, the same lines go under the opponent\'s journal row for the last fight, and a rematch clears them', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();

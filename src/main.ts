@@ -446,7 +446,15 @@ if (replayText || sharedId) {
     }
     sharedRecord = record;
     startReplay(record, Math.max(0, record.ticks - Math.round(REPLAY_TAIL / STEP)));
-  }).catch((error: unknown) => { banner(`This link cannot be played: ${error instanceof Error ? error.message : String(error)}`); });
+  }).catch((error: unknown) => {
+    const message = typeof (error as { message?: unknown })?.message === 'string' ? (error as { message: string }).message : String(error);
+    if (message === 'no such fight') {   // unknown or expired id (guest links live 90 days, Strategy 2026-09-22): a plain page, the fight button under it, no jargon
+      banner(null); watching = false; welcome.hidden = false;
+      element('welcome-eyebrow').textContent = 'THIS FIGHT HAS FADED'; element('welcome-title').textContent = 'Sign in and your kills are kept forever.'; element('welcome-lead').hidden = true;
+      return;
+    }
+    banner(`This link cannot be played: ${message}`);
+  });
 }
 wholeButton.addEventListener('click', () => { if (sharedRecord) startReplay(sharedRecord, 0); });
 // The daily warden (brief 4): `?daily=1` asks the server for today's fight, moves to the day's opponent when the page booted another,
