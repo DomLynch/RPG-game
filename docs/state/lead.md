@@ -38,7 +38,7 @@ PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing s
   product decision — accept the trident row and resolve the flip test's membership pair, or change the Nightborn's profile.
   The seam fix does have a second customer Combat may not have counted: the `knife vs goblin hard: kick only` 3/24 row, whose
   mechanism is that same 1.45 m park.
-- **#446 CI cost, from Strategy, unstarted:** the workflow runs the full release matrix on docs-only pushes and keeps runs
+- **#446 CI cost: DONE by the Auditer lane as #507 (`quality/ci-skip-docs`), reported READY to Strategy** — zero-row diffs skip the matrix and the browser gates behind one green "release rows (none for this diff)" job, per-PR concurrency, cancel-on-close. It was unstarted on me; do not pick it up. Original statement of the problem: the workflow runs the full release matrix on docs-only pushes and keeps runs
   queued for closed PRs, starving trunk's own run. Fix is to skip the matrix when `release-rows-for.mjs` returns zero rows and
   cancel in-progress runs on PR close. `gh run cancel` on queued runs mostly does not take.
 - **#490 (Brief 18, the Plague Doctor) is unowned.** The Executioner lane correctly refused it — Dom widened them to the
