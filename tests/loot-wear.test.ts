@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, lootId } from '../src/characters.ts';
-import { LOOT_IDS } from '../src/loot.ts';
+import { LOOT_IDS, type LootId, isWeaponLoot } from '../src/loot.ts';
 
 // Parse a shipped GLB in Node: geometry, rig and material names; images are dropped (decoding is the browser's), as tests/characters.test.ts does.
 async function parse(file: string) {
@@ -19,7 +19,7 @@ const draws = (root: { traverse(cb: (o: unknown) => void): void }, slot: string)
 
 test('loot: every piece of loot.glb has an id in src/loot.ts, and the player wears a piece by binding it to his own skeleton beside his body', async () => {
   const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
-  assert.deepEqual([...new Set(all.map(lootId))].sort(), [...LOOT_IDS].sort());
+  assert.deepEqual([...new Set(all.map(lootId))].sort(), [...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), 'the file\'s draws are the armour ids; a weapon piece is its equip file, not a draw');
   const body = draws(player.anchor, 'Body').find((m): m is SkinnedMesh => m instanceof SkinnedMesh)!;
   player.wear(all.filter(p => ['veteran.Helmet', 'nightborn.Body', 'veteran.Greaves'].includes(lootId(p))));
   const worn = player.worn();
