@@ -2,6 +2,63 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Cleaver flip prep — the Executioner row is not payable in this lane either (weapons lane, 2026-09-22) — MEASURED, NOT FIXED
+Lead's item (1): clear `cleaver vs executioner normal: light spam wins 17/24` (cap 12) with a measured 24-seed battery. Re-run on trunk
+9f77fe4 — the row survives every trunk change since it was signed, still exactly 17/24. Every other cleaver pairing passes (veteran,
+pitborn, goblin, nightborn, dwarf, at both levels). Diagnosis below; **no cleaver change is proposed, and none should be made.**
+
+It is not the cleaver, it is a tell the Executioner cannot read. Light spam against him, every player weapon, 24 seeds, normal:
+
+| weapon | light windup | result |
+|---|---|---|
+| cleaver | 22 | **17W/7L** |
+| warhammer | 22 | 11W/13L — *already offered* |
+| trident | 22 | 11W/13L — *already offered* |
+| longsword | 20 | 0W/24L |
+| estoc | 20 | 0W/24L |
+| knife | 14 | 0W/24L |
+
+Every weapon with a 22-tick light beats him; every weapon with 20 or 14 never touches him. Two of the three 22-tick weapons are shipped
+and offered today at 11/24, one cap-step below the cleaver. So this is an Executioner-side blind spot that already ships, and the cleaver
+is its worst instance rather than a broken weapon.
+
+Every weapons-side lever, measured (`battery('normal', 24, 7200, OPPONENTS.executioner, STRATEGIES, 'cleaver')`, deterministic — verified
+by five identical runs in one process, and by identical-value object copies):
+
+| lever | result | cost |
+|---|---|---|
+| untouched | 17W FAIL | — |
+| light windup 22 → 21 | 11W pass, margin 1 | the heavy-chopper tempo; 22 is deliberate (readability, and slower than the sword by brief) |
+| light windup 22 → 20 | 11W pass, margin 1 | as above, and makes it the sword's tempo exactly |
+| light windup 22 → **19** | **18W FAIL** | — |
+| backhand posture 34 → 20 | 11W pass, margin 1 | a 41 % cut to the weapon's defining trait ("the back of the cleaver is a hammer") |
+| backhand posture 34 → 24 | 14W FAIL | — |
+| chop posture 26 → 20 | **18W FAIL** (worse) | — |
+
+Two reasons not to take any of them, the same two that parked the estoc. **Non-monotonic**: 22 fails at 17, 21 and 20 pass at 11, 19 fails
+at 18 — one tick either way flips the result, so this is sampling noise, not a gradient with a safe interior. **Zero-ish margin**: every
+passing value lands on 11/24 against a cap of 12. And each costs a trait the cleaver's brief states explicitly.
+
+### Sweeping a weapon: keep a control inside the harness (rule, not an anecdote)
+**Every weapon sweep must run the untouched weapon as a control in the same process as the patched runs, and the control must reproduce
+the number you are trying to move.** If it doesn't, your patch is changing more than you think and every row in the sweep is suspect.
+
+This is not hypothetical: the first sweep of this row was wrong and looked entirely plausible. The cleaver's two lights are asymmetric by
+design — chop `light_right` posture 26 / damage 17, backhand `light_left` posture **34** / damage 9 (the brief: "the back of the cleaver
+is a hammer") — so a patch written as "set the light's posture" hits both and silently nerfs the backhand. It produced a **14W baseline
+for an untouched weapon whose true baseline is 17W**, i.e. a plausible three-win error in the direction of the answer I was looking for.
+It was caught only because that baseline disagreed with an earlier run of the same config.
+
+Two supporting facts, both measured rather than assumed:
+- `tests/strategies.ts` `battery()` **is deterministic** — five identical calls in one process all returned 17W, as did calls made after
+  reassigning `WEAPONS.cleaver` to an identical-value deep copy. So a number that differs between two runs means *you changed something*;
+  it is never flakiness, and must be explained before the sweep is trusted.
+- Per-move patches must name `light_right` and `light_left` separately. Any weapon may carry asymmetric lights; the cleaver does, and the
+  knife's brief (edge vs the hook's sharpened back) suggests it may too — check before sweeping, don't assume symmetry.
+
+Handover: the lever is the Executioner reading a 22-tick tell (his reaction window), which is Combat's lane, not a weapon number. Until
+that moves, the row stands and the cleaver stays out of `PLAYER_WEAPONS_OFFERED`. Knife and scythe prep follow separately; nothing here
+blocks them, and nothing here touches the loot ids (takeable ≠ offered).
 ## Estoc reach — PARKED, no stance value clears both axes (combat lane, 2026-09-22)
 The weapons lane's estoc reach fix (#419, now a draft) is correct about the blade and is NOT merged: it cannot ship until the estoc's
 stance is retuned, and no stance value exists that is safe. **To revive it, one of two things must change: either the Nightborn stops
