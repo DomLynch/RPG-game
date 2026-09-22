@@ -283,10 +283,10 @@ const RECIPES = {
   parry_shield(r) {
     const n = S(.72), f = vary(r, 1, .06);
     const click = mul(broad(n, r, abs(1400), abs(9000)), decay(n, .005));
-    const ring = dense(n, abs(1050 * f), 16, vary(r, .5, .1), r, { top: 4.8, roll: .88, grit: .3 });
+    const ring = dense(n, abs(1600 * f), 16, vary(r, .5, .1), r, { top: 4.6, roll: .88, grit: .3 });
     const body = thud(n, r, { from: abs(3200 * f), to: abs(300 * f), fall: .07, t60: .16 });
     const weight = heft(n, abs(92 * f), r, { t60: .3 });
-    return densify(mix(n, [click, 0, .45], [ring, .001, 1], [body, .002, .8], [weight, .003, .45], [rumble(n, .26, r), .02, dbfs(-8)]), 2.4);
+    return densify(mix(n, [click, 0, .45], [ring, .001, .8], [body, .002, .95], [weight, .003, .7], [rumble(n, .26, r), .02, dbfs(-6)]), 2.4);
   },
   // Owner 2026-09-22: the armour-synth branch (the first 3 in the rendered guard-metal preview) removed — "remove them from the
   // game." block/block_perfect split evenly between the steel ring and the shield clang.
