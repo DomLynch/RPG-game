@@ -25,6 +25,13 @@ passed:true. New `tests/loot-panel.test.ts` (3 tests) covers the guard, the tap-
 Undo and hide; `tests/loot-layers.test.ts` pins that `#loot-take` is gone; `scripts/endgame-hud-check.mjs` drops it from its
 cluster list. Remaining validation: the lead's merge gate on #475, and #464 must merge first (it has: 16:40:59Z).
 
+**Next for this lane (routed 2026-09-22 evening by Strategy, NOT started — the lead releases it only after #475 and #464).** Brief 19,
+gear stats (Dom approved; PR #486, a new Stats lane). Web owns the PANEL half of its deliverable 4: the paperdoll shows four stats —
+Attack, Defence, Poise, Stamina — and the tilt against no gear, and the kill-screen take shows the delta of the piece being picked
+up. The Stats lane supplies the numbers; this lane owns copy and skin, in the same gold-glass language as the tap-to-take panel
+(#475). Nothing to do until the lead routes it. Relayed by a peer session, so confirm the brief with the lead before building —
+gotchas (g) and (h).
+
 ## 2026-09-22 — The Veteran becomes the Centurion, and "warden" leaves every player-facing string (Dom via Strategy; PR #464, merged 16:40:59Z)
 
 Copy only. `src/roster.ts` `name` field alone — the id `veteran`, the body, rig, archetype, asset filenames and every LootId
