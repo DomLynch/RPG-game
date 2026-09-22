@@ -70,13 +70,14 @@ const KNOWN_UNFAIR = [
   // kick-only is killed 24/24 by this same Goblin with every other weapon; only the knife pairing fails, and all 24 of its fights end in
   // stalemate at the 7200-tick limit — a kicker and the hard Goblin never resolve. That is his approach against the shortest reach in the
   // game (Combat's lane), not a weapon number. The knife's two "thrust from range" rows DID leave, 2026-09-22, when its thrust recovery
-  // went 15 -> 21 (see KNIFE_MOVES): Veteran 18/24 -> 3/24, Goblin 15/24 -> 4/24, with no other knife pairing moved.
+  // went 15 -> 20 (see KNIFE_MOVES): Veteran 18/24 -> 5/24, Goblin 15/24 -> 6/24, with no other knife pairing moved. (21 would have read
+  // 3/24 and 4/24, but it pushes the Goblin's own fight-length pin to a 48.5 s median, over the 45 s ceiling — hence 20.)
   // estoc/goblin ×2 and estoc/dwarf hard — the estoc's move table sits .3–.4 m short of its blade bake (tests/weapons.test.ts "real reach"),
   // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
   'cleaver vs executioner normal: light spam wins 17/24',
   'knife vs goblin hard: kick only untouched 3/24',
   'estoc vs goblin normal: thrust from range wins 24/24',
-  'estoc vs goblin hard: light spam wins 9/24',   // was 11/24: moved by the KNIFE's thrust recovery 15 -> 21 (2026-09-22), because the Goblin WIELDS the knife — same number, safer direction, row still over the hard cap either way
+  'estoc vs goblin hard: light spam wins 9/24',   // was 11/24: moved by the KNIFE's thrust recovery 15 -> 20 (2026-09-22), because the Goblin WIELDS the knife — same number, safer direction, row still over the hard cap either way
   'estoc vs goblin hard: thrust from range wins 23/24',   // 22 -> 23, same cause as the line above
   'estoc vs dwarf hard: thrust from range wins 10/24',
   'scythe vs veteran normal: thrust from range wins 19/24',
