@@ -38,3 +38,18 @@ test('the Take-one panel is in the HUD under the autopsy and the old drop line i
   assert.ok(!/endgame-fade #loot-panel/.test(css), 'the panel must not fade with the tour');
   assert.match(css, /\.loot-panel \{[^}]*pointer-events: auto/);
 });
+
+// Decline (the lead's shape, 2026-09-22): a refused offer is the kill recorded with no piece, newest last and capped, and it survives a
+// round trip through the stored profile.
+test('a declined offer is recorded as a kill with no piece, capped and round-tripped', async () => {
+  const { DECLINED_KEPT, cleanLoot, decline, emptyLoot } = await import('../src/loot.ts');
+  const kill = { opponent: 'veteran' as const, attempt: 3, healthLeft: 12, recordId: null, day: '2026-09-22' };
+  let loot = decline(emptyLoot(), kill);
+  assert.deepEqual(loot.declined, [kill]);
+  assert.deepEqual(loot.owned, []);
+  for (let i = 0; i < DECLINED_KEPT + 5; i++) loot = decline(loot, { ...kill, attempt: i + 1 });
+  assert.equal(loot.declined!.length, DECLINED_KEPT);
+  assert.equal(loot.declined!.at(-1)!.attempt, DECLINED_KEPT + 5);
+  assert.deepEqual(cleanLoot(JSON.parse(JSON.stringify(loot))).declined, loot.declined);
+  assert.equal(cleanLoot({ owned: [], equipped: {}, declined: [{ opponent: 'nobody' }] }).declined, undefined);
+});

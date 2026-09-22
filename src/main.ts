@@ -12,7 +12,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
-import { LOOT, PAPERDOLL, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { readOpponent } from './ai.ts';
@@ -80,7 +80,7 @@ function offerLoot(healthLeft: number) {
       lastDrop = id; setLoot(wear(profile.loot, id));
       lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`);
     },
-    onDecline: () => lootPanel.hide(),
+    onDecline: () => { profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); },
   });
 }
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
