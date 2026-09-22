@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { CLASS_OF, GRADES, TIERS, classOf, gradeFor, houseFor, materialOf } from '../src/grades.ts';
+import { TITLES } from '../src/career.ts';
+import { CLASS_OF, GRADES, TIERS, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/grades.ts';
 
 const draws = (() => {
   const bytes = readFileSync(new URL('../src/assets/loot.glb', import.meta.url)), length = bytes.readUInt32LE(12);
@@ -16,9 +17,11 @@ test('grades: every material the shipped kit uses is classified — a new piece 
   for (const material of materials) assert.notEqual(classOf(material), undefined, `${material} is in neither a grade class nor the exemption list (src/grades.ts CLASS_OF)`);
 });
 
-test('grades: the ladder is eight named tiers in the lead\'s order', () => {
-  assert.deepEqual([...TIERS], ['leather', 'bronze', 'iron', 'steel', 'blackened', 'vanadium', 'gold', 'ruby']);
+test('grades: the ladder IS the career ladder — one word for a rank and its kit', () => {
+  assert.deepEqual([...TIERS], [...TITLES], 'a tier is a rank title, not a parallel vocabulary that can drift from it');
+  assert.equal(TIERS.length, 10);
   assert.deepEqual(Object.keys(GRADES), [...TIERS], 'the table is complete and in the ladder\'s order');
+  assert.equal(levelOf('Recruit'), 1); assert.equal(levelOf('Master'), 7); assert.equal(levelOf('Origin'), 10);
 });
 
 test('grades: factors only — nothing geometric, and every number in range', () => {
@@ -33,20 +36,22 @@ test('grades: factors only — nothing geometric, and every number in range', ()
   }
 });
 
-test('grades: eight grades a player can tell apart at a glance', () => {
+test('grades: ten grades a player can tell apart at a glance', () => {
   const metals = TIERS.map(t => GRADES[t].metal.color);
   assert.equal(new Set(metals).size, TIERS.length, `two tiers share a metal colour: ${metals}`);
   // Brightness is the ladder's read: the poor end is dull, the top three are the only ones allowed to shine.
   const lit = (t: typeof TIERS[number]) => GRADES[t].metal.metalness * (1 - GRADES[t].metal.roughness);
-  for (const tier of ['vanadium', 'gold'] as const) assert.ok(lit(tier) > lit('leather') * 3, `${tier} outshines leather`);
+  for (const tier of ['Invictus', 'Origin'] as const) assert.ok(lit(tier) > lit('Recruit') * 3, `${tier} outshines a Recruit's scrap`);
+  // The Gladiator's bone steps sideways, not up: it is the one rung that is lighter than the rung above it without being shinier.
+  assert.ok(lit('Gladiator') < lit('Veteran'), 'bone is not a brighter metal than copper, it is a different kind of armour');
 });
 
 test('grades: a grade repaints metal and leather, never bone, authored artwork or cloth', () => {
-  assert.deepEqual(gradeFor('gold', 'Steel'), GRADES.gold.metal);
-  assert.deepEqual(gradeFor('gold', 'Antique brass'), GRADES.gold.trim);
-  assert.deepEqual(gradeFor('gold', 'Wrap'), GRADES.gold.leather);
-  for (const material of ['Bone', 'BoneWorn', 'Ruby']) assert.equal(gradeFor('ruby', material), null, `${material} is the same at every grade (tier 'ruby' is not the material 'Ruby')`);
-  for (const material of ['Gambeson_veteran', 'Heraldry']) assert.equal(gradeFor('ruby', material), null, `${material} is the house dye's, not the grade's`);
+  assert.deepEqual(gradeFor('Origin', 'Steel'), GRADES.Origin.metal);
+  assert.deepEqual(gradeFor('Origin', 'Antique brass'), GRADES.Origin.trim);
+  assert.deepEqual(gradeFor('Origin', 'Wrap'), GRADES.Origin.leather);
+  for (const material of ['Bone', 'BoneWorn', 'Ruby']) assert.equal(gradeFor('Origin', material), null, `${material} is the same at every grade (the Origin tier's ruby trim is a factor; the material 'Ruby' is the Nightborn's authored crown)`);
+  for (const material of ['Gambeson_veteran', 'Heraldry']) assert.equal(gradeFor('Origin', material), null, `${material} is the house dye's, not the grade's`);
   assert.equal(CLASS_OF.Bone, null, 'bone is exempt by decision, not by omission');
 });
 
