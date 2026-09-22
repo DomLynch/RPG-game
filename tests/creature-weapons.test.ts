@@ -5,7 +5,7 @@ import { AnimationMixer, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ROSTER } from '../src/roster.ts';
 import { RULES, WEAPONS } from '../src/moves.ts';
-import { bladePaths } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/blade-paths.ts';
 import { swingProgress } from '../src/blade.ts';
 import { createFighter, idleIntent, stepDuel, type Duel } from '../src/duel.ts';
 import { clipFor, ROLES } from '../src/characters.ts';
@@ -39,7 +39,7 @@ test('creatures carry the approved maul and reaper scythe; every role resolves a
         const edge=asset.scene.getObjectByName(marker.userData.contactNode) ?? marker;
         const contact=marker.userData.contactByClip?.[spec.clip] ?? edge.userData.contact;
         const actual=[contact.from,contact.to].flatMap(y=>edge.localToWorld(new Vector3(0,y,0)).toArray());
-        assert(actual.every((v,i)=>Math.abs(v-bladePaths[id][path][tick][i])<.000011),`${id}/${path}@${tick}: visible contact drift`);
+        assert(actual.every((v,i)=>Math.abs(v-bladePathsByRig[family][id][path][tick][i])<.000011),`${id}/${path}@${tick}: visible contact drift`);
       }
     }
   }

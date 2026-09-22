@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Flat blade table dropped — `bladePathsByRig` is the only export (weapons lane, 2026-09-22)
+The seam PR landed (`src/blade.ts` reads `bladePathsByRig[rig][weapon]`, `tests/blade-rig.test.ts` pins every pair), so
+`bake-blades.mjs` no longer writes the transitional flat `bladePaths[weapon]` (the first manifest entry per weapon) — `src/blade-paths.ts`
+496 KB → 270 KB, `bladePathsByRig` byte-identical. The last readers were tests: repointed to the rig each one means (hero for
+longsword/trident/cleaver/scythe, goblin.knife, nightborn.estoc, minotaur.maul, wraith.reaper); the manifest test now checks every bake
+carries all of its weapon's paths and every non-placeholder weapon is baked on some rig. The dead placeholder-borrowing loop in the
+bake (no `placeholder` weapon exists) went with it. Closes auditer finding #6 on the merged weapons PRs.
+
 ## Player-wieldable weapons — equip files + blade tables by rig (weapons lane, Brief 5, 2026-09-21)
 Six loot weapons on the shelf as their own files, `src/assets/weapons/player/<id>.glb` (`scripts/build-player-weapon.mjs`): the
 hero build's `WeaponDrawn` in `hand_r`, the skeleton as empties, and only the clips the weapon owns (family + re-keyed `Heavy` for the

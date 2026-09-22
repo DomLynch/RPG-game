@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, initialAi } from '../src/ai.ts';
 import { bladeImpact } from '../src/blade.ts';
-import { bladePaths, bladePathsByRig } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/blade-paths.ts';
 import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
 import { RADIUS, TARGET, type State } from '../src/sim.ts';
@@ -27,7 +27,7 @@ test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, 
   for (const f of [hero, warden]) { assert.equal(f.scale, 1); assert.equal(f.poise, 0); assert.equal(f.health, RULES.health); assert.equal(f.maxHealth, RULES.health); }
   assert.deepEqual(OPPONENTS.veteran.profiles.easy, PROFILES.easy); assert.deepEqual(OPPONENTS.veteran.profiles.normal, PROFILES.normal);   // his own table since the hard tune (owner, 2026-09-20)
   assert.deepEqual(OPPONENTS.veteran.profiles.hard, { ...PROFILES.hard, pressure: .7, discipline: 30 }, 'hard differs from the shared table in pressure and discipline only');
-  assert.equal(WEAPONS.cleaver.placeholder, undefined); assert.notEqual(WEAPONS.cleaver.moves, MOVES); assert.notDeepEqual(bladePaths.cleaver, bladePaths.longsword, 'baked from the cleaver rig');
+  assert.equal(WEAPONS.cleaver.placeholder, undefined); assert.notEqual(WEAPONS.cleaver.moves, MOVES); assert.notDeepEqual(bladePathsByRig.hero.cleaver, bladePathsByRig.hero.longsword, 'baked from the cleaver rig');
 });
 
 // The goblin (opponent 4, character lane): his data entry and the knife slot are in; his fight identity (feints, no guard, darting) waits on the
@@ -36,7 +36,7 @@ test('the goblin is set up from his data: the knife (live, slice X), 0.78× scal
   const G = OPPONENTS.goblin, [hero, goblin] = initialDuel(G).fighters;
   assert.deepEqual(hero, initialDuel().fighters[0]);
   assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .78); assert.equal(goblin.health, 120); assert.equal(goblin.maxHealth, 120); assert.equal(goblin.poise, 0);
-  assert.equal(WEAPONS.knife.placeholder, undefined); assert.notEqual(WEAPONS.knife.moves, MOVES); assert.notDeepEqual(bladePaths.knife, bladePaths.longsword, 'baked from his own rig');
+  assert.equal(WEAPONS.knife.placeholder, undefined); assert.notEqual(WEAPONS.knife.moves, MOVES); assert.notDeepEqual(bladePathsByRig.goblin.knife, bladePathsByRig.hero.longsword, 'baked from his own rig');
   for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.parry, 0, `${level}: he never parries`); assert.ok(p.dodge >= .3 && p.reaction <= PROFILES[level].reaction, `${level}: dodges, reacts fast`); }
   // The capsule follows his height: a blade level at 1.40 m is a head hit on a man and passes over the goblin; at 1.13 m (1.45 × 0.78) it finds his head where a man takes it in the chest.
   bladePathsByRig.hero.probe = { flat: [[-.5, 1.4, 0, .5, 1.4, 0], [-.5, 1.4, 0, .5, 1.4, 0]], low: [[-.5, 1.13, 0, .5, 1.13, 0], [-.5, 1.13, 0, .5, 1.13, 0]] };
