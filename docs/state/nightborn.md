@@ -5,6 +5,24 @@ on the ladder. Append new entries at the TOP. Keep evidence and remaining valida
 
 ## Now — 2026-09-23 (later)
 
+**Strategy's three rulings of 2026-09-23 01:15, which set how deliverable 1 is run:**
+
+1. **One instrument.** #500 (`--flat`) merges first in tonight's code batch; the Executioner lane re-cuts #502's table
+   off plates; deliverable 1 is cut the same way. **No mixed tables** — a threshold cut and a plate cut in one table is
+   how the last set of ratios came out backwards.
+2. **For a masked archetype the silhouette IS the kit, so the bare pass is INFORMATIONAL, not a gate.** The gate is
+   in-kit at every rung. Recruit-2 for a masked archetype is therefore **Helmet + Body** — his two identity carriers —
+   so no game state shows him without both and take-one removes at most one. In #490 at `9c56528`. Measure bare anyway
+   so the number sits beside the Knight's. Dom may still choose a body-level feature; nothing waits on it.
+3. Report line unchanged: number, head sha, both ratios bare/in-kit and against the Nightborn, when the D1 PR is READY.
+
+**A trap for that measures table, found in `src/loot.ts:40-46`: the Nightborn's own LOOT row is FIVE pieces plus the
+estoc — he has no `Greaves`.** The six-piece ruling binds launch characters from Legionary; the beta six predate it
+(the comment at `src/loot.ts:38` fixes what `Body` means, and the Pitborn's row is the precedent that a chest piece can
+be legitimately absent). So a bare Nightborn keeps his shins and a bare Plague Doctor does not. **State that in the
+table or the two bare numbers are not comparable** — this is exactly the shape of error that put the Knight's first
+ratios backwards.
+
 **Deliverable 1 for Brief 18 — the silhouette test, bare and in loadout — is the next task and has not started.**
 Strategy's ask (01:15, after Lead handed off at 00:50): the fighter's camera, bare and in loadout, exactly as the
 Executioner lane did for the Knight in **#502**; measured; one PR; then one line back to Strategy with the number, the
