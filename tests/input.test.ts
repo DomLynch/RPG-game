@@ -118,13 +118,17 @@ test('guard side hysteresis (brief 7): a held side keeps its axis through a wobb
   assert.equal(guardSide(5, 5, 'left'), null); assert.equal(guardSide(-GUARD_SLIDE_PX, 0, 'overhead'), 'left', 'a straight-left slide from a held overhead is left: 0° is far outside the band');
 });
 
-test('the versus card is a plain still (owner 2026-09-21: no drift), with a large centred loading line above the pair', () => {
+test('the versus card is a plain still (owner 2026-09-21: no drift); the loading line above the pair is the caption\'s twin with pulsing dots (owner 2026-09-22)', () => {
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.doesNotMatch(css, /versus-drift|\.versus img \{[^}]*animation/, 'no card animation');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /<p class="versus-loading">loading…<\/p>/, 'the loading line on the card');
-  const loading = css.match(/\.versus-loading \{([^}]*)\}/)![1];
-  assert.match(loading, /top: 28%;/); assert.match(loading, /text-align: center;/); assert.match(loading, /font: 22px Arial;/); assert.match(loading, /opacity: 0\.6;/);
+  assert.match(html, /<p class="versus-loading">loading<span class="versus-dots" aria-hidden="true"><i>\.<\/i><i>\.<\/i><i>\.<\/i><\/span><\/p>/, 'the loading line on the card, dots as three spans');
+  const loading = css.match(/\.versus-loading \{([^}]*)\}/)![1], caption = css.match(/\.versus-caption \{([^}]*)\}/)![1];
+  assert.match(loading, /top: 28%;/); assert.match(loading, /text-align: center;/); assert.doesNotMatch(loading, /opacity/, 'same brightness as the caption');
+  for (const rule of ['color: #e9ddc5;', 'font: 15px Arial;', 'letter-spacing: 3px;', 'text-transform: uppercase;', 'text-shadow: 0 1px 6px #000c;']) { assert.ok(caption.includes(rule) && loading.includes(rule), `caption and loading share ${rule}`); }
+  assert.match(css, /\.versus-dots i \{[^}]*animation: versus-dot 1\.6s ease-in-out infinite;/, 'the dots pulse');
+  assert.match(css, /@keyframes versus-dot \{\s*0%, 60%, 100% \{ opacity: 0\.25; \}/, 'never fully off');
+  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.versus-dots i \{ animation: none; \}/, 'reduced motion stills them');
 });
 
 test('the page carries the release stamp the fight record reads (deploy replaces "dev" with the revision)', () => {
