@@ -4,7 +4,7 @@
 # and leaves a marker; the killed step fails under set -e, deploy.sh's EXIT trap runs as usual, and deploy_ceiling_off — which must be
 # the LAST command of that trap — turns the exit into 124. Works on macOS bash 3.2. `deploy_step NAME` records the step being run.
 DEPLOY_CEILING_S="${DEPLOY_CEILING_S:-3000}"
-DEPLOY_STEP_FILE="$(mktemp -t frankendom-deploy-step)"
+DEPLOY_STEP_FILE="$(mktemp "${TMPDIR:-/tmp}/frankendom-deploy-step.XXXXXX")"   # explicit template: GNU mktemp (CI) and macOS agree on this form
 deploy_step() { printf '%s' "$1" > "$DEPLOY_STEP_FILE"; echo "== $1"; }
 deploy_descendants() { local pid; for pid in $(pgrep -P "$1" 2>/dev/null); do deploy_descendants "$pid"; echo "$pid"; done; }
 deploy_ceiling_hit() {   # runs inside the watchdog subshell; bash 3.2 has no BASHPID, so the subshell learns its own pid via sh
