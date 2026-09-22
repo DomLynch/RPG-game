@@ -265,4 +265,21 @@ test('rig: settled latches once the finish is SETTLE.min old and the drawn camer
   long.rig.update(1 / 60, rigAt().state, rigAt().enemy, true, null);
   assert.equal(long.rig.settled, false, 'a rematch clears the latch');
   assert.equal(long.rig.finishAge, 0);
+  // A late settle (Lead review, 2026-09-22): pick a reveal length that lands settled right at the fallback tour's own
+  // start (TOUR.delay) — on the pre-fix code the fallback tour begins that same frame, settledAt then moves tourStart
+  // forward on the very next frame, and `finishAge > tourStart` goes false: the tour stops and restarts later from a
+  // fresh angle (a visible jump). Found empirically (a revealEnd of ~4.1-4.2 s straddles the boundary on this rig).
+  {
+    const slowClock = (age: number) => age / 4.15;
+    const { rig, state, enemy } = rigAt(3, 4, false), touring: boolean[] = [];
+    for (let i = 0; i < 60; i++) rig.update(1 / 60, state, enemy, true, null);
+    for (let i = 1; i <= 12 * 60; i++) {
+      const age = i / 60;
+      rig.update(1 / 60, state, enemy, true, finish({ finisher: 'splitCrown', posed: true, clock: Math.min(1, slowClock(age)) }));
+      touring.push(rig.touring);
+    }
+    assert.ok(touring.some(Boolean), 'the fallback tour does start once this (deliberately boundary-timed) settle finally latches');
+    let seenTrue = false;
+    for (const t of touring) { if (t) seenTrue = true; else assert.ok(!seenTrue, 'touring never flips true → false while the finish holds — no restart jump'); }
+  }
 });
