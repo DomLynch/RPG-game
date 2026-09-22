@@ -4,6 +4,80 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-22, end of session (handoff)
+
+**Both coordinator sessions ended tonight.** Strategy's ended between issuing the tier instruction and my report; Lead
+cleared shortly after and put its open items in **#504**. Their live decisions are recorded there and below so they do
+not lapse. Nothing of mine is blocked.
+
+**Open PRs, mine:** #495 (this doc), #470 (Brief 16), #474 + #478 (shield), **#510** (opponent tier, head `eb256b0`,
+gate 470/0/2), **#513** (unscale fix, head `6836e2d`, gate 469/0/2).
+
+**Next to author: the shared Greaves piece**, the moment #478 lands. Three opponents lack it — Pitborn, Goblin,
+Nightborn (`src/loot.ts` `LOOT`) — and it is `over`, so the #434 coverage rule is satisfied by construction, the same
+argument that put Gloves first. **Helmet second**, with the identity question answered in its own PR body: three
+archetypes dropping one shared helmet reads worse than three dropping one shared greave, and that belongs in a PR
+body, not inside an asset decision. **Boots third.**
+
+**Library rule, from the Goblin lane's measurement — put it in the Greaves PR as a rule, not a note about the Goblin
+(Lead's wording): pin a shaft by FRACTION of the calf's length, never by absolute height.** Girth at matched fractions
+is identical to the hero's (254.1 vs 252.9 mm at 25 %), but the same fraction sits **18.3 mm lower at 25 % and 36.4 mm
+lower at 50 %**, so an absolute-height shaft climbs past his calf belly. It bites **Greaves harder than Boots** — a
+greave is all shaft and no foot. Also from that measurement: his foot is **not** re-proportioned (513 of 828 verts are
+the hero's exactly, 0.00 mm after one rigid `(0, 0, +8.24 mm)` shift that falls out of the calf axis not being
+vertical), but the 315 calf-weighted verts deviate up to 4.87 mm in the heel band, so a shoe cut on the hero's heel
+sits ~3–5 mm proud at the back. Sole is at exactly `y = 0`; `BUILD.goblin.floor = .12` is the `Roll` clip's wrist lift,
+**not** a sole offset. Receipt: `/tmp/frankendom-share/goblin-boots-measurement.json`, measured against
+`src/assets/goblin.glb` sha256 `e5a4076d6417…` — ask again if that GLB is rebuilt.
+
+**Boots cost line owed to Strategy with the Greaves PR: a bounded range labelled a floor, never one number.** The hero
+already ships authored footwear in the `Boots` slot (`parts.py:446`, `:450`) at **4,192 tri for the pair**, but it is
+a sandal plus an ankle band (42.9 mm, 53.4 mm), so a shafted boot is strictly more; `parts.py:521` anchors the other
+end at "13k triangles undecimated". The Pitborn's own foot measurement is **queued** with that lane behind the
+Shieldmaiden's slots and #478 — deliberately not expedited, since Greaves does not need it.
+
+**Boots ruling, which reversed my proposal.** I argued a shared slot should only be worn by an opponent whose own kit
+has it. Strategy overruled it on Dom's Brief 14 line of 18:10 — **from Legionary every opponent wears the full six,
+Goblin and Pitborn included** — and the reframing is better: `barefoot: True` is a **Recruit-grade** fact, not a
+permanent archetype one, so boots arrive at Legionary as kit fitted **over** the authored foot and **nothing rebuilds
+`pitborn.glb`**, which was the part I cared about. The grade floor is Brief 14's general rule, not a barefoot special
+case: at Recruit everyone wears 2 of 6.
+
+**The grade-floor schema, approved and NOT yet built** (PR 1 of 3 is #510; 2 and 3 remain):
+`WORN_FROM: Partial<Record<LootId, Tier>>` defaulting to Recruit, `LootId` and `LOOT` untouched — sharing is a fact
+about the file, a floor is a fact about *when it is worn*, neither about the id. Pin becomes "LOOT lists exactly the
+file's draws, every floored id still has one, an opponent below a floor does not wear that slot", mutation-proved.
+**Strategy ruled the drop-order shift must be AVOIDED:** keep a stable index over the opponent's full list with
+floored pieces **skipped, not removed**, so an existing player's sequence is unchanged minus what the opponent is not
+wearing at that rung. `dropFor` picks `pieces[subRank(marks) % pieces.length]`, so a naive filter would change which
+piece drops — cost the stable-index version in the PR body with the two rows it touches.
+
+**The simulation boundary cost me a design and is worth knowing before the next one.** `src/roster.ts` is in `SIM`
+(`eslint.config.js`) and `tests/sim-boundary.test.ts` lets SIM files import **only each other** — its regex catches
+`import type` too. So the tier field could not live on `ROSTER`; it is in `src/grades.ts`, which already owns `Tier`,
+`TIERS` and `levelOf`. **Stats imports `tierAt` / `OpponentAt` from `grades.ts`, never `roster.ts`**, and resolves the
+loadout outside the sim. Lead had independently told Combat that Brief 14's `grade?: GradeRecord` goes on `ROSTER`;
+same boundary, same wrong direction, corrected in #504.
+
+**The Witch.** Approved reference is A, recorded below. **Strategy ruled the silhouette PR WAITS for the
+Shieldmaiden's body** — no relaxed two-way, no reorder of Knight → Plague Doctor → Shieldmaiden → Witch. She is
+**Pitborn's lane**, not the Executioner's (they wrote Brief 15 on assignment), and her body is gated on #478, so
+Pitborn is the session to ask. Her bearded axe is a **new one-hand family** (~13 clips) per Brief 15 at `f6af593`, so
+she and the Witch are close in cost and the Witch is not the expensive one by the margin Brief 16 claimed.
+
+**Two measurement rules learned the hard way tonight, both from differencing things defined differently:**
+1. **Never erode a mask you are about to difference, and define both masks in one function.** Three hole counts were
+   quoted (20,677 → 6,973 → **5,056 px / 2.47 %, adds 0**); the first counted enclosed negative space, the other two
+   were `MinFilter(3)` applied to one side or both. The background gate is **max per-row left/right difference ≤ 25**,
+   not corner spread — and it cannot see a figure too bright to threshold, which is why the unlit **plate** (`--flat`,
+   PR #500) is the second half of the gate.
+2. **A bare figure is only comparable to another bare figure cut to the same slot list.** The roster's `LOOT` rows are
+   not uniform, so "bare" is not one definition — annotate it with a *what survives stripping* column rather than
+   normalising it away. D1 is **mattes, not plates**, for the four launch characters (no mesh), with the Executioner
+   lane's matte-vs-plate delta carried as the uncertainty; plate the seven rigged fighters, re-plate each launch
+   character from the day it has a mesh. The Witch's first appearance sits on the **reference** side of that delta and
+   the PR must say so.
+
 ## Now — 2026-09-22, late
 **In flight.** The Witch (Brief 16, #470) is mine as of tonight. Her reference sheet is generated and **Dom has picked A**:
 **approved reference `docs/character-references/witch-a-deep-hood.png`, owner pick 2026-09-22 23:05** (relayed by Strategy, same line to Lead) —
