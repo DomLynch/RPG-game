@@ -93,6 +93,67 @@ Two rebuild traps already paid for by this lane, to apply on day one:
 2. The `build-warrior` donor step is **not byte-reproducible across machines** — restore a donor from trunk and re-run
    fit/pack/Quiet-One instead of regenerating it.
 
+### 5a. His six takeable pieces — named, mapped to the approved reference
+
+Strategy's ruling (Dom, 2026-09-22 23:12): every character wears **six takeable pieces of his own** in the shared
+library, each a `loot.glb` draw with tier materials — **nothing on the body is rig dressing**. If it reads as gear, it is
+loot.
+
+**Naming is not authoring.** All six are named here so the brief is checkable; the build order in §6 is unchanged —
+Recruit-2 first, the rest as the kit library can carry them. Nothing is gated on six authored meshes.
+
+Mapped to the owner-approved reference (#494, lean plate + great helm):
+
+| Slot | Piece | From the reference? |
+|---|---|---|
+| `Helmet` | Great helm, flat-topped, slit visor and breath holes, over a mail coif | Yes |
+| `Body` | Dark plate cuirass with squared layered pauldrons, over black mail sleeves; broad leather belt and a leather tasset skirt to mid-thigh | Yes |
+| `Arms` | Polished steel vambraces and couters on the forearm | Yes |
+| `Gloves` | Dark leather gloves | Yes |
+| `Greaves` | Dark plate poleyns and cuisses over dark hose | Yes |
+| `Boots` | Hard brown leather shoes | Yes |
+
+**All six map, and that is the problem, not the success.** The Shieldmaiden's §5a has two slots the reference does not
+fill, because she keeps identity the gear cannot take — pinned crown braids. The Knight's reference fills every slot,
+which means deliverable 1 found exactly what the arithmetic predicts: **stripped, he is nobody.** Measured on the
+approved reference (#502): shoulder-over-height **0.367 in kit, 0.246 bare**, widest point 0.41 to 0.257, and no feature
+of the bare outline is his. The Executioner keeps his hood and hair, the Veteran his mass, the Shieldmaiden her braids.
+The Knight keeps a thin man in hose.
+
+**This is not only his.** The Pitborn lane ran the same bare pass on the Shieldmaiden's approved direction A and reports
+the same failure (#498): 0.284 to **0.240** stripped, and the flat hard shoulder line A was chosen *for* turns out to be
+the shoulder plates, which are lootable. Two of the launch characters now fail the same test for the same structural
+reason, so the remedy is likely a roster-level decision rather than a paragraph in either brief — either an unlootable
+identity element on the body, or an explicit ruling that stripped means generic. Recorded here because it changes what
+this brief can promise; the decision is Lead's and Strategy's, and that lane has put it to them independently.
+
+**Open question for Dom, not a decision taken here: the Knight needs one non-takeable silhouette feature of his own in
+the bare build.** Because the ruling says nothing on the body is rig dressing, that feature cannot be gear — it has to be
+the body. And §7's build instruction as routed, *"more bulky than the veteran, but thinner than the executioner"*, gives
+the bare body nothing to be: applied to a stripped figure it specifies only that he is smaller than the character he is
+meant to rival. This is a paragraph for the owner's letter, not a schedule item, and nothing waits on it.
+
+**`Body` is a `replace` piece**, so it hides the player's own torso draws and is subject to the coverage floor already on
+trunk: `tests/loot.test.ts:95` fails any `replace` piece whose draw area is under **80 % of the player's own draws in
+that slot** (the Pitborn's 0.36 m² rag sash against a 1.36 m² gambeson, 26 %, is the bug that bought the rule).
+
+Two things follow, and the second corrects an instruction this lane was given:
+
+- The floor is **mesh surface area in m²**, compared against `warrior.glb`'s own `Gambeson` / `Leather.Body` draws — not
+  against this character, and not a silhouette measure. **It therefore cannot be measured from the reference or from the
+  #502 masks at all.** It is a test, and the test is the instrument; it runs the first time the Knight's `Body` draw
+  exists in `loot.glb`. Saying "plate should clear 80 % easily" is a prediction, and so is saying it has been measured.
+- The prediction is nonetheless a confident one and worth recording so a failure is surprising: a full cuirass with
+  pauldrons and a tasset skirt to mid-thigh is a larger draw than a gambeson, and every piece that belongs shipped at
+  103–159 %. If the Knight's `Body` comes in under the floor, that is a modelling defect to fix, not a rule to argue
+  with.
+
+**One gate interaction to flag rather than resolve here.** §6 gates deliverable 1 as "no texture work before it passes
+**bare**". On the approved reference it does not pass bare. Read strictly that blocks the build, which is not what the
+gate was for — the gate exists so a masked character is not modelled before its outline is known, and the outline is now
+known, including the part that is missing. Lead and Strategy to say whether the open question above satisfies the gate or
+supersedes it; this lane starts no model work until they do.
+
 ## 6. Deliverables and gates
 
 | # | Deliverable | Gate |
