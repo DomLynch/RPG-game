@@ -1348,6 +1348,26 @@ dialog>p {
 }
 
 /* Combat debug overlay: developer readout of simulation state, presentation-only. */
+/* ?perf=1 (owner 2026-09-22: the game went jumpy on his iPhone and every number we had was measured on a Mac with no
+   throttling, so it could not see his GPU at all). A phone-readable readout of the last 5 s, so a device measures itself:
+   frame p50 / p95 / max, dropped frames (over 16.7 ms), the guards standing, triangles and draw calls. Off unless asked for. */
+.perf {
+  position: fixed;
+  right: max(8px, env(safe-area-inset-right));
+  top: max(210px, calc(env(safe-area-inset-top) + 210px));   /* below the health bars and the fight hint, above the arena's middle */
+  z-index: 6;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #0b0f11cc;
+  color: #dfe7ea;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+  pointer-events: none;
+  text-align: right;
+}
+.perf[hidden] { display: none; }
+
 .debug {
   position: fixed;
   left: 8px;

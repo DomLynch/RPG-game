@@ -257,6 +257,11 @@ let replay: { record: FightRecord; cursor: number } | null = null, practiceOnly 
 // (owner 2026-09-22, brief 15). RECORD_VERSION refuses a mismatched record at decode, so divergence mid-play is the rare case.
 let stalled = false;
 let daily: DailyFight | null = null;   // the daily warden's fight when this page is today's attempt (src/daily.ts): practice rules, its result posted once
+// ?perf=1 shows the .perf readout (style.css): the device measures its own frames. Also unhides the element once, here.
+// Read without URLSearchParams and without assuming `location`: tests/graphics.test.ts boots this module in a node VM where
+// neither exists, and 49 tests failed on it.
+const perf = /[?&]perf=1(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
+if (perf) element('perf').hidden = false;
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
@@ -701,6 +706,11 @@ for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
 let last = performance.now(),
   reportAt = last,
   frames: number[] = [],
+  // ?perf=1: a phone-readable readout of the last 5 s (.perf in style.css). The buffer only fills when the flag is on, so a
+  // normal session pays nothing. Owner 2026-09-22: every frame-time figure we had was measured on an unthrottled Mac, which
+  // cannot see his iPhone's GPU - this lets the device measure itself.
+  // eslint-disable-next-line prefer-const -- grouped in this let-list with the counters beside it
+  perfFrames: [number, number][] = [],
   frameId = 0;
 // Time away from a live fight is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
 // no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
@@ -897,6 +907,7 @@ function frame(now: number) {
     d.dataset.fallenRect = JSON.stringify(view.fallenRect());   // the release check's gate (brief 5): no HUD element may intersect this at settle time
   } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays, the finish clock, the fallen body's screen rect
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
+  if (perf && elapsed > 0) { perfFrames.push([now, elapsed * 1000]); while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift(); }
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
       median = sorted[Math.floor(sorted.length / 2)],
@@ -906,6 +917,16 @@ function frame(now: number) {
     if (median > 22) view.lowerResolution();
     frames = [];
     reportAt = now;
+    // A dropped frame is one longer than 16.7 ms - the 60 fps budget - COUNTED, not averaged, because an average hides them.
+    if (perf) {
+      const ms = perfFrames.map(([, v]) => v).sort((a, b) => a - b), at = (f: number) => ms[Math.min(ms.length - 1, Math.floor(ms.length * f))] ?? 0;
+      const dropped = ms.filter((v) => v > 16.7).length, info = view.renderer.info.render, guards = view.arena.guards;
+      element('perf').textContent = [
+        `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
+        `dropped ${dropped}/${ms.length} over 16.7 ms`,
+        `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
+      ].join('\n');
+    }
   }
   frameId = requestAnimationFrame(frame);
 }
