@@ -40,6 +40,20 @@ Nothing in flight. Brief 13 (the six lorarii) is merged; Deploy is publishing cb
 - `Turn` is authored but never played (see Gotchas); if a patrol reversal ever wants it, the yaw-lerp has to go first.
 
 ### Gotchas (2026-09-22 — each one cost real time)
+- **A check that loads a preview page measures the preview page.** `scripts/guard-browser-check.mjs` boots
+  `guard-preview.html`, Multi Chars' standalone review page — NOT the game. Its "6 guards, 148,404 tris, 86 draws,
+  p95 17.6 ms" was quoted (by me, then by Lead) as the phone-tier cost of the guards IN GAME, and a budget row was set
+  from it. It never described the game at all. **Whenever you quote a number, say which page produced it.** The in-game
+  figures, counted by wrapping `drawElements`/`drawArrays` on the real canvas at 390x844 dsf 3: **68.0 draws/frame**, the
+  same with guard shadows on, with them off, and with `?guards=1` instead of six — because from the fighter's camera the
+  walkway is out of frame and all six are culled (and their mixers skipped). The lorarii cost ~0 while you fight; they
+  render only when the camera looks at the wall.
+- **`castShadow` on the lorarii was already a no-op**: `arena.ts` fits the sun's shadow camera to the pit floor and the
+  wall's foot, not the walkway, so the guards were never in the shadow pass. Turning it off changed 68.0 → 68.0.
+- **The loading-phase hitches are not the guards.** Frame-gap trace from document start (not an average — an average hides
+  this shape): worst frames 974 / 577 / 486 / 313 ms with six guards, and 956 / 603 / 410 / 272 ms with `?guards=1`. The
+  same hitches, slightly worse with ONE guard, so they belong to the other assets, not to guard.glb (504 KB, lands at
+  ~1.0 s, during loading and before the player can act).
 - **The boot fetch budget is a product rule, not a harness quirk.** Anything fetched before first paint costs EVERY cold load,
   phones included. `guard.glb` on the boot path took down deploy #105 (DEPLOY_EXIT=1, nine rows, no flakes). Load after first
   paint — and not inside a fight either: deferring it there stalled the main thread mid-exchange and
