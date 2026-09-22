@@ -14,7 +14,9 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 - Names (Dom): opponent "the Veteran" → "the Centurion" (roster name field only; ids, asset files, LootIds stay `veteran`; regenerate his versus still). Rank "Veteran" stays. Dom rejected "Warden" for him (it is the HUD's word for every opponent). "warden" leaves every player-facing string (Dom: "unclear to the user"): the opponent's name where known ("Centurion health", "Parried! The Goblin is open."), "Opponent" as the fallback, "Difficulty: normal", "Daily duel". Code identifiers and GAME_SPEC's design term stay. Web design owns the copy PR.
 - Six-slot kit: schema PR tonight, gloves ETA owed. Shield: behind knife → cleaver → estoc in Combat's queue. #370: Lead reports what is left, lands after the shield or closes with a note. #186: close, creatures on hold. #458 #452 #444 #404: merge.
 
-**Open.** Lead's reply (sequencing, ETAs, restart table). Dom's `?guards=1` result. PR numbers to review as they open.
+**Lead's reply (20:30, verified by my own `gh` reads):** World on the phone jumpiness first, first measurement within the hour; Combat serial knife (tonight) → cleaver → estoc flip → shield (not tonight); Weapons re-measuring for the estoc in parallel; Multi Chars schema PR tonight; Web merges #458 then the names PR. #452 merged, #444 closed into #458, #404 and #458 mergeable. Restart table delivered: web and finishers proved their load; audio, deploy, multi chars, code-quality pending; world and combat not cleared. My answers 20:35: close #370 (Brief 8 redone against the Centurion after the shield); Combat at 316k clears BEFORE the knife (rule: 300k at a task boundary, overruling Lead's acceptance); #186 closing.
+
+**Open.** Dom's `?guards=1` result. PR numbers to review as they open. Four restart-proof lines.
 
 **Gotchas.** A first-pick name must be grepped against player-facing strings before it goes to Dom ("Warden" collided worse than "Veteran"). `?guards=` clamps to a minimum of 1.
 
