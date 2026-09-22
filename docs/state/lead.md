@@ -3,7 +3,12 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 ## Lead handoff — 2026-09-23 00:30 (context restart)
-**Now.** Nothing of mine is mid-flight. The merge queue is no longer Lead's — Dom moved it to Deploy tonight, and Strategy
+**Now.** **Live is `fe0d8e0`** (Deploy's receipt: 33/33 rows, 0 failed, `release.json` 200 at that sha, served `index.html`
+`cmp`-identical to dist, `guard.glb` absent from a cold load's seven `.glb` requests, box FREE at 23:30). It carries #467,
+#466, #465, #464, #462, #461, #485, #477 and #497 plus state docs. **The ~30-PR batch after it is NOT started and is not
+authorised by anyone currently awake** — Deploy paused it and is checking scope with its own user, which I have backed. Do not
+treat the relayed order as standing permission: it came through a session that has since cleared and parts of it are already
+stale (it still says "publish cb8ff5b", superseded). Nothing of mine is mid-flight. The merge queue is no longer Lead's — Dom moved it to Deploy tonight, and Strategy
 has briefed the lanes directly with deadlines while this session clears, reverting to lanes -> Lead afterwards. Two of my
 PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing standard) and the state doc you are reading.
 
