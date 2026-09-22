@@ -42,8 +42,10 @@ disagrees with this file, this file wins and the older line is stale. Dated deci
   merges. *Narrows the Pitborn-chest-is-not-loot precedent (#434) to the beta six.*
 - **Character briefs specify outline, not build** (Lead, 2026-09-22, AGENTS.md via #499): a new archetype's reference and
   silhouette work is specified by the character of its outline (hard armoured edges, broken fur, falling cloth, a one-heavy-side
-  asymmetry), never by how big the figure is. Measured twice on 2026-09-22: mass separated the Shieldmaiden's three candidates by
-  0.04 and from the Veteran by nothing; the owner picked on outline both times. An approved reference is a direction, not a render.
+  asymmetry), never by how big the figure is. Measured twice on 2026-09-22 (off mattes, arms at the sides): the Shieldmaiden's three
+  candidates sat 0.043 apart on shoulder-width over height, and the Knight's approved reference scores 0.367 against the Executioner's
+  0.374 and the Veteran's 0.360, three human fighters inside 0.014; the owner picked on outline both times. Stance before breadth: a
+  comparison is only valid between figures in the same stance. An approved reference is a direction, not a render.
 - **Origin character layer** (`docs/progression-direction.md`): five stats STR / DEX / VIG / END / POISE at baseline 100 with +50
   points at Origin; armour classes light / medium / heavy give RES and cost DEX / END; POISE is a character stat, never on armour.
   Not built before launch.
