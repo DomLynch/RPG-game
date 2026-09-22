@@ -36,11 +36,15 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   assert.equal(verifyRecord({ ...record, weapon: 'longsword' }).ok, false, 'the same intents with the longsword are another fight');
   // A version-1 stream (magic, version 1, build, opponent, profile, seed, 0 ticks, outcome, no weapon field) and a version-2 stream
   // (the same with the weapon) are both refused: the rules moved under them (#371, #366), so decoding one would replay a different fight.
+  // A version-3 stream joins them: the lorarii's whip tell (#431) adds events to the duel stream, so a fight recorded on 3 replays with a
+  // whip that never rose.
   const v1 = new Uint8Array([0x46, 0x4b, 1, 1, 0x78, 6, ...[...'goblin'].map(c => c.charCodeAt(0)), 1, 5, 0, 0, 0, 0, 0, 0, 0, 3]);
   assert.throws(() => unpackRecord(v1), /version 1 is not supported/);
   const v2 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v2[2] = 2;
   assert.throws(() => unpackRecord(v2), /version 2 is not supported/);
-  assert.equal(RECORD_VERSION, 3);
+  const v3 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v3[2] = 3;
+  assert.throws(() => unpackRecord(v3), /version 3 is not supported/);
+  assert.equal(RECORD_VERSION, 4);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

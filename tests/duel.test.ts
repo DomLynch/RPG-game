@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFighter, elapsed, idleIntent, initialDuel, legal, mirror, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
+import { createFighter, elapsed, lorariusGuard, idleIntent, initialDuel, legal, mirror, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
 import { MOVES, PATHS, PROFILES, RULES, total, type GuardProfile } from '../src/moves.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
@@ -912,6 +912,42 @@ const atWall = (gap = 1.2): Duel => {   // index 0 stands inside the wall band w
   const z0 = RADIUS - RULES.wall.loiter.band + .3;
   return { tick: 0, fighters: [createFighter({ x: 0, z: z0, heading: Math.PI, distance: 0 }, 'ready'), createFighter({ x: 0, z: z0 - gap, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] };
 };
+test('anti-turtling 1b: the whip tell — one WhipRaised per lash, `raise` ticks before the first and the shorter `raiseAgain` before a repeat, both naming the lorarius\'s sixth of the wall', () => {
+  const L = RULES.wall.loiter;
+  // The first lash. The raise lands exactly `raise` ticks earlier and exactly once: a tell that fires twice would have presentation
+  // restart its raise animation mid-lift (the world lane scales the clip by `lead`, so a second event with a different lead is a visible stutter).
+  const hugging = () => { const h = atWall(); h.fighters[0].body = { ...h.fighters[0].body, z: RADIUS - .05 }; return h; };
+  let d = run(hugging(), L.ticks - L.raise - 1); assert.ok(!types(d).includes('WhipRaised'), 'no tell before its tick');
+  d = stepDuel(d, [idle(), idle()]);
+  const raises = d.events.filter(e => e.type === 'WhipRaised');
+  assert.equal(raises.length, 1, 'exactly one tell'); assert.equal(raises[0].actor, 0); assert.equal(raises[0].target, 0);
+  assert.equal(raises[0].lead, L.raise, 'the first lash is announced `raise` ticks ahead');
+  assert.equal(raises[0].guard, lorariusGuard(d.fighters[0].body), 'the tell names the guard the lash will name');
+  // ... and the lash it announced arrives exactly `lead` ticks later.
+  d = run(d, L.raise - 1); assert.ok(!types(d).includes('Whipped'), 'not yet');
+  d = stepDuel(d, [idle(), idle()]);
+  const first = d.events.find(e => e.type === 'Whipped')!;
+  assert.ok(first, 'the lash lands `lead` ticks after its tell'); assert.equal(first.guard, raises[0].guard, 'the same lorarius swings');
+  // The repeat. It is announced later — `raiseAgain`, not `raise` — and still exactly once. The two thresholds cannot collide: a lash
+  // resets the clock to `ticks - again`, which is the first-raise threshold, so a naive check would re-announce on the lash tick itself.
+  let after = d, tells = 0, lashes = 0;
+  for (let t = 0; t < L.again; t++) {
+    after = stepDuel(after, [idle(), idle()]);
+    for (const e of after.events) {
+      if (e.type === 'WhipRaised') { tells++; assert.equal(e.lead, L.raiseAgain, 'a repeat is announced `raiseAgain` ticks ahead'); assert.equal(after.fighters[0].loiter, L.ticks - L.raiseAgain, 'at its own threshold'); }
+      if (e.type === 'Whipped') lashes++;
+    }
+  }
+  assert.deepEqual([tells, lashes], [1, 1], 'one tell, one lash, over one repeat cycle');
+  // Leaving the wall ends the spell: the next lash is a first one again, so its tell is the long one.
+  let gone = run(hugging(), L.ticks + 5);   // lashed once, so `lashed` is set
+  gone.fighters[0] = { ...gone.fighters[0], body: { ...gone.fighters[0].body, x: 0, z: 0 } };   // walks to the centre
+  gone = stepDuel(gone, [idle(), idle()]);
+  assert.equal(gone.fighters[0].loiter, 0); assert.equal(gone.fighters[0].lashed, false, 'out of the band: the spell is over');
+  // The guard is the sixth of the ring the loiterer stands in, from the sim, so the world and audio lanes never compute their own.
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map(k => lorariusGuard({ x: Math.cos((k + .5) * Math.PI / 3) * RADIUS, z: Math.sin((k + .5) * Math.PI / 3) * RADIUS })), [0, 1, 2, 3, 4, 5]);
+});
+
 test('anti-turtling 1: the lorarii — idling in the wall band for loiter.ticks without attacking is whipped (chip, posture, a shove inward) and the clock restarts', () => {
   const L = RULES.wall.loiter, hp = RULES.health;
   let d = run(atWall(), L.ticks - 1); assert.equal(d.fighters[0].loiter, L.ticks - 1); assert.equal(d.fighters[0].health, hp); assert.ok(!types(d).includes('Whipped'));

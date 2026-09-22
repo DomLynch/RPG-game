@@ -129,12 +129,15 @@ export const RULES = {
   posture: { max: 100, decay: .2, hold: 45, stun: 90, parry: 25, perfect: .5 },   // slice Q: the drain pauses `hold` ticks after any gain, so a run of blocks can reach a break; swept to ~one break per two duels at normal
   // The ring wall: knockback that meets the wall adds stagger and posture (the wall hits back); a fighter with the wall at its back cannot
   // backstep. `edge` is how close to RADIUS counts as at the wall.
+  // `raise`/`raiseAgain`: how many ticks before the lash the lorarius lifts his whip (`WhipRaised`) — longer before the first lash than
+  // before a repeat, because the first is a warning and the rest are a rhythm. Presentation scales its raise animation by the event's
+  // `lead`, so retuning these moves the tell without a change in the world lane.
   // Anti-turtling (owner 2026-09-21, "both 1 and 2"): the lorarii. A fighter within `loiter.band` of the wall for `loiter.ticks` without
   // attacking is whipped — `chip` health (never the last point), `posture`, and a `shove` back into the fight (toward an opponent within
   // `into` metres, else toward the centre) — and the lorarii keep at it:
   // the next lash comes `again` ticks later while he stays in the band (posture stacks toward a break). Attacking or leaving the band
   // resets the clock. Both fighters: the warden cannot camp the wall either.
-  wall: { edge: .25, stagger: 12, posture: 15, loiter: { band: 1, ticks: 180, again: 60, chip: 3, posture: 15, shove: .6, into: 2 } },
+  wall: { edge: .25, stagger: 12, posture: 15, loiter: { band: 1, ticks: 180, again: 60, chip: 3, posture: 15, shove: .6, into: 2, raise: 60, raiseAgain: 30 } },
   // Anti-turtling 2: no rest at the wall. A tick that opens the gap to the opponent by more than `away` metres (a walk straight back is .05
   // at 3 m/s; strafing is ~0) while the fighter is inside the wall band (`wallOnly`, the same `wall.loiter.band`) regenerates no stamina;
   // regen resumes the tick he stops, strafes or advances. The band form is the owner's choice: the everywhere form broke the rung pins

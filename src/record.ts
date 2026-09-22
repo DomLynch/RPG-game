@@ -12,7 +12,8 @@ import type { Action, Intent } from './duel.ts';
 import { PLAYER_WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 3;   // 3: the warden's reach fix (#371) and the ladder retune (#366) changed how fights play out, so a link recorded before them would replay a different fight; this build refuses every earlier version instead. 2: the player's weapon after the opponent id (2026-09-21). 1: every fight was the longsword.
+export const RECORD_VERSION = 4;   // 4: the lorarii's whip tell (`WhipRaised`, #431) adds events to the duel stream, so a record written on 3 replays a fight whose whip never rose.
+// 3: the warden's reach fix (#371) and the ladder retune (#366) changed how fights play out, so a link recorded before them would replay a different fight; this build refuses every earlier version instead. 2: the player's weapon after the opponent id (2026-09-21). 1: every fight was the longsword.
 export type RecordProfile = 'easy' | 'normal' | 'hard';
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
 export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; profile: RecordProfile; seed: number };
