@@ -489,12 +489,14 @@ let view: ReturnType<typeof createScene>, artFailed = false;
 try {
   view = createScene(
     canvas,
-    (status) => {
+    (status, kind) => {
       element('art-status').textContent = status;
-      assetsReady = status === '';
-      artFailed = status !== '' && status !== 'Loading warriors…';   // the notice becomes a tap target; the next foreground return retries
+      assetsReady = kind === 'ready';
+      artFailed = kind === 'failed';   // the notice becomes a tap target; the next foreground return retries
       element('art-status').dataset.retry = String(artFailed);
-      if (status !== 'Loading warriors…') hideVersus();   // the rigs are in (or failed: the banner must be readable)
+      // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
+      // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
+      if (kind !== 'loading') hideVersus();
     },
     opponent.id,
   );

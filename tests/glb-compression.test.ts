@@ -81,7 +81,7 @@ test('build quantization: int8 normals and uint8 weights summing to 255 pass the
   let rows = 0;
   for (const a of weights) { const bytes = decoded(a.bufferView); for (let i = 0; i < a.count; i++) { assert.equal(bytes[i * 4] + bytes[i * 4 + 1] + bytes[i * 4 + 2] + bytes[i * 4 + 3], 255, `weights row ${i} sums to 255`); rows++; } }
   assert.ok(rows > 10000, `checked ${rows} vertices`);
-  // The judge's tolerance is one quantization step: nudge one SOURCE normal component by two steps (float, uncompressed view) and one
+  // The judge's tolerance is half a step for normals and three steps for weights: nudge one SOURCE normal component by two steps (float, uncompressed view) and one
   // source weight by four steps, and the untouched packed build must no longer match either.
   const src = parseGlb(source), sourceSemantics = new Map();
   for (const m of src.doc.meshes) for (const p of m.primitives) for (const [s, ai] of Object.entries(p.attributes)) sourceSemantics.set(ai, s.replace(/_\d+$/, ''));

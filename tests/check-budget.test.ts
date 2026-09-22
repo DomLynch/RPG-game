@@ -20,7 +20,7 @@ const blob = (seed: number, size: number) => Buffer.from(Array.from({ length: si
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'frankendom-budget-')), dist = join(root, 'dist'), src = join(root, 'src');
-  for (const dir of ['assets/textures', 'game']) mkdirSync(join(dist, dir), { recursive: true });
+  for (const dir of ['assets/textures', 'game', 'versus']) mkdirSync(join(dist, dir), { recursive: true });
   for (const dir of ['assets/arena/props']) mkdirSync(join(src, dir), { recursive: true });
   for (const name of ['warrior', 'goblin', 'veteran', 'loot']) writeFileSync(join(src, 'assets', `${name}.glb`), '');
   writeFileSync(join(src, 'assets/arena/props/shield.glb'), '');
@@ -42,6 +42,8 @@ function fixture() {
     'assets/veteran-VVVVVVVV.glb': glb(['textures/a.jpg'], 400),                 // larger GLB, shares everything with the hero
     'assets/shield-SSSSSSSS.glb': glb([]),
     'assets/loot-LLLLLLLL.glb': glb(['textures/a.jpg', 'textures/c.jpg'], 300),     // Brief 5 loot: its own line, never a pairing
+    'versus/goblin.webp': blob(10, 600),                    // the versus card main.ts shows while the Goblin's rig downloads: part of that fight
+    'versus/veteran.webp': blob(11, 500),
   };
   for (const [name, bytes] of Object.entries(files)) writeFileSync(join(dist, name), bytes);
   return { root, dist, src, files, cleanup: () => rmSync(root, { recursive: true, force: true }) };
@@ -67,21 +69,39 @@ test('the per-fight figure is the shell, one audio format per sound, hero, every
     assert.ok(!m.fights.some((x: { opponent: string }) => x.opponent === 'loot'), 'loot.glb is not a fight');
     assert.equal(m.loot, g('assets/loot-LLLLLLLL.glb') + g('assets/textures/c.jpg'), 'loot is its GLB plus the textures the base does not already fetch');
     assert.equal(m.opponentTextures, g('assets/textures/c.jpg'), 'only the textures the hero and props do not already fetch');
-    assert.equal(m.fight, m.shell + m.audio + m.hero + m.props + m.sharedTextures + m.opponentGzip + m.opponentTextures);
+    assert.equal(m.opponentStill, g('versus/goblin.webp'), 'the worst pairing fetches its own versus still');
+    assert.equal(m.fight, m.shell + m.audio + m.hero + m.props + m.sharedTextures + m.opponentGzip + m.opponentTextures + m.opponentStill);
     const veteran = m.fights.find((x: { opponent: string }) => x.opponent === 'veteran')!;
-    assert.equal(veteran.gzip, m.shell + m.audio + m.hero + m.props + m.sharedTextures + g('assets/veteran-VVVVVVVV.glb'), 'a pairing that shares every texture adds only its GLB');
+    assert.equal(veteran.gzip, m.shell + m.audio + m.hero + m.props + m.sharedTextures + g('assets/veteran-VVVVVVVV.glb') + g('versus/veteran.webp'), 'a pairing that shares every texture adds only its GLB and its still');
     assert.ok(m.total > m.fight, 'the whole of dist (privacy, /game, both formats, unused textures) is larger than any fight');
     assert.equal(m.total, Object.values(f.files).reduce((n, bytes) => n + gz(bytes), 0));
   } finally { f.cleanup(); }
 });
 
-test('a GLB that is neither a fighter nor a prop, or a texture a GLB references but dist lacks, fails the gate', async () => {
+test('a GLB that is none of fighter, arena prop, loot or player-equip weapon, or a texture a GLB references but dist lacks, fails the gate', async () => {
   const f = fixture();
   try {
     writeFileSync(join(f.dist, 'assets/mystery-MMMMMMMM.glb'), glb([]));
-    await assert.rejects(measure(f.dist, f.src), /neither a fighter nor an arena prop.*mystery-MMMMMMMM\.glb/);
+    await assert.rejects(measure(f.dist, f.src), /none of fighter, arena prop, loot or player-equipped weapon.*mystery-MMMMMMMM\.glb/);
     rmSync(join(f.dist, 'assets/mystery-MMMMMMMM.glb'));
     rmSync(join(f.dist, 'assets/textures/c.jpg'));
     await assert.rejects(measure(f.dist, f.src), /goblin-GGGGGGGG\.glb references textures\/c\.jpg/);
+  } finally { f.cleanup(); }
+});
+
+// A player-equip GLB (weapons lane, 2026-09-21): once Combat's import lands, its built stem must be recognised, not thrown as
+// unknown — it is worn only when equipped, so it counts toward the whole-of-dist cap but never the mandatory per-fight download.
+test('a player-equip GLB (src/assets/weapons/player) is recognised, not thrown as unknown, and excluded from the per-fight sum', async () => {
+  const f = fixture();
+  try {
+    const before = await measure(f.dist, f.src);
+    mkdirSync(join(f.src, 'assets/weapons/player'), { recursive: true });
+    writeFileSync(join(f.src, 'assets/weapons/player/cleaver.glb'), '');
+    const equip = glb([]);
+    writeFileSync(join(f.dist, 'assets/cleaver-EQUIPPPP.glb'), equip);
+    const after = await measure(f.dist, f.src);
+    assert.deepEqual(after.fights, before.fights, 'no fighter/opponent pairing changed');
+    assert.equal(after.fight, before.fight, 'the equip GLB never rides the mandatory per-fight download');
+    assert.equal(after.total, before.total + gz(equip), 'it still counts toward the whole-of-dist storage cap');
   } finally { f.cleanup(); }
 });

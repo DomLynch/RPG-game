@@ -35,12 +35,20 @@ test('page declares double-tap suppression and locks page zoom (owner, 2026-09-1
   assert.match(main, /addEventListener\('touchstart'[^\n]*touches\.length > 1[^\n]*preventDefault/, 'the second finger is refused at touchstart, not only touchmove');
   // iOS Safari zooms the page into any focused form control whose font is under 16px and leaves it zoomed after the control
   // closes (owner's phone, 2026-09-21: the journal's 14px opponent select). Every rule that styles a focusable control keeps a 16px floor.
-  const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(([, selector]) => /(^|[\s>+~,])(input|select|textarea)\b/.test(selector) && !/type=/.test(selector));   // element selectors only: .menu-select is a label wrapper
-  assert.ok(rules.length >= 2, 'the stylesheet styles the name input and the journal selects');
-  for (const [, selector, body] of rules) {
+  // Innermost blocks only, with every @media wrapper stripped first: a control rule inside a media query is a rule like any other
+  // (the first version of this lock swallowed whole @media blocks as one rule's body and never saw the selectors inside them).
+  const controlRules = (sheet: string) => [...sheet.replace(/@media[^{]*\{/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, selector]) => /(^|[\s>+~,])(input|select|textarea)\b/.test(selector) && !/type=/.test(selector));   // element selectors only: .menu-select is a label wrapper
+  const under16 = (sheet: string) => controlRules(sheet).flatMap(([, selector, body]) => {
     const size = body.match(/font(?:-size)?\s*:[^;]*?(\d+(?:\.\d+)?)px/);
-    if (size) assert.ok(Number(size[1]) >= 16, `${selector.trim()} sets ${size[1]}px; focusable controls must be 16px or larger so iOS does not zoom`);
-  }
+    return size && Number(size[1]) < 16 ? [`${selector.trim()} sets ${size[1]}px`] : [];
+  });
+  assert.ok(controlRules(css).length >= 2, 'the stylesheet styles the name input and the journal selects');
+  assert.deepEqual(under16(css), [], 'focusable controls must be 16px or larger so iOS does not zoom');
+  // The lock itself is checked against what it must catch: a 14px select at the top level, inside a media query, and inside a nested one.
+  assert.deepEqual(under16('.menu-select select { font: 600 14px/1 sans-serif; }'), ['.menu-select select sets 14px']);
+  assert.deepEqual(under16('@media (max-width:700px) { .menu-select select { font-size: 14px; } }'), ['.menu-select select sets 14px']);
+  assert.deepEqual(under16('.journal { @media (pointer:coarse) { input { padding: 9px; font-size: 15.5px; } } } select { font-size: 16px; }'), ['input sets 15.5px']);
   // Free-camera orbit + a second finger still zoomed the page on iPhone (owner, 2026-09-21): two-finger moves are refused at the document.
   assert.match(main, /addEventListener\('touchmove', \(event\) => \{ if \(event\.touches\.length > 1\) event\.preventDefault\(\); \}, \{ passive: false \}\)/);
 });

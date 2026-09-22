@@ -20,7 +20,10 @@ import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
   canvas: HTMLCanvasElement,
-  assetStatus: (status: string) => void = () => {},
+  // `kind` is the machine-readable outcome; `status` is only ever display text — main.ts must never infer readiness or
+  // failure from the string (audit 2026-09-22: it used to key the versus card on `status !== 'Loading warriors\u2026'`,
+  // which any future in-progress status line would have defeated).
+  assetStatus: (status: string, kind: 'loading' | 'ready' | 'failed') => void = () => {},
   opponentId: OpponentId = 'veteran',
 ) {
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
@@ -150,7 +153,7 @@ export function createScene(
   function loadFighters(): Promise<void> {
     if (warriors) return Promise.resolve();
     if (loading) return loading;
-    assetStatus('Loading warriors…');
+    assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
     loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
     arena.ready,
@@ -170,12 +173,12 @@ export function createScene(
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
       dress();
-      assetStatus('');
+      assetStatus('', 'ready');
     })
     .catch((error) => {
       captureException(error);
       player.visible = opponent.visible = true;   // the capsules stand in so the fight is still readable while the notice offers a retry
-      assetStatus('Warrior art could not load. Movement still works; tap here to retry.');
+      assetStatus('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
     })
     .finally(() => {
       loading = null;

@@ -12,7 +12,7 @@ import type { Action, Intent } from './duel.ts';
 import { PLAYER_WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 2;   // 2: the player's weapon after the opponent id (2026-09-21). A version-1 record predates the choice and decodes as the longsword.
+export const RECORD_VERSION = 3;   // 3: the warden's reach fix (#371) and the ladder retune (#366) changed how fights play out, so a link recorded before them would replay a different fight; this build refuses every earlier version instead. 2: the player's weapon after the opponent id (2026-09-21). 1: every fight was the longsword.
 export type RecordProfile = 'easy' | 'normal' | 'hard';
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
 export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; profile: RecordProfile; seed: number };
@@ -98,11 +98,11 @@ export function packRecord(r: FightRecord): Uint8Array {
 export function unpackRecord(bytes: Uint8Array): FightRecord {
   if (bytes.length < 3 || bytes[0] !== 0x46 || bytes[1] !== 0x4b) throw Error('Fight record: not a fight record');
   const v = bytes[2];
-  if (v !== 1 && v !== RECORD_VERSION) throw Error(`Fight record: version ${v} is not supported (this build reads versions 1 and ${RECORD_VERSION})`);
+  if (v !== RECORD_VERSION) throw Error(`Fight record: version ${v} is not supported (this build reads version ${RECORD_VERSION} only: the fight rules changed, so an older link would replay a different fight)`);
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let o = 3;
   const str = () => { const len = bytes[o++]; if (o + len > bytes.length) throw Error('Fight record: truncated'); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(bytes[o + i]); o += len; return s; };
-  const build = str(), opponent = str() as OpponentId, weapon = (v >= 2 ? str() : 'longsword') as WeaponId;   // version 1: every fight was the longsword
+  const build = str(), opponent = str() as OpponentId, weapon = str() as WeaponId;
   if (!PLAYER_WEAPONS.includes(weapon)) throw Error('Fight record: unknown weapon');   // the hero rig bakes blade tables for these only; an opponent-only weapon (maul, reaper) would throw inside the frame loop
   if (o + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
   const profile = PROFILES[bytes[o++]], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
