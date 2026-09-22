@@ -108,23 +108,26 @@ export type CameraFinish = {
 export const prefersStillCamera = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Arena cam after the kill (owner 2026-09-20): TOUR.delay seconds after the finish begins — the finisher's own push-in and reveal have
-// settled by then — the camera drifts: a slow orbit around the fallen that breathes in and out and rises toward a wider view of the ring,
-// looping until Rematch. Slow moves, never a cut. The orbit starts from wherever the camera stands, so there is no jump. Any touch on the
-// arena stops it for that finish (the player wants to look for themselves). On the player's own death it runs lower. A draw has no fallen
-// to circle; reduced motion keeps the frame still.
-export const TOUR = { delay: 5, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3 } as const;   // seconds and metres
+// Arena cam after the kill (owner 2026-09-20; retimed 2026-09-22 to Strategy's decision: the player always gets at least
+// TOUR.afterSettle seconds of readable end-of-fight text before the tour, so it starts off the settle latch below, not a fixed
+// delay — the finisher's own push-in and reveal are long done by then. The camera drifts: a slow orbit around the fallen that
+// breathes in and out and rises toward a wider view of the ring, looping until Rematch. Slow moves, never a cut. The orbit
+// starts from wherever the camera stands, so there is no jump. Any touch on the arena stops it for that finish (the player
+// wants to look for themselves). On the player's own death it runs lower. A draw has no fallen to circle; reduced motion keeps
+// the frame still. TOUR.delay is now only the fallback start time for the rare case `settled` never latches this finish.
+export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3 } as const;   // seconds and metres
 // When the end-of-fight text may appear (owner 2026-09-22: nothing over the body until the finisher camera has settled). The
 // finishers move the camera on different clocks (the push-in ends at 1.3 s / 0.75; the side-view reveals end anywhere from
 // ~1.4 s to the full finisher clock ~3.2 s; a plain death or reduced motion moves it not at all), and the position trails its
 // target by ~0.125 s, so `settled` measures the camera itself: it latches once the finish is SETTLE.min seconds old and the
-// camera has moved slower than SETTLE.speed for SETTLE.still seconds, and stays latched until the finish clears — the arena cam
-// moving again at TOUR.delay does not unsettle it. The HUD reads `settled`, `touring` and `finishAge`.
+// camera has moved slower than SETTLE.speed for SETTLE.still seconds, and stays latched until the finish clears. `settledAt`
+// records the finish age at first latch — the arena cam starts TOUR.afterSettle seconds later, and moving again itself does
+// not unsettle the latch. The HUD reads `settled`, `touring` and `finishAge`.
 export const SETTLE = { min: 1.5, still: 0.4, speed: 0.02 } as const;   // seconds, seconds, metres per second
 export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefersStillCamera()) {
   let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
-  let finishAge = 0, tourStopped = false, tourAngle: number | null = null;   // the tour's clock, the stop-on-touch, and the orbit angle it started from
-  let stillFor = 0, settled = false;   // how long the drawn camera has been (nearly) motionless this finish, and the settle latch
+  let finishAge = 0, tourStopped = false, tourAngle: number | null = null, tourBegan: number | null = null;   // the stop-on-touch, the orbit angle it started from, and the finish age it started at (captured once — settledAt can still move after the tour is already running, on a slow reveal past TOUR.delay, and must not restart it)
+  let stillFor = 0, settled = false, settledAt: number | null = null;   // how long the drawn camera has been (nearly) motionless, the settle latch, and the finish age it latched at
   const lastDrawn = new THREE.Vector3();
   const desired = new THREE.Vector3(),
     look = new THREE.Vector3(),
@@ -264,10 +267,16 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
           desired.z *= 11.5 / radius;
         }
       }
-      // The arena cam, on top of whatever the finisher's own moves settled on.
-      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; stillFor = 0; settled = false; }
-      if (finish && !finish.draw && !still && !tourStopped && finishAge > TOUR.delay) {
-        const t = finishAge - TOUR.delay, fallen = finish.victim === 1 ? enemy : state, low = finish.victim === 0;
+      // The arena cam, on top of whatever the finisher's own moves settled on: TOUR.afterSettle seconds after the settle
+      // latch first fires, or TOUR.delay if this finish never latches (settled measures below, after this frame's position
+      // is drawn, so tourStart reads the latch as of the previous frame — a harmless one-frame lag). A slow settle can still
+      // fire after the fallback (TOUR.delay) tour has already started, moving tourStart later — a running tour keeps going
+      // regardless (Lead review, 2026-09-22: recomputing the start mid-tour reset tourAngle and produced a visible jump).
+      if (finish) finishAge += dt; else { finishAge = 0; tourStopped = false; tourAngle = null; tourBegan = null; stillFor = 0; settled = false; settledAt = null; }
+      const tourStart = settled && settledAt !== null ? settledAt + TOUR.afterSettle : TOUR.delay;
+      if (finish && !finish.draw && !still && !tourStopped && (tourAngle !== null || finishAge > tourStart)) {
+        tourBegan ??= finishAge;   // captured once, the frame the tour actually starts — never moves even if tourStart later does
+        const t = finishAge - tourBegan, fallen = finish.victim === 1 ? enemy : state, low = finish.victim === 0;
         const focusX = finish.head ? (fallen.x + finish.head.x) / 2 : fallen.x, focusZ = finish.head ? (fallen.z + finish.head.z) / 2 : fallen.z;
         tourAngle ??= Math.atan2(camera.position.x - focusX, camera.position.z - focusZ);
         const angle = tourAngle + (t * 2 * Math.PI) / TOUR.lap, radius = TOUR.radius + TOUR.breath * Math.sin((t * 2 * Math.PI) / TOUR.breathe);
@@ -277,16 +286,17 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         const s = Math.min(1, t / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
         desired.lerp(tour, blendIn);
         look.lerp(new THREE.Vector3(focusX, 0.7, focusZ), blendIn);
-      } else tourAngle = null;
+      } else { tourAngle = null; tourBegan = null; }
       camera.position.addScaledVector(kickOffset, -shoved); // last draw's shove comes off before the settle
       shoved = 0;
       camera.position.lerp(desired, started ? blend : 1);
       aim.lerp(look, started ? blend : 1);
       camera.lookAt(aim);
       // The settle latch: measured on the smoothed position (the kick is added after this and taken off before the next settle).
+      // settledAt captures the finish age of the first latch only — later frames leave it alone.
       if (finish && started && dt > 0) {
         stillFor = camera.position.distanceTo(lastDrawn) / dt < SETTLE.speed ? stillFor + dt : 0;
-        if (finishAge >= SETTLE.min && stillFor >= SETTLE.still) settled = true;
+        if (!settled && finishAge >= SETTLE.min && stillFor >= SETTLE.still) { settled = true; settledAt = finishAge; }
       }
       lastDrawn.copy(camera.position);
       started = true;

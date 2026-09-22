@@ -389,8 +389,9 @@ export function createScene(
     },
     // End-of-fight timing for the HUD (owner 2026-09-22: nothing over the body until the finisher camera has settled; the text
     // fades while the arena cam tours). `settled`: the push-in/reveal has run its course, or SETTLE seconds of finish age when
-    // there is no push. `touring`: the arena cam is orbiting the fallen (from TOUR.delay, until a touch or Rematch). `age`: seconds
-    // since the finish began, 0 outside a finish. Poll it in the frame loop; the rig owns the clocks.
+    // there is no push. `touring`: the arena cam is orbiting the fallen (from TOUR.afterSettle seconds after settled first
+    // latches — the player always gets at least that much readable text — until a touch or Rematch). `age`: seconds since the
+    // finish began, 0 outside a finish. Poll it in the frame loop; the rig owns the clocks.
     finishPhase(): { settled: boolean; touring: boolean; age: number } {
       return { settled: rig.settled, touring: rig.touring, age: rig.finishAge };
     },
