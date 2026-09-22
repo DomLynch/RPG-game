@@ -133,6 +133,20 @@ validates on read (known ids only, worn ⊆ owned). Never rank/result/unlock aut
 **All four beta migrations (0002–0005) are now applied and independently verified.** Only `0006` (fight_records privacy fix) remains
 open, held for Dom's direct word.
 
+### daily_board_summary(on_day) (0007, PR #385) — written + tested, NOT applied; Dev/Deploy applies on Dom's typed "apply"
+Auditer finding 2026-09-22, confirmed independently on trunk `c789ed7`: the client paged `daily_board?order=created_at.asc&limit=200`
+and ranked locally (the 201st poster's better result never showed) with `verified` as a tie-break only (a pending row could lead).
+`daily_board_summary(on_day date default today-UTC) returns jsonb` — `{day, fastest_kill, cleanest_kill, longest_survived,
+fastest_death, where, pending}`: each headline is the best row of the day ordered `verified desc, <metric>, created_at asc` (a pending
+row leads only when nothing on that line is verified, still `verified=false`); `where` counts **verified** deaths by location
+(client-reported until replayed); `pending` = unverified rows that day. Runs as the caller over `daily_board` (no definer; public
+columns only, never `record`/`user_id`); execute to anon+authenticated. Client: `src/daily.ts fetchDailySummary` → `POST
+/rest/v1/rpc/daily_board_summary {on_day}` (new REST path; check-14 mock updated in the same PR); `fetchDailyBoard` removed.
+Proven in `account-database-check.mjs`: 201st-row fastest wins; pending never leads a verified row; pending deaths excluded from the
+split; another day never leaks; tomorrow empty; no `record`/`user_id`. Mutation-tested four ways + the check-14 route removal.
+**Post-apply verification owed here:** `select public.daily_board_summary(current_date)` as anon resolves; Auditer re-verifies the
+deployed board.
+
 ### frankendom_verifier role + daily_results.checked_at (0005, PR #348) — APPLIED, verified live
 Applied by Dev/Deploy (hosted migration `20260921211755 202609210005_daily_verifier`, PR #348 merged `bca49b9`). Verified
 independently here (fresh queries against pg_roles/information_schema/pg_proc/pg_policies, not taken on Dev/Deploy's report):
