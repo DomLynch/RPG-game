@@ -213,6 +213,16 @@
     ],
     [
       "node",
+      "scripts/finisher-preview.mjs",
+      "--only",
+      "plainDeath",
+      "--wounds",
+      "--no-video",
+      "--label",
+      "wounds-gate"
+    ],
+    [
+      "node",
       "scripts/kill-link-check.mjs"
     ],
     [

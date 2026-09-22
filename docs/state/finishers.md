@@ -2,6 +2,42 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Body wounds v1: blood from every landed blow, not just the death screen (owner go 2026-09-21, "blood dripping ... after a heavy hit")
+Owner: marks from every landed blade blow on any fighter (hero through Dwarf), sided to where the swing came from, showing once
+that fighter is at 60% health or below and darkening toward death — separate from the existing finisher/death gore.
+
+`gore.ts` `createBodyWounds` (new, alongside the existing splat pool / throat-cut decal / blade blood): a 5-mark pool per
+fighter, presentation only — the simulation decides the hit, damage and location; this only draws it. `woundSite(hit)` maps
+the sim's own `HitLocation` (head/torso/legs) + swing `Direction` (right/left/overhead/thrust/low) to a bone and a local
+direction in the STRUCK fighter's own frame: a right-hand swing crosses to the victim's left (torso `spine_02`/`spine_03`
+for overhead, legs mirror the same side onto `thigh_l`/`thigh_r`, thrust/low sit centred). `scene.ts` calls `bodyWounds.hit`
+on every landed `Hit` event (never a kick), skips the same `hasBlood(opponentId)` no-blood gate the splats already use, and
+scales the mark by `OPPONENTS[id].scale` for the bigger creatures. Marks ride their bone every frame; severity (opacity +
+drip length) scales linearly from 0 at 60% health to full at 0%; a finisher's own gore (opened cut lines, the throat, the
+plain death's blade tint) takes over the killed side's marks so they don't fight the finisher's own effect — the plain
+death keeps his wounds visible, `bloodMode 'off'` hides everything like the rest of the gore system, rematch clears the pool.
+
+Tests: `gore.test.ts` — `woundSite` direction/location table, `createBodyWounds` (pooled hit registers on a missing bone as
+false, threshold show/hide, follows the bone, `off` hides, severity scaling on opacity and drip, rematch clear); mutation on
+the threshold comparison caught. `test:all` 412/412. Harness: `finisher-preview.mjs` gained an opt-in `--wounds` still
+(a scripted duel to the first landed blow at ≤60% health, +30 settle frames) + a dedicated `wounds-gate` release row
+(`--only plainDeath --wounds`) so the other 7 finisher-preview rows don't pay the extra page load. `wounds-gate` ran green
+(exit 0; `wounds: warden 4 mark(s) showing (opacity 0.58, drip 0.58); off → 0`) on the goblin harness and again on the
+release-row fixture; owner reviewed the rendered stills (`artifacts/character/wounds-gate/wounds-phone-rear.png`) before
+the PR went up.
+
+**Audit follow-up (2026-09-22):** peer review of the pushed head (`fcc835b`) found three real items, fixed here: (1)
+`bodyWounds.update` re-ran a recursive `root.getObjectByName(mark.bone)` every frame for every used mark (≤10) — `hit()`
+already resolves the bone, so it's now cached on the mark at hit time and reused, dropping the per-frame search entirely
+(mutation-checked: nulling the cache assignment fails the existing test). (2) `.quality-gate.json` had lost its trailing
+newline — restored. (3) Check 5 (`fatal-crowd-browser-check.mjs`) failed on the pushed head with the same wall-clock
+timeout signature as an unrelated PR's (#366) known-flaky run, and trunk's own baseline for that check is cancelled, so
+flake vs. this PR's heavier per-frame cost wasn't settled by the auditor's read alone — re-running it locally, alone, with
+no deploy in flight, to get a clean receipt before pushing the fix. Also: the "mutation caught" claims throughout this
+entry are a manual verification step done during development (temporarily break the assertion's target, confirm the test
+fails, revert) — not an automated mutation-testing framework wired into the repo; noting this since the audit read it as
+possibly a claim about tooling that doesn't exist here.
+
 ## Run Through hold: two-handed grip, the off-hand rides the hilt (2026-09-21, owner: "giving the middle finger")
 Owner, on the phone hold: the killer's left hand read as a raised open palm / middle finger. Two causes. (1) Rig: the
 hold froze the Riposte contact frame's thrown-out left hand; even after moving it to the hilt the Armed pose's fingers

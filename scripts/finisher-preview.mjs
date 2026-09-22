@@ -87,6 +87,13 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
     provenance.push({ seed, finisher, finish });
   }
 }
+// Body wounds (owner 2026-09-21): the same scripted duel from its first tick to the first landed blow that finds the warden at
+// 60 % health or below, plus a dozen frames to settle — the marks must already show on him there (before any finisher).
+{
+  const sim = simulate(${seedStart});
+  const at = sim.frames.findIndex(f => f.events.some(e => e.type === 'Hit' && e.target === 1) && f.practice.health <= .6 * f.practice.enemyMaxHealth && f.practice.health > 0);
+  if (at >= 0) windows.wounded = { frames: sim.frames.slice(0, at + 30), killIndex: 1e9 };
+}
 // Outcomes outside the automatic rotation (The Quiet One since the beta cut, owner 2026-09-20) are still shipped and
 // forceable from the dev picker; the harness reaches them the same way — the production override on a real kill from a
 // seed that drew another outcome — and labels the window so nothing reads as an organic draw.
@@ -180,7 +187,8 @@ window.__finisher = {
     for(let i=0;i<seconds*60;i++) {present=i===seconds*60-1;view.render(f.state,true,TICK,f.practice,[],false);}
     return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(this.inspect()))));
   },
-  count(which) { return windows[which].frames.length; },
+  count(which) { return windows[which]?.frames.length ?? 0; },
+  probe() { return view.probe(); },
   killIndex(which) { return windows[which].killIndex; },
   play(which, i, mode) {
     // Render inside a rAF double-tick: without preserveDrawingBuffer a synchronous render never reaches the compositor,
@@ -224,6 +232,27 @@ try {
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
   await first.context().close();
   for (const p of info.provenance) console.log(`  ${p.finisher}: seed ${p.seed}${p.override ? ' (picker override — outside the automatic rotation)' : ''}, kill ${JSON.stringify(p.finish)}`);
+  // Body wounds (owner 2026-09-21): one still of the warden at 60 % or below, mid-fight — marks on the struck body, then 'off' hides them.
+  if (option('wounds')) {
+    const page = await open({ width: 393, height: 852 });
+    const count = await page.evaluate(() => __finisher.count('wounded'));
+    // Lead review (2026-09-22): a duel that never reaches the threshold used to skip the whole check with a log line and
+    // exit 0 — a release gate has to fail there, not pass vacuously. The scripted duel (paced heavies, passive warden)
+    // reaches 60 % well before any kill on every shipped opponent; if it stops doing that, that is itself a real finding.
+    assert.ok(count > 0, 'the scripted duel must reach the warden at 60 % health or below before the kill — it never did');
+    await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
+    const red = (await page.evaluate(() => __finisher.probe())).bodyWounds;
+    await page.screenshot({ path: `${dir}/wounds-phone.png` });
+    await page.evaluate(() => __finisher.rear('wounded')); await page.screenshot({ path: `${dir}/wounds-phone-rear.png` });   // the warden's face and chest, from behind him... i.e. the camera swung round
+    await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
+    await page.evaluate(([i]) => __finisher.play('wounded', i, 'off'), [count - 1]);
+    const off = (await page.evaluate(() => __finisher.probe())).bodyWounds;
+    console.log(`  wounds: warden ${red[1].visible} mark(s) showing (opacity ${red[1].opacity}, drip ${red[1].drip}); off → ${off[1].visible}`);
+    assert.ok(red[1].visible >= 1 && red[1].opacity > .3, 'a wounded warden shows at least one mark once at 60 % health or below');
+    assert.equal(off[1].visible, 0, "blood 'off' hides the body wounds");
+    await save('wound-checks.json', JSON.stringify({ opponent, commit, red, off }, null, 2));
+    await page.context().close();
+  }
   // Mode stills: one clean playthrough per blood mode per outcome (scene state evolves with playback, so each mode replays from scratch).
   for (const which of ORDER) {
     for (const [mode, name] of [['red', ''], ['dark', '-dark'], ['off', '-off']]) {

@@ -15,7 +15,7 @@ import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier } from './quality.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
-import { createBladeBlood, createSplatPool, createWoundDecals } from './gore.ts';
+import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
@@ -273,6 +273,7 @@ export function createScene(
     killHeading = 0;
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
   const wounds = createWoundDecals(scene, splatTexture);
+  const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
   let heading = Math.PI;
   const rig = createCameraRig(camera);
@@ -388,12 +389,14 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null } {
+    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; opacity: number; drip: number }, { visible: number; opacity: number; drip: number }] } {
       // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
       const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
       const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
-      return { sparks: clash.alive(), burst: clash.last(), wound };
-    }, // debug probe for the presentation harness: live contact effects and the throat-cut decal
+      // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
+      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.drips[1].scale.y)).toFixed(2) })) as [{ visible: number; opacity: number; drip: number }, { visible: number; opacity: number; drip: number }];
+      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible };
+    }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
         drawn = anchor?.getObjectByName('WeaponDrawn') ?? anchor?.getObjectByName('SwordDrawn');
@@ -442,6 +445,7 @@ export function createScene(
         impact = 0;
         splats.clear(false);
         wounds.clear();
+        bodyWounds.clear();
         blade.set(false, warriors, bloodMode);
         if (severHead) {
           scene.remove(severHead.group);
@@ -485,6 +489,11 @@ export function createScene(
         if (killed && flesh) killHeading = blow?.heading ?? state.heading; // the decapitation pop flies the way the blow did
         const site = enemyHurt ? practice.enemyWoundSite : practice.woundSite;
         const target = enemyHurt ? practice.enemy : state;
+        // A landed blade blow marks the struck body where the simulation says it landed, from the side the move came from.
+        if (blow?.type === 'Hit' && blow.location && blow.move && !kick && (!enemyHurt || hasBlood(opponentId)) && warriors)
+          bodyWounds.hit(enemyHurt ? 1 : 0, (enemyHurt ? warriors.opponent : warriors.player).anchor,
+            { location: blow.location, direction: weaponOf(practice.duel.fighters[blow.actor].weapon).moves[blow.move].direction, heading: target.heading },
+            enemyHurt ? OPPONENTS[opponentId].scale : 1);
         // Steel on steel: a block or parry of a metal blade by a blade guard throws metal sparks from the attacker's blade (clash-sparks.ts);
         // the generic contact dots stay for everything else (a shaft catching a blade, a kick, a fist).
         const clashEvent = blow ? undefined : events.find((e) => e.type === 'Blocked' || e.type === 'Parried');
@@ -676,6 +685,10 @@ export function createScene(
       if (chest) warriors?.player.aimBladeAt(chest, Math.min(1, finishClock / 0.25));
       if (quietFinish && warriors)
         wounds.throatCut(warriors.opponent.boneWorld('neck_01')!, warriors.opponent.boneWorld('Head')!, practice.enemy.heading, finishClock, bloodMode);
+      // The marks ride the final poses; a cinematic finisher's own gore takes over the victim's body (the plain death keeps his wounds).
+      bodyWounds.update(dt, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null],
+        [practice.playerHealth / practice.maxHealth, practice.health / practice.enemyMaxHealth], bloodMode,
+        [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
