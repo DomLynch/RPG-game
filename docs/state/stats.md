@@ -4,19 +4,45 @@ Lane opened 2026-09-22 on Dom's word ("yes for stats, if we're going to do it, l
 (`docs/briefs/gear-stats.md` on `origin/briefs/gear-stats`, PR #486, not yet merged). Worktree `~/Developer/frankendom-stats`,
 reports to Lead; Strategy reviews every PR body before Lead merges.
 
+## Gotcha worth reading before anything else
+
+**A mutation probe must prove its own mutation landed, or its result means nothing.** Twice today a probe reported a clean pass while
+doing nothing. First: `perl -pi -e 's/(levelOf(tier) - 1)/levelOf(tier)/'` — perl read the parentheses as capture groups, substituted
+nothing, and 0 failures read as "the tests do not guard the ramp". They do; 9 of 15 fail. Second, worse because it was in the test
+itself: the float-drift test derived its "naive" expression as `1 - CAPS.res`, which is `0.19999999999999996` and therefore a *third*
+expression rather than the natural one — so it passed against a module that used the naive form, because the two wrong answers
+disagreed with each other. Only the mutation proof caught it, and only because swapping the module to the naive form failed nothing.
+
+Both were caught on implausibility, not from the output. The probe now asserts the source actually changed before running the suite.
+
 ## Now
 
-Deliverable 2 — the loadout in the fight record. `FightRecord` gains both sides' four multipliers, `RECORD_VERSION` bumps,
-pack/unpack round-trips, the replay verifier replays with them, daily and kill-link fixtures are re-recorded, and a naked
-loadout replays **byte-identical** to today's records behind a flag. `src/gear-stats.ts`'s `NAKED` is the identity that claim
-is proved against.
+Deliverable 2 — the loadout in the fight record — settled with Lead and Strategy and split into two PRs that ship on **different
+deploys**:
 
-Before starting it, rebase `stats/lane` onto a trunk where `src/arena.ts` compiles (see Gotchas).
+- **PR A**: `unpackRecord` returns the version it actually parsed (today `src/record.ts:127` returns the constant, so a decode-then-
+  repack would silently upgrade a v5 record; `packRecord`'s existing guard at `:73` then turns that into a loud throw). Plus the
+  widened accept-list, pinned as **data beside `SIM_DIGEST`**. Re-pins `SIM_DIGEST` **without a bump** under the #439 precedent, with a
+  behaviour-unchanged receipt from `scripts/record-replay-check.mjs`.
+- **PR B**: bumps `RECORD_VERSION` to 6, signed by name in the pin, carrying the encoder and the loadout tail.
+
+**PR A is a server change, not a client one.** `scripts/verify-daily.mjs:12-13` imports `decodeRecord` from `src/record.ts` and
+`deploy.sh` rsyncs `src/**/*.ts` to the verifier host, so the deploy carrying PR A replaces the verifier's decoder too. One accept-list,
+executed on both sides — there is no second list in SQL (`mint_share` treats the record as opaque base64url).
+
+Before starting, rebase `stats/lane` onto a trunk where `src/arena.ts` compiles (see Gotchas).
 
 ## Done today
 
 **2026-09-22 — Deliverable 1, the tier stat table (`src/gear-stats.ts`, `tests/gear-stats.test.ts`). Data and tests only; no sim
 change, and `src/loot.ts`'s "visual cosmetics only, no stats" header still stands.**
+
+**Two stats, not four.** The first cut had gear carrying Attack, Defence, Poise and Stamina. Brief 19 was revised at 22:40 to sit under
+`docs/progression-direction.md` (owner, 2026-09-19), which puts POISE, health (VIG) and stamina (END/DEX) in the **Origin character
+layer** and has the heavy armour classes *costing* stamina economy rather than granting it — the armour line there says in as many
+words that armour does not add POISE. So the gear layer carries **Attack and RES** and nothing else, and a shipped four-stat table
+would have contradicted the character layer before either existed. There is now a test asserting the key set, because a third column
+here is a layer boundary being crossed, not a table being extended.
 
 One number per tier per slot, as the brief asks. The number is a slot's **coverage weight** (Helmet 20, Body 30, Greaves 18,
 Arms 12, Boots 12, Gloves 8, Crest 0 — summing to 100), scaled by the tier's place on the ladder *above the bottom rung*:
@@ -25,9 +51,10 @@ Arms 12, Boots 12, Gloves 8, Crest 0 — summing to 100), scaled by the tier's p
 | stat | from | formula | naked | full Origin |
 |---|---|---|---|---|
 | Attack | the one weapon slot | `(90000 + 15·p) / 90000` | 1 | **1.15** |
-| Defence | the six armour slots | `(90000 − 20·p) / 90000` | 1 | **0.80** |
-| Poise | the same six | `(90000 − 25·p) / 90000` | 1 | **0.75** |
-| Stamina | the same six | `(90000 + 25·p) / 900` | 100 | **125** |
+| RES | the six wearing armour slots | `(90000 − 20·p) / 90000` | 1 | **0.80** |
+
+Both scale damage — Attack what you deal, RES what you take, chip included. **Neither touches posture (`shake`) or any timing**: a
+longsword tell is a longsword tell at every tier, which is the progression-direction rule and the reason nothing here is a duration.
 
 Because every cap is a whole set rather than a fitted constant, the Origin row is *exactly* on the caps — and **both** ends of the
 ladder are exactly the identity: no gear, and a full Recruit set. Strict equality throughout, not a tolerance.
@@ -43,14 +70,18 @@ armour slots came from brief 19 and Brief 14 and were each checked against the c
 (`src/grades.ts:14`), ten rungs with Origin at level 10, and `ARMOUR_SLOTS` at `src/loot.ts:10` carrying **seven** entries, Crest
 included.
 
-14 tests, all passing; full suite 480 pass / 0 fail. Mutation-proved rather than merely green: Helmet 20 → 21 fails 8 of the 14,
-Crest 0 → 1 fails 9, and reverting the ramp to `levelOf` fails 9.
+15 tests, all passing; full suite 481 pass / 0 fail. Mutation-proved rather than merely green — each probe asserts its own mutation
+landed before the suite runs (see the gotcha at the top of this file):
 
-One note on that proof, because it is the trap and not the result. The ramp mutation first reported **0 failures**, which would have
-read as "the tests do not guard the ramp". They do. The probe was `perl -pi -e 's/(levelOf(tier) - 1)/levelOf(tier)/'` — perl read
-the parentheses as capture groups, so nothing was ever substituted and a no-op scored as a clean pass. A mutation proof that cannot
-show its mutation landed is the same species of check as the ones it exists to catch; the rerun asserts the source actually changed
-before running the suite.
+| mutation | tests that fail |
+|---|---|
+| Helmet weight 20 → 21 | 8 |
+| Crest 0 → 1 | 9 |
+| ramp `(levelOf − 1)` → `levelOf` | 9 |
+| RES written as the naive float | 1 |
+| RES coefficient 20 → 21 | 6 |
+| Attack coefficient 15 → 20 | 5 |
+| gear layer regains a `poise` value | 6 |
 
 ## Open
 
@@ -58,10 +89,10 @@ before running the suite.
   and `GradeRecord` (`src/grades.ts:74`) is declared but `OPPONENTS` carries no `grade` field on becec83 — `grep -n
   "grade\|tier" src/roster.ts` returns nothing. Deliverable 1's API therefore takes `(tier, slot)` pairs directly. **Lead owns
   landing the grade record onto OPPONENTS**; until then this table is data with no caller, which is what deliverable 1 should be.
-- **Decision on the record (lead, 2026-09-22): Defence and Poise share one armour total for beta**, so no piece is heavy but
-  soft. At a ≤25% ceiling the difference is under the noise floor and a second column would double the tuning surface. The
-  hedge is that all three armour multipliers are derived inside a single private `multipliers()` function, so a split later is
-  a second weight column and three changed lines, not a rewrite.
+- **Resolved and now moot: the Defence/Poise shared-total question.** Raised as a design cost of "one number per tier per slot",
+  ruled keep-for-beta, then evaporated entirely when Poise left the gear layer. The hedge it prompted — deriving every multiplier
+  inside one private `multipliers()` function — is what made the four-stats-to-two cut a small edit instead of a rewrite, and is the
+  same seam the Origin character layer will extend through.
 - **Settled: the bottom rung is the zero point.** Flagged as a design claim rather than buried in arithmetic, argued, and
   overturned within the hour — which is the whole value of separating the two. The ramp is `(level − 1) / 9`.
 - Deliverable 5 (the seam in `src/duel.ts`, opponents wearing their tier, the ladder retune) is **blocked by Lead** behind
@@ -80,8 +111,8 @@ before running the suite.
   Receipt that it is the *only* break: both `npx tsc --noEmit` and `npm run typecheck:tests` return that single error and
   nothing else, and with the line locally stubbed to `get guards() { return { built: 0, of: 0 }; }` — a throwaway probe,
   reverted, `git status --porcelain src/arena.ts` empty afterwards — both come back completely clean.
-- **Never write a multiplier as the obvious float.** `1 − 0.25 · 390/900` is `0.8916666666666666`; `(90000 − 25·390)/90000`
-  is `0.8916666666666667`. 74 of the 900 reachable armour totals drift this way. This is not pedantry borrowed from a doc — the first version of the mixed-kit test was written the naive way and
+- **Never write a multiplier as the obvious float.** `1 − 0.2 · 288/900` is `0.9359999999999999`; `(90000 − 20·288)/90000` is
+  `0.936`. 68 of the 901 reachable armour totals drift this way, and a Veteran set with Gladiator arms is one of them. This is not pedantry borrowed from a doc — the first version of the mixed-kit test was written the naive way and
   failed against the module, which is why `tests/gear-stats.test.ts` now pins both forms. A paperdoll rounds it away; a
   1500-tick fight does not, and that is what the arm64/x64 digest rule exists to stop.
 - `src/gear-stats.ts` is deliberately **not** in `eslint.config.js`'s `SIM` list and never needs to be. The sim takes a

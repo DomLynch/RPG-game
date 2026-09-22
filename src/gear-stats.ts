@@ -1,28 +1,37 @@
-// Gear stats (brief 19, deliverable 1): what a kit is worth, as four multipliers. Data only — nothing here changes a fight yet, and
+// Gear stats (brief 19, deliverable 1): what a kit is worth, as two multipliers. Data only — nothing here changes a fight yet, and
 // `src/loot.ts`'s "visual cosmetics only, no stats" header stands until deliverable 5 puts a Loadout into `stepDuel`.
 //
-// The seam this file is built for: the simulation takes a `Loadout` — the four numbers, already resolved — and never sees a tier, a
-// slot or a table. That is why this module is deliberately NOT in eslint.config.js's SIM list and never needs to be: the resolution
-// happens once, outside the duel, and only its four results cross the boundary. It also keeps `src/duel.ts` free of any import of
-// `loot.ts` or `grades.ts`, which the sim-boundary test would refuse.
+// TWO stats, not four, and the boundary is the point. `docs/progression-direction.md` (owner, 2026-09-19) puts POISE, health (VIG) and
+// stamina (END/DEX) in the Origin CHARACTER layer, and has the heavy armour classes COSTING stamina economy rather than granting it.
+// So gear carries Attack and RES and nothing else. The first cut of this file had gear granting Poise and a bigger stamina pool, which
+// would have put the gear layer in direct contradiction with the character layer before either shipped.
 //
-// The bar (brief 19): gear tilts, skill decides. A full Origin set moves any one stat by at most 25% against no gear, so a naked
-// fighter can still beat every rung under its fairness cap. The caps below are the whole of that promise and `tests/gear-stats.test.ts`
-// holds them exactly.
+// The seam this file is built for: the simulation takes a `Loadout` — the resolved multipliers — and never sees a tier, a slot or a
+// table. That is why this module is deliberately NOT in eslint.config.js's SIM list and never needs to be: the resolution happens
+// once, outside the duel, and only its results cross the boundary. It also keeps `src/duel.ts` free of any import of `loot.ts` or
+// `grades.ts`, which the sim-boundary test would refuse.
+//
+// The bar (brief 19): gear tilts, skill decides. A full Origin set moves either stat by at most 20% against no gear, so a naked
+// fighter can still beat every rung under its fairness cap. And **no stat changes the timing of any attack, parry, roll or wind-up** —
+// a longsword tell is a longsword tell at every tier — which is why every number here is a damage multiplier and none is a duration.
+// The caps below are the whole of that promise and `tests/gear-stats.test.ts` holds them exactly.
 import { levelOf, type Tier } from './grades.ts';
 import { ARMOUR_SLOTS, WEAPON_SLOTS, isWeaponSlot, type LootSlot } from './loot.ts';
 
-// The four multipliers a fight is fought with. Attack and Defence/Poise multiply, Stamina IS the pool (points, not a factor) — the
-// shapes differ because what they scale differs, and pretending Stamina is a multiplier would hide that the naked pool is 100.
-export type Loadout = { attack: number; defence: number; poise: number; stamina: number };
+// The two multipliers a fight is fought with. Both scale damage — Attack what you deal, RES what you take, chip included — and
+// neither touches posture (`shake`) or any timing.
+//
+// A record of multipliers rather than a fixed pair by design: brief 19 asks for a shape the Origin character layer EXTENDS rather than
+// replaces. That layer resolves item ids plus an approved allocation into the same kind of object, and its stats join as further
+// fields without this table changing.
+export type Loadout = { attack: number; res: number };
 // No gear: the exact identity. Every number here is what the game does today, so a naked loadout must be a no-op at the seam and a
 // naked fight must replay byte-identical to a record made before stats existed (that is deliverable 2's flag, proved against this).
-export const NAKED: Loadout = { attack: 1, defence: 1, poise: 1, stamina: 100 };
+export const NAKED: Loadout = { attack: 1, res: 1 };
 
-// What a full Origin set is worth. Attack gets the smallest range on purpose (brief 19): raw damage is what kill timings, finisher
-// windows and the fight-length pins are measured against, so it moves least. Poise moves most because posture is the stat a player
-// feels without reading a number.
-export const CAPS = { attack: 1.15, defence: 0.80, poise: 0.75, stamina: 125 } as const;
+// What a full Origin set is worth. Attack gets the smaller range on purpose (brief 19): raw damage is what kill timings, finisher
+// windows and the fight-length pins are measured against, so it moves least.
+export const CAPS = { attack: 1.15, res: 0.80 } as const;
 
 // One number per tier per slot (brief 19: "no hand values per piece"). The number is a slot's COVERAGE WEIGHT, and the tier scales it
 // linearly by its place on the ladder ABOVE THE BOTTOM RUNG — `levelOf - 1` over 9, so Recruit is 0 and Origin its whole weight. So the
@@ -59,25 +68,21 @@ export const pointsFor = (tier: Tier, slot: LootSlot): number => SLOT_WEIGHT[slo
 // cannot be expressed at all.
 export type Kit = Partial<Record<LootSlot, Tier>>;
 
-// The one place a points total becomes numbers, and the only place a cap is spelled out (lead's condition, 2026-09-22). Beta runs
-// Defence, Poise and Stamina off a SINGLE armour total, so a piece cannot be heavy but soft — at a ≤25% ceiling that difference sits
-// under the noise floor and a second column would double the tuning surface for an effect nobody can feel. Should Strategy ever want
-// it, this function is where the split lands: `armour` becomes two totals and the three lines below read different ones. Nothing
-// outside this function knows how many totals there are, so that stays a data change.
+// The one place a points total becomes numbers, and the only place a cap is spelled out (lead's condition, 2026-09-22). Isolating it
+// is what made the four-stats-to-two cut a small edit rather than a rewrite: nothing outside this function ever knew how many totals
+// or how many stats there were, so the Origin character layer can extend it the same way.
 //
 // Every multiplier is one integer division of exact integers, so a full set is exactly its cap (72000/90000, not 0.7999999…) and a
 // partial kit is the correctly-rounded double of an exact ratio on every machine. The literals 15/20/25 below are the caps' distances
-// from 1 (0.15, 0.20, 0.25) times 90000 / FULL_POINTS, and the test derives the caps from the table rather than repeating them.
+// from 1 (0.15, 0.20) times 90000 / FULL_POINTS, and the test derives the caps from the table rather than repeating them.
 function multipliers(armour: number, weapon: number): Loadout {
   return {
     attack: (90000 + 15 * weapon) / 90000,
-    defence: (90000 - 20 * armour) / 90000,
-    poise: (90000 - 25 * armour) / 90000,
-    stamina: (90000 + 25 * armour) / 900,
+    res: (90000 - 20 * armour) / 90000,
   };
 }
 
-// The four multipliers for a kit. Total function: it validates nothing and throws nothing, because a fight must start with whatever
+// The two multipliers for a kit. Total function: it validates nothing and throws nothing, because a fight must start with whatever
 // the player is actually wearing.
 export function loadoutFor(kit: Kit): Loadout {
   let armour = 0, weapon = 0;
@@ -91,7 +96,7 @@ export function loadoutFor(kit: Kit): Loadout {
   return multipliers(armour, weapon);
 }
 
-// A full set at one tier: the six armour slots (never the Crest, which is worth nothing) and, given a weapon slot, that weapon too.
+// A full set at one tier: the six wearing armour slots (never the Crest, which is worth nothing) and, given a weapon slot, that weapon too.
 // The Origin case is the cap row the whole brief is measured against, so it is worth having one name rather than six call sites
 // spelling it out.
 export const fullSet = (tier: Tier, weapon?: (typeof WEAPON_SLOTS)[number]): Kit =>

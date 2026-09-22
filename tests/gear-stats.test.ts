@@ -1,14 +1,16 @@
 // Brief 19 deliverable 1: the tier stat table. Every tier × slot resolves to four multipliers, a full Origin set lands EXACTLY on the
 // caps, and BOTH ends of the ladder are exactly the identity — no gear, and a full Recruit set of rag and scrap. The bar the whole
-// brief is judged against — gear tilts, skill decides — is one assertion here: no single stat moves by more than 25% between naked
-// and full Origin.
+// brief is judged against — gear tilts, skill decides — is one assertion here: neither stat moves by more than 20% between naked and
+// full Origin. Gear carries Attack and RES only; POISE, health and stamina are the Origin character layer's
+// (docs/progression-direction.md), and there is a test below that says so, because a later hand adding a third column here would be
+// crossing a layer boundary rather than extending a table.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CAPS, FULL_POINTS, NAKED, SLOT_WEIGHT, fullSet, loadoutFor, pointsFor, type Kit, type Loadout } from '../src/gear-stats.ts';
 import { TIERS, levelOf, type Tier } from '../src/grades.ts';
 import { ARMOUR_SLOTS, LOOT_SLOTS, WEAPON_SLOTS, isWeaponSlot, type LootSlot } from '../src/loot.ts';
 
-const STATS = ['attack', 'defence', 'poise', 'stamina'] as const;
+const STATS = ['attack', 'res'] as const;
 
 test('gear stats: the table covers every slot the game has, and only those', () => {
   assert.deepEqual(Object.keys(SLOT_WEIGHT).sort(), [...LOOT_SLOTS].sort(), 'a new loot slot must be given a weight, not silently fall through as undefined');
@@ -23,6 +25,16 @@ test('gear stats: the Crest is zero on purpose — a row someone must change, no
   for (const tier of TIERS) assert.deepEqual(loadoutFor({ Crest: tier }), NAKED, `a ${tier} Crest is worth exactly nothing`);
 });
 
+test('gear stats: gear carries Attack and RES only — POISE, health and stamina belong to the character layer', () => {
+  // docs/progression-direction.md (owner, 2026-09-19): POISE is one of the five Origin character stats and the armour line says in as
+  // many words that armour does not add POISE; stamina is END/DEX, and the heavy armour classes COST stamina economy rather than
+  // granting it. This lane's first cut had gear granting both. The assertion is here so that adding a third key is a failing test
+  // rather than a quiet extension — it is a layer boundary, not a table with room in it.
+  assert.deepEqual(Object.keys(NAKED).sort(), ['attack', 'res']);
+  assert.deepEqual(Object.keys(CAPS).sort(), ['attack', 'res']);
+  assert.deepEqual(Object.keys(loadoutFor(fullSet('Origin', 'Estoc'))).sort(), ['attack', 'res']);
+});
+
 test('gear stats: a full set of either pool is exactly 900 points, so a cap is a whole set and not a fitted constant', () => {
   const armour = ARMOUR_SLOTS.reduce((sum, slot) => sum + SLOT_WEIGHT[slot], 0);
   assert.equal(armour, 100, 'the six armour weights sum to 100');
@@ -32,7 +44,7 @@ test('gear stats: a full set of either pool is exactly 900 points, so a cap is a
 
 test('gear stats: no gear is the exact identity — the seam must be a no-op for a naked fighter', () => {
   assert.deepEqual(loadoutFor({}), NAKED);
-  assert.deepEqual(NAKED, { attack: 1, defence: 1, poise: 1, stamina: 100 }, 'what the game does today');
+  assert.deepEqual(NAKED, { attack: 1, res: 1 }, 'what the game does today');
 });
 
 test('gear stats: a full Origin set lands exactly on the caps', () => {
@@ -41,20 +53,19 @@ test('gear stats: a full Origin set lands exactly on the caps', () => {
     for (const stat of STATS) assert.equal(loadout[stat], CAPS[stat], `Origin + ${weapon}: ${stat} is ${loadout[stat]}, cap is ${CAPS[stat]}`);
   }
   // Exactly, not nearly: these are the doubles the literals denote, so a strict equality above is not luck.
-  assert.equal(CAPS.defence, 0.8); assert.equal(CAPS.poise, 0.75); assert.equal(CAPS.attack, 1.15); assert.equal(CAPS.stamina, 125);
+  assert.equal(CAPS.res, 0.8); assert.equal(CAPS.attack, 1.15);
 });
 
-test('gear stats: THE BAR — a full Origin set moves no single stat by more than 25% against naked', () => {
+test('gear stats: THE BAR — a full Origin set moves neither stat by more than 20% against naked', () => {
   const full = loadoutFor(fullSet('Origin', 'Estoc'));
-  for (const stat of STATS) {
-    const tilt = Math.abs(full[stat] - NAKED[stat]) / NAKED[stat];
-    assert.ok(tilt <= 0.25 + 1e-12, `${stat} tilts ${(tilt * 100).toFixed(2)}% — brief 19's ceiling is 25%`);
-  }
-  // And the intended ordering of how much each stat is allowed to move: raw damage least, because the fight-length pins and finisher
-  // windows are measured against it.
   const tilt = (stat: typeof STATS[number]) => Math.abs(full[stat] - NAKED[stat]) / NAKED[stat];
-  assert.ok(tilt('attack') < tilt('defence') && tilt('defence') < tilt('poise'), 'attack 15% < defence 20% < poise 25%');
-  assert.equal(tilt('stamina'), 0.25);
+  for (const stat of STATS) assert.ok(tilt(stat) <= 0.20 + 1e-12, `${stat} tilts ${(tilt(stat) * 100).toFixed(2)}% — brief 19's ceiling is 20%`);
+  // And the intended ordering: raw damage moves least, because the fight-length pins and finisher windows are measured against it.
+  assert.ok(tilt('attack') < tilt('res'), 'attack 15% < res 20%');
+  // Note what is NOT asserted here: `tilt('res') === 0.2`. It is 0.19999999999999996, because `Math.abs(0.8 - 1) / 1` is the naive
+  // float form this whole module exists to avoid, and the test is not exempt from its own lesson. The exact claim is on the
+  // multiplier itself, which is exact; a tilt is a derived, displayed quantity and is only ever compared against the ceiling.
+  assert.equal(full.res, CAPS.res);
 });
 
 test('gear stats: a full Recruit set carries nothing — the bottom rung IS the zero point', () => {
@@ -67,7 +78,7 @@ test('gear stats: a full Recruit set carries nothing — the bottom rung IS the 
   // And the rung above it is the first that moves anything at all.
   const legionary = loadoutFor(fullSet('Legionary', 'Knife'));
   assert.notDeepEqual(legionary, NAKED);
-  assert.ok(legionary.attack > 1 && legionary.defence < 1 && legionary.poise < 1 && legionary.stamina > 100);
+  assert.ok(legionary.attack > 1 && legionary.res < 1);
 });
 
 test('gear stats: the ladder is monotonic — a better tier is never worth less in any slot', () => {
@@ -79,19 +90,19 @@ test('gear stats: the ladder is monotonic — a better tier is never worth less 
   let previous: Loadout = NAKED;
   for (const tier of TIERS) {
     const set = loadoutFor(fullSet(tier, 'Estoc'));
-    assert.ok(set.attack >= previous.attack && set.defence <= previous.defence && set.poise <= previous.poise && set.stamina >= previous.stamina, `${tier} is not an improvement on the rung below`);
-    assert.ok(set.attack <= CAPS.attack && set.defence >= CAPS.defence && set.poise >= CAPS.poise && set.stamina <= CAPS.stamina, `${tier} crosses a cap`);
+    assert.ok(set.attack >= previous.attack && set.res <= previous.res, `${tier} is not an improvement on the rung below`);
+    assert.ok(set.attack <= CAPS.attack && set.res >= CAPS.res, `${tier} crosses a cap`);
     previous = set;
   }
 });
 
-test('gear stats: only the weapon carries Attack, only armour carries the other three', () => {
+test('gear stats: only the weapon carries Attack, only armour carries RES', () => {
   for (const tier of TIERS) {
     for (const slot of LOOT_SLOTS) {
       const loadout = loadoutFor({ [slot]: tier } as Kit), worth = pointsFor(tier, slot) > 0;
       if (!worth) { assert.deepEqual(loadout, NAKED, `${tier} ${slot} is worth nothing and must be the identity`); continue; }
-      if (isWeaponSlot(slot)) assert.ok(loadout.attack > 1 && loadout.defence === 1 && loadout.poise === 1 && loadout.stamina === 100, `${tier} ${slot} moved an armour stat`);
-      else assert.ok(loadout.attack === 1 && loadout.defence < 1 && loadout.poise < 1 && loadout.stamina > 100, `${tier} ${slot} did not behave as armour`);
+      if (isWeaponSlot(slot)) assert.ok(loadout.attack > 1 && loadout.res === 1, `${tier} ${slot} moved RES`);
+      else assert.ok(loadout.attack === 1 && loadout.res < 1, `${tier} ${slot} did not behave as armour`);
     }
   }
 });
@@ -108,23 +119,35 @@ test('gear stats: mixed kit — a piece is worth its own tier, not the set\'s', 
   const armour = (Object.entries(kit) as [LootSlot, Tier][]).reduce((sum, [slot, tier]) => sum + pointsFor(tier, slot), 0);
   assert.equal(armour, (100 - SLOT_WEIGHT.Helmet) * (levelOf('Legionary') - 1) + SLOT_WEIGHT.Helmet * (levelOf('Praetorian') - 1));
   assert.equal(armour, 180);
-  assert.deepEqual(loadoutFor(kit), { attack: 1, defence: 0.96, poise: 0.95, stamina: 105 });
+  assert.deepEqual(loadoutFor(kit), { attack: 1, res: 0.96 });
 });
 
-test('gear stats: the integer form is not decoration — the obvious float expression is already wrong at 390 points', () => {
+test('gear stats: the integer form is not decoration — the obvious float expression drifts on real kits', () => {
   // This assertion earned its place by failing: the mixed-kit case above was first written with the naive expression and disagreed
-  // with the module. A Veteran set with a Master body is 390 points, where `1 - 0.25 * 390 / 900` is 0.8916666666666666 and
-  // `(90000 - 25 * 390) / 90000` is 0.8916666666666667. One kit in a paperdoll rounds that away; the same drift inside a 1500-tick
-  // fight does not, which is what the arm64/x64 digest rule exists to prevent. So every multiplier is exact integers divided once.
-  const kit = { ...fullSet('Veteran'), Body: 'Master' } as Kit;
+  // with the module, which was right. One kit in a paperdoll rounds that away; the same drift inside a 1500-tick fight does not,
+  // which is what the arm64/x64 digest rule exists to prevent. So every multiplier is exact integers divided once.
+  //
+  // The count is asserted so the hazard is a number rather than an anecdote.
+  //
+  // `naive` is written as the literal 0.2 on purpose, and that detail cost a round: the first version derived it as `1 - CAPS.res`,
+  // which is 0.19999999999999996 and therefore a THIRD expression rather than the natural one. It made the test pass against a
+  // module that used the naive form, because the two wrong answers disagreed with each other. The mutation proof caught it — swapping
+  // the module to `1 - 0.2 * armour / 900` failed nothing. A test about float drift is not exempt from float drift.
+  const naive = (a: number) => 1 - 0.2 * a / FULL_POINTS, exact = (a: number) => (90000 - 20 * a) / 90000;
+  const drifting = [];
+  for (let a = 0; a <= FULL_POINTS; a++) if (naive(a) !== exact(a)) drifting.push(a);
+  assert.ok(drifting.length > 0, 'if this is ever empty the test has stopped proving anything');
+  assert.equal(drifting.length, 68);
+  // And one of them reached by an actual kit, so this is not a synthetic hazard.
+  // A Veteran set with Gladiator arms: 288 points, where the naive expression gives 0.9359999999999999 and the exact one 0.936.
+  const kit = { ...fullSet('Veteran'), Arms: 'Gladiator' } as Kit;
   const armour = (Object.entries(kit) as [LootSlot, Tier][]).reduce((sum, [slot, tier]) => sum + pointsFor(tier, slot), 0);
-  assert.equal(armour, 390);
-  assert.notEqual(1 - 0.25 * armour / FULL_POINTS, loadoutFor(kit).poise);
-  assert.equal(loadoutFor(kit).poise, 0.8916666666666667);
-  // 74 of the 900 reachable armour totals drift this way; the point is that none of them can, through this module.
-  let drifting = 0;
-  for (let a = 0; a <= FULL_POINTS; a++) if (1 - 0.25 * a / FULL_POINTS !== (90000 - 25 * a) / 90000) drifting++;
-  assert.equal(drifting, 74);
+  assert.equal(armour, 288);
+  assert.ok(drifting.includes(armour), 'a Veteran set with Gladiator arms lands on a drifting total');
+  assert.equal(naive(armour), 0.9359999999999999);
+  assert.equal(exact(armour), 0.936);
+  assert.notEqual(naive(armour), loadoutFor(kit).res);
+  assert.equal(loadoutFor(kit).res, exact(armour));
 });
 
 // The grid itself. 10 tiers × 7 loot-bearing slot kinds, one cell per cell, so a weight cannot be nudged without this snapshot saying
@@ -147,17 +170,17 @@ test('gear stats: the full tier × slot grid', () => {
 
 // The multipliers a player will actually see per whole set, so a change to the derivation shows up as numbers and not just as points.
 test('gear stats: a full set at every rung, as the paperdoll will show it', () => {
-  const rows = TIERS.map(tier => { const l = loadoutFor(fullSet(tier, 'Estoc')); return `${tier}\t${l.attack}\t${l.defence}\t${l.poise}\t${l.stamina}`; });
+  const rows = TIERS.map(tier => { const l = loadoutFor(fullSet(tier, 'Estoc')); return `${tier}\t${l.attack}\t${l.res}`; });
   assert.deepEqual(rows, [
-    'Recruit\t1\t1\t1\t100',
-    'Legionary\t1.0166666666666666\t0.9777777777777777\t0.9722222222222222\t102.77777777777777',
-    'Gladiator\t1.0333333333333334\t0.9555555555555556\t0.9444444444444444\t105.55555555555556',
-    'Veteran\t1.05\t0.9333333333333333\t0.9166666666666666\t108.33333333333333',
-    'Champion\t1.0666666666666667\t0.9111111111111111\t0.8888888888888888\t111.11111111111111',
-    'Praetorian\t1.0833333333333333\t0.8888888888888888\t0.8611111111111112\t113.88888888888889',
-    'Master\t1.1\t0.8666666666666667\t0.8333333333333334\t116.66666666666667',
-    'Primus\t1.1166666666666667\t0.8444444444444444\t0.8055555555555556\t119.44444444444444',
-    'Invictus\t1.1333333333333333\t0.8222222222222222\t0.7777777777777778\t122.22222222222223',
-    'Origin\t1.15\t0.8\t0.75\t125',
+    'Recruit\t1\t1',
+    'Legionary\t1.0166666666666666\t0.9777777777777777',
+    'Gladiator\t1.0333333333333334\t0.9555555555555556',
+    'Veteran\t1.05\t0.9333333333333333',
+    'Champion\t1.0666666666666667\t0.9111111111111111',
+    'Praetorian\t1.0833333333333333\t0.8888888888888888',
+    'Master\t1.1\t0.8666666666666667',
+    'Primus\t1.1166666666666667\t0.8444444444444444',
+    'Invictus\t1.1333333333333333\t0.8222222222222222',
+    'Origin\t1.15\t0.8',
   ]);
 });
