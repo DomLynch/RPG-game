@@ -45,16 +45,16 @@ PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing s
   Knight only. Strategy to place it.
 - **The bare Knight reads as nobody** (Executioner, #502): shoulder/height 0.367 in kit to 0.246 stripped, and none of the
   bare outline is his. Open proposal for Dom: one non-takeable silhouette feature in the bare build.
-- **Open for Dom, and the biggest thing on this list: "distinctive silhouette" and "six takeable pieces" pull against each
-  other by construction.** The more strongly a character is designed on outline, the more completely they vanish stripped,
-  because every feature that reads as gear IS gear under the six-piece ruling. The Executioner survives stripping (hood, hair),
-  the Veteran survives (frame); the Knight keeps nothing (0.367 -> 0.246) and Shieldmaiden A keeps nothing (0.284 -> 0.240),
-  and A won the owner's pick on the hard shoulder line, the single most removable thing about her. Two of four launch
-  characters, found independently by the Executioner and Pitborn lanes on the same day. Binary decision, the owner's: identity
-  moves onto the body (build, scars, hair as authored geometry) where loot cannot reach, or the bar comes down and the brief
-  says plainly that stripped means generic. It bears on the Plague Doctor and the Witch BEFORE their lanes write a brief in
-  the same terms. Ruled meanwhile so no lane stalls: Brief 17's §6 bare-pass gate is **satisfied** — its purpose is that a
-  masked character isn't modelled before its outline is known, and the outline is now known including the missing part.
+- **CLOSED, not open — the stripped-identity question was dissolved by Strategy, and correctly.** I had escalated it as a
+  binary for Dom (identity moves onto the body, or the brief says stripped means generic). Both horns assumed a stripped state
+  exists in the game; none does. Take-one removes at most one piece per kill, the opponent respawns kitted, and a grade is a
+  MATERIAL variant on a shared mesh, not a different mesh (`src/grades.ts` states this as its premise) — so a Recruit's scrap
+  Body piece carries the same outline as the Origin one. Ruling: **the gate is in-kit at every rung; the bare pass is
+  informational, recorded beside the in-kit number, never a bar.** Every launch character's Recruit-2 are her two
+  identity-carrying slots (Knight, Plague Doctor, Witch: Helmet + Body; Shieldmaiden A: Body + Helmet). A body-level identity
+  feature is a per-character taste call for the owner, not a rule. The two failures the Executioner and Pitborn lanes measured
+  were real and the measurement stands — the bar was wrong, not the finding. My §6 gate-satisfied ruling is consistent with
+  this and stands; that lane builds.
 - Mine also: the SCOPE.md broadcast to the lanes once #492 lands.
 
 **Gotchas.**
