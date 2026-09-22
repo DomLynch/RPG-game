@@ -29,7 +29,12 @@ export const LORARII = {
   top: 2.6,              // LAYOUT.wall.top: the walkway surface
   sixth: Math.PI / 3,
   reach: 0.28,           // radians each side of his post that he paces (±16°): sixths never overlap and the gate (π ± 0.13, plus a shoulder) stays clear (tests/lorarii.test.ts)
-  period: 26,            // seconds for one there-and-back; 4 × reach × radius / period ≈ 0.52 m/s — a slow walk (guards 1, 2 walk a little slower still)
+  // Pace's own ground speed, measured by Multi Chars off guard.glb (maximum forward foot separation 0.642 m across the clip's
+  // 1.333 s = 1.284 m per cycle): 0.963 m/s at timeScale 1. Walking them slower than the clip makes the feet skate, and below
+  // ~0.7 m/s the gait wants re-authoring — so the patrol moves at the clip's own speed and the mixer stays at 1. Every guard
+  // walks the same speed and only his phase differs, so one timeScale serves all six.
+  speed: 0.963,          // metres per second along the wall; the period follows from it (see lorariusAngle)
+  raiseClip: 0.5,        // seconds: guard.glb's Raise (Lash is 0.6) — what the lead is filled with
   turn: 4,               // yaw lerp rate toward the nearest fighter (per second)
   raise: 0.35, lash: 0.22, recover: 0.6,   // seconds: the placeholder's beat. With the real body, Raise and Lash are the clips' own lengths (0.6 s each)
   lead: 60,                // default ticks between WhipRaised and Whipped when the event carries no `lead` (RULES.wall.loiter: 60 before the first lash, 30 before a repeat)
@@ -38,7 +43,7 @@ export const LORARII = {
 // Where guard `i` stands at sim tick `tick`: his post is the centre of his sixth, offset by half a sixth so no post sits on the
 // gate axis, and he walks a slow triangle wave along the wall with his own phase and period. Pure — Combat may call it too.
 export function lorariusAngle(i: number, tick: number): number {
-  const t = tick * TICK, post = LORARII.sixth * (i + 0.5), period = LORARII.period + (i % 3) * 4, u = ((t / period) + i * 0.29) % 1;
+  const t = tick * TICK, post = LORARII.sixth * (i + 0.5), period = 4 * LORARII.reach * LORARII.radius / LORARII.speed, u = ((t / period) + i * 0.29) % 1;
   const tri = u < 0.5 ? u * 4 - 1 : 3 - u * 4;   // -1 → 1 → -1
   return post + tri * LORARII.reach;
 }
@@ -67,6 +72,9 @@ export function placeholderGeometry(): THREE.BufferGeometry {
 const CLIPS = ['Pace', 'Stand', 'Turn', 'Raise', 'Lash'] as const;
 type Clip = typeof CLIPS[number];
 type Rig = { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<Clip, THREE.AnimationAction>; playing: Clip };
+// Turn is deliberately never played. It is a 180 degree about-face with a root.quaternion track INSIDE the GLB (Multi Chars),
+// one level under the node this module positions, so playing it would compose with the yaw below and spin the guard 360.
+// The yaw-lerp wins here because a guard watches whichever fighter is nearest, which is a continuous heading, not a flip.
 
 // One guard's body: a clone of the shared asset with its own mixer. Cross-faded, so a raise never snaps out of the walk.
 function rig(asset: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }): Rig {
@@ -107,7 +115,7 @@ export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeome
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = 'lorarii'; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;   // culled per guard below
   parent.add(mesh);
-  const guards = Array.from({ length: count }, (_, i) => ({ i, angle: lorariusAngle(i, 0), yaw: 0, phase: 'pace' as Phase, since: 0, held: 0, leadScale: 1 }));
+  const guards = Array.from({ length: count }, (_, i) => ({ i, angle: lorariusAngle(i, 0), yaw: 0, phase: 'pace' as Phase, since: 0, held: 0, raiseScale: 1 }));
   // The real bodies land later (one fetch, six clones). Until then — or if the fetch fails — the capsules above carry the wall.
   const bodies: Rig[] = [];
   // The real bodies are fetched when the caller hands the asset's URL over (scene.ts, once its glob is in scope). Until then —
@@ -135,7 +143,10 @@ export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeome
         // before every repeat at `again`). So the raise is stretched to whatever lead the event carries — never a hard-coded
         // hold — and the arm is up exactly when the lash lands, however the owner retunes `again`.
         const lead = (((e as { lead?: number }).lead ?? LORARII.lead) | 0) / 60;
-        g.phase = 'raise'; g.since = 0; g.held = Math.max(0, lead - LORARII.raise); g.leadScale = Math.min(2, Math.max(0.4, lead / 1));
+        // Raise is 0.5 s of clip; play it at clip/lead so the arm is up exactly as the lash lands. Clamped: past ~2.5x the
+        // wind-up stops reading as a wind-up (Multi Chars), and the sim's own leads (60 ticks, then 30) land at 0.5x and 1x.
+        g.phase = 'raise'; g.since = 0; g.held = Math.max(0, lead - LORARII.raise);
+        g.raiseScale = Math.min(2.5, Math.max(0.4, LORARII.raiseClip / Math.max(0.05, lead)));
       }
       else if (g.phase === 'hold' || g.phase === 'raise') { g.phase = 'lash'; g.since = 0; }                             // the promised lash
       else { g.phase = 'raise'; g.since = 0; g.held = 0; }                                                              // no warning: a fast raise straight into the lash
@@ -169,7 +180,7 @@ export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeome
         body.root.visible = seen;
         body.root.position.set(x, LORARII.top, z);
         body.root.rotation.set(0, g.yaw, 0);
-        if (g.phase === 'raise' && body.playing !== 'Raise') body.actions.Raise.setEffectiveTimeScale(1 / g.leadScale);   // the clip fills the lead the sim gave us
+        if (g.phase === 'raise' && body.playing !== 'Raise') body.actions.Raise.setEffectiveTimeScale(g.raiseScale);   // the clip fills the lead the sim gave us
         playClip(body, g.phase === 'raise' || g.phase === 'hold' ? 'Raise' : g.phase === 'lash' ? 'Lash' : g.phase === 'recover' ? 'Stand' : 'Pace');
         if (seen) body.mixer.update(dt);
       }
