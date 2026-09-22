@@ -34,7 +34,9 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 **23:20 the Nord is a Viking woman, "the Shieldmaiden" (Dom).** Dom wanted two women on ten; the Nord was the only unbuilt archetype with a visible face (the Knight and the Plague Doctor are masked). Told Dom plainly that the guard mesh he hoped to leverage is a decimated background prop with five guard clips, about a tenth of a fighter, so the choice cost nothing. Brief 15 otherwise unchanged (shield always-on, bearded axe, gated on the shield slice). Roster: Witch + Shieldmaiden, eight men.
 
-**Open.** #467 deploy and Dom's phone confirmation. Dom: widen two lane scopes; estoc or longsword for the Plague Doctor. Brief PRs 15–18. Perf overlay PR. Loot panel PR. PR numbers to review. Four restart-proof lines. Cleaver re-measure number.
+**23:30 GO (Dom: "brief the devs and lets get this done, fast and efficiently, minimal tokens with AAA grade visuals").** Decisions taken: Plague Doctor wields the LONGSWORD (opponents' grips 5/5, no estoc duplicate). Scope relays sent directly to the Executioner session (the Knight, Brief 17) and the Nightborn session (the Plague Doctor, Brief 18) quoting Dom under the standing authority; Multi Chars keeps the Witch, shield asset, manifest, six-slot library; the Shieldmaiden to whichever lane clears its silhouette test first. Mandate in every brief: one PR per deliverable with its receipt image; work from state files, batch reads, PR body is the report, 300k restarts; AAA bar = Nightborn TRELLIS.2 face / Dwarf v2 build judged on a phone screenshot at the fighter's camera. Order of value: #467 live → knife → cleaver → estoc → shield → characters as their tests clear.
+
+**Open.** #467 live sha and Dom's phone confirmation. Brief PRs 15–18. Combat restart proof. Cleaver re-measure number. Perf overlay PR. Loot panel PR. PR numbers to review. Four restart-proof lines. Cleaver re-measure number.
 
 **Gotchas.** A first-pick name must be grepped against player-facing strings before it goes to Dom ("Warden" collided worse than "Veteran"). `?guards=` clamps to a minimum of 1.
 
