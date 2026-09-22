@@ -31,13 +31,46 @@ assumption to build on.
 
 By the lane split, **the 13-clip/19-clip family and the staff part are the Weapons lane's shelf**; this estimate covers the character side.
 
+### The cast — short-range magic as a MOVE, not a system
+Dom's addition, Strategy's construction. It is a normal `MoveDef` on the bladed-staff family — its signature slot, the way the scythe has
+its heel jab. Reach, wind-up, active, recovery, damage, posture. **No projectiles, no new sim phase, no timers outside the tick.**
+
+- Reach **no longer than the kick's**.
+- Wind-up **longer than any heavy in the game** — the most readable tell on the roster.
+- A **held guard does not stop it** (kick class): the answer to a turtle at her range.
+- A **roll or backstep beats it clean.**
+- Stamina like a heavy; heavy posture damage, moderate health damage.
+- **Longest recovery of her moves** — a whiffed cast is the punish window.
+
+Presentation: glow on the staff head through the wind-up, a sprite burst on the active tick (not per-frame particles, for the phone
+budget), the audio lane's existing landed-heavy crowd sound. **No screen shake** — Dom plays on a phone.
+
+**The loot consequence is intended and it is not free.** Loot v2 makes every weapon takeable, so the player who takes her staff casts it
+too. The battery covers the cast like any other move, with **no exception rows for magic**. What that means in build terms, and it was not
+in the instruction: a clip name in `WEAPON_CLIPS` must exist in **every GLB that uses the weapon**, so the cast is authored on **her rig
+and on `warrior.glb`**, and blade tables are per (rig, weapon) — **10 for her staff and 10 for the hero's**, not 10 total. The player
+casting is a second fairness surface, not a reskin of hers.
+
+**It also ends the free reuse of the trident family.** A cast clip is a 20th role clip: the staff can still borrow the trident's 19 rather
+than author its own, but it needs at least one clip of its own on top. One added clip is not nineteen — the reuse is still worth having —
+but "zero new clips" is no longer available.
+
+**Not mine to build:** the VFX burst is the Visuals lane's and the sound is the Audio lane's. My estimate covers the clip, the rig work,
+the tables and the battery rows.
+
 ### The estimate, so Strategy can take a number to Dom rather than a feeling
 - **Character side (mine): about one lane-week** — body on the chosen rig + the silhouette frame, six kit slots through the shared
   library, fairness battery, finisher fits measured per finisher, ladder rung.
-- **Weapon side (Weapons'): ~zero if the staff reuses the trident's family; about one lane-week if it needs its own 19 clips.**
-- **Her own blade tables either way:** 10 per (rig, weapon) — one `bake-blades.mjs` run.
-- **So: it lands a lane-week beyond the Nord only in the new-family case.** Answer that question first — it is one conversation with the
-  Weapons lane and it decides whether Strategy needs to take anything to Dom at all. Not absorbed silently, per the instruction.
+- **The cast, on top: about half a lane-week** — one clip authored on **two** rigs (hers and the hero's, because the player takes the
+  staff), the move's data and tuning to the six rules above, and the battery rows for both sides of it. The VFX and sound are other lanes'.
+- **Weapon side (Weapons'): ~zero extra clips if the staff borrows the trident's 19, plus the one cast clip it must add either way; about
+  one lane-week if it needs its own family.**
+- **Blade tables: 20, not 10** — 10 per (rig, weapon), and the staff now lives on two rigs.
+- **Where that leaves her against the Nord — the third scope change tonight, so here is the number rather than a shrug.** The Nord is a
+  cleaver and a round shield on existing families: call it a lane-week. The Witch is now **~1.5 lane-weeks of character work, or ~2.5 if
+  the staff needs its own clip family**, plus VFX and audio in other lanes. **She is materially past the Nord in every case, and by more
+  than double in the worst one.** The single question that decides which is whether the staff can borrow the trident's family — one
+  conversation with the Weapons lane, worth having before anything is taken to Dom.
 
 ## The decision: (a) a new rig, or (b) the hero rig with female proportions in the mesh
 
