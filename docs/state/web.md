@@ -100,6 +100,13 @@ DOM, not pixels, and "five tiles must fit one row at 375" named a constraint tha
 one cheap command away: grep the generator, grep for the guard, measure the live DOM. Run that command before writing code, then
 put the correction in the PR body AND the reply — building to a wrong premise spends a deploy-gated cycle, and quietly dropping
 part of a brief reads as scope-cutting.
+(h) A MERGED BASE DOES NOT SELF-HEAL (lead, 2026-09-22, after #475). A PR stacked on another branch keeps pointing at that branch
+after it merges: `gh pr view <n> --json baseRefName` still read `copy/centurion-and-duel` long after it landed at 16:40:59Z, while
+`mergeable` read MERGEABLE the whole time — `mergeable` says nothing about WHERE the merge lands, and this is the shape that put
+#358 into a lead branch instead of trunk and cost #371 to re-land. Retarget with `gh pr edit <n> --base codex/01a09a76/task-1`,
+then prove no rebase is owed: the old base's head must be an ancestor of trunk (`git branch -r --contains <sha>`) and the three-dot
+diff against trunk must show only your own files. Better still: do not stack twice — #475 was stacked only because index.html keeps
+the meters and #loot-panel on ONE physical line.
 (a, amended) Take is gone since item 10 — a tap on a tile is the take — so the thumb row holds Leave it alone. The rule
 that produced it is unchanged and still load-bearing: no decision button where the first post-kill touch lands, and
 `.loot-panel` stays pointer-transparent with `auto` only on its tiles and its Undo pill.
