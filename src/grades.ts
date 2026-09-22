@@ -54,8 +54,9 @@ export const GRADES: Record<Tier, Grade> = {
   // Steel: the hero's own palette, so a Master reads as the player's equal rather than a step above or below him.
   Master:     { metal: { color: '#c3c7ca', metalness: .92, roughness: .30 }, trim: { color: '#8a6a3c', metalness: .85, roughness: .50 }, leather: { color: '#3e3a36', metalness: 0, roughness: .80 } },
   Primus:     { metal: { color: '#2b2d31', metalness: .95, roughness: .38 }, trim: { color: '#4a4036', metalness: .90, roughness: .45 }, leather: { color: '#2a2622', metalness: 0, roughness: .78 } },
-  // The top two are the only ones allowed to be bright: black vanadium, then gold with ruby furniture.
-  Invictus:   { metal: { color: '#3a4048', metalness: 1, roughness: .16 }, trim: { color: '#59637a', metalness: 1, roughness: .22 }, leather: { color: '#2c3038', metalness: 0, roughness: .72 } },
+  // The top two are the only ones allowed to be bright: emerald, then gold with ruby furniture. Emerald and not a second black —
+  // Dom, 2026-09-22: blackened at 8 and black vanadium at 9 read flat against each other, and the ninth rung has to announce itself.
+  Invictus:   { metal: { color: '#0f5a3c', metalness: .85, roughness: .18 }, trim: { color: '#2f8f63', metalness: .90, roughness: .22 }, leather: { color: '#1b2f26', metalness: 0, roughness: .72 } },
   Origin:     { metal: { color: '#c9a233', metalness: 1, roughness: .22 }, trim: { color: '#4a0d18', metalness: .80, roughness: .35 }, leather: { color: '#3a2e1c', metalness: 0, roughness: .70 } },
 };
 
