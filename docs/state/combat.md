@@ -29,8 +29,14 @@ Remaining: the browser-check timing fix needs a green CI run (not run locally �
 exercises the opener directly (every existing pin calls `initialAi(seed)`, which defaults it off) — the Veteran's win rate WITH the
 opener live is unmeasured, flagged for a follow-up rather than blocking this PR.
 Update, rebase onto trunk-with-#366/#374 (2026-09-22, Lead's sequencing): RECORD_VERSION bumped again, 3 → 4 (#366 already retired v1/v2
-acceptance for the blanket policy; this is the second bump against that, for brief 8 itself) — fixtures re-recorded. Held for Dom's own
-call on the opening's feel before merging; this branch is prepared and left open, not landed.
+acceptance for the blanket policy; this is the second bump against that, for brief 8 itself) — fixtures re-recorded. The browser-gate
+timing fix above turned out to have its own bug, found here (not in review): the press landed exactly on the parry window's edge for
+light/thrust (200/100 ms after the tell put the age-at-contact at exactly RULES.parry, 10 ticks — the strict `<` check fails on equal),
+resolving as a perfect BLOCK instead of a Parried event on the very move the authored opening now always opens with. Retimed to land
+5 ticks inside the window (280/180 ms); both scripts, local run clean 4/4 with no flake. Full local receipts on 848112a: npm test
+418/420 (2 skipped, 0 fail), eslint/tsc clean, npm run test:slow 83/83, kill-link-check PASS, record-replay-check PASS, opponents.test.ts
+20/20. Held for Dom's own call on the opening's feel before merging; this branch is prepared and left open, not landed — CI still
+pending as this entry is written.
 
 ## Ladder slice: Goblin normal rung, reaction 11 / accuracy .7 — 2026-09-22 (Auditer lane, Brief 1)
 Strategy via Lead (02:50 local): Goblin-only retune, target 9–11 hero-brain wins at normal so the ladder reads ~15/13/10/10/6/8; same rules as #366 (normal profile knobs only, no pin edited without its owner's ruling), Combat signs.
