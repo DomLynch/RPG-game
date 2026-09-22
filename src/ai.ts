@@ -326,8 +326,28 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // reach model already has no such gap (no lunge to misjudge), and widening it there bought a live kicker free hits (the Goblin identity
   // gate's kick-only cheese: 2/24 → 7/24 wins) for no benefit — the kicker keeps the original margin (reach − .05 … − .3).
   const margin = reads.poker ? .15 : .05, release = reads.poker ? .35 : .3;
+  // The hold may never sit outside the warden's OWN committing reach (2026-09-22). The kicker hover is built from the KICKER's reach
+  // (`theirs.kick.reach + .3`) with nothing checking it against the holder's: a warden whose own thrust is shorter than that sum stops
+  // driving at a gap where he cannot start the thrust, and stands there. Measured on the Goblin (knife) against a kick-only knife
+  // player, hard, 7200 ticks: hover 1.50, hold from 1.45, gap pinned 1.417–1.431 (p10 = median = p90 over seeds 1–3), 4–5 attack starts
+  // in the whole fight, every seed a stall. His usable reaches there are light 1.10 / thrust 1.35 / heavy 1.45, so only the heavy was
+  // ever legal — and the heavy needs a `guarded` read or a queued `next`, which is why two minutes bought five swings.
+  // `inReach` is the one definition of "I can start this from here" (gap <= reach - .1), so the hold derives from it rather than
+  // restating a distance. Math.min only ever pulls the hold IN: the kicker margin has widened once before and it cost the Goblin's
+  // identity gate (kick-only cheese 2/24 -> 7/24 wins), so this clamp is one-directional by construction.
+  // The POKER branch is deliberately left alone — standing outside a live point and going in on the whiff is the Brief 5 reach fix
+  // doing its job, and a poker's whiff is the opening that releases the hold. It is the kicker's `+ .3` lunge allowance that has no
+  // such release when the sum overshoots the holder's own range.
+  // Derived from the move he is actually COMMITTED to, not from the thrust. `next.next` is picked once and only re-picked when it is
+  // null (`!next.wait && !next.next && canAct` above), and it is cleared by throwing the attack — so a warden held at a gap his queued
+  // move cannot reach never attacks, never clears the plan, and never re-rolls it. Measured: queued `light` on 6599 of 6599 ready ticks,
+  // thrust legal and in reach on 3340 of them, full stamina, no threat, and five swings in two minutes. Line ~191 has the mirror of this
+  // rule for a plan that is too CLOSE (inside the blade's minReach); this is the missing far side of it.
+  const queued = next.next === 'heavy' ? 'heavy_overhead' : next.next === 'thrust' ? 'thrust' : 'light_right';
+  const ownReach = mine[queued].reach - .1;
+  const hold = reads.poker ? hover : Math.min(hover, ownReach);
   const holdable = opponent.phase === 'ready' || opponent.phase === 'guard' || (threat && (!noticed || next.plan === 'ignore'));   // a blow not yet noticed is not walked into either
-  if (hover > 0 && !opening && holdable && gap < hover - margin && forward > 0) forward = gap < hover - release ? -.4 : 0;
+  if (hold > 0 && !opening && holdable && gap < hold - margin && forward > 0) forward = gap < hold - release ? -.4 : 0;
   // a circler drifts sideways while closing in
   const lateral = next.mode === 'circle' ? next.side * .25 : next.mode === 'approach' && forward ? next.side * .25 * (profile.circle ?? 0) : 0;
   // The dart: a sprint into an opening from outside reach (profile.dash), so the whiff is punished before it closes.
