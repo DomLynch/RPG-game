@@ -3,7 +3,7 @@ import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { Direction, WeaponId } from './moves.ts';
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
+import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
@@ -97,12 +97,34 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
 export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
   const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
   if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  return lootPiecesOf(asset.scene);
+}
+// The pieces of a parsed loot.glb, each carrying every id it answers to. One function so the game and its tests read the file the same
+// way — the last time this traversal was written twice, a shared draw resolved in one and not the other.
+//
+// Shared draws (brief 14): a piece the whole roster wears is exported ONCE, named `~<id>`, and the file's own map says which
+// `<opponent>.<slot>` resolve to it. Read the map off whichever node carries it — three's GLTFExporter puts a root Object3D's userData
+// on that object's NODE, not on the glTF scene. A draw with no entry answers to its own name exactly as before, so an old-style file
+// and a new one both load and the loader never has to land in the same PR as the asset.
+export function lootPiecesOf(scene: Object3D): SkinnedMesh[] {
   const pieces: SkinnedMesh[] = [];
-  asset.scene.traverse(object => { if (object instanceof SkinnedMesh && typeof object.userData.slot === 'string') pieces.push(object); });
+  let map: Record<string, string> = {};
+  scene.traverse(object => {
+    if (object instanceof SkinnedMesh && typeof object.userData.slot === 'string') pieces.push(object);
+    const carried = object.userData?.pieces as Record<string, string> | undefined; if (carried) map = { ...map, ...carried };
+  });
   if (!pieces.length) throw new Error('loot.glb carries no pieces');
+  for (const piece of pieces) {
+    const own = `${piece.userData.opponent}.${piece.userData.slot}`;
+    const shared = Object.entries(map).filter(([, target]) => target === own).map(([ref]) => ref);
+    piece.userData.ids = shared.length ? shared : [own];
+  }
   return pieces;
 }
 export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent}.${piece.userData.slot}`;
+// Every id a piece answers to: one for an ordinary draw, several for a shared one.
+export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
+export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
 function fighterClips(asset: FighterAsset, weapon: WeaponId): Record<Role, AnimationClip> {
   const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>();

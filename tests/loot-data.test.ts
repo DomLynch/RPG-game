@@ -7,11 +7,43 @@ import { ARMOUR_SLOTS, LOCKERS, LOOT, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLo
 import { WEAPON_CLIPS } from '../src/characters.ts';
 import { PLAYER_WEAPONS } from '../src/moves.ts';
 
-// The draws of src/assets/loot.glb: `<opponent>.<slot>.<material>` with userData { opponent, slot, layer }.
+type Glb = { scene: number; scenes: { extras?: { pieces?: Record<string, string> } }[]; nodes: { name: string; mesh?: number; extras?: Record<string, string> & { pieces?: Record<string, string> } }[] };
+// The shared-draw map the build writes into loot.glb. three's GLTFExporter puts the root Object3D's userData on that object's NODE
+// (here the one named 'Scene'), not on the glTF scene, so read both rather than assuming which — the file is the contract, not the
+// exporter's current choice.
+const sharedPieces = (json: Glb): Record<string, string> =>
+  json.scenes[json.scene]?.extras?.pieces ?? json.nodes.find(n => n.extras?.pieces)?.extras?.pieces ?? {};
+
+// The draws of src/assets/loot.glb: `<opponent>.<slot>.<material>` with userData { opponent, slot, layer }. A draw whose name starts
+// `~` is SHARED (brief 14): one mesh several opponents wear, and the file's own scene userData maps `<opponent>.<slot>` onto it. The pin
+// below means "LOOT lists exactly what the file provides", so a shared draw expands into the opponents that reference it.
 function lootDraws(): { id: string; slot: string; opponent: string; layer: string }[] {
-  const bytes = readFileSync('src/assets/loot.glb'), length = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + length).toString()) as { nodes: { name: string; mesh?: number; extras?: Record<string, string> }[] };
-  return json.nodes.filter(n => n.mesh !== undefined).map(n => ({ id: n.name.split('.').slice(0, 2).join('.'), slot: n.extras?.slot ?? '', opponent: n.extras?.opponent ?? '', layer: n.extras?.layer ?? '' }));
+  const bytes = readFileSync('src/assets/loot.glb'), length = bytes.readUInt32LE(12);
+  const json = JSON.parse(bytes.subarray(20, 20 + length).toString()) as Glb;
+  const pieces = sharedPieces(json);
+  const out: { id: string; slot: string; opponent: string; layer: string }[] = [];
+  for (const node of json.nodes.filter(n => n.mesh !== undefined)) {
+    const id = node.name.split('.').slice(0, 2).join('.'), slot = node.extras?.slot ?? '', layer = node.extras?.layer ?? '';
+    if (!node.name.startsWith('~')) { out.push({ id, slot, opponent: node.extras?.opponent ?? '', layer }); continue; }
+    for (const [ref, target] of Object.entries(pieces)) if (target === id) out.push({ id: ref, slot, opponent: ref.split('.')[0], layer });
+  }
+  return out;
 }
+
+test('loot: a shared draw is exported once and every opponent that wears it resolves through the file\'s own map', { skip: !existsSync('src/assets/loot.glb') && 'src/assets/loot.glb is not on this checkout' }, () => {
+  const bytes = readFileSync('src/assets/loot.glb'), length = bytes.readUInt32LE(12);
+  const json = JSON.parse(bytes.subarray(20, 20 + length).toString()) as Glb;
+  const pieces = sharedPieces(json), names = new Set(json.nodes.filter(n => n.mesh !== undefined).map(n => n.name));
+  assert.ok(Object.keys(pieces).length >= 6, `the map ships in the file: ${JSON.stringify(pieces)}`);
+  for (const [ref, target] of Object.entries(pieces)) {
+    assert.ok(isLootId(ref), `${ref} is a LootId — sharing is a fact about the file, never about what a player owns`);
+    assert.ok([...names].some(n => n.startsWith(`${target}.`)), `${ref} resolves to a draw: ${target}`);
+    assert.ok(!names.has(ref), `${ref} must NOT also exist as its own draw — that is the duplication the shared schema removes`);
+  }
+  // The saving, stated as a fact about this file: one mesh, six wearers.
+  const shared = [...names].filter(n => n.startsWith('~'));
+  assert.ok(shared.length && shared.length < Object.keys(pieces).length, `${shared.length} shared draws serve ${Object.keys(pieces).length} opponent slots`);
+});
 
 test('loot: the armour piece list is exactly the draws of loot.glb, every piece names its opponent and a known slot, and every slot maps to one paperdoll key', { skip: !existsSync('src/assets/loot.glb') && 'src/assets/loot.glb is not on this checkout' }, () => {
   const draws = lootDraws();
@@ -49,15 +81,15 @@ test('loot: every weapon piece names a player weapon whose equip file ships with
 test('loot: one fixed piece per opponent per career sub-rank, never a duplicate, nothing from an opponent without pieces', () => {
   assert.equal(subRank(0), 0); assert.equal(subRank(3), 1); assert.equal(subRank(14), 4); assert.equal(subRank(15), 5); assert.equal(subRank(30), 10); assert.equal(subRank(205), 45); assert.equal(subRank(-4), 0);
   // The Veteran wears six slots (slot order: Helmet, Crest, Body, Arms, Greaves, Boots); the seventh sub-rank comes round to the first.
-  assert.equal(dropFor('veteran', 0, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 3, []), 'veteran.Crest'); assert.equal(dropFor('veteran', 6, []), 'veteran.Body'); assert.equal(dropFor('veteran', 12, []), 'veteran.Greaves'); assert.equal(dropFor('veteran', 18, []), 'veteran.Helmet', 'the seventh sub-rank comes round to the first piece');
-  assert.equal(dropFor('veteran', 18, ['veteran.Helmet']), null, 'a piece already owned never drops twice');
-  assert.equal(dropFor('pitborn', 0, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Arms', 'his bone plates are his only armour: no chest piece, he wears a sash rather than a tunic');
-  assert.equal(dropFor('pitborn', 6, ['pitborn.Arms']), null, 'and nothing more once they are owned — his cleaver is taken, never dropped');
-  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Greaves', 'one piece: the same at every sub-rank until owned');
-  assert.equal(dropFor('goblin', 0, []), 'goblin.Body'); assert.equal(dropFor('goblin', 3, []), 'goblin.Arms'); assert.equal(dropFor('goblin', 6, ['goblin.Body', 'goblin.Arms']), null, 'both Goblin pieces owned: nothing more');
+  assert.equal(dropFor('veteran', 0, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 3, []), 'veteran.Crest'); assert.equal(dropFor('veteran', 6, []), 'veteran.Body'); assert.equal(dropFor('veteran', 12, []), 'veteran.Greaves'); assert.equal(dropFor('veteran', 18, []), 'veteran.Gloves'); assert.equal(dropFor('veteran', 21, []), 'veteran.Helmet', 'seven armour pieces, so the eighth sub-rank comes round to the first');
+  assert.equal(dropFor('veteran', 21, ['veteran.Helmet']), null, 'a piece already owned never drops twice');
+  assert.equal(dropFor('pitborn', 0, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Gloves', 'his bone plates then the shared gloves');
+  assert.equal(dropFor('pitborn', 6, ['pitborn.Arms', 'pitborn.Gloves']), null, 'and nothing more once both are owned — his cleaver is taken, never dropped');
+  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Gloves', 'greaves then the shared gloves');
+  assert.equal(dropFor('goblin', 0, []), 'goblin.Body'); assert.equal(dropFor('goblin', 3, []), 'goblin.Arms'); assert.equal(dropFor('goblin', 6, ['goblin.Body', 'goblin.Arms', 'goblin.Gloves']), null, 'all three Goblin pieces owned: nothing more');
   for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
   // The Veteran's seven pieces are six armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
-  assert.equal(LOOT.veteran!.length, 7); assert.equal(dropFor('veteran', 9, []), 'veteran.Arms'); assert.equal(dropFor('veteran', 9, ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots']), null, 'all armour owned: nothing drops, the trident is not a drop');
+  assert.equal(LOOT.veteran!.length, 8); assert.equal(dropFor('veteran', 9, []), 'veteran.Arms'); assert.equal(dropFor('veteran', 9, ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves']), null, 'all armour owned: nothing drops, the trident is not a drop');
 });
 
 test('loot: a saved record is cleaned — known ids only, no duplicates, worn pieces must be owned and in their own slot; store, wear, unwear and merge lose nothing', () => {

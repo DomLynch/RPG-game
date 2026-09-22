@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, lootId } from '../src/characters.ts';
+import { buildWarriors, lootId, lootIds, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { LOOT_IDS, type LootId, isWeaponLoot } from '../src/loot.ts';
 
 // Parse a shipped GLB in Node: geometry, rig and material names; images are dropped (decoding is the browser's), as tests/characters.test.ts does.
@@ -14,12 +14,18 @@ async function parse(file: string) {
   globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
   return new GLTFLoader().parseAsync(JSON.stringify(json), '');
 }
-const pieces = async () => { const out: SkinnedMesh[] = []; (await parse('loot.glb')).scene.traverse(o => { if (o instanceof SkinnedMesh && typeof o.userData.slot === 'string') out.push(o); }); return out; };
+const pieces = async () => lootPiecesOf((await parse('loot.glb')).scene);   // the game's own reader, so a shared draw resolves here exactly as it does in a fight
 const draws = (root: { traverse(cb: (o: unknown) => void): void }, slot: string) => { const out: Mesh[] = []; root.traverse(o => { if (o instanceof Mesh && o.userData.slot === slot) out.push(o); }); return out; };
 
 test('loot: every piece of loot.glb has an id in src/loot.ts, and the player wears a piece by binding it to his own skeleton beside his body', async () => {
   const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
-  assert.deepEqual([...new Set(all.map(lootId))].sort(), [...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), 'the file\'s draws are the armour ids; a weapon piece is its equip file, not a draw');
+  // `lootIds`, not `lootId`: a shared draw (brief 14's gloves, `~kit.Gloves`) answers to every opponent id that resolves to it, so the
+  // file's pieces are still exactly the armour ids — the sharing is invisible from here, which is the point of the seam.
+  assert.deepEqual([...new Set(all.flatMap(lootIds))].sort(), [...LOOT_IDS].filter(id => !isWeaponLoot(id as LootId)).sort(), 'the file\'s draws are the armour ids; a weapon piece is its equip file, not a draw');
+  const gloves = all.filter(p => lootWorn(p, ['veteran.Gloves']));
+  assert.ok(gloves.length, 'the shared gloves resolve through the file\'s map');
+  assert.ok(gloves.every(p => lootWorn(p, ['dwarf.Gloves'])), 'and the same draw answers for every opponent that wears it — one mesh, not six');
+  assert.ok(!gloves.some(p => lootWorn(p, ['veteran.Helmet'])), 'a shared draw does not answer for a slot it is not');
   const body = draws(player.anchor, 'Body').find((m): m is SkinnedMesh => m instanceof SkinnedMesh)!;
   player.wear(all.filter(p => ['veteran.Helmet', 'nightborn.Body', 'veteran.Greaves'].includes(lootId(p))));
   const worn = player.worn();

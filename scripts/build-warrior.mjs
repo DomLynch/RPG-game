@@ -134,6 +134,13 @@ const boneIndex = name => {
 // Equipment slots: authored parts declare extras.slot; each (slot, material) pair becomes its own skinned draw so a slot
 // can be shown, hidden or swapped without touching the others. Built-in pieces (hair, scabbard) sit in the '' slot.
 const slotOf = new Map();
+// Shared draws (brief 14, 2026-09-22): a draw named `<opponent>.<slot>.<material>` stored one copy per opponent, which was right while
+// every piece was authored for one fighter and wrong the moment the kit library is shared — six opponents of one rig family would carry
+// six copies of the same helmet. A shared piece is exported ONCE under `~<family>.<slot>.<material>`, and `lootPieces` records which
+// opponent+slot resolves to it; the map ships in the file's own scene userData, so loot.glb stays self-describing and no second asset
+// has to be kept in step. Old-style per-opponent draws are untouched, so the runtime can resolve both ways while the loader catches up.
+const SHARED_PREFIX = '~';
+const lootPieces = new Map();   // `<opponent>.<slot>` → `~<family>.<slot>`
 let lootOf = '', lootSlot = ''; const lootLayer = new Map();   // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
 function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = lootSlot) {
   if (g.index) g = g.toNonIndexed();
@@ -275,11 +282,19 @@ if (LOOT) {
     unscalers.set(name, fn); return fn;
   };
   for (const [opponent, entries] of Object.entries(manifest)) {
-    if (opponent === '_') continue;
+    if (opponent === '_' || opponent.startsWith(SHARED_PREFIX)) continue;   // the doc string and the shared library: not opponents
     lootOf = opponent;
     for (const entry of entries) {
       if (!['replace', 'over'].includes(entry.layer)) throw new Error(`loot ${opponent}.${entry.slot}: layer must be replace|over`);
       lootLayer.set(`${opponent}:${entry.slot}`, entry.layer);
+      // A reference: this opponent wears a piece from the shared library. It contributes no geometry — only the mapping the runtime
+      // resolves through. The piece itself is built once, wherever the library says.
+      if (entry.shared) {
+        if (!(entry.shared in (manifest[SHARED_PREFIX + 'shared'] ?? {}))) throw new Error(`loot ${opponent}.${entry.slot}: no shared piece "${entry.shared}"`);
+        lootPieces.set(`${opponent}.${entry.slot}`, SHARED_PREFIX + entry.shared);
+        lootLayer.set(`${SHARED_PREFIX}${entry.shared.split('.')[0]}:${entry.slot}`, entry.layer);
+        continue;
+      }
       if (entry.file.startsWith('@build:')) continue;   // primitives this script builds itself (the Pitborn's plates above)
       const glb = await fs.readFile(path.join(lootDir, entry.file)), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
       asset.scene.updateMatrixWorld(true);
@@ -308,6 +323,18 @@ if (LOOT) {
   }
   lootOf = '';
 }
+// The player's own body and level-1 kit as geometry in rest space: what a loot primitive fires rays at to sit ON him rather than through
+// him, loaded for the fitting only and never exported. Shared by every piece that fits itself (the goblin's cord, the gloves).
+let playerWornCache = null;
+async function playerWorn() {
+  if (playerWornCache) return playerWornCache;
+  const list = [];
+  for (const file of ['body_realistic.glb', 'level1_realistic.glb']) {
+    const glb = await fs.readFile(path.join(partsDir, file)), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
+    asset.scene.updateMatrixWorld(true); asset.scene.traverse(o => { if (o.isMesh) list.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); });
+  }
+  return (playerWornCache = list);
+}
 // The goblin's trophies (owner's brief): a bone-and-string necklace — five teeth and a finger on a cord that hugs the collar, rigid to spine_03 —
 // and one iron bracer that doesn't match on the left forearm (the sword hand stays free): a tapered sleeve with two rivet bands, rigid to
 // lowerarm_l. The cord is fitted by raycast: from the neck's axis outward at 36 azimuths, lower at the front (the clavicles) than at the nape,
@@ -317,14 +344,7 @@ if (fighter === 'goblin' || LOOT) {
   const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
   // Loot: the cord is fitted over the PLAYER — his skin and level-1 kit loaded for the rays only, never exported; the necklace is a Body
   // piece worn over the tunic, the bracer an Arms piece over the wraps.
-  const wornGeometries = LOOT ? await (async () => {
-    const list = [];
-    for (const file of ['body_realistic.glb', 'level1_realistic.glb']) {
-      const glb = await fs.readFile(path.join(partsDir, file)), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
-      asset.scene.updateMatrixWorld(true); asset.scene.traverse(o => { if (o.isMesh) list.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); });
-    }
-    return list;
-  })() : [...parts.values()].flat();
+  const wornGeometries = LOOT ? await playerWorn() : [...parts.values()].flat();
   if (LOOT) { lootOf = 'goblin'; lootSlot = 'Body'; }
   const worn = wornGeometries.map(g => new T.Mesh(g, new T.MeshBasicMaterial({ side: T.DoubleSide })));   // everything on him so far (rest space): skin, the scan head's neck, tunic, baldric
   const ray = new T.Raycaster(); ray.far = .35;
@@ -351,6 +371,56 @@ if (fighter === 'goblin' || LOOT) {
   sleeve(.30, .34, .055, .054, trim); sleeve(.76, .80, .046, .045, trim);   // two bronze rivet bands (mismatched furniture)
   console.log(`  goblin trophies: cord front ${ring[0].toArray().map(v => v.toFixed(3))}, nape ${ring[18].toArray().map(v => v.toFixed(3))}`);
   if (LOOT) { lootOf = ''; lootSlot = ''; }
+}
+// Gloves (brief 14, 2026-09-22): the one slot NO opponent wears today, so it is a single SHARED piece rather than six — the first
+// customer of the shared-draw manifest ("~shared" in loot.json). Fingerless by design: a wrist cuff and a back-of-hand plate rigid to
+// hand_X, with the fingers left bare because they ANIMATE and a rigidly-bound glove over them would tear open on a fist. Fitted by
+// raycast from the hand's own axis at every station, so it sits on the hand whatever is underneath. `over`: the player has no Gloves
+// draws of his own, so this hides nothing and #434's coverage rule is satisfied by construction rather than by measurement.
+if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Gloves`)) {
+  const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  const worn = (await playerWorn()).map(g => new T.Mesh(g, new T.MeshBasicMaterial({ side: T.DoubleSide })));
+  const ray = new T.Raycaster(); ray.far = .2;
+  lootOf = SHARED_PREFIX + 'kit'; lootSlot = 'Gloves';
+  for (const side of ['l', 'r']) {
+    const wrist = at(`hand_${side}`), knuckle = at(`middle_01_${side}`), axis = knuckle.clone().sub(wrist), span = axis.length(); axis.normalize();
+    const up = Math.abs(axis.y) > .9 ? new T.Vector3(0, 0, 1) : new T.Vector3(0, 1, 0);
+    const u = new T.Vector3().crossVectors(up, axis).normalize(), v = new T.Vector3().crossVectors(axis, u).normalize();
+    // A hull of rings: at each station along the wrist→knuckle axis, fire outward at 12 azimuths and take the outermost thing already
+    // there plus a gap. A ray that hits nothing (past the fingertips, or into the gap between thumb and palm) falls back to the ring's
+    // own median radius rather than throwing — a hand is not a closed surface from its own axis, unlike the goblin's neck.
+    const STATIONS = [-.55, -.2, .15, .5, .85, 1.12], AZIMUTHS = 12, rings = [];
+    for (const t of STATIONS) {
+      const origin = wrist.clone().addScaledVector(axis, t * span), radii = [];
+      for (let k = 0; k < AZIMUTHS; k++) {
+        const a = k / AZIMUTHS * Math.PI * 2, out = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a));
+        ray.set(origin.clone().addScaledVector(out, -.001), out);
+        const hits = ray.intersectObjects(worn, false);
+        radii.push(hits.length ? Math.max(...hits.map(h => h.distance)) : null);
+      }
+      const found = radii.filter(r => r !== null).sort((x, y) => x - y);
+      if (!found.length) throw new Error(`gloves: nothing under the hand at station ${t} (${side})`);
+      const median = found[found.length >> 1];
+      rings.push({ origin, radii: radii.map(r => (r ?? median) + .004), scale: t < -.35 ? 1.06 : 1 });   // the cuff flares a little over the wrap
+    }
+    // The hull, ring to ring; both ends left open and capped by the cuff band and the knuckle band, which are the two things a player
+    // actually sees at fight distance.
+    const positions = [], point = (i, k) => { const r = rings[i], a = k % AZIMUTHS / AZIMUTHS * Math.PI * 2;
+      return r.origin.clone().addScaledVector(u, Math.cos(a) * r.radii[k % AZIMUTHS] * r.scale).addScaledVector(v, Math.sin(a) * r.radii[k % AZIMUTHS] * r.scale).toArray(); };
+    for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < AZIMUTHS; k++)
+      for (const [ri, ki] of [[i, k], [i, k + 1], [i + 1, k + 1], [i, k], [i + 1, k + 1], [i + 1, k]]) positions.push(...point(ri, ki));
+    const hull = new T.BufferGeometry(); hull.setAttribute('position', new T.Float32BufferAttribute(positions, 3)); hull.computeVertexNormals();
+    add(hull, leather, `hand_${side}`);
+    // Two bands of furniture, so the piece has trim for a grade to repaint (src/grades.ts): a cuff ring at the wrist and a knuckle bar
+    // across the back of the hand. Both sized off the fitted hull, not guessed.
+    const band = (i, thickness) => { const r = rings[i], radius = r.radii.reduce((n, x) => n + x, 0) / AZIMUTHS * r.scale;
+      const g = new T.TorusGeometry(radius, thickness, 5, 14).rotateX(Math.PI / 2);
+      const q = new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), axis); g.applyQuaternion(q);
+      add(g, trim, `hand_${side}`, r.origin.x, r.origin.y, r.origin.z); };
+    band(0, .0035); band(rings.length - 1, .003);
+    console.log(`  gloves ${side}: span ${span.toFixed(3)} m, ring radii ${rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / AZIMUTHS).toFixed(3)).join(' ')}`);
+  }
+  lootOf = ''; lootSlot = '';
 }
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
@@ -523,6 +593,9 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
     const opponent = name.slice('Gambeson_'.length), manifest = JSON.parse(await fs.readFile(path.join(materialsDir, `manifest_${opponent}.json`), 'utf8'));
     lootMaps.set(name, await authoredMaps(manifest.Gambeson, { orm: false, normal: `gambeson_normal_${opponent}.jpg` }));
   }
+  // The shared-draw map travels IN the file: `<opponent>.<slot>` → the draw prefix that actually carries it. A loader resolves through
+  // this first and falls back to matching `<opponent>.<slot>.` on the draw name, so both schemas work while the runtime catches up.
+  if (lootPieces.size) base.scene.userData.pieces = Object.fromEntries([...lootPieces].sort(([a], [b]) => a.localeCompare(b)));
   base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y = .025;   // the same scene-root transform warrior.glb ships (below): a loot draw and the hero share one space whichever root it is added under
   base.scene.updateMatrixWorld(true);
   const bytes = finishMaterials(Buffer.from(await new GLTFExporter().parseAsync(base.scene, { binary: true, animations: [], onlyVisible: true })), lootMaps, false);

@@ -1,190 +1,228 @@
 {
-  "_": "Brief 5 loot: which authored piece each opponent drops and the player slot it fills. Sources are parts.py/items outputs in the shared unscaled rest space (build-warrior.mjs contract: extras.material/slot + extras.bone or skin weights). `slots`/`names` pick meshes out of a shared file; `unscale` names the BUILD proportion table a piece was cut under. Slots: Helmet, Crest, Body, Arms, Gloves, Greaves, Boots. `layer`: 'replace' hides the player's own draws in that slot (a helm hides the hair, a tunic the tunic, boots the sandals); 'over' is worn on top of them (greaves over bare shins, a plate over a wrap). Body = the tunic and what hangs on it (baldric, belt, buckle, studs, collar) \u2014 kilt/skirt/hose are leg cloth with no paperdoll slot and stay the player's; wraps are the Arms item where an opponent wears nothing over them. A tunic's material becomes Gambeson_<opponent> (his own linen bake) \u2014 see build-warrior.mjs. A `replace` piece must cover at least 80 % of the player's own draws in that slot (tests/loot.test.ts): the Pitborn's chest was a rag sash at 26 % and is not loot \u2014 he wears no tunic by design (parts.py KIT `bare`).",
-  "veteran": [
-    {
-      "slot": "Helmet",
-      "layer": "replace",
-      "file": "items/helmet_bronze.glb"
-    },
-    {
-      "slot": "Crest",
-      "layer": "over",
-      "file": "items/crest_red.glb"
-    },
-    {
-      "slot": "Body",
-      "layer": "replace",
-      "file": "parts/level1_veteran.glb",
-      "names": [
-        "tunic",
-        "collar",
-        "baldric",
-        "belt",
-        "buckle",
-        "studs"
-      ]
-    },
-    {
-      "slot": "Arms",
-      "layer": "replace",
-      "file": "parts/level1_veteran.glb",
-      "slots": [
-        "Arms"
-      ]
-    },
-    {
-      "slot": "Greaves",
-      "layer": "over",
-      "file": "parts/level1_veteran.glb",
-      "slots": [
-        "Greaves"
-      ]
-    },
-    {
-      "slot": "Boots",
-      "layer": "replace",
-      "file": "parts/level1_veteran.glb",
-      "slots": [
-        "Boots"
-      ]
-    }
-  ],
-  "executioner": [
-    {
-      "slot": "Helmet",
-      "layer": "replace",
-      "file": "loot/executioner_hero.glb",
-      "slots": [
-        "Helmet"
-      ]
-    },
-    {
-      "slot": "Crest",
-      "layer": "over",
-      "file": "loot/executioner_hero.glb",
-      "slots": [
-        "Crest"
-      ]
-    },
-    {
-      "slot": "Body",
-      "layer": "replace",
-      "file": "parts/level1_executioner.glb",
-      "names": [
-        "tunic",
-        "collar",
-        "baldric",
-        "belt",
-        "buckle",
-        "studs"
-      ]
-    },
-    {
-      "slot": "Arms",
-      "layer": "replace",
-      "file": "parts/level1_executioner.glb",
-      "slots": [
-        "Arms"
-      ]
-    },
-    {
-      "slot": "Greaves",
-      "layer": "over",
-      "file": "parts/level1_executioner.glb",
-      "slots": [
-        "Greaves"
-      ]
-    },
-    {
-      "slot": "Boots",
-      "layer": "replace",
-      "file": "parts/level1_executioner.glb",
-      "slots": [
-        "Boots"
-      ]
-    }
-  ],
-  "nightborn": [
-    {
-      "slot": "Helmet",
-      "layer": "replace",
-      "file": "loot/nightborn_hero.glb",
-      "slots": [
-        "Helmet"
-      ]
-    },
-    {
-      "slot": "Body",
-      "layer": "replace",
-      "file": "parts/level1_nightborn.glb",
-      "names": [
-        "tunic",
-        "collar",
-        "baldric",
-        "belt",
-        "buckle",
-        "studs"
-      ]
-    },
-    {
-      "slot": "Arms",
-      "layer": "replace",
-      "file": "parts/level1_nightborn.glb",
-      "slots": [
-        "Arms"
-      ]
-    },
-    {
-      "slot": "Boots",
-      "layer": "replace",
-      "file": "parts/level1_nightborn.glb",
-      "names": [
-        "boot_l",
-        "boot_r"
-      ]
-    }
-  ],
-  "goblin": [
-    {
-      "slot": "Body",
-      "layer": "replace",
-      "file": "parts/level1_goblin.glb",
-      "names": [
-        "tunic",
-        "collar",
-        "baldric",
-        "belt",
-        "buckle",
-        "studs"
-      ]
-    },
-    {
-      "slot": "Body",
-      "layer": "replace",
-      "file": "@build:goblin-necklace"
-    },
-    {
-      "slot": "Arms",
-      "layer": "over",
-      "file": "@build:goblin-bracer"
-    }
-  ],
-  "pitborn": [
-    {
-      "slot": "Arms",
-      "layer": "over",
-      "file": "@build:pitborn-plates"
-    }
-  ],
-  "dwarf": [
-    {
-      "slot": "Greaves",
-      "layer": "over",
-      "file": "loot/dwarf.glb",
-      "slots": [
-        "Greaves"
-      ],
-      "unscale": "dwarf"
-    }
-  ]
+ "_": "Brief 5 loot: which authored piece each opponent drops and the player slot it fills. Sources are parts.py/items outputs in the shared unscaled rest space (build-warrior.mjs contract: extras.material/slot + extras.bone or skin weights). `slots`/`names` pick meshes out of a shared file; `unscale` names the BUILD proportion table a piece was cut under. Slots: Helmet, Crest, Body, Arms, Gloves, Greaves, Boots. `layer`: 'replace' hides the player's own draws in that slot (a helm hides the hair, a tunic the tunic, boots the sandals); 'over' is worn on top of them (greaves over bare shins, a plate over a wrap). Body = the tunic and what hangs on it (baldric, belt, buckle, studs, collar) \u2014 kilt/skirt/hose are leg cloth with no paperdoll slot and stay the player's; wraps are the Arms item where an opponent wears nothing over them. A tunic's material becomes Gambeson_<opponent> (his own linen bake) \u2014 see build-warrior.mjs. A `replace` piece must cover at least 80 % of the player's own draws in that slot (tests/loot.test.ts): the Pitborn's chest was a rag sash at 26 % and is not loot \u2014 he wears no tunic by design (parts.py KIT `bare`).",
+ "~shared": {
+  "_": "Brief 14: pieces the whole roster shares. A shared piece is EXPORTED ONCE, as `~<id>.<material>`; an opponent wears it with {\"slot\", \"layer\", \"shared\": \"<id>\"} and contributes no geometry of its own. The build writes the `<opponent>.<slot>` -> `~<id>` map into loot.glb's own scene userData, so the file is self-describing and a loader can resolve either schema. Loot always binds to the PLAYER's rig, so a shared piece needs exactly one fit here - the per-rig-family dimension only exists in the opponents' own fight GLBs.",
+  "kit.Gloves": {
+   "slot": "Gloves",
+   "layer": "over",
+   "file": "@build:gloves"
+  }
+ },
+ "veteran": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "items/helmet_bronze.glb"
+  },
+  {
+   "slot": "Crest",
+   "layer": "over",
+   "file": "items/crest_red.glb"
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "parts/level1_veteran.glb",
+   "names": [
+    "tunic",
+    "collar",
+    "baldric",
+    "belt",
+    "buckle",
+    "studs"
+   ]
+  },
+  {
+   "slot": "Arms",
+   "layer": "replace",
+   "file": "parts/level1_veteran.glb",
+   "slots": [
+    "Arms"
+   ]
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "parts/level1_veteran.glb",
+   "slots": [
+    "Greaves"
+   ]
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "parts/level1_veteran.glb",
+   "slots": [
+    "Boots"
+   ]
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  }
+ ],
+ "executioner": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "loot/executioner_hero.glb",
+   "slots": [
+    "Helmet"
+   ]
+  },
+  {
+   "slot": "Crest",
+   "layer": "over",
+   "file": "loot/executioner_hero.glb",
+   "slots": [
+    "Crest"
+   ]
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "parts/level1_executioner.glb",
+   "names": [
+    "tunic",
+    "collar",
+    "baldric",
+    "belt",
+    "buckle",
+    "studs"
+   ]
+  },
+  {
+   "slot": "Arms",
+   "layer": "replace",
+   "file": "parts/level1_executioner.glb",
+   "slots": [
+    "Arms"
+   ]
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "parts/level1_executioner.glb",
+   "slots": [
+    "Greaves"
+   ]
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "parts/level1_executioner.glb",
+   "slots": [
+    "Boots"
+   ]
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  }
+ ],
+ "nightborn": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "loot/nightborn_hero.glb",
+   "slots": [
+    "Helmet"
+   ]
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "parts/level1_nightborn.glb",
+   "names": [
+    "tunic",
+    "collar",
+    "baldric",
+    "belt",
+    "buckle",
+    "studs"
+   ]
+  },
+  {
+   "slot": "Arms",
+   "layer": "replace",
+   "file": "parts/level1_nightborn.glb",
+   "slots": [
+    "Arms"
+   ]
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "parts/level1_nightborn.glb",
+   "names": [
+    "boot_l",
+    "boot_r"
+   ]
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  }
+ ],
+ "goblin": [
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "parts/level1_goblin.glb",
+   "names": [
+    "tunic",
+    "collar",
+    "baldric",
+    "belt",
+    "buckle",
+    "studs"
+   ]
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "@build:goblin-necklace"
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "@build:goblin-bracer"
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  }
+ ],
+ "pitborn": [
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "@build:pitborn-plates"
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  }
+ ],
+ "dwarf": [
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "loot/dwarf.glb",
+   "slots": [
+    "Greaves"
+   ],
+   "unscale": "dwarf"
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  }
+ ]
 }

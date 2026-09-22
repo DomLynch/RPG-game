@@ -4,6 +4,24 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Shared draws, and gloves as their first customer — 2026-09-22
+The schema change is in: a piece the whole roster wears is exported **once**, named `~<id>.<material>`, and loot.glb carries its own
+`<opponent>.<slot>` → `~<id>` map so the file is self-describing and no second asset has to be kept in step. An opponent wears it with
+`{"slot", "layer", "shared"}` in `loot.json` and contributes no geometry. Old-style per-opponent draws are untouched: `lootPiecesOf()`
+gives every piece the ids it answers to and falls back to its own name, so **an old file and a new one both load** and the loader never
+had to land in the same PR as the asset.
+
+One correction to the ruling's arithmetic, in our favour: loot always binds to the **player's** rig, so a shared piece needs exactly one
+fit here — the per-rig-family dimension only exists in the opponents' own fight GLBs, which loot never touches. The library is `~kit.*`,
+not `~human.*`.
+
+**Gloves** are the first piece through it: the only slot no opponent wore, fingerless (the fingers animate; a rigidly-bound glove over
+them would tear open on a fist), fitted by raycast from the hand's own axis at six stations × 12 azimuths with a median fallback for rays
+that miss — a hand is not a closed surface from its own axis, unlike the goblin's neck. **800 triangles for both hands, +7,524 B packed
+gzip for all six opponents.** Under the old schema the same gloves would have cost 6 × 800 = 4,800 triangles and about six times the
+bytes. Budget after: `loot 983,064 of 1,500,000` (check-budget on the dist build). Evidence: full gate 466 pass / 0 fail / 2 skips;
+mutation-proved by suppressing the map write (the pin fails, 4 pass / 2 fail) and restoring it (6 / 0, file byte-identical).
+
 ## Now — 2026-09-22
 Brief 14's table is on trunk; the **loot manifest schema change** is next and nothing else starts before it. The file today stores one
 copy of every piece **per opponent**, because a draw is named `<opponent>.<slot>.<material>`. That was right when every piece was authored
@@ -39,9 +57,8 @@ Then the six-slot kit. **Gloves first**: the only slot no opponent wears today, 
   (18:15): blackened at 8 and black vanadium at 9 read flat against each other.
 
 ## Open
-- **The manifest / shared-draw schema change**, with both-ways resolution. Blocks everything else.
 - **The six-slot kit across three rig families.** Live today: Pitborn 1 armour piece, Dwarf 1, Goblin 2, Nightborn 4, Veteran 6,
-  Executioner 6 — against a target of six from Legionary on. Seventeen pieces missing; **all six lack Gloves**. Shared pieces fitted per rig
+  Executioner 6 — against a target of six from Legionary on. Sixteen pieces missing after the gloves; the remainder are per-opponent shapes, not one shared piece. Shared pieces fitted per rig
   family by raycast, tiers as material variants on the same mesh.
 - **The Veteran shield** (Dom GO 18:40), third in order. Loot-only (see Gotchas). Mine: the asset with **two transforms** — in the off-hand
   and flat on the back — plus the back attachment point on the player rig. Lead's: the equip/stow decision, the loader picking off-hand versus
