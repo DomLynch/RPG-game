@@ -4,6 +4,20 @@ Generated in-lane 2026-09-22. **Concept references, not game renders, and not ap
 **letter** — A, B or C — and that letter is the design this lane builds toward. Sheet:
 `shieldmaiden-candidates-v1.png`.
 
+## PICKED: A — HARD OUTLINE (Dom, 2026-09-22)
+
+Dom's word on this sheet: **"i think A"**. **A is the approved design direction** and the one this lane
+builds toward: fitted riveted mail hauberk to mid-thigh over a padded dark wool gambeson, squared and layered
+iron shoulder plates giving a flat hard shoulder line, broad studded belt, plain iron vambraces, dark
+trousers with straight leather leg wraps, hard low boots, two tight crown braids pinned flat. Straight,
+squared, armoured edges all the way round the outline.
+
+B and C are not built. They stay on the sheet as the record of what A was chosen against — that matters,
+because the three are within 0.04 of each other on build and were separated on outline alone.
+
+Approved as a **direction**, not as a render: A's own panels carry generator artifacts (the bare panel's
+palms sit half-open rather than at the thighs) which are not part of what was picked.
+
 ## How they were made
 
 `black-forest-labs/FLUX.1-schnell` through `gradio_client`, signed in with the owner's stored Hugging Face
