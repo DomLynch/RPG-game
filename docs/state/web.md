@@ -25,6 +25,27 @@ passed:true. New `tests/loot-panel.test.ts` (3 tests) covers the guard, the tap-
 Undo and hide; `tests/loot-layers.test.ts` pins that `#loot-take` is gone; `scripts/endgame-hud-check.mjs` drops it from its
 cluster list. Remaining validation: the lead's merge gate on #475, and #464 must merge first (it has: 16:40:59Z).
 
+**Also next, and MEASURED before building (order via the lead, 2026-09-22 evening; Dom's phone still of live 607126a): "the loot
+pickup covers the effect of the finishers".** His screenshot predates #464 and #475, so the first job was to check this lane's own
+build rather than the published one. Probe on the #475 tree at 375×812, a real Nightborn kill, sampling every 100 ms of page time
+from the kill (artifacts/loot-timing.mjs, the loot receipt's duel plus #debug's `finishPhase` / `fallenRect`):
+- **The timing half is real on this build too.** The panel is visible at t = 0 — the Killed event — and `finishPhase().settled`
+  does not go true until **t = 4100 ms**. It is up for the WHOLE finisher, 4.1 s of it. Cause is mine: #427 deliberately put
+  `#loot-panel` OUTSIDE the `:root.endgame-fade` group so the arena-cam tour could not fade it, and that same exemption is why it
+  does not wait for the finisher either. main.ts calls `offerLoot()` straight off the Killed event (~line 845).
+- **The geometry half does not describe this build.** At settle the panel measured x 16 y 183 343×130 — the TOP band, bottom edge
+  at 39 % of 812 — and the body's rect was x −14 y 353 213×208. They do not intersect (`panelOverlapsBodyAtSettle: false`), which
+  is also what `scripts/endgame-hud-check.mjs` asserts and why it passes. So "pops over the middle" is the old panel, not this one.
+- **The briefed fix contradicts two things, so it needs the lead before it is built.** (1) "Bottom sheet, at most the bottom 40 %"
+  puts the card at y 487–812, which OVERLAPS the measured body rect (y 353–561) by ~74 px — the opposite of the brief's own bar
+  that the panel never overlaps the body's framing. (2) The thumb zone is where the first post-kill touch lands, which is gotcha
+  (a) and the defect that aborted deploy #102. Moving the tiles there re-creates it unless the panel keeps its
+  pointer-transparency and the tour-stop touch is re-thought.
+- Cheapest fix consistent with both: keep the card where it is and make it WAIT — show it on the finisher-complete moment plus the
+  hold, which is the timing change Dom actually reported. Finishers & Gore are exposing that event; until it lands, their measured
+  durations, not a timer of mine (the lead's instruction).
+Not started; sequenced after #475 merges. Receipt owed: a phone screenshot with the body and the sheet both visible.
+
 **Next for this lane (routed 2026-09-22 evening by Strategy, NOT started — the lead releases it only after #475 and #464).** Brief 19,
 gear stats (Dom approved; PR #486, a new Stats lane). Web owns the PANEL half of its deliverable 4: the paperdoll shows four stats —
 Attack, Defence, Poise, Stamina — and the tilt against no gear, and the kill-screen take shows the delta of the piece being picked
