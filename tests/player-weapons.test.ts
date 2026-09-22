@@ -1,5 +1,5 @@
 // The player weapon flip (Brief 5): the sim takes the player's weapon at the door, a non-longsword weapon starts armed, the fight record
-// carries the weapon (a version-1 record still decodes as the longsword), and every weapon a player can carry is fair against every live
+// carries the weapon (an older record version is refused, never replayed as a different fight), and every weapon a player can carry is fair against every live
 // rung by the rung's own caps. The pin below runs the same 24-seed table as scripts/player-weapon-battery.mjs (Combat signed it) and derives the offered set from it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +21,7 @@ test('weapon flip: the player starts sheathed with the longsword and armed with 
   }
 });
 
-test('weapon flip: the record carries the weapon; a version-1 record decodes as the longsword; an unknown weapon is refused; the replay verifies on that weapon [slow]', async () => {
+test('weapon flip: the record carries the weapon; an older record version is refused; an unknown weapon is refused; the replay verifies on that weapon [slow]', async () => {
   // A knife fight against the Goblin, recorded the way main.ts records: the quantized intent is what the sim steps.
   const rec = createRecorder({ weapon: 'knife', build: 'x', opponent: 'goblin', profile: 'normal', seed: 5 });
   let p = initialPractice(5, OPPONENTS.goblin, 'knife');
@@ -34,10 +34,13 @@ test('weapon flip: the record carries the weapon; a version-1 record decodes as 
   assert.deepEqual(await decodeRecord(await encodeRecord(record)), record);
   assert.equal(verifyRecord(record).ok, true, 'the replay steps the knife, not the longsword');
   assert.equal(verifyRecord({ ...record, weapon: 'longsword' }).ok, false, 'the same intents with the longsword are another fight');
-  // A version-1 stream: magic, version 1, build, opponent, profile, seed, 0 ticks, outcome — no weapon field.
+  // A version-1 stream (magic, version 1, build, opponent, profile, seed, 0 ticks, outcome, no weapon field) and a version-2 stream
+  // (the same with the weapon) are both refused: the rules moved under them (#371, #366), so decoding one would replay a different fight.
   const v1 = new Uint8Array([0x46, 0x4b, 1, 1, 0x78, 6, ...[...'goblin'].map(c => c.charCodeAt(0)), 1, 5, 0, 0, 0, 0, 0, 0, 0, 3]);
-  const old = unpackRecord(v1);
-  assert.equal(old.weapon, 'longsword'); assert.equal(old.v, RECORD_VERSION); assert.equal(old.opponent, 'goblin'); assert.equal(old.ticks, 0);
+  assert.throws(() => unpackRecord(v1), /version 1 is not supported/);
+  const v2 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v2[2] = 2;
+  assert.throws(() => unpackRecord(v2), /version 2 is not supported/);
+  assert.equal(RECORD_VERSION, 3);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
@@ -56,17 +59,22 @@ test('weapon flip: the strategies\' distances scale by the player weapon\'s reac
 // removed, so the list is edited only with a fresh table. Combat's ruling: every row is the warden's approach logic meeting a player reach
 // it has never seen (their slice), not weapon data and not a rung profile. A weapon with a row here is not in PLAYER_WEAPONS_OFFERED.
 const KNOWN_UNFAIR = [
+  // After the warden reach fix (combat/warden-reach, 2026-09-21): 11 rows → 8. Trident and warhammer come clean everywhere and are offered;
+  // scythe stays gated (still over on the Veteran at range). What is left, by cause: cleaver/executioner — a pre-existing cut-tempo row
+  // (Weapons: CLEAVER light 22/8/26 vs the sword's 20/8/22); knife/veteran and scythe/veteran — a poker parked at the Veteran's own range;
+  // knife/goblin ×2 — a pre-existing kicker-vs-knife mismatch on the guardless Goblin (present before this PR, not a reach regression);
+  // estoc/goblin ×2 and estoc/dwarf hard — the estoc's move table sits .3–.4 m short of its blade bake (tests/weapons.test.ts "real reach"),
+  // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
   'cleaver vs executioner normal: light spam wins 17/24',
   'knife vs veteran normal: thrust from range wins 18/24',
-  'knife vs goblin normal: kick only untouched 3/24',
+  'knife vs goblin normal: thrust from range wins 15/24',   // Goblin normal reaction 11 (ladder slice, 2026-09-22): the slower read lets a poker park at range; the knife's "kick only untouched" row clears at the same time
   'knife vs goblin hard: kick only untouched 3/24',
-  'estoc vs goblin normal: thrust from range wins 22/24',
+  'estoc vs goblin normal: thrust from range wins 24/24',
   'estoc vs goblin hard: light spam wins 11/24',
   'estoc vs goblin hard: thrust from range wins 22/24',
   'estoc vs dwarf hard: thrust from range wins 10/24',
-  'trident vs goblin hard: thrust from range untouched 4/24',
   'scythe vs veteran normal: thrust from range wins 19/24',
-  'scythe vs goblin hard: thrust from range untouched 4/24',
+  'scythe vs goblin normal: thrust from range wins 19/24',   // Goblin normal reaction 11 (ladder slice, 2026-09-22)
 ];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {

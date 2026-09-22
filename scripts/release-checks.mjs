@@ -37,15 +37,26 @@ const bindsFixedPort = command => {
 };
 const label = (command, index) => `${String(index + 1).padStart(2, '0')}-${(command.find(arg => arg.endsWith('.mjs')) || command[0]).replace(/[^\w.-]+/g, '_')}`;
 
+// Hard ceiling per check. The slowest honest check is ~5 min on a loaded Mac; deploy #71 (2026-09-22) sat 60 min in a check whose
+// jpegtran child had deadlocked on a stdin pipe at 0 % CPU, with no timeout anywhere in the chain. Past the ceiling the whole
+// process group is SIGKILLed (SIGTERM does not reach a child blocked in a sync pipe wait) and the check counts as failed with a
+// clear line; the runner's retry-once-alone still applies. RELEASE_CHECK_CEILING_S overrides.
+const ceilingS = Number(process.env.RELEASE_CHECK_CEILING_S) > 0 ? Number(process.env.RELEASE_CHECK_CEILING_S) : 15 * 60;
 const runCheck = (command, index) => new Promise(done => {
   const started = Date.now();
   const log = join(logDir, `${label(command, index)}.log`);
   console.log(`${kind} check ${index + 1}/${commands.length} started — ${command.join(' ')}`);
-  const child = spawn(command[0], command.slice(1), { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(command[0], command.slice(1), { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
   const chunks = [];
+  const ceiling = setTimeout(() => {
+    chunks.push(Buffer.from(`\nRelease check ceiling: no exit after ${ceilingS}s — killing the process group (pid ${child.pid})\n`));
+    console.log(`${kind} check ${index + 1}/${commands.length} CEILING ${ceilingS}s — killing the process group — ${command.join(' ')}`);
+    try { process.kill(-child.pid, 'SIGKILL'); } catch { try { child.kill('SIGKILL'); } catch { /* already gone */ } }
+  }, ceilingS * 1000);
   child.stdout.on('data', chunk => chunks.push(chunk));
   child.stderr.on('data', chunk => chunks.push(chunk));
   const finish = status => {
+    clearTimeout(ceiling);
     const output = Buffer.concat(chunks);
     writeFileSync(log, output);
     const seconds = (Date.now() - started) / 1000;

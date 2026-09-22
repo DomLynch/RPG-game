@@ -56,7 +56,12 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   intent.held = next.hold && M.phase === 'attack' && (M.move === 'heavy_overhead' ? M.charge < RULES.charge.min : M.charge < READ.baitHold);
   const charging = (f: typeof F) => f.phase === 'attack' && f.move !== null && f.charge > 0 && movesOf(f)[f.move].charges;   // a chambered light is a bait, not a guard breaker
   // Being hit: back off briefly, then decide afresh (re-engage or keep distance) rather than drifting away.
-  if (M.phase === 'hurt' && M.age === 1) { next.retreatUntil = tick + 48; next.decision = 48; next.mode = 'retreat'; next.plan = null; next.next = null; next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); }   // a landed blow earns the player a window; no instant retaliation
+  // …unless the man is GUARDLESS and the blow was a read poker's thrust: backing off from a poke walks straight back out through his point's
+  // reach band, and the next poke lands on the way. Inside the point is the one place a poker cannot use it (brief 5 reach fix, 2026-09-21):
+  // stay in and re-decide at once. Guardless only — a fighter who can block answers a poke as any blow is (this is the reach fix's hover
+  // logic's own gate, guardShare === 0; without it the rule reached into ordinary rung-vs-rung fights that have nothing to do with the brief).
+  if (M.phase === 'hurt' && M.age === 1 && guardShare === 0 && reads.poker && F.phase === 'attack' && F.move === 'thrust') { next.decision = 0; next.plan = null; next.next = null; }
+  else if (M.phase === 'hurt' && M.age === 1) { next.retreatUntil = tick + 48; next.decision = 48; next.mode = 'retreat'; next.plan = null; next.next = null; next.wait = Math.round((45 + roll() * 60) * (1.6 - profile.aggression)); }   // a landed blow earns the player a window; no instant retaliation
   // Perception. An attack is noticed `reaction` ticks after it starts; one response is planned per attack.
   const threat = F.phase === 'attack' && !F.landed && F.move !== null && F.age < timing(F).windup + timing(F).active;   // a swing is a threat until its active window closes
   // Perception runs on elapsed time, not the animation clock: a swing parked at its chamber is still a swing that started `reaction` ticks ago.
@@ -232,8 +237,16 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   let forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : fight.close) ? .6 : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4 : cramped ? -.4 : 0;
   // A fighter who cannot block, against a read poker: hover just outside the thrust's reach and go in on the whiff (the opening), never walk onto the point.
   // (Standing at the edge of the reach, not beyond it: a poker who is never given the shot never whiffs. The step out answers the thrust; the whiff opens him.)
+  // Brief 5 reach fix (2026-09-21): a `reads.kicker`/`reads.poker` read already requires several LANDED kicks/thrusts (READ.after) — the man
+  // has proven he attacks, so "he never kicks/pokes, walk in on a timer" is not a real case here. An earlier draft added exactly that patience
+  // and it only bought the warden free hits against a genuinely active kicker; dropped. The hover holds for as long as the read holds.
   const hover = guardShare === 0 ? (reads.poker ? theirs.thrust.reach : reads.kicker ? theirs.kick.reach + .3 : 0) : 0;   // the reach respected: the thrust's, or the kick's cone plus its lunge
-  if (hover && !opening && (F.phase === 'ready' || F.phase === 'guard' || (threat && (!noticed || next.plan === 'ignore'))) && gap < hover - .05 && forward > 0) forward = gap < hover - .3 ? -.4 : 0;   // a blow not yet noticed is not walked into either
+  // Against a POKER the hold sits a hand INSIDE the reach (reach − .15 … − .35), not on its edge: a hover parked one centimetre outside the
+  // point drew no poke at all (the trident's Goblin stood at 2.20 m against a thumb that pokes to 2.19, for two minutes). A kicker's own
+  // reach model already has no such gap (no lunge to misjudge), and widening it there bought a live kicker free hits (the Goblin identity
+  // gate's kick-only cheese: 2/24 → 7/24 wins) for no benefit — the kicker keeps the original margin (reach − .05 … − .3).
+  const margin = reads.poker ? .15 : .05, release = reads.poker ? .35 : .3;
+  if (hover > 0 && !opening && (F.phase === 'ready' || F.phase === 'guard' || (threat && (!noticed || next.plan === 'ignore'))) && gap < hover - margin && forward > 0) forward = gap < hover - release ? -.4 : 0;   // a blow not yet noticed is not walked into either
   const lateral = next.mode === 'circle' ? next.side * .25 : next.mode === 'approach' && forward ? next.side * .25 * (profile.circle ?? 0) : 0;   // a circler drifts sideways while closing in
   // The dart: a sprint into an opening from outside reach (profile.dash), so the whiff is punished before it closes.
   const dash = !!profile.dash && opening && forward > 0 && gap > fight.close + .3 && M.stamina > RULES.rollCost && roll() < profile.dash;

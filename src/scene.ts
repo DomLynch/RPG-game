@@ -2,7 +2,7 @@ import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.t
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { defenceReaction, loadWarriors } from './characters.ts';
+import { defenceReaction, loadLoot, loadWarriors, lootId } from './characters.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
@@ -20,7 +20,10 @@ import { createBladeBlood, createSplatPool, createWoundDecals } from './gore.ts'
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
   canvas: HTMLCanvasElement,
-  assetStatus: (status: string) => void = () => {},
+  // `kind` is the machine-readable outcome; `status` is only ever display text — main.ts must never infer readiness or
+  // failure from the string (audit 2026-09-22: it used to key the versus card on `status !== 'Loading warriors\u2026'`,
+  // which any future in-progress status line would have defeated).
+  assetStatus: (status: string, kind: 'loading' | 'ready' | 'failed') => void = () => {},
   opponentId: OpponentId = 'veteran',
 ) {
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
@@ -56,7 +59,8 @@ export function createScene(
   rebuildEnvironment();
   const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
   const metal = new THREE.MeshStandardMaterial({ color: '#89949b', metalness: 0.72, roughness: 0.4 });
-  // The target marker's brass is a combat tell (it warms on a threat); the arena has its own materials in arena.ts.
+  // Brass for the capsule stand-ins (it warms on a threat while they stand in); the arena has its own materials in arena.ts.
+  // The brass target ring under the opponent is gone (owner 2026-09-21: a UI shape on the sand, and the hero never had one).
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
   scene.add(new THREE.HemisphereLight('#c9cfc6', '#4a4238', 1.6));
   const sun = new THREE.DirectionalLight('#ffe2b8', 4.2);
@@ -133,11 +137,23 @@ export function createScene(
   // The load is retryable: a phone that sleeps mid-download aborts the fetch (2 MiB of the Nightborn's 5.1 MB, 2026-09-21 09:15) and
   // the page is restored with the failure still showing. The capsules stay, the failure is reported, and `retryArt` runs the same
   // load again — the entry point calls it when the page returns to the foreground, the network comes back, or the player taps the notice.
+  // Loot (brief 5): the worn ids the entry point last gave (`wear`), the pieces of loot.glb once fetched, and the fetch in flight. The fetch
+  // starts only once the rigs are in and the worn set is non-empty, so it never shares the wire with a fight's download and never gates
+  // readiness: the fight starts on the rigs alone and the pieces go on when they land.
+  let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
+  function dress() {
+    if (!warriors) return;
+    if (!lootPieces) {
+      if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+      return;
+    }
+    warriors.player.wear(lootPieces.filter((piece) => worn.includes(lootId(piece))));
+  }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
     if (warriors) return Promise.resolve();
     if (loading) return loading;
-    assetStatus('Loading warriors…');
+    assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
     loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
     arena.ready,
@@ -156,12 +172,13 @@ export function createScene(
       player.visible = opponent.visible = true;
       for (const rig of [loaded.player, loaded.opponent])
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
-      assetStatus('');
+      dress();
+      assetStatus('', 'ready');
     })
     .catch((error) => {
       captureException(error);
       player.visible = opponent.visible = true;   // the capsules stand in so the fight is still readable while the notice offers a retry
-      assetStatus('Warrior art could not load. Movement still works; tap here to retry.');
+      assetStatus('Warrior art could not load. Movement still works; tap here to retry.', 'failed');
     })
     .finally(() => {
       loading = null;
@@ -169,9 +186,6 @@ export function createScene(
     return loading;
   }
   const ready = loadFighters();
-  const marker = mesh(new THREE.RingGeometry(0.56, 0.59, 48), brass, TARGET.x, 0.04, TARGET.z);
-  marker.rotation.x = -Math.PI / 2;
-  marker.castShadow = false;
   // Two original alpha sprites, generated once; all impacts reuse the same GPU resources.
   function impactTexture(splash: boolean) {
     const canvas = document.createElement('canvas');
@@ -280,6 +294,8 @@ export function createScene(
     ready,
     // Load the rigs again after a failed attempt; a no-op while a load is running or once the rigs are in.
     retryArt: loadFighters,
+    // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
+    wear(ids: readonly string[]) { worn = ids; dress(); },
     arena,
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
@@ -563,7 +579,6 @@ export function createScene(
           : 0;
       player.position.set(state.x, 0, state.z);
       opponent.position.set(practice.enemy.x, 0, practice.enemy.z);
-      marker.position.set(practice.enemy.x, 0.04, practice.enemy.z);
       const playerDefence = defenceReaction(practice),
         enemyDefence = defenceReaction(practice, true);
       // Both actors present the same per-move combat state; the rig's clip and contact pose come from the simulation's data.
@@ -650,7 +665,6 @@ export function createScene(
           f.phase === 'attack' && f.charge ? (f.charged ? 8 : 1 + (4 * f.charge) / RULES.charge.min) : 0;
         glow.color.set(f.charged ? '#fff3d0' : '#ff9a3c');
       });
-      marker.visible = practice.health > 0;
       if (practice.health) opponent.rotation.y = practice.enemy.heading;
       const blend = 1 - Math.exp(-dt * 8);
       heading += wrapAngle(state.heading - heading) * blend;

@@ -66,11 +66,13 @@ export function createClashSparks(scene: THREE.Scene) {
         if (life[p] <= 0) { for (let t = 0; t < trail; t++) sizes[p * trail + t] = 0; continue; }
         active = true;
         for (let t = trail - 1; t > 0; t--) for (let axis = 0; axis < 3; axis++) history[(p * trail + t) * 3 + axis] = history[(p * trail + t - 1) * 3 + axis];
-        velocity[p * 3 + 1] -= 9.8 * dt;
-        for (let axis = 0; axis < 3; axis++) history[p * trail * 3 + axis] += velocity[p * 3 + axis] * dt;
-        if (history[p * trail * 3 + 1] < 0.01 && velocity[p * 3 + 1] < 0) {   // one bounce off the sand, then it dies there
-          history[p * trail * 3 + 1] = 0.01; velocity[p * 3 + 1] *= bounced[p] ? 0 : -0.35; velocity[p * 3] *= 0.6; velocity[p * 3 + 2] *= 0.6;
-          if (bounced[p]) life[p] = Math.min(life[p], 0.05); bounced[p] = 1;
+        if (!glint[p]) {   // the glint is a fixed point at the contact (audit 2026-09-22: gravity used to reach it too, against its own "no motion" comment)
+          velocity[p * 3 + 1] -= 9.8 * dt;
+          for (let axis = 0; axis < 3; axis++) history[p * trail * 3 + axis] += velocity[p * 3 + axis] * dt;
+          if (history[p * trail * 3 + 1] < 0.01 && velocity[p * 3 + 1] < 0) {   // one bounce off the sand, then it dies there
+            history[p * trail * 3 + 1] = 0.01; velocity[p * 3 + 1] *= bounced[p] ? 0 : -0.35; velocity[p * 3] *= 0.6; velocity[p * 3 + 2] *= 0.6;
+            if (bounced[p]) life[p] = Math.min(life[p], 0.05); bounced[p] = 1;
+          }
         }
         const heat = life[p] / span[p];   // 1 = just struck, 0 = out
         for (let t = 0; t < trail; t++) {

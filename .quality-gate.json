@@ -210,6 +210,14 @@
     [
       "node",
       "scripts/record-replay-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/kill-link-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/autopsy-browser-check.mjs"
     ]
   ],
   "extended_commands": [

@@ -9,13 +9,10 @@
 // repeated or zero bytes gzip well: a 30 s fight (1,800 ticks) lands well under 2 KB (tests/record.test.ts measures a real one).
 // Nothing here talks to the network; recording stays in memory until a later slice's Share.
 import type { Action, Intent } from './duel.ts';
-import { WEAPONS, type Direction, type WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 2;   // 2: the player's weapon after the opponent id (2026-09-21). A version-1 record predates the choice and decodes as the longsword.
-// Brief 8 (2026-09-22) changes the Veteran's fresh-fight behaviour and would need its own bump, but the lead is retiring v1
-// acceptance and moving to "every shipped sim/AI change bumps RECORD_VERSION" in #366 first; this branch rebases onto that and
-// bumps once more (to 4) rather than bumping twice against a moving base.
+export const RECORD_VERSION = 4;   // 4: brief 8 (2026-09-22) gives the Veteran an authored opening, changing his fresh-fight behaviour again; a link recorded on 3 or earlier would replay a different fight. 3: the warden's reach fix (#371) and the ladder retune (#366); this build refuses every earlier version. 2: the player's weapon after the opponent id (2026-09-21). 1: every fight was the longsword.
 export type RecordProfile = 'easy' | 'normal' | 'hard';
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
 export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; profile: RecordProfile; seed: number };
@@ -101,12 +98,12 @@ export function packRecord(r: FightRecord): Uint8Array {
 export function unpackRecord(bytes: Uint8Array): FightRecord {
   if (bytes.length < 3 || bytes[0] !== 0x46 || bytes[1] !== 0x4b) throw Error('Fight record: not a fight record');
   const v = bytes[2];
-  if (v !== 1 && v !== RECORD_VERSION) throw Error(`Fight record: version ${v} is not supported (this build reads versions 1 and ${RECORD_VERSION})`);
+  if (v !== RECORD_VERSION) throw Error(`Fight record: version ${v} is not supported (this build reads version ${RECORD_VERSION} only: the fight rules changed, so an older link would replay a different fight)`);
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let o = 3;
   const str = () => { const len = bytes[o++]; if (o + len > bytes.length) throw Error('Fight record: truncated'); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(bytes[o + i]); o += len; return s; };
-  const build = str(), opponent = str() as OpponentId, weapon = (v >= 2 ? str() : 'longsword') as WeaponId;   // version 1: every fight was the longsword
-  if (!(weapon in WEAPONS)) throw Error('Fight record: unknown weapon');
+  const build = str(), opponent = str() as OpponentId, weapon = str() as WeaponId;
+  if (!PLAYER_WEAPONS.includes(weapon)) throw Error('Fight record: unknown weapon');   // the hero rig bakes blade tables for these only; an opponent-only weapon (maul, reaper) would throw inside the frame loop
   if (o + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
   const profile = PROFILES[bytes[o++]], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (!profile || !outcome) throw Error('Fight record: unknown profile or outcome');

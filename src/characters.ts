@@ -91,6 +91,18 @@ export async function loadWarriors(url: string, opponentUrl = url, weapons: [Wea
   const [hero, enemy] = await Promise.all([loadFighter(url), opponentUrl === url ? undefined : loadFighter(opponentUrl)]);
   return buildWarriors(hero, enemy, weapons);
 }
+// Loot (brief 5): the pieces of loot.glb, skinned to the hero rig with warrior.glb's bind (build-warrior.mjs WARRIOR_LOOT). Fetched on its own,
+// after the rigs, never as part of a fight's load; the player's actor wears the pieces (`wear`) once both are in. Each draw's userData names
+// its opponent, slot and layer; its id is `<opponent>.<slot>` (src/loot.ts).
+export async function loadLoot(url: string): Promise<SkinnedMesh[]> {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  if (phoneTier()) budgetTextures(asset.scene, FIGHTER_TEXTURE_CAP);
+  const pieces: SkinnedMesh[] = [];
+  asset.scene.traverse(object => { if (object instanceof SkinnedMesh && typeof object.userData.slot === 'string') pieces.push(object); });
+  if (!pieces.length) throw new Error('loot.glb carries no pieces');
+  return pieces;
+}
+export const lootId = (piece: SkinnedMesh): string => `${piece.userData.opponent}.${piece.userData.slot}`;
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
 function fighterClips(asset: FighterAsset, weapon: WeaponId): Record<Role, AnimationClip> {
   const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>();
@@ -128,6 +140,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       }
     });
     let opened: ReturnType<typeof openWaist> | undefined;
+    const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>();   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
     const mixer = new AnimationMixer(root);
@@ -149,6 +162,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     const contactByClip = weaponNode?.userData.contactByClip as Record<string, { from: number; to: number }> | undefined;
     const upperArm = root.getObjectByName('upperarm_r');
     let aimedRotation: Quaternion | undefined;
+    const offHand = ['upperarm_l', 'lowerarm_l', 'hand_l'].map(n => root.getObjectByName(n)), swordHand = root.getObjectByName('hand_r');
+    let aimedOffHand: [Quaternion, Quaternion] | undefined;
     // Guard side (owner 2026-09-20, five sides): the one Guard clip is the straight guard; a side tilts it after the mixer writes the
     // frame — the torso turns to that side, the sword arm lifts or drops. Measured on the warrior rig from the Guard pose (blade tip
     // relative to the pelvis, the fighter's right = −x): left +.14 m across, right −.23 m, overhead +.35 m up, low −.37 m down. Code-
@@ -161,6 +176,31 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     let crown: ReturnType<typeof splitSkull> | undefined;
     return {
       anchor,
+      // Wear these loot pieces (loadLoot) and nothing else: each is bound to this rig's skeleton beside his own body draw, so it follows every
+      // clip; a `replace` piece hides his own draws in that slot (a helmet hides hair too); an `over` piece sits on top of them. A piece's
+      // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson); the rest keep their own.
+      wear(pieces: readonly SkinnedMesh[]) {
+        for (const piece of worn) piece.removeFromParent(); worn.length = 0;
+        for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
+        let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
+        root.traverse(object => {
+          if (!(object instanceof Mesh)) return;
+          if (object instanceof SkinnedMesh && object.userData.slot === 'Body' && !body) body = object;
+          if (object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material);
+        });
+        if (!body) throw new Error('The rig has no Body draw to hang loot on');
+        const slots = new Set(pieces.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
+        if (slots.has('Helmet')) slots.add('Hair');
+        root.traverse(object => { if (object instanceof Mesh && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
+        for (const piece of pieces) {
+          const material = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
+          const copy = new SkinnedMesh(piece.geometry, material);
+          copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
+          copy.bind(body.skeleton, body.bindMatrix);
+          body.parent!.add(copy); worn.push(copy);
+        }
+      },
+      worn: (): readonly SkinnedMesh[] => worn,
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
       playing(): string { if (opened?.group.visible) return `Opened:WaistCut@${blade.name}`; let best: Role = 'Idle'; for (const role of ROLES) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
       update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'opened' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null) {
@@ -191,6 +231,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         anchor.position.set(0, 0, 0); // only the presentation anchor steps into a Run Through
         if (aimedRotation && upperArm) upperArm.quaternion.copy(aimedRotation);
         aimedRotation = undefined;
+        if (aimedOffHand) { offHand[0]!.quaternion.copy(aimedOffHand[0]); offHand[1]!.quaternion.copy(aimedOffHand[1]); aimedOffHand = undefined; }
         if (tiltApplied) { tilted.forEach((b, i) => b.quaternion.copy(untilted[i])); tiltApplied = false; }
         mixer.update(step);
         const guarding = guardSide && (pose === 'guard' || pose === 'block' || pose === 'parry') ? GUARD_TILT[guardSide] : GUARD_TILT.thrust, ease = 1 - Math.exp(-step * 16);
@@ -371,6 +412,27 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const turn = new Quaternion().setFromUnitVectors(from.normalize(), to.normalize());
         aimedRotation = upper.quaternion.clone();
         upper.quaternion.premultiply(new Quaternion().slerp(turn, amount));
+        root.updateWorldMatrix(true, true);
+        // The hold is two-handed (owner 2026-09-21): the clip closes the off-hand on the hilt, but the aim above turns only the sword
+        // arm, so the fist was left hanging in the air by the face. Re-solve the left arm onto the grip a hand's width behind the
+        // sword hand, keeping the clip's own elbow bend (two-bone reach; no bone or weapon stretches).
+        const [upperL, lowerL, handL] = offHand;
+        if (!upperL?.parent || !lowerL || !handL || !swordHand) return;
+        const s = upperL.getWorldPosition(new Vector3()), e = lowerL.getWorldPosition(new Vector3()), h = handL.getWorldPosition(new Vector3());
+        const pommelward = blade.localToWorld(new Vector3(0, -1, 0)).sub(blade.localToWorld(new Vector3())).normalize();
+        const goal = swordHand.getWorldPosition(new Vector3()).addScaledVector(pommelward, .07);
+        const a2 = s.distanceTo(e), b2 = e.distanceTo(h), dir = goal.clone().sub(s);
+        const d = Math.max(.03, Math.min(dir.length(), a2 + b2 - .001)); dir.normalize();
+        const along = (a2*a2 - b2*b2 + d*d) / (2*d), bend = e.clone().sub(s);
+        bend.addScaledVector(dir, -bend.dot(dir)); if (bend.lengthSq() < 1e-6) return; bend.normalize();
+        const elbow = s.clone().addScaledVector(dir, along).addScaledVector(bend, Math.sqrt(Math.max(0, a2*a2 - along*along)));
+        aimedOffHand = [upperL.quaternion.clone(), lowerL.quaternion.clone()];
+        for (const [bone, child, dest] of [[upperL, lowerL, elbow], [lowerL, handL, goal]] as const) {
+          root.updateWorldMatrix(true, true);
+          const origin = bone.getWorldPosition(new Vector3());
+          const delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dest.clone().sub(origin).normalize());
+          bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
+        }
         root.updateWorldMatrix(true, true);
       },
       // The world position of a named bone right now (the scene takes the victim's chest with it).

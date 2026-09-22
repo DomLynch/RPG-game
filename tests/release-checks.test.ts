@@ -70,6 +70,26 @@ test('a check that fails is retried once alone; a persistent failure exits non-z
   assert.ok(!existsSync(join(root, 'artifacts', 'release-checks.json')), 'no receipt on failure');
 });
 
+test('a check that never exits is killed at the ceiling, process group included, and counts as a failure', () => {
+  // The deploy #71 wedge: a check whose grandchild blocks forever at 0 % CPU. `wedge.mjs` execFileSyncs a `sleep 600` (sync wait,
+  // like execFileSync('jpegtran', { input })), so SIGTERM to the check would not end the sleep either.
+  const root = repo([['node', 'scripts/wedge.mjs'], ['node', 'scripts/sleep.mjs', '10']]);
+  writeFileSync(join(root, 'scripts', 'wedge.mjs'), "import { execFileSync } from 'node:child_process'; import { writeFileSync } from 'node:fs'; writeFileSync('wedge.pid', String(process.pid)); execFileSync('sleep', ['600']);");
+  const started = Date.now();
+  const result = run(root, { RELEASE_CHECK_CEILING_S: '2' });
+  const took = (Date.now() - started) / 1000;
+  assert.notEqual(result.status, 0, 'the wedged check fails the run: ' + result.stdout);
+  assert.match(result.stdout, /check 1\/2 CEILING 2s — killing the process group/);
+  assert.match(result.stdout, /check 2\/2 passed/, 'the honest check still passes');
+  assert.ok(took < 30, `killed at the ceiling (took ${took.toFixed(1)}s, not the sleep's 600 s)`);
+  // The grandchild `sleep 600` died with the group, not just the check process.
+  const wedgePid = Number(readFileSync(join(root, 'wedge.pid'), 'utf8'));
+  // SIGKILL delivery to the group is asynchronous: give the kernel a moment to reap before declaring survivors.
+  let survivors = '';
+  for (let i = 0; i < 20; i++) { survivors = spawnSync('pgrep', ['-f', '^sleep 600$'], { encoding: 'utf8' }).stdout.trim(); if (!survivors) break; execFileSync('sleep', ['0.1']); }
+  assert.equal(survivors, '', `no orphaned sleep 600 after the ceiling (wedge pid ${wedgePid})`);
+});
+
 test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
   const root = repo([['node', 'scripts/sleep.mjs', '400'], ['node', 'scripts/sleep.mjs', '400']]);
   const started = Date.now();

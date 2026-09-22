@@ -2,6 +2,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [[ -z "$(git status --porcelain)" ]] || { echo 'Refusing a dirty release'; exit 1; }
+# One deployer, one Mac: while this runs, the Claude hooks refuse other sessions' browser checks, test suites and bakes
+# (the BUSY/FREE handshake, made mechanical). The lock names the revision, the start and this pid; it goes on any exit, and
+# a lock whose pid is dead or older than 45 min is ignored by the hooks, so a killed deploy cannot wedge the lanes.
+DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
+mkdir -p "$(dirname "$DEPLOY_LOCK")"
+printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$PWD" > "$DEPLOY_LOCK"
+trap 'rm -f "$DEPLOY_LOCK"' EXIT
 node scripts/check-account-config.mjs
 # Stage the versioned Frankendom CSP before publishing WASM-compressed assets.
 node scripts/check-glb-compression.mjs --hosted-csp
@@ -72,4 +79,25 @@ mv -Tf next current
 REMOTE
 cmp dist/index.html <(curl --fail --silent --show-error https://frankendom.com/)
 cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com/release.json)
+# The daily warden's replay verifier (scripts/verify-daily.mjs) must run the deployed rules: ship the sim source beside the release,
+# outside the web root, and (re)install its timer. It runs as the least-privilege role of migration 202609210005 from
+# /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
+verifier="/opt/frankendom-verifier/$revision"
+ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier/src' '$verifier/scripts'"
+rsync -az --delete --include='*/' --include='*.ts' --exclude='*' -e "$remote_shell" src/ "$host:$verifier/src/"
+rsync -az -e "$remote_shell" scripts/verify-daily.mjs "$host:$verifier/scripts/"
+rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer "$host:$verifier/"
+ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
+set -euo pipefail
+ln -sfn "$1" /opt/frankendom-verifier/current
+if test -s /etc/frankendom/verifier.env; then
+  test "$(stat -c %U:%a /etc/frankendom/verifier.env)" = root:600 || { echo "/etc/frankendom/verifier.env must be root:600"; exit 1; }
+  install -m 644 "$1/frankendom-verify-daily.service" "$1/frankendom-verify-daily.timer" /etc/systemd/system/
+  systemctl daemon-reload
+  systemctl enable --now --quiet frankendom-verify-daily.timer
+  echo "verifier timer armed on $1"
+else
+  echo "verifier shipped to $1; /etc/frankendom/verifier.env missing, timer not armed"
+fi
+REMOTE
 printf '\nPublished %s\n' "$revision"
