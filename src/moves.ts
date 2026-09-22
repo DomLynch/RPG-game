@@ -137,9 +137,8 @@ export const RULES = {
   wall: { edge: .25, stagger: 12, posture: 15, loiter: { band: 1, ticks: 180, again: 60, chip: 3, posture: 15, shove: .6, into: 2 } },
   // Anti-turtling 2: no rest at the wall. A tick that opens the gap to the opponent by more than `away` metres (a walk straight back is .05
   // at 3 m/s; strafing is ~0) while the fighter is inside the wall band (`wallOnly`, the same `wall.loiter.band`) regenerates no stamina;
-  // regen resumes the tick he stops, strafes or advances. Owner 2026-09-21 chose the band form over "no regen while retreating anywhere":
-  // the everywhere form failed 3 of the 24 rung identity pins (a charged-heavy spammer beat the Veteran 13/24, goblin fights ran past
-  // 45 s) and halved the hero brain's Veteran-normal wins — the rungs were tuned to recover by backing off. Set `wallOnly: false` to try it.
+  // regen resumes the tick he stops, strafes or advances. The band form is the owner's choice: the everywhere form broke the rung pins
+  // (the numbers are in docs/state/combat.md, Anti-turtling). Set `wallOnly: false` to try it.
   retreat: { away: .02, wallOnly: true },
   // Attrition: every blade wound takes `stamina` off the wounded fighter's maximum for the duel (floor `floor`); a leg wound slows walking by `legSpeed`.
   attrition: { stamina: 8, floor: 40, legSpeed: .85 },
@@ -181,7 +180,7 @@ export type AiProfile = {
 // A weapon is data a fighter carries: its move table, its blade paths (baked per weapon by scripts/bake-blades.mjs from
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
-// not a rule change. The trident entry is the longsword's data until the weapons lane lands its own — nothing changes on trunk.
+// not a rule change.
 export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
 export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
 export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true;
@@ -194,8 +193,8 @@ export const LONGSWORD: Weapon = { id: 'longsword', moves: MOVES, paths: PATHS, 
 // inside the point. Rig: src/assets/veteran.glb, built with WARRIOR_WEAPON=trident (WeaponDrawn, contact = the tines). The move ids keep the
 // game's button grammar: Slash = the low sweep (one clip, both sides), Stab = the thrust (it chains into a second thrust), Heavy =
 // the overhead pin; riposte / counter / critical ride the thrust-chain and pin paths. The clips only fix where the contact key sits
-// (.34, pin .48). LIVE since slice V (combat review 2026-09-16): initialDuel gives the Veteran this table; the reaches are the measured
-// landing frontiers (tests/weapons.test.ts, ±0.1 m) and the balance is pinned by the battery (tests/battery.test.ts).
+// (.34, pin .48). initialDuel gives the Veteran this table; the reaches are the measured landing frontiers (tests/weapons.test.ts,
+// ±0.1 m) and the balance is pinned by the battery (tests/battery.test.ts).
 export const TRIDENT_PATHS: Record<PathId, PathSpec> = {
   light_right: { clip: 'Trident_Sweep', source: .34, windup: 22, active: 8, recovery: 24 },        // low sweep: a 1.9 m pole tells longer than a cut
   light_left: { clip: 'Trident_Sweep', source: .34, windup: 22, active: 8, recovery: 24 },
@@ -229,7 +228,7 @@ const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, windup: 22, active: 5, recovery: 27, reach: 2.15 },
   kick: MOVES.kick,
 };
-// Slice V (combat review, 2026-09-16): the shaft guard pays 15 % more for every block and a plain overhead heavy breaks it (the blade guard
+// The shaft guard pays 15 % more for every block and a plain overhead heavy breaks it (the blade guard
 // only breaks to a charged one); the Veteran opens with the thrust three times in five and closes to sweep range, not the sword's cutting range.
 export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .6, close: 1.4 } };
 
@@ -242,7 +241,7 @@ export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRI
 // longer recoveries, more damage and chip: a brute's weapon. Lunges (stepIn × wind-up) equal the sword's so the Pitborn's whiff window
 // (tests/opponents.test.ts: a 12-tick backstep escapes his swing and the punish lands) survives; `reach` follows the SWORD's convention —
 // the warden's conservative spacing estimate (cut 1.65 / heavy 1.9 / stab 2.0), not the measured frontier (1.7 / 2.2 / 2.05), so he
-// spaces like the man the seam was tuned against. Every number PROVISIONAL — GAMEPLAY CHANGE for combat review.
+// spaces like the man the seam was tuned against.
 export const CLEAVER_PATHS: Record<PathId, PathSpec> = {
   light_right: { clip: 'Attack', source: .34, windup: 22, active: 8, recovery: 26 },        // the chop: 2 ticks more tell than the cut, a longer recovery
   light_left: { clip: 'Return', source: .34, windup: 22, active: 8, recovery: 26 },         // the back of the cleaver
@@ -276,8 +275,7 @@ export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLE
 // lane's proposal (artifacts/character/BRIEF-goblin.md): wind-up ≥ 12 ticks everywhere (the readability rule), feints = the first ~40 % of
 // the wind-up, damage and cost below a sword's. Measured from his rig with these timings (artifacts/weapons/REPORT.md): the slash lands to
 // 1.2 m, the stab 1.45, the hack 1.55 (the sword: 1.7 / 2.0 / 2.2) — `reach` is that frontier; the combat lane sets his stance, his knobs (feint rate, guard share 0, back-step
-// after landing, circling, regen) and the battery. A reverse-grip hook was tried and rejected with numbers: on the sword's clips the blade sits
-// behind the fist and never lands (0 m at every gap) — it would need its own clip set. Every number PROVISIONAL — GAMEPLAY CHANGE.
+// after landing, circling, regen) and the battery. Forward grip only: a reverse grip never lands on the sword's clips (docs/state/combat.md).
 export const KNIFE_PATHS: Record<PathId, PathSpec> = {
   light_right: { clip: 'Attack', source: .34, windup: 14, active: 6, recovery: 16 },
   light_left: { clip: 'Return', source: .34, windup: 14, active: 6, recovery: 16 },
@@ -329,12 +327,11 @@ const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
-// ── Scythe (weapons lane, 2026-09-18): the Executioner's — ON THE SHELF, the estoc pattern: real data nothing uses; the combat lane
-// flips `WEAPONS.scythe` to SCYTHE, adds the manifest entry from src/assets/weapons/scythe/warrior-scythe.glb (the man-scale bake rig — the
-// cleaver convention), bakes, reviews (REQUESTS.md §15–17). The fight it means: everything is an arc — the REAP is the horizontal cut (the
+// ── Scythe (weapons lane, 2026-09-18): the Executioner's, baked from src/assets/weapons/scythe/warrior-scythe.glb (the man-scale bake
+// rig — the cleaver convention). Everything is an arc — the REAP is the horizontal cut (the
 // edge sweeps chest height), the HIGH is the headsman's diagonal, the THRUST is the heel-jab (a scythe has no point; the Stab button's
-// mapping, the combat lead's nod pending). Dead inside ~1 m where the arc cannot develop (minReach on the lights; the brief's inversion
-// of the trident's lesson). Haft guard like the trident's (wood; a plain heavy breaks it) — combat may say the head catches instead.
+// mapping). Dead inside ~1 m where the arc cannot develop (minReach on the lights; the brief's inversion
+// of the trident's lesson). Haft guard like the trident's (wood; a plain heavy breaks it).
 const reap = (id: 'light_right' | 'light_left', chainPath: PathId): MoveDef => ({
   id, direction: id === 'light_right' ? 'right' : 'left', path: id, chainPath, chained: { windup: 18, active: 8, recovery: 20 },
   chain: { window: 18, follow: [id === 'light_right' ? 'light_left' : 'light_right', 'heavy_overhead'] },   // the reap chains across like the sword's cuts
@@ -376,10 +373,10 @@ export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE_PATHS, guard: 'shaft', material: 'iron', reach: SCYTHE_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 2.0 } };   // the jab is a rare opener (one in ten); he HOLDS the arc's edge at 2.0 m and reaps — the player must time the approach through the tell, never inside a metre and a half (owner 2026-09-18: "this weapon should hit you from far away; you need to time your attack to get in close")
-// The lanes' split (2026-09-16): the weapons lane delivers a weapon unused; the combat lane puts it in the fight. The cleaver is LIVE
-// since slice W (2026-09-17): OPPONENTS.pitborn carries it, baked at a man's 1.0× from veteran-cleaver.glb (his sword's convention — the
-// brute's rendered blade runs ~10 cm past the simulated one, never the other way; a 1.13× bake let no backstep escape him).
-// The knife is LIVE since slice X (2026-09-17): OPPONENTS.goblin carries it, baked from his own rig (goblin.glb: the knife is 0.81× in his .835 hand, a 0.42 m blade).
+// The weapons lane delivers a weapon unused; the combat lane puts it in the fight (which slice landed what: docs/state/combat.md).
+// The cleaver is baked at a man's 1.0× from veteran-cleaver.glb, never the Pitborn's 1.13× (his rendered blade runs ~10 cm past the
+// simulated one, never the other way; a 1.13× bake let no backstep escape him). The knife is baked from the goblin's own rig
+// (goblin.glb: 0.81× in his .835 hand, a 0.42 m blade).
 // Creature packages retain the established timing families, with their own authored contact paths.
 const creaturePaths = (paths: Record<PathId, PathSpec>, prefix: string): Record<PathId, PathSpec> => Object.fromEntries(
   Object.entries(paths).map(([id, spec]) => [id, { ...spec, clip: `${prefix}_${id.includes('heavy') ? 'Heavy' : id === 'thrust' || id === 'riposte' ? 'Thrust' : 'Slash'}` }]),
@@ -391,7 +388,7 @@ const MAUL: Weapon = { ...CLEAVER, id: 'maul', moves: { ...CLEAVER_MOVES, thrust
 // a 24-point overhead that can be cut into (poise 0 — the maul's hyper-armour was the wall: a .78 man walking in behind an uninterruptible
 // heavy), and a blunt punish set (18/24, counter 14, critical 34 — under the sword's 24/30/20/40): the sim showed most of his damage was
 // the cleaver's 28/34 ripostes, not the swings. Shaft guard like the trident and scythe (blocks ×1.15, a heavy breaks it). Reach is the
-// maul's on a .78 body — swing 1.29 m, heavy 1.48 m — he gets inside. Hero's brain at normal: 11/24 (maul placeholder was 2/24).
+// maul's on a .78 body — swing 1.29 m, heavy 1.48 m — he gets inside.
 const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
   light_right: { ...CLEAVER_MOVES.light_right, damage: 15, chip: 0, staminaDamage: 20, stagger: 28, posture: 30 },
   light_left: { ...CLEAVER_MOVES.light_left, damage: 15, chip: 0, staminaDamage: 20, stagger: 28, posture: 30, stamina: 28 },
@@ -430,8 +427,8 @@ export type Level = keyof typeof PROFILES;
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
 export type Opponent = { id: OpponentId; weapon: WeaponId; rig: RigId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
 const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon' | 'rig'>> = {
-  // Hard (owner, 2026-09-20): the shared hard beat the hero's brain only 13/24 — two wins tighter than normal. Pressure .7 and a discipline
-  // floor of 30 keep him cutting instead of resting: 18/24 (sweep, 24 seeds). His own table so the Executioner (shared PROFILES) is untouched.
+  // Hard: pressure .7 and a discipline floor of 30 keep him cutting instead of resting (the shared hard was two wins tighter than normal;
+  // docs/state/combat.md). His own table so the Executioner (shared PROFILES) is untouched.
   veteran: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },   // the trident since slice V (2026-09-16)
   // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
   // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
@@ -449,9 +446,8 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // Health 190: with the Veteran's brain driving the hero he took 150 in ~22 s (probe, 24 seeds); the brute is meant to take more killing than a man.
   pitborn: { scale: 1.13, health: 190, poise: 16, profiles: {
     easy: { reaction: 28, accuracy: .5, parry: .05, dodge: .05, aggression: .6, pressure: .6, discipline: 30, lapse: .45, read: .45 },
-    // Tune (owner, 2026-09-20): rung 2 was the softest fight on the ladder — the hero's own brain beat him 41/48 at normal, mostly by stop-hitting him
-    // as he walked in (the thrust did 1254 of the damage across 24 fights; blocks and parries barely happened at reaction 18 / lapse .3). Reaction
-    // 18 → 14 and lapse .3 → .1: he notices the stab in time to block it and answers what he sees; the whiff punisher stays the answer (9/24).
+    // Reaction 14 and lapse .1: he notices the stab in time to block it and answers what he sees, so stop-hitting him as he walks in no
+    // longer wins on its own; the whiff punisher stays the answer (the probe that set these: docs/state/combat.md).
     normal: { reaction: 14, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .1, read: .6 },
     hard: { reaction: 12, accuracy: .9, parry: .4, dodge: .3, aggression: .95, pressure: .75, discipline: 24, lapse: .08, read: .75 },   // parry .3 → .4, dodge .2 → .3 (owner, 2026-09-20): hard was 15/24 for the hero's brain; more answers, 17/24 (sweep). discipline 20 → 24 with the cleaver (slice W): its hack costs 42, and at 20 he swung himself empty into the whiff punisher (10/24 at hard, over the cap); 24 keeps him hot-headed (the Veteran holds 40) and the punisher at 7/24
   } },
@@ -466,8 +462,8 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // The heavy's tell (34) is past his press, so an honest heavy is parried; a heavy held at its chamber past his press lands on the whiff.
   // Kicks open a standing guard. PROVISIONAL; the battery in tests/opponents.test.ts is the gate.
   nightborn: { scale: 1.03, health: RULES.health, poise: 0, guard: { window: 16, recovery: 40, commits: true }, profiles: {
-    // Easy (owner, 2026-09-20): 8-tick reaction and a .45 parry made easy as hard as hard (hero's brain 8 / 9 / 9 across levels). A human
-    // reaction, a quarter parry and more lapses put him with the other rungs' easy: 20/24 (sweep, 24 seeds); the commit is still there to learn.
+    // Easy: a human reaction, a quarter parry and more lapses put him with the other rungs' easy (an 8-tick reaction and a .45 parry had
+    // made easy as hard as hard; docs/state/combat.md); the commit is still there to learn.
     easy: { reaction: 16, accuracy: .7, parry: .25, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .4, read: .7 },
     normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .6, pressure: .45, discipline: 45, lapse: .3, read: .85 },   // pressure .45: enough heavies that a roller is charged through (a cut-and-thrust man rolls too easily)
     hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .75, pressure: .6, discipline: 35, lapse: .05, read: .95 },   // discipline 40 → 35, pressure .5 → .6 (owner, 2026-09-20): hard was no harder than normal (9/24 both); 18/24 now. Discipline 30 left no honest answer (feint-and-punish 0/24 at hard); 35 keeps it at 4.
@@ -484,8 +480,8 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     hard: { reaction: 8, accuracy: .92, parry: 0, dodge: .5, aggression: .95, pressure: .65, discipline: 15, lapse: .08, feint: .4, guard: 0, disengage: .7, circle: 1, step: .8, interrupt: .8, kick: .7, dash: 1, read: .65 },
   } },
   // The Executioner (opponent 6): 1.36 — 20 % over the Pitborn's 1.13 (owner, 2026-09-17), a big man's
-  // health and poise. His arc is LIVE since 2026-09-18 (the weapons lane's scythe: reap 1.40–2.10 m, a dead band inside 1.4 m,
-  // the shaft guard). PROVISIONAL: he carries the Veteran's brain (PROFILES); his own profile and ladder slot are the combat lead's.
+  // health and poise. His arc is the scythe's (reap 1.40–2.10 m, a dead band inside 1.4 m, the shaft guard). He carries the
+  // Veteran's brain (PROFILES); a profile of his own is the combat lane's call.
   executioner: { scale: 1.36, health: 160, poise: 12, profiles: PROFILES },
 };
 

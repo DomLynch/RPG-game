@@ -2,6 +2,17 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Tuning history moved out of src/moves.ts — 2026-09-22 (Auditer lane, GPT audit "readability")
+The comments in moves.ts now keep only why each current rule exists; the dated experiments and probe numbers that set them live here.
+- Anti-turtling band form (owner 2026-09-21): the "no regen while retreating anywhere" form failed 3 of the 24 rung identity pins (a charged-heavy spammer beat the Veteran 13/24, goblin fights ran past 45 s) and halved the hero brain's Veteran-normal wins — the rungs were tuned to recover by backing off. `RULES.retreat.wallOnly: false` restores it.
+- Trident: LIVE since slice V (combat review 2026-09-16) — initialDuel gives the Veteran the trident table; the shaft-guard and thrust-opener rules landed in the same slice.
+- Cleaver: LIVE since slice W (2026-09-17), OPPONENTS.pitborn. Knife: LIVE since slice X (2026-09-17), OPPONENTS.goblin; a reverse-grip hook was tried and rejected with numbers — on the sword's clips the blade sits behind the fist and never lands (0 m at every gap), it would need its own clip set.
+- Scythe: shipped 2026-09-18 as the Executioner's arc (WEAPONS.scythe = SCYTHE); the earlier "on the shelf" state (REQUESTS.md §15–17) is over.
+- Dwarf's warhammer (2026-09-20): hero's brain at normal 11/24 against it; the maul placeholder it replaced was 2/24.
+- Veteran hard (owner 2026-09-20): the shared hard beat the hero's brain only 13/24, two wins tighter than normal; pressure .7 + discipline floor 30 → 18/24 (sweep, 24 seeds).
+- Pitborn normal (owner 2026-09-20): rung 2 was the softest fight on the ladder — the hero's own brain beat him 41/48, mostly by stop-hitting him as he walked in (the thrust did 1254 of the damage across 24 fights; blocks and parries barely happened at reaction 18 / lapse .3). Reaction 18 → 14 and lapse .3 → .1; the whiff punisher stays at 9/24.
+- Nightborn easy (owner 2026-09-20): an 8-tick reaction and a .45 parry made easy as hard as hard (hero's brain 8 / 9 / 9 across levels); a human reaction, a quarter parry and more lapses → 20/24 (sweep, 24 seeds).
+
 ## Ladder slice: Goblin normal rung, reaction 11 / accuracy .7 — 2026-09-22 (Auditer lane, Brief 1)
 Strategy via Lead (02:50 local): Goblin-only retune, target 9–11 hero-brain wins at normal so the ladder reads ~15/13/10/10/6/8; same rules as #366 (normal profile knobs only, no pin edited without its owner's ruling), Combat signs.
 Measured on trunk (24 seeds, `artifacts/ladder-levels.ts`, `tests/opponents.test.ts` goblin pins, the KNOWN_UNFAIR derivation of `tests/player-weapons.test.ts`, the seed-5 knife record fixture): 11/.7 → hero 10, identity pins 4/4; 12/.7 → 9 but "read the feint" ties (light spam 1 ≥ the answer's 1) and AI-vs-AI median 52.9 s over the 25–45 s band; 14/.7 → 11 but "heavy only wins 4 ≥ the answer's 4"; 13/.7 (earlier, on 2c0fe0f) → 8 with three new poker rows and a stalled fixture; accuracy alone (10/.7, .65, .6) → 5/4/4. Only `reaction` moves the hero brain against him.
