@@ -3,8 +3,9 @@
 Owner: multi-chars lane. Written 2026-09-22 for Strategy's review. **Not on the beta-critical path**: it sits behind the loot schema
 (#461), the gloves (#461) and the shield asset, and it must not take Combat's time before the shield lands.
 
-Roster context (Dom, 22:00): launch goes to **ten archetypes** — six live, the Nord (Executioner lane: cleaver + round shield, the
-game's shield-bearer), this Witch, and two to name. Brief 14's "6 × 10" becomes **10 × 10**; the kit library work is unchanged and tiers
+Roster context (Dom, 22:00): launch goes to **ten archetypes** — six live, the Shieldmaiden (**Pitborn's lane** — Brief 15 was written by the
+Executioner lane on Lead's assignment, which is what the authorship line in #471 records; the character is Pitborn's): bearded
+axe + round shield, the game's shield-bearer. Then this Witch, and two to name. Brief 14's "6 × 10" becomes **10 × 10**; the kit library work is unchanged and tiers
 stay material variants per rig family.
 
 ## What she is
@@ -107,14 +108,17 @@ the tables and the battery rows.
 - **Weapon side (Weapons'): the staff borrows the trident's polearm family — settled — so it is the part, its blade tables and the one
   cast clip. No new family.**
 - **Blade tables: 20, not 10** — 10 per (rig, weapon), and the staff now lives on two rigs.
-- **Where that leaves her against the Nord — the third scope change tonight, so here is the number rather than a shrug.** The Nord is a
-  cleaver and a round shield on existing families: call it a lane-week. The Witch is **~1.5 lane-weeks of character work** now that the
-  clip-family question is settled in our favour, plus VFX and audio in other lanes. **Still past the Nord, but by half a lane-week rather
-  than by double** — which is a scope note, not an escalation.
+- **Where that leaves her against the Shieldmaiden — corrected 2026-09-22 after Brief 15's own amendment.** I had her at a lane-week on
+  existing families, on the reading that she carried a cleaver. **That is wrong and the correction runs against my own interest:** Brief 15
+  at `f6af593` makes the **bearded axe a NEW one-hand family** (Dom via Strategy), about **13 clips authored against the hero skeleton**,
+  and explicitly removes the "zero new animation authoring" saving the cleaver reading rested on. So she is no longer the cheaper of the
+  two by a clear margin. The Witch stays at **~1.5 lane-weeks of character work** — the staff borrows the trident's family, settled — plus
+  VFX and audio in other lanes. **The honest comparison is now that the two are close, not that the Witch is the expensive one.** If a
+  scope decision was going to be made on "the Witch costs more", it should not be made on that.
 
 ## The decision: (a) a new rig, or (b) the hero rig with female proportions in the mesh
 
-**There are now TWO female characters, not one** (Brief 15's Nord is a Viking woman, "the Shieldmaiden"; roster rule two women, eight
+**There are now TWO female characters, not one** (Brief 15's is a Viking woman, "the Shieldmaiden", and she is **Pitborn's**; roster rule two women, eight
 men). That changes this decision's weight in both directions: under **(b)** one decision covers both and the shared six-slot library
 carries them with no new rig family; under **(a)** the new family is amortised across two characters — cheaper per head than when I
 costed it — but the Brief 14 library is then authored and raycast-fitted a second time for a family holding two of ten archetypes.
@@ -171,6 +175,30 @@ for in the first render, not a reason to start on (a).
    them then any stripped or disarmed state collapses them into one person. A three-way that is only run in loadout will pass for the
    wrong reason and we would not find out until something took the shield away.
 2. Kit, six slots, per Brief 14 — shared pieces, tiers as material variants.
+
+   **Dom, 2026-09-22 23:12 (via Strategy): she has SIX takeable gear pieces plus the staff, and the ROBE ITSELF is loot.**
+   Ruling, so nobody reads the hooded cloak as rig dressing — **the #434 Pitborn-chest precedent does not apply to her.** The
+   approved reference (`witch-a-deep-hood.png`) maps to the six Brief 14 slots as her own pieces in the shared library:
+
+   | slot | her piece |
+   |---|---|
+   | Helmet | the deep pointed hood |
+   | Body | the robe — bodice + ragged cloak as **one** Body piece, the silhouette-defining one |
+   | Arms | the bracers |
+   | Gloves | the fingerless gloves |
+   | Greaves | the layered skirt + leggings |
+   | Boots | the laced boots |
+
+   Every one is a draw in `loot.glb` (`witch.<slot>.<material>`), every one takeable via take-one, tier materials per Brief 14,
+   and the staff takeable as every weapon is. **Nothing on her is dressing except skin.**
+
+   **Open question back to Strategy, not a blocker:** if the robe as one Body piece cannot layer over the hero's other slots
+   cleanly, the split to propose is cloak as Body `over` and bodice `under`. That decision is Strategy's and it needs a number,
+   which does not exist yet — the coverage rule is **triangle area** (`tests/loot.test.ts`), so it can only be measured off the
+   authored piece, not predicted from the reference image. Two things are already known and shape the answer: a `replace` Body
+   piece must cover **≥80 %** of the player's 1.359 m² chest kit or it undresses him (the `pitborn.Body` sash measured 26 %),
+   and an `over` piece is exempt from that rule by construction — which is why **`over` is the default to author first** and the
+   split is only paid for if `over` fails to sit on the other five slots.
 3. Fairness battery against every offered player weapon (longsword, warhammer, trident, scythe today).
 4. Finisher fits measured per finisher.
 5. Ladder rung.
