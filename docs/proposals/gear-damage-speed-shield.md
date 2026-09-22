@@ -1,5 +1,14 @@
 # Proposal — damage by grip, speed, and the shield
 
+> **DECIDED.** Dom ruled on all three, 2026-09-23 00:45. The decisions are **Addendum C** of Brief 19
+> (`docs/briefs/gear-stats.md`) and that addendum, not this page, is the authority. In short: one Attack multiplier for every
+> weapon ramped by tier, caps held at 1.15 / 0.80 and displayed as whole points (`+15 ATK`, `20 RES`); speed fixed per weapon,
+> no speed stat; shield is option (b), guard profile only, with the −20 % incoming withdrawn. Both ownerless findings are
+> settled as design and need no action — the cleaver's left light is the back of the blade, blunt at half damage, and RES
+> multiplying chip is armour being worth more against heavy hitters, which is armour doing its job.
+>
+> This page is kept as the record of how those decisions were reached.
+
 Stats lane, 2026-09-22, for Dom. Docs only: nothing here is built. Every number in §1 is read out of `src/moves.ts` on trunk
 (3405a95) by running the module, not copied from a brief. Where trunk is known to be stale, it is flagged in the row.
 
