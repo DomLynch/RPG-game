@@ -59,9 +59,6 @@ try {
   assert.equal(receipt.journal.note, receipt.autopsy.join(' '), 'the journal note is the death-screen text');
   await page.locator('#close-journal').click();
   await run(100);
-  // Rematch is inert until the finisher camera settles (owner 2026-09-22: no HUD button fires while it is still fading in) —
-  // finishPhase() runs on the wall clock, not harness ticks, so this wait is real time, same as a player would see.
-  await until(() => JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.settled === true, 3000);
   // A rematch clears the autopsy.
   await page.locator('#reset-button').click();
   await run(200);

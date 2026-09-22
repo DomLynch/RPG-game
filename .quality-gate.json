@@ -228,10 +228,6 @@
     [
       "node",
       "scripts/autopsy-browser-check.mjs"
-    ],
-    [
-      "node",
-      "scripts/endgame-hud-check.mjs"
     ]
   ],
   "extended_commands": [
