@@ -19,7 +19,7 @@ paperdoll, feel the next fight differ, and lose it anyway to a cleaner fighter.
 | stat | carried by | what it multiplies | range, naked → full Origin |
 |---|---|---|---|
 | Attack | weapon | damage dealt (`def.damage` at the hit) | 1.00 → 1.15 |
-| Defence | armour (Helmet, Body, Arms, Gloves, Greaves, Boots) | damage taken, chip included | 1.00 → 0.80 |
+| Defence | armour: the six wearing slots of the seven in `ARMOUR_SLOTS` (Helmet, Body, Arms, Gloves, Greaves, Boots; the Crest is the seventh and carries nothing) | damage taken, chip included | 1.00 → 0.80 |
 | Poise | armour, same six | posture damage taken (`shake`) | 1.00 → 0.75 |
 | Stamina | the worn set as a whole | stamina pool | 100 → 125 |
 
