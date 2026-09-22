@@ -48,7 +48,7 @@ export function lorariusAngle(i: number, tick: number): number {
   return post + tri * LORARII.reach;
 }
 
-export type Lorarii = { update(dt: number, events: readonly CombatEvent[], sim?: SimView, camera?: THREE.Camera): void; bodies(url: string): Promise<void>; dispose(): void; readonly mesh: THREE.InstancedMesh };
+export type Lorarii = { update(dt: number, events: readonly CombatEvent[], sim?: SimView, camera?: THREE.Camera): void; bodies(url: string): Promise<void>; dispose(): void; readonly mesh: THREE.InstancedMesh; readonly standing: { built: number; of: number } };
 
 type Phase = 'pace' | 'raise' | 'hold' | 'lash' | 'recover';
 
@@ -195,6 +195,7 @@ export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeome
   update(0, []);
   return {
     mesh, update, bodies: bodiesIn,
+    get standing() { return { built: bodies.length, of: count }; },   // for the ?perf=1 readout: real bodies in place, and how many were asked for
     dispose() {
       parent.remove(mesh); mesh.dispose(); geometry.dispose(); material.dispose();
       for (const b of bodies) { b.mixer.stopAllAction(); parent.remove(b.root); b.root.traverse((o) => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); }
