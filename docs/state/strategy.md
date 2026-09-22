@@ -36,7 +36,9 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 **23:30 GO (Dom: "brief the devs and lets get this done, fast and efficiently, minimal tokens with AAA grade visuals").** Decisions taken: Plague Doctor wields the LONGSWORD (opponents' grips 5/5, no estoc duplicate). Scope relays sent directly to the Executioner session (the Knight, Brief 17) and the Nightborn session (the Plague Doctor, Brief 18) quoting Dom under the standing authority; Multi Chars keeps the Witch, shield asset, manifest, six-slot library; the Shieldmaiden to whichever lane clears its silhouette test first. Mandate in every brief: one PR per deliverable with its receipt image; work from state files, batch reads, PR body is the report, 300k restarts; AAA bar = Nightborn TRELLIS.2 face / Dwarf v2 build judged on a phone screenshot at the fighter's camera. Order of value: #467 live → knife → cleaver → estoc → shield → characters as their tests clear.
 
-**Open.** #467 live sha and Dom's phone confirmation. Brief PRs 15–18. Combat restart proof. Cleaver re-measure number. Perf overlay PR. Loot panel PR. PR numbers to review. Four restart-proof lines. Cleaver re-measure number.
+**23:45 both scope relays refused, correctly.** Executioner and Nightborn declined the relayed widening: Dom narrowed each in its own session in his own words, and a peer relay cannot lift that; my "note the relay in your CLAUDE.local.md" line was the laundering shape and is withdrawn. Both have the ask in front of Dom in their sessions; the Executioner will pre-write Brief 17's brief-before-build without building. Saved as memory `feedback_lane_scope_needs_dom_in_session`.
+
+**Open.** Dom: one line each in the Executioner and Nightborn sessions. #467 live sha and Dom's phone confirmation. Brief PRs 15–18. Combat restart proof. Cleaver re-measure number. Perf overlay PR. Loot panel PR. PR numbers to review. Four restart-proof lines. Cleaver re-measure number.
 
 **Gotchas.** A first-pick name must be grepped against player-facing strings before it goes to Dom ("Warden" collided worse than "Veteran"). `?guards=` clamps to a minimum of 1.
 
