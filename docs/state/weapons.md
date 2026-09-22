@@ -124,8 +124,15 @@ Every sweep ran an untouched control in the same process; it reproduced 19/24 an
 
 Evidence: `44d414e`. Gate 456/459 plus 93/93 slow, and the fairness table passes against the updated snapshot. The one failure is the
 `RECORD_VERSION` guard, red deliberately under the lead's ruling (a): one 3 → 4 bump for the whole remaining flip work, not one per weapon.
-Remaining validation: **Combat re-signs the snapshot** (this entry's cleaver row and the knife's three estoc/scythe rows); the batched PR
-carries the single `RECORD_VERSION` bump and `SIM_DIGEST` re-pin; the scythe has had no browser/feel pass as a *player* weapon — the
+**The batch then closed** (`5dfcec1`): `RECORD_VERSION` 3 → 4, the single bump ruling (a) reserved for the whole flip work. `src/record.ts`
+is itself one of the hashed `SIM_FILES`, so the digest was computed *after* the bump rather than copied from the failure message, which
+prints the pre-bump one. References regenerated per the documented procedure (`scripts/record-replay-check.mjs --write`, same PR as the
+bump) — and both replay to the **identical** fight, same ticks (1677, 1452), outcome, killed tick and state digest. Only the version byte
+moved, because neither reference uses the knife or the scythe; the bump is there to refuse older links cleanly, not because these changed.
+Gate green: 457/459 with 2 skipped and 0 failures, plus 93/93 slow.
+
+Remaining validation: **Combat re-signs the snapshot** (this entry's cleaver row and the knife's three estoc/scythe rows) and the PR goes
+ready only after that (ruling (d)); the scythe has had no browser/feel pass as a *player* weapon — the
 recovery is 200 ms longer than shipped and that is a real change to how the jab reads in the hand, which the numbers cannot judge.
 
 ## Cleaver flip prep — the Executioner row is not payable in this lane either (weapons lane, 2026-09-22) — MEASURED, NOT FIXED
