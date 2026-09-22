@@ -4,6 +4,35 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-22, late
+**In flight.** The Witch (Brief 16, #470) is mine as of tonight. Her **reference sheet is generated and with Dom for a one-word pick**:
+three candidates at `docs/character-references/witch-{a-deep-hood,b-hood-back,c-wide-brim}.png` with prompts and seed in
+`witch-candidates.json`, and the assembled sheet at `artifacts/character/witch/witch-sheet.png` (**not committed — `artifacts/` is
+gitignored**, `.gitignore:4`). Method is the Nightborn lane's, not a script in this repo: FLUX.1-dev **Space** via `gradio_client`,
+reusing `kontext.py`'s `token()`, seed 190926, 896×1152, guidance 3.5, 28 steps, from a throwaway script in the scratchpad. `kontext.py`
+itself **cannot** do this — it is image→image (`--image` is `required=True`) and there is no text-to-image script in `scripts/character/`.
+
+**The reskin check is open, and the reason is worth keeping.** The plan was to score each candidate's silhouette against the Nightborn's
+(a hooded woman in dark layers is closest to *his* outline). Silhouettes come from each image's own pixels — median of three background
+corners, mark darker than bg−18, `MinFilter(3)`, **per image**, because a single global cutoff turns a darker render into a solid black
+panel. That method needs a plain background, so the script **measures the background before trusting it** and refuses above a spread of
+25. His gameplay still came back `[151, 139, 212]`, spread **73**; a scan of every PNG in the Nightborn lane's evidence directories found
+**the best spread anywhere is 51**. So no IoU was emitted rather than one that had thresholded the arena. **Blocked on one flat-background
+render of the Nightborn**, which his own preview harness produces trivially — asked of that lane, not worked around here.
+
+**Open, in order.** The six-slot kit library: 16 pieces still missing (Pitborn Helmet/Body/Greaves/Boots, Goblin Helmet/Greaves/Boots,
+Dwarf Helmet/Body/Arms/Boots, Nightborn Greaves). **A design question blocks Boots**: the Pitborn and the Goblin are `barefoot = True` in
+`parts.py`'s `KIT` (hero, veteran, nightborn and executioner are `False`, and the sandal loop at `parts.py:957` skips a fighter on that
+flag), so under "every opponent wears six from Legionary on" they would drop boots they never wore. Either a shared slot may only be worn
+by an opponent whose own kit has it, or the six-slot rule overrides the archetype and two fighters' `KIT` changes — and that second route
+rebuilds `pitborn.glb`, which banks the Season-2 creature re-bake debt.
+
+**Waiting on the publish hold, not on me:** #468 (creature-donor correction), #470 (Witch brief), #474 (shield spec), #478 (shield asset,
+rebased on merged #461 at `04ac652`, gate re-run on the rebased tree: 466 pass / 0 fail / 2 known skips).
+
+**Ruling that governs the Witch:** no body work until her dependency is on trunk; bodies land Knight → Plague Doctor → Shieldmaiden →
+Witch, so she is last of four; her cast clip is last of hers; all four are launch scope, beta stays the six live archetypes.
+
 ## Shared draws, and gloves as their first customer — 2026-09-22
 The schema change is in: a piece the whole roster wears is exported **once**, named `~<id>.<material>`, and loot.glb carries its own
 `<opponent>.<slot>` → `~<id>` map so the file is self-describing and no second asset has to be kept in step. An opponent wears it with
