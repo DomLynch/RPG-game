@@ -95,6 +95,16 @@ landed before the suite runs (see the gotcha at the top of this file):
   same seam the Origin character layer will extend through.
 - **Settled: the bottom rung is the zero point.** Flagged as a design claim rather than buried in arithmetic, argued, and
   overturned within the hour — which is the whole value of separating the two. The ramp is `(level − 1) / 9`.
+- **OPEN QUESTION, routed to Combat and Weapons by Lead (2026-09-22), and it should be settled BEFORE deliverable 5: heavy chip
+  varies 2.5× across weapons, so the gear layer's value silently depends on which opponent you face.** Heavy `chip` — the
+  fraction that passes through an ordinary block — is knife 0.2, estoc 0.25, warhammer 0.3, longsword 0.4, and cleaver, trident
+  and scythe all 0.5 (read from `src/moves.ts`, trunk 3405a95). Brief 19 has RES multiply damage taken *including* chip, so a
+  player's RES is worth two and a half times more against a trident than against a knife. Nobody designed that interaction.
+  It matters for sequencing, not just for tidiness: discovering it after the multiplier seam ships means re-measuring the
+  ladder twice. Neither lane can act until its queue clears, so this file is the record.
+- Parked as an observation, not a defect (Lead, 2026-09-22): the cleaver's light attacks are asymmetric — `light_right` 17,
+  `light_left` 9 — and it is the only player weapon where the two differ. Possibly deliberate character for a butcher's weapon.
+  Note it, don't chase it. It does mean any Attack argument quoting "the cleaver's light" is ambiguous and must say which.
 - Deliverable 5 (the seam in `src/duel.ts`, opponents wearing their tier, the ladder retune) is **blocked by Lead** behind
   Combat's queue: knife approach fix, Executioner profile, Nightborn retune, shield rule. Stats never jumps the four weapons.
 - Deliverable 3 (server-authoritative awards) needs Backend's review and Deploy's apply; loot stays cosmetic in play until it lands.
