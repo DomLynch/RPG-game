@@ -258,7 +258,9 @@ let replay: { record: FightRecord; cursor: number } | null = null, practiceOnly 
 let stalled = false;
 let daily: DailyFight | null = null;   // the daily warden's fight when this page is today's attempt (src/daily.ts): practice rules, its result posted once
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
-const banner = (text: string | null) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; };
+// `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
+// line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
+const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
 // The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
 // everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
 // "Couldn't make a link, try again." is 32 characters and must persist (lead review).
@@ -477,7 +479,7 @@ if (replayText || sharedId) {
       element('welcome-eyebrow').textContent = 'THIS FIGHT HAS FADED'; element('welcome-title').textContent = 'Sign in and your kills are kept forever.'; element('welcome-lead').hidden = true;
       return;
     }
-    stalled = true; banner(message.startsWith('Fight record: version') ? 'Recorded on an older build' : 'This fight cannot be played here'); updateHud();   // one small line, PLAY NOW under it
+    stalled = true; banner(message.startsWith('Fight record: version') ? 'Recorded on an older build' : 'This fight cannot be played here', true); updateHud();   // one small line, PLAY NOW under it
   });
 }
 // The daily warden (brief 4): `?daily=1` asks the server for today's fight, moves to the day's opponent when the page booted another,
@@ -746,7 +748,7 @@ function frame(now: number) {
       previous = state;
       if (!marked && !practice.finish && !replay && !watching) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       if (replay && replay.cursor >= replay.record.ticks) {   // the record ran out without its finish: this build stepped it differently
-        stalled = true; banner('Recorded on an older build'); accumulator = 0; updateHud();
+        stalled = true; banner('Recorded on an older build', true); accumulator = 0; updateHud();
         break;
       }
       const stepped = replay ? replay.record.intents[replay.cursor++] : (() => {

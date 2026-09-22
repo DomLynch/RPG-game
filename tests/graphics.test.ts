@@ -612,6 +612,8 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.ok(!b.storage.getItem('frankendom.fight.v1'), 'a watched fight is never marked as walked away from (the viewer\'s next boot would score a loss)');
   assert.equal(b.storage.getItem('frankendom.scorecard.v1'), cardBefore, 'a replay scores nothing');
   assert.equal(b.element('reset-button').textContent, 'PLAY NOW');   // a stranger does not know whose death they are avenging (owner 2026-09-22)
+  assert.equal(b.element('reset-button').dataset.play, '1', 'the viewer page\'s only live control wears the primary');
+  assert.equal(b.element('replay-banner').dataset.stale, '0', '"Replay over" is a status about the fight that played, not a stale link: it stays in the header band');
   assert.equal(b.element('share-button').hidden, true, 'a replay is not re-shared from the viewer');
   // PLAY NOW: live, same seed, practice only.
   b.element('reset-button').click(); b.tick();
@@ -623,6 +625,7 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.equal(b.rendered.duel.tick, ticksA, 'standing still on the same seed meets the same warden: same ending tick');
   assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'practice only: still nothing on the card');
   assert.equal(b.element('reset-button').textContent, 'Rematch', 'after avenging, a plain rematch, never the next rung');
+  assert.equal(b.element('reset-button').dataset.play, '0', 'a plain Rematch keeps the dark glass');
   assert.equal(b.element('share-button').hidden, false, 'the avenging fight itself can be shared');
   assert.ok(cardA, 'the original fight was scored on A');
 });
@@ -635,6 +638,8 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
   assert.equal(wrong.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line, never a raw error over the HUD (owner 2026-09-22)
   assert.equal(wrong.element('reset-button').hidden, false, 'a refused link still offers PLAY NOW'); assert.equal(wrong.element('reset-button').textContent, 'PLAY NOW');
+  assert.equal(wrong.element('replay-banner').dataset.stale, '1', 'the stale-link line leaves the header band for the slot above PLAY NOW');
+  assert.equal(wrong.element('reset-button').dataset.play, '1');
   const broken = boot({}, undefined, {}, '?opponent=veteran&replay=AAAA');
   assert.equal((broken.window as unknown as { location: { search: string } }).location.search, '?opponent=veteran&replay=AAAA', 'the harness passes the search string');
   assert.equal(broken.element('replay-banner').textContent, 'Loading the fight…', 'the link is picked up at boot');
@@ -656,11 +661,13 @@ test('kill links: a record that runs out before its finish freezes on the last f
   await settle(() => v.element('replay-banner').textContent !== 'Loading the fight…');
   for (let i = 0; i < 400 && v.element('replay-banner').textContent !== 'Recorded on an older build'; i++) v.tick();
   assert.equal(v.element('replay-banner').textContent, 'Recorded on an older build');
+  assert.equal(v.element('replay-banner').dataset.stale, '1', 'a record that ran out is the page\'s own message, not a fight status');
   assert.equal(v.element('reset-button').hidden, false, 'the frozen viewer page offers the way on');
   assert.equal(v.element('reset-button').textContent, 'PLAY NOW');
   assert.equal(v.storage.getItem('frankendom.fight.v1'), null, 'a frozen viewer page is not an abandoned fight');
   v.element('reset-button').click(); v.tick();
   assert.equal(v.element('replay-banner').hidden, true, 'PLAY NOW clears the line and starts the fight');
+  assert.equal(v.element('replay-banner').dataset.stale, '0', 'the cleared line drops the stale flag with its text');
   assert.equal(v.element('attack-button').attributes.get('aria-disabled'), 'false', 'the fight is live');
 });
 test('kill links: Share mints a short id for signed-in fighters (with their token) and guests alike; the link is /s/<id>; a refusal says so and never falls back to a long link; a short link without a fight store is refused', async () => {
