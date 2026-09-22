@@ -200,8 +200,9 @@ test('gear stats: a full set at every rung, as the paperdoll will show it', () =
 });
 
 // ---- the paperdoll seam ---------------------------------------------------------------------------------------------------------
-// A LootId carries no tier (src/loot.ts:22 is `<opponent>.<slot>`), so the tier comes from the roster through a lookup. These hold the
-// behaviour while that field does not exist yet: it must be the identity, not a default rung.
+// A LootId carries no tier (src/loot.ts:22 is `<opponent>.<slot>`) and there is no per-opponent table to find one in: a tier belongs to
+// the FIGHT (`tierAt(marks)` in src/grades.ts). So the lookup is keyed on the piece and these hold the behaviour while it does not exist
+// yet: no tier must resolve to the identity, not to a default rung.
 const TIERLESS: TierOf = () => null;
 
 test('gear stats: an untiered piece resolves to exactly the identity, never a guessed rung', () => {
@@ -214,7 +215,7 @@ test('gear stats: an untiered piece resolves to exactly the identity, never a gu
 
 test('gear stats: a kit is resolved per piece, so a partly-tiered roster tilts only by what it knows', () => {
   const worn = { head: 'veteran.Helmet', chest: 'executioner.Body', main: 'veteran.Trident' } as const;
-  const half: TierOf = opponent => (opponent === 'veteran' ? 'Origin' : null);
+  const half: TierOf = piece => (opponentOf(piece) === 'veteran' ? 'Origin' : null);
   assert.deepEqual(kitFrom(worn, half), { Helmet: 'Origin', Trident: 'Origin' }, 'the untiered body is absent, not zero-tiered');
   // The same two pieces named directly: the seam adds no arithmetic of its own.
   assert.deepEqual(loadoutFor(kitFrom(worn, half)), loadoutFor({ Helmet: 'Origin', Trident: 'Origin' } as Kit));

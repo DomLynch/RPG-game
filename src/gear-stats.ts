@@ -104,23 +104,29 @@ export const fullSet = (tier: Tier, weapon?: (typeof WEAPON_SLOTS)[number]): Kit
   Object.fromEntries([...ARMOUR_SLOTS.filter(slot => SLOT_WEIGHT[slot] > 0), ...(weapon ? [weapon] : [])].map(slot => [slot, tier]));
 
 // ---- what the player is actually wearing ----------------------------------------------------------------------------------------
-// A `LootId` is `<opponent>.<slot>` (src/loot.ts) and carries NO tier: which rung a given opponent's kit sits at is roster data, and
-// placing 60 opponents on the career ladder is a balance decision that belongs to the roster's owner, not to this table. So the tier
-// arrives as a FUNCTION rather than a field this module invents — Multi Chars' PR puts `Tier` on the opponent in the roster, and
-// `kitFrom(loot, tierOf)` is then called with a lookup into it. Written against that boundary before the field exists, so their side
-// lands as data plus a type and this side never needs a second tier of its own.
-export type TierOf = (opponent: OpponentId) => Tier | null | undefined;
+// A `LootId` is `<opponent>.<slot>` (src/loot.ts) and carries NO tier. Nor is there a per-opponent kit-tier table to look one up in:
+// a tier is a property of the FIGHT, not of the recipe (Strategy, 2026-09-22, withdrawing the per-opponent reading) — `tierAt(marks)`
+// in src/grades.ts is `rankFor(marks).title`, so the same Centurion is a Recruit's Centurion early and a Praetorian's later.
+//
+// So the tier arrives as a lookup keyed on the PIECE, and what a piece's tier means is the caller's decision, not this table's: the
+// rung the fight was made at, a provenance record, whatever the owning lane lands. Keying it on the opponent instead would have baked
+// the withdrawn reading into the signature and forced a second lookup later.
+export type TierOf = (piece: LootId) => Tier | null | undefined;
 
-// The opponent a piece dropped from. The id's shape is pinned by `isLootId`, so the split is safe on anything that passed it.
+// The opponent a piece dropped from, for callers that need it. The id's shape is pinned by `isLootId`, so the split is safe on
+// anything that passed it.
 export const opponentOf = (id: LootId): OpponentId => id.split('.')[0] as OpponentId;
 
-// The equipped paperdoll as a `Kit`. A piece whose opponent has no tier yet is LEFT OUT, which resolves it to exactly 1.00 — the
-// identity, never a guess, and never a default rung that would quietly hand a player stats nobody decided. That matters while the
-// mapping does not exist: today every kit resolves naked, which is the honest answer and not a bug to paper over with a fallback.
+// The equipped paperdoll as a `Kit`. A piece with no tier is LEFT OUT, which resolves it to exactly 1.00 — the identity, never a
+// guess, and never a default rung that would quietly hand a player stats nobody decided. That matters while the lookup does not exist:
+// today every kit resolves naked, which is the honest answer and not a bug to paper over with a fallback.
+//
+// This resolution happens OUTSIDE the simulation (Strategy's ruling): the duel takes a resolved `Loadout` as input and never sees a
+// tier, a slot or a table. The opponent's side resolves the same way from its own rung, into the same shape.
 export function kitFrom(equipped: Loot['equipped'], tierOf: TierOf): Kit {
   const kit: Kit = {};
   for (const id of Object.values(equipped) as LootId[]) {
-    const tier = tierOf(opponentOf(id));
+    const tier = tierOf(id);
     if (tier) kit[slotOf(id)] = tier;
   }
   return kit;
