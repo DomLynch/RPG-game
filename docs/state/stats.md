@@ -167,6 +167,10 @@ landed before the suite runs (see the gotcha at the top of this file):
 
 ## Gotchas
 
+- **After fast-forwarding onto trunk `fe0d8e0` or later, run `npm ci` before the gate.** This worktree's `node_modules` is the
+  2026-09-17 install, and `quality:stop` fails on a missing `@types/node` against the newer trunk — a stale install, not a breakage
+  (World hit it first; their gate went green straight after the `npm ci`). Relevant the moment PR B rebases.
+
 - **RESOLVED 2026-09-22 (was: trunk becec83 does not compile).** World's #485 landed: trunk is now `cb8ff5b`, `src/arena.ts` is byte-identical between it and this lane, and `npx tsc --noEmit` is clean. Kept below for the receipt shape, not as a live warning.
 - **Trunk becec83 did not compile, and the red was not ours.** `src/arena.ts:446` reads `get guards() { return
   lorarii.standing; }` after #467 deleted the lorarii, so `npx tsc --noEmit`, `npm run build` and `npm run quality:stop` all
