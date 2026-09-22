@@ -52,7 +52,7 @@ const draw = async () => {
   catch (error) { console.log('draw diagnostics', JSON.stringify({ ...(await probe()), ...(await page.evaluate(() => ({ attack: document.querySelector('#attack-button')?.textContent, attackDisabled: document.querySelector('#attack-button')?.getAttribute('aria-disabled'), status: document.querySelector('#combat-status')?.textContent, debug: document.querySelector('#debug')?.textContent?.slice(0, 200), visibility: document.visibilityState }))) })); throw error; }
 };
 
-let splitReceipt, headReceipt, lootTiming;
+let splitReceipt, headReceipt, lootTiming, lootFraming;
 async function fight(name) {
   // A real duel against the live warden: the AI is seeded per match, so the scripted player wins most duels, not every one.
   // Up to three duels; a lost or timed-out one is rematched in place (no win → no next-rung reload) and fought again.
@@ -130,6 +130,24 @@ async function fight(name) {
   const atComplete = await lootState();
   assert.equal(atComplete.on, '1', 'the loot panel opens once the ceremony has finished playing');
   lootTiming = { finisher, atKillAge: atKill.phase?.age ?? null, completeAt: atComplete.phase?.completeAt ?? null, openAtKill: atKill.on === '1' };
+  // Kill-camera framing, MEASURED, not yet gated (Lead brief 2026-09-22: the body must sit above the bottom 40 % of a
+  // 375x812 phone frame through the whole loot beat — Dom sees the sheet and the corpse together or the finisher is wasted).
+  // This records where the fallen body actually lands at the moment the panel opens, per finisher, so the camera change that
+  // follows is designed against real numbers instead of a guess. It asserts NOTHING yet on purpose: the acceptance line goes
+  // in with the camera fix, and a gate written before the measurement would only be encoding today's framing as correct.
+  lootFraming = await page.evaluate(() => {
+    const rect = JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null');
+    const panel = document.getElementById('loot-panel');
+    const box = panel && !panel.hidden ? (({ x, y, width, height }) => ({ x, y, w: width, h: height }))(panel.getBoundingClientRect()) : null;
+    return { fallen: rect, panel: box, viewport: [innerWidth, innerHeight], line: innerHeight * 0.6 };
+  });
+  if (lootFraming.fallen) {
+    const { fallen, line, viewport } = lootFraming;
+    lootFraming.bodyBottom = fallen.y + fallen.h;
+    lootFraming.clearsLine = lootFraming.bodyBottom <= line;
+    lootFraming.overshoot = +(lootFraming.bodyBottom - line).toFixed(1);
+    console.log(`  ${finisher} framing at the loot beat: body bottom ${lootFraming.bodyBottom.toFixed(0)} px, the 40 % line at ${line.toFixed(0)} px on ${viewport[0]}x${viewport[1]} — ${lootFraming.clearsLine ? 'clears' : `${lootFraming.overshoot} px below it`}`);
+  } else console.log(`  ${finisher} framing at the loot beat: no fallen rect (body behind the camera or rigs not in)`);
   console.log(`${name} loot: panel closed ${atKill.phase?.age?.toFixed?.(2)} s after the kill, open at the ${finisher} complete latch (${atComplete.phase?.completeAt?.toFixed?.(2)} s)`);
   await run(300);
   console.log(`${name} kill — clips at reset: "${await clips()}"`);
@@ -156,7 +174,7 @@ async function fight(name) {
 await fight('counter-duel');
 const expected = finisher === 'opened' ? /Opened:WaistCut/ : finisher === 'decapitation' ? /Death_SplitCrown:Death_SplitCrown/ : /Death_QuietOne:Death_QuietOne/;
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
-const receipt={url,finisher,opponent,splitReceipt,headReceipt,lootTiming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
+const receipt={url,finisher,opponent,splitReceipt,headReceipt,lootTiming,lootFraming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await run(5000);
 assert.match(await clips(), expected, 'finisher stays held after the death window');
 if(process.argv.includes('--blood-check')) {
