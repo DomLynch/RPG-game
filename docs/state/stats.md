@@ -121,6 +121,18 @@ landed before the suite runs (see the gotcha at the top of this file):
 - A zero-weight slot and an omitted slot behave identically today and diverge the moment the slot carries something: the
   omission silently under-weights every set while the total quietly stops being 100. Hence `Crest: 0` as an explicit row, with
   a test that says so.
+- **Two weapon-table values are wrong on trunk, and deliverable 5's multipliers land on top of them.** A multiplier over a wrong
+  base is a wrong result that looks derived, so both are recorded here rather than left in a proposal.
+  - `TRIDENT.grip` reads `'one-hand'`; it should be `'two-hand'` (#472, open). Evidence in the file, not recollection: of the
+    five `guard: 'shaft'` weapons the trident is the only one not two-hand (scythe, maul, reaper, warhammer all are), and its
+    `guardProfile` is character-for-character identical to the scythe's and the warhammer's.
+  - `ESTOC` reach on trunk is the sword's spacing estimate; the measured frontier is sword + 0.30 m = **2.30 m**, and that
+    correction lives only on #419, parked at `ad928ec` pending a battery re-measure after Combat's approach fix.
+  - Everything else in the weapon tables is current, including the knife's thrust recovery of 20 and the scythe's heel-jab
+    recovery of 30 (both #440). Verified by running `src/moves.ts`, not by reading a brief.
+- **Reading a live table faithfully is not the same as being right.** A proposal that quotes trunk verbatim is accurate about
+  the file and wrong about the weapons — the same shape as the float-drift test above, where a faithful reading of the wrong
+  expression passed. Read the table, then ask the owning lane which entries are known wrong and where the correction lives.
 - The worktree ships without `node_modules`; `npm ci` first or every gate reports the tools as missing rather than as failing.
 - **A mutation probe must prove its own mutation landed.** `perl -pi -e` with parentheses in the pattern silently matches nothing
   and the suite then passes for the wrong reason. Assert the source changed, then run.
