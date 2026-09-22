@@ -10,6 +10,19 @@ stays yours."* Draft for Strategy's review.
 tuning pass ahead of the shield. Where a want would cross that line it is written below as a *request to Lead*, not as a
 step in the plan.
 
+## Strategy's rulings — 2026-09-22, approving this draft
+
+1. **Longsword**, Dom's word; the cane or sheath is silhouette dressing on the Weapons shelf, not a family.
+2. **Masked, no head scan, no KeenTools** — and that is why he is **next after the Knight in cost order**.
+3. **Content only, no new AI branch, nothing ahead of the shield.** The identity test (crowding him is *the* answer)
+   queues to Combat behind the shield.
+4. **Bleed visual: he ships WITHOUT one and does not wait for it.** Dom has already ordered real dripping blood for
+   every fight from the **Gore lane** (2026-09-22); when it lands it applies to him like everyone else. **Nothing
+   body-anchored is scoped for him specifically.** The wound rule below already makes bleeding matter mechanically, and
+   that is his identity for beta.
+5. **An owner-approved reference image is a REQUIRED INPUT**, same rule as the Knight — Strategy is asking Dom for it.
+   Nothing is authored before it lands: the silhouette is his shape, so it gates deliverable 2 onward, not just the body.
+
 ## What he is
 
 A masked opponent with the longsword: the beaked mask, the wide brim, the long waxed coat. The fantasy is a man who
@@ -105,8 +118,10 @@ is the cheap way to have it:
 **The picture is the part that does not exist.** `createWoundDecals` (`src/gore.ts:84`) builds fixed geometry, and its
 only caller is `throatCut` — the Quiet One's finisher (`src/gore.ts:132`). **No wound mark draws during a normal fight.**
 So if the fantasy needs a visible bleed, that is new Visuals work on a body-anchored effect across ten archetypes
-including a goblin and a dwarf — the exact problem Dom removed the standing wound mark for. **Not assumed, not scoped
-here:** he ships without a bleed visual, and whether to add one is Dom's and Visuals' call.
+including a goblin and a dwarf — the exact problem Dom removed the standing wound mark for. **Settled by Strategy, 09-22:** he ships without a bleed visual
+and does not wait for one. The Gore lane owns Dom's standing order for real dripping blood in every fight; when that
+lands he inherits it like every other fighter, and **nothing body-anchored is authored for him specifically.** The
+attrition rule above is his bleed for beta.
 
 ## The two traps that will bite this build specifically
 
@@ -126,7 +141,9 @@ longsword fighter walks into both.
 
 ## Deliverables — one PR each, with its receipt
 
-1. **This brief.** → Strategy review.
+0. **Owner-approved reference image** — a required input, not a deliverable. Strategy is asking Dom. Nothing below
+   starts without it.
+1. **This brief.** → Strategy review. **Approved 2026-09-22** (rulings at the top).
 2. **Silhouette test**: the fighter's camera, bare and kitted, against the nine. Receipt: the stills. No model work before
    it passes.
 3. **The kit**: `KIT['plague_doctor']`, mask + brim + coat, `plague-doctor.glb`, `ROSTER` row on the hero rig with
