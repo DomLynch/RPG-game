@@ -141,8 +141,15 @@ longsword fighter walks into both.
 
 ## Deliverables — one PR each, with its receipt
 
-0. **Owner-approved reference image** — a required input, not a deliverable. Strategy is asking Dom. Nothing below
-   starts without it.
+0. **Owner-approved reference image** — a required input, not a deliverable. **LANDED 2026-09-22** (its own PR):
+   `docs/character-references/plague-doctor-v1.png`, Dom's pick from a three-option sheet — "E — the patched beak": a
+   medium beak of layered boiled leather, cracked and scorched, one lens plated over with a riveted iron patch, the
+   other smoked, under a warped split brim. Provenance, prompt, seed and the two rejected candidates with their
+   reasons are in `docs/character-references/PROMPTS.md`.
+
+   **His pick changes the silhouette carriers above.** The brim is warped and narrow, not the wide horizontal that
+   section assumed, so the coat skirt's line and the beak's downward point carry more of the read — and the head
+   reads smaller. Deliverable 2 measures that rather than assuming it.
 1. **This brief.** → Strategy review. **Approved 2026-09-22** (rulings at the top).
 2. **Silhouette test**: the fighter's camera, bare and kitted, against the nine. Receipt: the stills. No model work before
    it passes.
