@@ -22,7 +22,7 @@ await page.route('**/*sentry.io/**', route => route.abort());
 try {
 await page.goto(url);
 await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
-for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Warden: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
+for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
 await page.getByRole('button', { name: 'Enter the arena' }).tap();
 await page.waitForFunction(() => document.querySelector('#welcome').hidden);
 await page.getByRole('button', {name:'Menu and field journal'}).tap();

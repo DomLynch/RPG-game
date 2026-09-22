@@ -465,9 +465,12 @@ test('the ladder: saved progress picks the opponent and labels him; a loss offer
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'pitborn', 'progress is untouched by a loss');
 });
 
-test('the ladder: the first rung is the Veteran and his label stays the warden', () => {
+test('the ladder: the first rung is the Centurion, and the bars carry his name like every other rung', () => {
   const app = boot(); app.tick();
-  assert.equal(app.rendered.enemyMaxHealth, 150); assert.equal(app.element('opponent-name').textContent, '');
+  assert.equal(app.rendered.enemyMaxHealth, 150); assert.equal(app.element('opponent-name').textContent, 'THE CENTURION');
+  assert.equal(app.element('opponent-name').dataset.mobile, 'Centurion');
+  assert.equal(app.element('target-health').attributes.get('aria-label'), 'Centurion health');
+  assert.equal(app.element('target-posture').attributes.get('aria-label'), 'Centurion posture');
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, undefined);
 });
 
@@ -731,12 +734,12 @@ test('daily warden: a build without the account service refuses ?daily=1 with a 
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const app = boot({}, undefined, {}, '?opponent=veteran&daily=1');
   assert.equal(app.element('welcome').hidden, true, 'a daily link is picked up at boot');
-  await settle(() => app.element('replay-banner').textContent !== 'Asking for today\'s warden…');
-  assert.match(app.element('replay-banner').textContent, /^No daily warden: this build has no daily warden/);
+  await settle(() => app.element('replay-banner').textContent !== 'Asking for today\'s duel…');
+  assert.match(app.element('replay-banner').textContent, /^No daily duel: this build has no daily duel/);
   app.tick(); app.key('KeyF'); app.tick(); assert.ok(app.rendered, 'the ordinary fight runs');
   app.element('journal-button').dispatchEvent(new Event('click'));
   await settle(() => app.element('daily-status').textContent !== '');
-  assert.equal(app.element('daily-status').textContent, 'The daily warden needs the account service.');
+  assert.equal(app.element('daily-status').textContent, 'The daily duel needs the account service.');
   assert.equal(app.element('daily-board').hidden, true);
 });
 test('daily warden: the attempt is spent the moment the fight starts, a reload mid-fight finds it spent and fights as usual, and the result posts exactly once', async () => {
@@ -747,7 +750,7 @@ test('daily warden: the attempt is spent the moment the fight starts, a reload m
   try {
     const a = boot({}, undefined, {}, '?opponent=veteran&daily=1');
     await settle(() => /^Daily #0/.test(a.element('replay-banner').textContent));
-    assert.equal(a.element('replay-banner').textContent, 'Daily #0 · the Veteran');
+    assert.equal(a.element('replay-banner').textContent, 'Daily #0 · the Centurion');
     assert.deepEqual(JSON.parse(a.storage.getItem('frankendom.daily.v1')!), { day: '2026-09-22', started: true, submitted: false }, 'the attempt is spent at the start, before any result');
     // The frustrated reload mid-fight: same device, same day, no result yet — the day is spent, the page fights as usual, nothing posts.
     const b = boot({}, undefined, { 'frankendom.daily.v1': a.storage.getItem('frankendom.daily.v1')! }, '?opponent=veteran&daily=1');
@@ -837,12 +840,12 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   const rack = () => app.element('loot-rack').children, row = (i: number) => rack()[i]!;
   assert.equal(rack().length, 5, 'five tiles, owned first, the rest empty');
   assert.equal(row(0).attributes.get('data-loot'), 'veteran.Helmet'); assert.equal(row(0).attributes.get('data-worn'), 'true'); assert.equal(row(0).attributes.get('tabindex'), '0');
-  assert.deepEqual(row(0).children.map(c => c.textContent), ["the Veteran's helmet", '', 'Worn'], 'name, the caption (its text is in its children), the button');
-  assert.deepEqual(row(0).children[1]!.children.map(c => c.textContent), ["The Veteran's helmet", ' · your 3rd attempt, 12 health left', ' ', 'Watch'], 'brief 9: the caption starts with the piece name in bold, the Watch link only once the fight is published');
+  assert.deepEqual(row(0).children.map(c => c.textContent), ["the Centurion's helmet", '', 'Worn'], 'name, the caption (its text is in its children), the button');
+  assert.deepEqual(row(0).children[1]!.children.map(c => c.textContent), ["The Centurion's helmet", ' · your 3rd attempt, 12 health left', ' ', 'Watch'], 'brief 9: the caption starts with the piece name in bold, the Watch link only once the fight is published');
   assert.equal(row(0).children[1]!.children[3]!.attributes.get('href'), 'https://frankendom.com/s/k7Qm2x_A', 'the Watch link is the one short shape (share-store shortLink): the loader refuses a record for another opponent than the page booted');
   assert.equal(row(1).attributes.get('data-worn'), 'false'); assert.equal(row(1).children.length, 2, 'no provenance, no caption'); assert.equal(row(1).children[1]!.textContent, 'Wear');
   assert.equal(row(2).className, 'rack-empty'); assert.equal(row(4).className, 'rack-empty');
-  assert.equal(app.element('slot-head-name').textContent, "the Veteran's helmet"); assert.ok(app.element('slot-head').classList.contains('on')); assert.equal(app.element('slot-head-off').hidden, false);
+  assert.equal(app.element('slot-head-name').textContent, "the Centurion's helmet"); assert.ok(app.element('slot-head').classList.contains('on')); assert.equal(app.element('slot-head-off').hidden, false);
   assert.equal(app.element('slot-chest-name').textContent, 'Empty'); assert.ok(!app.element('slot-chest').classList.contains('on')); assert.equal(app.element('slot-chest-off').hidden, true);
   assert.equal(app.element('slot-main-name').textContent, 'Longsword'); assert.ok(app.element('slot-main').classList.contains('on'));
   row(1).children[1]!.click();

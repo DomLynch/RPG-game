@@ -3,6 +3,7 @@
 // own lookup (and the VM test harness's fake document) is what it binds to.
 import { accepts, practiceHint, type CombatEvent, type Practice } from './combat.ts';
 import { nextAfter, won } from './ladder.ts';
+import { bareName } from './roster.ts';
 import type { OpponentId } from './moves.ts';
 
 // Heavy-class contacts: bigger damage numbers here, a longer hit-stop in the frame loop.
@@ -36,7 +37,7 @@ export function createHud(element: Lookup) {
       lastHud = '';
     },
     update(practice: Practice, view: HudView) {
-      const hint = practiceHint(practice),
+      const hint = practiceHint(practice, bareName(view.opponentId)),
         controlsReady = view.controlsReady;
       const ok = (['light', 'heavy', 'kick', 'backstep', 'parry'] as const).map(
         (a) => accepts(practice, a) || (a === 'backstep' && accepts(practice, 'dodge')),

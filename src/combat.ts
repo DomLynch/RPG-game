@@ -116,12 +116,15 @@ const NAMES: Record<MoveId, string> = {
   light_right: 'right cut', light_left: 'left cut', heavy_overhead: 'heavy', thrust: 'thrust', riposte: 'riposte',
   slash_riposte: 'counter slash', heavy_riposte: 'heavy riposte', critical: 'critical', heavy_counter: 'guard counter', kick: 'kick',
 };
-export function practiceHint(s: Practice): string {
+// `foe`: the opponent's own name without its article ("Centurion", "Goblin"), so the coaching lines name whoever is in the arena
+// (Dom via Strategy, 2026-09-22: "warden" leaves every player-facing string; identifiers keep it). The default covers the callers
+// that have no opponent loaded — the sim's own tests and any hint drawn before the rung is known.
+export function practiceHint(s: Practice, foe = 'Opponent'): string {
   const me = s.duel.fighters[0];
   if (s.finish?.draw) return 'You both fell. Rematch?';
   if (!s.playerHealth) return 'You fell. Rematch and try another defence.';
-  if (!s.health) return 'Warden defeated. Ready for a rematch?';
-  if (s.phase === 'sheathed') return 'Draw your sword. The warden will counterattack.';
+  if (!s.health) return `${foe} defeated. Ready for a rematch?`;
+  if (s.phase === 'sheathed') return `Draw your sword. The ${foe} will counterattack.`;
   if (s.phase === 'draw') return 'Drawing longsword…';
   if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken — Heavy for the critical!';
   if (me.phase === 'attack' && me.charge) {
@@ -134,7 +137,7 @@ export function practiceHint(s: Practice): string {
     return s.threatMove === 'thrust' ? 'Incoming strike — thrust: fast and long · block it or step aside' : 'Incoming strike — roll or time your guard!';
   }
   if (me.exhausted) return 'Exhausted · walk it off until your stamina returns';
-  if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return 'Warden guarding · heavy or close-range kick';
+  if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return `${foe} guarding · heavy or close-range kick`;
   if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
   if (s.result !== 'none' && s.resultAge < 120) {
     const name = me.chained ? 'follow-up' : NAMES[me.lastMove ?? 'light_right'];
@@ -142,25 +145,25 @@ export function practiceHint(s: Practice): string {
     return {
       kicked: 'Kick connected · press the opening',
       hit: `${s.resultStop ? 'Stop-hit' : s.resultCounter ? 'Counter' : 'Clean'} ${name} hit · −${s.resultDamage}${wall('into the wall')}`,
-      miss: 'Miss — close the distance and face the warden.',
+      miss: `Miss — close the distance and face the ${foe}.`,
       hurt: `${s.resultStop ? 'Stop-hit — you walked onto the point' : s.resultTrip ? 'Swept — a low blade trips a roll' : s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}${wall('pinned on the wall')}`,
       blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}${me.counterWindow > 0 ? ' · heavy to counter' : ''}`,
-      parried: 'Parried! The warden is open.',
+      parried: `Parried! The ${foe} is open.`,
       dodged: 'Evaded!',
       broken: 'Guard broken · a charged heavy or kick goes through a guard',
-      enemyBlocked: 'Warden blocked · use a heavy attack or change angle',
+      enemyBlocked: `${foe} blocked · use a heavy attack or change angle`,
       enemyBroken: 'Guard shattered · press the opening',
       enemyParried: 'Your strike was turned aside — recover!',
-      enemyDodged: 'The warden rolled clear.',
+      enemyDodged: `The ${foe} rolled clear.`,
       enemyKicked: `Kicked · −${s.resultDamage}`,
       postureBroken: 'Your posture broke — brace for the critical',
-      enemyPostureBroken: 'Warden staggering · Heavy for the critical!',
+      enemyPostureBroken: `${foe} staggering · Heavy for the critical!`,
     }[s.result];
   }
   if (s.phase === 'guard') return me.parrying ? 'Parry window open' : 'Guarding · release to recover stamina';
   if (me.exposed) return 'Parry missed · guard down for a moment';
   if (s.posture >= RULES.posture.max * .7) return 'Your posture is breaking · back off or parry';
-  if (s.enemyPosture >= RULES.posture.max * .7) return 'Warden near a posture break · keep the pressure on';
+  if (s.enemyPosture >= RULES.posture.max * .7) return `${foe} near a posture break · keep the pressure on`;
   return 'Hold guard to block · tap just before impact to parry';
 }
 
