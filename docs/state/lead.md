@@ -31,6 +31,13 @@ PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing s
   the existing `profile.reaction` in absolute ticks, and `anticipate` must stay because `ai.ts:114` clamps the spam read to
   `READ.anticipate` (8), so any per-grade `reaction` above 8 is swallowed on exactly the cleaver row. Combat's cleaver PR is
   gated on this.
+- **#419 (estoc) waits on a Nightborn-profile item in Combat's lane, NOT on Combat's ai.ts seam fix.** Weapons reproduced the
+  kicker hover exactly and then showed it cannot apply to the Nightborn: `guardShare = profile.guard ?? 1` gates it, and
+  `guard: 0` occurs in exactly one opponent's three profiles (`src/moves.ts:503-505`, the guardless goblin). The Nightborn's
+  `guard:` is the directional-guard object, a different key, so his share defaults to 1 and `hover` is 0. The estoc hold is a
+  product decision — accept the trident row and resolve the flip test's membership pair, or change the Nightborn's profile.
+  The seam fix does have a second customer Combat may not have counted: the `knife vs goblin hard: kick only` 3/24 row, whose
+  mechanism is that same 1.45 m park.
 - **#446 CI cost, from Strategy, unstarted:** the workflow runs the full release matrix on docs-only pushes and keeps runs
   queued for closed PRs, starving trunk's own run. Fix is to skip the matrix when `release-rows-for.mjs` returns zero rows and
   cancel in-progress runs on PR close. `gh run cancel` on queued runs mostly does not take.
