@@ -50,7 +50,12 @@ try {
  const incoming=incomingEvent?.direction ?? null;
  const side={right:'left',left:'right',overhead:'overhead',low:'low',thrust:null}[incoming] ?? null;
  const slide={left:{x:-30,y:0},right:{x:30,y:0},overhead:{x:0,y:-30},low:{x:0,y:30}}[side];
- const waitAfterTellMs={light_right:200,light_left:200,heavy_overhead:430,thrust:100}[incomingEvent?.move]??430;
+ // Contact resolves at the move's own windup tick (measured: an AttackStarted at tick 214 landed its Blocked/Parried at 236, exactly
+ // windup 22 later), and the guard's own parry window is RULES.parry (10 ticks) counted from the PRESS, not the tell — so the press
+ // must land within 10 ticks of contact, not exactly on the boundary. 200/100 ms (12/6 ticks after the tell) put the press exactly on
+ // the boundary for light/thrust and missed as an off-by-one perfect BLOCK, not a parry (caught live, not in review): retimed to land
+ // 5 ticks inside the window instead of on its edge.
+ const waitAfterTellMs={light_right:280,light_left:280,heavy_overhead:430,thrust:180}[incomingEvent?.move]??430;
  await until(wait=>performance.now()-window.__tellAt>=wait,20000,waitAfterTellMs);   // page.evaluate serializes the predicate into the browser: a Node-side const inside it is a ReferenceError there, so it must travel as until()'s own arg
  receipt.parryWaitMs={move:incomingEvent?.move,waitAfterTellMs};
  receipt.parrySide={incoming,side};
