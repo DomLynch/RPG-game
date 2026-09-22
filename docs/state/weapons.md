@@ -2,6 +2,44 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Session handover — maul part shipped, estoc parked, and a trap waiting for whoever rigs the maul (weapons lane, 2026-09-22)
+
+**Now.** Nothing is in flight. #509 (the Knight's maul part) is ready and with Deploy in the code batch; #501 (this file) is in the
+docs batch; #419 (estoc reach) is parked. The next piece of weapons work is whatever the next Strategy session assigns.
+
+**Done today.** #509 the maul PART at silhouette stage (`scripts/build-weapon.mjs`, one file, gate green 468/466/2 on base
+`fe0d8e0`). #501 the estoc findings off trunk. The bearded-axe cost measurement that overturned Brief 15 §2 (Strategy is having
+Pitborn correct the brief): **one-hand weapons in this repo do not get a clip family.** cleaver, estoc and knife each map ten move
+ids onto the same four shared hero clips — `Attack`, `Return`, `Heavy`, `Riposte` — with `clips: null` in `WEAPON_BUILDS`; only the
+two-hand poles own prefixed families. The brief's "~13 clips to author" is a two-hand pole family's cost (the scythe's) applied to a
+one-hand weapon. Real cost: a part, plus at most the already-shared `CLEAVER_KEYS` re-key.
+
+**Open.** #419 waits on a Nightborn **profile** item in Combat's lane (levers only, no data move): with the estoc at +0.30 m the
+Nightborn normal profile must hold `trident vs nightborn normal: charged heavy only` at ≤ 12/24 with margin (14/24 with the fix,
+8/24 without), fight length back under the 240-tick bar (321 exhausted over 24), and his hard-tier feint-and-punish identity pin
+intact (0/24). Combat stacks the estoc flip on #419 as one PR riding Stats' single bump to 6. Then ONE full-battery re-run on the
+pair and a READY line. **Do not re-run the battery before that PR exists** — nothing else moves those rows.
+
+**Gotchas.**
+1. **THE MAUL TRAP, for whoever rigs it next.** #509 is the part only — `clips: null`, no rig, no loadout. But `WEAPONS.maul.paths`
+   names `Maul_Slash` / `Maul_Heavy` / `Maul_Thrust`, and **those clips exist only on the creature side**: they are authored in
+   `scripts/build-creature-weapons.mjs` for the Minotaur, at the Minotaur's contact span `{from: .73, to: 1.11}`. The hero-rig part
+   this lane shipped has contact `{from: .65, to: .87}` — a different object at a different scale. So a hero-rig maul needs its own
+   family or a re-key onto the shared hero clips, exactly as the warhammer got `Warhammer_*` "on the trident's machinery" rather than
+   borrowing the Minotaur's creature-authored `Maul_*` set. **Anyone switching a hero-rig donor to the maul and expecting the paths
+   to resolve will bind to creature clips or to nothing.** Strategy has the Executioner doing that switch the day this lands.
+2. **The maul's crown is load-bearing, not cosmetic.** `WEAPONS.maul` and `WEAPONS.warhammer` carry identical reaches (light 1.65,
+   heavy 1.90, thrust 1.40 — both CLEAVER-derived), so the head crowns at the warhammer's .76. The `real reach` test does not cover
+   the maul yet because it is neither a shipped (rig, weapon) pair nor a player weapon; it starts covering it the moment it is rigged.
+   Do not "tidy" that height.
+3. **The stale-node_modules gotcha is install-date, not base-sha.** World reported that a worktree fast-forwarded onto `fe0d8e0` can
+   fail `quality:stop` on a missing `@types/node`, fixed by `npm ci`. This worktree **was** on `fe0d8e0` and did not hit it (468/466/2,
+   World's own post-`npm ci` numbers). It depends on when that worktree last installed. Do not run `npm ci` as a ritual, and do not
+   read a green gate on `fe0d8e0` as evidence the gotcha is imaginary.
+4. **Open the file before acting on a relayed mechanism.** Three plausible relays were wrong in one night, each from a competent
+   lane. The costly one: the kicker hover was relayed as the estoc's unblocking event, but it is gated on `guardShare === 0`, which
+   is the Goblin's profiles alone — it can never fire on the Nightborn. Acting on it meant a full battery re-run for the same table.
+
 ## Estoc reach — re-measured and HELD: the estoc clears, the Nightborn breaks (weapons lane, 2026-09-22) — HELD, NOT PARKED
 The estoc was un-parked on the reach fix alone (Dom via Strategy, the lead relaying): `ESTOC.fight.close` is not touched, so the old
 stance-hunt revival condition below is **moot** and that hunt stays dead. #419 rebased onto trunk `1741dc5`, head `b1455d4`, PR draft.
