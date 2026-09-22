@@ -113,25 +113,34 @@ Mapped to the owner-approved reference (#494, lean plate + great helm):
 | `Greaves` | Dark plate poleyns and cuisses over dark hose | Yes |
 | `Boots` | Hard brown leather shoes | Yes |
 
-**All six map, and that is the problem, not the success.** The Shieldmaiden's §5a has two slots the reference does not
-fill, because she keeps identity the gear cannot take — pinned crown braids. The Knight's reference fills every slot,
-which means deliverable 1 found exactly what the arithmetic predicts: **stripped, he is nobody.** Measured on the
-approved reference (#502): shoulder-over-height **0.367 in kit, 0.246 bare**, widest point 0.41 to 0.257, and no feature
-of the bare outline is his. The Executioner keeps his hood and hair, the Veteran his mass, the Shieldmaiden her braids.
-The Knight keeps a thin man in hose.
+**All six map — and the Shieldmaiden's §5a has two slots hers cannot fill.** That difference is the whole of the
+bare-pass finding: she keeps identity the gear cannot take (pinned crown braids), and he keeps none, because every
+distinctive thing about him is kit.
 
-**This is not only his.** The Pitborn lane ran the same bare pass on the Shieldmaiden's approved direction A and reports
-the same failure (#498): 0.284 to **0.240** stripped, and the flat hard shoulder line A was chosen *for* turns out to be
-the shoulder plates, which are lootable. Two of the launch characters now fail the same test for the same structural
-reason, so the remedy is likely a roster-level decision rather than a paragraph in either brief — either an unlootable
-identity element on the body, or an explicit ruling that stripped means generic. Recorded here because it changes what
-this brief can promise; the decision is Lead's and Strategy's, and that lane has put it to them independently.
+**Recruit-2 for this archetype is `Helmet` + `Body`** (Strategy, 2026-09-23): for a masked character those are the
+identity-carrying slots, so they are the two that exist first and the two every rung is judged on.
 
-**Open question for Dom, not a decision taken here: the Knight needs one non-takeable silhouette feature of his own in
-the bare build.** Because the ruling says nothing on the body is rig dressing, that feature cannot be gear — it has to be
-the body. And §7's build instruction as routed, *"more bulky than the veteran, but thinner than the executioner"*, gives
-the bare body nothing to be: applied to a stripped figure it specifies only that he is smaller than the character he is
-meant to rival. This is a paragraph for the owner's letter, not a schedule item, and nothing waits on it.
+**The gate is in-kit at every rung. The bare pass is informational, and is recorded here as a measurement, not as a
+bar.** Measured on the approved reference (#502): shoulder-over-height **0.367 in kit, 0.246 bare**, widest point 0.41
+to 0.257, and no feature of the bare outline is his. The reason this is not a failure is that **the game has no stripped
+state to fail in**: take-one removes at most one piece per kill, the opponent respawns kitted, and a grade is a material
+variant on a shared mesh rather than a different mesh — `src/grades.ts:1` states it outright, the draw and its triangles
+identical at leather and at ruby. So his Recruit `Helmet` and `Body` carry the same outline as his Origin ones, and he is
+never the thin man in hose, because nothing puts him there.
+
+The measurement is kept rather than dropped, for two reasons. It is the record of why the rule reads the way it does —
+the bar was wrong, not the number. And it stays true of a stripped state if `take-one` ever changes, which is the
+condition to re-read this section under.
+
+**The general form, worth keeping whatever happens to this character:** *"distinctive silhouette" and "six takeable
+pieces" pull against each other by construction — the more strongly a character is designed on outline, the more
+completely they vanish when stripped.* It predicts every result the two reference sheets produced: the Executioner
+survives stripping because he keeps a hood and hair, the Veteran because he keeps a frame, and the Knight and the
+Shieldmaiden's direction A keep nothing. The Pitborn lane measured A at 0.284 to **0.240** (#498) and found that the flat
+hard shoulder line A was chosen *for* is the lootable shoulder plates.
+
+**A body-level identity feature is therefore optional, and the owner's taste call to make — not a rule imposed on this
+lane or any other.** It remains with Dom as a one-word question. Nothing in this brief waits on it.
 
 **`Body` is a `replace` piece**, so it hides the player's own torso draws and is subject to the coverage floor already on
 trunk: `tests/loot.test.ts:95` fails any `replace` piece whose draw area is under **80 % of the player's own draws in
@@ -148,11 +157,10 @@ Two things follow, and the second corrects an instruction this lane was given:
   103–159 %. If the Knight's `Body` comes in under the floor, that is a modelling defect to fix, not a rule to argue
   with.
 
-**One gate interaction to flag rather than resolve here.** §6 gates deliverable 1 as "no texture work before it passes
-**bare**". On the approved reference it does not pass bare. Read strictly that blocks the build, which is not what the
-gate was for — the gate exists so a masked character is not modelled before its outline is known, and the outline is now
-known, including the part that is missing. Lead and Strategy to say whether the open question above satisfies the gate or
-supersedes it; this lane starts no model work until they do.
+**§6's bare bar is withdrawn (Lead and Strategy, 2026-09-23) and the gate is satisfied.** It read "no texture work
+before it passes **bare**", and on the approved reference it does not pass bare. The bar assumed a stripped state the
+game does not produce, so it is replaced by the in-kit gate above; the outline is known, including the part that is
+missing, which is what the gate was actually for.
 
 ## 6. Deliverables and gates
 
