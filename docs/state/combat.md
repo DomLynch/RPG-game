@@ -1,6 +1,32 @@
 # Combat — project state
 
-Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).## The Goblin parks 0.1 m outside his own reach — the knife's last blocker (combat lane, 2026-09-22)
+
+**Finding, measured not guessed.** `knife vs goblin hard: kick only untouched 3/24` is the only row left keeping the knife out of
+`PLAYER_WEAPONS_OFFERED` (the scythe cleared and ships; see the weapons lane's entry). It is NOT knife data. The Goblin's approach
+stopping distance and his in-reach test disagree by the 0.1 m margin, so against a passive opponent he parks just outside his own
+attack range and stays there.
+
+Evidence, one instrumented fight (seed 12345, knife player, `kick only`, 7200 ticks):
+- gap p10 = median = p90 = **1.41 m** — pinned, not a distribution.
+- **3 attacks started in 7200 ticks.** Hero 137 hp, Goblin 116 hp, tick limit reached. The whole row is 24/24 stalls.
+- His usable reaches (ai.ts `inReach`: `gap <= reach - .1`): light **1.10**, thrust **1.35**, heavy **1.45**. At 1.41 only the heavy
+  is legal, which is why he throws almost nothing.
+- Forcing `circle` 1 -> 0.5 -> 0 changes nothing (3 attacks each); at circle 0 the gap sits at **exactly 1.45 = `thrust.reach`**. So
+  circling is NOT the cause — ruled out by experiment, not by argument.
+- `KNIFE.fight.close` is **1.0**, and ai.ts:314 walks him forward while `gap > fight.close` (or `thrust.reach - .2` when a thrust is
+  planned). He should close to 1.0, where the light works. He stops at raw `thrust.reach` instead.
+- Not the body separation floor either: that is 0.85 (duel.ts:230), well inside where he stops.
+
+**So the hole is general, not the Goblin's and not the knife's:** any warden whose approach settles at a raw reach value rather than
+inside the `reach - .1` margin can park where nothing of his is legal. It shows up on the knife because the knife's short reaches make
+the 0.1 m band the difference between every move and one move.
+
+**Do not fix this by tuning the row.** 3 untouched against a cap of 2 is one fight over — a tie-break margin, and tuning to clear it is
+exactly what produced the estoc mess. Fix the approach/in-reach disagreement on its merits; the row clears or it does not, and if it
+does not, bring Lead the table. Whatever lands needs the full 24-seed battery re-run, because every player weapon is also a warden's
+weapon and this touches ai.ts, which every opponent shares.
+
 ## The whip tell + the estoc park — combat lane, 2026-09-22
 
 **Brief 13, the lorarii's tell (#441, `combat/whip-tell`).** The anti-turtling lash had no warning: the first a player knew of it was
