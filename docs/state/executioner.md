@@ -9,12 +9,22 @@ Nothing building and nothing open from this lane. **#398 merged (`01b6642`) and 
 not on the merge: `assets/executioner-9s1ZxRnx.glb`, HTTP 200, 4,414,104 B, carrying
 `KHR_materials_specular { specularFactor: 0.4 }`, 38 clips, generator `54999ae9`.
 
-**Brief 15 — THE NORD** was written on Lead's 22:00 assignment and sent: `artifacts/character/BRIEF-nord.md` (ignored dir).
+**Two character briefs were written on Lead's routing and sent — neither is this lane's to build.** Brief 15 (written as
+"the Nord", since renamed **the Shieldmaiden** and amended by Lead: a woman, and a new one-hand bearded axe family in
+place of the cleaver) is moving to `docs/briefs/shieldmaiden.md` in PR #471. Brief 17 **the Knight** (full plate, closed
+helm, no face, maul) is at `artifacts/character/knight.md`, destined for `docs/briefs/knight.md`; note `docs/briefs/`
+does **not** exist on trunk until #471 merges (checked, not inherited).
 Brief only, nothing built, and **the owner has not confirmed the lane expansion** — this session was scoped to the
 Executioner on 09-20 ("only work on that char"). Lead agreed the refusal is correct: writing the brief was in bounds
 because it changes nothing; building is not. Do not start the Nord on a peer's say-so.
 
-Lead's rulings on it (09-22), so the next session does not reopen them: the **shield asset is Multi Chars'** (the Nord is
+The Knight's own finding, worth keeping: **the maul is not a shelf-ready hero-rig weapon.** `moves.ts:406` makes `MAUL` a
+cleaver spread with a two-hand grip and cleaver paths under a creature prefix, and no maul asset exists in the repo — the
+geometry sits inside the **held** `minotaur.glb`. Promoting it is a real Weapons deliverable. And because a two-hander
+stows the shield, the Knight has no shield; "cannot be cut" must come from plate and guard rules, which is Combat's to
+define, not a character brief's to invent.
+
+Lead's rulings on the Shieldmaiden (09-22), so the next session does not reopen them: the **shield asset is Multi Chars'** (the Nord is
 its second consumer, he does not author it); **if Combat's shield slice misses beta freeze the Nord does not ship, and
 must not ship shieldless** — his shield is always-on, so the Veteran's "start at Gladiator" fallback does not transfer;
 the kit ships **Recruit-2 first** rather than waiting on the shared library; and an **owner reference image is a required
