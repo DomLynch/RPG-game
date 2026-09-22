@@ -273,33 +273,15 @@ const RECIPES = {
     const tail = rumble(n, .3, r);
     return densify(mix(n, [click, 0, .5], [scrape, 0, .45], [ring, .002, .7], [beat, .002, .25], [zing, .001, .1], [body, .002, 1.2], [tone, .002, .5], [weight, .003, .45], [tail, .02, dbfs(-5)]), 2.4);
   },
-  // Owner 2026-09-21 01:00, two references. Guards ("Medieval Armor and Impacts", no reuse terms → measured, not copied): a low
-  // thump (first 80 ms centred 150–180 Hz), a dull body at 220–900 Hz, −30 dB in .2–.9 s, almost nothing above 300 Hz — so the
-  // low end is driven into harmonics (heft) or a phone hears none of it. Parry: the Jochi SFX "Shield Block" recording itself
-  // (licensed for use, see SOURCES.json), three hits rotating, at the owner's chosen raw pitch.
+  // Owner 2026-09-22: the armour-synth branch (the first 3 in the rendered guard-metal preview) removed — "remove them from the
+  // game." Parry: the Jochi SFX "Shield Block" recording (licensed for use, see SOURCES.json). block/block_perfect now split
+  // evenly between the steel ring and the shield clang.
   block(r, v) {
-    if (v >= 5) return RECIPES.block_shield(r, false);
-    if (v >= 3) return RECIPES.block_steel(r);
-    const n = S(.55), f = vary(r, 1, .08);
-    const thump = heft(n, abs(65 * f), r, { t60: .5, drive: 5 });
-    const slam = punch(n, abs(170 * f), r, { t60: .12, tone: .8, burst: .6 });
-    const body = thud(n, r, { from: abs(1600 * f), to: abs(230 * f), fall: .1, t60: .32 });
-    const muffle = mul(broad(n, r, abs(250), abs(1400)), decay(n, .06, .002));
-    const rattle = dense(n, abs(300 * f), 8, vary(r, .28, .12), r, { top: 2.4, roll: .8, grit: .45, spread: .06 });
-    const tail = rumble(n, .5, r, abs(700));
-    return densify(mix(n, [muffle, 0, .5], [slam, .001, .8], [body, .002, 1.1], [thump, .003, .7], [rattle, .004, .45], [tail, .03, dbfs(-5)]), 2.8);
+    return v >= 2 ? RECIPES.block_shield(r, false) : RECIPES.block_steel(r);
   },
-  // Perfect block: the same armour, caught square — tighter, a touch more snap, shorter tail.
+  // Perfect block: same split as block(), no armour-synth branch.
   block_perfect(r, v) {
-    if (v >= 5) return RECIPES.block_shield(r, true);
-    if (v >= 3) return RECIPES.block_perfect_steel(r);
-    const n = S(.4), f = vary(r, 1, .06);
-    const snap = mul(broad(n, r, abs(700), abs(2600)), decay(n, .012, .001));
-    const thump = heft(n, abs(70 * f), r, { t60: .35, drive: 5 });
-    const slam = punch(n, abs(190 * f), r, { t60: .09, tone: .8, burst: .6 });
-    const body = thud(n, r, { from: abs(1800 * f), to: abs(260 * f), fall: .07, t60: .22 });
-    const rattle = dense(n, abs(330 * f), 8, vary(r, .2, .1), r, { top: 2.4, roll: .8, grit: .4, spread: .06 });
-    return densify(mix(n, [snap, 0, .5], [slam, .001, .8], [body, .002, 1], [thump, .003, .6], [rattle, .004, .4]), 2.6);
+    return v >= 2 ? RECIPES.block_shield(r, true) : RECIPES.block_perfect_steel(r);
   },
   parry(r, v) { return v >= 3 ? RECIPES.parry_steel(r) : recording('shield', .75 * v, .72); },
   // Guard break: dull and wrong — close detuned low partials beating, a choked mid burst, a low thump, driven hard so it crunches.
@@ -387,7 +369,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 2, hit_heavy: 2, hit_kick: 4, block: 7, block_perfect: 7, parry: 6, guard_break: 4, whip: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 2, hit_heavy: 2, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];
