@@ -21,7 +21,10 @@ export const RECORD_VERSION = 6;   // 6: the kicker-hover hold fix (2026-09-22) 
 // pinned as a literal in tests/record-version-guard.test.ts beside SIM_DIGEST, so widening it is a reviewed decision rather than a
 // drift. There is exactly one list: scripts/verify-daily.mjs imports `decodeRecord` from this module and deploy.sh rsyncs src/**/*.ts
 // to the verifier host, so the server reads this list too — a second copy on the server is the failure this shape exists to prevent.
-export const READABLE_VERSIONS = [5] as const;
+// [5] -> [6] with the writer bump to 6 (knife hold fix, 2026-09-23). REPLACED, not widened: this build writes 6 and must read 6 back
+// (the guard's own `includes(RECORD_VERSION)` assertion), and it must NOT read 5 — a v5 record replays a fight whose Goblin stood
+// somewhere else. Accepting 5 again is PR B's decision, together with the v5 decode branch, exactly as before.
+export const READABLE_VERSIONS = [6] as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type RecordProfile = 'easy' | 'normal' | 'hard';
