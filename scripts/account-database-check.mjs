@@ -17,6 +17,7 @@ try {
   run('pg_ctl', ['-D', join(root, 'data'), '-l', join(root, 'server.log'), '-o', `-k ${root} -c listen_addresses=''`, '-w', 'start']); started = true;
   const bootstrap = `create extension if not exists pgcrypto;
     create role anon; create role authenticated;
+    alter default privileges in schema public grant truncate, trigger, references on tables to anon, authenticated;   -- hosted Supabase's residue on tables created without a revoke-all (verified live 2026-09-22): the 0010 hygiene revoke must have something to revoke here too
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
@@ -217,6 +218,7 @@ try {
       if (select user_id from public.fight_records where id = '1') is not null then raise exception 'Guest mint has an owner'; end if;
     end$$;
     select set_config('request.jwt.claim.sub','',false);
+    update public.share_limits set guest_per_minute = 60;   -- the global backstop, low enough to trip here (its default is 600 behind the per-caller cap)
     set role anon;
     do $$begin
       for i in 1..58 loop perform public.mint_share('abc', 'veteran'); end loop;   -- 60 guest shares this minute, with the two above
@@ -224,7 +226,72 @@ try {
       if not exists(select 1 from public.fight_records where id = 'AAAAAAAA') then raise exception 'Old 8-char id stopped resolving after minting'; end if;
     end$$;
     reset role;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare);
+  // Guest share hygiene (202609220010): the limits row is unreadable by clients; the per-caller bucket (salted hash of the gateway's
+  // client address, as PostgREST hands it in request.headers) caps one address without touching another; an unparseable header is
+  // "no key", never an error; the ceiling trips; pruning removes exactly the guest rows older than guest_days and never a signed-in
+  // or old-format row; clients cannot truncate. Runs after shortShare: 60 unkeyed guest rows + 30 of user 2's exist.
+  const guestHygiene = `select set_config('request.jwt.claim.sub','',false);
+    set role anon;
+    do $$begin
+      begin perform * from public.share_limits; raise exception 'Guest can read share_limits'; exception when insufficient_privilege then null; end;
+      begin perform public.prune_guest_shares(); raise exception 'Guest can prune'; exception when insufficient_privilege then null; end;
+      begin truncate public.fight_records; raise exception 'Guest can truncate fight_records' using errcode = 'assert_failure'; exception when insufficient_privilege then null; end;
+      begin perform guest_key from public.fight_records where id = '1'; raise exception 'Guest can read guest_key'; exception when insufficient_privilege then null; end;
+    end$$;
+    reset role;
+    update public.share_limits set guest_per_minute = 100000;   -- backstop out of the way: the per-caller cap is under test
+    select set_config('request.headers', '{"x-forwarded-for": "203.0.113.9, 10.0.0.1", "user-agent": "check"}', false);   -- what PostgREST hands the function
+    set role anon;
+    do $$begin
+      for i in 1..10 loop perform public.mint_share('abc', 'veteran'); end loop;
+      begin perform public.mint_share('abc', 'veteran'); raise exception 'An 11th share from one address within the minute was minted' using errcode = 'assert_failure'; exception when raise_exception then null; end;
+    end$$;
+    select set_config('request.headers', '{"x-forwarded-for": "198.51.100.7"}', false);   -- a different address is not capped by the first
+    do $$begin perform public.mint_share('abc', 'veteran'); end$$;
+    select set_config('request.headers', 'not json', false);   -- an unparseable header is "no key", never an error
+    do $$begin perform public.mint_share('abc', 'veteran'); end$$;
+    select set_config('request.headers', '', false);
+    reset role;
+    do $$begin
+      if (select count(*) from public.fight_records where guest_key is not null) <> 11 then raise exception 'Keyed guest rows are not 11: %', (select count(*) from public.fight_records where guest_key is not null); end if;
+      if exists(select 1 from public.fight_records where guest_key !~ '^[0-9a-f]{64}$' or guest_key like '%203.0.113.9%') then raise exception 'guest_key is not a salted hash'; end if;
+      if (select count(distinct guest_key) from public.fight_records where guest_key is not null) <> 2 then raise exception 'Two addresses should give two keys'; end if;
+    end$$;
+    update public.share_limits set guest_rows = 72;   -- 72 guest rows exist now (60 + 10 + 1 + 1): the ceiling is met, the minute caps are not
+    set role anon;
+    do $$begin
+      begin perform public.mint_share('abc', 'veteran'); raise exception 'A guest share past the row ceiling was minted' using errcode = 'assert_failure'; exception when raise_exception then null; end;
+    end$$;
+    reset role;
+    update public.share_limits set guest_rows = 50000, guest_days = 7;
+    update public.fight_records set created_at = now() - interval '8 days' where user_id is null and id in ('1', '2');   -- two old guest rows
+    update public.fight_records set created_at = now() - interval '8 days' where id = '3';                              -- one old SIGNED-IN row
+    do $$declare n integer; begin
+      n := public.prune_guest_shares();
+      if n <> 2 then raise exception 'Pruned % rows, expected the 2 old guest rows', n; end if;
+      if exists(select 1 from public.fight_records where id in ('1', '2')) then raise exception 'Old guest rows survived pruning'; end if;
+      if not exists(select 1 from public.fight_records where id = '3') then raise exception 'Pruning removed a signed-in row'; end if;
+      if not exists(select 1 from public.fight_records where id = 'AAAAAAAA') then raise exception 'Pruning removed an old-format row'; end if;
+      if (select count(*) from public.fight_records where user_id is null) <> 70 then raise exception 'Guest row count after pruning is not 70'; end if;
+    end$$;
+    -- The daily prune is a pg_cron job. The extension is available on hosted Supabase, not on this local cluster: assert the row where
+    -- pg_cron exists (CI images with it, hosted), and say so where it does not — the job row is then verified live after apply.
+    do $$begin
+      if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
+        if not exists (select 1 from cron.job where jobname = 'frankendom_guest_share_retention' and schedule = '17 4 * * *' and command = 'select public.prune_guest_shares()' and active) then
+          raise exception 'The guest-share retention cron job is missing or wrong';
+        end if;
+      else
+        raise notice 'pg_cron is not available on this cluster: the retention job row is verified live after apply, not here';
+      end if;
+    end$$;
+    set role anon;
+    do $$declare id text; begin
+      id := public.mint_share('abc', 'veteran');   -- below the ceiling again after pruning
+      if id is null then raise exception 'Guest cannot mint after pruning'; end if;
+    end$$;
+    reset role;`;
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare + guestHygiene);
   console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
