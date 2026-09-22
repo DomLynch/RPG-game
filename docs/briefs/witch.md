@@ -42,8 +42,36 @@ its heel jab. Reach, wind-up, active, recovery, damage, posture. **No projectile
 - Stamina like a heavy; heavy posture damage, moderate health damage.
 - **Longest recovery of her moves** — a whiffed cast is the punish window.
 
-Presentation: glow on the staff head through the wind-up, a sprite burst on the active tick (not per-frame particles, for the phone
-budget), the audio lane's existing landed-heavy crowd sound. **No screen shake** — Dom plays on a phone.
+**Witch-fire** (Dom, "lets try witch-fire" — the 23:05 mechanics above are unchanged; this is the cast's fantasy). The staff head kindles
+**green** through the whole wind-up and *that glow is the tell*; a gout of green flame at point blank on the active tick; embers falling
+through the recovery. **Green, never orange** — a spec value, not a taste note: it must never read as the arena brazier. She still fights
+with the staff — sweeps, overhead, thrust, riposte on the polearm family, blade at the head. **The fire is one signature move, not her
+fight**: she is a polearm wielder who casts, not a caster.
+
+Budget: one sprite flipbook for the gout, the glow an emissive on the head material, no per-frame particles beyond the ember count the
+phone overlay allows. **No screen shake** — Dom plays on a phone. Sound: one cast cue and one burn cue, raised when her silhouette passes.
+
+**Not this lane's to author: the flipbook, the emissive and the ember budget are Visuals & World's; the two cues are Audio's.** Written
+here as requirements with their owners named, so nobody reads the brief as an instruction to multi-chars to author VFX.
+
+### The burn's "reuse the wound window" — checked, and it is NOT a free swap
+The brief said the burn reuses the existing four-second wound window with ember sprites in place of blood drips, "no new rule". Verified
+against the code rather than asserted, because a reuse that turns out to be a rewrite is the trap this brief exists to avoid:
+
+- **The timer is real and is exactly four seconds.** `RULES.wound = 240` ticks at a fixed 60 Hz (`src/moves.ts:122`, `:3`). Reusing the
+  *rule* costs nothing — that part of the instruction holds.
+- **The visual is not a sprite source and cannot be pointed elsewhere.** `createWoundDecals` (`src/gore.ts:84`) builds fixed geometry — a
+  `PlaneGeometry` mark plus three `PlaneGeometry` drips on `MeshBasicMaterial` with `color: '#4a1213'` and a shared splat texture. There
+  is no per-wound sprite parameter, so "ember sprites in place of blood drips" is **new geometry and a new material**, not a swap.
+- **And in normal combat that decal does not draw at all.** Its own comment records that since 2026-09-21 **only the Quiet One's throat
+  cut draws it** — the owner removed the standing combat wound mark because *"it floated beside short rigs and hid inside tall ones."* So
+  the four-second window currently has **no visual whatsoever** during a fight.
+
+**What that means for scope, stated now rather than discovered during authoring:** the ember trail is new Visuals work, and it walks back
+into the exact problem Dom removed the wound mark for — a body-anchored effect that fits one rig and not another, across ten archetypes
+including a goblin and a dwarf. Either it is authored to sit correctly per rig (cost), or the burn is shown some other way that is not
+body-anchored (the staff head, the HUD), or it is dropped and the burn is damage without a mark. **That is a decision for Dom and Visuals,
+not an assumption this brief should carry.**
 
 **The loot consequence is intended and it is not free.** Loot v2 makes every weapon takeable, so the player who takes her staff casts it
 too. The battery covers the cast like any other move, with **no exception rows for magic**. What that means in build terms, and it was not
