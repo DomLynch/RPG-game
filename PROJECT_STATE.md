@@ -4,6 +4,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 
 | Lane | File | Entries | Latest entry |
 |---|---|---|---|
+| Strategy | [docs/state/strategy.md](docs/state/strategy.md) | 1 | 2026-09-22 — restart from memory, Brief 13/14 status, loot v2 wielding, tier table, shield brief |
 | Lead | [docs/state/lead.md](docs/state/lead.md) | 20 | 2026-09-21 — Release check 9 (polearm-browser-check) became checks 9–12; everything after ren |
 | Combat | [docs/state/combat.md](docs/state/combat.md) | 34 | 2026-09-21 — Anti-turtling — combat half (sim rules + warden), 2026-09-21 |
 | Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 16 | 2026-09-22 — Scythe flip prep — heel-jab recovery 18 → 30, both rows cleared, the scythe is offerable |
