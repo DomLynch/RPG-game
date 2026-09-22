@@ -40,6 +40,12 @@ before it lands would be the stale-base trap one layer up. **Nothing is retuned 
 
 `RECORD_VERSION` 5 → 6 with `SIM_DIGEST` re-pinned over the final tree and references regenerated (still replaying identically, 1677/1452).
 
+**Base check, 2026-09-22 (docs PR):** trunk has moved `1741dc5` → `cb8ff5b` (22 commits), and
+`git diff --stat b1455d4...cb8ff5b -- src/{ai,duel,moves,sim,record,opponents}.ts` is **empty** — not one sim file moved. So the numbers
+below are still the numbers on current trunk, and **Combat's `ai.ts` approach fix is not on trunk yet**: the dependency this entry is held
+on is unresolved, not silently satisfied. Re-measuring today would re-derive the same table. (The lane's flip-test rule did land, as
+`9ffce97`/#465.)
+
 Evidence: `b1455d4`. Gate 464/467 with 2 skipped and 1 failure, plus 93/94 slow — both failures are the Nightborn and both are caused by
 this change; neither pin was relaxed. Remaining validation: **re-run the full battery once Combat's `ai.ts` approach fix is on trunk**, then
 either the estoc lands nearly clean, or the surviving trident row goes to Combat as a Nightborn profile item and #419 waits for it.
