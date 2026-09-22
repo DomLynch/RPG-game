@@ -12,7 +12,7 @@ import sys
 import bpy
 
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
-RATIO = float(args[args.index('--ratio') + 1]) if '--ratio' in args else 0.55
+RATIO = float(args[args.index('--ratio') + 1]) if '--ratio' in args else 0.5   # 12.6k body → ~6.3k, leaving the tunic (4.5k) and the cap/whip (~1.8k) inside the 14k budget
 BASE = 'artifacts/source/base/Universal Base Characters[Standard]/Base Characters/Godot - UE/Superhero_Male_FullBody.gltf'
 OUT = 'src/assets/source/guard/body.glb'
 
