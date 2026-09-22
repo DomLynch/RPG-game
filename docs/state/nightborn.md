@@ -7,14 +7,26 @@ on the ladder. Append new entries at the TOP. Keep evidence and remaining valida
 
 **Strategy's three rulings of 2026-09-23 01:15, which set how deliverable 1 is run:**
 
-1. **One instrument.** #500 (`--flat`) merges first in tonight's code batch; the Executioner lane re-cuts #502's table
-   off plates; deliverable 1 is cut the same way. **No mixed tables** — a threshold cut and a plate cut in one table is
-   how the last set of ratios came out backwards.
+1. **One instrument — corrected 01:40: D1 is cut from MATTES, not plates.** A `--flat` plate needs a mesh and he has
+   none, so D1 is `u2net` mattes, arms at the sides, with the slot list stated. The Executioner lane runs a
+   matte-vs-plate calibration on the seven rigged fighters once #500 is on trunk; **D1's table states that delta as its
+   uncertainty.** Plates from the day he has a mesh. #500 still merges first, #502 still re-cuts off plates, and **no
+   table mixes the two instruments** — that is how the Knight's first ratios came out backwards.
 2. **For a masked archetype the silhouette IS the kit, so the bare pass is INFORMATIONAL, not a gate.** The gate is
    in-kit at every rung. Recruit-2 for a masked archetype is therefore **Helmet + Body** — his two identity carriers —
    so no game state shows him without both and take-one removes at most one. In #490 at `9c56528`. Measure bare anyway
    so the number sits beside the Knight's. Dom may still choose a body-level feature; nothing waits on it.
 3. Report line unchanged: number, head sha, both ratios bare/in-kit and against the Nightborn, when the D1 PR is READY.
+
+**"Bare" is not one definition across the roster, and the fix is annotation, not normalisation.** Multi Chars proposes
+**bare = body draws only, every loot piece off** for every figure, which is right to reject "each figure minus its own
+`LOOT` row" — that measures kit completeness while looking like it measures build. But it is still not invariant,
+because **what lives in the body mesh versus a loot draw is itself a per-character authoring call**: `src/loot.ts:38`
+fixes `Body` as "the tunic and what hangs on it", and `src/loot.ts:44` says the Pitborn has no chest piece *because he
+wears a rag sash, not a tunic* — so his sash is body geometry. Strip every loot piece from the Pitborn and he keeps a
+sash; strip them from the Nightborn and his torso is bare. An invariant "bare" exists only for launch characters,
+where `docs/SCOPE.md` rules nothing on the body is rig dressing. For the beta six it is a per-character fact, so **the
+D1 table needs a "what survives stripping" column beside the number**, not a normalised definition that hides it.
 
 **A trap for that measures table, found in `src/loot.ts:40-46`: the Nightborn's own LOOT row is FIVE pieces plus the
 estoc — he has no `Greaves`.** The six-piece ruling binds launch characters from Legionary; the beta six predate it
