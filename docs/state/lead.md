@@ -31,6 +31,12 @@ PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing s
   the existing `profile.reaction` in absolute ticks, and `anticipate` must stay because `ai.ts:114` clamps the spam read to
   `READ.anticipate` (8), so any per-grade `reaction` above 8 is swallowed on exactly the cleaver row. Combat's cleaver PR is
   gated on this.
+  **BLOCKER found 2026-09-23 03:xx, after the draft above went to Combat: `grade?: GradeRecord` CANNOT go on `ROSTER`.**
+  `src/roster.ts` is a simulation module (`SIM` in `eslint.config.js`) and `tests/sim-boundary.test.ts` allows SIM files to import
+  only each other — its regex catches `import type ... from` too, so even a type-only import of `./grades.ts` fails. Multi Chars
+  hit the same boundary on #510 from a placement Strategy specified, which is how this surfaced. So the field belongs in a
+  non-SIM module keyed by `OpponentId` — `grades.ts` itself is the natural home, since it already owns `GradeRecord` and already
+  imports `career.ts` and `loot.ts`. Combat has been told; the shape of `GradeProfile` is unaffected.
 - **#419 (estoc) waits on a Nightborn-profile item in Combat's lane, NOT on Combat's ai.ts seam fix.** Weapons reproduced the
   kicker hover exactly and then showed it cannot apply to the Nightborn: `guardShare = profile.guard ?? 1` gates it, and
   `guard: 0` occurs in exactly one opponent's three profiles (`src/moves.ts:503-505`, the guardless goblin). The Nightborn's
@@ -55,6 +61,13 @@ PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing s
   feature is a per-character taste call for the owner, not a rule. The two failures the Executioner and Pitborn lanes measured
   were real and the measurement stands — the bar was wrong, not the finding. My §6 gate-satisfied ruling is consistent with
   this and stands; that lane builds.
+- **Strategy's session ended, so its open decisions came back to Lead.** Ruled: the `unscale: "goblin"` build failure is its own
+  small PR before Boots — `scripts/build-warrior.mjs` throws `loot: no proportion table for goblin` because only the dwarf is
+  registered, so it is a build fix rather than kit work and should not ride inside a kit PR. Also live: Stats imports from
+  `src/grades.ts`, never `src/roster.ts` (same SIM boundary as above); the boots cost line is a bounded range labelled a floor,
+  not a single number; and the kit library's rule that a shaft is pinned by FRACTION of calf length, never absolute height
+  (the Goblin lane measured girth identical at matched fractions but the same fraction sitting 36.4 mm lower at 50 %), which
+  bites Greaves harder than Boots and goes in the Greaves PR.
 - Mine also: the SCOPE.md broadcast to the lanes once #492 lands.
 
 **Gotchas.**
