@@ -443,7 +443,8 @@ export function buildArena(scene: THREE.Scene): Arena {
   update(0, []);
   const props = loadArenaProps(group, phone, (what) => { if (what === 'gateBars') gateBars.visible = false; });
   return {
-    group, floor, update, get guards() { return lorarii.standing; }, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
+    // No guard bodies are built (see above), so the ?perf=1 readout keeps its shape and reports 0/0.
+    group, floor, update, get guards() { return { built: 0, of: 0 }; }, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
     get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed
     dispose() {
       disposed = true; worker?.terminate();
