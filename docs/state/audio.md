@@ -2,13 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Lane state — 2026-09-23 (Brief 13 closed by the guards' removal; the two non-CC0 clips re-sourced)
+## Lane state — 2026-09-23 (the whip split wired; the two non-CC0 clips re-sourced)
 
 ### Now
-`docs/SCOPE.md` (Strategy, branch `docs/scope-2026-09-23`, PR #492) is the current scope and wins over older briefs. It removes the
-lorarii guards for perf — "replacement is baked silhouettes + a whip streak" — so **Brief 13's whip split is closed for this lane**:
-`WhipRaised` / `Whipped` never reached trunk and the guards they belonged to are gone. `#361`'s single whip crack is what ships.
-The streak is World's; if it wants a cue, World gives Audio the trigger point and Strategy sends a one-line brief.
+Both of tonight's items are in PR #511. **Correction to my own first read of `docs/SCOPE.md`:** its "wall lash: guards removed"
+line is about the skinned meshes, not the mechanic — `WhipRaised` and `Whipped` are both on trunk `fe0d8e0` (`src/duel.ts:262`
+and `:266`, carrying `lead` and `guard`), and World's `world/wall-silhouettes` is presentation only. A scope line that removes an
+asset does not remove the sim events that asset used to illustrate: check `git grep` on current trunk before calling a cue closed.
+Brief 13's whip split is therefore **done**, not closed.
 
 ### Done today
 - The licensing row is settled by Strategy's ruling (2026-09-23): "credit and accept" is not an option when the licence forbids
@@ -19,6 +20,13 @@ The streak is World's; if it wants a cue, World gives Audio the trigger point an
   - The first of the five weapon-landing voicings (was the SoundFX "Sword Slash & Beheading"): now the CC0 "Hit Impact Sword 3"
     (freesound 547042, the owner's own 2026-09-22 pick) at rate .86 — a sixth below the fifth voicing, which plays it at rate 1.
   - `shield` and `slashkill` are deleted from `src/assets/audio/SOURCES.json`; `src/assets/README.md` records what went and why.
+- The whip split (Brief 13): a new `whip_raise` cue — leather dragging up through air, .4 s, no transient and no metal, so the
+  tell can never be mistaken for the crack. `WhipRaised` delays it by `lead / 60 - .4` s so its end lands on the lash tick (.6 s
+  of delay before a first lash, .1 s before a 30-tick repeat, 0 when the lead is shorter than the cue). It is air, not an impact:
+  gain .3, room .5, because the man holding it is at the wall. `Whipped` keeps `#361`'s crack.
+- Each of the wall's six lorarii keeps one whip voice on both events — `Cue.rate` (new, optional) is .94 + guard × .024, so
+  guard 0 is the deepest and guard 5 the thinnest, and the ±5 % random spread now multiplies that instead of replacing it.
+  An event with no `guard` plays at rate 1, so a replay written before the tell still sounds right.
 
 ### Open
 - The owner has not heard either replacement. He picked both departing clips by ear, so the voicings are auditionable, not final:

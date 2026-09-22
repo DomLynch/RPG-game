@@ -310,6 +310,16 @@ const RECIPES = {
     const tail = mul(broad(n, r, abs(600), abs(3000)), decay(n, .05, .001));
     return densify(mix(n, [crack, 0, 1], [snap, 0, .7], [sting, .002, .3], [tail, .006, dbfs(-6)]), 2);
   },
+  // Whip raise (WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash) — the tell, not the hit: leather dragging
+  // up through air, a soft rising rasp with no transient and no metal, so it reads across the arena as motion rather than an
+  // impact. It must never be mistaken for the crack that follows it. Two takes for the no-repeat rotation.
+  whip_raise(r, v) {
+    const n = S(.4), f = vary(r, 1, v % 2 ? .08 : -.08);
+    const lift = mul(sweepBandpass(noise(n, r), t => abs((420 + 1500 * Math.min(1, t * 1.25) ** 1.4) * f), 1.1), envelope(n, [[0, 0], [.06, .5], [.24, 1], [.34, .55], [n / RATE, 0]]));
+    const leather = mul(broad(n, r, abs(180 * f), abs(1400 * f)), envelope(n, [[0, 0], [.1, .7], [.3, .5], [n / RATE, 0]]));
+    const air = mul(broad(n, r, abs(2200), abs(7000)), envelope(n, [[0, 0], [.22, .35], [.33, .5], [n / RATE, 0]]));
+    return densify(mix(n, [lift, 0, 1], [leather, .004, .55], [air, .01, dbfs(-9)]), 1.7, { lift: 2 });
+  },
   guard_break(r) {
     const n = S(.46), f = vary(r, 1, .07);
     const crack = mul(broad(n, r, 600, 5000), decay(n, .01));
@@ -383,7 +393,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 3, hit_heavy: 2, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 3, hit_heavy: 2, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, whip_raise: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];
