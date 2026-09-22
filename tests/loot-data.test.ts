@@ -55,8 +55,8 @@ test('loot: one fixed piece per opponent per career sub-rank, never a duplicate,
   assert.equal(dropFor('dwarf', 0, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Greaves', 'one piece: the same at every sub-rank until owned');
   assert.equal(dropFor('goblin', 0, []), 'goblin.Body'); assert.equal(dropFor('goblin', 3, []), 'goblin.Arms'); assert.equal(dropFor('goblin', 6, ['goblin.Body', 'goblin.Arms']), null, 'both Goblin pieces owned: nothing more');
   for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
-  // The Veteran's four pieces are three armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
-  assert.equal(LOOT.veteran!.length, 4); assert.equal(dropFor('veteran', 9, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 9, ['veteran.Helmet', 'veteran.Crest', 'veteran.Greaves']), null, 'all armour owned: nothing drops, the trident is not a drop');
+  // The Veteran's seven pieces are six armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
+  assert.equal(LOOT.veteran!.length, 7); assert.equal(dropFor('veteran', 9, []), 'veteran.Arms'); assert.equal(dropFor('veteran', 9, ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots']), null, 'all armour owned: nothing drops, the trident is not a drop');
 });
 
 test('loot: a saved record is cleaned — known ids only, no duplicates, worn pieces must be owned and in their own slot; store, wear, unwear and merge lose nothing', () => {
