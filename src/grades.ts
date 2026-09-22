@@ -5,13 +5,16 @@
 //
 // One shared kit library dressed eight ways is what makes a 60-opponent roster affordable: 8 grades × N pieces costs N meshes, not 8N.
 // Pure data — no three, no loader. The runtime reads `gradeFor(tier, material)` and writes the factors onto the piece's own material.
+import { TITLES } from './career.ts';
 import type { LootId } from './loot.ts';
 
-// The lead's settled order, poorest to richest (OPPONENTS.grade.tier). The ladder is read as an order in places: `TIERS.indexOf` is the
-// only ranking there is, so nothing may be inserted in the middle without a look at what reads it.
-export const TIERS = ['leather', 'bronze', 'iron', 'steel', 'blackened', 'vanadium', 'gold', 'ruby'] as const;
+// The ladder is the CAREER ladder: a tier and a rank are the same word (owner via Strategy, 2026-09-22), so the journal can say
+// "Praetorian iron" and mean one thing. `TIERS` is `career.ts`'s `TITLES` itself, not a copy — ten names that cannot drift from the
+// ranks they're named for, and `tests/grades.test.ts` holds them identical. A level is the rank's place on it, 1..10.
+export const TIERS = TITLES;
 export type Tier = (typeof TIERS)[number];
 export const isTier = (value: unknown): value is Tier => typeof value === 'string' && (TIERS as readonly string[]).includes(value);
+export const levelOf = (tier: Tier): number => TIERS.indexOf(tier) + 1;
 
 // What a grade can repaint. The cloth is NOT here: a tunic's colour is the opponent's house dye (OPPONENTS.grade.house), so a Recruit
 // and a champion of the same house wear the same linen over different metal — which is how a house reads across a roster.
@@ -35,18 +38,25 @@ export const materialOf = (drawName: string): string => drawName.split('.').slic
 export const classOf = (material: string): keyof Grade | 'cloth' | null | undefined => CLASS_OF[material.split('_')[0] === 'Gambeson' ? 'Gambeson' : material];
 
 export const GRADES: Record<Tier, Grade> = {
-  // Poor kit: iron fittings gone dull, no shine to catch the sun. The metal barely reads as metal, which is the point.
-  leather:   { metal: { color: '#6b5a48', metalness: .35, roughness: .95 }, trim: { color: '#7a6348', metalness: .40, roughness: .85 }, leather: { color: '#4a3a2c', metalness: 0, roughness: .90 } },
-  // The hero's own furniture (build-warrior's 'Antique brass'): worn bronze, warm and soft-edged.
-  bronze:    { metal: { color: '#8a6a3c', metalness: .85, roughness: .50 }, trim: { color: '#a07a42', metalness: .85, roughness: .45 }, leather: { color: '#57402d', metalness: 0, roughness: .85 } },
-  iron:      { metal: { color: '#5a5b5e', metalness: .90, roughness: .62 }, trim: { color: '#6d6a63', metalness: .85, roughness: .60 }, leather: { color: '#4b3b30', metalness: 0, roughness: .82 } },
-  // The hero's Steel and bronze furniture: the middle of the ladder is what the player already wears, so a mid-grade opponent reads as his equal.
-  steel:     { metal: { color: '#c3c7ca', metalness: .92, roughness: .30 }, trim: { color: '#8a6a3c', metalness: .85, roughness: .50 }, leather: { color: '#3e3a36', metalness: 0, roughness: .80 } },
-  blackened: { metal: { color: '#2b2d31', metalness: .95, roughness: .38 }, trim: { color: '#4a4036', metalness: .90, roughness: .45 }, leather: { color: '#2a2622', metalness: 0, roughness: .78 } },
-  // The top three are the only ones allowed to be bright: a hard blue-grey, then gold, then the dark ruby metal of the Nightborn's crown.
-  vanadium:  { metal: { color: '#7d879a', metalness: 1, roughness: .18 }, trim: { color: '#59637a', metalness: 1, roughness: .22 }, leather: { color: '#2c3038', metalness: 0, roughness: .72 } },
-  gold:      { metal: { color: '#c9a233', metalness: 1, roughness: .22 }, trim: { color: '#e0c463', metalness: 1, roughness: .18 }, leather: { color: '#3a2e1c', metalness: 0, roughness: .70 } },
-  ruby:      { metal: { color: '#4a0d18', metalness: .80, roughness: .35 }, trim: { color: '#c9a233', metalness: 1, roughness: .22 }, leather: { color: '#2a1418', metalness: 0, roughness: .70 } },
+  // Rag and scrap: salvaged iron gone dull, no shine to catch the sun. The metal barely reads as metal, which is the point — a Recruit
+  // looks like a man who was handed what was left.
+  Recruit:    { metal: { color: '#6b5a48', metalness: .30, roughness: .96 }, trim: { color: '#7a6348', metalness: .35, roughness: .90 }, leather: { color: '#4a3a2c', metalness: 0, roughness: .92 } },
+  // Leather: studs and buckles on hide, the first kit that was made rather than found.
+  Legionary:  { metal: { color: '#5c4a38', metalness: .40, roughness: .90 }, trim: { color: '#7d6a4e', metalness: .45, roughness: .82 }, leather: { color: '#5a422e', metalness: 0, roughness: .86 } },
+  // Bone: pale ivory plate, almost no metal at all. The one rung that steps sideways instead of up in brightness — it reads as a
+  // different KIND of armour, not a better metal, which is what keeps the low ladder from being three shades of brown.
+  Gladiator:  { metal: { color: '#cbbd9a', metalness: .05, roughness: .72 }, trim: { color: '#a8946b', metalness: .10, roughness: .68 }, leather: { color: '#4b3b30', metalness: 0, roughness: .84 } },
+  // Copper: warm and soft, the first real metal — and deliberately a shade off bronze so Veteran and Champion don't read as one rung.
+  Veteran:    { metal: { color: '#9c5f3a', metalness: .80, roughness: .55 }, trim: { color: '#b87a4a', metalness: .80, roughness: .48 }, leather: { color: '#54402f', metalness: 0, roughness: .84 } },
+  // Bronze: the hero's own furniture (build-warrior's 'Antique brass'), worn and warm.
+  Champion:   { metal: { color: '#8a6a3c', metalness: .85, roughness: .50 }, trim: { color: '#a07a42', metalness: .85, roughness: .45 }, leather: { color: '#57402d', metalness: 0, roughness: .85 } },
+  Praetorian: { metal: { color: '#5a5b5e', metalness: .90, roughness: .62 }, trim: { color: '#6d6a63', metalness: .85, roughness: .60 }, leather: { color: '#4b3b30', metalness: 0, roughness: .82 } },
+  // Steel: the hero's own palette, so a Master reads as the player's equal rather than a step above or below him.
+  Master:     { metal: { color: '#c3c7ca', metalness: .92, roughness: .30 }, trim: { color: '#8a6a3c', metalness: .85, roughness: .50 }, leather: { color: '#3e3a36', metalness: 0, roughness: .80 } },
+  Primus:     { metal: { color: '#2b2d31', metalness: .95, roughness: .38 }, trim: { color: '#4a4036', metalness: .90, roughness: .45 }, leather: { color: '#2a2622', metalness: 0, roughness: .78 } },
+  // The top two are the only ones allowed to be bright: black vanadium, then gold with ruby furniture.
+  Invictus:   { metal: { color: '#3a4048', metalness: 1, roughness: .16 }, trim: { color: '#59637a', metalness: 1, roughness: .22 }, leather: { color: '#2c3038', metalness: 0, roughness: .72 } },
+  Origin:     { metal: { color: '#c9a233', metalness: 1, roughness: .22 }, trim: { color: '#4a0d18', metalness: .80, roughness: .35 }, leather: { color: '#3a2e1c', metalness: 0, roughness: .70 } },
 };
 
 // The factors to write onto one draw's material, or null to leave it alone (bone, authored artwork, and cloth — cloth is the house dye).
@@ -61,3 +71,5 @@ export function houseFor(house: string, material: string): string | null {
 // A grade record as it will sit on OPPONENTS (lead, 2026-09-22). Declared here so the shape is one thing; the field is the lead's to add,
 // and nothing in this lane reads OPPONENTS until it exists on trunk.
 export type GradeRecord = { level: number; tier: Tier; kit: LootId[]; epithet: string; house: string };
+// `level` and `tier` say the same thing twice by design (the lead's shape) — `levelOf` is the one that derives it, so a record whose
+// level and tier disagree is a data error, not a second meaning.
