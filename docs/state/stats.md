@@ -20,6 +20,23 @@ Both were caught on implausibility, not from the output. The probe now asserts t
 Deliverable 2 — the loadout in the fight record — settled with Lead and Strategy and split into two PRs that ship on **different
 deploys**:
 
+**PR A is open as #503** (branch `stats/record-accept-list`, base trunk, `quality:stop` green: 483 pass / 0 fail / 2 skipped).
+`READABLE_VERSIONS` is in, `unpackRecord` returns the parsed version, `SIM_DIGEST` re-pinned to `1b92b247…` WITHOUT a bump with the
+`record-replay-check --strict` receipt identical either side (veteran-walk-in 1677/died/1677 `d953a09bed432ea1`, veteran-scripted
+1452/died/1452 `552f30e5b09f4841`). **Its new assertion is vacuous until the list widens** — the mutation probe (revert to the
+constant) fails exactly one test, and only because record.ts's bytes moved the digest. PR B must carry the real guard: v5 bytes on a
+v6 build decode to `v === 5` and throw on repack.
+
+**PR B carries the bump to 6 and Weapons rides it** (Lead, 2026-09-22: whoever is ready first takes the bump; their #419 is a draft and
+the estoc is parked). Do not expect a second bump to exist.
+
+**Open on someone else's plate: a `LootId` has no tier.** `src/loot.ts:22` is `` `${OpponentId}.${LootSlot}` `` — no tier, no grade, and
+`grep -rn "grade" src/*.ts` outside `src/grades.ts` returns one unrelated hit, so `OPPONENTS.grade.house` in `grades.ts:19` names a
+field that does not exist on trunk. Every kit therefore resolves to the naked identity and the paperdoll reads 1.00/1.00 for everyone
+(Web found it while scoping deliverable 4). Proposed to Lead: the opponent → tier mapping is Multi Chars' (roster/kit data, a balance
+call with Strategy's name on it), the resolver and its tests are this lane's, written against the boundary first so their PR is data
+only. A piece with no tier must resolve to exactly 1.00, never a guess.
+
 - **PR A**: `unpackRecord` returns the version it actually parsed (today `src/record.ts:127` returns the constant, so a decode-then-
   repack would silently upgrade a v5 record; `packRecord`'s existing guard at `:73` then turns that into a loud throw). Plus the
   widened accept-list, pinned as **data beside `SIM_DIGEST`**. Re-pins `SIM_DIGEST` **without a bump** under the #439 precedent, with a
@@ -140,7 +157,8 @@ landed before the suite runs (see the gotcha at the top of this file):
 
 ## Gotchas
 
-- **Trunk becec83 does not compile, and the red is not yours.** `src/arena.ts:446` reads `get guards() { return
+- **RESOLVED 2026-09-22 (was: trunk becec83 does not compile).** World's #485 landed: trunk is now `cb8ff5b`, `src/arena.ts` is byte-identical between it and this lane, and `npx tsc --noEmit` is clean. Kept below for the receipt shape, not as a live warning.
+- **Trunk becec83 did not compile, and the red was not ours.** `src/arena.ts:446` reads `get guards() { return
   lorarii.standing; }` after #467 deleted the lorarii, so `npx tsc --noEmit`, `npm run build` and `npm run quality:stop` all
   fail with `TS2304: Cannot find name 'lorarii'`. Four lanes had already re-diagnosed it before this lane opened. World's #485
   is the one-line fix. Do not spend a minute on it; do not trust a local gate until it lands.
