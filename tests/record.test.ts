@@ -104,3 +104,23 @@ test('record: an opponent-only weapon (maul, reaper) is refused at decode — th
   assert.throws(() => unpackRecord(packRecord({ ...r, weapon: 'reaper' })), /unknown weapon/);
   assert.equal(unpackRecord(packRecord({ ...r, weapon: 'warhammer' })).weapon, 'warhammer', 'a player weapon still decodes');
 });
+
+// GPT audit 2026-09-22 (E): a cap on the compressed text is not a cap on what it expands to; direct replay links reach this decoder.
+import { MAX_RECORD_BYTES, MAX_RECORD_TICKS } from '../src/record.ts';
+test('a record past the tick limit or the expanded-size limit is refused, not allocated', async () => {
+  // A real 2-tick record with its tick count forged to MAX+1: refused before the intent array exists.
+  const rec = createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', profile: 'normal', seed: 7 });
+  rec.push(intent()); rec.push(intent());
+  const bytes = packRecord(rec.finish('killed')), dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', profile, seed → the tick count
+  assert.equal(dv.getUint32(o, true), 2, 'found the tick count field');
+  dv.setUint32(o, MAX_RECORD_TICKS + 1, true);
+  assert.throws(() => unpackRecord(bytes), /past the 108000-tick limit/);
+  // A gzip bomb: MAX_RECORD_BYTES + 1 zero bytes compress to a few KB and are refused while expanding.
+  const zeros = new Uint8Array(MAX_RECORD_BYTES + 1);
+  const cs = new CompressionStream('gzip'), w = cs.writable.getWriter(); void w.write(zeros).then(() => w.close());
+  const parts: Uint8Array[] = []; const r = cs.readable.getReader(); for (;;) { const { value, done } = await r.read(); if (done) break; parts.push(value); }
+  const packed = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let at = 0; for (const p of parts) { packed.set(p, at); at += p.length; }
+  assert.ok(packed.length < 5000, `the bomb is small on the wire (${packed.length} bytes)`);
+  await assert.rejects(decodeRecord(toBase64Url(packed)), /expands past 1000000 bytes/);
+});
