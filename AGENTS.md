@@ -19,6 +19,7 @@ Read GAME_SPEC.md and PROJECT_STATE.md before work. GAME_SPEC.md is canonical de
 - Review in two passes: simulation/input correctness, then actual browser/render/persistence behavior.
 - Keep PROJECT_STATE.md current with evidence and remaining validation. Do not write user memories.
 - `artifacts/` is untracked output (receipts, renders, probes, browser-check frames): scripts write there, no gate or script reads a committed file from it, and `.gitignore` keeps it out of commits. Anything a gate must read lives under `scripts/` or `src/assets/`.
+- Pulling past f4ff30a (2026-09-21, "Stop tracking artifacts/") makes git DELETE the 700+ previously tracked `artifacts/` paths from every worktree except the one that made that commit — the ignore does not protect files that were tracked. Restore what your lane needs from a sibling worktree or with `git checkout f4ff30a^ -- artifacts/<path>` (history keeps every file); never re-add `artifacts/` to the index.
 - World & Environment lane owns `src/arena.ts` (`buildArena(scene) → { group, floor, update(dt, events), dispose() }` — `floor` is the sand mesh, the gore lane's decal target), `src/assets/arena/**`, `scripts/arena-preview.mjs`, `scripts/build-arena.mjs`, `tests/arena.test.ts`. Contract in arena.ts and its test: nothing solid inside the play circle, nothing inside the camera clamp at fighter height, a boundary ring at the play radius. Lights, fog, tone mapping, camera, post-processing and effects stay in `scene.ts` (lead/presentation).
 
 ## Setup (once per clone)
