@@ -1526,6 +1526,25 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
 
 /* Kill links (brief 3): the replay banner sits under the header; Share and its status sit beside Rematch on the death screen.
    Web design owns the final look; these are plain, readable defaults. */
+/* "Watch the whole fight" (owner 2026-09-22): a replay opens on its last seconds; this one tap under the banner restarts it from
+   the first tick. Same face as the banner, a thin frame so a thumb finds it; hidden while the whole fight is already playing. */
+.replay-whole {
+  position: fixed;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 8px 14px;
+  border: 1px solid #e9ddc5aa;
+  border-radius: 999px;
+  background: #0008;
+  color: #e9ddc5;
+  font: 12px Arial;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  min-height: 44px;
+}
+.replay-whole[hidden] { display: none; }
 .replay-banner {
   position: fixed;
   top: 56px;

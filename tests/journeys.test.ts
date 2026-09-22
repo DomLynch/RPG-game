@@ -8,7 +8,7 @@ import { createRecorder, decodeRecord } from '../src/record.ts';
 import { profileDiffers, readFighter, writeFighter } from '../src/cloud-profile.ts';
 import { mergeLoot, recordTaken, store, wear, type Loot } from '../src/loot.ts';
 import { loadProfile, saveProfile, type Profile } from '../src/profile.ts';
-import { fetchSharedRecord, publishRecord, shortLink, shortParam } from '../src/share-store.ts';
+import { fetchSharedRecord, publishRecord, sharedIdFrom, shortLink } from '../src/share-store.ts';
 import { loadDaily, postDaily, saveDaily, type DailyFight } from '../src/daily.ts';
 
 type Row = Record<string, unknown>;
@@ -69,16 +69,16 @@ test('journey: earn a piece → share its fight → the page later boots another
   let loot = store(undefined, 'veteran.Helmet', { opponent: 'veteran', attempt: 3, healthLeft: 12, recordId: null, day: '2026-09-22' });
   loot = recordTaken(loot, 'veteran.Helmet', id);
   const taken = loot.taken!['veteran.Helmet']!;
-  const link = shortLink(origin, taken.opponent, taken.recordId!);   // what the journal's Watch link is since #384 (audit finding C)
-  // The player has since moved on to the Goblin. Opening the link: main.ts reads ?opponent= from the URL first, then the record.
-  const booted = /[?&]opponent=(\w+)/.exec(new URL(link).search)?.[1] ?? 'goblin';
-  const text = await fetchSharedRecord({ url: origin, key: 'anon' }, shortParam(new URL(link).search)!, cloud.rest);
+  const link = shortLink(origin, taken.recordId!);   // the journal's Watch link: the one short shape, /s/<id> (owner 2026-09-22)
+  // The player has since moved on to the Goblin. Opening the link: main.ts reads the record by the path id, and the record names
+  // the opponent — the page re-opens once on that rig when it differs from the one this device booted (no opponent in the URL).
+  const url = new URL(link);
+  assert.equal(url.pathname, `/s/${id}`); assert.equal(url.search, '', 'nothing but the id rides the link');
+  const text = await fetchSharedRecord({ url: origin, key: 'anon' }, sharedIdFrom(url.pathname, url.search)!, cloud.rest);
   const opened = await decodeRecord(text);
-  assert.equal(opened.opponent, 'veteran'); assert.equal(booted, opened.opponent, 'the loader accepts: the link named the fight\'s opponent');
+  assert.equal(opened.opponent, 'veteran', 'the stored record names the fight\'s opponent, so the Goblin page re-opens on the Veteran');
   assert.deepEqual(opened, record, 'the same fight comes back');
-  // The old bare form would boot the player's current opponent and be refused — the regression the fix closed.
-  const bare = `${origin}/?r=${id}`, bootedBare = /[?&]opponent=(\w+)/.exec(new URL(bare).search)?.[1] ?? 'goblin';
-  assert.notEqual(bootedBare, opened.opponent, 'a bare /?r= link would have been refused for another opponent');
+  assert.equal(sharedIdFrom('/', `?r=${id}`), id, 'a link shared before 2026-09-22 still names the same record');
 });
 
 test('journey: enter the daily → finish → post once → a rematch cannot post again and the day stays spent across a reload', async () => {
