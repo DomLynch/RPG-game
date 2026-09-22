@@ -5,7 +5,13 @@ import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 import { OPPONENTS } from '../src/moves.ts';
 import { PROPS } from '../src/arena-props.ts';
 // The fighter rigs are the .glb responses that are not the arena's authored props (src/arena-props.ts) — those load on every page.
-const isRig=u=>{const name=new URL(u).pathname.split('/').at(-1);return name.endsWith('.glb')&&!PROPS.some(p=>name.startsWith(p.id+'-'));};
+// This check exists to stop a page fetching FIGHTER RIGS it does not need ("fetch only hero and selected opponent" below).
+// The arena's own GLBs are not rigs and never were: src/arena-props.ts's props have always been excluded, and guard.glb
+// (Brief 13, the six lorarii on the walkway) is the same class of thing - one shared arena asset, fetched once after first
+// paint, not per opponent. It is named explicitly rather than pattern-matched, so an unexpected rig still fails this check
+// as loudly as before; its SIZE is governed where size belongs, by check-budget.mjs's own `guard` row.
+const ARENA_GLB=['guard'];
+const isRig=u=>{const name=new URL(u).pathname.split('/').at(-1);return name.endsWith('.glb')&&!PROPS.some(p=>name.startsWith(p.id+'-'))&&!ARENA_GLB.some(id=>name.startsWith(id+'-'));};
 const site=await serveDist(), url=site.url;
 const browser=await launch();
 const receipt={url,physicalPhone:false,opponents:[],errors:[]};
