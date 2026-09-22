@@ -56,9 +56,12 @@ and the panel visible together. Do NOT hard-code the 4100 ms measured above: it 
 seed picked, not a table, and a timer of our own is the thing the lead ruled out.
 
 **Next for this lane (routed 2026-09-22 evening by Strategy, NOT started — the lead releases it only after #475 and #464).** Brief 19,
-gear stats (Dom approved; PR #486, a new Stats lane). Web owns the PANEL half of its deliverable 4: the paperdoll shows four stats —
-Attack, Defence, Poise, Stamina — and the tilt against no gear, and the kill-screen take shows the delta of the piece being picked
-up. The Stats lane supplies the numbers; this lane owns copy and skin, in the same gold-glass language as the tap-to-take panel
+gear stats (Dom approved; PR #486, a new Stats lane). Web owns the PANEL half of its deliverable 4: the paperdoll shows the totals
+and the kill-screen take shows the delta of the piece being picked up. **Format settled later the same evening by Dom (Brief 19
+Addendum C, via Strategy) and it SUPERSEDES the first routing: TWO stats only, ATK and RES, whole points.** Paperdoll shows totals
+UNSIGNED — `ATK 15 · RES 20` at full Origin, `ATK 0 · RES 0` naked. The kill-screen take shows the piece's delta SIGNED, one token,
+on its own line — `+6 ATK` for a weapon, `+4 RES` for an armour piece; a take never moves both. The four-stat shape first routed
+here (Attack, Defence, Poise, Stamina) and any `+3 DEF +2 POI` form are VOID: no Defence, no Poise, no Stamina on gear. The Stats lane supplies the numbers; this lane owns copy and skin, in the same gold-glass language as the tap-to-take panel
 (#475). Nothing to do until the lead routes it. Relayed by a peer session, so confirm the brief with the lead before building —
 gotchas (g) and (h).
 
