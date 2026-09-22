@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
-import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER } from '../src/gore.ts';
+import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER } from '../src/gore.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 const near = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
@@ -298,20 +298,28 @@ test('wound slots: a side cut can land on the near upper arm or the wrist (owner
   assert.ok(noArms.every(n => n === 'spine_02'), 'no arm bones → the flank, never a dropped hit');
 });
 
-test('surfaceRadius: the mark sits on the rig\'s own skin, not at the slot table\'s guess (owner 2026-09-22: "it floats off the chars"); the guess stands with no skin; a stray answer is clamped', () => {
-  // A skinned box, half-size .1, bound to one bone at the origin — the skin is 10 cm out along every axis.
+test('surfaceHit: the mark is anchored to the point the blow met and lies flat on that face (owner 2026-09-22: "it floats off the chars", "not joined to the gear"); no skin → the site table\'s guess; a stray reading is clamped', () => {
+  // A skinned box, half-size .1, bound to one bone at the origin — the surface is 10 cm out along +z, its face normal (0,0,1).
   const bone = new Bone(); bone.name = 'spine_03'; const geometry = new BoxGeometry(.2, .2, .2);
   const n = geometry.attributes.position.count;
   geometry.setAttribute('skinIndex', new Uint16BufferAttribute(new Uint16Array(n * 4), 4));
   geometry.setAttribute('skinWeight', new Float32BufferAttribute(new Float32Array(n * 4).map((_, i) => (i % 4 === 0 ? 1 : 0)), 4));
   const skin = new SkinnedMesh(geometry, new MeshStandardMaterial()); skin.add(bone); skin.bind(new Skeleton([bone]));
   const root = new Group(); root.add(skin); root.updateMatrixWorld(true);
-  const r = surfaceRadius(root, bone, new Vector3(0, 0, 1), .22);
-  assert.ok(Math.abs(r - .104) < .003, `10 cm of skin + 4 mm proud, not the .22 guess (${r.toFixed(4)})`);
-  assert.equal(surfaceRadius(new Group(), bone, new Vector3(0, 0, 1), .22), .22, 'no skinned mesh → the table value');
-  assert.ok(surfaceRadius(root, bone, new Vector3(0, 0, 1), .5) >= .5 * .35 - 1e-9, 'clamped to the guess\'s neighbourhood');
-  // End to end: a hit on this rig lands the mark 10.4 cm out, and the strand hangs from there.
+  const met = surfaceHit(root, bone, new Vector3(0, 0, 1));
+  assert.ok(met, 'the ray met the skin');
+  assert.ok(Math.abs(met.point.z - .1) < .003, `the point on the surface, not a guessed radius (${met.point.z.toFixed(4)})`);
+  assert.ok(met.normal.dot(new Vector3(0, 0, 1)) > .99, 'the face\'s own normal, pointing back at the blow');
+  assert.equal(surfaceHit(new Group(), bone, new Vector3(0, 0, 1)), null, 'no skinned mesh → null, caller falls back');
+  assert.equal(clampRadius(5, .22), .22 * 1.5, 'a stray reading is clamped to the slot\'s neighbourhood');
+  // End to end: the mark sits 4 mm proud of that face and its plane is tangent to it, and it rides the bone.
   const wounds = createBodyWounds(new Scene(), null);
   assert.ok(wounds.hit(1, root, { location: 'torso', direction: 'thrust', heading: 0 }, 1));
-  assert.ok(Math.abs(wounds.entries[1][0].radius - .104) < .003, `hit() uses the measured skin (${wounds.entries[1][0].radius.toFixed(4)})`);
+  const mark = wounds.entries[1].find(m => m.used)!;
+  wounds.update(1 / 60, [null, root], [1, .3], 'red');
+  assert.ok(Math.abs(mark.group.position.z - .104) < .004, `on the surface + 4 mm proud (${mark.group.position.z.toFixed(4)})`);
+  const facing = new Vector3(0, 0, 1).applyQuaternion(mark.group.quaternion);
+  assert.ok(facing.dot(new Vector3(0, 0, 1)) > .99, 'the mark lies flat on the face it hit');
+  bone.position.set(0, .5, 0); root.updateMatrixWorld(true); wounds.update(1 / 60, [null, root], [1, .3], 'red');
+  assert.ok(Math.abs(mark.group.position.y - .5) < .02, 'the anchor rides the bone');
 });
