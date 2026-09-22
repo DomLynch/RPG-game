@@ -27,11 +27,33 @@ battery caught it); and **every player weapon is also a warden's weapon** — go
 executioner/scythe, pitborn/cleaver, dwarf/warhammer — so a weapon edit's blast radius is every OTHER weapon measured against whoever
 carries it. Lead has made that a standing rule for all lanes.
 
-**Owed before #441 merges:** `node --test tests/record-version-guard.test.ts` on head 27b35e2. The pin (SIM_DIGEST
-371c3592…, PINNED_FOR_VERSION 4) was COMPUTED by reproducing the guard's recipe by hand — deploy a2a901b was in flight and the
-one-deployer rule blocks suites. Auditer reproduced it independently and got the same digest, but two hand computations that read the
-recipe from the same source agree even if both mis-transcribed it; only a guard run is the receipt. Do not merge #441 on the
-computation.
+**Closed.** #441 merged (merge commit 9562c25) and the owed guard run is discharged: `record-version-guard` passes 1/0 on trunk
+c7d942a, which carries the whip tell. The pin had been COMPUTED by hand (deploy in flight, suites blocked) and independently
+recomputed by Auditer; both agreed, but two hand computations that read the recipe from the same source agree even when both are
+wrong, so only this run counts as the receipt.
+
+**NEXT, and top priority** (owner via Strategy/Lead, 2026-09-22 17:55): make the **cleaver, knife, estoc and scythe wieldable** —
+ahead of #370, #186 and Brief 13 follow-ups. Why it is urgent: every opponent's weapon is already takeable in the kill-screen loot
+panel and the equip files shipped in #309, so a player can take a cleaver and then not fight with it. Loot v2 is not done until a taken
+weapon can be wielded. The only gap is the fairness table: `PLAYER_WEAPONS_OFFERED` on live c7d942a is still
+`['longsword','warhammer','trident']`, and a weapon is offered only when it has no over-cap row in `KNOWN_UNFAIR`
+(tests/player-weapons.test.ts derives the offered set from the 24-seed battery — it is never typed in by hand).
+
+Order and rules: **one PR per weapon**, shipped as each clears, not four together. Start with the **knife** — Weapons has already
+measured it (`thrust.recovery` 15 -> 20 clears both rows at 5/24 and 6/24 on branch weapons/knife-thrust-recovery); take their work
+rather than re-deriving it, but re-run the WHOLE battery, because every player weapon is also a warden's weapon. Then cleaver
+(`cleaver vs executioner normal: light spam 17/24` — a read problem, the Executioner cannot see a 22-tick tell; warhammer and trident
+ship at 11/24 on the same mechanism, so this is a Brief 14 per-grade knob, not cleaver data) and scythe (two `thrust from range` rows).
+The **estoc stays parked**: bring Lead a Nightborn-profile or trident-row DECISION, never a reopened stance number. Bar unchanged —
+inside the cap on every rung, identity pins intact, no opponent retune that breaks a Combat-signed pin; if a weapon cannot clear
+without one, bring the numbers and say which and why rather than weakening a pin. One RECORD_VERSION bump per PR is fine here (Lead,
+explicitly: shipping a weapon a player can feel is worth the link invalidation).
+
+**Now:** nothing in flight. **Done today:** Brief 13's whip tell (merged, live), the estoc park with its grid recorded on trunk (#429),
+#439 reviewed and approved. **Gotchas worth carrying:** a green suite is not a safe number — 12/24 against a strictly-greater cap of 12
+is a tie-break, not a pass; every player weapon is also a warden's weapon, so re-scan the WHOLE fairness table after any weapon edit,
+not just the edited weapon's rows; read a sim digest AFTER the version bump, because record.ts is inside its own hashed set; and a
+finding recorded inside a PR that gets parked is parked with it — put it on trunk.
 
 Open and owed by this lane: #370 (Veteran's opening) held on the owner's own verdict on feel — nothing technical left. `knife vs goblin
 hard: kick only untouched 3/24` routed here as an approach-logic hole, not knife data (identity-shared MOVES.kick, every other weapon's
