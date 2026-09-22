@@ -28,6 +28,17 @@ jobs:
       - run: npm run quality:ci
       - name: Account database isolation
         run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
+  base:
+    # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - run: node scripts/pr-base-check.mjs "$GITHUB_BASE_REF"
   browser:
     # One runner per gate: each harness-clock gate renders every frame on software GL, so they run in parallel with room for slow runners.
     strategy:
