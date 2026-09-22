@@ -299,7 +299,14 @@ const KNIFE_MOVES: Record<MoveId, MoveDef> = {
   light_right: slash('light_right'),
   light_left: slash('light_left'),   // the backhand: the hook's outer edge is sharpened, so it cuts too (a rip)
   heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 16, active: 5, recovery: 26 }, windup: 22, active: 5, recovery: 26, damage: 14, stamina: 26, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0, chip: .2, knockback: 3, stepIn: .55, feintUntil: 8, posture: 24, chamber: 7, reach: 1.55 },
-  thrust: { ...MOVES.thrust, windup: 12, active: 4, recovery: 15, damage: 9, stamina: 14, staminaDamage: 12, stagger: 14, knockback: 2, stepIn: 1, feintUntil: 5, posture: 12, chamber: 5, reach: 1.45 },
+  // Recovery 20, not the 15 it shipped with (weapons lane, 2026-09-22). The wind-up stays 12 — the fastest tell in the game and the floor
+  // his brief sets for readability — so the stab still FEELS like a knife; what changes is that a whiffed poke is now punishable. At 15 it
+  // was not: "thrust from range" beat the Veteran 18/24 and the Goblin 15/24 (caps 12) by poking and being home before either could answer.
+  // 20 is the ONLY value that clears both rows with margin AND keeps the Goblin's own fight-length pin (he wields this knife): 15 -> rows
+  // 18F/15F, median 42.8 s; 16 -> 8/12, median 47.5 OVER; 17 -> 10/13F; 18 -> 8/11, median 44.7; 19 -> 5/16F; 20 -> 5/6, median 44.6;
+  // 21 -> 3/4, median 48.5 OVER. Wind-up is the wrong lever and was measured as such (13 -> 22/19, 14 -> 24/24, 15 -> 1/23, 16 -> 2/24):
+  // it shifts the tell in and out of each warden's read window, non-monotonically. Total commitment 12+20 = 32 still undercuts the sword's 37.
+  thrust: { ...MOVES.thrust, windup: 12, active: 4, recovery: 20, damage: 9, stamina: 14, staminaDamage: 12, stagger: 14, knockback: 2, stepIn: 1, feintUntil: 5, posture: 12, chamber: 5, reach: 1.45 },
   slash_riposte: { ...MOVES.slash_riposte, windup: 12, active: 4, recovery: 15, damage: 18, stamina: 16, feintUntil: 5, reach: 1.2 },
   riposte: { ...MOVES.riposte, windup: 12, active: 4, recovery: 15, damage: 18, stamina: 16, feintUntil: 5, reach: 1.2 },
   heavy_riposte: { ...MOVES.heavy_riposte, windup: 16, active: 5, recovery: 20, damage: 22, stamina: 26, feintUntil: 6, reach: 1.55 },

@@ -66,19 +66,21 @@ const KNOWN_UNFAIR = [
   // After the warden reach fix (combat/warden-reach, 2026-09-21): 11 rows → 8. Trident and warhammer come clean everywhere and are offered;
   // scythe stays gated (still over on the Veteran at range). What is left, by cause: cleaver/executioner — a pre-existing cut-tempo row
   // (Weapons: CLEAVER light 22/8/26 vs the sword's 20/8/22); knife/veteran and scythe/veteran — a poker parked at the Veteran's own range;
-  // knife/goblin ×2 — a pre-existing kicker-vs-knife mismatch on the guardless Goblin (present before this PR, not a reach regression);
+  // knife/goblin hard "kick only untouched" — NOT knife data: `KNIFE_MOVES.kick` is the shared `MOVES.kick` OBJECT (identity-checked), and
+  // kick-only is killed 24/24 by this same Goblin with every other weapon; only the knife pairing fails, and all 24 of its fights end in
+  // stalemate at the 7200-tick limit — a kicker and the hard Goblin never resolve. That is his approach against the shortest reach in the
+  // game (Combat's lane), not a weapon number. The knife's two "thrust from range" rows DID leave, 2026-09-22, when its thrust recovery
+  // went 15 -> 21 (see KNIFE_MOVES): Veteran 18/24 -> 3/24, Goblin 15/24 -> 4/24, with no other knife pairing moved.
   // estoc/goblin ×2 and estoc/dwarf hard — the estoc's move table sits .3–.4 m short of its blade bake (tests/weapons.test.ts "real reach"),
   // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
   'cleaver vs executioner normal: light spam wins 17/24',
-  'knife vs veteran normal: thrust from range wins 18/24',
-  'knife vs goblin normal: thrust from range wins 15/24',   // Goblin normal reaction 11 (ladder slice, 2026-09-22): the slower read lets a poker park at range; the knife's "kick only untouched" row clears at the same time
   'knife vs goblin hard: kick only untouched 3/24',
   'estoc vs goblin normal: thrust from range wins 24/24',
-  'estoc vs goblin hard: light spam wins 11/24',
-  'estoc vs goblin hard: thrust from range wins 22/24',
+  'estoc vs goblin hard: light spam wins 9/24',   // was 11/24: moved by the KNIFE's thrust recovery 15 -> 21 (2026-09-22), because the Goblin WIELDS the knife — same number, safer direction, row still over the hard cap either way
+  'estoc vs goblin hard: thrust from range wins 23/24',   // 22 -> 23, same cause as the line above
   'estoc vs dwarf hard: thrust from range wins 10/24',
   'scythe vs veteran normal: thrust from range wins 19/24',
-  'scythe vs goblin normal: thrust from range wins 19/24',   // Goblin normal reaction 11 (ladder slice, 2026-09-22)
+  'scythe vs goblin normal: thrust from range wins 16/24',   // Goblin normal reaction 11 (ladder slice, 2026-09-22); 19 -> 16, same cause as the estoc lines above
 ];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {

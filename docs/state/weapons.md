@@ -2,6 +2,55 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Knife flip prep — two rows fixed, one isn't knife data, and a program-level cost (weapons lane, 2026-09-22) — BLOCKED ON A DECISION
+Lead's item (1), knife. Three rows on trunk 187dd89, all reproduced: `knife vs veteran normal: thrust from range 18/24`,
+`knife vs goblin normal: thrust from range 15/24` (caps 12), `knife vs goblin hard: kick only untouched 3/24` (cap 2).
+
+**The two thrust rows are knife data and are fixed here**: `KNIFE_MOVES.thrust.recovery` 15 -> 20. The knife's poke was unpunishable —
+out and home before either warden could answer — so a poker parked at range and won. The wind-up stays 12, the fastest tell in the game
+and the floor the knife's brief sets for readability, so it still feels like a knife; only the whiff becomes punishable. Total commitment
+12+20 = 32 ticks still undercuts the sword's 16+21 = 37.
+
+**Wind-up is the wrong lever**, measured: 13 -> 22/19, 14 -> 24/24, 15 -> 1/23, 16 -> 2/24. It shifts the tell in and out of each warden's
+read window, non-monotonically. Recovery is the mechanism; wind-up is a coin toss.
+
+**20 is the only usable value**, because the Goblin wields this knife and his own fight-length pin moves with it
+(`tests/opponents.test.ts`, median 25–45 s):
+
+| recovery | knife rows (Vet / Gob, cap 12) | Goblin median |
+|---|---|---|
+| 15 (trunk) | **18 FAIL / 15 FAIL** | 42.8 s |
+| 16 | 8 / 12 (zero margin) | **47.5 s OVER** |
+| 17 | 10 / **13 FAIL** | 43.7 s |
+| 18 | 8 / 11 (margin 1) | 44.7 s |
+| 19 | 5 / **16 FAIL** | 38.0 s |
+| **20** | **5 / 6 (margin 7, 6)** | **44.6 s** |
+| 21 | 3 / 4 | **48.5 s OVER** |
+
+Note the median surface: 42.8, 47.5, 43.7, 44.7, 38.0, 44.6, 48.5 across adjacent ticks. 20 passes its pin by 0.4 s on a surface that
+swings ten seconds between neighbours — that is luck, not headroom, and it should be re-measured if the Goblin is ever retuned.
+
+**The third row is not knife data.** `KNIFE_MOVES.kick` IS the shared `MOVES.kick` object (identity-checked, `===`), and kick-only is
+killed 24/24 by this same Goblin with every other weapon; only the knife pairing fails, and all 24 of its fights end in stalemate at the
+7200-tick limit — a kicker and the hard Goblin simply never resolve. That is his approach against the shortest reach in the game
+(Combat's lane), not a weapon number, and no weapons change should be made for it.
+
+### Two facts that apply to EVERY weapon change, not just this one
+1. **Every player weapon is also a warden's weapon** — goblin/knife, veteran/trident, nightborn/estoc, executioner/scythe,
+   pitborn/cleaver, dwarf/warhammer. So every weapon-data change is simultaneously a warden change, and the warden's own pins
+   (`tests/opponents.test.ts`) and every OTHER weapon's rows against him move with it. This change moved three of Combat's signed rows
+   (estoc-vs-goblin hard light spam 11 -> 9 and thrust 22 -> 23, scythe-vs-goblin normal thrust 19 -> 16) purely because the Goblin's
+   knife changed. Re-scan the whole table after any weapon edit; never assume the blast radius is the weapon you touched. It cost the
+   estoc its reach fix (#419, parked) and it is the reason a knife tune needs Combat's re-signature.
+2. **Every weapon-data change invalidates every shared kill link.** `tests/record-version-guard.test.ts` hashes
+   `SIM_FILES = [duel.ts, moves.ts, ai.ts, sim.ts, record.ts]`; any change to `src/moves.ts` requires `RECORD_VERSION` to bump, which
+   refuses all previously shared links at decode. That is the correct behaviour — a link must not replay a different fight — but it means
+   **N weapon PRs merged separately cost N link-invalidation events.** The remaining flip work should be batched behind ONE deliberate
+   bump rather than paid per weapon. That sequencing is the lead's call, which is why this entry is BLOCKED rather than shipped.
+
+State: the change is ready on `weapons/knife-thrust-recovery` with the snapshot updated and the full suite at 491/494 (2 skips are the
+char lane's hand pins) — the ONLY failure is the version guard, deliberately left red as the open decision. Not merged.
+
 ## Cleaver flip prep — the Executioner row is not payable in this lane either (weapons lane, 2026-09-22) — MEASURED, NOT FIXED
 Lead's item (1): clear `cleaver vs executioner normal: light spam wins 17/24` (cap 12) with a measured 24-seed battery. Re-run on trunk
 9f77fe4 — the row survives every trunk change since it was signed, still exactly 17/24. Every other cleaver pairing passes (veteran,
