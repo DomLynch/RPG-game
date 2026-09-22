@@ -9,11 +9,19 @@ Nothing building and nothing open from this lane. **#398 merged (`01b6642`) and 
 not on the merge: `assets/executioner-9s1ZxRnx.glb`, HTTP 200, 4,414,104 B, carrying
 `KHR_materials_specular { specularFactor: 0.4 }`, 38 clips, generator `54999ae9`.
 
-**Two character briefs were written on Lead's routing and sent — neither is this lane's to build.** Brief 15 (written as
+**The owner widened this lane on 2026-09-22:** *"Your scope now includes the Knight (Brief 17): a masked heavy opponent
+wielding the maul, two-hand … The Executioner stays yours."* Terms: brief first, **silhouette test at the fighter's camera
+passes before any model work**, AAA judged on a **phone screenshot** (Dom plays on an iPhone — a Mac render is not the
+instrument), **one PR per deliverable with its receipt**, report to Lead, **nothing ahead of the shield in Combat's queue**.
+
+**Next action: deliverable 1, the silhouette harness** — black shapes at the fighter's camera beside the other nine, run
+**bare and in loadout**, the bare pass being the honest one. Brief 17 is landed as **PR #489** (`docs/briefs/knight.md`).
+Blocked before the body: an **owner-approved reference image**, a required input.
+
+The Shieldmaiden (Brief 15, written here as "the Nord") is **not** this lane's — it stays with Lead. Brief 15 (written as
 "the Nord", since renamed **the Shieldmaiden** and amended by Lead: a woman, and a new one-hand bearded axe family in
-place of the cleaver) is moving to `docs/briefs/shieldmaiden.md` in PR #471. Brief 17 **the Knight** (full plate, closed
-helm, no face, maul) is at `artifacts/character/knight.md`, destined for `docs/briefs/knight.md`; note `docs/briefs/`
-does **not** exist on trunk until #471 merges (checked, not inherited).
+place of the cleaver) is moving to `docs/briefs/shieldmaiden.md` in PR #471. Brief 17 **the Knight** is landed in **#489**
+as `docs/briefs/knight.md`, which creates `docs/briefs/` (so does #471 — different files, no conflict).
 Brief only, nothing built, and **the owner has not confirmed the lane expansion** — this session was scoped to the
 Executioner on 09-20 ("only work on that char"). Lead agreed the refusal is correct: writing the brief was in bounds
 because it changes nothing; building is not. Do not start the Nord on a peer's say-so.
