@@ -89,13 +89,19 @@ beak"), and onto the slot ids loot v1 already exports (`src/loot.ts`, `<opponent
 
 Plus his weapon, the longsword, which is not one of the six.
 
-**This makes deliverable 1 the test that matters, and it is why the bare pass is not a formality.** Under this ruling
-every one of the six comes off, so the bare figure is a man in shirt and breeches with nothing of the brim, the beak or
-the coat left. The Knight lane measured exactly this on Brief 17 (#502) and found the bare figure read as nobody —
-shoulder-over-height falling 0.367 → 0.246, the whole identity in the takeable pieces. **He is likely to fail the same
-way, and for a worse reason: his three named silhouette carriers are all Helmet and Body.** If the bare pass does not
-hold, the honest answer is the Knight's — one non-takeable feature that is the body itself, proposed to Strategy rather
-than assumed here. Deliverable 1 measures it; this brief does not pre-judge it.
+**Recruit-2 for a masked archetype is Helmet + Body** (Strategy, 2026-09-23, from the 23:50 line that for a masked
+character the silhouette IS the kit): his two Recruit pieces are his two identity carriers — the beak and brim, and the
+coat — so no game state ever shows him without both, and take-one means a kill removes at most one of them. The **bare
+pass is therefore informational, not a gate**; the gate is in-kit at every rung. Deliverable 1 measures bare anyway, so
+the number sits beside the Knight's.
+
+**What deliverable 1 is actually testing, given that.** Strip all six and the bare figure is a man in shirt and
+breeches with nothing of the brim, the beak or the coat left — the Knight lane measured exactly that on Brief 17
+(#502), shoulder-over-height falling 0.367 → 0.246, the figure reading as nobody. He would fail it worse, because all
+three of his named carriers sit in Helmet and Body. **Strategy's Recruit-2 ruling above is what answers it**: those two
+pieces are never both absent in any game state, so the case the bare pass describes cannot occur in a fight. The bare
+number is still measured and still reported — it belongs beside the Knight's, and Dom may yet choose a body-level
+feature on taste — but **nothing in this brief waits on it.**
 
 ## Silhouette — deliverable 1, before any model work
 
