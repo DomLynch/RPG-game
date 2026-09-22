@@ -20,10 +20,23 @@ structurally different mesh that is raised with Multi Chars before authoring, ne
   Approved as a **direction, not a render**: A's panels carry generator artifacts (half-open palms in the bare
   panel) that are not part of what was picked. Sheet, prompts and method in **#498**; B and C stay in the
   sheet as the record of what A beat.
-- **She was chosen on outline, not mass.** Shoulder-width ÷ figure-height off each candidate's own silhouette:
-  A 0.26, B 0.28, C 0.24 bare, against the Veteran's 0.29 — the Veteran sits *inside* the candidates' spread.
-  The Executioner lane measured the same shape of result on the Knight (0.39–0.40 against 0.36). Two lanes,
-  two characters, same conclusion; Lead is carrying it to the Knight, Plague Doctor and Witch lanes.
+- **She was chosen on outline, not mass** — but the numbers I first published for that are **withdrawn**
+  (#498, `fde8d47`), and the claim "the Veteran sits inside the candidates' spread" was **false**. Two faults:
+  my threshold mask cannot see polished plate or a painted shield face (they mirror the backdrop at its own
+  luminance) and my flood-fill fuses arms into the torso where a hand rests on a thigh; and my bare panels
+  held her arms out, so I was measuring **arm span** against references whose arms hang at their sides.
+  Re-rendered bare with the arms pinned (same design, same seed) and re-measured off **u2net mattes** with
+  the Executioner lane's harness (`scripts/character/silhouette.py`, #502). Corrected, bare: **A 0.284,
+  B 0.319, C 0.276** against **Veteran 0.360, Executioner 0.374, Knight 0.367**. What holds is *their*
+  finding, not mine — the three men cluster inside 0.014; her three spread 0.043 and the widest is widest by
+  fur, not frame. Choose on outline, not build: the conclusion stands, the first evidence for it did not.
+- **A fails the stripped test, and so does the Knight — this is a roster problem, not a lane one.** Loot v2
+  makes gear takeable, so the real question is not "did the bare panel come back bare" but "does she read as
+  *herself* with every removable slot off". With mail, shoulder plates, belt, vambraces and boots gone she
+  goes **0.284 → 0.240 and reads as a generic thin woman**; the flat hard shoulder line A was chosen *for* is
+  the shoulder plates. Evidence `shieldmaiden-stripped-v2.png`. Raised with Lead, deliberately not solved
+  here: either each character gets an identity element that cannot be removed, or it is explicitly accepted
+  that stripped means generic and the silhouette test is reworded to stop implying a bar it does not set.
 - **Her brief no longer understates her cost.** #471 said *cleaver* in three places and rested a "zero new
   animation authoring" saving on the Pitborn's `Cleaver_*` set; the bearded-axe amendment removes that saving.
   Fixed by Lead at `f6af593` — verified on `origin/lead/brief-shieldmaiden`: §1 now states the axe is a NEW
