@@ -5,9 +5,11 @@ Asset-level entries also land in `character.md` (the character pipeline's own do
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 ## Now — 2026-09-22, late
-**In flight.** The Witch (Brief 16, #470) is mine as of tonight. Her **reference sheet is generated and with Dom for a one-word pick**:
-three candidates at `docs/character-references/witch-{a-deep-hood,b-hood-back,c-wide-brim}.png` with prompts and seed in
-`witch-candidates.json`, and the assembled sheet at `artifacts/character/witch/witch-sheet.png` (**not committed — `artifacts/` is
+**In flight.** The Witch (Brief 16, #470) is mine as of tonight. Her reference sheet is generated and **Dom has picked A**:
+**approved reference `docs/character-references/witch-a-deep-hood.png`, owner pick 2026-09-22 23:05** (relayed by Strategy, same line to Lead) —
+deep pointed hood, long ragged cloak to the calves, face in shadow, bladed staff. That file is now the reference Brief 16 builds to;
+`witch-b-hood-back.png` and `witch-c-wide-brim.png` stay committed as the rejected candidates, not as options.
+All three, with their prompts and seed, are in `witch-candidates.json`; the assembled sheet is at `artifacts/character/witch/witch-sheet.png` (**not committed — `artifacts/` is
 gitignored**, `.gitignore:4`). Method is the Nightborn lane's, not a script in this repo: FLUX.1-dev **Space** via `gradio_client`,
 reusing `kontext.py`'s `token()`, seed 190926, 896×1152, guidance 3.5, 28 steps, from a throwaway script in the scratchpad. `kontext.py`
 itself **cannot** do this — it is image→image (`--image` is `required=True`) and there is no text-to-image script in `scripts/character/`.
@@ -32,6 +34,15 @@ rebased on merged #461 at `04ac652`, gate re-run on the rebased tree: 466 pass /
 
 **Ruling that governs the Witch:** no body work until her dependency is on trunk; bodies land Knight → Plague Doctor → Shieldmaiden →
 Witch, so she is last of four; her cast clip is last of hers; all four are launch scope, beta stays the six live archetypes.
+
+**Next stage, and the two things that gate it.** Strategy's line with the pick (23:05) is: silhouette PR lands, then park behind the
+beta-critical kit work, cast clip last. Two gates sit in front of that PR and neither is mine to clear:
+1. **Brief 16's deliverable 1 is a three-way** — the Witch, the Shieldmaiden and a male archetype as black shapes at the fighting
+   camera, run **bare and in loadout**. The Shieldmaiden is the Executioner lane's (Brief 15) and lands **before** the Witch in the
+   bodies order above, so the three-way cannot be rendered until her body exists. A two-way against a male archetype only answers half
+   the question the brief asks — whether two women on one rig read as the same person — so shipping that as the silhouette PR would
+   pass for the wrong reason.
+2. **The reskin check still needs one flat-background render of the Nightborn** from his lane — routing asked of Lead 2026-09-22.
 
 ## Shared draws, and gloves as their first customer — 2026-09-22
 The schema change is in: a piece the whole roster wears is exported **once**, named `~<id>.<material>`, and loot.glb carries its own
