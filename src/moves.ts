@@ -326,17 +326,23 @@ export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PAT
 // blade does to the sword's moves: the THRUST is the weapon (a little more damage, chains into a second), the cuts are whacks with a rod
 // (less damage, no chip), the riposte is his payoff (he parries everything). Live variant A, baked from his own rig.
 export const ESTOC_PATHS: Record<PathId, PathSpec> = PATHS;   // the sword's clips at the sword's timings: the bake differs only by the point and his rig
+// Reach: the sword's spacing convention plus 0.30 m — the estoc's contact segment is the last 40 cm of a longer blade (.75–1.15 m vs the
+// sword's .18–.86), so the same swings land further. Measured standing-start frontier vs the sword's on both rigs (tests/weapons.test.ts
+// "real reach", 2026-09-22): light +.27, heavy +.27, thrust +.26. The table sat at the sword's numbers until then and every warden
+// misjudged the point by that much (the estoc's over-cap rows in tests/player-weapons.test.ts); the sword's own nominal-to-real offset
+// (light −.07, thrust −.05, heavy −.30) is kept as is.
+const ESTOC_REACH = .30, estocReach = (sword: number): number => +(sword + ESTOC_REACH).toFixed(2);
 const ESTOC_MOVES: Record<MoveId, MoveDef> = {
-  light_right: { ...MOVES.light_right, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },   // a whack with a rod
-  light_left: { ...MOVES.light_left, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },
-  heavy_overhead: { ...MOVES.heavy_overhead, damage: 15, chip: .25, staminaDamage: 26, posture: 28, reach: 1.9 },
+  light_right: { ...MOVES.light_right, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: estocReach(MOVES.light_right.reach) },   // a whack with a rod
+  light_left: { ...MOVES.light_left, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: estocReach(MOVES.light_left.reach) },
+  heavy_overhead: { ...MOVES.heavy_overhead, damage: 15, chip: .25, staminaDamage: 26, posture: 28, reach: estocReach(MOVES.heavy_overhead.reach) },
   // The thrust: his weapon. A little more than the sword's stab, and it chains into a second (the riposte path, 12/5/19): "thrusts and short chains".
-  thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 14, follow: ['thrust'] }, damage: 14, stamina: 20, staminaDamage: 22, stagger: 20, posture: 18, reach: 2 },
-  slash_riposte: { ...MOVES.slash_riposte, damage: 26, reach: 1.65 },
-  riposte: { ...MOVES.riposte, damage: 26, reach: 1.65 },
-  heavy_riposte: { ...MOVES.heavy_riposte, reach: 1.9 },
-  heavy_counter: { ...MOVES.heavy_counter, reach: 1.9 },
-  critical: { ...MOVES.critical, reach: 1.9 },
+  thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 14, follow: ['thrust'] }, damage: 14, stamina: 20, staminaDamage: 22, stagger: 20, posture: 18, reach: estocReach(MOVES.thrust.reach) },
+  slash_riposte: { ...MOVES.slash_riposte, damage: 26, reach: estocReach(MOVES.slash_riposte.reach) },
+  riposte: { ...MOVES.riposte, damage: 26, reach: estocReach(MOVES.riposte.reach) },
+  heavy_riposte: { ...MOVES.heavy_riposte, reach: estocReach(MOVES.heavy_riposte.reach) },
+  heavy_counter: { ...MOVES.heavy_counter, reach: estocReach(MOVES.heavy_counter.reach) },
+  critical: { ...MOVES.critical, reach: estocReach(MOVES.critical.reach) },
   kick: MOVES.kick,
 };
 export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
