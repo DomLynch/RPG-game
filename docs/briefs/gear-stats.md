@@ -112,6 +112,9 @@ Format: tables, then one paragraph per decision with the number and the reason.
    `20 RES`, each piece its slot's share. Dom floated `+10 / +10`; Strategy keeps 15 / 20 (the brackets are built on them, and 10 is
    barely felt on a 150-health fight); changing either is two edits that must agree, `CAPS` and the matching integer coefficient in `multipliers()` (kept as literals so the
    multipliers never drift in floats), plus a snapshot re-pin; the tests fail loudly on a half-change. Minutes, not a redesign.
+   **Display, to stop a re-read (Strategy, 2026-09-22 23:55):** "whole points" is the UNIT rule (integers, never `1.15`); the SIGN rule is the
+   fixed design rule above and stands: the paperdoll shows totals unsigned (`ATK 15 · RES 20`), the kill-screen take shows the signed delta
+   of the piece against what the player holds (`+6 ATK`, `-4 RES`, one line, one of the two). #475 is built to that and is correct.
 2. **Speed is fixed per weapon.** No speed stat, no tier touches any timing.
 3. **Shield = option (b), guard profile only.** Two sides covered, stops heavies, cheaper hold, posture drains faster while held, no
    flat incoming reduction, no outgoing penalty. This is the shield brief as written (2026-09-22 18:40); Combat builds that and nothing
