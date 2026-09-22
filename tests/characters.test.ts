@@ -8,7 +8,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { OPPONENTS, PATHS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
-import { bladePaths } from '../src/blade-paths.ts';
+import { bladePathsByRig } from '../src/blade-paths.ts';
 import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
@@ -503,7 +503,7 @@ test('the cuts are hooks: the blade tip never passes behind the shoulder line in
 test('one stroke, quantified: the first cut loads on the side the sword rests (the right hip), the sideways travel is all one way inside the cut, it stops at the extended pose, and the return retraces the arc at chest height (no lift over the head)', () => {
   // The baked paths are what the simulation sweeps and what the player sees. x < 0 is the fighter's right; the armed idle holds the sword at the right hip.
   for (const [id, loadSide] of [['light_right', -1], ['light_left', 1]] as const) {
-    const t = PATHS[id], p = bladePaths.longsword[id], x = p.map(f => f[3]), y = p.map(f => f[4]);
+    const t = PATHS[id], p = bladePathsByRig.hero.longsword[id], x = p.map(f => f[3]), y = p.map(f => f[4]);
     const travel = (a: number, b: number) => { let toLeft = 0, toRight = 0; for (let i = a + 1; i <= b; i++) { const d = x[i] - x[i - 1]; if (d > 0) toLeft += d; else toRight -= d; } return { toLeft, toRight }; };
     const load = travel(0, t.windup - 6), cut = travel(t.windup - 6, t.windup + t.active), retract = travel(t.windup + t.active, p.length - 1);
     // Load: the tip stays on its own side and barely moves sideways (a raise, not a swing across the body).

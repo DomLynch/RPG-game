@@ -728,7 +728,8 @@ blade table by rig. Loot weapons start armed (owner, 2026-09-21: the opening dra
 
 Blade tables by rig: `scripts/blade-manifest.json` entries carry `rig` (the model a table is baked on; `hero` = the player skeleton)
 and may carry `attach` (an equip file worn by the rig in `glb`; the bake wears it the way the runtime does, replacing same-named
-clips). `bake-blades.mjs` writes `bladePathsByRig[rig][weapon][kind]` beside the flat `bladePaths[weapon]` (the first manifest entry
-per weapon; byte-identical to before). Measured in the player's hand: cleaver, warhammer, trident and scythe bake identically to
+clips). `bake-blades.mjs` writes `bladePathsByRig[rig][weapon][kind]`, the only export: `src/blade.ts` looks a sweep up by (rig,
+weapon) and never falls through to another rig (the flat `bladePaths[weapon]` it carried during the seam's landing is gone, 2026-09-22;
+`tests/blade-rig.test.ts` pins every opponent pair and every player weapon on the hero). Measured in the player's hand: cleaver, warhammer, trident and scythe bake identically to
 their shipped hero-rig tables (max |Δ| 0.0000 m); the knife's shipped table is the Goblin's rig (max |Δ| 0.816 m in the player's
 hand) and the estoc's the Nightborn's (0.148 m), so both now have a `hero` table baked from their equip file on `warrior.glb`.
