@@ -4,6 +4,20 @@ The fourth opponent: the pit-runner. Small, fast, mean — the hero rig **re-pro
 standing height, his own scan head with lofted ears, a sica knife, and a darting AI that never guards.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-22 (late)
+
+Lane parked clean for a context clear; **nothing building, nothing owned by this lane is open.** The state below still
+holds. Two housekeeping facts for whoever picks this up:
+
+- **PR #481 (this file, branch `docs/goblin-lane-state`) is OPEN, docs-only, `MERGEABLE`.** Until it merges, read this
+  file from the branch — it is not on trunk yet. Lead cancelled its release-checks matrix (run `35760206714`) on Dom's
+  11:30 rule, to free runners for the PR gating the release; the `quality` run (`35760206957`) was left queued. Those
+  cancelled jobs will read red on the PR until re-dispatched — that is the cancellation, not a failing doc.
+- **The branch was one commit behind a trunk fix and is now caught up.** Branched at `becec83`, where `src/arena.ts:446`
+  called `lorarii.standing` with the import already removed (TS2304, reproduced here: `src/arena.ts(446,49): error
+  TS2304: Cannot find name 'lorarii'`). It came in with the guards removal, never from this lane. Trunk fixed it;
+  merging trunk `cb8ff5b` in makes `arena.ts` identical to trunk again and `npx tsc --noEmit` clean.
+
 ## Now — 2026-09-22
 
 Nothing building and nothing open from this lane. **He is live and correct on trunk `dcb9d61`** — verified this session
