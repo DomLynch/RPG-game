@@ -21,6 +21,61 @@ because the three are within 0.04 of each other on build and were separated on o
 Approved as a **direction**, not as a render: A's own panels carry generator artifacts (the bare panel's
 palms sit half-open rather than at the thighs) which are not part of what was picked.
 
+## CORRECTION — the v1 numbers are withdrawn (2026-09-22, later)
+
+**Every shoulder-width figure in the "measured reskin check" section below is withdrawn.** They were measured
+off threshold-plus-flood-fill masks, and the conclusion drawn from them — "the Veteran sits inside the
+candidates' spread" — **is false**. Corrected sheets: `shieldmaiden-silhouettes-v2.png` and
+`shieldmaiden-stripped-v2.png`.
+
+Two faults, both mine:
+
+1. **The mask.** My per-row threshold with a border flood-fill cannot see polished plate or a painted shield
+   face, which mirror the backdrop and land at its own luminance — no threshold separates a mirror from what
+   it is mirroring. The Executioner lane also found my flood-fill *fuses arms into the torso* on a figure
+   whose hands rest on the thighs, because the gap between arm and hip is enclosed too and should stay open.
+   The fix is not a threshold: a **u2net subject matte** (`rembg`, `only_mask=True, post_process_mask=True`)
+   handles the mirrored plate, keeps the arm gaps open, drops the floor shadow, and picks up a grounded
+   weapon head. Harness: `scripts/character/silhouette.py` (Executioner lane, PR #502).
+2. **The pose.** My bare panels came back with her arms held out from the body, so the shoulder measurement
+   was reading **arm span**, while the Veteran and Executioner references hang their arms at the sides. The
+   comparison was never valid. I re-rendered the three bare panels with the arms pinned — same design, same
+   seed, measurement pass only — and re-measured everything off u2net mattes.
+
+### Corrected numbers — shoulder width ÷ figure height, bare, arms at sides
+
+| | shoulder/height | solidity |
+|---|---|---|
+| A — hard outline | **0.284** | 0.705 |
+| B — soft outline | **0.319** | 0.822 |
+| C — asymmetric | **0.276** | 0.703 |
+| Veteran | 0.360 | 0.682 |
+| Executioner | 0.374 | 0.637 |
+| Knight (Executioner lane, #502) | 0.367 | — |
+
+**What actually holds.** The three men cluster inside 0.014 — among *them*, mass separates nothing, which is
+the Executioner lane's finding and it survives correction. Her three candidates spread 0.043, and the widest
+(B) is widest because of a fur mantle rather than frame, so mass is not the axis between her candidates
+either. **The design conclusion — choose on outline character, not build — stands. The evidence I first
+published for it does not, and one claim in it was simply wrong.**
+
+What is *new* and was invisible under the bad masks: she sits clearly below all three men, 0.28–0.32 against
+0.36–0.37. That is a real separation and a useful one — she reads as a woman on breadth alone.
+
+### The stripped test — direction A fails it
+
+Prompted by the Executioner lane finding the Knight fails the same test. Loot v2 makes gear takeable, so the
+honest question is not "did the bare panel come back bare" but "does she read as *herself* with every
+lootable slot off". Rendered with mail, shoulder plates, belt, vambraces and boots all removed
+(`shieldmaiden-stripped-v2.png`): **shoulder/height drops 0.284 → 0.240 and what remains is a generic thin
+woman in a tunic.** The flat hard shoulder line that A was chosen *for* is the iron shoulder plates, and they
+come off. Even the pinned crown braids read as loose hair once the armour stops framing the skull.
+
+This does not overturn the pick — A is still Dom's chosen direction and still the right *silhouette* — but it
+says the direction is not yet carried by anything that cannot be removed. Raised with Lead rather than solved
+here: it wants either an unlootable identity element on the body itself (build, scars, the braids authored as
+geometry) or an explicit decision that she reads as generic when stripped, as the Knight currently does.
+
 ## How they were made
 
 `black-forest-labs/FLUX.1-schnell` through `gradio_client`, signed in with the owner's stored Hugging Face
