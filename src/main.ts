@@ -251,6 +251,10 @@ const BUILD = document.documentElement?.dataset?.release || 'dev';
 const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id, weapon: playerWeapon, profile: difficulty, seed: matchSeed });
 let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRecord: FightRecord | null = null;
 let lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
+// The loot offer waits for the kill to FINISH PLAYING (Lead brief 2026-09-22; Dom on the phone: "I have never seen the
+// decapitation land" — the panel used to open on the Killed event, over the ceremony). This holds the win's health-left until
+// view.finishPhase().complete latches in updateHud; null = nothing pending. Every reset path clears it with the panel.
+let pendingLoot: number | null = null;
 // Kill links (brief 3, second slice): `?replay=<record>` plays a shared fight back — the same seed, warden profile and intents, so
 // the viewer watches exactly what happened — with the buttons asleep; afterwards PLAY NOW starts a live fight against the
 // same warden and seed, practice only (practiceOnly: no ladder step, no mark, no scorecard or trial line). Share on the death
@@ -325,7 +329,16 @@ function updateHud() {
   const phase = practice.finish ? view.finishPhase() : null;
   // On a viewer page PLAY NOW stays up while the arena-cam tour rolls (owner 2026-09-22: "it should stay as the camera rolls");
   // the pre-settle hush still applies there — nothing over the body while the finisher plays.
-  document.documentElement.classList.toggle('endgame-fade', !!phase && (!phase.settled || (phase.touring && !watching)));
+  // While a loot offer is pending the hush holds to `complete` instead of `settled`. The faded row is inert (style.css sets
+  // pointer-events:none), and between the camera settling and the ceremony ending a Rematch press would otherwise throw away
+  // the win's one loot offer. Timing only — nothing moves, and the loot panel is outside the fade group as before.
+  const hushed = pendingLoot !== null ? !phase?.complete : !phase?.settled;
+  document.documentElement.classList.toggle('endgame-fade', !!phase && (hushed || (phase.touring && !watching)));
+  // The loot panel opens on the finisher-complete event, not a delay of ours: `complete` is the scene's own latch (the victim's
+  // clip has run out, the camera has settled, a severed head has come to rest), so a long ceremony is never cut short and a
+  // short one never leaves the player waiting. src/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
+  // budgets its layout against; nothing here reads it. The panel's own geometry is untouched — this is timing only.
+  if (pendingLoot !== null && phase?.complete) { const healthLeft = pendingLoot; pendingLoot = null; offerLoot(healthLeft); }
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -399,7 +412,7 @@ resetButton.addEventListener('click', () => {
   if (replay || stalled) {   // PLAY NOW: the same warden (and the record's seed when there is one), live, practice only
     practiceOnly = true; if (replay) matchSeed = replay.record.seed; replay = null; stalled = false; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; pendingLoot = null; state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -420,7 +433,7 @@ resetButton.addEventListener('click', () => {
   practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
-  frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null;
+  frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; pendingLoot = null;
   state = previous = practice.fighter;
   view.recenter();
   canvas.focus();
@@ -465,7 +478,7 @@ const REPLAY_TAIL = 7;
 function startReplay(record: FightRecord, fromTick: number) {
   matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Difficulty: ${difficulty}`;
   recorder = null; recorded = false; activeMs = 0; clearInput();
-  practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null;
+  practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; pendingLoot = null;
   for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], opponent.profiles[difficulty]);
   state = previous = practice.fighter; accumulator = 0;
   replay = { record, cursor: fromTick }; stalled = false; shareButton.hidden = true; say(null);
@@ -504,7 +517,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Difficulty: normal';
     saveDaily(storage, { day: fight.day, started: true, submitted: false });
     recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; pendingLoot = null; state = previous = practice.fighter;
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); updateHud();
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }
@@ -855,7 +868,7 @@ function frame(now: number) {
               // until the player takes one. lastDrop holds the take, so a Share can fill its record id once (src/loot.ts Provenance).
               awardMark(profile);   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
               lastDrop = null;
-              offerLoot(Math.max(0, Math.round(practice.playerHealth)));
+              pendingLoot = Math.max(0, Math.round(practice.playerHealth));   // offered once the finisher has finished playing (updateHud)
               persist();
             }
           }

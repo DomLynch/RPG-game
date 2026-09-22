@@ -52,7 +52,7 @@ const draw = async () => {
   catch (error) { console.log('draw diagnostics', JSON.stringify({ ...(await probe()), ...(await page.evaluate(() => ({ attack: document.querySelector('#attack-button')?.textContent, attackDisabled: document.querySelector('#attack-button')?.getAttribute('aria-disabled'), status: document.querySelector('#combat-status')?.textContent, debug: document.querySelector('#debug')?.textContent?.slice(0, 200), visibility: document.visibilityState }))) })); throw error; }
 };
 
-let splitReceipt, headReceipt;
+let splitReceipt, headReceipt, lootTiming;
 async function fight(name) {
   // A real duel against the live warden: the AI is seeded per match, so the scripted player wins most duels, not every one.
   // Up to three duels; a lost or timed-out one is rematched in place (no win → no next-rung reload) and fought again.
@@ -113,6 +113,21 @@ async function fight(name) {
   // Exhausting the rematch budget is a FAILURE, never a pass: the receipt names it as such.
   assert.ok(killed, `real UI duel must kill the opponent — three duels fought, none killed (opponent ${opponent}, finisher ${finisher})`);
   assert.equal(await page.locator('#target-health').evaluate(e => e.value),0,'real UI duel must kill the opponent');
+  // Finisher-complete gate (Lead brief 2026-09-22; Dom on the phone: "I have never seen the decapitation land"). The loot panel
+  // used to open on the Killed event, over the ceremony. It now opens on the scene's own finisher-complete latch
+  // (src/scene.ts finishPhase().complete — the victim's clip has run out, the camera has settled, a severed head has come to
+  // rest — consumed by src/main.ts updateHud). Sampled here on a REAL win with THIS finisher selected: closed at the kill,
+  // open once the latch fires, and nothing about the panel's geometry touched. Never a timer on either side.
+  const lootState = async () => page.evaluate(() => ({ on: document.getElementById('loot-panel')?.getAttribute('data-on'), phase: JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null') }));
+  const atKill = await lootState();
+  assert.notEqual(atKill.on, '1', `the loot panel must not open over the ${finisher} ceremony (open at ${atKill.phase?.age} s, complete=${atKill.phase?.complete})`);
+  assert.equal(atKill.phase?.complete, false, 'and the ceremony cannot have finished playing that soon after the kill');
+  assert.ok(await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p?.complete; }, 12000), 'the finisher-complete latch fires within 12 s of the kill');
+  await run(60);
+  const atComplete = await lootState();
+  assert.equal(atComplete.on, '1', 'the loot panel opens once the ceremony has finished playing');
+  lootTiming = { finisher, atKillAge: atKill.phase?.age ?? null, completeAt: atComplete.phase?.completeAt ?? null, openAtKill: atKill.on === '1' };
+  console.log(`${name} loot: panel closed ${atKill.phase?.age?.toFixed?.(2)} s after the kill, open at the ${finisher} complete latch (${atComplete.phase?.completeAt?.toFixed?.(2)} s)`);
   await run(300);
   console.log(`${name} kill — clips at reset: "${await clips()}"`);
   await page.screenshot({ path: `${dir}/live-${name}.png` });
@@ -138,7 +153,7 @@ async function fight(name) {
 await fight('counter-duel');
 const expected = finisher === 'opened' ? /Opened:WaistCut/ : finisher === 'decapitation' ? /Death_SplitCrown:Death_SplitCrown/ : /Death_QuietOne:Death_QuietOne/;
 assert.match(await clips(), expected); assert.deepEqual(errors,[]);
-const receipt={url,finisher,opponent,splitReceipt,headReceipt,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
+const receipt={url,finisher,opponent,splitReceipt,headReceipt,lootTiming,revision:process.env.QA_URL ? await page.request.get(new URL('/release.json',url).href).then(r=>r.json()) : null,physicalPhone:false,clips:await clips(),errors,passed:true};
 await run(5000);
 assert.match(await clips(), expected, 'finisher stays held after the death window');
 if(process.argv.includes('--blood-check')) {
