@@ -9,19 +9,20 @@ TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tab
 
 **In flight / open**
 - **PR #487** (this file) — open, docs only: 0007 recorded as applied, 0009 + 0010 added with live receipts.
-- **Stats lane, Brief 19 / PR #486 (open), deliverable 1 = PR #488 (open)** — gear stats. The record is opaque base64url to Postgres
-  and `daily_results` carries no gear, so the stat-table work needs **nothing** from this schema.
-  **UNVERIFIED, do not act on it as settled:** Strategy told this lane (2026-09-22) that a later deliverable makes loot awards
-  server-authoritative from verified fight records, with the client's owned list becoming a cache — which would end the "loot is
-  cosmetic, nothing competitive hangs off client-reported loot" rule written under 0004. **I checked #486's published body and it does
-  not say this**: it lists deliverables 1–4 as starting now and deliverable 5 as the `src/duel.ts` seam + ladder retune, with no
-  mention of loot. So treat the loot-authority change as a *claim relayed by Strategy*, not as the brief's content, and confirm the
-  actual deliverable with Lead/Strategy before designing a migration for it. When a real PR lands, review its migration and RLS.
-- **"PR A" of the record-version split** (Lead's; **not opened yet** — no such PR existed at the time of writing, this is their stated
-  plan, not a live branch) — widens the decoder to accept 5 and 6 and returns the *parsed* version instead of
-  `RECORD_VERSION`. Read it as a **server** change: `deploy.sh` rsyncs `src/**/*.ts` to the verifier host, so that deploy replaces the
-  verifier's decoder too. PR B (encoder writes 6) follows on a later deploy — that ordering is what stops a verifier reading an older
-  format than the client writes. See the memory note for the two traps.
+- **AUTHORITY: `docs/SCOPE.md`** (branch `docs/scope-2026-09-23`, PR #492, merging tonight) — the current dated scope; Strategy's
+  ruling is that it wins over every older brief, state entry or memory line, including this file. Read it first.
+- **Stats lane — deliverable 3 comes to this lane for review before merge** (Strategy, 2026-09-23). SCOPE.md line 20 settles what an
+  earlier note here flagged as unverified: *"Loot awards become server-authoritative before stats touch a fight"*, and it explicitly
+  *replaces* "loot is cosmetic only, no stats" (Brief 5). So the 0004 rule written in this file — client-reported loot, never
+  competitive authority — **ends with that deliverable**; the client's owned list becomes a cache and awards derive from verified
+  fight records. Design nothing yet: review the migration and its RLS when the PR arrives. Brief 19 / PR #486 and deliverable 1 /
+  PR #488 need nothing from this schema (`daily_results` carries no gear; the record is opaque base64url to Postgres).
+- **Stats' PR A (#503, `stats/record-accept-list`) needs nothing from this lane** (Strategy, 2026-09-23): decoder + accept-list only.
+  It is still a change the verifier host runs — `scripts/verify-daily.mjs` imports `decodeRecord` from `src/record.ts` and `deploy.sh`
+  rsyncs `src/**/*.ts` to the verifier — so one deploy moves both readers; that is by construction, not something to arrange. PR B
+  carries the bump to 6 and the encoder. The ordering (accept-list one deploy before the encoder) is what stops a verifier reading a
+  format newer than it knows; if a future widening lands after rows exist, refused rows need `verify-daily.mjs --recheck` because
+  `checked_at` takes them off the sweep's page.
 - **Daily verifier first sweep** — still unobserved: `daily_results` was 0 rows at 2026-09-22 (0 verified, 0 refused, 0 awaiting).
   The timer is armed and the job row is live; the first real receipt waits on someone posting a daily fight.
 
