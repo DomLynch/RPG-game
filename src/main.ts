@@ -711,6 +711,7 @@ let last = performance.now(),
   // cannot see his iPhone's GPU - this lets the device measure itself.
   // eslint-disable-next-line prefer-const -- grouped in this let-list with the counters beside it
   perfFrames: [number, number][] = [],
+  perfWorst = 0,   // the worst frame SINCE LOAD: one big hitch and steady stutter look the same in a rolling window, and a first-pose/shader-compile spike (Multi Chars measured 1,037 ms at six guards against 187 ms at one) only shows in this number
   frameId = 0;
 // Time away from a live fight is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
 // no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
@@ -907,7 +908,7 @@ function frame(now: number) {
     d.dataset.fallenRect = JSON.stringify(view.fallenRect());   // the release check's gate (brief 5): no HUD element may intersect this at settle time
   } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays, the finish clock, the fallen body's screen rect
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
-  if (perf && elapsed > 0) { perfFrames.push([now, elapsed * 1000]); while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift(); }
+  if (perf && elapsed > 0) { const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift(); }
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
       median = sorted[Math.floor(sorted.length / 2)],
@@ -924,6 +925,7 @@ function frame(now: number) {
       element('perf').textContent = [
         `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
         `dropped ${dropped}/${ms.length} over 16.7 ms`,
+        `worst since load ${perfWorst.toFixed(0)} ms`,
         `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
       ].join('\n');
     }
