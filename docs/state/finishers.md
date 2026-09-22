@@ -2,6 +2,10 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Blood on arms and wrists + marks on the actual skin (owner 2026-09-22: "run down the leg and arms", "a lot of skin ... wrists", "it floats off the chars")
+
+`src/gore.ts`, branch `finishers/blood-limbs` on b67281e. (1) `woundSite(hit, limb, mirror)`: a side cut across the torso now lands on the near arm for a seeded `ARM_SHARE` (.5) of hits — half upper arm (`upperarm_l/r`), half the wrist end of the forearm (`lowerarm_l/r`); a rig without arm bones falls back to the flank. The overhead cut's shoulder mirrors per hit, so on the Veteran it lands on the bare shoulder as often as the cloak. Legs were already routed (sim `legs` → thigh). All drawn from the same LCG as the runs: replays land the same limb. (2) `surfaceRadius()`: the mark's offset from the bone is measured per hit by a raycast against the rig's own skinned meshes along the wound normal (4 mm proud, clamped to .35–1.5× the slot's table value; the table value stands with no skin/under node) — the fixed .22 shoulder guess hung in the air on a bare shoulder. Evidence: gore.test 14/14 (arm/wrist/flank bones + seeded determinism + no-arm fallback; skinned-box raycast → .104 not .22, fallback, clamp, end-to-end through `hit()`); wounds harness veteran exit 0 (0.06 → 0.12 → 0.13 m), goblin exit 0 (0.04 → 0.09 → 0.09 m); stills `artifacts/character/blood-closeup-veteran/closeup-pick2-1.5s.png` (wrist), `closeup-side-1.5s.png` veteran + goblin (mark on the surface, side-on). Remaining: PR's own release-checks run.
+
 ## Blood runs v2: it drips, it does not stretch — lit photo decals over the armour (owner 2026-09-22, "like a tap with a slow leak", "no paintball sticker")
 
 What changed (`src/gore.ts` `createBodyWounds`, branch `finishers/blood-runs` on dcb9d61):
