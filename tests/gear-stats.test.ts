@@ -56,6 +56,20 @@ test('gear stats: a full Origin set lands exactly on the caps', () => {
   assert.equal(CAPS.res, 0.8); assert.equal(CAPS.attack, 1.15);
 });
 
+test('gear stats: changing a cap is TWO edits, and this test is the one that says so', () => {
+  // Brief 19 Addendum C says changing a cap is "one number in CAPS". That is NOT true of the implementation, and the difference
+  // matters to whoever does it: `multipliers()` carries the integer coefficients 15 and 20 as literals, because deriving them
+  // from CAPS in floats gives 14.999999999999991 and 19.999999999999996 — the exact drift this module exists to avoid. So the
+  // coefficients cannot be derived at runtime; CAPS and the coefficients are two facts that must agree.
+  //
+  // They cannot silently disagree: editing CAPS alone fails four tests (mutation-proved with Dom's floated +10/+10). This test
+  // states the relationship so the next person reads an instruction instead of inferring one from four failures.
+  for (const [stat, coefficient] of [['attack', 15], ['res', 20]] as const) {
+    const distance = Math.abs(CAPS[stat] - 1);
+    assert.equal(Math.round(distance * 90000 / FULL_POINTS), coefficient, `CAPS.${stat} implies coefficient ${coefficient} in multipliers(); change both or neither`);
+  }
+});
+
 test('gear stats: THE BAR — a full Origin set moves neither stat by more than 20% against naked', () => {
   const full = loadoutFor(fullSet('Origin', 'Estoc'));
   const tilt = (stat: typeof STATS[number]) => Math.abs(full[stat] - NAKED[stat]) / NAKED[stat];

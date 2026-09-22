@@ -99,15 +99,23 @@ landed before the suite runs (see the gotcha at the top of this file):
   `origin/briefs/gear-stats`, not taken from the relay). Three decisions, all matching what this lane proposed in #491:
   1. **One Attack multiplier for every weapon**, ramped by tier exactly as `src/gear-stats.ts` does it — nothing at Recruit, one
      step per tier, the cap at Origin. Grip is not a balance axis. **Caps stay 1.15 / 0.80**: Dom floated +10/+10, Strategy kept
-     15/20 because the brackets are built on them and 10 is barely felt on a 150-health fight. Changing either is one number in
-     `CAPS`, and the addendum says so explicitly — so treat a future "make it 10" as a one-line edit, not a redesign.
+     15/20 because the brackets are built on them and 10 is barely felt on a 150-health fight.
+     **Correction, and it is in the brief too: changing a cap is TWO edits, not "one number in `CAPS`".** Addendum C says one;
+     this lane told Strategy the same; both are wrong about the implementation. `multipliers()` carries the integer coefficients
+     15 and 20 as literals and cannot derive them from `CAPS`, because doing so in floats gives 14.999999999999991 and
+     19.999999999999996 — the exact drift this module exists to avoid. So `CAPS` and the coefficients are two facts that must
+     agree. They cannot silently disagree: editing `CAPS` alone fails five tests (mutation-proved against Dom's floated
+     +10/+10), one of which now states the rule outright. Still minutes of work — but two edits and a snapshot re-pin, and
+     whoever does it should be told that rather than discover it as five failures.
   2. **Speed fixed per weapon.** No speed stat, no tier touches any timing.
   3. **Shield = option (b)**, guard profile only. Dom's earlier −20 % incoming is **withdrawn**. Combat builds the shield brief
      as written and nothing else.
-- **DISPLAY FORMAT CHANGED, and deliverable 4 must use the new one.** Addendum C: whole points, not multipliers — an Origin
-  weapon reads **`+15 ATK`**, a full Origin armour set reads **`20 RES`** (note: no sign on RES), each piece its slot's share.
-  This **supersedes** the `+6 ATK` / `-4 RES` signed-delta shape relayed from Web earlier on 2026-09-22. Web has not been told;
-  the next session owes them that line before building the panel half of deliverable 4.
+- **DISPLAY FORMAT — final, from Strategy 2026-09-23 after Web was told. Two shapes, and they differ:**
+  - **Paperdoll totals: unsigned**, `ATK 15 · RES 20` — what the whole worn kit is worth.
+  - **Kill-screen take delta: signed, one token**, `+6 ATK` or `+4 RES` — what the piece in front of you would add.
+  Note the take delta is `+4 RES` *positive* even though RES is a damage multiplier that goes **down**: the player reads "more
+  resistance", not "a smaller multiplier". Deliverable 4 supplies both numbers; Web owns the copy and skin. This supersedes the
+  earlier `+3 DEF +2 POI` and the intermediate whole-points-everywhere reading.
 - **CLOSED, no action: the two findings this lane raised in #491.** Both were settled as design rather than defects, and the
   reasons are worth keeping because they answer the questions rather than dismissing them. The cleaver's asymmetric light
   (`light_right` 17, `light_left` 9) is **the back of the blade — blunt, half damage, by design**. And RES multiplying block
