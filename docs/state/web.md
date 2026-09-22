@@ -44,7 +44,16 @@ from the kill (artifacts/loot-timing.mjs, the loot receipt's duel plus #debug's 
 - Cheapest fix consistent with both: keep the card where it is and make it WAIT — show it on the finisher-complete moment plus the
   hold, which is the timing change Dom actually reported. Finishers & Gore are exposing that event; until it lands, their measured
   durations, not a timer of mine (the lead's instruction).
-Not started; sequenced after #475 merges. Receipt owed: a phone screenshot with the body and the sheet both visible.
+**Ruling (lead, 2026-09-22 evening): build the WAIT, the bottom sheet is withdrawn** — the geometry half of the brief went back to
+Strategy with these numbers so it cannot return as an order. The work, when it is unblocked: move the `offerLoot()` call site off
+the Killed event and onto finisher-complete plus the hold. Nothing else moves — not the card, the tiles, the guard or Undo — and
+`endgame-hud-check` keeps passing because the geometry is untouched, which is itself the evidence that this is the timing fix and
+not a redesign wearing one. **Order of operations, and do NOT route it through the lead:** (1) wait for #475 to merge — no third
+stacked branch on these files; (2) take the measured per-finisher durations DIRECTLY from Finishers & Gore (Split Crown,
+Decapitation, Run Through, Opened, Quiet One, plain — measured in their preview harness from the frame the camera settles and the
+body stops), with their real finisher-complete event swapped in afterwards; (3) one PR, receipt = a phone screenshot with the body
+and the panel visible together. Do NOT hard-code the 4100 ms measured above: it is one Nightborn kill with whatever finisher that
+seed picked, not a table, and a timer of our own is the thing the lead ruled out.
 
 **Next for this lane (routed 2026-09-22 evening by Strategy, NOT started — the lead releases it only after #475 and #464).** Brief 19,
 gear stats (Dom approved; PR #486, a new Stats lane). Web owns the PANEL half of its deliverable 4: the paperdoll shows four stats —
@@ -140,8 +149,10 @@ order). #427 put `#loot-panel` OUTSIDE the `:root.endgame-fade` group for one st
 it away mid-decision. The group is also what holds the endgame text back until `finishPhase().settled`, so the same exemption
 bought "does not wait for the finisher" for free, and `main.ts` calling `offerLoot()` straight off the Killed event made it
 visible at t = 0. Measured on the #475 tree: the panel is up for the WHOLE 4.1 s of the finisher (settled at t = 4100 ms). Nobody
-chose that; it came in the back of a choice about fading. When exempting an element from a group, write down every behaviour the
-group was carrying for it, not just the one being escaped — and re-derive the others deliberately.
+chose that; it came in the back of a choice about fading. The sharper statement (lead's, after reading the detail back): AN EXEMPTION REMOVES EVERYTHING THAT
+MECHANISM WAS DOING, NOT ONLY THE THING YOU MEANT TO EXEMPT. It did not merely fail to consider timing; it removed a timing
+behaviour that was riding on the same mechanism. So when exempting an element from a group, write down every behaviour the group
+was carrying for it, not just the one being escaped — and re-derive the others deliberately.
 (a, amended) Take is gone since item 10 — a tap on a tile is the take — so the thumb row holds Leave it alone. The rule
 that produced it is unchanged and still load-bearing: no decision button where the first post-kill touch lands, and
 `.loot-panel` stays pointer-transparent with `auto` only on its tiles and its Undo pill.
