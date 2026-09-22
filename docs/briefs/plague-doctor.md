@@ -70,6 +70,33 @@ New geometry, all in the helm slot and the coat: **the beak mask, the brim, the 
 else. No new bones, no `BUILD` re-proportion entry — he is the hero rig at scale 1, so every clip, finisher and blade
 table transfers untouched (contrast the Goblin and Dwarf, which needed `BUILD.bones` work).
 
+## His six takeable pieces
+
+Required by the owner's ruling of 2026-09-22 23:12, now in `docs/SCOPE.md`: every launch character wears **six takeable
+pieces of its own** plus its weapon, each a `loot.glb` draw with tier materials, and **nothing on the body is rig
+dressing**. A brief names all six before it merges. **Naming is not authoring** — the build order stays Recruit-2 first,
+and these six are authored when his tier kit is, not before. Mapped onto the approved reference (#493, "the patched
+beak"), and onto the slot ids loot v1 already exports (`src/loot.ts`, `<opponent>.<slot>`):
+
+| slot | his piece | reads in the silhouette as |
+|---|---|---|
+| `plague_doctor.Helmet` | the beaked mask and the warped split brim, one lens plated over with a riveted iron patch | the brim — the widest horizontal on the ladder — and the beak's downward point breaking the head's round |
+| `plague_doctor.Body` | the long waxed coat, closed to the throat, skirt below the knee | the coat's hem line; bare, this is the whole of the read |
+| `plague_doctor.Arms` | the coat's boiled-leather sleeves and shoulder capes, cracked and scorched | the upper outline's soft break against the Knight's flat plate edges |
+| `plague_doctor.Gloves` | the long gauntlet cuffs over the sleeve | the widening at the wrist that keeps the hands off the coat line |
+| `plague_doctor.Greaves` | strapped leather shin guards under the skirt | the vertical the skirt hem breaks against |
+| `plague_doctor.Boots` | heavy buckled boots | the base of the column |
+
+Plus his weapon, the longsword, which is not one of the six.
+
+**This makes deliverable 1 the test that matters, and it is why the bare pass is not a formality.** Under this ruling
+every one of the six comes off, so the bare figure is a man in shirt and breeches with nothing of the brim, the beak or
+the coat left. The Knight lane measured exactly this on Brief 17 (#502) and found the bare figure read as nobody —
+shoulder-over-height falling 0.367 → 0.246, the whole identity in the takeable pieces. **He is likely to fail the same
+way, and for a worse reason: his three named silhouette carriers are all Helmet and Body.** If the bare pass does not
+hold, the honest answer is the Knight's — one non-takeable feature that is the body itself, proposed to Strategy rather
+than assumed here. Deliverable 1 measures it; this brief does not pre-judge it.
+
 ## Silhouette — deliverable 1, before any model work
 
 Dom's bar, as Lead relayed it: **the fighter's camera, bare and in loadout.** Armour is takeable (loot v1 already
