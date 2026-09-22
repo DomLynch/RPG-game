@@ -234,6 +234,95 @@
       "scripts/endgame-hud-check.mjs"
     ]
   ],
+  "release_triggers": [
+    {
+      "paths": [
+        "docs/**",
+        "**/*.md"
+      ],
+      "rows": []
+    },
+    {
+      "paths": [
+        "tests/fixtures/**"
+      ],
+      "rows": [
+        "record-replay-check",
+        "kill-link-check"
+      ]
+    },
+    {
+      "paths": [
+        "supabase/**"
+      ],
+      "rows": [
+        "account-database-check",
+        "account-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/roster-browser-check.mjs"
+      ],
+      "rows": [
+        "roster-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/finisher-preview.mjs"
+      ],
+      "rows": [
+        "finisher-preview:first"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/record-replay-check.mjs"
+      ],
+      "rows": [
+        "record-replay-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/kill-link-check.mjs"
+      ],
+      "rows": [
+        "kill-link-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/account-*.mjs"
+      ],
+      "rows": [
+        "account-database-check",
+        "account-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "src/**",
+        "index.html",
+        "public/**",
+        "**/*.css",
+        "scripts/lib/**",
+        "package.json",
+        "package-lock.json",
+        "vite.config.*",
+        ".quality-gate.json"
+      ],
+      "rows": [
+        "roster-browser-check",
+        "record-replay-check",
+        "kill-link-check",
+        "finisher-preview:first",
+        "account-database-check",
+        "account-browser-check"
+      ]
+    }
+  ],
   "extended_commands": [
     [
       "node",
