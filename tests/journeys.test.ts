@@ -5,8 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createRecorder, decodeRecord } from '../src/record.ts';
-import { profileDiffers, readFighter, writeFighter } from '../src/cloud-profile.ts';
-import { mergeLoot, recordTaken, store, wear, type Loot } from '../src/loot.ts';
+import { createSaveQueue, profileDiffers, readFighter, writeFighter } from '../src/cloud-profile.ts';
+import { mergeLoot, recordTaken, store, unwear, wear, type Loot } from '../src/loot.ts';
 import { loadProfile, saveProfile, type Profile } from '../src/profile.ts';
 import { fetchSharedRecord, publishRecord, shortLink, shortParam } from '../src/share-store.ts';
 import { loadDaily, postDaily, saveDaily, type DailyFight } from '../src/daily.ts';
@@ -60,6 +60,17 @@ test('journey: earn a piece → wear it → automatic cloud save → sign in on 
   assert.deepEqual(profileB.loot?.equipped, { chest: 'goblin.Body' }, 'the necklace is worn on the second device');
   assert.equal(profileB.loot?.taken?.['goblin.Body']?.attempt, 2, 'provenance travelled');
   assert.equal(profileDiffers(profileB, remote), false, 'nothing to write back: the merge is exact');
+  // Device B takes it off: an unequip is a change too, and it reaches the cloud at the next revision.
+  profileB.loot = unwear(profileB.loot!, 'chest'); saveProfile(b, profileB);
+  assert.equal(profileDiffers(profileB, remote), true, 'unequip only is a change to save');
+  const after = await writeFighter(cloud.db, user, profileB, remote.revision);
+  assert.equal(after.revision, 3); assert.deepEqual(after.loot.equipped, {}, 'the cloud shows it off');
+  // A save that fails never reports success, and the device still has something to send afterwards.
+  const stale = await writeFighter(cloud.db, user, profileB, 1).catch(e => e as Error);   // a revision the cloud has moved past
+  assert.match((stale as Error).message, /changed on another device/);
+  const failing = createSaveQueue(async () => { await writeFighter(cloud.db, user, profileB, 1); });
+  assert.equal(await failing(() => profileB), false, 'the queue reports the failure');
+  assert.equal(profileDiffers({ ...profileB, name: 'Renamed' }, after), true, 'the unsent change is still pending for the next beat');
 });
 
 test('journey: earn a piece → share its fight → the page later boots another opponent → the Watch link still opens', async () => {
