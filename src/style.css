@@ -1187,9 +1187,8 @@ dialog>p {
     padding: 0 !important;
     min-height: 0 !important;
     background: #b7a27680;   /* owner 2026-09-21: every button wears the Slash button's sand tint (was a dark #17232952 for all but Slash) */
-    border: 1px solid #e9d9b3a6;
-    box-shadow:
-      inset 0 0 0 3px #f0e3c912,0 1px 3px #0003;
+    border: 1px solid #b2b2b2bf;   /* owner 2026-09-22: the line goes grey (was the cream #e9d9b3a6); the fill stays sand */
+    box-shadow: 0 1px 3px #0003;   /* owner 2026-09-22: the inner ring (inset 3px #f0e3c912) is gone — one circle, not two */
     color: #f4ead8;
     transition:
       background .08s,transform .08s;
@@ -1238,7 +1237,7 @@ dialog>p {
   }
   .actions[data-gestures=cluster] #guard-button[aria-pressed=true]{
     background: #d9c69ac0;   /* held: the pressed tint, brighter than the cluster's sand */
-    border-color: #f0e3c9;
+    border-color: #e6e6e6;   /* pressed: the grey line goes near-white, not cream */
   }
   .actions[data-gestures=cluster] #thrust-button:not([hidden]) {
     display: block;
@@ -1271,7 +1270,7 @@ dialog>p {
   } /* 44 px: the platform minimum for the innermost target */
   .actions[data-gestures=cluster] #kick-button[data-reach=true]{
     background: #d9c69ab3;   /* in reach: brighter than the sand the whole cluster now wears */
-    border-color: #f0e3c9cc;
+    border-color: #e6e6e6cc;
   }
   .actions[data-gestures=cluster] #dodge-button {
     width: 56px;
