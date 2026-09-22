@@ -10,15 +10,16 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-22 17:2x)
-- Live **a98f327** (deploy #104). Trunk **3c179f0** is NOT deployable: #435 is in it (see Open).
-- #442 (lead/revert-435) is open on Lead's gate; a guarded watcher deploys the trunk tip automatically when it merges.
-- Migrations 0006–0010 applied to the hosted DB and verified by me and by Backend/Accounts.
+## Now (2026-09-22 19:35)
+- Live **607126a** == trunk, queue empty, nothing running. Deploy #109: 33 rows all run locally, 0 CI-trusted, 0 failed.
+- That release carries the scythe as a playable weapon (#440) and the blood-conform fix (#455). **RECORD_VERSION 4 -> 5**, so
+  kill links minted before it refuse cleanly at decode — expected, and the guard working.
+- Migrations 0006-0010 applied to the hosted DB and verified twice (by me and Backend/Accounts). None pending.
 
 ## Done today
-Fifteen deploys attempted, twelve published and live-verified (release.json + served index.html `cmp` against dist + VPS
+Eighteen deploys attempted, fifteen published and live-verified (release.json + served index.html `cmp` against dist + VPS
 `current` symlink on every one): dcb9d61, 3fa90c5, 0ebf409, 01b6642, 41363b7, 8650fc5, e2582b0, 4068c50, f439d43, 6c9e75b,
-01b6642, adb8ddd, a2a901b, a98f327. Shipped among others: the end-of-fight HUD, 40 px touch targets, deploy guards, both audio
+adb8ddd, a2a901b, a98f327, c7d942a, cb4e0ef, c43c677, 607126a. Shipped among others: the end-of-fight HUD, 40 px touch targets, deploy guards, both audio
 passes, the paperdoll gear layers, PLAY NOW, the arena guard, short share links end to end (nginx `/s/` + 0009 + client), and
 the kill-screen loot panel with its accidental-decline fix.
 
@@ -30,7 +31,10 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
 #427 (loot panel's action row swallowed the post-kill arena touch — Web's #432), #435 (guard.glb fetched on every boot).
 
 ## Open
-- **#435 blocks trunk.** `void arena.guards(fighterUrls['./assets/guard.glb']!)` in scene.ts fetches a 504 KB model on every
+- Nothing blocking. The lorarii models re-landed in cb4e0ef (#450) with the roster check taught that guard.glb is an arena
+  asset, and release row 02 passed on that tree — the fix held. History of the blocker it replaced, kept because the re-land
+  pattern will recur:
+- **(resolved, reverted by #442 then re-landed by #450) #435 blocked trunk.** `void arena.guards(fighterUrls['./assets/guard.glb']!)` in scene.ts fetches a 504 KB model on every
   cold load. Nine release rows fail, each twice: row 02 roster-browser-check (`fetch only hero and selected opponent` — the
   boot fetch budget, the row that makes this a product fault rather than a harness race) and rows 1/3/15/17/19/20/23/25
   finisher-preview (`TypeError: Cannot read properties of undefined (reading 'side')` — the previews inspect before `framing`
@@ -55,5 +59,8 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   deploy.sh refuse to publish a fully green tree ("Release checks changed tracked files"); #389 untracked them.
 - **Row-33/16/21/26 shape**: a check that fails once and passes on deploy.sh's solo retry is a flake; failing the retry too is a
   regression. Never report the first failure as final — read the retry.
+- **Wake-up ids**: the id in the scratchpad path / stop-hook line is the transcript id (the `<id>.jsonl` filename) and does NOT
+  resolve for cross-session messaging; the address is the `local_…` id from `list_sessions`/`ListAgents`, and a clear keeps it.
+  Two lanes handed Lead an unusable id and the wake step failed silently. Take it from a live listing, never from the path.
 - **Only this session runs `scripts/deploy.sh`** (one-deployer), from the scratchpad `deploy/` checkout where every
   `deploy-<sha>.log` lives — not `~/Developer/frankendom-deploy`, which is a lane worktree.
