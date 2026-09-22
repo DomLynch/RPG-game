@@ -1,0 +1,74 @@
+// Release check: no end-of-fight HUD element covers the fallen body (owner brief, 2026-09-22: the drop line, the autopsy and the
+// Wear/Store buttons used to float centred over the arena and hide the gore and the finisher). A real browser, the gate's own
+// clock (scripts/lib/harness-clock.mjs): boot against the Veteran, draw the sword, stand still — the idle fighter dies — then,
+// at the first frame where view.finishPhase().settled is true, assert every VISIBLE end-of-fight element's screen rect does not
+// intersect view.fallenRect() (both read from the #debug dataset, debug=1's existing frame probe — src/main.ts). The autopsy's
+// own content is scripts/autopsy-browser-check.mjs's job; this check is purely about geometry, and it is the same DOM/CSS for a
+// win (drop + Wear/Store) as for a death (autopsy), so one path — the reliable, deterministic one — proves both.
+import { chromium } from 'playwright';
+import { harnessClock } from './lib/harness-clock.mjs';
+import { preview } from 'vite';
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+
+const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
+const url = new URL(process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`);
+url.searchParams.set('debug', '1'); url.searchParams.set('opponent', 'veteran');
+const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const receipt = { url: url.href, errors: [] };
+const out = 'artifacts/presentation/endgame-hud'; await fs.mkdir(out, { recursive: true });
+try {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  page.setDefaultTimeout(15000);
+  await page.route('**/*sentry.io/**', r => r.abort());
+  page.on('pageerror', e => receipt.errors.push(String(e)));
+  await page.goto(url.href);
+  await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+  await page.getByRole('button', { name: 'Enter the arena' }).tap();
+  await page.waitForFunction(() => document.querySelector('#welcome').hidden && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
+  const { run, until } = await harnessClock(page);
+  await run(200);
+  await page.evaluate(() => { window.__finish = null; window.addEventListener('frankendom:combat', e => { const k = e.detail.events.find(x => x.type === 'Killed'); if (k) window.__finish = k; }); });
+  await page.getByRole('button', { name: 'Draw sword', exact: true }).tap();
+  await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 5000);
+  const died = await until(() => window.__finish !== null, 6000 * 16.7);
+  assert.ok(died, 'the fight ends within budget');
+  receipt.killed = await page.evaluate(() => window.__finish);
+  // Middle-of-screen check (brief 3): before the camera settles, nothing new shows — the elements this check gates were hidden or
+  // faded a moment ago, so this also proves the fade actually started (endgame-fade set) rather than everything showing at once.
+  await until(() => document.documentElement.classList.contains('endgame-fade'), 2000);
+  receipt.fadedBeforeSettle = true;
+  // Settle: poll the same clock the HUD polls (view.finishPhase(), via #debug's frame probe) until it reports settled.
+  await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p?.settled; }, 8000);
+  const phase = await page.evaluate(() => JSON.parse(document.querySelector('#debug').dataset.finishPhase));
+  receipt.settledAge = phase.age;
+  assert.ok(!phase.touring, 'settle happens well before the 5 s tour starts');
+  const rectsAndFallen = await page.evaluate(() => {
+    const fallen = JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null');
+    const ids = ['combat-status', 'loot-drop', 'autopsy', 'loot-choice', 'reset-button', 'share-button'];
+    const rects = {};
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (!el || el.hidden || getComputedStyle(el).display === 'none' || getComputedStyle(el).opacity === '0') continue;
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) rects[id] = { x: r.x, y: r.y, w: r.width, h: r.height };
+    }
+    return { fallen, rects };
+  });
+  receipt.fallenRect = rectsAndFallen.fallen;
+  receipt.visibleRects = rectsAndFallen.rects;
+  assert.ok(receipt.fallenRect, 'the fallen body has a screen rect at settle time');
+  const intersects = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const overlaps = Object.entries(rectsAndFallen.rects).filter(([, r]) => intersects(r, rectsAndFallen.fallen));
+  receipt.overlaps = overlaps.map(([id]) => id);
+  assert.equal(overlaps.length, 0, `no HUD element intersects the fallen body at settle time; overlapping: ${overlaps.map(([id]) => id).join(', ')}`);
+  await page.screenshot({ path: `${out}/gate-settle.png` });
+  receipt.passed = true;
+} catch (error) {
+  receipt.passed = false; receipt.error = String(error);
+  throw error;
+} finally {
+  await browser.close(); if (server) await server.httpServer.close();
+  await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 1));
+  console.log(JSON.stringify({ passed: receipt.passed, settledAge: receipt.settledAge, fallenRect: receipt.fallenRect, overlaps: receipt.overlaps, errors: receipt.errors }));
+}

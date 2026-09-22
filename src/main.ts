@@ -62,8 +62,11 @@ const message = element('message');
 const autopsyLines = element('autopsy');
 // The death-screen autopsy: at most two lines between the kill and the rematch button; hidden when there is nothing confident to say.
 function showAutopsy(lines: string[]) { autopsyLines.hidden = !lines.length; autopsyLines.replaceChildren(...lines.map((line) => { const span = document.createElement('span'); span.textContent = line; return span; })); }
-const lootDrop = element('loot-drop');
-function showLootDrop(text: string | null) { lootDrop.hidden = !text; lootDrop.textContent = text ?? ''; }
+const lootDrop = element('loot-drop'), lootChoice = element('loot-choice');
+// The drop line now docks in the top band with the fight hint (owner 2026-09-22: end-of-fight text was blocking the gore and
+// finishers); the Wear/Store choice stays in the bottom row beside Rematch, so the two are no longer DOM siblings — the old
+// `#loot-drop[hidden] + .loot-choice` CSS could not follow the move, so the choice's visibility is set here directly instead.
+function showLootDrop(text: string | null) { lootDrop.hidden = !text; lootDrop.textContent = text ?? ''; lootChoice.hidden = !text; }
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
 // journal's paperdoll and rack show it, and every change persists (the cloud follows on the profile beat). Rack rows are Web design's
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
@@ -279,6 +282,10 @@ function stopFor(events: CombatEvent[]): number {
 }
 function updateHud() {
   hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !replay, debug, opponentId: opponent.id, replay: !!replay, practiceOnly });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
+  // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
+  const phase = practice.finish ? view.finishPhase() : null;
+  document.documentElement.classList.toggle('endgame-fade', !!phase && (!phase.settled || phase.touring));
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -826,7 +833,9 @@ function frame(now: number) {
     d.dataset.tip = (view.bladeTip?.() ?? []).map((v) => v.toFixed(4)).join(',');
     d.dataset.clips = view.playing?.() ?? '';
     d.dataset.blood = JSON.stringify(view.bloodState());
-  } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays
+    d.dataset.finishPhase = practice.finish ? JSON.stringify(view.finishPhase()) : '';
+    d.dataset.fallenRect = JSON.stringify(view.fallenRect());   // the release check's gate (brief 5): no HUD element may intersect this at settle time
+  } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays, the finish clock, the fallen body's screen rect
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
