@@ -37,8 +37,8 @@ test('daily: today\'s fight is asked from the server with the public key and rea
   assert.deepEqual(fight, { day: '2026-09-22', number: 0, seed: 4294967291 });
   assert.equal(calls[0].url, 'https://x.supabase.co/rest/v1/rpc/daily_fight'); assert.equal(calls[0].init?.method, 'POST'); assert.equal((calls[0].init?.headers as Record<string, string>).apikey, 'pk');
   assert.deepEqual(await fetchDaily(api, answer(200, { day: '2026-09-23', number: 1, seed: 7 })), { day: '2026-09-23', number: 1, seed: 7 }, 'a single-object answer reads too');
-  await assert.rejects(fetchDaily(api, answer(200, [{ day: '2026-09-22', number: 0, seed: null }])), /no daily warden today/, 'no secret → no seed → no daily');
-  await assert.rejects(fetchDaily(api, answer(200, [{ day: 'tomorrow', number: 0, seed: 1 }])), /no daily warden today/);
+  await assert.rejects(fetchDaily(api, answer(200, [{ day: '2026-09-22', number: 0, seed: null }])), /no daily duel today/, 'no secret → no seed → no daily');
+  await assert.rejects(fetchDaily(api, answer(200, [{ day: 'tomorrow', number: 0, seed: 1 }])), /no daily duel today/);
   await assert.rejects(fetchDaily(api, answer(500, null)), /answered 500/);
   // The board is one RPC over every row of the day — the client sends the day and never pages or ranks rows itself (a page of 200
   // hid the 201st poster; ranking locally let a pending row lead). A headline that isn't a whole row reads as empty, not as a crash.

@@ -25,7 +25,7 @@ import {
   PROFILES,
   type CombatEvent,
 } from './combat.ts';
-import { ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
+import { bareName, ROSTER, isOpponentId, resolveFinisher, type OpponentId } from './roster.ts';
 import { createFeedback } from './feedback.ts';
 import { createScene } from './scene.ts';
 import { phoneTier } from './quality.ts';
@@ -219,11 +219,15 @@ finisherSelect.addEventListener('change', () => {
   const value = finisherSelect.value;
   view.setFinisherOverride(value === 'auto' ? null : (value as FinisherId));
 });
-if (opponent.id !== 'veteran') {
+{
+  // The bars name whoever is in the arena (Dom via Strategy, 2026-09-22): no rung is exempt any more — the first one used to keep
+  // index.html's "ARENA WARDEN", which is now the no-opponent fallback "OPPONENT". The meters' labels follow for a screen reader.
   const label = element('opponent-name'),
-    name = ROSTER[opponent.id].name.replace(/^the /, '');
+    name = bareName(opponent.id);
   label.textContent = `THE ${name.toUpperCase()}`;
   label.dataset.mobile = name;
+  element('target-health').setAttribute('aria-label', `${name} health`);
+  element('target-posture').setAttribute('aria-label', `${name} posture`);
 }
 let playerWeapon: WeaponId = 'longsword';   // the player's weapon (moves.ts PLAYER_WEAPONS): the longsword until the loot slice wires the equipped set; a replay takes the record's
 let matchSeed = 731,
@@ -433,7 +437,7 @@ shareButton.addEventListener('click', async () => {
     // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
     const text = daily ? dailyShareText(daily, ROSTER[opponent.id].name, lastRecord.outcome, lastRecord.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
-    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily warden' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
+    if (nav?.share) { try { await nav.share(daily ? { text, title: 'Frankendom: the daily duel' } : { url, title: 'Frankendom: watch this fight' }); say('Shared.'); return; } catch { /* the sheet was dismissed: fall through to the clipboard */ } }
     if (nav?.clipboard?.writeText) { await nav.clipboard.writeText(text); say(daily ? 'Result copied.' : 'Link copied.'); return; }
     say(text);
   } catch (error) { say(`Could not share: ${error instanceof Error ? error.message : String(error)}`); }
@@ -452,7 +456,7 @@ let watching = Boolean(replayText || sharedId);
 // and bandwidth") — the ending is the whole viewer page, and PLAY NOW under it is the only thing to press.
 const REPLAY_TAIL = 7;
 function startReplay(record: FightRecord, fromTick: number) {
-  matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
+  matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Difficulty: ${difficulty}`;
   recorder = null; recorded = false; activeMs = 0; clearInput();
   practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null;
   for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], opponent.profiles[difficulty]);
@@ -484,25 +488,25 @@ if (replayText || sharedId) {
 // spends the day's one attempt the moment the fight starts (a reload mid-fight is the attempt) and posts the record when it ends.
 // Practice rules: no marks, no scorecard; the daily has its own board. A build without a store, or a spent day, fights as usual.
 if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
-  welcome.hidden = true; banner('Asking for today\'s warden…');
-  void (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily warden'))).then((fight) => {
+  welcome.hidden = true; banner('Asking for today\'s duel…');
+  void (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily duel'))).then((fight) => {
     const rung = dailyOpponent(fight, LADDER);
     if (rung.id !== opponent.id) { location.replace(`/?opponent=${rung.id}&daily=1`); return; }
     const spent = loadDaily(storage, fight.day);
     if (spent.started) { banner(spent.submitted ? `Daily #${fight.number} · posted today` : `Daily #${fight.number} · today's attempt is spent`); return; }
-    daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Warden: normal';
+    daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Difficulty: normal';
     saveDaily(storage, { day: fight.day, started: true, submitted: false });
     recorded = false; activeMs = 0; clearInput();
     practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; state = previous = practice.fighter;
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); updateHud();
-  }).catch((error: unknown) => { banner(`No daily warden: ${error instanceof Error ? error.message : String(error)}`); });
+  }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }
 element('daily-button').addEventListener('click', () => { location.assign('/?daily=1'); });
 // The journal's daily line and board, fetched when the journal opens (never at startup): today's number and opponent, this device's
 // standing, and the five board lines with unverified rows greyed.
 async function showDailyBoard() {
   const status = element('daily-status'), board = element<HTMLUListElement>('daily-board');
-  if (!api) { status.textContent = 'The daily warden needs the account service.'; board.hidden = true; return; }
+  if (!api) { status.textContent = 'The daily duel needs the account service.'; board.hidden = true; return; }
   try {
     const fight = await fetchDaily(api), rung = dailyOpponent(fight, LADDER), mine = loadDaily(storage, fight.day);
     status.textContent = `Daily #${fight.number} · ${rung.name} · ${mine.submitted ? 'posted' : mine.started ? 'attempt spent' : 'not fought yet'}`;
@@ -516,13 +520,13 @@ async function showDailyBoard() {
       return li;
     }));
     board.hidden = false;
-  } catch (error) { status.textContent = `No daily warden: ${error instanceof Error ? error.message : String(error)}`; }
+  } catch (error) { status.textContent = `No daily duel: ${error instanceof Error ? error.message : String(error)}`; }
 }
 element('journal-button').addEventListener('click', () => { void showDailyBoard(); });
 element('difficulty').addEventListener('click', () => {
   const levels = Object.keys(PROFILES) as (keyof typeof PROFILES)[];
   difficulty = levels[(levels.indexOf(difficulty) + 1) % levels.length];
-  element('difficulty').textContent = `Warden: ${difficulty}`;
+  element('difficulty').textContent = `Difficulty: ${difficulty}`;
   if (recorder && recorder.ticks > 0 && !practice.finish) recorder = null;   // a fight that changed warden mid-way is not replayable
 });
 element('debug-mode').addEventListener('click', () => {
@@ -541,7 +545,7 @@ const versus = element('versus'), versusStill = element<HTMLImageElement>('versu
 const hideVersus = () => { versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
 versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; updateHud(); } });
-element('versus-foe').textContent = ROSTER[opponent.id].name.replace(/^the /, '');
+element('versus-foe').textContent = bareName(opponent.id);
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
 try {
@@ -807,7 +811,7 @@ function frame(now: number) {
       if (practice.finish && !recorded) {
         recorded = true;
         if (replay) {
-          banner(`Replay over · ${practice.finish.victim === 1 ? 'the warden fell' : 'the fighter fell'}`); updateHud();
+          banner(`Replay over · ${practice.finish.victim === 1 ? `${ROSTER[opponent.id].name} fell` : 'the fighter fell'}`); updateHud();
           marked = false; try { storage.setItem(AFK_KEY, ''); } catch { /* nothing was fought, nothing to score */ }   // a watched fight is never a walk-away
         }
         else {

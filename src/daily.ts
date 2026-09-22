@@ -35,9 +35,9 @@ export function saveDaily(storage: StoragePort, state: DailyState): boolean {
 // Today's fight from the server (a plain REST call with the public key: guests ask too). Refuses anything that is not a whole answer.
 export async function fetchDaily(api: { url: string; key: string }, fetchFn: typeof fetch = fetch): Promise<DailyFight> {
   const response = await fetchFn(`${api.url}/rest/v1/rpc/daily_fight`, { method: 'POST', headers: { apikey: api.key, Authorization: `Bearer ${api.key}`, 'Content-Type': 'application/json', Accept: 'application/json' }, body: '{}' });
-  if (!response.ok) throw Error(`the daily warden answered ${response.status}`);
+  if (!response.ok) throw Error(`the daily duel answered ${response.status}`);
   const body = await response.json() as unknown, row = (Array.isArray(body) ? body[0] : body) as Partial<DailyFight> | null;
-  if (!row || typeof row.day !== 'string' || !DAY.test(row.day) || !Number.isSafeInteger(row.number) || !Number.isSafeInteger(row.seed)) throw Error('no daily warden today');
+  if (!row || typeof row.day !== 'string' || !DAY.test(row.day) || !Number.isSafeInteger(row.number) || !Number.isSafeInteger(row.seed)) throw Error('no daily duel today');
   return { day: row.day, number: row.number!, seed: (row.seed! >>> 0) };   // the server's signed 32-bit hash as the warden's unsigned seed
 }
 
@@ -62,7 +62,7 @@ export async function fetchDailySummary(api: { url: string; key: string }, day: 
 export async function postDaily(db: SupabaseClient, userId: string, fight: DailyFight, record: FightRecord, location: HitLocation | null, taken: number): Promise<void> {
   const text = await encodeRecord(record);
   const { error } = await db.from('daily_results').insert({ day: fight.day, user_id: userId, number: fight.number, opponent: record.opponent, weapon: record.weapon, outcome: record.outcome, ticks: record.ticks, location, taken, record: text });
-  if (error) throw Error(error.code === '23505' ? 'today\'s result is already posted' : error.message || 'the daily warden refused the result');
+  if (error) throw Error(error.code === '23505' ? 'today\'s result is already posted' : error.message || 'the daily duel refused the result');
 }
 
 // The board's five lines from the server's summary; the ranking is the server's (verified first), the client only names the lines
