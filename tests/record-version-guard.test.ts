@@ -14,8 +14,8 @@ import { RECORD_VERSION } from '../src/record.ts';
 // opponent AI, the fixed-step loop and the record codec itself. Presentation files are deliberately absent — a new sound or a
 // different camera does not change the fight.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts'];
-const SIM_DIGEST = '371c3592db3e9713604ae21625200afc70bd9b4e26810dd05f0e3d34ae1d0ac0';   // re-pinned WITH a bump (3 -> 4) on 2026-09-22: Brief 13's whip tell adds events to the duel stream, so an old record replays a fight whose whip never rose. The previous pin was #439's re-pin WITHOUT a bump (ai.ts line breaks + a rename, replay digest identical over 180 fights) — that rule still stands: a re-pin without a bump needs a receipt that behaviour is unchanged.
-const PINNED_FOR_VERSION = 4;
+const SIM_DIGEST = '713efc1788da6911faa2fcde10c222a8a3694960bb13f29cbe2fc30ca7f4eb55';   // re-pinned WITH a bump (4 -> 5) on 2026-09-22: the batched weapon-data flip (knife thrust recovery 15 -> 20, scythe heel-jab 18 -> 30). Previous: re-pinned WITH a bump (3 -> 4) on 2026-09-22: Brief 13's whip tell adds events to the duel stream, so an old record replays a fight whose whip never rose. The previous pin was #439's re-pin WITHOUT a bump (ai.ts line breaks + a rename, replay digest identical over 180 fights) — that rule still stands: a re-pin without a bump needs a receipt that behaviour is unchanged.
+const PINNED_FOR_VERSION = 5;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const hash = createHash('sha256');

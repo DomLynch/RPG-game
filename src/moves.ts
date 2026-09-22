@@ -186,11 +186,14 @@ export type AiProfile = {
 // not a rule change.
 export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
 export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
-export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; placeholder?: true;
+export type Grip = 'one-hand' | 'two-hand';   // how many hands the weapon needs. DATA ONLY: nothing in the sim reads it, no reach/timing/damage
+// depends on it, and no fairness row moves with it. The Veteran shield's stow logic reads it (a two-hander stows the shield to the back, a
+// one-hander brings it up) — the shield brief's field, added here 2026-09-22 so it rides the batch's RECORD_VERSION bump instead of paying a second.
+export type Weapon = { id: WeaponId; moves: Record<MoveId, MoveDef>; paths: Record<PathId, PathSpec>; guard: 'blade' | 'shaft'; material: Material; reach: number; grip: Grip; placeholder?: true;
   guardProfile?: Partial<GuardProfile>;   // how this weapon's guard takes a blow (absent = the longsword defaults in RULES)
   fight: { thrustShare: number; close: number };   // the warden's stance with it: share of non-cut openers that are thrusts (the first is always a heavy); the gap it closes to for a cut or a heavy
 };
-export const LONGSWORD: Weapon = { id: 'longsword', moves: MOVES, paths: PATHS, guard: 'blade', material: 'iron', reach: MOVES.thrust.reach, fight: { thrustShare: .2, close: 1.15 } };   // the thrust's real job is the stop-hit, so it is a minority opener
+export const LONGSWORD: Weapon = { id: 'longsword', moves: MOVES, paths: PATHS, guard: 'blade', material: 'iron', reach: MOVES.thrust.reach, grip: 'two-hand', fight: { thrustShare: .2, close: 1.15 } };   // the thrust's real job is the stop-hit, so it is a minority opener
 
 // ── Trident (weapons lane, 2026-09-16): the Veteran's short trident, a different fight from the longsword — reach and thrusts, weak
 // inside the point. Rig: src/assets/veteran.glb, built with WARRIOR_WEAPON=trident (WeaponDrawn, contact = the tines). The move ids keep the
@@ -233,7 +236,7 @@ const TRIDENT_MOVES: Record<MoveId, MoveDef> = {
 };
 // The shaft guard pays 15 % more for every block and a plain overhead heavy breaks it (the blade guard
 // only breaks to a charged one); the Veteran opens with the thrust three times in five and closes to sweep range, not the sword's cutting range.
-export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .6, close: 1.4 } };
+export const TRIDENT: Weapon = { id: 'trident', moves: TRIDENT_MOVES, paths: TRIDENT_PATHS, guard: 'shaft', material: 'bronze', reach: TRIDENT_MOVES.thrust.reach, grip: 'one-hand', guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .6, close: 1.4 } };
 
 // ── Cleaver (weapons lane, 2026-09-16): the Pitborn's. "A fat scythe-type cleaver, wider and the same length as the longsword" (owner):
 // it rides the LONGSWORD'S CLIP FAMILY (Attack / Return / Heavy / Riposte on its own rig, src/assets/weapons/cleaver/veteran-cleaver.glb,
@@ -271,7 +274,7 @@ const CLEAVER_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, windup: 22, active: 6, recovery: 29, damage: 46, reach: 1.9 },
   kick: MOVES.kick,
 };
-export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLEAVER_PATHS, guard: 'blade', material: 'iron', reach: CLEAVER_MOVES.thrust.reach, fight: { thrustShare: .1, close: 1.15 } };   // the poke is a rare opener (one non-cut opener in ten); he closes to the sword's cutting range for his chops
+export const CLEAVER: Weapon = { id: 'cleaver', moves: CLEAVER_MOVES, paths: CLEAVER_PATHS, guard: 'blade', material: 'iron', reach: CLEAVER_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .1, close: 1.15 } };   // the poke is a rare opener (one non-cut opener in ten); he closes to the sword's cutting range for his chops
 // ── Knife (weapons lane, 2026-09-17): the goblin's short hooked knife — a sica (forward grip, inward hook, double-edged over the hook) on
 // the goblin's own re-proportioned rig, src/assets/goblin.glb (WeaponDrawn, contact = the blade .12–.52; 0.81× in his
 // hand → a 0.42 m blade). The sword's clip family (only Heavy re-keyed as the diagonal hack, as the cleaver's). Timings are the character
@@ -286,7 +289,7 @@ export const KNIFE_PATHS: Record<PathId, PathSpec> = {
   light_left_chain: { clip: 'Return', source: .34, windup: 12, active: 6, recovery: 14 },
   heavy_overhead: { clip: 'Heavy', source: .48, windup: 22, active: 5, recovery: 26 },
   heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 26 },
-  thrust: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
+  thrust: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 20 },   // recovery follows KNIFE_MOVES.thrust (15 -> 20, 2026-09-22): the clip retime is presentation, but a path shorter than the move leaves the stab looking recovered while the sim still holds him
   slash_riposte: { clip: 'Attack', source: .34, windup: 12, active: 4, recovery: 15 },
   riposte: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
   heavy_riposte: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 20 },
@@ -299,7 +302,14 @@ const KNIFE_MOVES: Record<MoveId, MoveDef> = {
   light_right: slash('light_right'),
   light_left: slash('light_left'),   // the backhand: the hook's outer edge is sharpened, so it cuts too (a rip)
   heavy_overhead: { ...MOVES.heavy_overhead, chained: { windup: 16, active: 5, recovery: 26 }, windup: 22, active: 5, recovery: 26, damage: 14, stamina: 26, staminaDamage: 20, stagger: 20, poise: 0, poiseFrom: 0, chip: .2, knockback: 3, stepIn: .55, feintUntil: 8, posture: 24, chamber: 7, reach: 1.55 },
-  thrust: { ...MOVES.thrust, windup: 12, active: 4, recovery: 15, damage: 9, stamina: 14, staminaDamage: 12, stagger: 14, knockback: 2, stepIn: 1, feintUntil: 5, posture: 12, chamber: 5, reach: 1.45 },
+  // Recovery 20, not the 15 it shipped with (weapons lane, 2026-09-22). The wind-up stays 12 — the fastest tell in the game and the floor
+  // his brief sets for readability — so the stab still FEELS like a knife; what changes is that a whiffed poke is now punishable. At 15 it
+  // was not: "thrust from range" beat the Veteran 18/24 and the Goblin 15/24 (caps 12) by poking and being home before either could answer.
+  // 20 is the ONLY value that clears both rows with margin AND keeps the Goblin's own fight-length pin (he wields this knife): 15 -> rows
+  // 18F/15F, median 42.8 s; 16 -> 8/12, median 47.5 OVER; 17 -> 10/13F; 18 -> 8/11, median 44.7; 19 -> 5/16F; 20 -> 5/6, median 44.6;
+  // 21 -> 3/4, median 48.5 OVER. Wind-up is the wrong lever and was measured as such (13 -> 22/19, 14 -> 24/24, 15 -> 1/23, 16 -> 2/24):
+  // it shifts the tell in and out of each warden's read window, non-monotonically. Total commitment 12+20 = 32 still undercuts the sword's 37.
+  thrust: { ...MOVES.thrust, windup: 12, active: 4, recovery: 20, damage: 9, stamina: 14, staminaDamage: 12, stagger: 14, knockback: 2, stepIn: 1, feintUntil: 5, posture: 12, chamber: 5, reach: 1.45 },
   slash_riposte: { ...MOVES.slash_riposte, windup: 12, active: 4, recovery: 15, damage: 18, stamina: 16, feintUntil: 5, reach: 1.2 },
   riposte: { ...MOVES.riposte, windup: 12, active: 4, recovery: 15, damage: 18, stamina: 16, feintUntil: 5, reach: 1.2 },
   heavy_riposte: { ...MOVES.heavy_riposte, windup: 16, active: 5, recovery: 20, damage: 22, stamina: 26, feintUntil: 6, reach: 1.55 },
@@ -307,7 +317,7 @@ const KNIFE_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, windup: 16, active: 5, recovery: 20, damage: 30, stamina: 20, reach: 1.55 },   // the brief's table said 26; a sword's critical costs 25 and the knife's must not cost more
   kick: MOVES.kick,
 };
-export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PATHS, guard: 'blade', material: 'iron', reach: KNIFE_MOVES.thrust.reach, fight: { thrustShare: .4, close: 1.0 } };   // a knife fighter stabs often and closes inside a sword's cutting range — the combat lane's to tune with his knobs
+export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PATHS, guard: 'blade', material: 'iron', reach: KNIFE_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .4, close: 1.0 } };   // a knife fighter stabs often and closes inside a sword's cutting range — the combat lane's to tune with his knobs
 // ── Estoc (weapons lane, 2026-09-17): the Nightborn's — a long, thin, thrust-first blade with no cutting edge (his brief, "Weapon: estoc").
 // Rig: src/assets/weapons/estoc/nightborn-estoc.glb — his own body, EVERY clip byte-identical to nightborn.glb (no re-key: nothing to lead
 // with), only WeaponDrawn under hand_r changes; contact = the last 40 cm (.75–1.15), the point. The sword's clip family and the sword's
@@ -329,7 +339,7 @@ const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, reach: 1.9 },
   kick: MOVES.kick,
 };
-export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
+export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
 // ── Scythe (weapons lane, 2026-09-18): the Executioner's, baked from src/assets/weapons/scythe/warrior-scythe.glb (the man-scale bake
 // rig — the cleaver convention). Everything is an arc — the REAP is the horizontal cut (the
 // edge sweeps chest height), the HIGH is the headsman's diagonal, the THRUST is the heel-jab (a scythe has no point; the Stab button's
@@ -348,7 +358,7 @@ export const SCYTHE_PATHS: Record<PathId, PathSpec> = {
   light_left_chain: { clip: 'Scythe_Reap', source: .34, windup: 18, active: 8, recovery: 20 },
   heavy_overhead: { clip: 'Scythe_High', source: .48, windup: 36, active: 5, recovery: 33 },     // the headsman's diagonal: a giant's mass, a 600 ms tell
   heavy_overhead_chain: { clip: 'Scythe_High', source: .48, windup: 24, active: 5, recovery: 33 },
-  thrust: { clip: 'Scythe_Thrust', source: .34, windup: 14, active: 4, recovery: 18 },           // the heel-jab: quick, short, no chip
+  thrust: { clip: 'Scythe_Thrust', source: .34, windup: 14, active: 4, recovery: 30 },           // the heel-jab: quick to come out, no chip; recovery follows SCYTHE_MOVES.thrust (18 -> 30, 2026-09-22) so the clip does not finish 200 ms before the sim lets him act
   slash_riposte: { clip: 'Scythe_Reap', source: .34, windup: 12, active: 5, recovery: 19 },
   riposte: { clip: 'Scythe_Chain', source: .30, windup: 12, active: 5, recovery: 19 },           // the payoff off a parry: the head whips across
   heavy_riposte: { clip: 'Scythe_High', source: .48, windup: 22, active: 5, recovery: 25 },
@@ -365,7 +375,16 @@ export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
   // no chip, half a cut's damage. Chains into the reap (jab, then the arc).
   thrust: {
     id: 'thrust', direction: 'thrust', path: 'thrust', chainPath: null, chained: null, chain: { window: 14, follow: ['light_right'] },
-    windup: 14, active: 4, recovery: 18, damage: 8, stamina: 18, staminaDamage: 14, stagger: 16, poise: 0, poiseFrom: 0,
+    // Recovery 30, not the 18 it shipped with (weapons lane, 2026-09-22). Wind-up stays 14 — the jab still COMES OUT quick, which is the
+    // trait the brief names; what changes is that a whiffed jab is punishable. At 18 it was not: "thrust from range" beat the Veteran
+    // 19/24 and the Goblin 16/24 (caps 12) by jabbing at 2.1 m and being home before either could answer.
+    // Recovery is a real gradient here, unlike the cleaver's levers: 18 -> 19F/16F; 26 -> 16F/18F; 27 -> 17F/18F; 28 -> 12/12 (passing,
+    // but EXACTLY on the cap, margin 0); 29 -> 11/8; 30 -> 8/6; 31 -> 1/4; 32 -> 17F/1. So 28-31 is a contiguous passing interior and 30
+    // is its centre with margin 4 and 6 — not an isolated tick. Wind-up is the wrong lever and was measured as such (16 -> 0/24F,
+    // 18 -> 0/20F, 20 -> 0/0, 22 -> 0/0): the Veteran column falls 19 -> 0 between 14 and 16, a read-window cliff rather than a gradient,
+    // and raising the tell is exactly the trait the brief protects. The Executioner WIELDS this scythe and his own fight-length pin is
+    // clear at every candidate (median 27.0 s at 30, range 16.2-41.0, against an 18-45 s pin; untouched median is 25.9 s).
+    windup: 14, active: 4, recovery: 30, damage: 8, stamina: 18, staminaDamage: 14, stagger: 16, poise: 0, poiseFrom: 0,
     breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: .8, feintUntil: 8, reach: 2.1, vsGuard: null, posture: 12, chamber: 6, charges: false,   // the measured bake frontier (2.10): the heel-jab reaches like the reap — spacing and interrupt, not a point
   },
   slash_riposte: { ...MOVES.slash_riposte, path: 'slash_riposte', windup: 12, active: 5, recovery: 19, reach: 2.1, minReach: 1.4 },
@@ -375,7 +394,7 @@ export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
   critical: { ...MOVES.critical, path: 'heavy_riposte' },
   kick: MOVES.kick,
 };
-export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE_PATHS, guard: 'shaft', material: 'iron', reach: SCYTHE_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 2.0 } };   // the jab is a rare opener (one in ten); he HOLDS the arc's edge at 2.0 m and reaps — the player must time the approach through the tell, never inside a metre and a half (owner 2026-09-18: "this weapon should hit you from far away; you need to time your attack to get in close")
+export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE_PATHS, guard: 'shaft', material: 'iron', reach: SCYTHE_MOVES.thrust.reach, grip: 'two-hand', guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 2.0 } };   // the jab is a rare opener (one in ten); he HOLDS the arc's edge at 2.0 m and reaps — the player must time the approach through the tell, never inside a metre and a half (owner 2026-09-18: "this weapon should hit you from far away; you need to time your attack to get in close")
 // The weapons lane delivers a weapon unused; the combat lane puts it in the fight (which slice landed what: docs/state/combat.md).
 // The cleaver is baked at a man's 1.0× from veteran-cleaver.glb, never the Pitborn's 1.13× (his rendered blade runs ~10 cm past the
 // simulated one, never the other way; a 1.13× bake let no backstep escape him). The knife is baked from the goblin's own rig
@@ -384,7 +403,7 @@ export const SCYTHE: Weapon = { id: 'scythe', moves: SCYTHE_MOVES, paths: SCYTHE
 const creaturePaths = (paths: Record<PathId, PathSpec>, prefix: string): Record<PathId, PathSpec> => Object.fromEntries(
   Object.entries(paths).map(([id, spec]) => [id, { ...spec, clip: `${prefix}_${id.includes('heavy') ? 'Heavy' : id === 'thrust' || id === 'riposte' ? 'Thrust' : 'Slash'}` }]),
 ) as Record<PathId, PathSpec>;
-const MAUL: Weapon = { ...CLEAVER, id: 'maul', moves: { ...CLEAVER_MOVES, thrust: { ...CLEAVER_MOVES.thrust, stepIn: .3, reach: 1.4 } }, paths: creaturePaths(CLEAVER_PATHS, 'Maul'), guard: 'shaft', material: 'wood', fight: { thrustShare: .1, close: 1.15 } };
+const MAUL: Weapon = { ...CLEAVER, id: 'maul', grip: 'two-hand', moves: { ...CLEAVER_MOVES, thrust: { ...CLEAVER_MOVES.thrust, stepIn: .3, reach: 1.4 } }, paths: creaturePaths(CLEAVER_PATHS, 'Maul'), guard: 'shaft', material: 'wood', fight: { thrustShare: .1, close: 1.15 } };
 // The Wraith reaps with a long crescent; stepping inside its edge earns a kick/backstep, not a phantom close hit.
 // The Dwarf's warhammer (weapons lane part + Warhammer_* clips, 2026-09-20; Combat slice, owner: "less dangerous and balanced with the
 // other weapons", hammer identity kept). Blunt, on the cleaver-family clips: symmetrical 15-point swings that shove (posture 30, no chip),
@@ -401,8 +420,8 @@ const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
   heavy_riposte: { ...CLEAVER_MOVES.heavy_riposte, damage: 24 }, heavy_counter: { ...CLEAVER_MOVES.heavy_counter, damage: 14 },
   critical: { ...CLEAVER_MOVES.critical, damage: 34 },
 };
-const WARHAMMER: Weapon = { id: 'warhammer', moves: WARHAMMER_MOVES, paths: creaturePaths(CLEAVER_PATHS, 'Warhammer'), guard: 'shaft', material: 'iron', reach: WARHAMMER_MOVES.thrust.reach, guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.15 } };
-const REAPER: Weapon = { ...ESTOC, id: 'reaper', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
+const WARHAMMER: Weapon = { id: 'warhammer', moves: WARHAMMER_MOVES, paths: creaturePaths(CLEAVER_PATHS, 'Warhammer'), guard: 'shaft', material: 'iron', reach: WARHAMMER_MOVES.thrust.reach, grip: 'two-hand', guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.15 } };
+const REAPER: Weapon = { ...ESTOC, id: 'reaper', grip: 'two-hand', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
 export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, its own KNIFE_MOVES / KNIFE_PATHS on his rig (#86; artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 // The weapons a player can carry (Brief 5 loot): each has an equip file under src/assets/weapons/player and a bake on the hero rig
@@ -411,8 +430,11 @@ export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'kni
 // The weapons a player may be OFFERED (loot, paperdoll, equip): a subset of PLAYER_WEAPONS with no pairing over a cap in the 24-seed player
 // weapon battery (scripts/player-weapon-battery.mjs; tests/player-weapons.test.ts derives the excluded set from that table). Combat signed
 // the table 2026-09-21: the warhammer is fair on every live rung and is the first loot weapon; after the warden reach fix (combat/warden-reach)
-// the trident is clean on every rung too. Cleaver, knife, estoc and scythe wait on the table's over-cap list (see KNOWN_UNFAIR there).
-export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident'];
+// the trident is clean on every rung too. The SCYTHE joined them on 2026-09-22: its heel-jab recovery went 18 -> 30 and both of its
+// "thrust from range" rows left the list, so it has no pairing over a cap at any rung. This list is not a taste call — the test derives
+// the excluded set from the table and REQUIRES a weapon with no row to be offered, so the entry follows the measurement. Cleaver, knife
+// and estoc still wait on the over-cap list (see KNOWN_UNFAIR there), and each of their remaining rows is Combat's, not weapon data.
+export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident', 'scythe'];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.

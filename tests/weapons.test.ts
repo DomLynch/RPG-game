@@ -32,7 +32,7 @@ test('the live duel: the player carries the longsword and the Veteran the triden
 test('a second weapon with a longer reach resolves contact from its own table: the trident lands a thrust from where the longsword whiffs, costs its own stamina, and the AI-facing reach follows it', () => {
   // A synthetic trident for the test only: the longsword's moves and paths, with the thrust's reach and cost changed, and its blade paths
   // stretched 0.5 m forward along the thrust so the baked contact really is longer (the sim sweeps the table, not the number).
-  const trident: Weapon = { id: 'trident', guard: 'shaft', material: 'bronze', reach: 2.5, moves: { ...MOVES, thrust: { ...MOVES.thrust, reach: 2.5, stamina: 30 } }, paths: PATHS, fight: LONGSWORD.fight };
+  const trident: Weapon = { id: 'trident', guard: 'shaft', material: 'bronze', reach: 2.5, grip: 'one-hand', moves: { ...MOVES, thrust: { ...MOVES.thrust, reach: 2.5, stamina: 30 } }, paths: PATHS, fight: LONGSWORD.fight };
   const stretched = Object.fromEntries(Object.entries(bladePathsByRig.hero.longsword).map(([k, frames]) => [k, k === 'thrust' ? frames.map(f => [f[0], f[1], f[2] + .5, f[3], f[4], f[5] + .5]) : frames]));
   const before = { weapon: WEAPONS.trident, paths: bladePathsByRig.hero.trident };
   WEAPONS.trident = trident; bladePathsByRig.hero.trident = stretched;
