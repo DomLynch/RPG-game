@@ -1544,6 +1544,54 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
   white-space: nowrap;
   touch-action: manipulation;
 }
+/* Share this fight (owner 2026-09-22, from a phone still): the round pill overlapped its own status and competed with Next. It
+   stays a button (a 44 px tap target) but reads as a text link — underlined, the autopsy's face and colour, no pill — sitting
+   above Next/Rematch and right-aligned with it, so Next stays the one big control. The status ("Shared." / "Link copied." /
+   an error) takes the link's place for ~2 s (main.ts say()) instead of floating beside it: #share-status is laid over the
+   same box, right-aligned, and while it shows the link's own label goes transparent — the button underneath stays tappable, so
+   a persisting error ("Could not share: …") still lets the player try again. Long text grows upward over the sleeping combat
+   buttons, never down into Next. */
+#actions .share-button {
+  position: static;
+  width: auto;
+  height: auto;
+  min-height: 44px !important;
+  padding: 0 6px !important;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #efe6d3;
+  font: 13px Georgia, "Iowan Old Style", "Times New Roman", serif;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+  cursor: pointer;
+}
+#actions .share-button:active { background: none; transform: none; }
+#actions .share-button:has(+ .share-status:not([hidden])) { color: transparent; text-decoration-color: transparent; text-shadow: none; }
+@media (max-width: 900px), (pointer: coarse) {
+  /* Above Next/Rematch (left:0, top:75px, 176×56 in the 184×216 cluster box): the link's 44 px box ends where Next begins. */
+  .actions[data-gestures=cluster] #share-button {
+    position: absolute;
+    left: auto;
+    right: 8px;
+    top: 31px;
+    height: 44px;
+    font-size: 12px;
+  }
+  .actions[data-gestures=cluster] #share-status {
+    position: absolute;
+    right: 14px;
+    bottom: 141px;
+    max-width: 170px;
+    margin: 0;
+    text-align: right;
+    font: 12px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
+    text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+    opacity: 1;
+  }
+}
 /* The death-screen autopsy (src/autopsy.ts): at most two plain lines. Docked in the top band under the health bars with the
    fight hint, not floating over the arena (owner 2026-09-22: the centred overlay hid the gore and the finisher). In-flow inside
    .combat-hud (.combat-hud p already gives it the 8 px top margin); left-aligned, pointer-events off like the rest of the HUD.
@@ -1578,10 +1626,11 @@ dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff
 .daily-board li[data-you='true'] { margin: 0 -8px; padding: 9px 8px; border-radius: 8px; background: #fff; border-bottom: 0; box-shadow: inset 0 0 0 1px var(--jl); }
 .share-status {
   display: block;
-  color: #e9ddc5;
+  color: #efe6d3;
   font: 12px Arial;
   opacity: 0.8;
   overflow-wrap: anywhere;
+  pointer-events: none;
 }
 
 /* The drop (brief 5): the piece's name docks in the top band next to the autopsy (owner 2026-09-22, same move as .autopsy above:
@@ -1607,14 +1656,15 @@ dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#autopsy, #loot-drop, #loot-choice, #reset-button, #share-button {
+#autopsy, #loot-drop, #loot-choice, #reset-button, #share-button, #share-status {
   transition: opacity 250ms ease-out;
 }
 :root.endgame-fade #autopsy,
 :root.endgame-fade #loot-drop,
 :root.endgame-fade #loot-choice,
 :root.endgame-fade #reset-button,
-:root.endgame-fade #share-button {
+:root.endgame-fade #share-button,
+:root.endgame-fade #share-status {
   opacity: 0;
 }
 :root.endgame-fade #loot-choice,
@@ -1623,7 +1673,7 @@ dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #autopsy, #loot-drop, #loot-choice, #reset-button, #share-button { transition: none; }
+  #autopsy, #loot-drop, #loot-choice, #reset-button, #share-button, #share-status { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the
