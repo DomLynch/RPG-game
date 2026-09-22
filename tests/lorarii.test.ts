@@ -23,9 +23,20 @@ test('six guards, equal spacing: each paces inside his own sixth, none crosses i
   }
 });
 
-test('the pace is a slow walk: never faster than ~0.6 m/s along the wall', () => {
+test('the patrol moves at Pace\'s own ground speed, so the feet never skate (Multi Chars measured 0.963 m/s off guard.glb)', () => {
+  // Walking them slower than the clip is what makes a walk cycle slide; the clip's speed is the constraint, not a taste call.
+  // Every guard walks the same speed (only his phase differs), so one timeScale of 1 serves all six.
+  let folds = 0;
+  // A leg ends when the wave crosses u = 0 or u = 0.5; the turn falls between two samples there, so that one step is short.
+  // Identified from the wave itself, not from the number it produces, so a stall could never be mistaken for a turn.
+  const period = 4 * LORARII.reach * LORARII.radius / LORARII.speed;
+  const leg = (i: number, tick: number) => Math.floor(2 * ((((tick / 60) / period) + i * 0.29) % 1));
   for (let i = 0; i < LORARII.count; i++) for (let tick = 0; tick < 60 * 60; tick++) {
+    if (leg(i, tick) !== leg(i, tick + 1)) { folds++; continue; }
     const v = Math.abs(lorariusAngle(i, tick + 1) - lorariusAngle(i, tick)) * LORARII.radius * 60;
-    assert.ok(v < 0.6, `guard ${i} tick ${tick}: ${v.toFixed(3)} m/s`);
+    assert.ok(Math.abs(v - LORARII.speed) < 0.02, `guard ${i} tick ${tick}: ${v.toFixed(3)} m/s, want ${LORARII.speed}`);
   }
+  // One straddling sample per leg and no more: if the wave ever stalled or jittered, this count would blow up.
+  const legs = Math.ceil(60 * 60 / (period / 2 * 60)) * LORARII.count;
+  assert.ok(folds <= legs + LORARII.count, `${folds} reversal samples, at most one per leg (${legs})`);
 });

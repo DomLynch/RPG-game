@@ -121,7 +121,12 @@ window.__finisher = {
       return {name:half.name,visible:half.visible,opacity:half.getObjectByName('CreatureBody')?.material.opacity ?? 1,min:box.min.toArray(),max:box.max.toArray(),caps:half.children.filter(o=>o.name==='WaistCut').length,
         frame:[box.min.x,box.max.x].flatMap(x=>[box.min.y,box.max.y].flatMap(y=>[box.min.z,box.max.z].map(z=>view.project([x,y,z]))))};
     });
-    const actors = renderedScene?.children.filter(o => o.getObjectByName('pelvis')) ?? [];
+    // The two fighters: a top-level scene child with a 'pelvis' bone. The arena group is excluded by name because it now
+    // carries skinned rigs of its own - the six lorarii on the walkway (Brief 13) are built on the hero skeleton, so the
+    // arena itself answers getObjectByName('pelvis') and would count as a third actor, leaving framing undefined and
+    // every framing assertion reading it off undefined. Scenery is not an actor; the fighter assertions stay exactly as
+    // strict, and a genuine third FIGHTER would still be caught here.
+    const actors = renderedScene?.children.filter(o => o.name !== 'arena' && o.getObjectByName('pelvis')) ?? [];
     if(detachedHead && actors[0]) {
       actors[0].traverse(o=>{if(o.isSkinnedMesh){o.computeBoundingSphere();o.computeBoundingBox();}});
       const toward=headBox.getCenter(new Vector3()).sub(renderedCamera.position);

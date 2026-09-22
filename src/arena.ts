@@ -395,6 +395,7 @@ export function buildArena(scene: THREE.Scene): Arena {
   // camera sees a narrow sector of the far tiers, so most of the 300 figures never reach the vertex shader (audit 2026-09-20).
   const frustum = new THREE.Frustum(), viewProjection = new THREE.Matrix4(), seat = new THREE.Sphere(new THREE.Vector3(), 1.2);
   function update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView) {
+    wantGuards();
     lorarii.update(dt, events, sim, camera);   // the six whip-guards on the walkway (src/lorarii.ts, Brief 13)
     const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
@@ -431,7 +432,22 @@ export function buildArena(scene: THREE.Scene): Arena {
       mesh.instanceMatrix.needsUpdate = true;
     }
   }
-  const lorarii = buildLorarii(group);
+  const lorarii = buildLorarii(group);   // the placeholder capsules
+  // guard.glb (Brief 13): the six wear their real bodies, on every tier including the phone - the owner plays on an iPhone
+  // and the capsules do not read as guards (2026-09-22). Fetched AFTER first paint, never on the boot path: it broke
+  // deploy #105 when it loaded during boot, and a player's first frame should not wait on six figures on a wall. The
+  // capsules carry the wall until it lands and stay if it fails, and `?guards=<n>` caps how many are built.
+  let guardsAsked = false;
+  function wantGuards() {
+    // Early, while the player is still reading the welcome card: after first paint (never the boot path, that was deploy
+    // #105) but well before a fight, so the GLB's parse cannot land mid-exchange. Deferring it INTO the fight was worse -
+    // measured, the parse stalled the main thread while quiet-one-browser-check was tapping the canvas and it timed out
+    // waiting for the element to go stable. A hitch a harness can see is a hitch a player feels.
+    if (guardsAsked || typeof document === 'undefined') return;
+    guardsAsked = true;
+    const fetchThem = () => void import('./assets/guard.glb?url').then((m) => lorarii.bodies(m.default)).catch(() => { /* the capsules stay */ });
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(fetchThem, { timeout: 4000 }); else setTimeout(fetchThem, 1200);
+  }
   update(0, []);
   const props = loadArenaProps(group, phone, (what) => { if (what === 'gateBars') gateBars.visible = false; });
   return {
