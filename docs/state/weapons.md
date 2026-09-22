@@ -76,6 +76,58 @@ verified on this surface, which is what makes any difference between two lanes r
 State: ready on `weapons/knife-thrust-recovery` (a078af6), snapshot updated, full suite 491/494 (2 skips are the char lane's hand pins),
 the ONLY failure the version guard — deliberately red, by the lead's ruling, until the batch lands. Not merged.
 
+## Scythe flip prep — heel-jab recovery 18 → 30, both rows cleared, the scythe is offerable (weapons lane, 2026-09-22) — FIXED
+The last of Combat's four. The scythe's two `thrust from range` rows (Veteran 19/24, Goblin 16/24, cap 12) were scythe data, the same
+shape as the knife's: the heel-jab reaches 2.10 m and at recovery 18 it was home before either warden could answer, so a jabber parked at
+range and never paid. Recovery 18 → 30 clears both with margin (8/24, 6/24). Wind-up stays 14 — the jab still *comes out* quick, which is
+the trait the brief names ("quick, short… spacing and interrupt tool"); what changes is that a whiffed jab is punishable.
+
+**This one has an interior, which is why it is payable where the cleaver and estoc were not.** Recovery, 24 seeds, normal, cap 12:
+
+| recovery | Veteran | Goblin | |
+|---|---|---|---|
+| 18 (shipped) | 19 | 16 | FAIL |
+| 26 | 16 | 18 | FAIL |
+| 27 | 17 | 18 | FAIL |
+| 28 | 12 | 12 | passes, but **exactly on the cap** — margin 0 |
+| 29 | 11 | 8 | passes |
+| **30** | **8** | **6** | **passes, margin 4 and 6 — taken** |
+| 31 | 1 | 4 | passes |
+| 32 | 17 | 1 | FAIL |
+
+28–31 is contiguous and graded, and 30 is its centre with both neighbours passing. That is the opposite of the cleaver's surface (22 fails
+at 17, 21 and 20 pass at 11, 19 fails at 18 — one tick either way flips it) and of the estoc's. The two reasons that parked those two —
+non-monotonic, and zero-ish margin — are both absent here, so the change was taken rather than handed back.
+
+**Wind-up is the wrong lever and was measured as such** (recovery held at 18): 16 → 0/24 FAIL, 18 → 0/20 FAIL, 20 → 0/0, 22 → 0/0. The
+Veteran column falls 19 → 0 between wind-up 14 and 16 — a read-window cliff, not a gradient — and 20/22 would clear both rows with a huge
+margin for exactly the wrong reason: the tell moves out of the warden's read window. Raising it also costs the trait the brief protects.
+
+**The Executioner wields this scythe, so his side was measured before the change was taken** (AI vs AI, 24 seeds, the `18–45 s` pin):
+median 25.9 s untouched, 27.4 at 28, 27.7 at 29, **27.0 at 30**, 27.9 at 31; range 16.2–41.0 s at 30, no unfinished fights at any value.
+Unlike the Goblin's pin under the knife change (44.6 s against a 45 s ceiling — luck, and flagged as such), this one has real headroom.
+
+**One other row moved through him**: `cleaver vs executioner normal: light spam` 17/24 → **18/24**. Over the cap either way and its cause is
+unchanged (his read of a 22-tick tell, the entry below), so the cleaver's diagnosis and its hand-over to Combat both still stand — but the
+number in that entry's table is now 18, not 17. Snapshot updated; **needs Combat's re-signature together with the knife's**.
+
+**The scythe now has no over-cap row at any rung, so it enters `PLAYER_WEAPONS_OFFERED`.** That is not a taste call: the test derives the
+excluded set from the table and asserts that a weapon with no row *must* be offered, so the list follows the measurement. Offered is now
+longsword, warhammer, trident, scythe.
+
+Also finishes the knife change from `1bb9153`: `KNIFE_MOVES.thrust` went to recovery 20 but `KNIFE_PATHS.thrust` stayed at 15. The path
+tables drive the clip retime (`clipSpec`, `src/combat.ts`), not the sim — a path shorter than its move leaves the stab looking recovered
+for 5 ticks while the sim still holds the fighter. Both path tables now follow their moves. Presentation only, so no measurement re-opens.
+
+Every sweep ran an untouched control in the same process; it reproduced 19/24 and 16/24 exactly and restored to them after every patch
+(the control rule in the entry below — it is what caught the cleaver's asymmetric-light error).
+
+Evidence: `44d414e`. Gate 456/459 plus 93/93 slow, and the fairness table passes against the updated snapshot. The one failure is the
+`RECORD_VERSION` guard, red deliberately under the lead's ruling (a): one 3 → 4 bump for the whole remaining flip work, not one per weapon.
+Remaining validation: **Combat re-signs the snapshot** (this entry's cleaver row and the knife's three estoc/scythe rows); the batched PR
+carries the single `RECORD_VERSION` bump and `SIM_DIGEST` re-pin; the scythe has had no browser/feel pass as a *player* weapon — the
+recovery is 200 ms longer than shipped and that is a real change to how the jab reads in the hand, which the numbers cannot judge.
+
 ## Cleaver flip prep — the Executioner row is not payable in this lane either (weapons lane, 2026-09-22) — MEASURED, NOT FIXED
 Lead's item (1): clear `cleaver vs executioner normal: light spam wins 17/24` (cap 12) with a measured 24-seed battery. Re-run on trunk
 9f77fe4 — the row survives every trunk change since it was signed, still exactly 17/24. Every other cleaver pairing passes (veteran,
