@@ -15,7 +15,7 @@ import { awardMark, marksOf, rankFor } from './career.ts';
 import { PAPERDOLL, dropFor, emptyLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { readOpponent } from './ai.ts';
-import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailyBoard, loadDaily, postDaily, saveDaily, type DailyFight } from './daily.ts';
+import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily, type DailyFight } from './daily.ts';
 import { autopsy } from './autopsy.ts';
 import {
   initialPractice,
@@ -456,8 +456,8 @@ async function showDailyBoard() {
   try {
     const fight = await fetchDaily(api), rung = dailyOpponent(fight, LADDER), mine = loadDaily(storage, fight.day);
     status.textContent = `Daily #${fight.number} · ${rung.name} · ${mine.submitted ? 'posted' : mine.started ? 'attempt spent' : 'not fought yet'}`;
-    const rows = await fetchDailyBoard(api, fight.day);
-    board.replaceChildren(...dailyBoard(rows).map(({ title, row }) => {
+    const summary = await fetchDailySummary(api, fight.day);
+    board.replaceChildren(...dailyBoard(summary).map(({ title, row }) => {
       // Web design's two hooks (#331): the title in <b> so the columns split, and this device's own posted row marked (the public view carries no
       // user ids, so the match is the posted result itself: outcome, ticks and the fighter's display name).
       const li = document.createElement('li'), b = document.createElement('b'); b.textContent = title; li.dataset.verified = String(row ? row.verified : true);

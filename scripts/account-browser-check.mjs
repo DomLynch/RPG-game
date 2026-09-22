@@ -39,7 +39,10 @@ try {
     }
     // The journal's daily line (PR #327) asks the server on every journal open, guest or not: today's warden and the day's board.
     if (url.pathname === '/rest/v1/rpc/daily_fight') { assert.equal(request.method(), 'POST'); return json({ day: new Date().toISOString().slice(0, 10), number: 1, seed: 12345 }); }
-    if (url.pathname === '/rest/v1/daily_board') return json([]);
+    if (url.pathname === '/rest/v1/rpc/daily_board_summary') {   // the board is one server-side summary (migration 202609220007), never a page of rows
+      assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()), ['on_day']);
+      return json({ day: request.postDataJSON().on_day, fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: null, pending: 0 });
+    }
     assert.equal(url.pathname, '/rest/v1/fighter_profiles');
     assert.equal(url.searchParams.get('user_id'), request.method() === 'POST' ? null : `eq.${user.id}`);
     if (request.method() === 'GET') return failRead ? json({ message: 'Temporary service failure' }, 503) : json(row);
