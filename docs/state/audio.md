@@ -2,6 +2,61 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — 2026-09-22 (live a2a901b and after; owner's mix pass, jeer beds, Brief 13)
+
+### Now
+Nothing of the lane's own is open in CI. Next piece of work is Brief 13's remaining half: the whip split — a crack on Combat's
+`WhipRaised` (60 ticks before the first lash, 30 before repeats) and a lash on the existing `Whipped`, guard index 0–5 on both.
+Those events are not on trunk yet (`grep WhipRaised src/duel.ts` is empty); write against the names when Combat's PR lands.
+`#361`'s single crack is what ships until then. The wall-hugger jeer bed is already wired and live (below), so the whip split is
+the only Brief 13 audio item left.
+
+### Done today
+- `#377` armour-synth branch removed from `block()`/`block_perfect()` (owner: "the first 3 guard/block metal sounds, remove them
+  from the game"); each cue is now 4 variants, steel ring + shield clang.
+- `#383` CC0 "Hit Impact Sword 3" (freesound 547042, CogFireStudios) added to the `hit_flesh` rotation — 3 variants, the owner's
+  pick from three CC0 candidates.
+- `#417` then `#433` the weapon-landing gains: 1 → .75 → **.3** for `hit_flesh` / `hit_heavy` / `hit_kick`.
+- `#422` `COMBAT_LEVEL` .5·MIX → **.375·MIX** (owner: "reduce all combat noise by 25 %, keep the crowd, opening bell and death all
+  same"). `FINISH_LEVEL`, `ARENA_LEVEL` and the bell are untouched.
+- `#423` the crowd turns on a wall-hugger: `jeer_wall` ×3 in the arena bank (A low grumble → boos, B small-mob boos + wolf-whistles,
+  C procedural stamp-and-chant → boos; the owner picked all three "on rotation"), driven by `ArenaFrame.loiter` (0..1) with
+  `nextVariant` no-repeat and a .15 s release on 0. New CC0 pins: HowardV 264378, IAmAndyGoddard 393528. The murmur bed went 8 s →
+  6 s to keep the bank under its 450 KB gzip cap (427,161 B).
+
+### Open
+- Brief 13 whip split, blocked on Combat's `WhipRaised` / `Whipped` events (above).
+- `#341` (fatal-crowd check on the harness clock) is open and low priority by the owner's call ("ignore check 5, minor, polish
+  later"); check 5's "menu stops the live crowd source" is a known load-dependent flake, not a regression from that diff.
+- Auditer's grade-C findings #4–#8 (mix-pin drift test, stale comments/literals, SNR assertion, PR-description accuracy,
+  `bone_crack` aliasing a cut voicing) are backlog, unstarted.
+- The licensing row is closed for the sprite's two non-CC0 clips only in the sense that they are credited in `src/assets/README.md`;
+  the owner has not chosen credit-and-accept vs re-source. Jochi "shield" forbids redistribution outright — treat as live risk.
+
+### Gotchas
+- **A cue gain is not output dB.** The voice gains feed the bus compressor (`threshold -20`, `ratio 5`, `knee 10`) and then a ×2.1
+  makeup into the soft ceiling, and only *after* that does `COMBAT_LEVEL` scale the mix. The ceiling hands most of a pre-compressor
+  cut straight back: in the `#417` pass a nominal −2.5 dB on the hit cues landed as about **−1 dB** at the output, and every cue
+  rendered at the same peak. Measure with `node scripts/audio-preview.mjs --label <name>` (it renders the real graph offline and
+  prints LUFS-I / phone LUFS / peak per cue) before promising the owner a number. `COMBAT_LEVEL` is post-ceiling, so it *does* map
+  roughly linearly — it is the lever when the whole mix must move.
+- Measured hit-light vs blocked, LUFS-I, same probes: **−27.6 / −26.6** (this morning) → **−30.1 / −29.1** (`#422` live) →
+  **−34.2 / −29.1** (`#433`). Hits end ~5 dB under the guards instead of 1 dB over. −2.5 dB is inaudible on a handset; the older
+  note in this file ("go −8 dB or don't bother") held again.
+- Post-merge GitHub rows lie. Jobs that start after a PR merges fail at `actions/checkout` with `couldn't find remote ref
+  refs/pull/NNN/merge` — 13–14 red rows on `#377`/`#383`/`#422`/`#423` were all this, nothing ran. The deploy's own local pool
+  (33 checks over `.quality-gate.json` `release_commands`, `scripts/deploy.sh`) is the receipt that counts; the release-checks
+  workflow header says outright it "gates nothing".
+- `release-checks` skips on a plain push (the matrix is `workflow_dispatch` / labelled `pull_request`), so a "skipped" row is not
+  a pass. Lead gates on the labelled `pull_request` run.
+- Freesound downloads need no account: scrape the `hq` preview from the sound page
+  (`https://cdn.freesound.org/previews/<3-digit>/<id>_<user>-hq.mp3`); the `/download/` endpoint returns HTML. Read the licence on
+  the page itself before shipping and pin `sha256` in `src/assets/audio/SOURCES.json` (combat) or `arena-life.SOURCES.json` (bank).
+- The one-deployer hook blocks test suites, builds and browser checks while any `deploy.sh` runs; `git`, `gh` and single-file
+  tests stay allowed. `ps aux | grep deploy.sh` also matches other sessions' shell wrappers — check for a real `bash
+  scripts/deploy.sh` child, and its `CODEX_COMPANION_SESSION_ID`, before claiming a deploy is or isn't running.
+
+
 ## Combat audio takeover — 2026-09-19 (audio/reliable-playback, integration pending)
 Distinct original cloth/sand roll and backstep cues consume existing ActionStarted events. Existing impact recipes and four-call shell contract stay unchanged. Quiet/mute stop active sample and fallback sources; quiet blocks scheduling synchronously until unlock. First-variant selection includes region zero; room send no longer squares the cue gain.
 Evidence: artifacts/audio/takeover-{before,after}/REPORT.md and WAVs; artifacts/audio/takeover/NOTES.md and quality.log. Added optional --check to the real offline browser harness and registered it as a completion gate. AAC/Opus all 54 regions decode; forced first-format failure recovers; three exchange renders differ by at most one PCM rounding unit; eight stacked cues peak at -2.85 dBFS. Audio assets 605,004 B gzip, +60,706 B, within the 1 MB lane budget. Source/processing recorded in src/assets/README.md. Physical iPhone silent-switch checks, recorded Foley, continuous footsteps, ambience and music remain unverified/unimplemented. Required quality passed: 254/254 tests, lint/build/audit/budget and game browser; roster, Split Crown, estoc, counter-button and audio completion commands all passed. Branch prepared for PR; not deployed.
