@@ -40,6 +40,14 @@ Nothing in flight. Brief 13 (the six lorarii) is merged; Deploy is publishing cb
 - `Turn` is authored but never played (see Gotchas); if a patrol reversal ever wants it, the yaw-lerp has to go first.
 
 ### Gotchas (2026-09-22 — each one cost real time)
+- **Green on its own base is not green on trunk.** Two PRs whose diffs never touch the same LINES can merge cleanly into
+  code neither branch contained, and no per-branch CI ever runs the combination. Mine: #466 (the ?perf=1 overlay) ADDED
+  `get guards() { return lorarii.standing; }` to arena.ts while #467 (removing the guards) DELETED the lorarii it reads.
+  Both green on their own bases; trunk becec83 then failed `tsc --noEmit` with TS2304 and blocked every lane's build and
+  quality:stop until #485. The shape to watch is one PR adding a REFERENCE near another removing its REFERENT — renames,
+  deletions of shared symbols, cleanup PRs. If a gate fails in a file your branch does not touch, check trunk first
+  (`git show <trunk>:<file>`, tsc on a clean trunk checkout), tell the owning lane, and do not patch someone else's file —
+  that is exactly what the Pitborn lane did here and it saved the time.
 - **When you A/B a cost, make sure one arm actually has NONE of it.** I compared six guards against ONE guard, saw the same
   loading hitches, and told the lane "not the guards". Wrong: one guard already pays the first-pose price, so neither arm
   was a control. Against a genuine ZERO-guard build the worst frame from document start drops 974 -> 655 ms and frames over
