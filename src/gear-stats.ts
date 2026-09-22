@@ -16,7 +16,8 @@
 // a longsword tell is a longsword tell at every tier — which is why every number here is a damage multiplier and none is a duration.
 // The caps below are the whole of that promise and `tests/gear-stats.test.ts` holds them exactly.
 import { levelOf, type Tier } from './grades.ts';
-import { ARMOUR_SLOTS, WEAPON_SLOTS, isWeaponSlot, type LootSlot } from './loot.ts';
+import { ARMOUR_SLOTS, WEAPON_SLOTS, isWeaponSlot, slotOf, type Loot, type LootId, type LootSlot } from './loot.ts';
+import type { OpponentId } from './roster.ts';
 
 // The two multipliers a fight is fought with. Both scale damage — Attack what you deal, RES what you take, chip included — and
 // neither touches posture (`shake`) or any timing.
@@ -101,3 +102,35 @@ export function loadoutFor(kit: Kit): Loadout {
 // spelling it out.
 export const fullSet = (tier: Tier, weapon?: (typeof WEAPON_SLOTS)[number]): Kit =>
   Object.fromEntries([...ARMOUR_SLOTS.filter(slot => SLOT_WEIGHT[slot] > 0), ...(weapon ? [weapon] : [])].map(slot => [slot, tier]));
+
+// ---- what the player is actually wearing ----------------------------------------------------------------------------------------
+// A `LootId` is `<opponent>.<slot>` (src/loot.ts) and carries NO tier: which rung a given opponent's kit sits at is roster data, and
+// placing 60 opponents on the career ladder is a balance decision that belongs to the roster's owner, not to this table. So the tier
+// arrives as a FUNCTION rather than a field this module invents — Multi Chars' PR puts `Tier` on the opponent in the roster, and
+// `kitFrom(loot, tierOf)` is then called with a lookup into it. Written against that boundary before the field exists, so their side
+// lands as data plus a type and this side never needs a second tier of its own.
+export type TierOf = (opponent: OpponentId) => Tier | null | undefined;
+
+// The opponent a piece dropped from. The id's shape is pinned by `isLootId`, so the split is safe on anything that passed it.
+export const opponentOf = (id: LootId): OpponentId => id.split('.')[0] as OpponentId;
+
+// The equipped paperdoll as a `Kit`. A piece whose opponent has no tier yet is LEFT OUT, which resolves it to exactly 1.00 — the
+// identity, never a guess, and never a default rung that would quietly hand a player stats nobody decided. That matters while the
+// mapping does not exist: today every kit resolves naked, which is the honest answer and not a bug to paper over with a fallback.
+export function kitFrom(equipped: Loot['equipped'], tierOf: TierOf): Kit {
+  const kit: Kit = {};
+  for (const id of Object.values(equipped) as LootId[]) {
+    const tier = tierOf(opponentOf(id));
+    if (tier) kit[slotOf(id)] = tier;
+  }
+  return kit;
+}
+
+// The pair a screen shows, in WHOLE POINTS (brief 19 Addendum C: integers, never 1.15). Unsigned — the paperdoll reads `ATK 15 · RES 20`,
+// both as magnitudes of the tilt away from no gear, because they move in opposite directions and a sign on the pair reads as one being
+// a loss. The kill-screen take shows a SIGNED delta instead (brief 19 line 49, `+6 ATK` / `-4 RES`); that is a different screen and a
+// different function, and it is Web's copy either way — this returns numbers, not text.
+export const wholePoints = (l: Loadout): { atk: number; res: number } => ({
+  atk: Math.round((l.attack - 1) * 100),
+  res: Math.round((1 - l.res) * 100),
+});

@@ -6,7 +6,7 @@
 // crossing a layer boundary rather than extending a table.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CAPS, FULL_POINTS, NAKED, SLOT_WEIGHT, fullSet, loadoutFor, pointsFor, type Kit, type Loadout } from '../src/gear-stats.ts';
+import { CAPS, FULL_POINTS, NAKED, SLOT_WEIGHT, fullSet, kitFrom, loadoutFor, opponentOf, pointsFor, wholePoints, type Kit, type Loadout, type TierOf } from '../src/gear-stats.ts';
 import { TIERS, levelOf, type Tier } from '../src/grades.ts';
 import { ARMOUR_SLOTS, LOOT_SLOTS, WEAPON_SLOTS, isWeaponSlot, type LootSlot } from '../src/loot.ts';
 
@@ -197,4 +197,37 @@ test('gear stats: a full set at every rung, as the paperdoll will show it', () =
     'Invictus\t1.1333333333333333\t0.8222222222222222',
     'Origin\t1.15\t0.8',
   ]);
+});
+
+// ---- the paperdoll seam ---------------------------------------------------------------------------------------------------------
+// A LootId carries no tier (src/loot.ts:22 is `<opponent>.<slot>`), so the tier comes from the roster through a lookup. These hold the
+// behaviour while that field does not exist yet: it must be the identity, not a default rung.
+const TIERLESS: TierOf = () => null;
+
+test('gear stats: an untiered piece resolves to exactly the identity, never a guessed rung', () => {
+  const worn = { head: 'veteran.Helmet', chest: 'veteran.Body', main: 'veteran.Trident' } as const;
+  assert.deepEqual(kitFrom(worn, TIERLESS), {}, 'no tier anywhere means no kit, not a kit at some default');
+  assert.deepEqual(loadoutFor(kitFrom(worn, TIERLESS)), NAKED, 'and a full paperdoll of untiered pieces fights exactly naked');
+  assert.equal(loadoutFor(kitFrom(worn, TIERLESS)).attack, 1, 'strict 1, not 0.999…');
+  assert.equal(loadoutFor(kitFrom(worn, TIERLESS)).res, 1);
+});
+
+test('gear stats: a kit is resolved per piece, so a partly-tiered roster tilts only by what it knows', () => {
+  const worn = { head: 'veteran.Helmet', chest: 'executioner.Body', main: 'veteran.Trident' } as const;
+  const half: TierOf = opponent => (opponent === 'veteran' ? 'Origin' : null);
+  assert.deepEqual(kitFrom(worn, half), { Helmet: 'Origin', Trident: 'Origin' }, 'the untiered body is absent, not zero-tiered');
+  // The same two pieces named directly: the seam adds no arithmetic of its own.
+  assert.deepEqual(loadoutFor(kitFrom(worn, half)), loadoutFor({ Helmet: 'Origin', Trident: 'Origin' } as Kit));
+  assert.equal(opponentOf('executioner.Body'), 'executioner');
+});
+
+test('gear stats: whole points are integers, unsigned, and land on the caps for a full Origin set', () => {
+  assert.deepEqual(wholePoints(NAKED), { atk: 0, res: 0 }, 'no gear reads as nothing, not as +0/-0 of something');
+  assert.deepEqual(wholePoints(loadoutFor(fullSet('Origin', 'Trident'))), { atk: 15, res: 20 },
+    'brief 19 Addendum C: ATK 15 · RES 20 as integers, RES unsigned — the paperdoll pair, not the kill-screen delta');
+  for (const tier of TIERS) {
+    const p = wholePoints(loadoutFor(fullSet(tier, 'Trident')));
+    assert.ok(Number.isInteger(p.atk) && Number.isInteger(p.res), `${tier} must read as whole points`);
+    assert.ok(p.atk >= 0 && p.res >= 0, `${tier} must read unsigned: the sign rule is the kill-screen take's (brief 19 line 49)`);
+  }
 });
