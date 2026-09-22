@@ -2,6 +2,35 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead handoff — 2026-09-22 16:25 (context restart, Strategy rule v3)
+**Now.** Nothing of mine is mid-flight. Deploys were blocked all afternoon because every deploy of trunk failed quiet-one rows 16/21/26;
+#432 fixed that at the source and is merged, and the deploy session has a watcher that publishes the trunk tip on its own. Live was
+adb8ddd at 16:07 (my curl); trunk is 632dbbf.
+
+**Done today (this stretch, all merged on the gate: quality + base + both browser jobs SUCCESS, zero red).** #417 #422 #423 audio levels;
+#421 migration 0010 (guest-share hygiene, applied and verified live: cron job active, share_limits unreadable, guest_key outside the
+select grant, 30-day retention); #418 loot v2 armour draws; #425 regenerated loot layers; #415 paperdoll wears the gear; #420 glass
+combat buttons; #424 endgame-HUD gate made deterministic; #426 PLAY NOW on a shared fight + tests/record-version-guard.test.ts; #428 the
+arena guard model; #427 the kill-screen Take-one panel; #429 estoc-parked docs; #430 lorarii capsules; #432 loot action row into
+`#actions`; #433 hit gains .3; #431 cleaver docs.
+
+**Open.** #434 (Multi Chars: pitborn.Body dropped + rebuilt loot.glb + executed coverage test) and #435 (Visuals: the lorarii wear
+guard.glb) — both mine to merge on green. Finishers & Gore are on the blood-conform branch (marks measured 0.4–0.5 cm proud, down from
+0.9–5.8 cm; two open faults stated honestly: Nightborn cape MISS frames, one head-slot mark). Brief 14 is mine to start: the grade record
+on `OPPONENTS` — `grade: { level, tier, kit, epithet, house, profile? }` — with the kill-screen offer derived from it (Dom 16:00), and the
+"never less dressed than base" guard as the last line regardless of data.
+
+**Gotchas.**
+- The merge gate is mine, not CI's: `MERGEABLE, red=0` only means no conflict and nothing failed *yet*. Wait for all four jobs.
+- A failing check may be reporting a real defect. I told Deploy to teach the quiet-one check around the loot panel's tap; Web design was
+  right that the panel's buttons sat where the first post-kill touch lands, so a player stopping the arena tour would decline their loot
+  by accident. Reverse fast and say so.
+- Parking a PR parks its documentation with it: Weapons' estoc write-up lived inside a draft PR and never reached trunk. Findings go in
+  their own docs PR off trunk (#429, #431).
+- A green suite is not a safe number (estoc close 1.19-1.21 passed both axes by tie-break) and a green perf run may have measured the
+  wrong thing (Visuals' first frame-times never fetched guard.glb). Ask what the number was measured against.
+- Hosted migrations apply on an explicit "apply NNNN" relay, never on a merge event (Deploy's rule since 0010).
+
 ## Beta plan v3 lead stack — 2026-09-21/22 (owner: "go do it - always listen to the strategy dev")
 Built as one stack, each PR on the last, merged to trunk in order by the deploy session: #321 blade seam (`bladePathsByRig[rig][weapon][kind]`,
 `RigId` on every ROSTER entry, strict lookup); #323 warhammer as the second player weapon (`PLAYER_WEAPONS_OFFERED`); #324 short kill
