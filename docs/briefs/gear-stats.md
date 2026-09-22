@@ -72,3 +72,35 @@ not code: the seam itself is an afternoon.
 Stats builds 1, 2, 4 (script), 5. Backend reviews 3, Deploy applies it. Web builds the panel half of 4. Combat reviews 5's ladder
 retune against its own profiles. Weapons re-runs the bracketed battery on every flip from then on. Lead sequences the merges; Strategy
 reviews every PR body before merge.
+
+## Addendum A (2026-09-22 23:10) — where the Origin character layer plugs in
+Not built in this brief; recorded so the seam is shaped for it. Every stat in `docs/progression-direction.md` has a home in the sim
+already (health, stamina, posture are the three resources every fight runs on):
+
+| stat | touches in the sim | never |
+|---|---|---|
+| STR | damage dealt, posture damage dealt | timing |
+| DEX | stamina cost per action, stamina regen | recovery speed |
+| VIG | max health (100 = today's 150 HP) | |
+| END | max stamina, share of regen | |
+| POISE | posture damage taken (stagger / break resistance) | |
+
+Armour beside them: RES cuts damage taken (this brief); medium and heavy classes subtract DEX and END (Origin layer). POISE is never
+on armour. Defence is RES, not a character stat. The `Loadout` the sim takes must extend to these without a second seam.
+
+## Addendum B (2026-09-22 23:10) — proposal owed by the Stats lane, due 2026-09-23 morning
+A docs PR, no code, to Lead with Strategy copied. Dom decides on his phone; the decisions become Addendum C.
+
+1. **Damage by weapon, by grip.** Read out of the live tables in `src/moves.ts` (per-weapon move defs: damage, windup / active /
+   recovery ticks, reach, stamina, stagger, chip; grip per weapon, trident two-hand after #472). One page: weapon × grip ×
+   light / heavy / thrust damage × speed (ticks and ms) × reach × stamina. State the pattern the numbers already follow (1h faster,
+   lighter, cheaper; 2h slower, heavier, more posture) and where a weapon breaks it. Propose how the Attack tier multiplier sits on
+   top: one cap for all, or a cap per grip, with the reason.
+2. **Speed.** Fixed per weapon; no stat or tier changes any timing. A speed stat, if argued at all, is a separate proposal.
+3. **Shield defence.** Two designs are on record: Dom's earlier "−20 % incoming while equipped, outgoing open" and the shield brief
+   (GuardProfile: two sides covered, stops heavies, cheaper hold, posture drains faster while held, no flat attack penalty, one-hand
+   weapons only, stowed on the back with a two-hander). Give three options, each costed against the battery, with a recommendation:
+   (a) passive −20 % incoming RES while equipped, no outgoing penalty; (b) the guard profile only; (c) guard profile plus a smaller
+   passive RES with an outgoing or stamina penalty. Say which keeps "skill decides" and which makes the shield a must-pick.
+
+Format: tables, then one paragraph per decision with the number and the reason.
