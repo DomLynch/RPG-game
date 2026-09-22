@@ -135,6 +135,13 @@ after it merges: `gh pr view <n> --json baseRefName` still read `copy/centurion-
 then prove no rebase is owed: the old base's head must be an ancestor of trunk (`git branch -r --contains <sha>`) and the three-dot
 diff against trunk must show only your own files. Better still: do not stack twice — #475 was stacked only because index.html keeps
 the meters and #loot-panel on ONE physical line.
+(i) AN EXEMPTION GRANTED FOR ONE REASON SILENTLY BUYS A SECOND BEHAVIOUR NOBODY CHOSE (lead, 2026-09-22, after the finisher-cover
+order). #427 put `#loot-panel` OUTSIDE the `:root.endgame-fade` group for one stated reason — so the arena-cam tour could not fade
+it away mid-decision. The group is also what holds the endgame text back until `finishPhase().settled`, so the same exemption
+bought "does not wait for the finisher" for free, and `main.ts` calling `offerLoot()` straight off the Killed event made it
+visible at t = 0. Measured on the #475 tree: the panel is up for the WHOLE 4.1 s of the finisher (settled at t = 4100 ms). Nobody
+chose that; it came in the back of a choice about fading. When exempting an element from a group, write down every behaviour the
+group was carrying for it, not just the one being escaped — and re-derive the others deliberately.
 (a, amended) Take is gone since item 10 — a tap on a tile is the take — so the thumb row holds Leave it alone. The rule
 that produced it is unchanged and still load-bearing: no decision button where the first post-kill touch lands, and
 `.loot-panel` stays pointer-transparent with `auto` only on its tiles and its Undo pill.
