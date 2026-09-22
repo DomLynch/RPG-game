@@ -65,7 +65,14 @@ TWO-HAND warhammer/scythe/hero's sword) and equipping a two-hander stows the shi
 the panel line. Take-one stays strict — the shield is one item, never bundled with a weapon.
 
 **Now:** nothing in flight. **Done today:** Brief 13's whip tell (merged, live), the estoc park with its grid recorded on trunk (#429),
-#439 reviewed and approved. **Gotchas worth carrying:** a green suite is not a safe number — 12/24 against a strictly-greater cap of 12
+#439 reviewed and approved. **Quote the sha you measured, and re-read it before you publish the number.** Four separate incidents on 2026-09-22 where the fact was
+right and the note about it was stale: a sha sent after trunk had moved; a comment quoting a rejected iteration's results (recovery 21)
+beside the shipped value (20); a merge commit misquoted as the trunk head; and a re-signature requested against a head that was
+CONFLICTING and mid-rebase at the time of asking. None was a measurement error — every one would have produced a phantom disagreement
+costing someone a measurement window. Never measure a branch that reads CONFLICTING; wait for the stable head and record it beside the
+numbers.
+
+**Gotchas worth carrying:** a green suite is not a safe number — 12/24 against a strictly-greater cap of 12
 is a tie-break, not a pass; every player weapon is also a warden's weapon, so re-scan the WHOLE fairness table after any weapon edit,
 not just the edited weapon's rows; read a sim digest AFTER the version bump, because record.ts is inside its own hashed set; and a
 finding recorded inside a PR that gets parked is parked with it — put it on trunk.
