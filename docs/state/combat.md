@@ -27,11 +27,16 @@ battery caught it); and **every player weapon is also a warden's weapon** — go
 executioner/scythe, pitborn/cleaver, dwarf/warhammer — so a weapon edit's blast radius is every OTHER weapon measured against whoever
 carries it. Lead has made that a standing rule for all lanes.
 
-**Owed before #441 merges:** `node --test tests/record-version-guard.test.ts` on head 27b35e2. The pin (SIM_DIGEST
-371c3592…, PINNED_FOR_VERSION 4) was COMPUTED by reproducing the guard's recipe by hand — deploy a2a901b was in flight and the
-one-deployer rule blocks suites. Auditer reproduced it independently and got the same digest, but two hand computations that read the
-recipe from the same source agree even if both mis-transcribed it; only a guard run is the receipt. Do not merge #441 on the
-computation.
+**Closed.** #441 merged (merge commit 9562c25) and the owed guard run is discharged: `record-version-guard` passes 1/0 on trunk
+c7d942a, which carries the whip tell. The pin had been COMPUTED by hand (deploy in flight, suites blocked) and independently
+recomputed by Auditer; both agreed, but two hand computations that read the recipe from the same source agree even when both are
+wrong, so only this run counts as the receipt.
+
+**Now:** nothing in flight. **Done today:** Brief 13's whip tell (merged, live), the estoc park with its grid recorded on trunk (#429),
+#439 reviewed and approved. **Gotchas worth carrying:** a green suite is not a safe number — 12/24 against a strictly-greater cap of 12
+is a tie-break, not a pass; every player weapon is also a warden's weapon, so re-scan the WHOLE fairness table after any weapon edit,
+not just the edited weapon's rows; read a sim digest AFTER the version bump, because record.ts is inside its own hashed set; and a
+finding recorded inside a PR that gets parked is parked with it — put it on trunk.
 
 Open and owed by this lane: #370 (Veteran's opening) held on the owner's own verdict on feel — nothing technical left. `knife vs goblin
 hard: kick only untouched 3/24` routed here as an approach-logic hole, not knife data (identity-shared MOVES.kick, every other weapon's
