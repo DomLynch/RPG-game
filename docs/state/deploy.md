@@ -59,5 +59,8 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   deploy.sh refuse to publish a fully green tree ("Release checks changed tracked files"); #389 untracked them.
 - **Row-33/16/21/26 shape**: a check that fails once and passes on deploy.sh's solo retry is a flake; failing the retry too is a
   regression. Never report the first failure as final — read the retry.
+- **Wake-up ids**: the id in the scratchpad path / stop-hook line is the transcript id (the `<id>.jsonl` filename) and does NOT
+  resolve for cross-session messaging; the address is the `local_…` id from `list_sessions`/`ListAgents`, and a clear keeps it.
+  Two lanes handed Lead an unusable id and the wake step failed silently. Take it from a live listing, never from the path.
 - **Only this session runs `scripts/deploy.sh`** (one-deployer), from the scratchpad `deploy/` checkout where every
   `deploy-<sha>.log` lives — not `~/Developer/frankendom-deploy`, which is a lane worktree.
