@@ -24,6 +24,23 @@ Evidence, one instrumented fight (seed 12345, knife player, `kick only`, 7200 ti
 inside the `reach - .1` margin can park where nothing of his is legal. It shows up on the knife because the knife's short reaches make
 the 0.1 m band the difference between every move and one move.
 
+**A hard-profile change alone CANNOT fix this — measured, 2026-09-22.** Lead's brief prescribed fixing the Goblin's hard profile only
+(stall window -> close-and-punish), on the GAME_SPEC rule that profiles move reaction/prediction/aggression and never data. But the
+parking distance is geometric, and a profile cannot move where he stops. Sweep on seed 12345, 3600 ticks, `kick only`, knife:
+
+| profile | attacks | gap median | hero hp | outcome |
+|---|---|---|---|---|
+| hard as shipped | 3 | 1.41 | 137 | stall |
+| aggression 1 + pressure 1 | 3 | 1.41 | 137 | stall |
+| reaction 1 (instant) | 5 | 1.34 | 98 | stall |
+| discipline 0 (never rests) | 3 | 1.41 | 137 | stall |
+| **every knob maxed for commitment** (aggression/pressure 1, reaction 1, discipline 0, circle/disengage/lapse 0) | 5 | 1.28 | 98 | **stall** |
+
+Even with every commitment knob at its limit the fight does not resolve. `reaction` is the only knob that moves the gap at all
+(1.41 -> 1.34) and it buys 2 attacks. So the target "knife row <=1/24 and the Goblin resolves" is not reachable from the profile, and a
+profile change that half-moves it would be tuning toward a pin without fixing the defect. The fix has to be the approach/in-reach
+disagreement itself in ai.ts — which is shared by every opponent, so it needs the full battery across all weapons.
+
 **Do not fix this by tuning the row.** 3 untouched against a cap of 2 is one fight over — a tie-break margin, and tuning to clear it is
 exactly what produced the estoc mess. Fix the approach/in-reach disagreement on its merits; the row clears or it does not, and if it
 does not, bring Lead the table. Whatever lands needs the full 24-seed battery re-run, because every player weapon is also a warden's
