@@ -18,7 +18,11 @@ globalThis.FileReader = class {
   async readAsDataURL(blob) { this.result = `data:${blob.type};base64,${Buffer.from(await blob.arrayBuffer()).toString('base64')}`; this.onloadend?.(); }
 };
 const source = 'artifacts/source';
-const realistic = process.env.WARRIOR_BODY !== 'classic'; // the Blender Studio body with the reconstructed head ships; WARRIOR_BODY=classic rebuilds the CC0 stylised one
+// WARRIOR_GUARD=1 (Brief 13, 2026-09-22): the arena guard, a lorarius — the CC0 body collapsed by scripts/character/guard_body.py, the
+// undyed level-1 tunic and belt, a leather cap, a whip in hand_r, five clips (Pace, Stand, Turn, Raise, Lash). One file, src/assets/guard.glb;
+// the world lane instances it six times round the ring. The classic (non-realistic) body path with the GUARD blocks below.
+const GUARD = process.env.WARRIOR_GUARD === '1';
+const realistic = process.env.WARRIOR_BODY !== 'classic' && !GUARD; // the Blender Studio body with the reconstructed head ships; WARRIOR_BODY=classic rebuilds the CC0 stylised one
 // WARRIOR_FIGHTER=veteran builds the opponent from scripts/character/parts.py --fighter veteran (its own scan, helm and maps)
 // into src/assets/veteran.glb; the default (hero) is the player's warrior.glb. Same rig and body clips; the Veteran carries the trident.
 const fighter = process.env.WARRIOR_FIGHTER || 'hero';
@@ -27,7 +31,7 @@ const fighter = process.env.WARRIOR_FIGHTER || 'hero';
 // `<opponent>.<slot>.<material>` (userData.opponent/slot). The runtime binds a draw to the player's Skeleton and hides the player's
 // own draw in that slot. Output src/assets/loot.glb; warrior.glb is untouched (LOOT=false is byte-identical).
 const LOOT = process.env.WARRIOR_LOOT === '1';
-if (LOOT && fighter !== 'hero') throw new Error('WARRIOR_LOOT builds on the hero rig only');
+if ((LOOT || GUARD) && fighter !== 'hero') throw new Error('WARRIOR_LOOT / WARRIOR_GUARD build on the hero rig only');
 const recipe = warriorRecipe(fighter, process.env.WARRIOR_WEAPON), variant = realistic ? process.env.WARRIOR_PARTS_VARIANT || recipe.body : '';   // WARRIOR_PARTS_VARIANT: a reconstruction's donor rig borrows another fighter's parts (the surface is replaced by creature_pack.py)
 // WARRIOR_WEAPON=trident (weapons lane, scripts/build-weapon.mjs): the fighter carries that weapon instead of the sword — no scabbard, the
 // sword nodes stay as empty groups (the runtime's loader looks them up), WeaponDrawn hangs under hand_r with the sword's transform and
@@ -37,7 +41,7 @@ if (recipe.pipeline === 'reconstruction' && !process.env.WARRIOR_PARTS_VARIANT) 
 const weaponId = recipe.weapon;
 const appearance = warriorAppearance(process.env.WARRIOR_PARTS_VARIANT || fighter);   // a donor rig wears the borrowed fighter's palette too
 if (!realistic && fighter !== 'hero') throw new Error('WARRIOR_FIGHTER needs the realistic body');
-const output = process.env.WARRIOR_OUT || (LOOT ? 'src/assets/loot.glb' : fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
+const output = process.env.WARRIOR_OUT || (GUARD ? 'src/assets/guard.glb' : LOOT ? 'src/assets/loot.glb' : fighter === 'hero' ? 'src/assets/warrior.glb' : `src/assets/${fighter}.glb`);
 const baseDir = path.join(source, 'base/Universal Base Characters[Standard]/Base Characters/Godot - UE');
 const json = JSON.parse(await fs.readFile(path.join(baseDir, 'Superhero_Male_FullBody.gltf'), 'utf8'));
 // The foundation supplies topology and weights. Our covered warrior needs none of its face/hair textures.
@@ -54,6 +58,19 @@ base.scene.updateMatrixWorld(true); library.scene.updateMatrixWorld(true); libra
 const body = base.scene.getObjectByName('SuperHero_Male');
 if (!body?.isSkinnedMesh) throw new Error('Expected the licensed skinned body');
 const skeleton = body.skeleton;
+// The guard's body: the same CC0 man collapsed to ~55 % of his triangles by scripts/character/guard_body.py (weights kept), so six of
+// him cost less than one hero. Same bones, same bind; the skin indices are remapped by bone name like every authored part.
+if (GUARD) {
+  const glb = await fs.readFile('src/assets/source/guard/body.glb'), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
+  let lean = null; asset.scene.updateMatrixWorld(true); asset.scene.traverse(o => { if (o.isSkinnedMesh) lean = o; });
+  if (!lean) throw new Error('guard body.glb has no skinned mesh');
+  const g = lean.geometry.clone().applyMatrix4(lean.matrixWorld), index = g.getAttribute('skinIndex');
+  const map = lean.skeleton.bones.map(b => { const i = skeleton.bones.findIndex(x => x.name === b.name || x.name === b.name.replace(/[._]\d{1,3}$/, '')); if (i < 0) throw new Error(`guard body: no bone ${b.name} on the hero rig`); return i; });
+  g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
+  g.morphAttributes = {}; body.geometry = g;
+  body.name = 'Skin'; body.userData.slot = 'Skin';   // warrior.glb's name for the body draw: the world lane reads the same scene shape on both
+  console.log(`  guard body: ${g.getAttribute('position').count} vertices, ${(g.index ? g.index.count : g.getAttribute('position').count) / 3} triangles`);
+}
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
 const steel = new T.MeshStandardMaterial({ name: 'Steel', ...appearance.steel });
 const trim = new T.MeshStandardMaterial({ name: 'Antique brass', color: '#8a6a3c', metalness: 0.85, roughness: 0.5 }); // worn bronze furniture
@@ -178,6 +195,7 @@ function shell(rings, material, bone, z = 0) {
 }
 // Level-1 kit and every later tier come from authored parts (below). Buzzed hair from the CC0 pack sits on the head.
 if (realistic) { body.visible = false; base.scene.getObjectByName('Eyes').removeFromParent(); base.scene.getObjectByName('Eyebrows').removeFromParent(); }
+else if (GUARD) { base.scene.getObjectByName('Eyes').removeFromParent(); base.scene.getObjectByName('Eyebrows').removeFromParent(); }   // a cap covers the brow; the eyes are two dark texels at the ring wall
 else {
   const hairDir = path.join(source, 'base/Universal Base Characters[Standard]/Hairstyles/Rigged to Head Bone/glTF (Godot -Unreal)');
   const hairJson = JSON.parse(await fs.readFile(path.join(hairDir, 'Hair_Buzzed.gltf'), 'utf8'));
@@ -200,6 +218,7 @@ for (const file of partFiles) {
   part.scene.traverse(o => {
     if (!o.isMesh) return;
     if (LOOT) { if (o.isSkinnedMesh && o.userData.slot === 'Skin') for (const b of o.skeleton.bones) if (FINGER_BONE.test(b.name)) authoredFingerJoints.set(b.name, new T.Vector3().setFromMatrixPosition(b.matrixWorld)); return; }
+    if (GUARD && o.userData.slot !== 'Body') return;   // the guard wears the tunic and belt only: bare arms, bare legs, no kilt, no boots
     const material = [...parts.keys()].find(m => m.name === o.userData.material);
     if (!material || (!o.userData.bone && !o.isSkinnedMesh)) throw new Error(`${file}: mesh ${o.name} needs extras.material (${[...parts.keys()].map(m => m.name).join('|')}) and extras.bone or skin weights`);
     const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
@@ -213,7 +232,7 @@ for (const file of partFiles) {
 }
 // Equipped items (WARRIOR_ITEMS=ranger,...): src/assets/source/items/<name>.glb, same contract as parts. An item replaces
 // whatever the level-1 kit put in the same slot. Demo builds only until the runtime swaps slots itself.
-const items = LOOT ? '' : process.env.WARRIOR_ITEMS ?? appearance.items; // An explicit empty override keeps the fighter bareheaded.
+const items = LOOT || GUARD ? '' : process.env.WARRIOR_ITEMS ?? appearance.items; // An explicit empty override keeps the fighter bareheaded.
 for (const item of items.split(',').filter(Boolean)) {
   const own = `src/assets/source/items/${item}_${fighter}.glb`, file = fighter !== 'hero' && await fs.stat(own).then(() => true, () => false) ? own : `src/assets/source/items/${item}.glb`; // a helm is shelled from its fighter's skull
   const glb = await fs.readFile(file), asset = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
@@ -336,7 +355,7 @@ if (fighter === 'goblin' || LOOT) {
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
-if (weaponId === 'longsword' && !LOOT) {
+if (weaponId === 'longsword' && !LOOT && !GUARD) {
   add(bladeGeometry(-.33, .33, .06, .026, .12).rotateZ(Math.PI), leather, 'pelvis', -.24, .79, -.13, -.19);
   add(new T.CylinderGeometry(.031, .031, .03, 12), trim, 'pelvis', -.24, .79 + .30, -.13, -.19);
   add(new T.TorusGeometry(.036, .007, 6, 18).rotateX(Math.PI / 2), leather, 'pelvis', -.24, .79 + .26, -.13, -.19); // belt loop holding the scabbard
@@ -451,6 +470,24 @@ if (BUILD.bones) {
   const top = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
   console.log(`  reproportion: ${vertices} vertices; pelvis ${joint[boneIndex('pelvis')].y.toFixed(3)} → ${top('pelvis').y.toFixed(3)} m (drop ${PROPORTION.drop.toFixed(3)}), head joint ${joint[boneIndex('Head')].y.toFixed(3)} → ${top('Head').y.toFixed(3)}, wrist reach ${joint[boneIndex('hand_r')].distanceTo(joint[boneIndex('upperarm_r')]).toFixed(3)} → ${top('hand_r').distanceTo(top('upperarm_r')).toFixed(3)} m, sole ${top('foot_l').y.toFixed(3)} (was ${joint[boneIndex('foot_l')].y.toFixed(3)})`);
 }
+// The guard's own kit (GUARD): a plain leather cap over the brow (the sallet helper's rings on the Head), and a coiled whip in hand_r —
+// a leather handle with two brass ferrules and the lash coiled round it, a loose tail hanging from the coil. Rigid attachments, so the
+// whip is a coil, not a rope: a rope rigid to a hand reads as a stick from any pose the world lane plays.
+if (GUARD) {
+  const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  const head = at('Head');
+  shell([[head.y + .035, .097, .106], [head.y + .085, .096, .104], [head.y + .13, .08, .088], [head.y + .165, .045, .05], [head.y + .18, 0, 0]], leather, 'Head', -.012);
+  band(0, head.y + .04, -.012, .10, .006, 'Head', leather, 0, 1.09);   // the brow strap
+  const hand = at('hand_r'), wrist = at('lowerarm_r'), along = hand.clone().sub(wrist).normalize();   // the forearm's direction: the handle continues it
+  const grip = (t0, t1, r0, r1, material) => { const g = new T.CylinderGeometry(r1, r0, (t1 - t0), 10, 1).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), along)); const c = hand.clone().addScaledVector(along, (t0 + t1) / 2); add(g, material, 'hand_r', c.x, c.y - .02, c.z + .01); };
+  grip(-.04, .20, .014, .012, leather);   // the handle, from the fist forward
+  grip(.005, .02, .016, .016, trim); grip(.17, .185, .014, .014, trim);   // ferrules
+  const coilAt = hand.clone().addScaledVector(along, .21).add(new T.Vector3(0, -.05, .01));
+  add(new T.TorusGeometry(.055, .009, 6, 28).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 0, 1), along)), leather, 'hand_r', coilAt.x, coilAt.y, coilAt.z);   // the lash coiled
+  add(new T.TorusGeometry(.048, .008, 6, 28).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 0, 1), along)), leather, 'hand_r', coilAt.x, coilAt.y - .006, coilAt.z + .012);
+  const tail = new T.CatmullRomCurve3([coilAt.clone().add(new T.Vector3(0, -.05, 0)), coilAt.clone().add(new T.Vector3(.02, -.16, .02)), coilAt.clone().add(new T.Vector3(.01, -.30, .05))]);
+  add(new T.TubeGeometry(tail, 12, .004, 5, false), leather, 'hand_r');   // the loose tail
+}
 const LIFT = new T.Vector3(0, PROPORTION.drop, 0);   // authored hand goals below are a man's: the goblin's shoulders sit lower by the drop
 for (const [material, geometries] of parts) {
   const slots = [...new Set(geometries.map(g => g.userData.slot))].sort();
@@ -491,6 +528,55 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
   const bytes = finishMaterials(Buffer.from(await new GLTFExporter().parseAsync(base.scene, { binary: true, animations: [], onlyVisible: true })), lootMaps, false);
   await fs.writeFile(output, bytes);
   console.log(`Loot → ${output}: ${bytes.byteLength} bytes; ${draws.length} draws: ${draws.map(m => m.name).join(', ')}`);
+  process.exit(0);
+}
+if (GUARD) {   // five clips from the two libraries, the hero's retarget; no sword, no blade bake, no finisher
+  for (const name of ['SwordSheathed', 'SwordDrawn']) base.scene.getObjectByName(name)?.removeFromParent();
+  const guardClips = [
+    retargetClip(library, 'Walk_Formal_Loop', 'Pace', { inPlace: true }),      // the patrol: stiff, in place — the world lane moves him along the wall
+    retargetClip(library2, 'Idle_FoldArms_Loop', 'Stand'),                     // arms folded, watching
+    retargetClip(library2, 'Idle_FoldArms_Loop', 'Turn', { t0: 0, t1: .6 }),   // 0.6 s of the stance while the root yaws 180° (below)
+    retargetClip(library2, 'OverhandThrow', 'Raise', { t0: 0, t1: .53 }),      // the throw's wind-up: the whip arm up and held (clamp the last frame)
+    retargetClip(library2, 'Sword_Regular_A', 'Lash', { duration: .6 }),      // a forward diagonal swipe, retimed
+  ];
+  // Animation is the guard file's bulk (five clips over 65 bones). Two cuts a ring-wall guard cannot show: his fingers and toes never
+  // animate (they hold the whip or fold, and the rest pose is right), and 15 keys a second is plenty for a walk at that distance.
+  const STATIC = /^(?:index|middle|ring|pinky|thumb|ball)_|_leaf\./;
+  for (const clip of guardClips) {
+    clip.tracks = clip.tracks.filter(track => !STATIC.test(track.name));
+    for (const track of clip.tracks) {
+      const size = track.getValueSize(), keep = [];
+      for (let i = 0; i < track.times.length; i++) if (i % 2 === 0 || i === track.times.length - 1) keep.push(i);
+      if (keep.length === track.times.length) continue;
+      track.times = new Float32Array(keep.map(i => track.times[i]));
+      const values = new Float32Array(keep.length * size);
+      keep.forEach((from, to) => values.set(track.values.subarray(from * size, (from + 1) * size), to * size));
+      track.values = values;
+    }
+    clip.optimize();
+  }
+  const root = base.scene.getObjectByName('root'), q0 = root.quaternion.clone(), q1 = q0.clone().premultiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), Math.PI));
+  guardClips[2].tracks.push(new T.QuaternionKeyframeTrack('root.quaternion', [0, .6], [...q0.toArray(), ...q1.toArray()]));   // about-face in place; the world lane adds π to the heading when it ends
+  base.scene.updateMatrixWorld(true);
+  const draws = body.parent.children.filter(m => m.isSkinnedMesh), tris = draws.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3, 0);
+  let rigid = 0; base.scene.traverse(o => { if (o.isMesh && !o.isSkinnedMesh) rigid += (o.geometry.index ? o.geometry.index.count : o.geometry.getAttribute('position').count) / 3; });
+  // Materials on a texture diet: the hero's own tiles are 100–230 KB each and six guards never come closer than the ring wall, so the
+  // guard ships his own 256²/128² crops of the CC0 skin (scripts/character/guard_body.py's sibling step writes them to source/guard/)
+  // and lets every other material take the procedural 256² tiles finishMaterials already generates. Measured: 807 KB of maps → 25 KB.
+  const guardDir = 'src/assets/source/guard', maps = new Map();
+  maps.set('Skin', {
+    baseColor: { bytes: await fs.readFile(path.join(guardDir, 'skin_color.jpg')), mime: 'image/jpeg' },
+    normal: { bytes: await fs.readFile(path.join(guardDir, 'skin_normal.jpg')), mime: 'image/jpeg' },
+    occlusion: { bytes: await fs.readFile(path.join(guardDir, 'ao_body.jpg')), mime: 'image/jpeg' },
+    normalScale: 0.8, occlusionTexCoord: 0,
+  });
+  base.scene.scale.set(.9, .97, .97); base.scene.position.y = .025; base.scene.updateMatrixWorld(true);   // the hero's scene-root fit, so a guard stands the hero's height
+  // `procedural: false`, as loot.glb ships: the generated 256² PNG grain/linen/hide tiles are 50–85 KB each and were 419 KB of the packed
+  // file (measured) — four times the guard's geometry budget in texture nobody can resolve at the ring wall. Steel, Leather, Gambeson and
+  // the brass keep their palette colour and roughness factors; only the guard's own three small skin crops are embedded.
+  const bytes = finishMaterials(Buffer.from(await new GLTFExporter().parseAsync(base.scene, { binary: true, animations: guardClips, onlyVisible: true })), maps, false);
+  await fs.writeFile(output, bytes);
+  console.log(`Guard → ${output}: ${bytes.byteLength} bytes; ${Math.round(tris + rigid)} triangles (${Math.round(tris)} skinned + ${Math.round(rigid)} rigid); clips ${guardClips.map(c => `${c.name} ${c.duration.toFixed(2)}s`).join(', ')}`);
   process.exit(0);
 }
 // Retarget rotation deltas onto the body rest pose; preserve its own bone lengths. A window [t0, t1] of the source can be

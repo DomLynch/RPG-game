@@ -9,7 +9,7 @@ import { gzipSync } from 'node:zlib';
 // src/assets/arena/props/*.glb are props, src/assets/weapons/player/*.glb are player-equipped weapons (loaded only when worn, so
 // they count toward the whole-of-dist storage cap below but never the per-fight download, same as loot.glb). A dist GLB
 // matching none of these fails the gate rather than being guessed at.
-const PER_FIGHT = 12_000_000, TOTAL = 32_000_000, LOOT = 1_500_000;   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
+const PER_FIGHT = 12_000_000, TOTAL = 32_000_000, LOOT = 1_500_000, GUARD = 400_000;   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
 // Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
 const dist = process.argv[2] || 'dist', src = process.argv[3] || 'src';
 
@@ -37,9 +37,9 @@ export async function measure(distDir = dist, srcDir = src) {
   const fighterNames = await names(srcDir + '/assets'), propNames = await names(srcDir + '/assets/arena/props'), equipNames = await names(srcDir + '/assets/weapons/player');
   const glbs = all.filter(f => f.name.endsWith('.glb'));
   const hero = glbs.filter(f => stem(f.name) === 'warrior'), props = glbs.filter(f => propNames.has(stem(f.name)));
-  const loot = glbs.filter(f => stem(f.name) === 'loot'), opponents = glbs.filter(f => !['warrior', 'loot'].includes(stem(f.name)) && fighterNames.has(stem(f.name)));
+  const loot = glbs.filter(f => stem(f.name) === 'loot'), guard = glbs.filter(f => stem(f.name) === 'guard'), opponents = glbs.filter(f => !['warrior', 'loot', 'guard'].includes(stem(f.name)) && fighterNames.has(stem(f.name)));
   const equip = glbs.filter(f => equipNames.has(stem(f.name)));
-  const unknown = glbs.filter(f => !hero.includes(f) && !props.includes(f) && !opponents.includes(f) && !loot.includes(f) && !equip.includes(f));
+  const unknown = glbs.filter(f => !hero.includes(f) && !props.includes(f) && !opponents.includes(f) && !loot.includes(f) && !equip.includes(f) && !guard.includes(f));
   if (unknown.length) throw new Error(`dist GLBs that are none of fighter, arena prop, loot or player-equipped weapon in ${srcDir}: ${unknown.map(f => f.name).join(', ')}`);
   if (hero.length !== 1 || !opponents.length) throw new Error(`dist needs exactly one hero and at least one opponent GLB (${glbs.map(f => f.name).join(', ') || 'none'})`);
   const textures = (list) => {
@@ -56,7 +56,7 @@ export async function measure(distDir = dist, srcDir = src) {
   const audioBy = new Map();
   for (const f of all.filter(f => /\.(ogg|m4a)$/.test(f.name))) { const key = stem(f.name); if ((audioBy.get(key)?.gzip ?? -1) < f.gzip) audioBy.set(key, f); }
   const audio = [...audioBy.values()];
-  const base = [hero[0], ...props], baseTextures = textures(base), fixed = sum(shell, 'gzip') + sum(audio, 'gzip') + sum(base, 'gzip') + sum(baseTextures, 'gzip');
+  const base = [hero[0], ...props, ...guard], baseTextures = textures(base), fixed = sum(shell, 'gzip') + sum(audio, 'gzip') + sum(base, 'gzip') + sum(baseTextures, 'gzip');
   // The versus card: main.ts shows public/versus/<opponent>.webp while the rigs download, so one still is part of every fight's fetch.
   const stills = new Map(all.filter(f => relative(distDir, f.path) === join('versus', f.name) && f.name.endsWith('.webp')).map(f => [f.name.slice(0, -5), f]));
   const fights = opponents.map(opponent => {
@@ -67,7 +67,7 @@ export async function measure(distDir = dist, srcDir = src) {
   return {
     shell: sum(shell, 'gzip'), audio: sum(audio, 'gzip'), hero: hero[0].gzip, props: sum(props, 'gzip'), sharedTextures: sum(baseTextures, 'gzip'),
     opponent: worst.opponent.name, opponentGzip: worst.opponent.gzip, opponentTextures: sum(worst.textures, 'gzip'), opponentStill: worst.still?.gzip ?? 0,
-    fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), totalRaw: sum(all, 'raw'), total: sum(all, 'gzip'),
+    fight: worst.gzip, fights: fights.map(f => ({ opponent: stem(f.opponent.name), gzip: f.gzip })), loot: sum(loot, 'gzip') + sum(textures(loot).filter(t => !baseTextures.includes(t)), 'gzip'), guard: sum(guard, 'gzip') + sum(textures(guard).filter(t => !textures([hero[0], ...props]).includes(t)), 'gzip'), totalRaw: sum(all, 'raw'), total: sum(all, 'gzip'),
   };
 }
 
@@ -77,5 +77,6 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-budget.mjs') {
   if (m.fight >= PER_FIGHT) throw new Error(`A duel exceeds ${PER_FIGHT / 1e6} MB gzip: ${breakdown} = ${m.fight}`);
   if (m.total >= TOTAL) throw new Error(`dist exceeds ${TOTAL / 1e6} MB gzip: ${m.total}`);
   if (m.loot >= LOOT) throw new Error(`loot.glb exceeds ${LOOT / 1e6} MB gzip: ${m.loot}`);
-  console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip of ${PER_FIGHT}; every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; all of dist: ${m.totalRaw} raw, ${m.total} gzip of ${TOTAL}. Budget PASS.`);
+  if (m.guard >= GUARD) throw new Error(`guard.glb exceeds ${GUARD / 1e3} KB gzip: ${m.guard}`);
+  console.log(`Per fight (${breakdown}): ${m.fight} bytes gzip of ${PER_FIGHT}; every pairing: ${m.fights.map(f => `${f.opponent} ${f.gzip}`).join(', ')}; loot ${m.loot} of ${LOOT}; guard ${m.guard} of ${GUARD}; all of dist: ${m.totalRaw} raw, ${m.total} gzip of ${TOTAL}. Budget PASS.`);
 }
