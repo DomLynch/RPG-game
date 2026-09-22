@@ -178,7 +178,7 @@ test('rig: the side-view reveal lerps onto finisherSidePose as the finisher cloc
   assert.ok(Math.hypot(camera.position.x, camera.position.z) <= 11.5 + 1e-9, 'inside the colonnade');
 });
 
-test('rig: the arena cam — TOUR.afterSettle seconds after the finisher camera settles it orbits the fallen slowly, breathing and rising, looking at him; a touch, a draw, reduced motion or a rematch end it', () => {
+test('rig: the arena cam — five seconds after a finish the camera orbits the fallen slowly, breathing and rising, looking at him; a touch, a draw, reduced motion or a rematch end it', () => {
   const focus = (f: CameraFinish, state: { x: number; z: number }, enemy: { x: number; z: number }) => { const fallen = f.victim === 1 ? enemy : state; return new Vector3(f.head ? (fallen.x + f.head.x) / 2 : fallen.x, 0, f.head ? (fallen.z + f.head.z) / 2 : fallen.z); };
   const tour = (f: CameraFinish, seconds: number, still = false, touchAt?: number) => {
     const { camera, rig, state, enemy } = rigAt(3, 4, still), at = focus(f, state, enemy), frames: { pos: Vector3; angle: number; dir: Vector3 }[] = [];
@@ -191,14 +191,12 @@ test('rig: the arena cam — TOUR.afterSettle seconds after the finisher camera 
     return { frames, at, rig, camera, state, enemy };
   };
   const plain = finish({ finisher: null, posed: false });
-  // A plain death settles at the SETTLE.min floor (own test below) — the tour starts TOUR.afterSettle later, not at the old fixed TOUR.delay.
-  const plainTourStart = SETTLE.min + TOUR.afterSettle;
-  // Before the tour starts the finisher's own moves (and the settle floor) have passed and nothing else happens; after it the camera is on the move.
-  const early = tour(plain, plainTourStart - 0.5);
-  assert.ok(early.frames.at(-1)!.pos.distanceTo(early.frames.at(-60)!.pos) < 1e-6, 'before the tour starts the settled frame holds');
-  const long = tour(plain, plainTourStart + 45);
-  const after = long.frames.slice((plainTourStart + TOUR.blendIn + 1) * 60);
-  assert.ok(after[0].pos.distanceTo(after.at(-1)!.pos) > 1, 'after the tour starts the camera travels');
+  // Before the delay the finisher's own moves have settled and nothing else happens; after it the camera is on the move.
+  const early = tour(plain, TOUR.delay - 0.5);
+  assert.ok(early.frames.at(-1)!.pos.distanceTo(early.frames.at(-60)!.pos) < 1e-6, 'before the delay the settled frame holds');
+  const long = tour(plain, TOUR.delay + 45);
+  const after = long.frames.slice((TOUR.delay + TOUR.blendIn + 1) * 60);
+  assert.ok(after[0].pos.distanceTo(after.at(-1)!.pos) > 1, 'after the delay the camera travels');
   // A slow orbit: the angle around the fallen advances the same way every second, never jumps, and a lap takes TOUR.lap seconds.
   let turned = 0; for (let i = 1; i < after.length; i++) { const d = Math.atan2(Math.sin(after[i].angle - after[i - 1].angle), Math.cos(after[i].angle - after[i - 1].angle)); assert.ok(Math.abs(d) < 0.01, `no cut: ${d.toFixed(4)} rad in one frame`); turned += d; }
   assert.ok(Math.abs(Math.abs(turned) - (after.length / 60) * 2 * Math.PI / TOUR.lap) < 0.15, `one lap per ${TOUR.lap} s: turned ${turned.toFixed(2)} rad in ${after.length / 60} s`);
@@ -208,17 +206,17 @@ test('rig: the arena cam — TOUR.afterSettle seconds after the finisher camera 
   assert.ok(Math.min(...ys) < 1.9 && Math.max(...ys) > 2.8, `rises and settles: ${Math.min(...ys).toFixed(2)}–${Math.max(...ys).toFixed(2)} m`);
   for (const f of after) { assert.ok(Math.hypot(f.pos.x, f.pos.z) <= 11.5 + 1e-6, 'inside the colonnade'); assert.ok(f.dir.angleTo(long.at.clone().setY(0.7).sub(f.pos)) < 0.05, 'the look stays on the fallen'); }
   // The player's own death runs lower.
-  const mine = tour(finish({ finisher: null, posed: false, victim: 0 }), plainTourStart + 45);
-  assert.ok(Math.max(...mine.frames.slice((plainTourStart + TOUR.blendIn + 1) * 60).map(f => f.pos.y)) < Math.max(...ys) - 0.4, 'a lost fight is watched from lower');
+  const mine = tour(finish({ finisher: null, posed: false, victim: 0 }), TOUR.delay + 45);
+  assert.ok(Math.max(...mine.frames.slice((TOUR.delay + TOUR.blendIn + 1) * 60).map(f => f.pos.y)) < Math.max(...ys) - 0.4, 'a lost fight is watched from lower');
   // A touch on the arena stops the tour for this finish; the camera settles and stays.
-  const touched = tour(plain, plainTourStart + 20, false, plainTourStart + 1);
+  const touched = tour(plain, TOUR.delay + 20, false, TOUR.delay + 6);
   assert.ok(touched.rig.touring === false, 'touched: no longer touring');
   assert.ok(touched.frames.at(-1)!.pos.distanceTo(touched.frames.at(-120)!.pos) < 1e-3, 'touched: the camera has stopped');
   // No tour on a draw or under reduced motion; a rematch (no finish) resets so the next kill tours again.
-  for (const [name, r] of Object.entries({ draw: tour(finish({ draw: true }), plainTourStart + 10), still: tour(plain, plainTourStart + 10, true) })) assert.ok(r.frames.at(-1)!.pos.distanceTo(r.frames.at(-120)!.pos) < 1e-6, `${name}: the frame holds`);
-  const again = tour(plain, plainTourStart + 8, false, plainTourStart + 1);
+  for (const [name, r] of Object.entries({ draw: tour(finish({ draw: true }), TOUR.delay + 10), still: tour(plain, TOUR.delay + 10, true) })) assert.ok(r.frames.at(-1)!.pos.distanceTo(r.frames.at(-120)!.pos) < 1e-6, `${name}: the frame holds`);
+  const again = tour(plain, TOUR.delay + 8, false, TOUR.delay + 1);
   again.rig.update(1 / 60, again.state, again.enemy, true, null);
-  for (let i = 0; i < (plainTourStart + 8) * 60; i++) again.rig.update(1 / 60, again.state, again.enemy, true, plain);
+  for (let i = 0; i < (TOUR.delay + 8) * 60; i++) again.rig.update(1 / 60, again.state, again.enemy, true, plain);
   assert.ok(again.rig.touring, 'after a rematch the stop is forgotten and the next finish tours');
   // At the arena edge the orbit is clamped to the colonnade, still looking at the fallen.
   const { rig, camera, state } = rigAt(0, 0), edge = { x: 0, z: 9.6 }, edgeFinish = finish({ finisher: null, posed: false });
@@ -229,35 +227,27 @@ test('rig: the arena cam — TOUR.afterSettle seconds after the finisher camera 
 
 test('rig: settled latches once the finish is SETTLE.min old and the drawn camera has been still for SETTLE.still — after every finisher\'s own moves, at 1.5 s for a plain death or reduced motion, staying latched through the arena cam, reset by a rematch', () => {
   const run = (f: CameraFinish | null, seconds: number, still = false, clockOf?: (age: number) => number) => {
-    const { rig, state, enemy } = rigAt(3, 4, still), settledAt: number[] = [], touringAt: number[] = [];
+    const { rig, state, enemy } = rigAt(3, 4, still), when: number[] = [];
     for (let i = 0; i < 60; i++) rig.update(1 / 60, state, enemy, true, null);   // a second of the fight: the lock has converged
     for (let i = 1; i <= seconds * 60; i++) {
       const age = i / 60, fin = f && clockOf ? { ...f, clock: Math.min(1, clockOf(age)) } : f;
       rig.update(1 / 60, state, enemy, true, fin);
-      if (rig.settled && settledAt.length === 0) settledAt.push(age);
-      if (rig.touring && touringAt.length === 0) touringAt.push(age);
+      if (rig.settled && when.length === 0) when.push(age);
     }
-    return { at: settledAt[0] ?? null, touringAt: touringAt[0] ?? null, rig };
+    return { at: when[0] ?? null, rig };
   };
   const clock = (age: number) => age / 3.2;   // the finisher clock runs 0 → 1 over ~3.2 s of real time (144 ticks / 60 / 0.75)
   // A plain death moves the camera not at all: settled exactly at the floor.
-  const plain = run(finish({ finisher: null, posed: false }), 10);
+  const plain = run(finish({ finisher: null, posed: false }), 6);
   assert.ok(plain.at !== null && Math.abs(plain.at - SETTLE.min) < 0.05, `plain death settles at the floor: ${plain.at}`);
   assert.ok(run(finish({ finisher: 'runThrough', posed: true }), 6, true).at! < SETTLE.min + 0.05, 'reduced motion: the floor, nothing moves');
-  // Each finisher settles after its own camera moves end, never before the floor, and the arena cam (Strategy, 2026-09-22:
-  // the player always gets ≥ TOUR.afterSettle seconds of readable end-of-fight text) starts exactly TOUR.afterSettle
-  // seconds after settled first latches — never earlier, whatever the finisher.
-  // Measured 2026-09-22 on this rig (push-in, reveal, then the smoothing tail falling under SETTLE.speed).
-  const ends: [string, boolean, number, number][] = [
-    ['plain', false, SETTLE.min - 0.05, SETTLE.min + 0.05],
-    ['decapitation', false, 2.3, 2.8], ['quietOne', false, 2.6, 3.1], ['opened', false, 2.2, 2.7], ['opened', true, 2.8, 3.3],
-    ['splitCrown', false, 3.9, 4.5], ['runThrough', false, 3.9, 4.5],
-  ];
-  for (const [name, big, lo, hi] of ends) {
-    const f = name === 'plain' ? finish({ finisher: null, posed: false }) : finish({ finisher: name as CameraFinish['finisher'], posed: true, big });
-    const { at, touringAt } = run(f, 10, false, name === 'plain' ? undefined : clock);
-    assert.ok(at !== null && at >= lo && at <= hi, `${name}${big ? ' (big)' : ''} settles at ${at} s (expected ${lo}–${hi})`);
-    assert.ok(touringAt !== null && touringAt - at! >= TOUR.afterSettle - 0.02, `${name}${big ? ' (big)' : ''}: touring starts ${(touringAt! - at!).toFixed(2)} s after settled, want ≥ ${TOUR.afterSettle} s`);
+  // Each finisher settles after its own camera moves end, never before the floor, and always before the arena cam starts.
+  // Measured 2026-09-22 on this rig (push-in, reveal, then the smoothing tail falling under SETTLE.speed): the two long
+  // finishers settle only ~0.8 s before the arena cam starts, which the HUD's fade must live with.
+  const ends: [string, boolean, number, number][] = [['decapitation', false, 2.3, 2.8], ['quietOne', false, 2.6, 3.1], ['opened', false, 2.2, 2.7], ['opened', true, 2.8, 3.3], ['splitCrown', false, 3.9, 4.5], ['runThrough', false, 3.9, 4.5]];
+  for (const [finisher, big, lo, hi] of ends) {
+    const { at } = run(finish({ finisher: finisher as CameraFinish['finisher'], posed: true, big }), 6, false, clock);
+    assert.ok(at !== null && at >= lo && at <= hi && at < TOUR.delay, `${finisher}${big ? ' (big)' : ''} settles at ${at} s (expected ${lo}–${hi})`);
   }
   // The latch holds while the arena cam moves the camera again, and clears on a rematch.
   const long = run(finish({ finisher: null, posed: false }), TOUR.delay + 10);
@@ -265,21 +255,4 @@ test('rig: settled latches once the finish is SETTLE.min old and the drawn camer
   long.rig.update(1 / 60, rigAt().state, rigAt().enemy, true, null);
   assert.equal(long.rig.settled, false, 'a rematch clears the latch');
   assert.equal(long.rig.finishAge, 0);
-  // A late settle (Lead review, 2026-09-22): pick a reveal length that lands settled right at the fallback tour's own
-  // start (TOUR.delay) — on the pre-fix code the fallback tour begins that same frame, settledAt then moves tourStart
-  // forward on the very next frame, and `finishAge > tourStart` goes false: the tour stops and restarts later from a
-  // fresh angle (a visible jump). Found empirically (a revealEnd of ~4.1-4.2 s straddles the boundary on this rig).
-  {
-    const slowClock = (age: number) => age / 4.15;
-    const { rig, state, enemy } = rigAt(3, 4, false), touring: boolean[] = [];
-    for (let i = 0; i < 60; i++) rig.update(1 / 60, state, enemy, true, null);
-    for (let i = 1; i <= 12 * 60; i++) {
-      const age = i / 60;
-      rig.update(1 / 60, state, enemy, true, finish({ finisher: 'splitCrown', posed: true, clock: Math.min(1, slowClock(age)) }));
-      touring.push(rig.touring);
-    }
-    assert.ok(touring.some(Boolean), 'the fallback tour does start once this (deliberately boundary-timed) settle finally latches');
-    let seenTrue = false;
-    for (const t of touring) { if (t) seenTrue = true; else assert.ok(!seenTrue, 'touring never flips true → false while the finish holds — no restart jump'); }
-  }
 });
