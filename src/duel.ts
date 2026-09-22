@@ -35,18 +35,26 @@ export type Fighter = {
   speed: number;   // pace multiplier: walking, sprinting, the wind-up lunge and the backstep (moves.ts `Opponent.speed`; 1 = a man)
   poise: number;   // a plain clean hit dealing less than this never staggers this fighter (moves.ts `Opponent`); 0 = human
   loiter: number;   // ticks spent within the wall band without attacking (RULES.wall.loiter); the lorarii whip at `ticks`
+  lashed: boolean;   // the lorarii have already lashed him in this spell at the wall: the next whip is a repeat, so its tell is shorter
 };
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped';
+type EventType = 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'Whipped' | 'WhipRaised';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number };   // Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+export type CombatEvent = { tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number };   // Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+// WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash that follows (RULES.wall.loiter.raise, or raiseAgain for a repeat) —
+// presentation scales its raise animation by `lead` rather than assuming one. Both whip events carry `guard`: which sixth of the wall the
+// lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
 export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[] };
+
+// Which sixth of the ring wall a lorarius stands in, from the position of the man he is whipping: the six guards are drawn at 60-degree
+// intervals, so the sim and the world lane agree on which one moved without either reaching into the other.
+export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((Math.atan2(body.z, body.x) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 3));
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero'): Fighter => ({ weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0 });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero'): Fighter => ({ weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false });
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
 // The player's weapon (moves.ts PLAYER_WEAPONS). The longsword keeps its draw beat; any other weapon starts armed (the draw beat becomes a ready stance).
@@ -244,10 +252,18 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   // Both fighters, so the warden cannot camp the wall either. Event sides: actor = target = the whipped fighter.
   for (const i of [0, 1] as const) {
     const F = fighters[i], L = R.wall.loiter, r = Math.hypot(F.body.x, F.body.z);
-    F.loiter = F.health && !duel.finish && r >= RADIUS - L.band && F.phase !== 'attack' ? F.loiter + 1 : 0;
+    const still = F.health && !duel.finish && r >= RADIUS - L.band && F.phase !== 'attack';
+    F.loiter = still ? F.loiter + 1 : 0;
+    if (!still) F.lashed = false;   // he attacked, left the band or died: the spell is over and the next lash is a first one again
+    // The tell. A raise is emitted exactly once per lash, `lead` ticks before it: `raise` before the first, the shorter `raiseAgain` before
+    // a repeat. The counters cannot collide — on a lash tick `loiter` is `ticks` here and is only then reset to `ticks - again`, so it never
+    // reads the first-raise threshold on the way back up.
+    const lead = F.lashed ? L.raiseAgain : L.raise;
+    if (still && F.loiter === L.ticks - lead) events.push({ tick, type: 'WhipRaised', actor: i, target: i, x: F.body.x, z: F.body.z, lead, guard: lorariusGuard(F.body) });
     if (F.loiter < L.ticks) continue;
     F.loiter = L.ticks - L.again;   // the next lash comes `again` ticks later while he stays
-    events.push({ tick, type: 'Whipped', actor: i, target: i, x: F.body.x, z: F.body.z, damage: L.chip });
+    F.lashed = true;
+    events.push({ tick, type: 'Whipped', actor: i, target: i, x: F.body.x, z: F.body.z, damage: L.chip, guard: lorariusGuard(F.body) });
     F.health = Math.max(1, F.health - L.chip);
     shake(i, L.posture);
     // The shove drives him back into the fight: toward the opponent when he is near (a shove to the centre there pushed a cornered man OUT
