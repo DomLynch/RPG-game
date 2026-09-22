@@ -80,6 +80,7 @@ function renderLoot() {
     const id = loot.equipped[key];
     element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? playerWeapon[0]!.toUpperCase() + playerWeapon.slice(1) : 'Empty';
     element(`slot-${key}`).classList.toggle('on', !!id || key === 'main');
+    element(`slot-${key}`).setAttribute('data-loot', id ?? '');   // the worn id, for the paperdoll's image layers (style.css loot-layers block)
     element(`slot-${key}-off`).hidden = !id;
   }
   const rows = loot.owned.map((id) => {
