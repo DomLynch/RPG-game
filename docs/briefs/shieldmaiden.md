@@ -23,7 +23,9 @@ Trunk read: `f480728`. Live: `607126a`. Loaded: `CLAUDE.local.md`, `docs/state/m
 ## 1. What he is
 
 A Viking **woman**: tall and strong, braided, fur and mail, round shield. Display name "the Shieldmaiden" (Dom may rename; ids may use `shieldmaiden`). Seventh archetype of the ten-archetype launch roster.
-She carries the **cleaver** — the existing 13-clip family the Pitborn already fights with — so **no new weapon family**.
+She carries the **bearded axe** — a NEW one-hand family (header amendment, Dom via Strategy, 2026-09-22), so **this brief does**
+**add a weapon family**. The cleaver reading below was written before that amendment and is corrected in §2: the bearded axe
+is sequenced after the estoc stack and takes none of Combat's time before the shield lands, but it is not free.
 She is the game's **shield-bearer**: the shield from the shield brief is his always-on trait, built once for him and
 reused by the Centurion from Legionary grade.
 
@@ -35,9 +37,11 @@ Identity test: **"beaten by breaking the shield, not out-trading it."**
 Lead is right to ask for this straight. The Shieldmaiden is `rig: 'hero'`, same as the Veteran, Pitborn, Executioner and Dwarf.
 
 **It buys:**
-- The hero skeleton and therefore the whole shared clip library — including `Cleaver_*`, already authored and live on the
-  Pitborn. A hero-rig Shieldmaiden with the cleaver reuses the Pitborn's clip set exactly; zero new animation authoring for the
-  base fight loop.
+- The hero skeleton and therefore the whole shared clip library — every family already authored on it binds to her with no
+  refitting. **This no longer buys her base fight loop for free.** The pre-amendment brief rested "zero new animation authoring"
+  on her carrying the Pitborn's `Cleaver_*` set; the bearded-axe amendment removes that saving, and the brief understated its own
+  cost until this correction. A new one-hand family is ~13 clips to author against the hero skeleton, on Weapons' and the
+  animation pipeline's time, not Combat's. What the rig still buys is that those clips need no per-character fitting.
 - Finisher compatibility by construction: Split Crown's head bake, Run Through's hold, the Quiet One corpse, Decapitation
   — all keyed to hero bone names.
 - The `guard.glb` pipeline's production techniques: own skin crops, animation diet, decimated body, measured packed
@@ -65,7 +69,8 @@ Consequences this brief accepts rather than relitigates:
 - **The Shieldmaiden defines no shield rule.** Not the sides, not `stopsHeavy`, not the costScale, not the posture drain. If his
   fight does not read right, the fix is a conversation with Combat, not a number in this lane.
 - **`grip` is Weapons' field** (ONE-HAND knife/cleaver/estoc/trident-as-spear; TWO-HAND warhammer/scythe/hero's sword).
-  The cleaver is ONE-HAND, so the Shieldmaiden holds shield and cleaver together with no stow case in his own fight.
+  The bearded axe is ONE-HAND per the amendment, so the Shieldmaiden holds shield and axe together with no stow case in her own
+  fight — the one property the cleaver plan was relied on for that the axe preserves.
 - **His profile must actually be raised by his AI.** Combat's own bar for the Veteran applies here: "a profile he never
   uses is the same bug as a tell nobody can see."
 - **The identity test is unreachable until Combat's shield slice lands.** "Beaten by breaking the shield" is not
