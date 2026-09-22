@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { LADDER } from '../src/ladder.ts';
 import { createRecorder, decodeRecord } from '../src/record.ts';
-import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailyBoard, loadDaily, postDaily, saveDaily, type DailyRow } from '../src/daily.ts';
+import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily, type DailyRow, type DailySummary } from '../src/daily.ts';
 
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };
 const answer = (status: number, body: unknown, calls: { url: string; init?: RequestInit }[] = []) => (async (url: string | URL | Request, init?: RequestInit) => { calls.push({ url: String(url), init }); return { ok: status < 300, status, json: async () => body } as Response; }) as typeof fetch;
@@ -40,9 +40,16 @@ test('daily: today\'s fight is asked from the server with the public key and rea
   await assert.rejects(fetchDaily(api, answer(200, [{ day: '2026-09-22', number: 0, seed: null }])), /no daily warden today/, 'no secret → no seed → no daily');
   await assert.rejects(fetchDaily(api, answer(200, [{ day: 'tomorrow', number: 0, seed: 1 }])), /no daily warden today/);
   await assert.rejects(fetchDaily(api, answer(500, null)), /answered 500/);
-  const rows = await fetchDailyBoard(api, '2026-09-22', answer(200, [row({}), { junk: true }, row({ outcome: 'killed', ticks: 800 })]));
-  assert.equal(rows.length, 2, 'malformed rows are dropped');
-  await assert.rejects(fetchDailyBoard(api, 'not-a-day', answer(200, [])), /not a day/);
+  // The board is one RPC over every row of the day — the client sends the day and never pages or ranks rows itself (a page of 200
+  // hid the 201st poster; ranking locally let a pending row lead). A headline that isn't a whole row reads as empty, not as a crash.
+  const summary = await fetchDailySummary(api, '2026-09-22', answer(200, { day: '2026-09-22', fastest_kill: row({ outcome: 'killed', ticks: 800 }), cleanest_kill: { junk: true }, longest_survived: null, fastest_death: row({}), where: { head: 2, legs: 'x' }, pending: 3 }, calls));
+  assert.equal(calls[1].url, 'https://x.supabase.co/rest/v1/rpc/daily_board_summary'); assert.equal(calls[1].init?.method, 'POST'); assert.equal(calls[1].init?.body, JSON.stringify({ on_day: '2026-09-22' }));
+  assert.equal(summary.fastest_kill?.ticks, 800); assert.equal(summary.cleanest_kill, null, 'a malformed headline reads as empty'); assert.equal(summary.longest_survived, null); assert.equal(summary.fastest_death?.outcome, 'died');
+  assert.deepEqual(summary.where, { head: 2 }, 'only whole counts are kept'); assert.equal(summary.pending, 3);
+  assert.deepEqual(await fetchDailySummary(api, '2026-09-22', answer(200, [{ fastest_kill: null }])), { fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: {}, pending: 0 }, 'an array-wrapped or sparse answer reads too');
+  await assert.rejects(fetchDailySummary(api, 'not-a-day', answer(200, {})), /not a day/);
+  await assert.rejects(fetchDailySummary(api, '2026-09-22', answer(200, null)), /no daily board/);
+  await assert.rejects(fetchDailySummary(api, '2026-09-22', answer(503, null)), /answered 503/);
 });
 
 test('daily: the one post carries the record and the board facts; a second post the same day is refused by the primary key', async () => {
@@ -57,11 +64,12 @@ test('daily: the one post carries the record and the board facts; a second post 
   await assert.rejects(postDaily(db, 'user-1', { day: '2026-09-22', number: 0, seed: 9 }, record, null, 0), /already posted/);
 });
 
-test('daily: the board\'s five lines come from the day\'s rows, verified rows win ties, empty columns say nothing; the share text is the day, the squares and the result', () => {
-  const rows = [row({ outcome: 'killed', ticks: 900, taken: 2, display_name: 'A' }), row({ outcome: 'killed', ticks: 900, taken: 5, display_name: 'B', verified: false }), row({ outcome: 'died', ticks: 3000, location: 'head', display_name: 'C' }), row({ outcome: 'died', ticks: 600, location: 'head', display_name: 'D' }), row({ outcome: 'died', ticks: 700, location: 'legs', display_name: 'E' })];
-  const board = dailyBoard(rows);
-  assert.deepEqual(board.map(b => [b.title, b.row?.display_name ?? null]), [['Fastest kill', 'A'], ['Cleanest kill', 'A'], ['Longest survived', 'C'], ['Fastest death', 'D'], ['Where he killed people: head (2)', null]]);
-  assert.deepEqual(dailyBoard([]).map(b => b.row), [null, null, null, null, null]);
+test('daily: the board\'s five lines are the server\'s headlines as given (the ranking is the server\'s), the biggest location count is named, empty lines say nothing; the share text is the day, the squares and the result', () => {
+  const s: DailySummary = { fastest_kill: row({ outcome: 'killed', ticks: 900, taken: 2, display_name: 'A' }), cleanest_kill: row({ outcome: 'killed', ticks: 900, taken: 5, display_name: 'B', verified: false }), longest_survived: row({ outcome: 'died', ticks: 3000, display_name: 'C' }), fastest_death: row({ outcome: 'died', ticks: 600, display_name: 'D' }), where: { head: 2, legs: 1 }, pending: 1 };
+  const board = dailyBoard(s);
+  assert.deepEqual(board.map(b => [b.title, b.row?.display_name ?? null]), [['Fastest kill', 'A'], ['Cleanest kill', 'B'], ['Longest survived', 'C'], ['Fastest death', 'D'], ['Where he killed people: head (2)', null]]);
+  assert.equal(board[1].row?.verified, false, 'a pending row the server let lead is passed through as pending, for the client to grey');
+  assert.deepEqual(dailyBoard({ fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: {}, pending: 0 }).map(b => [b.title, b.row]), [['Fastest kill', null], ['Cleanest kill', null], ['Longest survived', null], ['Fastest death', null], ['Where he killed people', null]]);
   assert.equal(dailyShareText({ day: '2026-09-22', number: 3, seed: 1 }, 'the Veteran', 'died', 1500, 'https://frankendom.com/?opponent=veteran&r=Ab3_-9xZ'), 'Frankendom Daily #3 · the Veteran\n🟩🟩🟥 fell at 25.0 s\nhttps://frankendom.com/?opponent=veteran&r=Ab3_-9xZ');
   assert.equal(dailyShareText({ day: 'd', number: 0, seed: 1 }, 'the Goblin', 'killed', 300, null), 'Frankendom Daily #0 · the Goblin\n🟨 killed him in 5.0 s');
   assert.equal(dailyShareText({ day: 'd', number: 0, seed: 1 }, 'the Goblin', 'abandoned', 0, null), 'Frankendom Daily #0 · the Goblin\n⬛ walked away');

@@ -153,7 +153,39 @@ try {
       if not exists(select 1 from public.daily_board where day=current_date) then raise exception 'Guest cannot read the daily board'; end if;
     end$$;
     reset role;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot);
+  // daily_board_summary (202609220007): the board over EVERY row of the day, not the first 200; verified rows lead pending ones; the
+  // location split counts verified deaths only; another day's rows never leak in. Rows are seeded as the superuser (the insert policy
+  // and the verifier's flip are proven above; this proves the summary), then read as the guest the client is.
+  const dailySummary = `set time zone 'UTC';
+    reset role;
+    insert into auth.users select ('33333333-3333-4333-8333-' || lpad(i::text, 12, '0'))::uuid from generate_series(1, 204) i;
+    -- 201 verified kills posted in order; the FASTEST (ticks 100) is the 201st, exactly the row a 200-row page ordered by created_at drops.
+    insert into public.daily_results(day, user_id, number, opponent, weapon, outcome, ticks, location, taken, record, verified, created_at)
+      select current_date, ('33333333-3333-4333-8333-' || lpad(i::text, 12, '0'))::uuid, (current_date - date '2026-09-22')::integer, 'veteran', 'longsword', 'killed',
+             case when i = 201 then 100 else 1000 + i end, 'torso', 5, 'abc', true, now() + (i || ' seconds')::interval from generate_series(1, 201) i;
+    -- a PENDING kill faster than every verified one (ticks 1, taken 0): it must not lead either kill line while a verified row exists.
+    insert into public.daily_results(day, user_id, number, opponent, weapon, outcome, ticks, location, taken, record, verified, created_at)
+      values (current_date, '33333333-3333-4333-8333-000000000202', (current_date - date '2026-09-22')::integer, 'veteran', 'longsword', 'killed', 1, 'torso', 0, 'abc', false, now());
+    -- deaths: two verified on the head, one pending on the legs (the pending one must not count in the split); another day's verified kill (ticks 1) must not leak in.
+    insert into public.daily_results(day, user_id, number, opponent, weapon, outcome, ticks, location, taken, record, verified, created_at) values
+      (current_date, '33333333-3333-4333-8333-000000000203', (current_date - date '2026-09-22')::integer, 'veteran', 'longsword', 'died', 2000, 'head', 9, 'abc', true, now()),
+      (current_date, '33333333-3333-4333-8333-000000000204', (current_date - date '2026-09-22')::integer, 'veteran', 'longsword', 'died', 50, 'head', 1, 'abc', true, now()),
+      (current_date - 1, '33333333-3333-4333-8333-000000000001', (current_date - 1 - date '2026-09-22')::integer, 'veteran', 'longsword', 'killed', 1, 'torso', 0, 'abc', true, now() - interval '1 day');
+    update public.daily_results set outcome = 'died', location = 'legs', verified = false where day = current_date and user_id = '11111111-1111-4111-8111-111111111111';   -- the owner's row from above becomes a PENDING death on the legs
+    set role anon;
+    do $$declare s jsonb; begin
+      s := public.daily_board_summary(current_date);
+      if (s->'fastest_kill'->>'ticks')::integer <> 100 then raise exception 'Fastest kill is not the 201st row (ticks %)', s->'fastest_kill'->>'ticks'; end if;
+      if not (s->'fastest_kill'->>'verified')::boolean then raise exception 'A pending kill led the fastest-kill line'; end if;
+      if (s->'cleanest_kill'->>'taken')::integer <> 5 or not (s->'cleanest_kill'->>'verified')::boolean then raise exception 'A pending kill led the cleanest-kill line'; end if;
+      if (s->'longest_survived'->>'ticks')::integer <> 2000 or (s->'fastest_death'->>'ticks')::integer <> 50 then raise exception 'Death lines wrong: % / %', s->'longest_survived'->>'ticks', s->'fastest_death'->>'ticks'; end if;
+      if s->'where' <> '{"head": 2}'::jsonb then raise exception 'Location split counted a pending death or another day: %', s->'where'; end if;
+      if (s->>'pending')::integer <> 2 then raise exception 'Pending count is not 2: %', s->>'pending'; end if;
+      if s->'fastest_kill' ? 'record' or s->'fastest_kill' ? 'user_id' then raise exception 'The summary leaks record or user_id'; end if;
+      if jsonb_typeof((public.daily_board_summary(current_date + 1))->'fastest_kill') <> 'null' or ((public.daily_board_summary(current_date + 1))->>'pending')::integer <> 0 then raise exception 'Tomorrow has a board'; end if;
+    end$$;
+    reset role;`;
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary);
   console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
