@@ -38,7 +38,7 @@ for (let i = 0; i < COUNT; i++) {
 const play = (guard, name) => { if (guard.current === name) return; for (const act of Object.values(guard.actions)) act.fadeOut(.15); const act = guard.actions[name]; act.reset().fadeIn(.15).play(); guard.current = name; };
 // The schedule, per guard, offset by phase: pace 6 s, turn .6 s (the clip yaws the root; the heading flips when it ends), stand 3 s, raise 1 s, lash .6 s, stand 2 s.
 const SCHEDULE = [['Pace', 6], ['Turn', .6], ['Stand', 3], ['Raise', 1], ['Lash', .6], ['Stand', 2]], PERIOD = SCHEDULE.reduce((n, [, d]) => n + d, 0);
-const PACE_SPEED = 0.9;   // m/s along the wall while Pace plays (Walk_Formal's stride, in place in the clip)
+const PACE_SPEED = 0.963;   // m/s along the wall while Pace plays: MEASURED off the clip (0.642 m forward foot separation × 2 per 1.333 s cycle), not judged by eye. Anything else skates.
 const frames = []; let last = performance.now(), t = 0; const still = P.get('still');
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now; t += dt; frames.push(dt * 1000);
