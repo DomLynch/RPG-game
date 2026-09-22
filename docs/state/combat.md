@@ -55,6 +55,21 @@ SIM_DIGEST re-pinned AFTER the bump. (3) fight-length pins green for EVERY oppon
 be unnecessary; tell Lead the number either way, item 2 is now provisional. (5) flip 'knife' into PLAYER_WEAPONS_OFFERED in the same PR
 if the row clears; if it does not, bring Lead the table and decide then — **do not tune toward the pin.**
 
+**Strategy's four conditions on top of Lead's, and (a) is the actual shape of the fix.** (a) **Derive the approach target from the
+same margin `inReach` uses** — "close until the planned move is in reach" — rather than introducing a second constant that can drift
+from it again. The bug is two numbers that must agree being written independently, so the fix is to stop writing them independently.
+**If the `cramped` branch (ai.ts:311-313) becomes redundant once the target is derived, delete it in the same PR** — it was the
+one-opponent patch of this same defect, and leaving it would be two mechanisms for one rule. (b) The PR body carries the seed-12345
+`kick only` trace before AND after: attacks started, gap p10/median/p90, resolution tick. The "before" is 3 attacks / 1.41 pinned /
+no resolution; the "after" must show all three moving. (c) **Re-record the daily fight and the kill-link fixtures under
+RECORD_VERSION 6 in the same PR** — every fight's approach moves, so the fixtures move with it; do not let that trail into a
+follow-up. (d) Clear before starting.
+
+Sequencing: item 2 (cleaver/Executioner) is **provisional and behind this**. Re-measure `cleaver vs executioner normal: light spam` on
+the FIXED approach before touching his profile and send Lead the number; if it clears, the cleaver flip ships alone, and if the table
+is already re-signed in the knife PR it can ride there rather than waiting for a second one. ETA agreed: first thing, not tonight —
+"better a true morning than a false midnight". Nothing in this lane must move tonight.
+
 **Do not fix this by tuning the row.** 3 untouched against a cap of 2 is one fight over — a tie-break margin, and tuning to clear it is
 exactly what produced the estoc mess. Fix the approach/in-reach disagreement on its merits; the row clears or it does not, and if it
 does not, bring Lead the table. Whatever lands needs the full 24-seed battery re-run, because every player weapon is also a warden's
