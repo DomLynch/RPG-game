@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { TOUR, cameraPose, finisherSidePose } from '../src/camera.ts';
+import { SETTLE, TOUR, cameraPose, finisherSidePose } from '../src/camera.ts';
 import { initialState, RADIUS, TARGET } from '../src/sim.ts';
 
 test('all edge angles and orbit positions keep camera inside scenery', () => {
@@ -224,3 +224,35 @@ test('rig: the arena cam — five seconds after a finish the camera orbits the f
   for (let i = 0; i < (TOUR.delay + 40) * 60; i++) { rig.update(1 / 60, state, edge, true, edgeFinish); assert.ok(Math.hypot(camera.position.x, camera.position.z) <= 11.5 + 1e-6, 'clamped to the colonnade'); }
 });
 
+
+test('rig: settled latches once the finish is SETTLE.min old and the drawn camera has been still for SETTLE.still — after every finisher\'s own moves, at 1.5 s for a plain death or reduced motion, staying latched through the arena cam, reset by a rematch', () => {
+  const run = (f: CameraFinish | null, seconds: number, still = false, clockOf?: (age: number) => number) => {
+    const { rig, state, enemy } = rigAt(3, 4, still), when: number[] = [];
+    for (let i = 0; i < 60; i++) rig.update(1 / 60, state, enemy, true, null);   // a second of the fight: the lock has converged
+    for (let i = 1; i <= seconds * 60; i++) {
+      const age = i / 60, fin = f && clockOf ? { ...f, clock: Math.min(1, clockOf(age)) } : f;
+      rig.update(1 / 60, state, enemy, true, fin);
+      if (rig.settled && when.length === 0) when.push(age);
+    }
+    return { at: when[0] ?? null, rig };
+  };
+  const clock = (age: number) => age / 3.2;   // the finisher clock runs 0 → 1 over ~3.2 s of real time (144 ticks / 60 / 0.75)
+  // A plain death moves the camera not at all: settled exactly at the floor.
+  const plain = run(finish({ finisher: null, posed: false }), 6);
+  assert.ok(plain.at !== null && Math.abs(plain.at - SETTLE.min) < 0.05, `plain death settles at the floor: ${plain.at}`);
+  assert.ok(run(finish({ finisher: 'runThrough', posed: true }), 6, true).at! < SETTLE.min + 0.05, 'reduced motion: the floor, nothing moves');
+  // Each finisher settles after its own camera moves end, never before the floor, and always before the arena cam starts.
+  // Measured 2026-09-22 on this rig (push-in, reveal, then the smoothing tail falling under SETTLE.speed): the two long
+  // finishers settle only ~0.8 s before the arena cam starts, which the HUD's fade must live with.
+  const ends: [string, boolean, number, number][] = [['decapitation', false, 2.3, 2.8], ['quietOne', false, 2.6, 3.1], ['opened', false, 2.2, 2.7], ['opened', true, 2.8, 3.3], ['splitCrown', false, 3.9, 4.5], ['runThrough', false, 3.9, 4.5]];
+  for (const [finisher, big, lo, hi] of ends) {
+    const { at } = run(finish({ finisher: finisher as CameraFinish['finisher'], posed: true, big }), 6, false, clock);
+    assert.ok(at !== null && at >= lo && at <= hi && at < TOUR.delay, `${finisher}${big ? ' (big)' : ''} settles at ${at} s (expected ${lo}–${hi})`);
+  }
+  // The latch holds while the arena cam moves the camera again, and clears on a rematch.
+  const long = run(finish({ finisher: null, posed: false }), TOUR.delay + 10);
+  assert.equal(long.rig.settled, true, 'still settled during the tour');
+  long.rig.update(1 / 60, rigAt().state, rigAt().enemy, true, null);
+  assert.equal(long.rig.settled, false, 'a rematch clears the latch');
+  assert.equal(long.rig.finishAge, 0);
+});

@@ -264,6 +264,7 @@ export function createScene(
   // fight showed and feeds this fight's pick; `fightFinisher` is this fight's, rolled into `lastFinisher` when the next
   // fight starts (practice.finish clears on rematch). Presentation state only — the simulation never sees it.
   let lastFinisher: FinisherId | null = null, fightFinisher: FinisherId | null = null;
+  let fallen: { victim: 0 | 1; draw: boolean } | null = null;   // the finish drawn last frame, for fallenRect() between frames
   let openedReach = 0;   // Opened / Quiet One: farthest horizontal extent of what lies on the sand, from the fallen's origin (camera fit)
   let impact = 0,
     lastHealth: number = RULES.health,
@@ -386,6 +387,39 @@ export function createScene(
       if (v.z > 1) return null;
       return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight];
     },
+    // End-of-fight timing for the HUD (owner 2026-09-22: nothing over the body until the finisher camera has settled; the text
+    // fades while the arena cam tours). `settled`: the push-in/reveal has run its course, or SETTLE seconds of finish age when
+    // there is no push. `touring`: the arena cam is orbiting the fallen (from TOUR.delay, until a touch or Rematch). `age`: seconds
+    // since the finish began, 0 outside a finish. Poll it in the frame loop; the rig owns the clocks.
+    finishPhase(): { settled: boolean; touring: boolean; age: number } {
+      return { settled: rig.settled, touring: rig.touring, age: rig.finishAge };
+    },
+    // The fallen fighter's body on screen, in CSS pixels (owner 2026-09-22 gate: no HUD element may intersect it at settle time):
+    // the bounding box of the victim rig's bones as drawn this frame (the Opened halves share the skeleton, so they are covered),
+    // unioned with the severed head's own box when Decapitation sent it away from the torso, padded by a hand's width. Null
+    // outside a finish, on a draw, before the rigs are in, or when the body is entirely behind the camera.
+    fallenRect(): { x: number; y: number; w: number; h: number } | null {
+      if (!fallen || fallen.draw || !warriors) return null;
+      const rig = fallen.victim === 1 ? warriors.opponent : warriors.player;
+      rig.anchor.updateWorldMatrix(true, true);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      const v = new THREE.Vector3();
+      const take = (world: THREE.Vector3) => {
+        v.copy(world).project(camera);
+        if (v.z > 1) return;
+        const sx = (v.x * 0.5 + 0.5) * innerWidth, sy = (-v.y * 0.5 + 0.5) * innerHeight;
+        x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy);
+      };
+      const world = new THREE.Vector3();
+      rig.anchor.traverse((o) => { if (o instanceof THREE.Bone) take(o.getWorldPosition(world)); });
+      if (severHead) {
+        const box = new THREE.Box3().setFromObject(severHead.group, true);
+        if (!box.isEmpty()) for (let i = 0; i < 8; i++) take(world.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z));
+      }
+      if (x0 === Infinity) return null;
+      const pad = 24;
+      return { x: Math.round(x0 - pad), y: Math.round(y0 - pad), w: Math.round(x1 - x0 + 2 * pad), h: Math.round(y1 - y0 + 2 * pad) };
+    },
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
@@ -421,6 +455,7 @@ export function createScene(
       const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
+      fallen = practice.finish ? { victim: practice.finish.victim, draw: !!practice.finish.draw } : null;
       const finisher = practice.finish
         ? resolveFinisher(
             opponentId,

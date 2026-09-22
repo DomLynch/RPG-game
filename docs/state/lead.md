@@ -266,3 +266,14 @@ Docs-only. GAME_SPEC.md now carries the owner-locked title (Frankendom: Origins)
 - Three focused Semble searches plus CodeGraph impact covered result producers, HUD priority and regression helpers. CodeGraph synced after edits. Full configured gate: 53/53 tests, ESLint, typecheck/build, zero runtime vulnerabilities, payload budget pass. Existing 10,000/16,000-frame seeded state replays cover deterministic order; pre-fix code fails the new notice regression. ast-grep unavailable on PATH; no disputed graph edge or profiling symptom requiring unrelated diagnostics.
 - Browser review: compact 375x812 view, combat approach/damage/defeat and full-width rematch render correctly with no horizontal overflow. Prior 844x390/1280x800 checks verify landscape/desktop. Physical phone performance/audio evaluation remains outstanding.
 - Deployment blocked: configured scripts/deploy.sh passed its isolated quality gate, then public SSH 49.12.7.18:22 returned Connection refused (also on retry); saved-key Tailscale 100.96.74.1:22 timed out. HTTPS release.json remains HTTP200 at 58821417391576c257c61d10041c1ebd9197bb73. No claim these updates are live. Sentry search for that production release returned no grouped issues; this does not validate the unpublished changes. Resume configured deployment and public asset/service/browser checks when SSH is reachable. Evidence logs/receipt remain under ignored artifacts/.
+
+## End-of-fight timing hook for the HUD — 2026-09-22 (lead; the overlay layout is Visuals and World's)
+Owner (2026-09-22, via Strategy): end-of-fight text and buttons must not sit over the fallen body; text appears only once the
+finisher camera has settled and fades while the arena cam tours. This PR exposes the timing, nothing else. `view.finishPhase()`
+returns `{ settled, touring, age }`: `settled` is a latch on the camera rig (src/camera.ts `SETTLE`) that turns true once the finish is
+1.5 s old and the drawn camera has moved slower than 0.02 m/s for 0.4 s, and stays true until the finish clears; `touring` is the
+arena cam (from `TOUR.delay`, 5 s); `age` is seconds since the finish began. Measured settle times on this rig (tests/camera.test.ts):
+plain death 1.52 s, opened 2.47 s (3.07 s big), decapitation 2.53 s, quietOne 2.87 s, splitCrown 4.13 s, runThrough 4.18 s — the two
+long finishers leave ~0.8 s of still frame before the tour. `view.fallenRect()` is the fallen rig's bones (plus the severed head's box)
+projected to CSS pixels and padded 24 px, for the gate "no HUD element intersects the body at settle time"; null outside a finish,
+on a draw, or before the rigs are in. The graphics harness stubs both.
