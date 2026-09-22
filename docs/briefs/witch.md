@@ -74,6 +74,11 @@ the tables and the battery rows.
 
 ## The decision: (a) a new rig, or (b) the hero rig with female proportions in the mesh
 
+**There are now TWO female characters, not one** (Brief 15's Nord is a Viking woman, "the Shieldmaiden"; roster rule two women, eight
+men). That changes this decision's weight in both directions: under **(b)** one decision covers both and the shared six-slot library
+carries them with no new rig family; under **(a)** the new family is amortised across two characters — cheaper per head than when I
+costed it — but the Brief 14 library is then authored and raycast-fitted a second time for a family holding two of ten archetypes.
+
 **Recommendation: (b), with a named condition under which we pay for (a).** Strategy has since made this framing — build, render the
 fighting-camera frame beside the others, look — **deliverable 1's pass condition for all four new characters**, before any texture work.
 That raises the stakes here rather than lowering them: see "What would make this brief wrong".
@@ -116,7 +121,15 @@ for in the first render, not a reason to start on (a).
    knuckles automatically. She inherits the fix rather than repeating the spider-hand rescue.
 
 ## Deliverables, in order
-1. Body on the chosen rig + versus still — **and the side-by-side silhouette frame, which is the pass condition, before any texture work.**
+1. Body on the chosen rig + versus still — **and the silhouette frame, which is the pass condition, before any texture work.** It is a
+   **three-way**: the Witch, the Shieldmaiden and a male archetype at the fighting camera, as black shapes. If two women on one rig read
+   as the same person, that is worth knowing before either gets textured.
+
+   **Run it twice — bare, and in loadout — because they answer different questions.** In loadout the read is almost certainly carried by
+   the kit and the weapon: a hooded figure with a long staff and a mailed figure behind a round shield will never be confused, whatever
+   their bodies do. The bare pass is the honest one: it says whether the *bodies* are distinguishable, and if only the loadout separates
+   them then any stripped or disarmed state collapses them into one person. A three-way that is only run in loadout will pass for the
+   wrong reason and we would not find out until something took the shield away.
 2. Kit, six slots, per Brief 14 — shared pieces, tiers as material variants.
 3. Fairness battery against every offered player weapon (longsword, warhammer, trident, scythe today).
 4. Finisher fits measured per finisher.
