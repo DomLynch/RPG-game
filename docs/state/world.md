@@ -4,8 +4,21 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 
 ## Lane state — presentation / world, 2026-09-22 (trunk cb4e0ef)
 
-### Now
-Nothing in flight. Brief 13 (the six lorarii) is merged; Deploy is publishing cb4e0ef.
+### Now (2026-09-22, end of session)
+Four PRs open, all mine, none merged at the time of writing:
+- **#485 fix trunk** — URGENT, ahead of everything: trunk becec83 fails `tsc` (TS2304, arena.guards still read the removed
+  lorarii), which blocks every lane's build and quality:stop and stops Deploy publishing #467.
+- **#467 the guards come off the wall** — the owner's fix for tonight; sim untouched.
+- **#466 `?perf=1` overlay** — the instrument of record for the phone.
+- **#463 gotchas** — the four instrument rules below.
+
+Next work, on a fresh session: the REPLACEMENT presentation for the wall guards — six silhouettes baked into the wall
+texture at the sixths, a one-draw ribbon streak for the lash, a shadow sweep on the sand for the raise (scaled by the
+event's `lead` ticks). **No skinned meshes, no per-frame animation.** Bar: p95 under 16.7 ms on the owner's phone read
+through `?perf=1`, with the tell still readable from the fighting camera before the lash. `lorariusAngle(i, tick)` still
+gives the six sixths; `guard.glb` stays in the repo as the hero-rig reference.
+Also still open, non-urgent: measure the guards (or their replacement) while the camera is actually ON the walkway — take
+it from a finisher tour capture, where the camera frames the wall naturally.
 
 ### Done today
 - **Brief 13 — six lorarii on the walkway** (PRs #430 capsules, #435 model → reverted #442, #450 re-land). `src/lorarii.ts`:
