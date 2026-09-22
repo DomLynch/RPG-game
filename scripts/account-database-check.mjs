@@ -185,7 +185,46 @@ try {
       if jsonb_typeof((public.daily_board_summary(current_date + 1))->'fastest_kill') <> 'null' or ((public.daily_board_summary(current_date + 1))->>'pending')::integer <> 0 then raise exception 'Tomorrow has a board'; end if;
     end$$;
     reset role;`;
-  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary);
+  // mint_share (202609220009): short sequential base-36 ids for guests and fighters alike; the old 8-char rows keep resolving; the caps
+  // trip. User 1 already holds 30 rows this hour (fightRecords above), so the signed-in mints are user 2's. Runs last: it fills the
+  // sequence and the guest cap.
+  const shortShare = `select set_config('request.jwt.claim.sub','',false);   -- a real guest carries no sub claim; the stub's auth.uid() must read null, not the last signed-in user
+    set role anon;
+    do $$declare a text; b text; begin
+      a := public.mint_share('abc123_-ABC', 'veteran');
+      if a <> '1' then raise exception 'First minted id is not 1: %', a; end if;
+      b := public.mint_share('abc', 'goblin');
+      if b <> '2' then raise exception 'Second minted id is not 2: %', b; end if;
+      if (select opponent from public.fight_records where id = b) <> 'goblin' then raise exception 'Guest mint not stored'; end if;
+      if (select record from public.fight_records where id = 'AAAAAAAA') is null then raise exception 'Old 8-char id stopped resolving'; end if;
+      begin perform public.mint_share('abc', repeat('x', 33)); raise exception 'Overlong opponent minted'; exception when check_violation then null; end;
+      begin perform public.mint_share('not base64url!', 'veteran'); raise exception 'Bad record alphabet minted'; exception when check_violation then null; end;
+      begin perform public.fight_records_recent(); raise exception 'Guest can call fight_records_recent'; exception when insufficient_privilege then null; end;
+      begin perform nextval('public.share_ids'); raise exception 'Guest can touch the sequence'; exception when insufficient_privilege then null; end;
+    end$$;
+    set role authenticated;
+    select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+    do $$declare c text; last text; begin
+      c := public.mint_share('abc', 'veteran');
+      if c <> '3' then raise exception 'Signed-in mint did not continue the sequence: %', c; end if;
+      for i in 1..29 loop last := public.mint_share('abc', 'veteran'); end loop;   -- 30 this hour for user 2
+      if last <> 'w' then raise exception 'Ids are not monotonic base-36 of the sequence: % (expected w = 32)', last; end if;
+      begin perform public.mint_share('abc', 'veteran'); raise exception 'A 31st signed-in share within the hour was minted' using errcode = 'assert_failure'; exception when raise_exception then null; end;
+    end$$;
+    reset role;
+    do $$begin
+      if (select user_id from public.fight_records where id = '3') <> '22222222-2222-4222-8222-222222222222' then raise exception 'Signed-in mint has the wrong owner'; end if;
+      if (select user_id from public.fight_records where id = '1') is not null then raise exception 'Guest mint has an owner'; end if;
+    end$$;
+    select set_config('request.jwt.claim.sub','',false);
+    set role anon;
+    do $$begin
+      for i in 1..58 loop perform public.mint_share('abc', 'veteran'); end loop;   -- 60 guest shares this minute, with the two above
+      begin perform public.mint_share('abc', 'veteran'); raise exception 'A 61st guest share within the minute was minted' using errcode = 'assert_failure'; exception when raise_exception then null; end;
+      if not exists(select 1 from public.fight_records where id = 'AAAAAAAA') then raise exception 'Old 8-char id stopped resolving after minting'; end if;
+    end$$;
+    reset role;`;
+  run('psql', ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X'], bootstrap + migrations + checks + creatures + fightRecords + dailyLoot + dailySummary + shortShare);
   console.log('Account database PASS: owner-writable bounded marks column; real PostgreSQL; owner read/write, two-user isolation, anon denial, immutable owner/revision, stale-save rejection, input constraints, no client deletes; fight_records column-limited public read (id, opponent, record only), no anonymous write. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
