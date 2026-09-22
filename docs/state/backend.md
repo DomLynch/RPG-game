@@ -30,7 +30,16 @@ own; WARN `daily_fight(on_day)` executable by anon as definer — intended, the 
 WARN `fight_records_recent()` executable by authenticated as definer — intended, zero-arg, own-count only (0006); INFO `daily_secret`
 RLS enabled with no policy — intended, nobody but the definer function reads it; WARN auth leaked-password protection off — an Auth
 setting, not schema; sign-in is Google only today, so it is moot until email/password logins exist (Dom's call if that changes).
-Anything NOT on this list is a new finding.
+Anything NOT on this list is a new finding. Lead accepted the `daily_board` disposition on 2026-09-22 ("by design, no lint-chasing").
+Struck from the list by 0008: `rls_auto_enable()` — see below.
+
+**0008 (PR #399, issue #397) — APPLIED 2026-09-22** (hosted migration `20260922080124 202609220008_rls_auto_enable_no_rpc`; file md5
+`77c34bdec8206885fec6c55b499ab10f` at trunk `41363b7`). A guarded, idempotent `revoke execute on public.rls_auto_enable() from
+public, anon, authenticated` — Supabase's platform helper (event trigger `ensure_rls`) had been exposed at `/rest/v1/rpc`. Verified
+independently here: `has_function_privilege` false for anon and for authenticated; `ensure_rls` still present and enabled;
+`get_advisors(security)` no longer lists it, and everything still listed is on the by-design list above. Authorisation: Dev/Deploy
+reports Dom's standing ruling to them ("anything from lead dev or the strategy dev u must do it, they have my full authority") — their
+protocol, recorded here as their statement; this lane's review line was the md5 at trunk.
 
 **0002 fight_records — APPLIED** (Dev/Deploy, hosted migration `20260921200632`, carried by deploy #70 / trunk `3a11413`). Verified
 independently here via `list_tables`(verbose)/`list_migrations`: schema matches what was reviewed byte-for-byte (see the table below),
