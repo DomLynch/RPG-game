@@ -2,6 +2,51 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## The knife is offerable — and the mechanism below this entry was wrong (combat lane, 2026-09-22)
+
+**Read this before the entry beneath it.** That entry's evidence stands — the pinned gap, the profile sweep, Lead's ruling, Strategy's
+conditions — but its MECHANISM is disproved. It says the Goblin's *approach* settles at a raw reach value. It does not. `ai.ts`'s
+approach stop is `thrust.reach - .2` (1.25) or `fight.close` (KNIFE's is 1.0), and neither is 1.41. That number should have bothered us
+sooner; it was reasoned, not measured, and three sessions repeated it before anyone instrumented it.
+
+**The measured cause, two layers.** (1) A guardless warden reading a kicker holds at `theirs.kick.reach + .3` = 1.50, zeroing his
+forward drive at 1.45 (`reads.kicker=true`, `poker=false`; park 1.431 / 1.420 / 1.417, p10 = median = p90, seeds 1-3). (2) Underneath
+it, the real defect: **`next.next` was `light` on 6599 of 6599 ready ticks.** The plan is picked once, re-picked only when null, and
+cleared by being thrown — so a warden held at a gap his queued move cannot reach never attacks, never clears the plan, never re-rolls.
+Thrust was legal and in reach on 3340 of those ticks at full stamina, no threat. Measured attack starts are **4-5** per 7200 ticks, not
+the 3 recorded below.
+
+**Two designs measured, one rejected — this is why the shipped one is minimal and not merely the first thing that went green.**
+
+| design | knife row | cost |
+|---|---|---|
+| hold derives from the QUEUED move (1.05) | clears | **breaks the Goblin identity pin**: normal kick-only 5 wins vs the honest answer's 4 — inside the kicker's 1.2 reach, trading a stalemate for the cheese the hover exists to deny |
+| hold at thrust margin (1.35), re-pick **ungated** | clears | **`knife vs goblin normal: thrust from range` 15/24 vs cap 12** — fired on the poker hover, whose design is patience (Brief 5: stand off the live point, go in on the whiff) |
+| **shipped:** hold at thrust margin, re-pick gated to non-pokers | clears | none — final table is the old set minus the knife row |
+
+`ai.ts:191` already re-picks a plan the warden is too CLOSE for; the shipped fix is that rule's missing far side. Strategy's condition
+(a) — derive the target from the same margin `inReach` uses — survived the correction intact; it applies to the hover HOLD rather than
+the approach stop. Read it as refinement, not invalidation. The `cramped` branch was NOT redundant and stays.
+
+**Blast radius, narrower than first reported.** Gated on `guardShare === 0`, and `guard: 0` appears on exactly three lines of
+`src/moves.ts` — the Goblin's easy/normal/hard. No other warden moves; the Nightborn is untouched, so #419 was never sequenced behind
+this. But the Goblin is the opponent in many rows, so the whole table was re-scanned, not the knife's.
+
+**Receipts.** `quality:stop` 468 tests / 466 pass / 0 fail (2 skipped). `test:slow` 94/94. `record-replay --write` then verify PASS
+(veteran-walk-in 1677 died, veteran-scripted 1452 died, both digests match). RECORD_VERSION 5 -> 6; SIM_DIGEST `713efc17…` ->
+`86e61b16…`, PINNED_FOR_VERSION 6 — **read AFTER the bump**, because `src/record.ts` is inside its own hashed set.
+`READABLE_VERSIONS` deliberately untouched: widening the reader belongs with Stats' v5 decoder branch (#503), not this writer bump.
+`knife vs goblin hard: kick only untouched` 3/24 removed from `KNOWN_UNFAIR`; `knife` added to `PLAYER_WEAPONS_OFFERED`, now
+longsword / warhammer / trident / scythe / knife.
+
+**Gotcha worth carrying beyond this lane:** a number that no constant in the code can produce is a sign the mechanism is wrong, not
+that the constant is hidden. 1.41 matched nothing in the approach path, and the cost of not checking that was three sessions carrying a
+wrong cause into their own notes and briefs.
+
+**Now:** knife ready at local `1a83c3c` on trunk `fe0d8e0`, unpushed — the remote needs the owner's word. **Next:** the Nightborn/estoc
+profile item (Strategy), then cleaver — which is blocked on Lead's per-grade `anticipate` field, because `ai.ts:114` clamps the spam
+read to `READ.anticipate` (8) and swallows any per-grade `reaction` above it.
+
 ## The Goblin parks 0.1 m outside his own reach — the knife's last blocker (combat lane, 2026-09-22)
 
 **Finding, measured not guessed.** `knife vs goblin hard: kick only untouched 3/24` is the only row left keeping the knife out of
