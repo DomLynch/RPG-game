@@ -23,6 +23,15 @@ repo; applies stay manual (MCP `apply_migration` named after the repo file) and 
 `public.rls_auto_enable()` (event trigger `ensure_rls`) is Supabase's own platform function, not ours; the security advisor's WARN on it
 is expected and stays.
 
+**Security advisor — known items, all by design (read after the 0006 apply, 2026-09-22; re-check with `get_advisors` after any DDL):**
+ERROR `security_definer_view public.daily_board` — intended, the view reads `fighter_profiles.display_name` as its owner so a public
+board can name posters past `owner_read` (documented under 0003); WARN `rls_auto_enable()` executable by anon/authenticated — Supabase's
+own; WARN `daily_fight(on_day)` executable by anon as definer — intended, the seed is public and the secret never leaves the function;
+WARN `fight_records_recent()` executable by authenticated as definer — intended, zero-arg, own-count only (0006); INFO `daily_secret`
+RLS enabled with no policy — intended, nobody but the definer function reads it; WARN auth leaked-password protection off — an Auth
+setting, not schema; sign-in is Google only today, so it is moot until email/password logins exist (Dom's call if that changes).
+Anything NOT on this list is a new finding.
+
 **0002 fight_records — APPLIED** (Dev/Deploy, hosted migration `20260921200632`, carried by deploy #70 / trunk `3a11413`). Verified
 independently here via `list_tables`(verbose)/`list_migrations`: schema matches what was reviewed byte-for-byte (see the table below),
 RLS enabled, 0 rows. Deploy dev's own report of deploy #70 being live (release.json/VPS symlink match) was not independently checked
@@ -52,25 +61,33 @@ Client call: `GET /rest/v1/admins?select=user_id&user_id=eq.<uid>` (src/cloud-pr
 Apply order and carrier, per Dom's standing yes in the deploy session: 0002 applied (above), 0003 at #327's deploy, 0004 BEFORE #330's
 code, 0005 at #348's. All are additive: the live client is unaffected by an early apply. Dev/Deploy applies; this lane verifies after.
 
-### fight_records (0002) — APPLIED, schema below as it exists on the hosted project today; one tightening still open
+### fight_records (0002 + 0006) — APPLIED, schema below as it exists on the hosted project today
 | column | rule |
 |---|---|
 | id text pk | `^[A-Za-z0-9_-]{8}$`, client-chosen; a collision is a 23505 the client must retry |
-| user_id uuid → auth.users cascade | owner |
+| user_id uuid → auth.users cascade | owner; never readable by a client |
 | opponent text | 1–32 chars |
 | record text | ≤ 16 KB, base64url alphabet (src/record.ts encoding) |
-| created_at | default now() |
-Index `(user_id, created_at desc)`. RLS on. Policies: select `to anon, authenticated using (true)` (a shared link is public by intent);
-insert `to authenticated` with check `auth.uid() = user_id and` fewer than 30 own rows in the last hour. No update/delete policy or grant.
-Grants: select whole table to anon+authenticated; insert `(id, user_id, opponent, record)` to authenticated.
-Client calls: `POST /rest/v1/fight_records` (src/share-store.ts), `GET /rest/v1/fight_records?select=record&id=eq.<id>`.
-**0006 (PR #359, code merges tonight; hosted apply HELD for Dom's direct word in the morning — first item):** written, tests +
-mutation-tests green (30/hour cap re-proven via a new `security definer` function keyed to `auth.uid()`, not a caller-supplied id —
-an earlier draft took a `uid` argument, which would have let any signed-in player query another player's recent-post count via RPC;
-fixed before merge). Narrows the select grant to `(id, opponent, record)`, dropping `user_id`/`created_at` from what a link-holder can
-read. Not additive (it's a revoke), so per tonight's rule it needs Dom's own yes, not Strategy's or this lane's — Dev/Deploy's
-authorization from Dom names 0002–0005 only. Apply-ready line already given to Dev/Deploy; nothing further from this lane until Dom
-says go.
+| created_at | default now(); never readable by a client |
+Index `(user_id, created_at desc)`. RLS on. Policies: select `to anon, authenticated using (true)` (a shared link is public by intent —
+the row, not every column); insert `to authenticated` with check `auth.uid() = user_id and public.fight_records_recent() < 30`.
+No update/delete policy or grant. Grants: select **`(id, opponent, record)` only** to anon+authenticated; insert `(id, user_id,
+opponent, record)` to authenticated. `fight_records_recent()`: zero-arg, `security definer`, `search_path=public`, counts the
+CALLER's own rows in the last hour (`user_id = auth.uid()`); execute to authenticated only (not anon) — it takes no id, so it can
+report nobody else's count. Client calls: `POST /rest/v1/fight_records` (src/share-store.ts), `GET
+/rest/v1/fight_records?select=record&id=eq.<id>`.
+
+**0006 (PR #359) — APPLIED 2026-09-22 on Dom's typed "apply" in Dev/Deploy's session** (hosted migration `20260922072149
+202609220006_fight_records_select_columns`; file md5 `fe2218e6a3b9de7aac15ce3d36fc7cb9` at trunk `dcb9d61`, byte-identical to the
+reviewed head). Verified independently here, fresh queries: `set role anon; select id, opponent, record from fight_records` resolves;
+`select user_id …` → `42501 permission denied`; `select created_at …` → `42501 permission denied`; `pg_proc`: `fight_records_recent`
+`pronargs = 0`, `prosecdef = true`, `proconfig = search_path=public`, execute grantees `postgres, authenticated`; `pg_policies` insert
+`with_check = ((auth.uid() = user_id) AND (fight_records_recent() < 30))`; select column grants for both roles exactly `id, opponent,
+record`. Why it exists: 0002's whole-table select let anyone with the publishable key list every sharer's `user_id` and `created_at`
+(Auditer finding); narrowing it broke the insert policy's own rate-limit subquery, hence the definer function; an earlier draft took a
+`uid` argument (any signed-in player could have queried another's count) — fixed before merge. Security advisor after apply
+(Dev/Deploy's read, consistent with the design): the only 0006 item is the expected WARN "authenticated can execute SECURITY DEFINER
+fight_records_recent()".
 
 ### daily_secret / daily_fight() / daily_results / daily_board (0003, PR #327) — APPLIED, verified live
 Applied by Dev/Deploy (hosted migration `20260921211439 202609210003_daily_warden`, head lead/daily-warden `8550b1d`). Verified
