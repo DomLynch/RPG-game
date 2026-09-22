@@ -25,10 +25,11 @@ on:
         description: 'Commit or branch to measure (default: the ref you dispatch from)'
         required: false
         default: ''
-# One run per trunk push; a newer push cancels the older run, like quality.yml. deploy.sh only ever trusts a
-# job whose run is for the exact revision being deployed (scripts/ci-trusted-checks.mjs).
+# One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), like
+# quality.yml, and cancel-on-close.yml cancels a closed PR's runs. deploy.sh only ever trusts a job whose run is for the exact
+# revision being deployed (scripts/ci-trusted-checks.mjs).
 concurrency:
-  group: release-checks-${{ github.ref }}-${{ inputs.ref }}
+  group: release-checks-${{ github.event.pull_request.number || github.ref }}-${{ inputs.ref }}
   cancel-in-progress: true
 env:
   # Release checks the runner takes ~28 min on (80 s on the Mac): never worth waiting for from a pull request.
@@ -47,8 +48,11 @@ jobs:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - id: list
         # One matrix entry per release_commands row: index, a short name for the job title, the argv as one string.
-        # On a pull request's later push (synchronize) the matrix runs unless every changed file is docs (docs/** or *.md);
-        # the `ci:release-checks` label forces it. An empty matrix means "nothing to run" and the check job is skipped.
+        # On every pull request event the PR's changed files go through scripts/release-rows-for.mjs first: when they trigger
+        # no row (a docs-only diff: state docs, briefs, reference images) the matrix is skipped and the `rows` job reports
+        # "0 rows" instead (Strategy 2026-09-23: docs PRs were queueing 34-job matrices ahead of code). Otherwise the open /
+        # reopen / ready event runs the full matrix and a later push (synchronize) the curated rows those files trigger;
+        # the `ci:release-checks` label forces the full matrix. An empty matrix means "nothing to run" and the check job is skipped.
         # `ref` is what every check job checks out: the branch head on a pull request, never refs/pull/N/merge — GitHub
         # deletes that ref the moment the PR merges, and rows still queued then died in checkout (18 of #439's 32).
         env:
@@ -66,13 +70,17 @@ jobs:
             let run = true, curated = null;
             // Another label (merged-elsewhere, a lane tag) is not a request to run the matrix.
             if (pr && process.env.PR_ACTION === "labeled" && process.env.PR_LABEL !== "ci:release-checks") run = false;
-            // A later push runs the curated rows its changed files trigger (release_triggers in .quality-gate.json, printed
-            // locally by scripts/release-rows-for.mjs); the label keeps the full matrix. the Lead ruling of 2026-09-22: the pool
-            // is 20 runners, so ~30 jobs per src push would queue lanes into merging on stale runs.
-            if (pr && process.env.PR_ACTION === "synchronize" && !process.env.PR_LABELS.split(",").includes("ci:release-checks")) {
+            const forced = pr && process.env.PR_LABELS.split(",").includes("ci:release-checks");
+            if (pr && run && !forced) {
+              // The rows the PR's changed files trigger (release_triggers in .quality-gate.json, printed locally by
+              // scripts/release-rows-for.mjs). None: nothing runs, whatever the event. A later push runs exactly these rows
+              // (the Lead ruling of 2026-09-22: the pool is 20 runners, so ~30 jobs per src push would queue lanes into merging
+              // on stale runs); the open / reopen / ready event runs the full matrix once.
               const files = execFileSync("gh", ["api", `repos/${process.env.GITHUB_REPOSITORY}/pulls/${process.env.PR_NUMBER}/files`, "--paginate", "--jq", ".[].filename"], { encoding: "utf8" }).split("\n").filter(Boolean);
-              curated = JSON.parse(execFileSync("node", ["scripts/release-rows-for.mjs", "--json", ...files], { encoding: "utf8" }));
-              console.log(curated.length ? `push triggers rows ${curated.map(c => c.index).join(", ")}` : "push triggers no release rows (they run at deploy)");
+              const triggered = JSON.parse(execFileSync("node", ["scripts/release-rows-for.mjs", "--json", ...files], { encoding: "utf8" }));
+              if (!triggered.length) { run = false; console.log(`${files.length} changed file(s) trigger no release rows (they run at deploy): matrix skipped`); }
+              else if (process.env.PR_ACTION === "synchronize") { curated = triggered; console.log(`push triggers rows ${curated.map(c => c.index).join(", ")}`); }
+              else console.log(`${process.env.PR_ACTION}: full matrix (the diff triggers rows ${triggered.map(c => c.index).join(", ")})`);
             }
             const skip = pr ? (process.env.RUNNER_SKIP_ON_PR || "").split(/[\s,]+/).filter(Boolean) : [];
             const checks = !run ? [] : (curated ?? gate.release_commands.map((command, i) => ({
@@ -82,6 +90,16 @@ jobs:
             }))).filter(check => !skip.some(name => check.name.includes(name)));
             require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "checks=" + JSON.stringify(checks) + "\nref=" + process.env.RUN_REF + "\n");
           '
+  rows:
+    # The visible receipt when nothing runs: one green job, under a minute, saying so — a PR page with no matrix job at all
+    # reads as "CI never ran".
+    needs: plan
+    if: github.event_name == 'pull_request' && needs.plan.outputs.checks == '[]'
+    name: release rows (none for this diff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "0 release rows for this pull request's changed files (or a label that is not ci:release-checks) — the matrix did not run; every row runs on the Mac at deploy (scripts/deploy.sh). The ci:release-checks label forces the full matrix."
   check:
     needs: plan
     if: needs.plan.outputs.checks != '[]'

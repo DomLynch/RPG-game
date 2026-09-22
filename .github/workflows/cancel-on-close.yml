@@ -1,0 +1,22 @@
+# A closed pull request's runs are cancelled (Strategy 2026-09-23: matrices for closed PRs were still queued hours later,
+# ahead of live work). Only runs on this PR's head branch that have not finished; nothing else is touched.
+name: cancel-on-close
+on:
+  pull_request:
+    types: [closed]
+permissions:
+  actions: write
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          ids=$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$HEAD_BRANCH" --limit 100 --json databaseId,status,headSha,name \
+            --jq '.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending" or .status == "requested") | select(.name != "cancel-on-close") | .databaseId')
+          if [ -z "$ids" ]; then echo "no unfinished runs on $HEAD_BRANCH ($HEAD_SHA)"; exit 0; fi
+          for id in $ids; do echo "cancelling run $id"; gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || true; done
