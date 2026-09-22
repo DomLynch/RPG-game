@@ -2,6 +2,23 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Blood runs v2: it drips, it does not stretch — lit photo decals over the armour (owner 2026-09-22, "like a tap with a slow leak", "no paintball sticker")
+
+What changed (`src/gore.ts` `createBodyWounds`, branch `finishers/blood-runs` on dcb9d61):
+- Runs GROW: each strand is seeded from the hit (`woundSeed`, `lcg`), starts as a bead within 0.3 s, lengthens with `ease(t)=1-(1-t)^2` over 1.5–3 s to a ceiling of 11–19 cm × rig scale, then stops and never shrinks. No cycling. Replays draw identical geometry.
+- Dry-out: from the last stopped run, 20 s from wet (roughness .42, fresh crimson) to matte (roughness .75, dried tone). Dark mode multiplies; blood off hides; rematch clears.
+- Material: `MeshStandardMaterial` (lit) with FLUX-generated splat + drip photo textures and luminance normals (`src/assets/blood/*.png`, 4 files, ~110 KB), tinted `#7a2a2c` over the photo reds — the raw texture read neon ("paintball sticker"). Canvas tint stands in until the PNGs land and under node.
+- Over the armour (Lead ruling 2026-09-22, Dom: "leaks through, over"): `depthTest:false`, no polygonOffset, so a cloak or the Goblin's pauldron never hides a wound. Through-body bleed is stopped by a facing test in `update()` — a mark whose bone-frame surface normal faces away from the eye (`camera.position`, passed from scene.ts) is hidden; its clock keeps running. Overhead shoulder slot radius .16 → .22.
+- Known limit: with depth off, a wound on the far fighter can draw over the near fighter's limb when the limb crosses exactly in front of it. Glossy-material pass = separate follow-up ticket (Strategy), no wet-shader work.
+
+Evidence (all on the PR head, 2026-09-22):
+- `node --test tests/gore.test.ts` 12/12 — growth (bead at 0.3 s, ≥1.5× at 1.5 s, ≥ 8 cm, never shrinks), world-down across 5 bone rotations, seeded determinism, dry-out, depth-off + facing + goblin ≥ 8 cm at scale .78. `test:all` 469 pass / 0 fail / 2 skipped; `quality:stop` exit 0.
+- Wounds harness (`finisher-preview.mjs --wounds`): veteran exit 0, runs 0.3 s 0.06 m → 1.5 s 0.12 m → 3 s 0.13 m; goblin exit 0, 0.04 → 0.09 → 0.09 m (the 8 cm assertion now includes the goblin, pauldron in place). Stills `artifacts/character/blood-runs-{veteran,goblin}/wounds-{0.3s,1.5s,3s}-{front,rear}.png`; close-ups `artifacts/character/blood-closeup-{veteran,goblin}/closeup-*.png`.
+- Release rows 0 (run-through), 22 (blood-gate), 28 (record-replay), 29 (wounds-gate), 30 (kill-link), 32 (endgame-hud) all exit 0 locally.
+- Phone-tier cost: 10 marks / 22 live runs, `update()` 0.004 ms/frame over 18 000 frames under node, heap delta after gc constant at 6 000 vs 18 000 frames (no per-frame allocation).
+
+Remaining validation: PR's own release-checks run green (rows 22/29/32 on the GitHub runner); Dom's eye on the phone after deploy.
+
 ## Body wounds v1: blood from every landed blow, not just the death screen (owner go 2026-09-21, "blood dripping ... after a heavy hit")
 Owner: marks from every landed blade blow on any fighter (hero through Dwarf), sided to where the swing came from, showing once
 that fighter is at 60% health or below and darkening toward death — separate from the existing finisher/death gore.

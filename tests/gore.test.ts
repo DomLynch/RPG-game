@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Color, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Vector3 } from 'three';
-import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, WOUND_THRESHOLD } from '../src/gore.ts';
+import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, DRIP, DRY, WOUND_THRESHOLD } from '../src/gore.ts';
+import { OPPONENTS } from '../src/moves.ts';
 
 const near = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
 
@@ -167,17 +168,117 @@ test('body wounds: a hit pins a pooled mark to the struck bone, follows it every
   wounds.update(1 / 60, [null, root], [1, 0.2], 'off');
   assert.ok(wounds.entries[1].every(m => !m.group.visible), "blood 'off' hides body wounds like every other gore effect");
 
-  // A near-death fighter's marks are darker/heavier than a fresh one at exactly the threshold (severity scales opacity and drip length).
+  // A near-death fighter's marks are heavier than a fresh one at exactly the threshold (severity scales the mark and the run's ceiling).
   wounds.update(1 / 60, [null, root], [1, WOUND_THRESHOLD], 'red');
   const atThresholdMark = wounds.entries[1].find(m => m.group.visible)!;
-  const atThresholdOpacity = atThresholdMark.mark.material.opacity, atThresholdDrip = atThresholdMark.drips[1].scale.y;   // snapshot: the mark below mutates in place
+  const atThresholdOpacity = atThresholdMark.mark.material.opacity, atThresholdMark_ = atThresholdMark.mark.scale.x;   // snapshot: the mark below mutates in place
   for (let i = 0; i < 30; i++) wounds.update(1 / 60, [null, root], [1, 0.02], 'red');
   const nearDeath = wounds.entries[1].find(m => m.group.visible)!;
   assert.ok(nearDeath.mark.material.opacity > atThresholdOpacity, 'closer to death reads stronger');
-  assert.ok(nearDeath.drips[1].scale.y > atThresholdDrip, 'and the drip runs longer');
+  assert.ok(nearDeath.mark.scale.x > atThresholdMark_, 'and the mark spreads wider');
 
   wounds.clear();
   assert.ok(wounds.entries.flat().every(m => !m.group.visible), 'rematch clears every mark');
   wounds.update(1 / 60, [null, root], [1, 0.1], 'red');
   assert.ok(wounds.entries[1].every(m => !m.group.visible), 'a cleared pool stays empty until the next hit');
+});
+
+// A rig stand-in: a bone at a world position with a world rotation, under a root.
+const rigWith = (bone: string, position: [number, number, number], rotation: [number, number, number] = [0, 0, 0]) => {
+  const b = new Object3D(); b.name = bone; b.position.set(...position); b.rotation.set(...rotation);
+  const root = new Group(); root.add(b); root.updateMatrixWorld(true); return { root, b };
+};
+const hitTorso = (wounds: ReturnType<typeof createBodyWounds>, root: Object3D, heading = 0) =>
+  wounds.hit(1, root, { location: 'torso', direction: 'thrust', heading }, 1);
+const run = (wounds: ReturnType<typeof createBodyWounds>, root: Object3D, seconds: number, health = 0.3) => {
+  for (let i = 0; i < Math.round(seconds * 60); i++) wounds.update(1 / 60, [null, root], [1, health], 'red');
+};
+const longest = (wounds: ReturnType<typeof createBodyWounds>) =>
+  Math.max(0, ...wounds.entries[1].filter(m => m.group.visible).flatMap(m => m.strands.filter(s => s.mesh.visible).map(s => s.mesh.scale.y)));
+
+test('blood runs: a strand starts as a bead, is visibly longer at 1.5 s than at 0.3 s, stops growing, and never shrinks (owner 2026-09-22: it drips, it does not stretch)', () => {
+  const wounds = createBodyWounds(new Scene(), null), { root } = rigWith('spine_03', [0, 1.2, 0]);
+  assert.ok(hitTorso(wounds, root));
+  const at = (t: number) => { const w = createBodyWounds(new Scene(), null), r = rigWith('spine_03', [0, 1.2, 0]).root; hitTorso(w, r); run(w, r, t); return longest(w); };
+  const l03 = at(0.3), l15 = at(1.5), l30 = at(3.0), l60 = at(6.0);
+  assert.ok(l03 >= DRIP.bead * 0.99, `a bead shows early: ${l03.toFixed(3)} m`);
+  assert.ok(l15 > l03 * 1.5, `visibly longer at 1.5 s: ${l03.toFixed(3)} → ${l15.toFixed(3)} m`);
+  assert.ok(l15 >= 0.08, `at least 8 cm at 1.5 s on the man's torso (severity 0.5): ${l15.toFixed(3)} m`);
+  assert.ok(l30 >= l15, 'still growing or held at 3 s, never shorter');
+  assert.ok(Math.abs(l60 - l30) < 1e-6 || l60 >= l30, 'by 6 s every run has stopped: it holds');
+  // Never shrinks frame to frame.
+  const w = createBodyWounds(new Scene(), null), r = rigWith('spine_03', [0, 1.2, 0]).root; hitTorso(w, r);
+  let last = 0; for (let i = 0; i < 6 * 60; i++) { w.update(1 / 60, [null, r], [1, 0.3], 'red'); const now = longest(w); assert.ok(now >= last - 1e-9, `frame ${i}: ${now} < ${last}`); last = now; }
+});
+
+test('blood runs: a strand hangs along world-down on the surface whatever the bone\'s rotation, and lies in the tangent plane of the wound normal', () => {
+  for (const rotation of [[0, 0, 0], [0.9, 0, 0], [0, 1.3, 0], [0, 0, 1.1], [0.7, 0.4, 2.0]] as [number, number, number][]) {
+    const wounds = createBodyWounds(new Scene(), null), { root } = rigWith('spine_03', [0.3, 1.2, -0.2], rotation);
+    hitTorso(wounds, root, 0.8); run(wounds, root, 2);
+    const mark = wounds.entries[1].find(m => m.group.visible)!, strand = mark.strands.find(s => s.mesh.visible)!;
+    strand.mesh.updateWorldMatrix(true, false);
+    const top = strand.mesh.localToWorld(new Vector3(0, 0, 0)), tip = strand.mesh.localToWorld(new Vector3(0, -1, 0));   // the unit quad hangs from y=0 to y=-1
+    const along = tip.sub(top).normalize();
+    const normal = new Vector3(0, 0, 1).applyQuaternion(mark.group.quaternion);
+    assert.ok(along.y < -0.7, `rotation ${rotation}: the run points down in the world (y ${along.y.toFixed(2)})`);
+    assert.ok(Math.abs(along.dot(normal)) < 1e-6, `rotation ${rotation}: the run lies on the surface (⊥ normal)`);
+  }
+});
+
+test('blood runs: seeded from the hit, not Math.random — two pools fed the same fight draw identical geometry; a different hit ordinal or heading draws different runs', () => {
+  const geometry = (w: ReturnType<typeof createBodyWounds>) => w.entries[1].filter(m => m.group.visible).map(m => ({
+    rot: +m.mark.rotation.z.toFixed(9), runs: m.runs,
+    strands: m.strands.map(s => [s.live, +s.width.toFixed(9), +s.offset.toFixed(9), +s.start.toFixed(9), +s.duration.toFixed(9), +s.mesh.scale.y.toFixed(9)]),
+  }));
+  const play = (hits: [number, 'torso' | 'legs' | 'head', 'right' | 'left' | 'thrust'][]) => {
+    const w = createBodyWounds(new Scene(), null), r = rigWith('spine_03', [0, 1.2, 0]).root;
+    for (const [heading, location, direction] of hits) { w.hit(1, r, { location, direction, heading }, 1); run(w, r, 0.7); }
+    return geometry(w);
+  };
+  const script: [number, 'torso' | 'legs' | 'head', 'right' | 'left' | 'thrust'][] = [[0.3, 'torso', 'thrust'], [1.1, 'torso', 'right'], [-0.4, 'torso', 'left']];
+  assert.deepEqual(play(script), play(script), 'a replay draws the same runs');
+  assert.notDeepEqual(play(script), play([[0.31, 'torso', 'thrust'], [1.1, 'torso', 'right'], [-0.4, 'torso', 'left']]), 'a different heading draws different runs');
+  assert.notDeepEqual(play([[0.3, 'torso', 'thrust']]), play([[0.3, 'torso', 'thrust'], [0.3, 'torso', 'thrust']]).slice(1), 'the hit ordinal seeds too: the same blow twice is two different runs');
+  // The seed is pure: the same inputs, the same number; and the LCG advances.
+  assert.equal(woundSeed(3, { location: 'torso', direction: 'right', heading: 0.5 }), woundSeed(3, { location: 'torso', direction: 'right', heading: 0.5 }));
+  assert.notEqual(woundSeed(3, { location: 'torso', direction: 'right', heading: 0.5 }), woundSeed(4, { location: 'torso', direction: 'right', heading: 0.5 }));
+  assert.notEqual(lcg(1), lcg(2)); assert.equal(lcg(1), lcg(1));
+});
+
+test('blood runs: dry-out — once the last run has stopped, roughness climbs from fresh to dry over DRY.seconds and the tone darkens; dark mode multiplies further; blood off hides it', () => {
+  const wounds = createBodyWounds(new Scene(), null), { root } = rigWith('spine_03', [0, 1.2, 0]);
+  hitTorso(wounds, root); run(wounds, root, 0.3);
+  const mark = wounds.entries[1].find(m => m.group.visible)!, strand = mark.strands.find(s => s.live)!;
+  assert.ok(Math.abs(mark.mark.material.roughness - DRY.roughness[0]) < 1e-6, 'fresh: the low roughness, glossy');
+  const fresh = mark.mark.material.color.clone();
+  run(wounds, root, DRIP.start[1] + DRIP.duration[1] + DRY.seconds / 2);   // every run has certainly stopped, half the dry-out gone
+  assert.ok(mark.mark.material.roughness > DRY.roughness[0] + 0.1 && mark.mark.material.roughness < DRY.roughness[1], `half dry: roughness ${mark.mark.material.roughness.toFixed(2)}`);
+  assert.ok(mark.mark.material.color.getHex() !== fresh.getHex() && mark.mark.material.color.r < fresh.r, 'the tone has darkened');
+  assert.equal(strand.mesh.material.roughness, mark.mark.material.roughness, 'the runs dry with their wound');
+  run(wounds, root, DRY.seconds);
+  assert.ok(Math.abs(mark.mark.material.roughness - DRY.roughness[1]) < 1e-6, 'fully dry: the high roughness, matte');
+  const dried = mark.mark.material.color.clone();
+  wounds.update(1 / 60, [null, root], [1, 0.3], 'dark');
+  assert.ok(mark.mark.material.color.r < dried.r, 'dark mode multiplies the dried tone darker still');
+  wounds.update(1 / 60, [null, root], [1, 0.3], 'off');
+  assert.ok(wounds.entries[1].every(m => !m.group.visible), 'blood off hides every run');
+});
+
+test('blood runs: drawn over armour — no depth test on marks or strands (Strategy 2026-09-22: a pauldron never hides a wound); a mark whose surface faces away from the eye hides while its clock keeps running; the goblin\'s overhead site still runs ≥ 8 cm at 1.5 s', () => {
+  const wounds = createBodyWounds(new Scene(), null), { root } = rigWith('spine_03', [0, 1.2, 0]);
+  for (const m of wounds.entries[1]) { assert.equal(m.mark.material.depthTest, false); assert.equal(m.mark.material.polygonOffset, false); for (const s of m.strands) assert.equal(s.mesh.material.depthTest, false); }
+  // Overhead cut at goblin scale: the site sits on spine_03 with its normal up-and-forward; length is measured in world metres.
+  assert.ok(wounds.hit(1, root, { location: 'torso', direction: 'overhead', heading: 0 }, OPPONENTS.goblin.scale));
+  const mark = wounds.entries[1].find(m => m.used)!;
+  const tick = (eye: Vector3 | null) => wounds.update(1 / 60, [null, root], [1, 0.3], 'red', [false, false], eye);
+  for (let i = 0; i < 90; i++) tick(new Vector3(0, 1.4, 3));   // 1.5 s from in front and above: the eye is on the wound's side
+  assert.ok(mark.group.visible, 'faces the eye → shown');
+  const seen = Math.max(...mark.strands.filter(s => s.mesh.visible).map(s => s.mesh.scale.y));
+  assert.ok(seen >= 0.08, `≥ 8 cm on the goblin at 1.5 s (${seen.toFixed(3)} m)`);
+  const age = mark.age;
+  tick(new Vector3(0, 1.0, -3));   // behind and below: the surface faces away
+  assert.ok(!mark.group.visible, 'faces away from the eye → hidden, not depth-buffered');
+  assert.ok(mark.age > age, 'the clock kept running while hidden');
+  tick(new Vector3(0, 1.4, 3)); assert.ok(mark.group.visible, 'back the moment the eye is on its side again');
+  tick(null); assert.ok(mark.group.visible, 'no eye given (node, tests) → no facing test');
 });

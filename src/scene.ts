@@ -429,7 +429,7 @@ export function createScene(
       const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
       const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
-      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.drips[1].scale.y)).toFixed(2) })) as [{ visible: number; opacity: number; drip: number }, { visible: number; opacity: number; drip: number }];
+      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; opacity: number; drip: number }, { visible: number; opacity: number; drip: number }];
       return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible };
     }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
     bladeTip(): [number, number, number] | null {
@@ -724,7 +724,8 @@ export function createScene(
       // The marks ride the final poses; a cinematic finisher's own gore takes over the victim's body (the plain death keeps his wounds).
       bodyWounds.update(dt, [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null],
         [practice.playerHealth / practice.maxHealth, practice.health / practice.enemyMaxHealth], bloodMode,
-        [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
+        [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath'],
+        camera.position);   // the eye for the facing test: the camera is unparented, so its position is world
       bloodSources =
         detailedBlood && warriors
           ? finisherBloodSources(finisher!, opponent, severHead?.group ?? null, practice.finish?.location)
