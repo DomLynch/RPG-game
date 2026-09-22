@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import type { WeaponId } from './moves.ts';
+import { RULES, type WeaponId } from './moves.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
 import { api } from './api.ts';
@@ -780,6 +780,7 @@ function frame(now: number) {
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
         opponent: opponent.id,
+        loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       });
       frameEvents.push(...practice.events); fightLog.push(...practice.events);
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);

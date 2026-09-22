@@ -58,3 +58,42 @@ test('arena hit grunts follow the struck body across Skeleton fights and rematch
     audio.stop();
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('the crowd turns on a wall-hugger: the jeer bed starts with the loiter level, rotates variants, drops the moment it returns to 0', async () => {
+  const originalFetch = globalThis.fetch;
+  const starts: number[] = [], stops: number[] = [], ramps: number[] = [];
+  const param = { value: 0, setValueAtTime() {}, cancelScheduledValues() {}, linearRampToValueAtTime(value: number) { ramps.push(value); } };
+  const context = {
+    decodeAudioData: async () => ({}),
+    createGain: () => ({ gain: { ...param }, connect() {}, disconnect() {} }),
+    createBufferSource: () => ({ playbackRate: { value: 1 }, connect() {}, disconnect() {}, stop(when: number) { stops.push(when); }, start(_when: number, offset: number) { starts.push(offset); } }),
+  } as unknown as BaseAudioContext;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }) as Response;
+  try {
+    let now = 0;
+    const audio = createArenaAudio(context, {} as AudioNode, () => now);
+    await audio.ready();
+    const wall = () => starts.filter(offset => ARENA_MANIFEST.jeer_wall.some(([start]) => start === offset));
+    audio.update([], { match: 1, tick: 0, ended: false, loiter: 0 }, true);
+    assert.equal(wall().length, 0, 'no jeer while nobody hugs the wall');
+    now = 1; audio.update([], { match: 1, tick: 60, ended: false, loiter: .2 }, false);
+    assert.equal(wall().length, 1, 'the bed starts as the loiter clock starts');
+    const stopsBefore = stops.length;
+    now = 2; audio.update([], { match: 1, tick: 120, ended: false, loiter: .6 }, false);
+    assert.equal(wall().length, 1, 'the same bed keeps swelling while he stays');
+    assert.ok(ramps.at(-1)! > ramps.at(-2)!, 'the level rises with the clock');
+    now = 2.5; audio.update([], { match: 1, tick: 150, ended: false, loiter: 0 }, false);
+    assert.equal(stops.length, stopsBefore + 1, 'leaving the band (or swinging) drops the bed');
+    assert.equal(ramps.at(-1), 0, 'with a release to silence');
+    const seen = new Set<number>();
+    for (let i = 0; i < 12; i++) {   // re-enter the band repeatedly: every variant is reached and never the same one twice in a row
+      now += 1; audio.update([], { match: 1, tick: 200 + i * 60, ended: false, loiter: .5 }, false);
+      seen.add(wall().at(-1)!);
+      now += .5; audio.update([], { match: 1, tick: 230 + i * 60, ended: false, loiter: 0 }, false);
+    }
+    assert.equal(seen.size, ARENA_MANIFEST.jeer_wall.length, 'all three beds rotate');
+    const beds = wall();
+    for (let i = 1; i < beds.length; i++) assert.notEqual(beds[i], beds[i - 1], 'never the same bed twice in a row');
+    audio.stop();
+  } finally { globalThis.fetch = originalFetch; }
+});

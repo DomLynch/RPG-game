@@ -8,7 +8,7 @@ const RATE = 48000, n = t => Math.round(t * RATE), recordings = {};
 const PITCH = .7;   // owner 2026-09-20: audience 30 % deeper
 const sources = { ...JSON.parse(await fs.readFile('src/assets/audio/SOURCES.json')), ...JSON.parse(await fs.readFile('src/assets/audio/arena-life.SOURCES.json')) };
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
-for (const name of ['murmur', 'jeer', 'crowd', 'gasp', 'grunt', 'grunt2']) {
+for (const name of ['murmur', 'jeer', 'crowd', 'gasp', 'grunt', 'grunt2', 'boohall', 'whistle']) {
   const pin = sources[name], file = `artifacts/audio/source-cache/${name}.mp3`;
   let bytes = await fs.readFile(file).catch(() => null);
   if (!bytes) { const r = await fetch(pin.url, { signal: AbortSignal.timeout(30000) }); if (!r.ok) throw Error(`${name}: HTTP ${r.status}`); bytes = Buffer.from(await r.arrayBuffer()); }
@@ -39,10 +39,10 @@ function normal(x, rms = .12) {
   if (!peak) throw Error('silent region');
   const gain = Math.min(.5 / peak, rms / Math.sqrt(sq / x.length)); return x.map(v => v * gain);
 }
-const regions = { bed: [], reaction: [], jeer: [], chant: [], grunt: [], bell: [] };
+const regions = { bed: [], reaction: [], jeer: [], chant: [], grunt: [], bell: [], jeer_wall: [] };
 for (let v = 0; v < 3; v++) {
-  const bed = new Float32Array(n(8));
-  for (let layer = 0; layer < 7; layer++) add(bed, cut('murmur', (v * 3.1 + layer * 1.73) % 10, 8, .88 + layer * .033), 0, 1 / 7);
+  const bed = new Float32Array(n(6));   // 6 s (was 8): room for the three wall-jeer beds under the 450 KB budget; it loops with a .9 s crossfade
+  for (let layer = 0; layer < 7; layer++) add(bed, cut('murmur', (v * 3.1 + layer * 1.73) % 10, 6, .88 + layer * .033), 0, 1 / 7);
   regions.bed.push(normal(fade(band(bed), .015, .015), .09));
   regions.reaction.push(normal(fade(band(cut('crowd', [1.3, 22.7, 45.8][v], 1.05)), .09, .4)));
 }
@@ -59,6 +59,37 @@ for (let v = 0; v < 2; v++) {
 }
 for (const [name, start] of [['grunt', .008], ['grunt2', .16], ['grunt2', .35]]) regions.grunt.push(normal(fade(band(cut(name, start, .24), 120, 4500), .008, .05)));
 regions.bell.push(bellSamples(RATE));
+// Brief 13 (owner 2026-09-22, "a, b, c — all good put them on rotation"): the crowd turns on a wall-hugger. Three 3 s beds, each
+// a swell over the loiter clock (arena.ts scales them by loiter/ticks and drops them on leave/swing): A a low grumble rising to
+// boos (big arena), B sharper small-mob jeers with wolf-whistles, C a rhythmic stamp-and-chant turning to boos (Colosseum).
+// Sources CC0, pinned in arena-life.SOURCES.json; C's stamps are procedural.
+const swell = (x, floor = .15) => x.map((v, i) => v * (floor + (1 - floor) * Math.min(1, i / x.length / .85)));
+const tail = x => fade(x, .02, .25);
+{ // A
+  const a = new Float32Array(n(3));
+  for (let layer = 0; layer < 5; layer++) add(a, cut('murmur', (2.2 + layer * 1.9) % 10, 3, .9 + layer * .03), 0, .25);
+  add(a, swell(band(cut('jeer', 4, 3), 180, 3400), .05), 0, 1.1);
+  add(a, band(cut('crowd', 21, 3), 120, 500), 0, .45);
+  regions.jeer_wall.push(normal(tail(band(swell(a, .3))), .11));
+}
+{ // B
+  const b = swell(band(cut('boohall', 1, 3, 1.15), 220, 3400), .1);
+  for (const [at, start] of [[.7, .3], [1.6, 4.0], [2.3, 8.0]]) add(b, fade(band(cut('whistle', start, .7, 1.4), 600, 3400), .01, .2), at, .55);
+  regions.jeer_wall.push(normal(tail(b), .11));
+}
+{ // C
+  const c = new Float32Array(n(3)); let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  for (const [i, t] of [0, .5, 1, 1.5, 2, 2.5].entries()) {
+    const amp = .3 + .7 * i / 5, feet = 6 + 2 * i;
+    for (let f = 0; f < feet; f++) { const at = t + (rnd() - .5) * .05, g = amp * (.6 + .4 * rnd()); let lp = 0;
+      for (let k = 0; k < n(.12); k++) { const j = n(at) + k; if (j < 0 || j >= c.length) continue; lp += ((rnd() * 2 - 1) - lp) * .08; c[j] += g * Math.exp(-k / n(.03)) * (lp * 1.6 + .5 * Math.sin(2 * Math.PI * 60 * k / RATE) * Math.exp(-k / n(.05))); }
+    }
+  }
+  for (const [i, at] of [.5, 1, 1.5, 2].entries()) add(c, fade(band(cut('jeer', i % 2 ? 17.52 : 17.2, .42, i % 2 ? 1.04 : .94)), .07, .16), at, .5 + .1 * i);
+  add(c, fade(band(cut('jeer', 4, 1.2)), .5, .3), 1.8, .9);
+  regions.jeer_wall.push(normal(tail(c), .11));
+}
+
 const manifest = {}, chunks = []; let cursor = .02;
 for (const [name, variants] of Object.entries(regions)) for (const samples of variants) {
   (manifest[name] ??= []).push([Number(cursor.toFixed(3)), samples.length / RATE]); chunks.push([cursor, samples]); cursor += samples.length / RATE + .06;
