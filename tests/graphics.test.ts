@@ -583,7 +583,7 @@ test('end-of-fight text and buttons fade with view.finishPhase(): hidden until s
   app.tick();
   assert.ok(!html.classList.contains('endgame-fade'), 'tour ended (a touch or Rematch): visible again');
 });
-test('kill links: a finished fight offers Share; the link replays the same fight tick for tick with the buttons asleep and nothing scored; Avenge him starts a live practice fight on the same seed that never touches the card', async () => {
+test('kill links: a finished fight offers Share; the link replays the same fight tick for tick with the buttons asleep and nothing scored; PLAY NOW starts a live practice fight on the same seed that never touches the card', async () => {
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick();
@@ -611,15 +611,15 @@ test('kill links: a finished fight offers Share; the link replays the same fight
   assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'a replay writes nothing to the card');
   assert.ok(!b.storage.getItem('frankendom.fight.v1'), 'a watched fight is never marked as walked away from (the viewer\'s next boot would score a loss)');
   assert.equal(b.storage.getItem('frankendom.scorecard.v1'), cardBefore, 'a replay scores nothing');
-  assert.equal(b.element('reset-button').textContent, 'Avenge him');
+  assert.equal(b.element('reset-button').textContent, 'PLAY NOW');   // a stranger does not know whose death they are avenging (owner 2026-09-22)
   assert.equal(b.element('share-button').hidden, true, 'a replay is not re-shared from the viewer');
-  // Avenge him: live, same seed, practice only.
+  // PLAY NOW: live, same seed, practice only.
   b.element('reset-button').click(); b.tick();
   assert.equal(b.element('replay-banner').hidden, true);
   assert.equal(b.element('attack-button').attributes.get('aria-disabled'), 'false', 'the avenging fight is live');
   b.key('KeyF'); for (let i = 0; i < 45; i++) b.tick();
   for (let i = 0; i < 6000 && !b.rendered.finish; i++) b.tick();
-  assert.ok(b.rendered.finish, 'the avenging fight ends');
+  assert.ok(b.rendered.finish, 'the fight started from the link ends');
   assert.equal(b.rendered.duel.tick, ticksA, 'standing still on the same seed meets the same warden: same ending tick');
   assert.equal(b.storage.getItem('frankendom.controls.v1'), null, 'practice only: still nothing on the card');
   assert.equal(b.element('reset-button').textContent, 'Rematch', 'after avenging, a plain rematch, never the next rung');
@@ -633,15 +633,35 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
-  assert.match(wrong.element('replay-banner').textContent, /cannot be played: the link names another opponent/);
+  assert.equal(wrong.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line, never a raw error over the HUD (owner 2026-09-22)
+  assert.equal(wrong.element('reset-button').hidden, false, 'a refused link still offers PLAY NOW'); assert.equal(wrong.element('reset-button').textContent, 'PLAY NOW');
   const broken = boot({}, undefined, {}, '?opponent=veteran&replay=AAAA');
   assert.equal((broken.window as unknown as { location: { search: string } }).location.search, '?opponent=veteran&replay=AAAA', 'the harness passes the search string');
   assert.equal(broken.element('replay-banner').textContent, 'Loading the fight…', 'the link is picked up at boot');
   await settle(() => broken.element('replay-banner').textContent !== 'Loading the fight…');
-  assert.match(broken.element('replay-banner').textContent, /cannot be played/);
+  assert.equal(broken.element('replay-banner').textContent, 'This fight cannot be played here');
+  assert.equal(broken.element('reset-button').textContent, 'PLAY NOW', 'the way on is the same on any refused link');
   broken.tick(); wrong.tick();
   assert.equal(broken.storage.getItem('frankendom.fight.v1'), null, 'a refused link leaves the page a viewer: no AFK mark');
   assert.equal(wrong.storage.getItem('frankendom.fight.v1'), null, 'a link for another opponent: no AFK mark either');
+});
+test('kill links: a record that runs out before its finish freezes on the last frame with one small line and PLAY NOW, never a raw error over the HUD', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  // A record whose intents end long before the fight does is exactly what a sim change makes of an older link: the replay walks off
+  // the end of the intents. (RECORD_VERSION + tests/record-version-guard.test.ts are what stop this happening in the first place.)
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', profile: 'normal', seed: 5 });
+  for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const text = await record.encodeRecord(rec.finish('abandoned'));
+  const v = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`);
+  await settle(() => v.element('replay-banner').textContent !== 'Loading the fight…');
+  for (let i = 0; i < 400 && v.element('replay-banner').textContent !== 'Recorded on an older build'; i++) v.tick();
+  assert.equal(v.element('replay-banner').textContent, 'Recorded on an older build');
+  assert.equal(v.element('reset-button').hidden, false, 'the frozen viewer page offers the way on');
+  assert.equal(v.element('reset-button').textContent, 'PLAY NOW');
+  assert.equal(v.storage.getItem('frankendom.fight.v1'), null, 'a frozen viewer page is not an abandoned fight');
+  v.element('reset-button').click(); v.tick();
+  assert.equal(v.element('replay-banner').hidden, true, 'PLAY NOW clears the line and starts the fight');
+  assert.equal(v.element('attack-button').attributes.get('aria-disabled'), 'false', 'the fight is live');
 });
 test('kill links: Share mints a short id for signed-in fighters (with their token) and guests alike; the link is /s/<id>; a refusal says so and never falls back to a long link; a short link without a fight store is refused', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -670,7 +690,7 @@ test('kill links: Share mints a short id for signed-in fighters (with their toke
   const s = boot({}, undefined, {}, '?opponent=veteran&r=Ab3_-9xZ');
   assert.equal(s.element('welcome').hidden, true, 'a short link is picked up at boot');
   await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
-  assert.match(s.element('replay-banner').textContent, /cannot be played: this build has no fight store/);
+  assert.equal(s.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line on the viewer page, whatever the reason (owner 2026-09-22)
 });
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };

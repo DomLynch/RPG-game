@@ -248,10 +248,14 @@ const startRecorder = () => createRecorder({ build: BUILD, opponent: opponent.id
 let recorder: ReturnType<typeof createRecorder> | null = startRecorder(), lastRecord: FightRecord | null = null;
 let lastDrop: LootId | null = null;   // the piece this fight dropped, so a Share can fill its record id once (src/loot.ts Provenance)
 // Kill links (brief 3, second slice): `?replay=<record>` plays a shared fight back — the same seed, warden profile and intents, so
-// the viewer watches exactly what happened — with the buttons asleep; afterwards "Avenge him" starts a live fight against the
+// the viewer watches exactly what happened — with the buttons asleep; afterwards PLAY NOW starts a live fight against the
 // same warden and seed, practice only (practiceOnly: no ladder step, no mark, no scorecard or trial line). Share on the death
 // screen encodes the last record, replays it headless first, and only then hands the link to the share sheet or clipboard.
 let replay: { record: FightRecord; cursor: number } | null = null, practiceOnly = false;
+// A viewer page that cannot go on: the record ran out before its finish (this build steps the fight differently) or the link never
+// decoded. The last good frame stays on screen with one small line, and PLAY NOW is the way out — never a raw error over the HUD
+// (owner 2026-09-22, brief 15). RECORD_VERSION refuses a mismatched record at decode, so divergence mid-play is the rare case.
+let stalled = false;
 let daily: DailyFight | null = null;   // the daily warden's fight when this page is today's attempt (src/daily.ts): practice rules, its result posted once
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 const banner = (text: string | null) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; };
@@ -304,11 +308,13 @@ function stopFor(events: CombatEvent[]): number {
   return ms;
 }
 function updateHud() {
-  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !replay, debug, opponentId: opponent.id, replay: !!replay, practiceOnly });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
+  hud.update(practice, { controlsReady: assetsReady && !graphicsLost && !versusUp && !replay, debug, opponentId: opponent.id, replay: !!replay, practiceOnly, stalled });   // buttons wake when the card lifts (never during a replay), so a press is never swallowed
   // End-of-fight text and buttons (owner 2026-09-22): nothing over the body until the finisher camera has settled, and it fades
   // again during the arena-cam tour — view.finishPhase() is the rig's own clock, no timer of ours to keep in step with it.
   const phase = practice.finish ? view.finishPhase() : null;
-  document.documentElement.classList.toggle('endgame-fade', !!phase && (!phase.settled || phase.touring));
+  // On a viewer page PLAY NOW stays up while the arena-cam tour rolls (owner 2026-09-22: "it should stay as the camera rolls");
+  // the pre-settle hush still applies there — nothing over the body while the finisher plays.
+  document.documentElement.classList.toggle('endgame-fade', !!phase && (!phase.settled || (phase.touring && !watching)));
 }
 let orbitId: number | null = null;
 let orbitX = 0,
@@ -379,8 +385,8 @@ const controls = createInput({
 });
 resetButton.addEventListener('click', () => {
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
-  if (replay) {   // Avenge him: the same warden and seed, live, practice only
-    practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
+  if (replay || stalled) {   // PLAY NOW: the same warden (and the record's seed when there is one), live, practice only
+    practiceOnly = true; if (replay) matchSeed = replay.record.seed; replay = null; stalled = false; banner(null);
     clearInput(); recorded = false; activeMs = 0;
     practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
@@ -437,25 +443,24 @@ shareButton.addEventListener('click', async () => {
 // let the frame loop feed the recorded intents. A link for another opponent than the page booted is refused rather than mis-played.
 // The link carries a short id (`/s/<id>`; `?r=` until 2026-10-22) read from the fight store, or the record itself (`?replay=`, until 2026-10-22).
 // A kill link makes this page a viewer: set before the welcome screen drops so the frame loop never marks an AFK fight (fight.v1)
-// for a fight nobody is fighting. A refused link keeps the page a viewer; the reset button (Avenge him / Rematch) is the player
+// for a fight nobody is fighting. A refused link keeps the page a viewer; the reset button (PLAY NOW / Rematch) is the player
 // choosing to fight, and clears it.
 let watching = Boolean(replayText || sharedId);
 // A replay opens on its ending (owner 2026-09-22: "the playback is the full match? way too long and boring, last 7 seconds only"):
-// the deterministic sim is stepped silently to REPLAY_TAIL seconds before the record's end, then rendered from there. One tap on
-// "Watch the whole fight" starts it over from the first tick. Blows before the window leave no wound marks (they were never drawn).
+// the deterministic sim is stepped silently to REPLAY_TAIL seconds before the record's end, then rendered from there. Blows before
+// the window leave no wound marks (they were never drawn). "Watch the whole fight" is gone (owner 2026-09-22: "boring, huge memory
+// and bandwidth") — the ending is the whole viewer page, and PLAY NOW under it is the only thing to press.
 const REPLAY_TAIL = 7;
-const wholeButton = element<HTMLButtonElement>('replay-whole');
 function startReplay(record: FightRecord, fromTick: number) {
   matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
   recorder = null; recorded = false; activeMs = 0; clearInput();
   practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null;
   for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], opponent.profiles[difficulty]);
   state = previous = practice.fighter; accumulator = 0;
-  replay = { record, cursor: fromTick }; shareButton.hidden = true; say(null); wholeButton.hidden = fromTick === 0;
+  replay = { record, cursor: fromTick }; stalled = false; shareButton.hidden = true; say(null);
   banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
   updateHud();
 }
-let sharedRecord: FightRecord | null = null;
 if (replayText || sharedId) {
   welcome.hidden = true; banner('Loading the fight…');
   const text = replayText ? Promise.resolve(replayText) : api ? fetchSharedRecord(api, sharedId!) : Promise.reject(Error('this build has no fight store'));
@@ -464,7 +469,6 @@ if (replayText || sharedId) {
       if (urlOpponent) throw Error('the link names another opponent');
       const target = new URL(location.href); target.searchParams.set('opponent', record.opponent); location.replace(target.href); return;   // once: the re-opened page boots that rig
     }
-    sharedRecord = record;
     startReplay(record, Math.max(0, record.ticks - Math.round(REPLAY_TAIL / STEP)));
   }).catch((error: unknown) => {
     const message = typeof (error as { message?: unknown })?.message === 'string' ? (error as { message: string }).message : String(error);
@@ -473,10 +477,9 @@ if (replayText || sharedId) {
       element('welcome-eyebrow').textContent = 'THIS FIGHT HAS FADED'; element('welcome-title').textContent = 'Sign in and your kills are kept forever.'; element('welcome-lead').hidden = true;
       return;
     }
-    banner(`This link cannot be played: ${message}`);
+    stalled = true; banner(message.startsWith('Fight record: version') ? 'Recorded on an older build' : 'This fight cannot be played here'); updateHud();   // one small line, PLAY NOW under it
   });
 }
-wholeButton.addEventListener('click', () => { if (sharedRecord) startReplay(sharedRecord, 0); });
 // The daily warden (brief 4): `?daily=1` asks the server for today's fight, moves to the day's opponent when the page booted another,
 // spends the day's one attempt the moment the fight starts (a reload mid-fight is the attempt) and posts the record when it ends.
 // Practice rules: no marks, no scorecard; the daily has its own board. A build without a store, or a spent day, fights as usual.
@@ -743,7 +746,7 @@ function frame(now: number) {
       previous = state;
       if (!marked && !practice.finish && !replay && !watching) { marked = true; try { storage.setItem(AFK_KEY, JSON.stringify({ opponent: opponent.id })); } catch { /* unsaved: a closed page then scores nothing */ } }
       if (replay && replay.cursor >= replay.record.ticks) {   // the record ran out without its finish: this build stepped it differently
-        banner('This replay could not be played back on this build.'); replay = { record: replay.record, cursor: replay.cursor }; accumulator = 0; updateHud();
+        stalled = true; banner('Recorded on an older build'); accumulator = 0; updateHud();
         break;
       }
       const stepped = replay ? replay.record.intents[replay.cursor++] : (() => {
