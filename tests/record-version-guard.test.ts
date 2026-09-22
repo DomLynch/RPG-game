@@ -8,13 +8,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { RECORD_VERSION } from '../src/record.ts';
+import { READABLE_VERSIONS, RECORD_VERSION } from '../src/record.ts';
 
 // Every file whose content changes what a recorded fight does when it is stepped again: the duel rules, the move tables, the
 // opponent AI, the fixed-step loop and the record codec itself. Presentation files are deliberately absent — a new sound or a
 // different camera does not change the fight.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts'];
-const SIM_DIGEST = '12d7a683d2eab6ac92a063e27da79f8a5f48d9e680bf328a4e1957300d0df917';   // re-pinned WITHOUT a bump on 2026-09-22: TRIDENT.grip 'one-hand' -> 'two-hand', a data-only field no sim code reads. Receipt, the rule this file already sets for a bump-free re-pin: both committed references replay IDENTICALLY without being regenerated (1677/1452 ticks, same outcome, same state digest d953a09b/552f30e5), and the 24-seed fairness table is unchanged. Previous: the estoc/Nightborn work's pin.   // re-pinned WITH a bump (4 -> 5) on 2026-09-22: the batched weapon-data flip (knife thrust recovery 15 -> 20, scythe heel-jab 18 -> 30). Previous: re-pinned WITH a bump (3 -> 4) on 2026-09-22: Brief 13's whip tell adds events to the duel stream, so an old record replays a fight whose whip never rose. The previous pin was #439's re-pin WITHOUT a bump (ai.ts line breaks + a rename, replay digest identical over 180 fights) — that rule still stands: a re-pin without a bump needs a receipt that behaviour is unchanged.
+const SIM_DIGEST = '7e8b5cd81357e3c5353fc2510900656ff048e63830b73e34063769a51d5e0ed8';   // re-pinned WITHOUT a bump on 2026-09-23 under the #439 precedent: src/record.ts gained the READABLE_VERSIONS accept-list and unpackRecord now returns the version it parsed instead of the constant. Neither changes how a fight steps; receipt is `node scripts/record-replay-check.mjs --strict` before and after, identical. Previous: re-pinned WITHOUT a bump on 2026-09-22: TRIDENT.grip 'one-hand' -> 'two-hand', a data-only field no sim code reads (#472). Previous: re-pinned WITH a bump (4 -> 5) on 2026-09-22: the batched weapon-data flip (knife thrust recovery 15 -> 20, scythe heel-jab 18 -> 30). Previous: re-pinned WITH a bump (3 -> 4) on 2026-09-22: Brief 13's whip tell adds events to the duel stream, so an old record replays a fight whose whip never rose. The previous pin was #439's re-pin WITHOUT a bump (ai.ts line breaks + a rename, replay digest identical over 180 fights) — that rule still stands: a re-pin without a bump needs a receipt that behaviour is unchanged.
 const PINNED_FOR_VERSION = 5;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
@@ -24,4 +24,13 @@ test('a sim change without a RECORD_VERSION bump would break every live kill lin
   assert.ok(RECORD_VERSION >= PINNED_FOR_VERSION, 'RECORD_VERSION went backwards');
   assert.ok(digest === SIM_DIGEST ? RECORD_VERSION === PINNED_FOR_VERSION : RECORD_VERSION > PINNED_FOR_VERSION,
     `The sim files changed (digest ${digest}) but RECORD_VERSION is still ${RECORD_VERSION}. Bump RECORD_VERSION in src/record.ts so older links are refused at decode instead of replaying a different fight, then set SIM_DIGEST = '${digest}' and PINNED_FOR_VERSION = ${RECORD_VERSION + 1} here.`);
+});
+
+// The accept-list, pinned as data beside the digest above and for the same reason: which versions this build will READ is a decision
+// someone makes, not a value that drifts. The server reads this same list — scripts/verify-daily.mjs imports `decodeRecord` from
+// src/record.ts and deploy.sh rsyncs src/**/*.ts to the verifier host — so widening it here widens it there, in one deploy, and a
+// second copy on the server can never quietly disagree with this one.
+test('the decoder accept-list is what someone pinned, and this build can read what it writes', () => {
+  assert.deepEqual([...READABLE_VERSIONS], [5], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
+  assert.ok((READABLE_VERSIONS as readonly number[]).includes(RECORD_VERSION), `This build writes version ${RECORD_VERSION} but does not accept it back: a fight it recorded would be refused at decode.`);
 });
