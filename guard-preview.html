@@ -40,7 +40,9 @@ const play = (guard, name) => { if (guard.current === name) return; for (const a
 const SCHEDULE = [['Pace', 6], ['Turn', .6], ['Stand', 3], ['Raise', 1], ['Lash', .6], ['Stand', 2]], PERIOD = SCHEDULE.reduce((n, [, d]) => n + d, 0);
 const PACE_SPEED = 0.963;   // m/s along the wall while Pace plays: MEASURED off the clip (0.642 m forward foot separation × 2 per 1.333 s cycle), not judged by eye. Anything else skates.
 const frames = []; let last = performance.now(), t = 0; const still = P.get('still');
+const cpuFrames = [];
 function frame(now) {
+  const started = performance.now();
   const dt = Math.min(0.1, (now - last) / 1000); last = now; t += dt; frames.push(dt * 1000);
   for (const guard of guards) {
     let at = (t + guard.phase) % PERIOD, name = 'Stand';
@@ -53,7 +55,11 @@ function frame(now) {
   }
   const w = innerWidth, h = innerHeight; if (canvas.width !== Math.round(w * renderer.getPixelRatio())) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   renderer.render(scene, camera);
-  window.__guard = { ready: true, count: guards.length, frames: frames.slice(-600), clips: Object.keys(clips), tris: renderer.info.render.triangles, calls: renderer.info.render.calls };
+  // The work this scene costs the main thread, measured from the top of the frame to after the draw call returns. This is the number
+  // that means something: a rAF delta at 60 Hz vsync is the CADENCE, not the cost — it sits at 16.7 ms whether the scene is six guards
+  // or nothing at all — so the check asserts on this and reports the deltas only as context.
+  cpuFrames.push(performance.now() - started);
+  window.__guard = { ready: true, count: guards.length, frames: frames.slice(-600), cpu: cpuFrames.slice(-600), clips: Object.keys(clips), tris: renderer.info.render.triangles, calls: renderer.info.render.calls };
   status(`${guards.length} guards · ${Object.keys(clips).join(' ')} · ${renderer.info.render.triangles} tris · ${renderer.info.render.calls} draws`);
   if (!still || frames.length < 5) requestAnimationFrame(frame);
 }
