@@ -6,7 +6,10 @@ Generated in-lane 2026-09-22. **Concept references, not game renders, and not ap
 
 ## PICKED: A — HARD OUTLINE (Dom, 2026-09-22)
 
-Dom's word on this sheet: **"i think A"**. **A is the approved design direction** and the one this lane
+Dom's word on this sheet: **"i think A"**, then he pasted column A's own two panels back with
+**"this one"** — the pick is confirmed against the images, not just the letter, so there is no ambiguity of
+the kind that crossed the letter and the panel on the Nightborn's sheet. **A is the approved design
+direction** and the one this lane
 builds toward: fitted riveted mail hauberk to mid-thigh over a padded dark wool gambeson, squared and layered
 iron shoulder plates giving a flat hard shoulder line, broad studded belt, plain iron vambraces, dark
 trousers with straight leather leg wraps, hard low boots, two tight crown braids pinned flat. Straight,
