@@ -51,7 +51,20 @@ in the instruction: a clip name in `WEAPON_CLIPS` must exist in **every GLB that
 and on `warrior.glb`**, and blade tables are per (rig, weapon) — **10 for her staff and 10 for the hero's**, not 10 total. The player
 casting is a second fairness surface, not a reskin of hers.
 
-**It also ends the free reuse of the trident family.** A cast clip is a 20th role clip: the staff can still borrow the trident's 19 rather
+**Settled, 2026-09-22: the staff borrows the trident family and needs no new one.** The Weapons lane's reasoning, verified here against
+`WEAPON_CLIPS.trident` on trunk: Attack and Return are both `Trident_Sweep`, Heavy is `Trident_High`, Thrust is `Trident_Thrust`, Riposte
+is `Trident_ThrustChain` — a *polearm* vocabulary, not a trident-specific one. A staff sweeps, thrusts and comes down overhead: the same
+four motions. The difference is at the head, which is a part and its blade tables. **So the ~2.5 lane-week case is off the table and she
+is the ~1.5 case.**
+
+Two caveats that come with the borrowed family, both small and both worth knowing before they surprise someone:
+- **Reach is a table number**, not a clip: `minReach` plus the reach rows, the same dead-band shape the scythe uses. "Longest reach in the
+  game, useless inside" is tuned there.
+- **`Trident_Guard` is a shaft guard with no parry clip** — `Parry` maps to `Trident_BlockImpact`, same as `BlockImpact` (verified). That
+  suits a staff and suits a fighter who "never blocks". **If she must parry visibly, that is one clip, not a family.**
+- Grip is two-hand, inherited with the family.
+
+**The cast is still a clip of its own on top of the borrowed family.** A cast clip is a 20th role clip: the staff can still borrow the trident's 19 rather
 than author its own, but it needs at least one clip of its own on top. One added clip is not nineteen — the reuse is still worth having —
 but "zero new clips" is no longer available.
 
@@ -63,14 +76,13 @@ the tables and the battery rows.
   library, fairness battery, finisher fits measured per finisher, ladder rung.
 - **The cast, on top: about half a lane-week** — one clip authored on **two** rigs (hers and the hero's, because the player takes the
   staff), the move's data and tuning to the six rules above, and the battery rows for both sides of it. The VFX and sound are other lanes'.
-- **Weapon side (Weapons'): ~zero extra clips if the staff borrows the trident's 19, plus the one cast clip it must add either way; about
-  one lane-week if it needs its own family.**
+- **Weapon side (Weapons'): the staff borrows the trident's polearm family — settled — so it is the part, its blade tables and the one
+  cast clip. No new family.**
 - **Blade tables: 20, not 10** — 10 per (rig, weapon), and the staff now lives on two rigs.
 - **Where that leaves her against the Nord — the third scope change tonight, so here is the number rather than a shrug.** The Nord is a
-  cleaver and a round shield on existing families: call it a lane-week. The Witch is now **~1.5 lane-weeks of character work, or ~2.5 if
-  the staff needs its own clip family**, plus VFX and audio in other lanes. **She is materially past the Nord in every case, and by more
-  than double in the worst one.** The single question that decides which is whether the staff can borrow the trident's family — one
-  conversation with the Weapons lane, worth having before anything is taken to Dom.
+  cleaver and a round shield on existing families: call it a lane-week. The Witch is **~1.5 lane-weeks of character work** now that the
+  clip-family question is settled in our favour, plus VFX and audio in other lanes. **Still past the Nord, but by half a lane-week rather
+  than by double** — which is a scope note, not an escalation.
 
 ## The decision: (a) a new rig, or (b) the hero rig with female proportions in the mesh
 
