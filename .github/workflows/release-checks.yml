@@ -9,11 +9,12 @@ on:
   push:
     branches: [codex/01a09a76/task-1]
   # Pull requests run too, on the branch head, so that by the time the branch is merged the deploy can already trust
-  # these checks by tree (scripts/ci-trusted-checks.mjs). When it is opened ready, marked ready or reopened, and on every
-  # later push unless that push touches only docs (docs/** and *.md): #435 merged on a head whose matrix had never run
-  # (the run fires only on open, the label was never added) and failed nine rows at deploy. Never for drafts. Checks the
-  # runner cannot finish in a useful time are left out on pull requests (RUNNER_SKIP_ON_PR); they run on the Mac at
-  # deploy time as before. The `ci:release-checks` label still forces a run on a docs-only push.
+  # these checks by tree (scripts/ci-trusted-checks.mjs). The full matrix when it is opened ready, marked ready or reopened
+  # (once per PR), and on every later push the curated rows its changed files trigger — `release_triggers` in
+  # .quality-gate.json, the boot-path set on any src/index.html/public/style change (#435 merged on a head whose matrix
+  # had never run: the run fired only on open, the label was never added, and deploy #105 failed nine rows). Never for
+  # drafts. Checks the runner cannot finish in a useful time are left out on pull requests (RUNNER_SKIP_ON_PR); they run
+  # on the Mac at deploy time as before. The `ci:release-checks` label forces the full matrix on a push.
   # The summary job is RED on a pull request when any row failed: a red row is a defect until it is reproduced on the
   # Mac and shown to be the runner's (AGENTS.md, the merge gate).
   pull_request:
@@ -62,20 +63,23 @@ jobs:
             const { execFileSync } = require("child_process");
             const gate = require("./.quality-gate.json");
             const pr = process.env.GITHUB_EVENT_NAME === "pull_request";
-            let run = true;
+            let run = true, curated = null;
             // Another label (merged-elsewhere, a lane tag) is not a request to run the matrix.
             if (pr && process.env.PR_ACTION === "labeled" && process.env.PR_LABEL !== "ci:release-checks") run = false;
+            // A later push runs the curated rows its changed files trigger (release_triggers in .quality-gate.json, printed
+            // locally by scripts/release-rows-for.mjs); the label keeps the full matrix. Lead's ruling 2026-09-22: the pool
+            // is 20 runners, so ~30 jobs per src push would queue lanes into merging on stale runs.
             if (pr && process.env.PR_ACTION === "synchronize" && !process.env.PR_LABELS.split(",").includes("ci:release-checks")) {
               const files = execFileSync("gh", ["api", `repos/${process.env.GITHUB_REPOSITORY}/pulls/${process.env.PR_NUMBER}/files`, "--paginate", "--jq", ".[].filename"], { encoding: "utf8" }).split("\n").filter(Boolean);
-              run = files.some(f => !(f.startsWith("docs/") || f.endsWith(".md")));
-              console.log(run ? `push touches ${files.filter(f => !(f.startsWith("docs/") || f.endsWith(".md"))).length} non-doc file(s): running` : "docs-only push: nothing to run");
+              curated = JSON.parse(execFileSync("node", ["scripts/release-rows-for.mjs", "--json", ...files], { encoding: "utf8" }));
+              console.log(curated.length ? `push triggers rows ${curated.map(c => c.index).join(", ")}` : "push triggers no release rows (they run at deploy)");
             }
             const skip = pr ? (process.env.RUNNER_SKIP_ON_PR || "").split(/[\s,]+/).filter(Boolean) : [];
-            const checks = !run ? [] : gate.release_commands.map((command, i) => ({
+            const checks = !run ? [] : (curated ?? gate.release_commands.map((command, i) => ({
               index: i + 1,
               name: (command.find(a => a.endsWith(".mjs")) || command[0]).replace(/^(scripts|artifacts)\//, "").replace(/\.mjs$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40),
               argv: JSON.stringify(command),
-            })).filter(check => !skip.some(name => check.name.includes(name)));
+            }))).filter(check => !skip.some(name => check.name.includes(name)));
             require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "checks=" + JSON.stringify(checks) + "\nref=" + process.env.RUN_REF + "\n");
           '
   check:
