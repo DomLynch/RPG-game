@@ -4,12 +4,13 @@
 //   node scripts/versus-cards.mjs                 all live rungs
 //   node scripts/versus-cards.mjs --only dwarf    one rung
 //   node scripts/versus-cards.mjs --yaw 0.9 --pitch 0.3 --gap 1.6   framing knobs (radians / metres), printed with each card
+//   node scripts/versus-cards.mjs --zoom 1.3                          field-of-view multiplier (1 = the game's 51°; 1.3 = ~30% wider, the shipped cards)
 // Portrait: the middle `crop` of a 1170×2535 frame (a 390×845 phone at 3×, as a viewport since the game caps its pixel ratio), WebP q0.72 encoded by Chromium itself (no native encoder needed). Deterministic: seeded duel, settled camera.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 const args = process.argv.slice(2), option = (name, fallback) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : fallback; };
-const only = option('only'), yaw = +option('yaw', 0.95), pitch = +option('pitch', 0.3), gap = +option('gap', 1.7), quality = +option('quality', 0.72), crop = +option('crop', 0.86), cx = +option('cx', 0.66), cy = +option('cy', 0.47), lock = args.includes('--lock');   // 0.86: the shipped public/versus/*.webp are 1006×2180 = 0.86 of the 1170×2535 frame (audit 2026-09-22 — the default had drifted to 0.56, so a plain re-run would not reproduce them; cx/cy unverified against the shipped files, left as before)
+const only = option('only'), yaw = +option('yaw', 0.95), pitch = +option('pitch', 0.3), gap = +option('gap', 1.7), quality = +option('quality', 0.72), crop = +option('crop', 0.86), cx = +option('cx', 0.66), cy = +option('cy', 0.47), zoom = +option('zoom', 1.3), lock = args.includes('--lock');   // zoom: field-of-view multiplier for the still only (owner 2026-09-22: the card was too close, ~30% more zoom-out); the free camera's 7.5 m is not a knob here and scene.ts stays untouched   // 0.86: the shipped public/versus/*.webp are 1006×2180 = 0.86 of the 1170×2535 frame (audit 2026-09-22 — the default had drifted to 0.56, so a plain re-run would not reproduce them; cx/cy unverified against the shipped files, left as before)
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom versus cards</title>
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#world{display:block}</style></head>
@@ -29,13 +30,16 @@ function ready(gap) {
 window.__cards = {
   ladder: LADDER.map(r => r.id),
   ready: view.ready.then(() => true).catch(e => String(e)),
-  still(yaw, pitch, gap, quality, crop, cx, cy, lock) {
+  still(yaw, pitch, gap, quality, crop, cx, cy, lock, zoom) {
     const s = ready(gap);
+    // The scene keeps its camera private; the renderer is ours, so catch the camera on its way through render() and widen its fov for the card.
+    let cam = null; const render = view.renderer.render.bind(view.renderer); view.renderer.render = (scene, camera) => { cam = camera; render(scene, camera); };
     // Settle the free camera (it follows yaw/pitch from 7.5 m; --lock is the duel's over-the-shoulder pose, which hides the opponent behind
     // the hero), swing it to the three-quarter view, let the lerp land.
     view.recenter(); for (let i = 0; i < 60; i++) view.render(s.fighter, lock, TICK, s, [], false);
     view.orbit(-yaw / 0.005, (pitch - 0.45) / 0.003);
     for (let i = 0; i < 120; i++) view.render(s.fighter, lock, TICK, s, [], false);
+    const fov = cam.fov; cam.fov = fov * zoom; cam.updateProjectionMatrix(); view.render(s.fighter, lock, TICK, s, [], false); cam.fov = fov; cam.updateProjectionMatrix();
     // The card is a window of the frame around the pair (centre cx, cy as fractions), so they fill it instead of standing small in the arena.
     const w = Math.round(canvas.width * crop), h = Math.round(canvas.height * crop), out = document.createElement('canvas'); out.width = w; out.height = h;
     const x0 = Math.min(canvas.width - w, Math.max(0, Math.round(canvas.width * cx - w / 2))), y0 = Math.min(canvas.height - h, Math.max(0, Math.round(canvas.height * cy - h / 2)));
@@ -57,9 +61,9 @@ try {
   await page.goto(`${base}?opponent=veteran`); const ladder = await page.evaluate(() => window.__cards.ladder);
   for (const id of only ? [only] : ladder) {
     await page.goto(`${base}?opponent=${id}`); const ok = await page.evaluate(() => window.__cards.ready); if (ok !== true) throw new Error(`${id}: ${ok}`);
-    const data = await page.evaluate(([y, p, g, q, c, x, yy, l]) => window.__cards.still(y, p, g, q, c, x, yy, l), [yaw, pitch, gap, quality, crop, cx, cy, lock]);
+    const data = await page.evaluate(([y, p, g, q, c, x, yy, l, z]) => window.__cards.still(y, p, g, q, c, x, yy, l, z), [yaw, pitch, gap, quality, crop, cx, cy, lock, zoom]);
     const bytes = Buffer.from(data.split(',')[1], 'base64'); await fs.writeFile(`public/versus/${id}.webp`, bytes);
-    console.log(`public/versus/${id}.webp  ${(bytes.length / 1024).toFixed(0)} KB  (yaw ${yaw}, pitch ${pitch}, gap ${gap}, crop ${crop} @ ${cx},${cy}, ${lock ? 'locked' : 'free'})`);
+    console.log(`public/versus/${id}.webp  ${(bytes.length / 1024).toFixed(0)} KB  (yaw ${yaw}, pitch ${pitch}, gap ${gap}, crop ${crop} @ ${cx},${cy}, zoom ${zoom}, ${lock ? 'locked' : 'free'})`);
   }
   if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`);
 } finally { await browser.close(); await server.close(); }
