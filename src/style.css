@@ -1221,7 +1221,7 @@ dialog>p {
     transition: opacity .12s;
   }
   .actions[data-gestures=cluster] button .side{ vector-effect: non-scaling-stroke; opacity: .55; transition: opacity .12s, stroke-width .12s; }   /* the four ticks (owner 2026-09-22: brighter; was .3) */
-  .actions[data-gestures=cluster] button .side-straight{ opacity: .12; }   /* the centre ring rests faint (owner: "more transparent, not gone"); the lit rules below still raise it */
+  .actions[data-gestures=cluster] button .side-straight{ opacity: 0; }   /* the centre ring is invisible at rest (owner 2026-09-22, second look: "remove the inner circle"); it stays in the DOM because the lit rules below raise it to .95 for Stab held / Guard straight */
   /* one lit mark per button, and only while that button is being pressed (data-held from input.ts; :active is unreliable on touch) — the same as Guard, so every button rests at the
      same faint weight (owner 2026-09-21: "keep them all standard semi-transparent like the guard one") */
   .actions[data-gestures=cluster] #attack-button[data-held][data-next=left] .side-left,
@@ -1244,6 +1244,7 @@ dialog>p {
     letter-spacing: 1px;
     text-transform: uppercase;
     text-shadow: 0 1px 2px #000a;
+    opacity: .9;   /* owner 2026-09-22: the labels were overpowering the glass — 10 % off */
   }
   .actions[data-gestures=cluster] button:active{
     background: #d9c69ac0;
