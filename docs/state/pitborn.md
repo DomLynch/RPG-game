@@ -30,13 +30,31 @@ structurally different mesh that is raised with Multi Chars before authoring, ne
   B 0.319, C 0.276** against **Veteran 0.360, Executioner 0.374, Knight 0.367**. What holds is *their*
   finding, not mine — the three men cluster inside 0.014; her three spread 0.043 and the widest is widest by
   fur, not frame. Choose on outline, not build: the conclusion stands, the first evidence for it did not.
-- **A fails the stripped test, and so does the Knight — this is a roster problem, not a lane one.** Loot v2
+- **Her six takeable pieces are named and accepted** (Strategy, 2026-09-23; posted on #471). Helmet (an open
+  iron-banded cap worn *behind* the crown braids, not a closed helm), Body (mail hauberk over its gambeson,
+  carrying the studded belt), Arms (the squared layered iron shoulder plates), Gloves (iron vambraces on the
+  shared `~kit.Gloves` mesh), Greaves (leather leg wraps), Boots. **No Crest** — that is the Centurion's
+  ornament and reference A has nothing on the crown. **Recruit-2 = Arms + Body**, ruled in this lane's favour
+  against Lead's handoff (which said Body + Helmet): the rule is "the two identity-carrying slots", Helmet +
+  Body was the masked pair's instance and not a constant, and `src/loot.ts:44` puts shoulder plates in Arms
+  (`pitborn.Arms` = his bone plates). Naming is not authoring; build order stays Recruit-2 first.
+- **Her weapon has no loot slot yet.** `WEAPON_SLOTS` (`src/loot.ts:15`) is Trident, Cleaver, Knife, Estoc,
+  Scythe, Warhammer — no bearded axe, gladius or maul. SCOPE.md's ten-weapon launch list needs it extended
+  before her axe is takeable. Weapons' and Scalable Chars', flagged on #471 so it is not found at a kill screen.
+- **The stripped question is CLOSED — do not re-escalate it.** Strategy dissolved it rather than deciding it:
+  **there is no stripped state in the game.** Take-one removes at most one piece, the opponent respawns
+  kitted, and a grade is a material variant on a shared mesh (`src/grades.ts`), so her Recruit scrap Arms has
+  the same hard shoulder line as her iron one. **The silhouette gate is in-kit at every rung; the bare pass is
+  informational, never a bar.** The measurement below stands; the bar inferred from it never existed.
+- **The measurement that raised it (kept as evidence, not as a bar).** Loot v2
   makes gear takeable, so the real question is not "did the bare panel come back bare" but "does she read as
   *herself* with every removable slot off". With mail, shoulder plates, belt, vambraces and boots gone she
   goes **0.284 → 0.240 and reads as a generic thin woman**; the flat hard shoulder line A was chosen *for* is
   the shoulder plates. Evidence `shieldmaiden-stripped-v2.png`. Raised with Lead, deliberately not solved
-  here: either each character gets an identity element that cannot be removed, or it is explicitly accepted
-  that stripped means generic and the silhouette test is reworded to stop implying a bar it does not set.
+  Evidence `shieldmaiden-stripped-v2.png`. Two outcomes came out of raising it: SCOPE.md's withdrawn figure
+  was replaced (#492, `70d210a`) and this lane's rule **"stance before breadth"** went into AGENTS.md under
+  its own name (#499, `ec60165`) — a silhouette comparison is only valid between figures in the same stance,
+  and no measurement code can tell you when it is not.
 - **Her brief no longer understates her cost.** #471 said *cleaver* in three places and rested a "zero new
   animation authoring" saving on the Pitborn's `Cleaver_*` set; the bearded-axe amendment removes that saving.
   Fixed by Lead at `f6af593` — verified on `origin/lead/brief-shieldmaiden`: §1 now states the axe is a NEW
