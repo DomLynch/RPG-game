@@ -34,11 +34,23 @@ windup + active + recovery for one swing. Light is `light_right`; heavy is `heav
 | Scythe | 16 | 22 | 8 | 58 t / 967 ms | 74 t / 1233 ms | 48 t / 800 ms | 2.10 | 28 | 38 |
 | Warhammer | 15 | **24** | 7 | 56 t / 933 ms | 78 t / 1300 ms | 49 t / 817 ms | 1.40 | 28 | 42 |
 
-⚠ **Two values on this page are not what trunk says.**
-- **Trident grip.** Trunk says `one-hand`; #472 (open, approved) makes it `two-hand`. It is grouped as two-hand above, on #472.
-- **Estoc reach.** The trunk rows carry the sword's numbers as a spacing estimate. The measured frontier is sword + 0.30 m and
-  lives only on #419, which is held on a Combat dependency. Treat estoc reach as **2.30 m**, not 2.00, in any reach argument;
-  the table above prints trunk's value so the two are not silently conflated.
+⚠ **Two values on this page are known wrong on trunk.** Reading the live table faithfully would propagate both, so each is
+printed as trunk has it *and* corrected here, with the correction's location named.
+
+- **Trident grip — a defect, not a design.** Trunk says `one-hand`. It is grouped **two-hand** above, on #472 (open, in Lead's
+  held queue). The evidence is in the file rather than in anyone's recollection: of the five `guard: 'shaft'` weapons, the
+  trident is the **only** one that is not two-hand (scythe, maul, reaper and warhammer all are), and its `guardProfile` is
+  character-for-character identical to the scythe's and the warhammer's — `{ costScale: 1.15, heavyBreaks: true }`. A shaft
+  weapon with a shaft weapon's guard and a one-hand grip is an inconsistency in one field, not a distinct design.
+  This is exactly where it bites: grouped from trunk as-is, the trident sits in the wrong column and §2's whole shape changes.
+- **Estoc reach — a placeholder already measured and found wrong.** The trunk rows carry the sword's spacing estimate. The
+  measured frontier is sword + 0.30 m, i.e. **2.30 m**, and that correction lives only on #419, parked at `ad928ec` pending a
+  battery re-measure after Combat's approach fix. The table prints trunk's 2.00 so the two are not silently conflated; use 2.30
+  in any reach argument, marked unlanded.
+
+The distinction matters beyond these two rows: a proposal that quotes trunk verbatim is accurate about the *file* and wrong
+about the *weapons*. Deliverable 5 applies Attack and RES multipliers on top of exactly these numbers, and a multiplier over a
+wrong base is a wrong result that looks derived.
 
 Everything else — damage, windup/active/recovery, stamina, chip — is current on trunk, including the knife's thrust recovery of
 20 and the scythe's heel-jab recovery of 30 (both from #440).
