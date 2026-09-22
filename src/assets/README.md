@@ -450,6 +450,29 @@ within 18° of the rig's finger in the bind pose), which fails on the previous l
 `humanoid-v43/hands-stock-live-fixed.png` (the stock body the clips were made for / live / fixed, Sword_Idle),
 `hands-poses-live-fixed.png` (Idle, Guard, Attack, grip), `hand-rest.png`.
 
+v44 (2026-09-22, "still spider fingers" — owner's screenshots of the hanging off-hand): the v43 bind pose was right and its
+test proved it, but the rig's KNUCKLES were not where the mesh's are. The UAL rig's fingers are longer than the Studio
+mesh's: measured on the live GLB the index's third knuckle sat at 93 % of the mesh finger and its bone tip 30 % past the
+fingertip (middle 83/120, ring 73/106, pinky 74/101, thumb 108/158), so a clip's curl at the last joint moved no skin and
+the outer half of each finger swung as one stiff stick — the long, spidery off-hand in Armed/Guard/Attack; a fist hid it.
+`parts.fit_finger_bones` (after the weight clean, before the straightening) reads each digit's length off the mesh, moves
+its joints along each bone's OWN rest direction to anatomical fractions (proximal 45 %, middle 30 %, distal 25 %, the leaf
+a 1 cm marker past the tip — direction and roll kept, so the clips' rotations mean what they did; the clips key finger
+rotations only, checked), and re-weights the finger's skin to the new joints (6 mm blend either side of a knuckle, the
+digit's total weight per vertex kept, the leaf bones — which no clip animates — carry no skin). The armature ships inside
+the body part; `build-warrior.mjs` adopts its finger joints (rest positions rebuilt for the moved bones, inverse binds
+recomputed, rest rotations untouched) before `reproportion`, for the hero and for loot.glb, which binds to the same rig.
+Face untouched: head geometry (Photo/PhotoEyes/PhotoTeeth/Face) sha-identical to v43, face textures restored to v43 bytes
+(re-bake differed by ≤ 2/255 from JPEG jitter). Body tile bakes (ao_body/skin_*) change only where the fingers moved.
+Two silent-fallback traps found on the way and made loud: the f4ff30a untracking had deleted `artifacts/source/face`
+(and the hero's KeenTools scan) from this worktree, and the sparse face fit then ran without a word and moved the chin
+5 mm — parts.py now refuses without the landmarks unless `HEAD_DENSE=0`. Guarded by `tests/hero-hands.test.ts`
+(hero row `knuckles`: 2nd knuckle 38–52 %, 3rd 68–82 %, bone tip 95–108 % of the finger, leaf < 1 % of the skin, thumb
+distal 68–82 %; the straightness check now measures flex about the knuckle axis per phalanx and fan on the whole finger,
+since a band centroid drifts sideways with the knuckle bulge). Renders (untracked): `artifacts/character/humanoid-v44/
+hands-poses-before.png` / `hands-poses-after.png` (Idle, Armed, Guard, Attack × top/front/side, both hands) and
+`offhand-armed-guard-before-after.png`.
+
 ## Weapons (weapons lane, 2026-09-16) — the trident
 
 `src/assets/weapons/trident/`: `trident.glb` (the part alone). Since slice V the shipped `veteran.glb` IS the Veteran carrying it (every sword
