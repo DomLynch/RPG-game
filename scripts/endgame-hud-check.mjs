@@ -57,7 +57,7 @@ try {
     const box = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
     const visible = (el) => el && !el.hidden && getComputedStyle(el).display !== 'none' && getComputedStyle(el).opacity !== '0' && el.getBoundingClientRect().width > 0;
     const pick = (ids) => Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]).filter(([, el]) => visible(el)).map(([id, el]) => [id, box(el)]));
-    return { fallen, topBand: pick(['combat-status', 'loot-drop', 'autopsy']), cluster: pick(['reset-button', 'share-button', 'loot-choice']), actions: box(document.getElementById('actions')), resetOpacity: getComputedStyle(document.getElementById('reset-button')).opacity };
+    return { fallen, topBand: pick(['combat-status', 'autopsy', 'loot-panel']), cluster: pick(['reset-button', 'share-button']), actions: box(document.getElementById('actions')), resetOpacity: getComputedStyle(document.getElementById('reset-button')).opacity };
   });
   receipt.fallenRect = sample.fallen; receipt.topBand = sample.topBand; receipt.cluster = sample.cluster; receipt.actionsBox = sample.actions;
   assert.ok(receipt.fallenRect, 'the fallen body has a screen rect after settle');
@@ -76,9 +76,9 @@ try {
   // for the real 5 s tour) and confirm the three buttons actually go inert, then confirm they wake again when it lifts.
   const pointerEvents = await page.evaluate(() => {
     document.documentElement.classList.add('endgame-fade');
-    const faded = ['reset-button', 'share-button', 'loot-choice'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    const faded = ['reset-button', 'share-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
     document.documentElement.classList.remove('endgame-fade');
-    const restored = ['reset-button', 'share-button', 'loot-choice'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    const restored = ['reset-button', 'share-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
     return { faded, restored };
   });
   receipt.pointerEvents = pointerEvents;

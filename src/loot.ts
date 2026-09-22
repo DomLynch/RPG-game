@@ -23,7 +23,10 @@ export type LootId = `${OpponentId}.${LootSlot}`;
 // Provenance (Strategy 2026-09-21): where a piece came from, written once at the drop and never edited; the record's short id fills once
 // from null when that fight is published (a Share happens after the drop). Cosmetic and historical: the paperdoll reads it, nothing else.
 export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string };
-export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; taken?: Partial<Record<LootId, Provenance>> };
+// `declined`: a kill that was offered gear and refused (the lead's shape, 2026-09-22 — the kill recorded with the take omitted, so the
+// journal and a replay agree on "offered and refused" without a second source of truth). Newest last, the last 50 kept.
+export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[] };
+export const DECLINED_KEPT = 50;
 export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locker; lockers 2–6 greyed, no code behind them
 
 // The pieces in loot.glb by opponent, in the file's slot order — every visible armour slot a fallen opponent wears (owner, 2026-09-22:
@@ -72,7 +75,8 @@ export function cleanLoot(value: unknown): Loot {
   if (raw.equipped && typeof raw.equipped === 'object') for (const [key, id] of Object.entries(raw.equipped)) if (key in PAPERDOLL && isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
   const taken: NonNullable<Loot['taken']> = {};
   if (raw.taken && typeof raw.taken === 'object') for (const [id, p] of Object.entries(raw.taken)) if (isLootId(id) && owned.includes(id) && cleanProvenance(p)) taken[id] = cleanProvenance(p)!;
-  return Object.keys(taken).length ? { owned, equipped, taken } : { owned, equipped };
+  const declined = Array.isArray(raw.declined) ? raw.declined.map(cleanProvenance).filter((p): p is Provenance => !!p).slice(-DECLINED_KEPT) : [];
+  return { owned, equipped, ...(Object.keys(taken).length ? { taken } : {}), ...(declined.length ? { declined } : {}) };
 }
 const DAY = /^\d{4}-\d{2}-\d{2}$/, SHORT_ID = /^[A-Za-z0-9_-]{1,12}$/;   // a share id: minted 1–6 char base-36 since 2026-09-22, or the 8-char form before it (share-store SHARE_ID)
 export function cleanProvenance(value: unknown): Provenance | null {
@@ -82,6 +86,8 @@ export function cleanProvenance(value: unknown): Provenance | null {
   return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day };
 }
 export const emptyLoot = (): Loot => ({ owned: [], equipped: {} });
+// The kill where the player left the gear: the same fight fields a take would carry, with no piece.
+export const decline = (loot: Loot | undefined, kill: Provenance): Loot => { const l = loot ?? emptyLoot(); return { ...l, declined: [...(l.declined ?? []), kill].slice(-DECLINED_KEPT) }; };
 // A new piece joins the rack with its provenance; a piece already owned is left exactly as it was (written once).
 export const store = (loot: Loot | undefined, id: LootId, taken?: Provenance): Loot => { const l = loot ?? emptyLoot(); return l.owned.includes(id) ? l : { ...l, owned: [...l.owned, id], ...(taken ? { taken: { ...l.taken, [id]: taken } } : {}) }; };
 // The fight's short id, once it exists: fills a null recordId and nothing else.

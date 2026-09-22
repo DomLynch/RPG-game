@@ -1049,19 +1049,16 @@ dialog>p {
   #combat-status[data-threat=true] {
     padding: 4px 6px;
   }
-  /* .combat-hud is a 2-column grid on phone; #loot-drop and #autopsy are new children after #combat-status (owner 2026-09-22
+  /* .combat-hud is a 2-column grid on phone; #autopsy and #loot-panel are new children after #combat-status (owner 2026-09-22
      move) and need their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
-  #loot-drop {
-    grid-column: 1/-1;
-    grid-row: 8;
-    margin: 4px 0 0;
-    max-width: 240px;
-  }
   #autopsy {
     grid-column: 1/-1;
     grid-row: 9;
     margin: 4px 0 0;
     max-width: 240px;
+  }
+  #loot-panel {
+    grid-row: 10;   /* the Take-one panel sits under the autopsy (explicit row like its siblings; `order` cannot beat their placed rows) */
   }
   footer {
     right: max(16px,env(safe-area-inset-right));
@@ -1686,47 +1683,27 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
   pointer-events: none;
 }
 
-/* The drop (brief 5): the piece's name docks in the top band next to the autopsy (owner 2026-09-22, same move as .autopsy above:
-   the centred overlay hid the gore and the finisher); the Wear/Store choice moved to the bottom row, under Rematch/Next in the
-   thumb cluster — it is asleep at the end of a fight, so there is room. src/main.ts's showLootDrop() shows/hides both together
-   now that they are no longer DOM siblings (the old adjacency selector could not follow the move). */
-.loot-drop { margin: 0; pointer-events: none; color: #f3e9cf; font: 700 15px/1.25 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.01em; text-align: left; text-shadow: 0 1px 2px #000c, 0 0 14px #0009; }
-.loot-choice { display: flex; gap: 8px; z-index: 4; }
-/* The row lives inside #actions, whose thumb-cluster rule turns every button into an absolute round pad with !important padding;
-   the id selector and the two !important lines are what it takes to opt these two out. */
-#actions .loot-choice button { position: static; width: auto; height: auto; white-space: nowrap; min-height: 40px !important; padding: 0 16px !important; border-radius: 999px; border: 1px solid #f3e9cf; box-shadow: 0 1px 3px #0006; background: #f3e9cf; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; cursor: pointer; touch-action: manipulation; }
-#actions .loot-choice button[aria-pressed='true'] { background: #0009; color: #f3e9cf; }
-@media (max-width: 900px), (pointer: coarse) {
-  .loot-drop { font-size: 14px; }
-  /* Under Rematch/Next (left:0, top:75px, 176×56 within the 184×216 cluster box) in the space the combat buttons leave when
-     they sleep at the end of a fight — the bottom row, not a floating overlay. */
-  .actions[data-gestures=cluster] .loot-choice { position: absolute; left: 0; top: 137px; width: 176px; justify-content: center; }
-}
-
 /* End-of-fight text/buttons (owner 2026-09-22 brief 3/4): the middle of the screen stays empty from the Killed event until the
    finisher camera has settled (view.finishPhase().settled — no fixed delay here, the rig owns the clock: plain death ~1.5 s,
    the longer finishers up to ~4.2 s) and fades again while the arena-cam tour orbits the fallen (.touring, from 5 s until a
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#autopsy, #loot-drop, #loot-choice, #reset-button, #share-button, #share-status {
+#autopsy, #reset-button, #share-button, #share-status {
   transition: opacity 250ms ease-out;
 }
 :root.endgame-fade #autopsy,
-:root.endgame-fade #loot-drop,
-:root.endgame-fade #loot-choice,
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button,
 :root.endgame-fade #share-status {
   opacity: 0;
 }
-:root.endgame-fade #loot-choice,
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button {
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #autopsy, #loot-drop, #loot-choice, #reset-button, #share-button, #share-status { transition: none; }
+  #autopsy, #reset-button, #share-button, #share-status { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the
@@ -1738,3 +1715,28 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 .cue[data-on='1'] { opacity: 1; transition: opacity 120ms ease-out; }
 @media (max-width: 900px), (pointer: coarse) { .cue { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 226px + 56px); font-size: 20px; } }
 @media (prefers-reduced-motion: reduce) { .cue { transition: none; } }
+
+/* The kill screen's Take-one panel (src/loot-panel.ts; Strategy brief, owner 2026-09-22: the drop prompt "appeared for about 2 seconds
+   then disappeared"). Docked in the top band under the autopsy like the drop line before it (never over the fallen body), NOT in the
+   :root.endgame-fade group, so the arena-cam tour does not fade it: it stays until Take, Leave it, Rematch or Next. A dark glass card
+   over the sand; a row of piece tiles (thumbnail + name, owned ones greyed with "Yours"), the chosen tile lit in the game's sand; Take
+   in sand, Leave it as a ghost. Both columns of the phone HUD grid. */
+.loot-panel { grid-column: 1 / -1; margin: 8px 0 0; padding: 10px 10px 8px; border-radius: 14px; background: #1b1916cc; border: 1px solid #e9d9b340; box-shadow: 0 4px 14px #0006; pointer-events: auto; color: #f3e9cf; text-shadow: none; opacity: 0; transition: opacity 250ms ease-out; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.loot-panel[data-on='1'] { opacity: 1; }
+.loot-panel-title { margin: 0 0 8px; font: 700 14px/1.25 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.01em; }
+.loot-pieces { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.loot-pieces li { flex: 0 0 auto; }
+.loot-pieces button { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #e9d9b340; background: #f3e9cf14; color: #f3e9cf; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.loot-pieces img { display: block; width: 44px; height: 44px; border-radius: 8px; background: #0004; }
+.loot-pieces button span { display: block; margin: 0; max-width: 52px; overflow-wrap: anywhere; color: inherit; }   /* the global `button span` rule adds a 14px left margin + the pale gold */
+.loot-pieces button small { font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase; color: #b7a276; }
+.loot-pieces button[aria-pressed='true'] { background: #b7a276; border-color: #e9d9b3; color: #1b1916; box-shadow: inset 0 0 0 2px #f0e3c93d; }
+.loot-pieces button:disabled { opacity: .45; cursor: default; }
+.loot-pieces button:disabled img { filter: grayscale(1); }
+.loot-panel-actions { display: flex; gap: 8px; margin: 10px 0 0; }
+.loot-panel-actions button { flex: 1 1 0; min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: manipulation; }
+.loot-panel-actions button:disabled { opacity: .4; cursor: default; }
+.loot-panel-actions #loot-decline { background: transparent; border-color: #e9d9b380; color: #f3e9cf; box-shadow: none; }
+.loot-panel-note { margin: 0; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
+.loot-panel-note:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { .loot-panel { transition: none; } }
