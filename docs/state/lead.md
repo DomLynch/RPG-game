@@ -68,6 +68,13 @@ PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing s
   not a single number; and the kit library's rule that a shaft is pinned by FRACTION of calf length, never absolute height
   (the Goblin lane measured girth identical at matched fractions but the same fraction sitting 36.4 mm lower at 50 %), which
   bites Greaves harder than Boots and goes in the Greaves PR.
+- **Licensing, and the one item on this list with an outside-the-repo consequence: #511 (Audio, draft).** Two sprite slots were
+  playing non-CC0 recordings on a shipped build — parry variants 0-2 and `HITS[0]`. Strategy's ruling before its session ended:
+  a licence that forbids redistribution cannot be credited-and-accepted, so re-source rather than attribute. Both are replaced
+  with CC0 or original material and the sprite now needs public CC0 URLs only. **It is a draft on purpose** — Dom picked both
+  departing clips by ear and has not heard the replacements; audition WAVs are with him. Flip on his word. Scope is exactly
+  those two slots: `block`/`block_perfect` are an original voicing MEASURED FROM the departing clip, and a measurement is not
+  the recording, so the guard cues never carried the risk whatever the older README implies.
 - Mine also: the SCOPE.md broadcast to the lanes once #492 lands.
 
 **Gotchas.**
