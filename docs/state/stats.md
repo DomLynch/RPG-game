@@ -95,7 +95,25 @@ landed before the suite runs (see the gotcha at the top of this file):
   same seam the Origin character layer will extend through.
 - **Settled: the bottom rung is the zero point.** Flagged as a design claim rather than buried in arithmetic, argued, and
   overturned within the hour — which is the whole value of separating the two. The ramp is `(level − 1) / 9`.
-- **OPEN QUESTION, routed to Combat and Weapons by Lead (2026-09-22), and it should be settled BEFORE deliverable 5: heavy chip
+- **SETTLED by Dom, 2026-09-23 00:45 — Brief 19 Addendum C** (`docs/briefs/gear-stats.md`, verified at source on
+  `origin/briefs/gear-stats`, not taken from the relay). Three decisions, all matching what this lane proposed in #491:
+  1. **One Attack multiplier for every weapon**, ramped by tier exactly as `src/gear-stats.ts` does it — nothing at Recruit, one
+     step per tier, the cap at Origin. Grip is not a balance axis. **Caps stay 1.15 / 0.80**: Dom floated +10/+10, Strategy kept
+     15/20 because the brackets are built on them and 10 is barely felt on a 150-health fight. Changing either is one number in
+     `CAPS`, and the addendum says so explicitly — so treat a future "make it 10" as a one-line edit, not a redesign.
+  2. **Speed fixed per weapon.** No speed stat, no tier touches any timing.
+  3. **Shield = option (b)**, guard profile only. Dom's earlier −20 % incoming is **withdrawn**. Combat builds the shield brief
+     as written and nothing else.
+- **DISPLAY FORMAT CHANGED, and deliverable 4 must use the new one.** Addendum C: whole points, not multipliers — an Origin
+  weapon reads **`+15 ATK`**, a full Origin armour set reads **`20 RES`** (note: no sign on RES), each piece its slot's share.
+  This **supersedes** the `+6 ATK` / `-4 RES` signed-delta shape relayed from Web earlier on 2026-09-22. Web has not been told;
+  the next session owes them that line before building the panel half of deliverable 4.
+- **CLOSED, no action: the two findings this lane raised in #491.** Both were settled as design rather than defects, and the
+  reasons are worth keeping because they answer the questions rather than dismissing them. The cleaver's asymmetric light
+  (`light_right` 17, `light_left` 9) is **the back of the blade — blunt, half damage, by design**. And RES multiplying block
+  chip means armour is worth more against heavy hitters, **which is armour doing its job**; the 2.5× chip spread is the
+  intended texture, not an undesigned interaction. Do not re-raise either.
+- Superseded, kept for the trail — this was logged as an open question routed to Combat and Weapons by Lead (2026-09-22): heavy chip
   varies 2.5× across weapons, so the gear layer's value silently depends on which opponent you face.** Heavy `chip` — the
   fraction that passes through an ordinary block — is knife 0.2, estoc 0.25, warhammer 0.3, longsword 0.4, and cleaver, trident
   and scythe all 0.5 (read from `src/moves.ts`, trunk 3405a95). Brief 19 has RES multiply damage taken *including* chip, so a
