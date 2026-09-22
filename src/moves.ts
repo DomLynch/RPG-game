@@ -286,7 +286,7 @@ export const KNIFE_PATHS: Record<PathId, PathSpec> = {
   light_left_chain: { clip: 'Return', source: .34, windup: 12, active: 6, recovery: 14 },
   heavy_overhead: { clip: 'Heavy', source: .48, windup: 22, active: 5, recovery: 26 },
   heavy_overhead_chain: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 26 },
-  thrust: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
+  thrust: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 20 },   // recovery follows KNIFE_MOVES.thrust (15 -> 20, 2026-09-22): the clip retime is presentation, but a path shorter than the move leaves the stab looking recovered while the sim still holds him
   slash_riposte: { clip: 'Attack', source: .34, windup: 12, active: 4, recovery: 15 },
   riposte: { clip: 'Riposte', source: .34, windup: 12, active: 4, recovery: 15 },
   heavy_riposte: { clip: 'Heavy', source: .48, windup: 16, active: 5, recovery: 20 },
@@ -355,7 +355,7 @@ export const SCYTHE_PATHS: Record<PathId, PathSpec> = {
   light_left_chain: { clip: 'Scythe_Reap', source: .34, windup: 18, active: 8, recovery: 20 },
   heavy_overhead: { clip: 'Scythe_High', source: .48, windup: 36, active: 5, recovery: 33 },     // the headsman's diagonal: a giant's mass, a 600 ms tell
   heavy_overhead_chain: { clip: 'Scythe_High', source: .48, windup: 24, active: 5, recovery: 33 },
-  thrust: { clip: 'Scythe_Thrust', source: .34, windup: 14, active: 4, recovery: 18 },           // the heel-jab: quick, short, no chip
+  thrust: { clip: 'Scythe_Thrust', source: .34, windup: 14, active: 4, recovery: 30 },           // the heel-jab: quick to come out, no chip; recovery follows SCYTHE_MOVES.thrust (18 -> 30, 2026-09-22) so the clip does not finish 200 ms before the sim lets him act
   slash_riposte: { clip: 'Scythe_Reap', source: .34, windup: 12, active: 5, recovery: 19 },
   riposte: { clip: 'Scythe_Chain', source: .30, windup: 12, active: 5, recovery: 19 },           // the payoff off a parry: the head whips across
   heavy_riposte: { clip: 'Scythe_High', source: .48, windup: 22, active: 5, recovery: 25 },
@@ -372,7 +372,16 @@ export const SCYTHE_MOVES: Record<MoveId, MoveDef> = {
   // no chip, half a cut's damage. Chains into the reap (jab, then the arc).
   thrust: {
     id: 'thrust', direction: 'thrust', path: 'thrust', chainPath: null, chained: null, chain: { window: 14, follow: ['light_right'] },
-    windup: 14, active: 4, recovery: 18, damage: 8, stamina: 18, staminaDamage: 14, stagger: 16, poise: 0, poiseFrom: 0,
+    // Recovery 30, not the 18 it shipped with (weapons lane, 2026-09-22). Wind-up stays 14 — the jab still COMES OUT quick, which is the
+    // trait the brief names; what changes is that a whiffed jab is punishable. At 18 it was not: "thrust from range" beat the Veteran
+    // 19/24 and the Goblin 16/24 (caps 12) by jabbing at 2.1 m and being home before either could answer.
+    // Recovery is a real gradient here, unlike the cleaver's levers: 18 -> 19F/16F; 26 -> 16F/18F; 27 -> 17F/18F; 28 -> 12/12 (passing,
+    // but EXACTLY on the cap, margin 0); 29 -> 11/8; 30 -> 8/6; 31 -> 1/4; 32 -> 17F/1. So 28-31 is a contiguous passing interior and 30
+    // is its centre with margin 4 and 6 — not an isolated tick. Wind-up is the wrong lever and was measured as such (16 -> 0/24F,
+    // 18 -> 0/20F, 20 -> 0/0, 22 -> 0/0): the Veteran column falls 19 -> 0 between 14 and 16, a read-window cliff rather than a gradient,
+    // and raising the tell is exactly the trait the brief protects. The Executioner WIELDS this scythe and his own fight-length pin is
+    // clear at every candidate (median 27.0 s at 30, range 16.2-41.0, against an 18-45 s pin; untouched median is 25.9 s).
+    windup: 14, active: 4, recovery: 30, damage: 8, stamina: 18, staminaDamage: 14, stagger: 16, poise: 0, poiseFrom: 0,
     breaksGuard: false, chip: 0, parryable: true, knockback: 3, stepIn: .8, feintUntil: 8, reach: 2.1, vsGuard: null, posture: 12, chamber: 6, charges: false,   // the measured bake frontier (2.10): the heel-jab reaches like the reap — spacing and interrupt, not a point
   },
   slash_riposte: { ...MOVES.slash_riposte, path: 'slash_riposte', windup: 12, active: 5, recovery: 19, reach: 2.1, minReach: 1.4 },
@@ -418,8 +427,11 @@ export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'kni
 // The weapons a player may be OFFERED (loot, paperdoll, equip): a subset of PLAYER_WEAPONS with no pairing over a cap in the 24-seed player
 // weapon battery (scripts/player-weapon-battery.mjs; tests/player-weapons.test.ts derives the excluded set from that table). Combat signed
 // the table 2026-09-21: the warhammer is fair on every live rung and is the first loot weapon; after the warden reach fix (combat/warden-reach)
-// the trident is clean on every rung too. Cleaver, knife, estoc and scythe wait on the table's over-cap list (see KNOWN_UNFAIR there).
-export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident'];
+// the trident is clean on every rung too. The SCYTHE joined them on 2026-09-22: its heel-jab recovery went 18 -> 30 and both of its
+// "thrust from range" rows left the list, so it has no pairing over a cap at any rung. This list is not a taste call — the test derives
+// the excluded set from the table and REQUIRES a weapon with no row to be offered, so the entry follows the measurement. Cleaver, knife
+// and estoc still wait on the over-cap list (see KNOWN_UNFAIR there), and each of their remaining rows is Combat's, not weapon data.
+export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident', 'scythe'];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.
