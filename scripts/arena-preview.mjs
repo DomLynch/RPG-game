@@ -48,7 +48,7 @@ player.position.set(state.x, 0, state.z); player.rotation.y = state.heading; opp
 let warriors;
 function settle(ticks) {   // rigs settle into their ready pose; the arena runs its idle motion (deterministic: fixed dt, no wall clock)
   const mine = actorPose(practice, 0), theirs = actorPose(practice, 1);
-  for (let i = 0; i < ticks; i++) { warriors.player.update(0, TICK, mine.pose, mine.progress, mine.attack, mine.contact, 0, 0); warriors.opponent.update(0, TICK, theirs.pose, theirs.progress, theirs.attack, theirs.contact, 0, 0); arena.update(TICK, []); }
+  for (let i = 0; i < ticks; i++) { warriors.player.update(0, TICK, mine.pose, mine.progress, mine.attack, mine.contact, 0, 0); warriors.opponent.update(0, TICK, theirs.pose, theirs.progress, theirs.attack, theirs.contact, 0, 0); arena.update(TICK, [], undefined, { tick: i, fighters: [mine.pose ? { x: state.x, z: state.z } : { x: state.x, z: state.z }, { x: enemy.x, z: enemy.z }] }); }
 }
 function frame(w, h, ratio) { renderer.setPixelRatio(ratio); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 // The game's lock camera, settled: yaw is the lock yaw itself (scene.ts blends toward it over ~1 s; this is where it ends up).
@@ -64,6 +64,10 @@ const VIEWS = {
   'lock-landscape': { size: [852, 393], ratio: GAME_RATIO, place: lockCamera },
   'wide': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(15, 17, 33); camera.lookAt(0, 2.5, -2); } },   // establishing view from beyond the parapet
   'plan': { size: [1024, 1024], ratio: 1, place() { camera.fov = 51; camera.position.set(0, 30, 0.01); camera.lookAt(0, 0, 0); } },      // the exclusion volume by eye
+  // Brief 13: the six lorarii on the walkway — a wide view that takes in three or four posts, and a plan view to read the spacing.
+  'lorarii': { size: [1280, 720], ratio: 1, place() { camera.fov = 51; camera.position.set(0, 3.4, -4); camera.lookAt(0, 3.1, -12.1); } },       // close on the near walkway: one post, for the raise/lash beat
+  'lorarii-wide': { size: [1280, 720], ratio: 1, place() { camera.fov = 62; camera.position.set(0, 7.5, 9); camera.lookAt(0, 2.9, -12.1); } },   // higher and wider: the whole far arc of the walkway
+  'lorarii-plan': { size: [1024, 1024], ratio: 1, place() { camera.fov = 51; camera.position.set(0, 20, 0.01); camera.lookAt(0, 2.6, 0); } },   // spacing by eye, the walkway filling the frame
 };
 for (let i = 0; i < 12; i++) VIEWS['crowd-' + i] = {
   size: [960, 640], ratio: 1, place() {
@@ -95,6 +99,20 @@ function stats() {
   return { buildMs: Math.round(buildMs), readyMs: Math.round(readyMs), meshes: meshes.length, instances, triangles: Math.round(triangles), textures: textures.size, textureBytes, drawCallsArena: arenaOnly.calls, drawCallsArenaWide: wide.calls, drawCallsWithFighters: withFighters.calls, trianglesRenderedArena: arenaOnly.triangles, floorLuminance: floor, skinLuminance: skin.length ? textureLuminance(skin[0].map) : null, playRadius: PLAY_RADIUS, cameraClamp: CAMERA_CLAMP };
 }
 function capture(view, fighters = true) { render(view, fighters); return canvas.toDataURL('image/png'); }
+// Brief 13 evidence: loiter -> raise -> lash -> recover on the walkway. Feeds the arena one Whipped event at the near wall
+// (what duel.ts emits after RULES.wall.loiter.ticks) and shoots the beats; WhipRaised leads it once Combat emits that.
+function lash(view = 'lorarii') {
+  const shots = {};
+  shots.loiter = capture(view);
+  arena.update(1 / 60, [{ tick: 0, type: 'Whipped', actor: 0, target: 0, x: 0, z: -8.55, damage: 3 }], undefined, { tick: 0, fighters: [{ x: 0, z: -8.4 }, { x: 0, z: 2 }] });
+  for (let i = 0; i < 12; i++) arena.update(1 / 60, [], undefined, { tick: 0, fighters: [{ x: 0, z: -8.4 }, { x: 0, z: 2 }] });
+  shots.raise = capture(view);
+  for (let i = 0; i < 12; i++) arena.update(1 / 60, [], undefined, { tick: 0, fighters: [{ x: 0, z: -8.4 }, { x: 0, z: 2 }] });
+  shots.lash = capture(view);
+  for (let i = 0; i < 24; i++) arena.update(1 / 60, [], undefined, { tick: 0, fighters: [{ x: 0, z: -8.4 }, { x: 0, z: 2 }] });
+  shots.recover = capture(view);
+  return shots;
+}
 // Material swatches: the arena's own materials on spheres over its sand, under the game lighting, next to the hero's skin — the mood board.
 // Vertex and instance tints are shown as the material alone (the sand sphere is the untinted texture; the cloths get their two colours).
 function moodboard() {
@@ -141,7 +159,7 @@ function dustPreview() {
   cloud.visible = false; renderer.render(scene, camera); frames.push(canvas.toDataURL('image/png'));
   dust.dispose(); return { frames, visibleFrames, peak, cleared, footRange: [Math.min(...samples.flat()), Math.max(...samples.flat())] };
 }
-window.__preview = { dustPreview, loaded: false, error: null, capture, stats, moodboard, buildMs };
+window.__preview = { dustPreview, loaded: false, error: null, capture, stats, moodboard, buildMs, lash };
 try {
   status('Loading warriors…');
   const weapons = practice.duel.fighters.map(f => f.weapon);
@@ -172,8 +190,9 @@ try {
   if (args.includes('--moodboard')) {
     const { image, names } = await page.evaluate(() => __preview.moodboard()); await save('swatches.png', image); console.log(`  swatches: ${names.join(' · ')}`);
   } else {
-    for (const view of ['lock-portrait', 'lock-landscape', 'wide', 'plan', 'stands', 'gate', 'debris', ...Array.from({ length: 12 }, (_, i) => 'crowd-' + i)]) await save(`${view}.png`, await page.evaluate(v => __preview.capture(v), view));
+    for (const view of ['lock-portrait', 'lock-landscape', 'wide', 'plan', 'stands', 'gate', 'debris', 'lorarii', 'lorarii-wide', 'lorarii-plan', ...Array.from({ length: 12 }, (_, i) => 'crowd-' + i)]) await save(`${view}.png`, await page.evaluate(v => __preview.capture(v), view));
     await save('wide-empty.png', await page.evaluate(() => __preview.capture('wide', false)));
+    const beats = await page.evaluate(() => __preview.lash()); for (const [beat, image] of Object.entries(beats)) await save(`lorarii-${beat}.png`, image);
     const measured = await page.evaluate(() => __preview.stats());
     // Transfer cost: gzip of the lane's sources (an upper bound on the arena's share of the shell; check-budget.mjs has the shell itself).
     const sources = ['src/arena.ts', ...(await fs.readdir('src/assets/arena', { withFileTypes: true }).catch(() => [])).filter(e => e.isFile()).map(e => `src/assets/arena/${e.name}`)];
