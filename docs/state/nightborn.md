@@ -3,6 +3,39 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23 (later)
+
+**Deliverable 1 for Brief 18 — the silhouette test, bare and in loadout — is the next task and has not started.**
+Strategy's ask (01:15, after Lead handed off at 00:50): the fighter's camera, bare and in loadout, exactly as the
+Executioner lane did for the Knight in **#502**; measured; one PR; then one line back to Strategy with the number, the
+head sha, and the two ratios bare/in-kit and against the Nightborn. #502 is the shape to copy —
+`scripts/character/silhouette.py`, a `<NAME>-SILHOUETTE.md`, the bare source PNG, both silhouette PNGs and a
+`measures.json`. His loadout pass cuts from the approved reference (#493); the **bare pass needs a bare source
+generated first**, the way the Knight's `knight-bare-v1.png` was — FLUX.1-dev via `gradio_client`, seed 190926, the
+route recorded below.
+
+**#490 now names his six takeable pieces** (pushed `3d1030c`): Helmet = the beaked mask and split brim, Body = the waxed
+coat, Arms = the boiled-leather sleeves and shoulder capes, Gloves = the gauntlet cuffs, Greaves = strapped shin guards,
+Boots = heavy buckled boots; the longsword is not one of the six. Required before merge by the owner's 2026-09-22 23:12
+ruling. **It sharpens deliverable 1: all three of his named silhouette carriers — brim, beak, coat skirt — sit in Helmet
+and Body, so every one comes off.** The Knight measured that failure (0.367 → 0.246 bare, the figure read as nobody) and
+he is likely to fail it worse. The brief says so and does not pre-judge the fix.
+
+**`docs/SCOPE.md` (PR #492, branch `docs/scope-2026-09-23`) is the current dated scope and beats every older brief,
+state entry or memory line.** Read it first next session. It confirms this lane owns the Plague Doctor, that he is
+**launch scope, not beta**, longsword, next after the Knight in cost order, and that briefs specify **outline, not
+build** (#499).
+
+**A harness deliverable shipped tonight: PR #500, `--flat`** — the opponent alone at the game's own lock camera on a
+plain flat backdrop, plus an unlit-black plate. Built for Multi Chars' reskin check in #495. Measured: corner spread 0,
+max per-row left/right difference 0. **The finding worth keeping: a valid background is not a valid mask.** A bg−18 cut
+of the beauty pass loses part of his head and hands — both masks cut by one rule, the plate is 204,877 px and the beauty
+pass loses 5,056 (2.47%) and adds none. Two implementations agree. Use the plate for deliverable 1's measurements, not a
+threshold of a beauty render. Nightborn shoulder-over-height on the plate: **0.318** (Multi Chars' band).
+
+Open from this lane, all four mergeable, none merged: **#479** (this file), **#490** (Brief 18, +six pieces), **#493**
+(the reference), **#500** (the harness).
+
 ## Now — 2026-09-23
 
 **The lane has a second character: the Plague Doctor (Brief 18).** Dom widened the scope in this session's own words
