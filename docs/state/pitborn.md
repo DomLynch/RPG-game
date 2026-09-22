@@ -1,12 +1,40 @@
 # Pitborn — lane state
 
 The third opponent and the first creature: an orc-blooded pit brute on the hero rig at scale 1.13, hunched, tusked,
-bare-chested, fighting with the cleaver. Rung 2 of the beta ladder.
+bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane also owns the Shieldmaiden**
+from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 ## Now — 2026-09-22
 
-Nothing building and nothing open from this lane. Every Pitborn PR is merged and live; the worktree
+**BLOCKED ON #478 — the Shieldmaiden.** Her design direction is picked and her body is deliberately not
+started. Strategy's ruling: silhouette stage only, nothing wearable before the shield asset lands, because a
+half-built character across a dependency is worse than a parked one. Her shield is **a material variant and a
+size of Multi Chars' single shield asset (#478), not a second mesh**; if her round shape ever needs a
+structurally different mesh that is raised with Multi Chars before authoring, never absorbed here.
+
+- **Picked: A, the hard outline** — Dom, 2026-09-22: "i think A", then column A's own panels pasted back with
+  "this one", so the pick is anchored to the images and not just the letter. Mail hauberk to mid-thigh over a
+  padded wool gambeson, squared layered iron shoulder plates giving a flat hard shoulder line, broad studded
+  belt, plain iron vambraces, dark trousers with straight leg wraps, hard low boots, two tight crown braids.
+  Approved as a **direction, not a render**: A's panels carry generator artifacts (half-open palms in the bare
+  panel) that are not part of what was picked. Sheet, prompts and method in **#498**; B and C stay in the
+  sheet as the record of what A beat.
+- **She was chosen on outline, not mass.** Shoulder-width ÷ figure-height off each candidate's own silhouette:
+  A 0.26, B 0.28, C 0.24 bare, against the Veteran's 0.29 — the Veteran sits *inside* the candidates' spread.
+  The Executioner lane measured the same shape of result on the Knight (0.39–0.40 against 0.36). Two lanes,
+  two characters, same conclusion; Lead is carrying it to the Knight, Plague Doctor and Witch lanes.
+- **Her brief no longer understates her cost.** #471 said *cleaver* in three places and rested a "zero new
+  animation authoring" saving on the Pitborn's `Cleaver_*` set; the bearded-axe amendment removes that saving.
+  Fixed by Lead at `f6af593` — verified on `origin/lead/brief-shieldmaiden`: §1 now states the axe is a NEW
+  one-hand family, §2 states the cost plainly (~13 clips on Weapons and the animation pipeline, not Combat),
+  §4 records ONE-HAND as the one cleaver property the axe preserves so shield and axe need no stow case.
+  Combat's queue (knife → cleaver → estoc → shield) was deliberately left alone — that cleaver is their flip.
+- **Next, when #478 is on trunk:** her body to direction A, one PR per deliverable, silhouette tested at the
+  fighter's camera bare **and** in loadout. Bare is the real test: the shield is lootable, so an outline that
+  only reads with the shield up fails the moment a player takes it.
+
+**The Pitborn himself: nothing building and nothing open.** Every Pitborn PR is merged and live; the worktree
 `~/Developer/frankendom-pitborn` is clean and detached at trunk.
 
 **Live carries this lane's work** — verified on the served file, not on the merge. Live `05622cf` serves
