@@ -2,6 +2,21 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Takeable weapons — loot ids for every warden's weapon (weapons lane, 2026-09-22)
+Owner (via Strategy, 12:55): "any item can be taken, armour or weapon." Shelf side in `src/loot.ts`: `WEAPON_SLOTS` (Trident, Cleaver,
+Knife, Estoc, Scythe, Warhammer) join `ARMOUR_SLOTS` in `LOOT_SLOTS`; `PAPERDOLL.main = WEAPON_SLOTS`; ids `veteran.Trident`,
+`pitborn.Cleaver`, `goblin.Knife`, `nightborn.Estoc`, `executioner.Scythe`, `dwarf.Warhammer` appended to `LOOT`; `weaponOf(id)` = the slot
+lower-cased (`isWeaponLoot`, `isWeaponSlot`). `dropFor` filters to armour: a weapon is never dropped, it is TAKEN (the lead's kill-screen
+"Take one" reads `LOOT[opponent]` minus owned). No loot.glb draw for a weapon — the visual is its equip file `src/assets/weapons/player/
+<weapon>.glb` (#309 contract) loaded when `equipped.main` is set; that runtime step and the fight-with-it seam (`playerWeapon` from
+`equipped.main`) are the lead's/Combat's. Tests: the loot.glb pin now compares ARMOUR ids to the file's draws (loot-data + loot-wear);
+a sibling pin walks every weapon piece → PLAYER_WEAPONS member, main-hand paperdoll, its opponent's roster weapon, equip file present
+with WeaponDrawn and its WEAPON_CLIPS family; every ladder warden's weapon is a piece; `dropFor` never returns a weapon; a taken weapon
+cleans/wears/unwears only in `main`. Whether a weapon is OFFERED stays `PLAYER_WEAPONS_OFFERED` (Combat's fairness table), untouched.
+Shelf status for the lead's (b): all six equip files ship complete as wieldable since #309 — cleaver/knife/estoc on the sword family
+(+ a re-keyed Heavy for cleaver/knife; the estoc re-keys nothing by design), scythe/trident/warhammer with their 13/13/12-clip families;
+every one has a hero bake pinned by `tests/blade-rig.test.ts`. No family is missing; what gates each weapon is the runtime equip + fairness.
+
 ## Flat blade table dropped — `bladePathsByRig` is the only export (weapons lane, 2026-09-22)
 The seam PR landed (`src/blade.ts` reads `bladePathsByRig[rig][weapon]`, `tests/blade-rig.test.ts` pins every pair), so
 `bake-blades.mjs` no longer writes the transitional flat `bladePaths[weapon]` (the first manifest entry per weapon) — `src/blade-paths.ts`
