@@ -40,6 +40,18 @@ before it lands would be the stale-base trap one layer up. **Nothing is retuned 
 
 `RECORD_VERSION` 5 → 6 with `SIM_DIGEST` re-pinned over the final tree and references regenerated (still replaying identically, 1677/1452).
 
+**BUMP RULING, 2026-09-22 (the lead) — the estoc's 6 is NOT this lane's to write.** Trunk carries `RECORD_VERSION = 5` (the batched
+knife+scythe flip). Stats' PR B needs 6 for the loadout tail and is ready first, so **Stats carries the bump and this lane rides it**; the
+rule is whoever is ready first takes it, and if #419 somehow lands ahead of Stats' PR B the order reverses. The `weapons/estoc-reach`
+branch currently writes 6 itself — that stays only while it is a draft, and **the bump comes out (with `SIM_DIGEST` re-pinned) before #419
+goes READY behind Stats**. One bump for many, because kill links are the viral surface and N bumps means N waves of dead links.
+
+**SEQUENCING, 2026-09-22 (the lead, correcting himself with Combat's answer).** Combat's **knife** is next, not the cleaver, and it
+touches the warden approach in `src/ai.ts` rather than estoc data — so #419's draft status does **not** gate them tomorrow; only the
+cleaver-and-after stacks on this lane. Read the other direction, that is this entry's unblocking event: the approach fix this entry is
+held on is the thing Combat is about to ship, so **watch trunk for `src/ai.ts` and re-run the full battery the moment it lands** rather
+than waiting to be told. Combat is taking this lane's knife `thrust.recovery` 15 → 20 as measured rather than re-deriving it.
+
 **Base check, 2026-09-22 (docs PR):** trunk has moved `1741dc5` → `cb8ff5b` (22 commits), and
 `git diff --stat b1455d4...cb8ff5b -- src/{ai,duel,moves,sim,record,opponents}.ts` is **empty** — not one sim file moved. So the numbers
 below are still the numbers on current trunk, and **Combat's `ai.ts` approach fix is not on trunk yet**: the dependency this entry is held
