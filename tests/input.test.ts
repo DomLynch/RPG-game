@@ -84,7 +84,10 @@ test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): eve
   for (const sel of ['#attack-button[data-held][data-next=left] .side-left', '#attack-button[data-held][data-next=right] .side-right', '#thrust-button[data-held] .side-straight', '#heavy-button[data-held] .side-overhead', '#kick-button[data-held] .side-low',
     ...['left', 'right', 'overhead', 'low', 'straight'].map((s) => `#guard-button[aria-pressed=true][data-side=${s}] .side-${s}`), '#guard-button[aria-pressed=true]:not([data-side]) .side-straight'])
     assert.ok(rule.includes(sel), `${sel} lights`);
-  assert.match(css, /button \.side\{ vector-effect: non-scaling-stroke; opacity: \.3;/, 'the other four rest at .3, same weight on every button size');
+  // Owner 2026-09-22 (second look, presentation lane, #420): the four ticks rest brighter at .55, and the centre ring is invisible at
+  // rest (opacity 0) — "remove the inner circle" — but stays in the DOM and still lights to .95 through the rule above.
+  assert.match(css, /button \.side\{ vector-effect: non-scaling-stroke; opacity: \.55;/, 'the four ticks rest at .55, same weight on every button size');
+  assert.match(css, /button \.side-straight\{ opacity: 0; \}/, 'the centre ring rests invisible, never removed');
   assert.match(css, /#attack-button:not\(\[data-next\]\) \.side-marks\{ opacity: 0; \}/, 'sheathed: no cut is next');
   assert.match(css, /#heavy-button \{\s*width: 58px;\s*height: 58px;/, 'Heavy is wide enough for its label (owner: smaller than Slash, bigger than 50)');
   assert.match(css, /#thrust-button:not\(\[hidden\]\) \{\s*display: block;\s*width: 56px;\s*height: 56px;/, 'Stab ~10% bigger, spacing kept');
