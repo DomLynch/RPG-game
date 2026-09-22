@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { OPPONENTS } from '../src/moves.ts';
 import { createRecorder, decodeRecord } from '../src/record.ts';
-import { MAX_STORED_CHARS, SHORT_ID, fetchSharedRecord, publishRecord, shortId, shortLink, shortParam } from '../src/share-store.ts';
+import { MAX_STORED_CHARS, SHORT_ID, fetchSharedRecord, mintShare, publishRecord, sharedIdFrom, shortId, shortLink, shortParam } from '../src/share-store.ts';
 
 const record = (ticks = 60) => { const rec = createRecorder({ weapon: 'longsword', build: 'dev', opponent: OPPONENTS.veteran.id, profile: 'normal', seed: 9 }); for (let i = 0; i < ticks; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('abandoned'); };
 // A fake client: records every insert and answers as told.
@@ -14,8 +14,8 @@ test('share store: a short id is eight base64url symbols drawn from the random b
   assert.match(id, SHORT_ID); assert.equal(id.length, 8);
   assert.equal(shortId(n => new Uint8Array(n).fill(0)), 'AAAAAAAA'); assert.equal(shortId(n => new Uint8Array(n).fill(63)), '--------');
   assert.match(shortId(), SHORT_ID, 'the default draws from crypto');
-  assert.equal(shortParam(new URL(shortLink('https://frankendom.com', 'goblin', 'Ab3_-9xZ')).search), 'Ab3_-9xZ');
-  assert.equal(shortLink('https://frankendom.com', 'goblin', 'Ab3_-9xZ'), 'https://frankendom.com/?opponent=goblin&r=Ab3_-9xZ');
+  assert.equal(shortLink('https://frankendom.com', '1a'), 'https://frankendom.com/s/1a');
+  assert.equal(sharedIdFrom(new URL(shortLink('https://frankendom.com', 'Ab3_-9xZ')).pathname, ''), 'Ab3_-9xZ', 'an 8-character id minted before the sequence still resolves');
   assert.equal(shortParam('?r=short'), null); assert.equal(shortParam('?r=Ab3_-9xZtoolong'), null); assert.equal(shortParam('?opponent=goblin'), null);
 });
 
@@ -52,4 +52,21 @@ test('share store: a shared record is fetched by id from the REST endpoint with 
   await assert.rejects(fetchSharedRecord(api, 'Ab3_-9xZ', answer(503, null)), /answered 503/);
   await assert.rejects(fetchSharedRecord(api, 'nope', answer(200, [])), /not a fight link/);
   assert.equal(calls.length, 5, 'a malformed id never reaches the network');
+});
+
+// One link shape for everyone (owner 2026-09-22): `/s/<id>` carries a store-minted id; the pre-2026-09-22 `?r=` form still resolves
+// until 2026-10-22; the store mints for guests (public key) and signed-in fighters (their token) alike, and a refusal is an error, never a long link.
+test('share store: /s/<id> and the older ?r= form both name the shared record; mint_share is called with the caller\'s token and its id is validated', async () => {
+  assert.equal(sharedIdFrom('/s/1a', ''), '1a'); assert.equal(sharedIdFrom('/s/zz9/', '?opponent=goblin'), 'zz9');
+  assert.equal(sharedIdFrom('/', '?r=Ab3_-9xZ'), 'Ab3_-9xZ'); assert.equal(sharedIdFrom('/', ''), null);
+  assert.equal(sharedIdFrom('/s/', ''), null); assert.equal(sharedIdFrom('/s/way-too-long-for-an-id', ''), null); assert.equal(sharedIdFrom('/settings', ''), null);
+  const calls: { url: string; headers: Record<string, string>; body: string }[] = [];
+  const api = { url: 'https://x.supabase.co', key: 'anon-key' };
+  const ok = (id: unknown) => (async (url: string, init?: RequestInit) => { calls.push({ url, headers: init!.headers as Record<string, string>, body: String(init!.body) }); return new Response(JSON.stringify(id), { status: 200 }); }) as unknown as typeof fetch;
+  assert.equal(await mintShare(api, record(), null, ok('1a')), '1a');
+  assert.equal(calls[0]!.url, 'https://x.supabase.co/rest/v1/rpc/mint_share'); assert.equal(calls[0]!.headers.Authorization, 'Bearer anon-key', 'a guest mints with the public key');
+  assert.equal(JSON.parse(calls[0]!.body).opponent, 'veteran'); assert.ok(typeof JSON.parse(calls[0]!.body).record === 'string');
+  await mintShare(api, record(), 'user-jwt', ok('1b')); assert.equal(calls[1]!.headers.Authorization, 'Bearer user-jwt', 'a signed-in fighter mints as themself');
+  await assert.rejects(mintShare(api, record(), null, ok(42)), /no id/);
+  await assert.rejects(mintShare(api, record(), null, (async () => new Response('nope', { status: 429 })) as unknown as typeof fetch), /refused the record \(429\)/);
 });

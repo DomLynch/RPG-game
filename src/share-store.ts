@@ -15,7 +15,33 @@ export function shortId(random: (n: number) => Uint8Array = n => crypto.getRando
   return id;
 }
 export const shortParam = (search: string): string | null => /[?&]r=([A-Za-z0-9_-]{8})(?:&|$)/.exec(search)?.[1] ?? null;
-export const shortLink = (origin: string, opponent: string, id: string): string => `${origin}/?opponent=${opponent}&r=${id}`;
+// One link shape for everyone (owner 2026-09-22, WhatsApp screenshot of a guest link that ran to several screens): `/s/<id>`, the
+// opponent and everything else read from the stored record. Ids are minted by the fight store (migration 202609220009: a sequence,
+// lowercase base-36, so 999,999 shares are still six characters); the 8-character random ids minted before this keep resolving.
+// Kill links are public by design, so an enumerable id gives nothing away that the link did not already.
+export const SHARE_ID = /^[A-Za-z0-9_-]{1,12}$/;
+export const shortLink = (origin: string, id: string): string => `${origin}/s/${id}`;
+// The id a page was opened on: the `/s/<id>` path, or the `?r=<id>` form from links shared before 2026-09-22 (kept until 2026-10-22).
+export const sharedIdFrom = (pathname: string, search: string): string | null => {
+  const path = /^\/s\/([A-Za-z0-9_-]{1,12})\/?$/.exec(pathname)?.[1];
+  return path ?? shortParam(search);
+};
+
+// Mints an id for the record in the fight store — signed in or not (the RPC caps a caller's rate; a guest's row has no owner).
+// Returns the id; throws when the store refuses, so the caller can say "couldn't make a link" instead of falling back to a long one.
+export async function mintShare(api: { url: string; key: string }, record: FightRecord, token: string | null, fetchFn: typeof fetch = fetch): Promise<string> {
+  const text = await encodeRecord(record);
+  if (text.length > MAX_STORED_CHARS) throw Error('this fight is too long to store');
+  const response = await fetchFn(`${api.url}/rest/v1/rpc/mint_share`, {
+    method: 'POST',
+    headers: { apikey: api.key, Authorization: `Bearer ${token ?? api.key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ record: text, opponent: record.opponent }),
+  });
+  if (!response.ok) throw Error(`the fight store refused the record (${response.status})`);
+  const id = await response.json() as unknown;
+  if (typeof id !== 'string' || !SHARE_ID.test(id)) throw Error('the fight store returned no id');
+  return id;
+}
 
 // Stores the record for the signed-in owner and returns its id. A colliding id (unique violation) is drawn again, twice.
 export async function publishRecord(db: SupabaseClient, userId: string, record: FightRecord): Promise<string> {
