@@ -2,6 +2,35 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
+Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.
+
+**An explicit instruction is exactly where a stale assumption hides best.** It arrives pre-justified, so it does not trigger the check
+that an omission does. Concretely: the `grip` field (#440) came from the shield brief as a list of seven weapons. `MAUL` and `REAPER` were
+*not* on it, so they got checked — they spread `CLEAVER` and `ESTOC` and would have silently inherited `one-hand`, and both were set to
+`two-hand` deliberately. The trident *was* on it, as "trident as spear" under one-hand, so it was taken as given — and it was wrong:
+`src/characters.ts` maps the trident onto the `Trident_*` family and says in its own comment that unlisted roles falling back to the sword
+family is "wrong for a two-handed pole", and the scythe, same family shape, already read `two-hand`. The omissions were audited; the
+instruction was not. Fixed in #472. Check the values you were handed at least as hard as the ones you had to invent.
+
+**A weapon's brief can shut a lever by contract, and that is worth recording rather than rediscovering.** `tests/weapons.test.ts` pins the
+estoc's windup/active/recovery/stepIn/feintUntil/chamber to the sword's *exactly*, because "the sword's timings and lunges exactly" is what
+the weapon is. So "tune the thrust recovery like the knife's" was never available for it, however the numbers looked. Sweep it anyway and
+record the closed door with evidence — an ambiguous door gets pushed again by the next person.
+
+**The `RECORD_VERSION` guard asks a behaviour question, not a file question.** It hashes `SIM_FILES`, so *any* edit to `src/moves.ts`
+trips it — but the guard's own comment sets the rule: a re-pin without a bump needs a receipt that behaviour is unchanged. Two opposite
+answers on the same day, and the receipt is what separates them. #440 (knife recovery 15 → 20, scythe heel-jab 18 → 30) genuinely changed
+how fights play out, so the bump *was* the point. #472 (`TRIDENT.grip` → `two-hand`) changed a field no sim code reads — verified by grep
+across `duel.ts`, `ai.ts`, `sim.ts`, `combat.ts` — and both committed references replayed identically **without being regenerated**
+(1677/1452 ticks, same outcome, same state digests), with the fairness table unchanged. Bumping there would have refused every kill link
+minted that day for nothing. Ask what the change does, not which file it touched.
+
+### Not the shelf item it looks like: the maul (recorded ahead of the Knight)
+`MAUL` (`src/moves.ts`) is the `CLEAVER` spread with a two-hand grip and one overridden move, on `creaturePaths(CLEAVER_PATHS, 'Maul')`.
+There is **no maul asset in the repo** — the geometry lives inside the held `minotaur.glb`. So promoting it to a player weapon is a real
+deliverable, a hero-rig part *and* its own blade/contact table, not a data row. Confirmed by the lead. No owner yet; nothing started.
+
 ## Knife flip prep — two rows fixed, one isn't knife data, and a program-level cost (weapons lane, 2026-09-22) — BLOCKED ON A DECISION
 Lead's item (1), knife. Three rows on trunk 187dd89, all reproduced: `knife vs veteran normal: thrust from range 18/24`,
 `knife vs goblin normal: thrust from range 15/24` (caps 12), `knife vs goblin hard: kick only untouched 3/24` (cap 2).
