@@ -20,6 +20,8 @@ METAL = float(args[args.index('--metal') + 1]) if '--metal' in args else 0.35   
 MIN_FACES = int(args[args.index('--min-faces') + 1]) if '--min-faces' in args else 100   # smaller patches are texture noise, not a piece
 SMOOTH = int(args[args.index('--smooth') + 1]) if '--smooth' in args else 4   # neighbour-average passes over the metallic samples
 CLOSE = int(args[args.index('--close') + 1]) if '--close' in args else 0   # face rings to dilate then erode: bridges the speckle inside a plate
+COLOR_SIZE = int(args[args.index('--color-size') + 1]) if '--color-size' in args else 768   # the iron's colour map edge; loot.glb's 1.5 MB cap sets it
+JPEG_QUALITY = int(args[args.index('--jpeg-quality') + 1]) if '--jpeg-quality' in args else 82
 SOURCE = os.path.abspath('src/assets/dwarf.glb')
 OUT = 'src/assets/source/loot'
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
@@ -178,12 +180,12 @@ for o in kit + [armature]:
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'dwarf.glb'), export_format='GLB', use_selection=True, export_extras=True,
                           export_apply=True, export_yup=True, export_materials='NONE', export_skins=True, export_animations=False,
                           export_normals=True, export_texcoords=True)
-# The iron's own look: the baked colour at 1024 and the packed metallic/roughness at 512, JPEG — a fraction of the 2K WebPs the body ships.
-for image, size, name in ((albedo, 1024, 'dwarf_iron_color.jpg'), (mr, 512, 'dwarf_iron_orm.jpg')):
+# The iron's own look: the baked colour (COLOR_SIZE) and the packed metallic/roughness at half that, JPEG — a fraction of the 2K WebPs the body ships.
+for image, size, name in ((albedo, COLOR_SIZE, 'dwarf_iron_color.jpg'), (mr, COLOR_SIZE // 2, 'dwarf_iron_orm.jpg')):
     image.scale(size, size)
     image.filepath_raw = os.path.abspath(os.path.join(OUT, name))
     image.file_format = 'JPEG'
-    bpy.context.scene.render.image_settings.quality = 88
+    bpy.context.scene.render.image_settings.quality = JPEG_QUALITY
     image.save()
 for o in kit:
     print(f'PART {o.name} slot={o["slot"]} faces={len(o.data.polygons)}')

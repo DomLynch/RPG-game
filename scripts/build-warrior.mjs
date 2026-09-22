@@ -269,7 +269,12 @@ if (LOOT) {
         if (!o.isMesh) return;
         if (entry.slots && !entry.slots.includes(o.userData.slot)) return;
         if (entry.names && !entry.names.some(n => o.name === n || o.name.startsWith(`${n}_`))) return;
-        const material = [...parts.keys()].find(m => m.name === o.userData.material);
+        // The tunic-class material is the one palette entry that differs per opponent (each KIT's linen colour and grime are baked into
+        // his own gambeson maps): a loot tunic gets `Gambeson_<opponent>`, its own draw, its own maps at export. The runtime swaps a piece's
+        // material for the player's only when the NAME matches, so this one keeps the opponent's look; Leather/Steel/Wrap stay his.
+        const materialName = o.userData.material === 'Gambeson' ? `Gambeson_${opponent}` : o.userData.material;
+        let material = [...parts.keys()].find(m => m.name === materialName);
+        if (!material && materialName !== o.userData.material) { material = new T.MeshStandardMaterial({ name: materialName, roughness: .88, metalness: 0 }); parts.set(material, []); }   // the tunic maps' uniform ORM as factors
         if (!material || (!o.userData.bone && !o.isSkinnedMesh)) throw new Error(`${entry.file}: mesh ${o.name} needs extras.material and extras.bone or skin weights`);
         const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
         if (o.isSkinnedMesh && !o.userData.bone) {
@@ -472,10 +477,14 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
   const lootMaps = new Map(), lootDir = 'src/assets/source/loot', used = new Set(draws.map(m => m.material.name));
   if (used.has('DwarfIron')) lootMaps.set('DwarfIron', { baseColor: { bytes: await fs.readFile(path.join(lootDir, 'dwarf_iron_color.jpg')), mime: 'image/jpeg' }, metallicRoughness: { bytes: await fs.readFile(path.join(lootDir, 'dwarf_iron_orm.jpg')), mime: 'image/jpeg' }, occlusionTexCoord: 0 });
   const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials', heroManifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest_realistic.json'), 'utf8'));
-  for (const name of ['Bronze']) if (used.has(name)) {
-    const maps = heroManifest[name], entry = { normalScale: maps.normalScale, occlusionTexCoord: 0 };
-    for (const slot of ['baseColor', 'metallicRoughness', 'normal']) if (maps[slot]) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, maps[slot])), mime: /\.jpe?g$/i.test(maps[slot]) ? 'image/jpeg' : 'image/png' };
-    lootMaps.set(name, entry);
+  // Texture diet (the 1.5 MB cap, check-budget.mjs): loot ships the colour maps and the small normals; a tunic's roughness/metal map is
+  // uniform (rough .88, metal 0 on every fighter — measured) and becomes factors; Bronze takes the 46 KB base normal, not the hero's 161 KB
+  // tile; the Veteran's tunic takes his 24 KB normal, not the 84 KB polish bake.
+  const authoredMaps = async (maps, { normal = maps.normal, orm = true } = {}) => { const entry = { normalScale: maps.normalScale, occlusionTexCoord: 0 }; for (const [slot, file] of [['baseColor', maps.baseColor], ['metallicRoughness', orm ? maps.metallicRoughness : null], ['normal', normal]]) if (file) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, file)), mime: /\.jpe?g$/i.test(file) ? 'image/jpeg' : 'image/png' }; return entry; };
+  for (const name of ['Bronze']) if (used.has(name)) lootMaps.set(name, await authoredMaps(heroManifest[name], { normal: 'bronze_normal.jpg' }));
+  for (const name of used) if (name.startsWith('Gambeson_')) {   // an opponent's tunic: his own linen bake from manifest_<opponent>.json
+    const opponent = name.slice('Gambeson_'.length), manifest = JSON.parse(await fs.readFile(path.join(materialsDir, `manifest_${opponent}.json`), 'utf8'));
+    lootMaps.set(name, await authoredMaps(manifest.Gambeson, { orm: false, normal: `gambeson_normal_${opponent}.jpg` }));
   }
   base.scene.scale.set(.9 * BUILD.scale, .97 * BUILD.scale, .97 * BUILD.scale); base.scene.position.y = .025;   // the same scene-root transform warrior.glb ships (below): a loot draw and the hero share one space whichever root it is added under
   base.scene.updateMatrixWorld(true);
