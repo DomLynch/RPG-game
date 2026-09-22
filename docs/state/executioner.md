@@ -11,7 +11,15 @@ merged, verify the served GLB and close it out; if Lead asked for changes, the b
 
 **Brief 15 — THE NORD** was written on Lead's 22:00 assignment and sent: `artifacts/character/BRIEF-nord.md` (ignored dir).
 Brief only, nothing built, and **the owner has not confirmed the lane expansion** — this session was scoped to the
-Executioner on 09-20 ("only work on that char"). Do not start building the Nord on a peer's say-so.
+Executioner on 09-20 ("only work on that char"). Lead agreed the refusal is correct: writing the brief was in bounds
+because it changes nothing; building is not. Do not start the Nord on a peer's say-so.
+
+Lead's rulings on it (09-22), so the next session does not reopen them: the **shield asset is Multi Chars'** (the Nord is
+its second consumer, he does not author it); **if Combat's shield slice misses beta freeze the Nord does not ship, and
+must not ship shieldless** — his shield is always-on, so the Veteran's "start at Gladiator" fallback does not transfer;
+the kit ships **Recruit-2 first** rather than waiting on the shared library; and an **owner reference image is a required
+input**, not a nice-to-have. Scope fence: the hero rig and the hero's assets belong to Character Main — the Nord reads
+the hero skeleton and clips, it never edits them.
 
 ## Done — 2026-09-20 → 22
 
@@ -42,7 +50,10 @@ Executioner on 09-20 ("only work on that char"). Do not start building the Nord 
 
 - **Any edit to `creatures.py` or `creature_pack.py` moves the generator hash**, and `creature-check` then reads every
   live creature as stale. Rebuild all of them in the same PR (today: dwarf, executioner, veteran) and show each
-  accessor-equivalent to trunk.
+  accessor-equivalent to trunk. Measured on trunk `beb3120`: baseline passes `dwarf, executioner, veteran`; adding one
+  family entry to `creature_pack.py`'s `base` map and re-running gives `Stale creature: rebuild with build-creatures.mjs`
+  (`creature-check.mjs:11` digests both scripts into the pinned `generator` hash). **Adding a new character through the
+  creature pipeline therefore costs a rebuild of every live creature** — plan it into the PR, it is not a defect.
 - **`cb1ee6a` patched the Run Through hold keys into the shipped rigs but not into the creature donors**, so any creature
   rebuild silently regressed the raised-palm hold — `tests/characters.test.ts` catches it on the Veteran only.
   `scripts/character/sync-hold-keys.mjs <donor> <shipped>` syncs the 17 left-arm `Fin_RunThrough` channels. Applied to
