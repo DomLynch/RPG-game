@@ -41,7 +41,8 @@ camera.position.set(target.x, target.y, target.z + dist); camera.lookAt(target);
 let body; const own = [], materials = new Map();
 root.traverse((o) => { if (!o.isMesh) return; own.push(o); if (o.isSkinnedMesh && o.userData.slot === 'Body' && !body) body = o; if (o.material?.name && o.material.map) materials.set(o.material.name, o.material); });
 const pieces = []; loot.scene.traverse((o) => { if (o.isSkinnedMesh && typeof o.userData.slot === 'string') pieces.push(o); });
-const ids = [...new Set(pieces.map((p) => p.userData.opponent + '.' + p.userData.slot))].sort();
+const ARMOUR = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];   // weapon draws (Weapons' equip files) are a separate render path
+const ids = [...new Set(pieces.filter((p) => ARMOUR.includes(p.userData.slot)).map((p) => p.userData.opponent + '.' + p.userData.slot))].sort();
 const occluder = new THREE.MeshBasicMaterial({ colorWrite: false });
 let worn = [];
 window.show = (id) => {   // null = bare figure; an id = that piece over a depth-only body

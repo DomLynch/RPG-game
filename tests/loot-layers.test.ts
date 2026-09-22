@@ -6,9 +6,11 @@ import test from 'node:test';
 import { LOOT, PAPERDOLL, paperdollOf, slotOf } from '../src/loot.ts';
 
 const root = new URL('../', import.meta.url), read = (path: string) => readFileSync(new URL(path, root), 'utf8');
-const ids = Object.values(LOOT).flat();
+// Armour only: weapon ids (Weapons' PAPERDOLL.main slots) have no loot.glb draw; their visual is the equip file, a separate render path.
+const armour = (key: string) => key !== 'main' && key !== 'off';
+const ids = Object.values(LOOT).flat().filter(id => armour(paperdollOf(slotOf(id))));
 
-test('every loot id has a rendered layer and its style.css rule', () => {
+test('every armour loot id has a rendered layer and its style.css rule', () => {
   const css = read('src/style.css');
   for (const id of ids) {
     assert.ok(existsSync(new URL(`public/game/img/loot/${id}.webp`, root)), `${id}: run node scripts/loot-layers.mjs`);
@@ -18,7 +20,7 @@ test('every loot id has a rendered layer and its style.css rule', () => {
 
 test('the figure carries one layer per wearable paperdoll key, head drawn last', () => {
   const html = read('index.html'), layers = [...html.matchAll(/<i class="doll-layer" data-layer="(\w+)"><\/i>/g)].map(m => m[1]);
-  const wearable = (Object.keys(PAPERDOLL) as (keyof typeof PAPERDOLL)[]).filter(key => PAPERDOLL[key].length);
+  const wearable = (Object.keys(PAPERDOLL) as (keyof typeof PAPERDOLL)[]).filter(key => armour(key) && PAPERDOLL[key].length);
   assert.deepEqual([...layers].sort(), [...wearable].sort());
   assert.equal(layers.at(-1), 'head');
   assert.match(html, /<div class="doll-figure"><img src="\/game\/img\/fighter\.webp"/);
