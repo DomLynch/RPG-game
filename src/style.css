@@ -1721,22 +1721,29 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    :root.endgame-fade group, so the arena-cam tour does not fade it: it stays until Take, Leave it, Rematch or Next. A dark glass card
    over the sand; a row of piece tiles (thumbnail + name, owned ones greyed with "Yours"), the chosen tile lit in the game's sand; Take
    in sand, Leave it as a ghost. Both columns of the phone HUD grid. */
-.loot-panel { grid-column: 1 / -1; margin: 8px 0 0; padding: 10px 10px 8px; border-radius: 14px; background: #1b1916cc; border: 1px solid #e9d9b340; box-shadow: 0 4px 14px #0006; pointer-events: auto; color: #f3e9cf; text-shadow: none; opacity: 0; transition: opacity 250ms ease-out; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.loot-panel { grid-column: 1 / -1; margin: 8px 0 0; pointer-events: none; padding: 10px 10px 8px; border-radius: 14px; background: #1b1916cc; border: 1px solid #e9d9b340; box-shadow: 0 4px 14px #0006; color: #f3e9cf; text-shadow: none; opacity: 0; transition: opacity 250ms ease-out; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .loot-panel[data-on='1'] { opacity: 1; }
 .loot-panel-title { margin: 0 0 8px; font: 700 14px/1.25 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.01em; }
 .loot-pieces { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .loot-pieces li { flex: 0 0 auto; }
-.loot-pieces button { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #e9d9b340; background: #f3e9cf14; color: #f3e9cf; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #e9d9b340; background: #f3e9cf14; color: #f3e9cf; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .loot-pieces img { display: block; width: 44px; height: 44px; border-radius: 8px; background: #0004; }
 .loot-pieces button span { display: block; margin: 0; max-width: 52px; overflow-wrap: anywhere; color: inherit; }   /* the global `button span` rule adds a 14px left margin + the pale gold */
 .loot-pieces button small { font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase; color: #b7a276; }
 .loot-pieces button[aria-pressed='true'] { background: #b7a276; border-color: #e9d9b3; color: #1b1916; box-shadow: inset 0 0 0 2px #f0e3c93d; }
 .loot-pieces button:disabled { opacity: .45; cursor: default; }
 .loot-pieces button:disabled img { filter: grayscale(1); }
-.loot-panel-actions { display: flex; gap: 8px; margin: 10px 0 0; }
-.loot-panel-actions button { flex: 1 1 0; min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: manipulation; }
-.loot-panel-actions button:disabled { opacity: .4; cursor: default; }
-.loot-panel-actions #loot-decline { background: transparent; border-color: #e9d9b380; color: #f3e9cf; box-shadow: none; }
+/* Take / Leave it live in the BOTTOM row inside #actions, not in the top band with the tiles: Strategy's #380 layout rule (text up top,
+   buttons in the thumb row) and, concretely, the first touch after a kill is the player's way to stop the arena-cam tour — a decision
+   button sitting under that thumb would decline the loot by accident (deploy #102's quiet-one rows caught exactly this: a canvas tap at
+   190,300 was intercepted by "Leave it"). The row takes the space the sleeping combat buttons leave, where the old Wear/Store row sat. */
+.loot-panel-actions { display: flex; gap: 8px; margin: 10px 0 0; z-index: 4; }
+#actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border-radius: 999px; border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: manipulation; }
+#actions .loot-panel-actions button:disabled { opacity: .4; cursor: default; }
+#actions .loot-panel-actions #loot-decline { background: transparent; border-color: #e9d9b380; color: #f3e9cf; box-shadow: none; }
 .loot-panel-note { margin: 0; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
 .loot-panel-note:empty { display: none; }
 @media (prefers-reduced-motion: reduce) { .loot-panel { transition: none; } }
+@media (max-width: 900px), (pointer: coarse) {
+  .actions[data-gestures=cluster] .loot-panel-actions { position: absolute; left: 0; top: 137px; width: 176px; justify-content: center; }
+}
