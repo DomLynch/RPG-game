@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile, type Profile } from './profile.ts';
-import { fighterDetails, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
@@ -22,22 +22,29 @@ export async function mountAccount(url: string, key: string) {
   function render() {
     login.hidden = !!userId; logout.hidden = !userId;
     for (const button of [login, logout, retry]) button.disabled = busy;
-    for (const id of ['save-status', 'journal-save']) get(id).textContent = userId ? 'Signed in · saved to your account' : 'Guest · saved on this device';   // the fighter card's save line (main.ts persist() writes the same)
+    headline(userId ? (saved && !profileDiffers(local(), saved) ? 'saved' : 'saving') : 'guest');
   }
   const local = () => loadProfile(localStorage, () => crypto.randomUUID()).profile;
-  // What the device would write, against what the cloud holds: a change of name or opponent, more marks, or a piece the cloud lacks.
-  const differs = (profile: Profile, cloud: CloudProfile) => { const mine = fighterDetails(profile); return mine.display_name !== cloud.display_name || mine.encounter !== cloud.encounter || mine.victory_marks > cloud.victory_marks || mine.loot.owned.some(id => !cloud.loot.owned.includes(id)); };
+  const differs = profileDiffers;   // cloud-profile.ts: name, opponent, marks, owned, equipped, provenance
+  // The fighter card's save line (HUD and journal) tells the truth in three states; main.ts persist() writes 'saving' on every change
+  // for a signed-in fighter and this file settles it once the cloud answers.
+  const headline = (state: 'guest' | 'saving' | 'saved' | 'unsynced') => {
+    const text = { guest: 'Guest · saved on this device', saving: 'Signed in · saving…', saved: 'Signed in · saved to your account', unsynced: 'Signed in · not synced' }[state];
+    for (const id of ['save-status', 'journal-save']) get(id).textContent = text;
+  };
   // The cloud save is automatic (owner 2026-09-21: no Save / Load buttons): the device writes whenever it has something the cloud lacks.
+  // Writes are queued (cloud-profile.ts createSaveQueue): one in flight, the latest device profile written once more after it lands, so
+  // two quick changes never race the same revision. `turn` guards against a sign-in/out that happened while a write was in the air.
+  const queue = createSaveQueue(async profile => { saved = await writeFighter(db, userId!, profile, saved?.revision ?? null); });
   async function sync(profile: Profile, turn: number): Promise<boolean> {
     if (!userId) return false;
-    try {
-      const result = await writeFighter(db, userId, profile, saved?.revision ?? null);
-      if (turn !== generation) return false;
-      saved = result; status.textContent = `Saved to your account as ${saved.display_name}.`; return true;
-    } catch {
-      if (turn === generation) { status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; retry.hidden = false; }
-      return false;
-    }
+    if (!saveProfile(localStorage, profile)) { status.textContent = 'Device storage unavailable.'; return false; }   // the queue writes local(): the device is the source
+    status.textContent = 'Saving to your account…'; headline('saving');
+    const ok = await queue(local);
+    if (turn !== generation) return false;
+    if (ok && saved) { status.textContent = `Saved to your account as ${saved.display_name}.`; headline('saved'); return true; }
+    status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; retry.hidden = false; headline('unsynced');
+    return false;
   }
   // A fresh sign-in on this device (merge = true): the cloud comes down — its name and opponent, the higher mark count, every piece of loot
   // from either side — and the page restarts once on the merged fighter. Every later refresh only sends up what the device has gained.
@@ -96,7 +103,7 @@ export async function mountAccount(url: string, key: string) {
   });
   retry.addEventListener('click', () => { void refresh(); });
   // Every recorded result persists the device's fighter (main.ts persist()); a signed-in account sends the gain up on the same beat.
-  window.addEventListener('frankendom:profile', () => { if (userId && saved && !busy && retry.hidden && differs(local(), saved)) void sync(local(), generation); });
+  window.addEventListener('frankendom:profile', () => { if (userId && saved && !busy && retry.hidden && differs(local(), saved)) void sync(local(), generation); });   // equip, provenance, marks, name: all of them
   const callback = new URL(location.href), code = callback.searchParams.get('code');
   const flowId = callback.searchParams.get('sb_flow_id');
   const denied = callback.searchParams.has('error');

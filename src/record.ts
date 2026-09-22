@@ -107,6 +107,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   if (o + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
   const profile = PROFILES[bytes[o++]], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
   if (!profile || !outcome) throw Error('Fight record: unknown profile or outcome');
+  if (n > MAX_RECORD_TICKS) throw Error(`Fight record: ${n} ticks is past the ${MAX_RECORD_TICKS}-tick limit`);
   if (bytes.length !== o + 6 * n) throw Error('Fight record: length does not match its tick count');
   const col = (k: number) => o + k * n, intents: Intent[] = new Array(n);
   let yaw = 0;
@@ -146,13 +147,22 @@ export function fromBase64Url(s: string): Uint8Array {
   }
   return out;
 }
+// Public links reach the decoder, so every dimension is bounded: a compressed text limit (share-store MAX_STORED_CHARS, replay MAX_SHARE_CHARS)
+// is not a limit on what it expands to. Thirty minutes at 60 Hz is far beyond any real duel; a stream past MAX_RECORD_BYTES is cancelled.
+export const MAX_RECORD_TICKS = 108_000, MAX_RECORD_BYTES = 1_000_000;
 async function pipe(bytes: Uint8Array, stream: { readable: ReadableStream<Uint8Array>; writable: WritableStream<BufferSource> }): Promise<Uint8Array> {
   const writer = stream.writable.getWriter();
   // A fresh ArrayBuffer-backed copy (the stream wants a BufferSource). A failed write (bad gzip on decode) surfaces on the read side
   // below, so its own rejection is swallowed here rather than left unhandled.
   void writer.write(new Uint8Array(bytes)).then(() => writer.close()).catch(() => {});
   const parts: Uint8Array[] = [], reader = stream.readable.getReader();
-  for (;;) { const { value, done } = await reader.read(); if (done) break; parts.push(value); }
+  let total = 0;
+  for (;;) {
+    const { value, done } = await reader.read(); if (done) break;
+    total += value.length;
+    if (total > MAX_RECORD_BYTES) { await reader.cancel(); throw Error(`Fight record: expands past ${MAX_RECORD_BYTES} bytes`); }
+    parts.push(value);
+  }
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
   return out;

@@ -17,6 +17,32 @@ export function cloudProfile(value: unknown): CloudProfile {
 export function fighterDetails(profile: Profile) {
   return { display_name: cleanName(profile.name), encounter: profile.encounter ?? null, victory_marks: profile.career?.victoryMarks ?? 0, loot: profile.loot ?? emptyLoot() };
 }
+// Key-order-independent text of a loot part, so two saves compare by content.
+const canon = (value: unknown): string => JSON.stringify(value ?? {}, (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort()) : v));
+// Does the device hold something the cloud lacks? Name, opponent, more marks, a piece the cloud does not own — and, since the wear
+// slice, the equipped set and each piece's provenance (a Watch link arrives after the piece): wearing a helmet is a change to save.
+// Owned stays a "gained" test (the merge is a union); equipped and taken compare whole, the device being the authority for both.
+export function profileDiffers(profile: Profile, cloud: CloudProfile): boolean {
+  const mine = fighterDetails(profile), loot = cleanLoot(mine.loot), theirs = cleanLoot(cloud.loot);   // both sides cleaned: unknown ids never count as a change
+  return mine.display_name !== cloud.display_name || mine.encounter !== cloud.encounter || mine.victory_marks > cloud.victory_marks
+    || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.taken) !== canon(theirs.taken);
+}
+// One cloud write at a time. A save asked for while one is in flight does not start a second write against the same revision (that
+// is a guaranteed conflict); it marks the queue and, once the current write lands, the LATEST device profile is written once more.
+// Resolves true when every queued write landed, false on the first failure (the caller reads the error state; nothing is retried here).
+export function createSaveQueue(write: (profile: Profile) => Promise<void>): (latest: () => Profile) => Promise<boolean> {
+  let running: Promise<boolean> | null = null, again = false;
+  return latest => {
+    if (running) { again = true; return running; }
+    running = (async () => {
+      try {
+        do { again = false; await write(latest()); } while (again);
+        return true;
+      } catch { return false; } finally { running = null; again = false; }
+    })();
+    return running;
+  };
+}
 export async function readFighter(db: SupabaseClient, userId: string): Promise<CloudProfile | null> {
   const { data, error } = await db.from('fighter_profiles').select(columns).eq('user_id', userId).maybeSingle();
   if (error) throw error;

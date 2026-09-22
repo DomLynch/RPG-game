@@ -93,7 +93,8 @@ function renderLoot() {
       const small = document.createElement('small'), bold = document.createElement('b');
       small.setAttribute('data-taken', ''); bold.textContent = pieceName(id); bold.textContent = bold.textContent[0]!.toUpperCase() + bold.textContent.slice(1);
       small.append(bold, document.createTextNode(` · your ${ordinal(taken.attempt)} attempt, ${taken.healthLeft} health left`));
-      if (taken.recordId) { const watch = document.createElement('a'); watch.setAttribute('data-watch', ''); watch.setAttribute('href', `/?r=${taken.recordId}`); watch.textContent = 'Watch'; small.append(document.createTextNode(' '), watch); }
+      // The Watch link names the fight's opponent (share-store shortLink): the loader refuses a record for another opponent than the page booted.
+      if (taken.recordId) { const watch = document.createElement('a'); watch.setAttribute('data-watch', ''); watch.setAttribute('href', shortLink(location.origin, taken.opponent, taken.recordId)); watch.textContent = 'Watch'; small.append(document.createTextNode(' '), watch); }
       li.append(small);
     }
     li.append(button);
@@ -122,7 +123,7 @@ input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
 function persist() {
   const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
-  const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saved to your account' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';
+  const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saving…' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';   // account.ts settles 'saving…' once the cloud answers
   window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts)
   // The HUD identity and the journal's fighter card show the same three facts.
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
