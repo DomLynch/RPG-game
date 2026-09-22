@@ -97,6 +97,10 @@ test('weapon flip: every player weapon meets every live rung by the rung\'s caps
   }
   assert.deepEqual(over, KNOWN_UNFAIR, 'the over-cap pairings must match the signed snapshot exactly: a new one, or one that came back under its cap, means a fresh table and a fresh signature');
   // Offered = fair everywhere: the excluded set is computed from the table, never typed in by hand.
+  // STANDING RULE: no weapon flip may un-offer a weapon the player can already use. If a change would take a shipped weapon OUT of this
+  // set, the stack is HELD, not merged — the new weapon waits for the row to go away rather than trading a live one for a shelf one.
+  // And more generally: when this test forces a membership change you would not choose, that is the signal to stop and ask, not to comply.
+  // It is telling you a product decision is required; it is not making that decision for you.
   const unfair = new Set(over.map(row => row.split(' vs ')[0]));
   for (const weapon of PLAYER_WEAPONS_OFFERED) { assert.ok(PLAYER_WEAPONS.includes(weapon), `${weapon} is a player weapon`); assert.ok(!unfair.has(weapon), `${weapon} is offered but has a pairing over a cap`); }
   for (const weapon of PLAYER_WEAPONS) if (!unfair.has(weapon)) assert.ok(PLAYER_WEAPONS_OFFERED.includes(weapon), `${weapon} is fair on every rung and must be offered`);

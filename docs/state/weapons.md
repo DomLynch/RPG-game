@@ -33,6 +33,13 @@ shelf one is not a trade I'll make". The branch as pushed *does* remove it, beca
 with no over-cap row must be offered and one with a row must not be). That is why this cannot land as-is and is held rather than fixed: the
 invariant and the ruling disagree until the trident row goes away. Same invariant that forced the scythe in on #440 — the system working.
 
+**Two rulings to carry when this lands** (the lead, via Strategy, 2026-09-22): (a) **no weapon flip may un-offer a weapon the player can
+already use** — a stack that would is held, not merged; that rule is now a comment on the flip test itself so the invariant carries its own
+reason. (b) **Do not split the estoc's reach per wielder.** It is one weapon and the measurement is the same on both rigs — if the Nightborn
+cannot cope with his own blade, that is his profile, not a second set of numbers for the same object. And the general form, worth more than
+either: **when an invariant forces a change you would not choose, that is the signal to stop and ask, not to comply.** The membership test
+is telling you a product decision is required; it is not making it.
+
 **Held, deliberately, on a dependency.** Combat is fixing a shared approach defect in `src/ai.ts`: every opponent's approach settles at a
 *raw* reach value while `inReach` needs `reach − .1`, so wardens park just outside their own range. That changes stopping distance, which
 is exactly what +0.30 m interacts with — findings (2) and (3) are engagement-distance symptoms and may move on their own. Re-measuring
