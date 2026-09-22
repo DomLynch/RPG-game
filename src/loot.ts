@@ -26,15 +26,18 @@ export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: nu
 export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; taken?: Partial<Record<LootId, Provenance>> };
 export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locker; lockers 2–6 greyed, no code behind them
 
-// The pieces in loot.glb by opponent, in drop order (tests/loot-data.test.ts pins this against the file's draws). An opponent without
-// pieces drops nothing. Scalable Chars appends here when a piece ships.
+// The pieces in loot.glb by opponent, in the file's slot order — every visible armour slot a fallen opponent wears (owner, 2026-09-22:
+// "I should be able to pick up any armour or weapon slot"; weapons are the Weapons lane's). Drop order = this order (tests/loot-data.test.ts
+// pins the list against the file's draws). An opponent without pieces drops nothing. Scalable Chars appends here when a piece ships.
+// Body is the tunic and what hangs on it (baldric, belt, buckle, studs, collar) in the opponent's own linen; kilts are leg cloth with no
+// paperdoll slot and stay the player's. The Goblin's Body carries his trophy necklace, the Pitborn's Arms his bone plates.
 export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
-  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Greaves', 'veteran.Trident'],
-  executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Greaves', 'executioner.Scythe'],
-  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Boots', 'nightborn.Estoc'],
-  pitborn: ['pitborn.Arms', 'pitborn.Cleaver'],
+  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Trident'],
+  executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Body', 'executioner.Arms', 'executioner.Greaves', 'executioner.Boots', 'executioner.Scythe'],
+  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Boots', 'nightborn.Estoc'],
+  pitborn: ['pitborn.Body', 'pitborn.Arms', 'pitborn.Cleaver'],
   dwarf: ['dwarf.Greaves', 'dwarf.Warhammer'],
-  goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Knife'],   // the Goblin's trophies (PR #333): the necklace and the bone bracers, both over his own kit
+  goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Knife'],
 };
 export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat());
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);

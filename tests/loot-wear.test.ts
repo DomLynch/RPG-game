@@ -23,7 +23,7 @@ test('loot: every piece of loot.glb has an id in src/loot.ts, and the player wea
   const body = draws(player.anchor, 'Body').find((m): m is SkinnedMesh => m instanceof SkinnedMesh)!;
   player.wear(all.filter(p => ['veteran.Helmet', 'nightborn.Body', 'veteran.Greaves'].includes(lootId(p))));
   const worn = player.worn();
-  assert.deepEqual(worn.map(lootId).sort(), ['nightborn.Body', 'veteran.Greaves', 'veteran.Helmet']);
+  assert.deepEqual([...new Set(worn.map(lootId))].sort(), ['nightborn.Body', 'veteran.Greaves', 'veteran.Helmet'], 'a piece is every draw of its id (a tunic is linen + leather + brass + steel)');
   for (const piece of worn) {
     assert.equal(piece.skeleton, body.skeleton, `${piece.name} follows the player's bones`);
     assert.equal(piece.parent, body.parent, `${piece.name} hangs where his body does`);

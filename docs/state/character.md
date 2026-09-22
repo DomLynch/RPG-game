@@ -2,6 +2,24 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Loot v2 — every visible armour slot is takeable (Scalable Chars, 2026-09-22; owner via Strategy/Lead: "any armour or weapon slot")
+loot.glb now carries every armour slot each beta humanoid visibly wears, not one to three fixed pieces: Veteran and Executioner
+Helmet/Crest/Body/Arms/Greaves/Boots, Nightborn Helmet/Body/Arms/Boots, Pitborn Body/Arms, Goblin Body/Arms, Dwarf Greaves — 39 draws
+(was 15), `src/loot.ts` LOOT extended in the file's slot order (drop order = slot order; tests/loot-data.test.ts pins moved with it).
+Body = the tunic and what hangs on it (baldric, belt, buckle, studs, collar); kilt/skirt/hose are leg cloth with no paperdoll slot and
+stay the player's; wraps are the Arms item where an opponent wears nothing over them (Veteran, Executioner, Nightborn), the Pitborn's
+plates and the Goblin's bracer stay the `over` Arms pieces; the Goblin's Body now carries his rag tunic kit AND the trophy necklace
+(one id per opponent per slot). Not exported, on purpose: the Pitborn has no helm/greaves/boots (bare, barefoot), the Nightborn no
+gloves/greaves, the Dwarf's helm/body/arms iron is texture speckle (loot v1 cut), no Gloves exist for anyone.
+Materials: a tunic's material becomes `Gambeson_<opponent>` with HIS linen bake (colour + his small normal; ORM measured uniform on
+every fighter — rough .88, metal 0 — and shipped as factors), since the runtime swaps only same-named materials for the player's and
+the whole point of the Veteran's tunic is his linen. This also fixes loot v1's Nightborn Body, which rendered in the hero's undyed
+linen. Texture diet for the 1.5 MB cap: Bronze takes the 46 KB base normal, the Dwarf's iron colour 768²/q82 (loot_dwarf.py
+`--color-size`/`--jpeg-quality`; the cut geometry is the committed one, not re-cut). Result 1,446,168 B gzip packed (cap 1,500,000).
+Render `artifacts/character/loot/v2/hero-wearing-full-sets.png`: the hero in each full set, runtime material rule emulated.
+tests/loot-wear.test.ts's worn-set pin became id-based (a piece is every draw of its id — the Goblin already had two). Open: the
+Weapons lane's weapon drops; Lead's choice UI and take rules.
+
 ## Hero hands v44 — rig knuckles fitted to the mesh (hero lane, 2026-09-22, owner: "solve it please, AAA grade visual for hands")
 The off-hand still read as spider fingers after v43 because the rig's finger joints sat past the mesh's knuckles (index 3rd
 knuckle at 93 %, bone tip 130 % of the finger). `parts.fit_finger_bones` re-places every digit's joints at 45/75/100 % of
