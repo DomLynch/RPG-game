@@ -81,9 +81,10 @@ const bounds = (png) => page.evaluate(async (b64) => {
   for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (p[(y * c.width + x) * 4 + 3] > 8) { top = Math.min(top, y); bottom = Math.max(bottom, y); left = Math.min(left, x); right = Math.max(right, x); }
   return bottom < 0 ? null : { top, bottom, left, right };
 }, png.toString('base64'));
-const pad = 6; let frame = null;
+const pad = 6; let frame = null; const own = new Map();   // each layer's own bounds, for the kill screen's thumbnails
 for (const [id, png] of shots) {
   const b = await bounds(png); if (!b) { if (id) console.error(`${id} rendered nothing`); continue; }
+  if (id) own.set(id, b);
   frame = frame ? { top: Math.min(frame.top, b.top), bottom: Math.max(frame.bottom, b.bottom), left: Math.min(frame.left, b.left), right: Math.max(frame.right, b.right) } : b;
 }
 frame = { x: frame.left - pad, y: frame.top - pad, w: frame.right - frame.left + 1 + pad * 2, h: frame.bottom - frame.top + 1 + pad * 2 };
@@ -97,6 +98,16 @@ const save = async (file, data) => { const buf = Buffer.from(data.webp, 'base64'
 await mkdir(join(OUT, 'loot'), { recursive: true });
 let base;
 for (const [id, png] of shots) { const data = await save(id ? join(OUT, 'loot', `${id}.webp`) : join(OUT, 'fighter.webp'), await crop(png)); if (!id) base = data; }
+// Thumbnails for the kill screen's Take-one panel (src/loot-panel.ts): the piece alone, cropped to its own bounds, squared, 96 px.
+const THUMB = 96;
+const thumb = (png, b) => page.evaluate(async ([b64, b, T, Q]) => {
+  const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+  const w = b.right - b.left + 1, h = b.bottom - b.top + 1, side = Math.max(w, h) * 1.12, f = document.createElement('canvas'); f.width = f.height = T;
+  const fg = f.getContext('2d'); fg.imageSmoothingQuality = 'high';
+  fg.drawImage(img, b.left + w / 2 - side / 2, b.top + h / 2 - side / 2, side, side, 0, 0, T, T);
+  return { webp: f.toDataURL('image/webp', Q).split(',')[1], w: T, h: T };
+}, [png.toString('base64'), b, THUMB, QUALITY]);
+for (const [id, png] of shots) if (id && own.has(id)) await save(join(OUT, 'loot', `${id}.thumb.webp`), await thumb(png, own.get(id)));
 // index.html: the figure's intrinsic size, so the wrapper and the layers share the frame before the image loads.
 const html = join(ROOT, 'index.html'), markup = await readFile(html, 'utf8');
 const sized = markup.replace(/(<img src="\/game\/img\/fighter\.webp" alt="Your fighter" width=")\d+(" height=")\d+(")/, `$1${base.w}$2${base.h}$3`);

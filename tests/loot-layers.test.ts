@@ -14,6 +14,7 @@ test('every armour loot id has a rendered layer and its style.css rule', () => {
   const css = read('src/style.css');
   for (const id of ids) {
     assert.ok(existsSync(new URL(`public/game/img/loot/${id}.webp`, root)), `${id}: run node scripts/loot-layers.mjs`);
+    assert.ok(existsSync(new URL(`public/game/img/loot/${id}.thumb.webp`, root)), `${id}: kill-screen thumbnail missing (run node scripts/loot-layers.mjs)`);
     assert.ok(css.includes(`#slot-${paperdollOf(slotOf(id))}[data-loot='${id}']`), `${id}: style.css rule missing (regenerate the loot-layers block)`);
   }
 });
@@ -24,4 +25,16 @@ test('the figure carries one layer per wearable paperdoll key, head drawn last',
   assert.deepEqual([...layers].sort(), [...wearable].sort());
   assert.equal(layers.at(-1), 'head');
   assert.match(html, /<div class="doll-figure"><img src="\/game\/img\/fighter\.webp"/);
+});
+
+// The kill screen's Take-one panel (src/loot-panel.ts): its ids in the HUD band under the autopsy, outside the endgame fade group, and
+// the old drop line + Wear/Store row gone (one loot UI).
+test('the Take-one panel is in the HUD under the autopsy and the old drop line is gone', () => {
+  const html = read('index.html'), css = read('src/style.css');
+  const hud = html.slice(html.indexOf('<section class="combat-hud"'), html.indexOf('</section></section>'));
+  for (const id of ['loot-panel', 'loot-panel-title', 'loot-panel-pieces', 'loot-take', 'loot-decline', 'loot-panel-note']) assert.ok(hud.includes(`id="${id}"`), id);
+  assert.ok(hud.indexOf('id="autopsy"') < hud.indexOf('id="loot-panel"'));
+  for (const gone of ['loot-drop', 'loot-choice', 'loot-wear', 'loot-store']) { assert.ok(!html.includes(gone), `${gone} in index.html`); assert.ok(!css.includes(gone), `${gone} in style.css`); }
+  assert.ok(!/endgame-fade #loot-panel/.test(css), 'the panel must not fade with the tour');
+  assert.match(css, /\.loot-panel \{[^}]*pointer-events: auto/);
 });

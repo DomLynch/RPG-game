@@ -45,7 +45,7 @@ try {
   assert.ok(!phase.touring, 'settle happens well before the 5 s tour starts');
   const rectsAndFallen = await page.evaluate(() => {
     const fallen = JSON.parse(document.querySelector('#debug').dataset.fallenRect || 'null');
-    const ids = ['combat-status', 'loot-drop', 'autopsy', 'loot-choice', 'reset-button', 'share-button'];
+    const ids = ['combat-status', 'autopsy', 'loot-panel', 'reset-button', 'share-button'];
     const rects = {};
     for (const id of ids) {
       const el = document.getElementById(id);
@@ -67,9 +67,9 @@ try {
   // for the real 5 s tour) and confirm the three buttons actually go inert, then confirm they wake again when it lifts.
   const pointerEvents = await page.evaluate(() => {
     document.documentElement.classList.add('endgame-fade');
-    const faded = ['reset-button', 'share-button', 'loot-choice'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    const faded = ['reset-button', 'share-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
     document.documentElement.classList.remove('endgame-fade');
-    const restored = ['reset-button', 'share-button', 'loot-choice'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    const restored = ['reset-button', 'share-button'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
     return { faded, restored };
   });
   receipt.pointerEvents = pointerEvents;

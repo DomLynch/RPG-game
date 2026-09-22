@@ -12,7 +12,8 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
-import { PAPERDOLL, dropFor, emptyLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PAPERDOLL, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { readOpponent } from './ai.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily, type DailyFight } from './daily.ts';
@@ -62,11 +63,26 @@ const message = element('message');
 const autopsyLines = element('autopsy');
 // The death-screen autopsy: at most two lines between the kill and the rematch button; hidden when there is nothing confident to say.
 function showAutopsy(lines: string[]) { autopsyLines.hidden = !lines.length; autopsyLines.replaceChildren(...lines.map((line) => { const span = document.createElement('span'); span.textContent = line; return span; })); }
-const lootDrop = element('loot-drop'), lootChoice = element('loot-choice');
-// The drop line now docks in the top band with the fight hint (owner 2026-09-22: end-of-fight text was blocking the gore and
-// finishers); the Wear/Store choice stays in the bottom row beside Rematch, so the two are no longer DOM siblings — the old
-// `#loot-drop[hidden] + .loot-choice` CSS could not follow the move, so the choice's visibility is set here directly instead.
-function showLootDrop(text: string | null) { lootDrop.hidden = !text; lootDrop.textContent = text ?? ''; lootChoice.hidden = !text; }
+// The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
+// arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
+// provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
+// A piece's kill-screen thumbnail (scripts/loot-layers.mjs); a weapon has none until its equip file renders, so its tile is its name.
+const lootThumb = (id: LootId) => (isWeaponLoot(id) ? undefined : `/game/img/loot/${id}.thumb.webp`);
+const lootPanel = createLootPanel(element, document);
+function offerLoot(healthLeft: number) {
+  const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
+  const pieces = (LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }));
+  if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
+  lootPanel.show(`Take one from ${name}`, pieces, {
+    onTake: (id: string) => {
+      if (!isLootId(id) || lastDrop) return;   // one take per win
+      profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
+      lastDrop = id; setLoot(wear(profile.loot, id));
+      lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`);
+    },
+    onDecline: () => lootPanel.hide(),
+  });
+}
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
 // journal's paperdoll and rack show it, and every change persists (the cloud follows on the profile beat). Rack rows are Web design's
 // shape: name, the provenance caption (brief 9, with a Watch link once the fight is published), and the Wear / Worn button.
@@ -105,9 +121,7 @@ function renderLoot() {
   element('loot-rack').replaceChildren(...rows);
 }
 for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(unwear(profile.loot ?? emptyLoot(), key)));
-// The drop's choice (Web design's row under the drop line): Wear puts it on now; Store leaves it on the rack, where it already is.
-element('loot-wear').addEventListener('click', () => { if (lastDrop && profile.loot) setLoot(wear(profile.loot, lastDrop)); showLootDrop(null); });
-element('loot-store').addEventListener('click', () => showLootDrop(null));
+lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
 const resetButton = element<HTMLButtonElement>('reset-button');
@@ -368,7 +382,7 @@ resetButton.addEventListener('click', () => {
   if (replay) {   // Avenge him: the same warden and seed, live, practice only
     practiceOnly = true; matchSeed = replay.record.seed; replay = null; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -389,7 +403,7 @@ resetButton.addEventListener('click', () => {
   practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
-  frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null;
+  frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null;
   state = previous = practice.fighter;
   view.recenter();
   canvas.focus();
@@ -434,7 +448,7 @@ const wholeButton = element<HTMLButtonElement>('replay-whole');
 function startReplay(record: FightRecord, fromTick: number) {
   matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
   recorder = null; recorded = false; activeMs = 0; clearInput();
-  practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null;
+  practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null;
   for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], opponent.profiles[difficulty]);
   state = previous = practice.fighter; accumulator = 0;
   replay = { record, cursor: fromTick }; shareButton.hidden = true; say(null); wholeButton.hidden = fromTick === 0;
@@ -476,7 +490,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Warden: normal';
     saveDaily(storage, { day: fight.day, started: true, submitted: false });
     recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; state = previous = practice.fighter;
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); updateHud();
   }).catch((error: unknown) => { banner(`No daily warden: ${error instanceof Error ? error.message : String(error)}`); });
 }
@@ -816,12 +830,11 @@ function frame(now: number) {
             recordResult(scorecard, opponent.id, won(practice.finish) ? 'win' : practice.finish.draw ? 'draw' : 'loss', afk, lines);   // a fight lost while away is a loss, flagged left
             saveScorecard(storage, scorecard);
             if (won(practice.finish)) {
-              // The drop (brief 5): one fixed piece per opponent per the sub-rank the fight was fought at, never a duplicate; it goes straight to the
-              // trophy rack (nothing is lost) and the journal wears it. Web design's Wear / Store / Leave selector replaces this line when it lands.
-              const drop = dropFor(opponent.id, marksOf(profile), profile.loot?.owned ?? []);
+              // Loot (Strategy brief 2026-09-22): the kill screen offers the fallen warden's pieces (offerLoot above); nothing is stored
+              // until the player takes one. lastDrop holds the take, so a Share can fill its record id once (src/loot.ts Provenance).
               awardMark(profile);   // one career mark per won duel (owner beta policy 2026-09-20), saved on this device
-              lastDrop = drop;
-              if (drop) { profile.loot = store(profile.loot, drop, { opponent: opponent.id, attempt: scorecard.rows[opponent.id]?.fights ?? 1, healthLeft: Math.max(0, Math.round(practice.playerHealth)), recordId: null, day: new Date().toISOString().slice(0, 10) }); showLootDrop(`Won: ${pieceName(drop)}.`); }
+              lastDrop = null;
+              offerLoot(Math.max(0, Math.round(practice.playerHealth)));
               persist();
             }
           }
