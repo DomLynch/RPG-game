@@ -67,6 +67,10 @@ was an artifact. Corrected off u2net mattes: **Knight 0.367, Executioner 0.374, 
 - **The 80 % coverage floor is not a silhouette measure.** `tests/loot.test.ts:95` compares **mesh surface area in m²**
   against the *player's* own draws in that slot. It cannot be taken from a reference or a mask; it runs the first time
   the draw exists.
+- **After fast-forwarding onto trunk `fe0d8e0`, run `npm ci` before the gate.** A worktree whose `node_modules` is the
+  old 2026-09-17 install fails `npm run quality:stop` on a missing `@types/node`; that is a stale install, not a
+  breakage (World, relayed by Strategy 2026-09-23 — their gate went green immediately after). This lane's own gate ran
+  green on its current install, so it bites on the next fast-forward, not today.
 - **The one-deployer hook scans the whole command string** — a heredoc containing "build" or "deploy" trips it even for a
   plain `git commit`. Write the message to a file and `git commit -F`.
 
