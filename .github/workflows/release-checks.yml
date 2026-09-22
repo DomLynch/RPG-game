@@ -67,7 +67,7 @@ jobs:
             // Another label (merged-elsewhere, a lane tag) is not a request to run the matrix.
             if (pr && process.env.PR_ACTION === "labeled" && process.env.PR_LABEL !== "ci:release-checks") run = false;
             // A later push runs the curated rows its changed files trigger (release_triggers in .quality-gate.json, printed
-            // locally by scripts/release-rows-for.mjs); the label keeps the full matrix. Lead's ruling 2026-09-22: the pool
+            // locally by scripts/release-rows-for.mjs); the label keeps the full matrix. the Lead ruling of 2026-09-22: the pool
             // is 20 runners, so ~30 jobs per src push would queue lanes into merging on stale runs.
             if (pr && process.env.PR_ACTION === "synchronize" && !process.env.PR_LABELS.split(",").includes("ci:release-checks")) {
               const files = execFileSync("gh", ["api", `repos/${process.env.GITHUB_REPOSITORY}/pulls/${process.env.PR_NUMBER}/files`, "--paginate", "--jq", ".[].filename"], { encoding: "utf8" }).split("\n").filter(Boolean);
