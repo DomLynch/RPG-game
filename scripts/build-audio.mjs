@@ -15,7 +15,7 @@ const RATE = 48000, GAP = .04, LEAD = .02;
 // every weapon, guard and shield impact.
 const PITCH = .5;
 // Owner 2026-09-20, after playing the −30 % mix: the end-of-match cheer is still high — the crowd recordings go another 30 %.
-const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, shield: 1, slashkill: 1 };   // shield: the owner chose the raw recording, not the deeper one
+const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, shield: 1, slashkill: 1, swordhit: 1 };   // shield: the owner chose the raw recording, not the deeper one
 // Length-preserving pitch shift: asetrate lowers pitch and slows; atempo (≤ 2 per stage, chained) restores the length.
 const pitchFilter = pitch => { const tempo = 1 / pitch, stages = Math.ceil(Math.log(tempo) / Math.log(2)); return `asetrate=${RATE * pitch},aresample=${RATE},${Array.from({ length: stages }, () => `atempo=${tempo ** (1 / stages)}`).join(',')}`; };
 const S = seconds => Math.round(seconds * RATE);
@@ -174,6 +174,10 @@ const HITS = [
     const weight = heft(n, abs(90 * f), r, { t60: heavy ? .32 : .22, drive: heavy ? 5 : 4 });
     return densify(mix(n, [point, 0, .6], [squelch, .004, .7], [body, .003, 1], [weight, .005, heavy ? .6 : .4], [rumble(n, heavy ? .35 : .25, r), .02, dbfs(-6)]), 2.5);
   },
+  (r, heavy) => {   // CC0 recording: "Hit Impact Sword 3" (CogFireStudios, freesound 547042) — owner's pick 2026-09-22
+    const n = S(heavy ? .75 : .62), take = recording('swordhit', 0, heavy ? .75 : .62, heavy ? .92 : vary(r, 1, .03));
+    return heavy ? mix(n, [take, 0, 1], [heft(n, 75, r, { t60: .35, drive: 5 }), .004, .4]) : take;
+  },
 ];
 const RECIPES = {
   // Air: a wide, breathy wash whose centre sweeps low (220 → 900 Hz), never a whistle.
@@ -207,7 +211,7 @@ const RECIPES = {
   // with a wet squelch, ~.66 s. hit_flesh = the four at strike weight; hit_heavy = the same four hit harder.
   // Owner 2026-09-21 16:5x (audit of the live set): light keeps the slash-kill recording and the stab (blunt thud + slap out); heavy
   // keeps the slash-kill recording only — every synth heavy was cut. bone_crack still draws its two from the table.
-  hit_flesh(r, v) { return HITS[[0, 3][v % 2]](r, false); },
+  hit_flesh(r, v) { return HITS[[0, 3, 4][v % 3]](r, false); },   // owner 2026-09-22: + the CC0 sword-hit recording on the rotation
   hit_heavy(r, v) { return HITS[0](r, true, v % 2 ? .86 : .92); },   // two takes of the one recording: the rotation rule wants ≥ 2
   // Kick: a cloth slap and a dull mid thud, no edge, no ring.
   hit_kick(r) {
@@ -369,7 +373,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 2, hit_heavy: 2, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 3, hit_heavy: 2, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];
