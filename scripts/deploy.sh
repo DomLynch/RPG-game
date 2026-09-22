@@ -8,13 +8,18 @@ cd "$(dirname "$0")/.."
 DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
 mkdir -p "$(dirname "$DEPLOY_LOCK")"
 printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$PWD" > "$DEPLOY_LOCK"
-trap 'rm -f "$DEPLOY_LOCK"' EXIT
+source scripts/lib/deploy-ceiling.sh
+trap 'rm -f "$DEPLOY_LOCK"; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
+deploy_step "preflight"
 node scripts/check-account-config.mjs
 # Stage the versioned Frankendom CSP before publishing WASM-compressed assets.
 node scripts/check-glb-compression.mjs --hosted-csp
 node --input-type=module -e 'import { loadEnv } from "vite"; import { readFileSync } from "node:fs"; const dsn = process.env.VITE_SENTRY_DSN || loadEnv("production", process.cwd()).VITE_SENTRY_DSN; if (!dsn || new URL(dsn).protocol !== "https:" || !readFileSync("deploy/frankendom.com.conf", "utf8").includes(new URL(dsn).origin)) throw new Error("Configure VITE_SENTRY_DSN and its CSP origin before deployment");'
 revision=$(git rev-parse HEAD)
 export VITE_SENTRY_RELEASE="$revision"
+# Every PR GitHub calls MERGED must be in this tree (the #358 wrong-base-branch miss); a stacked PR still in flight is only noted.
+deploy_step "merged-on-trunk"
+node scripts/merged-on-trunk.mjs
 # CI runs `quality:ci` (lint + full suite + build + audit + budget) on every trunk push. When it already passed for
 # this exact revision, re-running the 6-minute suite here only duplicates it: run the deploy-only parts instead.
 # A merge commit of a rebased branch onto an unmoved trunk has the branch head's tree, so the head's own green
@@ -40,6 +45,7 @@ if [[ -z "$ci_green" ]]; then
     ci_green_for="$merged_head (merged branch head, same tree as $revision)"
   fi
 fi
+deploy_step "quality gate"
 if [[ -n "$ci_green" ]]; then
   echo "CI quality is green for $ci_green_for ($ci_green); running quality:deploy"
   npm run quality:deploy
@@ -49,6 +55,7 @@ else
 fi
 # Checks CI already proved for this exact revision (green release-checks job + receipt artifact) are skipped here;
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
+deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="CI release-checks for $revision" node scripts/release-checks.mjs
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
@@ -62,6 +69,7 @@ release="/var/www/frankendom/releases/$revision"
 # Reuse one connection for mkdir, transfer and switch; bound failed connection attempts.
 ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
 printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
+deploy_step "transfer + switch"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
 # Hardlink files unchanged since the current release instead of re-uploading the whole dist (the GLBs dominate).
 # rsync only links when size, mtime and content match, so a changed asset is always uploaded in full.
@@ -83,6 +91,7 @@ cmp dist/release.json <(curl --fail --silent --show-error https://frankendom.com
 # outside the web root, and (re)install its timer. It runs as the least-privilege role of migration 202609210005 from
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
 verifier="/opt/frankendom-verifier/$revision"
+deploy_step "verifier"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier/src' '$verifier/scripts'"
 rsync -az --delete --include='*/' --include='*.ts' --exclude='*' -e "$remote_shell" src/ "$host:$verifier/src/"
 rsync -az -e "$remote_shell" scripts/verify-daily.mjs "$host:$verifier/scripts/"
