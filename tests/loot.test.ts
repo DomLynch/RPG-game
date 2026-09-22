@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-type Gltf = { nodes: { name: string; mesh?: number; skin?: number; extras?: Record<string, string> }[]; meshes: { primitives: { attributes: Record<string, number> }[] }[]; skins: { joints: number[]; inverseBindMatrices: number }[]; accessors: { bufferView: number; byteOffset?: number; componentType: number; count: number; type: string }[]; bufferViews: { byteOffset?: number; byteStride?: number }[] };
+type Gltf = { nodes: { name: string; mesh?: number; skin?: number; extras?: Record<string, string> }[]; meshes: { primitives: { indices: number; attributes: Record<string, number> }[] }[]; skins: { joints: number[]; inverseBindMatrices: number }[]; accessors: { bufferView: number; byteOffset?: number; componentType: number; count: number; type: string }[]; bufferViews: { byteOffset?: number; byteStride?: number }[] };
 function glb(path: string) {
   const bytes = readFileSync(new URL(path, import.meta.url)), length = bytes.readUInt32LE(12);
   const json = JSON.parse(bytes.toString('utf8', 20, 20 + length)) as Gltf, bin = bytes.subarray(28 + length);
@@ -22,7 +22,27 @@ function glb(path: string) {
     const f = new Float32Array(bin.buffer, bin.byteOffset, bin.byteLength / 4), m = f.subarray(base + jointNames(skin).indexOf(name) * 16);
     return -(m[1] * m[12] + m[5] * m[13] + m[9] * m[14]);
   };
-  return { json, positions, jointNames, jointY, ibm, draws: json.nodes.filter(n => n.mesh !== undefined && n.skin !== undefined) };
+  // The surface a set of draws covers, in m² — how much of the man a garment actually clothes. Vertex counts and bounding boxes both
+  // lie here: the Pitborn's sash spans nearly the player's tunic's height while covering a quarter of the area.
+  const area = (match: (name: string) => boolean) => {
+    let total = 0;
+    for (const node of json.nodes.filter(n => n.mesh !== undefined && match(n.name))) for (const prim of json.meshes[node.mesh!].primitives) {
+      const pa = json.accessors[prim.attributes.POSITION], pv = json.bufferViews[pa.bufferView];
+      const ia = json.accessors[prim.indices], iv = json.bufferViews[ia.bufferView];
+      const stride = (pv.byteStride ?? 12) / 4, base = ((pv.byteOffset ?? 0) + (pa.byteOffset ?? 0)) / 4;
+      const f = new Float32Array(bin.buffer, bin.byteOffset, bin.byteLength / 4);
+      const off = (iv.byteOffset ?? 0) + (ia.byteOffset ?? 0);
+      const index = ia.componentType === 5125 ? new Uint32Array(bin.buffer, bin.byteOffset + off, ia.count) : new Uint16Array(bin.buffer, bin.byteOffset + off, ia.count);
+      const at = (k: number) => [f[base + k * stride], f[base + k * stride + 1], f[base + k * stride + 2]] as const;
+      for (let i = 0; i < index.length; i += 3) {
+        const a = at(index[i]), b = at(index[i + 1]), c = at(index[i + 2]);
+        const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+        total += Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) / 2;
+      }
+    }
+    return total;
+  };
+  return { json, positions, jointNames, jointY, ibm, area, draws: json.nodes.filter(n => n.mesh !== undefined && n.skin !== undefined) };
 }
 const SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];
 
@@ -66,4 +86,28 @@ test('the Dwarf\'s greaves, unscaled from his frame, sit on the hero\'s shins', 
   assert.ok(dwarf.q(0.5) <= 1.5 * authored.q(0.5) + 0.005, `median ${cm(dwarf.q(0.5))} cm vs authored ${cm(authored.q(0.5))} cm`);
   assert.ok(dwarf.q(0.9) <= 2 * authored.q(0.9) + 0.005, `p90 ${cm(dwarf.q(0.9))} cm vs authored ${cm(authored.q(0.9))} cm`);
   assert.ok(dwarf.q(1) < 2 * authored.q(1) + 0.01, `max ${cm(dwarf.q(1))} cm vs authored ${cm(authored.q(1))} cm: nothing floats`);
+});
+
+// Owner, 2026-09-22, after taking a Pitborn chest piece and ending up bare-chested: taking or wearing a piece must never leave the
+// player less dressed than his base kit. A `replace` piece hides his own draws in that slot, so it has to cover what it hides — the
+// Pitborn's Body was a 0.36 m² rag sash against his 1.36 m² tunic (26 %), which is the bug, not the "skin draw" it was taken for.
+// The floor is 80 %: every piece that belongs shipped at 103–159 %, so this separates them without being tuned to squeak past.
+test('loot: no `replace` piece undresses the player — each covers at least 80 % of the draws it hides', () => {
+  const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
+  const SLOT_OF_HERO: Record<string, RegExp> = {   // the player's own draws in each slot the loot can replace
+    Body: /^(?:Gambeson|Leather\.Body|Steel\.Body|Antique brass\.Body)$/,
+    Boots: /^(?:Leather\.Boots|Wrap\.Boots)$/,
+    Arms: /^Wrap$/,
+  };
+  const replaced = new Set(loot.draws.filter(d => d.extras?.layer === 'replace').map(d => d.extras!.slot));
+  for (const slot of replaced) {
+    const own = SLOT_OF_HERO[slot];
+    if (!own) continue;   // Helmet and Crest hide hair, not clothing: nothing of his to undress
+    const base = hero.area(name => own.test(name));
+    assert.ok(base > 0, `the player has draws in ${slot}`);
+    for (const opponent of new Set(loot.draws.filter(d => d.extras?.layer === 'replace' && d.extras?.slot === slot).map(d => d.extras!.opponent))) {
+      const piece = loot.area(name => name.startsWith(`${opponent}.${slot}.`));
+      assert.ok(piece >= 0.8 * base, `${opponent}.${slot} covers ${(100 * piece / base).toFixed(0)} % of the player's ${slot} (${piece.toFixed(2)} m² against ${base.toFixed(2)} m²) — wearing it would undress him`);
+    }
+  }
 });
