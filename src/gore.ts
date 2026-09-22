@@ -212,22 +212,58 @@ export function lcg(state: number): number { return (Math.imul(state, 1664525) +
 // the rig's own skinned meshes in their current pose (owner 2026-09-22: "it floats off the chars" — the site table's radius is a
 // guess per slot, and on a bare shoulder the guess for a pauldron hangs in the air). The table value stands when nothing is met
 // (node tests, a rig with no skin) and the answer is clamped to its neighbourhood so a stray polygon cannot fling the mark.
+const unit = (state: number) => state / 4294967296;
 const SURFACE = { reach: 0.6, proud: 0.004, clamp: [0.35, 1.5] } as const;
 const surfaceRay = new THREE.Raycaster(), surfaceFrom = new THREE.Vector3(), surfaceDir = new THREE.Vector3(), surfaceBone = new THREE.Vector3();
-export function surfaceRadius(root: THREE.Object3D, bone: THREE.Object3D, normal: THREE.Vector3, fallback: number): number {
-  const skins: THREE.Object3D[] = []; root.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && o.visible) skins.push(o); });
-  if (!skins.length) return fallback;
+const surfaceNormal = new THREE.Vector3(), surfaceMat = new THREE.Matrix3();
+// Where the wound actually sits (owner 2026-09-22: "it floats off the chars", then "not joined to the gear or opponent"): a ray from
+// well outside, back along the wound normal, against the rig's own skinned meshes in their current pose. We keep the POINT it met and
+// that face's own NORMAL, both in the struck bone's frame, so the mark lies flat on the cloak, gambeson or skin it hit and rides the
+// animation with it — a radius along a guessed direction put a flat blotch in front of the cloth instead. Null when nothing is met
+// (node tests, a rig with no skin, a ray past a flapping cape): the caller falls back to the site table's radius along its guess.
+const skinCache = new WeakMap<THREE.Object3D, THREE.Object3D[]>();
+export function skinsOf(root: THREE.Object3D): THREE.Object3D[] {
+  let skins = skinCache.get(root);
+  if (!skins) { skins = []; root.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) skins!.push(o); }); skinCache.set(root, skins); }
+  return skins;
+}
+export function surfaceHit(root: THREE.Object3D, bone: THREE.Object3D, normal: THREE.Vector3): { point: THREE.Vector3; normal: THREE.Vector3 } | null {
+  const skins = skinsOf(root).filter((o) => o.visible);
+  if (!skins.length) return null;
   bone.getWorldPosition(surfaceBone); surfaceFrom.copy(surfaceBone).addScaledVector(normal, SURFACE.reach); surfaceDir.copy(normal).negate();
   surfaceRay.set(surfaceFrom, surfaceDir); surfaceRay.far = SURFACE.reach;
-  const hit = surfaceRay.intersectObjects(skins, false)[0];
-  if (!hit) return fallback;
-  const r = SURFACE.reach - hit.distance + SURFACE.proud;
-  return Math.min(fallback * SURFACE.clamp[1], Math.max(fallback * SURFACE.clamp[0], r));
+  const met = surfaceRay.intersectObjects(skins, false)[0];
+  if (!met || !met.normal) return null;
+  const r = SURFACE.reach - met.distance;   // how far out from the bone the surface is; a stray polygon must stay in the slot's neighbourhood
+  if (r < 0.01) return null;
+  // The face normal is in the hit object's local space; take it to world, and keep it pointing back at the blow.
+  surfaceNormal.copy(met.normal).applyMatrix3(surfaceMat.getNormalMatrix(met.object.matrixWorld)).normalize();
+  if (surfaceNormal.dot(normal) < 0) surfaceNormal.negate();
+  return { point: met.point.clone(), normal: surfaceNormal.clone() };
 }
-const unit = (state: number) => state / 4294967296;
+// How far the blood can run before it leaves the body: from the wound, step down the surface and ask, at each step, whether there
+// is still something under it. A run that grew past the edge of a cape or the underside of an arm hung in mid-air (owner
+// 2026-09-22: "not joined to the gear or opponent"). Four short rays per hit, none per frame. Returns metres, 0 if nothing holds.
+export function surfaceReach(root: THREE.Object3D, point: THREE.Vector3, normal: THREE.Vector3, down: THREE.Vector3, max: number): number {
+  const skins = skinsOf(root).filter((o) => o.visible);
+  if (!skins.length) return max;
+  let reach = 0;
+  for (let i = 1; i <= 4; i++) {
+    const step = (max * i) / 4;
+    surfaceFrom.copy(point).addScaledVector(down, step).addScaledVector(normal, 0.05);
+    surfaceDir.copy(normal).negate(); surfaceRay.set(surfaceFrom, surfaceDir); surfaceRay.far = 0.1;
+    if (!surfaceRay.intersectObjects(skins, false).length) break;
+    reach = step;
+  }
+  return reach;
+}
+// The radius that the site table's guess is clamped to when a surface was met, kept for the fallback path and the tests.
+export function clampRadius(measured: number, fallback: number): number {
+  return Math.min(fallback * SURFACE.clamp[1], Math.max(fallback * SURFACE.clamp[0], measured + SURFACE.proud));
+}
 export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture | null) {
   type Strand = { mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>; map: THREE.Texture | null; start: number; duration: number; width: number; offset: number; live: boolean };
-  type Mark = { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>; strands: Strand[]; bone: THREE.Object3D | null; dir: THREE.Vector3; radius: number; width: number; scale: number; age: number; used: boolean; runs: number };
+  type Mark = { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>; strands: Strand[]; bone: THREE.Object3D | null; dir: THREE.Vector3; anchor: THREE.Vector3 | null; reach: number; radius: number; width: number; scale: number; age: number; used: boolean; runs: number };
   // Lit, wet, and drawn OVER the rig (Strategy ruling 2026-09-22, Dom: "leaks through, over"): no depth test, so a cloak or a
   // pauldron never hides the wound; no depth write. What stops it bleeding through the body is the facing test in update():
   // a mark whose surface normal points away from the eye is hidden, not depth-buffered.
@@ -244,9 +280,9 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
       return { mesh, map: null, start: 0, duration: 1, width: 1, offset: 0, live: false };
     });
     group.add(mark); group.visible = false; scene.add(group);
-    return { group, mark, strands, bone: null, dir: new THREE.Vector3(), radius: 0, width: 1, scale: 1, age: 0, used: false, runs: 0 };
+    return { group, mark, strands, bone: null, dir: new THREE.Vector3(), anchor: null, reach: Infinity, radius: 0, width: 1, scale: 1, age: 0, used: false, runs: 0 };
   }));
-  let next = [0, 0], photo = false;   // photo: the FLUX textures have landed (they carry their own colour; the canvas splat needs the tint)
+  let next = [0, 0], photo = false, reanchor = 0;   // photo: the FLUX textures have landed (they carry their own colour; the canvas splat needs the tint)
   // Textures land after the pool exists (browser only). Every strand gets its own clone of the drip map so its UV window can
   // show only the part of the run that has happened — the bead at the leading edge never stretches.
   if (typeof document !== 'undefined') {
@@ -281,9 +317,19 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
       const mark = fighters[side][next[side] % WOUNDS_PER_FIGHTER]; next[side]++;
       const world = new THREE.Vector3(...site.dir).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), hit.heading);
       root.updateWorldMatrix(true, true);
-      mark.dir.copy(world).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert());
       mark.bone = bone;   // cached (audit, 2026-09-22): update() ran a recursive getObjectByName search every frame for every used mark
-      mark.radius = surfaceRadius(root, bone, world, site.radius * scale); mark.width = site.width; mark.scale = scale; mark.age = 0; mark.used = true;
+      // Anchor on the surface the blow actually met — its point AND its own normal, kept in the bone's frame so the mark rides the
+      // animation lying flat on that cloak, gambeson or skin. Nothing met (no skin, a ray past a flapping cape) → the old path:
+      // the site table's direction at its own radius out from the bone.
+      const met = surfaceHit(root, bone, world), inverse = bone.getWorldQuaternion(new THREE.Quaternion()).invert();
+      mark.dir.copy(met ? met.normal : world).applyQuaternion(inverse);
+      mark.anchor = met ? bone.worldToLocal(met.point.clone()) : null;
+      if (met) {   // the same basis update() builds: +Y is world-up along the surface, so −Y is the way the blood runs
+        const right = new THREE.Vector3(0, 1, 0).cross(met.normal); if (right.lengthSq() < 1e-4) right.set(1, 0, 0);
+        const down = right.normalize().cross(met.normal).normalize();
+        mark.reach = surfaceReach(root, met.point, met.normal, down, (DRIP.length[0] + (DRIP.length[1] - DRIP.length[0])) * scale);
+      } else mark.reach = Infinity;
+      mark.radius = met ? SURFACE.proud : site.radius * scale; mark.width = site.width; mark.scale = scale; mark.age = 0; mark.used = true;
       seed = lcg(seed); mark.mark.rotation.z = unit(seed) * Math.PI * 2;   // the splat's own lopsided shape, turned per hit
       seed = lcg(seed); mark.runs = 1 + Math.floor(unit(seed) * 3);
       mark.strands.forEach((strand, i) => {
@@ -298,6 +344,16 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
     // Each frame, after the rigs animate: follow the bones; strength from the fighter's health fraction (nothing above the
     // threshold); each live strand's run on its own clock; the whole wound drying out once its runs have stopped.
     update(dt: number, roots: readonly [THREE.Object3D | null, THREE.Object3D | null], health: readonly [number, number], bloodMode: BloodMode, hidden: readonly [boolean, boolean] = [false, false], eye: THREE.Vector3 | null = null) {
+      // Skin and cloth deform away from the bone as the fight goes on, so a mark anchored once drifts off the body (owner
+      // 2026-09-22: "not joined to the gear or opponent" — measured 5.8 cm on the Veteran's cloak 1.5 s after the hit). One mark
+      // is re-measured per frame, round robin: at most ten in the pool, so each is re-glued ~6 times a second for one ray a frame.
+      reanchor = (reanchor + 1) % (WOUNDS_PER_FIGHTER * 2);
+      const side0 = reanchor < WOUNDS_PER_FIGHTER ? 0 : 1, glue = fighters[side0][reanchor % WOUNDS_PER_FIGHTER], glueRoot = roots[side0];
+      if (glue.used && glue.anchor && glue.bone && glueRoot) {
+        const out = scratchNormal.copy(glue.dir).applyQuaternion(glue.bone.getWorldQuaternion(scratchQuat)).normalize();
+        const met = surfaceHit(glueRoot, glue.bone, out);
+        if (met) { glue.dir.copy(met.normal).applyQuaternion(glue.bone.getWorldQuaternion(scratchQuat).invert()); glue.anchor.copy(glue.bone.worldToLocal(met.point)); }
+      }
       for (const side of [0, 1] as const) {
         const severity = Math.min(1, Math.max(0, (WOUND_THRESHOLD - health[side]) / WOUND_THRESHOLD)), root = roots[side];
         for (const mark of fighters[side]) {
@@ -309,13 +365,16 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
           // Follow the bone. The basis puts world-up projected onto the surface along the group's +Y, so a strand hanging
           // down −Y runs along world-down on the skin whatever the bone's rotation (a shoulder, a thigh, a bowed head).
           const normal = scratchNormal.copy(mark.dir).applyQuaternion(bone.getWorldQuaternion(scratchQuat)).normalize();
-          mark.group.position.copy(bone.getWorldPosition(scratchPos)).addScaledVector(normal, mark.radius);
+          if (mark.anchor) mark.group.position.copy(scratchPos.copy(mark.anchor).applyMatrix4(bone.matrixWorld)).addScaledVector(normal, mark.radius);
+          else mark.group.position.copy(bone.getWorldPosition(scratchPos)).addScaledVector(normal, mark.radius);
           const right = scratchRight.set(0, 1, 0).cross(normal); if (right.lengthSq() < 1e-4) right.set(1, 0, 0); right.normalize();
           const forward = scratchForward.copy(normal).cross(right).normalize();
           mark.group.quaternion.setFromRotationMatrix(scratchMatrix.makeBasis(right, forward, normal));
           // Facing: with no depth test, the body's far side would show through the near side — so a mark on the surface that
           // faces away from the eye is hidden outright (its clock keeps running; it is back the moment the fighter turns).
-          if (eye && scratchEye.copy(eye).sub(mark.group.position).dot(normal) < 0) { mark.group.visible = false; continue; }
+          // A grazing mark on the silhouette still belongs to the body the player is looking at, so only one clearly turned away is
+          // dropped (−0.15, not 0): with true surface normals a hard zero blinked marks out along the edge of a shoulder or a hip.
+          if (eye && scratchEye.copy(eye).sub(mark.group.position).normalize().dot(normal) < -0.15) { mark.group.visible = false; continue; }
           // The dry-out: from the moment the last run has stopped, 20 s from wet and bright to matte and dark.
           const stopped = mark.strands.reduce((t, s) => (s.live ? Math.max(t, s.start + s.duration) : t), 0);
           const dry = Math.min(1, Math.max(0, (mark.age - stopped) / DRY.seconds));
@@ -330,7 +389,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
             if (!strand.mesh.visible) continue;
             // Length: the bead alone at the start, then the run's share of its ceiling — DRIP.length at the threshold rising with
             // severity (#356's linear curve, re-floored so the slowest seeded run still passes 8 cm by 1.5 s on a man's torso).
-            const maxLength = (DRIP.length[0] + (DRIP.length[1] - DRIP.length[0]) * severity) * mark.scale, length = DRIP.bead * mark.scale + run * Math.max(0, maxLength - DRIP.bead * mark.scale);
+            const maxLength = Math.min(mark.reach, (DRIP.length[0] + (DRIP.length[1] - DRIP.length[0]) * severity) * mark.scale), length = DRIP.bead * mark.scale + run * Math.max(0, maxLength - DRIP.bead * mark.scale);
             const width = .032 * strand.width * mark.scale;
             strand.mesh.scale.set(width, length, 1);
             strand.mesh.position.set(strand.offset * mark.scale, -.02 * mark.scale, .0015);
@@ -342,7 +401,7 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
         }
       }
     },
-    clear() { for (const side of fighters) for (const mark of side) { mark.used = false; mark.bone = null; mark.group.visible = false; mark.age = 0; mark.runs = 0; for (const s of mark.strands) { s.live = false; s.mesh.visible = false; } } next = [0, 0]; },
+    clear() { for (const side of fighters) for (const mark of side) { mark.used = false; mark.bone = null; mark.anchor = null; mark.group.visible = false; mark.age = 0; mark.runs = 0; for (const s of mark.strands) { s.live = false; s.mesh.visible = false; } } next = [0, 0]; },
     get entries() { return fighters as readonly (readonly Mark[])[]; },
   };
 }
