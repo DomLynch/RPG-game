@@ -107,10 +107,48 @@ Lead asked this because `pitborn.glb` and the polished Veteran are Season-2 crea
 | # | Deliverable | Gate |
 |---|---|---|
 | 1 | **Body on the hero rig + versus still** | None. Can start on Strategy's go. Source image → TRELLIS (Dwarf used resolution 1536) → fit → 45k triangles → versus still at the owner's angles. |
-| 2 | **Kit — Recruit-2 first** (Lead, 09-22), the full six later | Not blocked. Gating a new character on Multi Chars' kit library stacks two long poles (their schema change is critical path and all six live opponents still lack Gloves), and Recruit-2 is what every archetype wears today. Tiers are material variants on shared meshes; the ten-tier ladder is `career.ts`'s `TITLES` (Recruit rag & scrap → Origin gold & ruby, Invictus emerald). `LOOT` is pinned against the file's draws, so slots land **with** their meshes — several asset PRs, not one data PR. |
+| 2 | **Kit — all six named (§5a), Recruit-2 authored first** (Lead, 09-22; six-slot naming per Strategy, 09-22 23:12) | Not blocked. Gating a new character on Multi Chars' kit library stacks two long poles (their schema change is critical path and all six live opponents still lack Gloves), and Recruit-2 is what every archetype wears today. Tiers are material variants on shared meshes; the ten-tier ladder is `career.ts`'s `TITLES` (Recruit rag & scrap → Origin gold & ruby, Invictus emerald). `LOOT` is pinned against the file's draws, so slots land **with** their meshes — several asset PRs, not one data PR. |
 | 3 | **Fairness battery vs every offered weapon** (longsword, warhammer, trident, scythe today) | **Blocked on Combat's shield slice.** Inside the wins/24 cap with identity pins intact, no weakened pins. |
 | 4 | **Finisher fits, measured per finisher** | Needs (1). Measured per finisher, not asserted — hero rig makes them work, it does not make them *fit* a fur-and-mail silhouette. |
 | 5 | **The ladder rung** | Needs (3). Owner's call on placement, as with the Dwarf. |
+
+### 5a. Her six takeable pieces — named, mapped to the approved reference
+
+Strategy's ruling (Dom, 2026-09-22 23:12): every character wears **six takeable pieces of her own** in the shared library,
+each a `loot.glb` draw with tier materials — **nothing on the body is rig dressing**. The robe/hauberk question that
+prompted it was the Witch's, and the answer generalises: if it reads as gear, it is loot.
+
+**Naming is not authoring.** All six are named here so the brief is checkable; the build order in deliverable 2 is
+unchanged — Recruit-2 first, the rest as the kit library can carry them. Gating her on six authored meshes would stack
+two long poles, which is what deliverable 2 already refuses.
+
+Mapped to **direction A**, Dom's approved reference (#498, "i think A", confirmed by pasting A's own panels back):
+
+| Slot | Piece | From the reference? |
+|---|---|---|
+| `Helmet` | **Open** — see below | **No.** A is bare-headed. |
+| `Body` | Riveted mail hauberk to mid-thigh over a padded dark wool gambeson | Yes |
+| `Arms` | Squared layered iron shoulder plates + plain iron vambraces | Yes |
+| `Gloves` | **Open** — see below | **No.** A's hands are bare. |
+| `Greaves` | Dark trousers with straight leg wraps, broad studded belt | Yes |
+| `Boots` | Hard low boots | Yes |
+
+**The two open slots are not mine to invent, and must not be authored from a guess.** A shows no helmet and no gloves, so
+naming them requires Dom's letter the way the direction did:
+
+- `Helmet` — A's read is two tight crown braids pinned flat, and a closed helm destroys exactly the hard flat crown line
+  that won the pick. Proposal for Dom: a **mail coif worn down at the shoulders**, so the slot is real and takeable while
+  the braids stay the silhouette. A great helm would make her the Knight.
+- `Gloves` — proposal: **plain leather half-gloves**, consistent with the vambraces and adding nothing to the outline.
+  Note that A's bare panel has a generator artifact at the hands (the palms sit half-open); that artifact is **not** the
+  absence of gloves being specified, and nobody should author from it either way.
+
+Both are proposals awaiting the owner, recorded here so the brief names six rather than four and so the gap is visible
+instead of discovered during authoring.
+
+**`Body` is a `replace` piece**, so it hides her own torso draws and is subject to the coverage rule already on trunk:
+any `replace` piece covering less than 80 % of what it hides fails. The hauberk is full-torso to mid-thigh, so it clears
+that comfortably — but it is measured, not asserted.
 
 ## 6. Budget — to be measured, not assumed
 
