@@ -42,7 +42,9 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 **00:15 Dom: A.** The Centurion takes a gladius (1h, sword family, one clip override + part + tables) and a scutum from Legionary; the trident stays offered as a starter weapon with no wielder and leaves the loot table; sequenced after the shield slice. Final opponent grips 5/5. Sent to Lead.
 
-**Open.** Dom: one line each in the Executioner and Nightborn sessions. #467 live sha and Dom's phone confirmation. Brief PRs 15–18. Combat restart proof. Cleaver re-measure number. Perf overlay PR. Loot panel PR. PR numbers to review. Four restart-proof lines. Cleaver re-measure number.
+**00:50 Witch-fire (Dom: "lets try witch-fire").** The cast is green witch-fire: head kindles through the wind-up, gout at point blank, embers in recovery; burn reuses the wound window with ember sprites; moderate health, heavy posture. Options shown: shriek, hex, blood drain; anything that roots or slows ruled out as a status system. Dom confirmed she fights with the staff too (trident polearm family), the fire is her one signature move. Also: Dom "get it live" 00:25, Deploy ordered to publish becec83 (#467 guards out, #466 perf overlay); merges HELD until the live sha; Lead's queue order after: #472, #475, #463, #468, #469, #470, #471, #473.
+
+**Open.** Live sha for becec83 and Dom's phone confirmation. Dom: one line each in the Executioner and Nightborn sessions. #467 live sha and Dom's phone confirmation. Brief PRs 15–18. Combat restart proof. Cleaver re-measure number. Perf overlay PR. Loot panel PR. PR numbers to review. Four restart-proof lines. Cleaver re-measure number.
 
 **Gotchas.** A first-pick name must be grepped against player-facing strings before it goes to Dom ("Warden" collided worse than "Veteran"). `?guards=` clamps to a minimum of 1.
 
