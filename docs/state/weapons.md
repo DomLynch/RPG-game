@@ -2,6 +2,52 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Estoc reach — PARKED, no stance value clears both axes (combat lane, 2026-09-22)
+The weapons lane's estoc reach fix (#419, now a draft) is correct about the blade and is NOT merged: it cannot ship until the estoc's
+stance is retuned, and no stance value exists that is safe. **To revive it, one of two things must change: either the Nightborn stops
+carrying the estoc, or the trident-vs-Nightborn fairness row is re-measured against a deliberately retuned Nightborn.** Neither is a
+side effect of a weapons change — whoever touches `ESTOC_MOVES` reach or `ESTOC.fight.close` next should read this entry first.
+
+Why a stance retune was needed at all: `ESTOC.fight.close` stood at the longsword's own 1.15 while the move table wore the sword's
+reach. Giving the estoc its blade's real reach (+0.30 m) left the stance behind, so the wielder closed to 1.95 - 1.15 = 0.80 m inside
+his own cut — deeper than any weapon we ship (longsword/cleaver/maul/warhammer 0.50, reaper 0.65, per the weapons lane's sweep). He
+over-swung and exhausted himself: `tests/opponents.test.ts` "beaten by wit, not stamina" went 105 -> 321 ticks over 24 fights, cap 240.
+
+Why no retune works. Two axes pull against each other. Axis 1 is that exhaustion pin. Axis 2 is `tests/player-weapons.test.ts`, the
+24-seed battery — in scope because **the Nightborn wields the estoc**, so his stance changes how a TRIDENT player fights him, and the
+trident is shipped and offered. Stand-off below is `ESTOC.moves.light_right.reach (1.95) - ESTOC.fight.close`:
+
+| close | stand-off | Nightborn exhausted (cap 240) | 24-seed battery |
+|---|---|---|---|
+| 1.15 | 0.80 | 321 FAIL | pass |
+| 1.17 | 0.78 | 215 | FAIL — trident vs nightborn normal: charged heavy only 13/24 |
+| 1.19 | 0.76 | 215 | pass |
+| 1.20 | 0.75 | 215 | pass |
+| 1.21 | 0.74 | 215 | pass |
+| 1.23 | 0.72 | 215 | FAIL — same row, 13/24 |
+| 1.25 | 0.70 | 215 | FAIL — same row |
+| 1.30 | 0.65 | 215 | FAIL — same row |
+| 1.35 | 0.60 | 230 | FAIL — same row |
+| 1.40 | 0.55 | 317 FAIL | pass |
+
+The 1.19-1.21 window is not usable, for two independent reasons. (1) **Zero margin**: measured directly, the trident's charged-heavy
+row is exactly 12/24 at 1.19, 1.20 and 1.21. The cap is 0.5 and the check is `wins/seeds > cap`, so 12/24 passes only by not being
+strictly greater — one seed flips it to a failure. A pass by tie-break is not evidence. (2) **It contradicts its own rationale**: a
+stand-off of 0.75 makes the estoc the deepest-closing weapon in the game, when the point of the fix is that a point-first blade stands
+off FURTHER than a cutter. Note also that 1.17 FAILS while 1.19 passes at identical exhaustion (215): at this resolution the surface is
+sampling noise, not a plateau with edges, so bisecting for a better value is not worth anyone's time.
+
+Evidence: sweep run 2026-09-22 on `combat/estoc-offer` (since reverted to its committed head; nothing pushed, no PR). Axis 1 from a probe
+reproducing the opponents pin exactly; axis 2 from `node --test tests/player-weapons.test.ts` at each value; the 12/24 margin from a
+direct `battery('normal', 24, 7200, OPPONENTS.nightborn, STRATEGIES, 'trident')` read. Also green at the rejected 1.30 before axis 2
+caught it, which is the point: `record-replay-check` (both fixtures, digests match), `kill-link-check` (36 fights),
+`tests/weapons.test.ts` 34/34, `tests/opponents.test.ts` 20/20. A green suite is not a safe number.
+
+Riding with any revival: a rewritten stance pin (Weapons' anchoring — `reach - close === 0.65` for both the estoc and `WEAPONS.reaper`,
+so a longsword retune cannot drag the estoc's pin with it) is kept as `estoc-stance-pin.patch` in the combat lane's scratchpad. It is a
+better pin than the `LONGSWORD.fight.close + .15` it replaces, and against today's committed `close` of 1.15 it fails as
+`0.8 !== 0.65` — the bug stated as a test. `RECORD_VERSION` stays 3 on trunk: the sim change is parked with the rest.
+
 ## Takeable weapons — loot ids for every warden's weapon (weapons lane, 2026-09-22)
 Owner (via Strategy, 12:55): "any item can be taken, armour or weapon." Shelf side in `src/loot.ts`: `WEAPON_SLOTS` (Trident, Cleaver,
 Knife, Estoc, Scythe, Warhammer) join `ARMOUR_SLOTS` in `LOOT_SLOTS`; `PAPERDOLL.main = WEAPON_SLOTS`; ids `veteran.Trident`,
