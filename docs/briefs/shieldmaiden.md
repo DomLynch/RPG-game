@@ -12,6 +12,8 @@
      - Open, Dom's call, caused by the trident being two-handed (verified on trunk): the Centurion cannot hold a
        shield while wielding it, so "the Centurion carries a shield from Legionary" was written on wrong data. -->
 
+<!-- "family" corrected in §2 on 2026-09-23 (Weapons): the axe rides the shared one-hand clips. -->
+
 # Brief 15 — THE SHIELDMAIDEN (character lane brief, 2026-09-22)
 
 Written by the Executioner lane on Lead's assignment (22:00). **Brief only — nothing built.** Strategy reviews tonight.
