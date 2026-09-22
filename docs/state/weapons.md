@@ -124,12 +124,23 @@ Every sweep ran an untouched control in the same process; it reproduced 19/24 an
 
 Evidence: `44d414e`. Gate 456/459 plus 93/93 slow, and the fairness table passes against the updated snapshot. The one failure is the
 `RECORD_VERSION` guard, red deliberately under the lead's ruling (a): one 3 → 4 bump for the whole remaining flip work, not one per weapon.
-**The batch then closed** (`5dfcec1`): `RECORD_VERSION` 3 → 4, the single bump ruling (a) reserved for the whole flip work. `src/record.ts`
+**The batch then closed, and the branch was rebased onto trunk `c43c677`** (head `3245d6e`, #440 MERGEABLE/CLEAN). Two things the rebase
+changed, both worth keeping: **`RECORD_VERSION` is 5, not 4** — trunk had already taken 4 for Brief 13's whip tell (#431) while this branch
+was in flight, so the batch is a further sim change on top of it. And the rebase pulled in a **299-line `src/ai.ts` change plus `duel.ts`,
+`moves.ts` and `record.ts`** that belong to the lorarii work, not to this lane: the fairness table was therefore re-run on the rebased tree
+before the sha went to Combat, and the snapshot still matches exactly, so neither trunk's changes nor this lane's moved a row. The reference
+fights' state digests moved to `d953a09b` / `552f30e5`, which is byte-for-byte what trunk's own fixture already carried — the knife and
+scythe move those two Veteran fights not at all (same ticks 1677/1452, outcome and killed tick).
+
+The `grip` field also landed here (the shield brief, via the lead, folded in rather than paying a second bump): one-hand = knife, cleaver,
+estoc, trident; two-hand = warhammer, scythe, longsword. The brief named seven; `MAUL` and `REAPER` spread `CLEAVER` and `ESTOC`, so without
+an explicit override they would have silently inherited `one-hand` — both set to `two-hand` and flagged to the lead. Data only, nothing in
+the sim reads it. `RECORD_VERSION` 3 → 4 was the single bump ruling (a) reserved for the whole flip work. `src/record.ts`
 is itself one of the hashed `SIM_FILES`, so the digest was computed *after* the bump rather than copied from the failure message, which
 prints the pre-bump one. References regenerated per the documented procedure (`scripts/record-replay-check.mjs --write`, same PR as the
 bump) — and both replay to the **identical** fight, same ticks (1677, 1452), outcome, killed tick and state digest. Only the version byte
 moved, because neither reference uses the knife or the scythe; the bump is there to refuse older links cleanly, not because these changed.
-Gate green: 457/459 with 2 skipped and 0 failures, plus 93/93 slow.
+Gate green on the rebased tree: 465/467 with 2 skipped and 0 failures, plus 94/94 slow.
 
 Remaining validation: **Combat re-signs the snapshot** (this entry's cleaver row and the knife's three estoc/scythe rows) and the PR goes
 ready only after that (ruling (d)); the scythe has had no browser/feel pass as a *player* weapon — the
