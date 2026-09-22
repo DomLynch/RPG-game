@@ -2,6 +2,17 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead handoff — 2026-09-22 17:45 (restart)
+**Now.** Live == trunk == c7d942a, empty deploy queue (Deploy's receipt: 33/33, DEPLOY_EXIT=0, 17:40). Nothing of mine mid-flight.
+
+**Done since the 16:25 entry.** Merged #431 #432 #433 #434 #436 #437 #438 #441 #442 #443 #445. Two live owner fixes shipped: the kill-link screen (PLAY NOW, no whole-fight button, no raw banner) and the kill-screen loot panel with its action row out of the thumb zone. Also: hits −25 % measured properly (the bus compressor was eating the cuts), the Pitborn sash out of LOOT with a coverage rule that fails any `replace` piece under 80 % of what it hides, the grade material table, and a CI guard that fails any sim change without a RECORD_VERSION bump.
+
+**Reverted.** #435 (lorarii wearing guard.glb) — merged on its four PR jobs, broke 9 release rows at deploy because the model was fetched on the boot path. Reverted as #442. Owner has since overruled "capsules on the phone tier": the models ship, the roster check is taught that guard.glb is an arena asset (its size governed by the existing `guard` budget row, 231,620 B packed), loading still deferred past first paint. World re-lands.
+
+**Open.** World: lorarii re-land. Auditer: the match-session split (move-only into src/match.ts, Career/Daily/Replay/Practice, reward-rule table test) and #446, the file→release-row CI job — ruled: curated boot-path subset (rows 02, 29, 31, one finisher-preview, 13–14), not all 30. Weapons: remaining flips batched behind ONE RECORD_VERSION bump. Gore: blood-conform re-land. Mine: Brief 14 grade record on OPPONENTS — `grade: { level, tier, kit, epithet, house, profile? }`, type owned by src/grades.ts, offer derived from it, "never less dressed than base" as the last guard.
+
+**Gotchas added today.** The four PR gate jobs do not include the release matrix — for boot-path changes, run row 02 locally before merging. Memory is keyed by folder: verify the key resolves to the worktree you restart in, copy never move. A background publish script needs `set -euo pipefail` and a non-empty sha check. Batch git/gh/curl reads: each command re-reads the whole session context.
+
 ## Lead handoff — 2026-09-22 16:25 (context restart, Strategy rule v3)
 **Now.** Nothing of mine is mid-flight. Deploys were blocked all afternoon because every deploy of trunk failed quiet-one rows 16/21/26;
 #432 fixed that at the source and is merged, and the deploy session has a watcher that publishes the trunk tip on its own. Live was
