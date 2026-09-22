@@ -1,0 +1,43 @@
+{
+ "url": "http://127.0.0.1:57612/?debug=1&opponent=veteran",
+ "errors": [],
+ "killed": {
+  "tick": 868,
+  "type": "Killed",
+  "actor": 1,
+  "target": 0,
+  "move": "heavy_overhead",
+  "location": "torso",
+  "heading": -0.1813526316038319
+ },
+ "fadedBeforeSettle": true,
+ "settledAge": 1.5040000000000011,
+ "fallenRect": {
+  "x": 75,
+  "y": 464,
+  "w": 282,
+  "h": 401
+ },
+ "visibleRects": {
+  "combat-status": {
+   "x": 16,
+   "y": 93,
+   "w": 240,
+   "h": 14
+  }
+ },
+ "overlaps": [],
+ "pointerEvents": {
+  "faded": [
+   "none",
+   "none",
+   "none"
+  ],
+  "restored": [
+   "auto",
+   "auto",
+   "auto"
+  ]
+ },
+ "passed": true
+}

@@ -47,21 +47,21 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   let lost = false, loseDuringDraw = true, failDraw = false, failRebuild = false, now = 0, serial = 0, rebuilds = 0, renders = 0, reloads = 0; const replaced: string[] = [];
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
-  let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0;
-  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => ({ settled: false, touring: false, age: 0 }), fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0 };
+  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
   const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
-    document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }) }),
+    document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
     requestAnimationFrame: (cb: (time: number) => void) => { const id = ++serial; callbacks.set(id, cb); return id; }, cancelAnimationFrame: (id: number) => callbacks.delete(id),
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, window: win, document: doc, get worn() { return [...view.worn]; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { element, errors, callbacks, timers, storage, window: win, document: doc, get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number }) { finishPhase = next; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -543,6 +543,26 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   app.element('difficulty').click();   // mid-fight change: this fight is not replayable
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
+});
+test('end-of-fight text and buttons fade with view.finishPhase(): hidden until settled, faded again while the arena-cam tours, back once the tour ends', () => {
+  // Owner 2026-09-22: nothing over the fallen body until the finisher camera has settled, and it fades again during the arena-cam
+  // tour — no timer of our own, the rig's own clock (scene.ts finishPhase()) is the single source of truth main.ts polls.
+  const app = boot(), html = app.element('html');
+  app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+  assert.ok(app.rendered.finish, 'the fight ends');
+  app.setFinishPhase({ settled: false, touring: false, age: 0.3 });
+  app.tick();
+  assert.ok(html.classList.contains('endgame-fade'), 'not yet settled: still faded');
+  app.setFinishPhase({ settled: true, touring: false, age: 1.6 });
+  app.tick();
+  assert.ok(!html.classList.contains('endgame-fade'), 'settled, no tour: visible');
+  app.setFinishPhase({ settled: true, touring: true, age: 5.2 });
+  app.tick();
+  assert.ok(html.classList.contains('endgame-fade'), 'touring: faded again');
+  app.setFinishPhase({ settled: true, touring: false, age: 9 });
+  app.tick();
+  assert.ok(!html.classList.contains('endgame-fade'), 'tour ended (a touch or Rematch): visible again');
 });
 test('kill links: a finished fight offers Share; the link replays the same fight tick for tick with the buttons asleep and nothing scored; Avenge him starts a live practice fight on the same seed that never touches the card', async () => {
   // The record encodes and decodes through CompressionStream off the main turn: wait for the thing itself (up to 2 s on a slow runner), never a fixed number of turns.
