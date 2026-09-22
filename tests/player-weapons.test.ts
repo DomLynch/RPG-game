@@ -44,7 +44,9 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   assert.throws(() => unpackRecord(v2), /version 2 is not supported/);
   const v3 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v3[2] = 3;
   assert.throws(() => unpackRecord(v3), /version 3 is not supported/);
-  assert.equal(RECORD_VERSION, 4);
+  const v4 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v4[2] = 4;
+  assert.throws(() => unpackRecord(v4), /version 4 is not supported/);
+  assert.equal(RECORD_VERSION, 5);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
