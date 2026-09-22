@@ -19,6 +19,7 @@ This checkout is the Frankendom **${lane}** lane; your session name is **${sessi
 Repo: DomLynch/RPG-game. Trunk: codex/01a09a76/task-1. The one deployer is the deploy session; everyone else opens PRs.
 Research Agent Bot (~/Desktop/Business/Research Agent Bot) is a DIFFERENT project: ignore its PROJECT_STATE.md and memory.
 Read this repo's AGENTS.md and PROJECT_STATE.md for the current state.
+If your cwd is not this worktree, stop and say so.
 `;
 const target = join(worktree, 'CLAUDE.local.md');
 const current = existsSync(target) ? readFileSync(target, 'utf8') : null;
