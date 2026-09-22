@@ -32,6 +32,8 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 **23:05 Witch magic (Dom: "the witch will also have short range magic").** Ruled: a move in the duel engine on the bladed-staff family's signature slot, not a separate system. Reach ≤ the kick's, wind-up longer than any heavy, held guard does not stop it, roll/backstep beats it, costs stamina like a heavy, heavy posture damage, longest recovery of her moves. The player who takes her staff casts it (loot v2), battery covers it with no exception rows. Cost: one clip, one phone-safe VFX burst, one sound, the battery. Sent to Lead for the Brief 16 PR.
 
+**23:20 the Nord is a Viking woman, "the Shieldmaiden" (Dom).** Dom wanted two women on ten; the Nord was the only unbuilt archetype with a visible face (the Knight and the Plague Doctor are masked). Told Dom plainly that the guard mesh he hoped to leverage is a decimated background prop with five guard clips, about a tenth of a fighter, so the choice cost nothing. Brief 15 otherwise unchanged (shield always-on, bearded axe, gated on the shield slice). Roster: Witch + Shieldmaiden, eight men.
+
 **Open.** #467 deploy and Dom's phone confirmation. Dom: widen two lane scopes; estoc or longsword for the Plague Doctor. Brief PRs 15–18. Perf overlay PR. Loot panel PR. PR numbers to review. Four restart-proof lines. Cleaver re-measure number.
 
 **Gotchas.** A first-pick name must be grepped against player-facing strings before it goes to Dom ("Warden" collided worse than "Veteran"). `?guards=` clamps to a minimum of 1.
