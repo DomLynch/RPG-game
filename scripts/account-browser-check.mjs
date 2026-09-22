@@ -39,6 +39,10 @@ try {
     }
     // The journal's daily line (PR #327) asks the server on every journal open, guest or not: today's warden and the day's board.
     if (url.pathname === '/rest/v1/rpc/daily_fight') { assert.equal(request.method(), 'POST'); return json({ day: new Date().toISOString().slice(0, 10), number: 1, seed: 12345 }); }
+    if (url.pathname === '/rest/v1/rpc/mint_share') {   // one short server-minted share id for guests and fighters alike (migration 202609220009)
+      assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()).sort(), ['opponent', 'record']);
+      return json('1a');
+    }
     if (url.pathname === '/rest/v1/rpc/daily_board_summary') {   // the board is one server-side summary (migration 202609220007), never a page of rows
       assert.equal(request.method(), 'POST'); assert.deepEqual(Object.keys(request.postDataJSON()), ['on_day']);
       return json({ day: request.postDataJSON().on_day, fastest_kill: null, cleanest_kill: null, longest_survived: null, fastest_death: null, where: null, pending: 0 });
