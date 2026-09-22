@@ -1,8 +1,8 @@
 {
- "url": "http://127.0.0.1:54055/?debug=1&opponent=veteran",
+ "url": "http://127.0.0.1:57612/?debug=1&opponent=veteran",
  "errors": [],
  "killed": {
-  "tick": 872,
+  "tick": 868,
   "type": "Killed",
   "actor": 1,
   "target": 0,
@@ -27,5 +27,17 @@
   }
  },
  "overlaps": [],
+ "pointerEvents": {
+  "faded": [
+   "none",
+   "none",
+   "none"
+  ],
+  "restored": [
+   "auto",
+   "auto",
+   "auto"
+  ]
+ },
  "passed": true
 }

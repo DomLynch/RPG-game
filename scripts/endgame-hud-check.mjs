@@ -63,6 +63,18 @@ try {
   receipt.overlaps = overlaps.map(([id]) => id);
   assert.equal(overlaps.length, 0, `no HUD element intersects the fallen body at settle time; overlapping: ${overlaps.map(([id]) => id).join(', ')}`);
   await page.screenshot({ path: `${out}/gate-settle.png` });
+  // Lead review, 2026-09-22: an invisible Rematch under the tour must not fire. Fake the fade class (this check doesn't wait
+  // for the real 5 s tour) and confirm the three buttons actually go inert, then confirm they wake again when it lifts.
+  const pointerEvents = await page.evaluate(() => {
+    document.documentElement.classList.add('endgame-fade');
+    const faded = ['reset-button', 'share-button', 'loot-choice'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    document.documentElement.classList.remove('endgame-fade');
+    const restored = ['reset-button', 'share-button', 'loot-choice'].map((id) => getComputedStyle(document.getElementById(id)).pointerEvents);
+    return { faded, restored };
+  });
+  receipt.pointerEvents = pointerEvents;
+  assert.ok(pointerEvents.faded.every((v) => v === 'none'), `faded buttons must be inert: ${pointerEvents.faded}`);
+  assert.ok(pointerEvents.restored.every((v) => v !== 'none'), `buttons must wake once the fade lifts: ${pointerEvents.restored}`);
   receipt.passed = true;
 } catch (error) {
   receipt.passed = false; receipt.error = String(error);

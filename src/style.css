@@ -1606,9 +1606,9 @@ dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff
 /* End-of-fight text/buttons (owner 2026-09-22 brief 3/4): the middle of the screen stays empty from the Killed event until the
    finisher camera has settled (view.finishPhase().settled — no fixed delay here, the rig owns the clock: plain death ~1.5 s,
    the longer finishers up to ~4.2 s) and fades again while the arena-cam tour orbits the fallen (.touring, from 5 s until a
-   touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame; buttons stay clickable
-   through the fade (a player who wants to skip ahead can still tap Rematch), only the opacity moves — never a hard hide, so
-   nothing pops when the tour ends. */
+   touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
+   while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
+   first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
 #autopsy, #loot-drop, #loot-choice, #reset-button, #share-button {
   transition: opacity 250ms ease-out;
 }
@@ -1618,6 +1618,11 @@ dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button {
   opacity: 0;
+}
+:root.endgame-fade #loot-choice,
+:root.endgame-fade #reset-button,
+:root.endgame-fade #share-button {
+  pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
   #autopsy, #loot-drop, #loot-choice, #reset-button, #share-button { transition: none; }
