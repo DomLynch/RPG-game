@@ -40,6 +40,14 @@ Nothing in flight. Brief 13 (the six lorarii) is merged; Deploy is publishing cb
 - `Turn` is authored but never played (see Gotchas); if a patrol reversal ever wants it, the yaw-lerp has to go first.
 
 ### Gotchas (2026-09-22 — each one cost real time)
+- **When you A/B a cost, make sure one arm actually has NONE of it.** I compared six guards against ONE guard, saw the same
+  loading hitches, and told the lane "not the guards". Wrong: one guard already pays the first-pose price, so neither arm
+  was a control. Against a genuine ZERO-guard build the worst frame from document start drops 974 -> 655 ms and frames over
+  25 ms go 13 -> 11. Both things were true at once — six skinned clones are nearly free in steady state (68.0 draws/frame
+  whether six, one or shadowless, because they are culled from the fighting camera) AND about a third of the load spike.
+  The owner overruled our numbers from his phone ("definitely slower now because the guards") and he was right; the guards
+  came off the wall the same night (#467), with RULES.wall.loiter and the whip audio untouched. **When the person playing
+  the game disagrees with a lane's measurement, suspect the measurement.**
 - **A check that runs on the Mac measures the Mac.** `guard-browser-check.mjs`'s "phone tier" is Playwright on this Mac at
   852x393 DPR 2 with `isMobile` and NO CPU or GPU throttling, so every phone-tier frame time quoted on 2026-09-22 — mine
   included — described this laptop's vsync, not an iPhone's GPU. Worse, rAF deltas cannot measure frame COST at 60 Hz at
