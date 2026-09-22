@@ -925,12 +925,12 @@ function frame(now: number) {
     // A dropped frame is one longer than 16.7 ms - the 60 fps budget - COUNTED, not averaged, because an average hides them.
     if (perf) {
       const ms = perfFrames.map(([, v]) => v).sort((a, b) => a - b), at = (f: number) => ms[Math.min(ms.length - 1, Math.floor(ms.length * f))] ?? 0;
-      const dropped = ms.filter((v) => v > 16.7).length, info = view.renderer.info.render, guards = view.arena.guards;
+      const dropped = ms.filter((v) => v > 16.7).length, info = view.renderer.info.render;
       element('perf').textContent = [
         `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
         `dropped ${dropped}/${ms.length} over 16.7 ms`,
         `worst since load ${perfWorst.toFixed(0)} ms`,
-        `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
+        `draws ${info.calls}  tris ${info.triangles.toLocaleString()}`,
       ].join('\n');
     }
   }
