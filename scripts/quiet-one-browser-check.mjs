@@ -162,6 +162,12 @@ await page.screenshot({path:`${dir}/live-held.png`});
 // asset fetches, the ready flag — is promise-driven and completes on real time; only then is the new document stepped with
 // run()/until() like the old one. An in-place rematch (last rung, no reload) needs no boot wait. Same predicate either way.
 const rematchPredicate = ()=>document.querySelector('#art-status').textContent==='' && document.querySelector('#target-health').value>0 && document.querySelector('#debug').dataset.clips?.includes('@SwordDrawn') && !/Opened:WaistCut|Death_QuietOne:Death_QuietOne|Death_SplitCrown:Death_SplitCrown/.test(document.querySelector('#debug').dataset.clips);
+// End-of-fight HUD (#380): Rematch is inert while :root.endgame-fade is on (until the finisher camera settles, and again while
+// the arena-cam tour orbits the fallen). A player's first touch lands on the arena and stops the tour (main.ts canvas pointerdown
+// -> view.stopTour()); do the same, then let the HUD come back before tapping Rematch.
+await page.locator('canvas').tap({ position: { x: 190, y: 300 } });
+await until(() => !document.documentElement.classList.contains('endgame-fade'), 10000);
+await run(300);   // the 250 ms opacity transition
 const navigated = page.waitForEvent('framenavigated', { timeout: 3000 }).then(() => true, () => false);
 await page.locator('#reset-button').tap();
 if (await navigated) {

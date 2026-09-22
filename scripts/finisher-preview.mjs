@@ -164,6 +164,7 @@ window.__finisher = {
   },
   async rear(which, index = windows[which].frames.length - 1) {
     view.setFinisherOverride(windows[which].override ?? null);
+    view.stopTour();   // a player's touch on the arena hands the camera back before an orbit (main.ts); the tour would otherwise hold the side view
     const rearYaw = view.yaw + Math.PI; view.recenter(); view.orbit(-rearYaw / .005, 35);
     const f = windows[which].frames[index];
     present = true; view.render(f.state, false, 0, f.practice, [], false);
