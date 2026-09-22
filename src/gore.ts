@@ -188,6 +188,11 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
     return { group, mark, drips, bone: null, dir: new THREE.Vector3(), radius: 0, width: 1, scale: 1, age: 0, used: false };
   }));
   let next = [0, 0];
+  // Scratch objects (Lead review, 2026-09-22): the per-mark update below ran ~6 THREE allocations per visible mark per
+  // frame (up to 10 marks). Reused across marks and frames — the loop is synchronous and single-threaded, so nothing
+  // reads a scratch value across iterations.
+  const scratchQuat = new THREE.Quaternion(), scratchPos = new THREE.Vector3(), scratchNormal = new THREE.Vector3();
+  const scratchRight = new THREE.Vector3(), scratchForward = new THREE.Vector3(), scratchMatrix = new THREE.Matrix4();
   const tone = (mode: BloodMode) => (mode === 'dark' ? '#241314' : '#581017');
   return {
     // A blow landed on `side`: take the next pooled mark (the oldest when all are used) and pin it to the struck bone, on the struck face.
@@ -212,10 +217,11 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
           mark.group.visible = show;
           if (!show || !bone) continue;
           mark.age += dt;
-          const normal = mark.dir.clone().applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion())).normalize();
-          mark.group.position.copy(bone.getWorldPosition(new THREE.Vector3())).addScaledVector(normal, mark.radius);
-          const right = new THREE.Vector3(0, 1, 0).cross(normal); if (right.lengthSq() < 1e-4) right.set(1, 0, 0); right.normalize();
-          mark.group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, normal.clone().cross(right).normalize(), normal));
+          const normal = scratchNormal.copy(mark.dir).applyQuaternion(bone.getWorldQuaternion(scratchQuat)).normalize();
+          mark.group.position.copy(bone.getWorldPosition(scratchPos)).addScaledVector(normal, mark.radius);
+          const right = scratchRight.set(0, 1, 0).cross(normal); if (right.lengthSq() < 1e-4) right.set(1, 0, 0); right.normalize();
+          const forward = scratchForward.copy(normal).cross(right).normalize();
+          mark.group.quaternion.setFromRotationMatrix(scratchMatrix.makeBasis(right, forward, normal));
           const fade = Math.min(1, mark.age / .4), color = tone(bloodMode);
           mark.mark.scale.set(mark.width * (.9 + .5 * severity) * mark.scale, (.9 + .5 * severity) * mark.scale, 1);
           mark.mark.material.opacity = fade * (.5 + .4 * severity); mark.mark.material.color.set(color);

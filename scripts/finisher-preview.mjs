@@ -236,19 +236,21 @@ try {
   if (option('wounds')) {
     const page = await open({ width: 393, height: 852 });
     const count = await page.evaluate(() => __finisher.count('wounded'));
-    if (count) {
-      await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
-      const red = (await page.evaluate(() => __finisher.probe())).bodyWounds;
-      await page.screenshot({ path: `${dir}/wounds-phone.png` });
-      await page.evaluate(() => __finisher.rear('wounded')); await page.screenshot({ path: `${dir}/wounds-phone-rear.png` });   // the warden's face and chest, from behind him... i.e. the camera swung round
-      await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
-      await page.evaluate(([i]) => __finisher.play('wounded', i, 'off'), [count - 1]);
-      const off = (await page.evaluate(() => __finisher.probe())).bodyWounds;
-      console.log(`  wounds: warden ${red[1].visible} mark(s) showing (opacity ${red[1].opacity}, drip ${red[1].drip}); off → ${off[1].visible}`);
-      assert.ok(red[1].visible >= 1 && red[1].opacity > .3, 'a wounded warden shows at least one mark once at 60 % health or below');
-      assert.equal(off[1].visible, 0, "blood 'off' hides the body wounds");
-      await save('wound-checks.json', JSON.stringify({ opponent, commit, red, off }, null, 2));
-    } else console.log('  wounds: the scripted duel never found the warden at 60 % or below before the kill — no still');
+    // Lead review (2026-09-22): a duel that never reaches the threshold used to skip the whole check with a log line and
+    // exit 0 — a release gate has to fail there, not pass vacuously. The scripted duel (paced heavies, passive warden)
+    // reaches 60 % well before any kill on every shipped opponent; if it stops doing that, that is itself a real finding.
+    assert.ok(count > 0, 'the scripted duel must reach the warden at 60 % health or below before the kill — it never did');
+    await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
+    const red = (await page.evaluate(() => __finisher.probe())).bodyWounds;
+    await page.screenshot({ path: `${dir}/wounds-phone.png` });
+    await page.evaluate(() => __finisher.rear('wounded')); await page.screenshot({ path: `${dir}/wounds-phone-rear.png` });   // the warden's face and chest, from behind him... i.e. the camera swung round
+    await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
+    await page.evaluate(([i]) => __finisher.play('wounded', i, 'off'), [count - 1]);
+    const off = (await page.evaluate(() => __finisher.probe())).bodyWounds;
+    console.log(`  wounds: warden ${red[1].visible} mark(s) showing (opacity ${red[1].opacity}, drip ${red[1].drip}); off → ${off[1].visible}`);
+    assert.ok(red[1].visible >= 1 && red[1].opacity > .3, 'a wounded warden shows at least one mark once at 60 % health or below');
+    assert.equal(off[1].visible, 0, "blood 'off' hides the body wounds");
+    await save('wound-checks.json', JSON.stringify({ opponent, commit, red, off }, null, 2));
     await page.context().close();
   }
   // Mode stills: one clean playthrough per blood mode per outcome (scene state evolves with playback, so each mode replays from scratch).
