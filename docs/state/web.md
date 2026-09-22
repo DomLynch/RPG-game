@@ -1,3 +1,51 @@
+## 2026-09-22 — Loot panel: a tap is the take, Undo, and the gold skin — item 10 (Dom, with a phone still; lead's decisions)
+
+Dom: "should be auto equipped/taken without the double confirmation... or make it more intuitive... plus the black background should
+be the gold button colour, same, and semi transparent." Built on top of the names copy (PR #475, stacked on #464 — index.html keeps
+the meters AND #loot-panel on one physical line, so two branches cut from trunk would have conflicted there). The Take button is
+gone: a tap on a tile takes the piece, the tile flashes (`li[data-took]`), the tiles and Leave it go, and one line stays in their
+place — "The Nightborn's helmet is on you." with Undo beside it — for 4 s, main.ts owning the timer and every reset path clearing it
+through `hideLoot()`. Undo restores the ledger the take FOUND rather than a computed inverse: `store` writes provenance into `taken`
+and `wear` moves a paperdoll slot, so main.ts keeps the object and puts it back, and the panel reopens with nothing taken. Skin:
+`.loot-panel` is the fight cluster's sand at 55 % (`#b7a2768c`) with its blur kept, ink `#1b1916` type, tiles pale glass on gold.
+**Two findings the brief did not have.** (1) There was NO 300 ms tap guard to "keep" — nothing in loot-panel.ts, main.ts or the CSS
+(the shipped `.loot-panel{pointer-events:none}` is #102's pointer-transparency fix, not a time guard); with one tap now spending the
+fight's one take it is half the safety net, so it was built: `TAP_GUARD_MS = 300` on an injected clock. (2) Five tiles really did
+wrap to TWO rows at 375 on the shipped build (the estoc alone on the second): the phone HUD column is 270 px and 5 × 56 + gaps does
+not fit inside it, so the card breaks out of that column to 343 px rather than shrinking the 56 px targets; seven-piece opponents
+still wrap 5 + 2 instead of scrolling out of sight. Also not asked for and flagged: with Take gone, Leave it's full-transparent
+ghost let the sleeping Step and Guard read through its label, so it takes the cluster's dark glass. Receipts on a real Nightborn kill
+at 375×812 (the duel scripted from quiet-one-browser-check): card `rgba(183,162,118,0.55)` + `blur(6px)`, ink `rgb(27,25,22)`, card
+16,183 343×130, 5 tiles ONE row at x 25/85/145/205/265 y 225 all inside the card, Undo 285,226 65×34, panel gone after the line's
+4 s, `scrollWidth` 375, no page errors; the ledger measured before (`owned:[goblin.Arms]` + its provenance + a declined record),
+after the tap (plus nightborn.Helmet in owned/equipped/taken) and after Undo (byte-identical to before); a tap fired the instant the
+panel appeared left the ledger untouched. `npm run quality:ci` EXIT=0 — 509 tests, 507 pass, 0 fail, 2 skipped, Budget PASS;
+`endgame-hud-check` passed:true overlaps [] (card ends y 313, fallenRect y 464); `quiet-one-browser-check --opponent goblin`
+passed:true. New `tests/loot-panel.test.ts` (3 tests) covers the guard, the tap-take, the inert owned tile, decline, the line +
+Undo and hide; `tests/loot-layers.test.ts` pins that `#loot-take` is gone; `scripts/endgame-hud-check.mjs` drops it from its
+cluster list. Remaining validation: the lead's merge gate on #475, and #464 must merge first (it has: 16:40:59Z).
+
+## 2026-09-22 — The Veteran becomes the Centurion, and "warden" leaves every player-facing string (Dom via Strategy; PR #464, merged 16:40:59Z)
+
+Copy only. `src/roster.ts` `name` field alone — the id `veteran`, the body, rig, archetype, asset filenames and every LootId
+(`veteran.helmet`, `veteran.Trident`) untouched, so provenance, loot.glb and the kill-link fixtures do not move; the career RANK
+"Veteran" stays, deliberately. "Warden" leaves the player-facing strings and keeps the identifiers: `practiceHint(s, foe =
+'Opponent')` fed from a new `bareName()` in roster.ts, so nine coaching lines name whoever is in the arena ("Centurion defeated.
+Ready for a rematch?", "Parried! The Goblin is open.", "The Centurion rolled clear."); the HUD bars carry the name for EVERY rung
+now — main.ts had `if (opponent.id !== 'veteran')`, which is why the first rung still read "ARENA WARDEN" — with the meters'
+aria-labels following ("Centurion health" / "Centurion posture") and "OPPONENT" as the no-opponent fallback; the chip is
+"Difficulty: …"; the daily is a duel everywhere including the share title "Frankendom: the daily duel"; the replay banner names the
+fallen ("Replay over · the Goblin fell"). GAME_SPEC's design use, code comments, test names and the debug readout's `warden:` (which
+quiet-one-browser-check parses) are untouched. **The brief's "regenerate his versus card" was wrong and was NOT done**: the caption
+is DOM (`#versus-foe`, set at runtime from the roster), `scripts/versus-cards.mjs` renders only the two fighters and has no
+`fillText`, no name and no roster import, so re-rendering would produce a byte-different picture of the same fighters and spend
+budget for nothing; measured, `#versus-foe` reads "Centurion". Lead accepted the correction and routed it back to Strategy.
+Receipts: phone screenshots of the HUD and the daily card at 390×844, and in the same live DOM "THE CENTURION" / data-mobile
+"Centurion" / "Centurion health" / "Centurion posture" / "Daily duel" / "Today's duel" / "Difficulty: normal", with a sweep of every
+text node and every aria-label/title/placeholder/data-mobile for /warden/i returning `[]`. quality:ci EXIT=0 — 506 tests, 504 pass,
+0 fail, Budget PASS. **`scripts/quiet-one-browser-check.mjs` pinned the chip text `'Warden: easy'` and had to move with the copy**;
+re-pinned and re-run (`passed:true`, debug readout showing `ai easy`). See gotcha (f).
+
 ## 2026-09-22 — Viewer page: PLAY NOW as a proper primary, the stale-link line out of the header band (lead's brief, the #426/#427 follow-up)
 
 The follow-up owed once #426 was live. Two findings from a static preview of the viewer state (index.html + src/style.css, no sim)
@@ -35,6 +83,19 @@ its entry was folded in here and #444 closed rather than rebased separately (lea
 **Open.** (0) Veteran shield, kill-screen line (lead 18:45, Dom GO 18:40) — when a taken shield cannot be used yet, the panel says exactly "stowed until you fight one-handed."; shown while the shield is owned and a two-hander is in hand, gone the moment a one-hand weapon is equipped. Take-one stays strict: the shield is its own item, never bundled with a weapon. BLOCKED until Multi Chars' asset + back stow and Weapons' `grip` field exist; it is last in the order, after (1). (1) Viewer-page polish on the shared-fight screen — PLAY NOW's weight and placement as a proper primary, the stale-link line's style; the lead owns #426 itself, the seam is on trunk; this is the next task. (2) Auditer's grade-C journal fixes: real tab semantics (role=tab/tabpanel, aria-selected, aria-controls) + a visible focus style, one node test parsing index.html for the journal ids, delete the dead `dialog{}` block (~style.css 306-338), backfill entries for #241/#247/#279. (3) Strategy briefs 6 and 10, after beta. (4) Not mine: the loot budget line sits at 1,446,058 of 1,500,000 (#418's weapon draws) — the lead is taking the cap question separately.
 
 **Gotchas, all paid for with a deploy.** (a) A decision button must never sit where the first post-kill touch lands: that touch stops the arena-cam tour, so a button there declines the player's loot by accident — this is why Take/Leave it live in the thumb row and `.loot-panel` is pointer-transparent with `auto` only on its tiles. (b) Anything added to the endgame cluster must also be added to `scripts/endgame-hud-check.mjs`'s cluster list, or #424's gate does not hold it inside `#actions`. (c) A DOM module that touches `document` at import time breaks main.ts's VM harness (tests/graphics.test.ts) — export a factory taking the injected element lookup and register the module in the harness map; the fake element has no `removeAttribute`, so toggle a data value. (d) Rerun `node scripts/loot-layers.mjs` after any loot.glb change or `tests/loot-layers.test.ts` fails; weapon ids are excluded by design. (e) The lead's merge gate is quality + base + both browser jobs green on the PR head — local receipts are evidence, not the gate, and any push (docs included) restarts CI.
+
+Added after the fact, 2026-09-22 evening (they belong with the list above):
+(f) A PIN WHOSE MISS IS SILENT IS NOT A PIN (lead, 2026-09-22): `scripts/quiet-one-browser-check.mjs` matched the difficulty chip's
+text in a bounded loop — `for (let i = 0; i < 3 && (await ...textContent()) !== 'Warden: easy'; i++)` — so when the copy changed the
+loop simply gave up and the gate fought on at `normal`, still reporting passed:true. It turns a gate into a passenger. When copy a
+gate matches on changes, re-pin AND re-run it; when writing one, make the miss fail. Audit after it (2026-09-22): of the 33 release
+rows / 20 distinct scripts, that was the only retries-then-continues in a gate. Two near-misses that are NOT gates —
+`scripts/impact-preview.mjs`'s bounded sim loops (`i < 900 && !s.events.some(...)`) are preview generation and are not in
+release_commands; `scripts/audio-preview.mjs`'s `baseline ... .catch(() => null)` only drops the delta COLUMNS from its report, while
+its `--check` assertions are real `assert.ok` throws.
+(a, amended) Take is gone since item 10 — a tap on a tile is the take — so the thumb row holds Leave it alone. The rule
+that produced it is unchanged and still load-bearing: no decision button where the first post-kill touch lands, and
+`.loot-panel` stays pointer-transparent with `auto` only on its tiles and its Undo pill.
 
 ## 2026-09-22 — Take / Leave it move to the thumb row (deploy #102 abort; my defect)
 
