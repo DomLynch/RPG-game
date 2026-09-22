@@ -14,8 +14,8 @@ import { RECORD_VERSION } from '../src/record.ts';
 // opponent AI, the fixed-step loop and the record codec itself. Presentation files are deliberately absent — a new sound or a
 // different camera does not change the fight.
 const SIM_FILES = ['src/duel.ts', 'src/moves.ts', 'src/ai.ts', 'src/sim.ts', 'src/record.ts'];
-const SIM_DIGEST = '03b06f3bcf8225795730385252a687add81e71a4b6db52efe026f1ba34498428';   // re-pinned without a bump on 2026-09-22: src/ai.ts line breaks + M/F → self/opponent rename only; replay digest over 180 fights / 264,573 ticks identical, record-replay-check --strict digestMatch true (quality/ai-combat-lines). A re-pin without a bump needs that receipt; a rules change bumps.
-const PINNED_FOR_VERSION = 3;
+const SIM_DIGEST = '371c3592db3e9713604ae21625200afc70bd9b4e26810dd05f0e3d34ae1d0ac0';   // re-pinned without a bump on 2026-09-22: src/ai.ts line breaks + M/F → self/opponent rename only; replay digest over 180 fights / 264,573 ticks identical, record-replay-check --strict digestMatch true (quality/ai-combat-lines). A re-pin without a bump needs that receipt; a rules change bumps.
+const PINNED_FOR_VERSION = 4;
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const hash = createHash('sha256');
