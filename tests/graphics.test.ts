@@ -689,7 +689,7 @@ test('kill links: Share mints a short id for signed-in fighters (with their toke
   const s = boot({}, undefined, {}, '?opponent=veteran&r=Ab3_-9xZ');
   assert.equal(s.element('welcome').hidden, true, 'a short link is picked up at boot');
   await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
-  assert.match(s.element('replay-banner').textContent, /cannot be played: this build has no fight store/);
+  assert.equal(s.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line on the viewer page, whatever the reason (owner 2026-09-22)
 });
 test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
