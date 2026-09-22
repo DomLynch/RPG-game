@@ -112,6 +112,9 @@ export function createHud(element: Lookup) {
       const next = ended && !view.practiceOnly && !view.replay && won(practice.finish) ? nextAfter(view.opponentId) : undefined;
       // "PLAY NOW" on a shared link, not "Avenge him" (owner 2026-09-22): a stranger does not know whose death they are avenging.
       resetButton.textContent = view.replay || view.stalled ? 'PLAY NOW' : next ? `Next: ${next.name}` : 'Rematch';
+      // On a viewer page PLAY NOW is the only live control on the screen (every combat button beside it is asleep), so it wears the
+      // kill screen's primary rather than the dark glass it shares with Rematch — style.css `#reset-button[data-play='1']`.
+      resetButton.dataset.play = view.replay || view.stalled ? '1' : '0';
       dodgeButton.setAttribute('aria-disabled', String(!controlsReady || !ok[3]));
       guardButton.setAttribute('aria-disabled', String(!controlsReady || !(ok[4] || practice.phase === 'guard')));
       guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));

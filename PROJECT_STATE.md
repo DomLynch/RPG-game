@@ -13,7 +13,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Visuals & world | [docs/state/world.md](docs/state/world.md) | 11 | 2026-09-20 — Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentati |
 | Sounds & music | [docs/state/audio.md](docs/state/audio.md) | 7 | 2026-09-20 — Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five p |
 | Code quality | [docs/state/code-quality.md](docs/state/code-quality.md) | 1 | 2026-09-22 — release matrix on PR pushes (#446), ai.ts/combat.ts line pass (#439 LIVE), match split assigned |
-| Web design | [docs/state/web.md](docs/state/web.md) | 2 | 2026-09-20 — Field Journal tabs — web/design lane draft, 2026-09-20 (owner direction; markup  |
+| Web design | [docs/state/web.md](docs/state/web.md) | 12 | 2026-09-22 — Viewer page: PLAY NOW as a proper primary, the stale-link line out of the header ba |
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
 | Archive (pre-lane history) | [docs/state/archive-2026-09-21.md](docs/state/archive-2026-09-21.md) | 8 | 2026-09-13 — First-hit slice — implemented 2026-09-13 |
 
