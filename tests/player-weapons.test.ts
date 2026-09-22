@@ -46,7 +46,7 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   assert.throws(() => unpackRecord(v3), /version 3 is not supported/);
   const v4 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v4[2] = 4;
   assert.throws(() => unpackRecord(v4), /version 4 is not supported/);
-  assert.equal(RECORD_VERSION, 5);
+  assert.equal(RECORD_VERSION, 6);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
@@ -76,14 +76,12 @@ const KNOWN_UNFAIR = [
   // 3/24 and 4/24, but it pushes the Goblin's own fight-length pin to a 48.5 s median, over the 45 s ceiling — hence 20.)
   // The scythe's two "thrust from range" rows LEFT on 2026-09-22 when its heel-jab recovery went 18 -> 30 (see SCYTHE_MOVES.thrust):
   // Veteran 19/24 -> 8/24, Goblin 16/24 -> 6/24. It now has no row at any rung, so the table itself puts it in PLAYER_WEAPONS_OFFERED.
-  // estoc/goblin ×2 and estoc/dwarf hard — the estoc's move table sits .3–.4 m short of its blade bake (tests/weapons.test.ts "real reach"),
-  // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
+  // The estoc's four rows LEFT on 2026-09-22 when ESTOC_MOVES took the blade's real reach (+0.30 m, #419). Re-measured on this head, every
+  // estoc pairing clears its cap by a margin of at least 4 (worst: goblin normal thrust 6/24 and executioner normal charged heavy 6/24,
+  // cap 12; goblin hard charged heavy 4/24, cap 8). `ESTOC.fight.close` is untouched at 1.15, so the Nightborn's stance is unchanged.
   'cleaver vs executioner normal: light spam wins 18/24',   // was 17/24: moved by the SCYTHE's thrust recovery 18 -> 30 (2026-09-22), because the Executioner WIELDS the scythe — the row is over the cap either way, and its cause is unchanged (his read of a 22-tick tell)
   'knife vs goblin hard: kick only untouched 3/24',
-  'estoc vs goblin normal: thrust from range wins 24/24',
-  'estoc vs goblin hard: light spam wins 9/24',   // was 11/24: moved by the KNIFE's thrust recovery 15 -> 20 (2026-09-22), because the Goblin WIELDS the knife — same number, safer direction, row still over the hard cap either way
-  'estoc vs goblin hard: thrust from range wins 23/24',   // 22 -> 23, same cause as the line above
-  'estoc vs dwarf hard: thrust from range wins 10/24',
+  'trident vs nightborn normal: charged heavy only wins 14/24',   // NEW 2026-09-22, and NOT trident data: it is the estoc reach fix (#419) seen from the other side. The Nightborn WIELDS the estoc, so +0.30 m on every one of his moves changes how he fights everyone. Control, same process: estoc back on the sword's reach -> 8/24, restored -> 14/24. The estoc's own thrust recovery is the only lever the brief allows and it is contractually shut (tests/weapons.test.ts pins the estoc's timings to the sword's EXACTLY), so this is the Nightborn's approach logic meeting a reach it has never seen — Combat's lane, the same diagnosis they accepted for cleaver/executioner.
 ];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {
