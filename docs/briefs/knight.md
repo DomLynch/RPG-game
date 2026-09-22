@@ -97,8 +97,8 @@ Two rebuild traps already paid for by this lane, to apply on day one:
 
 | # | Deliverable | Gate |
 |---|---|---|
-| 1 | **Silhouette test, bare + loadout**, black shapes at the fighter's camera beside the other nine | Owner's go. No texture work before it passes **bare**. |
-| 2 | **Body on the hero rig + versus still** | (1). Owner-approved reference image is a **required input** — Dwarf and Executioner both had one, without it the first build is a guess. |
+| 1 | **Silhouette test, bare + loadout**, black shapes at the fighter's camera beside the other nine | **Owner reference image** (§7.5 — a masked character's silhouette *is* the design). No texture work before it passes **bare**. |
+| 2 | **Body on the hero rig + versus still** | (1) + the same reference image, which is a **required input** — Dwarf and Executioner both had one, without it the first build is a guess. |
 | 3 | **Maul on the hero rig** | **Weapons' lane, not this one.** Part + blade/contact table, delivered on the shelf; the combat lane flips it. Blocks his fight, not his body. |
 | 4 | **Kit — Recruit-2 first**, the full six later | Not blocked (the Nord ruling applies: gating a new character on Multi Chars' kit library stacks two long poles). |
 | 5 | **Fairness battery vs every offered weapon** (longsword, warhammer, trident, scythe) | (3). Identity pins intact, inside the wins/24 cap, **no weakened pins**. Light-spam must win 0/24. |
@@ -121,8 +121,10 @@ Two rebuild traps already paid for by this lane, to apply on day one:
 4. **Finishers on a closed helm: no rule restriction.** The helm is part of the **head mesh** and splits or comes off with
    it. The **Finishers lane measures each fit** in deliverable 6, and any finisher that fails its measured fit is
    restricted for him **by list**, not by inventing a helm-off mechanic.
-5. **Reference image** — confirmed a **required input**; Strategy is asking Dom for it. **Deliverable 2 does not start
-   without it.** Deliverable 1 (silhouette) is not gated on it.
+5. **Reference image** — confirmed a **required input gating deliverables 1 and 2** (Lead's correction, Strategy accepted,
+   2026-09-22). **For a masked character the silhouette IS the design**: there is no generic shape to test until Dom picks
+   one, so the twice-run silhouette test cannot start either. Strategy is asking him for it. **Until it arrives this
+   character is blocked on Dom and on nothing else.**
 
 ## 8. Dom's mandate — verbatim, as routed
 
