@@ -1,3 +1,31 @@
+## Now — web lane, 2026-09-22 23:xx (session close; read this first)
+
+**Nothing is in flight and nothing is half-done.** Merged tonight: #458 (viewer-page polish + the folded-in handover docs, 16:14:25Z)
+and #464 (the Centurion rename + "warden" out of player-facing copy, 16:40:59Z). Open and queued behind the publish: **#475**
+(loot panel — tap-to-take, Undo, gold skin; head bbfd087, base trunk after a retarget, every check pass or pending, none failed)
+and **#476** (this file; the lane's docs). The lead merges both; local receipts are evidence, not the gate — gotcha (e).
+
+**The one task waiting to be built, the moment its two blockers clear: make the loot panel WAIT for the finisher.** The bottom
+sheet is withdrawn; see the finisher-cover entry below for the measurements and the ruling. Blockers, in order: (1) #475 must merge
+— do not stack a third branch on these files; (2) the measured per-finisher durations come DIRECTLY from Finishers & Gore, not via
+the lead, with their finisher-complete event swapped in afterwards. Then one PR, receipt = a phone still with the body and the
+panel visible together. Do NOT hard-code the 4100 ms measured below.
+
+**Routed but not released** (the lead releases it after #475): Brief 19 deliverable 4, the panel half of gear stats — ATK and RES
+only, see the entry below for the exact format, and read PR #486 before building rather than trusting the relay.
+
+**Not mine:** the Veteran/shield kill-screen line (blocked on Multi Chars' #474), the Shieldmaiden/Knight work (no owner yet), the
+auditer's grade-C journal fixes (parked behind the lead's loader and Brief 14).
+
+**One thing checked and NOT acted on, 23:xx.** A relay said `src/arena.ts:446`'s `lorarii.standing` getter breaks typecheck on this
+lane's branch and asked for a one-line fix here. Verified: the break is real on the branches (`npx tsc --noEmit` →
+`src/arena.ts(446,49): error TS2304: Cannot find name 'lorarii'`), but it came in FROM the base they were cut from, not from any
+commit of this lane — `git diff --name-only origin/codex/01a09a76/task-1...web/state-2026-09-22-evening` is PROJECT_STATE.md and
+docs/state/web.md, and the loot branch does not touch arena.ts at all. Trunk (cb8ff5b) already has zero `lorarii.standing`, and
+neither PR has a failing check, because CI builds the merge with base. So the correct action was none: arena.ts belongs to the
+visuals lane, and editing it here would have "fixed" something already fixed upstream. If a branch of this lane ever does go red on
+it, the fix is a rebase onto trunk, not an edit.
+
 ## 2026-09-22 — Loot panel: a tap is the take, Undo, and the gold skin — item 10 (Dom, with a phone still; lead's decisions)
 
 Dom: "should be auto equipped/taken without the double confirmation... or make it more intuitive... plus the black background should
