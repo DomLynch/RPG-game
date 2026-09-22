@@ -171,11 +171,18 @@ export const WOUND_THRESHOLD = 0.6, WOUNDS_PER_FIGHTER = 5;
 export type WoundHit = { location: HitLocation; direction: Direction; heading: number };   // heading = the struck fighter's facing
 type WoundSite = { bone: string; dir: [number, number, number]; radius: number; width: number };
 // The struck fighter's own frame: +x his left, +z his front (the rig convention). A blow from the attacker's right crosses to the victim's left.
-export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>): WoundSite {
+// limb (owner 2026-09-22, "it can also run down the leg and arms", "a lot of skin here ... shoulder and arm, wrists"): 0 = the torso as
+// always; 1 = the near upper arm; 2 = the near forearm at the wrist — bare skin on most rigs. mirror: the overhead cut's shoulder is
+// picked per hit, either side — the Veteran's cloak covers one, the other is bare.
+export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>, limb: 0 | 1 | 2 = 0, mirror = false): WoundSite {
   const side = hit.direction === 'right' ? 1 : hit.direction === 'left' ? -1 : 0;
+  if (limb && side && hit.location === 'torso') {
+    const l = side > 0 ? 'l' : 'r';
+    return limb === 1 ? { bone: `upperarm_${l}`, dir: [side * .95, .1, .3], radius: .06, width: .5 } : { bone: `lowerarm_${l}`, dir: [side * .9, .2, .35], radius: .045, width: .45 };
+  }
   if (hit.location === 'head') return { bone: 'Head', dir: side ? [side * .9, .25, .35] : hit.direction === 'overhead' ? [0, .75, .65] : [0, .1, 1], radius: .105, width: .55 };
   if (hit.location === 'legs') return { bone: side < 0 ? 'thigh_r' : 'thigh_l', dir: side ? [side * .85, 0, .5] : [0, 0, 1], radius: .085, width: .6 };
-  if (hit.direction === 'overhead') return { bone: 'spine_03', dir: [.35, .55, .75], radius: .22, width: .8 };   // the shoulder line, sword side up; .22 clears a cloak or pauldron (Lead 2026-09-22: radius, not the depth test)
+  if (hit.direction === 'overhead') return { bone: 'spine_03', dir: [mirror ? -.35 : .35, .55, .75], radius: .22, width: .8 };   // the shoulder line, sword side up; .22 clears a cloak or pauldron (Lead 2026-09-22: radius, not the depth test)
   return { bone: side ? 'spine_02' : 'spine_03', dir: side ? [side * .9, .05, .45] : [0, 0, 1], radius: side ? .17 : .15, width: side ? .7 : 1 };
 }
 // The blood's own look (owner 2026-09-22: "proper blood dripping", not a paint sticker): photo-grade textures generated with
@@ -190,6 +197,7 @@ export const BLOOD_TEXTURES = { splat: 'blood-splat.png', splatNormal: 'blood-sp
 // New hits add fresh runs. Nothing here cycles: a run that has finished stays as it lies until the rematch clears it.
 export const DRIP = { start: [0, 0.3], duration: [1.5, 3], width: [0.75, 1.3], offset: 0.03, bead: 0.028, length: [0.11, 0.19] } as const;   // seconds, seconds, ×, metres, metres, metres at threshold → at death (a man's torso)
 export const DRY = { seconds: 20, roughness: [0.42, 0.75] } as const;   // a thin wet edge, not a gloss coat
+export const ARM_SHARE = 0.5;   // share of side cuts across the torso that land on the near arm instead (half upper arm, half wrist)
 const FRESH = new THREE.Color('#7a2a2c'), DRIED = new THREE.Color('#3a2426');   // multiplied over the photo texture's own reds: crimson, not the photo's neon (owner 2026-09-22: 'paintball sticker')
 const CANVAS_FRESH = new THREE.Color('#581017'), CANVAS_DRIED = new THREE.Color('#2a1516');   // the tint the white canvas splat needs until the photo lands (and under node)
 const DARK_MODE = new THREE.Color('#5a4d4c');
@@ -200,6 +208,22 @@ export function woundSeed(index: number, hit: Pick<WoundHit, 'location' | 'direc
   return (Math.imul(index + 1, 2654435761) ^ Math.imul(Math.round(hit.heading * 1000) | 0, 40503) ^ (loc * 7919 + dir * 104729)) >>> 0;
 }
 export function lcg(state: number): number { return (Math.imul(state, 1664525) + 1013904223) >>> 0; }
+// Where the skin (or the armour over it) actually is along the wound normal: a ray from well outside back toward the bone, against
+// the rig's own skinned meshes in their current pose (owner 2026-09-22: "it floats off the chars" — the site table's radius is a
+// guess per slot, and on a bare shoulder the guess for a pauldron hangs in the air). The table value stands when nothing is met
+// (node tests, a rig with no skin) and the answer is clamped to its neighbourhood so a stray polygon cannot fling the mark.
+const SURFACE = { reach: 0.6, proud: 0.004, clamp: [0.35, 1.5] } as const;
+const surfaceRay = new THREE.Raycaster(), surfaceFrom = new THREE.Vector3(), surfaceDir = new THREE.Vector3(), surfaceBone = new THREE.Vector3();
+export function surfaceRadius(root: THREE.Object3D, bone: THREE.Object3D, normal: THREE.Vector3, fallback: number): number {
+  const skins: THREE.Object3D[] = []; root.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && o.visible) skins.push(o); });
+  if (!skins.length) return fallback;
+  bone.getWorldPosition(surfaceBone); surfaceFrom.copy(surfaceBone).addScaledVector(normal, SURFACE.reach); surfaceDir.copy(normal).negate();
+  surfaceRay.set(surfaceFrom, surfaceDir); surfaceRay.far = SURFACE.reach;
+  const hit = surfaceRay.intersectObjects(skins, false)[0];
+  if (!hit) return fallback;
+  const r = SURFACE.reach - hit.distance + SURFACE.proud;
+  return Math.min(fallback * SURFACE.clamp[1], Math.max(fallback * SURFACE.clamp[0], r));
+}
 const unit = (state: number) => state / 4294967296;
 export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture | null) {
   type Strand = { mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>; map: THREE.Texture | null; start: number; duration: number; width: number; offset: number; live: boolean };
@@ -249,15 +273,17 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
     // A blow landed on `side`: take the next pooled mark (the oldest when all are used), pin it to the struck bone on the
     // struck face, and seed this hit's runs: how many strands (1–3), each one's width, x offset, start delay and duration.
     hit(side: 0 | 1, root: THREE.Object3D, hit: WoundHit, scale = 1) {
-      const site = woundSite(hit), bone = root.getObjectByName(site.bone);
+      let seed = woundSeed(next[side], hit);
+      seed = lcg(seed); const draw = unit(seed);   // seeded like the runs: a replay lands the same cut on the same limb, the same shoulder
+      const limb = draw < ARM_SHARE ? (draw < ARM_SHARE / 2 ? 1 : 2) : 0, mirror = draw >= .5;
+      const site = woundSite(hit, limb, mirror), bone = root.getObjectByName(site.bone) ?? (limb ? root.getObjectByName(woundSite(hit, 0, mirror).bone) : null);
       if (!bone) return false;
-      const mark = fighters[side][next[side] % WOUNDS_PER_FIGHTER];
-      let seed = woundSeed(next[side], hit); next[side]++;
+      const mark = fighters[side][next[side] % WOUNDS_PER_FIGHTER]; next[side]++;
       const world = new THREE.Vector3(...site.dir).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), hit.heading);
       root.updateWorldMatrix(true, true);
       mark.dir.copy(world).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert());
       mark.bone = bone;   // cached (audit, 2026-09-22): update() ran a recursive getObjectByName search every frame for every used mark
-      mark.radius = site.radius * scale; mark.width = site.width; mark.scale = scale; mark.age = 0; mark.used = true;
+      mark.radius = surfaceRadius(root, bone, world, site.radius * scale); mark.width = site.width; mark.scale = scale; mark.age = 0; mark.used = true;
       seed = lcg(seed); mark.mark.rotation.z = unit(seed) * Math.PI * 2;   // the splat's own lopsided shape, turned per hit
       seed = lcg(seed); mark.runs = 1 + Math.floor(unit(seed) * 3);
       mark.strands.forEach((strand, i) => {

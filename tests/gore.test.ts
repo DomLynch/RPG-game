@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Color, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Vector3 } from 'three';
-import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, DRIP, DRY, WOUND_THRESHOLD } from '../src/gore.ts';
+import { Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
+import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER } from '../src/gore.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 const near = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
@@ -281,4 +281,37 @@ test('blood runs: drawn over armour — no depth test on marks or strands (Strat
   assert.ok(mark.age > age, 'the clock kept running while hidden');
   tick(new Vector3(0, 1.4, 3)); assert.ok(mark.group.visible, 'back the moment the eye is on its side again');
   tick(null); assert.ok(mark.group.visible, 'no eye given (node, tests) → no facing test');
+});
+
+test('wound slots: a side cut can land on the near upper arm or the wrist (owner 2026-09-22: "run down the leg and arms", "a lot of skin ... wrists"); the overhead shoulder mirrors per hit; the draw is seeded so a replay lands the same limb; a rig without arm bones falls back to the flank', () => {
+  assert.equal(woundSite({ location: 'torso', direction: 'right' }, 1).bone, 'upperarm_l', 'a right cut crosses to the victim\'s left arm');
+  assert.equal(woundSite({ location: 'torso', direction: 'left' }, 2).bone, 'lowerarm_r', 'the wrist end of the right forearm');
+  assert.equal(woundSite({ location: 'torso', direction: 'thrust' }, 2).bone, 'spine_03', 'a thrust has no side: it stays on the chest');
+  assert.equal(woundSite({ location: 'legs', direction: 'right' }, 1).bone, 'thigh_l', 'legs stay legs');
+  assert.ok(woundSite({ location: 'torso', direction: 'overhead' }, 0, true).dir[0] < 0 && woundSite({ location: 'torso', direction: 'overhead' }).dir[0] > 0, 'the mirrored overhead is the other shoulder');
+  const armRig = () => { const root = new Group(); for (const n of ['spine_02', 'spine_03', 'upperarm_l', 'lowerarm_l']) { const b = new Object3D(); b.name = n; b.position.set(n.endsWith('_l') ? .3 : 0, 1.3, 0); root.add(b); } root.updateMatrixWorld(true); return root; };
+  const bonesHit = (root: Object3D) => { const w = createBodyWounds(new Scene(), null); const out: string[] = []; for (let h = 0; h < 12; h++) { w.hit(1, root, { location: 'torso', direction: 'right', heading: h * .37 }, 1); out.push(w.entries[1][h % WOUNDS_PER_FIGHTER].bone!.name); } return out; };
+  const a = bonesHit(armRig()), b = bonesHit(armRig());
+  assert.deepEqual(a, b, 'seeded: the same twelve cuts land on the same twelve bones');
+  assert.ok(a.includes('upperarm_l') && a.includes('lowerarm_l') && a.includes('spine_02'), `arm, wrist and flank all drawn across twelve cuts (${a.join(',')})`);
+  const noArms = bonesHit(rigWith('spine_02', [0, 1.2, 0]).root);
+  assert.ok(noArms.every(n => n === 'spine_02'), 'no arm bones → the flank, never a dropped hit');
+});
+
+test('surfaceRadius: the mark sits on the rig\'s own skin, not at the slot table\'s guess (owner 2026-09-22: "it floats off the chars"); the guess stands with no skin; a stray answer is clamped', () => {
+  // A skinned box, half-size .1, bound to one bone at the origin — the skin is 10 cm out along every axis.
+  const bone = new Bone(); bone.name = 'spine_03'; const geometry = new BoxGeometry(.2, .2, .2);
+  const n = geometry.attributes.position.count;
+  geometry.setAttribute('skinIndex', new Uint16BufferAttribute(new Uint16Array(n * 4), 4));
+  geometry.setAttribute('skinWeight', new Float32BufferAttribute(new Float32Array(n * 4).map((_, i) => (i % 4 === 0 ? 1 : 0)), 4));
+  const skin = new SkinnedMesh(geometry, new MeshStandardMaterial()); skin.add(bone); skin.bind(new Skeleton([bone]));
+  const root = new Group(); root.add(skin); root.updateMatrixWorld(true);
+  const r = surfaceRadius(root, bone, new Vector3(0, 0, 1), .22);
+  assert.ok(Math.abs(r - .104) < .003, `10 cm of skin + 4 mm proud, not the .22 guess (${r.toFixed(4)})`);
+  assert.equal(surfaceRadius(new Group(), bone, new Vector3(0, 0, 1), .22), .22, 'no skinned mesh → the table value');
+  assert.ok(surfaceRadius(root, bone, new Vector3(0, 0, 1), .5) >= .5 * .35 - 1e-9, 'clamped to the guess\'s neighbourhood');
+  // End to end: a hit on this rig lands the mark 10.4 cm out, and the strand hangs from there.
+  const wounds = createBodyWounds(new Scene(), null);
+  assert.ok(wounds.hit(1, root, { location: 'torso', direction: 'thrust', heading: 0 }, 1));
+  assert.ok(Math.abs(wounds.entries[1][0].radius - .104) < .003, `hit() uses the measured skin (${wounds.entries[1][0].radius.toFixed(4)})`);
 });
