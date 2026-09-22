@@ -2,6 +2,62 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead handoff — 2026-09-23 00:30 (context restart)
+**Now.** Nothing of mine is mid-flight. The merge queue is no longer Lead's — Dom moved it to Deploy tonight, and Strategy
+has briefed the lanes directly with deadlines while this session clears, reverting to lanes -> Lead afterwards. Two of my
+PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing standard) and the state doc you are reading.
+
+**Done tonight.**
+- **#471** amended twice. `f6af593`: the brief said cleaver in three places and rested "zero new animation authoring" on the
+  Pitborn's `Cleaver_*` set, which the bearded-axe amendment removes — it was understating its own cost. `099c24d`: new §5a
+  naming her six takeable pieces against direction A, with `Helmet` and `Gloves` recorded as **open proposals awaiting Dom**
+  because A is bare-headed and bare-handed. Pitborn and the Executioner lane both flagged the cleaver independently.
+- **#499**, new AGENTS.md bullet, corrected three times as the lanes measured it properly. Character briefs specify
+  **outline, not build**; an approved reference is a **direction, not a render**; every brief **names all six** takeable
+  pieces (naming is not authoring — build order stays Recruit-2 first, and SCOPE.md's launch bar already says the six are
+  scheduled, not optional). Plus the two measurement rules the lanes paid for: a background gate certifies the backdrop and
+  **not the cut** (cut the mask from an unlit plate, `--flat`, #500), and **never upscale a short mask** to the comparison
+  height — that invents edge detail on one side of the pair only, a bias rather than noise.
+- Rulings taken: the **estoc's brief does not change** (thrust recovery is not a lever; the trident row goes to Combat as a
+  Nightborn-profile item); **Stats' PR B carries the single bump to 6**, Weapons rides it, rule is whoever is ready first;
+  **Greaves before Helmet**; the **paperdoll keeps `ATK 0 · RES 0`** on a bare fighter; the **opponent -> tier mapping is
+  Multi Chars'**, the resolver is Stats', a piece with no tier resolves to exactly 1.00.
+- Owner briefs sent to every active lane and the per-item owner/next-PR/ETA lines returned to Strategy.
+
+**Open.**
+- **Brief 14 is mine and barely started.** `src/grades.ts` already exists on trunk and already declares
+  `GradeRecord = { level, tier, kit: LootId[], epithet, house }` at :74 — the remaining work is adding `profile?: GradeProfile`
+  to it and `grade?` to the `ROSTER` recipes. Combat owns `GradeProfile`'s values: perception is **not** a new axis, it scales
+  the existing `profile.reaction` in absolute ticks, and `anticipate` must stay because `ai.ts:114` clamps the spam read to
+  `READ.anticipate` (8), so any per-grade `reaction` above 8 is swallowed on exactly the cleaver row. Combat's cleaver PR is
+  gated on this.
+- **#446 CI cost, from Strategy, unstarted:** the workflow runs the full release matrix on docs-only pushes and keeps runs
+  queued for closed PRs, starving trunk's own run. Fix is to skip the matrix when `release-rows-for.mjs` returns zero rows and
+  cancel in-progress runs on PR close. `gh run cancel` on queued runs mostly does not take.
+- **#490 (Brief 18, the Plague Doctor) is unowned.** The Executioner lane correctly refused it — Dom widened them to the
+  Knight only. Strategy to place it.
+- **The bare Knight reads as nobody** (Executioner, #502): shoulder/height 0.367 in kit to 0.246 stripped, and none of the
+  bare outline is his. Open proposal for Dom: one non-takeable silhouette feature in the bare build.
+- Mine also: the SCOPE.md broadcast to the lanes once #492 lands.
+
+**Gotchas.**
+- **Check the file before writing the type.** I drafted a `grade` type and sent it to Combat without opening `src/grades.ts`.
+  It already existed, `Grade` was already taken there for the material triple, and my draft would not have compiled.
+- **`OPPONENTS` at `src/moves.ts:513` is DERIVED from `ROSTER`.** Adding `grade` there type-checks and never reaches the
+  recipes. `grades.ts:19`'s own comment says `OPPONENTS.grade.house`, so the wrong name is already on trunk.
+- **A unit rule is not a sign rule.** Addendum C's "whole points" means integers, never `1.15`; Brief 19:49's signed delta
+  stands. Paperdoll totals unsigned, kill-screen take signed. I relayed the addendum as superseding the sign and two lanes
+  built to it.
+- **Relayed premises cost more than they save.** Four lanes corrected me tonight — Combat (the knife is next, not the
+  cleaver, and #419 does not sequence them), Character Main (scope is `warrior.glb` only; I mis-routed three items),
+  Weapons (the >=2 margin was already met; rebasing buys nothing, empty sim diff across 22 commits), Web (#475 draws no
+  number at all). Each was a claim I passed on without opening the file.
+- **A valid background is not a valid mask, and a measured number can still measure the wrong thing.** The hole figure went
+  20,677 px -> 9,644 -> **6,973 (3.5 % of the mask)** as two lanes checked each other; the first counted the figure's own
+  negative space as a defect. Ask what the number was measured against.
+- A branch checked out in another worktree cannot be checked out here. Commit via `hash-object`/`commit-tree` and push the
+  sha, rather than reaching into that worktree.
+
 ## Lead handoff — 2026-09-22 17:45 (restart)
 **Now.** Live == trunk == c7d942a, empty deploy queue (Deploy's receipt: 33/33, DEPLOY_EXIT=0, 17:40). Nothing of mine mid-flight.
 
