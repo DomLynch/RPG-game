@@ -9,7 +9,7 @@ import type { OpponentId } from './moves.ts';
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const KICK_LANDS = 1.5;
 
-export type HudView = { controlsReady: boolean; debug: boolean; opponentId: OpponentId; replay?: boolean; practiceOnly?: boolean };   // replay: watching a record (Avenge him after); practiceOnly: an avenged fight, no ladder step
+export type HudView = { controlsReady: boolean; debug: boolean; opponentId: OpponentId; replay?: boolean; practiceOnly?: boolean; stalled?: boolean };   // replay: watching a record (PLAY NOW after); practiceOnly: that fight, no ladder step; stalled: the viewer page cannot go on
 type Lookup = <T extends HTMLElement>(id: string) => T;
 
 export function createHud(element: Lookup) {
@@ -43,7 +43,7 @@ export function createHud(element: Lookup) {
       );
       const inKickReach =
         Math.hypot(practice.enemy.x - practice.fighter.x, practice.enemy.z - practice.fighter.z) <= KICK_LANDS;
-      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}`;
+      const key = `${practice.phase}:${practice.duel.fighters[0].lastMove ?? ''}:${practice.health}:${practice.playerHealth}:${Math.floor(practice.stamina)}:${Math.floor(practice.posture)}:${Math.floor(practice.enemyPosture)}:${hint}:${controlsReady}:${ok.join('')}:${practice.wound > 0}:${practice.exhausted}:${practice.threatMove}:${inKickReach}:${view.replay ? 'r' : ''}${view.practiceOnly ? 'p' : ''}${view.stalled ? 's' : ''}`;
       if (key === lastHud) return;
       lastHud = key;
       health.max = practice.enemyMaxHealth;
@@ -107,9 +107,11 @@ export function createHud(element: Lookup) {
       heavyButton.hidden = ended;
       heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
       attackButton.hidden = ended;
-      resetButton.hidden = !ended;
+      // A stalled viewer page (record ran out, or the link never decoded) shows the button over the frozen frame: it is the only way on.
+      resetButton.hidden = !ended && !view.stalled;
       const next = ended && !view.practiceOnly && !view.replay && won(practice.finish) ? nextAfter(view.opponentId) : undefined;
-      resetButton.textContent = view.replay ? 'Avenge him' : next ? `Next: ${next.name}` : 'Rematch';
+      // "PLAY NOW" on a shared link, not "Avenge him" (owner 2026-09-22): a stranger does not know whose death they are avenging.
+      resetButton.textContent = view.replay || view.stalled ? 'PLAY NOW' : next ? `Next: ${next.name}` : 'Rematch';
       dodgeButton.setAttribute('aria-disabled', String(!controlsReady || !ok[3]));
       guardButton.setAttribute('aria-disabled', String(!controlsReady || !(ok[4] || practice.phase === 'guard')));
       guardButton.setAttribute('aria-pressed', String(practice.phase === 'guard'));
