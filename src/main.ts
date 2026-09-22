@@ -240,7 +240,12 @@ let replay: { record: FightRecord; cursor: number } | null = null, practiceOnly 
 let daily: DailyFight | null = null;   // the daily warden's fight when this page is today's attempt (src/daily.ts): practice rules, its result posted once
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 const banner = (text: string | null) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; };
-const say = (text: string | null) => { shareStatus.textContent = text ?? ''; shareStatus.hidden = !text; };
+// The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
+// everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
+// "Couldn't make a link, try again." is 32 characters and must persist (lead review).
+const CONFIRMATIONS = new Set(['Shared.', 'Link copied.', 'Result copied.', 'Posted to today\'s board.']);
+let sayTimer: ReturnType<typeof setTimeout> | undefined;
+const say = (text: string | null) => { clearTimeout(sayTimer); shareStatus.textContent = text ?? ''; shareStatus.hidden = !text; if (text && CONFIRMATIONS.has(text)) sayTimer = setTimeout(() => say(null), 2000); };
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
 // pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
