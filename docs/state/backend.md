@@ -9,11 +9,16 @@ TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tab
 
 **In flight / open**
 - **PR #487** (this file) — open, docs only: 0007 recorded as applied, 0009 + 0010 added with live receipts.
-- **Stats lane, Brief 19 / PR #486** — gear stats. Deliverables 1–2 need **nothing** from this schema (`daily_results` carries no
-  gear; the record is opaque base64url to Postgres). **Deliverable 3 is where this lane is in the path**: loot awards become
-  server-authoritative from verified fight records and the client's owned list becomes a cache — that ends the "loot is cosmetic,
-  nothing competitive hangs off client-reported loot" rule written under 0004. Review that migration and its RLS when the PR lands.
-- **PR A of the record-version split** (Lead's) — widens the decoder to accept 5 and 6 and returns the *parsed* version instead of
+- **Stats lane, Brief 19 / PR #486 (open), deliverable 1 = PR #488 (open)** — gear stats. The record is opaque base64url to Postgres
+  and `daily_results` carries no gear, so the stat-table work needs **nothing** from this schema.
+  **UNVERIFIED, do not act on it as settled:** Strategy told this lane (2026-09-22) that a later deliverable makes loot awards
+  server-authoritative from verified fight records, with the client's owned list becoming a cache — which would end the "loot is
+  cosmetic, nothing competitive hangs off client-reported loot" rule written under 0004. **I checked #486's published body and it does
+  not say this**: it lists deliverables 1–4 as starting now and deliverable 5 as the `src/duel.ts` seam + ladder retune, with no
+  mention of loot. So treat the loot-authority change as a *claim relayed by Strategy*, not as the brief's content, and confirm the
+  actual deliverable with Lead/Strategy before designing a migration for it. When a real PR lands, review its migration and RLS.
+- **"PR A" of the record-version split** (Lead's; **not opened yet** — no such PR existed at the time of writing, this is their stated
+  plan, not a live branch) — widens the decoder to accept 5 and 6 and returns the *parsed* version instead of
   `RECORD_VERSION`. Read it as a **server** change: `deploy.sh` rsyncs `src/**/*.ts` to the verifier host, so that deploy replaces the
   verifier's decoder too. PR B (encoder writes 6) follows on a later deploy — that ordering is what stops a verifier reading an older
   format than the client writes. See the memory note for the two traps.
@@ -23,7 +28,8 @@ TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tab
 **Runbook note, for the next accept-list change:** after a deploy that widens the record accept-list, refused rows do **not** self-heal
 — `checked_at` takes them off the sweep's page, so run `verify-daily.mjs --recheck` if any rows exist by then.
 
-**Settled, nothing pending:** migrations 0002–0010 all applied and verified by this lane's own queries (never a relay). Issue #397
+**Re-checked against trunk when this was written:** `RECORD_VERSION = 5` in `src/record.ts`; #486 and #488 open; `daily_results`
+0 rows. **Settled, nothing pending:** migrations 0002–0010 all applied and verified by this lane's own queries (never a relay). Issue #397
 closed. The by-design security-advisor list below is the baseline — anything not on it is a new finding.
 
 ## Hosted project as it stands — verified 2026-09-22 (0002–0010 all applied and verified by this lane)
