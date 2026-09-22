@@ -1205,6 +1205,7 @@ dialog>p {
     transition: opacity .12s;
   }
   .actions[data-gestures=cluster] button .side{ vector-effect: non-scaling-stroke; opacity: .3; transition: opacity .12s, stroke-width .12s; }
+  .actions[data-gestures=cluster] button .side-straight{ opacity: 0; }   /* owner 2026-09-22: the resting centre ring read as a second circle inside the rim — gone at rest; the lit rules below still raise it when the straight side is the one in play */
   /* one lit mark per button, and only while that button is being pressed (data-held from input.ts; :active is unreliable on touch) — the same as Guard, so every button rests at the
      same faint weight (owner 2026-09-21: "keep them all standard semi-transparent like the guard one") */
   .actions[data-gestures=cluster] #attack-button[data-held][data-next=left] .side-left,
