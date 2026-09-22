@@ -611,7 +611,7 @@ export function createScene(
         stepSeveredHead(severHead, dt);
       }
       const animationDt = frozen ? 0 : dt;
-      arena.update(animationDt, events, rig.started ? camera : undefined);   // the crowd culls against the settled camera; the first frame draws everyone
+      arena.update(animationDt, events, rig.started ? camera : undefined, { tick: practice.duel.tick, fighters: [state, practice.enemy] });   // the crowd culls against the settled camera; the first frame draws everyone; the lorarii pace on the sim tick and watch the fighters
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
         ex = practice.enemy.x - opponent.position.x,
