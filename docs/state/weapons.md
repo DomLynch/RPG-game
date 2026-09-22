@@ -2,6 +2,48 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Estoc reach — re-measured and HELD: the estoc clears, the Nightborn breaks (weapons lane, 2026-09-22) — HELD, NOT PARKED
+The estoc was un-parked on the reach fix alone (Dom via Strategy, the lead relaying): `ESTOC.fight.close` is not touched, so the old
+stance-hunt revival condition below is **moot** and that hunt stays dead. #419 rebased onto trunk `1741dc5`, head `b1455d4`, PR draft.
+
+**The estoc itself clears with room.** `ESTOC_MOVES` = the sword's spacing convention **+ 0.30 m**, the blade's measured frontier. Full
+battery re-run, every weapon, both levels. Against a bar of margin ≥ 2, **zero estoc rows are below it** — worst are goblin normal thrust
+6/24 and executioner normal charged heavy 6/24 (cap 12), and goblin hard charged heavy 4/24 (cap 8). The four old rows: goblin normal
+thrust 24/24 → 6/24, goblin hard light spam 9/24 → 1/24, goblin hard thrust 23/24 → 3/24, dwarf hard thrust 10/24 → 3/24.
+
+**But the weapon does not travel alone, and that is the finding.** The Nightborn wields the estoc, so +0.30 m on every one of his moves
+changes how he fights everyone. Three consequences, each with an in-process control that restored cleanly:
+
+| # | finding | control |
+|---|---|---|
+| 1 | **new** over-cap row on the **trident** (shipped, offered): `trident vs nightborn normal: charged heavy only` 8/24 → **14/24**, cap 12 | estoc back on sword reach → 8, restored → 14 |
+| 2 | Nightborn **fight-length pin fails**: exhausted **321** ticks over 24 fights, bar 240 | `ESTOC_REACH = 0` passes (median 20.5 s, hero wins 10/24); `.30` fails |
+| 3 | Nightborn **fight-identity fails** at hard: the feint-and-punish his design names wins **0/24** | same |
+
+(2) and (3) are design contracts, not thresholds — his brief is that he is "beaten by wit, not stamina".
+
+**The lever the brief named is shut by contract, not by taste.** Tuning the estoc's thrust recovery the way the knife's was tuned breaks
+`tests/weapons.test.ts`, which pins the estoc's windup/active/recovery/stepIn/feintUntil/chamber to the sword's **exactly** — "the sword's
+timings and lunges exactly" is the weapon's brief. Swept before concluding it: 21 → trident 14 FAIL; 24 → trident 7 but the estoc's own
+goblin row goes to margin 0; 27 → 12 thin; 30/31/32 → both clear. Non-monotonic, *and* it breaks the defining test at every value. Record
+the closed door rather than leaving it ambiguous. Wind-up and stance untouched, as instructed.
+
+**The lead's ruling, 2026-09-22: the trident does NOT leave `PLAYER_WEAPONS_OFFERED`** — "un-offering a shipped weapon to make room for a
+shelf one is not a trade I'll make". The branch as pushed *does* remove it, because the table forces the pair (the test asserts a weapon
+with no over-cap row must be offered and one with a row must not be). That is why this cannot land as-is and is held rather than fixed: the
+invariant and the ruling disagree until the trident row goes away. Same invariant that forced the scythe in on #440 — the system working.
+
+**Held, deliberately, on a dependency.** Combat is fixing a shared approach defect in `src/ai.ts`: every opponent's approach settles at a
+*raw* reach value while `inReach` needs `reach − .1`, so wardens park just outside their own range. That changes stopping distance, which
+is exactly what +0.30 m interacts with — findings (2) and (3) are engagement-distance symptoms and may move on their own. Re-measuring
+before it lands would be the stale-base trap one layer up. **Nothing is retuned and nothing is measured again until that fix is on trunk.**
+
+`RECORD_VERSION` 5 → 6 with `SIM_DIGEST` re-pinned over the final tree and references regenerated (still replaying identically, 1677/1452).
+
+Evidence: `b1455d4`. Gate 464/467 with 2 skipped and 1 failure, plus 93/94 slow — both failures are the Nightborn and both are caused by
+this change; neither pin was relaxed. Remaining validation: **re-run the full battery once Combat's `ai.ts` approach fix is on trunk**, then
+either the estoc lands nearly clean, or the surviving trident row goes to Combat as a Nightborn profile item and #419 waits for it.
+
 ## Knife flip prep — two rows fixed, one isn't knife data, and a program-level cost (weapons lane, 2026-09-22) — BLOCKED ON A DECISION
 Lead's item (1), knife. Three rows on trunk 187dd89, all reproduced: `knife vs veteran normal: thrust from range 18/24`,
 `knife vs goblin normal: thrust from range 15/24` (caps 12), `knife vs goblin hard: kick only untouched 3/24` (cap 2).
@@ -203,7 +245,7 @@ Two supporting facts, both measured rather than assumed:
 Handover: the lever is the Executioner reading a 22-tick tell (his reaction window), which is Combat's lane, not a weapon number. Until
 that moves, the row stands and the cleaver stays out of `PLAYER_WEAPONS_OFFERED`. Knife and scythe prep follow separately; nothing here
 blocks them, and nothing here touches the loot ids (takeable ≠ offered).
-## Estoc reach — PARKED, no stance value clears both axes (combat lane, 2026-09-22)
+## Estoc reach — PARKED, no stance value clears both axes (combat lane, 2026-09-22) — SUPERSEDED 2026-09-22: un-parked on the reach fix alone; the stance hunt stays dead and this entry's revival condition is moot (see the HELD entry above)
 The weapons lane's estoc reach fix (#419, now a draft) is correct about the blade and is NOT merged: it cannot ship until the estoc's
 stance is retuned, and no stance value exists that is safe. **To revive it, one of two things must change: either the Nightborn stops
 carrying the estoc, or the trident-vs-Nightborn fairness row is re-measured against a deliberately retuned Nightborn.** Neither is a
