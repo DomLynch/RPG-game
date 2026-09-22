@@ -105,17 +105,24 @@ Two rebuild traps already paid for by this lane, to apply on day one:
 | 6 | **Finisher fits, measured per finisher** | (2). Measured, not asserted — a closed helm and full plate are the hardest case for Split Crown and Decapitation, which bake and cut a **head**. Expect this to be the real work. |
 | 7 | **The ladder rung** | (5). Owner's call. |
 
-## 7. Decisions to surface, not assume
+## 7. Decisions — ruled by Strategy, 2026-09-22 (brief approved)
 
-1. **Owner reference image** — required input, Dom's (per the Nord ruling).
-2. **Who authors the maul part** — Weapons, on the split rule. Confirm before anyone in a character lane models it.
-3. **What "cannot be cut" means in the sim** — Combat owns guard rules exactly as they own the shield's. This brief does
-   **not** define a damage-type immunity, a cut-resistance stat or a posture formula. If plate needs a rule that does not
-   exist today, that is a Combat slice with its own queue position, and their queue is knife → cleaver → estoc → shield.
-4. **Split Crown / Decapitation on a closed helm** — does the helm come off, split with the skull, or is he finisher-
-   restricted like the held creatures (`finishers: []`)? An art-and-rules decision, cheaper before the body than after,
-   and it interacts with §2: a closed-helm figure is exactly the shape that passes the silhouette test in loadout and
-   fails it bare, so the answer shapes the helm profile as well as the finisher list.
+1. **Masked is Dom's requirement; full plate + closed helm is the proposal**, and the twice-run silhouette test in §2
+   judges it, with the **bare pass counting**. Confirmed as written.
+2. **The maul part is Weapons', on the shelf rule — this lane does not model it.** Lead confirms the handoff. This lane
+   authors the character; `src/moves.ts` (where the maul's numbers already live) is not ours to edit either.
+3. **"Cannot be cut" gets NO new sim rule.** Nobody writes plate immunity. His identity comes from three things that
+   exist or are already in flight: (a) he wears the **heaviest kit**, so under Brief 19 he sits in the **top RES bracket** —
+   numerically the hardest man to cut once gear stats land; (b) **`guard: 'shaft'`** is already in his weapon data;
+   (c) his **AI profile absorbs and punishes instead of dodging**, so the way through him is the existing
+   **posture-break → critical** path. **Win condition: break his posture, then the critical.** If beta shows him beatable
+   by standing and swinging, **Combat retunes the profile** — the fix is a tuning pass, never a new mechanic.
+   *(The RES bracket depends on Brief 19's gear stats landing; this lane has not verified that brief and does not own it.)*
+4. **Finishers on a closed helm: no rule restriction.** The helm is part of the **head mesh** and splits or comes off with
+   it. The **Finishers lane measures each fit** in deliverable 6, and any finisher that fails its measured fit is
+   restricted for him **by list**, not by inventing a helm-off mechanic.
+5. **Reference image** — confirmed a **required input**; Strategy is asking Dom for it. **Deliverable 2 does not start
+   without it.** Deliverable 1 (silhouette) is not gated on it.
 
 ## 8. Dom's mandate — verbatim, as routed
 
