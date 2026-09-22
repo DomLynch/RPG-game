@@ -93,6 +93,13 @@ rows / 20 distinct scripts, that was the only retries-then-continues in a gate. 
 `scripts/impact-preview.mjs`'s bounded sim loops (`i < 900 && !s.events.some(...)`) are preview generation and are not in
 release_commands; `scripts/audio-preview.mjs`'s `baseline ... .catch(() => null)` only drops the delta COLUMNS from its report, while
 its `--check` assertions are real `assert.ok` throws.
+(g) A CAUTION THAT NAMES A MECHANISM IS A CLAIM; CHECK IT BEFORE YOU BUILD AROUND IT (lead, 2026-09-22, after item 10). The brief
+said "keep the existing guard that ignores taps in the first ~300 ms"; there was no such guard — `.loot-panel{pointer-events:none}`
+is deploy #102's pointer-transparency fix, not a time guard. The same night, "regenerate his versus card" named a caption that is
+DOM, not pixels, and "five tiles must fit one row at 375" named a constraint that the shipped build was already breaking. Each was
+one cheap command away: grep the generator, grep for the guard, measure the live DOM. Run that command before writing code, then
+put the correction in the PR body AND the reply — building to a wrong premise spends a deploy-gated cycle, and quietly dropping
+part of a brief reads as scope-cutting.
 (a, amended) Take is gone since item 10 — a tap on a tile is the take — so the thumb row holds Leave it alone. The rule
 that produced it is unchanged and still load-bearing: no decision button where the first post-kill touch lands, and
 `.loot-panel` stays pointer-transparent with `auto` only on its tiles and its Undo pill.
