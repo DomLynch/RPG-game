@@ -14,9 +14,10 @@ wielding the maul, two-hand … The Executioner stays yours."* Terms: brief firs
 passes before any model work**, AAA judged on a **phone screenshot** (Dom plays on an iPhone — a Mac render is not the
 instrument), **one PR per deliverable with its receipt**, report to Lead, **nothing ahead of the shield in Combat's queue**.
 
-**The Knight is blocked on Dom and on nothing else: he owes the reference image.** It gates **deliverable 1 as well as 2**
-(Lead's correction, Strategy accepted) — for a masked character the silhouette *is* the design, so there is no generic
-shape to test until he picks one. Brief 17 is landed as **PR #489** (`docs/briefs/knight.md`), approved by Strategy with
+**The Knight's reference is APPROVED and landed — #494** (`docs/character-references/knight-source-v1.png`, lean plate + great helm, owner-picked 2026-09-22). **Deliverable 1, the silhouette test, is unblocked and is the next action.** Keep one finding from the approval: differentiation from the Executioner is **not** about mass (measured shoulder/height — Executioner 0.36, Knight 0.39-0.40) but about **soft outline versus hard** — his hood, bare arms and falling cloth against the Knight's squared pauldrons, flat plate edges and articulated limbs. The build must keep that contrast; "bulkier than the Veteran, thinner than the Executioner" is a build-spec number the reference does not settle.
+
+~~Blocked on the reference image.~~ It gated deliverables 1 and 2 (for a masked character the
+silhouette *is* the design) and is now satisfied. Brief 17 is landed as **PR #489** (`docs/briefs/knight.md`), approved by Strategy with
 its §7 rulings written in.
 
 **When the image arrives, deliverable 1 is the silhouette harness** — black shapes at the fighter's camera beside the
