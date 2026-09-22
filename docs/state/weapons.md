@@ -49,8 +49,28 @@ goes READY behind Stats**. One bump for many, because kill links are the viral s
 **SEQUENCING, 2026-09-22 (the lead, correcting himself with Combat's answer).** Combat's **knife** is next, not the cleaver, and it
 touches the warden approach in `src/ai.ts` rather than estoc data — so #419's draft status does **not** gate them tomorrow; only the
 cleaver-and-after stacks on this lane. Read the other direction, that is this entry's unblocking event: the approach fix this entry is
-held on is the thing Combat is about to ship, so **watch trunk for `src/ai.ts` and re-run the full battery the moment it lands** rather
-than waiting to be told. Combat is taking this lane's knife `thrust.recovery` 15 → 20 as measured rather than re-deriving it.
+held on is the thing Combat is about to ship, so **watch trunk for `src/ai.ts`** rather than waiting to be told. Combat is taking this
+lane's knife `thrust.recovery` 15 → 20 as measured rather than re-deriving it.
+
+**CORRECTION, 2026-09-22 — the kicker hover is NOT this entry's unblocking event, and #419 should not be sequenced behind it.**
+Combat corrected their own mechanism (via the lead): the park is not the approach stop but the **kicker hover**, `src/ai.ts:323`
+`const hover = guardShare === 0 ? (reads.poker ? theirs.thrust.reach : reads.kicker ? theirs.kick.reach + .3 : 0) : 0`, with the clamp at
+`:330` zeroing forward drive below `hover − margin` (`:328`, margin `.05` for a kicker). That mechanism is real and the arithmetic
+reproduces: `MOVES.kick.reach` is 1.2, so hover = 1.50 and forward drive dies at **1.45**; the parked warden's *usable* reaches
+(`reach − .1`, the margin `inReach` keeps) are light 1.10, thrust 1.35, heavy 1.45 — parked at exactly the heavy's usable edge, only the
+heavy legal. **But those are the knife's reaches (1.2 / 1.45 / 1.55), not the estoc's** (1.95 / 2.30 / 2.20 with the fix). The warden is
+the **Goblin**, and that is forced: `guardShare = profile.guard ?? 1` (`:68`), and `guard: 0` appears in exactly one opponent's profiles
+in `src/moves.ts` — the goblin's easy/normal/hard (`:509–511`), whose comment says outright "never guards (guard 0)".
+
+**The Nightborn is not guardless**, so `hover` evaluates to 0 for him and the `hover > 0` clamp can never fire on his approach:
+`nightborn` (`src/moves.ts:495`) carries `guard: { window, recovery, commits }` — the directional-guard object, a different key — and
+none of his three profiles sets the AiProfile `guard` share, so it defaults to 1. **Therefore Combat's kicker-hover fix cannot move
+findings (2) or (3), and cannot move the trident row.** What it *does* explain is the `knife vs goblin hard: kick only untouched` 3/24
+stalemate this lane already routed to Combat as his approach rather than knife data — that row now has its mechanism, at 1.45 m.
+
+So the hold does not lift when that fix lands. Either a Nightborn-profile change is made, or the trident row is accepted and the flip
+test's membership pair is resolved by a product decision. **Do not re-run the full battery on the strength of the kicker fix alone** —
+it is a no-op for this weapon's problem, and re-measuring against it would buy the same table a second time.
 
 **Base check, 2026-09-22 (docs PR):** trunk has moved `1741dc5` → `cb8ff5b` (22 commits), and
 `git diff --stat b1455d4...cb8ff5b -- src/{ai,duel,moves,sim,record,opponents}.ts` is **empty** — not one sim file moved. So the numbers
