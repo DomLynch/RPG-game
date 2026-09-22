@@ -1,7 +1,8 @@
 # Shield — asset spec (multi-chars lane)
 
-Owner: multi-chars. Consumers: the **Veteran** archetype (7/7 from Legionary on) and the **Shieldmaiden**, whose round shield is
-always-on. Combat owns the fight rules; the loader owns equip and stow. This file is the asset.
+Owner: multi-chars. Consumers: the **Veteran** archetype (7/7 from Legionary on), the **Shieldmaiden**, whose round shield is always-on,
+and the **Centurion**, who takes a gladius and a scutum from the Legionary (Strategy with Dom's word, 00:15 — the trident stays a starter
+weapon with no wielder, and opponent grips are 5/5). Combat owns the fight rules; the loader owns equip and stow. This file is the asset.
 
 ## Beta ships ONE shape: the small round (Dom, 2026-09-22, superseding the three below)
 One mesh, materials doing all ten ranks. The reasons it is the right one of the three, rather than a compromise:
@@ -62,8 +63,17 @@ The shield is worn in the paperdoll **off-hand** and **stowed flat on the back w
 one-hand weapon is equipped. So it is authored with **two transforms** — in the off-hand, and flat on the back — plus a **back attachment
 point on the player rig**.
 
-**The equip/stow decision is the loader's, not the asset's**: it picks off-hand versus back by reading Weapons' `grip` field (ONE-HAND
-knife, cleaver, estoc, trident-as-spear; TWO-HAND warhammer, scythe, hero sword). The asset ships so either side can drive it.
+**The equip/stow decision is the loader's, not the asset's**: it picks off-hand versus back by reading Weapons' `grip` field — **ONE-HAND
+knife, cleaver, estoc; TWO-HAND trident, warhammer, scythe, hero sword.** The asset ships so either side can drive it.
+
+**The trident is TWO-hand, and this list is a spec rather than prose.** An earlier wording of it ("trident-as-spear") put the trident in
+the one-hand column, and `src/moves.ts` on trunk currently carries `TRIDENT ... grip: 'one-hand'` (verified at `becec83`; PR #472
+corrects it). Because the loader reads `grip` to decide where the shield sits, a wrong entry here is a **wrong transform**, not a wrong
+sentence — a one-hand trident would raise a shield straight through the haft.
+
+Worth recording as the check that settles it independently of anyone's memory: the trident is `guard: 'shaft'` with a `guardProfile`,
+exactly like the scythe, warhammer, maul and reaper — **and every other shaft-guard weapon in the file is `two-hand`.** The trident was
+the lone exception, which is the shape of a typo rather than a design.
 
 **Shipping shape:** loot-only, like the gloves — the stow transform travels as data on the piece rather than as a second draw, so nothing
 renders twice before the loader's grip wiring lands, and no fight GLB is rebuilt.
