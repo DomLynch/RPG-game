@@ -36,6 +36,10 @@ disagrees with this file, this file wins and the older line is stale. Dated deci
 - **Ten weapons, 5 one-hand + 5 two-hand**: knife, cleaver, estoc, gladius, bearded axe | longsword (hero), warhammer, trident,
   scythe, maul; the Witch's bladed staff rides the trident family. Opponent grips 5/5.
 - **Kit 10 × 10**: ten archetypes × ten tiers, six slots each from Legionary.
+- **Every launch character wears six takeable pieces of its own plus its weapon** (owner, 2026-09-22 23:12): the reference maps
+  onto the six slots as that character's pieces in the shared library, each a loot draw with tier materials. The Witch's robe and
+  hood ARE loot (Helmet = hood, Body = robe + cloak); nothing on a launch body is rig dressing. A brief names all six before it
+  merges. *Narrows the Pitborn-chest-is-not-loot precedent (#434) to the beta six.*
 - **Origin character layer** (`docs/progression-direction.md`): five stats STR / DEX / VIG / END / POISE at baseline 100 with +50
   points at Origin; armour classes light / medium / heavy give RES and cost DEX / END; POISE is a character stat, never on armour.
   Not built before launch.
