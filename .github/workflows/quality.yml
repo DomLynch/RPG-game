@@ -6,19 +6,22 @@
 name: quality
 on:
   # Docs-only changes are skipped: a markdown edit cannot break the build, the node suites or a browser gate, and
-  # docs-only PRs (the lane state docs) were 21 of 30 open PRs on 2026-09-22 — 70% of this workflow's load, each one
+  # docs-only PRs (the lane state docs) were 28 of 40 open PRs on 2026-09-22 — 70% of this workflow's load, each one
   # spending ~20 min of runner time on text. The branch has no required status checks, so a skipped run leaves nothing
   # pending. A PR that touches any non-docs file still runs the full gate.
+  # `**.md` (not `**/*.md`): the latter needs a slash, so it would miss root-level AGENTS.md / PROJECT_STATE.md.
+  # When a docs-only commit is trunk HEAD there is no CI run for it, so scripts/deploy.sh finds no green run and
+  # falls back to the full local quality gate — slower at deploy time, never less safe.
   push:
     branches: [codex/01a09a76/task-1]
     paths-ignore:
-      - '**/*.md'
+      - '**.md'
       - 'docs/**'
   pull_request:
     branches: [codex/01a09a76/task-1]
     # Repeated rather than a YAML anchor: the Actions workflow parser does not support anchors or aliases.
     paths-ignore:
-      - '**/*.md'
+      - '**.md'
       - 'docs/**'
 concurrency:
   group: quality-${{ github.ref }}
