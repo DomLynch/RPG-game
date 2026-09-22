@@ -137,6 +137,7 @@ def realistic_body():
     select_only([body, hbm])
     bpy.ops.object.data_transfer(data_type='VGROUP_WEIGHTS', vert_mapping='POLYINTERP_NEAREST', layers_select_src='ALL', layers_select_dst='NAME', use_create=True)
     clean_finger_weights(hbm)
+    fit_finger_bones(hbm)
     straighten_fingers(hbm, HIGH)
     for poly in hbm.data.polygons:
         poly.use_smooth = True
@@ -155,9 +156,15 @@ def realistic_body():
         pre_ring = [v.co for v in hbm.data.vertices if abs((v.co - eye_l).length - pre_radius) < 0.004 and v.co.y < eye_l.y + 0.01]
         pre = {'eye_l': eye_l, 'eye_r': eye_r, 'nose': pre_nose.copy(), 'mouth': Vector((0, pre_nose.y + 0.012, pre_nose.z - 0.038)),
                'lid_ring': (min(abs(c.x) for c in pre_ring), max(abs(c.x) for c in pre_ring)) if pre_ring else (eye_l.x - 0.018, eye_l.x + 0.022)}
-        if os.path.exists(HEADMOD.BASE_RENDER.rsplit('.', 1)[0] + '.landmarks.json'):
+        landmarks = HEADMOD.BASE_RENDER.rsplit('.', 1)[0] + '.landmarks.json'
+        if os.path.exists(landmarks):
             DENSE = HEADMOD.fit_head_dense([hbm, HIGH], eyes, hbm, pre)
             FITTED = None
+        elif os.environ.get('HEAD_DENSE', '1') == '1':
+            # The shipped face is the dense fit. The sparse fallback below moved the hero's chin 5 mm and nose 5 mm on a worktree
+            # that had lost artifacts/source/face to the f4ff30a untracking (2026-09-22), silently. Missing the landmarks is an
+            # error unless the sparse fit is asked for by name; artifacts/ files come back with `git archive f4ff30a^ artifacts/source/face | tar -x`.
+            raise SystemExit(f'{FIGHTER}: the dense face fit needs {landmarks} and it is missing -- the sparse fit would ship a different face silently. Restore artifacts/source/face (git archive f4ff30a^ artifacts/source/face | tar -x) or pass HEAD_DENSE=0 to mean it.')
         else:
             DENSE = None
             FITTED = HEADMOD.fit_head_to_photo([hbm, HIGH], eyes, pre)
@@ -676,6 +683,94 @@ def clean_finger_weights(mesh_obj):
                         mesh_obj.vertex_groups[index_of[target]].add([v.index], groups[target], 'REPLACE')
                 moved += 1
         print(f'FINGER WEIGHTS {side}: {len(cand)} finger vertices, {moved} re-homed to their own chain')
+
+
+def fit_finger_bones(mesh_obj):
+    """The rig's knuckles put where this body's knuckles are. The UAL rig's fingers are longer than the Studio mesh's
+    (measured on the shipped hero, 2026-09-22: the index's third knuckle sat at 93 % of the mesh finger and its bone tip
+    30 % past the fingertip; the thumb's distal joint 8 % past the thumb tip), so a clip's curl at the last joint moved no
+    skin and the outer half of each finger swung as one stiff stick — the long, spidery off-hand the owner saw in Armed and
+    Guard, invisible in a fist. Per digit: the finger's length is read off the mesh (its own chain's vertices, past the
+    knuckle), the joints are re-placed along each bone's OWN rest direction at anatomical fractions of that length
+    (proximal 45 %, middle 30 %, distal 25 %; the leaf a 1 cm marker past the tip), so every bone keeps its direction and
+    roll and the clips' rotations mean exactly what they did; then the finger's skin is re-weighted to the new joints — a
+    6 mm blend either side of each knuckle, the digit's total weight per vertex kept so the palm blends stay — and the leaf
+    bones, which no clip animates, carry no skin. Runs after clean_finger_weights (whose per-chain weights find the
+    finger) and before straighten_fingers (which reads the phalanx regions this lays down)."""
+    from mathutils import Vector
+    digits = ('index', 'middle', 'ring', 'pinky', 'thumb')
+    FRACTIONS = (0.45, 0.30, 0.25)   # of the mesh finger, knuckle to tip
+    BLEND = 0.006
+    index_of = {g.name: g.index for g in mesh_obj.vertex_groups}
+    report = []
+    plan = {}   # bone name → (head, tail) in armature space, after the fit
+    weights = {}   # (vertex index) → {bone name: weight}
+    inv = armature.matrix_world.inverted()
+    for side in ('l', 'r'):
+        for digit in digits:
+            chain = [f'{digit}_{seg}_{side}' for seg in ('01', '02', '03', '04_leaf')]
+            if any(n not in armature.data.bones for n in chain) or any(n not in index_of for n in chain[:3]):
+                report.append(f'{digit}_{side} SKIPPED (bones/groups missing)')
+                continue
+            mcp = joint(chain[0])
+            u = (bone_tail(chain[3]) - mcp).normalized()
+            gids = {index_of[n]: n for n in chain if n in index_of}
+            verts = []
+            for v in mesh_obj.data.vertices:
+                total, best, best_w = 0.0, None, 0.0
+                for g in v.groups:
+                    if g.group in gids:
+                        total += g.weight
+                        if g.weight > best_w:
+                            best_w, best = g.weight, g.group
+                if best is None or best_w < 0.45:
+                    continue
+                q = inv @ (mesh_obj.matrix_world @ v.co)
+                t = (q - mcp).dot(u)
+                if t > 0.004:
+                    verts.append((v.index, t, total))
+            if len(verts) < 40:
+                report.append(f'{digit}_{side} SKIPPED ({len(verts)} verts)')
+                continue
+            tip = max(t for _, t, _ in verts)
+            # the joints along each bone's own rest direction
+            heads = [mcp]
+            for k in range(3):
+                d = (bone_tail(chain[k]) - joint(chain[k])).normalized()
+                heads.append(heads[k] + d * (tip * FRACTIONS[k]))
+            leaf_dir = (bone_tail(chain[3]) - joint(chain[3])).normalized()
+            for k in range(3):
+                plan[chain[k]] = (heads[k], heads[k + 1])
+            plan[chain[3]] = (heads[3], heads[3] + leaf_dir * 0.01)
+            j1, j2 = tip * FRACTIONS[0], tip * (FRACTIONS[0] + FRACTIONS[1])
+            for vi, t, total in verts:
+                a = min(1.0, max(0.0, (t - (j1 - BLEND)) / (2 * BLEND)))   # share past the second knuckle
+                b = min(1.0, max(0.0, (t - (j2 - BLEND)) / (2 * BLEND)))   # share past the third
+                w = {chain[0]: (1 - a) * total, chain[1]: (a - b) * total, chain[2]: b * total, chain[3]: 0.0}
+                weights[vi] = w
+            old3 = (joint(chain[2]) - mcp).dot(u)   # where the rig had the third knuckle before the fit
+            report.append(f'{digit}_{side}: finger {tip * 1000:.0f} mm, third knuckle {100 * old3 / tip:.0f} % → 75 %, {len(verts)} verts re-weighted')
+    # apply the joints in edit mode (children first would drag connected parents: set every head, then every tail)
+    select_only([armature])
+    bpy.ops.object.mode_set(mode='EDIT')
+    eb = armature.data.edit_bones
+    for name, (head, tail) in plan.items():
+        eb[name].use_connect = False   # a connected child would drag its parent's tail: place each bone on its own
+    for name, (head, tail) in plan.items():
+        eb[name].head = head
+        eb[name].tail = tail
+    bpy.ops.object.mode_set(mode='OBJECT')
+    select_only([mesh_obj])
+    # apply the weights
+    for vi, w in weights.items():
+        for name, value in w.items():
+            g = mesh_obj.vertex_groups[index_of[name]]
+            if value > 1e-4:
+                g.add([vi], value, 'REPLACE')
+            else:
+                g.remove([vi])
+    bpy.context.view_layer.update()
+    print('FINGER BONES FITTED: ' + '; '.join(report))
 
 
 def transfer_weights(part):

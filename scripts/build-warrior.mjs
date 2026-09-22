@@ -192,18 +192,21 @@ else {
 // Authored parts from scripts/character/parts.py: meshes in this same unscaled rest space, rigid to extras.bone,
 // merged into the per-material skinned draws exactly like the primitives above. No parts → identical output.
 const partsDir = process.env.WARRIOR_PARTS || 'src/assets/source/parts';
-const partFiles = LOOT ? [] : (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb') && (variant ? f.endsWith(`_${variant}.glb`) : !/_\w+\.glb$/.test(f))).sort(); // body_<variant>.glb + level1_<variant>.glb; the classic build takes the untagged level1.glb
+const FINGER_BONE = /^(index|middle|ring|pinky|thumb)_/, authoredFingerJoints = new Map();   // bone name → rest joint, from the authored body part
+const partFiles = (await fs.readdir(partsDir).catch(() => [])).filter(f => f.endsWith('.glb') && (variant ? f.endsWith(`_${variant}.glb`) : !/_\w+\.glb$/.test(f)) && (!LOOT || f.startsWith('body_'))).sort();   // loot: the body part only, for its finger joints (the rig the loot binds to must be the player's) // body_<variant>.glb + level1_<variant>.glb; the classic build takes the untagged level1.glb
 for (const file of partFiles) {
   const glb = await fs.readFile(path.join(partsDir, file)), part = await loader.parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '');
   part.scene.updateMatrixWorld(true);
   part.scene.traverse(o => {
     if (!o.isMesh) return;
+    if (LOOT) { if (o.isSkinnedMesh && o.userData.slot === 'Skin') for (const b of o.skeleton.bones) if (FINGER_BONE.test(b.name)) authoredFingerJoints.set(b.name, new T.Vector3().setFromMatrixPosition(b.matrixWorld)); return; }
     const material = [...parts.keys()].find(m => m.name === o.userData.material);
     if (!material || (!o.userData.bone && !o.isSkinnedMesh)) throw new Error(`${file}: mesh ${o.name} needs extras.material (${[...parts.keys()].map(m => m.name).join('|')}) and extras.bone or skin weights`);
     const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
     if (o.isSkinnedMesh && !o.userData.bone) { // authored weights: the part's joint order → this skeleton's, by bone name
       const map = o.skeleton.bones.map(b => skeleton.bones.some(x => x.name === b.name) ? boneIndex(b.name) : boneIndex(b.name.replace(/[._]\d{1,3}$/, ''))), index = g.getAttribute('skinIndex');
       g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
+      if (o.userData.slot === 'Skin') for (const b of o.skeleton.bones) if (FINGER_BONE.test(b.name)) authoredFingerJoints.set(b.name, new T.Vector3().setFromMatrixPosition(b.matrixWorld));   // the body's own finger joints (parts.py fit_finger_bones)
     }
     add(g, material, o.userData.bone, 0, 0, 0, 0, o.userData.slot || '');
   });
@@ -404,6 +407,27 @@ function proportionField(bones) {
   const drop = -feet[0];
   for (const b of skeleton.bones) if (b.parent?.isBone) shift[boneIndex(b.name)].y += drop;
   return { joint, frame, S, field, shift, drop };
+}
+// The rig's finger joints where the BODY's knuckles are (hero v44, 2026-09-22). The UAL rig's fingers are longer than the Studio
+// mesh's: the index's third knuckle sat at 93 % of the mesh finger and its bone tip 30 % past the fingertip, so a clip's curl at the
+// last joint moved no skin and the outer half of the finger swung as one stiff stick — the long, spidery off-hand in Armed/Guard.
+// parts.py (fit_finger_bones) moves each finger's joints along the bones' own rest directions to anatomical fractions of the mesh
+// finger and re-weights the skin to them; that armature ships inside the body part, and its finger joints are adopted here:
+// rest positions rebuilt for the moved bones, inverse binds recomputed, rest rotations untouched (the clips key finger rotations only).
+// A body part authored before the fit carries the rig's own joints and changes nothing. Before `reproportion`: it composes on top.
+if (authoredFingerJoints.size) {
+  const bind = i => new T.Matrix4().copy(skeleton.boneInverses[i]).invert();
+  const frame = skeleton.bones.map((_, i) => new T.Quaternion().setFromRotationMatrix(bind(i)));
+  const joint = skeleton.bones.map((_, i) => new T.Vector3().setFromMatrixPosition(bind(i)));
+  const moved = [];
+  for (const [name, at] of authoredFingerJoints) { const i = boneIndex(name); if (at.distanceTo(joint[i]) > 1e-4) { joint[i].copy(at); moved.push(name); } }
+  if (moved.length) {
+    for (const b of skeleton.bones) if (b.parent?.isBone && FINGER_BONE.test(b.name)) { const i = boneIndex(b.name), p = boneIndex(b.parent.name); b.position.copy(joint[i]).sub(joint[p]).applyQuaternion(frame[p].clone().invert()); }
+    base.scene.updateMatrixWorld(true); skeleton.calculateInverses();
+    const check = moved.filter(n => new T.Vector3().setFromMatrixPosition(bind(boneIndex(n))).distanceTo(authoredFingerJoints.get(n)) > 1e-5);
+    if (check.length) throw new Error(`finger joints: ${check.join(', ')} did not land on the authored joints`);
+    console.log(`  finger joints: ${moved.length} bones moved to the body's knuckles (${moved.filter(n => /_03_/.test(n)).map(n => n.replace('_03', '')).join(', ')})`);
+  }
 }
 if (BUILD.bones) {
   const { joint, frame, field, shift, drop } = proportionField(BUILD.bones);

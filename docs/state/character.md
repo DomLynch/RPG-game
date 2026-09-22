@@ -2,6 +2,18 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Hero hands v44 — rig knuckles fitted to the mesh (hero lane, 2026-09-22, owner: "solve it please, AAA grade visual for hands")
+The off-hand still read as spider fingers after v43 because the rig's finger joints sat past the mesh's knuckles (index 3rd
+knuckle at 93 %, bone tip 130 % of the finger). `parts.fit_finger_bones` re-places every digit's joints at 45/75/100 % of
+the mesh finger along the bones' own directions and re-weights the skin; `build-warrior.mjs` adopts the body part's finger
+joints (rest positions + inverse binds) for warrior.glb AND loot.glb. Face sha-identical to v43; face textures v43 bytes.
+Evidence: `artifacts/character/humanoid-v44/` (before/after sheets, untracked), `tests/hero-hands.test.ts` hero row
+`knuckles` (fails on v43's GLB: `index_l: third knuckle at 93 %`), quality:stop 427 tests / 425 pass / 0 fail / 2 skips.
+Found + fixed on the way: worktrees that pull past f4ff30a lose `artifacts/source/{face,keentools/…}` and the sparse face
+fit silently replaced the dense one (chin −5 mm) — now a loud SystemExit unless HEAD_DENSE=0; restore with
+`git archive f4ff30a^ artifacts/source/face | tar -x`. Remaining: the other humanoids share the rig defect (their
+body_* parts predate fit_finger_bones) — Scalable Chars' rebuild through the fixed parts.py picks it up for free.
+
 ## Spider-hand fix reaches the opponents — pitborn, goblin, nightborn rebuilt (Scalable Chars, 2026-09-22)
 #255 (hero v43) fixed clean_finger_weights/straighten_fingers in parts.py's realistic_body(), but only warrior.glb was
 rebuilt after; every opponent still shipped the pre-fix bind (Lead Dev's assignment, verified by Character Main and Auditer).
