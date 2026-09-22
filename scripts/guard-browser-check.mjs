@@ -20,7 +20,8 @@ try {
   const context = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   page.on('pageerror', e => receipt.errors.push(String(e)));
-  page.on('console', m => { if (m.type() === 'error') receipt.errors.push(m.text()); });
+  page.on('console', m => { const where = m.location()?.url ?? ''; if (m.type() === 'error' && !/favicon\.ico/.test(`${m.text()} ${where}`)) receipt.errors.push(`${m.text()} ${where}`.trim()); });   // the URL, so a real 404 is never mistaken for the favicon's
+  page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) receipt.errors.push(`${r.status()} ${r.url()}`); });   // the page's own 404s; the favicon is the preview server's, not the guard's
   await page.goto(url);
   await page.waitForFunction(() => window.__guard?.ready, null, { timeout: 90000 });
   const clips = await page.evaluate(() => window.__guard.clips);

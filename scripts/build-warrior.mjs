@@ -68,6 +68,7 @@ if (GUARD) {
   const map = lean.skeleton.bones.map(b => { const i = skeleton.bones.findIndex(x => x.name === b.name || x.name === b.name.replace(/[._]\d{1,3}$/, '')); if (i < 0) throw new Error(`guard body: no bone ${b.name} on the hero rig`); return i; });
   g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
   g.morphAttributes = {}; body.geometry = g;
+  body.name = 'Skin'; body.userData.slot = 'Skin';   // warrior.glb's name for the body draw: the world lane reads the same scene shape on both
   console.log(`  guard body: ${g.getAttribute('position').count} vertices, ${(g.index ? g.index.count : g.getAttribute('position').count) / 3} triangles`);
 }
 const cloth = new T.MeshStandardMaterial({ name: 'Gambeson', color: '#9a8f7c', roughness: 0.96 }); // undyed, dirty linen
@@ -538,21 +539,42 @@ if (GUARD) {   // five clips from the two libraries, the hero's retarget; no swo
     retargetClip(library2, 'OverhandThrow', 'Raise', { t0: 0, t1: .53 }),      // the throw's wind-up: the whip arm up and held (clamp the last frame)
     retargetClip(library2, 'Sword_Regular_A', 'Lash', { duration: .6 }),      // a forward diagonal swipe, retimed
   ];
+  // Animation is the guard file's bulk (five clips over 65 bones). Two cuts a ring-wall guard cannot show: his fingers and toes never
+  // animate (they hold the whip or fold, and the rest pose is right), and 15 keys a second is plenty for a walk at that distance.
+  const STATIC = /^(?:index|middle|ring|pinky|thumb|ball)_|_leaf\./;
+  for (const clip of guardClips) {
+    clip.tracks = clip.tracks.filter(track => !STATIC.test(track.name));
+    for (const track of clip.tracks) {
+      const size = track.getValueSize(), keep = [];
+      for (let i = 0; i < track.times.length; i++) if (i % 2 === 0 || i === track.times.length - 1) keep.push(i);
+      if (keep.length === track.times.length) continue;
+      track.times = new Float32Array(keep.map(i => track.times[i]));
+      const values = new Float32Array(keep.length * size);
+      keep.forEach((from, to) => values.set(track.values.subarray(from * size, (from + 1) * size), to * size));
+      track.values = values;
+    }
+    clip.optimize();
+  }
   const root = base.scene.getObjectByName('root'), q0 = root.quaternion.clone(), q1 = q0.clone().premultiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), Math.PI));
   guardClips[2].tracks.push(new T.QuaternionKeyframeTrack('root.quaternion', [0, .6], [...q0.toArray(), ...q1.toArray()]));   // about-face in place; the world lane adds π to the heading when it ends
   base.scene.updateMatrixWorld(true);
   const draws = body.parent.children.filter(m => m.isSkinnedMesh), tris = draws.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3, 0);
   let rigid = 0; base.scene.traverse(o => { if (o.isMesh && !o.isSkinnedMesh) rigid += (o.geometry.index ? o.geometry.index.count : o.geometry.getAttribute('position').count) / 3; });
-  // The classic materials: Skin/Hair/Gambeson/Leather from the untagged manifest (the CC0 body's own tiles), procedural for the rest.
-  const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials', manifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest.json'), 'utf8').catch(() => '{}'));
-  const maps = new Map();
-  for (const name of ['Skin', 'Gambeson', 'Leather']) if (manifest[name]) {
-    const entry = { normalScale: manifest[name].normalScale, occlusionTexCoord: manifest[name].occlusionTexCoord ?? 0 };
-    for (const slot of ['baseColor', 'metallicRoughness', 'normal']) if (manifest[name][slot]) entry[slot] = { bytes: await fs.readFile(path.join(materialsDir, manifest[name][slot])), mime: /\.jpe?g$/i.test(manifest[name][slot]) ? 'image/jpeg' : 'image/png' };
-    maps.set(name, entry);
-  }
+  // Materials on a texture diet: the hero's own tiles are 100–230 KB each and six guards never come closer than the ring wall, so the
+  // guard ships his own 256²/128² crops of the CC0 skin (scripts/character/guard_body.py's sibling step writes them to source/guard/)
+  // and lets every other material take the procedural 256² tiles finishMaterials already generates. Measured: 807 KB of maps → 25 KB.
+  const guardDir = 'src/assets/source/guard', maps = new Map();
+  maps.set('Skin', {
+    baseColor: { bytes: await fs.readFile(path.join(guardDir, 'skin_color.jpg')), mime: 'image/jpeg' },
+    normal: { bytes: await fs.readFile(path.join(guardDir, 'skin_normal.jpg')), mime: 'image/jpeg' },
+    occlusion: { bytes: await fs.readFile(path.join(guardDir, 'ao_body.jpg')), mime: 'image/jpeg' },
+    normalScale: 0.8, occlusionTexCoord: 0,
+  });
   base.scene.scale.set(.9, .97, .97); base.scene.position.y = .025; base.scene.updateMatrixWorld(true);   // the hero's scene-root fit, so a guard stands the hero's height
-  const bytes = finishMaterials(Buffer.from(await new GLTFExporter().parseAsync(base.scene, { binary: true, animations: guardClips, onlyVisible: true })), maps);
+  // `procedural: false`, as loot.glb ships: the generated 256² PNG grain/linen/hide tiles are 50–85 KB each and were 419 KB of the packed
+  // file (measured) — four times the guard's geometry budget in texture nobody can resolve at the ring wall. Steel, Leather, Gambeson and
+  // the brass keep their palette colour and roughness factors; only the guard's own three small skin crops are embedded.
+  const bytes = finishMaterials(Buffer.from(await new GLTFExporter().parseAsync(base.scene, { binary: true, animations: guardClips, onlyVisible: true })), maps, false);
   await fs.writeFile(output, bytes);
   console.log(`Guard → ${output}: ${bytes.byteLength} bytes; ${Math.round(tris + rigid)} triangles (${Math.round(tris)} skinned + ${Math.round(rigid)} rigid); clips ${guardClips.map(c => `${c.name} ${c.duration.toFixed(2)}s`).join(', ')}`);
   process.exit(0);

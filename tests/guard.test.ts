@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import test from 'node:test';
+import { optimizeGlb } from '../scripts/optimize-glb.mjs';
 
 type Gltf = { nodes: { name: string; mesh?: number; skin?: number }[]; meshes: { primitives: { indices: number; attributes: Record<string, number> }[] }[]; skins: { joints: number[] }[]; accessors: { count: number; type: string }[]; animations: { name: string; samplers: { input: number }[] }[]; images?: unknown[] };
 function glb(path: string) {
@@ -15,7 +16,7 @@ const triangles = (json: Gltf) => json.nodes.filter(n => n.mesh !== undefined).r
 // and this worktree builds it in a booked window on the shared Mac (one deployer). The same shape as tests/loot-data.test.ts's skip:
 // the check runs for real the moment the file is there, and a missing asset never reads as a pass.
 const GUARD_GLB = new URL('../src/assets/guard.glb', import.meta.url);
-test('guard.glb: the hero rig\'s bones, five clips, under the triangle budget, no eyes or hair, a whip and a cap on it', { skip: !existsSync(GUARD_GLB) && 'src/assets/guard.glb is not built yet (Brief 13: bake + WARRIOR_GUARD=1 build)' }, () => {
+test('guard.glb: the hero rig\'s bones, five clips, under the triangle budget, no eyes or hair, a whip and a cap on it', { skip: !existsSync(GUARD_GLB) && 'src/assets/guard.glb is not built yet (Brief 13: bake + WARRIOR_GUARD=1 build)' }, async () => {
   const guard = glb('../src/assets/guard.glb'), hero = glb('../src/assets/warrior.glb');
   const names = (g: { json: Gltf }, skin: number) => g.json.skins[skin].joints.map(i => g.json.nodes[i].name);
   const skinned = guard.json.nodes.filter(n => n.skin !== undefined);
@@ -31,5 +32,6 @@ test('guard.glb: the hero rig\'s bones, five clips, under the triangle budget, n
   const tris = triangles(guard.json);
   assert.ok(tris <= 14000, `${tris} triangles, budget 14,000 (six instances on a phone)`);
   assert.ok(tris > 5000, `${tris} triangles: a body is still there`);
-  assert.ok(gzipSync(guard.bytes).length <= 400_000, `${gzipSync(guard.bytes).length} B gzip of the source file; the served, meshopt-packed file is smaller still (check-budget caps it at 400 KB)`);
+  const packed = gzipSync(await optimizeGlb(guard.bytes));   // what check-budget measures: the dist file, meshopt-packed, then gzipped
+  assert.ok(packed.length <= 400_000, `${packed.length} B packed gzip, budget 400,000 (check-budget's guard row)`);
 });
