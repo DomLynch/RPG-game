@@ -3,7 +3,17 @@
 Owner: multi-chars. Consumers: the **Veteran** archetype (7/7 from Legionary on) and the **Shieldmaiden**, whose round shield is
 always-on. Combat owns the fight rules; the loader owns equip and stow. This file is the asset.
 
-## Three shapes, ten ranks (Dom, 2026-09-22)
+## Beta ships ONE shape: the small round (Dom, 2026-09-22, superseding the three below)
+One mesh, materials doing all ten ranks. The reasons it is the right one of the three, rather than a compromise:
+- It is the **gladiator-correct** shape — a small round shield is what this game's fighters would carry.
+- It is the **Shieldmaiden's identity shape**, so one asset serves both named consumers instead of one serving each.
+- It is the smallest on screen and the cheapest on a phone, and the off-hand is the slot a player sees least.
+
+What is given up: at Origin a small round in gold reads *modest* rather than imposing — the material has to carry the whole rank. That is
+acceptable, and it is reversible: **adding the kite and the tower later is additive, not a re-author**, because the tier→shape mapping is
+data and the material ladder is unchanged. The three-shape plan below stays here as the agreed shape of the expansion, not as dead text.
+
+## Three shapes, ten ranks — the expansion, not the beta
 The shield gets fancier with rank. Shape does the coarse work, material does the per-rank work:
 
 | shape | ranks | the look |
@@ -18,7 +28,7 @@ the ladder was designed not to pay for, so it is spent deliberately and only thr
 material ladder runs inside each shape: a wooden round with an iron rim at Recruit, bronze boss at Champion, a blackened kite at Primus,
 gold or black tower at Origin.
 
-The base is authored as the **kite** — it is the middle case and both named consumers sit on it.
+When the expansion lands, the base is authored as the **kite** — the middle case. **For beta the base is the small round**, and the kite and tower are cut from it later.
 
 ## The one thing that makes shields unlike every other slot — a decision for Combat, not for art
 Everywhere else on the ladder a higher tier is pure vanity and the fight is unchanged. A shield's **shape is read as coverage**: a tower
