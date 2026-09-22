@@ -92,7 +92,7 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
 {
   const sim = simulate(${seedStart});
   const at = sim.frames.findIndex(f => f.events.some(e => e.type === 'Hit' && e.target === 1) && f.practice.health <= .6 * f.practice.enemyMaxHealth && f.practice.health > 0);
-  if (at >= 0) windows.wounded = { frames: sim.frames.slice(0, at + 30), killIndex: 1e9 };
+  if (at >= 0) windows.wounded = { frames: sim.frames.slice(0, at + 200), killIndex: 1e9, hitIndex: at };   // 3.3 s past the blow: the runs lengthen, then hold
 }
 // Outcomes outside the automatic rotation (The Quiet One since the beta cut, owner 2026-09-20) are still shipped and
 // forceable from the dev picker; the harness reaches them the same way — the production override on a real kill from a
@@ -189,6 +189,7 @@ window.__finisher = {
     return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(this.inspect()))));
   },
   count(which) { return windows[which]?.frames.length ?? 0; },
+  hitIndex(which) { return windows[which]?.hitIndex ?? -1; },
   probe() { return view.probe(); },
   killIndex(which) { return windows[which].killIndex; },
   play(which, i, mode) {
@@ -241,17 +242,28 @@ try {
     // exit 0 — a release gate has to fail there, not pass vacuously. The scripted duel (paced heavies, passive warden)
     // reaches 60 % well before any kill on every shipped opponent; if it stops doing that, that is itself a real finding.
     assert.ok(count > 0, 'the scripted duel must reach the warden at 60 % health or below before the kill — it never did');
+    // The runs (owner 2026-09-22, "proper blood dripping"): stills at 0.3 / 1.5 / 3 s after the blow, front and rear, and the
+    // acceptance rule as a gate — at 1.5 s the longest run is visibly longer than at 0.3 s and at least 8 cm on a man's torso.
+    const hitIndex = await page.evaluate(() => __finisher.hitIndex('wounded')), runs = {};
+    for (const [seconds, tag] of [[0.3, '0.3s'], [1.5, '1.5s'], [3, '3s']]) {
+      const i = Math.min(count - 1, hitIndex + Math.round(seconds * 60));
+      await page.evaluate(([j]) => __finisher.play('wounded', j, 'red'), [i]);
+      runs[tag] = (await page.evaluate(() => __finisher.probe())).bodyWounds[1];
+      await page.screenshot({ path: `${dir}/wounds-${tag}-front.png` });
+      await page.evaluate(([j]) => __finisher.rear('wounded', j), [i]); await page.screenshot({ path: `${dir}/wounds-${tag}-rear.png` });
+    }
+    console.log(`  wounds: runs 0.3 s ${runs['0.3s'].drip} m → 1.5 s ${runs['1.5s'].drip} m → 3 s ${runs['3s'].drip} m (${runs['1.5s'].visible} mark(s), opacity ${runs['1.5s'].opacity})`);
+    assert.ok(runs['1.5s'].visible >= 1 && runs['1.5s'].opacity > .3, 'a wounded warden shows at least one mark once at 60 % health or below');
+    assert.ok(runs['1.5s'].drip > runs['0.3s'].drip * 1.5, `the run is visibly longer at 1.5 s than at 0.3 s (${runs['0.3s'].drip} → ${runs['1.5s'].drip} m)`);
+    assert.ok(runs['3s'].drip >= runs['1.5s'].drip - 1e-6, 'and never shorter at 3 s');
+    if (opponent === 'veteran' || opponent === 'nightborn' || opponent === 'executioner' || opponent === 'goblin') assert.ok(runs['1.5s'].drip >= 0.08, `at least 8 cm at 1.5 s on the torso, the goblin's pauldron in place (${runs['1.5s'].drip} m)`);
     await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
     const red = (await page.evaluate(() => __finisher.probe())).bodyWounds;
     await page.screenshot({ path: `${dir}/wounds-phone.png` });
-    await page.evaluate(() => __finisher.rear('wounded')); await page.screenshot({ path: `${dir}/wounds-phone-rear.png` });   // the warden's face and chest, from behind him... i.e. the camera swung round
-    await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
     await page.evaluate(([i]) => __finisher.play('wounded', i, 'off'), [count - 1]);
     const off = (await page.evaluate(() => __finisher.probe())).bodyWounds;
-    console.log(`  wounds: warden ${red[1].visible} mark(s) showing (opacity ${red[1].opacity}, drip ${red[1].drip}); off → ${off[1].visible}`);
-    assert.ok(red[1].visible >= 1 && red[1].opacity > .3, 'a wounded warden shows at least one mark once at 60 % health or below');
     assert.equal(off[1].visible, 0, "blood 'off' hides the body wounds");
-    await save('wound-checks.json', JSON.stringify({ opponent, commit, red, off }, null, 2));
+    await save('wound-checks.json', JSON.stringify({ opponent, commit, runs, red, off }, null, 2));
     await page.context().close();
   }
   // Mode stills: one clean playthrough per blood mode per outcome (scene state evolves with playback, so each mode replays from scratch).

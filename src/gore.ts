@@ -175,40 +175,103 @@ export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>): WoundS
   const side = hit.direction === 'right' ? 1 : hit.direction === 'left' ? -1 : 0;
   if (hit.location === 'head') return { bone: 'Head', dir: side ? [side * .9, .25, .35] : hit.direction === 'overhead' ? [0, .75, .65] : [0, .1, 1], radius: .105, width: .55 };
   if (hit.location === 'legs') return { bone: side < 0 ? 'thigh_r' : 'thigh_l', dir: side ? [side * .85, 0, .5] : [0, 0, 1], radius: .085, width: .6 };
-  if (hit.direction === 'overhead') return { bone: 'spine_03', dir: [.35, .55, .75], radius: .16, width: .8 };   // the shoulder line, sword side up
+  if (hit.direction === 'overhead') return { bone: 'spine_03', dir: [.35, .55, .75], radius: .22, width: .8 };   // the shoulder line, sword side up; .22 clears a cloak or pauldron (Lead 2026-09-22: radius, not the depth test)
   return { bone: side ? 'spine_02' : 'spine_03', dir: side ? [side * .9, .05, .45] : [0, 0, 1], radius: side ? .17 : .15, width: side ? .7 : 1 };
 }
+// The blood's own look (owner 2026-09-22: "proper blood dripping", not a paint sticker): photo-grade textures generated with
+// FLUX.1-Krea through the creature pipeline's own gradio_client route, alpha-keyed from a white plate — a lopsided glossy
+// splat with a dark core and thin translucent edge, and a drip with a rounded bead at its leading edge and a tapering tail —
+// plus small normal maps from their own luminance so the arena sun catches the bead. Loaded lazily in the browser only; the
+// node tests build the pool without textures (the canvas splat stands in until the PNG lands, and forever under node).
+const BLOOD_ASSET = (file: string) => new URL(`./assets/blood/${file}`, import.meta.url).href;
+export const BLOOD_TEXTURES = { splat: 'blood-splat.png', splatNormal: 'blood-splat-normal.png', drip: 'blood-drip.png', dripNormal: 'blood-drip-normal.png' } as const;
+// A run: after a landed hit each strand waits DRIP.start, then grows from a bead to a streak over DRIP.duration (both seeded
+// per strand), stops, and dries — roughness DRY.roughness[0] → [1] and the fresh tone → the dried tone over DRY.seconds.
+// New hits add fresh runs. Nothing here cycles: a run that has finished stays as it lies until the rematch clears it.
+export const DRIP = { start: [0, 0.3], duration: [1.5, 3], width: [0.75, 1.3], offset: 0.03, bead: 0.028, length: [0.11, 0.19] } as const;   // seconds, seconds, ×, metres, metres, metres at threshold → at death (a man's torso)
+export const DRY = { seconds: 20, roughness: [0.42, 0.75] } as const;   // a thin wet edge, not a gloss coat
+const FRESH = new THREE.Color('#7a2a2c'), DRIED = new THREE.Color('#3a2426');   // multiplied over the photo texture's own reds: crimson, not the photo's neon (owner 2026-09-22: 'paintball sticker')
+const CANVAS_FRESH = new THREE.Color('#581017'), CANVAS_DRIED = new THREE.Color('#2a1516');   // the tint the white canvas splat needs until the photo lands (and under node)
+const DARK_MODE = new THREE.Color('#5a4d4c');
+// Seeded per hit from what the simulation already decided — the fight's hit ordinal on this side, the blow's heading, its
+// location and direction — so a replay of the same fight draws the same runs. A small LCG, never Math.random.
+export function woundSeed(index: number, hit: Pick<WoundHit, 'location' | 'direction' | 'heading'>): number {
+  const loc = { head: 1, torso: 2, legs: 3 }[hit.location], dir = { right: 1, left: 2, overhead: 3, thrust: 4, low: 5 }[hit.direction];
+  return (Math.imul(index + 1, 2654435761) ^ Math.imul(Math.round(hit.heading * 1000) | 0, 40503) ^ (loc * 7919 + dir * 104729)) >>> 0;
+}
+export function lcg(state: number): number { return (Math.imul(state, 1664525) + 1013904223) >>> 0; }
+const unit = (state: number) => state / 4294967296;
 export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture | null) {
-  type Mark = { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>; drips: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; bone: THREE.Object3D | null; dir: THREE.Vector3; radius: number; width: number; scale: number; age: number; used: boolean };
-  const material = () => new THREE.MeshBasicMaterial({ color: '#581017', transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
+  type Strand = { mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>; map: THREE.Texture | null; start: number; duration: number; width: number; offset: number; live: boolean };
+  type Mark = { group: THREE.Group; mark: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>; strands: Strand[]; bone: THREE.Object3D | null; dir: THREE.Vector3; radius: number; width: number; scale: number; age: number; used: boolean; runs: number };
+  // Lit, wet, and drawn OVER the rig (Strategy ruling 2026-09-22, Dom: "leaks through, over"): no depth test, so a cloak or a
+  // pauldron never hides the wound; no depth write. What stops it bleeding through the body is the facing test in update():
+  // a mark whose surface normal points away from the eye is hidden, not depth-buffered.
+  const material = (map: THREE.Texture | null, normalMap: THREE.Texture | null) => new THREE.MeshStandardMaterial({
+    color: FRESH, map, normalMap, normalScale: new THREE.Vector2(0.45, 0.45), roughness: DRY.roughness[0], metalness: 0,
+    transparent: true, opacity: 0, depthWrite: false, depthTest: false,
+  });
   const fighters = [0, 1].map(() => Array.from({ length: WOUNDS_PER_FIGHTER }, (): Mark => {
-    const group = new THREE.Group(), mark = new THREE.Mesh(new THREE.PlaneGeometry(.12, .12), Object.assign(material(), { map: splatTexture }));
-    const drips = [0, 1, 2].map((i) => { const drip = new THREE.Mesh(new THREE.PlaneGeometry(.011, .1), material()); drip.position.x = (i - 1) * .028; group.add(drip); return drip; });
+    const group = new THREE.Group(), mark = new THREE.Mesh(new THREE.PlaneGeometry(.12, .12), material(splatTexture, null));
+    const strands = [0, 1, 2].map((): Strand => {
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material(null, null));   // unit quad: scale = (width, length)
+      mesh.geometry.translate(0, -0.5, 0);   // hang from the top edge: y=0 is the wound, the quad grows downward
+      group.add(mesh);
+      return { mesh, map: null, start: 0, duration: 1, width: 1, offset: 0, live: false };
+    });
     group.add(mark); group.visible = false; scene.add(group);
-    return { group, mark, drips, bone: null, dir: new THREE.Vector3(), radius: 0, width: 1, scale: 1, age: 0, used: false };
+    return { group, mark, strands, bone: null, dir: new THREE.Vector3(), radius: 0, width: 1, scale: 1, age: 0, used: false, runs: 0 };
   }));
-  let next = [0, 0];
-  // Scratch objects (Lead review, 2026-09-22): the per-mark update below ran ~6 THREE allocations per visible mark per
-  // frame (up to 10 marks). Reused across marks and frames — the loop is synchronous and single-threaded, so nothing
-  // reads a scratch value across iterations.
+  let next = [0, 0], photo = false;   // photo: the FLUX textures have landed (they carry their own colour; the canvas splat needs the tint)
+  // Textures land after the pool exists (browser only). Every strand gets its own clone of the drip map so its UV window can
+  // show only the part of the run that has happened — the bead at the leading edge never stretches.
+  if (typeof document !== 'undefined') {
+    const loader = new THREE.TextureLoader();
+    const srgb = (t: THREE.Texture) => { t.colorSpace = THREE.SRGBColorSpace; return t; };
+    Promise.all([BLOOD_TEXTURES.splat, BLOOD_TEXTURES.splatNormal, BLOOD_TEXTURES.drip, BLOOD_TEXTURES.dripNormal].map((f) => loader.loadAsync(BLOOD_ASSET(f)))).then(([splat, splatNormal, drip, dripNormal]) => {
+      srgb(splat); srgb(drip); photo = true;
+      for (const side of fighters) for (const mark of side) {
+        mark.mark.material.map = splat; mark.mark.material.normalMap = splatNormal; mark.mark.material.needsUpdate = true;
+        for (const strand of mark.strands) {
+          strand.map = drip.clone(); strand.map.needsUpdate = true;
+          strand.mesh.material.map = strand.map; strand.mesh.material.normalMap = dripNormal; strand.mesh.material.needsUpdate = true;
+        }
+      }
+    }).catch(() => {});   // no textures: the canvas splat and untextured strands still draw; nothing throws mid-fight
+  }
+  // Scratch objects (Lead review, 2026-09-22): reused across marks and frames — the loop is synchronous and single-threaded,
+  // so nothing reads a scratch value across iterations. Per frame the update writes only transforms, opacity, roughness and
+  // colour; it allocates nothing.
   const scratchQuat = new THREE.Quaternion(), scratchPos = new THREE.Vector3(), scratchNormal = new THREE.Vector3();
-  const scratchRight = new THREE.Vector3(), scratchForward = new THREE.Vector3(), scratchMatrix = new THREE.Matrix4();
-  const tone = (mode: BloodMode) => (mode === 'dark' ? '#241314' : '#581017');
+  const scratchRight = new THREE.Vector3(), scratchForward = new THREE.Vector3(), scratchMatrix = new THREE.Matrix4(), scratchColor = new THREE.Color(), scratchEye = new THREE.Vector3();
+  const ease = (t: number) => 1 - (1 - t) * (1 - t);   // a run starts fast and slows as it thins out
   return {
-    // A blow landed on `side`: take the next pooled mark (the oldest when all are used) and pin it to the struck bone, on the struck face.
+    // A blow landed on `side`: take the next pooled mark (the oldest when all are used), pin it to the struck bone on the
+    // struck face, and seed this hit's runs: how many strands (1–3), each one's width, x offset, start delay and duration.
     hit(side: 0 | 1, root: THREE.Object3D, hit: WoundHit, scale = 1) {
       const site = woundSite(hit), bone = root.getObjectByName(site.bone);
       if (!bone) return false;
-      const mark = fighters[side][next[side] % WOUNDS_PER_FIGHTER]; next[side]++;
+      const mark = fighters[side][next[side] % WOUNDS_PER_FIGHTER];
+      let seed = woundSeed(next[side], hit); next[side]++;
       const world = new THREE.Vector3(...site.dir).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), hit.heading);
       root.updateWorldMatrix(true, true);
       mark.dir.copy(world).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert());
       mark.bone = bone;   // cached (audit, 2026-09-22): update() ran a recursive getObjectByName search every frame for every used mark
       mark.radius = site.radius * scale; mark.width = site.width; mark.scale = scale; mark.age = 0; mark.used = true;
+      seed = lcg(seed); mark.mark.rotation.z = unit(seed) * Math.PI * 2;   // the splat's own lopsided shape, turned per hit
+      seed = lcg(seed); mark.runs = 1 + Math.floor(unit(seed) * 3);
+      mark.strands.forEach((strand, i) => {
+        strand.live = i < mark.runs;
+        seed = lcg(seed); strand.width = DRIP.width[0] + unit(seed) * (DRIP.width[1] - DRIP.width[0]);
+        seed = lcg(seed); strand.offset = (unit(seed) * 2 - 1) * DRIP.offset;
+        seed = lcg(seed); strand.start = DRIP.start[0] + unit(seed) * (DRIP.start[1] - DRIP.start[0]);
+        seed = lcg(seed); strand.duration = DRIP.duration[0] + unit(seed) * (DRIP.duration[1] - DRIP.duration[0]);
+      });
       return true;
     },
-    // Each frame, after the rigs animate: follow the bones; strength from the fighter's health fraction (nothing above the threshold).
-    update(dt: number, roots: readonly [THREE.Object3D | null, THREE.Object3D | null], health: readonly [number, number], bloodMode: BloodMode, hidden: readonly [boolean, boolean] = [false, false]) {
+    // Each frame, after the rigs animate: follow the bones; strength from the fighter's health fraction (nothing above the
+    // threshold); each live strand's run on its own clock; the whole wound drying out once its runs have stopped.
+    update(dt: number, roots: readonly [THREE.Object3D | null, THREE.Object3D | null], health: readonly [number, number], bloodMode: BloodMode, hidden: readonly [boolean, boolean] = [false, false], eye: THREE.Vector3 | null = null) {
       for (const side of [0, 1] as const) {
         const severity = Math.min(1, Math.max(0, (WOUND_THRESHOLD - health[side]) / WOUND_THRESHOLD)), root = roots[side];
         for (const mark of fighters[side]) {
@@ -217,23 +280,43 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
           mark.group.visible = show;
           if (!show || !bone) continue;
           mark.age += dt;
+          // Follow the bone. The basis puts world-up projected onto the surface along the group's +Y, so a strand hanging
+          // down −Y runs along world-down on the skin whatever the bone's rotation (a shoulder, a thigh, a bowed head).
           const normal = scratchNormal.copy(mark.dir).applyQuaternion(bone.getWorldQuaternion(scratchQuat)).normalize();
           mark.group.position.copy(bone.getWorldPosition(scratchPos)).addScaledVector(normal, mark.radius);
           const right = scratchRight.set(0, 1, 0).cross(normal); if (right.lengthSq() < 1e-4) right.set(1, 0, 0); right.normalize();
           const forward = scratchForward.copy(normal).cross(right).normalize();
           mark.group.quaternion.setFromRotationMatrix(scratchMatrix.makeBasis(right, forward, normal));
-          const fade = Math.min(1, mark.age / .4), color = tone(bloodMode);
+          // Facing: with no depth test, the body's far side would show through the near side — so a mark on the surface that
+          // faces away from the eye is hidden outright (its clock keeps running; it is back the moment the fighter turns).
+          if (eye && scratchEye.copy(eye).sub(mark.group.position).dot(normal) < 0) { mark.group.visible = false; continue; }
+          // The dry-out: from the moment the last run has stopped, 20 s from wet and bright to matte and dark.
+          const stopped = mark.strands.reduce((t, s) => (s.live ? Math.max(t, s.start + s.duration) : t), 0);
+          const dry = Math.min(1, Math.max(0, (mark.age - stopped) / DRY.seconds));
+          const roughness = DRY.roughness[0] + (DRY.roughness[1] - DRY.roughness[0]) * dry;
+          scratchColor.copy(photo ? FRESH : CANVAS_FRESH).lerp(photo ? DRIED : CANVAS_DRIED, dry); if (bloodMode === 'dark') scratchColor.multiply(DARK_MODE);
+          const fade = Math.min(1, mark.age / .25);
           mark.mark.scale.set(mark.width * (.9 + .5 * severity) * mark.scale, (.9 + .5 * severity) * mark.scale, 1);
-          mark.mark.material.opacity = fade * (.5 + .4 * severity); mark.mark.material.color.set(color);
-          mark.drips.forEach((drip, i) => {
-            const length = (.25 + 1.75 * severity) * (i === 1 ? 1 : .7) * mark.scale;
-            drip.scale.set(mark.scale, length, 1); drip.position.set((i - 1) * .028 * mark.scale, -.05 * length - .04 * mark.scale, .001);
-            drip.material.opacity = fade * (.3 + .45 * severity) * (severity > .05 ? 1 : 0); drip.material.color.set(color);
-          });
+          mark.mark.material.opacity = fade * (.75 + .25 * severity); mark.mark.material.color.copy(scratchColor); mark.mark.material.roughness = roughness;
+          for (const strand of mark.strands) {
+            const run = strand.live ? ease(Math.min(1, Math.max(0, (mark.age - strand.start) / strand.duration))) : 0;
+            strand.mesh.visible = strand.live && mark.age >= strand.start;
+            if (!strand.mesh.visible) continue;
+            // Length: the bead alone at the start, then the run's share of its ceiling — DRIP.length at the threshold rising with
+            // severity (#356's linear curve, re-floored so the slowest seeded run still passes 8 cm by 1.5 s on a man's torso).
+            const maxLength = (DRIP.length[0] + (DRIP.length[1] - DRIP.length[0]) * severity) * mark.scale, length = DRIP.bead * mark.scale + run * Math.max(0, maxLength - DRIP.bead * mark.scale);
+            const width = .032 * strand.width * mark.scale;
+            strand.mesh.scale.set(width, length, 1);
+            strand.mesh.position.set(strand.offset * mark.scale, -.02 * mark.scale, .0015);
+            // The texture's bead sits at v=0: show the bottom `length / full` of the map so the bead leads and only the tail lengthens.
+            if (strand.map) { const full = width * 4; strand.map.repeat.y = Math.min(1, length / full); strand.map.offset.y = 0; }
+            strand.mesh.material.opacity = fade * (.85 + .15 * severity);
+            strand.mesh.material.color.copy(scratchColor); strand.mesh.material.roughness = roughness;
+          }
         }
       }
     },
-    clear() { for (const side of fighters) for (const mark of side) { mark.used = false; mark.bone = null; mark.group.visible = false; } next = [0, 0]; },
+    clear() { for (const side of fighters) for (const mark of side) { mark.used = false; mark.bone = null; mark.group.visible = false; mark.age = 0; mark.runs = 0; for (const s of mark.strands) { s.live = false; s.mesh.visible = false; } } next = [0, 0]; },
     get entries() { return fighters as readonly (readonly Mark[])[]; },
   };
 }
