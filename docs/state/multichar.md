@@ -77,10 +77,14 @@ Then the six-slot kit. **Gloves first**: the only slot no opponent wears today, 
   construction as the roster grows; a lighter tier replacing a heavier piece would otherwise undress the player by exactly that mechanism.
 - **`LOOT` is pinned against the file's draws** (`tests/loot-data.test.ts`), so a slot declared without a mesh **fails the pin**. That is the
   behaviour we want, and it means slots land **with** their meshes — several asset PRs, not one data PR followed by art.
-- **Two fight rigs are Season-2 creature donors.** `pitborn.glb` carries the Minotaur and Werewolf; the polished **Veteran** carries the
-  Skeleton (`PROJECT_STATE.md`). Rebuilding either to hang a new slot on it makes a creature stale at `creature-check` **as a side effect of an
-  asset change** — which is why gloves and the shield are loot-only. A Veteran visibly carrying the shield mid-fight is a Season-2 rebuild
-  conversation with its own decision and re-bake, not something this lane absorbs quietly.
+- **Creature donors — corrected 2026-09-22 against the code, because the first version of this entry (mine) was too broad.**
+  `scripts/creature-check.mjs:39` pairs each family with its base: minotaur→`pitborn`, werewolf→`pitborn`, wraith→`nightborn`, but
+  **skeleton→`source/backups/veteran-v1`**, executioner→`source/backups/executioner-v5`, dwarf→`source/creatures/dwarf-donor`. So the
+  Skeleton keys on a **frozen backup**, not the live Veteran: rebuilding the Veteran fight GLB does **not** make it stale. And the three
+  that do key on live fight GLBs are all `hold: true`, which the check filters out (`.filter(([id]) => !ROSTER[id].hold)`), so rebuilding
+  `pitborn.glb` would not fail `creature-check` today either — it leaves a **latent re-bake debt** that bites when Season 2 unholds them.
+  Gloves and the shield stay loot-only for that reason (and for not churning fight rigs), not because the gate would go red. Verify against
+  the script before repeating either version of this.
 - **The budget arithmetic that forced the schema change.** `loot.glb` is **1,407,428 B packed gzip against a 1,500,000 cap** — 6 % headroom —
   carrying 19 pieces / 72,027 triangles. A complete six-slot set costs about **21,000 triangles** (the Veteran's six 20,412, the Executioner's
   six 21,730). Six opponents × six slots ≈ 126,000 triangles ≈ **2.4 MB, roughly 60 % over**. A per-opponent copy scales with the roster; a
