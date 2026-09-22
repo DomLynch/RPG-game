@@ -25,9 +25,14 @@ export const NAKED: Loadout = { attack: 1, defence: 1, poise: 1, stamina: 100 };
 export const CAPS = { attack: 1.15, defence: 0.80, poise: 0.75, stamina: 125 } as const;
 
 // One number per tier per slot (brief 19: "no hand values per piece"). The number is a slot's COVERAGE WEIGHT, and the tier scales it
-// linearly by its place on the ladder — a Recruit piece is worth a tenth of an Origin one, an Origin piece its whole weight. So the
+// linearly by its place on the ladder ABOVE THE BOTTOM RUNG — `levelOf - 1` over 9, so Recruit is 0 and Origin its whole weight. So the
 // table below plus `levelOf` IS the 10 × 7 grid; `tests/gear-stats.test.ts` pins every one of its cells so a weight cannot be nudged
 // without the grid saying so.
+//
+// Recruit is the identity and that is a design decision, not an off-by-one (Strategy, 2026-09-22, overriding this lane's first cut,
+// which had rags at a tenth of a cap). Brief 14's Recruit is rag & scrap on 2 of 6 slots — salvage, not armour — and the naked bracket
+// is only a real guarantee if the new player actually standing in rags is inside it. So Legionary leather is the first tilt in the game,
+// and a Recruit fights on skill alone with nothing subtracted.
 //
 // The weights are a judgement about how much of a fighter each slot actually covers, and they are mine (Stats lane, 2026-09-22), not
 // inherited from a brief: the tunic is the largest area and the legs the next, the head is small but is where the kill lands, and the
@@ -42,13 +47,13 @@ export const SLOT_WEIGHT: Record<LootSlot, number> = {
   // this number is only how much its TIER is worth.
   Trident: 100, Cleaver: 100, Knife: 100, Estoc: 100, Scythe: 100, Warhammer: 100,
 };
-// The full armour pool and the full weapon pool, in the points `SLOT_WEIGHT × levelOf` yields. Both are 1000 (100 weight × level 10),
-// which is what makes a full Origin set land exactly on a cap rather than near it.
-export const FULL_POINTS = 1000;
+// The full armour pool and the full weapon pool, in the points `SLOT_WEIGHT × (levelOf - 1)` yields. Both are 900 (100 weight × the 9
+// rungs above Recruit), which is what makes a full Origin set land exactly on a cap rather than near it.
+export const FULL_POINTS = 900;
 
 // What one piece is worth. Pure arithmetic on two integers, so the same on any platform — no transcendentals, nothing the arm64/x64
 // digest drift (docs/state/lead.md) can reach.
-export const pointsFor = (tier: Tier, slot: LootSlot): number => SLOT_WEIGHT[slot] * levelOf(tier);
+export const pointsFor = (tier: Tier, slot: LootSlot): number => SLOT_WEIGHT[slot] * (levelOf(tier) - 1);
 
 // A kit as the paperdoll holds it: at most one piece per slot, each at its own tier. A map rather than a list so a duplicated slot
 // cannot be expressed at all.
@@ -60,15 +65,15 @@ export type Kit = Partial<Record<LootSlot, Tier>>;
 // it, this function is where the split lands: `armour` becomes two totals and the three lines below read different ones. Nothing
 // outside this function knows how many totals there are, so that stays a data change.
 //
-// Every multiplier is one integer division of exact integers, so a full set is exactly its cap (80000/100000, not 0.7999999…) and a
-// partial kit is the correctly-rounded double of an exact ratio on every machine. `FULL_POINTS` and `CAPS` are the only inputs — the
-// literals 15/20/25 below are those caps × 100000 / FULL_POINTS, and the test derives them rather than repeating them.
+// Every multiplier is one integer division of exact integers, so a full set is exactly its cap (72000/90000, not 0.7999999…) and a
+// partial kit is the correctly-rounded double of an exact ratio on every machine. The literals 15/20/25 below are the caps' distances
+// from 1 (0.15, 0.20, 0.25) times 90000 / FULL_POINTS, and the test derives the caps from the table rather than repeating them.
 function multipliers(armour: number, weapon: number): Loadout {
   return {
-    attack: (100000 + 15 * weapon) / 100000,
-    defence: (100000 - 20 * armour) / 100000,
-    poise: (100000 - 25 * armour) / 100000,
-    stamina: (100000 + 25 * armour) / 1000,
+    attack: (90000 + 15 * weapon) / 90000,
+    defence: (90000 - 20 * armour) / 90000,
+    poise: (90000 - 25 * armour) / 90000,
+    stamina: (90000 + 25 * armour) / 900,
   };
 }
 
