@@ -1,6 +1,37 @@
 # Combat — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+## The whip tell + the estoc park — combat lane, 2026-09-22
+
+**Brief 13, the lorarii's tell (#441, `combat/whip-tell`).** The anti-turtling lash had no warning: the first a player knew of it was
+the chip. `WhipRaised` now precedes every lash — `RULES.wall.loiter.raise` (60 ticks) before the first, `raiseAgain` (30) before a
+repeat. The lead times live beside the rule, not as constants in duel.ts, and travel on the event as `lead` so presentation scales its
+raise animation by what the sim means. That parameter exists because of a real defect caught before it shipped: the world lane had a
+hard-coded 1.2 s hold, which fits the 1.0 s first lead and overruns every 0.5 s repeat, firing the lash mid-lift.
+
+Both whip events carry `guard` — which sixth of the wall the lorarius stands in, `floor(angle / 60°)`, exported as `lorariusGuard`. One
+source of truth: the world lane had believed a `lorariusAngle` existed in the sim (it did not, on any branch), and would have computed
+its own and drifted. `Fighter.lashed` separates a first lash from a repeat and clears when the spell ends; the two raise thresholds
+would otherwise collide, because a lash resets the clock to `ticks - again`, which IS the first-raise threshold. `anti-turtling 1b`
+pins that case. Behaviour unchanged — both fixtures re-record to identical ticks and outcomes (1677 died, 1452 died).
+Receipts: quality:stop 452/0, test:slow 93/0, kill-link PASS (36 fights), record-replay --write. RECORD_VERSION 3 → 4, SIM_DIGEST
+re-pinned to d824c624…, PINNED_FOR_VERSION 4. **Gotcha: read the digest AFTER the version bump — record.ts is inside its own hashed set.**
+Not done, deliberately: whether the warden should react to the raise (tick 120) rather than the magic `.75 × ticks` constant (tick 135)
+in ai.ts. Real question, but it lands in the four lines #439 reformats, so it waits for that merge.
+
+**The estoc is parked (#419 draft, #429 carries the record).** No `ESTOC.fight.close` clears both the Nightborn exhaustion pin and the
+24-seed player-weapon battery. Full grid, the zero-margin proof and the revival condition are in docs/state/weapons.md — written there
+rather than here because the next person to trip it will be holding a weapon, not a warden. Two lessons worth keeping in this lane:
+a green suite is not a safe number (1.30 passed record-replay, kill-link, weapons 34/34 and opponents 20/20 and was still wrong, the
+battery caught it); and **every player weapon is also a warden's weapon** — goblin/knife, veteran/trident, nightborn/estoc,
+executioner/scythe, pitborn/cleaver, dwarf/warhammer — so a weapon edit's blast radius is every OTHER weapon measured against whoever
+carries it. Lead has made that a standing rule for all lanes.
+
+Open and owed by this lane: #370 (Veteran's opening) held on the owner's own verdict on feel — nothing technical left. `knife vs goblin
+hard: kick only untouched 3/24` routed here as an approach-logic hole, not knife data (identity-shared MOVES.kick, every other weapon's
+kick-only dies 24/24, all 24 knife fights stalemate at the tick limit). Weapons' #440 moves three rows in the signed KNOWN_UNFAIR table
+(estoc/goblin hard ×2, scythe/goblin normal) — **unsigned by Combat**: re-deriving them needs the box, and a signature on someone else's
+numbers is worth nothing.
 
 ## Tuning history moved out of src/moves.ts — 2026-09-22 (Auditer lane, GPT audit "readability")
 The comments in moves.ts now keep only why each current rule exists; the dated experiments and probe numbers that set them live here.
