@@ -147,8 +147,14 @@ Both are proposals awaiting the owner, recorded here so the brief names six rath
 instead of discovered during authoring.
 
 **`Body` is a `replace` piece**, so it hides her own torso draws and is subject to the coverage rule already on trunk:
-any `replace` piece covering less than 80 % of what it hides fails. The hauberk is full-torso to mid-thigh, so it clears
-that comfortably — but it is measured, not asserted.
+any `replace` piece covering less than 80 % of what it hides fails. **Correction (Executioner lane, 2026-09-23): that rule
+is not a silhouette measure and cannot be checked from a reference or a mask.** `tests/loot.test.ts` compares the loot draw's
+**mesh surface area in m²** against the PLAYER's own draws in that slot (`warrior.glb`'s `Gambeson` / `Leather.Body`) — it is
+a test, and it runs the first time her `Body` draw exists in `loot.glb`. The earlier line here said the hauberk "clears that
+comfortably — but it is measured, not asserted", and nothing had been measured. What can honestly be said now is a
+**prediction with its reasoning**: a mail hauberk to mid-thigh over a gambeson is a larger draw than the tunic it hides, and
+every piece that belongs shipped at 103–159 % against a 26 % failure (the Pitborn rag sash that bought the rule). A
+prediction is what that is until the draw exists.
 
 ## 6. Budget — to be measured, not assumed
 
