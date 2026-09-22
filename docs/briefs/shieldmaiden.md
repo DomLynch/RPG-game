@@ -38,10 +38,16 @@ Lead is right to ask for this straight. The Shieldmaiden is `rig: 'hero'`, same 
 
 **It buys:**
 - The hero skeleton and therefore the whole shared clip library — every family already authored on it binds to her with no
-  refitting. **This no longer buys her base fight loop for free.** The pre-amendment brief rested "zero new animation authoring"
-  on her carrying the Pitborn's `Cleaver_*` set; the bearded-axe amendment removes that saving, and the brief understated its own
-  cost until this correction. A new one-hand family is ~13 clips to author against the hero skeleton, on Weapons' and the
-  animation pipeline's time, not Combat's. What the rig still buys is that those clips need no per-character fitting.
+  refitting. **It does buy her base fight loop, and the bearded axe does not take that back** (Weapons, measured 2026-09-23;
+  this corrects the "~13 new clips" line that stood here briefly). **A one-hand weapon owns no clip family.** The cleaver,
+  knife and estoc each carry only `{ Thrust: 'Riposte' }` in `WEAPON_CLIPS` (`src/characters.ts`) and every other role falls
+  through `clipFor`'s `?? role` to the shared hero clip; their build records are `clips: null`
+  (`scripts/build-weapon.mjs:719-722`). Only the prefixed pole and two-hand weapons own families — `Maul_*`, `Reaper_*`,
+  `Scythe_*`, `Warhammer_*`, `Trident_*`. So the bearded axe rides the shared four, and its cost is **a part plus at most a
+  `CLEAVER_KEYS`-style re-key** (`scripts/build-weapon.mjs:296`) so the edge leads through the overhead — the same treatment
+  the cleaver and knife already take, not a new family.
+  **"Hooks a held guard down" is a sim rule and Combat's**, not an animation cost; it is a request to Combat, never an edit
+  from this lane. The expensive part of this brief is, and always was, **her body**.
 - Finisher compatibility by construction: Split Crown's head bake, Run Through's hold, the Quiet One corpse, Decapitation
   — all keyed to hero bone names.
 - The `guard.glb` pipeline's production techniques: own skin crops, animation diet, decimated body, measured packed
