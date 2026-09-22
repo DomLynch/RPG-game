@@ -41,6 +41,22 @@ Even with every commitment knob at its limit the fight does not resolve. `reacti
 profile change that half-moves it would be tuning toward a pin without fixing the defect. The fix has to be the approach/in-reach
 disagreement itself in ai.ts — which is shared by every opponent, so it needs the full battery across all weapons.
 
+**RULING (Lead, 2026-09-22, after the sweep): fix the approach/in-reach disagreement in `src/ai.ts`.** The profile-only prescription is
+superseded by measurement. Lead's reading, and he is accountable for it: GAME_SPEC's "profiles move reaction/prediction/aggression,
+never data" governs PROFILES; ai.ts approach logic is neither a profile nor weapon data, it is the code profiles feed, so fixing a
+logic defect there is in scope.
+
+**Precedent that corroborates the diagnosis — put it in the PR.** ai.ts:311-313's `cramped` branch exists for this same class of bug:
+its comment records the reaper Wraith, whose approach stops at 1.9 m, meeting a fighter parked at 1.45 m and never moving again. That
+was patched for ONE opponent at ONE range. This is the general case. **Fix the seam; do not add a second patch beside the first.**
+
+Conditions on the fix: (1) full 24-seed battery, every weapon, both levels — shared by every opponent, so the blast radius is the whole
+table; snapshot diff in the PR body with every moved row attributed. (2) RECORD_VERSION bump — **5 is live so the next is 6** — and
+SIM_DIGEST re-pinned AFTER the bump. (3) fight-length pins green for EVERY opponent, not just the Goblin. (4) **Re-measure
+`cleaver vs executioner normal: light spam` before touching item 2** — if this fix improves it, item 2's Executioner profile edit may
+be unnecessary; tell Lead the number either way, item 2 is now provisional. (5) flip 'knife' into PLAYER_WEAPONS_OFFERED in the same PR
+if the row clears; if it does not, bring Lead the table and decide then — **do not tune toward the pin.**
+
 **Do not fix this by tuning the row.** 3 untouched against a cap of 2 is one fight over — a tie-break margin, and tuning to clear it is
 exactly what produced the estoc mess. Fix the approach/in-reach disagreement on its merits; the row clears or it does not, and if it
 does not, bring Lead the table. Whatever lands needs the full 24-seed battery re-run, because every player weapon is also a warden's
