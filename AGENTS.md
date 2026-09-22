@@ -1,6 +1,6 @@
 # Frankendom
 
-Read GAME_SPEC.md and PROJECT_STATE.md before work. GAME_SPEC.md is canonical design.
+Read docs/SCOPE.md, GAME_SPEC.md and PROJECT_STATE.md before work. GAME_SPEC.md is canonical design; docs/SCOPE.md is the current dated scope and wins over any older scope line.
 
 - **Trunk discipline — owner-enforced 2026-09-19.** The live trunk `codex/01a09a76/task-1` lives in the lead checkout (`~/Desktop/Business/frankendom`) ONLY, and the lead checkout holds trunk permanently. Lane worktrees (`~/Developer/frankendom-*`): NEVER check out trunk — branch off freshly fetched trunk and stay on your lane branch (`git worktree add <path> -b <lane>/<thing> origin/codex/01a09a76/task-1`). Git itself refuses a branch checked out in another worktree, so this holds as long as the lead checkout stays on trunk. Lead work that needs a branch happens in a temp worktree — never by parking the main checkout elsewhere. The post-checkout hook reverts a lane worktree that switches onto trunk (where `core.hooksPath` is set).
 - Grounded medieval fantasy RPG. Persistent fighter identity and meaningful builds lead design.
