@@ -48,8 +48,20 @@ killed 24/24 by this same Goblin with every other weapon; only the knife pairing
    **N weapon PRs merged separately cost N link-invalidation events.** The remaining flip work should be batched behind ONE deliberate
    bump rather than paid per weapon. That sequencing is the lead's call, which is why this entry is BLOCKED rather than shipped.
 
-State: the change is ready on `weapons/knife-thrust-recovery` with the snapshot updated and the full suite at 491/494 (2 skips are the
-char lane's hand pins) — the ONLY failure is the version guard, deliberately left red as the open decision. Not merged.
+LEAD'S RULINGS, 16:31: (a) **Batch the bump** — one `RECORD_VERSION` 3 → 4 for the whole remaining flip work, because kill links are the
+viral surface Dom is pushing (PLAY NOW shipped 2026-09-22) and N bumps means N waves of dead links for no product gain. #440 stays a
+draft; the scythe and any further weapon-data change stack on the same branch, landing as ONE PR with a single bump and a single
+`SIM_DIGEST` re-pin. Leaving the guard red was endorsed explicitly: "I'd rather see it red than see someone bump quietly." (b) The
+Goblin kick row is **Combat's**, accepted on the identity/stalemate evidence, routed as a hard-profile item behind Brief 13 and named a
+first candidate for Brief 14's per-grade knob — no weapon data is to be spent on it. (c) The knife fix is **approved as measured**.
+(d) **Combat's re-signature on the moved snapshot rows is required before the batched PR goes READY** — the lead will not merge on the
+weapons lane's signature alone.
+
+STANDING WARNING tied to the Goblin: recovery 20 clears its pins at a median of 44.6 s against a 45 s ceiling, on a surface that swings
+38 → 48.5 s across adjacent recovery ticks. That is luck, not headroom. **If the Goblin is ever retuned, re-measure this.**
+
+State: ready on `weapons/knife-thrust-recovery` (a078af6), snapshot updated, full suite 491/494 (2 skips are the char lane's hand pins),
+the ONLY failure the version guard — deliberately red, by the lead's ruling, until the batch lands. Not merged.
 
 ## Cleaver flip prep — the Executioner row is not payable in this lane either (weapons lane, 2026-09-22) — MEASURED, NOT FIXED
 Lead's item (1): clear `cleaver vs executioner normal: light spam wins 17/24` (cap 12) with a measured 24-seed battery. Re-run on trunk
