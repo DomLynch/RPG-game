@@ -1,13 +1,23 @@
-// Loot (beta plan brief 5): visual cosmetics only, no stats. Every piece is a draw in src/assets/loot.glb (Scalable Chars' export,
-// 2026-09-21), named `<opponent>.<slot>.<material>`; its id here is the name without the material. One fixed piece per opponent per
-// career sub-rank drops on a win, never a duplicate; nothing is ever lost (the trophy rack keeps everything owned). The paperdoll is the
-// six armour slots plus the two hands; the beta opens one locker and greys the rest. Pure: the loader and the journal read this.
+// Loot (beta plan brief 5): visual cosmetics only, no stats. Every armour piece is a draw in src/assets/loot.glb (Scalable Chars' export,
+// 2026-09-21), named `<opponent>.<slot>.<material>`; its id here is the name without the material. One fixed armour piece per opponent
+// per career sub-rank drops on a win, never a duplicate; nothing is ever lost (the trophy rack keeps everything owned). A weapon piece
+// is takeable instead (WEAPON_SLOTS below) and fills the paperdoll's main hand. The paperdoll is the six armour slots plus the two hands;
+// the beta opens one locker and greys the rest. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
+import type { WeaponId } from './moves.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
 
-export const LOOT_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'] as const;   // the file's slots (userData.slot)
+export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'] as const;   // loot.glb's slots (userData.slot)
+// A fallen opponent's weapon is takeable (owner, 2026-09-22: "any item can be taken, armour or weapon"): the slot is the weapon's name, the id `<opponent>.<Weapon>`.
+// No draw in loot.glb — the visual is the weapon's equip file (src/assets/weapons/player/<weapon>.glb, the #309 contract) loaded when
+// `equipped.main` is set, and the fight is fought with that weapon (moves.ts PLAYER_WEAPONS). Grows with the equip files; whether a
+// weapon is OFFERED stays moves.ts PLAYER_WEAPONS_OFFERED (Combat's fairness table), not this list.
+export const WEAPON_SLOTS = ['Trident', 'Cleaver', 'Knife', 'Estoc', 'Scythe', 'Warhammer'] as const;
+export const LOOT_SLOTS = [...ARMOUR_SLOTS, ...WEAPON_SLOTS] as const;
 export type LootSlot = (typeof LOOT_SLOTS)[number];
-export const PAPERDOLL = { head: ['Helmet', 'Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: [], off: [] } as const satisfies Record<string, readonly LootSlot[]>;
+export type WeaponSlot = (typeof WEAPON_SLOTS)[number];
+export const isWeaponSlot = (slot: LootSlot): slot is WeaponSlot => (WEAPON_SLOTS as readonly string[]).includes(slot);
+export const PAPERDOLL = { head: ['Helmet', 'Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: WEAPON_SLOTS, off: [] } as const satisfies Record<string, readonly LootSlot[]>;
 export type Paperdoll = keyof typeof PAPERDOLL;
 export type LootId = `${OpponentId}.${LootSlot}`;
 // Provenance (Strategy 2026-09-21): where a piece came from, written once at the drop and never edited; the record's short id fills once
@@ -19,16 +29,19 @@ export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locke
 // The pieces in loot.glb by opponent, in drop order (tests/loot-data.test.ts pins this against the file's draws). An opponent without
 // pieces drops nothing. Scalable Chars appends here when a piece ships.
 export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
-  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Greaves'],
-  executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Greaves'],
-  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Boots'],
-  pitborn: ['pitborn.Arms'],
-  dwarf: ['dwarf.Greaves'],
-  goblin: ['goblin.Body', 'goblin.Arms'],   // the Goblin's trophies (PR #333): the necklace and the bone bracers, both over his own kit
+  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Greaves', 'veteran.Trident'],
+  executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Greaves', 'executioner.Scythe'],
+  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Boots', 'nightborn.Estoc'],
+  pitborn: ['pitborn.Arms', 'pitborn.Cleaver'],
+  dwarf: ['dwarf.Greaves', 'dwarf.Warhammer'],
+  goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Knife'],   // the Goblin's trophies (PR #333): the necklace and the bone bracers, both over his own kit
 };
 export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat());
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
+export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
+// The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
+export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
 export const paperdollOf = (slot: LootSlot): Paperdoll => (Object.keys(PAPERDOLL) as Paperdoll[]).find(key => (PAPERDOLL[key] as readonly LootSlot[]).includes(slot))!;
 // A piece's name for a line of copy: "the Veteran's helmet".
 export const lootName = (id: LootId, opponentName: string): string => `${opponentName}'s ${slotOf(id).toLowerCase()}`;
@@ -38,9 +51,10 @@ export function subRank(marks: number): number {
   const rank = rankFor(marks);
   return rank.title === 'Origin' ? 45 : TITLES.indexOf(rank.title) * 5 + ['I', 'II', 'III', 'IV', 'V'].indexOf(rank.numeral);
 }
-// The drop for a win against `opponent` at the sub-rank the fight was fought at: fixed per sub-rank, never a duplicate.
+// The drop for a win against `opponent` at the sub-rank the fight was fought at: fixed per sub-rank, never a duplicate. Armour only:
+// a weapon is never dropped, it is TAKEN — the kill screen's "Take one" choice (lead) offers LOOT[opponent] minus owned, weapons included.
 export function dropFor(opponent: OpponentId, marks: number, owned: readonly string[]): LootId | null {
-  const pieces = LOOT[opponent];
+  const pieces = LOOT[opponent]?.filter(id => !isWeaponLoot(id));
   if (!pieces?.length) return null;
   const id = pieces[subRank(marks) % pieces.length];
   return owned.includes(id) ? null : id;
@@ -57,7 +71,7 @@ export function cleanLoot(value: unknown): Loot {
   if (raw.taken && typeof raw.taken === 'object') for (const [id, p] of Object.entries(raw.taken)) if (isLootId(id) && owned.includes(id) && cleanProvenance(p)) taken[id] = cleanProvenance(p)!;
   return Object.keys(taken).length ? { owned, equipped, taken } : { owned, equipped };
 }
-const DAY = /^\d{4}-\d{2}-\d{2}$/, SHORT_ID = /^[A-Za-z0-9_-]{8}$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/, SHORT_ID = /^[A-Za-z0-9_-]{1,12}$/;   // a share id: minted 1–6 char base-36 since 2026-09-22, or the 8-char form before it (share-store SHARE_ID)
 export function cleanProvenance(value: unknown): Provenance | null {
   const p = value as Partial<Provenance> | null;
   if (!p || typeof p !== 'object' || !isOpponentId(p.opponent) || !Number.isSafeInteger(p.attempt) || p.attempt! < 1 || !Number.isSafeInteger(p.healthLeft) || p.healthLeft! < 0 || p.healthLeft! > 1000

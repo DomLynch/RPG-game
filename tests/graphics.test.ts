@@ -20,7 +20,7 @@ import * as ai from '../src/ai.ts';
 import * as autopsyModule from '../src/autopsy.ts';
 import * as daily from '../src/daily.ts';
 // The daily's server call and the build's API are stubbed per test: the harness has no network and no env.
-const dailyModule: Record<string, unknown> = { ...daily }, apiModule: { api: { url: string; key: string } | null } = { api: null };
+const dailyModule: Record<string, unknown> = { ...daily }, shareModule: Record<string, unknown> = { ...shareStore }, apiModule: { api: { url: string; key: string } | null } = { api: null };
 import { session } from '../src/session.ts';
 import * as career from '../src/career.ts';
 import * as scorecard from '../src/scorecard.ts';
@@ -54,7 +54,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './replay.ts': replay, './share-store.ts': shareStore, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -642,24 +642,47 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   assert.equal(broken.storage.getItem('frankendom.fight.v1'), null, 'a refused link leaves the page a viewer: no AFK mark');
   assert.equal(wrong.storage.getItem('frankendom.fight.v1'), null, 'a link for another opponent: no AFK mark either');
 });
-test('kill links: a signed-in fighter\'s Share stores the record and the link carries the short id; a guest\'s link carries the record; a short link without a fight store is refused', async () => {
+test('kill links: Share mints a short id for signed-in fighters (with their token) and guests alike; the link is /s/<id>; a refusal says so and never falls back to a long link; a short link without a fight store is refused', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const fight = () => { const a = boot(); a.tick(); a.key('KeyF'); for (let i = 0; i < 45; i++) a.tick(); for (let i = 0; i < 6000 && !a.rendered.finish; i++) a.tick(); assert.ok(a.rendered.finish, 'the fight ends'); return a; };
-  const inserts: Record<string, unknown>[] = [];
-  session.db = { from: () => ({ insert: async (row: Record<string, unknown>) => { inserts.push(row); return { error: null }; } }) } as never; session.userId = 'user-7';
+  const mints: { opponent: string; token: string | null }[] = [];
+  const mintShare = shareModule.mintShare;
+  shareModule.mintShare = async (_api: unknown, record: { opponent: string }, token: string | null) => { mints.push({ opponent: record.opponent, token }); if (token === 'refuse') throw Error('too many guest shares this minute'); return mints.length === 1 ? '1a' : '1b'; };
+  apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  session.db = { auth: { getSession: async () => ({ data: { session: { access_token: 'jwt-7' } } }) } } as never; session.userId = 'user-7';
   try {
     const a = fight(); a.element('share-button').dispatchEvent(new Event('click'));
-    await settle(() => /r=|Could not|too long/.test(a.element('share-status').textContent));
-    assert.match(a.element('share-status').textContent, /^https:\/\/frankendom\.com\/\?opponent=veteran&r=[A-Za-z0-9_-]{8}$/, 'the signed-in link carries the id');
-    assert.equal(inserts.length, 1); assert.equal(inserts[0].user_id, 'user-7'); assert.equal(inserts[0].opponent, 'veteran'); assert.equal(inserts[0].record, a.element('debug').dataset.share, 'the stored text is the encoded record');
+    await settle(() => /\/s\/|Could|Couldn/.test(a.element('share-status').textContent));
+    assert.equal(a.element('share-status').textContent, 'https://frankendom.com/s/1a', 'the signed-in link is the short shape');
+    assert.deepEqual(mints[0], { opponent: 'veteran', token: 'jwt-7' }, 'a signed-in fighter mints with their token');
   } finally { session.db = null; session.userId = null; }
   const g = fight(); g.element('share-button').dispatchEvent(new Event('click'));
-  await settle(() => /replay=|Could not|too long/.test(g.element('share-status').textContent));
-  assert.match(g.element('share-status').textContent, /^https:\/\/frankendom\.com\/\?opponent=veteran&replay=[A-Za-z0-9_-]+$/, 'the guest link carries the record');
+  await settle(() => /\/s\/|Could|Couldn/.test(g.element('share-status').textContent));
+  assert.equal(g.element('share-status').textContent, 'https://frankendom.com/s/1b', 'a guest gets a short id too');
+  assert.deepEqual(mints[1], { opponent: 'veteran', token: null }, 'a guest mints with the public key');
+  session.db = { auth: { getSession: async () => ({ data: { session: { access_token: 'refuse' } } }) } } as never; session.userId = 'user-8';
+  try {
+    const r = fight(); r.element('share-button').dispatchEvent(new Event('click'));
+    await settle(() => /\/s\/|Could|Couldn/.test(r.element('share-status').textContent));
+    assert.equal(r.element('share-status').textContent, "Couldn't make a link, try again.", 'a refused mint is said plainly, no record-in-the-link fallback');
+  } finally { session.db = null; session.userId = null; shareModule.mintShare = mintShare; apiModule.api = null; }
   const s = boot({}, undefined, {}, '?opponent=veteran&r=Ab3_-9xZ');
   assert.equal(s.element('welcome').hidden, true, 'a short link is picked up at boot');
   await settle(() => s.element('replay-banner').textContent !== 'Loading the fight…');
   assert.match(s.element('replay-banner').textContent, /cannot be played: this build has no fight store/);
+});
+test('kill links: an unknown or expired id lands on a plain page with the fight button under it, not an error', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const fetchSharedRecord = shareModule.fetchSharedRecord;
+  shareModule.fetchSharedRecord = async () => { throw Error('no such fight'); }; apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  try {
+    const s = boot({}, undefined, {}, '?r=Ab3_-9xZ');
+    assert.equal(s.element('welcome').hidden, true, 'the link is picked up at boot');
+    await settle(() => !s.element('welcome').hidden);
+    assert.equal(s.element('welcome').hidden, false, `the welcome (with its fight button) comes back; banner=${s.element('replay-banner').textContent}`);
+    assert.equal(s.element('welcome-eyebrow').textContent, 'THIS FIGHT HAS FADED'); assert.equal(s.element('welcome-title').textContent, 'Sign in and your kills are kept forever.');
+    assert.equal(s.element('welcome-lead').hidden, true); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
+  } finally { shareModule.fetchSharedRecord = fetchSharedRecord; apiModule.api = null; }
 });
 test('autopsy: a death puts at most two plain lines on the death screen, the same lines go under the opponent\'s journal row for the last fight, and a rematch clears them', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
@@ -788,7 +811,7 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   assert.equal(row(0).attributes.get('data-loot'), 'veteran.Helmet'); assert.equal(row(0).attributes.get('data-worn'), 'true'); assert.equal(row(0).attributes.get('tabindex'), '0');
   assert.deepEqual(row(0).children.map(c => c.textContent), ["the Veteran's helmet", '', 'Worn'], 'name, the caption (its text is in its children), the button');
   assert.deepEqual(row(0).children[1]!.children.map(c => c.textContent), ["The Veteran's helmet", ' · your 3rd attempt, 12 health left', ' ', 'Watch'], 'brief 9: the caption starts with the piece name in bold, the Watch link only once the fight is published');
-  assert.equal(row(0).children[1]!.children[3]!.attributes.get('href'), 'https://frankendom.com/?opponent=veteran&r=k7Qm2x_A', 'the Watch link names the fight\'s opponent (share-store shortLink): the loader refuses a record for another opponent than the page booted');
+  assert.equal(row(0).children[1]!.children[3]!.attributes.get('href'), 'https://frankendom.com/s/k7Qm2x_A', 'the Watch link is the one short shape (share-store shortLink): the loader refuses a record for another opponent than the page booted');
   assert.equal(row(1).attributes.get('data-worn'), 'false'); assert.equal(row(1).children.length, 2, 'no provenance, no caption'); assert.equal(row(1).children[1]!.textContent, 'Wear');
   assert.equal(row(2).className, 'rack-empty'); assert.equal(row(4).className, 'rack-empty');
   assert.equal(app.element('slot-head-name').textContent, "the Veteran's helmet"); assert.ok(app.element('slot-head').classList.contains('on')); assert.equal(app.element('slot-head-off').hidden, false);

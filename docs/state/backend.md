@@ -23,6 +23,15 @@ repo; applies stay manual (MCP `apply_migration` named after the repo file) and 
 `public.rls_auto_enable()` (event trigger `ensure_rls`) is Supabase's own platform function, not ours; the security advisor's WARN on it
 is expected and stays.
 
+**Security advisor — known items, all by design (read after the 0006 apply, 2026-09-22; re-check with `get_advisors` after any DDL):**
+ERROR `security_definer_view public.daily_board` — intended, the view reads `fighter_profiles.display_name` as its owner so a public
+board can name posters past `owner_read` (documented under 0003); WARN `rls_auto_enable()` executable by anon/authenticated — Supabase's
+own; WARN `daily_fight(on_day)` executable by anon as definer — intended, the seed is public and the secret never leaves the function;
+WARN `fight_records_recent()` executable by authenticated as definer — intended, zero-arg, own-count only (0006); INFO `daily_secret`
+RLS enabled with no policy — intended, nobody but the definer function reads it; WARN auth leaked-password protection off — an Auth
+setting, not schema; sign-in is Google only today, so it is moot until email/password logins exist (Dom's call if that changes).
+Anything NOT on this list is a new finding.
+
 **0002 fight_records — APPLIED** (Dev/Deploy, hosted migration `20260921200632`, carried by deploy #70 / trunk `3a11413`). Verified
 independently here via `list_tables`(verbose)/`list_migrations`: schema matches what was reviewed byte-for-byte (see the table below),
 RLS enabled, 0 rows. Deploy dev's own report of deploy #70 being live (release.json/VPS symlink match) was not independently checked
@@ -52,25 +61,33 @@ Client call: `GET /rest/v1/admins?select=user_id&user_id=eq.<uid>` (src/cloud-pr
 Apply order and carrier, per Dom's standing yes in the deploy session: 0002 applied (above), 0003 at #327's deploy, 0004 BEFORE #330's
 code, 0005 at #348's. All are additive: the live client is unaffected by an early apply. Dev/Deploy applies; this lane verifies after.
 
-### fight_records (0002) — APPLIED, schema below as it exists on the hosted project today; one tightening still open
+### fight_records (0002 + 0006) — APPLIED, schema below as it exists on the hosted project today
 | column | rule |
 |---|---|
 | id text pk | `^[A-Za-z0-9_-]{8}$`, client-chosen; a collision is a 23505 the client must retry |
-| user_id uuid → auth.users cascade | owner |
+| user_id uuid → auth.users cascade | owner; never readable by a client |
 | opponent text | 1–32 chars |
 | record text | ≤ 16 KB, base64url alphabet (src/record.ts encoding) |
-| created_at | default now() |
-Index `(user_id, created_at desc)`. RLS on. Policies: select `to anon, authenticated using (true)` (a shared link is public by intent);
-insert `to authenticated` with check `auth.uid() = user_id and` fewer than 30 own rows in the last hour. No update/delete policy or grant.
-Grants: select whole table to anon+authenticated; insert `(id, user_id, opponent, record)` to authenticated.
-Client calls: `POST /rest/v1/fight_records` (src/share-store.ts), `GET /rest/v1/fight_records?select=record&id=eq.<id>`.
-**0006 (PR #359, code merges tonight; hosted apply HELD for Dom's direct word in the morning — first item):** written, tests +
-mutation-tests green (30/hour cap re-proven via a new `security definer` function keyed to `auth.uid()`, not a caller-supplied id —
-an earlier draft took a `uid` argument, which would have let any signed-in player query another player's recent-post count via RPC;
-fixed before merge). Narrows the select grant to `(id, opponent, record)`, dropping `user_id`/`created_at` from what a link-holder can
-read. Not additive (it's a revoke), so per tonight's rule it needs Dom's own yes, not Strategy's or this lane's — Dev/Deploy's
-authorization from Dom names 0002–0005 only. Apply-ready line already given to Dev/Deploy; nothing further from this lane until Dom
-says go.
+| created_at | default now(); never readable by a client |
+Index `(user_id, created_at desc)`. RLS on. Policies: select `to anon, authenticated using (true)` (a shared link is public by intent —
+the row, not every column); insert `to authenticated` with check `auth.uid() = user_id and public.fight_records_recent() < 30`.
+No update/delete policy or grant. Grants: select **`(id, opponent, record)` only** to anon+authenticated; insert `(id, user_id,
+opponent, record)` to authenticated. `fight_records_recent()`: zero-arg, `security definer`, `search_path=public`, counts the
+CALLER's own rows in the last hour (`user_id = auth.uid()`); execute to authenticated only (not anon) — it takes no id, so it can
+report nobody else's count. Client calls: `POST /rest/v1/fight_records` (src/share-store.ts), `GET
+/rest/v1/fight_records?select=record&id=eq.<id>`.
+
+**0006 (PR #359) — APPLIED 2026-09-22 on Dom's typed "apply" in Dev/Deploy's session** (hosted migration `20260922072149
+202609220006_fight_records_select_columns`; file md5 `fe2218e6a3b9de7aac15ce3d36fc7cb9` at trunk `dcb9d61`, byte-identical to the
+reviewed head). Verified independently here, fresh queries: `set role anon; select id, opponent, record from fight_records` resolves;
+`select user_id …` → `42501 permission denied`; `select created_at …` → `42501 permission denied`; `pg_proc`: `fight_records_recent`
+`pronargs = 0`, `prosecdef = true`, `proconfig = search_path=public`, execute grantees `postgres, authenticated`; `pg_policies` insert
+`with_check = ((auth.uid() = user_id) AND (fight_records_recent() < 30))`; select column grants for both roles exactly `id, opponent,
+record`. Why it exists: 0002's whole-table select let anyone with the publishable key list every sharer's `user_id` and `created_at`
+(Auditer finding); narrowing it broke the insert policy's own rate-limit subquery, hence the definer function; an earlier draft took a
+`uid` argument (any signed-in player could have queried another's count) — fixed before merge. Security advisor after apply
+(Dev/Deploy's read, consistent with the design): the only 0006 item is the expected WARN "authenticated can execute SECURITY DEFINER
+fight_records_recent()".
 
 ### daily_secret / daily_fight() / daily_results / daily_board (0003, PR #327) — APPLIED, verified live
 Applied by Dev/Deploy (hosted migration `20260921211439 202609210003_daily_warden`, head lead/daily-warden `8550b1d`). Verified
@@ -185,6 +202,85 @@ Supabase pooler as `frankendom_verifier.rxbewmzmovelckzoosss`.
 6. OPEN — waiting on Dev/Deploy's promised first-sweep receipt, then this lane confirms independently: a `daily_results` row moves
    from `verified=false` to `true` (or gets `checked_at` stamped with a refusal reason). Not yet posted; there are no `daily_results`
    rows to sweep yet either (table was 0 rows as of the last check), so the first real signal may wait for an actual daily post.
+
+## Admins workflow — proposal (week item 4; nothing built)
+
+Today: `public.admins` has one row (dom123dxb, inserted by the lead in SQL on Dom's word). The client reads only its own membership
+(`readAdmin`, `src/cloud-profile.ts:36`) and `src/account.ts:58` reveals the journal test tools on `true`; no client insert/update/delete
+path exists (proven in the DB check). The question was: how does a second admin get added without SQL?
+
+**Recommendation for beta — no code:** the Supabase Dashboard. Authentication → Users lists every account by email with its uuid;
+Table Editor → `admins` → Insert row → paste the uuid. Two clicks, owner-only (dashboard access is Dom's), audited by Supabase's own
+log, nothing dormant in the schema. With a roster of one or two, a built flow is a liability, not a feature (Strategy: build nothing
+dormant). This lane verifies each addition after the fact (`select count(*) from admins`) and records it here.
+
+**Designed, not built — for when admins multiply (an in-game "Admins" line in the test tools):**
+- `alter table admins add column granted_by uuid references auth.users, add column note text check (char_length(note) <= 80)`.
+- `admin_grant(email text)` / `admin_revoke(email text)`: `security definer`, `set search_path = ''`, execute to `authenticated` only;
+  the FIRST statement refuses unless `exists (select 1 from public.admins where user_id = auth.uid())` — the check lives inside the
+  function, the client is never trusted to be an admin. Resolves `email` → `auth.users.id` (case-folded), inserts/deletes the row,
+  stamps `granted_by = auth.uid()`. `admin_revoke` refuses to remove the last admin and refuses `auth.uid()` itself unless another admin
+  exists. Returns nothing but success/failure; the only thing it reveals to an admin is whether an email has an account — acceptable
+  for admins, not for anyone else (hence no `anon` execute).
+- Client: `POST /rest/v1/rpc/admin_grant` / `admin_revoke` (two new REST paths → check-14 mock) from an "Admins" row in the test-tools
+  block, already gated by `showTools(admin)`. DB-check cases: a non-admin calling either → refused; an admin grants by email → row with
+  `granted_by`; revoking the last admin → refused. Bootstrapping the first admin stays SQL (done).
+
+## Designs, not built (week item 5) — the RLS shape and what the client may write
+
+### Ghost storage (PvP as ghosts first — Strategy's "friend's echo")
+A ghost is a fighter another player can be thrown against: the look (rig, weapon, equipped loot) plus the warden's behaviour profile
+of that player. Behaviour, not rank: `Habits` (`src/ai.ts:11` — ticks, guard, parries, rolls, steps, lights, heavies, thrusts, kicks,
+attacks…) is exactly what the warden reads live, so a stored `Habits` drives the same `readOpponent` path with no new AI.
+- `public.ghosts (id text pk check '^[A-Za-z0-9_-]{8}$', user_id uuid unique → auth.users cascade, display_name text (1–24, same check
+  as fighter_profiles), rig text check in the roster's player rigs, weapon text check in PLAYER_WEAPONS (src/moves.ts:410), loot jsonb (same check as
+  fighter_profiles.loot), habits jsonb check (pg_column_size ≤ 2048 and every key is a Habits field and every value a bounded integer
+  — a jsonb check, not `pg_jsonschema`, so the local check needs no extension), fights integer default 0, revision bigint (the
+  fighter_profiles trigger pattern), updated_at)`.
+- RLS: owner insert/update (`auth.uid() = user_id`), one per account (the unique); select `to anon, authenticated using (true)` with
+  a **column** grant that excludes `user_id` (the fight_records lesson: a policy cannot hide columns) — a ghost is fetched by its short
+  id from a link, exactly like a shared fight. No delete from the client; a "retire my ghost" is `update … set habits = '{}'`.
+- What the client may write: its own look and its own habits, bounded. What it may never write: anything competitive. A ghost fight
+  awards nothing server-side (no marks, no board) until a verified route exists — the verifier pattern from 0005 (a `ghost_results`
+  table + replay) is the way to make ghost wins count, and it is NOT part of this design.
+- Client calls (when built): `POST /rest/v1/ghosts` / `PATCH …?id=eq.<mine>` (owner), `GET /rest/v1/ghosts?select=<public columns>&id=eq.<id>`.
+  Combat owns the `Habits` → warden mapping; Web design owns the "fight a friend's ghost" surface; this lane owns the table, the
+  bounds and the DB-check cases (second ghost per account refused, cross-owner update refused, `user_id` unreadable, habits over 2 KB
+  refused, unknown habit key refused).
+
+### Season leaderboards (the daily board, over a season)
+Today's `daily_board_summary` (0007) is per day. A season is the same idea over a date range, and the same rule: **verified rows
+only** ever rank; pending rows are counted, never placed.
+- `public.seasons (id smallint pk, name text, starts date, ends date, check (starts <= ends))` — owner-managed in SQL like `admins`;
+  no client writes at all. Beta season 1 = the daily's day zero (2026-09-22) onward.
+- `season_board_summary(season smallint) returns jsonb` — the 0007 pattern verbatim, over `daily_results` joined to
+  `fighter_profiles.display_name` for `day between starts and ends and verified`: per fighter `{days_played, kills, cleanest (min
+  taken), fastest_kill, longest_survived}` ranked by kills desc, fastest_kill asc, limited to a top N the client never pages past;
+  plus `{pending}` for the season. Invoker, public columns only, never `user_id`/`record`. Ties broken by the earlier `created_at`.
+- No new tables for results and no new client writes: a season is a read over what the daily already stores and the verifier already
+  confirms. Only `seasons` is new, and it is a config table.
+- Client call (when built): `POST /rest/v1/rpc/season_board_summary {season}` (one new REST path → check-14 mock). DB-check cases: a
+  pending row outside the top N when a verified one exists; a day outside the season never counts; the payload carries no `user_id`.
+- Not designed here: career marks on the season board (marks are client-reported; the no-authority rule keeps them off any board).
+
+### Lockers — the locker-slot purchase record (payments later)
+`src/loot.ts:17` `LOCKERS = { open: 1, total: 6 }` is a constant today. When lockers are sold, the count a fighter has must come from
+the server, never from the client, and nothing competitive may hang off it (Strategy: cosmetic storage only).
+- `public.purchases (id uuid pk default gen_random_uuid(), user_id uuid → auth.users cascade, sku text check (sku in ('locker_slot')),
+  provider text, provider_ref text unique (the processor's own id — the idempotency key for a retried webhook), amount_cents integer
+  check (> 0), currency text check (char_length = 3), status text check (status in ('pending', 'paid', 'refunded')), created_at,
+  updated_at)`. Comment: "written by the payment webhook only".
+- RLS: **no client write path of any kind** — no insert/update/delete policy or grant to `anon`/`authenticated`. Rows are written by
+  the webhook handler (a Supabase Edge Function or a VPS endpoint, decided with Dom; it holds the processor's signing secret in its
+  own env, never in the database) through a dedicated login role like `frankendom_verifier` — `frankendom_payments`, grants `insert`
+  and `update (status, updated_at)` on `purchases` only. Client: `owner_read` select on its own rows for a receipts list.
+- Entitlement: view `public.locker_slots` = `select user_id, 1 + count(*) filter (where sku = 'locker_slot' and status = 'paid') as
+  slots from purchases group by user_id` (plus the 1 every fighter has). Owner-read via RLS on the base table; `src/loot.ts` reads
+  `slots` in place of `LOCKERS.open` and greys the rest, exactly as today. A refund flips `status` and the count drops — no data lost.
+- What the client may write: nothing. What it may read: its own purchases and its own slot count.
+- DB-check cases: a client insert into `purchases` refused (both roles); `frankendom_payments` can insert and can update only
+  `status`; the view counts `paid` only; cross-owner read refused. Not designed here: the provider, prices, tax, the checkout UI —
+  Dom's money decision first (this lane's rule: money is Dom's call, not a lane's).
 
 ## Rules every lane inherits
 - Client-reported data is never rank, result or unlock authority for anything competitive; only server-verified rows count.

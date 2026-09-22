@@ -4,12 +4,12 @@ import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, save
 import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
-import { fetchSharedRecord, publishRecord, shortLink, shortParam } from './share-store.ts';
-import { replayParam, shareUrl, verifyRecord } from './replay.ts';
+import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
+import { replayParam, verifyRecord } from './replay.ts';
 import './monitoring.ts';
 import { captureException } from '@sentry/browser';
 import './style.css';
-import { wrapAngle } from './sim.ts';
+import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { awardMark, marksOf, rankFor } from './career.ts';
 import { PAPERDOLL, dropFor, emptyLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
@@ -95,7 +95,7 @@ function renderLoot() {
       small.setAttribute('data-taken', ''); bold.textContent = pieceName(id); bold.textContent = bold.textContent[0]!.toUpperCase() + bold.textContent.slice(1);
       small.append(bold, document.createTextNode(` · your ${ordinal(taken.attempt)} attempt, ${taken.healthLeft} health left`));
       // The Watch link names the fight's opponent (share-store shortLink): the loader refuses a record for another opponent than the page booted.
-      if (taken.recordId) { const watch = document.createElement('a'); watch.setAttribute('data-watch', ''); watch.setAttribute('href', shortLink(location.origin, taken.opponent, taken.recordId)); watch.textContent = 'Watch'; small.append(document.createTextNode(' '), watch); }
+      if (taken.recordId) { const watch = document.createElement('a'); watch.setAttribute('data-watch', ''); watch.setAttribute('href', shortLink(location.origin, taken.recordId)); watch.textContent = 'Watch'; small.append(document.createTextNode(' '), watch); }
       li.append(small);
     }
     li.append(button);
@@ -149,10 +149,12 @@ let recorded = false,
   activeMs = 0; // activeMs: real unpaused wall-clock of the current fight (hit-stop included), beside the simulation's tick count
 // The first match is the fixed 731 warden (the browser gate times its opener); every rematch meets a differently seeded one.
 // Who stands opposite: the rung this device has reached (profile.encounter), unless the URL names another (`?opponent=pitborn` — the harness and a dev look).
-const opponent = opponentFor(
-  profile.encounter,
-  /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1],
-);
+// A kill link (`/s/<id>`, or the `?r=` / `?replay=` forms shared before 2026-09-22, kept until 2026-10-22) names its own opponent
+// in the stored record, not the URL; when the record's warden is not the one this page booted, the page is re-opened once with
+// `?opponent=` set from the record (the rig is chosen here, before any asset loads), so one short link works for every warden.
+const replayText = replayParam(window.location?.search ?? ''), sharedId = sharedIdFrom(window.location?.pathname ?? '', window.location?.search ?? '');
+const urlOpponent = /[?&]opponent=(\w+)/.exec(window.location?.search ?? '')?.[1];
+const opponent = opponentFor(profile.encounter, urlOpponent);
 // Owner/test tool: pick any rung from the journal. Saving the rung and reloading is the same path the ladder's "Next" takes; the
 // URL override is dropped so the pick wins. Picking the Veteran is a reset.
 const opponentSelect = element<HTMLSelectElement>('opponent-select');
@@ -239,7 +241,12 @@ let replay: { record: FightRecord; cursor: number } | null = null, practiceOnly 
 let daily: DailyFight | null = null;   // the daily warden's fight when this page is today's attempt (src/daily.ts): practice rules, its result posted once
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 const banner = (text: string | null) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; };
-const say = (text: string | null) => { shareStatus.textContent = text ?? ''; shareStatus.hidden = !text; };
+// The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
+// everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
+// "Couldn't make a link, try again." is 32 characters and must persist (lead review).
+const CONFIRMATIONS = new Set(['Shared.', 'Link copied.', 'Result copied.', 'Posted to today\'s board.']);
+let sayTimer: ReturnType<typeof setTimeout> | undefined;
+const say = (text: string | null) => { clearTimeout(sayTimer); shareStatus.textContent = text ?? ''; shareStatus.hidden = !text; if (text && CONFIRMATIONS.has(text)) sayTimer = setTimeout(() => say(null), 2000); };
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // Hit-stop: a contact freezes the simulation for a few frames while the frame keeps rendering, so the pose at impact reads. Wall-clock
 // pacing only — the simulation, its tick count and determinism are untouched. Heavier contacts stop longer; a kill stops longest.
@@ -393,14 +400,16 @@ shareButton.addEventListener('click', async () => {
   try {
     const check = verifyRecord(lastRecord);
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
-    // A signed-in fighter's link carries a short id (the record is stored); a guest's, or a store that refused, carries the record itself.
-    let url: string | null = null;
-    if (session?.db && session.userId) { try { const id = await publishRecord(session.db, session.userId, lastRecord); url = shortLink(location.origin, lastRecord.opponent, id); if (lastDrop && profile.loot) { profile.loot = recordTaken(profile.loot, lastDrop, id); persist(); } } catch { url = null; } }
-    if (!url) {
-      const link = await shareUrl(lastRecord, location.origin);
-      if ('tooLong' in link) { say('This fight is too long to share as a link; sign in to share it by id.'); return; }
-      url = link.url;
-    }
+    // Everyone's link carries a short id (owner 2026-09-22): the store mints one for guests too. No record-in-the-link fallback —
+    // a store that refuses means no link, said plainly, never a URL that runs to several screens.
+    if (!api) { say('Sharing needs the fight store; try again later.'); return; }
+    let url: string;
+    try {
+      const token = session?.db ? (await session.db.auth.getSession()).data.session?.access_token ?? null : null;
+      const id = await mintShare(api, lastRecord, token);
+      url = shortLink(location.origin, id);
+      if (session?.userId && lastDrop && profile.loot) { profile.loot = recordTaken(profile.loot, lastDrop, id); persist(); }
+    } catch { say("Couldn't make a link, try again."); return; }
     // A daily fight shares its Wordle-style text with the link; any other fight shares the link alone.
     const text = daily ? dailyShareText(daily, ROSTER[opponent.id].name, lastRecord.outcome, lastRecord.ticks, url) : url;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
@@ -412,25 +421,48 @@ shareButton.addEventListener('click', async () => {
 });
 // A shared link: decode the record, put the fight on its seed and warden profile, hide the welcome (a viewer needs no name) and
 // let the frame loop feed the recorded intents. A link for another opponent than the page booted is refused rather than mis-played.
-// The link carries the record (`replay=`, a guest's share) or a short id (`r=`, a signed-in fighter's share, read from the fight store).
-const replayText = replayParam(window.location?.search ?? ''), sharedId = shortParam(window.location?.search ?? '');
+// The link carries a short id (`/s/<id>`; `?r=` until 2026-10-22) read from the fight store, or the record itself (`?replay=`, until 2026-10-22).
 // A kill link makes this page a viewer: set before the welcome screen drops so the frame loop never marks an AFK fight (fight.v1)
 // for a fight nobody is fighting. A refused link keeps the page a viewer; the reset button (Avenge him / Rematch) is the player
 // choosing to fight, and clears it.
 let watching = Boolean(replayText || sharedId);
+// A replay opens on its ending (owner 2026-09-22: "the playback is the full match? way too long and boring, last 7 seconds only"):
+// the deterministic sim is stepped silently to REPLAY_TAIL seconds before the record's end, then rendered from there. One tap on
+// "Watch the whole fight" starts it over from the first tick. Blows before the window leave no wound marks (they were never drawn).
+const REPLAY_TAIL = 7;
+const wholeButton = element<HTMLButtonElement>('replay-whole');
+function startReplay(record: FightRecord, fromTick: number) {
+  matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
+  recorder = null; recorded = false; activeMs = 0; clearInput();
+  practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null;
+  for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], opponent.profiles[difficulty]);
+  state = previous = practice.fighter; accumulator = 0;
+  replay = { record, cursor: fromTick }; shareButton.hidden = true; say(null); wholeButton.hidden = fromTick === 0;
+  banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
+  updateHud();
+}
+let sharedRecord: FightRecord | null = null;
 if (replayText || sharedId) {
   welcome.hidden = true; banner('Loading the fight…');
   const text = replayText ? Promise.resolve(replayText) : api ? fetchSharedRecord(api, sharedId!) : Promise.reject(Error('this build has no fight store'));
   void text.then(decodeRecord).then((record) => {
-    if (record.opponent !== opponent.id) throw Error('the link names another opponent');
-    matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Warden: ${difficulty}`;
-    recorder = null; recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); showLootDrop(null); lastDrop = null; state = previous = practice.fighter;
-    replay = { record, cursor: 0 }; shareButton.hidden = true; say(null);
-    banner(record.build !== BUILD && record.build !== 'dev' && BUILD !== 'dev' ? `Replay · recorded on another build (${record.build.slice(0, 7)})` : 'Replay');
-    updateHud();
-  }).catch((error: unknown) => { banner(`This link cannot be played: ${error instanceof Error ? error.message : String(error)}`); });
+    if (record.opponent !== opponent.id) {
+      if (urlOpponent) throw Error('the link names another opponent');
+      const target = new URL(location.href); target.searchParams.set('opponent', record.opponent); location.replace(target.href); return;   // once: the re-opened page boots that rig
+    }
+    sharedRecord = record;
+    startReplay(record, Math.max(0, record.ticks - Math.round(REPLAY_TAIL / STEP)));
+  }).catch((error: unknown) => {
+    const message = typeof (error as { message?: unknown })?.message === 'string' ? (error as { message: string }).message : String(error);
+    if (message === 'no such fight') {   // unknown or expired id (guest links live 90 days, Strategy 2026-09-22): a plain page, the fight button under it, no jargon
+      banner(null); watching = false; welcome.hidden = false;
+      element('welcome-eyebrow').textContent = 'THIS FIGHT HAS FADED'; element('welcome-title').textContent = 'Sign in and your kills are kept forever.'; element('welcome-lead').hidden = true;
+      return;
+    }
+    banner(`This link cannot be played: ${message}`);
+  });
 }
+wholeButton.addEventListener('click', () => { if (sharedRecord) startReplay(sharedRecord, 0); });
 // The daily warden (brief 4): `?daily=1` asks the server for today's fight, moves to the day's opponent when the page booted another,
 // spends the day's one attempt the moment the fight starts (a reload mid-fight is the attempt) and posts the record when it ends.
 // Practice rules: no marks, no scorecard; the daily has its own board. A build without a store, or a spent day, fights as usual.

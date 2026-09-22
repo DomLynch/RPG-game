@@ -1359,7 +1359,7 @@ dialog>p {
   font-display: swap;
 }
 dialog {
-  --jb: #f6f2ea; --jp: #ebe5d9; --jf: #1b1916; --jm: #7a746a; --jl: #dcd4c6; --ja: #b3231c;
+  --jb: #f6f2ea; --jp: #ebe5d9; --jf: #1b1916; --jm: #7a746a; --jl: #dcd4c6; --ja: #b3231c; --js: #b7a276; --jsh: #d9c69a; --jse: #e9d9b3;   /* --js/--jsh/--jse: the fight cluster's sand, pressed tint and rim (owner 2026-09-22: site buttons wear the game's gold, red stays for text) */
   color: var(--jf);
   background: var(--jb);
   border: 0;
@@ -1541,7 +1541,7 @@ dialog .slot-off { display: block; margin: 8px 0 0; min-height: 40px; padding: 0
 .rack li span::first-letter { text-transform: uppercase; }
 dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; border-radius: 8px; font-size: 10px; }   /* owner touch-target follow-up: 40 px tap height, type unchanged */
 .rack li[data-worn='true'] { border-color: var(--ja); }
-.rack li[data-worn='true'] button { border-color: var(--ja); background: var(--ja); color: #fff; }
+.rack li[data-worn='true'] button { border-color: var(--jse); background: var(--js); color: var(--jf); }
 /* Provenance (brief 9): each owned tile carries <small data-taken> — the piece's name, then how it was taken — and, when the
    fight was stored, an <a data-watch href="/?r=…">Watch</a>. Too long for a 63 px tile, so it reads beneath the grid: the worn
    piece's by default, any tile's while it is hovered or focused (a tap focuses it: the li carries tabindex="0"). */
@@ -1554,10 +1554,29 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
 .rack:has(li:hover, li:focus-within) li[data-worn='true']:not(:hover, :focus-within) small { display: none; }   /* one caption at a time */
 .rack li small b { font-weight: 400; color: var(--jf); }
 .rack li small a { display: inline-block; margin-left: 6px; padding: 1px 8px; border: 1px solid var(--ja); border-radius: 999px; font: 600 10.5px/1.5 "Instrument Sans", Arial, sans-serif; color: var(--ja); text-decoration: none; vertical-align: 1px; }
-.rack li small a:hover { background: var(--ja); color: #fff; }
+.rack li small a:hover { background: var(--js); border-color: var(--jse); color: var(--jf); }
 
 /* Kill links (brief 3): the replay banner sits under the header; Share and its status sit beside Rematch on the death screen.
    Web design owns the final look; these are plain, readable defaults. */
+/* "Watch the whole fight" (owner 2026-09-22): a replay opens on its last seconds; this one tap under the banner restarts it from
+   the first tick. Same face as the banner, a thin frame so a thumb finds it; hidden while the whole fight is already playing. */
+.replay-whole {
+  position: fixed;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 8px 14px;
+  border: 1px solid #e9ddc5aa;
+  border-radius: 999px;
+  background: #0008;
+  color: #e9ddc5;
+  font: 12px Arial;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  min-height: 44px;
+}
+.replay-whole[hidden] { display: none; }
 .replay-banner {
   position: fixed;
   top: 56px;
@@ -1575,6 +1594,60 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
 .share-button {
   white-space: nowrap;
   touch-action: manipulation;
+}
+/* Share this fight (owner 2026-09-22, from a phone still): the round pill overlapped its own status and competed with Next. It
+   stays a button (a 44 px tap target) but reads as a text link — underlined, the autopsy's face and colour, no pill — sitting
+   above Next/Rematch and right-aligned with it, so Next stays the one big control. The status ("Shared." / "Link copied." /
+   an error) takes the link's place for ~2 s (main.ts say()) instead of floating beside it: #share-status is laid over the
+   same box, right-aligned, and while it shows the link's own label goes transparent — the button underneath stays tappable, so
+   a persisting error ("Could not share: …") still lets the player try again. Long text grows upward over the sleeping combat
+   buttons, never down into Next. */
+#actions .share-button {
+  position: static;
+  width: auto;
+  height: auto;
+  min-height: 44px !important;
+  padding: 0 6px !important;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #efe6d3;
+  font: 13px Georgia, "Iowan Old Style", "Times New Roman", serif;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+  cursor: pointer;
+}
+#actions .share-button:active { background: none; transform: none; }
+#actions .share-button:has(+ .share-status:not([hidden])) { color: transparent; text-decoration-color: transparent; text-shadow: none; }
+@media (max-width: 900px), (pointer: coarse) {
+  /* Above Next/Rematch (left:0, top:75px, 176×56 in the 184×216 cluster box): the link's 44 px box ends where Next begins. */
+  .actions[data-gestures=cluster] #share-button {
+    position: absolute;
+    left: auto;
+    right: 8px;
+    top: 31px;
+    height: 44px;
+    font-size: 12px;
+  }
+  /* The same 44 px box as the link, text centred in it the way the button centres its label (owner 2026-09-22: "Link copied."
+     must sit exactly where "Share this fight" was); anchored at the bottom so a long error grows upward. */
+  .actions[data-gestures=cluster] #share-status {
+    position: absolute;
+    right: 14px;
+    bottom: 141px;
+    min-height: 44px;
+    max-width: 170px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    text-align: right;
+    font: 12px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
+    text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+    opacity: 1;
+  }
 }
 /* The death-screen autopsy (src/autopsy.ts): at most two plain lines. Docked in the top band under the health bars with the
    fight hint, not floating over the arena (owner 2026-09-22: the centred overlay hid the gore and the finisher). In-flow inside
@@ -1601,8 +1674,8 @@ dialog .scorecard-table .autopsy-row td { padding: 0 4px 9px; text-align: left; 
 .daily { margin: 4px 0 18px; padding: 14px 14px 12px; border: 1px solid var(--jl); border-radius: 14px; background: #fff9; }
 .daily h4 { margin: 0 0 6px; }
 .daily-status { margin: 0 0 12px; font: 700 16px/1.3 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; color: var(--jf); letter-spacing: -.01em; }
-dialog .daily-go { width: 100%; min-height: 48px; border-radius: 12px; background: var(--ja); border-color: var(--ja); color: #fff; font-size: 15px; }
-dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff; }
+dialog .daily-go { width: 100%; min-height: 48px; border-radius: 12px; background: var(--js); border-color: var(--jse); box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0003; color: var(--jf); font-size: 15px; }
+dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color: var(--jf); }
 .daily-board { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--jl); }
 .daily-board li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--jl); font: 14px/1.35 "Instrument Sans", Arial, sans-serif; color: var(--jf); font-variant-numeric: tabular-nums; }
 .daily-board li b { font-weight: 600; color: var(--jm); white-space: nowrap; }
@@ -1610,10 +1683,11 @@ dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff
 .daily-board li[data-you='true'] { margin: 0 -8px; padding: 9px 8px; border-radius: 8px; background: #fff; border-bottom: 0; box-shadow: inset 0 0 0 1px var(--jl); }
 .share-status {
   display: block;
-  color: #e9ddc5;
+  color: #efe6d3;
   font: 12px Arial;
   opacity: 0.8;
   overflow-wrap: anywhere;
+  pointer-events: none;
 }
 
 /* The drop (brief 5): the piece's name docks in the top band next to the autopsy (owner 2026-09-22, same move as .autopsy above:
@@ -1639,14 +1713,15 @@ dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#autopsy, #loot-drop, #loot-choice, #reset-button, #share-button {
+#autopsy, #loot-drop, #loot-choice, #reset-button, #share-button, #share-status {
   transition: opacity 250ms ease-out;
 }
 :root.endgame-fade #autopsy,
 :root.endgame-fade #loot-drop,
 :root.endgame-fade #loot-choice,
 :root.endgame-fade #reset-button,
-:root.endgame-fade #share-button {
+:root.endgame-fade #share-button,
+:root.endgame-fade #share-status {
   opacity: 0;
 }
 :root.endgame-fade #loot-choice,
@@ -1655,7 +1730,7 @@ dialog .daily-go:hover { background: #a11f18; border-color: #a11f18; color: #fff
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #autopsy, #loot-drop, #loot-choice, #reset-button, #share-button { transition: none; }
+  #autopsy, #loot-drop, #loot-choice, #reset-button, #share-button, #share-status { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the
