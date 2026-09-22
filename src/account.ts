@@ -39,11 +39,11 @@ export async function mountAccount(url: string, key: string) {
   async function sync(profile: Profile, turn: number): Promise<boolean> {
     if (!userId) return false;
     if (!saveProfile(localStorage, profile)) { status.textContent = 'Device storage unavailable.'; return false; }   // the queue writes local(): the device is the source
-    status.textContent = 'Saving to your account…'; headline('saving');
+    status.textContent = 'Saving to your account…'; delete status.dataset.saved; headline('saving');
     const ok = await queue(local);
     if (turn !== generation) return false;
-    if (ok && saved) { status.textContent = `Saved to your account as ${saved.display_name}.`; headline('saved'); return true; }
-    status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; retry.hidden = false; headline('unsynced');
+    if (ok && saved) { status.textContent = ''; status.dataset.saved = saved.display_name; headline('saved'); return true; }   // the fighter card's save line says it (owner: the sentence was repetitive); data-saved is check 14's signal
+    status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; delete status.dataset.saved; retry.hidden = false; headline('unsynced');
     return false;
   }
   // A fresh sign-in on this device (merge = true): the cloud comes down — its name and opponent, the higher mark count, every piece of loot
@@ -51,7 +51,7 @@ export async function mountAccount(url: string, key: string) {
   async function refresh(merge = false) {
     const turn = ++generation;
     busy = true; saved = null; retry.hidden = true; render();
-    status.textContent = 'Checking your account…';
+    status.textContent = 'Checking your account…'; delete status.dataset.saved;
     try {
       const { data, error } = await db.auth.getSession();
       if (turn !== generation) return;
@@ -78,7 +78,7 @@ export async function mountAccount(url: string, key: string) {
         const target = new URL(location.href); target.searchParams.delete('opponent');
         location.replace(target.href); return;
       } else if (differs(local(), saved)) await sync(local(), turn);
-      else status.textContent = `Saved to your account as ${saved.display_name}.`;
+      else { status.textContent = ''; status.dataset.saved = saved.display_name; }
     } catch {
       if (turn !== generation) return;
       status.textContent = 'Could not read your account. Retry before saving; your local fighter is safe.';

@@ -1426,6 +1426,7 @@ dialog .chips.quiet button { color: var(--jm); border-style: dashed; }
 .account { padding: 14px 0; border-bottom: 1px solid var(--jl); overflow-wrap: anywhere; }
 .account > strong { display: block; font: 600 11px "Instrument Sans", Arial, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #9a7a3a; }
 .account p { margin: 4px 0 10px; font-size: 14px; }
+#account-status:empty { display: none; }   /* signed in and saved: the fighter card's save line already says so */
 .account small { display: block; margin-top: 8px; font-size: 12px; color: var(--jm); }
 .account-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .account-actions button { flex: 1 1 140px; min-height: 44px; border-radius: 12px; }
