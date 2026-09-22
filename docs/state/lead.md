@@ -45,6 +45,16 @@ PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing s
   Knight only. Strategy to place it.
 - **The bare Knight reads as nobody** (Executioner, #502): shoulder/height 0.367 in kit to 0.246 stripped, and none of the
   bare outline is his. Open proposal for Dom: one non-takeable silhouette feature in the bare build.
+- **Open for Dom, and the biggest thing on this list: "distinctive silhouette" and "six takeable pieces" pull against each
+  other by construction.** The more strongly a character is designed on outline, the more completely they vanish stripped,
+  because every feature that reads as gear IS gear under the six-piece ruling. The Executioner survives stripping (hood, hair),
+  the Veteran survives (frame); the Knight keeps nothing (0.367 -> 0.246) and Shieldmaiden A keeps nothing (0.284 -> 0.240),
+  and A won the owner's pick on the hard shoulder line, the single most removable thing about her. Two of four launch
+  characters, found independently by the Executioner and Pitborn lanes on the same day. Binary decision, the owner's: identity
+  moves onto the body (build, scars, hair as authored geometry) where loot cannot reach, or the bar comes down and the brief
+  says plainly that stripped means generic. It bears on the Plague Doctor and the Witch BEFORE their lanes write a brief in
+  the same terms. Ruled meanwhile so no lane stalls: Brief 17's §6 bare-pass gate is **satisfied** — its purpose is that a
+  masked character isn't modelled before its outline is known, and the outline is now known including the missing part.
 - Mine also: the SCOPE.md broadcast to the lanes once #492 lands.
 
 **Gotchas.**
@@ -62,6 +72,13 @@ PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing s
 - **A valid background is not a valid mask, and a measured number can still measure the wrong thing.** The hole figure went
   20,677 px -> 9,644 -> **6,973 (3.5 % of the mask)** as two lanes checked each other; the first counted the figure's own
   negative space as a defect. Ask what the number was measured against.
+- **The 80 % coverage rule is not a silhouette measure.** `tests/loot.test.ts` compares the loot draw's mesh surface area in
+  m² against the PLAYER's own draws in that slot; it is a test that runs when the draw exists, not something checkable from a
+  reference or a mask. I instructed a lane to measure it off a mask, and #471 §5a asserted the hauberk "clears comfortably —
+  but it is measured, not asserted" when nothing had been measured. Fixed at `06eaec3`.
+- **Every silhouette figure published before 2026-09-23 is withdrawn, in both directions.** Thresholded silhouettes fuse an arm
+  into the torso where a hand rests on a thigh, polished plate sits at the backdrop's own luminance, and one lane's bare panels
+  were rendered with the arms held out. Corrected off u2net mattes: three men inside 0.014, candidates 0.043 apart. Quote these.
 - A branch checked out in another worktree cannot be checked out here. Commit via `hash-object`/`commit-tree` and push the
   sha, rather than reaching into that worktree.
 
