@@ -40,22 +40,28 @@ camera.position.set(target.x, target.y, target.z + dist); camera.lookAt(target);
 // The rig's draws and materials, as characters.ts wear() finds them.
 let body; const own = [], materials = new Map();
 root.traverse((o) => { if (!o.isMesh) return; own.push(o); if (o.isSkinnedMesh && o.userData.slot === 'Body' && !body) body = o; if (o.material?.name && o.material.map) materials.set(o.material.name, o.material); });
-const pieces = []; loot.scene.traverse((o) => { if (o.isSkinnedMesh && typeof o.userData.slot === 'string') pieces.push(o); });
+const pieces = []; let shared = {};
+loot.scene.traverse((o) => { if (o.isSkinnedMesh && typeof o.userData.slot === 'string') pieces.push(o); if (o.userData?.pieces) shared = { ...shared, ...o.userData.pieces }; });
+// A shared draw (brief 14) is ONE mesh worn by several opponents. The GLB stores it once — that is the whole saving — but a layer is a
+// 1.5 KB thumbnail the panel looks up by opponent.slot.webp, so here we render a copy per wearer instead of making every consumer
+// of these files learn to resolve the map. Seven kilobytes buys the UI staying exactly as it was.
+const idsOf = (p) => { const own = p.userData.opponent + '.' + p.userData.slot;
+  const refs = Object.entries(shared).filter(([, target]) => target === own).map(([ref]) => ref); return refs.length ? refs : [own]; };
 const ARMOUR = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];   // weapon draws (Weapons' equip files) are a separate render path
-const ids = [...new Set(pieces.filter((p) => ARMOUR.includes(p.userData.slot)).map((p) => p.userData.opponent + '.' + p.userData.slot))].sort();
+const ids = [...new Set(pieces.filter((p) => ARMOUR.includes(p.userData.slot)).flatMap(idsOf))].sort();
 const occluder = new THREE.MeshBasicMaterial({ colorWrite: false });
 let worn = [];
 window.show = (id) => {   // null = bare figure; an id = that piece over a depth-only body
   for (const w of worn) w.removeFromParent(); worn = [];
   for (const o of own) { o.visible = true; o.userData.__m ??= o.material; o.material = id ? occluder : o.userData.__m; }
   if (!id) { renderer.render(scene, camera); return; }
-  const mine = pieces.filter((p) => p.userData.opponent + '.' + p.userData.slot === id), hide = new Set(mine.filter((p) => p.userData.layer === 'replace').map((p) => p.userData.slot));
+  const mine = pieces.filter((p) => idsOf(p).includes(id)), hide = new Set(mine.filter((p) => p.userData.layer === 'replace').map((p) => p.userData.slot));
   if (hide.has('Helmet')) hide.add('Hair');
   for (const o of own) if (hide.has(String(o.userData.slot))) o.visible = false;
   for (const p of mine) { const m = p.material?.name && !p.material.map ? materials.get(p.material.name) ?? p.material : p.material, c = new THREE.SkinnedMesh(p.geometry, m); c.frustumCulled = false; c.bind(body.skeleton, body.bindMatrix); body.parent.add(c); worn.push(c); }
   renderer.render(scene, camera);
 };
-window.show(null); window.ready = { ids, layers: Object.fromEntries(pieces.map((p) => [p.userData.opponent + '.' + p.userData.slot, p.userData.layer])) };
+window.show(null); window.ready = { ids, layers: Object.fromEntries(pieces.flatMap((p) => idsOf(p).map((id) => [id, p.userData.layer]))) };
 </script>`;
 
 const types = { '.js': 'text/javascript', '.glb': 'model/gltf-binary' };

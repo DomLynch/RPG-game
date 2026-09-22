@@ -32,15 +32,18 @@ export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locke
 // The pieces in loot.glb by opponent, in the file's slot order — every visible armour slot a fallen opponent wears (owner, 2026-09-22:
 // "I should be able to pick up any armour or weapon slot"; weapons are the Weapons lane's). Drop order = this order (tests/loot-data.test.ts
 // pins the list against the file's draws). An opponent without pieces drops nothing. Scalable Chars appends here when a piece ships.
+// A piece may be SHARED: brief 14's gloves are one mesh worn by the whole roster, exported once as `~kit.Gloves` with loot.glb's own
+// scene userData mapping `<opponent>.Gloves` to it. The id here stays `<opponent>.<slot>` either way — sharing is a fact about the file,
+// never about what a player owns.
 // Body is the tunic and what hangs on it (baldric, belt, buckle, studs, collar) in the opponent's own linen; kilts are leg cloth with no
 // paperdoll slot and stay the player's. The Goblin's Body carries his trophy necklace, the Pitborn's Arms his bone plates.
 export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
-  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Trident'],
-  executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Body', 'executioner.Arms', 'executioner.Greaves', 'executioner.Boots', 'executioner.Scythe'],
-  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Boots', 'nightborn.Estoc'],
-  pitborn: ['pitborn.Arms', 'pitborn.Cleaver'],   // no chest piece: he wears a rag sash, not a tunic (a `replace` piece must not undress the player — tests/loot.test.ts)
-  dwarf: ['dwarf.Greaves', 'dwarf.Warhammer'],
-  goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Knife'],
+  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Trident'],
+  executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Body', 'executioner.Arms', 'executioner.Greaves', 'executioner.Boots', 'executioner.Gloves', 'executioner.Scythe'],
+  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
+  pitborn: ['pitborn.Arms', 'pitborn.Gloves', 'pitborn.Cleaver'],   // no chest piece: he wears a rag sash, not a tunic (a `replace` piece must not undress the player — tests/loot.test.ts)
+  dwarf: ['dwarf.Greaves', 'dwarf.Gloves', 'dwarf.Warhammer'],
+  goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
 };
 export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat());
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
