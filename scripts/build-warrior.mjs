@@ -116,6 +116,11 @@ const parts = new Map([steel, trim, leather, heraldry, cloth, hair, ranger, bron
 const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] }, pitborn: { scale: 1.13, hunch: [['spine_02', 7], ['spine_03', 7], ['neck_01', -7], ['Head', -6]] },
   nightborn: { scale: 1.03, hunch: [['spine_02', -2], ['spine_03', -2], ['Head', -4]] },
   executioner: { scale: 1.36, hunch: [] },   // 20 % over the Pitborn's 1.13 (owner, 2026-09-17); no hunch — the Executioner stands straight
+  // The Knight (Brief 17). PROVISIONAL, tie-break on the 0.367 midpoint, judged by the owner on the versus still:
+  // his shoulder-over-height measures 0.367 against the Veteran's 0.360 and the Executioner's 0.374 (#502), which puts him
+  // midway between them — but the whole spread is 0.014, so the midpoint is a tie-break and not evidence. Dom's words were
+  // "more bulky than the veteran, but thinner than the executioner"; a change is one number here (Strategy, 2026-09-23).
+  knight: { scale: 1.18, hunch: [] },   // no hunch — full plate stands straight
   goblin: { scale: .835, hunch: [['spine_02', 9], ['spine_03', 9], ['neck_01', -8], ['Head', -8]], bob: .84, stride: .835 * .84, floor: .12,
     bones: { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l: [1, .84, 1], calf_r: [1, .84, 1],   // short legs
       upperarm_l: [1, 1.16, 1], upperarm_r: [1, 1.16, 1], lowerarm_l: [1, 1.16, 1], lowerarm_r: [1, 1.16, 1],   // long arms (the hands keep their size: the grip and the sword are untouched)
