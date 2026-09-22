@@ -75,6 +75,38 @@ try {
   receipt.pointerEvents = pointerEvents;
   assert.ok(pointerEvents.faded.every((v) => v === 'none'), `faded buttons must be inert: ${pointerEvents.faded}`);
   assert.ok(pointerEvents.restored.every((v) => v !== 'none'), `buttons must wake once the fade lifts: ${pointerEvents.restored}`);
+  // (1) Evidence (Auditer's ask, 2026-09-22): with NO touch at all, Rematch/Next is live in the window between settle and the
+  // tour's start — settle + ~0.6 s, still attached. finishAge advances per rendered frame on the page clock, which the harness
+  // owns (scripts/lib/harness-clock.mjs: `until` budgets are page time, stepped 16 ms at a time), so the wait is deterministic —
+  // settle lands near 1.9 s, the tour starts at 5 s, and a 4 s budget cannot be starved by a loaded runner. `!!p &&` covers the
+  // frames before #debug carries a phase.
+  await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p && p.age >= 2.5; }, 4000);
+  const window1 = await page.evaluate(() => {
+    const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase);
+    const rb = document.getElementById('reset-button');
+    const r = rb.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);   // what a tap at Rematch's centre would actually land on
+    return { age: p.age, settled: p.settled, touring: p.touring, faded: document.documentElement.classList.contains('endgame-fade'), pointerEvents: getComputedStyle(rb).pointerEvents, opacity: getComputedStyle(rb).opacity, text: rb.textContent, hitIsRematch: hit === rb || rb.contains(hit), hit: hit ? `${hit.tagName}#${hit.id}` : null };
+  });
+  receipt.windowBeforeTour = window1;
+  assert.ok(window1.settled && !window1.touring && !window1.faded, `between settle and tour, no touch: HUD visible (${JSON.stringify(window1)})`);
+  assert.equal(window1.pointerEvents, 'auto', 'Rematch/Next is tappable before the tour without any touch');
+  assert.equal(window1.opacity, '1', `Rematch/Next is fully visible before the tour (opacity ${window1.opacity})`);
+  assert.ok(window1.hitIsRematch, `a tap at Rematch's centre lands on Rematch, not on ${window1.hit}`);
+  await page.screenshot({ path: `${out}/rematch-live-before-tour.png` });
+  // (2) Product: the tour hands the camera back on a touch ANYWHERE, not only on the canvas — a thumb landing where Rematch was
+  // hits the inert #actions box during the tour. Wait for the tour, tap that box, and the HUD must be back within its 250 ms fade.
+  await until(() => { const p = JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null'); return !!p?.touring; }, 9000);
+  const touring = await page.evaluate(() => ({ faded: document.documentElement.classList.contains('endgame-fade'), pointerEvents: getComputedStyle(document.getElementById('reset-button')).pointerEvents }));
+  assert.ok(touring.faded && touring.pointerEvents === 'none', `during the tour the HUD is faded and inert: ${JSON.stringify(touring)}`);
+  const box = await page.locator('#reset-button').boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);   // where Rematch was: lands on #actions, not the canvas
+  await until(() => !document.documentElement.classList.contains('endgame-fade'), 1500);
+  const handedBack = await page.evaluate(() => ({ touring: JSON.parse(document.querySelector('#debug').dataset.finishPhase).touring, pointerEvents: getComputedStyle(document.getElementById('reset-button')).pointerEvents }));
+  receipt.handedBack = handedBack;
+  assert.ok(!handedBack.touring && handedBack.pointerEvents === 'auto', `a touch off the canvas stops the tour and wakes the HUD: ${JSON.stringify(handedBack)}`);
+  await page.screenshot({ path: `${out}/hud-back-after-tour-touch.png` });
+  await page.locator('#reset-button').tap();   // and now the real tap goes through (Playwright would throw if anything intercepted it)
   receipt.passed = true;
 } catch (error) {
   receipt.passed = false; receipt.error = String(error);

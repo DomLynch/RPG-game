@@ -619,6 +619,13 @@ for (const id of ['camera-button', 'mobile-camera'])
     }
   });
 element('recenter-button').addEventListener('click', () => view.recenter());
+// After the kill, ANY touch hands the camera back, not only one on the canvas (lead review 2026-09-22): while the arena-cam
+// tour has the HUD faded, Rematch/Share/Wear-Store are inert (pointer-events: none), so a thumb landing where Rematch was hits
+// the #actions cluster box — which is not the canvas — and without this the tour would never stop and the HUD never return.
+// Listening on the document catches that tap (and one on the joystick, the header, anywhere); the HUD is back at 250 ms.
+// Gated on the tour actually running: stopTour() only sets a flag, so a tap in the death animation or the settle window (mashing
+// after the kill, tapping Share) must not cancel a tour that has not started yet. A canvas drag below stays an explicit takeover.
+document.addEventListener('pointerdown', () => { if (practice.finish && view.finishPhase().touring) view.stopTour(); });
 canvas.addEventListener('pointerdown', (event) => {
   if (paused() || orbitId !== null || event.button !== 0) return;
   canvas.focus();

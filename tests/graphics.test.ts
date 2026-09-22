@@ -48,7 +48,8 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   const callbacks = new Map<number, (time: number) => void>(), timers = new Map<number, () => void>(), errors: unknown[] = [];
   let rendered: combat.Practice | undefined, renderedBody: { x: number; z: number; heading: number } | undefined, renderedFrozen = false;
   let report: (value: string, kind: 'loading' | 'ready' | 'failed') => void = () => {}, retries = 0, finishPhase = { settled: false, touring: false, age: 0 };
-  const view = { yaw: 0, recenter() {}, stopTour() {}, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
+  let tourStops = 0;
+  const view = { yaw: 0, recenter() {}, stopTour() { tourStops++; }, lowerResolution() {}, orbit() {}, previousFinisher: () => null, finishPhase: () => finishPhase, fallenRect: () => null as { x: number; y: number; w: number; h: number } | null, worn: [] as string[], wear(ids: string[]) { view.worn = ids; }, retryArt() { retries++; report('Loading warriors…', 'loading'); return Promise.resolve(); }, renderer: { getContext: () => ({ isContextLost: () => lost }) },
     restoreGraphics() { rebuilds++; if (failRebuild) throw Error('rebuild failed'); },
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
@@ -61,7 +62,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     setTimeout: (cb: () => void) => { const id = ++serial; timers.set(id, cb); return id; }, clearTimeout: (id: number) => timers.delete(id),
   });
   element('welcome').hidden = true;
-  return { element, errors, callbacks, timers, storage, window: win, document: doc, get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number }) { finishPhase = next; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
+  return { element, errors, callbacks, timers, storage, window: win, document: doc, get worn() { return [...view.worn]; }, setFinishPhase(next: { settled: boolean; touring: boolean; age: number }) { finishPhase = next; }, get tourStops() { return tourStops; }, report: (value: string, kind: 'loading' | 'ready' | 'failed') => report(value, kind), get retries() { return retries; }, get rendered() { return rendered!; }, get renderedBody() { return renderedBody!; }, get renderedFrozen() { return renderedFrozen; }, get renders() { return renders; }, get rebuilds() { return rebuilds; }, get reloads() { return reloads; }, replaced,
     tick(ms = 17) { now += ms; const pending = [...callbacks.values()]; callbacks.clear(); for (const cb of pending) cb(now); },
     key(code: string) { win.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { code, repeat: false })); },
     release(code: string) { win.dispatchEvent(Object.assign(new Event('keyup', { cancelable: true }), { code })); },
@@ -543,6 +544,23 @@ test('every fight is recorded in memory: the record finishes on the kill with th
   app.element('difficulty').click();   // mid-fight change: this fight is not replayable
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish); assert.match(app.element('debug').dataset.record ?? '', /\/731$/, 'no new record: the dataset still shows the first fight');
+});
+test('during the tour, a touch anywhere hands the camera back: a pointerdown on #actions (not the canvas) calls view.stopTour(); before the tour it does not', () => {
+  // Lead review 2026-09-22: during the tour the HUD is faded and inert, so a thumb landing where Rematch was hits the #actions
+  // cluster box, not the canvas. The canvas listener alone would never stop the tour, and the HUD would never come back. Gated on
+  // the tour running: a tap in the settle window must not cancel a tour that has not started (stopTour() only sets a flag).
+  const app = boot();
+  app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
+  app.document.dispatchEvent(new Event('pointerdown'));
+  assert.equal(app.tourStops, 0, 'no finish yet: a stray touch does not touch the camera');
+  for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
+  assert.ok(app.rendered.finish, 'the fight ends');
+  app.setFinishPhase({ settled: true, touring: false, age: 2 });
+  app.document.dispatchEvent(new Event('pointerdown'));   // settle window, tour not started: Rematch is live, the tour must still come
+  assert.equal(app.tourStops, 0, 'before the tour, a tap does not cancel it');
+  app.setFinishPhase({ settled: true, touring: true, age: 5.5 });
+  app.document.dispatchEvent(new Event('pointerdown'));   // a tap that bubbled up from #actions (or anywhere) — not the canvas
+  assert.equal(app.tourStops, 1, 'during the tour, any pointerdown stops it');
 });
 test('end-of-fight text and buttons fade with view.finishPhase(): hidden until settled, faded again while the arena-cam tours, back once the tour ends', () => {
   // Owner 2026-09-22: nothing over the fallen body until the finisher camera has settled, and it fades again during the arena-cam
