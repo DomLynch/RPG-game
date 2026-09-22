@@ -60,6 +60,19 @@ weapons lane's signature alone.
 STANDING WARNING tied to the Goblin: recovery 20 clears its pins at a median of 44.6 s against a 45 s ceiling, on a surface that swings
 38 → 48.5 s across adjacent recovery ticks. That is luck, not headroom. **If the Goblin is ever retuned, re-measure this.**
 
+COMBAT'S ANSWER on (d), 2026-09-22 — **measure once**. He declines to sign magnitudes he has not re-derived on his own seeds ("a
+signature that means the other lane told me and it looked plausible is worth nothing"), and box windows are the scarce resource, so
+measuring the knife head now would buy a number he'd throw away once the scythe lands. Agreement: **when the scythe is stacked and this
+branch is stable, send him ONE sha and ONE consolidated set of every row of his that moved**; he re-derives them all in a single window
+and signs or sends his numbers. Until then the three rows are labelled UNVERIFIED BY COMBAT in the #440 body, not "signed" — if the lead
+merges first it merges on this lane's measurement alone, and that label is the honest record. Do not soften it.
+
+Two process facts from the same exchange. **Send the head sha you actually measured, re-checked after any rebase**: this branch moved
+f890dae → f87d721 when trunk gained #431/#432/#433/#434, and those merges touch none of `duel/moves/ai/sim/record/opponents.ts` or
+`tests/player-weapons.test.ts`, so the numbers survived — but an unchecked stale sha manufactures a "disagreement" that is really two
+different trees, and costs the other lane a whole window to discover. **Determinism first**: five identical runs in one process were
+verified on this surface, which is what makes any difference between two lanes real signal rather than seeds.
+
 State: ready on `weapons/knife-thrust-recovery` (a078af6), snapshot updated, full suite 491/494 (2 skips are the char lane's hand pins),
 the ONLY failure the version guard — deliberately red, by the lead's ruling, until the batch lands. Not merged.
 
