@@ -18,7 +18,9 @@ Strategy sets the bar, briefs Lead Dev and judges results; it does not direct la
 
 **23:41 Auditer, CI order done as Dom ruled (02:40).** #507 rebased onto #508's head e184744, new head dc9d9f3 (verified: e184744 is an ancestor of dc9d9f3; files = cancel-on-close.yml, quality.yml, release-checks.yml). Kept: release-checks zero-rows gate, per-PR concurrency with cancel-in-progress, cancel-on-close; dropped quality.yml's browser-gate skip (covered by #508's paths-ignore). Hooks dev's stale-comment finding taken (counter row: 6/6 on the runner 2026-09-22, promotion a separate call; ~9 min gate time = test-speed item in Auditer's state). Deploy told: batch = #508 then #507. #505 (match session out of main.ts, 71fd7da) waits on Deploy. Nothing else pending from Auditer tonight.
 
-**Gotchas:** never tell Deploy to wait on a CI run; `gh run cancel` on queued runs does not take; a lane's push needs Dom's word in ITS session, a relay cannot grant it; the trunk copy of this doc is stale until #459 merges (read `origin/strategy/state-doc`).
+**23:42 World:** all three rulings folded into the brief (c043057, local, amended), relative gate verbatim with the 817–1,037 ms finding cited to arena.ts:435; still holding for Dom, no code, no PR. quality:stop green on c043057 after `npm ci` (468 tests, 466 pass, 2 skipped, 0 fail).
+
+**Gotchas:** a worktree parked on an old branch that fast-forwards onto trunk tonight fails `npm run quality:stop` on a missing `@types/node` (its node_modules is the 2026-09-17 install), which is not a breakage: run `npm ci` first (World, broadcast to the lanes with gates tonight); never tell Deploy to wait on a CI run; `gh run cancel` on queued runs does not take; a lane's push needs Dom's word in ITS session, a relay cannot grant it; the trunk copy of this doc is stale until #459 merges (read `origin/strategy/state-doc`).
 
 ## 2026-09-22 22:55 — status table for Dom; Deploy runs the queue automatically (Dom's word)
 
