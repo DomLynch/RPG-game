@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
 import { CROWD_DYES, CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
+import { buildLorarii } from './lorarii.ts';
 import { phoneTier } from './quality.ts';
 import { loadArenaProps } from './arena-props.ts';
 import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, type Pixels } from './assets/arena/textures.ts';
@@ -16,7 +17,9 @@ export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
 export const LAYOUT = { wall: { inner: 11.7, outer: 12.5, top: 2.6 }, tiers: [3.4, 4.2, 5.0, 5.8, 6.6], tierDepth: 1.6, gate: Math.PI, gateWidth: 3.2, colonnade: 21.4, parapet: { inner: 22.4, outer: 23.2, top: 8.6 }, segments: 96 };
-export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera): void; dispose(): void };
+export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; dispose(): void };
+// What the arena may watch of the fight, read-only: the sim tick (the lorarii pace on it, so live and replay place the same guard) and where the fighters stand.
+export type SimView = { tick: number; fighters: readonly { x: number; z: number }[] };
 
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const ruinNoise = fbm(6, 3, 5), ruin = (angle: number) => smooth(0.56, 0.78, ruinNoise(angle / TAU, 0.37));   // where the tiers have collapsed
@@ -391,7 +394,8 @@ export function buildArena(scene: THREE.Scene): Arena {
   // Crowd culling: with the camera given, a spectator outside its frustum (a 1.2 m sphere around him) collapses to nothing — the lock
   // camera sees a narrow sector of the far tiers, so most of the 300 figures never reach the vertex shader (audit 2026-09-20).
   const frustum = new THREE.Frustum(), viewProjection = new THREE.Matrix4(), seat = new THREE.Sphere(new THREE.Vector3(), 1.2);
-  function update(dt: number, events: CombatEvent[], camera?: THREE.Camera) {
+  function update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView) {
+    lorarii.update(dt, events, sim, camera);   // the six whip-guards on the walkway (src/lorarii.ts, Brief 13)
     const cull = !!camera; if (camera) frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     time += dt; since += dt; flare = Math.max(0, flare - dt * 2.5);
     for (const e of events) {
@@ -427,6 +431,7 @@ export function buildArena(scene: THREE.Scene): Arena {
       mesh.instanceMatrix.needsUpdate = true;
     }
   }
+  const lorarii = buildLorarii(group);
   update(0, []);
   const props = loadArenaProps(group, phone, (what) => { if (what === 'gateBars') gateBars.visible = false; });
   return {
@@ -434,7 +439,7 @@ export function buildArena(scene: THREE.Scene): Arena {
     get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed
     dispose() {
       disposed = true; worker?.terminate();
-      props.dispose();
+      props.dispose(); lorarii.dispose();
       group.traverse(object => { if (object instanceof THREE.Mesh || object instanceof THREE.Points) object.geometry.dispose(); if (object instanceof THREE.InstancedMesh) object.dispose(); });
       for (const material of materials) material.dispose(); for (const t of Object.values(textures)) t.dispose(); scene.remove(group);
     },
