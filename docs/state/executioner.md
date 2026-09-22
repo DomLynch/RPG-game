@@ -3,6 +3,73 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23
+
+**The lane is the Knight.** The Executioner is done and live (#398, `01b6642`); nothing open on him.
+
+**Deliverable 1, the silhouette test, is shipped — PR #502** (`char/knight-silhouette`). Bare and in loadout, from the
+approved reference (#494). The finding: **stripped, the Knight is nobody** — shoulder-over-height 0.367 in kit to
+**0.246** bare, widest point 0.41 to 0.257, and no feature of the bare outline is his, because helm, pauldrons, skirt and
+greaves are his whole identity and all six slots come off. The Pitborn lane measured the same failure on the
+Shieldmaiden's direction A (0.284 → 0.240, #498), where the flat shoulder line A was chosen *for* is the lootable
+shoulder plates.
+
+**That bar is now withdrawn, and the finding stands anyway.** Lead and Strategy ruled the gate **in-kit at every rung**,
+the bare pass **informational**, because the game has no stripped state: take-one removes at most one piece per kill, the
+opponent respawns kitted, and `src/grades.ts:1` says a grade is a material variant on a shared mesh, so his Recruit
+`Helmet` and `Body` carry the same outline as his Origin ones. Brief 17 §5a records the number with its re-read
+condition — **it goes live again if `take-one` ever removes more than one piece**.
+
+**My own earlier ratios are withdrawn** (Executioner 0.36, Knight 0.39–0.40, in `PROMPTS.md`). They came off threshold
+masks that fused arms into the torso, which inflates a plate figure and barely touches a bare-armed one, so the direction
+was an artifact. Corrected off u2net mattes: **Knight 0.367, Executioner 0.374, Veteran 0.360** — three humans inside
+0.014, the Knight marginally *narrower*. Lead replaced both rows of #499 and Strategy fixed SCOPE.md on #492.
+
+**Deliverable 2 is under way — `char/knight-body`, head `951c9be`, no PR yet.**
+
+- `08965ee` the TRELLIS.2 reconstruction: 4,508,492 B, sha256 `1c683e97…`, seed 190926, 1024/100k/2048, one attempt.
+- `8cf4bae` the pipeline wiring: `BUILD.knight = scale 1.18` and 1.85 m, **provisional**, a tie-break on the 0.367
+  midpoint judged by Dom on the versus still (Strategy, 2026-09-23); a change is one number in each file.
+- `951c9be` bounds the donor step at 30 min — the quality gate caught it as a third unbounded `spawnSync` against a
+  ratchet allowing two.
+
+## Open
+
+- **The arm solve is blocked on the maul reaching trunk.** `creatures.py`'s `arm_angle` is seeded at **79** and is a
+  *starting point*, not a measurement. Strategy's ship gate: the body PR carries the **solved** value against the **real**
+  maul part (`weapons/maul-part`, `4f55780`), never the warhammer stand-in or the seed. The donor step itself is not
+  blocked — identical `WEAPONS` reaches and the maul crowns at .76 like the warhammer's.
+- **Remaining, in order:** donor step, Blender fit, pack, arm re-solve, versus still, then the generator-hash rebuild of
+  `dwarf`, `executioner` and `veteran` **in the same PR**, each accessor-equivalent to trunk (§5, Dwarf v2 precedent).
+- **`npm run quality:stop` on #502 has never run** — a deploy was in flight every time. Ruff clean, no release rows.
+  Ask Deploy for the window.
+- **Calibration owed to Strategy:** matte vs plate on the seven figures that have both a rig and a reference PNG, once
+  #500 is on trunk. Small delta → #502 stands with the delta as its stated uncertainty and mattes are the instrument for
+  reference-only characters; large delta → no cross-instrument comparison at all, which would hit the Shieldmaiden and
+  the Witch too.
+- **#469, this file's own PR, is still unmerged**, while four lanes are told to copy it as their worked example.
+
+## Gotchas
+
+- **Silhouettes need a subject matte, not a threshold.** Three threshold attempts failed: the backdrop is a *radial*
+  vignette so a per-row left/right estimate sags mid-image; a closing wide enough to erase the figure over-reaches across
+  that gradient; and **polished plate mirrors the backdrop** at its own luminance (163–171 against a 162–166 grey) — the
+  same failure Pitborn hit on the shield face. The harness is `scripts/character/silhouette.py` (#502).
+- **A border flood-fill is right for a hollow figure and wrong for plate.** An arm/hip gap is an *enclosed* hole, so the
+  flood closes exactly the articulated outline the test exists to judge.
+- **Do not re-run the outer-arm-edge fit as a measurement of `arm_angle`.** It reads **68.9° for both** the Veteran
+  (solved 62) and the Executioner (solved 64). A method that cannot separate two known values cannot fix an unknown one.
+  Only the *gap* survives: the Knight reads 84.7°, ~16° closer to vertical than either.
+- **Never upscale a short mask to the comparison height** (#499) — it invents edge detail on one side of the pair only.
+  My own sheet did it before `84195a4`.
+- **Stance before breadth** (Pitborn's rule, #499): a comparison is only valid between figures in the same stance, and no
+  measurement code can detect it — the shoulder-line finder is blind to what the arms are doing.
+- **The 80 % coverage floor is not a silhouette measure.** `tests/loot.test.ts:95` compares **mesh surface area in m²**
+  against the *player's* own draws in that slot. It cannot be taken from a reference or a mask; it runs the first time
+  the draw exists.
+- **The one-deployer hook scans the whole command string** — a heredoc containing "build" or "deploy" trips it even for a
+  plain `git commit`. Write the message to a file and `git commit -F`.
+
 ## Now — 2026-09-22
 
 Nothing building and nothing open from this lane. **#398 merged (`01b6642`) and is live** — verified on the served file,
