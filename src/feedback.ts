@@ -15,7 +15,9 @@ const BASE_SEED = 731;
 // finishers (1.5 × .7 still clipped it); at .4 both combat and finish sit under the guard's linear region, so the whole cut is heard and the
 // bell (arena.ts, exempt) leads by contrast.
 const MIX = .4;
-export const COMBAT_LEVEL = .5 * MIX, FINISH_LEVEL = 1.5 * MIX;
+// Owner 2026-09-22, after the live set: "reduce all combat noise by 25 %, keep the crowd, opening bell and death all same — it's
+// overpowering." Combat balance x.75; the finish balance (death sequence), the arena bank (crowd) and the bell are untouched.
+export const COMBAT_LEVEL = .375 * MIX, FINISH_LEVEL = 1.5 * MIX;
 
 // Combat Foley: the simulation's events pick cues from one decoded sprite (src/audio/manifest.ts, built by
 // scripts/build-audio.mjs); seeded variant rotation and ±5 % pitch keep two hits from ever sounding identical. Voices feed a
