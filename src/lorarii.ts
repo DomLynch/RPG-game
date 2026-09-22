@@ -7,11 +7,19 @@
 // SIM TICK — not wall time — so Combat can source the shove direction from the same guard and a replay places him identically
 // (lead review). The raise/lash beat runs on animation time; only the pacing is tick-driven.
 //
-// v1 body: a placeholder — capsule, head, a stick for the whip — instanced ×6 (one draw). The shared GLB + clips from Multi
-// Chars replace `placeholderGeometry` when they land; the placement, pacing and the raise/lash timing stay.
+// The body is Multi Chars' src/assets/guard.glb (#428): the hero rig's bones, five clips — Pace, Stand, Turn, Raise, Lash.
+// It is SKINNED, so six of them are six SkeletonUtils clones with their own mixers, not one InstancedMesh (bones cannot ride
+// an instance matrix). The placeholder capsules stay as the fallback: if the file fails to load the six still pace, so a
+// missing asset never empties the wall. `?guards=<n>` caps how many are built (documented fallback if the phone tier busts).
+// The asset's URL is handed in (scene.ts already globs ./assets/*.glb): this module stays plain TypeScript, so the unit test
+// can import it under node without Vite's `?url`.
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { CombatEvent } from './duel.ts';
 import type { SimView } from './arena.ts';
+import { retryTransient } from './characters.ts';
 
 const TICK = 1 / 60;   // the sim's fixed step (duel.ts stepDuel at 60 Hz)
 
@@ -23,7 +31,8 @@ export const LORARII = {
   reach: 0.28,           // radians each side of his post that he paces (±16°): sixths never overlap and the gate (π ± 0.13, plus a shoulder) stays clear (tests/lorarii.test.ts)
   period: 26,            // seconds for one there-and-back; 4 × reach × radius / period ≈ 0.52 m/s — a slow walk (guards 1, 2 walk a little slower still)
   turn: 4,               // yaw lerp rate toward the nearest fighter (per second)
-  raise: 0.35, lash: 0.22, recover: 0.6,   // seconds
+  raise: 0.35, lash: 0.22, recover: 0.6,   // seconds: the placeholder's beat. With the real body, Raise and Lash are the clips' own lengths (0.6 s each)
+  lead: 60,                // default ticks between WhipRaised and Whipped when the event carries no `lead` (RULES.wall.loiter: 60 before the first lash, 30 before a repeat)
 } as const;
 
 // Where guard `i` stands at sim tick `tick`: his post is the centre of his sixth, offset by half a sixth so no post sits on the
@@ -34,7 +43,7 @@ export function lorariusAngle(i: number, tick: number): number {
   return post + tri * LORARII.reach;
 }
 
-export type Lorarii = { update(dt: number, events: readonly CombatEvent[], sim?: SimView, camera?: THREE.Camera): void; dispose(): void; readonly mesh: THREE.InstancedMesh };
+export type Lorarii = { update(dt: number, events: readonly CombatEvent[], sim?: SimView, camera?: THREE.Camera): void; bodies(url: string): Promise<void>; dispose(): void; readonly mesh: THREE.InstancedMesh };
 
 type Phase = 'pace' | 'raise' | 'hold' | 'lash' | 'recover';
 
@@ -54,11 +63,63 @@ export function placeholderGeometry(): THREE.BufferGeometry {
   return merged;
 }
 
+// The five clips guard.glb carries (tests/guard.test.ts pins the names and that Turn and Lash are 0.6 s each).
+const CLIPS = ['Pace', 'Stand', 'Turn', 'Raise', 'Lash'] as const;
+type Clip = typeof CLIPS[number];
+type Rig = { root: THREE.Object3D; mixer: THREE.AnimationMixer; actions: Record<Clip, THREE.AnimationAction>; playing: Clip };
+
+// One guard's body: a clone of the shared asset with its own mixer. Cross-faded, so a raise never snaps out of the walk.
+function rig(asset: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }): Rig {
+  const root = cloneSkeleton(asset.scene);
+  root.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = o.receiveShadow = true; o.frustumCulled = false; } });
+  const mixer = new THREE.AnimationMixer(root), actions = {} as Record<Clip, THREE.AnimationAction>;
+  for (const name of CLIPS) {
+    const clip = asset.animations.find((a) => a.name === name);
+    if (!clip) throw new Error(`guard.glb is missing the ${name} clip`);
+    actions[name] = mixer.clipAction(clip);
+    actions[name].setEffectiveWeight(name === 'Pace' ? 1 : 0).play();
+    if (name === 'Raise' || name === 'Lash') { actions[name].setLoop(THREE.LoopOnce, 1); actions[name].clampWhenFinished = true; }
+  }
+  return { root, mixer, actions, playing: 'Pace' };
+}
+
+function playClip(r: Rig, next: Clip, fade = 0.18) {
+  if (r.playing === next) return;
+  r.actions[r.playing].fadeOut(fade);
+  const action = r.actions[next];
+  if (next === 'Raise' || next === 'Lash') { action.reset(); }
+  action.setEffectiveWeight(1).fadeIn(fade).play();
+  r.playing = next;
+}
+
+// The asset, fetched once for all six. A failure is not fatal: `bodies` stays empty and the capsules carry the scene.
+export async function loadGuardAsset(url: string) {
+  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+  for (const name of CLIPS) if (!asset.animations.some((a) => a.name === name)) throw new Error(`guard.glb is missing the ${name} clip`);
+  return asset as unknown as { scene: THREE.Object3D; animations: THREE.AnimationClip[] };
+}
+
 export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeometry = placeholderGeometry(), material: THREE.Material = new THREE.MeshStandardMaterial({ color: 0x3a3229, roughness: 0.92, metalness: 0.05 })): Lorarii {
-  const mesh = new THREE.InstancedMesh(geometry, material, LORARII.count);
+  // `?guards=<n>` caps the six (the documented fallback if the phone tier busts). Read defensively: this module is imported by
+  // node unit tests and by the arena preview, where there is no `location`.
+  const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('guards');
+  const count = Math.max(1, Math.min(LORARII.count, Number(asked ?? LORARII.count) || LORARII.count));
+  const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = 'lorarii'; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;   // culled per guard below
   parent.add(mesh);
-  const guards = Array.from({ length: LORARII.count }, (_, i) => ({ i, angle: lorariusAngle(i, 0), yaw: 0, phase: 'pace' as Phase, since: 0, held: 0 }));
+  const guards = Array.from({ length: count }, (_, i) => ({ i, angle: lorariusAngle(i, 0), yaw: 0, phase: 'pace' as Phase, since: 0, held: 0, leadScale: 1 }));
+  // The real bodies land later (one fetch, six clones). Until then — or if the fetch fails — the capsules above carry the wall.
+  const bodies: Rig[] = [];
+  // The real bodies are fetched when the caller hands the asset's URL over (scene.ts, once its glob is in scope). Until then —
+  // or if the fetch fails — the capsules carry the wall, so a missing asset never empties it.
+  let fetched = false;
+  const bodiesIn = (url: string) => {
+    if (fetched) return Promise.resolve(); fetched = true;
+    return loadGuardAsset(url).then((asset) => {
+      for (let i = 0; i < count; i++) { const r = rig(asset); parent.add(r.root); bodies.push(r); }
+      mesh.visible = false;   // the capsules step aside for the real guards
+    }).catch(() => { /* the capsules stay */ });
+  };
   let tick = 0;
   const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), euler = new THREE.Euler(), scale = new THREE.Vector3(1, 1, 1);
   const frustum = new THREE.Frustum(), viewProjection = new THREE.Matrix4(), sphere = new THREE.Sphere(new THREE.Vector3(), 1.3);
@@ -69,7 +130,13 @@ export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeome
       if (e.type !== 'Whipped' && (e.type as string) !== 'WhipRaised') continue;
       if (e.x === undefined || e.z === undefined) continue;
       const g = nearest(e.x, e.z);
-      if ((e.type as string) === 'WhipRaised') { g.phase = 'raise'; g.since = 0; g.held = 1.2; }                        // raise, then hold until the lash lands
+      if ((e.type as string) === 'WhipRaised') {
+        // The lead is NOT constant (Combat, verified against RULES.wall.loiter on trunk: 60 ticks before the first lash, 30
+        // before every repeat at `again`). So the raise is stretched to whatever lead the event carries — never a hard-coded
+        // hold — and the arm is up exactly when the lash lands, however the owner retunes `again`.
+        const lead = (((e as { lead?: number }).lead ?? LORARII.lead) | 0) / 60;
+        g.phase = 'raise'; g.since = 0; g.held = Math.max(0, lead - LORARII.raise); g.leadScale = Math.min(2, Math.max(0.4, lead / 1));
+      }
       else if (g.phase === 'hold' || g.phase === 'raise') { g.phase = 'lash'; g.since = 0; }                             // the promised lash
       else { g.phase = 'raise'; g.since = 0; g.held = 0; }                                                              // no warning: a fast raise straight into the lash
     }
@@ -91,12 +158,31 @@ export function buildLorarii(parent: THREE.Object3D, geometry: THREE.BufferGeome
       // The beat: lean back on the raise, whip forward on the lash, settle on the recover (tilt about the hips, radians).
       const u = g.since;
       const tilt = g.phase === 'raise' ? -0.28 * Math.min(1, u / LORARII.raise) : g.phase === 'hold' ? -0.28 : g.phase === 'lash' ? -0.28 + 0.75 * Math.min(1, u / LORARII.lash) : g.phase === 'recover' ? 0.47 * (1 - Math.min(1, u / LORARII.recover)) : 0;
-      if (camera && !frustum.intersectsSphere(sphere.set(sphere.center.set(x, LORARII.top + 0.9, z), 1.3))) { scale.set(0, 0, 0); } else scale.set(1, 1, 1);
+      const seen = !camera || frustum.intersectsSphere(sphere.set(sphere.center.set(x, LORARII.top + 0.9, z), 1.3));
+      scale.set(seen ? 1 : 0, seen ? 1 : 0, seen ? 1 : 0);
       position.set(x, LORARII.top, z); quaternion.setFromEuler(euler.set(tilt, g.yaw, 0, 'YXZ'));
       mesh.setMatrixAt(g.i, matrix.compose(position, quaternion, scale));
+      // The real body, when it is in: the clip says what he is doing, the transform where he stands. Off-camera he keeps his
+      // place but stops animating — a mixer nobody sees is the one cost worth saving on a phone.
+      const body = bodies[g.i];
+      if (body) {
+        body.root.visible = seen;
+        body.root.position.set(x, LORARII.top, z);
+        body.root.rotation.set(0, g.yaw, 0);
+        if (g.phase === 'raise' && body.playing !== 'Raise') body.actions.Raise.setEffectiveTimeScale(1 / g.leadScale);   // the clip fills the lead the sim gave us
+        playClip(body, g.phase === 'raise' || g.phase === 'hold' ? 'Raise' : g.phase === 'lash' ? 'Lash' : g.phase === 'recover' ? 'Stand' : 'Pace');
+        if (seen) body.mixer.update(dt);
+      }
     }
     mesh.instanceMatrix.needsUpdate = true;
   }
   update(0, []);
-  return { mesh, update, dispose() { parent.remove(mesh); mesh.dispose(); geometry.dispose(); material.dispose(); } };
+  return {
+    mesh, update, bodies: bodiesIn,
+    dispose() {
+      parent.remove(mesh); mesh.dispose(); geometry.dispose(); material.dispose();
+      for (const b of bodies) { b.mixer.stopAllAction(); parent.remove(b.root); b.root.traverse((o) => { if (o instanceof THREE.Mesh) o.geometry.dispose(); }); }
+      bodies.length = 0;
+    },
+  };
 }
