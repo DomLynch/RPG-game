@@ -1580,12 +1580,18 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
     height: 44px;
     font-size: 12px;
   }
+  /* The same 44 px box as the link, text centred in it the way the button centres its label (owner 2026-09-22: "Link copied."
+     must sit exactly where "Share this fight" was); anchored at the bottom so a long error grows upward. */
   .actions[data-gestures=cluster] #share-status {
     position: absolute;
     right: 14px;
     bottom: 141px;
+    min-height: 44px;
     max-width: 170px;
     margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     text-align: right;
     font: 12px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
     text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
