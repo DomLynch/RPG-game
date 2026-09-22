@@ -2,6 +2,51 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Brief 13 — the six lorarii on the walkway, presentation lane, 2026-09-22 (PR #430 merged 85d29b1; the model swap is PR #435)
+Owner via Strategy: "the guards themselves are invisible, they should be pacing up and down, 6 guards on equal spacing around
+the perimeter". `src/lorarii.ts` places six guards on the ring wall's walkway — r 12.1 (between `LAYOUT.wall.inner` 11.7 and
+`outer` 12.5), y = `wall.top` 2.6, outside `CAMERA_CLAMP` 11.5 so they are never on the sand and never in the fight camera's
+clear zone. Posts sit at each sixth's centre offset half a sixth, so none stands on the gate axis; each paces ±16° of his post
+on a triangle wave with his own phase and turns to watch the nearest fighter (yaw lerp).
+
+`lorariusAngle(i, tick)` is pure in the SIM TICK, not wall time (lead review) — Combat sources the whip's shove direction from
+the same guard, and a replay places him identically. Per-guard state (angle, phase, timers) is kept separate from the meshes.
+
+Bodies are Multi Chars' `src/assets/guard.glb` (#428): hero bones, clips Pace / Stand / Turn / Raise / Lash. It is SKINNED, so
+six guards are six `SkeletonUtils` clones with a mixer each, NOT one `InstancedMesh` — bones cannot ride an instance matrix.
+The placeholder capsules stay as the fallback, so a failed fetch never empties the wall; `?guards=<n>` caps the count (read
+defensively: no `location` under node tests or the arena preview).
+
+Facts measured off the shipped asset, not recalled (Multi Chars, 2026-09-22) — worth not relearning:
+- Pace covers 1.284 m per 1.333 s cycle = **0.963 m/s at timeScale 1**. The patrol runs at that speed (period derives from
+  `LORARII.speed`) and the mixer stays at 1: walking them slower makes the feet skate, and below ~0.7 m/s the gait wants
+  re-authoring. An earlier 0.52 m/s of mine was arbitrary — it only set the lap time.
+- **`Turn` is never played.** It is a 180° about-face whose `root.quaternion` track lives INSIDE the GLB, one level under the
+  node this module positions, so playing it would compose with the yaw here and spin the guard 360°. Recorded in
+  `docs/state/character.md` (#438), so a rebuild that changes or drops that track cannot break this lane.
+- No `stride` userData on the guard and none coming (it is a hero-rig build, correction 1); Raise 0.50 s, Lash 0.60 s, both
+  LoopOnce + clamp; no finger or toe tracks at all.
+
+Whip timing is driven by the event, never hard-coded: the lead between `WhipRaised` and `Whipped` is 60 ticks before the first
+lash and 30 before repeats (`RULES.wall.loiter` = band 1, ticks 180, again 60), so the hold is `lead − raise` and the Raise
+clip plays at `clip/lead` (clamped 0.4–2.5; the sim's leads land at 0.5× and 1×). Retuning `again` needs no change here. The
+crowd's jeer reads `duel.fighters[i].loiter > 0` — no new event, and Audio reads the same field.
+
+Seam: `arena.update` takes an optional `SimView` (`{ tick, fighters }`) and `arena.guards(url)` hands guard.glb's URL over;
+two lines in `scene.ts` (614 and 135), both approved explicitly. `src/lorarii.ts` stays plain TypeScript so
+`tests/lorarii.test.ts` can import it under node — Vite's `?url` is not resolvable off the bundler, and an `import.meta.glob`
+inside `arena.ts` broke `tests/arena.test.ts`. `scripts/arena-preview.mjs` gained three walkway views and a `lash()` capture.
+
+Cost: capsules +2 draws / +4,128 tris. With the real bodies, phone tier 390×844 dsf 3, `guard-DIjPJA4Z.glb` (504 KB) confirmed
+fetched in the run: **p50 16.7 ms, p95 17.7 ms, max 17.9** over 180 samples; Multi Chars' own `scripts/guard-browser-check.mjs`
+passes — 6 guards, 148,404 tris, 86 draws, p95 17.6 against its budget 18. **Lesson:** my first two frame-time runs measured
+the CAPSULES because guard.glb was never fetched (the URL never reached the module, and the branch predated #428). Only a check
+of `performance.getEntriesByType('resource')` caught it — a frame-time that never loaded the asset is the kind of green that
+hides a regression. `tests/lorarii.test.ts` (3 tests) pins tick purity, each guard inside his own sixth and clear of the gate,
+and the pace to 0.963 ± 0.02 m/s, identifying leg ends from the wave's own phase so a stall cannot masquerade as a turn.
+
+Open: Combat's `WhipRaised` is not on trunk yet, so the raise path is exercised by this module and its unit tests, not the sim.
+
 ## Wound-site mark removed — presentation lane, 2026-09-21 (PR #305, merge d379696)
 Owner, from a phone screenshot of the Goblin: the flesh-hit wound mark (a dark mark with three drips for the sim's four-second
 wound window) floated in the air behind him. Root cause: the mark was drawn at a fixed human torso height (1.15 m) while the
