@@ -49,8 +49,30 @@ inside the cap on every rung, identity pins intact, no opponent retune that brea
 without one, bring the numbers and say which and why rather than weakening a pin. One RECORD_VERSION bump per PR is fine here (Lead,
 explicitly: shipping a weapon a player can feel is worth the link invalidation).
 
+**Behind the four weapons, nothing pre-empts them** (owner GO 18:40, 2026-09-22): the **Veteran's shield**. Combat's slice is the
+rules only. The shield is a **GuardProfile, not a damage multiplier**: it covers **two of the five guard sides**, sets `stopsHeavy` (a
+heavy no longer breaks the guard), and is cheaper to hold (costScale down). **No flat attack penalty** — the one-hand weapon table is
+the attack cost. The only legible cost is that posture drains faster while the shield guard is held, so a shield turtle is not
+available. Wall whip unchanged. Every number comes from the battery inside the wins/24 cap with the identity pins intact — same bar as
+the weapons, and no weakened pins. Also this lane's: the Veteran OPPONENT carries the same profile from Legionary grade up, and his AI
+must actually raise it (a profile he never uses is the same bug as a tell nobody can see).
+
+Scope protection agreed with Strategy: if the shield rules are not through by beta freeze, the Veteran's shield starts at **Gladiator**
+grade instead of Legionary, so beta never ships a shield that does nothing.
+
+Not this lane's, but the seam to expect: Weapons add a `grip` field to moves.ts (ONE-HAND knife/cleaver/estoc/trident-as-spear,
+TWO-HAND warhammer/scythe/hero's sword) and equipping a two-hander stows the shield; Multi Chars do the asset and back stow; Web design
+the panel line. Take-one stays strict — the shield is one item, never bundled with a weapon.
+
 **Now:** nothing in flight. **Done today:** Brief 13's whip tell (merged, live), the estoc park with its grid recorded on trunk (#429),
-#439 reviewed and approved. **Gotchas worth carrying:** a green suite is not a safe number — 12/24 against a strictly-greater cap of 12
+#439 reviewed and approved. **Quote the sha you measured, and re-read it before you publish the number.** Four separate incidents on 2026-09-22 where the fact was
+right and the note about it was stale: a sha sent after trunk had moved; a comment quoting a rejected iteration's results (recovery 21)
+beside the shipped value (20); a merge commit misquoted as the trunk head; and a re-signature requested against a head that was
+CONFLICTING and mid-rebase at the time of asking. None was a measurement error — every one would have produced a phantom disagreement
+costing someone a measurement window. Never measure a branch that reads CONFLICTING; wait for the stable head and record it beside the
+numbers.
+
+**Gotchas worth carrying:** a green suite is not a safe number — 12/24 against a strictly-greater cap of 12
 is a tie-break, not a pass; every player weapon is also a warden's weapon, so re-scan the WHOLE fairness table after any weapon edit,
 not just the edited weapon's rows; read a sim digest AFTER the version bump, because record.ts is inside its own hashed set; and a
 finding recorded inside a PR that gets parked is parked with it — put it on trunk.
