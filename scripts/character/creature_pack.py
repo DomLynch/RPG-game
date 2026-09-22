@@ -102,6 +102,10 @@ base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "sk
 # Surface material factors per family: the retained maps stay byte-identical; a factor only scales them (glTF spec).
 # The Dwarf's TRELLIS metallic map reads his dented iron as polished steel under the arena lighting; 0.6 keeps the plate iron, not chrome.
 SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.35}}
+# Surface material extensions per family, same rule (maps untouched). A reconstruction ships no normal map, so its smooth
+# surface takes the full dielectric specular as a wet-plastic sheen on skin, cloth and leather alike; the Executioner uses
+# the skin-strength specular the hand-built heads use (build-warrior.mjs: Face 0.5, Photo 0.35).
+SURFACE_EXTENSIONS = {"executioner": {"KHR_materials_specular": {"specularFactor": 0.4}}}
 
 
 def read(p):
@@ -293,6 +297,9 @@ for m in new.get("materials", []):
     m["name"] = family.title() + "Surface"
     material(m)
     m.setdefault("pbrMetallicRoughness", {}).update(SURFACE_FACTORS.get(family, {}))
+    if family in SURFACE_EXTENSIONS:
+        m.setdefault("extensions", {}).update(copy.deepcopy(SURFACE_EXTENSIONS[family]))
+        new["extensionsUsed"] = list(dict.fromkeys(new.get("extensionsUsed", []) + list(SURFACE_EXTENSIONS[family])))
 for mesh in new["meshes"]:
     for p in mesh["primitives"]:
         p["attributes"] = {

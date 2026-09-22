@@ -733,3 +733,16 @@ weapon) and never falls through to another rig (the flat `bladePaths[weapon]` it
 `tests/blade-rig.test.ts` pins every opponent pair and every player weapon on the hero). Measured in the player's hand: cleaver, warhammer, trident and scythe bake identically to
 their shipped hero-rig tables (max |Δ| 0.0000 m); the knife's shipped table is the Goblin's rig (max |Δ| 0.816 m in the player's
 hand) and the estoc's the Nightborn's (0.148 m), so both now have a `hero` table baked from their equip file on `warrior.glb`.
+
+### Executioner surface specular — 2026-09-22
+A reconstruction ships no normal map, so its smooth surface took the full dielectric specular as a wet-plastic sheen on
+skin, cloth and leather alike (the metal/rough map is fine: roughness mean 0.73, metallic ≈ 0). `creature_pack.py`
+`SURFACE_EXTENSIONS` now stamps `KHR_materials_specular { specularFactor 0.4 }` on `ExecutionerSurface` — the
+skin-strength specular the hand-built heads use (Face 0.5, Photo 0.35); the retained maps stay byte-identical.
+The generator hash moved, so `dwarf.glb` and `veteran.glb` were rebuilt with the same scripts (only their generator stamp
+and re-authored Quiet One differ; structure compared identical to trunk). Rebuilding exposed a reproducibility gap: cb1ee6a
+(finishers, 2026-09-21) overwrote the 17 left-arm `Fin_RunThrough` hold channels inside each shipped rig but not inside the
+creature donors, so any rebuild regressed the hold. `scripts/character/sync-hold-keys.mjs <donor> <shipped>` copies those
+channels into the donor in place (done for `source/backups/executioner-v5.glb` and `source/backups/veteran-v1.glb`; the Dwarf
+donor postdates the patch); rebuilds now reproduce trunk's hold keys exactly. A relit-mask source was tried and rejected: the
+mask sits recessed under the hood, so TRELLIS bakes it dark regardless of source lighting, and that bake shifted his skin red.
