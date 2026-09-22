@@ -1478,7 +1478,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
    fills <i> from profile.loot.equipped, adds .on to a worn slot and un-hides its Store button (data-unwear). */
 .doll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 104px) minmax(0, 1fr); grid-template-rows: repeat(4, auto); gap: 6px; align-items: stretch; }
 .doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; height: 100%; width: auto; max-height: 250px; margin-bottom: 4px; object-fit: contain; opacity: .82; filter: drop-shadow(0 1px 0 #fff8); }
-.doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 52px; }
+.doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 72px; }   /* room for the 40 px Store button */
 .doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }
 .doll [data-slot='hands'], .doll [data-slot='legs'], .doll [data-slot='feet'], .doll [data-slot='off'] { grid-column: 3; }
 .slot { padding: 9px 10px 8px; border: 1px dashed var(--jl); border-radius: 12px; color: var(--jm); background: #fff6; }
@@ -1486,16 +1486,16 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .slot i { display: block; font: 600 13px "Instrument Sans", Arial, sans-serif; font-style: normal; margin-top: 3px; overflow-wrap: anywhere; }
 .slot.on { border-style: solid; border-color: var(--jf); color: var(--jf); background: #fff; }
 .slot[aria-disabled=true] { opacity: .6; }
-dialog .slot-off { display: block; margin: 6px 0 0; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 11px; align-self: flex-start; }
+dialog .slot-off { display: block; margin: 8px 0 0; min-height: 40px; padding: 0 14px; border-radius: 999px; font-size: 11px; align-self: flex-start; }   /* owner touch-target follow-up: 40 px tap height, type unchanged */
 /* Inventory: five numbered tiles (owner: "1–5 inventory"); src/main.ts renders owned pieces as
    <li data-loot data-worn><span>name</span><button data-wear>Wear</button></li> and pads to five with <li class="rack-empty">. */
 .rack { list-style: none; margin: 0; padding: 0 0 44px; position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; counter-reset: inv; }
-.rack li { display: flex; flex-direction: column; min-height: 84px; padding: 6px; border: 1px dashed var(--jl); border-radius: 12px; background: #fff6; counter-increment: inv; font: 600 10.5px/1.2 "Instrument Sans", Arial, sans-serif; color: var(--jf); overflow-wrap: anywhere; }
+.rack li { display: flex; flex-direction: column; min-height: 104px; padding: 6px; border: 1px dashed var(--jl); border-radius: 12px; background: #fff6; counter-increment: inv; font: 600 10.5px/1.2 "Instrument Sans", Arial, sans-serif; color: var(--jf); overflow-wrap: anywhere; }   /* +20 px for the 40 px Wear/Worn button */
 .rack li::before { content: counter(inv); margin: 0 0 6px 2px; font: 600 10px/1 "Instrument Sans", Arial, sans-serif; color: var(--jm); }
 .rack li[data-loot] { border-style: solid; border-color: var(--jf); background: #fff; }
 .rack li span { flex: 1; }
 .rack li span::first-letter { text-transform: uppercase; }
-dialog .rack button { margin: 6px -2px -2px; min-height: 22px; padding: 0 4px; border-radius: 8px; font-size: 10px; }
+dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; border-radius: 8px; font-size: 10px; }   /* owner touch-target follow-up: 40 px tap height, type unchanged */
 .rack li[data-worn='true'] { border-color: var(--ja); }
 .rack li[data-worn='true'] button { border-color: var(--ja); background: var(--ja); color: #fff; }
 /* Provenance (brief 9): each owned tile carries <small data-taken> — the piece's name, then how it was taken — and, when the
