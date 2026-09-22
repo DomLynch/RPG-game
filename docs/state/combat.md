@@ -27,6 +27,12 @@ battery caught it); and **every player weapon is also a warden's weapon** — go
 executioner/scythe, pitborn/cleaver, dwarf/warhammer — so a weapon edit's blast radius is every OTHER weapon measured against whoever
 carries it. Lead has made that a standing rule for all lanes.
 
+**Owed before #441 merges:** `node --test tests/record-version-guard.test.ts` on head 27b35e2. The pin (SIM_DIGEST
+371c3592…, PINNED_FOR_VERSION 4) was COMPUTED by reproducing the guard's recipe by hand — deploy a2a901b was in flight and the
+one-deployer rule blocks suites. Auditer reproduced it independently and got the same digest, but two hand computations that read the
+recipe from the same source agree even if both mis-transcribed it; only a guard run is the receipt. Do not merge #441 on the
+computation.
+
 Open and owed by this lane: #370 (Veteran's opening) held on the owner's own verdict on feel — nothing technical left. `knife vs goblin
 hard: kick only untouched 3/24` routed here as an approach-logic hole, not knife data (identity-shared MOVES.kick, every other weapon's
 kick-only dies 24/24, all 24 knife fights stalemate at the tick limit). Weapons' #440 moves three rows in the signed KNOWN_UNFAIR table
