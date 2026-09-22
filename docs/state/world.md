@@ -40,6 +40,22 @@ Nothing in flight. Brief 13 (the six lorarii) is merged; Deploy is publishing cb
 - `Turn` is authored but never played (see Gotchas); if a patrol reversal ever wants it, the yaw-lerp has to go first.
 
 ### Gotchas (2026-09-22 — each one cost real time)
+- **A check that runs on the Mac measures the Mac.** `guard-browser-check.mjs`'s "phone tier" is Playwright on this Mac at
+  852x393 DPR 2 with `isMobile` and NO CPU or GPU throttling, so every phone-tier frame time quoted on 2026-09-22 — mine
+  included — described this laptop's vsync, not an iPhone's GPU. Worse, rAF deltas cannot measure frame COST at 60 Hz at
+  all: p50 sits at ~16.7 ms for an empty page, so a 16.7 ms ceiling fails everything and a 18 ms one passes anything.
+  Multi Chars proved it from the other side (#462): six guards vs one gave IDENTICAL rAF (p50 16.7 / p95 18.5) while CPU
+  frame cost under x4 throttling moved 2.5x. Their row now asserts CPU frame cost instead. **The instrument of record for
+  the phone is `?perf=1` on the device** (main.ts, style.css `.perf`): p50 / p95 / max, dropped frames over 16.7 ms
+  COUNTED, worst frame since load, guards standing/asked-for, draws, triangles. Read the DROPPED COUNT, not the p95 — on a
+  vsync-capped device the p95 sits near 16.7 whatever happens and the dropped count is what moves.
+- **The first pose of a skinned model is expensive.** "Worst since load" on the phone viewport: 817 ms with six guards;
+  Multi Chars' harness 1,037 ms at six against 187 ms at one — shader compile or first-pose work, and it scales with guard
+  count where the steady state does not. It is a first-frame cost, not steady stutter; if a jank report is "at the start of
+  a fight" rather than throughout, this is the shape to chase.
+- **Assume nothing about the environment `main.ts` boots in.** `tests/graphics.test.ts` runs it in a node VM with no
+  `URLSearchParams` (49 tests failed on mine), and the same VM has bitten other lanes over import-time `document` and
+  `removeAttribute`. Read flags with a regex over `typeof location === 'undefined' ? '' : location.search`.
 - **A check that loads a preview page measures the preview page.** `scripts/guard-browser-check.mjs` boots
   `guard-preview.html`, Multi Chars' standalone review page — NOT the game. Its "6 guards, 148,404 tris, 86 draws,
   p95 17.6 ms" was quoted (by me, then by Lead) as the phone-tier cost of the guards IN GAME, and a budget row was set
