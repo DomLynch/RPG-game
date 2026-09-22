@@ -3,7 +3,52 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-22
+## Now — 2026-09-23
+
+**The lane has a second character: the Plague Doctor (Brief 18).** Dom widened the scope in this session's own words
+on 09-22 — *"a masked opponent wielding the longsword… silhouette test at the fighter's camera passes before any model
+work; AAA judged on a phone screenshot; one PR per deliverable; nothing ahead of the shield in Combat's queue. The
+Nightborn stays yours."* A Strategy relay had tried to widen it earlier and was refused until he typed it here; that
+refusal was correct and is worth repeating — **a relay cannot widen an owner-set scope.**
+
+Open from this lane, all docs-only and all clean: **#479** (this file), **#490** (Brief 18, approved by Strategy),
+**#493** (his approved reference image). Each merged current trunk to clear a stale `src/arena.ts` inherited from the
+~90 minutes trunk was broken on 09-22 (`lorarii.standing` called with no import → TS2304); `git diff … -- src/arena.ts`
+is now empty against trunk on all three.
+
+**Two measured findings from Brief 18 that outlive it.** `src/characters.ts:26` — `longsword: { Thrust: 'Riposte' }`,
+**one** role override, against 19 for the Witch's bladed staff and 21 for a creature family: a longsword character is
+nearly free, a new weapon family is the most expensive unit in the project. And **a mask deletes the face problem** —
+no scan, no KeenTools credits (still 402 since 09-17), no head pipeline at all.
+
+**The image route Lead had briefed to three lanes was wrong and this lane fixed it.** `scripts/character/kontext.py`
+is an image *edit* (`--image` required); there is no text-to-image script in `scripts/character/`. Five candidates were
+generated instead from Brief 18's own text: Space `black-forest-labs/FLUX.1-dev`, `/infer` via `gradio_client`,
+**seed 190926** fixed across candidates so the variation is the design and not the noise, 896×1152, guidance 3.5,
+28 steps, auth reused from `kontext.py`'s `token()`. Throwaway script, scratchpad, not committed. Recipe sent to Multi
+Chars and the Executioner lane; whether it becomes a real script is Lead's call once it is known not to be a one-off.
+
+**Two techniques worth keeping, both cheap:** put each candidate's **silhouette, computed from its own pixels**
+(background = median of three 60×60 corners, foreground darker than bg−18, 3×3 min filter — **per image**; one global
+threshold blacked out a whole panel) directly under it, so a design that is striking in detail and shapeless in outline
+disqualifies itself on the sheet; and **keep the rejects with their reasons** — one candidate was dropped because its
+outline read as **the Executioner's**, which is a reskin test at silhouette level, before a model exists. Offered to
+Multi Chars as a number rather than a judgement: normalise both masks to the same height, align on the feet, take IoU,
+and rank.
+
+Dom picked **"E — the patched beak"** (boiled leather, cracked and scorched, one lens plated over with a riveted iron
+patch, a warped split brim). **His letter and his pasted image disagreed** — the sheet's columns were labelled C / B / E
+and he answered "option c" then pasted the third panel; the image won and he confirmed. Next sheet labels A / B / C in
+order.
+
+**Next: deliverable 2, the silhouette test** at the fighter's camera, bare and kitted, against the nine — not started.
+His narrow warped brim means the coat skirt and the beak carry the read rather than the wide horizontal Brief 18
+originally assumed, so it is measured, not asserted. Nothing is authored before it passes.
+
+**The Nightborn himself is unchanged and needs nothing.** His own TRELLIS face is live; other lanes have rebuilt him
+since (spider-hand fix, ladder `lapse` retune) and this lane authored none of it.
+
+## Then — 2026-09-22
 
 Nothing building and nothing open from this lane. Worktree `frankendom-nightborn` clean, fast-forwarded to trunk
 `becec83`; no open PR authored here.
