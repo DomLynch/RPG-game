@@ -7,10 +7,16 @@ The weapons lane's estoc reach fix (#419, now a draft) is correct about the blad
 stance is retuned, and no stance value exists that is safe. **To revive it, one of two things must change: either the Nightborn stops
 carrying the estoc, or the trident-vs-Nightborn fairness row is re-measured against a deliberately retuned Nightborn.** Neither is a
 side effect of a weapons change — whoever touches `ESTOC_MOVES` reach or `ESTOC.fight.close` next should read this entry first.
+Lead named a third route, but gated: a per-opponent knob or a deliberate Nightborn discipline retune, and only if Strategy or the owner
+wants the estoc sooner — it is a bigger change than the estoc is worth. Retuning the TRIDENT's charged heavy (the row that actually
+trips) would also clear it and is deliberately NOT listed as a free option: it retunes a shipped, offered weapon to accommodate a shelf
+one, which is the trade Lead refused when he put axis 2 in scope. If someone takes that road it is a trident decision on its own merits,
+not an estoc fix.
 
 Why a stance retune was needed at all: `ESTOC.fight.close` stood at the longsword's own 1.15 while the move table wore the sword's
 reach. Giving the estoc its blade's real reach (+0.30 m) left the stance behind, so the wielder closed to 1.95 - 1.15 = 0.80 m inside
-his own cut — deeper than any weapon we ship (longsword/cleaver/maul/warhammer 0.50, reaper 0.65, per the weapons lane's sweep). He
+his own cut (with #419 applied; **on trunk today the estoc's stand-off reads 0.50**, light 1.65 against close 1.15, because the reach
+fix is unmerged — check the number against a tree with #419 in it, not against trunk) — deeper than any weapon we ship (longsword/cleaver/maul/warhammer 0.50, reaper 0.65, per the weapons lane's sweep). He
 over-swung and exhausted himself: `tests/opponents.test.ts` "beaten by wit, not stamina" went 105 -> 321 ticks over 24 fights, cap 240.
 
 Why no retune works. Two axes pull against each other. Axis 1 is that exhaustion pin. Axis 2 is `tests/player-weapons.test.ts`, the
