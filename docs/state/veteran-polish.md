@@ -8,9 +8,16 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
-## Now — 2026-09-22
+## Now — 2026-09-22 (late)
 
-Nothing building and nothing open from this lane. **v2 is live** — verified on the served file, not on the merge:
+**This doc is PR #483 (`char/veteran-state`), open, docs-only, and is the handoff.** It sat red on trunk's own
+`TS2304: Cannot find name 'lorarii'` (`src/arena.ts:446`, a dangling reference #467 left when it removed the binding —
+found running this lane's gate on a docs-only branch, reported with the reproduction, not fixed here); trunk `cb8ff5b`
+(#477) has since relanded it and the branch carries that merge, so `npx tsc --noEmit` is exit 0 again. Note for whoever
+reviews #477: Lead's named intent was to drop the getter *and* the `?perf=1` field; what shipped is a stub
+`get guards() { return { built: 0, of: 0 }; }`. Not this lane's to police, just flagged.
+
+Nothing else building and nothing else open from this lane. **v2 is live** — verified on the served file, not on the merge:
 `assets/veteran-Duk__Zy1.glb`, HTTP 200, 5,644,176 B, 38 clips, generator `54999ae9`, materials
 `WeaponTrident, WeaponTridentShaft, Bronze, Face, Photo, PhotoEyes, PhotoTeeth, VeteranSurface` — the grafted head draws
 (`Photo/Face/PhotoEyes/PhotoTeeth`) and the helm are all present, and `creatureSource.skinMatched` carries both swapped
