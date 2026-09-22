@@ -5,6 +5,27 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+## Now (2026-09-22, end of the Backend/Accounts session that applied 0002–0010)
+
+**In flight / open**
+- **PR #487** (this file) — open, docs only: 0007 recorded as applied, 0009 + 0010 added with live receipts.
+- **Stats lane, Brief 19 / PR #486** — gear stats. Deliverables 1–2 need **nothing** from this schema (`daily_results` carries no
+  gear; the record is opaque base64url to Postgres). **Deliverable 3 is where this lane is in the path**: loot awards become
+  server-authoritative from verified fight records and the client's owned list becomes a cache — that ends the "loot is cosmetic,
+  nothing competitive hangs off client-reported loot" rule written under 0004. Review that migration and its RLS when the PR lands.
+- **PR A of the record-version split** (Lead's) — widens the decoder to accept 5 and 6 and returns the *parsed* version instead of
+  `RECORD_VERSION`. Read it as a **server** change: `deploy.sh` rsyncs `src/**/*.ts` to the verifier host, so that deploy replaces the
+  verifier's decoder too. PR B (encoder writes 6) follows on a later deploy — that ordering is what stops a verifier reading an older
+  format than the client writes. See the memory note for the two traps.
+- **Daily verifier first sweep** — still unobserved: `daily_results` was 0 rows at 2026-09-22 (0 verified, 0 refused, 0 awaiting).
+  The timer is armed and the job row is live; the first real receipt waits on someone posting a daily fight.
+
+**Runbook note, for the next accept-list change:** after a deploy that widens the record accept-list, refused rows do **not** self-heal
+— `checked_at` takes them off the sweep's page, so run `verify-daily.mjs --recheck` if any rows exist by then.
+
+**Settled, nothing pending:** migrations 0002–0010 all applied and verified by this lane's own queries (never a relay). Issue #397
+closed. The by-design security-advisor list below is the baseline — anything not on it is a new finding.
+
 ## Hosted project as it stands — verified 2026-09-22 (0002–0010 all applied and verified by this lane)
 
 Tables: `public.fighter_profiles` (1 row, now with a `loot` column — see below), `public.admins` (1 row), `public.fight_records`
