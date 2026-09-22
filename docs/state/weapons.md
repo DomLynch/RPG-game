@@ -2,6 +2,44 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — weapons lane, as of 2026-09-22 (replace this section wholesale; it is the restart brief, not history)
+**Owns:** the shelf, **and since Dom's scope line on 2026-09-22 (typed in the weapons session, not relayed): the player-weapon flips and
+the 24-seed fairness battery.** Combat keeps sim rules and AI. The lead sequences merges.
+
+**In flight**
+| PR | what | state |
+|---|---|---|
+| #472 | `TRIDENT.grip` → `two-hand` | open, approved, merges on its gate. Data only; `SIM_DIGEST` re-pinned WITHOUT a bump, receipt in the PR |
+| #473 | lane lessons + the maul finding (this file) | open, approved, docs only |
+| #419 | estoc reach = sword + 0.30 m | **HELD at `ad928ec`**, draft, un-ready. Do not merge, do not re-measure |
+
+**#419 is held on a dependency, not parked.** The estoc itself clears every row by ≥ 4 against a bar of ≥ 2, but the Nightborn wields it and
++0.30 m breaks him three ways (a new over-cap row on the **trident** 8/24 → 14/24; his fight-length pin, 321 exhausted ticks against 240; his
+fight-identity, feint-and-punish 0/24 at hard). Combat is fixing a shared `src/ai.ts` approach defect — approach settles at *raw* reach while
+`inReach` wants `reach − .1`, so wardens park outside their own range — which moves stopping distance, the very thing the reach interacts with.
+**Wait for the lead's approach-fix sha, then re-run the full battery, every weapon, both levels**, and judge the Nightborn against his brief
+("beaten by wit, not stamina"; feint-and-punish winning at hard), not the numbers alone. The lead has ruled the **trident does not leave**
+`PLAYER_WEAPONS_OFFERED`; the branch currently removes it because the table forces the pair, and that contradiction is *why* it is held —
+do not hand-patch the list.
+
+**Next work, not started:** author the **maul part** (Brief 17 / the Knight, #489). Asset build against live, balanced numbers —
+`src/moves.ts:406` is a `CLEAVER` spread, so `creaturePaths(CLEAVER_PATHS, 'Maul')` is the cleaver vocabulary with a prefix, **no new
+13-clip family**; `material: 'wood'` + `guard: 'shaft'` fixes the silhouette. **No maul mesh exists in the repo** (`git ls-tree … | grep -ci
+maul` = 0) and the Minotaur's is sealed in the held `minotaur.glb` — not a donor. **Hard line: no new sim rule for "cannot be cut."** A
+`guardProfile` change is a REQUEST to the lead, behind the shield. Waits on a reference image from Dom.
+
+**Two stale values on trunk** — warn anyone reading the weapon tables (the Stats lane was warned): trident `grip` still reads `one-hand`
+(#472 fixes it), and the estoc's reach is still the sword's spacing estimate, **0.3 m short** of the measured frontier (only #419 corrects
+it, and it is held).
+
+**Two process rules from the lead, both from a real failure** (#466 and #467 were each green on their own base, never touched the same line,
+merged cleanly, and produced a trunk that did not compile): flips land **behind** the Combat item they depend on, not in parallel; and give
+**combined-tree receipts before READY — name the TREE you measured, not the branch.** Rebase, then measure, then quote the sha of the tree
+the numbers came from. A battery run against a base that has moved is a stale number wearing a green tick.
+
+**Order:** knife → cleaver → estoc → shield. The maul part is an asset, not a flip, so it takes no slot — but it does not jump the order
+either if it ever grows a data change.
+
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.
 
