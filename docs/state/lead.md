@@ -80,6 +80,17 @@ and says no Knight candidate spread exists. **Reviewed by Lead: ready for Deploy
 quality:stop is now a post-merge receipt owed at FREE, not a gate. Knight body is parked at `char/knight-body` @ `951c9be`.
 **Note: Executioner believes a deploy is still in flight. It is not; the deploy DIED. Every lane waiting on "FREE" is waiting on
 a signal nobody will send until Deploy is told.**
+**Auditer, 06:5xZ — two PRs:**
+- **#522 (match split, head `9964b99`) — REVIEWED, READY for Deploy (non-sim).** MERGEABLE, CI all green, every owed receipt
+  on the PR: gate 481 / 479 / 0 fail / 2 skipped (the deploy-ceiling timing test passed once the box was free, so it was load),
+  account-browser-check passed, finisher-preview against `2d614dc` 4 JSON identical, frames 0-1 px (the trunk-vs-trunk noise
+  floor). It also fixes re-audit defect 2 (the stale-epoch guard now runs before the redirect in both loaders).
+- **#524 (account-never-lower, head `2c00ed2`) — HOLD. It must merge AFTER Backend's save-defect fix, not before.** Found by Lead in
+  review: #524's `absorbCloud()` does `{ ...mergeLoot(profile.loot, cloud.loot), equipped: ... }`, routing EVERY ordinary
+  refresh through `mergeLoot`, which drops `declined` (`src/loot.ts:101`). Today the declined history dies only on an account
+  merge; with #524 alone it would die on every refresh, which amplifies the save defect. Both PRs also touch
+  `src/cloud-profile.ts`, so **order: Backend's fix (carry `declined` in `mergeLoot` + `profileDiffers`) lands first, then #524
+  rebases on it with a combined-tree receipt and a fresh account-browser-check** that asserts declined survives a refresh.
 **The 20-min cron sweep (`e7317592`) was DELETED at 06:30Z:** a cron-fired prompt does not reset the app's cross-session cap, so
 the sweep could look but could not message anyone, and it only added load. Re-create it only in a session that can actually send.
 
