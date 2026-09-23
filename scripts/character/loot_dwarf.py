@@ -5,7 +5,10 @@ the dwarf's re-proportioned rest space with his transferred weights: build-warri
 per-bone field there, the one place that math lives. Output: src/assets/source/loot/dwarf.glb (parts contract: extras.material/slot,
 skin weights) and the two maps the loot build embeds for the DwarfIron material.
 
-  blender -b --python-exit-code 1 -P scripts/character/loot_dwarf.py -- [--metal 0.35] [--min-faces 120]
+  blender -b --python-exit-code 1 -P scripts/character/loot_dwarf.py -- [--family knight] [--metal 0.35] [--min-faces 120]
+
+The Knight (Brief 17) is cut the same way from his own TRELLIS.2 surface (--family knight → knight.glb, KnightIron). His BUILD is a
+uniform 1.18 root scale with no per-bone table, so his rest space is already a man's and his loot.json entries carry no `unscale`.
 """
 import os
 import sys
@@ -22,7 +25,11 @@ SMOOTH = int(args[args.index('--smooth') + 1]) if '--smooth' in args else 4   # 
 CLOSE = int(args[args.index('--close') + 1]) if '--close' in args else 0   # face rings to dilate then erode: bridges the speckle inside a plate
 COLOR_SIZE = int(args[args.index('--color-size') + 1]) if '--color-size' in args else 768   # the iron's colour map edge; loot.glb's 1.5 MB cap sets it
 JPEG_QUALITY = int(args[args.index('--jpeg-quality') + 1]) if '--jpeg-quality' in args else 82
-SOURCE = os.path.abspath('src/assets/dwarf.glb')
+RATIO = float(args[args.index('--ratio') + 1]) if '--ratio' in args else 1.0   # decimate each piece to this share of its faces (loot.glb's 1.5 MB cap)
+FAMILY = args[args.index('--family') + 1] if '--family' in args else 'dwarf'   # whose TRELLIS surface to cut
+# --material Steel: the piece wears loot.glb's shared untextured Steel instead of its own baked maps (the Knight: 80 KB of loot headroom)
+MATERIAL = args[args.index('--material') + 1] if '--material' in args else f'{FAMILY.capitalize()}Iron'
+SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
 OUT = 'src/assets/source/loot'
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
 # Greaves, not Legs/Boots: the player's Legs draws are his kilt and his Boots his soles — iron shins and ankle plates go OVER bare
@@ -148,7 +155,7 @@ for s, patch in patches:
     pieces[s] += patch
 pieces = {s: f for s, f in pieces.items() if len(f) >= MIN_SLOT}
 print('LOOT patches (faces, slot), largest first:', sorted(sizes, reverse=True)[:12])
-print(f'LOOT dwarf: {int(iron.sum())}/{V} iron vertices; patches kept {len(patches)} → slots ' +
+print(f'LOOT {FAMILY}: {int(iron.sum())}/{V} iron vertices; patches kept {len(patches)} → slots ' +
       ', '.join(f'{s}:{len(f)} faces' for s, f in sorted(pieces.items())))
 if not pieces:
     raise SystemExit('no iron patch big enough')
@@ -160,28 +167,31 @@ for s, face_ids in sorted(pieces.items()):
     bm.faces.ensure_lookup_table()
     keep = set(face_ids)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context='FACES')
-    me = bpy.data.meshes.new(f'dwarf_{s.lower()}')
+    me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
-    obj = bpy.data.objects.new(f'dwarf_{s.lower()}', me)
+    obj = bpy.data.objects.new(f'{FAMILY}_{s.lower()}', me)
     bpy.context.scene.collection.objects.link(obj)
     for g in body.vertex_groups:
         obj.vertex_groups.new(name=g.name)
     # bmesh kept the deform layer, so the vertex groups came across by index; the armature skins them.
     obj.parent = armature
     obj.modifiers.new('Armature', 'ARMATURE').object = armature
-    obj['material'], obj['slot'] = 'DwarfIron', s
+    obj['material'], obj['slot'] = MATERIAL, s
+    if RATIO < 1:
+        obj.modifiers.new('Loot budget', 'DECIMATE').ratio = RATIO
+        obj.modifiers.move(len(obj.modifiers) - 1, 0)   # simplify the rest shape, then skin it
     kit.append(obj)
 os.makedirs(OUT, exist_ok=True)
 for o in bpy.context.selected_objects:
     o.select_set(False)
 for o in kit + [armature]:
     o.select_set(True)
-bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'dwarf.glb'), export_format='GLB', use_selection=True, export_extras=True,
+bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, f'{FAMILY}.glb'), export_format='GLB', use_selection=True, export_extras=True,
                           export_apply=True, export_yup=True, export_materials='NONE', export_skins=True, export_animations=False,
                           export_normals=True, export_texcoords=True)
 # The iron's own look: the baked colour (COLOR_SIZE) and the packed metallic/roughness at half that, JPEG — a fraction of the 2K WebPs the body ships.
-for image, size, name in ((albedo, COLOR_SIZE, 'dwarf_iron_color.jpg'), (mr, COLOR_SIZE // 2, 'dwarf_iron_orm.jpg')):
+for image, size, name in (() if MATERIAL == 'Steel' else ((albedo, COLOR_SIZE, f'{FAMILY}_iron_color.jpg'), (mr, COLOR_SIZE // 2, f'{FAMILY}_iron_orm.jpg'))):
     image.scale(size, size)
     image.filepath_raw = os.path.abspath(os.path.join(OUT, name))
     image.file_format = 'JPEG'
@@ -189,4 +199,4 @@ for image, size, name in ((albedo, COLOR_SIZE, 'dwarf_iron_color.jpg'), (mr, COL
     image.save()
 for o in kit:
     print(f'PART {o.name} slot={o["slot"]} faces={len(o.data.polygons)}')
-print(f'PARTS {len(kit)} → {OUT}/dwarf.glb')
+print(f'PARTS {len(kit)} → {OUT}/{FAMILY}.glb')
