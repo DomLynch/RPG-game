@@ -121,6 +121,18 @@ in the record. **The Lead ruling stands: the record carries an OPAQUE token, not
 check keeps Backend's shape and its "one decoder, two readers" path: the verifier computes `token(claim.user_id)` and compares
 it with `record.owner`. Poster binding is the next item after D3 and lands as PR B's format, in Window 1.
 
+### Visual review triaged (Strategy, ~07:50Z; report `~/Desktop/Business/reports/frankendom-visual-review-2026-09-23.md`)
+Already assigned: finisher framing and blood (Finishers). **Controls: Dom keeps those himself; nothing for Web.** **TWO cheap items
+for WORLD, after its phone perf receipt**, one PR each or combined, World's call:
+(a) **Fighter readability trial, lighting + material only:** key/rim light on fighters, slight desaturation of sand and wall, no
+asset changes. Before/after phone still at 375x812 in the PR body; Dom judges. This also fixes the Executioner's weapon against his
+dark torso, the Goblin's weapon at phone size and the Pitborn against the sand, **so no character lane touches a model.**
+(b) **Crowd recessive:** darken/desaturate the spectator material and lower its contrast so it stops competing with the fighters.
+Material only; the crowd rebuild stays deferred; perf unchanged within noise.
+**Post-beta:** surface polish (metal slabs, torn cloth) and the remaining per-character notes.
+**JUDGING RULE, adopted:** Dom judges camera + loot + blood together on ONE phone capture (contact -> reveal -> settled body -> loot
+open). Finishers and Web coordinate one capture when both are ready, not three separate approvals.
+
 ### Web, ~07:45Z — #521 (loot panel v2) still DRAFT, correctly: the real-win run is owed
 Head `80710b6`, the re-open of #475 (closed by Lead with a pointer). Web caught **a serious defect of its own**: the touch that stops
 the post-kill tour, at (190, 300), now lands on the Centurion's second tile row (9 pieces since #478), and **a tile tap is the take**,
