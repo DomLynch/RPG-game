@@ -77,8 +77,20 @@ Audio were not.** Each brief below goes out the moment its session is up; acknow
 - **Stats:** tier-table re-land with `Shield: 0`, then PR A v2, then #514, then deliverable 3 (server-authoritative awards,
   Backend reviewing — Backend is briefed).
 - **Multi Chars:** Greaves + `WORN_FROM` floor + stable drop index now that #478 is in. Witch is post-beta.
-- **Finishers & Gore:** kill-camera framing on #475 v2; by noon, the measured status of "blood follows bodies" across the five
-  beta finishers, plus the smallest PR that fixes it.
+- **Finishers & Gore:** kill-camera framing on #475 v2, and beta item 5, **"blood follows bodies" — RULED by Strategy after Dom
+  reviewed the three options: Option 3, built as Option 2 first. Not Option 1.** Dom's words: "less uniform, differentiated each
+  blood spot, dripping not star, slowly downwards, droplets onto the floor, not a river". The faults he saw: one star texture reused
+  for every mark (`scene.ts:190`, a 17-satellite ring), the photo splat being a floor pool reused on torsos, and FRESH tint reading
+  black. Three steps, in order:
+  (a) **Measure first.** The harness shows runs to 12-13 cm on the Veteran; Dom's screenshot shows none on the hero. Establish
+      whether #455's reach cap clamps runs on the hero tunic or whether they are too dark to see. If it is a bug, fix it; the
+      receipt goes in the PR.
+  (b) **Option 2, one PR:** 4-6 distinct body-authored wound splats + 3 drip variants via FLUX, **seed-picked per hit so replays
+      stay identical**, the top edge is the cut, tint lifted off black. Dom judges on his phone.
+  (c) **Option 3, a separate PR AFTER (b):** droplets shed at surface edges, one per run every ~1.5-3 s, a hard cap in flight, a
+      small floor size class. Needs a phone frame-budget receipt: CPU x4, p95 and worst-since-load unchanged within noise.
+  Reports come through Lead: PR, head sha, gate numbers, screenshots. Seed-picking matters: a per-hit choice that used a live random
+  would make a replay diverge, so it has to come from seeded state.
 - **World:** phone-tier perf receipt on today's publish (CPU x4, `?perf=1`, cold load + first kill); silhouettes held for Dom.
 - **Audio:** phone audio pass on today's publish; fix what is theirs in one PR.
 - **Auditer:** re-open #505 off trunk with a combined-tree receipt (main.ts moved under it when #506 landed).
