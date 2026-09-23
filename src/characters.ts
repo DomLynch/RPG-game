@@ -417,6 +417,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         root.getObjectByName('Head')?.scale.setScalar(1);
       },
       // Bake during loading/reset, keeping the one-time mesh work outside the killing frame.
+      // The opened-waist bake snapshots what he wears; a rank-up re-dresses him at the new grade (scene.ts setTier), so the bake is redone
+      // (between fights: a rank moves only on a win) rather than keeping the old grade for the next Opened finisher.
+      rebakeOpened() { if (!opened) return; opened.dispose(); opened = undefined; this.prepareOpened(); },
       prepareOpened() {
         if (opened) return;
         const saved = ROLES.map(role => ({role, time:actions[role].time, weight:actions[role].getEffectiveWeight()}));

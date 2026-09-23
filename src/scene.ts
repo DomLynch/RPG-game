@@ -324,7 +324,7 @@ export function createScene(
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     wear(ids: readonly string[]) { worn = ids; dress(); },
     // The fight's tier: set at boot and again when a win moves the rank. Grades the loot pieces the player and the opponent wear.
-    setTier(next: Tier) { if (next === tier) return; tier = next; dress(); },
+    setTier(next: Tier) { if (next === tier) return; tier = next; dress(); if (carried) warriors?.opponent.rebakeOpened(); },
     arena,
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
