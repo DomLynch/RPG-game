@@ -72,7 +72,7 @@ jobs:
             if (pr && process.env.PR_ACTION === "labeled" && process.env.PR_LABEL !== "ci:release-checks") run = false;
             const forced = pr && process.env.PR_LABELS.split(",").includes("ci:release-checks");
             if (pr && run && !forced) {
-              // The rows the PR's changed files trigger (release_triggers in .quality-gate.json, printed locally by
+              // The rows the changed files of this PR trigger (release_triggers in .quality-gate.json, printed locally by
               // scripts/release-rows-for.mjs). None: nothing runs, whatever the event. A later push runs exactly these rows
               // (the Lead ruling of 2026-09-22: the pool is 20 runners, so ~30 jobs per src push would queue lanes into merging
               // on stale runs); the open / reopen / ready event runs the full matrix once.
