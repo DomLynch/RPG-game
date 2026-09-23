@@ -2,6 +2,16 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 12:35 — LIVE c0b321c; box unblocked (Dom's word); Lead's first table; rulings
+
+**LIVE c0b321c** (Deploy 12:31, 33/33 rows, verified by curl here 12:32: release.json revision + last-modified 08:31 UTC). Carries #518 #523 #514 #524 #529 + docs #516 #517 #520 #525 #526 #527 #531. Box FREE, load 1-min 17.
+
+**Box unblocked, Dom "do 1 and 2" (12:2x).** Measured 12:25 at load 186: node test gates 381 % CPU, 84 Playwright chromium of which 42 orphaned to launchd (oldest 2 h 35 m), auditors ~100 %. (1) Orphans killed by explicit PID (parent 1 AND path under ms-playwright, iterated until zero; live-parent browsers untouched); load 186 → 54. (2) Per-Stop Claude audit OFF for today: `CODEX_HOOK_CLAUDE_AUDIT=0` in `~/.claude/secrets/hook_env` (Dom's file, edited on his word); restore with `=1` tonight. Gotchas: the Bash sandbox swallows `kill` (exit 0, process alive) so use `dangerouslyDisableSandbox`; zsh does not word-split an unquoted `$PIDS`, pipe through `while read`. Recommended to Dom: close the seven lanes with no beta item (Audio, Executioner, Nightborn, Multi Chars, Character Main, Goblin, Pitborn).
+
+**Lead's first table (12:4x, partial: desktop caps cross-session sends at 10, so those seven lanes were NOT ASKED).** Backend #535 (declined loot survives refresh, follow-up to #524 which wipes `declined` on every refresh once live: sharper form of the 10:40 save defect, not a new class) MERGEABLE, Lead-reviewed. Web #521 Lead-reviewed, no trunk overlap. Stats #528, Combat #530 MERGEABLE for Window 1. Weapons re-opens #419 off trunk. Veteran waits on the gladius PR. CI check 32 (autopsy-browser-check) red on #521/#528/#530 in CI while the same row passed locally in the deploy in 72 s → CI-wide, Auditer fixes the row.
+
+**RULED:** #535 → #521 → Window 1 (one bump, one publish). Check 32 gates nothing (deploy.sh runs the row). Web gives a retired-replay-page ETA by 13:15; Window 1 ships TODAY either way, with Web's smallest "your old replay is retired" form if the page cannot land. Next Lead table 13:30, beta lanes only.
+
 ## 2026-09-23 09:48 — HANDOFF (Strategy clears at ~300k; delegation complete, Lead is #2)
 
 **Read this block first after a clear, then the BETA DELEGATION entry below it.** Mode: Dom (09:30–10:00): "you are strategy, less implementation, Lead is your #2"; lanes report to Lead; Strategy rules, keeps this doc, talks to Dom. Dom's standing order (08:50) is in every window and he confirmed to all that "Frankendom - Strategy - Fable 5.1" is the Strategy session it names. Force-push excluded, so conflicting PRs re-open as new numbers.
