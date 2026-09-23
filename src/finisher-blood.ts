@@ -154,6 +154,6 @@ export function createFinisherBlood(map: Texture) {
     },
     inspect() { return {kind:active,elapsed,emitted,landed,color:tint.slice(1),airborne:drops.count,visible:group.visible,pools:stains.filter(s=>s.target>0).map(s=>({position:s.position.toArray(),radius:s.radius,site:s.site})),capacity:{drops:particles.length,pools:stains.length}}; },
     reset,
-    dispose() {reset();group.removeFromParent();drops.geometry.dispose();plane.dispose();dropMaterial.dispose();for(const m of poolMaterials){m.map!==map&&m.map?.dispose();m.dispose();}},
+    dispose() {reset();group.removeFromParent();drops.geometry.dispose();plane.dispose();dropMaterial.dispose();for(const m of poolMaterials){if(m.map!==map)m.map?.dispose();m.dispose();}},
   };
 }
