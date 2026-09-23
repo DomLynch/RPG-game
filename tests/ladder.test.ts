@@ -6,14 +6,17 @@ import { OPPONENTS } from '../src/moves.ts';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 
 test('the ladder is the encounter order minus the held recipes: the four creatures wait for after beta, the five men keep their order', () => {
-  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'shieldmaiden']);
+  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden']);
   assert.deepEqual(ENCOUNTERS.filter(o => o.hold).map(o => o.id), ['minotaur', 'wraith', 'werewolf', 'skeleton'], 'held recipes stay listed for the journal, greyed');
   assert.equal(nextAfter('veteran')?.id, 'pitborn'); assert.equal(nextAfter('veteran')?.name, 'the Pitborn');
   assert.equal(nextAfter('pitborn')?.id, 'goblin'); assert.equal(nextAfter('pitborn')?.name, 'the Goblin');
   assert.equal(nextAfter('goblin')?.id, 'nightborn'); assert.equal(nextAfter('goblin')?.name, 'the Nightborn');
   assert.equal(nextAfter('nightborn')?.id, 'executioner'); assert.equal(nextAfter('nightborn')?.name, 'the Executioner');
   assert.equal(nextAfter('executioner')?.id, 'dwarf'); assert.equal(nextAfter('executioner')?.name, 'the Dwarf');
-  assert.equal(nextAfter('dwarf')?.id, 'shieldmaiden'); assert.equal(nextAfter('dwarf')?.name, 'the Shieldmaiden');
+  assert.equal(nextAfter('dwarf')?.id, 'plaguedoctor'); assert.equal(nextAfter('dwarf')?.name, 'the Plague Doctor');
+  assert.equal(nextAfter('plaguedoctor')?.id, 'knight'); assert.equal(nextAfter('plaguedoctor')?.name, 'the Knight');
+  assert.equal(nextAfter('knight')?.id, 'witch'); assert.equal(nextAfter('knight')?.name, 'the Witch');
+  assert.equal(nextAfter('witch')?.id, 'shieldmaiden'); assert.equal(nextAfter('witch')?.name, 'the Shieldmaiden');
   assert.equal(nextAfter('shieldmaiden'), undefined, 'the last live rung offers no next opponent: the creatures are held');
   for (const held of ['minotaur', 'wraith', 'werewolf', 'skeleton'] as const) assert.equal(nextAfter(held), undefined, `${held} is held: not a rung`);
   for (const rung of LADDER) assert.ok(OPPONENTS[rung.id], `${rung.id} exists in the roster`);
