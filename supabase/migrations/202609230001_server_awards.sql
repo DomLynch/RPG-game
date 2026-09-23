@@ -17,8 +17,8 @@ insert into public.account_seed (user_id, marks, owned)
   select user_id, victory_marks, case when jsonb_typeof(loot->'owned') = 'array' then loot->'owned' else '[]'::jsonb end from public.fighter_profiles;
 
 -- loot_claims: the client posts one for EVERY ladder win, before Share is offered. Unverified until the verifier replays the record.
--- `piece` is only the "Take one" weapon choice; an armour drop carries none, the verifier computes it (src/loot.ts dropFor). The record
--- hash is unique GLOBALLY: one fight, one claim, whoever posts it first.
+-- `piece` is the one piece the player took, armour or weapon (SCOPE.md Loot v2), null when he declined; the verifier checks it is in the
+-- opponent's kit at the server's tier (src/awards.ts). The record hash is unique GLOBALLY: one fight, one claim, whoever posts it first.
 create table public.loot_claims (
   id bigint generated always as identity primary key,
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
@@ -34,13 +34,19 @@ create index loot_claims_owner_recent on public.loot_claims (user_id, created_at
 create index loot_claims_pending on public.loot_claims (created_at) where not verified;
 alter table public.loot_claims enable row level security;
 revoke all on public.loot_claims from public, anon, authenticated;
--- The rate cap counts the caller's own claims through a definer function: the insert policy cannot see rows it has no select on.
-create function public.loot_claims_recent() returns bigint language sql stable security definer set search_path = '' as
-  $$select count(*) from public.loot_claims where user_id = auth.uid() and created_at > now() - interval '1 hour'$$;
-revoke all on function public.loot_claims_recent() from public, anon;
-grant execute on function public.loot_claims_recent() to authenticated;
-create policy "a fighter claims his own wins, sixty an hour" on public.loot_claims for insert to authenticated
-  with check (user_id = auth.uid() and not verified and public.loot_claims_recent() < 60);
+-- Sixty an hour, per row: a BEFORE INSERT row trigger sees the rows the same statement already inserted, so one bulk insert (PostgREST
+-- takes a JSON array) cannot pass the cap the way a STABLE policy function would, which sees the count from before the statement
+-- (Backend's [B1] on #539). Concurrent connections can each overshoot a little: bounded by the connection count, accepted.
+create function public.loot_claims_rate() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if (select count(*) from public.loot_claims where user_id = new.user_id and created_at > now() - interval '1 hour') >= 60 then
+    raise exception 'sixty claims an hour' using errcode = 'insufficient_privilege';
+  end if;
+  return new;
+end$$;
+revoke all on function public.loot_claims_rate() from public, anon, authenticated;
+create trigger loot_claims_rate before insert on public.loot_claims for each row execute function public.loot_claims_rate();
+create policy "a fighter claims his own wins" on public.loot_claims for insert to authenticated with check (user_id = auth.uid() and not verified);
 create policy "a fighter reads his own claims" on public.loot_claims for select to authenticated using (user_id = auth.uid());
 grant insert (opponent, piece, record) on public.loot_claims to authenticated;
 grant select (id, user_id, opponent, piece, verified, created_at) on public.loot_claims to authenticated;   -- user_id: the awards policy joins on it; RLS keeps it to his own rows

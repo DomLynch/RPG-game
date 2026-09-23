@@ -9,7 +9,6 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { awardFor } from '../src/awards.ts';
-import { dropFor } from '../src/loot.ts';
 import { levelOf, tierAt } from '../src/grades.ts';
 
 const D3 = '202609230001_server_awards.sql';
@@ -25,7 +24,7 @@ const as = (role, user, sql) => psql(`select set_config('request.jwt.claim.sub',
 const S = '11111111-1111-4111-8111-111111111111';   // seeded: a fighter with progress before the migration
 const Z = '22222222-2222-4222-8222-222222222222';   // seeded with nothing: a profile at zero
 const G = '33333333-3333-4333-8333-333333333333';   // a guest who signs up after the migration
-const SEED_MARKS = 14, SEED_OWNED = ['veteran.Helmet'];   // 14 is Recruit V (sub-rank 4) and 15 is Legionary I: a drop or tier read one win late gives a different piece and level
+const SEED_MARKS = 14, SEED_OWNED = ['veteran.Helmet'];   // 14 is Recruit V and 15 is Legionary I: a tier read one win late gives a different level
 let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
@@ -82,14 +81,14 @@ try {
   if (psql(`select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosrc ~* 'insert\\s+into\\s+public\\.account_seed';`) !== '0') fail('a function can re-run the seed');
   if (!same(mine(S), { marks: SEED_MARKS, owned: SEED_OWNED })) fail(`seeded standing is not the seed: ${JSON.stringify(mine(S))}`);
 
-  // (2) verified win: server marks = seed + 1, and the drop is dropFor at the server sub-rank BEFORE the win.
-  const win = claim(S, 'seededWin1');
+  // (2) verified win: server marks = seed + 1, and the award is the claimed piece at the server tier BEFORE the win.
+  const TAKE = 'veteran.Greaves';
+  const win = claim(S, 'seededWin1', 'veteran', TAKE);
   if (!same(mine(S), { marks: SEED_MARKS, owned: SEED_OWNED })) fail('an unverified claim moved the standing');
   const { before, award } = verify(S, win);
-  const drop = dropFor('veteran', SEED_MARKS, SEED_OWNED);
-  if (before.marks !== SEED_MARKS || !award || award.piece !== drop || award.tier !== levelOf(tierAt(SEED_MARKS))) fail(`award is not dropFor at the server sub-rank: ${JSON.stringify(award)} vs ${drop}`);
-  if (!same(mine(S), { marks: SEED_MARKS + 1, owned: [...SEED_OWNED, drop].sort() })) fail(`standing after a verified win: ${JSON.stringify(mine(S))}`);
-  if (as('authenticated', S, `select piece || '|' || tier from public.awards;`) !== `${drop}|${award.tier}`) fail('the owner cannot read his award');
+  if (before.marks !== SEED_MARKS || !same(award, { piece: TAKE, tier: levelOf(tierAt(SEED_MARKS)) })) fail(`award is not the claimed piece at the server tier: ${JSON.stringify(award)}`);
+  if (!same(mine(S), { marks: SEED_MARKS + 1, owned: [...SEED_OWNED, TAKE].sort() })) fail(`standing after a verified win: ${JSON.stringify(mine(S))}`);
+  if (as('authenticated', S, `select piece || '|' || tier from public.awards;`) !== `${TAKE}|${award.tier}`) fail('the owner cannot read his award');
 
   // (3) guest convert: no seed row, marks 0 whatever the device cache says, then 1 after the first verified win.
   if (psql(`select count(*) from public.account_seed where user_id = '${G}';`) !== '0') fail('a post-migration account has a seed row');
@@ -102,8 +101,8 @@ try {
   as('authenticated', S, `update public.fighter_profiles set victory_marks = 100000, loot = '{"owned":["veteran.Trident","executioner.Scythe"],"equipped":{}}' where user_id = auth.uid();`);
   if (psql(`select victory_marks from public.fighter_profiles where user_id = '${S}';`) !== '100000') fail('the forge did not land in the cache');
   if (!same(mine(S), beforeForge)) fail(`a forged cache moved the server standing: ${JSON.stringify(mine(S))}`);
-  const next = verify(S, claim(S, 'seededWin2'));
-  if (next.before.marks !== SEED_MARKS + 1 || (next.award && next.award.tier !== levelOf(tierAt(SEED_MARKS + 1)))) fail(`the verifier read the forged cache: ${JSON.stringify(next)}`);
+  const next = verify(S, claim(S, 'seededWin2', 'veteran', 'veteran.Trident'));   // the forged cache "owns" it: the server does not
+  if (next.before.marks !== SEED_MARKS + 1 || !same(next.award, { piece: 'veteran.Trident', tier: levelOf(tierAt(SEED_MARKS + 1)) })) fail(`the verifier read the forged cache: ${JSON.stringify(next)}`);
 
   // Backend's DB checks.
   const other = claim(Z, 'zeroWin1');
@@ -126,9 +125,12 @@ try {
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'seededWin1')`, 'unique_violation')) fail('a duplicate record hash was accepted from another account');
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', repeat('a', 16385))`, 'check_violation')) fail('an oversized record was accepted');
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'not base64!')`, 'check_violation')) fail('a record outside base64url was accepted');
+  // [B1] one statement, many rows: PostgREST takes a JSON array as a bulk insert. The cap is per row, so the whole statement is refused.
+  if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) select 'veteran', 'bulk' || i from generate_series(1, 500) i`, 'insufficient_privilege')) fail('a 500-row insert passed the hourly cap');
+  if (psql(`select count(*) from public.loot_claims where user_id = '${Z}';`) !== '1') fail('a refused bulk insert left rows behind');
   as('authenticated', Z, `do $$begin for i in 1..59 loop insert into public.loot_claims(opponent, record) values ('veteran', 'rate' || i); end loop; end$$;`);   // 60 this hour with zeroWin1
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'rate61')`, 'insufficient_privilege')) fail('a 61st claim within the hour was accepted');
-  console.log('Awards database PASS: seed written once at apply from the fixture profiles and unwritable after; verified win = seed + 1 with dropFor at the server sub-rank; converted guest starts at 0; forged cache ignored; client cannot write awards or flip verified; verifier cannot award a missing, unverified or already-awarded claim; owner-only reads, anon none; global record-hash uniqueness; size and rate caps. No hosted database changed.');
+  console.log('Awards database PASS: seed written once at apply from the fixture profiles and unwritable after; verified win = seed + 1 with the claimed piece at the server tier; converted guest starts at 0; forged cache ignored; client cannot write awards or flip verified; verifier cannot award a missing, unverified or already-awarded claim; owner-only reads, anon none; global record-hash uniqueness; size cap and the hourly cap, bulk insert included. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);
   rmSync(root, { recursive: true, force: true });
