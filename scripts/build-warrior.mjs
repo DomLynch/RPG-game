@@ -288,8 +288,11 @@ if (LOOT) {
   const lootDir = 'src/assets/source', manifest = JSON.parse(await fs.readFile(path.join(lootDir, 'loot/loot.json'), 'utf8'));
   // A piece cut from a TRELLIS surface keeps its baked look: scripts/character/loot_dwarf.py writes <family>_iron_color.jpg / _orm.jpg
   // beside the family's GLB and tags the piece `<Family>Iron`. One such material per family that has the maps; every other piece wears the palette.
-  const bakedFamilies = (await fs.readdir(path.join(lootDir, 'loot'))).filter(f => f.endsWith('_iron_color.jpg')).map(f => f.slice(0, -'_iron_color.jpg'.length));
-  for (const family of bakedFamilies) for (const kind of ['Iron', 'Cloth']) parts.set(new T.MeshStandardMaterial({ name: `${family[0].toUpperCase()}${family.slice(1)}${kind}`, roughness: 1, metalness: kind === 'Iron' ? .35 : 0 }), []);
+  // A built family (the Witch) bakes <family>_cloth_ / _leather_ maps instead: Leather grades as leather, not as metal (src/grades.ts).
+  const baked = (await fs.readdir(path.join(lootDir, 'loot'))).map(f => f.match(/^([a-z]+)_(iron|cloth|leather)_color\.jpg$/)).filter(Boolean);
+  const kinds = new Map(); for (const [, family, kind] of baked) kinds.set(family, new Set([...(kinds.get(family) ?? []), ...kind === 'iron' ? ['Iron', 'Cloth'] : [kind[0].toUpperCase() + kind.slice(1)]]));
+  for (const [family, has] of kinds) for (const kind of has)
+    parts.set(new T.MeshStandardMaterial({ name: `${family[0].toUpperCase()}${family.slice(1)}${kind}`, roughness: 1, metalness: kind === 'Iron' ? .35 : 0 }), []);
   // A piece cut from a re-proportioned body (loot.json "unscale": the BUILD name) comes back to a man's frame by inverting that field
   // through the piece's own weights: forward, v' = v + Σ w (shift + M (v − j)) with M = R (S − I) R⁻¹, so v = A⁻¹ (v' − c) with
   // A = I + Σ w M and c = Σ w (shift − M j). Weights are the transferred ones the piece already carries.
@@ -532,6 +535,9 @@ if (fighter === 'nightborn' || LOOT) {
 // wear armour under her robe"): a laced leather bodice and cross-gartered leg wraps, hidden by the robe in her fight, taken off her body.
 if (LOOT) {
   const at = jointOf(skeleton, boneIndex), grid = triGrid(await playerWorn());
+  // Her own family maps (scripts/character/loot_witch_maps.py: tiles from her scan's robe), not the player's Leather/Gambeson/Wrap.
+  const own = kind => [...parts.keys()].find(m => m.name === `Witch${kind}`) ?? (() => { throw new Error(`witch: no witch_${kind.toLowerCase()}_color.jpg (run loot_witch_maps.py)`); })();
+  const [hoodCloth, hide] = [own('Cloth'), own('Leather')];
   lootOf = 'witch';
   // Helmet: a cowl from the neck to the crown, leaning back like the Shieldmaiden's cap, loose (cloth), with the face cut open between
   // the chin and the brow.
@@ -549,7 +555,7 @@ if (LOOT) {
     if (!(along > -.02 && along < .74 && side.dot(forward) > .73)) kept.push(ix[n], ix[n + 1], ix[n + 2]);
   }
   hood.geometry.setIndex(kept);
-  add(hood.geometry, cloth, 'Head');
+  add(hood.geometry, hoodCloth, 'Head');
   console.log(`  witch hood: crown ${crown.toFixed(3)} m, rim radii ${hood.rings[0].radii.map(r => r.toFixed(3)).join(' ')}`);
   // Body: a leather bodice, waist to under the chest, `over` the player's tunic; three brass lacing bands. SKINNED by height across the
   // spine (pelvis → spine_03, linear between the two joints a vertex sits between), the way the torso under it bends: rigid to spine_02
@@ -568,30 +574,30 @@ if (LOOT) {
     return g;
   };
   const bodice = ringHull(grid, waist, chest, { stations: [.3, .42, .54, .66, .78, .9], azimuths: 24, gap: .01, up: new T.Vector3(0, 0, 1) });
-  add(skinBySpine(bodice.geometry), leather);
+  add(skinBySpine(bodice.geometry), hide);
   for (const t of [.38, .6, .82]) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .025, t + .025], azimuths: 24, gap: .014, up: new T.Vector3(0, 0, 1) }).geometry), trim);
   console.log(`  witch bodice: rings ${bodice.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
   for (const side of ['l', 'r']) {
     // Arms: leather bracers from the elbow, stopping short of the glove's cuff (hand-rigid: a bracer over it tears on every wrist flex).
     lootSlot = 'Arms';
     const bracer = ringHull(grid, at(`lowerarm_${side}`), at(`hand_${side}`), { stations: [.2, .32, .44, .55, .66], azimuths: 14, gap: .008 });
-    add(bracer.geometry, leather, `lowerarm_${side}`);
+    add(bracer.geometry, hide, `lowerarm_${side}`);
     // Greaves: cross-gartered leg wraps, knee to ankle: a dark leather wrap with four straps bound over it.
     lootSlot = 'Greaves';
     const knee = at(`calf_${side}`), shin = ringHull(grid, knee, at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .86], azimuths: 14, gap: .008 });
-    add(shin.geometry, leather, `calf_${side}`);
-    for (const t of [.16, .36, .56, .76]) add(ringHull(grid, knee, at(`foot_${side}`), { stations: [t - .02, t + .02], azimuths: 14, gap: .013 }).geometry, wrap, `calf_${side}`);
+    add(shin.geometry, hide, `calf_${side}`);
+    for (const t of [.16, .36, .56, .76]) add(ringHull(grid, knee, at(`foot_${side}`), { stations: [t - .02, t + .02], azimuths: 14, gap: .013 }).geometry, hoodCloth, `calf_${side}`);
     // Boots: a leather shoe heel to ball, a toe box capped over the toes along the FLAT forward (ankle→ball slopes ~26°, so its own cap
     // ran into the sole short of the toe tips), and an ankle cuff below the leg wraps.
     lootSlot = 'Boots';
     const ankle = at(`foot_${side}`), ball = at(`ball_${side}`);
     // gap .011 (shoe) and .013 (toe box): the sandal's heel and ball straps sit proud of the skin.
     const shoe = ringHull(grid, ankle, ball, { stations: [-.3, -.1, .1, .35, .6, .85, 1], azimuths: 14, gap: .011, far: .2 });
-    add(shoe.geometry, leather, `foot_${side}`);
+    add(shoe.geometry, hide, `foot_${side}`);
     const flat = ball.clone().sub(ankle).setY(0).normalize(), toe = ringHull(grid, ball.clone().addScaledVector(flat, -.03), ball.clone().addScaledVector(flat, .085), { stations: [0, .2, .4, .6, .75], azimuths: 14, gap: .013, far: .2, cap: true });
-    add(toe.geometry, leather, `ball_${side}`);
+    add(toe.geometry, hide, `ball_${side}`);
     const cuff = ringHull(grid, at(`calf_${side}`), ankle, { stations: [.88, .96, 1.05], azimuths: 14, gap: .016 });
-    add(cuff.geometry, leather, `calf_${side}`);
+    add(cuff.geometry, hide, `calf_${side}`);
   }
   lootOf = ''; lootSlot = '';
 }
@@ -849,9 +855,11 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
   // Wrap — the same maps his own kit wears), so those ship here as bare palette entries. What he has no material for ships complete:
   // the Dwarf's baked iron, and Bronze with the hero-tone maps from the materials manifest (Ruby and BoneWorn are plain colours).
   const lootMaps = new Map(), lootDir = 'src/assets/source/loot', used = new Set(draws.map(m => m.material.name));
-  for (const name of [...used].filter(n => /^[A-Z][a-z]+(Iron|Cloth)$/.test(n))) {   // DwarfIron, KnightIron, PlaguedoctorCloth…: that family's baked maps
-    const family = name.replace(/(Iron|Cloth)$/, '').toLowerCase();
-    lootMaps.set(name, { baseColor: { bytes: await fs.readFile(path.join(lootDir, `${family}_iron_color.jpg`)), mime: 'image/jpeg' }, metallicRoughness: { bytes: await fs.readFile(path.join(lootDir, `${family}_iron_orm.jpg`)), mime: 'image/jpeg' }, occlusionTexCoord: 0 });
+  for (const name of [...used].filter(n => /^[A-Z][a-z]+(Iron|Cloth|Leather)$/.test(n))) {   // DwarfIron, PlaguedoctorCloth, WitchLeather…: that family's baked maps
+    const [, stem, kind] = name.match(/^(.+?)(Iron|Cloth|Leather)$/), family = stem.toLowerCase();
+    // A cut family's Cloth shares its one iron bake (the Plague Doctor); a family with its own <kind> maps (the Witch) wears those.
+    const file = await fs.access(path.join(lootDir, `${family}_${kind.toLowerCase()}_color.jpg`)).then(() => kind.toLowerCase(), () => 'iron');
+    lootMaps.set(name, { baseColor: { bytes: await fs.readFile(path.join(lootDir, `${family}_${file}_color.jpg`)), mime: 'image/jpeg' }, metallicRoughness: { bytes: await fs.readFile(path.join(lootDir, `${family}_${file}_orm.jpg`)), mime: 'image/jpeg' }, occlusionTexCoord: 0 });
   }
   const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials', heroManifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest_realistic.json'), 'utf8'));
   // Texture diet (the 1.5 MB cap, check-budget.mjs): loot ships the colour maps and the small normals; a tunic's roughness/metal map is
