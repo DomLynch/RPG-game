@@ -384,45 +384,6 @@ export function estoc({ T: three = T, withAoUv = g => g, variant = ESTOC_DEFAULT
   return group;
 }
 
-// ── The gladius (the Centurion's; Dom 2026-09-23 00:15 "A", Strategy's 09:42 ruling: a STATIC one-hand gladius on the sword family,
-// zero clips). The Pompeii pattern: a short parallel-edged blade with a long triangular point, a flattened-diamond section (two edges,
-// a central ridge), a bone handguard, a ribbed grip and a ball pommel. The sword's clip family, NOT re-keyed (a gladius cuts and stabs
-// with the edge a sword leads with): only the node under hand_r changes. Contact = the edge and point, the ricasso to the tip. The move
-// table's reach is MEASURED off this bake (tests/weapons.test.ts "real reach"), not guessed from the blade length.
-export const GLADIUS_VARIANTS = {
-  A: { name: 'A · Pompeii gladius: 0.52 m blade, parallel edges, long point, bone guard', y1: .62, point: .12, width: .050 },
-};
-export const GLADIUS_DEFAULT = 'A';
-export function gladius({ T: three = T, withAoUv = g => g, variant = GLADIUS_DEFAULT } = {}) {
-  const v = GLADIUS_VARIANTS[variant] ?? GLADIUS_VARIANTS[GLADIUS_DEFAULT];
-  const steel = new three.MeshStandardMaterial({ name: 'GladiusSteel', color: '#a9adb1', metalness: .9, roughness: .38 });   // forged steel, a short bright line
-  const bone = new three.MeshStandardMaterial({ name: 'GladiusBone', color: '#d8ccb0', roughness: .7 });                       // the handguard and grip: bone, the legion's
-  const bronze = new three.MeshStandardMaterial({ name: 'GladiusBronze', color: '#8a6a3a', metalness: .85, roughness: .45 });  // the guard plate and the pommel nut
-  const group = new three.Group(); group.name = 'WeaponDrawn';
-  const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
-  // The blade: a flattened diamond (edges on ±x, the ridge on ±z), parallel to the point's shoulder, then drawn to the tip.
-  const y0 = .10, y1 = v.y1, shoulder = y1 - v.point, segments = 12, positions = [], uvs = [];
-  const at = y => y <= shoulder ? v.width / 2 * (1 - .08 * (y - y0) / (shoulder - y0)) : v.width / 2 * .92 * (1 - (y - shoulder) / v.point);
-  const ys = [...Array.from({ length: segments }, (_, i) => y0 + i / segments * (shoulder - y0)), ...[0, .25, .5, .75, 1].map(t => shoulder + t * v.point)];
-  const ring = y => { const w = at(y), d = Math.max(w * .16, 0); return [[w, y, 0], [0, y, d], [-w, y, 0], [0, y, -d]]; };
-  for (let i = 0; i < ys.length - 1; i++) {
-    const a = ring(ys[i]), b = ring(ys[i + 1]);
-    for (let k = 0; k < 4; k++) { const n = (k + 1) % 4; for (const [p, u, w] of [[a[k], k, i], [a[n], k + 1, i], [b[n], k + 1, i + 1], [a[k], k, i], [b[n], k + 1, i + 1], [b[k], k, i + 1]]) { positions.push(...p); uvs.push(u / 4, w / (ys.length - 1)); } }
-  }
-  const g = new three.BufferGeometry(); g.setAttribute('position', new three.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new three.Float32BufferAttribute(uvs, 2)); g.computeVertexNormals();
-  piece(g, steel);
-  const cyl = (rTop, rBottom, from, to, seg = 12) => new three.CylinderGeometry(rTop, rBottom, to - from, seg).translate(0, (from + to) / 2, 0);
-  piece(new three.BoxGeometry(.066, .008, .030), bronze, .102);                                            // the guard plate under the blade's shoulders
-  piece(new three.SphereGeometry(.038, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(1, .75, .62), bone, .098);   // the handguard: a half-dome, flat face to the blade
-  piece(cyl(.016, .016, -.07, .07), bone);                                                                 // the grip core
-  for (let i = 0; i < 4; i++) piece(new three.TorusGeometry(.0165, .004, 5, 12).rotateX(Math.PI / 2), bone, -.052 + i * .035);   // the four finger ribs
-  piece(new three.SphereGeometry(.030, 14, 10).scale(1, .72, .8), bone, -.088);                            // the ball pommel
-  piece(cyl(.007, .007, -.118, -.106, 8), bronze);                                                         // the tang's peened nut
-  group.userData.contact = { from: .16, to: y1 };                                                          // the edge and point: the ricasso to the tip
-  group.userData.weapon = 'gladius'; group.userData.variant = variant;
-  return group;
-}
-
 // ── The scythe (the Executioner's; owner 2026-09-18: "a scythe or axe" — the scythe, weapons-lane recommendation accepted: the edge-arc,
 // zero-thrust grammar nobody owns; the axe is the cleaver's fight and the Northman's planned identity). A war scythe: a long haft, and at
 // its top a blade mounted TRANSVERSE — it runs along local +x, swept forward (+z), the edge on the concave (+z) side like the cleaver's
@@ -802,7 +763,6 @@ export const WEAPON_BUILDS = {
   estoc: { part: sourced('estoc', estoc), clips: null, keys: {} },              // reconstructed by default; no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
   scythe: { part: scythe, clips: scytheClips, keys: {} },      // mesh + the own 13-clip family (owner's pick: variant B)
   warhammer: { part: warhammer, clips: warhammerClips, keys: {} },   // the Dwarf's (on the shelf, 2026-09-20): part + the 12-clip Warhammer_* family
-  gladius: { part: gladius, clips: null, keys: {} },   // the Centurion's (2026-09-23): the part alone on the sword family — zero clips, no re-key, the sword's own clips play it
   maul: { part: maul, clips: null, keys: {} },   // the Knight's (Brief 17, silhouette stage 2026-09-22): the part alone — no clips, no rig, no loadout; WEAPONS.maul already names the Minotaur's creature-authored Maul_* paths
 };
 
@@ -817,6 +777,6 @@ if (process.argv[1] && /build-weapon\.mjs$/.test(process.argv[1])) {
   const out = process.env.WEAPON_OUT || `src/assets/weapons/${weapon}/${weapon}.glb`;
   await fs.mkdir(out.replace(/\/[^/]+$/, ''), { recursive: true }); await fs.writeFile(out, Buffer.from(glb));
   let triangles = 0; part.traverse(o => { if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
-  const names = { gladius: GLADIUS_VARIANTS, cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS, estoc: ESTOC_VARIANTS, scythe: SCYTHE_VARIANTS, warhammer: WARHAMMER_VARIANTS }[weapon] ?? VARIANTS;
+  const names = { cleaver: CLEAVER_VARIANTS, knife: KNIFE_VARIANTS, estoc: ESTOC_VARIANTS, scythe: SCYTHE_VARIANTS, warhammer: WARHAMMER_VARIANTS }[weapon] ?? VARIANTS;
   console.log(`${weapon} ${variant} → ${out}: ${glb.byteLength} bytes, ${triangles} triangles, contact ${part.userData.contact.from.toFixed(2)}–${part.userData.contact.to.toFixed(2)} m (${names[variant]?.name ?? `${part.userData.variant}: the reconstructed part (scripts/weapon-fit.py), its own maps`})`);
 }

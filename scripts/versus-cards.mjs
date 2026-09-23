@@ -29,7 +29,7 @@ function ready(gap) {
 }
 window.__cards = {
   ladder: LADDER.map(r => r.id),
-  ready: view.ready.then(() => view.dressed()).then(() => true).catch(e => String(e)),   // dressed: the opponent's carries (the Centurion's scutum) are on before the still
+  ready: view.ready.then(() => true).catch(e => String(e)),
   still(yaw, pitch, gap, quality, crop, cx, cy, lock, zoom) {
     const s = ready(gap);
     // The scene keeps its camera private; the renderer is ours, so catch the camera on its way through render() and widen its fov for the card.
