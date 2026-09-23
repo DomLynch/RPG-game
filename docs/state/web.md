@@ -1,6 +1,13 @@
 ## Now — web lane, 2026-09-23 ~11:10Z (session close after #540/#552/#556; read this first)
 
-**Now.** Resume Lead's task 2 from #517: the **phone readability and controls pass** on live (`441eb38` at 11:0xZ; check
+**FIRST, deadline 20:45 (Lead, 12:15Z): roster-v0 opponent cards.** `public/game/index.html` (the landing page: `#ladder`
+"Meet the ladder" `article.foe` cards, the "Five opponents" faces strip ~line 133, and the ranks table ~line 159) lacks the Dwarf
+and the four new beta characters: Plague Doctor `plaguedoctor` (already on roster-v0), Shieldmaiden `shieldmaiden`, Knight
+`knight` and Witch `witch` (these three land by 20:30). Commit on `origin/roster-v0` (fetch + merge first, NEVER force): names only,
+using the versus stills (`/game/img/<id>.webp`) where the lanes ship them. Copy says "Five opponents" in two places, which needs a
+count or a neutral word. Targeted tests + tsc only tonight (no full suite). Send Lead the sha. roster-v0 head at 12:15Z: cf95e1e.
+
+**Then.** Resume Lead's task 2 from #517: the **phone readability and controls pass** on live (`441eb38` at 11:0xZ; check
 `https://frankendom.com/release.json` first). One PR for what is the web lane's; route the rest. Measured so far, start screen
 only, 375×812, from computed styles (labels are `::after` content; the button text itself is font-size 0):
 - `#combat-status` ("Draw your sword. The Nightborn will counterattack.") is **10px**, the smallest text on screen and the one a
