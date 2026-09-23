@@ -2,6 +2,20 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Flesh landings: six different sounds on rotation — 2026-09-23 (owner, by ear)
+
+The owner could not hear a flesh sound in play: of the five landings, four were the one CC0 sword-hit recording at different
+pitches. He auditioned twelve CC0 Freesound flesh takes (A–L) and picked four: B "Slicing through flesh" (504615), C "Bloody
+Blade" (323525), H "messy stabber 1" (811118), J "Meaty Splosh" (528834). `hit_flesh` is now six variants — sword hit, synth stab,
+B, C, H, J — each a different recording, and `nextVariant` never plays the same one twice running (owner: "on rotation, and same
+sound not twice"). The sword hit's lower take left the light rotation because it was the same recording; `hit_heavy` is unchanged.
+Evidence: sprite rebuilt (m4a 485,875 → 515,515 B, ogg 442,108 → 470,488 B); `npm run quality:stop` EXIT=0; `check-budget` PASS
+(audio 738,447 B gzip per fight). Measured per variant as shipped, full / phone band LUFS: sword −20.8/−21.3, stab −14.3/−16.3,
+B −19.7/−19.8, C −17.1/−16.3, H −23.9/−30.9, J −25.4/−25.7. H is mostly bass, so it is the quiet one on a phone speaker; every cue
+is peak-normalised, which is also how the owner auditioned them. Loudness-matching the six is an owner call, not done.
+Gotcha: `build-audio.mjs` fetches each source with a 30 s timeout; the H preview is 3.7 MB and timed out here. The hash-pinned file
+was put in `artifacts/audio/source-cache/` by hand; a clean rebuild on a slow link may need the same.
+
 ## Phone audio pass on live 52dffed — 2026-09-23 (Lead's brief)
 
 Measured the publish that is live (`52dffed`, contains #511; served `sprite.ogg`/`.m4a` sha256 match git byte for byte) with
