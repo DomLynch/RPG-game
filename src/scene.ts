@@ -294,10 +294,17 @@ export function createScene(
   const DIP_FRAMES = 4, DIP_DEPTH = 0.06;
   const blockHeavy = [false, false]; // which fighter's standing block just caught a heavy (his recoil is deeper while `blocked` lasts)
   let ratio = Math.min(devicePixelRatio, PIXEL_CAP); // the context-loss recovery path lowers this to 1 from the tier's ceiling
+  // The canvas box is the LAYOUT viewport, read from the root element, never innerWidth / innerHeight: iOS Safari reports the zoomed
+  // VISUAL viewport there, so a pinch that slipped past main.ts's guard shrank the canvas to the zoomed area (the top half of the
+  // phone, the page background below it, the HUD floating over the void, the camera framed for the wrong aspect) and it stayed that
+  // way (live on a50f22f, 2026-09-23; scripts/viewport-check.mjs). The stylesheet owns the box (#world: fixed, inset 0, 100 %); the
+  // renderer only sizes its drawing buffer to match, writing no inline style. The two screen projections below use the same numbers.
+  let width = 1, height = 1;
   const resize = () => {
-    camera.aspect = innerWidth / innerHeight;
+    width = document.documentElement.clientWidth || innerWidth; height = document.documentElement.clientHeight || innerHeight;
+    camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
+    renderer.setSize(width, height, false);
   };
   resize();
   window.addEventListener('resize', resize);
@@ -395,7 +402,7 @@ export function createScene(
     project(point: [number, number, number]): [number, number] | null {
       const v = new THREE.Vector3(point[0], point[1], point[2]).project(camera);
       if (v.z > 1) return null;
-      return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight];
+      return [(v.x * 0.5 + 0.5) * width, (-v.y * 0.5 + 0.5) * height];
     },
     // End-of-fight timing for the HUD (owner 2026-09-22: nothing over the body until the finisher camera has settled; the text
     // fades while the arena cam tours). `settled`: the push-in/reveal has run its course, or SETTLE seconds of finish age when
@@ -420,7 +427,7 @@ export function createScene(
       const take = (world: THREE.Vector3) => {
         v.copy(world).project(camera);
         if (v.z > 1) return;
-        const sx = (v.x * 0.5 + 0.5) * innerWidth, sy = (-v.y * 0.5 + 0.5) * innerHeight;
+        const sx = (v.x * 0.5 + 0.5) * width, sy = (-v.y * 0.5 + 0.5) * height;
         x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy);
       };
       const world = new THREE.Vector3();
