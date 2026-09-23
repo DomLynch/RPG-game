@@ -1,6 +1,6 @@
 import { quietOneClip } from './build-quiet-one.mjs';
 import { fitVeteranNeck, textureVeteranTrident } from './veteran-finish.mjs';
-import { warriorRecipe, DWARF_BONES } from './warrior-recipe.mjs';
+import { warriorRecipe, DWARF_BONES, GOBLIN_BONES, PROPORTION_TABLES } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
 // No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
@@ -117,9 +117,7 @@ const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] },
   nightborn: { scale: 1.03, hunch: [['spine_02', -2], ['spine_03', -2], ['Head', -4]] },
   executioner: { scale: 1.36, hunch: [] },   // 20 % over the Pitborn's 1.13 (owner, 2026-09-17); no hunch — the Executioner stands straight
   goblin: { scale: .835, hunch: [['spine_02', 9], ['spine_03', 9], ['neck_01', -8], ['Head', -8]], bob: .84, stride: .835 * .84, floor: .12,
-    bones: { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l: [1, .84, 1], calf_r: [1, .84, 1],   // short legs
-      upperarm_l: [1, 1.16, 1], upperarm_r: [1, 1.16, 1], lowerarm_l: [1, 1.16, 1], lowerarm_r: [1, 1.16, 1],   // long arms (the hands keep their size: the grip and the sword are untouched)
-      neck_01: [.86, .9, .86], Head: [1.17, 1.17, 1.17] } },   // a thin, shorter neck; a big head
+    bones: GOBLIN_BONES },   // short legs, long arms, a thin shorter neck and a big head (warrior-recipe.mjs)
   // The dwarf donor (2026-09-20): a short, wide man — the TRELLIS surface replaces this body in creature_pack.py, so only the joints,
   // inverse binds, stride and the trident matter. Legs lose 28 %, torso/limbs gain 20–25 % girth, a short thick neck and a bigger head;
   // `scale` .95 lands ~1.45 m standing. Owner asked for true dwarf proportions rather than the 1.60 m Veteran fit.
@@ -266,7 +264,10 @@ if (LOOT) {
   const unscalers = new Map();
   const unscaler = name => {
     if (unscalers.has(name)) return unscalers.get(name);
-    const bones = { dwarf: DWARF_BONES }[name]; if (!bones) throw new Error(`loot: no proportion table for ${name}`);
+    // Every re-proportioned fighter answers here rather than a hand-kept list: the goblin's table used to sit inline in the
+    // narrowed `BUILD`, so `unscale: "goblin"` threw and a goblin-cut piece failed the BUILD, not the fit. A name with no table
+    // is still an error — unscaling against a fighter who was never re-proportioned is a manifest mistake.
+    const bones = PROPORTION_TABLES[name]; if (!bones) throw new Error(`loot: no proportion table for ${name}`);
     const { joint, frame, S, shift } = proportionField(bones);
     const M = skeleton.bones.map((_, i) => { const R = new T.Matrix4().makeRotationFromQuaternion(frame[i]), D = new T.Matrix4().makeScale(S[i].x - 1, S[i].y - 1, S[i].z - 1); return new T.Matrix3().setFromMatrix4(R.clone().multiply(D).multiply(R.clone().invert())); });
     const c = skeleton.bones.map((_, i) => shift[i].clone().sub(joint[i].clone().applyMatrix3(M[i])));
