@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Mesh, MeshStandardMaterial, SkinnedMesh, Texture, Vector3 } from 'three';
+import { DoubleSide, FrontSide, Mesh, MeshStandardMaterial, SkinnedMesh, Texture, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, lootId, lootIds, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { LOOT_IDS, type LootId, isWeaponLoot } from '../src/loot.ts';
+import { lightFighter } from '../src/colour-grade.ts';
 
 // Parse a shipped GLB in Node: geometry, rig and material names; images are dropped (decoding is the browser's), as tests/characters.test.ts does.
 async function parse(file: string) {
@@ -72,4 +73,21 @@ test('loot: a creature-pipeline body (the Veteran) wears loot, bound to his Crea
   let body: SkinnedMesh | undefined; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && o.name === 'CreatureBody') body ??= o; });
   assert.ok(player.worn().length > 0 && player.worn().every(p => p.userData.slot === 'Shield'), 'the scutum\'s draws are worn');
   for (const draw of player.worn()) assert.equal(draw.skeleton, body!.skeleton, `${draw.name} is bound to his CreatureBody's rig`);
+});
+
+test('loot: a worn shield renders both sides — its face is a single-sided disc, so front-only it culled to a hoop from behind (2026-09-23)', async () => {
+  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const own = new Set<unknown>(); player.anchor.traverse(o => { if (o instanceof Mesh) own.add(o.material); });
+  player.wear(all.filter(p => lootWorn(p, ['veteran.Shield', 'veteran.Helmet'])));
+  const shield = player.worn().filter(p => p.userData.slot === 'Shield'), helmet = player.worn().filter(p => p.userData.slot === 'Helmet');
+  assert.ok(shield.length >= 2 && helmet.length, 'the rim, the face and the helmet are worn');
+  for (const draw of shield) { const m = draw.material as MeshStandardMaterial; assert.equal(m.side, DoubleSide, `${draw.name} draws both sides`); assert.ok(!own.has(m), `${draw.name} is on its own copy, not the rig's material`); }
+  for (const draw of helmet) assert.equal((draw.material as MeshStandardMaterial).side, FrontSide, 'other pieces are untouched');
+  for (const m of own) if (m instanceof MeshStandardMaterial) assert.equal(m.side, FrontSide, `the rig's own ${m.name} stays front-sided`);
+  // The fighter lighting (colour-grade.ts) marks a material in userData and patches its shader: the copy must keep the patch, not just the mark.
+  const lit = new MeshStandardMaterial(); lightFighter(new Mesh(undefined, lit));
+  const helmetPiece = all.find(p => lootWorn(p, ['veteran.Helmet']))!; helmetPiece.userData.slot = 'Shield';
+  const probe = buildWarriors(await parse('warrior.glb')).player; helmetPiece.material = lit; probe.wear([helmetPiece]);
+  const copy = probe.worn()[0].material as MeshStandardMaterial;
+  assert.notEqual(copy, lit); assert.equal(copy.side, DoubleSide); assert.equal(copy.onBeforeCompile, lit.onBeforeCompile, 'the lighting patch carries to the two-sided copy');
 });
