@@ -487,6 +487,11 @@ function dwarfHelmet(skullGrid) {
   if (!crown) throw new Error('dwarf helmet: no crown above the Head joint');
   const top = head.clone().addScaledVector(up, crown), opts = { azimuths: 24, up: new T.Vector3(0, 0, 1) };
   const dome = ringHull(skullGrid, head, top, { ...opts, stations: [.46, .56, .66, .76, .85, .92, .97], gap: .012, cap: true });
+  // His TRELLIS crown is flat, and a hull fitted to it reads as a bowl's base at phone size: lift the top third along the axis into a dome
+  // (up to 3 cm at the apex, easing to nothing by 70 % of the way up). Only ever outward, so it never sinks into the scalp.
+  const p = dome.geometry.getAttribute('position'), q = new T.Vector3();
+  for (let k = 0; k < p.count; k++) { const t = q.fromBufferAttribute(p, k).sub(head).dot(up) / crown; if (t > .7) p.setXYZ(k, ...q.add(head).addScaledVector(up, .03 * Math.min(1, (t - .7) / .32) ** 2).toArray()); }
+  dome.geometry.computeVertexNormals();
   add(dome.geometry, steel, 'Head', 0, 0, 0, 0, 'Helmet');
   add(ringHull(skullGrid, head, top, { ...opts, stations: [.44, .5], gap: .018 }).geometry, trim, 'Head', 0, 0, 0, 0, 'Helmet');   // the brow band
   // The nasal: an iron bar from the band down the bridge of the nose, following its slope.
