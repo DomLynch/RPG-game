@@ -199,7 +199,7 @@ export function createScene(
     ctx.beginPath();
     for (let i = 0; i <= 64; i++) {
       const angle = (i / 64) * Math.PI * 2,
-        r = splash ? 33 + Math.sin(angle * 7) * 6 + Math.cos(angle * 11) * 4 : 48;
+        r = splash ? 33 + Math.sin(angle * 2 + 1) * 5 + Math.cos(angle * 3 + 2) * 4 + Math.sin(angle * 5 + 0.5) * 2 : 48;   // low, out-of-phase lobes: a lopsided blot, never a star
       const x = 64 + Math.cos(angle) * r,
         y = 64 + Math.sin(angle) * r * (splash ? 1 : 0.65);
       if (i === 0) ctx.moveTo(x, y);
