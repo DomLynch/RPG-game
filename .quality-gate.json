@@ -1,9 +1,8 @@
 {
   "commands": [
     [
-      "npm",
-      "run",
-      "quality:stop"
+      "node",
+      "scripts/quality-stop-targeted.mjs"
     ]
   ],
   "manual": [
