@@ -1,6 +1,127 @@
 # Combat — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+
+## The knife is offerable — and the mechanism below this entry was wrong (combat lane, 2026-09-22)
+
+**Read this before the entry beneath it.** That entry's evidence stands — the pinned gap, the profile sweep, Lead's ruling, Strategy's
+conditions — but its MECHANISM is disproved. It says the Goblin's *approach* settles at a raw reach value. It does not. `ai.ts`'s
+approach stop is `thrust.reach - .2` (1.25) or `fight.close` (KNIFE's is 1.0), and neither is 1.41. That number should have bothered us
+sooner; it was reasoned, not measured, and three sessions repeated it before anyone instrumented it.
+
+**The measured cause, two layers.** (1) A guardless warden reading a kicker holds at `theirs.kick.reach + .3` = 1.50, zeroing his
+forward drive at 1.45 (`reads.kicker=true`, `poker=false`; park 1.431 / 1.420 / 1.417, p10 = median = p90, seeds 1-3). (2) Underneath
+it, the real defect: **`next.next` was `light` on 6599 of 6599 ready ticks.** The plan is picked once, re-picked only when null, and
+cleared by being thrown — so a warden held at a gap his queued move cannot reach never attacks, never clears the plan, never re-rolls.
+Thrust was legal and in reach on 3340 of those ticks at full stamina, no threat. Measured attack starts are **4-5** per 7200 ticks, not
+the 3 recorded below.
+
+**Two designs measured, one rejected — this is why the shipped one is minimal and not merely the first thing that went green.**
+
+| design | knife row | cost |
+|---|---|---|
+| hold derives from the QUEUED move (1.05) | clears | **breaks the Goblin identity pin**: normal kick-only 5 wins vs the honest answer's 4 — inside the kicker's 1.2 reach, trading a stalemate for the cheese the hover exists to deny |
+| hold at thrust margin (1.35), re-pick **ungated** | clears | **`knife vs goblin normal: thrust from range` 15/24 vs cap 12** — fired on the poker hover, whose design is patience (Brief 5: stand off the live point, go in on the whiff) |
+| **shipped:** hold at thrust margin, re-pick gated to non-pokers | clears | none — final table is the old set minus the knife row |
+
+`ai.ts:191` already re-picks a plan the warden is too CLOSE for; the shipped fix is that rule's missing far side. Strategy's condition
+(a) — derive the target from the same margin `inReach` uses — survived the correction intact; it applies to the hover HOLD rather than
+the approach stop. Read it as refinement, not invalidation. The `cramped` branch was NOT redundant and stays.
+
+**Blast radius, narrower than first reported.** Gated on `guardShare === 0`, and `guard: 0` appears on exactly three lines of
+`src/moves.ts` — the Goblin's easy/normal/hard. No other warden moves; the Nightborn is untouched, so #419 was never sequenced behind
+this. But the Goblin is the opponent in many rows, so the whole table was re-scanned, not the knife's.
+
+**Receipts.** `quality:stop` 468 tests / 466 pass / 0 fail (2 skipped). `test:slow` 94/94. `record-replay --write` then verify PASS
+(veteran-walk-in 1677 died, veteran-scripted 1452 died, both digests match). RECORD_VERSION 5 -> 6; SIM_DIGEST `713efc17…` ->
+`86e61b16…`, PINNED_FOR_VERSION 6 — **read AFTER the bump**, because `src/record.ts` is inside its own hashed set.
+`READABLE_VERSIONS` deliberately untouched: widening the reader belongs with Stats' v5 decoder branch (#503), not this writer bump.
+`knife vs goblin hard: kick only untouched` 3/24 removed from `KNOWN_UNFAIR`; `knife` added to `PLAYER_WEAPONS_OFFERED`, now
+longsword / warhammer / trident / scythe / knife.
+
+**Gotcha worth carrying beyond this lane:** a number that no constant in the code can produce is a sign the mechanism is wrong, not
+that the constant is hidden. 1.41 matched nothing in the approach path, and the cost of not checking that was three sessions carrying a
+wrong cause into their own notes and briefs.
+
+**Now:** knife ready at local `1a83c3c` on trunk `fe0d8e0`, unpushed — the remote needs the owner's word. **Next:** the Nightborn/estoc
+profile item (Strategy), then cleaver — which is blocked on Lead's per-grade `anticipate` field, because `ai.ts:114` clamps the spam
+read to `READ.anticipate` (8) and swallows any per-grade `reaction` above it.
+
+## The Goblin parks 0.1 m outside his own reach — the knife's last blocker (combat lane, 2026-09-22)
+
+**Finding, measured not guessed.** `knife vs goblin hard: kick only untouched 3/24` is the only row left keeping the knife out of
+`PLAYER_WEAPONS_OFFERED` (the scythe cleared and ships; see the weapons lane's entry). It is NOT knife data. The Goblin's approach
+stopping distance and his in-reach test disagree by the 0.1 m margin, so against a passive opponent he parks just outside his own
+attack range and stays there.
+
+Evidence, one instrumented fight (seed 12345, knife player, `kick only`, 7200 ticks):
+- gap p10 = median = p90 = **1.41 m** — pinned, not a distribution.
+- **3 attacks started in 7200 ticks.** Hero 137 hp, Goblin 116 hp, tick limit reached. The whole row is 24/24 stalls.
+- His usable reaches (ai.ts `inReach`: `gap <= reach - .1`): light **1.10**, thrust **1.35**, heavy **1.45**. At 1.41 only the heavy
+  is legal, which is why he throws almost nothing.
+- Forcing `circle` 1 -> 0.5 -> 0 changes nothing (3 attacks each); at circle 0 the gap sits at **exactly 1.45 = `thrust.reach`**. So
+  circling is NOT the cause — ruled out by experiment, not by argument.
+- `KNIFE.fight.close` is **1.0**, and ai.ts:314 walks him forward while `gap > fight.close` (or `thrust.reach - .2` when a thrust is
+  planned). He should close to 1.0, where the light works. He stops at raw `thrust.reach` instead.
+- Not the body separation floor either: that is 0.85 (duel.ts:230), well inside where he stops.
+
+**So the hole is general, not the Goblin's and not the knife's:** any warden whose approach settles at a raw reach value rather than
+inside the `reach - .1` margin can park where nothing of his is legal. It shows up on the knife because the knife's short reaches make
+the 0.1 m band the difference between every move and one move.
+
+**A hard-profile change alone CANNOT fix this — measured, 2026-09-22.** Lead's brief prescribed fixing the Goblin's hard profile only
+(stall window -> close-and-punish), on the GAME_SPEC rule that profiles move reaction/prediction/aggression and never data. But the
+parking distance is geometric, and a profile cannot move where he stops. Sweep on seed 12345, 3600 ticks, `kick only`, knife:
+
+| profile | attacks | gap median | hero hp | outcome |
+|---|---|---|---|---|
+| hard as shipped | 3 | 1.41 | 137 | stall |
+| aggression 1 + pressure 1 | 3 | 1.41 | 137 | stall |
+| reaction 1 (instant) | 5 | 1.34 | 98 | stall |
+| discipline 0 (never rests) | 3 | 1.41 | 137 | stall |
+| **every knob maxed for commitment** (aggression/pressure 1, reaction 1, discipline 0, circle/disengage/lapse 0) | 5 | 1.28 | 98 | **stall** |
+
+Even with every commitment knob at its limit the fight does not resolve. `reaction` is the only knob that moves the gap at all
+(1.41 -> 1.34) and it buys 2 attacks. So the target "knife row <=1/24 and the Goblin resolves" is not reachable from the profile, and a
+profile change that half-moves it would be tuning toward a pin without fixing the defect. The fix has to be the approach/in-reach
+disagreement itself in ai.ts — which is shared by every opponent, so it needs the full battery across all weapons.
+
+**RULING (Lead, 2026-09-22, after the sweep): fix the approach/in-reach disagreement in `src/ai.ts`.** The profile-only prescription is
+superseded by measurement. Lead's reading, and he is accountable for it: GAME_SPEC's "profiles move reaction/prediction/aggression,
+never data" governs PROFILES; ai.ts approach logic is neither a profile nor weapon data, it is the code profiles feed, so fixing a
+logic defect there is in scope.
+
+**Precedent that corroborates the diagnosis — put it in the PR.** ai.ts:311-313's `cramped` branch exists for this same class of bug:
+its comment records the reaper Wraith, whose approach stops at 1.9 m, meeting a fighter parked at 1.45 m and never moving again. That
+was patched for ONE opponent at ONE range. This is the general case. **Fix the seam; do not add a second patch beside the first.**
+
+Conditions on the fix: (1) full 24-seed battery, every weapon, both levels — shared by every opponent, so the blast radius is the whole
+table; snapshot diff in the PR body with every moved row attributed. (2) RECORD_VERSION bump — **5 is live so the next is 6** — and
+SIM_DIGEST re-pinned AFTER the bump. (3) fight-length pins green for EVERY opponent, not just the Goblin. (4) **Re-measure
+`cleaver vs executioner normal: light spam` before touching item 2** — if this fix improves it, item 2's Executioner profile edit may
+be unnecessary; tell Lead the number either way, item 2 is now provisional. (5) flip 'knife' into PLAYER_WEAPONS_OFFERED in the same PR
+if the row clears; if it does not, bring Lead the table and decide then — **do not tune toward the pin.**
+
+**Strategy's four conditions on top of Lead's, and (a) is the actual shape of the fix.** (a) **Derive the approach target from the
+same margin `inReach` uses** — "close until the planned move is in reach" — rather than introducing a second constant that can drift
+from it again. The bug is two numbers that must agree being written independently, so the fix is to stop writing them independently.
+**If the `cramped` branch (ai.ts:311-313) becomes redundant once the target is derived, delete it in the same PR** — it was the
+one-opponent patch of this same defect, and leaving it would be two mechanisms for one rule. (b) The PR body carries the seed-12345
+`kick only` trace before AND after: attacks started, gap p10/median/p90, resolution tick. The "before" is 3 attacks / 1.41 pinned /
+no resolution; the "after" must show all three moving. (c) **Re-record the daily fight and the kill-link fixtures under
+RECORD_VERSION 6 in the same PR** — every fight's approach moves, so the fixtures move with it; do not let that trail into a
+follow-up. (d) Clear before starting.
+
+Sequencing: item 2 (cleaver/Executioner) is **provisional and behind this**. Re-measure `cleaver vs executioner normal: light spam` on
+the FIXED approach before touching his profile and send Lead the number; if it clears, the cleaver flip ships alone, and if the table
+is already re-signed in the knife PR it can ride there rather than waiting for a second one. ETA agreed: first thing, not tonight —
+"better a true morning than a false midnight". Nothing in this lane must move tonight.
+
+**Do not fix this by tuning the row.** 3 untouched against a cap of 2 is one fight over — a tie-break margin, and tuning to clear it is
+exactly what produced the estoc mess. Fix the approach/in-reach disagreement on its merits; the row clears or it does not, and if it
+does not, bring Lead the table. Whatever lands needs the full 24-seed battery re-run, because every player weapon is also a warden's
+weapon and this touches ai.ts, which every opponent shares.
+
 ## Two PRs closed, 2026-09-22 20:40 (lead, Dom via Strategy)
 **#370 "Brief 8: the Veteran's authored opening" — CLOSED, not abandoned.** The branch was OPEN and CONFLICTING against trunk and had been since the beta stack landed; rebasing it is part of its remaining cost, and the opponent it scripts is being renamed (the Veteran opponent becomes **the Centurion**, name field only). Brief 8 stays on the board: redo the authored opening against the Centurion after the shield. Do not resurrect this branch — cut a fresh one.
 
