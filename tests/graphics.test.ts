@@ -747,6 +747,11 @@ test('kill links: a retired record version says what the fight was from its head
   const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
   await settle(() => !d.element('welcome').hidden);
   assert.equal(d.element('welcome-title').textContent, 'The Nightborn won, against a knife.');
+  const odd = record.packRecord({ ...fight, weapon: 'banana' as never }); odd[2] = 4;   // a crafted header: the page names only what the game knows
+  const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
+  const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);
+  await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
+  assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
 });
 test('autopsy: a death puts at most two plain lines on the death screen, the same lines go under the opponent\'s journal row for the last fight, and a rematch clears them', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();

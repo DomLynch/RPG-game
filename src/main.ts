@@ -1,5 +1,5 @@
 import { createInput } from './input.ts';
-import { RULES, type WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, type WeaponId } from './moves.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
@@ -504,7 +504,7 @@ if (replayText || sharedId) {
     }
     if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): say what the fight was from its header, never a blank arena
       void text.then(peekRecordHeader).then((header) => {
-        const foe = header && isOpponentId(header.opponent) ? ROSTER[header.opponent].name : null;
+        const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? ROSTER[header.opponent].name : null;   // a link is public input: name only an opponent and weapon this game knows
         if (!header || !foe) { stalled = true; banner('Recorded on an older build', true); updateHud(); return; }
         const title = `${foe[0].toUpperCase()}${foe.slice(1)}`, weapon = `a ${header.weapon}`;
         banner(null); watching = false; welcome.hidden = false;
