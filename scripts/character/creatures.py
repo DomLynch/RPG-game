@@ -72,6 +72,24 @@ segments = {
     for p in rig.pose.bones
     if any(p.name.startswith(n) for n in ["upperarm_", "lowerarm_", "hand_"])
 }
+# The Knight's arms hang against his plate (84 deg A-pose), so no |x| edge separates a fist from the skirt beside it. His arm
+# share is decided by which posed segments a vertex is nearer to, arm or trunk/leg (the same A-pose, so depth counts too).
+body_segments = {
+    p.name: (p.head.copy(), p.tail.copy())
+    for p in rig.pose.bones
+    if any(p.name.startswith(n) for n in ["spine_", "pelvis", "neck_", "thigh_", "calf_"])
+}
+
+
+def segment_distance(point, table):
+    best = float("inf")
+    for a, b in table.values():
+        ab = b - a
+        t = max(0, min(1, (point - a).dot(ab) / ab.length_squared)) if ab.length_squared else 0
+        best = min(best, (point - (a + t * ab)).length)
+    return best
+
+
 C = Matrix.Rotation(-math.pi / 2, 4, "X")
 ci = C.inverted()
 binds = {
@@ -438,13 +456,14 @@ for v in mesh.data.vertices:
         edge = 0.185 + max(0, 1.4 - z) * 0.26
     if family == "witch":  # a narrower frame: her hands hang at 0.32 m, inside a man's 0.31 m edge at that height
         edge = 0.15 + max(0, 1.4 - z) * 0.22
-    if family == "knight":  # tight-armed plate: torso edge ~0.20-0.23 m, arms 0.22-0.38 m (ortho front of the normalised surface)
-        edge = 0.225
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
     arm_mix = max(
-        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf", "executioner") else 0.03 if family == "knight" else 0.055))
+        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf", "executioner") else 0.055))
     ) * max(0, min(1, (1.62 * k - z) / 0.10))
+    if family == "knight":  # nearer the arm than the trunk, biased 2 cm to the trunk; a 6 cm band softens the fused flank
+        arm_mix = max(0, min(1, (segment_distance(v.co, body_segments) - segment_distance(v.co, segments) - 0.02) / 0.06 + 0.5))
+        arm_mix *= max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
     arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor", "knight", "witch") else 0.92)) / 0.10))
