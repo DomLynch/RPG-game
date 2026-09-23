@@ -2,6 +2,12 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 22:50 — Run 3c = PR #629 (cde1f32a, MERGEABLE, draft until FREE); 3b on 2nd attempt after a SIGTERM; Dom's test bot is the load; lanes on tomorrow's queue
+
+**Verified:** live 63c56758; 3b (e455d850, Witch only) SIGTERMed 22:37 mid-build (EXIT 143, killer unknown, Lead's report), relaunched 22:39; load 320; Dom's own Frankendom-Test-Bot (Desktop/Business, pinned to 0cb58427, 10 Chrome-for-Testing + Playwright ffmpeg since ~22:20) is a large share of the load, Dom asked 22:45, no answer yet, hands off. #603 Knight 3d29c27d MERGEABLE, un-drafted by Lead; #629 = #617 + #612 + #623 (test-only, checked) + #614 + #603, Phase L only if stills exist at handoff. At FREE: Knight (metallic 0.4 cap) + Dwarf (dwarf_greaves.glb baked) pushes, one loot.glb rebuild, quality:stop, build, check-budget, READY, publish.
+
+**Rulings:** Web's last task tonight = phone-width pass of 3b/3c on live, stills for the morning table, defects as PRs for 09:00 (no later UI list exists; Dom's "few things" never itemised). Tomorrow's run (09:00): #624 arenas draft, #625, #626, #627, #628, pitborn, multichar/witch-maps, goblin, Combat b168b498, Phase L if it misses 3c. Character Main = second reviewer. Backend/Accounts session gone, note for the morning table. Lead's clock ran ~20 min fast; real-time stamps from `date`. **NOW:** curl 3b sha (~23:15), 3c sha (~00:30); relay Dom's test-bot word if it comes.
+
 ## 2026-09-23 22:35 — Dom sleeps 23:15: ONE batch run (3c) after 3b; load 250 ruling; Lead judges stills overnight
 
 **Verified 22:29:** Run 3b deploying on e455d850 (lock since 22:23); #614 head 00b84128 still CONFLICTING, #603 draft CONFLICTING; load 257 with 28 Chromium + 156 node processes while Deploy holds the lock. Dom 22:30: "are u in the weeds? … guide and direct the lead dev but dont do his operational work … get him moving"; 22:3x: "batch process, and batch deploy if needed".
