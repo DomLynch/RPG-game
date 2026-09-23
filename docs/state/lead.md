@@ -17,6 +17,10 @@ It MERGES the exact heads #545 `c17004d` + #547 `28a0fd0` (#547 contains #543 `9
 all four are ancestors (`git merge-base --is-ancestor`) and stops if any head moved. The four siblings are never merged one by one,
 and moves.ts is never hand-resolved (#545 and #543 both edit it). Pre-ruled: a new over-cap row vs the gladius Centurion gets signed
 KNOWN_UNFAIR ("fixed in bump 8") and does not stop B; only an identity-pin failure or a crash stops B. Send Deploy the re-pin PR number.
+**LIVE `b7bc78d` (14:12).** **KNIFE RULING (Lead, 14:2x, under the pre-ruling):** the combined tree (`f3c3f60`) gives `knife vs veteran normal:
+thrust from range` 23/24 against the gladius Centurion (cap 12; it was 5/24 vs the trident). The knife STAYS OFFERED with a NARROW, named test
+exception, "fixed in bump 8". `cleaver vs veteran normal` 16/24 is signed KNOWN_UNFAIR, and trident 12/24 (margin 0) is a watch item. **Bump 8
+(#550) must fix the knife-vs-Centurion row as well as the cleaver rows.** Strategy was told and can overrule by ~14:45.
 
 ## Lead — 2026-09-23 13:35 local: HANDOFF (context restart). Read this block, then the one below.
 **Now (the next session picks up):**
