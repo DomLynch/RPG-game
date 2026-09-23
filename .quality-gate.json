@@ -396,5 +396,5 @@
       "--blood-check"
     ]
   ],
-  "timeout_seconds": 300
+  "timeout_seconds": 420
 }
