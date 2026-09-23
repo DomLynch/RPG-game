@@ -29,6 +29,10 @@ RATIO = float(args[args.index('--ratio') + 1]) if '--ratio' in args else 1.0   #
 FAMILY = args[args.index('--family') + 1] if '--family' in args else 'dwarf'   # whose TRELLIS surface to cut
 # --material Steel: the piece wears loot.glb's shared untextured Steel instead of its own baked maps (the Knight: 80 KB of loot headroom)
 MATERIAL = args[args.index('--material') + 1] if '--material' in args else f'{FAMILY.capitalize()}Iron'
+# --all: every face is a candidate, not only the metallic ones — the Plague Doctor's carriers are leather and a waxed coat, not iron.
+# --slots Helmet,Body: keep only these player slots (Recruit-2 for a masked archetype is Helmet + Body; Strategy, 2026-09-23).
+ALL = '--all' in args
+SLOTS = set(args[args.index('--slots') + 1].split(',')) if '--slots' in args else None
 SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
 OUT = 'src/assets/source/loot'
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
@@ -36,7 +40,7 @@ OUT = 'src/assets/source/loot'
 # shins, one piece from knee to instep, like the Veteran's greaves (parts.py slot 'Greaves').
 SLOT_OF = [('Head', 'Helmet'), ('neck', 'Helmet'), ('spine', 'Body'), ('pelvis', 'Body'), ('clavicle', 'Body'),
            ('upperarm', 'Arms'), ('lowerarm', 'Arms'), ('hand', 'Gloves'), ('thumb', 'Gloves'), ('index', 'Gloves'), ('middle', 'Gloves'),
-           ('ring', 'Gloves'), ('pinky', 'Gloves'), ('thigh', 'Greaves'), ('calf', 'Greaves'), ('foot', 'Greaves'), ('ball', 'Greaves')]
+           ('ring', 'Gloves'), ('pinky', 'Gloves'), ('thigh', 'Greaves'), ('calf', 'Greaves'), ('foot', 'Boots'), ('ball', 'Boots')]
 MIN_SLOT = int(args[args.index('--min-slot') + 1]) if '--min-slot' in args else 300   # a slot with fewer iron faces than this is speckle, not a piece
 
 
@@ -98,7 +102,7 @@ for _ in range(SMOOTH):
     np.add.at(n, edges[:, 0], 1)
     np.add.at(n, edges[:, 1], 1)
     metal = s / n
-iron = (metal > METAL)[rep]   # back to the split vertices
+iron = (np.ones_like(metal, dtype=bool) if ALL else metal > METAL)[rep]   # back to the split vertices
 metal = metal[rep]
 # Dominant bone per vertex from the transferred weights.
 groups = {g.index: g.name for g in body.vertex_groups}
@@ -153,7 +157,7 @@ for i, _ in faces:
 pieces = defaultdict(list)
 for s, patch in patches:
     pieces[s] += patch
-pieces = {s: f for s, f in pieces.items() if len(f) >= MIN_SLOT}
+pieces = {s: f for s, f in pieces.items() if len(f) >= MIN_SLOT and (SLOTS is None or s in SLOTS)}
 print('LOOT patches (faces, slot), largest first:', sorted(sizes, reverse=True)[:12])
 print(f'LOOT {FAMILY}: {int(iron.sum())}/{V} iron vertices; patches kept {len(patches)} → slots ' +
       ', '.join(f'{s}:{len(f)} faces' for s, f in sorted(pieces.items())))
@@ -167,6 +171,8 @@ for s, face_ids in sorted(pieces.items()):
     bm.faces.ensure_lookup_table()
     keep = set(face_ids)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context='FACES')
+    if MATERIAL == 'Steel':   # untextured: weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()

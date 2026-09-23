@@ -43,7 +43,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Body', 'executioner.Arms', 'executioner.Greaves', 'executioner.Boots', 'executioner.Gloves', 'executioner.Scythe'],
   nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
   pitborn: ['pitborn.Arms', 'pitborn.Gloves', 'pitborn.Cleaver'],   // no chest piece: he wears a rag sash, not a tunic (a `replace` piece must not undress the player — tests/loot.test.ts)
-  dwarf: ['dwarf.Greaves', 'dwarf.Gloves', 'dwarf.Warhammer'],
+  dwarf: ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
   knight: ['knight.Maul'],   // his Helmet and Body (the Recruit-2 carriers) come post-beta: a .12 cut on untextured Steel read as shards (UV-seam split)
   witch: ['witch.Trident'],   // her Helmet (the hood) and Body (the robe) join when their loot.glb draws are cut (Brief 16's six slots)

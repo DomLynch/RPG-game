@@ -221,11 +221,47 @@
  ],
  "dwarf": [
   {
+   "slot": "Helmet",
+   "layer": "over",
+   "file": "loot/dwarf.glb",
+   "slots": [
+    "Helmet"
+   ],
+   "unscale": "dwarf"
+  },
+  {
+   "slot": "Body",
+   "layer": "over",
+   "file": "loot/dwarf.glb",
+   "slots": [
+    "Body"
+   ],
+   "unscale": "dwarf"
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "loot/dwarf.glb",
+   "slots": [
+    "Arms"
+   ],
+   "unscale": "dwarf"
+  },
+  {
    "slot": "Greaves",
    "layer": "over",
    "file": "loot/dwarf.glb",
    "slots": [
     "Greaves"
+   ],
+   "unscale": "dwarf"
+  },
+  {
+   "slot": "Boots",
+   "layer": "over",
+   "file": "loot/dwarf.glb",
+   "slots": [
+    "Boots"
    ],
    "unscale": "dwarf"
   },

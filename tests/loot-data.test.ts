@@ -89,7 +89,8 @@ test('loot: one fixed piece per opponent per career sub-rank, never a duplicate,
   assert.equal(dropFor('veteran', 24, ['veteran.Helmet']), null, 'a piece already owned never drops twice');
   assert.equal(dropFor('pitborn', 0, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Gloves', 'his bone plates then the shared gloves');
   assert.equal(dropFor('pitborn', 6, ['pitborn.Arms', 'pitborn.Gloves']), null, 'and nothing more once both are owned — his cleaver is taken, never dropped');
-  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Gloves', 'greaves then the shared gloves');
+  // The Dwarf's six armour drops (Helmet, Body, Arms, Greaves, Boots, then the shared Gloves); the seventh sub-rank comes round to the helmet.
+  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Helmet'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Body'); assert.equal(dropFor('dwarf', 6, []), 'dwarf.Arms'); assert.equal(dropFor('dwarf', 9, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 12, []), 'dwarf.Boots'); assert.equal(dropFor('dwarf', 15, []), 'dwarf.Gloves', 'his own iron, then the shared gloves'); assert.equal(dropFor('dwarf', 18, []), 'dwarf.Helmet', 'six armour pieces, so the seventh sub-rank comes round to the first');
   assert.equal(dropFor('goblin', 0, []), 'goblin.Body'); assert.equal(dropFor('goblin', 3, []), 'goblin.Arms'); assert.equal(dropFor('goblin', 6, ['goblin.Body', 'goblin.Arms', 'goblin.Gloves']), null, 'all three Goblin pieces owned: nothing more');
   for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
   // The Veteran's seven pieces are six armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
