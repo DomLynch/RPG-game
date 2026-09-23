@@ -282,8 +282,10 @@ for (const item of items.split(',').filter(Boolean)) {
 // fills. Sources are parts.py/items outputs (same contract as the parts above); `slots`/`names` pick meshes out of a shared file.
 if (LOOT) {
   const lootDir = 'src/assets/source', manifest = JSON.parse(await fs.readFile(path.join(lootDir, 'loot/loot.json'), 'utf8'));
-  // The Dwarf's iron keeps his baked look (scripts/character/loot_dwarf.py writes the maps beside its GLB); every other piece wears the palette.
-  parts.set(new T.MeshStandardMaterial({ name: 'DwarfIron', roughness: 1, metalness: .35 }), []);
+  // A piece cut from a TRELLIS surface keeps its baked look: scripts/character/loot_dwarf.py writes <family>_iron_color.jpg / _orm.jpg
+  // beside the family's GLB and tags the piece `<Family>Iron`. One such material per family that has the maps; every other piece wears the palette.
+  const bakedFamilies = (await fs.readdir(path.join(lootDir, 'loot'))).filter(f => f.endsWith('_iron_color.jpg')).map(f => f.slice(0, -'_iron_color.jpg'.length));
+  for (const family of bakedFamilies) for (const kind of ['Iron', 'Cloth']) parts.set(new T.MeshStandardMaterial({ name: `${family[0].toUpperCase()}${family.slice(1)}${kind}`, roughness: 1, metalness: kind === 'Iron' ? .35 : 0 }), []);
   // A piece cut from a re-proportioned body (loot.json "unscale": the BUILD name) comes back to a man's frame by inverting that field
   // through the piece's own weights: forward, v' = v + Σ w (shift + M (v − j)) with M = R (S − I) R⁻¹, so v = A⁻¹ (v' − c) with
   // A = I + Σ w M and c = Σ w (shift − M j). Weights are the transferred ones the piece already carries.
@@ -638,7 +640,10 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
   // Wrap — the same maps his own kit wears), so those ship here as bare palette entries. What he has no material for ships complete:
   // the Dwarf's baked iron, and Bronze with the hero-tone maps from the materials manifest (Ruby and BoneWorn are plain colours).
   const lootMaps = new Map(), lootDir = 'src/assets/source/loot', used = new Set(draws.map(m => m.material.name));
-  if (used.has('DwarfIron')) lootMaps.set('DwarfIron', { baseColor: { bytes: await fs.readFile(path.join(lootDir, 'dwarf_iron_color.jpg')), mime: 'image/jpeg' }, metallicRoughness: { bytes: await fs.readFile(path.join(lootDir, 'dwarf_iron_orm.jpg')), mime: 'image/jpeg' }, occlusionTexCoord: 0 });
+  for (const name of [...used].filter(n => /^[A-Z][a-z]+(Iron|Cloth)$/.test(n))) {   // DwarfIron, KnightIron, PlaguedoctorCloth…: that family's baked maps
+    const family = name.replace(/(Iron|Cloth)$/, '').toLowerCase();
+    lootMaps.set(name, { baseColor: { bytes: await fs.readFile(path.join(lootDir, `${family}_iron_color.jpg`)), mime: 'image/jpeg' }, metallicRoughness: { bytes: await fs.readFile(path.join(lootDir, `${family}_iron_orm.jpg`)), mime: 'image/jpeg' }, occlusionTexCoord: 0 });
+  }
   const materialsDir = process.env.WARRIOR_MATERIALS || 'src/assets/source/materials', heroManifest = JSON.parse(await fs.readFile(path.join(materialsDir, 'manifest_realistic.json'), 'utf8'));
   // Texture diet (the 1.5 MB cap, check-budget.mjs): loot ships the colour maps and the small normals; a tunic's roughness/metal map is
   // uniform (rough .88, metal 0 on every fighter — measured) and becomes factors; Bronze takes the 46 KB base normal, not the hero's 161 KB
