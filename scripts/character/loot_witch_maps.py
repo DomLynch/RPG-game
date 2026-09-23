@@ -15,8 +15,9 @@ import numpy as np
 
 SOURCE = os.path.abspath('src/assets/source/creatures/witch.glb')
 OUT = os.path.abspath('src/assets/source/loot')
-# The patch, in image pixels from the TOP-LEFT of her 2048² albedo (x0, y0, x1, y1): the robe's vertical folds, few foreign chips.
-PATCH = (300, 1240, 860, 1740)
+# The patch, in image pixels from the TOP-LEFT of her 2048² albedo (x0, y0, x1, y1): the robe's vertical folds, the 560×500 window with
+# the fewest chips (0.05 %) in a 20 px sweep of the whole atlas. The first pick, (300, 1240), held two of her faces' charts.
+PATCH = (1240, 280, 1800, 780)
 COLOR_SIZE, ORM_SIZE, JPEG_QUALITY = 512, 256, 85
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -43,11 +44,14 @@ def box(a, r):
 
 x0, y0, x1, y1 = PATCH
 patch = atlas[y0:y1, x0:x1].copy()
-# Chips from other charts (skin, the white specks): far from the local mean, or skin-coloured. Painted with the local mean.
-pl, local = patch.mean(axis=2), box(patch, 12)
-chip = (np.abs(pl - local.mean(axis=2)) > 2.5 * pl.std()) | ((patch[..., 0] > patch[..., 1] + .04) & (pl > .2))
+# Chips from other charts (skin, brown, white specks): reddish and brighter than the robe's median, or far brighter. Filled from the
+# CLOTH around them only (a mean that counted the chip, as the first cut did, painted a face back in at its own colour).
+pl, med = patch.mean(axis=2), np.median(lum)
+chip = ((patch[..., 0] > patch[..., 1] + .02) & (pl > med + .02)) | (pl > med + .12)
 chip = box(chip.astype(np.float32), 2) > .01   # and their antialiased rims (not 0: the summed-area table leaves float dust)
-patch[chip] = local[chip]
+keep = (~chip).astype(np.float32)[..., None]
+fill = box(patch * keep, 16) / np.maximum(box(keep, 16), 1e-6)
+patch[chip] = fill[chip]
 print(f'witch maps: patch {x1 - x0}x{y1 - y0}, {chip.mean() * 100:.1f}% chips painted out, leather tint {np.round(tint, 3).tolist()}')
 
 
