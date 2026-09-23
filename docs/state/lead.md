@@ -20,7 +20,7 @@ KNOWN_UNFAIR ("fixed in bump 8") and does not stop B; only an identity-pin failu
 **LIVE `b7bc78d` (14:12).** **KNIFE RULING (Lead, 14:2x, under the pre-ruling):** the combined tree (`f3c3f60`) gives `knife vs veteran normal:
 thrust from range` 23/24 against the gladius Centurion (cap 12; it was 5/24 vs the trident). The knife STAYS OFFERED with a NARROW, named test
 exception, "fixed in bump 8". `cleaver vs veteran normal` 16/24 is signed KNOWN_UNFAIR, and trident 12/24 (margin 0) is a watch item. **Bump 8
-(#550) must fix the knife-vs-Centurion row as well as the cleaver rows.** Strategy was told and can overrule by ~14:45.
+(#550) must fix the knife-vs-Centurion row as well as the cleaver rows.** **Strategy UPHELD it (14:3x), adding: bump 8 must NOT ship while the knife exception is still signed**; #550 removes it by fixing the row. The cleaver stays un-offered until then.
 
 ## Lead — 2026-09-23 13:35 local: HANDOFF (context restart). Read this block, then the one below.
 **Now (the next session picks up):**
