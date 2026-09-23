@@ -2,6 +2,79 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead — 2026-09-23 morning: Strategy's #2, beta dispatch, and the anticipate spec
+**Now.** Dom: Lead is Strategy's #2 — lanes report to Lead, Strategy rules and keeps its state doc. Beta list in priority:
+(1) publish after testing together, (2) knife then cleaver + estoc balance, (3) loot: tap-to-take + Undo (#475), tiered
+armour, server gear bonuses, (4) shields + Centurion gladius/scutum, (5) kill polish incl. blood follows bodies, (6) phone
+validation. Knight / Shieldmaiden / Witch / Plague Doctor are **post-beta**. **Force-push is excluded by Dom's order, so every
+conflicting PR re-opens as a NEW number** — never rebase-and-force a shared branch.
+
+Live `fe0d8e0`; trunk `2d614dc` (247 commits ahead). **A deploy of `2d614dc` was in flight at 09:xx** (deploy.sh at `test:all`,
+running from the Deploy session's scratchpad). deploy.sh itself runs tsc, the tests and the full release-row matrix and refuses
+on failure — that is the code half of "tested together". **The half it does not cover is the phone smoke**: a 375x812 fight to a
+kill with the loot panel, because #506 (finisher-complete latch), #511 (CC0 audio) and #513 (goblin unscale) landed together and
+were never run as one tree. That smoke cannot run while a deploy is in flight (one-deployer rule) — it runs at FREE, then the
+receipt goes to Deploy as "publish" or the defect.
+
+**#488 revert, recorded on the PR (comment 5789709301):** TS2741 — #478 added `Shield` to `ARMOUR_SLOTS`, widening `LootSlot`, and
+#488's `SLOT_WEIGHT: Record<LootSlot, number>` had no `Shield` key. Re-lands as a NEW PR with `Shield: 0` as a tested decision
+(Brief 19 Addendum C item 3: the shield is the guard profile only). **#514 goes after that re-land** — it depends on
+`src/gear-stats.ts`, which the revert deleted, whatever GitHub's MERGEABLE says. Then Stats' PR A v2 (#503 is superseded, not
+rebased), then #515 knife on top.
+
+### Spec for Combat — per-grade `anticipate` (Brief 14), for the cleaver row
+**The problem, measured by Combat:** on the Executioner's normal light-spam row the cleaver sits at 17-18/24 and warhammer and
+trident at 11/24 on the *same mechanism* — a read problem, not weapon data: he cannot see the tell in time.
+
+**The lever is `anticipate`, not `reaction`.** `ai.ts:114` is
+`reads.spammer && (light_left|light_right) ? Math.min(profile.reaction, READ.anticipate) : profile.reaction`, with
+`READ.anticipate = 8`. The Executioner fights on `PROFILES` (`moves.ts:510`), normal `reaction: 14` — so on exactly this row his
+effective reaction is already clamped to 8, and any per-grade `reaction` above 8 is swallowed. Pushing `reaction` below 8 instead
+would retime every punish, because `:159` (hurt opening), `:160` (whiff recovery) and `:162` (guarded read) read the RAW value.
+`anticipate` is the only knob that lands on the spam read alone.
+
+**Shape — and the SIM boundary decides it.** `ai.ts` and `moves.ts` are SIM modules; `tests/sim-boundary.test.ts` lets SIM import
+only SIM, and its regex catches type-only imports. So the sim must never see a grade. Design:
+1. `moves.ts` `AiProfile` gains optional `anticipate?: number` (ticks). `ai.ts:114` becomes
+   `Math.min(profile.reaction, profile.anticipate ?? READ.anticipate)`. **Absent = today's behaviour exactly**, on every fighter.
+2. `grades.ts` (non-SIM) owns the per-grade values: `GradeRecord` gains `profile?: { anticipate?: number; reaction?: number }`,
+   absolute ticks, not multipliers — the tell is measured in ticks, so a multiplier would make the answer depend on the
+   archetype's base, which is the thing the grade decides.
+3. The grade -> `AiProfile` merge happens OUTSIDE SIM, where the fight is assembled (`src/match.ts` once #505 re-lands, else
+   `main.ts`), so the sim receives a plain number on its profile.
+
+**Rows it must move:** Executioner normal light-spam — cleaver 17-18/24 -> **<= 9/24**; warhammer and trident, same row, 11/24 ->
+**<= 9/24**. **Must NOT move:** the Executioner's identity pins, and any fighter whose grade sets no `anticipate` (the default path
+must be byte-identical in behaviour). **Values, and which grades carry one, are Combat's** — chosen by the 24-seed battery across
+every weapon at both levels, since every player weapon is also a warden's weapon. Lead reviews the PR body.
+**It changes `ai.ts`, so it moves `SIM_DIGEST` and needs a `RECORD_VERSION` bump** — ride the single bump to 6 (whoever is ready
+first takes it), never a second one.
+
+### Lane dispatch — sent, and where each stands
+Ten of Strategy's sends bounced and most of mine did: at 09:xx only Veteran, Nightborn, Strategy, Backend, Deploy, Goblin,
+Character Main and Hooks were running. **Combat, Stats, Web, Auditer, Executioner, Weapons, Multi Chars, Finishers, World and
+Audio were not.** Each brief below goes out the moment its session is up; acknowledgements are confirmed to Strategy.
+- **Combat:** #515 knife (re-open off trunk on Stats' PR A v2), then Nightborn profile + estoc flip on Weapons' re-opened #419,
+  then Executioner profile + cleaver flip (the spec above), then the shield slice (Brief #474; #478 asset is on trunk).
+- **Weapons:** gladius FIRST (data, equip, blade table, slots; heads-up to Veteran + Combat; battery both levels; PR after the
+  knife's bump to 6), re-open #419 and #473 off trunk, `Maul_*` clip family after at post-beta pace (maul equip is blocked on a
+  12-clip hero-rig family + hero blade table).
+- **Web:** re-open #475 off trunk today (tap-to-take + Undo; re-measure 375x812 and 1280x800 on the combined tree), then a phone
+  readability/controls pass on today's publish.
+- **Stats:** tier-table re-land with `Shield: 0`, then PR A v2, then #514, then deliverable 3 (server-authoritative awards,
+  Backend reviewing — Backend is briefed).
+- **Multi Chars:** Greaves + `WORN_FROM` floor + stable drop index now that #478 is in. Witch is post-beta.
+- **Finishers & Gore:** kill-camera framing on #475 v2; by noon, the measured status of "blood follows bodies" across the five
+  beta finishers, plus the smallest PR that fixes it.
+- **World:** phone-tier perf receipt on today's publish (CPU x4, `?perf=1`, cold load + first kill); silhouettes held for Dom.
+- **Audio:** phone audio pass on today's publish; fix what is theirs in one PR.
+- **Auditer:** re-open #505 off trunk with a combined-tree receipt (main.ts moved under it when #506 landed).
+- **Executioner:** #502 gate then READY (MERGEABLE, 0 failed, told Deploy); re-open #494. Body work paused — post-beta.
+- **Veteran (up):** Centurion scutum + gladius kit from Legionary, cost by noon.
+
+**Review rule for every PR from here (Lead's, before Deploy merges):** a combined-tree receipt on any PR touching a file another
+open PR touches, row receipts, and a rejected-designs paragraph wherever a design choice was made.
+
 ## Lead handoff — 2026-09-23 00:30 (context restart)
 **Now.** **Live is `fe0d8e0`** (Deploy's receipt: 33/33 rows, 0 failed, `release.json` 200 at that sha, served `index.html`
 `cmp`-identical to dist, `guard.glb` absent from a cold load's seven `.glb` requests, box FREE at 23:30). It carries #467,
