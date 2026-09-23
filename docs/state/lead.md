@@ -16,6 +16,11 @@ links accepted (one live account, grandfathered).
 Play now. It is neither blank nor a wrong fight.
 
 **Rulings since noon:**
+- **`anticipate` spec CORRECTED (Combat caught it; Lead verified): step 3 below is WRONG.** A grade merged into the profile outside
+  SIM breaks replay: `src/replay.ts:16` rebuilds the warden from `OPPONENTS[opponent].profiles[record.profile]`, and the record
+  carries only `profile u8` (`src/record.ts:81`), so the fight would replay ungraded and diverge (in `verify-daily` too). **Ruled:
+  the value lives on the Executioner's own per-level profiles in `moves.ts`** (`{ ...PROFILES.normal, anticipate: X }`), with
+  `ai.ts:114` as specced. There is no record change and no `grades.ts` involvement. It rides Publish B's bump to 7.
 - **Retired-replay page: NO DATE (Lead).** The record header has none, and `fight_records.created_at` is server-only by
   migration `202609220006`. We keep the privacy call rather than reverse it for a date.
 - **Loot awards (Strategy):** the player takes ANY one piece, armour or weapon (SCOPE.md line 14). The server VALIDATES the claimed
