@@ -64,7 +64,7 @@ KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'b
        # The Shieldmaiden (Brief 15, reference A #498): the realistic FEMALE body, a closed tunic to mid-thigh standing for the mail hauberk
        # over its gambeson, boots, no helm in v1 (her open cap is a later Helmet piece), no greaves (leg wraps), no frame gains — her
        # squared iron shoulder plates (Arms, a Recruit-2 carrier with Body) are authored in build-warrior.mjs.
-       'shieldmaiden': {'linen': (0.20, 0.20, 0.21), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'boots': True, 'barefoot': False, 'ears': False, 'body': 'female'},
+       'shieldmaiden': {'linen': (0.20, 0.20, 0.21), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'boots': True, 'barefoot': False, 'ears': False, 'body': 'female', 'kilt': False},
        'executioner': {'linen': (0.16, 0.15, 0.17), 'grime': 0.85, 'greaves': True, 'build': True, 'bare': False, 'brute': True, 'helm': True, 'barefoot': False, 'ears': False}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -980,7 +980,7 @@ def level1_kit():
     # Kilt strips over the hips, dyed cloth (the Heraldry surface): each strip follows the hip and thigh surface down
     # from the belt, so it curves with the body instead of hanging as a flat plank.
     top, bottom = Vector((0, pelvis.y, pelvis.z - 0.02)), Vector((0, pelvis.y, pelvis.z - 0.30))
-    for i in range(11):
+    for i in range(11 if KIT.get('kilt', True) else 0):  # the Shieldmaiden's hauberk skirt replaces them: the strips hung below it and cut through the mail
         ang = (i + 0.5) / 11 * math.pi * 2 - math.pi / 2  # ring_strip's angle 0 is +x; start at the front
         half = 0.13
         length = 0.25 + ((i * 7) % 5) * 0.012  # a worn, uneven hem

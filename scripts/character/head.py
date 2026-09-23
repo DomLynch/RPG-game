@@ -1575,7 +1575,7 @@ FIGHTERS = {
     # The Shieldmaiden (Brief 15, reference A #498, Dom 2026-09-22): TRELLIS.2 on a FLUX front portrait of reference A, the Nightborn's
     # route (trellis_head.py). Her two crown braids come with the reconstruction ('hair': 'mesh'). decimate 0.14 as the Nightborn's.
     'shieldmaiden': {'kt_glb': 'artifacts/source/keentools/shieldmaiden-trellis-01.glb',
-                     'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.30, 'hair': 'mesh', 'scars': False, 'decimate': 0.14, 'scale_by_eyes': True, 'jaw_skin': True},
+                     'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.30, 'hair': 'mesh', 'scars': False, 'decimate': 0.14, 'scale_by_eyes': True, 'jaw_skin': True, 'reuv': True},
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
@@ -1754,6 +1754,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     select_only([head])
     bpy.ops.object.modifier_apply(modifier='Decimate')
     head.vertex_groups.remove(head.vertex_groups['decimate'])
+    if FIGHTERS[FIGHTER].get('reuv'):  # before anything samples the head's UVs: every later bake and mask reads the clean layer
+        images[0] = reuv_colour(head, images[0], select_only)
     for o, ratio in ((teeth, 0.06), (kt_eye_l, 0.5), (kt_eye_r, 0.5)):  # the scan's teeth and eyes are far denser than a phone needs
         dec = o.modifiers.new('Decimate', 'DECIMATE')
         dec.ratio = ratio
@@ -2103,6 +2105,53 @@ def crown_fill(colour, dark, size, hair_zone, stubble=None, coverage=None, scalp
         w = np.maximum(w, blur(force.astype(np.float32), 4)[..., None])   # a 4-texel feather (the tile is 2048: the block blur needs a divisor)
     print(f'KEENTOOLS crown fill: hair tone {np.round(hair, 3)} from {int(band.sum())} texels')
     return filled * (1 - w) + synth * w
+
+
+def reuv_colour(head, image, select_only, size=4096):
+    """A TRELLIS.2 atlas packs hundreds of small charts edge to edge, most of them hair-dark: texture filtering blends each skin
+    chart with its dark neighbour and prints a black crack along every seam of the face (the Shieldmaiden at zoom 3). Give the
+    phone head a fresh unwrap (smart project: few, large islands with a margin) and bake the reconstruction's colour onto it
+    (an emission bake from the old layer), then drop the old layer so every later bake and mask reads the clean one."""
+    me = head.data
+    old = me.uv_layers[0].name
+    new = me.uv_layers.new(name='clean')
+    me.uv_layers.active = new
+    new.active_render = True
+    select_only([head])
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.006)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    out = bpy.data.images.new('kt_reuv', size, size)
+    out.colorspace_settings.name = image.colorspace_settings.name
+    scene = bpy.context.scene
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = 1
+    scene.render.bake.margin = 16
+    scene.render.bake.use_selected_to_active = False
+    mat = bpy.data.materials.new('kt_reuv_bake')
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    emit, src, uv = nodes.new('ShaderNodeEmission'), nodes.new('ShaderNodeTexImage'), nodes.new('ShaderNodeUVMap')
+    src.image, uv.uv_map = image, old
+    links.new(uv.outputs['UV'], src.inputs['Vector'])
+    links.new(src.outputs['Color'], emit.inputs['Color'])
+    links.new(emit.outputs['Emission'], nodes['Material Output'].inputs['Surface'])
+    dst = nodes.new('ShaderNodeTexImage')
+    dst.image = out
+    nodes.active = dst
+    saved = [m for m in me.materials]
+    me.materials.clear()
+    me.materials.append(mat)
+    bpy.ops.object.bake(type='EMIT', use_clear=True)
+    me.materials.clear()
+    for m in saved:
+        me.materials.append(m)
+    bpy.data.materials.remove(mat)
+    me.uv_layers.remove(me.uv_layers[old])
+    print(f'KEENTOOLS re-UV: {len(me.polygons)} faces onto a clean {size}px unwrap (layers now {[l.name for l in me.uv_layers]})')
+    return out
 
 
 def jaw_mask(obj, top, ramp, size):
