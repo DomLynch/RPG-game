@@ -5,7 +5,35 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
-## Hosted project as it stands — verified 2026-09-22 ~00:50 UTC (all of 0002–0005 applied)
+## Now (2026-09-22, end of the Backend/Accounts session that applied 0002–0010)
+
+**In flight / open**
+- **PR #487** (this file) — open, docs only: 0007 recorded as applied, 0009 + 0010 added with live receipts.
+- **AUTHORITY: `docs/SCOPE.md`** (branch `docs/scope-2026-09-23`, PR #492, merging tonight) — the current dated scope; Strategy's
+  ruling is that it wins over every older brief, state entry or memory line, including this file. Read it first.
+- **Stats lane — deliverable 3 comes to this lane for review before merge** (Strategy, 2026-09-23). SCOPE.md line 20 settles what an
+  earlier note here flagged as unverified: *"Loot awards become server-authoritative before stats touch a fight"*, and it explicitly
+  *replaces* "loot is cosmetic only, no stats" (Brief 5). So the 0004 rule written in this file — client-reported loot, never
+  competitive authority — **ends with that deliverable**; the client's owned list becomes a cache and awards derive from verified
+  fight records. Design nothing yet: review the migration and its RLS when the PR arrives. Brief 19 / PR #486 and deliverable 1 /
+  PR #488 need nothing from this schema (`daily_results` carries no gear; the record is opaque base64url to Postgres).
+- **Stats' PR A (#503, `stats/record-accept-list`) needs nothing from this lane** (Strategy, 2026-09-23): decoder + accept-list only.
+  It is still a change the verifier host runs — `scripts/verify-daily.mjs` imports `decodeRecord` from `src/record.ts` and `deploy.sh`
+  rsyncs `src/**/*.ts` to the verifier — so one deploy moves both readers; that is by construction, not something to arrange. PR B
+  carries the bump to 6 and the encoder. The ordering (accept-list one deploy before the encoder) is what stops a verifier reading a
+  format newer than it knows; if a future widening lands after rows exist, refused rows need `verify-daily.mjs --recheck` because
+  `checked_at` takes them off the sweep's page.
+- **Daily verifier first sweep** — still unobserved: `daily_results` was 0 rows at 2026-09-22 (0 verified, 0 refused, 0 awaiting).
+  The timer is armed and the job row is live; the first real receipt waits on someone posting a daily fight.
+
+**Runbook note, for the next accept-list change:** after a deploy that widens the record accept-list, refused rows do **not** self-heal
+— `checked_at` takes them off the sweep's page, so run `verify-daily.mjs --recheck` if any rows exist by then.
+
+**Re-checked against trunk when this was written:** `RECORD_VERSION = 5` in `src/record.ts`; #486 and #488 open; `daily_results`
+0 rows. **Settled, nothing pending:** migrations 0002–0010 all applied and verified by this lane's own queries (never a relay). Issue #397
+closed. The by-design security-advisor list below is the baseline — anything not on it is a new finding.
+
+## Hosted project as it stands — verified 2026-09-22 (0002–0010 all applied and verified by this lane)
 
 Tables: `public.fighter_profiles` (1 row, now with a `loot` column — see below), `public.admins` (1 row), `public.fight_records`
 (0 rows), `public.daily_secret` (1 row, RLS on, unreadable — see below), `public.daily_results` (0 rows, RLS on). View
@@ -159,14 +187,47 @@ validates on read (known ids only, worn ⊆ owned). Never rank/result/unlock aut
 **All four beta migrations (0002–0005) are now applied and independently verified.** Only `0006` (fight_records privacy fix) remains
 open, held for Dom's direct word.
 
-### daily_board_summary(on_day) (0007, PR #385) — written + tested, NOT applied; Dev/Deploy applies on Dom's typed "apply"
+### Short share ids + guest hygiene (0009, PR #409; 0010, PR #421) — APPLIED, verified live
+One short id for every share (Dom via Strategy: a kill link ran to several WhatsApp screens). Hosted migrations `20260922085012
+202609210009_short_share_ids` and `20260922095721 202609220010_guest_share_hygiene`; both verified here by this lane's own queries,
+read-only (no row was minted in production — that would publish a junk share as id `1`).
+
+- `share_ids` sequence + `to_base36(bigint)` (internal, no client execute) → ids are lowercase base-36, 1–6 chars, sequential
+  (999,999 = `lflr`). `fight_records.id` check admits `^[a-z0-9]{1,6}$` **or** the old `^[A-Za-z0-9_-]{8}$`, so every old link keeps
+  resolving. `user_id` is nullable: guests share with no owner (FK kept). **Enumerable by design** — a shared fight is public by
+  intent and the row exposes only `(id, opponent, record)` (0006).
+- `mint_share(record, opponent)` — `security definer`, `search_path=public`, execute to anon+authenticated, the only write path for a
+  share. Order: validate input → per-caller cap → global backstop → row ceiling → `nextval` → insert. Validation precedes `nextval`
+  because a refused insert still consumes a sequence value (sequences are not transactional), so bad input must not lengthen
+  everyone's ids. Client: `POST /rest/v1/rpc/mint_share {record, opponent}` → the id as a JSON string (check-14 mock knows it).
+  Errors: `check_violation` for bad input; `P0001` `thirty shares an hour` / `too many shares from here this minute` /
+  `too many guest shares this minute` / `guest shares are full`. Lead's ruling: no long-form URL fallback (Dom: "never the long
+  form") — a capped guest sees "Couldn't make a link, try again."
+- `share_limits` — one owner-managed row, **no client grant at all** (`set role anon; select * from share_limits` → 42501):
+  `guest_per_minute` 600 (global backstop), `guest_per_key_per_minute` 10, `guest_salt` (32 hex), `guest_rows` 50000 (ceiling),
+  `guest_days` **30** (Dom's override of Strategy's 90: "30 days live"; signed-in shares are never pruned). Changing a number is an
+  `UPDATE`, not a migration.
+- Per-caller bucket: `mint_share` reads `cf-connecting-ip` / first `x-forwarded-for` from `request.headers` and stores it **only** as
+  a salted SHA-256 in `fight_records.guest_key` — outside the 0006 select grant (both roles: `has_column_privilege(... 'guest_key',
+  'select')` = false), with a `^[0-9a-f]{64}$` check so a raw address can never land there. No header (direct SQL, the verifier, the
+  local check) or an unparseable one → no key → backstop only, never an error.
+- Retention: `prune_guest_shares()` (definer, execute owner-only) deletes guest rows older than `guest_days`; pg_cron job
+  `frankendom_guest_share_retention` `17 4 * * *`, `active = true` (verified live; pg_cron was available-but-not-installed on hosted,
+  the migration installs it — the local check cluster has none, so that assertion is guarded and the job row is verified live).
+- Hygiene: `truncate, trigger, references` revoked from anon/authenticated on `fight_records`, `daily_results`, `daily_board`
+  (Supabase's default-grant residue; `has_table_privilege('anon','public.fight_records','truncate')` = false). The local check's
+  bootstrap now mirrors that residue — without it the revoke assertion was vacuous, which a mutation test exposed.
+
+### daily_board_summary(on_day) (0007, PR #385) — APPLIED, verified live
 Auditer finding 2026-09-22, confirmed independently on trunk `c789ed7`: the client paged `daily_board?order=created_at.asc&limit=200`
 and ranked locally (the 201st poster's better result never showed) with `verified` as a tie-break only (a pending row could lead).
 `daily_board_summary(on_day date default today-UTC) returns jsonb` — `{day, fastest_kill, cleanest_kill, longest_survived,
 fastest_death, where, pending}`: each headline is the best row of the day ordered `verified desc, <metric>, created_at asc` (a pending
 row leads only when nothing on that line is verified, still `verified=false`); `where` counts **verified** deaths by location
 (client-reported until replayed); `pending` = unverified rows that day. Runs as the caller over `daily_board` (no definer; public
-columns only, never `record`/`user_id`); execute to anon+authenticated. Client: `src/daily.ts fetchDailySummary` → `POST
+columns only, never `record`/`user_id`); execute to anon+authenticated. **Applied** (hosted migration `20260922074002`); verified here
+as anon: seven keys, `prosecdef = false`, `search_path=public`, no `record`/`user_id` in the payload. Live `8650fc5` carries the #385
+client and the function predated that deploy, so there was no 404 window. Client: `src/daily.ts fetchDailySummary` → `POST
 /rest/v1/rpc/daily_board_summary {on_day}` (new REST path; check-14 mock updated in the same PR); `fetchDailyBoard` removed.
 Proven in `account-database-check.mjs`: 201st-row fastest wins; pending never leads a verified row; pending deaths excluded from the
 split; another day never leaks; tomorrow empty; no `record`/`user_id`. Mutation-tested four ways + the check-14 route removal.
