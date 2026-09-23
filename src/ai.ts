@@ -326,8 +326,45 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // reach model already has no such gap (no lunge to misjudge), and widening it there bought a live kicker free hits (the Goblin identity
   // gate's kick-only cheese: 2/24 → 7/24 wins) for no benefit — the kicker keeps the original margin (reach − .05 … − .3).
   const margin = reads.poker ? .15 : .05, release = reads.poker ? .35 : .3;
+  // The hold may never sit outside the warden's OWN committing reach (2026-09-22). The kicker hover is built from the KICKER's reach
+  // (`theirs.kick.reach + .3`) with nothing checking it against the holder's: a warden whose own thrust is shorter than that sum stops
+  // driving at a gap where he cannot start the thrust, and stands there. Measured on the Goblin (knife) against a kick-only knife
+  // player, hard, 7200 ticks: hover 1.50, hold from 1.45, gap pinned 1.417–1.431 (p10 = median = p90 over seeds 1–3), 4–5 attack starts
+  // in the whole fight, every seed a stall. His usable reaches there are light 1.10 / thrust 1.35 / heavy 1.45, so only the heavy was
+  // ever legal — and the heavy needs a `guarded` read or a queued `next`, which is why two minutes bought five swings.
+  // `inReach` is the one definition of "I can start this from here" (gap <= reach - .1), so the hold derives from it rather than
+  // restating a distance. Math.min only ever pulls the hold IN: the kicker margin has widened once before and it cost the Goblin's
+  // identity gate (kick-only cheese 2/24 -> 7/24 wins), so this clamp is one-directional by construction.
+  // The POKER branch is deliberately left alone — standing outside a live point and going in on the whiff is the Brief 5 reach fix
+  // doing its job, and a poker's whiff is the opening that releases the hold. It is the kicker's `+ .3` lunge allowance that has no
+  // such release when the sum overshoots the holder's own range.
+  // Derived from the move he is actually COMMITTED to, not from the thrust. `next.next` is picked once and only re-picked when it is
+  // null (`!next.wait && !next.next && canAct` above), and it is cleared by throwing the attack — so a warden held at a gap his queued
+  // move cannot reach never attacks, never clears the plan, and never re-rolls it. Measured: queued `light` on 6599 of 6599 ready ticks,
+  // thrust legal and in reach on 3340 of them, full stamina, no threat, and five swings in two minutes. Line ~191 has the mirror of this
+  // rule for a plan that is too CLOSE (inside the blade's minReach); this is the missing far side of it.
+  const ownReach = mine.thrust.reach - .1;
+  const hold = reads.poker ? hover : Math.min(hover, ownReach);
   const holdable = opponent.phase === 'ready' || opponent.phase === 'guard' || (threat && (!noticed || next.plan === 'ignore'));   // a blow not yet noticed is not walked into either
-  if (hover > 0 && !opening && holdable && gap < hover - margin && forward > 0) forward = gap < hover - release ? -.4 : 0;
+  if (hold > 0 && !opening && holdable && gap < hold - margin && forward > 0) {
+    // Held, so the plan must fit the hold. `next.next` is picked once, re-picked only when null, and cleared by being thrown, so a warden
+    // held outside his queued move's reach stands there for ever: measured `light` on 6599 of 6599 ready ticks, 4-5 attack starts per 7200,
+    // 24/24 stalls. Line ~191 already re-picks a plan the warden is too CLOSE for; this is the same rule on the far side.
+    // Deriving the hold from the QUEUED move instead was tried and rejected by measurement: a queued light pulls the hold to 1.05, INSIDE
+    // a kicker's 1.2 reach, and the Goblin's identity pin broke (normal kick-only 5 wins against the honest answer's 4) — trading a
+    // stalemate for the kick-only cheese this hover exists to deny. Holding at the thrust's margin keeps him outside the kick and still
+    // gives him a blow he can throw.
+    const can = (id: 'light_right' | 'heavy_overhead' | 'thrust', action: 'light' | 'heavy' | 'thrust') =>
+      gap >= (mine[id].minReach ?? 0) + .1 && gap <= mine[id].reach - .1 && legal(self, action);
+    // NOT against a poker: the poker hover's whole design is patience — stand off the live point and go in on the whiff (Brief 5). Giving
+    // him a blow to throw from there makes him take the shot instead of waiting for it, and the player's own thrust-from-range beat the
+    // Goblin 15/24 against a cap of 12 when this re-pick was ungated. The stall being fixed is the kicker's, so the re-pick is the kicker's.
+    if (!reads.poker && next.next === 'light' && !can('light_right', 'light')) {
+      if (can('thrust', 'thrust')) next.next = 'thrust';
+      else if (can('heavy_overhead', 'heavy')) next.next = 'heavy';
+    }
+    forward = gap < hold - release ? -.4 : 0;
+  }
   // a circler drifts sideways while closing in
   const lateral = next.mode === 'circle' ? next.side * .25 : next.mode === 'approach' && forward ? next.side * .25 * (profile.circle ?? 0) : 0;
   // The dart: a sprint into an opening from outside reach (profile.dash), so the whiff is punished before it closes.

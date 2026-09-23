@@ -46,7 +46,11 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   assert.throws(() => unpackRecord(v3), /version 3 is not supported/);
   const v4 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v4[2] = 4;
   assert.throws(() => unpackRecord(v4), /version 4 is not supported/);
-  assert.equal(RECORD_VERSION, 5);
+  // A version-5 stream joins them (2026-09-22): the kicker-hover hold fix changes how a warden closes, so a fight recorded on 5 replays
+  // with a Goblin who stands somewhere else.
+  const v5 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v5[2] = 5;
+  assert.throws(() => unpackRecord(v5), /version 5 is not supported/);
+  assert.equal(RECORD_VERSION, 6);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
@@ -68,10 +72,12 @@ const KNOWN_UNFAIR = [
   // After the warden reach fix (combat/warden-reach, 2026-09-21): 11 rows → 8. Trident and warhammer come clean everywhere and are offered;
   // scythe was gated here too and LEFT on 2026-09-22 (below). What is left, by cause: cleaver/executioner — a pre-existing cut-tempo row
   // (Weapons: CLEAVER light 22/8/26 vs the sword's 20/8/22); knife/veteran and scythe/veteran — a poker parked at the Veteran's own range;
-  // knife/goblin hard "kick only untouched" — NOT knife data: `KNIFE_MOVES.kick` is the shared `MOVES.kick` OBJECT (identity-checked), and
-  // kick-only is killed 24/24 by this same Goblin with every other weapon; only the knife pairing fails, and all 24 of its fights end in
-  // stalemate at the 7200-tick limit — a kicker and the hard Goblin never resolve. That is his approach against the shortest reach in the
-  // game (Combat's lane), not a weapon number. The knife's two "thrust from range" rows DID leave, 2026-09-22, when its thrust recovery
+  // knife/goblin hard "kick only untouched" LEFT on 2026-09-22, and it was the warden's approach exactly as this comment predicted, not
+  // knife data. The cause, measured: a guardless warden reading a kicker held at `theirs.kick.reach + .3` (1.50), zeroing his forward
+  // drive at 1.45 — but `next.next` is picked once, re-picked only when null, and cleared by being thrown, so with a `light` queued
+  // (6599 of 6599 ready ticks) he stood at a gap his own plan could not reach and never attacked: 4-5 attack starts per 7200 ticks,
+  // 24/24 stalls. The hold now derives from the inReach margin of the move he has QUEUED (src/ai.ts), and the row goes 3/24 -> under
+  // its cap. Gated on `guardShare === 0`, which only the Goblin's three profiles set, so no other warden moved. The knife's two "thrust from range" rows DID leave, 2026-09-22, when its thrust recovery
   // went 15 -> 20 (see KNIFE_MOVES): Veteran 18/24 -> 5/24, Goblin 15/24 -> 6/24, with no other knife pairing moved. (21 would have read
   // 3/24 and 4/24, but it pushes the Goblin's own fight-length pin to a 48.5 s median, over the 45 s ceiling — hence 20.)
   // The scythe's two "thrust from range" rows LEFT on 2026-09-22 when its heel-jab recovery went 18 -> 30 (see SCYTHE_MOVES.thrust):
@@ -79,7 +85,6 @@ const KNOWN_UNFAIR = [
   // estoc/goblin ×2 and estoc/dwarf hard — the estoc's move table sits .3–.4 m short of its blade bake (tests/weapons.test.ts "real reach"),
   // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
   'cleaver vs executioner normal: light spam wins 18/24',   // was 17/24: moved by the SCYTHE's thrust recovery 18 -> 30 (2026-09-22), because the Executioner WIELDS the scythe — the row is over the cap either way, and its cause is unchanged (his read of a 22-tick tell)
-  'knife vs goblin hard: kick only untouched 3/24',
   'estoc vs goblin normal: thrust from range wins 24/24',
   'estoc vs goblin hard: light spam wins 9/24',   // was 11/24: moved by the KNIFE's thrust recovery 15 -> 20 (2026-09-22), because the Goblin WIELDS the knife — same number, safer direction, row still over the hard cap either way
   'estoc vs goblin hard: thrust from range wins 23/24',   // 22 -> 23, same cause as the line above

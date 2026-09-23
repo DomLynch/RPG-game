@@ -38,6 +38,7 @@ test('record: pack/unpack and encode/decode round-trip every intent shape, the s
   const text = await encodeRecord(record);
   assert.match(text, /^[A-Za-z0-9_-]+$/, 'base64url, no padding');
   assert.deepEqual(await decodeRecord(text), record, 'transport round trip is exact');
+  assert.equal(back.v, bytes[2], 'the record carries the version that was PARSED, not this build\'s constant');
   const other = new Uint8Array(bytes); other[2] = RECORD_VERSION + 1;
   assert.throws(() => unpackRecord(other), new RegExp(`version ${RECORD_VERSION + 1} is not supported`));
   assert.throws(() => unpackRecord(new Uint8Array([1, 2, 3])), /not a fight record/);
