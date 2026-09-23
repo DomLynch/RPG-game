@@ -121,6 +121,19 @@ in the record. **The Lead ruling stands: the record carries an OPAQUE token, not
 check keeps Backend's shape and its "one decoder, two readers" path: the verifier computes `token(claim.user_id)` and compares
 it with `record.owner`. Poster binding is the next item after D3 and lands as PR B's format, in Window 1.
 
+### Web, ~07:45Z — #521 (loot panel v2) still DRAFT, correctly: the real-win run is owed
+Head `80710b6`, the re-open of #475 (closed by Lead with a pointer). Web caught **a serious defect of its own**: the touch that stops
+the post-kill tour, at (190, 300), now lands on the Centurion's second tile row (9 pieces since #478), and **a tile tap is the take**,
+so a stray touch took loot. Fixed: tiles and Undo are inert while `:root.endgame-fade` is on, the same rule Rematch and Share
+already follow. Proof on the 375x812 preview: fade ON, (190, 300) and all 9 tile centres go to `world`; fade OFF, the tap takes.
+`quality:ci` 520 / 518 / 0 fail / 2 skipped. **Owed before it leaves draft:** one full end-to-end killing run on `80710b6`, plus fresh
+screenshots.
+**Latent check bug (owner: whoever holds `scripts/quiet-one-browser-check.mjs`, likely Finishers/Deploy):** line 109 taps Rematch
+straight after a duel that did NOT kill, but Rematch is inert under the fade, so it waits on intercepted pointer events until timeout.
+Line 183 does it right (tap the arena first, then wait for the fade to lift). The duel's kill is not deterministic on a loaded Mac
+(2 of 3 runs, then 0 of 3), so **a deploy passes that row only when duel 1 happens to kill.** Trunk fails identically. It is latent,
+not the cause of any publish so far. Fix: give line 109 line 183's arena-tap-first step.
+
 ### World, ~07:35Z — phone perf on live `52dffed`: an UPPER BOUND, not a verdict (the box was contended)
 CPU x4, 393x852 DPR 3 touch, cold load, first kill, 3 runs: p95 383 / 500 / 366 ms, worst-since-load 2,850 / 3,418 / 3,650 ms,
 p50 18.7 / 35.1 / 233.7 ms. **Same page, same seed, so the spread is the machine.** Unthrottled control: p50 65 / 35 ms, where an
