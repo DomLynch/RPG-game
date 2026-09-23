@@ -2,6 +2,14 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 20:27 — Run 2 IN FLIGHT (#604 merged a53762ef, deploy.sh since 20:24); greaves scare cleared by byte-identical data; Dom's UI rulings
+
+**Run 2:** #604 = Shieldmaiden #595, Goblin #596, Plague Doctor #601, Witch #602, floor blood #605; trunk a53762ef, publish GO under rule (a): Dwarf Greaves/Boots byte-identical across 545ac8ec/5c3eac3f/a8bd4e39/b542a10f and wear() unchanged, so Run 2 cannot regress over-layer drawing; finding stays OPEN "unconfirmed" until Web+Veteran repro on live after FREE (21:00 line: REAL → Stats fix + repro-as-test in Run 3, or NOT REAL + why). Failure rule: revert the implicated PR; loot.glb is cumulative so an opponent revert cascades in reverse order via clean reverts, innocents re-land in Run 3.
+
+**Run 3 READY:** #607 Dwarf Helmet, #608 Shieldmaiden jaw, #610 Plague Doctor boots/crown, #614 Dwarf Body+Arms (loot 2.46/3.5 MB); Nightborn Greave f9f29962 ships (Pitborn reviews). HELD: #609 Witch bodice (posed clip, fix 61ab68bb). PENDING: #603 Knight (--repose warrior), #589 + #606 Phase L (split done, worst fight 9.72/12 MB, stills after FREE), #612 rank bar (Web), arena 2nd pass (World).
+
+**Dom rulings 20:2x–20:3x:** camera/occlusion item DROPPED ("goblin smaller and hard to see makes it more real"); autopsy sentence REMOVED (white status line stays; loot "Won:" line kept unless Dom says otherwise); post-fight panel gets the rank PROGRESS BAR: class + numeral, class-spanning segmented bar (one segment per numeral, current part-filled from sub-pips), NEXT class on the right (Veteran → Champion per TITLES in trunk), same component in the account panel = #612, Run 3 if READY 22:15 else Run 4. Arena sheet v1 (world/arenas 3d5e4f02) failed item 1 (tint only; 2B hides the opponent): added hard readability bar + real material/crowd variation; Dom picks from sheet 2. Combat review routed: charged-heavy pose validation stays for tomorrow.
+
 ## 2026-09-23 20:05 — Run 2 grew to four (#604 at 20:30); Phase L = opponent.wear() #606 gated; ARENA 2 + 3 briefed (World, own run after Phase L)
 
 **Run 2 (#604, Deploy 20:30):** Shieldmaiden #595, Goblin #596, Plague Doctor #601 (re-cut in rest pose), Witch #602 (ring-hull hood/bracers/boots); four stills with Dom; loot ≈ 2.35 / 3.5 MB. **Run 3 (PR READY ≤ 22:15, Auditer integrates phase-r-int from 21:30):** Dwarf Helmet #607 READY, Dwarf Body+Arms 21:30, Knight #603 six on KnightIron, Witch own Body+Greaves 21:15, Nightborn Greave (Pitborn) 21:45, floor blood #605, Phase L baseline #589 (check 5 was a flake, green 35872913651) + opponent.wear() #606 (Stats, DRAFT). 817828e already on phase-r as d7ad353f.
