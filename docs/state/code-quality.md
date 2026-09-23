@@ -2,6 +2,27 @@
 
 Worktree `~/Developer/frankendom-code-quality`, branches `quality/*`. Owns cross-lane guards, readability passes with equivalence receipts, and the 8/10 bar from the GPT audits (2026-09-22: architecture 8, readability 7.5, overall 7.5 on adab24a).
 
+## 2026-09-23 (afternoon) — #567 iPhone half-canvas fix (READY), #556 loot-smoke wired (row 34), #534 fully green at c4bfb54
+
+**Now.** Three PRs with Deploy, none mine to merge: #534 `quality/match-session-3` head c4bfb54 (the match split; trunk b7bc78d merged in as a merge commit; every CI check and the local gate green; batch after Publish B). #567 `quality/viewport-layout-size` head 15d4e55 (Lead READY, batch after World's option C; option C also touches src/scene.ts, so on a conflict merge trunk in, no force-push). #556 (Web's loot smoke check) carries my commit 4e8c491: release row 34 plus its trigger rule; it lands after #552 and takes trunk before its row is green. #556 and #567 both append a row and insert a trigger rule above `src/**` in .quality-gate.json: whichever merges second needs a trivial rebase of that file.
+
+**Next.** (1) If Deploy reports a conflict on #567 or #534, merge trunk in and re-gate. (2) After #567 ships, the final receipt is Dom's iPhone: pinch, release, canvas stays full-screen. (3) Re-grade against trunk once #534 and Finishers' characters.ts geometry land. (4) browser-check.mjs and counter-browser-check.mjs still mask the shader-compile stall with a 120 s tap timeout; the #533 wait is the pattern.
+
+**Done.**
+- #567: live bug on a50f22f (canvas in the top half after a page zoom, void below, HUD floating, camera far). Trigger: iOS Safari reports the zoomed VISUAL viewport in innerWidth/innerHeight; scene.ts resize() used them and renderer.setSize wrote inline px style. Fix: size from documentElement.clientWidth/Height, setSize(w, h, false), projections use the same numbers. Reproducer scripts/viewport-check.mjs (row 35): on trunk the emulated 2.5× zoom leaves the canvas 157×341 with inline style (fails); after, 393×852 with none (passes). Gate 526/524/0/2.
+- #556: Web's loot-smoke-check wired as row 34 with a trigger rule above `src/**` repeating the boot-path six; the welcome tap now waits for the rigs and one painted frame (#533's stall). Passed all three steps on a local preview merged with #552.
+- #534: fourth rebase of the day (over #535, #533, #538/#521, then #540/#537/#541), every time because merges landed between my push and Deploy's batch; main.ts is every lane's file.
+- Deploy timing audit for Dom: 52dffed 3 min with 31 checks trusted; the other four today 21–50 min with 0–28 trusted, because trunk pushes cancel each other's receipts, the quality reuse needs an unmoved trunk, and lane gates loaded the box (load 40–70) during deploys. Solution proposed: one batch one tree (rebase the batch, full matrix on the head, merge when green), a pre-merge trusted-checks predictor (not built), keep the box clear during deploys.
+
+**Open.**
+- #534, #556, #567 merges (Deploy). Receipt 2 for #507 (a code push after merge still runs its rows) is satisfied by #534's pushes (rows 1, 2, 13, 14, 29, 31 ran on 1d69dc8 and c4bfb54); tell Strategy when asked.
+
+**Gotchas.**
+- iOS Safari: innerWidth/innerHeight are the visual viewport; never size a canvas from them. Emulate the report in Chromium with a defineProperty getter plus a resize event; WebKit is not installed for Playwright and Lead ruled it stays so.
+- Web's branch is checked out in their worktree: work on a local branch from their head and push it to their ref as a fast-forward (`git push origin local:web/branch`).
+- release-rows-for.mjs is first-match: a specific trigger rule must sit above `src/**` and repeat the six it would otherwise shadow.
+- The deploy hook also blocks `npm run build` and `node scripts/*-check.mjs`; `git`, `gh`, `grep`, `node --check`, `release-rows-for.mjs` and single-file tests pass.
+
 ## 2026-09-23 (later) — #522 re-opened as #534 (to Deploy), check 32 root cause fixed (#533 LIVE), mergeLoot duplicate dropped
 
 **Now.** #534 `quality/match-session-3` (head 1d69dc8 on dd1d968) is the match split alone, handed to Deploy: #522 had been closed unmerged, so Dom's morning check found the split absent from trunk. Rebased over #535, #533, #538 and #521; #521's loot Undo conflicted in main.ts and was resolved by hand (trunk's Undo logic kept over the match's own `lastDrop`; every reset path goes through `began()`, which now calls `hideLoot()` as #521 requires). Receipts on 1d69dc8: tsc clean; quality:stop 510 tests / 508 pass / 0 fail / 2 skipped; build ok; account-browser-check passed; CI quality + four browser gates green; release rows 1, 2, 13, 14, 29, 31 queued at hand-off. Merges with its release run green or a red row reproduced on the Mac.
