@@ -15,10 +15,11 @@ const duel = (gap: number, weapon: Weapon['id'] = 'longsword', rig: RigId = 'her
 // Steps n ticks and returns the final duel with every tick's events gathered (stepDuel only carries the current tick's).
 const run = (d: Duel, n: number, a = idle(), b = idle()) => { const events: Duel['events'] = []; for (let i = 0; i < n; i++) { d = stepDuel(d, [a, b]); events.push(...d.events); } return { ...d, events }; };
 
-test('the live duel: the player carries the longsword and the Veteran the trident (slice V); the trident is its own table, guard and stance', () => {
+test('the live duel: the player carries the longsword and the Veteran the gladius (the Centurion, #547; the sword family\'s guard); the trident, still a player weapon, is its own table, guard and stance', () => {
   const d = initialDuel();
-  assert.deepEqual(d.fighters.map(f => f.weapon), ['longsword', 'trident']);
-  assert.equal(d.fighters[0].guardProfile, undefined, 'the sword guard is the RULES default'); assert.deepEqual(d.fighters[1].guardProfile, { costScale: 1.15, heavyBreaks: true }, 'the shaft guard comes from the weapon');
+  assert.deepEqual(d.fighters.map(f => f.weapon), ['longsword', 'gladius']);
+  assert.equal(d.fighters[0].guardProfile, undefined, 'the sword guard is the RULES default'); assert.equal(d.fighters[1].guardProfile, undefined, 'the gladius is the sword family: the RULES default guard');
+  assert.deepEqual(WEAPONS.trident.guardProfile, { costScale: 1.15, heavyBreaks: true }, 'the shaft guard comes from the weapon');
   assert.deepEqual([LONGSWORD.fight, WEAPONS.trident.fight], [{ thrustShare: .2, close: 1.15 }, { thrustShare: .6, close: 1.4 }]);
   assert.equal(WEAPONS.trident.moves.thrust.minReach, 1); assert.equal(MOVES.thrust.minReach, undefined, 'a sword stabs at any range');
   assert.equal(weaponOf('longsword').moves, MOVES); assert.equal(weaponOf('longsword').paths, PATHS); assert.equal(LONGSWORD.reach, MOVES.thrust.reach);
@@ -492,11 +493,11 @@ test('the live estoc keeps torso aim through its actual reach: cuts to 2.0 m, he
   }
 });
 
-test('the estoc\'s data is the brief\'s: the sword\'s timings and lunges exactly, reach in the sword\'s conservative convention, cuts weaker than the sword\'s with no chip, the thrust a little stronger and chaining, a high thrust share, steel', () => {
+test('the estoc\'s data is the brief\'s: the sword\'s timings and lunges exactly, reach in the sword\'s convention plus its longer blade, cuts weaker than the sword\'s with no chip, the thrust a little stronger and chaining, a high thrust share, steel', () => {
   for (const id of ['light_right', 'light_left', 'heavy_overhead', 'thrust', 'riposte', 'heavy_riposte', 'heavy_counter', 'critical'] as const) {
     const s = MOVES[id], e = ESTOC.moves[id];
     assert.deepEqual([e.windup, e.active, e.recovery, e.stepIn, e.feintUntil, e.chamber], [s.windup, s.active, s.recovery, s.stepIn, s.feintUntil, s.chamber], `${id}: the sword's timing, lunge, feint window and chamber`);
-    assert.equal(e.reach, s.reach, `${id}: the sword's spacing estimate (measured frontier is 0.3 m longer — REPORT.md)`);
+    assert.equal(e.reach, +(s.reach + .3).toFixed(2), `${id}: the sword's spacing convention plus the longer blade's 0.30 m (measured +.26–.27 on both rigs, "real reach" below)`);
   }
   assert.ok(ESTOC.moves.light_right.damage < MOVES.light_right.damage && ESTOC.moves.light_right.chip === 0 && ESTOC.moves.heavy_overhead.damage < MOVES.heavy_overhead.damage, 'cuts with a rod');
   assert.ok(ESTOC.moves.thrust.damage > MOVES.thrust.damage && ESTOC.moves.thrust.chain?.follow.includes('thrust') && ESTOC.moves.riposte.damage > MOVES.riposte.damage, 'the thrust is the weapon; the riposte his payoff');
@@ -641,14 +642,14 @@ test('the warhammer shelf: WEAPONS.warhammer is real data (own blunt table since
 // Real reach (brief 5 reach fix, 2026-09-21): the warden judges dodges, backsteps and its hover from the move table's `reach`; the blade
 // table is what actually lands. The two must agree, or the warden misjudges a point by the difference. Measured here the way the sim
 // lands it: the largest standing-start gap at which the move hits a stationary man, per shipped (rig, weapon) pair and for every weapon a
-// player can carry on the hero rig. The estoc's table (ESTOC_MOVES) sits 0.3–0.4 m short of its bakes on both rigs — a pre-existing data
-// mismatch reported to the Weapons lane; it is snapshotted here so the pin turns red the moment the numbers are corrected (drop the entry then).
+// player can carry on the hero rig. (The estoc's table sat 0.3–0.4 m short of its bakes on both rigs until 2026-09-22, snapshotted in
+// REACH_MISMATCH meanwhile; ESTOC_MOVES now carries the sword's convention + 0.30 m and the map is empty — it stays as the seam for the next one.)
 const realReach = (weapon: Weapon['id'], rig: RigId, move: 'thrust' | 'light'): number => {
   const lands = (gap: number) => { let d = duel(gap, weapon, rig); d = stepDuel(d, [{ ...idleIntent(), action: move }, idleIntent()]); for (let i = 0; i < 60; i++) { d = stepDuel(d, [idleIntent(), idleIntent()]); if (d.events.some(e => e.type === 'Hit' && e.actor === 0)) return true; if (d.fighters[0].phase === 'ready') break; } return false; };
   let lo = .5, hi = 3.5; for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (lands(mid)) lo = mid; else hi = mid; } return lo;
 };
-const REACH_MISMATCH: Record<string, [number, number]> = { 'hero/estoc/thrust': [2.28, 2.36], 'hero/estoc/light': [1.96, 2.04], 'nightborn/estoc/thrust': [2.32, 2.40], 'nightborn/estoc/light': [2.00, 2.08] };   // measured real reach, ±.04
-test('real reach: every shipped (rig, weapon) pair and every player weapon on the hero rig lands its thrust and its cut within .15 m of the move table\'s reach — except the estoc, snapshotted until Weapons corrects its table', () => {
+const REACH_MISMATCH: Record<string, [number, number]> = {};   // `${rig}/${weapon}/${move}` → measured real reach ±.04, for a known table mismatch on its way to the owning lane
+test('real reach: every shipped (rig, weapon) pair and every player weapon on the hero rig lands its thrust and its cut within .15 m of the move table\'s reach (a known mismatch is snapshotted in REACH_MISMATCH until its lane corrects the table)', () => {
   // The live roster only: the held creatures' tables (minotaur maul, wraith reaper) are their own lanes' data and are not in play.
   const pairs = new Set<string>(); for (const e of ENCOUNTERS) if (!e.hold) { const o = OPPONENTS[e.id]; pairs.add(`${o.rig}/${o.weapon}`); } for (const w of PLAYER_WEAPONS) pairs.add(`hero/${w}`);
   for (const pair of pairs) { const [rig, weapon] = pair.split('/') as [RigId, Weapon['id']];
