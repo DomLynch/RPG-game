@@ -2,6 +2,17 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead — 2026-09-23 14:05 local: ACCELERATED — Publish B now (read this first)
+**Dom 14:00 "accelerate" (Strategy ruled):** Publish B = #532 -> #545 -> #543 -> #547 -> **Combat's re-pin PR** (bump to 7, re-pin,
+SIM_FILES closure + test, knife/scythe rebake, gladius offered, #547's 12 re-signs), built on the COMBINED tree of #545 + #547 and
+**NOT #550**. The re-pin PR is asked for by ~14:50; the target is B live by 15:30. **#550 (Executioner anticipate + cleaver) = its own bump
+to 8 tonight** (Combat: cleaver 18->8, warhammer 12->7, trident 11->7, profile `{...normal, anticipate: 3, lapse: .2, read: .75}`).
+**The non-sim batch is running** (deploy.sh 13:59 on `b7bc78d`: #540 #537 #541 #542 #544 #546 #539 #548 #549 merged). #534 conflicted,
+so the Auditer merges trunk in and it goes after B. #539 merged as `0a81d8c`; the sweep PR is **#551** (Backend reviewing; the apply is still HELD).
+**LIVE DEFECT (Web's loot-smoke-check on `dd1d968`):** knife offered PASS, tap-take + Undo PASS, **a guest's decline does NOT
+survive a refresh**: `src/profile.ts:18` keeps loot only on `loot.owned.length` (#535 fixed only the signed-in path). Web is
+splitting out a one-line fix PR, and **it rides Publish B**. The smoke script's own PR is still due by 16:00.
+
 ## Lead — 2026-09-23 13:35 local: HANDOFF (context restart). Read this block, then the one below.
 **Now (the next session picks up):**
 1. **Phone smoke on Publish A** when Deploy sends the sha line + FREE: 375x812, a fight to a kill with the loot panel, on the live
