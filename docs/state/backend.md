@@ -14,21 +14,24 @@ migration** (RLS, grants, who can write the award). Wait for Stats' heads-up wit
 Authority for scope: **`docs/SCOPE.md`** (PR #492) wins over every older brief, state entry or memory line, this file included.
 Line 20: *"Loot awards become server-authoritative before stats touch a fight"* — it replaces Brief 5's cosmetic-only rule, so the
 0004 rule below ("client-reported loot, never competitive authority") **ends with this deliverable**.
-**Agreed design — Stats accepted all of it 2026-09-23; review the branch AGAINST this.** Migration held until Strategy rules on
-marks. (1) `loot_claims`: owner-only insert, size + rate caps, **unique on `sha256(record)` globally** (one award per fight; first
+**Agreed design — Stats accepted all of it 2026-09-23; review the branch AGAINST this.** **Strategy RULED 2026-09-23 — unblocked; Stats builds, PR through Lead.** (1) `loot_claims`: owner-only insert, size + rate caps, **unique on `sha256(record)` globally** (one award per fight; first
 claimer wins, so the client posts the claim *before* offering Share). **No `piece` for armour** — `dropFor` (src/loot.ts:65) is
 deterministic, so the verifier computes it; `piece` only for the "Take one" weapon choice, validated by the verifier **importing
 `src/loot.ts`** (no LOOT mirror in SQL — one list, two readers). (2) `awards(claim_id pk references loot_claims(id), piece, tier,
 awarded_at)` with **no `user_id` column**; owner-select via the join; verifier gets `insert (claim_id, piece, tier)` only + a trigger
-refusing unverified claims — so a leaked verifier credential cannot mint loot for an arbitrary account. (3) **Marks: option (a)**,
-recommended to Strategy (their/Dom's call, it affects ranking): the verified-claim ledger *is* the mark ledger (one verified ladder win
-= one mark); `victory_marks` and `owned` become caches computed server-side. Why not (b): a record-carried rung is only replay-checked
-once the sim *reads* the tier (deliverable 5), and SCOPE puts awards before that — a forged rung would replay identically in between.
-If Strategy declines (a): (c) only as a bridge gone before deliverable 5. Grandfather-vs-reset of existing marks/owned = Strategy/Dom.
+refusing unverified claims — so a leaked verifier credential cannot mint loot for an arbitrary account. (3) **Marks: RULED (a)** — the verified-claim ledger *is* the mark ledger (one verified ladder win = one mark); `victory_marks`
+and `owned` are caches. (b) rejected: a record-carried rung is replay-checked only once the sim reads the tier (deliverable 5), and
+awards land before that. **Grandfather, not reset:** `account_seed(user_id pk, marks 0–100000, owned jsonb, seeded_at)`, written
+**once by the migration** via `insert … select` from `fighter_profiles` at apply time (never hardcoded — no account uuid/loot in
+git; the receipt logs a non-identifying summary), no client grant, not re-runnable. Server marks = `seed.marks + count(verified
+wins)`; server owned = `seed.owned ∪ awards`; `awards` stays verified-only. **Guests:** device-only cache, no server award; on
+guest→account the account's server marks start at **zero** from its first verified win, so a forged guest cache never becomes rank.
 **Acceptance = the DB check, every case mutation-tested:** client cannot write `awards`; client cannot flip a claim's `verified`;
 verifier cannot award a nonexistent claim; second award per claim refused; owner sees only own awards; anon none; duplicate record
-hash refused; claim caps trip. **Out of Stats' scope, flagged:** records carry no account binding (Lead/PR B; same hole in
-`daily_results` today) and guests can't hold awards (Strategy).
+hash refused; claim caps trip; plus Strategy's four — **seed** (fixture profile seeded exactly, once), **verified win** (server marks = seed + 1, drop =
+`dropFor` at the server's subRank), **guest convert** (no seed row → 0, first verified win → 1), **forged cache rejected** (client writes
+`victory_marks = 100000` + an Origin piece → server marks/owned unchanged). **Out of Stats' scope, flagged:** records carry no account binding — a record-format change, **Lead's next item** after this (Strategy); same hole in
+`daily_results` today and guests can't hold awards (Strategy).
 Nothing else for Backend in beta unless phone validation (item 6) finds an account or sync defect — that comes from Web.
 
 ## Done (2026-09-21 → 09-23)
