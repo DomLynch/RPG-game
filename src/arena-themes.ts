@@ -21,6 +21,7 @@ export type ArenaTheme = {
   banners: [string, string]; banner: [number, number]; bannerSeed: number;
   dyes: string[]; crowd: number; fill: number;
   motes: string; plain: string; gateLight: number;
+  drape: boolean;   // cloths also hang on the podium wall's face, where the fighting camera sees them (the walkway banners are above its frame)
 };
 export type ArenaKey = '1' | '2a' | '2b' | '3a' | '3b';
 
@@ -31,7 +32,7 @@ const ARENA_1: ArenaTheme = {
   fog: '#a9a89c', fogDensity: 0.018, hemisphere: ['#c9cfc6', '#4a4238', 1.6], sun: ['#ffe2b8', 4.2], exposure: 1.3,
   banners: ['#472622', '#7d7469'], banner: [1, 1], bannerSeed: 31,
   dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
-  motes: '#847b6e', plain: '#4a463f', gateLight: 0.55,
+  motes: '#847b6e', plain: '#4a463f', gateLight: 0.55, drape: false,
 };
 // Two labelled options per new arena, for the owner to pick from (same frame as Arena 1); the rotation uses ARENA_PICK below.
 export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
@@ -45,7 +46,7 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
     fog: '#957c6c', fogDensity: 0.02, hemisphere: ['#d8bea8', '#4a3026', 1.45], sun: ['#ffc298', 4.0], exposure: 1.25,
     banners: ['#6a1a12', '#9a7038'], banner: [1, 1.2], bannerSeed: 47,
     dyes: ['#5a2420', '#6a3a1e', '#4a2a22', '#7a5a2c', '#3a2a24', '#6a2a1c'], crowd: 1, fill: 1.35,
-    motes: '#a8683c', plain: '#4a3328', gateLight: 0.5,
+    motes: '#a8683c', plain: '#4a3328', gateLight: 0.5, drape: true,
   },
   // 2B — The Moss Ruin: a lime-plastered wall gone green, moss in the low ground, a grey rain-light, a thin crowd in drab wool, short
   // tattered cloths. (Replaces Torch Night: at night the opponent went near-black on a phone — Lead/Strategy readability bar.)
@@ -56,18 +57,18 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
     fog: '#9aa29c', fogDensity: 0.024, hemisphere: ['#c8d2cc', '#44483c', 1.75], sun: ['#e8eadc', 3.4], exposure: 1.3,
     banners: ['#3a4430', '#6e6a58'], banner: [0.9, 0.7], bannerSeed: 59,
     dyes: ['#3e4636', '#4a4a3e', '#36403a', '#545244', '#404838', '#4e4638'], crowd: 0.95, fill: 0.6,
-    motes: '#8a9280', plain: '#3e4438', gateLight: 0.3,
+    motes: '#8a9280', plain: '#3e4438', gateLight: 0.3, drape: true,
   },
   // 3A — The Frost Pit: rime on frozen ground, a wall of huge rough-hewn blocks, an overcast white sky with snow in the air, a sparse
   // crowd in furs, long stiff pennants.
   '3a': {
-    id: '3a', name: 'The Frost Pit', textures: { floor: 'frost', sand: [0.8, 0.83, 0.9], sandSeed: 37, stone: [0.94, 0.99, 1.08], stoneSeed: 41,
+    id: '3a', name: 'The Frost Pit', textures: { floor: 'frost', sand: [0.86, 0.89, 0.97], sandSeed: 37, stone: [0.94, 0.99, 1.08], stoneSeed: 41,
       wall: { courses: 3, blocks: [1, 3], mortar: 0.55, hues: [[1, 1, 1], [0.94, 0.97, 1.04], [0.9, 0.93, 0.98], [1.02, 1.02, 1.04], [0.86, 0.88, 0.92], [0.96, 0.98, 1.02]] },
       sky: { base: [198, 208, 216], sun: [28, 30, 34], ground: [150, 150, 152] } },
     fog: '#c3cbd2', fogDensity: 0.026, hemisphere: ['#e2eaf2', '#5a5e66', 1.7], sun: ['#e9f0ff', 3.3], exposure: 1.2,
     banners: ['#1e2a3c', '#8c8c88'], banner: [0.62, 1.3], bannerSeed: 67,
     dyes: ['#4a4038', '#5a5048', '#3a3834', '#2e3440', '#6a5e50', '#44403c'], crowd: 1.05, fill: 0.7,
-    motes: '#f4f6fa', plain: '#6c7078', gateLight: 0.18,
+    motes: '#f4f6fa', plain: '#6c7078', gateLight: 0.18, drape: true,
   },
   // 3B — The Sun Court: a paved floor of worn limestone flags, dressed sandstone in fine courses, a deep clear sky and a hard white sun,
   // a full crowd in linen, wide sun awnings along the wall.
@@ -78,7 +79,7 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
     fog: '#b9c6d2', fogDensity: 0.012, hemisphere: ['#d0e2f6', '#6a5438', 1.7], sun: ['#fff3da', 4.8], exposure: 1.2,
     banners: ['#7c2a18', '#d6c6a0'], banner: [1.6, 0.55], bannerSeed: 71,
     dyes: ['#8a8070', '#7a6a58', '#9a8a70', '#6a3a2a', '#5a5a60', '#8a7a5a'], crowd: 1, fill: 1.3,
-    motes: '#c8b080', plain: '#7a6a50', gateLight: 0.3,
+    motes: '#c8b080', plain: '#7a6a50', gateLight: 0.3, drape: true,
   },
 };
 // The owner's pick per arena (A until he chooses; one line each).

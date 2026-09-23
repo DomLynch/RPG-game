@@ -35,7 +35,10 @@ test('every arena\'s floor stays darker than the hero\'s skin, and each new aren
   let tint = 0; for (let i = 0; i < color.count; i++) tint += 0.2126 * color.getX(i) + 0.7152 * color.getY(i) + 0.0722 * color.getZ(i);
   const shade = (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) * tint / color.count; dispose();
   for (const theme of Object.values(ARENA_THEMES)) {
-    const maps = generateHeavyTextures(true, 0.4, theme.textures), floor = luminance(maps.sand) * shade;
+    // Frost and moss multiply the floor through the world-space patch mask (arena.ts): its mean effect is part of the floor's albedo.
+    const maps = generateHeavyTextures(true, 0.4, theme.textures), patch = maps.patch;
+    let mask = 1; if (patch) { mask = 0; const d = patch.data; for (let i = 0; i < d.length; i += 4) { const a = d[i + 3] / 255; mask += 1 - a + a * (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 127.5; } mask /= d.length / 4; }
+    const floor = luminance(maps.sand) * shade * mask;
     assert.ok(floor < SKIN_SAMPLE, `${theme.id}: sand albedo ${floor.toFixed(3)} is not below the skin sample ${SKIN_SAMPLE}`);
     // Readability (Strategy's bar): a theme changes the ground's material and hue, never its separation from the fighters.
     const base = luminance(one.sand) * shade;

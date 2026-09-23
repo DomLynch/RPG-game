@@ -241,26 +241,26 @@ export function luminance(p: Pixels): number {
   let sum = 0; for (let i = 0; i < p.data.length; i += 4) sum += 0.2126 * lin(p.data[i]) + 0.7152 * lin(p.data[i + 1]) + 0.0722 * lin(p.data[i + 2]);
   return sum / (p.data.length / 4);
 }
-// Floor materials beyond Arena 1's sand (arena-themes.ts `floor`), each an overlay on the gravelled sand so the grain, pebbles and
-// normal map stay: 'clay' dries into a crack network, 'frost' lies in thin grey-white patches, 'moss' creeps over the damp hollows.
-// Luminance is held near the sand's: a theme may change the ground's material and hue, never its separation from the fighters.
-export function floorOverlay(p: Pixels, kind: 'clay' | 'frost' | 'moss', seed: number): Pixels {
-  const size = p.width, patch = fbm(4, 4, seed + 101), cracks = fbm(6, 4, seed + 103, 0.55), fine = fbm(14, 3, seed + 107, 0.55);
+// 2A's clay floor: the gravelled sand dried into a polygonal crack network at two scales, dark and a touch redder in the gap. Fine
+// enough to live in the 3 m tile without reading as a repeat (frost and moss are metres across: patchPixels below).
+export function floorOverlay(p: Pixels, _kind: 'clay', seed: number): Pixels {
+  const size = p.width, cracks = fbm(6, 4, seed + 103, 0.55), fine = fbm(14, 3, seed + 107, 0.55);
   for (let y = 0, i = 0; y < size; y++) for (let x = 0; x < size; x++, i += 4) {
-    const u = x / size, v = y / size, m = patch(u, v);
-    let r = p.data[i], g = p.data[i + 1], b = p.data[i + 2];
-    if (kind === 'clay') {   // polygonal drying cracks at two scales, dark and a touch redder in the gap
-      const k = Math.abs(cracks(u, v) - 0.5) < 0.009 || Math.abs(fine(u, v) - 0.5) < 0.006 ? 0.55 : 1;
-      r *= k * 1.02; g *= k; b *= k;
-    } else if (kind === 'frost') {   // rime on the high ground: lighter and bluer where the patch field is high, thinned at its edge
-      const f = Math.min(1, Math.max(0, (m - 0.5) * 14)) * (0.5 + 0.5 * (fine(u, v) > 0.45 ? 1 : 0.4));   // a crisp rim, crystalline speckle
-      r += (172 - r) * f; g += (176 - g) * f; b += (182 - b) * f;
-    } else {   // moss in the low ground: grey-green, dark at the heart
-      const f = Math.min(1, Math.max(0, (0.56 - m) * 7)) * (0.7 + 0.3 * fine(u, v));
-      r += (66 - r) * f; g += (88 - g) * f; b += (44 - b) * f;
-    }
-    p.data[i] = clamp(r); p.data[i + 1] = clamp(g); p.data[i + 2] = clamp(b);
+    const u = x / size, v = y / size, k = Math.abs(cracks(u, v) - 0.5) < 0.009 || Math.abs(fine(u, v) - 0.5) < 0.006 ? 0.55 : 1;
+    p.data[i] = clamp(p.data[i] * k * 1.02); p.data[i + 1] = clamp(p.data[i + 1] * k); p.data[i + 2] = clamp(p.data[i + 2] * k);
   }
   return p;
+}
+// Frost and moss lie in patches metres across, so they cannot live in the 3 m sand tile (they visibly repeated, Lead 2026-09-23).
+// This mask spans the whole pit once (PATCH_SPAN metres, world x/z; arena.ts samples it in the floor shader): RGB is a LINEAR
+// multiplier over the floor colour, halved to fit a byte (0.5 = no change), A is how much of it lies there. The sand's grain survives.
+export const PATCH_SPAN = 26;
+export function patchPixels(size: number, kind: 'frost' | 'moss', seed: number): Pixels {
+  const field = fbm(6, 5, seed + 111), speck = fbm(40, 2, seed + 113, 0.6);
+  const [r, g, b] = kind === 'frost' ? [1.9, 2.0, 2.3] : [0.42, 0.72, 0.3];
+  return pixels(size, size, (u, v) => {
+    const m = field(u, v), f = kind === 'frost' ? Math.min(1, Math.max(0, (m - 0.52) * 12)) * (speck(u, v) > 0.42 ? 1 : 0.55) : Math.min(1, Math.max(0, (0.5 - m) * 7)) * (0.7 + 0.3 * speck(u, v));
+    return [r * 127.5, g * 127.5, b * 127.5, f * 255];
+  });
 }
 

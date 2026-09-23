@@ -5,7 +5,7 @@ import { CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { phoneTier } from './quality.ts';
 import { loadArenaProps } from './arena-props.ts';
-import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, type Pixels } from './assets/arena/textures.ts';
+import { bannerAlpha, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, type Pixels } from './assets/arena/textures.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
 import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
 
@@ -103,6 +103,20 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const coal = new THREE.MeshStandardMaterial({ name: 'coal', color: '#1a1210', emissive: '#ff6a1c', emissiveIntensity: 1.1, roughness: 1 });
   const cloth = new THREE.MeshStandardMaterial({ name: 'cloth', alphaMap: textures.banner, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
   const crowdMaterial = gradeMaterial(spectatorMaterial(), BACKGROUND_GRADE.crowd, 'crowd');   // recessive: the crowd stops competing with the fighters (owner, 2026-09-23)
+  // Frost and moss (arena-themes.ts): a world-space mask over the whole pit multiplies the floor colour, so the patches never repeat at
+  // the 3 m sand tile. Chained before the grade (gradeMaterial keeps an earlier onBeforeCompile). Until the worker lands: a clear mask.
+  const patch = theme.textures.floor === 'frost' || theme.textures.floor === 'moss' ? { value: dataTexture(heavy?.patch ?? { width: 1, height: 1, data: new Uint8Array([128, 128, 128, 0]) }, false) } : null;
+  if (patch) {
+    patch.value.wrapS = patch.value.wrapT = THREE.ClampToEdgeWrapping;
+    sand.onBeforeCompile = (shader) => {
+      shader.uniforms.patchMap = patch;
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vPatchUv;')
+        .replace('#include <project_vertex>', `#include <project_vertex>\nvPatchUv = (modelMatrix * vec4(transformed, 1.0)).xz / ${PATCH_SPAN.toFixed(1)} + 0.5;`);
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D patchMap;\nvarying vec2 vPatchUv;')
+        .replace('#include <map_fragment>', '#include <map_fragment>\n{ vec4 p = texture2D(patchMap, vPatchUv); diffuseColor.rgb *= mix(vec3(1.0), p.rgb * 2.0, p.a); }');
+    };
+    sand.customProgramCacheKey = () => 'floor-patch';
+  }
   gradeMaterial(sand, BACKGROUND_GRADE.sand, 'sand'); gradeMaterial(stone, BACKGROUND_GRADE.stone, 'stone');   // slight desaturation so bodies separate; the worn palette stays
   const sky = new THREE.MeshBasicMaterial({ name: 'sky', map: textures.sky, side: THREE.BackSide, fog: false });
   const plain = new THREE.MeshStandardMaterial({ name: 'ash plain', color: theme.plain, roughness: 1 });
@@ -119,6 +133,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       if (disposed) { worker.terminate(); return resolve(); }   // disposed while generating: nothing to swap into
       const p = event.data, swap = (key: 'sand' | 'sandNormal' | 'stone' | 'stoneNormal' | 'sky', srgb: boolean) => { const t = dataTexture(p[key], srgb); textures[key].dispose(); textures[key] = t; return t; };
       sand.map = swap('sand', true); sand.normalMap = swap('sandNormal', false); stone.map = swap('stone', true); stone.normalMap = swap('stoneNormal', false);
+      if (patch && p.patch) { const t = dataTexture(p.patch, false); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; patch.value.dispose(); patch.value = t; }
       sky.map = swap('sky', true); textures.sky.wrapT = THREE.ClampToEdgeWrapping;
       worker.terminate(); resolve();
     };
@@ -335,8 +350,11 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
 
   // Banners: one instanced cloth, swaying about its crossbar. Dried-blood and bone cloths alternate (instance colours; no saturation).
   const bannerGeometry = new THREE.PlaneGeometry(1.15, 2.7); bannerGeometry.translate(0, -1.35, 0);
-  const banners = new THREE.InstancedMesh(bannerGeometry, cloth, bannerAngles.length); banners.name = 'banners'; banners.castShadow = false; group.add(banners);   // no shadow: a swaying 3 m slab on the fighting sand competed with the fighters' own shadows (audit 2026-09-20)
-  bannerAngles.forEach((_a, k) => banners.setColorAt(k, new THREE.Color(theme.banners[k % 2])));
+  // Draped cloths (the new arenas): the same cloth hung flat on the podium wall's face (r 11.67, outside the 11.5 camera clamp), clear
+  // of the gate and the five chains, so the theme's colours sit in the fighting camera's frame. Instances only: no new geometry.
+  const drapeAngles = theme.drape ? [0.2, 0.95, 1.6, 2.4, 3.9, 4.75, 5.2, 6.0] : [], drapeR = wall.inner - 0.03, drapeDrop = 0.8;
+  const banners = new THREE.InstancedMesh(bannerGeometry, cloth, bannerAngles.length + drapeAngles.length); banners.name = 'banners'; banners.castShadow = false; group.add(banners);   // no shadow: a swaying 3 m slab on the fighting sand competed with the fighters' own shadows (audit 2026-09-20)
+  [...bannerAngles, ...drapeAngles].forEach((_a, k) => banners.setColorAt(k, new THREE.Color(theme.banners[k % 2])));
   // Five solid, unrigged silhouettes: familiar inhabitants of this world, mixed across the surviving stone treads.
   type Spectator = { x: number; y: number; z: number; yaw: number; scale: number; width: number; phase: number; id: number; dye: number };
   const crowds: { mesh: THREE.InstancedMesh; people: Spectator[] }[] = [], cells = CROWD_KINDS.length * 2;
@@ -409,6 +427,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     if (since > 2.2) mood = 'idle';
     coal.emissiveIntensity = 1.1 + 0.12 * Math.sin(time * 9.7) + 0.08 * Math.sin(time * 17.3 + 1.7) + 0.1 * (hash(Math.floor(time * 30), 0, 1) - 0.5) + flare * 1.3;
     bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
+    drapeAngles.forEach((a, k) => { const [x, z] = polar(drapeR, a); place(banners, bannerAngles.length + k, x, wall.top - 0.05, z, 0.008 * Math.sin(time * 0.9 + k * 2.3), a, drapeDrop, theme.banner[0] / drapeDrop); });   // flat to the stone: a breath, not a sway
     banners.instanceMatrix.needsUpdate = true;
     // Flames: a wave, not a pump (owner 2026-09-18) — a slow lean, a slow counter-rotation, a gentle breathe, a small fast lick;
     // the vertical scale barely moves. The tongue swells with the coals' flare on a landed blow.
@@ -452,7 +471,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       disposed = true; worker?.terminate();
       props.dispose();
       group.traverse(object => { if (object instanceof THREE.Mesh || object instanceof THREE.Points) object.geometry.dispose(); if (object instanceof THREE.InstancedMesh) object.dispose(); });
-      for (const material of materials) material.dispose(); for (const t of Object.values(textures)) t.dispose(); scene.remove(group);
+      for (const material of materials) material.dispose(); for (const t of Object.values(textures)) t.dispose(); patch?.value.dispose(); scene.remove(group);
     },
   };
 }
