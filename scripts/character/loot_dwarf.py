@@ -186,6 +186,26 @@ for s, face_ids in sorted(pieces.items()):
     # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
     # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    # A --band edge slices through patches the slot kept whole, leaving slivers loose beside the piece (the Dwarf's girdle: 2,639 faces
+    # plus islands of 208/108/64/20/1). Once welded, an island under MIN_FACES is one of those, not a plate: drop it.
+    bm.faces.ensure_lookup_table()
+    seen, loose = set(), []
+    for f in bm.faces:
+        if f in seen:
+            continue
+        island, queue = [], [f]
+        seen.add(f)
+        while queue:
+            g = queue.pop()
+            island.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h not in seen:
+                        seen.add(h)
+                        queue.append(h)
+        if len(island) < MIN_FACES:
+            loose += island
+    bmesh.ops.delete(bm, geom=loose, context='FACES')
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
