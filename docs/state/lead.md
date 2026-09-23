@@ -160,6 +160,17 @@ this session's cross-session sends were capped):**
    DEPLOY validates with one dual run, the same revision on the Mac and the VPS, with identical row results, before adopting it.
    Sequence: the Auditer's cost reaches Lead within the day, Lead forwards it to Strategy in one line, Dom sees the size, then they
    build. **It runs alongside the beta items; it does not jump them.**
+   **Four PASS CONDITIONS for the Auditer's brief (Strategy, after Dom asked about downsides). These are gates, not suggestions:**
+   (1) **SHA rule:** the VPS never runs a branch checkout or an rsynced tree. `deploy.sh` sends the exact commit sha, the VPS
+   fetches that sha from GitHub and checks it out detached, and every row receipt is stamped with it. The deploy REFUSES if any
+   receipt sha differs from the sha being published.
+   (2) **Dual-run gate:** the same revision on the Mac and the VPS, every row compared. Linux Chromium renders differently (fonts,
+   GPU, WebGL), so any row whose result differs gets either a re-baseline with its reason, or a fixed viewport plus the
+   software-render flag, before the switch. No silent threshold changes.
+   (3) **Perf rows:** CPU-throttle numbers are not comparable across machines. World's phone-tier rows either stay on the Mac or
+   are re-baselined and labelled VPS; they are never mixed with older numbers.
+   (4) **Isolation:** rows run in their own directory with the repo's pinned node/Playwright versions and never touch the served
+   build on the same VPS.
 
 **Review rule for every PR from here (Lead's, before Deploy merges):** a combined-tree receipt on any PR touching a file another
 open PR touches, row receipts, and a rejected-designs paragraph wherever a design choice was made.
