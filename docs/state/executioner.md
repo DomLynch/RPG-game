@@ -35,6 +35,14 @@ was an artifact. Corrected off u2net mattes: **Knight 0.367, Executioner 0.374, 
 
 ## Open
 
+- **The maul: #509 IS merged (`3ff9097`) but it is a RECIPE, not a mesh.** Its content commit `4f55780` adds 41 lines to
+  `scripts/build-weapon.mjs` and nothing else — `git ls-tree` on trunk finds no maul file at all, so the part must be
+  produced before anything can reference it. (The sha reported to this lane, `4e34fa3`, is
+  `Revert "Merge pull request #488 from DomLynch/stats/lane"`, not the maul.)
+- **The hero rig has no `Maul_*` clips.** `src/moves.ts:406` still reads `paths: creaturePaths(CLEAVER_PATHS, 'Maul')` —
+  the Minotaur's creature clips. Weapons is authoring the `Maul_*` family on the hero skeleton (their `Warhammer_*`
+  precedent). Until that lands, **the donor step and the fit proceed on the warhammer stand-in as wired**; only the arm
+  re-solve and the versus still wait.
 - **The arm solve is blocked on the maul reaching trunk.** `creatures.py`'s `arm_angle` is seeded at **79** and is a
   *starting point*, not a measurement. Strategy's ship gate: the body PR carries the **solved** value against the **real**
   maul part (`weapons/maul-part`, `4f55780`), never the warhammer stand-in or the seed. The donor step itself is not
