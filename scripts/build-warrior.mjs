@@ -477,17 +477,12 @@ if (fighter === 'shieldmaiden' || LOOT) {
     const legWrap = ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .88], azimuths: 14, gap: .005 });
     add(legWrap.geometry, wrap, `calf_${side}`);
   }
-  // The Witch's Greaves (Strategy, 2026-09-23): a PLACEHOLDER copy of these wraps under witch.Greaves until her authored leggings
-  // replace it (her scan's ragged cloth will not reduce to a clean shell). Same fit, same material; her dark retint is Phase L.
-  if (LOOT) {
-    lootOf = 'witch';
-    for (const side of ['l', 'r']) add(ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .88], azimuths: 14, gap: .005 }).geometry, wrap, `calf_${side}`);
-  }
   if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
 // The Witch's pieces (Phase R, Run 3): built shells, not cuts from her scan. Her TRELLIS cloth decimated to a hood floating in front of the
 // face and shards off the forearms (19:17 still), so the hood, bracers and boots are fitted by ray like everyone else's. Loot build only:
-// her own body wears the scan. Her Gloves are the shared pair; her Greaves are the Shieldmaiden's wraps above. Base palette tonight.
+// her own body wears the scan. Her Gloves are the shared pair. Body and Greaves are what she wears UNDER the robe (Dom 2026-09-23: "she can
+// wear armour under her robe"): a laced leather bodice and cross-gartered leg wraps, hidden by the robe in her fight, taken off her body.
 if (LOOT) {
   const at = jointOf(skeleton, boneIndex), grid = triGrid(await playerWorn());
   lootOf = 'witch';
@@ -496,7 +491,7 @@ if (LOOT) {
   lootSlot = 'Helmet';
   const neck = at('Head').add(new T.Vector3(0, -.03, -.01)), up = new T.Vector3(0, 1, -.18).normalize(), crown = surfaceAlong(grid, neck, up);
   if (!crown) throw new Error('witch hood: no crown above the Head joint');
-  const hoodTo = neck.clone().addScaledVector(up, crown), stations = [-.05, .12, .3, .48, .64, .78, .9, .97];
+  const hoodTo = neck.clone().addScaledVector(up, crown), stations = [.05, .18, .34, .5, .65, .78, .9, .96, .985, .995];   // .985/.995: the cap's fan cut a chord through the crown
   const hood = ringHull(grid, neck, hoodTo, { stations, azimuths: 24, gap: .035, cap: true, up: new T.Vector3(0, 0, 1), scale: t => t < .3 ? 1.12 : 1 });
   // The face opening, cut by position: a triangle whose centre lies between chin and brow (the fraction along the hood's axis) and toward
   // where the toes point (the rig's forward, measured rather than assumed from the ring frame) is dropped.
@@ -509,17 +504,32 @@ if (LOOT) {
   hood.geometry.setIndex(kept);
   add(hood.geometry, cloth, 'Head');
   console.log(`  witch hood: crown ${crown.toFixed(3)} m, rim radii ${hood.rings[0].radii.map(r => r.toFixed(3)).join(' ')}`);
+  // Body: a leather bodice, waist to under the chest, `over` the player's tunic, rigid to the middle of the spine; three brass lacing bands.
+  lootSlot = 'Body';
+  const waist = at('spine_01'), chest = at('spine_03');
+  const bodice = ringHull(grid, waist, chest, { stations: [-.1, .1, .3, .5, .7, .9], azimuths: 24, gap: .01, up: new T.Vector3(0, 0, 1), scale: t => 1 + Math.max(0, .3 - t) * .08 });
+  add(bodice.geometry, leather, 'spine_02');
+  for (const t of [.15, .45, .75]) add(ringHull(grid, waist, chest, { stations: [t - .025, t + .025], azimuths: 24, gap: .014, up: new T.Vector3(0, 0, 1) }).geometry, trim, 'spine_02');
+  console.log(`  witch bodice: rings ${bodice.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
   for (const side of ['l', 'r']) {
-    // Arms: leather bracers, elbow to wrist.
+    // Arms: leather bracers from the elbow, stopping short of the glove's cuff (hand-rigid: a bracer over it tears on every wrist flex).
     lootSlot = 'Arms';
-    const bracer = ringHull(grid, at(`lowerarm_${side}`), at(`hand_${side}`), { stations: [.3, .45, .6, .75, .88], azimuths: 14, gap: .008 });
+    const bracer = ringHull(grid, at(`lowerarm_${side}`), at(`hand_${side}`), { stations: [.2, .32, .44, .55, .66], azimuths: 14, gap: .008 });
     add(bracer.geometry, leather, `lowerarm_${side}`);
-    // Boots: a closed leather shoe heel to toe (the cap closes over the toes), and an ankle cuff on the calf.
+    // Greaves: cross-gartered leg wraps, knee to ankle: a dark leather wrap with four straps bound over it.
+    lootSlot = 'Greaves';
+    const knee = at(`calf_${side}`), shin = ringHull(grid, knee, at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .86], azimuths: 14, gap: .004 });
+    add(shin.geometry, leather, `calf_${side}`);
+    for (const t of [.16, .36, .56, .76]) add(ringHull(grid, knee, at(`foot_${side}`), { stations: [t - .02, t + .02], azimuths: 14, gap: .009 }).geometry, wrap, `calf_${side}`);
+    // Boots: a leather shoe heel to ball, a toe box capped over the toes along the FLAT forward (ankle→ball slopes ~26°, so its own cap
+    // ran into the sole short of the toe tips), and an ankle cuff below the leg wraps.
     lootSlot = 'Boots';
     const ankle = at(`foot_${side}`), ball = at(`ball_${side}`);
-    const shoe = ringHull(grid, ankle, ball, { stations: [-.15, .1, .35, .6, .85, 1.05], azimuths: 14, gap: .006, far: .2, cap: true });
+    const shoe = ringHull(grid, ankle, ball, { stations: [-.15, .1, .35, .6, .85, 1], azimuths: 14, gap: .006, far: .2 });
     add(shoe.geometry, leather, `foot_${side}`);
-    const cuff = ringHull(grid, at(`calf_${side}`), ankle, { stations: [.8, .9, 1], azimuths: 14, gap: .012 });
+    const flat = ball.clone().sub(ankle).setY(0).normalize(), toe = ringHull(grid, ball.clone().addScaledVector(flat, -.01), ball.clone().addScaledVector(flat, .08), { stations: [0, .25, .45, .65], azimuths: 14, gap: .006, far: .2, cap: true });
+    add(toe.geometry, leather, `ball_${side}`);
+    const cuff = ringHull(grid, at(`calf_${side}`), ankle, { stations: [.88, .94, 1], azimuths: 14, gap: .014 });
     add(cuff.geometry, leather, `calf_${side}`);
   }
   lootOf = ''; lootSlot = '';
