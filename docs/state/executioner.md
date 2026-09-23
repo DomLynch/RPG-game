@@ -5,6 +5,12 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-23 16:40: the KNIGHT is on roster-v0 (beta), complete
 
+**Correction 17:0x — roster-v0 @ c725dce: knight.Helmet + knight.Body are PULLED (Lead).** loot-layers.test was red on
+knight.Helmet, and the layer render showed the .12 Steel cut as shards (the TRELLIS mesh is split at every UV seam) with an
+empty Helmet layer. loot.glb is back byte-identical to 636ce4d; `knight.Maul` stays. The carriers return post-beta on
+Nightborn's seam weld (char/plague-doctor-loot @ 817828e) + textures. **Never ship a loot cut without running
+`node scripts/loot-layers.mjs` and looking at the render.** Checks: 74/74 (incl. loot-layers); tsc clean.
+
 **Now (next session):** nothing open on the Knight in this lane. Watch Combat's 21:15 re-pin (ARCHETYPES.knight) and the
 21:20 roster publish; answer questions. Post-beta: textured own-plate loot, finisher validation, the Recruit-2 extras.
 
