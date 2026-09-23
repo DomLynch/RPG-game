@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile, type Profile } from './profile.ts';
-import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, readStanding, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
@@ -70,6 +70,10 @@ export async function mountAccount(url: string, key: string) {
       const admin = userId ? await readAdmin(db, userId).catch(() => false) : false;
       if (turn !== generation) return;
       showTools(admin);
+      // The rank shows the server's marks once it has a figure; null (guest, or no my_standing yet) keeps the save's count (main.ts).
+      const marks = userId ? await readStanding(db) : null;
+      if (turn !== generation) return;
+      session.marks = marks; window.dispatchEvent(new Event('frankendom:standing'));
       if (!userId) status.textContent = 'Sign in to keep your fighter name, opponent and career marks across devices.';
       else if (!saved) await sync(local(), turn);   // the account's first fighter: this device's
       else if (merge) {

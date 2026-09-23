@@ -70,6 +70,16 @@ export async function writeFighter(db: SupabaseClient, userId: string, profile: 
   if (!data) throw Error('Save changed on another device');
   return cloudProfile(data);
 }
+// The account's server marks: my_standing() (migration 202609230001) = the seed snapshot + verified ladder wins, never the save's
+// victory_marks, which the client writes. null when the server has no figure — the migration not applied yet (the function is
+// missing), offline, a malformed row — and the caller shows the save's cached count as before. Never throws.
+export async function readStanding(db: SupabaseClient): Promise<number | null> {
+  try {
+    const { data, error } = await db.rpc('my_standing');
+    const marks = (Array.isArray(data) ? data[0] : data)?.marks;
+    return !error && Number.isSafeInteger(marks) && marks >= 0 ? marks : null;
+  } catch { return null; }
+}
 // Admin roster membership: the journal's test tools show only to listed accounts. The client can read its own row and nothing
 // else (RLS); rows are inserted by the owner in SQL, so there is no write path here.
 export async function readAdmin(db: SupabaseClient, userId: string): Promise<boolean> {
