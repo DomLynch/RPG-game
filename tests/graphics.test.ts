@@ -454,6 +454,32 @@ test('tempo: the 50 Hz toggle steps the same simulation a fifth slower in wall-c
   app.element('tempo-mode').click(); assert.equal(app.element('tempo-mode').textContent, 'Tempo: 60 Hz'); assert.equal(app.storage.getItem('frankendom.tempo.v1'), '60');
 });
 
+test('a kill link or daily answer that arrives after a newer match started neither re-opens the page on its rig nor replaces the fight (audit 2026-09-23)', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  // A Goblin record opened on a page that booted the Veteran: a fresh link re-opens the page on the record's rig; a stale one must not.
+  const rec = record.createRecorder({ build: 'dev', opponent: 'goblin', weapon: 'longsword', profile: 'normal', seed: 3 });
+  rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const text = await record.encodeRecord(rec.finish('killed'));
+  const a = boot({}, undefined, {}, `?replay=${text}`);
+  assert.equal(a.element('replay-banner').textContent, 'Loading the fight…');
+  a.element('reset-button').click(); a.tick();   // a newer match before the link resolved
+  await settle(() => a.element('replay-banner').textContent !== 'Loading the fight…');
+  assert.equal(a.replaced.length, 0, 'the stale record does not re-open the page on its rig');
+  assert.equal(a.element('replay-banner').hidden, true, 'the loading line goes');
+  assert.equal(a.element('attack-button').attributes.get('aria-disabled'), 'false', 'the newer fight is live, not a replay');
+  // The daily: the server names another rung, but a newer match started while it answered.
+  let answer!: (fight: { day: string; number: number; seed: number }) => void;
+  const fetchDaily = dailyModule.fetchDaily; dailyModule.fetchDaily = () => new Promise((r) => { answer = r; }); apiModule.api = { url: 'https://x.supabase.co', key: 'pk' };
+  try {
+    const b = boot({}, undefined, {}, '?daily=1');
+    assert.equal(b.element('replay-banner').textContent, 'Asking for today\'s duel…');
+    b.element('reset-button').click(); b.tick();
+    answer({ day: '2026-09-23', number: 1, seed: 5 });   // LADDER[1], not the Veteran this page booted: a fresh answer would re-open the page there
+    await settle(() => b.element('replay-banner').textContent !== 'Asking for today\'s duel…');
+    assert.equal(b.replaced.length, 0, 'the stale daily does not re-open the page on its rung');
+    assert.equal(b.element('replay-banner').hidden, true, 'the asking line goes');
+  } finally { dailyModule.fetchDaily = fetchDaily; apiModule.api = null; }
+});
 test('the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads', () => {
   const app = boot({ id: 'tester-0001', ladder: 'pitborn' }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest
   assert.equal(app.rendered.enemyMaxHealth, 190, 'the Pitborn stands opposite (his health, not a man\'s)');

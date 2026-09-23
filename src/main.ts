@@ -454,6 +454,7 @@ if (replayText || sharedId) {
   const epoch = match.epoch;
   const text = replayText ? Promise.resolve(replayText) : api ? fetchSharedRecord(api, sharedId!) : Promise.reject(Error('this build has no fight store'));
   void text.then(decodeRecord).then((record) => {
+    if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the link loaded: neither re-open the page on the record's rig nor replace the fight (audit 2026-09-23)
     if (record.opponent !== opponent.id) {
       if (urlOpponent) throw Error('the link names another opponent');
       const target = new URL(location.href); target.searchParams.set('opponent', record.opponent); location.replace(target.href); return;   // once: the re-opened page boots that rig
@@ -477,11 +478,12 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
   welcome.hidden = true; banner('Asking for today\'s duel…');
   const epoch = match.epoch;
   void (api ? fetchDaily(api) : Promise.reject(Error('this build has no daily duel'))).then((fight) => {
+    if (epoch !== match.epoch) { banner(null); return; }   // a fight started while the server answered: it stays, on its own rung
     const rung = dailyOpponent(fight, LADDER);
     if (rung.id !== opponent.id) { location.replace(`/?opponent=${rung.id}&daily=1`); return; }
     const spent = loadDaily(storage, fight.day);
     if (spent.started) { banner(spent.submitted ? `Daily #${fight.number} · posted today` : `Daily #${fight.number} · today's attempt is spent`); return; }
-    if (!match.startDaily(fight, epoch)) { banner(null); return; }   // a fight started while the server answered: it stays
+    if (!match.startDaily(fight, epoch)) { banner(null); return; }
     element('difficulty').textContent = 'Difficulty: normal';
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); began();
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
