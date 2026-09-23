@@ -3,6 +3,35 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23 16:40: the KNIGHT is on roster-v0 (beta), complete
+
+**Now (next session):** nothing open on the Knight in this lane. Watch Combat's 21:15 re-pin (ARCHETYPES.knight) and the
+21:20 roster publish; answer questions. Post-beta: textured own-plate loot, finisher validation, the Recruit-2 extras.
+
+**Done today** (all merged into `roster-v0` by fast-forward merges, never force):
+- `322bb1d`: his own body. `src/assets/knight.glb` = TRELLIS.2 on a hero-rig donor at `BUILD.knight` 1.18; ROSTER.knight is the
+  LAST rung (after the Plague Doctor) so no career shifts; `ARCHETYPES.knight` = verbatim Executioner copy at scale 1.18
+  (placeholder for Combat); finishers `['plainDeath']`; versus still `public/versus/knight.webp`.
+- Arm solved to **84 / 1.10**: the posed WeaponDrawn origin is 0.2 mm off his right palm, which the reference puts at ~(-0.30, 0.82).
+  The 79 / 1.0 seed sat 13.6 mm off. Solver: sweep angle x stretch, then gap to surface AND nearness to the reference palm.
+- **TRELLIS fused the reference's grounded maul into the body**; `creatures.py` now cuts the head (a box in front of the
+  boots) and the haft (a tube under the left fist), located on ortho front/side renders.
+- `c07400d`: loot. `knight.Helmet` + `knight.Body` cut from his plate by `loot_dwarf.py --family knight --ratio 0.12
+  --material Steel` (Body 2,863 / Helmet 429 tris). check-budget loot 1,535,953 of 2,000,000 (Auditer raised the cap, 636ce4d).
+- `78657a9`: the MAUL. Donor rebuilt with WARRIOR_WEAPON=maul (#572's Maul_* family), so drawn = sim; `knight.Maul` is takeable.
+- Targeted `node --test` (loot, loot-data, ladder, roster, graphics, characters, player-weapons, weapons, gear-stats): 146/146; tsc clean.
+
+**Open:**
+- `record-version-guard` was already failing on roster-v0 before these pushes (the sim digest moved); RECORD_VERSION is Combat's.
+- `char/knight-body` and `knight/body-v0` are superseded by roster-v0; leave them, never delete a branch.
+
+**Gotchas:**
+- These tests are `node:test`. **vitest reports "No test suite found" on every file**; run `node --test --test-reporter=tap`.
+- `scripts/warrior-recipe.mjs` refuses a fighter that isn't a ROSTER id, so **the roster entry lands before the donor build**.
+- A reference that holds a prop gets that prop fused into the TRELLIS mesh. Look at an ortho render before binding.
+- Loot is 1.5 → 2.0 MB gzip and every piece counts. Own baked maps cost ~110 KB of JPEG, so shared untextured Steel is the default.
+- The deploy lock is `~/.claude/state/deploy_in_flight.json`. Check its pid is alive before believing either "free" or "busy".
+
 ## Now — 2026-09-23 (later): Knight body PAUSED, lanes report to Lead
 
 **Lead, 2026-09-23: Knight body work is paused.** Dom's beta list makes the four new characters post-beta. Resume
