@@ -17,10 +17,12 @@ const fake = (body: string) => {
 // "Killed, not waited out" is asserted by ORDER, not by a wall clock: under load 50-60 inside deploy.sh's quality gate a 1 s ceiling
 // took 18.6 s end to end (Run 3a), so any fixed bound is a flake. The wedged child is ONE process that writes a marker at the end of its
 // 30 s and only then exits — it holds the stdout pipe, so spawnSync cannot return before it either dies or writes. Marker absent on
-// return = it was killed. A kill that missed it would make the test slow (30 s) and red, never green.
+// return = it was killed. It runs under an `sh` the way a real step's node runs under npm: a watchdog that killed only the direct
+// child would end the step (no 'never', exit 124) and leave the grandchild holding the pipe — that is the case the marker catches.
+// A kill that missed it makes the test slow (30 s) and red, never green.
 test('a wedged step is killed at the ceiling, named, and the lock is still released', () => {
   const marker = join(mkdtempSync(join(tmpdir(), 'deploy-ceiling-child-')), 'finished');
-  const child = `'${process.execPath}' -e 'setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(marker)}, ""), 30_000)'`;
+  const child = `sh -c "'${process.execPath}' -e 'setTimeout(() => require(\\"node:fs\\").writeFileSync(\\"${marker}\\", \\"\\"), 30_000)'; exit"`;
   const f = fake(`deploy_step "quality gate"\n${child}\necho never`);
   const r = f.run({ DEPLOY_CEILING_S: '1' });
   assert.equal(r.status, 124, r.stdout + r.stderr);
