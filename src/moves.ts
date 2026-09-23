@@ -179,6 +179,7 @@ export type AiProfile = {
   interrupt?: number;  // 0..1 chance to cut INTO a slower tell when his own cut lands first (a fast fighter's counter-swing; 0 = never attacks into a threat)
   kick?: number;       // 0..1 share of answers to a read roller or backstepper that are kicks (the one blow their timing does not escape)
   dash?: number;       // 0..1 chance to sprint into an opening (a whiff, a stagger) from outside reach instead of walking (a darter closes in a few ticks)
+  anticipate?: number; // ticks to notice a read cut-spammer's cut (src/ai.ts; the reaction still caps it). Absent = READ.anticipate (8), every warden as it was
 };
 // A weapon is data a fighter carries: its move table, its blade paths (baked per weapon by scripts/bake-blades.mjs from
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
@@ -440,7 +441,7 @@ export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'kni
 // "thrust from range" rows left the list, so it has no pairing over a cap at any rung. This list is not a taste call — the test derives
 // the excluded set from the table and REQUIRES a weapon with no row to be offered, so the entry follows the measurement. Cleaver, knife
 // and estoc still wait on the over-cap list (see KNOWN_UNFAIR there), and each of their remaining rows is Combat's, not weapon data.
-export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident', 'scythe', 'knife', 'estoc'];
+export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident', 'scythe', 'knife', 'estoc', 'cleaver'];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.
@@ -512,8 +513,13 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   } },
   // The Executioner (opponent 6): 1.36 — 20 % over the Pitborn's 1.13 (owner, 2026-09-17), a big man's
   // health and poise. His arc is the scythe's (reap 1.40–2.10 m, a dead band inside 1.4 m, the shaft guard). He carries the
-  // Veteran's brain (PROFILES); a profile of his own is the combat lane's call.
-  executioner: { scale: 1.36, health: 160, poise: 12, profiles: PROFILES },
+  // Veteran's brain (PROFILES); a profile of his own is the combat lane's call. Normal is his own since 2026-09-23 (Lead's anticipate
+  // spec): a cut-spammer farmed him (light spam 18/24 with the cleaver, 12 warhammer, 11 trident; cap 12) because his 14-tick reaction
+  // was clamped to the shared 8 on a read spam and still met the cut late. anticipate 3 + lapse .3 → .2 take those three to 8, 7, 7;
+  // read .7 → .75 keeps the knife's thrust-from-range row where it was (11/24; .2 lapse alone put it on the cap at 12).
+  // The value lives here, keyed by (opponent, level), because that is all a fight record carries: src/replay.ts rebuilds the profile
+  // from OPPONENTS[opponent].profiles[level], so a value merged in from outside the sim would replay a different fight.
+  executioner: { scale: 1.36, health: 160, poise: 12, profiles: { easy: PROFILES.easy, normal: { ...PROFILES.normal, anticipate: 3, lapse: .2, read: .75 }, hard: PROFILES.hard } },
 };
 
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) =>
