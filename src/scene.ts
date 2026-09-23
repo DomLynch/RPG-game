@@ -26,7 +26,7 @@ export function createScene(
   // which any future in-progress status line would have defeated).
   assetStatus: (status: string, kind: 'loading' | 'ready' | 'failed') => void = () => {},
   opponentId: OpponentId = 'veteran',
-  arenaOverride?: string,   // ?arena=2b: a dev look / still capture; otherwise the ladder band picks (arena-themes.ts)
+  arenaOverride?: string,   // ?arena=3b: a dev look / still capture; otherwise the ladder band picks (arena-themes.ts)
 ) {
   const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the

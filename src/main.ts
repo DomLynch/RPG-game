@@ -589,7 +589,7 @@ try {
       if (kind !== 'loading') hideVersus();
     },
     opponent.id,
-    /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1],   // dev look / stills: ?arena=2b (arena-themes.ts)
+    /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1],   // dev look / stills: ?arena=3b (arena-themes.ts)
   );
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
 } catch (error) {

@@ -242,7 +242,7 @@ export function luminance(p: Pixels): number {
   return sum / (p.data.length / 4);
 }
 // 2A's clay floor: the gravelled sand dried into a polygonal crack network at two scales, dark and a touch redder in the gap. Fine
-// enough to live in the 3 m tile without reading as a repeat (frost and moss are metres across: patchPixels below).
+// enough to live in the 3 m tile without reading as a repeat (the metres-wide mottle is patchPixels below).
 export function floorOverlay(p: Pixels, _kind: 'clay', seed: number): Pixels {
   const size = p.width, cracks = fbm(6, 4, seed + 103, 0.55), fine = fbm(14, 3, seed + 107, 0.55);
   for (let y = 0, i = 0; y < size; y++) for (let x = 0; x < size; x++, i += 4) {
@@ -251,25 +251,16 @@ export function floorOverlay(p: Pixels, _kind: 'clay', seed: number): Pixels {
   }
   return p;
 }
-// Frost and moss lie in patches metres across, so they cannot live in the 3 m sand tile (they visibly repeated, Lead 2026-09-23).
-// This mask spans the whole pit once (PATCH_SPAN metres, world x/z; arena.ts samples it in the floor shader): RGB is a LINEAR
-// multiplier over the floor colour, halved to fit a byte (0.5 = no change), A is how much of it lies there. The sand's grain survives.
-// Clay and flags get the same mask as a broad tone mottle (damp and sun-bleached ground, worn and grimed stone) centred on no change,
-// so their 3 m tile stops reading as a grid from the fighting camera.
+// A world-space mask that spans the whole pit once (PATCH_SPAN metres, world x/z; arena.ts samples it in the floor shader): RGB is a
+// LINEAR multiplier over the floor colour, halved to fit a byte (0.5 = no change). Clay and flags get a broad tone mottle (damp and
+// sun-bleached ground, worn and grimed stone) centred on no change, so their 3 m tile stops reading as a grid from the fighting camera.
 export const PATCH_SPAN = 26;
-export function patchPixels(size: number, kind: 'frost' | 'moss' | 'clay' | 'flag', seed: number): Pixels {
+export function patchPixels(size: number, kind: 'clay' | 'flag', seed: number): Pixels {
   const field = fbm(6, 5, seed + 111), speck = fbm(40, 2, seed + 113, 0.6);
-  if (kind === 'clay' || kind === 'flag') {
-    const tone: [number, number, number] = kind === 'clay' ? [0.26, 0.3, 0.34] : [0.2, 0.21, 0.24];
-    return pixels(size, size, (u, v) => {
-      const t = Math.max(-1, Math.min(1, (field(u, v) - 0.5) * 3 + (speck(u, v) - 0.5) * 0.4));
-      return [(1 + t * tone[0]) * 127.5, (1 + t * tone[1]) * 127.5, (1 + t * tone[2]) * 127.5, 255];
-    });
-  }
-  const [r, g, b] = kind === 'frost' ? [1.9, 2.0, 2.3] : [0.42, 0.72, 0.3];
+  const tone: [number, number, number] = kind === 'clay' ? [0.26, 0.3, 0.34] : [0.2, 0.21, 0.24];
   return pixels(size, size, (u, v) => {
-    const m = field(u, v), f = kind === 'frost' ? Math.min(1, Math.max(0, (m - 0.52) * 12)) * (speck(u, v) > 0.42 ? 1 : 0.55) : Math.min(1, Math.max(0, (0.5 - m) * 7)) * (0.7 + 0.3 * speck(u, v));
-    return [r * 127.5, g * 127.5, b * 127.5, f * 255];
+    const t = Math.max(-1, Math.min(1, (field(u, v) - 0.5) * 3 + (speck(u, v) - 0.5) * 0.4));
+    return [(1 + t * tone[0]) * 127.5, (1 + t * tone[1]) * 127.5, (1 + t * tone[2]) * 127.5, 255];
   });
 }
 

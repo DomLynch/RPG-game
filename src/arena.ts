@@ -103,8 +103,8 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const coal = new THREE.MeshStandardMaterial({ name: 'coal', color: '#1a1210', emissive: '#ff6a1c', emissiveIntensity: 1.1, roughness: 1 });
   const cloth = new THREE.MeshStandardMaterial({ name: 'cloth', alphaMap: textures.banner, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 });
   const crowdMaterial = gradeMaterial(spectatorMaterial(), BACKGROUND_GRADE.crowd, 'crowd');   // recessive: the crowd stops competing with the fighters (owner, 2026-09-23)
-  // Every themed floor (arena-themes.ts): a world-space mask over the whole pit multiplies the floor colour, so frost and moss patches
-  // and the clay/flag mottle never repeat at the 3 m sand tile. Chained before the grade (gradeMaterial keeps an earlier onBeforeCompile). Until the worker lands: a clear mask.
+  // Every themed floor (arena-themes.ts): a world-space mask over the whole pit multiplies the floor colour, so the clay/flag mottle
+  // never repeats at the 3 m sand tile. Chained before the grade (gradeMaterial keeps an earlier onBeforeCompile). Until the worker lands: a clear mask.
   const patch = theme.textures.floor !== 'sand' ? { value: dataTexture(heavy?.patch ?? { width: 1, height: 1, data: new Uint8Array([128, 128, 128, 0]) }, false) } : null;
   if (patch) {
     patch.value.wrapS = patch.value.wrapT = THREE.ClampToEdgeWrapping;
