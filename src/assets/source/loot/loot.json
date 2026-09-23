@@ -163,6 +163,11 @@
    ]
   },
   {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "@build:nightborn-greaves"
+  },
+  {
    "slot": "Boots",
    "layer": "replace",
    "file": "parts/level1_nightborn.glb",
@@ -269,6 +274,11 @@
  ],
  "dwarf": [
   {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "@build:dwarf-helmet"
+  },
+  {
    "slot": "Greaves",
    "layer": "over",
    "file": "loot/dwarf.glb",
@@ -352,7 +362,11 @@
    "file": "loot/plaguedoctor.glb",
    "slots": [
     "Helmet"
-   ]
+   ],
+   "conform": {
+    "beyond": 0.06,
+    "maxPush": 0.08
+   }
   },
   {
    "slot": "Body",
@@ -392,7 +406,11 @@
    "file": "loot/plaguedoctor.glb",
    "slots": [
     "Boots"
-   ]
+   ],
+   "conform": {
+    "beyond": 0.14,
+    "maxPush": 0.15
+   }
   }
  ],
  "witch": [

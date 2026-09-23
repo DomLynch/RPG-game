@@ -485,6 +485,53 @@ if (fighter === 'shieldmaiden' || LOOT) {
   }
   if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
+// The Dwarf's iron helm (Phase R, Dom via Lead 2026-09-23: "get all pieces to 6"). His TRELLIS head has no helm to cut, so it is built
+// here like the Pitborn's cap: a rounded iron dome down to a brass brow band, with a nasal bar over the nose. Fitted by ray to whoever
+// wears it: the player's skull and kit in loot.glb (here), and in his own donor build HIS TRELLIS head, after the re-proportion below,
+// since the donor's borrowed Veteran head has its crown stripped under the Veteran's helm. creature_pack.py keeps it (KEEP_SLOTS).
+function dwarfHelmet(skullGrid) {
+  const at = jointOf(skeleton, boneIndex), head = at('Head'), up = new T.Vector3(0, 1, -.15).normalize(), crown = surfaceAlong(skullGrid, head, up);
+  if (!crown) throw new Error('dwarf helmet: no crown above the Head joint');
+  const top = head.clone().addScaledVector(up, crown), opts = { azimuths: 24, up: new T.Vector3(0, 0, 1) };
+  const dome = ringHull(skullGrid, head, top, { ...opts, stations: [.46, .56, .66, .76, .85, .92, .97], gap: .012, cap: true });
+  // His TRELLIS crown is flat, and a hull fitted to it reads as a bowl's base at phone size: lift the top third along the axis into a dome
+  // (up to 3 cm at the apex, easing to nothing by 70 % of the way up). Only ever outward, so it never sinks into the scalp.
+  const p = dome.geometry.getAttribute('position'), q = new T.Vector3();
+  for (let k = 0; k < p.count; k++) { const t = q.fromBufferAttribute(p, k).sub(head).dot(up) / crown; if (t > .7) p.setXYZ(k, ...q.add(head).addScaledVector(up, .03 * Math.min(1, (t - .7) / .32) ** 2).toArray()); }
+  dome.geometry.computeVertexNormals();
+  add(dome.geometry, steel, 'Head', 0, 0, 0, 0, 'Helmet');
+  add(ringHull(skullGrid, head, top, { ...opts, stations: [.44, .5], gap: .018 }).geometry, trim, 'Head', 0, 0, 0, 0, 'Helmet');   // the brow band
+  // The nasal: an iron bar from the band down the bridge of the nose, following its slope.
+  const front = new T.Vector3(0, 0, 1).addScaledVector(up, -up.z).normalize(), brow = head.clone().addScaledVector(up, crown * .47);
+  const nose = brow.clone().addScaledVector(up, -.05), browAt = surfaceAlong(skullGrid, brow, front), noseAt = surfaceAlong(skullGrid, nose, front);
+  if (!browAt || !noseAt) throw new Error('dwarf helmet: no brow or nose in front of the Head joint');
+  const a = brow.addScaledVector(front, browAt + .02), b = nose.addScaledVector(front, noseAt + .008), bar = b.clone().sub(a), mid = a.clone().add(b).multiplyScalar(.5);
+  const nasal = new T.BoxGeometry(.016, bar.length(), .006).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), bar.clone().normalize()));
+  add(nasal, steel, 'Head', mid.x, mid.y, mid.z, 0, 'Helmet');
+  console.log(`  dwarf helmet: crown ${crown.toFixed(3)} m above Head, rim radii ${dome.rings[0].radii.map(r => r.toFixed(3)).join(' ')}, nasal ${bar.length().toFixed(3)} m`);
+}
+if (LOOT) { lootOf = 'dwarf'; lootSlot = 'Helmet'; dwarfHelmet(triGrid(await playerWorn())); lootOf = ''; lootSlot = ''; }
+// The Nightborn's sixth piece (Phase R). His brief left his shins bare over the hose; Strategy 2026-09-23, on Dom's barefoot precedent
+// (Brief 14): a bare shin is Recruit-grade and a Greave goes OVER it, as boots go over bare feet, so he wears it and offers it. A duelist's
+// guard, not a soldier's: blackened steel from under the knee to above the ankle, held by two leather straps. Steel, not leather: his own
+// boots are knee-high tan leather, and a leather guard over them vanished into the boot (measured at the fighting camera). A full ring,
+// not a front plate: a plate's "front" guessed from the rest pose's toes landed on the outside of his leg in the fight stance. Fitted by
+// ray to whoever wears it — his own legs in nightborn.glb, the player's in loot.glb — so one recipe serves both; `over`, it hides nothing.
+if (fighter === 'nightborn' || LOOT) {
+  // In the loot build it is worn with his set, so it fits over his own knee boots too, not only the player's bare shins (Pitborn's review
+  // of #611: fitted to the shins alone, the boot came through the guard by up to 14 mm).
+  const boots = LOOT ? [...parts.values()].flat().filter(g => g.userData.slot === 'nightborn:Boots') : [];
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(LOOT ? [...await playerWorn(), ...boots] : [...parts.values()].flat());
+  if (LOOT) { lootOf = 'nightborn'; lootSlot = 'Greaves'; }
+  for (const side of ['l', 'r']) {
+    const knee = at(`calf_${side}`), ankle = at(`foot_${side}`);
+    const guard = ringHull(grid, knee, ankle, { stations: [.06, .2, .34, .48, .62, .76], azimuths: 14, gap: .010 });
+    add(guard.geometry, steel, `calf_${side}`);
+    for (const t of [.2, .62]) add(ringHull(grid, knee, ankle, { stations: [t - .025, t + .025], azimuths: 14, gap: .012 }).geometry, leather, `calf_${side}`);
+    console.log(`  nightborn greave ${side}: rings ${guard.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  }
+  if (LOOT) { lootOf = ''; lootSlot = ''; }
+}
 // The Witch's pieces (Phase R, Run 3): built shells, not cuts from her scan. Her TRELLIS cloth decimated to a hood floating in front of the
 // face and shards off the forearms (19:17 still), so the hood, bracers and boots are fitted by ray like everyone else's. Loot build only:
 // her own body wears the scan. Her Gloves are the shared pair; her Greaves are the Shieldmaiden's wraps above. Base palette tonight.
@@ -724,6 +771,16 @@ if (BUILD.bones) {
   base.scene.updateMatrixWorld(true); skeleton.calculateInverses();
   const top = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
   console.log(`  reproportion: ${vertices} vertices; pelvis ${joint[boneIndex('pelvis')].y.toFixed(3)} → ${top('pelvis').y.toFixed(3)} m (drop ${PROPORTION.drop.toFixed(3)}), head joint ${joint[boneIndex('Head')].y.toFixed(3)} → ${top('Head').y.toFixed(3)}, wrist reach ${joint[boneIndex('hand_r')].distanceTo(joint[boneIndex('upperarm_r')]).toFixed(3)} → ${top('hand_r').distanceTo(top('upperarm_r')).toFixed(3)} m, sole ${top('foot_l').y.toFixed(3)} (was ${joint[boneIndex('foot_l')].y.toFixed(3)})`);
+}
+if (fighter === 'dwarf') {   // his helm, on his TRELLIS head (dwarfHelmet above); it replaces the Veteran's bronze helm the donor borrows
+  for (const [material, list] of parts) parts.set(material, list.filter(g => !['Helmet', 'Crest'].includes(g.userData.slot)));
+  // Read raw: the loader needs a DOM for its webp textures, and the rays need only positions and indices (bind space, no node transform).
+  const glb = await fs.readFile('src/assets/dwarf.glb'), jsonLength = glb.readUInt32LE(12), doc = JSON.parse(glb.toString('utf8', 20, 20 + jsonLength)), bin = 28 + jsonLength;
+  const node = doc.nodes.find(n => n.name === 'CreatureBody');
+  if (!node) throw new Error('dwarf helmet: src/assets/dwarf.glb has no CreatureBody');
+  const view = (i, Type) => { const a = doc.accessors[i], v = doc.bufferViews[a.bufferView], at = glb.byteOffset + bin + (v.byteOffset ?? 0) + (a.byteOffset ?? 0); return new Type(glb.buffer.slice(at, at + a.count * (a.type === 'VEC3' ? 3 : 1) * Type.BYTES_PER_ELEMENT)); };
+  const surfaces = doc.meshes[node.mesh].primitives.map(p => new T.BufferGeometry().setAttribute('position', new T.BufferAttribute(view(p.attributes.POSITION, Float32Array), 3)).setIndex(new T.BufferAttribute(view(p.indices, doc.accessors[p.indices].componentType === 5125 ? Uint32Array : Uint16Array), 1)));
+  dwarfHelmet(triGrid(surfaces));
 }
 // The guard's own kit (GUARD): a plain leather cap over the brow (the sallet helper's rings on the Head), and a coiled whip in hand_r —
 // a leather handle with two brass ferrules and the lash coiled round it, a loose tail hanging from the coil. Rigid attachments, so the
