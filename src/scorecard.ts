@@ -42,6 +42,7 @@ export function totals(card: Scorecard): Line {
 export function scorecardRows(card: Scorecard, opponents: readonly { id: OpponentId; name: string }[]): { name: string; fights: number; wins: number; losses: string; last: string[] }[] {
   const losses = (line: Line) => (line.left ? `${line.losses} (${line.left} left)` : String(line.losses));
   const rows = opponents.map(({ id, name }) => { const line = card.rows[id] ?? emptyLine(); return { name, fights: line.fights, wins: line.wins, losses: losses(line), last: line.last }; });
+  rows.sort((a, b) => b.fights - a.fights);   // most-fought first (Dom 2026-09-23); a stable sort keeps ladder order on ties
   const all = totals(card);
   return [...rows, { name: 'All fights', fights: all.fights, wins: all.wins, losses: losses(all), last: [] }];
 }

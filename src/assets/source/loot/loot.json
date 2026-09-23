@@ -279,9 +279,27 @@
    "file": "@build:dwarf-helmet"
   },
   {
+   "slot": "Body",
+   "layer": "over",
+   "file": "loot/dwarf_upper.glb",
+   "slots": [
+    "Body"
+   ],
+   "unscale": "dwarf"
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "loot/dwarf_arms.glb",
+   "slots": [
+    "Arms"
+   ],
+   "unscale": "dwarf"
+  },
+  {
    "slot": "Greaves",
    "layer": "over",
-   "file": "loot/dwarf.glb",
+   "file": "loot/dwarf_greaves.glb",
    "slots": [
     "Greaves"
    ],
@@ -290,7 +308,7 @@
   {
    "slot": "Boots",
    "layer": "over",
-   "file": "loot/dwarf.glb",
+   "file": "loot/dwarf_boots.glb",
    "slots": [
     "Boots"
    ],
