@@ -440,7 +440,7 @@ export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'kni
 // "thrust from range" rows left the list, so it has no pairing over a cap at any rung. This list is not a taste call — the test derives
 // the excluded set from the table and REQUIRES a weapon with no row to be offered, so the entry follows the measurement. Cleaver, knife
 // and estoc still wait on the over-cap list (see KNOWN_UNFAIR there), and each of their remaining rows is Combat's, not weapon data.
-export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident', 'scythe', 'knife'];
+export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident', 'scythe', 'knife', 'estoc'];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.
@@ -496,8 +496,8 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     // Easy: a human reaction, a quarter parry and more lapses put him with the other rungs' easy (an 8-tick reaction and a .45 parry had
     // made easy as hard as hard; docs/state/combat.md); the commit is still there to learn.
     easy: { reaction: 16, accuracy: .7, parry: .25, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .4, read: .7 },
-    normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .6, pressure: .45, discipline: 45, lapse: .3, read: .85 },   // pressure .45: enough heavies that a roller is charged through (a cut-and-thrust man rolls too easily)
-    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .75, pressure: .6, discipline: 35, lapse: .05, read: .95 },   // discipline 40 → 35, pressure .5 → .6 (owner, 2026-09-20): hard was no harder than normal (9/24 both); 18/24 now. Discipline 30 left no honest answer (feint-and-punish 0/24 at hard); 35 keeps it at 4.
+    normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .55, pressure: .45, discipline: 45, lapse: .3, read: .85 },   // pressure .45: enough heavies that a roller is charged through (a cut-and-thrust man rolls too easily). aggression .6 → .55 (2026-09-23, the estoc's +0.30 m reach): with the longer blade in reach more often he swung himself into exhaustion (321 ticks over 24 AI fights, bar 240) and a trident charger won 14/24; .55 → 108 ticks and 8/24
+    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .65, pressure: .6, discipline: 35, lapse: .05, read: .95 },   // discipline 40 → 35, pressure .5 → .6 (owner, 2026-09-20): hard was no harder than normal (9/24 both); 18/24 now. Discipline 30 left no honest answer (feint-and-punish 0/24 at hard); 35 keeps it at 4. aggression .75 → .65 (2026-09-23): the estoc's +0.30 m reach took the feint-and-punish to 0/24 again; .65 → 7/24.
   } },
   // The goblin (opponent 4, the pit-runner): small, fast, mean — 0.78× a man (his measured standing height; the rig is re-proportioned, not
   // shrunk: build-warrior.mjs BUILD.goblin), 100 health, poise 0 (anything staggers him). Reaction fast, parry 0 (he never parries), the dodge
