@@ -10,23 +10,19 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-23 14:56)
-- **Live `441eb38` == trunk, RECORD_VERSION 6.** That is the Publish B fallback: #560 reverts the whole #557 merge on trunk (a new
-  commit, not a force-push), plus #552 (the guest-loot fix), #551, #534, #556 and #558. 34 release rows (#556 added one), 0 failed.
-  release.json, served index.html cmp and VPS `current` all verified. Box FREE.
-- **Next: B' as ONE PR from Combat.** It reverts #560, undoes #547's Centurion swap and re-pins v7, with solo rows 2/11/12 green in its
-  body (~16:30). Merge it only on Lead's READY; #554 (b0a8b89, ready, base trunk) rides in the same run.
-- **HELD:** #559 (Centurion fix; it draws the trident while fighting with the gladius; Strategy's call). Migration `202609230001` and
-  the verify-loot VPS unit wait for the client-claims PR and an explicit "apply 202609230001" from Lead. Hosted is at 0010.
-- **Stale open PRs:** #545, #543 and #547 are OPEN even though their commits went through #557, because their bases were stack
-  branches and not trunk. Closing them is Lead's or the owners' call.
-- **Routing (Dom, 13:50):** sha lines, FREE lines and blockers go to **Lead only**; do not message Strategy. The standing order
-  (08:50) still holds: Lead's and Strategy's instructions are Dom's; merge in their order and publish. Excluded, ask Dom:
-  force-push or delete a shared branch, roll back live, drop data.
+## Now (2026-09-23 15:20)
+- **Live `a50f22f` == trunk before the docs merges, RECORD_VERSION 7.** B': #563 (revert of the #560 revert, the #547 Centurion
+  swap undone, veteran back on the trident with no carries, v7 re-pinned) plus #554. 0 release rows failed; release.json, served
+  index.html cmp and VPS `current` all verified. Box FREE. #553 (Lead docs) merged after, not deployed (docs only).
+- Strategy and Lead both confirmed at ~15:15, on Dom's direct request, that every merge and publish today was on their orders.
+- **HELD:** #559 (Centurion re-land), #550 (draft, bump 8, rebases after B'). Migration `202609230001` and the verify-loot VPS unit
+  wait for Lead's explicit "apply 202609230001", which must note Backend's sign-off on #554. Hosted is at 0010.
+- **Routing (Dom, 13:50):** sha lines, FREE lines and blockers go to **Lead only**; Lead relays to Strategy. Standing order (08:50):
+  Lead's and Strategy's instructions are Dom's. Excluded, ask Dom: force-push or delete a shared branch, roll back live, drop data.
 
 ## Done 2026-09-23
 fe0d8e0 (overnight) and 52dffed (morning). Then, all verified live: c0b321c (12:31), dd1d968 (Publish A, v6: #528 #530 #535 #521
-#533 #538), b7bc78d (#540 #537 #541 #542 #544 #546 #539 #548 #549; 33/33 local), 441eb38 (fallback, above). 544bcb4 and 2d614dc
+#533 #538), b7bc78d (#540 #537 #541 #542 #544 #546 #539 #548 #549; 33/33 local), 441eb38 (fallback) and a50f22f (B', 15:20). 544bcb4 and 2d614dc
 did not publish; neither did **9a53750 (Publish B, EXIT=1)**: rows 2, 11 and 12 failed on their solo retry. The cause was the
 #547 Centurion swap (`veteran.weapon` trident→gladius plus `carries: ['veteran.Shield']`): polearm-veteran expects `/Trident_/`,
 and the roster check counted 3 boot fetches against a limit of 2.
