@@ -7,7 +7,9 @@
 //   - the PIECE: src/awards.ts awardFor at the account's server standing before this claim (standing_of, claims earlier by
 //     (created_at, id) only). An award is written with the flip; a piece the rule refuses keeps the mark and gets the reason as its note.
 // Order independence: a claim waits while an earlier claim from the same account is still unchecked, so its tier never depends on
-// which of the two a sweep reached first. `--recheck` also takes refused claims again (a rules change, a re-recorded fixture).
+// which of the two a sweep reached first. `--recheck` also takes refused claims again (a rules change, a re-recorded fixture). A recheck
+// that turns an EARLIER refused claim into a win raises the true standing of claims already settled after it; their stored tiers stay
+// as they were (accepted, Backend N3 on #551). A database error on one claim is reported in `errors` and the sweep moves on (N1).
 // Record hashes are unique in the table itself (loot_claims.record_hash), so one fight is one claim before the sweep sees it.
 //
 // DATABASE_URL only: the flip and the award are one transaction, which PostgREST cannot give. Exit 0 with a JSON receipt; exit 1 only
@@ -24,20 +26,26 @@ const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot
 // One sweep over `db` ({ pending, waiting, standing, settle } — see psqlAdapter).
 export async function verifyClaims(db, { dry = false, recheck = false } = {}) {
   const rows = await db.pending(LIMIT, recheck);
-  /** @type {{ checked: number, verified: number, awarded: number, waiting: number, refused: { id: number, reason: string }[], unawarded: { id: number, reason: string }[], dry: boolean }} */
-  const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, refused: [], unawarded: [], dry };
+  /** @type {{ checked: number, verified: number, awarded: number, waiting: number, refused: { id: number, reason: string }[], unawarded: { id: number, reason: string }[], errors: { id: number, error: string }[], dry: boolean }} */
+  const receipt = { checked: 0, verified: 0, awarded: 0, waiting: 0, refused: [], unawarded: [], errors: [], dry };
   for (const row of rows) {
-    if (await db.waiting(row.id)) { receipt.waiting++; continue; }
+    try { await settleOne(db, row, receipt, dry); } catch (error) { receipt.errors.push({ id: row.id, error: error instanceof Error ? error.message : String(error) }); }
+  }
+  return receipt;
+}
+
+async function settleOne(db, row, receipt, dry) {
+  {
+    if (await db.waiting(row.id)) { receipt.waiting++; return; }
     receipt.checked++;
     const reason = await refusal(row);
-    if (reason) { receipt.refused.push({ id: row.id, reason }); if (!dry) await db.settle(row.id, { verified: false, note: note(reason), award: null }); continue; }
+    if (reason) { receipt.refused.push({ id: row.id, reason }); if (!dry) await db.settle(row.id, { verified: false, note: note(reason), award: null }); return; }
     const award = awardFor({ opponent: row.opponent, piece: row.piece }, await db.standing(row.user_id, row.id));
     receipt.verified++;
     if (typeof award === 'string') receipt.unawarded.push({ id: row.id, reason: award });
     else if (award) receipt.awarded++;
     if (!dry) await db.settle(row.id, { verified: true, note: typeof award === 'string' ? note(award) : null, award: typeof award === 'string' ? null : award });
   }
-  return receipt;
 }
 
 // Why a claim is not a verified win, or null when the replay proves it. Never throws: a throw is a refusal.
