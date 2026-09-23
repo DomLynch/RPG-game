@@ -50,6 +50,13 @@ every weapon at both levels, since every player weapon is also a warden's weapon
 **It changes `ai.ts`, so it moves `SIM_DIGEST` and needs a `RECORD_VERSION` bump** — ride the single bump to 6 (whoever is ready
 first takes it), never a second one.
 
+### Deploy `2d614dc` did NOT publish (confirmed by Lead from the log, 06:23Z)
+Release check **27/33, `veteran-polish-check.mjs`, hit the 900 s CEILING and was killed: FAILED (exit null)**. Rows 31 and 32 passed
+after it; deploy.sh was still running and live was still `fe0d8e0`. A ceiling kill on a saturated box is most likely load, not
+a defect, but it counts as a failure until a solo run passes. **Deploy's order (Strategy):** when the matrix ends, rerun row 27
+ALONE; publish on a pass and send the sha line to Lead and Strategy. **On a solo fail it is a Veteran-lane defect and comes to Lead.**
+**Chase:** if there is no sha line and no fail output by 10:50 local, get the log tail from Deploy.
+
 ### Four beta additions from the external review (Strategy, ruled 2026-09-23 ~06:40Z, in priority order)
 Report: `~/Desktop/Business/reports/frankendom-review-2026-09-23.md`. Its verdict is "serious indie, strong combat foundation,
 unfinished player experience". Everything else in it is either already in flight or post-beta.
@@ -72,6 +79,10 @@ unfinished player experience". Everything else in it is either already in flight
    and device. Then Dom watches 5-10 unfamiliar players on the exact public sha, recording raw counts: can they explain a loss, do
    they rematch, do they equip. **No interactive tutorial gets built on assumption.** If the answer is "cannot explain the loss",
    the surface to improve is the existing autopsy (`src/autopsy.ts`), with no duplicate system.
+**DEADLINES (Dom, "get them done"):** (1) save defect, Backend: PR **by end of today**. (2) Retired-replay page, Web: PR ready
+**before Window 1 closes**; it merges WITH the bump. (3) Gear validation rows, Stats: **in the battery plan today**, run before
+deliverable 5. (4) Observation protocol, Web + Combat: instrumentation PR **within two days of the next publish**, then Dom's
+observed session. Owners' acks and ETAs are owed in the next sweep.
 **Post-beta, recorded:** mastery milestones on the ladder (the career rule stands: one mark per win, no demotion), a wound/comeback
 retune (needs the observation first), and crowd/material/framing polish beyond World's phone pass.
 
