@@ -57,12 +57,10 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
 // file (the #309 contract), never a loot.glb draw, and it is the opponent's own weapon.
 test('loot: every weapon piece names a player weapon whose equip file ships with its clip family, sits in the main hand, and is its opponent\'s weapon', () => {
   const weapons = [...LOOT_IDS].filter(id => isWeaponLoot(id as LootId)) as LootId[];
-  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Maul', 'nightborn.Estoc', 'pitborn.Cleaver', 'veteran.Trident', 'witch.Trident'], 'every live warden\'s weapon is takeable');
-  // The longsword is the player's own weapon (the Plague Doctor fights with it): nothing to take, so no piece.
-  // Named exceptions, not a loosened rule: a rung whose loot.glb pieces have not been exported yet (Scalable Chars'). The Shieldmaiden's
-  // body landed first (Brief 15, 2026-09-23); her gladius piece joins LOOT with her export, and she comes off this list in that PR.
-  const NO_LOOT_YET = new Set(['shieldmaiden']);
-  for (const rung of LADDER.filter(rung => ROSTER[rung.id].weapon !== 'longsword' && !NO_LOOT_YET.has(rung.id))) assert.ok(weapons.includes(`${rung.id}.${ROSTER[rung.id].weapon[0]!.toUpperCase()}${ROSTER[rung.id].weapon.slice(1)}` as LootId), `${rung.id}'s weapon is a piece`);
+  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Maul', 'nightborn.Estoc', 'pitborn.Cleaver', 'plaguedoctor.Longsword', 'shieldmaiden.Gladius', 'veteran.Trident', 'witch.Trident'], 'every live warden\'s weapon is takeable');
+  // Every rung offers its weapon (Strategy, 2026-09-23): the Plague Doctor's longsword included — its equip file is the hero's own
+  // SwordDrawn (build-player-weapon.mjs longsword) — and the Shieldmaiden's gladius, which joined ahead of her armour export.
+  for (const rung of LADDER) assert.ok(weapons.includes(`${rung.id}.${ROSTER[rung.id].weapon[0]!.toUpperCase()}${ROSTER[rung.id].weapon.slice(1)}` as LootId), `${rung.id}'s weapon is a piece`);
   assert.deepEqual([...new Set(WEAPON_SLOTS)].length, WEAPON_SLOTS.length); assert.ok(WEAPON_SLOTS.every(slot => !(ARMOUR_SLOTS as readonly string[]).includes(slot)));
   assert.deepEqual([...PAPERDOLL.main], [...WEAPON_SLOTS]); assert.deepEqual([...PAPERDOLL.off], ['Shield']);   // the off hand carries the shield (shield spec); weapons fill the main hand
   const swordRoles = new Set(['Idle', 'Walk', 'Jog', 'Run', 'Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected']);
@@ -87,9 +85,11 @@ test('loot: one fixed piece per opponent per career sub-rank, never a duplicate,
   // The Veteran wears six slots (slot order: Helmet, Crest, Body, Arms, Greaves, Boots); the seventh sub-rank comes round to the first.
   assert.equal(dropFor('veteran', 0, []), 'veteran.Helmet'); assert.equal(dropFor('veteran', 3, []), 'veteran.Crest'); assert.equal(dropFor('veteran', 6, []), 'veteran.Body'); assert.equal(dropFor('veteran', 12, []), 'veteran.Greaves'); assert.equal(dropFor('veteran', 18, []), 'veteran.Gloves'); assert.equal(dropFor('veteran', 21, []), 'veteran.Shield'); assert.equal(dropFor('veteran', 24, []), 'veteran.Helmet', 'eight armour pieces, so the ninth sub-rank comes round to the first');
   assert.equal(dropFor('veteran', 24, ['veteran.Helmet']), null, 'a piece already owned never drops twice');
-  assert.equal(dropFor('pitborn', 0, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Gloves', 'his bone plates then the shared gloves');
-  assert.equal(dropFor('pitborn', 6, ['pitborn.Arms', 'pitborn.Gloves']), null, 'and nothing more once both are owned — his cleaver is taken, never dropped');
-  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Gloves', 'greaves then the shared gloves');
+  // The Pitborn's six (Phase R): skullcap, sash, bone plates, shin wraps, foot wraps, the shared gloves — the seventh sub-rank comes round.
+  assert.equal(dropFor('pitborn', 0, []), 'pitborn.Helmet'); assert.equal(dropFor('pitborn', 3, []), 'pitborn.Body'); assert.equal(dropFor('pitborn', 6, []), 'pitborn.Arms'); assert.equal(dropFor('pitborn', 15, []), 'pitborn.Gloves'); assert.equal(dropFor('pitborn', 18, []), 'pitborn.Helmet');
+  assert.equal(dropFor('pitborn', 18, ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves']), null, 'and nothing more once all six are owned — his cleaver is taken, never dropped');
+  // The Dwarf's three armour drops for now (Greaves, Boots, then the shared Gloves; Helmet/Body/Arms held for a re-cut), then round again.
+  assert.equal(dropFor('dwarf', 0, []), 'dwarf.Greaves'); assert.equal(dropFor('dwarf', 3, []), 'dwarf.Boots'); assert.equal(dropFor('dwarf', 6, []), 'dwarf.Gloves', 'his greaves, his boots (the foot iron, its own slot since Phase R), then the shared gloves'); assert.equal(dropFor('dwarf', 9, []), 'dwarf.Greaves', 'three armour pieces, so the fourth sub-rank comes round to the first');
   assert.equal(dropFor('goblin', 0, []), 'goblin.Body'); assert.equal(dropFor('goblin', 3, []), 'goblin.Arms'); assert.equal(dropFor('goblin', 6, ['goblin.Body', 'goblin.Arms', 'goblin.Gloves']), null, 'all three Goblin pieces owned: nothing more');
   for (const rung of LADDER) for (let marks = 0; marks < 210; marks += 3) { const id = dropFor(rung.id, marks, []); if (id) assert.ok(isLootId(id) && id.startsWith(`${rung.id}.`) && !isWeaponLoot(id), `${id}: a weapon is taken, never dropped`); }
   // The Veteran's seven pieces are six armour drops and the trident: the drop cycle is the armour's, the trident is left for "Take one".
