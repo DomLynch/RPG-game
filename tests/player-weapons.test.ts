@@ -91,7 +91,11 @@ const KNOWN_UNFAIR: string[] = [
   // #532) — every warden had misjudged its point. The Nightborn wields it, so the same reach made him swing himself out; his aggression
   // (normal .6 → .55, hard .75 → .65, src/moves.ts) holds every weapon's row against him inside the cap with a margin of 4 or more.
   // cleaver/executioner LEFT on 2026-09-23: his normal profile is his own (anticipate 3, lapse .2, read .75; src/moves.ts), light spam 18/24 -> 8/24.
-  'maul vs executioner normal: light spam wins 18/24',   // NEW 2026-09-23 (#572, the maul joins PLAYER_WEAPONS with its hero table): the same row as the cleaver's above, and the same cause. MAUL is the CLEAVER spread (moves.ts), so its light is the cleaver's light and the Executioner reads the same 22-tick tell. Not maul data; it keeps the maul out of PLAYER_WEAPONS_OFFERED until Combat's Executioner profile clears the cleaver's row.
+  // maul/executioner LEFT with the cleaver row (bump 8, 2026-09-23): same cause (the 22-tick tell), same fix (#550): light spam 18/24 -> 7/24.
+  // The four beta characters (roster-v0) are on LADDER and measured here. Their placeholder profiles (base copies) produced two rows,
+  // 'trident/scythe vs plaguedoctor normal: charged heavy only untouched 3/24' (limit 2). Signing them would have un-offered two shipped
+  // weapons, so the Plague Doctor took one forced retune instead (lapse .3 -> .2, src/moves.ts): at most 1 untouched, worst row 6/24.
+  // Watch: warhammer vs knight normal charged heavy only 12/24, on the cap.
 ];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {
