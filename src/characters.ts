@@ -216,7 +216,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // Wear these loot pieces (loadLoot) and nothing else: each is bound to this rig's skeleton beside his own body draw, so it follows every
       // clip; a `replace` piece hides his own draws in that slot (a helmet hides hair too); an `over` piece sits on top of them. A piece's
       // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson); the rest keep their own.
-      wear(pieces: readonly SkinnedMesh[]) {
+      // One bad piece costs only itself: each is bound in its own try, a failure is handed to `onError` (scene.ts: console.warn +
+      // captureException, naming the id) and the rest still go on; a slot is covered only by a `replace` piece that actually went on.
+      wear(pieces: readonly SkinnedMesh[], onError: (id: string, error: unknown) => void = (id, error) => console.warn(`loot ${id} not worn`, error)) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
         let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
@@ -227,17 +229,20 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           if (object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material);
         });
         if (!body) throw new Error('The rig has no Body draw to hang loot on');
-        const slots = new Set(pieces.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
-        if (slots.has('Helmet')) slots.add('Hair');
-        root.traverse(object => { if (object instanceof Mesh && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
         for (const piece of pieces) {
-          const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
-          const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
-          const copy = new SkinnedMesh(piece.geometry, material);
-          copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
-          copy.bind(body.skeleton, body.bindMatrix);
-          body.parent!.add(copy); worn.push(copy);
+          let copy: SkinnedMesh | undefined;
+          try {
+            const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
+            const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
+            copy = new SkinnedMesh(piece.geometry, material);
+            copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
+            copy.bind(body.skeleton, body.bindMatrix);
+            body.parent!.add(copy); worn.push(copy);
+          } catch (error) { copy?.removeFromParent(); onError(lootId(piece), error); }
         }
+        const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
+        if (slots.has('Helmet')) slots.add('Hair');
+        root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
       },
       worn: (): readonly SkinnedMesh[] => worn,
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.

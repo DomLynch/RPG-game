@@ -92,3 +92,27 @@ test('loot: a worn shield renders both sides — its face is a single-sided disc
   const copy = probe.worn()[0].material as MeshStandardMaterial;
   assert.notEqual(copy, lit); assert.equal(copy.side, DoubleSide); assert.equal(copy.onBeforeCompile, lit.onBeforeCompile, 'the shader patch carries to the two-sided copy'); assert.equal(copy.customProgramCacheKey(), 'patched', 'and its program cache key');
 });
+
+test('loot: one bad piece costs only itself — the rest of the set still goes on, the failure is reported by id, and a replace slot stays shown when its piece failed (2026-09-23)', async (t) => {
+  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const set = all.filter(p => lootWorn(p, [...LOOT_IDS].filter(id => id.startsWith('nightborn.') && !isWeaponLoot(id as LootId))));
+  assert.ok(set.some(p => lootId(p) === 'nightborn.Body' && p.userData.layer === 'replace'), 'the Nightborn\'s full armour includes his replace body');
+  // The full set: every draw goes on, and exactly the slots a replace piece fills hide the player's own draws (a helmet hides hair too).
+  player.wear(set);
+  assert.equal(player.worn().length, set.length, 'every draw of the full set is worn');
+  const replaced = new Set(set.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
+  if (replaced.has('Helmet')) replaced.add('Hair');
+  player.anchor.traverse(o => { if (o instanceof Mesh && !player.worn().includes(o as SkinnedMesh) && typeof o.userData.slot === 'string' && o.userData.slot) assert.equal(o.visible, !replaced.has(o.userData.slot), `${o.name} (${o.userData.slot})`); });
+  // Break the body piece (a null geometry throws inside the SkinnedMesh copy): only its draws fail, each reported once by id.
+  const broken = set.map(p => lootId(p) === 'nightborn.Body' ? Object.assign(Object.create(p) as SkinnedMesh, { geometry: null }) : p);
+  const bodyDraws = set.filter(p => lootId(p) === 'nightborn.Body').length, errors: string[] = [];
+  player.wear(broken, id => errors.push(id));
+  assert.deepEqual(errors, Array(bodyDraws).fill('nightborn.Body'), 'each failed draw is handed to onError with its id');
+  assert.equal(player.worn().length, set.length - bodyDraws, 'the rest of the set is still worn');
+  assert.ok(!player.worn().some(p => lootId(p) === 'nightborn.Body'), 'no half-built body copy is left hanging');
+  for (const draw of draws(player.anchor, 'Body')) if (!player.worn().includes(draw as SkinnedMesh)) assert.equal(draw.visible, true, `${draw.name}: his own body shows, since the body piece never went on`);
+  // With no onError, the default warns and carries on; it never throws.
+  const warn = t.mock.method(console, 'warn', () => {});
+  assert.doesNotThrow(() => player.wear(broken));
+  assert.equal(warn.mock.callCount(), bodyDraws);
+});
