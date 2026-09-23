@@ -10,22 +10,26 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-23 10:53)
-- **Live `52dffed` == trunk.** Deploy 33/33: 31 rows CI-trusted for tree 168112c, rows 26 and 32 run locally. release.json 200,
-  served index.html cmp-identical to dist, VPS `current` -> `releases/52dffed…`, box FREE. RECORD_VERSION is still **5**.
-- Carries, since last night's `fe0d8e0`: the code batch #508 #507 #509 #510 #513 #511 #506 #472 #478 #500, **#488 reverted**
-  (`4e34fa3`: its tier table lacked the `Shield` slot #478 added, TS2741 on the combined tree), 27 docs PRs, #519, #502.
-- **Queue (non-sim, rolling, publish every 2–3):** #523 (Stats: #488 re-land + `Shield: 0`), then #514 (needs #523's
-  `src/gear-stats.ts`), #521 (#475 v2, draft), #505 v2 / #522, #518. **Window 1 (sim, RECORD_VERSION -> 6), hold until the whole
-  window is merged, then one re-pin and one publish:** #515 knife + the Nightborn/estoc, estoc flip, Executioner and Centurion items.
-- **Conflicting, owners asked to re-open off trunk** (PR comments left; force-push is excluded): #473 (Weapons), #494 (Knight
-  reference), #503 (Stats, superseded by a PR A v2).
-- Standing order (Dom, 2026-09-23 08:50): Strategy's and Lead's instructions are Dom's. Merge in their order and publish. Excluded,
-  ask Dom: force-push or delete a shared branch, roll back live, drop data.
+## Now (2026-09-23 14:56)
+- **Live `441eb38` == trunk, RECORD_VERSION 6.** That is the Publish B fallback: #560 reverts the whole #557 merge on trunk (a new
+  commit, not a force-push), plus #552 (the guest-loot fix), #551, #534, #556 and #558. 34 release rows (#556 added one), 0 failed.
+  release.json, served index.html cmp and VPS `current` all verified. Box FREE.
+- **Next: B' as ONE PR from Combat.** It reverts #560, undoes #547's Centurion swap and re-pins v7, with solo rows 2/11/12 green in its
+  body (~16:30). Merge it only on Lead's READY; #554 (b0a8b89, ready, base trunk) rides in the same run.
+- **HELD:** #559 (Centurion fix; it draws the trident while fighting with the gladius; Strategy's call). Migration `202609230001` and
+  the verify-loot VPS unit wait for the client-claims PR and an explicit "apply 202609230001" from Lead. Hosted is at 0010.
+- **Stale open PRs:** #545, #543 and #547 are OPEN even though their commits went through #557, because their bases were stack
+  branches and not trunk. Closing them is Lead's or the owners' call.
+- **Routing (Dom, 13:50):** sha lines, FREE lines and blockers go to **Lead only**; do not message Strategy. The standing order
+  (08:50) still holds: Lead's and Strategy's instructions are Dom's; merge in their order and publish. Excluded, ask Dom:
+  force-push or delete a shared branch, roll back live, drop data.
 
 ## Done 2026-09-23
-fe0d8e0 (overnight, 33/33, the guards removal and `?perf=1`; guard.glb confirmed absent from a cold load of the live site) and
-52dffed (this morning). 544bcb4 and 2d614dc did not publish (see Gotchas). #488 reverted, #497 / #502 / #519 merged by this lane.
+fe0d8e0 (overnight) and 52dffed (morning). Then, all verified live: c0b321c (12:31), dd1d968 (Publish A, v6: #528 #530 #535 #521
+#533 #538), b7bc78d (#540 #537 #541 #542 #544 #546 #539 #548 #549; 33/33 local), 441eb38 (fallback, above). 544bcb4 and 2d614dc
+did not publish; neither did **9a53750 (Publish B, EXIT=1)**: rows 2, 11 and 12 failed on their solo retry. The cause was the
+#547 Centurion swap (`veteran.weapon` trident→gladius plus `carries: ['veteran.Shield']`): polearm-veteran expects `/Trident_/`,
+and the roster check counted 3 boot fetches against a limit of 2.
 
 ## Done 2026-09-22
 Eighteen deploys attempted, fifteen published and live-verified (release.json + served index.html `cmp` against dist + VPS
@@ -55,6 +59,15 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **A stacked chain merged through one combined PR leaves the sibling PRs OPEN.** GitHub only auto-closes a PR when its commits land
+  in the PR's own base; #545/#543/#547 were based on stack branches. The ancestry check (`git merge-base --is-ancestor <head>
+  <combined head>`) is the proof that they shipped, not GitHub's state.
+- **A roster or weapon swap in a sim PR breaks the per-opponent release rows** (polearm-veteran expects the trident; the roster
+  check caps boot fetches at hero + opponent). Before merging a swap, ask whether rows 2/9–12 were re-run solo on that tree.
+- **Stage the revert before the deadline.** For a fallback, `git worktree add` it OUTSIDE the deploy checkout (inside, it makes the
+  checkout dirty), symlink node_modules, and run tsc + record-version-guard there before the PR exists.
+- **Lint on scripts/ is not the gate:** `eslint src` is (quality:stop). `npx eslint scripts/*.mjs` gives no-undef for Node globals
+  even on trunk's own verify-daily.mjs; that is a config gap, not red.
 - **deploy.sh's 3000 s ceiling kills a full local run under load.** 2d614dc ran the whole quality suite plus 33 rows at load 60–100
   (other lanes' suites were running) and hit EXIT=124 mid-retry. The kill **releases the lock**, so every lane's Stop-hook gate
   starts at once and the box gets busier, not quieter. Prefer a CI-green trunk tip: with `quality` and `release-checks` green,
