@@ -145,6 +145,16 @@ ack yet:** Stats, Web, Executioner, World, Audio.
 **The deploy of `2d614dc` was still running at ~06:00Z** (614 log lines in, at the Dwarf's fairness battery, no failure). Every
 lane's gate waits on it.
 
+**Why everything is slow (Strategy measured it, ~06:15Z):** one saturated Mac. Load average 76-105 on 10 cores: 34 Chrome,
+238 node and 81 python processes, 17 Claude sessions plus the per-Stop audit-review sessions, and the Research Agent Bot project
+deploying on the same box. Every lane gate and every deploy row queue up on it. **Two orders, owed to the lanes (not yet sent;
+this session's cross-session sends were capped):**
+1. **Every lane:** run no `quality:stop` and no browser checks until you have a change to gate. While a deploy is in flight, run
+   `tsc` and the fast suite only.
+2. **Auditer, this week:** move the release-row matrix (and the lanes' browser gates) to the VPS, `root@49.12.7.18`: 16 cores,
+   load ~3 when last measured. That means Playwright installed there and `deploy.sh` dispatching rows over ssh. The one-deployer rule
+   stays; only the machine changes. **Cost estimate to Strategy before anyone builds.**
+
 **Review rule for every PR from here (Lead's, before Deploy merges):** a combined-tree receipt on any PR touching a file another
 open PR touches, row receipts, and a rejected-designs paragraph wherever a design choice was made.
 
