@@ -3,6 +3,28 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23 (night): PRIORITY 1 is textured carriers, the prerequisite for Phase R
+
+**Lead, relaying Dom's priority 1 (17:4x, via Strategy):** every one of the ten opponents wears and offers six takeable armour pieces
+plus its weapon, Recruit rag and scrap first (Phase R, live target 2026-09-24 14:00). **This lane is the prerequisite:** the seam
+weld (`char/plague-doctor-loot` @ `817828e`: `loot_dwarf.py --all/--slots`, plus the UV-seam weld before decimating) **plus
+TEXTURES** lands first, as its own PR against trunk, **by 09:00 2026-09-24**, so carriers stop reading as lumps or foil.
+**No quick-cut carriers.** PR body must include: a before/after still of one carrier in the same frame (re-cut `knight.Helmet`),
+tri counts, loot.glb gzip size, and the loot-layers result. Then **one PR per opponent**: the Nightborn (add Greaves → six) and the
+Plague Doctor (all six), on the welded pipeline. Report to Lead only. No bakes or tests while a deploy is in flight.
+
+**Prep, from reading `loot_dwarf.py` (not yet tested):**
+- The weld does NOT have to drop textures. `bmesh.ops.remove_doubles` merges vertices, but UVs are per-loop data in bmesh, so each
+  loop keeps its own UV. So weld on EVERY material path, not only Steel, and keep the piece on its own baked maps (the existing
+  non-Steel branch writes `<family>_iron_color.jpg` / `_orm.jpg`). Verify on the knight.Helmet re-cut that no UV islands smear.
+- The Decimate collapse can still stretch UVs across former seams. If it shows, set the modifier's delimit to UV/seam, or decimate less.
+- Budget: loot.glb cap is 2 MB gzip (`636ce4d`). The Knight's own maps at ratio .2 measured 1,697,905 against the old 1.5 MB cap
+  (`77ee5c1`). Ten opponents × six pieces won't fit at per-piece 768 maps. Plan one colour + ORM atlas per opponent at 512,
+  and measure with `node scripts/check-budget.mjs` after each opponent.
+- Selection: slots come from the dominant bone, so a coat skirt lands in Greaves (29,660 faces on the Plague Doctor). Per-character
+  piece mapping needs a z-band or explicit override, not bone alone. The metallic gate (`--metal`) suits iron only; `--all` + `--slots` suits cloth.
+- After any loot.glb change, `node scripts/loot-layers.mjs` re-renders ALL layers (the shared frame widens), so commit the whole set.
+
 ## Now — 2026-09-23 (evening): the Plague Doctor is a playable body on roster-v0
 
 **Now (next session picks up):**
