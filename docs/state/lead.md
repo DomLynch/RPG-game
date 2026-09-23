@@ -12,6 +12,11 @@ so the Auditer merges trunk in and it goes after B. #539 merged as `0a81d8c`; th
 **LIVE DEFECT (Web's loot-smoke-check on `dd1d968`):** knife offered PASS, tap-take + Undo PASS, **a guest's decline does NOT
 survive a refresh**: `src/profile.ts:18` keeps loot only on `loot.owned.length` (#535 fixed only the signed-in path). Web is
 splitting out a one-line fix PR, and **it rides Publish B**. The smoke script's own PR is still due by 16:00.
+**B MECHANICS (Deploy acked):** the Publish B run = **#552** (guest-loot fix, READY `3c33660`) then **Combat's re-pin PR as the SINGLE B merge**.
+It MERGES the exact heads #545 `c17004d` + #547 `28a0fd0` (#547 contains #543 `9858588` and #532 `ac5a090`). Deploy checks
+all four are ancestors (`git merge-base --is-ancestor`) and stops if any head moved. The four siblings are never merged one by one,
+and moves.ts is never hand-resolved (#545 and #543 both edit it). Pre-ruled: a new over-cap row vs the gladius Centurion gets signed
+KNOWN_UNFAIR ("fixed in bump 8") and does not stop B; only an identity-pin failure or a crash stops B. Send Deploy the re-pin PR number.
 
 ## Lead — 2026-09-23 13:35 local: HANDOFF (context restart). Read this block, then the one below.
 **Now (the next session picks up):**
