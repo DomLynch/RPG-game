@@ -204,6 +204,7 @@ if portrait:
         code = f'''
 import json, cv2, numpy as np
 tex = cv2.imread({tex_png!r}, cv2.IMREAD_UNCHANGED).astype(np.float32) / 255
+tex[:, :, :3] = tex[:, :, 2::-1].copy()  # BGR -> RGB, to match the portrait
 por = cv2.imread({portrait!r})[:, :, ::-1].astype(np.float32) / 255
 plm = json.load(open({portrait.rsplit('.', 1)[0] + '.landmarks.json'!r}))['points']
 H, W = tex.shape[:2]
@@ -217,6 +218,7 @@ gain = np.median(p, axis=0) / np.maximum(np.median(t, axis=0), 1e-3)
 gain = np.clip(gain, 0.5, 4.0)
 out = tex.copy()
 out[:, :, :3] = 1 - np.clip(1 - tex[:, :, :3] * gain[None, None, ::1], 0, 1)   # a plain gain, clipped: highlights are rare on a matte face
+out[:, :, :3] = out[:, :, 2::-1].copy()  # back to BGR for cv2
 cv2.imwrite({matched!r}, (np.clip(out, 0, 1) * 255).round().astype(np.uint8))
 print(json.dumps({{'gain': gain.tolist(), 'texture_skin': np.median(t, axis=0).tolist(), 'portrait_skin': np.median(p, axis=0).tolist()}}))
 '''
