@@ -14,8 +14,9 @@ export function loadProfile(storage: StoragePort, createId: () => string): { pro
       const encounter = isOpponentId(candidate) ? candidate : undefined;
       const marks = value.career?.victoryMarks;
       const career = Number.isSafeInteger(marks) && marks >= 0 ? { victoryMarks: marks } : undefined;
-      const loot = cleanLoot(value.loot);   // owned pieces and the worn set (src/loot.ts), kept only when there is something to keep
-      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(career ? { career } : {}), ...(loot.owned.length ? { loot } : {}) }, returning: true };
+      const loot = cleanLoot(value.loot);   // owned pieces, the worn set and refused offers (src/loot.ts), kept only when there is something to keep
+      // A guest who has only ever said Leave it has something to keep: `declined` alone must survive a refresh (loot-smoke-check (3)).
+      return { profile: { version: 1, id: value.id, name: cleanName(value.name), ...(encounter ? { encounter } : {}), ...(career ? { career } : {}), ...(loot.owned.length || loot.declined?.length ? { loot } : {}) }, returning: true };
     }
   } catch { /* Corrupt/unavailable storage must never prevent entering the arena. */ }
   return { profile: { version: 1, id: createId(), name: 'Wanderer' }, returning: false };

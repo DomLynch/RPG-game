@@ -57,3 +57,14 @@ test('legacy encounter migration preserves identity and never awards career mark
     assert.equal(result.encounter, 'executioner'); assert.equal(result.career, undefined);
   }
 });
+test('a guest whose only loot is a refused offer keeps it across a refresh', () => {
+  const kill = { opponent: 'goblin', attempt: 1, healthLeft: 122, recordId: null, day: '2026-09-23' };
+  let stored: string | null = JSON.stringify({ version: 1, id: 'guest-12345678', name: 'Aldren', loot: { owned: [], equipped: {}, declined: [kill] } });
+  const storage: StoragePort = { getItem: () => stored, setItem: (_, value) => { stored = value; } };
+  const loaded = loadProfile(storage, () => { throw new Error('must keep existing guest ID'); });
+  assert.deepEqual(loaded.profile.loot?.declined, [kill]);
+  assert.equal(saveProfile(storage, loaded.profile), true);
+  assert.deepEqual(loadProfile(storage, () => 'x').profile.loot?.declined, [kill], 'and it survives the save that follows the load');
+  const empty = loadProfile({ getItem: () => JSON.stringify({ version: 1, id: 'guest-12345678', name: 'A', loot: { owned: [], equipped: {} } }), setItem: () => {} }, () => 'x');
+  assert.equal(empty.profile.loot, undefined, 'nothing owned and nothing refused is still no loot');
+});
