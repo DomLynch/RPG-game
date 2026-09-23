@@ -9,7 +9,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Strategy | [docs/state/strategy.md](docs/state/strategy.md) | 1 | 2026-09-22 — restart from memory, Brief 13/14 status, loot v2 wielding, tier table, shield brief |
 | Lead | [docs/state/lead.md](docs/state/lead.md) | 20 | 2026-09-21 — Release check 9 (polearm-browser-check) became checks 9–12; everything after ren |
 | Combat | [docs/state/combat.md](docs/state/combat.md) | 34 | 2026-09-21 — Anti-turtling — combat half (sim rules + warden), 2026-09-21 |
-| Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 18 | 2026-09-22 — Estoc reach — re-measured and HELD: the estoc clears, the Nightborn breaks |
+| Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 25 | 2026-09-23 — Now: gladius first (Lead #517), #419 recreated off trunk, Maul_* at post-beta pace; lane lessons carried from #473 |
 | Character | [docs/state/character.md](docs/state/character.md) | 17 | 2026-09-21 — Loot export v1 — Brief 5, Scalable Chars lane, 2026-09-21 (Strategy's assignment on the owner's "take t |
 | Finishers & gore | [docs/state/finishers.md](docs/state/finishers.md) | 14 | 2026-09-21 — Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-li |
 | Visuals & world | [docs/state/world.md](docs/state/world.md) | 11 | 2026-09-20 — Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentati |

@@ -2,6 +2,19 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Phone audio pass on live 52dffed — 2026-09-23 (Lead's brief)
+
+Measured the publish that is live (`52dffed`, contains #511; served `sprite.ogg`/`.m4a` sha256 match git byte for byte) with
+`scripts/audio-preview.mjs`'s phone band (> 300 Hz high-pass), which had **no probe for either whip cue** — added `whipped` and
+`whip-raised`, coverage pin 17 → 19 ordinary. Findings, phone LUFS: **the whip tell was as loud as the lash** (whip-raised
+−29.2, whipped −29.1, blocked −30.4): gain .3 on a dense swell equals .85 on a sparse crack once every cue is normalised to
+−4 dBFS. Fixed to gain .1 → −37.6, 8.4 dB under the lash. Reported, not changed (owner mix calls): the kick lands at −41.4
+phone against a light hit's −34.7, and a guard break loses 6.8 dB between full band and phone band (−29.6 → −36.4), because
+both are mostly under 300 Hz. Hits sit 4.3 dB under blocks on the phone band, as the owner set in #433.
+Gotcha: **there is no `npm run lint`** — `npm run --silent lint | tail` exits 0 on the missing script. The lint is `eslint src`
+inside `npm run quality:stop`; run that. My #511 "lint clean" was that hollow receipt; `eslint src` passes on the tree that
+contains it.
+
 ## Lane state — 2026-09-23 (the whip split wired; the two non-CC0 clips re-sourced)
 
 ### Now

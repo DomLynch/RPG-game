@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanName, type Profile } from './profile.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
-import { cleanLoot, emptyLoot, type Loot } from './loot.ts';
+import { cleanLoot, emptyLoot, mergeLoot, type Loot } from './loot.ts';
+import { marksOf } from './career.ts';
 
 export type CloudProfile = { display_name: string; encounter: OpponentId | null; revision: number; victory_marks: number; loot: Loot };
 const columns = 'display_name,encounter,revision,victory_marks,loot';
@@ -26,6 +27,15 @@ export function profileDiffers(profile: Profile, cloud: CloudProfile): boolean {
   const mine = fighterDetails(profile), loot = cleanLoot(mine.loot), theirs = cleanLoot(cloud.loot);   // both sides cleaned: unknown ids never count as a change
   return mine.display_name !== cloud.display_name || mine.encounter !== cloud.encounter || mine.victory_marks > cloud.victory_marks
     || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.taken) !== canon(theirs.taken);
+}
+// What the device may never take from the account by writing over it: the higher mark count and every piece of loot on either
+// side. Every refresh and every write absorbs these first (audit 2026-09-23: an older device's ordinary refresh differed on a name
+// and wrote 10 marks over the account's 20, then said "saved"). Name, opponent, the equipped set and provenance stay the device's.
+// (The sign-in merge in account.ts is the one place the account's equipped set comes down to a device; mergeLoot does that.)
+export function absorbCloud(profile: Profile, cloud: CloudProfile): Profile {
+  const victoryMarks = Math.max(marksOf(profile), cloud.victory_marks);
+  const loot = { ...mergeLoot(profile.loot, cloud.loot), equipped: profile.loot?.equipped ?? {} };
+  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(loot.owned.length ? { loot } : {}) };
 }
 // One cloud write at a time. A save asked for while one is in flight does not start a second write against the same revision (that
 // is a guaranteed conflict); it marks the queue and, once the current write lands, the LATEST device profile is written once more.
