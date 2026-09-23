@@ -476,6 +476,12 @@ if (fighter === 'shieldmaiden' || LOOT) {
     const legWrap = ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .88], azimuths: 14, gap: .005 });
     add(legWrap.geometry, wrap, `calf_${side}`);
   }
+  // The Witch's Greaves (Strategy, 2026-09-23): a PLACEHOLDER copy of these wraps under witch.Greaves until her authored leggings
+  // replace it (her scan's ragged cloth will not reduce to a clean shell). Same fit, same material; her dark retint is Phase L.
+  if (LOOT) {
+    lootOf = 'witch';
+    for (const side of ['l', 'r']) add(ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .88], azimuths: 14, gap: .005 }).geometry, wrap, `calf_${side}`);
+  }
   if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
 // Gloves (brief 14, 2026-09-22): the one slot NO opponent wears today, so it is a single SHARED piece rather than six — the first

@@ -323,5 +323,57 @@
    "layer": "over",
    "shared": "kit.Gloves"
   }
+ ],
+ "witch": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "loot/witch.glb",
+   "slots": [
+    "Helmet"
+   ]
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "parts/level1_shieldmaiden.glb",
+   "names": [
+    "tunic",
+    "baldric",
+    "belt",
+    "buckle",
+    "studs"
+   ],
+   "conform": true
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "loot/witch.glb",
+   "slots": [
+    "Arms"
+   ]
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "file": "loot/witch.glb",
+   "slots": [
+    "Gloves"
+   ]
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "@build:witch-leg-wraps"
+  },
+  {
+   "slot": "Boots",
+   "layer": "over",
+   "file": "loot/witch.glb",
+   "slots": [
+    "Boots"
+   ]
+  }
  ]
 }
