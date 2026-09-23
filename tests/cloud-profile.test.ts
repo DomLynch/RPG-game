@@ -80,3 +80,21 @@ test('an older device never lowers the account: what it writes carries the highe
   assert.deepEqual(absorbCloud(fresh, empty), fresh);
   assert.equal(absorbCloud(fresh, cloud).career?.victoryMarks, 20, 'a fresh device takes the account\'s marks');
 });
+
+test('a refresh keeps the declined-loot history on both sides (merged, deduplicated, capped oldest-first)', async () => {
+  const { DECLINED_KEPT } = await import('../src/loot.ts');
+  const kill = (attempt: number, day: string) => ({ opponent: 'goblin' as const, attempt, healthLeft: 40, recordId: null, day });
+  const cloud: CloudProfile = { display_name: 'Aldren', encounter: 'goblin', revision: 3, victory_marks: 5, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(1, '2026-09-20')] } };
+  const device: Profile = { version: 1, id: 'd', name: 'Aldren', encounter: 'goblin', career: { victoryMarks: 5 }, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(1, '2026-09-20'), kill(2, '2026-09-23')] } };
+  assert.equal(profileDiffers(device, cloud), true, 'a refused offer the cloud lacks is a change to save');
+  const absorbed = absorbCloud(device, cloud);
+  assert.deepEqual(absorbed.loot!.declined, [kill(1, '2026-09-20'), kill(2, '2026-09-23')], 'the union, the shared kill once');
+  assert.equal(profileDiffers(absorbed, { ...cloud, loot: absorbed.loot! }), false, 'once written, nothing further to send');
+  // The reported defect: the cloud holds history the device never saw; the refresh must not drop it.
+  const bare: Profile = { ...device, loot: { owned: ['veteran.Helmet'], equipped: {} } };
+  assert.deepEqual(absorbCloud(bare, cloud).loot!.declined, [kill(1, '2026-09-20')]);
+  // Capped: the newest DECLINED_KEPT survive whichever side holds them.
+  const old = Array.from({ length: DECLINED_KEPT }, (_, i) => kill(i + 10, '2026-09-01'));
+  const merged = absorbCloud({ ...device, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(99, '2026-09-23')] } }, { ...cloud, loot: { ...cloud.loot, declined: old } }).loot!.declined!;
+  assert.equal(merged.length, DECLINED_KEPT); assert.equal(merged.at(-1)!.attempt, 99, 'the device\'s newest kill is kept, the cloud\'s oldest dropped');
+});

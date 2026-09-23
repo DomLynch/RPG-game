@@ -76,7 +76,7 @@ export async function mountAccount(url: string, key: string) {
         profile.name = saved.display_name; profile.encounter = saved.encounter ?? undefined;
         const victoryMarks = Math.max(marksOf(profile), saved.victory_marks);
         if (victoryMarks) profile.career = { victoryMarks };
-        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length) profile.loot = loot;   // loot: the union of both, nothing lost
+        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined) profile.loot = loot;   // loot: the union of both, nothing lost
         if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
         if (differs(profile, saved) && !(await sync(profile, turn))) return;
         const target = new URL(location.href); target.searchParams.delete('opponent');
