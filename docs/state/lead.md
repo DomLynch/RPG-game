@@ -2,7 +2,7 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Lead — 2026-09-23 14:05 local: ACCELERATED — Publish B now (read this first)
+## Lead — 2026-09-23 14:05–15:30 local: Publish B FAILED -> fallback revert + B' (swap held) -> equip loader tomorrow (read ALL of this first; later lines supersede earlier ones)
 **Dom 14:00 "accelerate" (Strategy ruled):** Publish B = #532 -> #545 -> #543 -> #547 -> **Combat's re-pin PR** (bump to 7, re-pin,
 SIM_FILES closure + test, knife/scythe rebake, gladius offered, #547's 12 re-signs), built on the COMBINED tree of #545 + #547 and
 **NOT #550**. The re-pin PR is asked for by ~14:50; the target is B live by 15:30. **#550 (Executioner anticipate + cleaver) = its own bump
