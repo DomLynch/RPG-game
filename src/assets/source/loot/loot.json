@@ -469,7 +469,10 @@
    "file": "loot/knight.glb",
    "slots": [
     "Gloves"
-   ]
+   ],
+   "conform": {
+    "maxPush": 0.02
+   }
   },
   {
    "slot": "Greaves",
@@ -486,7 +489,10 @@
    "file": "loot/knight.glb",
    "slots": [
     "Boots"
-   ]
+   ],
+   "conform": {
+    "maxPush": 0.02
+   }
   }
  ]
 }
