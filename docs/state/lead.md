@@ -75,6 +75,24 @@ not a longer timeout.
   Head `8e07865`, 2 files +75/-2. Gate 496 / 494 / 0 fail / 2 skipped, `gear-stats.test.ts` 20/20. Stats caught and fixed its
   own broken conflict resolution (TS1005). NOT READY until `quality` runs against trunk in CI.
 
+### WINDOW 1 STATUS, ~07:15Z — the knife is READY, but THE WINDOW CANNOT CLOSE
+**#530 = knife, READY, HELD for Window 1.** Head `35d4686`, base `stats/record-accept-list-v2` (#528). All run on this head:
+`record-version-guard` 2/2 (SIM_DIGEST `5eaa075a…` over the combined tree, guard-verified; `RECORD_VERSION` 6,
+`READABLE_VERSIONS` `[6]`), `record-replay --write` + verify PASS (fixtures identical), quality:stop 494 / 492 / 0 fail / 2 skipped,
+`test:slow` 97/97 (only the stalemate row `knife vs goblin hard: kick only untouched` leaves; Goblin identity pin intact; no
+non-knife row moved), and `knife` is in `PLAYER_WEAPONS_OFFERED`. #515 is closed as superseded. **Deploy order: #528 first, then
+retarget #530 to trunk.** Combat restarts fresh for item 2 (Nightborn profile + estoc flip on Weapons' re-opened #419).
+**WINDOW 1 MEMBERS and state:**
+- knife #530: READY
+- Stats PR B (loadout tail + v6 fixture rewrite): not opened
+- **retired-replay page (Web): NOT BRIEFED; the send is blocked by the cap**
+- Nightborn/estoc + flip: Combat item 2, waits on #419
+- Executioner/cleaver (`anticipate`): Combat item 3
+- Centurion roster line: Veteran, stacked on Weapons' gladius (not opened) plus the `wear()` loader fix
+**The retired-replay page is the hard blocker.** The bump kills every v5 kill link. Without that page, every old shared link lands on
+a refused/blank fight the moment Window 1 publishes. **Deploy must NOT publish Window 1 until the retired-replay page is merged in
+it.** Brief Web on it first.
+
 ### Audio, ~07:10Z — phone pass on live `52dffed`: #529 READY (non-sim)
 The served `sprite.ogg` and `sprite.m4a` sha256 match git, so the measurements are of the shipped audio. #529 (head `5aa788b`)
 lowers the whip TELL (gain .3 -> .1) so it sits 8.4 dB under the lash on the phone band. The two had read equally loud (-29.2 vs
