@@ -17,6 +17,7 @@ from collections import defaultdict, deque
 
 import bmesh
 import bpy
+from mathutils import Vector
 import numpy as np
 
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
@@ -45,6 +46,9 @@ OUT_NAME = args[args.index('--out') + 1] if '--out' in args else FAMILY
 # --band Helmet:1.2:9 (repeatable): keep a slot's faces only where the face centre's rest-space height (Blender Z, metres) is in [lo, hi];
 # bone-slotting alone can hand a slot the wrong region (a "Helmet" that is the face and beard, a Body that eats the arms).
 BANDS = {b.split(':')[0]: tuple(map(float, b.split(':')[1:3])) for i, b in enumerate(args) if i and args[i - 1] == '--band'}
+# --shift Boots:0:0:-0.05 (repeatable): move a slot's piece in his rest space (Blender X/Y/Z, metres) before export. The dwarf's per-bone
+# unscale lands his boots 5.5 cm above the player's sole (measured against warrior.glb's foot-weighted skin, 2026-09-23); this is that fit.
+SHIFTS = {b.split(':')[0]: tuple(map(float, b.split(':')[1:4])) for i, b in enumerate(args) if i and args[i - 1] == '--shift'}
 SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
 OUT = 'src/assets/source/loot'
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
@@ -260,6 +264,8 @@ for s, face_ids in sorted(pieces.items()):
         if len(island) < MIN_FACES:
             loose += island
     bmesh.ops.delete(bm, geom=loose, context='FACES')
+    for v in bm.verts if s in SHIFTS else ():
+        v.co += Vector(SHIFTS[s])
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
