@@ -8,7 +8,7 @@ const palettes = {
   veteran: { heraldry: '#3f2e22', items: 'helmet_bronze' },
   pitborn: { steel: { color: '#2f2b28', metalness: 0.85, roughness: 0.78 }, heraldry: '#4d463c' },
   nightborn: { steel: { color: '#3b3b3f', metalness: 0.7, roughness: 0.72 }, leather: '#2b2320', heraldry: '#17151a' },
-  goblin: { steel: { color: '#4a3a2c', metalness: 0.6, roughness: 0.9 }, heraldry: '#3a3229' },
+  goblin: { steel: { color: '#4a3a2c', metalness: 0.6, roughness: 0.9 }, heraldry: '#3a3229', items: 'helmet_scrap' },
   // Blackened mask and greaves retain their matte scalar finish over authored maps.
   // The Shieldmaiden (reference A): dark iron plates and mail, dark brown leather, charcoal wool.
   shieldmaiden: { steel: { color: '#55585b', metalness: 0.85, roughness: 0.62 }, leather: '#3d2b1f', heraldry: '#2c2e33' },

@@ -44,13 +44,14 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
   // His Body is the rag sash and belt worn `over` the player's tunic: a sash covers 26 % of a tunic, so as a `replace` it would undress him (#434, tests/loot.test.ts).
   pitborn: ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves', 'pitborn.Cleaver'],
-  // His Body is the war-girdle and his Arms the vambraces: loot_dwarf.py --all --band re-cut (loot/dwarf_upper.glb). No Helmet: above the
-  // collar his surface is bare scalp, face and beard, not a helmet, so there is nothing to take.
+  // His Body is the war-girdle and his Arms the vambraces: loot_dwarf.py --all --band re-cut (loot/dwarf_upper.glb). His Helmet is an
+  // authored helm over the scalp (Character Main, char/dwarf-helm), listed first when it lands.
   dwarf: ['dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],
-  goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
+  goblin: ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves', 'goblin.Knife'],   // Phase R: the scrap cap, iron shin plates and rag foot bindings
   knight: ['knight.Maul'],   // his Helmet and Body (the Recruit-2 carriers) come post-beta: a .12 cut on untextured Steel read as shards (UV-seam split)
-  shieldmaiden: ['shieldmaiden.Gladius'],   // her armour joins when Scalable Chars cuts her loot.glb draws; the weapon is an equip file, not a draw
-  plaguedoctor: ['plaguedoctor.Longsword'],   // Strategy 2026-09-23: every rung offers its weapon, the longsword included (player/longsword.glb is the hero's own SwordDrawn)
+  shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A); the gladius is an equip file, not a draw
+  // The Plague Doctor's six (Phase R): cut from his TRELLIS surface on his own baked maps, welded, ratio .5 (PR #590's recipe): loot_dwarf.py --family plaguedoctor --all --boots --slots Helmet,Body,Arms,Gloves,Greaves,Boots --ratio .5 --material PlaguedoctorCloth --color-size 512 --repose warrior. Greaves carries his coat skirt with the legs (bone-dominant).
+  plaguedoctor: ['plaguedoctor.Helmet', 'plaguedoctor.Body', 'plaguedoctor.Arms', 'plaguedoctor.Gloves', 'plaguedoctor.Greaves', 'plaguedoctor.Boots', 'plaguedoctor.Longsword'],   // Strategy 2026-09-23: every rung offers its weapon, the longsword included (player/longsword.glb is the hero's own SwordDrawn)
   witch: ['witch.Trident'],   // her Helmet (the hood) and Body (the robe) join when their loot.glb draws are cut (Brief 16's six slots)
 };
 // The rung each piece is first worn from (the kit floor; server awards read it through src/awards.ts kitAt). Data, not a parameter:
