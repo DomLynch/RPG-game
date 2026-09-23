@@ -82,8 +82,8 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
     motes: '#c8b080', plain: '#7a6a50', gateLight: 0.3, drape: true,
   },
 };
-// The owner's pick per arena (A until he chooses; one line each).
-export const ARENA_PICK: Record<1 | 2 | 3, ArenaKey> = { 1: '1', 2: '2a', 3: '3a' };
+// The owner's pick per arena (one line each): 2A and 3B, Dom's lean via Lead 2026-09-23.
+export const ARENA_PICK: Record<1 | 2 | 3, ArenaKey> = { 1: '1', 2: '2a', 3: '3b' };
 // THE ROTATION SEAM: an opponent → an arena. The ladder band decides (rungs 1–3 Arena 1, 4–7 Arena 2, 8–10 Arena 3). Per-fight
 // random would be this one line: `return ARENA_THEMES[ARENA_PICK[(1 + Math.floor(Math.random() * 3)) as 1 | 2 | 3]]`.
 // Next reloads the page (main.ts), so a band change swaps the arena inside the same load that fetches the next rig: never mid-fight,

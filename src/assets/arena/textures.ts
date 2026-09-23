@@ -254,9 +254,18 @@ export function floorOverlay(p: Pixels, _kind: 'clay', seed: number): Pixels {
 // Frost and moss lie in patches metres across, so they cannot live in the 3 m sand tile (they visibly repeated, Lead 2026-09-23).
 // This mask spans the whole pit once (PATCH_SPAN metres, world x/z; arena.ts samples it in the floor shader): RGB is a LINEAR
 // multiplier over the floor colour, halved to fit a byte (0.5 = no change), A is how much of it lies there. The sand's grain survives.
+// Clay and flags get the same mask as a broad tone mottle (damp and sun-bleached ground, worn and grimed stone) centred on no change,
+// so their 3 m tile stops reading as a grid from the fighting camera.
 export const PATCH_SPAN = 26;
-export function patchPixels(size: number, kind: 'frost' | 'moss', seed: number): Pixels {
+export function patchPixels(size: number, kind: 'frost' | 'moss' | 'clay' | 'flag', seed: number): Pixels {
   const field = fbm(6, 5, seed + 111), speck = fbm(40, 2, seed + 113, 0.6);
+  if (kind === 'clay' || kind === 'flag') {
+    const tone: [number, number, number] = kind === 'clay' ? [0.26, 0.3, 0.34] : [0.2, 0.21, 0.24];
+    return pixels(size, size, (u, v) => {
+      const t = Math.max(-1, Math.min(1, (field(u, v) - 0.5) * 3 + (speck(u, v) - 0.5) * 0.4));
+      return [(1 + t * tone[0]) * 127.5, (1 + t * tone[1]) * 127.5, (1 + t * tone[2]) * 127.5, 255];
+    });
+  }
   const [r, g, b] = kind === 'frost' ? [1.9, 2.0, 2.3] : [0.42, 0.72, 0.3];
   return pixels(size, size, (u, v) => {
     const m = field(u, v), f = kind === 'frost' ? Math.min(1, Math.max(0, (m - 0.52) * 12)) * (speck(u, v) > 0.42 ? 1 : 0.55) : Math.min(1, Math.max(0, (0.5 - m) * 7)) * (0.7 + 0.3 * speck(u, v));
