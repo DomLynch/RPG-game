@@ -7,15 +7,21 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-23 night (handover)
 
-**Tomorrow's assignment (Lead, Dom's priority 1 via Strategy): six takeable armour pieces + the weapon per opponent**
-(head, chest, arms, hands, legs, feet; SCOPE.md), Recruit rag & scrap first, LIVE target 2026-09-24 14:00. This lane owns:
-- **The Pitborn**: has Arms + Gloves; add Helmet, Body, Greaves, Boots. His Body narrows #434's no-chest precedent, so it
-  must not undress the player (tests/loot.test.ts coverage floor).
-- **The Shieldmaiden**: all six (Helmet = open iron-banded cap behind the braids, Body = hauberk + gambeson + belt,
-  Arms = the squared shoulder plates, Gloves = shared `~kit.Gloves`, Greaves = leg wraps, Boots) + her gladius piece
-  (take her off `NO_LOOT_YET` in tests/loot-data.test.ts in that PR).
-- **Build on Nightborn's welded loot pipeline once that PR lands (~09:00), not before.** One PR per opponent. Each PR body:
-  the six pieces, tri counts, loot.glb size, a same-frame phone still of the opponent WEARING them, loot-layers green.
+**Phase R (six takeable armour pieces + weapon per opponent) was pulled forward to TONIGHT and is done for this lane.**
+- **The Pitborn, #591**: MERGED into `phase-r` (run 1). Helmet (iron skullcap, replace), Body (rag sash + belt as `over`: it
+  covers 26 % of the player's tunic, so it never undresses him; #434's floor applies to `replace` only), Arms (bone
+  plates), Gloves (`~kit`), Greaves (shin wraps + scrap plate), Boots (foot wraps), cleaver. loot.glb +84.5 KB gzip.
+- **The Shieldmaiden, #595**: OPEN, head `4b5a8a80`, for the next back-to-back run. Helmet (open banded cap behind the
+  braids), Body (her tunic kit + mail skirt to mid-thigh, skirt filed under Body), Arms (shoulder plates), Gloves,
+  Greaves (leg wraps), Boots; gladius from Weapons' #586. Toe fix done (boot tip extended up to 9.6 cm for the player's
+  toes; the toe shape now shows in the leather). loot.glb +264.6 KB gzip. Loot tests 25/25 + tsc at `03029113`; the last
+  merge (#598, two CSS lines) has no re-run because a deploy lock blocked it.
+- Both are parts-pipeline fighters: Nightborn's TRELLIS weld does not apply; pieces are ray-fitted by the new
+  `scripts/loot-fit.mjs`. Both `pitborn.glb` and `shieldmaiden.glb` were rebuilt so the opponents WEAR their six (the
+  held Minotaur/Werewolf bakes on the Pitborn base go stale). Material is the base palette: **material at Phase L**.
+- Known, listed in #595: her cap reads as a band at fight distance; her boots are mid-calf, not the reference's low
+  pair; the Pitborn's shin plates sit slightly outboard. Stills (untracked): `artifacts/phase-r/*-wearing.png`.
+- **Next for this lane, in order:** whatever Phase L asks of these two sets (materials); then the jaw band below.
 
 **Open tonight, not pushed: the Shieldmaiden's dark chin/jaw band.** Visible at close range, reads as a beard. The fix
 goes as a PR against trunk (a visual glb change, no sim files) with a same-frame before/after still for Lead. The work is
