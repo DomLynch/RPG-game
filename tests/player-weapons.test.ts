@@ -50,7 +50,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // with a Goblin who stands somewhere else.
   const v5 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v5[2] = 5;
   assert.throws(() => unpackRecord(v5), /version 5 is not supported/);
-  assert.equal(RECORD_VERSION, 6);
+  // A version-6 stream joins them (2026-09-23, Publish B): the Centurion's gladius, the estoc's reach and the Nightborn's profile change the fight.
+  const v6 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v6[2] = 6;
+  assert.throws(() => unpackRecord(v6), /version 6 is not supported/);
+  assert.equal(RECORD_VERSION, 7);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });

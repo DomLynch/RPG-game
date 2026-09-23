@@ -15,10 +15,11 @@ const duel = (gap: number, weapon: Weapon['id'] = 'longsword', rig: RigId = 'her
 // Steps n ticks and returns the final duel with every tick's events gathered (stepDuel only carries the current tick's).
 const run = (d: Duel, n: number, a = idle(), b = idle()) => { const events: Duel['events'] = []; for (let i = 0; i < n; i++) { d = stepDuel(d, [a, b]); events.push(...d.events); } return { ...d, events }; };
 
-test('the live duel: the player carries the longsword and the Veteran the trident (slice V); the trident is its own table, guard and stance', () => {
+test('the live duel: the player carries the longsword and the Veteran the gladius (the Centurion, #547; the sword family\'s guard); the trident, still a player weapon, is its own table, guard and stance', () => {
   const d = initialDuel();
-  assert.deepEqual(d.fighters.map(f => f.weapon), ['longsword', 'trident']);
-  assert.equal(d.fighters[0].guardProfile, undefined, 'the sword guard is the RULES default'); assert.deepEqual(d.fighters[1].guardProfile, { costScale: 1.15, heavyBreaks: true }, 'the shaft guard comes from the weapon');
+  assert.deepEqual(d.fighters.map(f => f.weapon), ['longsword', 'gladius']);
+  assert.equal(d.fighters[0].guardProfile, undefined, 'the sword guard is the RULES default'); assert.equal(d.fighters[1].guardProfile, undefined, 'the gladius is the sword family: the RULES default guard');
+  assert.deepEqual(WEAPONS.trident.guardProfile, { costScale: 1.15, heavyBreaks: true }, 'the shaft guard comes from the weapon');
   assert.deepEqual([LONGSWORD.fight, WEAPONS.trident.fight], [{ thrustShare: .2, close: 1.15 }, { thrustShare: .6, close: 1.4 }]);
   assert.equal(WEAPONS.trident.moves.thrust.minReach, 1); assert.equal(MOVES.thrust.minReach, undefined, 'a sword stabs at any range');
   assert.equal(weaponOf('longsword').moves, MOVES); assert.equal(weaponOf('longsword').paths, PATHS); assert.equal(LONGSWORD.reach, MOVES.thrust.reach);
