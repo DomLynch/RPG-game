@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { WEAPONS } from '../src/moves.ts';
 
 const weapon = process.argv[2];
-if (!weapon || !Object.hasOwn(WEAPONS, weapon) || weapon === 'longsword') throw new Error(`usage: build-player-weapon.mjs <${Object.keys(WEAPONS).filter(w => w !== 'longsword').join('|')}>`);
+if (!weapon || !Object.hasOwn(WEAPONS, weapon)) throw new Error(`usage: build-player-weapon.mjs <${Object.keys(WEAPONS).join('|')}>`);
 const fromFlag = process.argv.indexOf('--from');
 let rigPath = fromFlag > 0 ? process.argv[fromFlag + 1] : null;
 if (!rigPath) {
@@ -47,6 +47,9 @@ const animations = doc.animations.filter(a => {
 });
 if (family && !animations.some(a => a.name.startsWith(family))) throw new Error(`${rigPath} has no ${family}* clips`);
 
+// The longsword (a takeable piece since Strategy's 2026-09-23 ruling: the Plague Doctor's) is the hero's own sword, drawn as SwordDrawn
+// in warrior.glb; its equip file carries that node under the contract's name, so every weapon piece loads the same way.
+if (weapon === 'longsword') { const sword = doc.nodes.find(n => n.name === 'SwordDrawn'); if (!sword) throw new Error(`${rigPath} has no SwordDrawn node`); sword.name = 'WeaponDrawn'; }
 const drawn = doc.nodes.findIndex(n => n.name === 'WeaponDrawn');
 if (drawn < 0) throw new Error(`${rigPath} has no WeaponDrawn node`);
 const parentOf = new Map(); doc.nodes.forEach((n, i) => (n.children || []).forEach(c => parentOf.set(c, i)));
