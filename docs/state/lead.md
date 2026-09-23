@@ -103,6 +103,19 @@ Stats leans toward putting the rung in the record once PR B lands, so a wrong ru
 Until then the tier stays client data, flagged as such. **Making marks authoritative changes what `victory_marks` means, which is a
 ranking question, so it goes to STRATEGY to rule.** #514 was closed and reopened to trigger `quality`; READY follows when green.
 
+### RULED (Lead, format/sequencing), ~07:25Z: PR B binds the ACCOUNT into the record, as an OPAQUE token
+**Backend found it:** fight records carry no account binding (`src/record.ts` has no user field), and `fight_records` are public by
+id. Once loot is server-authoritative, **B can fetch A's shared kill and claim A's loot.** Backend's interim guard: a global unique
+on the record hash, with the client posting its claim BEFORE it offers Share (first claimer wins).
+**Ruling: the real fix goes in PR B, in Window 1.** PR B already defines the v6 byte layout, and a binding added later means a bump
+to 7 and a second wave of dead links, where adding it now costs nothing. **Condition: an OPAQUE per-account token, never the raw
+auth user id.** Share links are public, so a raw id would expose which account fought every shared fight. The server must be able to
+check the token against the claiming account; nobody else can read it. Stats and Backend settle the exact form (for example an HMAC
+of the user id under a server secret, or a stored per-account random id). PR B's body states the privacy reason.
+**Ticket, not a blocker:** the same hole exists today in `daily_results` (B can post A's daily record under B's name). Backend to
+open it.
+**Still Strategy's:** server-side `victory_marks` (Backend recommended option (a)). The D3 migration is held on that ruling.
+
 ### Audio, ~07:10Z — phone pass on live `52dffed`: #529 READY (non-sim)
 The served `sprite.ogg` and `sprite.m4a` sha256 match git, so the measurements are of the shipped audio. #529 (head `5aa788b`)
 lowers the whip TELL (gain .3 -> .1) so it sits 8.4 dB under the lash on the phone band. The two had read equally loud (-29.2 vs
