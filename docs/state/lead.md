@@ -115,8 +115,12 @@ waits on the deploy for its guard, replay and battery), Weapons (#473 carried fo
 #419 later, without its own bump), Multi Chars (Greaves + `WORN_FROM` + stable drop index, in a fresh session). **Queued, no
 ack yet:** Stats, Web, Executioner, World, Audio.
 **NOT SENT, owed by Lead** (the app capped this session's cross-session sends until Dom writes here):
-- **Auditer** (`local_866b9640-bb94-4aa0-b8fc-df2bfc00e271`): re-open #505 off trunk as a NEW PR, with a combined-tree receipt and
-  a finisher-preview equivalence against the new trunk.
+- ~~Auditer~~ **DONE without my send: #522** (`quality/match-session-2` @ `a909fc8` on `2d614dc`). #505 closed with a pointer,
+  no force-push. The #506 conflict was resolved by hand: `pendingLoot` stays page timing state, reset in the one `began()`. The
+  move-only check is clean. **One failing test, stated:** the deploy-ceiling timing test ("a check that never exits is killed at
+  the ceiling", 11.1 s) failed while a deploy shared the box. It is a timing test run under load, but it stays OPEN until the
+  solo rerun passes. Still owed on the window: that rerun, `account-browser-check`, and finisher-preview equivalence against
+  `2d614dc`. Do not merge #522 before all three are on the PR.
 - **Veteran** (`local_e360b41f-203f-43f3-bc1b-e9c75ae11da9`): the Centurion carries gladius + scutum at every rung for beta. The
   scutum carry pose goes in `characters.ts` once, stacked on Weapons' gladius PR. The roster weapon line is in Window 1. Cost by noon.
 - **Combat:** "once" means one BUMP per window, not one PR. The knife takes 6, and each later PR (estoc, cleaver, shield) re-pins
