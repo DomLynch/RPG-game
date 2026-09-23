@@ -50,7 +50,7 @@ const firstLayer = (distances, layer) => { if (!distances.length) return null; l
 // A tube of rings from `a` to `b` (rest-space points). `stations`: fractions along a→b (may run past either end); `scale(t)` flares a ring
 // (default 1: the fitted radius). `cap`: close the far end with a fan to the axis point the ray along the axis finds.
 // Returns an indexed BufferGeometry with position/normal/uv, wound outward, and the fitted rings for logging.
-export function ringHull(grid, a, b, { stations, azimuths = 16, gap = .004, layer = .03, far = .25, cap = false, scale = () => 1, up } = {}) {
+export function ringHull(grid, a, b, { stations, azimuths = 16, gap = .004, layer = .03, far = .25, cap = false, scale = () => 1, up, pick = 'first' } = {}) {
   const axis = b.clone().sub(a), span = axis.length(); axis.normalize();
   const ref = up ?? (Math.abs(axis.y) > .9 ? new T.Vector3(0, 0, 1) : new T.Vector3(0, 1, 0));
   const u = new T.Vector3().crossVectors(ref, axis).normalize(), v = new T.Vector3().crossVectors(axis, u).normalize();
@@ -59,7 +59,8 @@ export function ringHull(grid, a, b, { stations, azimuths = 16, gap = .004, laye
     const origin = a.clone().addScaledVector(axis, t * span), radii = [];
     for (let k = 0; k < azimuths; k++) {
       const ang = k / azimuths * Math.PI * 2, out = u.clone().multiplyScalar(Math.cos(ang)).addScaledVector(v, Math.sin(ang));
-      radii.push(firstLayer(grid.hits(origin, out, far), layer));
+      const d = grid.hits(origin, out, far);   // 'outer': the last surface within `far` (a skirt round both thighs, whose axis runs between them)
+      radii.push(pick === 'outer' ? (d.length ? d.at(-1) : null) : firstLayer(d, layer));
     }
     const found = radii.filter(r => r !== null).sort((x, y) => x - y);
     if (!found.length) throw new Error(`ringHull: nothing around the axis at station ${t}`);
@@ -89,7 +90,7 @@ export function ringHull(grid, a, b, { stations, azimuths = 16, gap = .004, laye
 
 // Push every vertex of `g` (rest space, any indexing) out along its position-shared normal until it clears the wearer's first layer by
 // `gap`. `reach`: how far inside a vertex may start and still be pulled out. Returns the count moved and the largest push, in metres.
-export function conformOver(grid, g, { gap = .006, reach = .06, maxPush = .05 } = {}) {
+export function conformOver(grid, g, { gap = .006, reach = .06, beyond = .02, maxPush = .05 } = {}) {
   const p = g.getAttribute('position'), key = k => `${p.getX(k).toFixed(5)},${p.getY(k).toFixed(5)},${p.getZ(k).toFixed(5)}`;
   const shared = g.index ? g.toNonIndexed() : g;
   // Area-weighted normals summed per position, so seam duplicates move together and a piece never tears along a UV seam.
@@ -104,8 +105,9 @@ export function conformOver(grid, g, { gap = .006, reach = .06, maxPush = .05 } 
     const id = key(k);
     if (!moved.has(id)) {
       const n = (normals.get(id) ?? new T.Vector3(0, 1, 0)).clone().normalize(), at = new T.Vector3().fromBufferAttribute(p, k);
-      // From `reach` inside along the normal: the wearer's surfaces the vertex has to clear are the ones at or beyond it, up to a hand-width.
-      const out = grid.hits(at.clone().addScaledVector(n, -reach), n, reach + .02).map(d => d - reach).filter(s => s > -reach && s < .02);
+      // From `reach` inside along the normal: the wearer's surfaces the vertex has to clear are the ones at or beyond it, up to `beyond`
+      // past it (2 cm by default; a boot cut for a smaller foot looks further, for the toes past its tip).
+      const out = grid.hits(at.clone().addScaledVector(n, -reach), n, reach + beyond).map(d => d - reach).filter(s => s > -reach && s < beyond);
       const need = out.length ? Math.max(...out) + gap : -Infinity;
       moved.set(id, need > 0 ? n.multiplyScalar(Math.min(need, maxPush)) : null);
       if (need > 0) { count++; most = Math.max(most, Math.min(need, maxPush)); }

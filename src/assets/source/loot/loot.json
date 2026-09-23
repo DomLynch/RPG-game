@@ -270,5 +270,58 @@
    "layer": "over",
    "shared": "kit.Gloves"
   }
+ ],
+ "shieldmaiden": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "@build:shieldmaiden-cap"
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "parts/level1_shieldmaiden.glb",
+   "names": [
+    "tunic",
+    "baldric",
+    "belt",
+    "buckle",
+    "studs"
+   ],
+   "conform": true
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "@build:shieldmaiden-mail-skirt"
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "@build:shieldmaiden-plates"
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "@build:shieldmaiden-leg-wraps"
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "parts/level1_shieldmaiden.glb",
+   "names": [
+    "boot_l",
+    "boot_r"
+   ],
+   "conform": {
+    "beyond": 0.09,
+    "maxPush": 0.1
+   }
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  }
  ]
 }
