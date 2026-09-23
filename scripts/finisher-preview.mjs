@@ -47,7 +47,7 @@ window.__step = 'ready';
 // A real kill: light to draw, walk in, paced plain heavy overheads (the pacing lets posture drain so the killing blow stays a
 // plain heavy_overhead — the warden is passive, both sides stepped through the real sim). Each seed yields its own kill
 // event; the seeded rotation maps it to a finisher, and we keep the first death window each shipped finisher draws.
-function simulate(seed) {
+function simulate(seed, hero = false) {
   let p = initialPractice(seed, OPPONENTS[opponentId]);
   const frames = [];
   let kill = -1;
@@ -59,11 +59,15 @@ function simulate(seed) {
     const f = p.duel.fighters[0];
     const intent = { ...IDLE };
     if (f.phase === 'sheathed' || f.phase === 'draw') intent.action = 'light';
+    else if (hero) { /* the hero stands and takes it: the warden fights on its normal profile */ }
     else if (f.phase === 'ready') {
       if (dist > 1.9) intent.move = { x: dx, z: dz, yaw: Math.atan2(dx, dz), run: false };
       else if (tick - lastHit > 200) intent.action = 'heavy';
     }
-    p = stepPractice(p, intent, PASSIVE);
+    // Hero window: the warden fights until the hero is at 60 % or below, then stands off — an idle hero would be dead within a
+    // second, and the finisher's own gore takes over a killed body's wounds.
+    const attacking = hero && p.playerHealth > .6 * p.maxHealth;
+    p = stepPractice(p, intent, attacking ? OPPONENTS[opponentId].profiles.normal : PASSIVE);
     for (const e of p.duel.events) {
       if (e.type === 'Hit' && e.actor === 0) lastHit = p.duel.tick;
       if (e.type === 'Killed') kill = p.duel.tick;
@@ -93,6 +97,13 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
   const sim = simulate(${seedStart});
   const at = sim.frames.findIndex(f => f.events.some(e => e.type === 'Hit' && e.target === 1) && f.practice.health <= .6 * f.practice.enemyMaxHealth && f.practice.health > 0);
   if (at >= 0) windows.wounded = { frames: sim.frames.slice(0, at + 200), killIndex: 1e9, hitIndex: at };   // 3.3 s past the blow: the runs lengthen, then hold
+}
+// The same on the PLAYER (owner 2026-09-23, a phone shot of the hero's back with no runs at all): the hero draws and stands, the
+// warden fights on its normal profile, up to the first landed blow that finds the hero at 60 % or below.
+{
+  const sim = simulate(${seedStart}, true);
+  const at = sim.frames.findIndex(f => f.events.some(e => e.type === 'Hit' && e.target === 0) && f.practice.playerHealth <= .6 * f.practice.maxHealth && f.practice.playerHealth > 0);
+  if (at >= 0) windows.heroWounded = { frames: sim.frames.slice(0, at + 200), killIndex: 1e9, hitIndex: at };
 }
 // Outcomes outside the automatic rotation (The Quiet One since the beta cut, owner 2026-09-20) are still shipped and
 // forceable from the dev picker; the harness reaches them the same way — the production override on a real kill from a
@@ -294,7 +305,19 @@ try {
     await page.evaluate(([i]) => __finisher.play('wounded', i, 'off'), [count - 1]);
     const off = (await page.evaluate(() => __finisher.probe())).bodyWounds;
     assert.equal(off[1].visible, 0, "blood 'off' hides the body wounds");
-    await save('wound-checks.json', JSON.stringify({ opponent, commit, runs, red, off }, null, 2));
+    // The hero's own wounds (owner 2026-09-23, a phone shot of his back with no runs): the warden lands blows until he is at 60 % or
+    // below. Every blow landed on his front and the play camera sits behind him, where the facing test rightly hides them, so the
+    // gate reads what decides a run's length — each used mark's surface reach — and never "is it on screen".
+    const heroCount = await page.evaluate(() => __finisher.count('heroWounded'));
+    assert.ok(heroCount > 0, 'the scripted duel must land a blow on the hero at 60 % health or below — it never did');
+    const heroHit = await page.evaluate(() => __finisher.hitIndex('heroWounded'));
+    await page.evaluate(([j]) => __finisher.play('heroWounded', j, 'red'), [Math.min(heroCount - 1, heroHit + 90)]);
+    await page.screenshot({ path: `${dir}/hero-wounds-1.5s.png` });
+    const hero = (await page.evaluate(() => __finisher.probe())).bodyWounds[0];
+    console.log(`  hero wounds: ${hero.used} mark(s) in use, reach per mark ${JSON.stringify(hero.reach)} m (9 = no surface cap)`);
+    assert.ok(hero.used >= 1, 'a blow on the hero at 60 % or below leaves a mark');
+    assert.ok(hero.reach.every(r => r >= 0.08), `no hero run is capped short of 8 cm by the surface (${JSON.stringify(hero.reach)})`);
+    await save('wound-checks.json', JSON.stringify({ opponent, commit, runs, hero, red, off }, null, 2));
     await page.context().close();
   }
   // Finisher-complete durations (Lead brief 2026-09-22, Web's loot panel). Each requested outcome is played frame by frame on
