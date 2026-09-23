@@ -478,6 +478,24 @@ if (fighter === 'shieldmaiden' || LOOT) {
   }
   if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
+// The Nightborn's sixth piece (Phase R). His brief left his shins bare over the hose; Strategy 2026-09-23, on Dom's barefoot precedent
+// (Brief 14): a bare shin is Recruit-grade and a Greave goes OVER it, as boots go over bare feet, so he wears it and offers it. A duelist's
+// guard, not a soldier's: blackened steel from under the knee to above the ankle, held by two leather straps. Steel, not leather: his own
+// boots are knee-high tan leather, and a leather guard over them vanished into the boot (measured at the fighting camera). A full ring,
+// not a front plate: a plate's "front" guessed from the rest pose's toes landed on the outside of his leg in the fight stance. Fitted by
+// ray to whoever wears it — his own legs in nightborn.glb, the player's in loot.glb — so one recipe serves both; `over`, it hides nothing.
+if (fighter === 'nightborn' || LOOT) {
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(LOOT ? await playerWorn() : [...parts.values()].flat());
+  if (LOOT) { lootOf = 'nightborn'; lootSlot = 'Greaves'; }
+  for (const side of ['l', 'r']) {
+    const knee = at(`calf_${side}`), ankle = at(`foot_${side}`);
+    const guard = ringHull(grid, knee, ankle, { stations: [.06, .2, .34, .48, .62, .76], azimuths: 14, gap: .007 });
+    add(guard.geometry, steel, `calf_${side}`);
+    for (const t of [.2, .62]) add(ringHull(grid, knee, ankle, { stations: [t - .025, t + .025], azimuths: 14, gap: .012 }).geometry, leather, `calf_${side}`);
+    console.log(`  nightborn greave ${side}: rings ${guard.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  }
+  if (LOOT) { lootOf = ''; lootSlot = ''; }
+}
 // Gloves (brief 14, 2026-09-22): the one slot NO opponent wears today, so it is a single SHARED piece rather than six — the first
 // customer of the shared-draw manifest ("~shared" in loot.json). Fingerless by design: a wrist cuff and a back-of-hand plate rigid to
 // hand_X, with the fingers left bare because they ANIMATE and a rigidly-bound glove over them would tear open on a fist. Fitted by
