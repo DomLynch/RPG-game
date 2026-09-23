@@ -250,7 +250,7 @@
   {
    "slot": "Helmet",
    "layer": "replace",
-   "file": "loot/dwarf_hero.glb"
+   "file": "@build:dwarf-helmet"
   },
   {
    "slot": "Greaves",
