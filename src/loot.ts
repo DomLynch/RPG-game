@@ -87,7 +87,11 @@ export function cleanLoot(value: unknown): Loot {
   const raw = (value && typeof value === 'object' ? value : {}) as Partial<Loot>;
   const owned = Array.isArray(raw.owned) ? [...new Set(raw.owned.filter(isLootId))] : [];
   const equipped: Loot['equipped'] = {};
-  if (raw.equipped && typeof raw.equipped === 'object') for (const [key, id] of Object.entries(raw.equipped)) if (key in PAPERDOLL && isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
+  if (raw.equipped && typeof raw.equipped === 'object') for (const [key, id] of Object.entries(raw.equipped)) {
+    // Keyed by PAPERDOLL key (legs, chest), never slot name (Greaves, Body): a wrong key is dropped, and said so — it once hid a live check's answer.
+    if (!(key in PAPERDOLL)) { console.warn(`loot: equipped key "${key}" is not a paperdoll key (${Object.keys(PAPERDOLL).join(', ')}); ${String(id)} is not worn`); continue; }
+    if (isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
+  }
   const taken: NonNullable<Loot['taken']> = {};
   if (raw.taken && typeof raw.taken === 'object') for (const [id, p] of Object.entries(raw.taken)) if (isLootId(id) && owned.includes(id) && cleanProvenance(p)) taken[id] = cleanProvenance(p)!;
   const declined = Array.isArray(raw.declined) ? raw.declined.map(cleanProvenance).filter((p): p is Provenance => !!p).slice(-DECLINED_KEPT) : [];
