@@ -41,16 +41,16 @@ export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locke
 export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield', 'veteran.Trident'],
   executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Body', 'executioner.Arms', 'executioner.Greaves', 'executioner.Boots', 'executioner.Gloves', 'executioner.Scythe'],
-  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
+  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Greaves', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
   // His Body is the rag sash and belt worn `over` the player's tunic: a sash covers 26 % of a tunic, so as a `replace` it would undress him (#434, tests/loot.test.ts).
   pitborn: ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves', 'pitborn.Cleaver'],
-  // His Body is the war-girdle and his Arms the vambraces: loot_dwarf.py --all --band re-cut (loot/dwarf_upper.glb). His Helmet is an
-  // authored helm over the scalp (Character Main, char/dwarf-helm), listed first when it lands.
-  dwarf: ['dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],
+  // Phase R six: the iron helm (build-warrior.mjs @build:dwarf-helmet, Character Main), the war-girdle (loot/dwarf_upper.glb) and iron shoulder
+  // plates (loot/dwarf_arms.glb) cut by loot_dwarf.py, then greaves, boots (loot/dwarf_boots.glb, heel to toe) and the shared gloves.
+  dwarf: ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves', 'goblin.Knife'],   // Phase R: the scrap cap, iron shin plates and rag foot bindings
   knight: ['knight.Maul'],   // his Helmet and Body (the Recruit-2 carriers) come post-beta: a .12 cut on untextured Steel read as shards (UV-seam split)
   shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A); the gladius is an equip file, not a draw
-  // The Plague Doctor's six (Phase R): cut from his TRELLIS surface on his own baked maps, welded, ratio .5 (PR #590's recipe): loot_dwarf.py --family plaguedoctor --all --boots --slots Helmet,Body,Arms,Gloves,Greaves,Boots --ratio .5 --material PlaguedoctorCloth --color-size 512 --repose warrior. Greaves carries his coat skirt with the legs (bone-dominant).
+  // The Plague Doctor's six (Phase R): cut from his TRELLIS surface on his own baked maps, welded, ratio .5 (PR #590's recipe): loot_dwarf.py --family plaguedoctor --all --boots --slots Helmet,Body,Arms,Gloves,Greaves,Boots --ratio .5 --slot-ratio Boots=1 --material PlaguedoctorCloth --color-size 512 --repose warrior; Helmet and Boots `conform` out over the player's crown and toes (loot.json). Greaves carries his coat skirt with the legs (bone-dominant) and stays at .5: .35 and .2 shatter it (docs/character-references/loot-weld/).
   plaguedoctor: ['plaguedoctor.Helmet', 'plaguedoctor.Body', 'plaguedoctor.Arms', 'plaguedoctor.Gloves', 'plaguedoctor.Greaves', 'plaguedoctor.Boots', 'plaguedoctor.Longsword'],   // Strategy 2026-09-23: every rung offers its weapon, the longsword included (player/longsword.glb is the hero's own SwordDrawn)
   witch: ['witch.Helmet', 'witch.Body', 'witch.Arms', 'witch.Gloves', 'witch.Greaves', 'witch.Boots', 'witch.Trident'],   // hood, bracers, boots: built shells (build-warrior.mjs); Gloves the shared pair; Body + Greaves the Shieldmaiden's tunic and wraps as PLACEHOLDERS until her authored robe + leggings
 };

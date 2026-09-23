@@ -2261,6 +2261,8 @@ else:
             kt_parts, kt_maps, neck_z, neck_c = HEADMOD.keentools_head(HEAD, el, er, armature, select_only, tag, save_jpeg, save_two_sizes, materials_out)
             REAL['maps'].update(kt_maps)
             HEADMOD.neck_tiles(REAL, neck_z, neck_c, select_only, save_two_sizes, save_jpeg)  # the neck continues the scanned head's tone; occlusion re-baked against the scanned head
+            if KIT.get('body') == 'female':  # the female sculpt keeps parts of its head (under the jaw, inside the mouth) on BODY tiles, so the Face
+                HEADMOD.cut_above(body, neck_z + 0.0015, select_only)  # tile's cut left them standing inside the scanned head: a black patch through her chin
             AO = REAL['ao_body']
             body_parts = [o for o in body_parts if o.name not in ('hair_shells', 'brow_cards', 'eye_L', 'eye_R')] + kt_parts
     else:
