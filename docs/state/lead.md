@@ -25,7 +25,9 @@ not pushed, and needs Backend's re-OK when it is.
 **Phone smoke on LIVE `dd1d968` (13:5x):** fight to kill + loot panel timing PASS (quiet-one check, `QA_URL=https://frankendom.com`,
 `--opponent goblin`, with #546's wait patched in locally: panel closed 0.02 s after the kill, open at the complete latch 3.22 s). The
 Veteran default loses all 3 scripted duels on v6, so always use goblin. **NOT run:** knife offered, tap-to-take + Undo, declined
-survives a refresh. They need Dom's phone or a new scripted check, and that is Strategy's call.
+survives a refresh. **Strategy ruled at 13:5x: make it a scripted check.** Web writes `scripts/loot-smoke-check.mjs` (a PR by 16:00),
+and the Auditer wires it as a release row. Meanwhile Dom plays a knife duel on his phone. Next batch: #540 and #537 are on trunk; #541 #542 #544
+#546 (+#534, #539) publish as one run, and its sha line goes to Strategy.
 **Addressing lanes:** send to ListAgents rows as `"<exact name> [ref]"`, or reply to a `uds:` from-address. Both skip Desktop's
 10-send cap.
 
