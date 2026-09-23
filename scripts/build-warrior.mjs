@@ -506,7 +506,8 @@ if (LOOT) {
   console.log(`  witch hood: crown ${crown.toFixed(3)} m, rim radii ${hood.rings[0].radii.map(r => r.toFixed(3)).join(' ')}`);
   // Body: a leather bodice, waist to under the chest, `over` the player's tunic; three brass lacing bands. SKINNED by height across the
   // spine (pelvis → spine_03, linear between the two joints a vertex sits between), the way the torso under it bends: rigid to spine_02
-  // its lower rings swung 5–8 cm through the belt in every armed pose (the Goblin lane's posed pass, 2026-09-23).
+  // its lower rings swung 5–8 cm through the belt in every armed pose (the Goblin lane's posed pass, 2026-09-23). It starts at .3 (~1.13 m),
+  // above the scabbard's belt loop (rigid to the pelvis, up to 1.12 m), which swung 6 cm through a bodice that reached down to 1.04 m.
   lootSlot = 'Body';
   const waist = at('spine_01'), chest = at('spine_03'), spine = ['pelvis', 'spine_01', 'spine_02', 'spine_03'].map(n => ({ i: boneIndex(n), y: at(n).y }));
   const skinBySpine = g => {
@@ -519,9 +520,9 @@ if (LOOT) {
     g.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4));
     return g;
   };
-  const bodice = ringHull(grid, waist, chest, { stations: [0, .18, .36, .54, .72, .9], azimuths: 24, gap: .01, up: new T.Vector3(0, 0, 1), scale: t => 1 + Math.max(0, .3 - t) * .08 });
+  const bodice = ringHull(grid, waist, chest, { stations: [.3, .42, .54, .66, .78, .9], azimuths: 24, gap: .01, up: new T.Vector3(0, 0, 1) });
   add(skinBySpine(bodice.geometry), leather);
-  for (const t of [.15, .45, .75]) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .025, t + .025], azimuths: 24, gap: .014, up: new T.Vector3(0, 0, 1) }).geometry), trim);
+  for (const t of [.38, .6, .82]) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .025, t + .025], azimuths: 24, gap: .014, up: new T.Vector3(0, 0, 1) }).geometry), trim);
   console.log(`  witch bodice: rings ${bodice.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
   for (const side of ['l', 'r']) {
     // Arms: leather bracers from the elbow, stopping short of the glove's cuff (hand-rigid: a bracer over it tears on every wrist flex).
