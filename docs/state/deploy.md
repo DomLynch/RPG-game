@@ -10,13 +10,24 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-22 19:35)
-- Live **607126a** == trunk, queue empty, nothing running. Deploy #109: 33 rows all run locally, 0 CI-trusted, 0 failed.
-- That release carries the scythe as a playable weapon (#440) and the blood-conform fix (#455). **RECORD_VERSION 4 -> 5**, so
-  kill links minted before it refuse cleanly at decode — expected, and the guard working.
-- Migrations 0006-0010 applied to the hosted DB and verified twice (by me and Backend/Accounts). None pending.
+## Now (2026-09-23 10:53)
+- **Live `52dffed` == trunk.** Deploy 33/33: 31 rows CI-trusted for tree 168112c, rows 26 and 32 run locally. release.json 200,
+  served index.html cmp-identical to dist, VPS `current` -> `releases/52dffed…`, box FREE. RECORD_VERSION is still **5**.
+- Carries, since last night's `fe0d8e0`: the code batch #508 #507 #509 #510 #513 #511 #506 #472 #478 #500, **#488 reverted**
+  (`4e34fa3`: its tier table lacked the `Shield` slot #478 added, TS2741 on the combined tree), 27 docs PRs, #519, #502.
+- **Queue (non-sim, rolling, publish every 2–3):** #523 (Stats: #488 re-land + `Shield: 0`), then #514 (needs #523's
+  `src/gear-stats.ts`), #521 (#475 v2, draft), #505 v2 / #522, #518. **Window 1 (sim, RECORD_VERSION -> 6), hold until the whole
+  window is merged, then one re-pin and one publish:** #515 knife + the Nightborn/estoc, estoc flip, Executioner and Centurion items.
+- **Conflicting, owners asked to re-open off trunk** (PR comments left; force-push is excluded): #473 (Weapons), #494 (Knight
+  reference), #503 (Stats, superseded by a PR A v2).
+- Standing order (Dom, 2026-09-23 08:50): Strategy's and Lead's instructions are Dom's. Merge in their order and publish. Excluded,
+  ask Dom: force-push or delete a shared branch, roll back live, drop data.
 
-## Done today
+## Done 2026-09-23
+fe0d8e0 (overnight, 33/33, the guards removal and `?perf=1`; guard.glb confirmed absent from a cold load of the live site) and
+52dffed (this morning). 544bcb4 and 2d614dc did not publish (see Gotchas). #488 reverted, #497 / #502 / #519 merged by this lane.
+
+## Done 2026-09-22
 Eighteen deploys attempted, fifteen published and live-verified (release.json + served index.html `cmp` against dist + VPS
 `current` symlink on every one): dcb9d61, 3fa90c5, 0ebf409, 01b6642, 41363b7, 8650fc5, e2582b0, 4068c50, f439d43, 6c9e75b,
 adb8ddd, a2a901b, a98f327, c7d942a, cb4e0ef, c43c677, 607126a. Shipped among others: the end-of-fight HUD, 40 px touch targets, deploy guards, both audio
@@ -44,6 +55,17 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **deploy.sh's 3000 s ceiling kills a full local run under load.** 2d614dc ran the whole quality suite plus 33 rows at load 60–100
+  (other lanes' suites were running) and hit EXIT=124 mid-retry. The kill **releases the lock**, so every lane's Stop-hook gate
+  starts at once and the box gets busier, not quieter. Prefer a CI-green trunk tip: with `quality` and `release-checks` green,
+  `ci-trusted-checks.mjs <FULL sha>` trusts rows by tree and the publish takes about 3 min. It needs the full 40-char sha;
+  a short sha prints nothing.
+- **Launch deploy.sh detached** (`nohup … & disown`). A `run_in_background` shell dies with the session. 544bcb4 died mid-build
+  that way, with 0 rows run and nothing published.
+- **CI `check 32` (autopsy) fails on every CI run** with a `.tap()` timeout on "Enter the arena" (line 29) but passes locally
+  (41–49 s). No owner yet. It only means row 32 always runs locally.
+- **Combined-tree `tsc` after every merge in a batch.** It caught #478 x #488, which were each green alone. A clean revert of the
+  merge (`git revert -m 1`) is the conservative unbreak when the fix is a design value that belongs to another lane.
 - **Background publish scripts**: `set -euo pipefail`, an explicit non-empty revision check, and an ancestor check that the
   merge commit is in trunk — refuse rather than proceed. A watcher without `set -euo pipefail` had its `git fetch` fail, ran
   `deploy.sh` with a blank revision and died in 20 s (`deploy-.log`); 24 minutes lost believing the batch had shipped.
