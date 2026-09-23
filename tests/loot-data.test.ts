@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ARMOUR_SLOTS, LOCKERS, LOOT, LOOT_IDS, PAPERDOLL, RETIRED_LOOT, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type LootId } from '../src/loot.ts';
+import { ARMOUR_SLOTS, LOCKERS, LOOT, LOOT_IDS, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type LootId } from '../src/loot.ts';
 import { WEAPON_CLIPS } from '../src/characters.ts';
 import { PLAYER_WEAPONS } from '../src/moves.ts';
 
@@ -56,11 +56,8 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
 // A takeable weapon (owner via Strategy, 2026-09-22): its id is `<opponent>.<Weapon>`, it fills the main hand, its visual is the weapon's equip
 // file (the #309 contract), never a loot.glb draw, and it is the opponent's own weapon.
 test('loot: every weapon piece names a player weapon whose equip file ships with its clip family, sits in the main hand, and is its opponent\'s weapon', () => {
-  const weapons = Object.values(LOOT).flat().filter(id => isWeaponLoot(id)) as LootId[];
-  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'nightborn.Estoc', 'pitborn.Cleaver', 'veteran.Gladius'], 'every live warden\'s weapon is takeable');
-  // The Centurion's trident (before ruling A, 2026-09-23) is retired: still a known id, so a taken one survives cleanLoot, but no longer offered.
-  assert.deepEqual([...RETIRED_LOOT], ['veteran.Trident']); assert.ok(isLootId('veteran.Trident')); assert.ok(!weapons.includes('veteran.Trident'));
-  assert.deepEqual(cleanLoot({ owned: ['veteran.Trident'], equipped: { main: 'veteran.Trident' } }).equipped, { main: 'veteran.Trident' }, 'a taken trident stays owned and wielded');
+  const weapons = [...LOOT_IDS].filter(id => isWeaponLoot(id as LootId)) as LootId[];
+  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'nightborn.Estoc', 'pitborn.Cleaver', 'veteran.Trident'], 'every live warden\'s weapon is takeable');
   for (const rung of LADDER) assert.ok(weapons.includes(`${rung.id}.${ROSTER[rung.id].weapon[0]!.toUpperCase()}${ROSTER[rung.id].weapon.slice(1)}` as LootId), `${rung.id}'s weapon is a piece`);
   assert.deepEqual([...new Set(WEAPON_SLOTS)].length, WEAPON_SLOTS.length); assert.ok(WEAPON_SLOTS.every(slot => !(ARMOUR_SLOTS as readonly string[]).includes(slot)));
   assert.deepEqual([...PAPERDOLL.main], [...WEAPON_SLOTS]); assert.deepEqual([...PAPERDOLL.off], ['Shield']);   // the off hand carries the shield (shield spec); weapons fill the main hand

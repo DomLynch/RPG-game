@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
-import { OPPONENTS, PATHS, total, type Opponent } from '../src/moves.ts';
-// The trident Veteran (slice V): the Centurion carries the gladius since #547, but the tests below pin the trident's sweep and chained
-// thrust, which are still weapon data (the trident is a player weapon), so they fight a Veteran who holds one.
-const TRIDENT_VETERAN: Opponent = { ...OPPONENTS.veteran, weapon: 'trident' };
+import { PATHS, total } from '../src/moves.ts';
 import { movesOf } from '../src/duel.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
@@ -12,8 +9,8 @@ const HP = RULES.health;   // fighters start at RULES.health; the numbers below 
 // Practice is the renderer/HUD view over the duel; these tests cover the projection, hints, control gating and replays.
 const idle = (): Intent => ({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
 const act = (action: Intent['action'], extra: Partial<Intent> = {}): Intent => ({ ...idle(), action, ...extra });
-function ready(gap = 1.2, heading = Math.PI, opponent: Opponent = OPPONENTS.veteran): Practice {
-  const p = initialPractice(731, opponent);
+function ready(gap = 1.2, heading = Math.PI): Practice {
+  const p = initialPractice();
   return project({ ...p.duel, fighters: [{ ...p.duel.fighters[0], phase: 'ready', body: { x: 0, z: TARGET.z + gap, heading, distance: 0 } }, p.duel.fighters[1]] }, p.ai);
 }
 const tick = (s: Practice, n: number, intent = idle(), profile = PROFILES.normal) => { for (let i = 0; i < n; i++) s = stepPractice(s, intent, profile); return s; };
@@ -126,7 +123,7 @@ test('control gating: actions are accepted when legal or late in a committed mov
 });
 
 test('defeat freezes the fight and a fresh practice restores everything; the debug readout stays a pure function of state', () => {
-  let s = ready(1.2, Math.PI, TRIDENT_VETERAN);
+  let s = ready();
   const cut = movesOf(s.duel.fighters[1]).light_left;   // the warden's own left cut (the trident's sweep): its damage and contact tick
   s = project({ ...s.duel, fighters: [{ ...s.duel.fighters[0], health: cut.damage }, { ...s.duel.fighters[1], phase: 'attack', move: 'light_left', age: cut.windup - 1, lastMove: 'light_left' }] }, s.ai);
   const fallen = stepPractice(s, idle(), passive);
@@ -141,7 +138,7 @@ test('defeat freezes the fight and a fresh practice restores everything; the deb
 });
 
 test('the thrust plays its own clip role; a chained thrust and the riposte play the riposte\'s (the second thrust, from half-withdrawn); a fighter\'s specs are its weapon\'s', () => {
-  const s = ready(1.2, Math.PI, TRIDENT_VETERAN), me = s.duel.fighters[0], w = s.duel.fighters[1];
+  const s = ready(), me = s.duel.fighters[0], w = s.duel.fighters[1];
   const pose = (f: typeof me, side: 0 | 1, over: Partial<typeof me>) => actorPose({ ...s, duel: { ...s.duel, fighters: side === 0 ? [{ ...f, ...over }, w] : [me, { ...f, ...over }] } }, side);
   assert.equal(pose(me, 0, { phase: 'attack', move: 'thrust', lastMove: 'thrust', chained: false, age: 3 }).attack, 'thrust');
   assert.equal(pose(me, 0, { phase: 'attack', move: 'riposte', lastMove: 'riposte', chained: false, age: 3 }).attack, 'riposte');

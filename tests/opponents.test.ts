@@ -20,10 +20,10 @@ function land(o: Opponent, player: Intent, opponent: (d: Duel) => Intent = idle)
   throw new Error('no hit landed');
 }
 
-test('initialDuel() is the Veteran — the Centurion\'s gladius since 2026-09-23 (#547; the trident was slice V) on a man\'s scale, health and poise, the shipped PROFILES; the hero the longsword — and the cleaver slot is the real cleaver (slice W), baked from its own rig', () => {
+test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, health and poise, the shipped PROFILES; the hero the longsword — and the cleaver slot is the real cleaver (slice W), baked from its own rig', () => {
   assert.deepEqual(initialDuel(), initialDuel(OPPONENTS.veteran));
   const [hero, warden] = initialDuel().fighters;
-  assert.equal(hero.weapon, 'longsword'); assert.equal(warden.weapon, 'gladius');
+  assert.equal(hero.weapon, 'longsword'); assert.equal(warden.weapon, 'trident');
   for (const f of [hero, warden]) { assert.equal(f.scale, 1); assert.equal(f.poise, 0); assert.equal(f.health, RULES.health); assert.equal(f.maxHealth, RULES.health); }
   assert.deepEqual(OPPONENTS.veteran.profiles.easy, PROFILES.easy); assert.deepEqual(OPPONENTS.veteran.profiles.normal, PROFILES.normal);   // his own table since the hard tune (owner, 2026-09-20)
   assert.deepEqual(OPPONENTS.veteran.profiles.hard, { ...PROFILES.hard, pressure: .7, discipline: 30 }, 'hard differs from the shared table in pressure and discipline only');

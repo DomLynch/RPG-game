@@ -3,22 +3,22 @@
   "records": [
     {
       "name": "veteran-walk-in",
-      "encoded": "H4sIAAAAAAAAE-3UwQmAMAxA0VSQ2sW8OIVo6kVSiKJHB3UZxwjIf0O8ccrFtaqrLZovPdVnK3uz7bibr-ntRJ5eJAkAIEIFAESI7h8AAAAAAPzcAACI8AF0a9oxIyEAAA",
+      "encoded": "H4sIAAAAAAAAE-3VwQ2CQBAAwIWHSGN8qMLgwoccyWmgCiq0Gcu4z0wTM83DWHPNmmXJ4cxv1lcZ96Nsn-uo7-7XR9yPiC4AoLUVAFprnSEAAAAAEE8AaO0PBDrM1XcnAAA",
       "expect": {
-        "ticks": 1407,
+        "ticks": 1677,
         "outcome": "died",
-        "killedTick": 1407,
-        "digest": "7b7f15bc5627ddc9"
+        "killedTick": 1677,
+        "digest": "d953a09bed432ea1"
       }
     },
     {
       "name": "veteran-scripted",
-      "encoded": "H4sIAAAAAAAAE-2XB1QUVxSGtxesUaMYWyyxRDDYo9hRUBELKk0QEBYsuCsL0lQ8oVtpoogFCypEjRoxakTFBGOJNRqNwRg1llhiNFEDCKzz6syExeBJYI1n_nvfezOzs8P97v_m7MHWXqnWa_w0eo3WR6MM0QRr9N5adYBO6x8UqtP7igslIpGDUiQSi-Rm9Ro1bdm2o2XXXtYDbYaPGjvBeZLnFM3UGdpZ-uCQsIg5c-dFRs5nFBk5b25EeGhIUKAuYLq_r5eHq5Pj6JG2g_v36fFR5_atmzdpUEclLS9--ujereuFl86fEr2Run8bFHf6eMHhA3t379i6JWvdmowVy1ISlyxaEB8XGx0d9QlQVHRMbFzCgkVLklLS0jPWrs_K3rYzd19e_tETZy5cvnrjzoPHz0oMMnXdhuYt2nSw6Nqz7wAbO1OTGZeFFVPcEDv7MeOd3SZ7-_pPn6kDtobzbJ0THhYSrNfNZGz1nuzmPH6MvZ3NgL49rSw6tGlh3rCuWmYoefb4wZ0bVy9_d-ZEQX4e6Fy2qcmMKz9vX-7ObdlZ69euSk9LSWJsTYiLjaG2RsfExTO2JiYvW5GxZt3GLVt37N574HDB8dPnLxVev33_96fF5VJVnQZNmrdu39mqR5_-Q2xHjnZ0cvNgOmdqMuNydHL18GJsDdAFBs0ODY_g2RoBbJ2lnTFVM8VzksuEsaOGDx1o3aubZce2LZs2qmcmF714_uTh3Zs__XDh7MmjRw6CzuVsgp1LTVpqajLjwsUtXohshb5Ggdc1PmHh4sTk1OUrV2du3PzpZ59_8eWhr4-dOvf9jz_fuvfoz6IyibL2O42bvf_Bh126f9xv8LARDuMmurp7-fhNC9CizpmazLhwceB1nQ99BbaGh84OCtQGTPPz8XR3mTjOYcSwQf16d-_SqV2rZo3r11KIS__647dff7l25eK5b499dWj_nl3bczZvyFy9cnlqMuhcPOycqcmMCxfHs3VpUmpa-qrMDZtytu_as__gkW9Onr145drNuw-fPC8VK2rVf_e9Vu06WXbrbT1oKPj9cnHHv19M58LYztVA8X7VptxXqgbQBF6BV-AVeAVegbdmeM1F4N9TVmLOQqeKB7z7jMlAJgObBnYxGHgHf5t4QSb8TLJyChCDWYwCJxxoqiCJ0avsV2CSh_IJOSQ4OSpHo5xMTJRXOMCBE08G9ChCz5KKKBmPRQIShwQOdpFKKhG-FX6L1wPES0kpIAcMMcABVIYGTCbKeAsNdB8R6gHlNbC2EkiMSOCopCSkcHAl45_iW0APpFxuyktdxZQgkW0EDjGBxCoFiaZSOpEFJxLqAIFGNhNUCAr-NIIEFSFEWCosW4aAmAAJJJXJZVT0UIoGuF9GuSkvdRaBYkzsInEP44HiAQrRC26gxAGSCIEjYAxLWNGfw26yNmLzCB3BkctREik4B-iyDAXhRsAUFqPSfYsxMSRgxLaxaFAlIHGgxBP8CItAc2gBLCYlLyh-HZlSgI-EEQOyNAoFkxwpeWfMh_AmSkxoESyHlOWEZpJdSt0jfCVYxSCZQElXkFiEGOKiXQ33MTKVgmJMCd6smBEjUjglCCUcSpVSyVmgmOsEHfEC-xEsQeWAwm0LMOE2Q-8c9pAAYqLiIpRFzFxEEwZIhM7FJcaiLUz2LuFkqkAbFlJyGEH1AEIFUgUSSs3Olf0Y_kcSv_IUSlbFR8mNXFO8ZjnVLoG3ggRe4xJ4BV6TS-CtoH_D-wZJWplMXVg1SeAVeN8mCbwC79uk1-ZVmVS1ieCZWWWqyqPUVVO14vyjBF6BV-A1KoFX4P2_874ESIXD-vcrAAA",
+      "encoded": "H4sIAAAAAAAAE-2WeWwMURzHZ3dm226jxBEqjjiihKLOqDpCaWmdRaultHRbR7vLtnqhorejerjrjqJoEBqEoqLiiFscUeKII0UccYTSHfPOmdEp9cdmkfn-fu_3Zmbfvv193reT1MvXXm82hBvMBuN0g32sIcZgDjXqI03GiOg4kzlMU65lmCIdw2gYnWO9Rk1btu3QuVtvj4Gew0aMGR8waeo0w4zZxjnmmNj4xPkLFiYlLRKUlLRwQWJCXGz0XFPkrIiwkOBAf79RPl6D-rv37NrJpXXzJg2cHFjL149vKp4-Kr99_RLzV-rlM9Dc5fNlp44fObR_766CrZvy167Ky85atiQjPS0lJXkxUHJKalp65pJlWTl5q9flb95WUFh0oPhoSenZC1du3rn_-Pmrd58qeU5ft6FzizbtXbv16jvA09vWZMpydROaG-ztO3pcQNCU0LCIWVEmYGuCzNb5CfGxMWZTlGBr6JSggHGjfb09B_Tt5ebavk0L54Z19Rxf-endq-eP79-5ceVCWWkJOLlCW5Mpq7TkaPGBosKCbZs3rFudlyPYmpmelkptTUlNzxBszc5dtTZ_09btu_buP3Tk-Kmy85ev3y5_9Ozl249fLayDU4MmzVu7dHLr6d5_sJfPKD__oGDh5GxNpiw__8DgEMHWSNPc6HlxCYkyWxOBrXOMs2cYpk2dNHH8mBHDhgz06N29c4e2LZs2queoY759fv_6xZMHd29evXj29Alwcrt3wJNbmbPC1mTKws0tX4pshb4mg9c1I3Pp8uzclWvWb9yyfeeefQcPHzt55tyla7fuPXxa8ebDlyqtfZ36jZu1atexS48-_QYNHT5y7ITAySHTw2dGGtHJ2ZpMWbg58LouCreain8pW7GrvCqvyqvy_ou8zgz451qURjLRUv1Ctk5JPCm8mLw48bzs4qciC1LwnmSWNKABVYMCJxyoVJNW8an4FZhkUzmhhASnRBY0LKQIYal2gQMnLjzaitCLpAwlk7FoQeLQwiFOrLYG4aXwW7IzQLyUlAJKwBADHEBVaMAUoko20UDriNAZUF5etJVAYkQCR8WSYOGQipPf4iXgDFgpN-WlrmJKkMg2AoeYQGJ9B4nKd1rIhBMJnQCBRjYTVAgKfhpBgo4QImwVts0hICFAArGcjqOilywaYD1HuSkvdRaBYkzsInEP44HmAQrRN2mgxAGSCIEjYAxLWNHPYTdFG7F5hI7g6HQoiewkF-gxh4JwI2AKi1Hp3y3GxJCAEdsmokFVgsSBEhf4ERaBltACWExKXlD8OgqtAB8JIwYUaezshJTIXnYnfAgXUWJCi2AlpNaV5pe3UFwtt9IpPLP7w3asLpW3mlReZam8Ku-_K7Ym2boxK0nlVXn_J6m81uV1sKnqEME7x5pUm630tZNVcX4rlVflVXkVpfL-lvcH3DVkjzEiAAA",
       "expect": {
-        "ticks": 1869,
+        "ticks": 1452,
         "outcome": "died",
-        "killedTick": 1869,
-        "digest": "9c4795d49c8bf1f9"
+        "killedTick": 1452,
+        "digest": "552f30e5b09f4841"
       }
     }
   ]
