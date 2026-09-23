@@ -13,6 +13,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor } from './career.ts';
+import { tierAt, type Tier } from './grades.ts';
 import { LOOT, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -143,7 +144,9 @@ const loaded = loadProfile(storage, () => crypto.randomUUID());
 const profile = loaded.profile;
 input.value = profile.name === 'Wanderer' ? '' : profile.name;
 welcome.hidden = loaded.returning;
+let gradeView: ((tier: Tier) => void) | undefined;   // Phase L: set once the scene exists; persist is where every change of marks passes
 function persist() {
+  gradeView?.(tierAt(marksOf(profile)));   // a rank-up regrades what he wears and the opponent's kit
   const rank = rankFor(marksOf(profile));   // career rank: marks only ever rise (GAME_SPEC ladder), so this never shows a demotion
   const saved = saveProfile(storage, profile) ? (session?.userId ? 'Signed in · saving…' : 'Guest · saved on this device') : 'Storage unavailable · name will not be saved';   // account.ts settles 'saving…' once the cloud answers
   window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts)
@@ -574,6 +577,8 @@ try {
     },
     opponent.id,
   );
+  gradeView = (tier) => view.setTier(tier);
+  gradeView(tierAt(marksOf(profile)));   // Phase L: the fight's tier is the player's rank; his worn loot and the opponent's kit are graded by it
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
 } catch (error) {
   element('performance').textContent = '3D unavailable';

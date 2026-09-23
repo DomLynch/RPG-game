@@ -8,6 +8,7 @@ import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './mo
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
+import type { Tier } from './grades.ts';
 import { createFootDust } from './foot-dust.ts';
 import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { shoveFor } from './camera-kick.ts';
@@ -140,6 +141,7 @@ export function createScene(
   // Loot (brief 5): the worn ids the entry point last gave (`wear`), the pieces of loot.glb once fetched, and the fetch in flight. The fetch
   // starts only once the rigs are in and the worn set is non-empty, so it never shares the wire with a fight's download and never gates
   // readiness: the fight starts on the rigs alone and the pieces go on when they land.
+  let tier: Tier | undefined;   // the fight's tier, the player's rank (Phase L): his worn loot and the opponent's palette draws are graded by it
   let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
   function dress() {
     if (!warriors) return;
@@ -147,7 +149,7 @@ export function createScene(
       if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
       return;
     }
-    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
+    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), tier);
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
@@ -160,6 +162,7 @@ export function createScene(
   ])
     .then(([loaded]) => {
       warriors = loaded;
+      if (tier) loaded.opponent.grade(tier);   // before the opened-waist bake, so the cut body wears what the whole one did
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
@@ -310,6 +313,8 @@ export function createScene(
     retryArt: loadFighters,
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     wear(ids: readonly string[]) { worn = ids; dress(); },
+    // The fight's tier: set at boot and again when a win moves the rank. Grades what the player wears and the opponent's palette draws.
+    setTier(next: Tier) { if (next === tier) return; tier = next; warriors?.opponent.grade(next); dress(); },
     arena,
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
