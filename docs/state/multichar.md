@@ -6,6 +6,20 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-23, evening (handoff)
 
+**UPDATE 19:0x — Phase R moved to tonight; the Witch's six are NOT shipped.** Work is on `multichar/witch-six` @ `c8d4380`
+(off phase-r; nothing pushed into phase-r). `scripts/character/loot_dwarf.py` gained opt-in flags. The default path is the original
+code, which is itself non-deterministic run to run (Dwarf Arms 722 vs 725 faces).
+- `--boots` (feet → Boots), `--leg-radius 0.10` (leg-weighted verts far from the leg bone axis are robe → Body), `--boot-top 0.42`.
+- `--weld D`, `--remesh Body,Greaves,Boots` (+ `--remesh-size`, `--remesh-ratio`; voxel shell → smooth → collapse, weights and
+  UVs transferred back), `--no-skin` (drops her face from the hood), `--inflate 0.03`, and `--repose source/backups/veteran-v1`.
+- **`--repose` is essential:** creatures.py binds a scan in its OWN A-pose (arms 74°), but loot binds to the player's T rest.
+  Without it, bracers and gloves explode into sheets on the player. build-warrior.mjs now reads `<Family>Iron` maps for `['Dwarf','Witch']`.
+- **Blocker: the robe surface.** Thin ragged TRELLIS cloth won't collapse-decimate (it stalls at 0.91), and the voxel shell reads as
+  crumpled facets in the same-frame still (5,214 tris crumpled; 8,502 smoothed, over Lead's 8k). Needs a retopo'd or authored
+  robe shell, not a remesh. Hood, bracers and gloves place correctly after `--repose`.
+- The same-frame still = `public/game/img/fighter.webp` with `loot/witch.<Slot>.webp` alpha-stacked (loot-layers.mjs renders them
+  in one frame). A loot build needs `artifacts/source` (gitignored): symlink it from another checkout.
+
 **TOMORROW (2026-09-24), Dom's PRIORITY 1 via Strategy → Lead, 17:xx:** every opponent wears and offers SIX takeable armour
 pieces + its weapon, Recruit rag & scrap first, **LIVE target 14:00**. Mine: **the Witch to all six**: Helmet = the hood,
 Body = robe + cloak (per SCOPE.md), Arms, Gloves, Greaves, Boots; `witch.Trident` stays. Build on the **Nightborn lane's welded
