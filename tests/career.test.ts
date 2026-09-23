@@ -25,6 +25,12 @@ test('next names the class the pips climb toward, empty at Origin', () => {
   assert.equal(rankFor(ORIGIN_MARKS - 1).next, 'Origin');
   assert.equal(rankFor(ORIGIN_MARKS).next, '');
 });
+test('the class bar: step numerals done, the current one filled by its pips (Veteran IV with 4 of 5 is 3 full + 80 %)', () => {
+  const veteranStart = 3 * 5 + 3 * 5 + 5 * 5;   // Recruit + Legionary at 3 a numeral, Gladiator at 5
+  assert.deepEqual(((r) => [r.title, r.numeral, r.step, r.fill, r.next])(rankFor(veteranStart + 3 * 5 + 4)), ['Veteran', 'IV', 3, 0.8, 'Champion']);
+  assert.deepEqual(((r) => [r.step, r.fill])(rankFor(0)), [0, 0]);
+  assert.deepEqual(((r) => [r.step, r.fill])(rankFor(ORIGIN_MARKS)), [0, 0]);
+});
 test('rank never moves backwards as marks grow', () => {
   const order = (marks: number) => { const r = rankFor(marks); return TITLES.indexOf(r.title) * 5 + ['I', 'II', 'III', 'IV', 'V', ''].indexOf(r.numeral); };
   for (let marks = 1; marks <= 300; marks++) assert.ok(order(marks) >= order(marks - 1), `marks ${marks}`);

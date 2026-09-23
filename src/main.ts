@@ -12,7 +12,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
-import { marksOf, rankFor } from './career.ts';
+import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
 import { LOOT, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -54,15 +54,25 @@ for (const id of ['sound-button', 'mobile-sound'])
 const welcome = element('welcome');
 const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
-// The player's rank on the fight-end panel, win and loss (Dom 2026-09-23, replacing the death-screen autopsy): the account panel's
-// rank label with the class its pips climb toward at the end of the row. Marks are read after match.end, so a win shows its new pip.
-const fightRank = element('fight-rank');
-function showFightRank(on: boolean) {
-  fightRank.hidden = !on;
-  if (!on) return;
-  const rank = rankFor(marksOf(profile));
-  element('fight-rank-label').textContent = rank.label; element('fight-rank-next').textContent = rank.next;
+// The rank row (Dom 2026-09-23: "a progress bar, with future visibility to what's next"): ONE component for the account panel, the
+// journal's fighter card and the fight-end panel, so they never drift. Left the class + numeral, then one segment per numeral of the
+// class (done numerals full, the current one filled by its pips), then the class it climbs toward. The bar is the information: no counts
+// in prose; the full label (with the pips) stays as the row's accessible name. Origin has no bar.
+function renderRank(host: HTMLElement, rank: Rank) {
+  const make = (tag: string, className: string, text = '') => { const node = document.createElement(tag); node.className = className; node.textContent = text; return node; };
+  host.setAttribute('aria-label', rank.label);
+  if (!rank.next) { host.replaceChildren(make('span', 'rank-now', rank.title)); return; }
+  const bar = make('span', 'rank-bar');
+  bar.replaceChildren(...Array.from({ length: RANK_STEPS }, (_, i) => {
+    const segment = make('i', 'rank-seg');
+    segment.style.setProperty('--fill', `${i < rank.step ? 100 : i === rank.step ? Math.round(rank.fill * 100) : 0}%`);
+    return segment;
+  }));
+  host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
 }
+// The fight-end panel's rank row, win and loss (it replaced the death-screen autopsy). Marks are read after match.end, so a win shows its gain.
+const fightRank = element('fight-rank');
+function showFightRank(on: boolean) { fightRank.hidden = !on; if (on) renderRank(fightRank, rankFor(marksOf(profile))); }
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
@@ -155,7 +165,8 @@ function persist() {
   window.dispatchEvent(new Event('frankendom:profile'));   // a signed-in account sends the change up (account.ts)
   // The HUD identity and the journal's fighter card show the same three facts.
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
-    ['rank', rank.label], ['journal-rank', rank.label], ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
+    ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
+  for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
 }
 persist();
 // The right thumb is the button cluster (the v8 strike circle was retired 2026-09-20: one grammar, built and tested once).

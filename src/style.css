@@ -1725,17 +1725,30 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
     opacity: 1;
   }
 }
-/* The fight-end rank line (Dom 2026-09-23; it took the death-screen autopsy's place, win and loss): the account panel's rank type
-   (.identity div>span: 12 px, #eee7d9) docked in the top band under the status line, the next class name dimmer at the row's end.
-   In-flow inside .combat-hud (.combat-hud p gives the 8 px top margin); pointer-events off like the rest of the HUD. */
-.fight-rank {
+/* The rank row (Dom 2026-09-23), one component in three places: the account panel (#rank), the journal's fighter card
+   (#journal-rank) and the fight-end panel (#fight-rank, where the death-screen autopsy was, win and loss). Class + numeral left, a
+   segmented bar across the whole class (one segment per numeral, the current one part-filled via --fill from main.ts renderRank),
+   the next class right and dimmer. The account panel's type: 12 px, #eee7d9. Ids, not a class, so it outranks .identity div>span. */
+#rank, #journal-rank, #fight-rank {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+#rank, #fight-rank { font-size: 12px; color: #eee7d9; }   /* #journal-rank keeps .fighter-rank's size and ink on the journal's paper */
+#fight-rank {
   pointer-events: none;
-  font-size: 12px;
-  color: #eee7d9;
-  text-align: left;
   text-shadow: 0 1px 5px #131b1d;
 }
-.fight-rank-next { color: #eee7d9a6; }
+.rank-bar { display: inline-flex; gap: 2px; }
+.rank-seg {
+  width: 14px;
+  height: 5px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--rank-fill, #d2bd8c) var(--fill, 0%), color-mix(in srgb, currentColor 22%, transparent) var(--fill, 0%));
+}
+dialog .rank-seg { --rank-fill: var(--js); }
+.rank-next { opacity: 0.65; }
 /* The last fight's autopsy under an opponent's row in the journal's Stats tab: a quiet serif sub-line that belongs to the row above. */
 dialog .scorecard-table tr:has(+ .autopsy-row) td { border-bottom: 0; padding-bottom: 2px; }
 dialog .scorecard-table .autopsy-row td { padding: 0 4px 9px; text-align: left; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); border-bottom: 1px solid var(--jl); font-variant-numeric: normal; }
