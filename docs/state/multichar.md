@@ -4,6 +4,39 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23, 21:10 (handoff)
+
+**Pick up:** nothing owed. The Witch's six are done: #602 merged to phase-r (`cd06b7f4`) and went live in Run 2 (per Lead, `a53762ef`);
+**#609** (her own Body and Greaves, plus the fit fixes) is READY for Run 3 at head `d0473519`, base `phase-r`, as Lead told the Goblin lane.
+If Run 3 bounces #609, it is a rebuild only: merge phase-r, run `WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, then `node scripts/loot-layers.mjs`
+and the loot tests, then push. Next Witch work when asked: her own baked loot maps (Strategy: Phase M polish), finishers, the cast clip.
+
+## Done — 2026-09-23 (evening)
+- **The Witch wears and offers six** (#602 → Run 2 LIVE; #609 → Run 3). All six are built ring-hull shells in `scripts/build-warrior.mjs`
+  (the `if (LOOT)` block above "// Gloves (brief 14"), fitted by ray to the player's worn body: a hood with the face cut open (replace),
+  a laced leather bodice (over, **skinned by height across pelvis/spine_01/02/03**, starting above the scabbard loop), bracers
+  (lowerarm .2–.66), the shared `kit.Gloves`, cross-gartered leg wraps, and boots (shoe + flat toe box + ankle cuff). The player's materials
+  (Leather/Gambeson/Wrap/brass) were ruled acceptable by Strategy tonight.
+  Receipts at d0473519: loot.glb 8,874,972 B; loot-layers exit 0; loot tests 33/33; check-budget PASS at 61ab68bb (loot 2,356,815 of 3,500,000 gzip).
+  Goblin lane's posed pass (25 clips × 5 frames, covered-at-rest verts, p50/p95/max mm): hood 0 pokes; bodice max 12.4; bracers max 12;
+  greaves 0; boots skin p95 5–18 (one death sprawl, max 60).
+- `loot.json` gained `kit` (a borrowed tunic keeps its source kit's linen; one bake per kit).
+
+## Open
+- Hood crown grazes 7.6 mm at rest (outside the covered set, so not a posed poke). Boots: 60 mm in the Death_QuietOne sprawl only.
+- The hood's inside lining showed through the face opening in the loot-layers render, even though the head is a depth occluder. The cause was not found; the lining is dropped (single-sided hood).
+
+## Gotchas — 2026-09-23 (evening)
+- **TRELLIS scan cuts make bad loot** (a hood floating before the face, shards, toe lumps). Build shells with `ringHull` instead.
+- **A shell rigid to one spine bone clips 5–8 cm in every armed pose.** Weight it by height across the spine joints. Start a bodice above the
+  player's pelvis-rigid scabbard loop (y ≤ 1.12 m).
+- **ankle→ball slopes ~26°**, so a boot cap on that axis ends inside the sole short of the toes: build the toe box along the flattened forward.
+- A ring frame's "+v" isn't guaranteed to face forward: cut openings by position against a measured forward (ball − foot, y zeroed).
+- The rig has no forearm twist bone, but the player's forearm is 99% lowerarm up to t .8, so a lowerarm-rigid bracer is correct.
+  A posed "poke" test must only test verts the shell covers at rest; otherwise it counts neighbouring limbs.
+- `/tmp/frankendom-share/witch-six-own-v6.png` is the latest still (paperdoll layers stacked on fighter.webp; needs Pillow via `uv run --with pillow`).
+- A trailing `// comment` pasted before `);` on the same line breaks `typecheck:tests` (the Stop gate catches it).
+
 ## Now — 2026-09-23, evening (handoff)
 
 **TOMORROW (2026-09-24), Dom's PRIORITY 1 via Strategy → Lead, 17:xx:** every opponent wears and offers SIX takeable armour
