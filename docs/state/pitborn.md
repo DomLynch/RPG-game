@@ -5,7 +5,76 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-22
+## Now — 2026-09-23 night (handover)
+
+**Tomorrow's assignment (Lead, Dom's priority 1 via Strategy): six takeable armour pieces + the weapon per opponent**
+(head, chest, arms, hands, legs, feet; SCOPE.md), Recruit rag & scrap first, LIVE target 2026-09-24 14:00. This lane owns:
+- **The Pitborn**: has Arms + Gloves; add Helmet, Body, Greaves, Boots. His Body narrows #434's no-chest precedent, so it
+  must not undress the player (tests/loot.test.ts coverage floor).
+- **The Shieldmaiden**: all six (Helmet = open iron-banded cap behind the braids, Body = hauberk + gambeson + belt,
+  Arms = the squared shoulder plates, Gloves = shared `~kit.Gloves`, Greaves = leg wraps, Boots) + her gladius piece
+  (take her off `NO_LOOT_YET` in tests/loot-data.test.ts in that PR).
+- **Build on Nightborn's welded loot pipeline once that PR lands (~09:00), not before.** One PR per opponent. Each PR body:
+  the six pieces, tri counts, loot.glb size, a same-frame phone still of the opponent WEARING them, loot-layers green.
+
+**Open tonight, not pushed: the Shieldmaiden's dark chin/jaw band.** Visible at close range, reads as a beard. The fix
+goes as a PR against trunk (a visual glb change, no sim files) with a same-frame before/after still for Lead. The work is
+on LOCAL branch `pitborn/shieldmaiden-body` @ `74de033` (a WIP commit, deliberately not pushed). Next step: one
+instrumented run that prints the chin texels' brightness at each stage of `head.py`'s scan-texture pass (after the
+`jaw_skin` repaint, before and after `fill_margin`) to find which stage restores them. Measured so far:
+- NOT the teeth (tinted pure red, the patch stayed black); NOT culling (a double-sided Photo changed nothing); NOT
+  the normal map (sampled flat under the chin); NOT a second UV layer (the adapter head has one).
+- REAL and fixed in the WIP: the female sculpt keeps parts of its head on BODY tiles, so the Face-tile cut left Skin
+  standing inside the scanned head up to z 1.662 (now cut at the neck, z 1.566: `parts.py`, female only); and the neck
+  stub took its tone from a ring of jaw shadow + nape hair (now her skin: `jaw_skin` pins `RING_TONE`).
+- The shipped `kt_face_color` still carries dark texels at the chin's UVs (p10 luminance 0.118 in the lowest 15 % of
+  the head) although the repaint logs ~56k texels changed, so a later stage overwrites them. Suspect `fill_margin`
+  treating chin texels as gutter (`core` from `bake_attribute`); not proven.
+- Drop the WIP's `teeth_scale: 0.6` before the PR: it changed nothing.
+
+## Done — 2026-09-23
+
+- **The Shieldmaiden into beta** (Dom, "put them live now"; Brief 15, reference A #498). Pushed into `roster-v0` at
+  `80e991a`; roster-v0 is on trunk (`7b277fd`), and Combat's bump 8 (`RECORD_VERSION` 8) covers her row. What landed:
+  - `parts.py` KIT `body: 'female'`: the realistic female body as a per-fighter switch (the Witch reuses it); the
+    female sculpt's multires capped at 2 levels.
+  - `head.split_tiles` packs any number of UDIM tiles (`atlas_cells`; the male's three keep their shipped quadrants).
+  - Her own head: FLUX.1-dev portrait of reference A (`artifacts/source/face/shieldmaiden/shieldmaiden-01.png`, prompt
+    beside it) → TRELLIS.2 → `trellis_head.py`; braid crown as mesh; `scale_by_eyes` (sized by height, the raised
+    braids shrank her face to 0.79× and put the neck cut on her chin).
+  - `trellis_head.py` BGR fix: the texture was read BGR against an RGB portrait (blue skin; the Nightborn's near-grey
+    sample hid it).
+  - Squared layered iron shoulder plates (Arms) in `build-warrior.mjs`, double-walled; gladius in hand;
+    `shieldmaiden.glb` 3.47 MB gzip; last rung after the Witch.
+  - `ARCHETYPES.shieldmaiden` = the Pitborn's profile verbatim at scale 1, a PLACEHOLDER for Combat's retune.
+  - Gladius grip material `GladiusBone` → `GladiusBoneGrip` (finisher blood never paints the grip); player
+    `gladius.glb` rebuilt from the same source.
+- Phase-0 tint stand-in: written, then cancelled by Lead/Strategy before any push; nothing of it shipped.
+
+## Open
+
+- The jaw band (above): this lane, PR to trunk.
+- Her loot pieces: tomorrow's assignment (above).
+- Her shield-carry pose (#547 closed; not wired for an opponent): unowned, raise with Lead after the loot work.
+- The roster-v0 weapon-flip snapshot had two NEW over-cap rows against the Plague Doctor (trident, scythe: `charged
+  heavy only untouched 3/24`): Combat's battery, not this lane's.
+
+## Gotchas (cost time today)
+
+- **The deploy lock blocks `node --test` and Blender**, even single files, and deploys run back to back (5c0a32c then
+  7b277fd). Queue work behind a watcher on `~/.claude/hooks/deploy_guard.py` `active_lock()`; never retry in a loop.
+- **The deploy hook matches words in a whole command**, heredoc text included: a doc edit that mentions a bake is
+  refused. Edit files with the Edit tool and keep builds in their own command.
+- **Four lanes appending to the same pinned lists** (ROSTER, ladder, picker, loot-data, roster count, BUILD) conflict on
+  every merge: keep both sides and re-sequence the rung assertions. `roster-v0` moved between fetch and push twice:
+  always `merge-base --is-ancestor` before pushing.
+- **The female body is not the male's topology**: 9 UDIM tiles (not 4), and head surfaces on body tiles. Anything
+  keyed on "tile 0 = head" is wrong for her.
+- **FLUX prompt trap (new):** "two braids"/"plaits" hang the braids past the shoulders every seed; "milkmaid crown
+  braid … like a halo" keeps them on top.
+- `character-preview.mjs` weapon stats list the HERO's longsword materials; read the opponent's `sword` panel.
+
+## Earlier — 2026-09-22 (superseded by the entry above)
 
 **BLOCKED ON #478 — the Shieldmaiden.** Her design direction is picked and her body is deliberately not
 started. Strategy's ruling: silhouette stage only, nothing wearable before the shield asset lands, because a
