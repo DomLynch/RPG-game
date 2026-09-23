@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TAP_GUARD_MS, createLootPanel } from '../src/loot-panel.ts';
+import { TAP_GUARD_MS, createLootPanel, tileLabel } from '../src/loot-panel.ts';
+import { LOOT, lootName } from '../src/loot.ts';
+import { ROSTER, type OpponentId } from '../src/roster.ts';
 
 // The kill screen's panel is DOM-only (main.ts owns the loot rules), so it is tested against a fake element lookup exactly as the
 // entry point's harness boots it: a tap on a tile IS the take now, and the guard window is the only thing between a fat finger
@@ -97,4 +99,19 @@ test('loot panel: the take line replaces the tiles and carries Undo; hide clears
   assert.equal(h.element('loot-panel').getAttribute('data-on'), '0');
   assert.equal(h.element('loot-panel-note').hidden, true);
   assert.equal(h.element('loot-undo').hidden, true);
+});
+
+test('a tile names the piece, never its owner: every piece in the game reads as one capitalised noun phrase, no possessive', () => {
+  // At 56 px "Centurion's helmet" broke mid-word at the apostrophe on a 375 px phone, nine tiles in a row, under a title
+  // that already names the Centurion. Checked over every real loot name, so a new opponent or a renamed rung cannot bring it back.
+  const names = (Object.entries(LOOT) as [OpponentId, readonly string[]][]).flatMap(([opponent, ids]) => ids.map((id) => lootName(id as never, ROSTER[opponent].name)));
+  assert.ok(names.length > 20, `every opponent's pieces are covered (${names.length})`);
+  for (const name of names) {
+    const label = tileLabel(name);
+    assert.ok(!/'s\b/.test(label) && !/^the /i.test(label), `${name} → ${label}: no owner on the tile`);
+    assert.equal(label[0], label[0]!.toUpperCase(), `${name} → ${label}: capitalised`);
+    assert.ok(label.length > 0 && name.toLowerCase().endsWith(label.toLowerCase()), `${name} → ${label}: the piece, taken from the name`);
+  }
+  assert.equal(tileLabel("the Centurion's helmet"), 'Helmet');
+  assert.equal(tileLabel("the Centurion's trident"), 'Trident');
 });

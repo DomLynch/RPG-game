@@ -15,6 +15,10 @@ export type LootPanelHandlers = { onTake: (id: string) => void; onDecline: () =>
 type Doc = { createElement: (tag: string) => HTMLElement };
 
 export const TAP_GUARD_MS = 300;
+// A tile names the piece, not its owner: the title above already says whose it is ("Take one from the Centurion"), and at a
+// 56 px tile "Centurion's helmet" broke mid-word at the apostrophe on a phone, nine times over. "the Centurion's helmet" →
+// "Helmet"; a name with no possessive just loses its article. The full name stays in the button's title.
+export const tileLabel = (name: string) => { const piece = name.replace(/^.*'s /, '').replace(/^the /, ''); return piece[0]!.toUpperCase() + piece.slice(1); };
 
 export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, now: () => number = () => Date.now()) {
   let handlers: LootPanelHandlers | null = null, undo: (() => void) | null = null, openedAt = 0;
@@ -32,7 +36,7 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
         button.setAttribute('type', 'button'); button.disabled = piece.owned;
         button.title = piece.owned ? `${piece.name} (yours already)` : piece.name;
         if (piece.image) { const img = make<HTMLImageElement>('img'); img.src = piece.image; img.alt = ''; img.width = img.height = 48; img.decoding = 'async'; button.append(img); }
-        name.textContent = piece.name.replace(/^the /, ''); button.append(name);
+        name.textContent = tileLabel(piece.name); button.append(name);
         if (piece.owned) { const tag = make('small'); tag.textContent = 'Yours'; button.append(tag); }
         // The tap is the take. The guard window is not a debounce: a touch already on its way down when the kill screen arrived
         // must not spend the one take of the fight (the lead's caution, 2026-09-22), and Undo is the only way back.
