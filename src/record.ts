@@ -184,22 +184,6 @@ async function pipe(bytes: Uint8Array, stream: { readable: ReadableStream<Uint8A
   return out;
 }
 export const encodeRecord = async (r: FightRecord): Promise<string> => toBase64Url(await pipe(packRecord(r), new CompressionStream('gzip')));
-// The header of a link this build refuses (a retired version): who fought, with which weapon, and how it ended — so the kill-link
-// page can say what the fight WAS without replaying a different one. Header only: the intents are never read. Every version since 2
-// has carried the weapon after the opponent (1 was always the longsword). Null for anything that is not a fight record's header.
-export type RecordHeader = { v: number; build: string; opponent: string; weapon: string; outcome: Outcome };
-export async function peekRecordHeader(s: string): Promise<RecordHeader | null> {
-  try {
-    const bytes = await pipe(fromBase64Url(s), new DecompressionStream('gzip'));
-    if (bytes.length < 3 || bytes[0] !== 0x46 || bytes[1] !== 0x4b) return null;
-    const v = bytes[2];
-    let o = 3;
-    const str = () => { const len = bytes[o++]; if (len === undefined || o + len > bytes.length) throw Error('truncated'); let t = ''; for (let i = 0; i < len; i++) t += String.fromCharCode(bytes[o + i]); o += len; return t; };
-    const build = str(), opponent = str(), weapon = v >= 2 ? str() : 'longsword';
-    const outcome = OUTCOMES[bytes[o + 1 + 4 + 4]];
-    return outcome ? { v, build, opponent, weapon, outcome } : null;
-  } catch { return null; }
-}
 export async function decodeRecord(s: string): Promise<FightRecord> {
   let bytes: Uint8Array;
   try { bytes = await pipe(fromBase64Url(s), new DecompressionStream('gzip')); } catch (error) { throw new Error(`Fight record: cannot decode (${error instanceof Error ? error.message : String(error)})`, { cause: error }); }

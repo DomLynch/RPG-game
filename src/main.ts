@@ -1,7 +1,8 @@
 import { createInput } from './input.ts';
 import { RULES, type WeaponId } from './moves.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
-import { createRecorder, decodeRecord, encodeRecord, peekRecordHeader, quantizeIntent, type FightRecord } from './record.ts';
+import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
+import { peekRecordHeader } from './record-header.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
