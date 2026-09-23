@@ -9,7 +9,7 @@ import { gzipSync } from 'node:zlib';
 // src/assets/arena/props/*.glb are props, src/assets/weapons/player/*.glb are player-equipped weapons (loaded only when worn, so
 // they count toward the whole-of-dist storage cap below but never the per-fight download, same as loot.glb). A dist GLB
 // matching none of these fails the gate rather than being guessed at.
-const PER_FIGHT = 12_000_000, TOTAL = 32_000_000, LOOT = 1_500_000, GUARD = 400_000;   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
+const PER_FIGHT = 12_000_000, TOTAL = 40_000_000, LOOT = 1_500_000, GUARD = 400_000;   // TOTAL 32 → 40 MB: four launch characters into beta (Dom 2026-09-23); total = server storage, per-fight unchanged   // guard.glb (Brief 13): the ring guards, in every fight's base, under 400 KB   // gzip bytes; owner approved up to 12 MB per fight on 2026-09-19; loot.glb (Brief 5) under 1.5 MB, fetched on its own once the rigs are in and the fighter owns something (never beside a fight's download, never part of a pairing).
 // Headroom for useful content, not a target; the separate total-distribution cap is unchanged.
 const dist = process.argv[2] || 'dist', src = process.argv[3] || 'src';
 
