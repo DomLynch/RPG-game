@@ -5,33 +5,56 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
-## Now (2026-09-22, end of the Backend/Accounts session that applied 0002–0010)
+## Now — pick up here (2026-09-23)
 
-**In flight / open**
-- **PR #487** (this file) — open, docs only: 0007 recorded as applied, 0009 + 0010 added with live receipts.
-- **AUTHORITY: `docs/SCOPE.md`** (branch `docs/scope-2026-09-23`, PR #492, merging tonight) — the current dated scope; Strategy's
-  ruling is that it wins over every older brief, state entry or memory line, including this file. Read it first.
-- **Stats lane — deliverable 3 comes to this lane for review before merge** (Strategy, 2026-09-23). SCOPE.md line 20 settles what an
-  earlier note here flagged as unverified: *"Loot awards become server-authoritative before stats touch a fight"*, and it explicitly
-  *replaces* "loot is cosmetic only, no stats" (Brief 5). So the 0004 rule written in this file — client-reported loot, never
-  competitive authority — **ends with that deliverable**; the client's owned list becomes a cache and awards derive from verified
-  fight records. Design nothing yet: review the migration and its RLS when the PR arrives. Brief 19 / PR #486 and deliverable 1 /
-  PR #488 need nothing from this schema (`daily_results` carries no gear; the record is opaque base64url to Postgres).
-- **Stats' PR A (#503, `stats/record-accept-list`) needs nothing from this lane** (Strategy, 2026-09-23): decoder + accept-list only.
-  It is still a change the verifier host runs — `scripts/verify-daily.mjs` imports `decodeRecord` from `src/record.ts` and `deploy.sh`
-  rsyncs `src/**/*.ts` to the verifier — so one deploy moves both readers; that is by construction, not something to arrange. PR B
-  carries the bump to 6 and the encoder. The ordering (accept-list one deploy before the encoder) is what stops a verifier reading a
-  format newer than it knows; if a future widening lands after rows exist, refused rows need `verify-daily.mjs --recheck` because
-  `checked_at` takes them off the sweep's page.
-- **Daily verifier first sweep** — still unobserved: `daily_results` was 0 rows at 2026-09-22 (0 verified, 0 refused, 0 awaiting).
-  The timer is armed and the job row is live; the first real receipt waits on someone posting a daily fight.
+**Review Stats' deliverable 3 before it goes READY** (beta item 3, "server-controlled gear bonuses"; assigned by Strategy 2026-09-23).
+The server decides the loot award; the client cannot grant itself gear. Look hardest at the **record/verifier path** and **any
+migration** (RLS, grants, who can write the award). Wait for Stats' heads-up with the branch; reply to Stats directly and copy
+Strategy with the verdict. Deploy applies any migration — this lane reviews and verifies after, never applies.
+Authority for scope: **`docs/SCOPE.md`** (PR #492) wins over every older brief, state entry or memory line, this file included.
+Line 20: *"Loot awards become server-authoritative before stats touch a fight"* — it replaces Brief 5's cosmetic-only rule, so the
+0004 rule below ("client-reported loot, never competitive authority") **ends with this deliverable**.
+Nothing else for Backend in beta unless phone validation (item 6) finds an account or sync defect — that comes from Web.
 
-**Runbook note, for the next accept-list change:** after a deploy that widens the record accept-list, refused rows do **not** self-heal
-— `checked_at` takes them off the sweep's page, so run `verify-daily.mjs --recheck` if any rows exist by then.
+## Done (2026-09-21 → 09-23)
 
-**Re-checked against trunk when this was written:** `RECORD_VERSION = 5` in `src/record.ts`; #486 and #488 open; `daily_results`
-0 rows. **Settled, nothing pending:** migrations 0002–0010 all applied and verified by this lane's own queries (never a relay). Issue #397
-closed. The by-design security-advisor list below is the baseline — anything not on it is a new finding.
+- **Hosted migrations 0002–0010 all applied and verified by this lane's own queries** (never a relay): fight_records, daily
+  warden, loot column, verifier role, fight_records column narrowing, daily_board_summary, rls_auto_enable revoke, short share ids,
+  guest-share hygiene. Details and live receipts in the sections below.
+- **PRs merged** (each confirmed with `gh pr view`): #354, #357, #359, #385, #391, #399, #404, #409, #421; #355 into the
+  `lead/loot-data` stack. Issue #397 (security advisor) closed with receipts.
+- **DB check** (`scripts/account-database-check.mjs`, real disposable Postgres, zero production writes) covers every table and
+  function above, and every new assertion was mutation-tested.
+
+## Open
+
+- **#487** (this file) — in tonight's docs batch.
+- **Stats' PR A, #503** (decoder + accept-list) — needs nothing from Backend (Strategy, 2026-09-23). It still reaches the verifier
+  host by construction (see Gotchas).
+- **Daily verifier's first real sweep** — unobserved: `daily_results` was 0 rows on 2026-09-22 (0 verified / 0 refused / 0
+  awaiting). The timer is armed; it waits on someone posting a daily fight.
+- **Session-name question to Dom (2026-09-23).** His standing order gives Strategy/Lead instructions his approval, naming
+  `Frankendom - Strategy` and `Frankendom - Lead Developer`; both lanes also message as `… - Fable 5.1`. Unanswered at writing.
+  Until he answers: exact names carry approval, variants get flagged to him — neither silently acted on nor silently refused.
+  (Reviews need no approval at all, so this only matters for push/merge-class requests.)
+
+## Gotchas
+
+- **The record is opaque to Postgres; the version check is client code the server runs.** `scripts/verify-daily.mjs` imports
+  `decodeRecord` from `src/record.ts`, and `deploy.sh` rsyncs `src/**/*.ts` to the verifier host — so one accept-list, two readers.
+  Grepping `supabase/` for `RECORD_VERSION` and finding nothing means "no second list", not "no server check".
+- **A refused daily row does not self-heal**: `checked_at` takes it off the sweep's page. After any accept-list widening, run
+  `verify-daily.mjs --recheck` if rows exist. Ship accept-list widenings one deploy **before** the encoder writes the new version.
+- **A refused insert still consumes a sequence value** — validate before `nextval`.
+- **Narrowing a column grant can break the policy that enforces it** (column SELECT is needed for columns in a WHERE).
+- **The local check must mirror hosted's quirks or assertions go vacuous**: `pgcrypto`, `set time zone 'UTC'`, and hosted's default
+  `truncate/trigger/references` grants.
+- **Mutation-test every new assertion.** Three times this lane a check passed with its protection removed. And on a repo whose digest
+  guard hashes the file you mutate, "a test failed" proves nothing — read *which* test.
+- **Supabase MCP `execute_sql` returns only the last statement's result** — one statement per call when each matters.
+- **Never mint or insert in production "to test"** — read-only verification only.
+- **This machine's deploy guard refuses heavy commands while any deploy is in flight** — and it refuses the *whole* command, so a
+  combined edit+test can leave the edit unapplied. Run edits alone, then the check.
 
 ## Hosted project as it stands — verified 2026-09-22 (0002–0010 all applied and verified by this lane)
 
