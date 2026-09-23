@@ -53,6 +53,8 @@ Nothing else for Backend in beta unless phone validation (item 6) finds an accou
   guard hashes the file you mutate, "a test failed" proves nothing — read *which* test.
 - **Supabase MCP `execute_sql` returns only the last statement's result** — one statement per call when each matters.
 - **Never mint or insert in production "to test"** — read-only verification only.
+- **Check a PR's state before pushing follow-ups to its branch.** A merged PR ignores new commits, and the push still "succeeds".
+  Three commits were stranded this way on #487 and rescued as #525. Confirm the PR's `headRefOid` equals HEAD after pushing.
 - **This machine's deploy guard refuses heavy commands while any deploy is in flight** — and it refuses the *whole* command, so a
   combined edit+test can leave the edit unapplied. Run edits alone, then the check.
 
