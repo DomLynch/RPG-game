@@ -26,9 +26,15 @@ CLOSE = int(args[args.index('--close') + 1]) if '--close' in args else 0   # fac
 COLOR_SIZE = int(args[args.index('--color-size') + 1]) if '--color-size' in args else 768   # the iron's colour map edge; loot.glb's 1.5 MB cap sets it
 JPEG_QUALITY = int(args[args.index('--jpeg-quality') + 1]) if '--jpeg-quality' in args else 82
 RATIO = float(args[args.index('--ratio') + 1]) if '--ratio' in args else 1.0   # decimate each piece to this share of its faces (loot.glb's 1.5 MB cap)
+# Measured 2026-09-23 on the Plague Doctor's Helmet and Body (docs/character-references/loot-weld/): .12 and .3 collapse a TRELLIS piece into
+# star fans and spikes, welded or not; .5 keeps the beak, hood, lapels and belts. Use .5 or higher for a carrier the player wears.
 FAMILY = args[args.index('--family') + 1] if '--family' in args else 'dwarf'   # whose TRELLIS surface to cut
 # --material Steel: the piece wears loot.glb's shared untextured Steel instead of its own baked maps (the Knight: 80 KB of loot headroom)
 MATERIAL = args[args.index('--material') + 1] if '--material' in args else f'{FAMILY.capitalize()}Iron'
+# --all: every face is a candidate, not only the metallic ones — the Plague Doctor's carriers are leather and a waxed coat, not iron.
+# --slots Helmet,Body: keep only these player slots (Recruit-2 for a masked archetype is Helmet + Body; Strategy, 2026-09-23).
+ALL = '--all' in args
+SLOTS = set(args[args.index('--slots') + 1].split(',')) if '--slots' in args else None
 SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
 OUT = 'src/assets/source/loot'
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
@@ -98,7 +104,7 @@ for _ in range(SMOOTH):
     np.add.at(n, edges[:, 0], 1)
     np.add.at(n, edges[:, 1], 1)
     metal = s / n
-iron = (metal > METAL)[rep]   # back to the split vertices
+iron = (np.ones_like(metal, dtype=bool) if ALL else metal > METAL)[rep]   # back to the split vertices
 metal = metal[rep]
 # Dominant bone per vertex from the transferred weights.
 groups = {g.index: g.name for g in body.vertex_groups}
@@ -153,7 +159,7 @@ for i, _ in faces:
 pieces = defaultdict(list)
 for s, patch in patches:
     pieces[s] += patch
-pieces = {s: f for s, f in pieces.items() if len(f) >= MIN_SLOT}
+pieces = {s: f for s, f in pieces.items() if len(f) >= MIN_SLOT and (SLOTS is None or s in SLOTS)}
 print('LOOT patches (faces, slot), largest first:', sorted(sizes, reverse=True)[:12])
 print(f'LOOT {FAMILY}: {int(iron.sum())}/{V} iron vertices; patches kept {len(patches)} → slots ' +
       ', '.join(f'{s}:{len(f)} faces' for s, f in sorted(pieces.items())))
@@ -167,6 +173,9 @@ for s, face_ids in sorted(pieces.items()):
     bm.faces.ensure_lookup_table()
     keep = set(face_ids)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context='FACES')
+    # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
+    # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
