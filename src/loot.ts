@@ -12,7 +12,7 @@ export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greav
 // No draw in loot.glb — the visual is the weapon's equip file (src/assets/weapons/player/<weapon>.glb, the #309 contract) loaded when
 // `equipped.main` is set, and the fight is fought with that weapon (moves.ts PLAYER_WEAPONS). Grows with the equip files; whether a
 // weapon is OFFERED stays moves.ts PLAYER_WEAPONS_OFFERED (Combat's fairness table), not this list.
-export const WEAPON_SLOTS = ['Trident', 'Cleaver', 'Knife', 'Estoc', 'Scythe', 'Warhammer'] as const;
+export const WEAPON_SLOTS = ['Trident', 'Cleaver', 'Knife', 'Estoc', 'Scythe', 'Warhammer', 'Maul'] as const;
 export const LOOT_SLOTS = [...ARMOUR_SLOTS, ...WEAPON_SLOTS] as const;
 export type LootSlot = (typeof LOOT_SLOTS)[number];
 export type WeaponSlot = (typeof WEAPON_SLOTS)[number];
