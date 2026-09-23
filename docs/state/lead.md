@@ -2,6 +2,41 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead — 2026-09-23 ~13:20 local: Window 1 split, Publish A, and the rulings since noon
+**Now.** LIVE `c0b321c` (Deploy's receipt 12:31: 33/33, served index cmp-identical, VPS `current` -> `releases/c0b321c…`;
+Lead confirmed `release.json`). **Publish A is running:** #528 + #530 (v6, merged 12:38) -> #535 -> #521 -> #533. **Lead owes the
+375x812 phone smoke on it at FREE, with the receipt going to Strategy.** Next rolling batch, all non-sim and all Lead-reviewed READY:
+**#540** (retired-replay page, first, because A's v6 retires every v5 link) -> #538 (wear() on CreatureBody) -> #537 (World
+readability, file renamed to `colour-grade.ts`). Then #534 (Auditer match split, split only), after #535 and re-gated.
+**Window 1 is SPLIT (Strategy, on Dom's order 13:0x):** Publish B takes the bump to **7**: #532 (estoc, READY on trunk via merge
+`503bac0`) -> Combat's Nightborn/estoc profile (15:00) -> Executioner `anticipate` + cleaver (17:00) -> Weapons' gladius on #532
+(15:00) -> Veteran's scutum (16:00). **Combat owns the one bump and the one SIM_DIGEST re-pin, at the end.** Two waves of dead
+links accepted (one live account, grandfathered).
+**Old links in Publish A are safe without #540:** trunk's refusal path (`main.ts:504`, `:779`) shows "Recorded on an older build" +
+Play now. It is neither blank nor a wrong fight.
+
+**Rulings since noon:**
+- **Retired-replay page: NO DATE (Lead).** The record header has none, and `fight_records.created_at` is server-only by
+  migration `202609220006`. We keep the privacy call rather than reverse it for a date.
+- **Loot awards (Strategy):** the player takes ANY one piece, armour or weapon (SCOPE.md line 14). The server VALIDATES the claimed
+  slot against the opponent's kit at the server's tier; the drop table decides what the opponent WEARS, never what the player gets.
+  #539 (D3) changes `src/awards.ts` to match. Kill-screen flow and copy are unchanged.
+- **#539 migration `202609230001` apply is HELD** until the client-claims PR ships in the same publish: `account_seed` is a one-shot
+  snapshot, so an early apply loses the wins in between. **Backend [B1], BLOCKING:** a single multi-row insert gets past the
+  60-per-hour cap (the STABLE policy function sees the count from before the statement; 500 rows -> 501 claims), fixed with a
+  BEFORE INSERT row trigger plus a 500-row regression in `awards-database-check.mjs`.
+- **CI check 32 does not gate (Strategy):** `deploy.sh` runs row 32 locally (passed in the c0b321c run, 72 s). Root cause and fix:
+  #533 (the tap waits for the rigs plus one painted frame; software GL on the runner stalls the shader-compile frame).
+- **#534 dedup:** the Auditer had folded #535's `mergeLoot` fix into its match split. Stripped at `7808f03`.
+
+**Gotchas:**
+- **The send cap:** a send to a `local_…` id goes through Desktop session messaging and stops after 10 per user message (a
+  mid-turn user message does not reset it). A send to a ListAgents row as `"<exact name> [ref]"`, or a reply to a `uds:` from, is
+  NOT capped. A PR comment is not a message: #524's HOLD was a comment, and Deploy merged it.
+- **SIM_FILES:** any helper put in `src/record.ts` trips record-version-guard as a sim change. Web's header peek lives in
+  `src/record-header.ts` for that reason.
+- **Quality gate timeout:** `quality:stop` overran the 300 s Stop budget on the loaded box; #541 raises it to 420 (the hook's max).
+
 ## Lead — 2026-09-23 morning: Strategy's #2, beta dispatch, and the anticipate spec
 **Now.** Dom: Lead is Strategy's #2 — lanes report to Lead, Strategy rules and keeps its state doc. Beta list in priority:
 (1) publish after testing together, (2) knife then cleaver + estoc balance, (3) loot: tap-to-take + Undo (#475), tiered
