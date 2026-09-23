@@ -5,6 +5,15 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-23 18:45: the Knight is HELD (#594); next is the depth-aware ARM RE-WEIGHT (target 23:00 Phase L)
 
+**Progress 18:5x — `knight/six` @ 6451d4b7 (pushed; not a PR):** the arm split is DONE and works. For the Knight, `arm_mix` compares
+a vertex's distance to the posed arm segments with its distance to the trunk/leg segments (`body_segments`, `segment_distance`),
+biased 2 cm to the trunk over a 6 cm band. spine_02 is gone from the arms (was 8,482). On the attack sheet
+(`artifacts/character/knight-seg2/sheet.png`) the hands stay on the haft through Maul_Heavy/Slash and the skirt stays still.
+**Next: pale patches at the hip/underarm mid-swing.** They are NOT texture (only 0.35 % of the 2048 map has lum > .5; the plate median
+is .25/.22/.20). So it's geometry: back faces or tearing where the fused arm and torso surfaces separate. Check whether the material is
+single-sided and where the stretched faces are, then the six pieces (recipe below), the un-hold, and the mid-swing still in ONE PR.
+Merge origin/phase-r in before the next Stop once #593 (the targeted Stop gate) lands (Strategy).
+
 **Now (next session):** re-weight the Knight's arms in `scripts/character/creatures.py`, then land in ONE PR: the un-hold +
 the new `knight.glb` + his six loot pieces + a MID-SWING still. Dom accepted the four new characters on live 7b277fd; "add the
 weapons" = the Knight back with a SWINGING maul.
