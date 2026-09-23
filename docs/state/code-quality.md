@@ -10,6 +10,7 @@ Worktree `~/Developer/frankendom-code-quality`, branches `quality/*`. Owns cross
 
 **Done.**
 - roster-v0 cd28ea4 (Strategy ruling via Lead): check-budget TOTAL 32 → 40 MB gzip, PER_FIGHT 12 MB unchanged, no test pins it; budget test 4/4, tsc clean.
+- roster-v0 636ce4d (second Strategy ruling): check-budget LOOT 1.5 → 2 MB gzip (four characters' Recruit-2 pieces on shared Steel, ~130 KB each); TOTAL and PER_FIGHT unchanged; budget test 4/4, tsc clean; Executioner told (the Knight's loot was parked on it).
 - #567: live bug on a50f22f (canvas in the top half after a page zoom, void below, HUD floating, camera far). Trigger: iOS Safari reports the zoomed VISUAL viewport in innerWidth/innerHeight; scene.ts resize() used them and renderer.setSize wrote inline px style. Fix: size from documentElement.clientWidth/Height, setSize(w, h, false), projections use the same numbers. Reproducer scripts/viewport-check.mjs (row 35): on trunk the emulated 2.5× zoom leaves the canvas 157×341 with inline style (fails); after, 393×852 with none (passes). Gate 526/524/0/2.
 - #556: Web's loot-smoke-check wired as row 34 with a trigger rule above `src/**` repeating the boot-path six; the welcome tap now waits for the rigs and one painted frame (#533's stall). Passed all three steps on a local preview merged with #552.
 - #534: fourth rebase of the day (over #535, #533, #538/#521, then #540/#537/#541), every time because merges landed between my push and Deploy's batch; main.ts is every lane's file.
