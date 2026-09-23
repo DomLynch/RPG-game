@@ -269,6 +269,39 @@ for s, face_ids in sorted(pieces.items()):
     # TRELLIS winds its surface about half inward (Goblin's check, 2026-09-23: Arms 57 %, Body 51 %, Boots 47 % facing into the skin), and
     # the loot material is single-sided, so half a piece never drew. Wind each welded piece outward before export.
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    # recalc makes each connected region consistent but can leave a whole region inward. Outward is away from the line of the bone the
+    # region is skinned to (its dominant weight), the reference Goblin's winding check uses: a partial plate's own centre sits on its
+    # surface and gives no sign, a bone line does. A region whose area-weighted normals point toward that line is inside out: flip it.
+    deform = bm.verts.layers.deform.active
+    seen = set()
+    for f in bm.faces:
+        if f in seen:
+            continue
+        region, queue = [], [f]
+        seen.add(f)
+        while queue:
+            g = queue.pop()
+            region.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h not in seen:
+                        seen.add(h)
+                        queue.append(h)
+        weight = defaultdict(float)
+        for v in {v for g in region for v in g.verts}:
+            for group, w in v[deform].items():
+                weight[group] += w
+        bone = armature.data.bones.get(body.vertex_groups[max(weight, key=weight.get)].name) if weight else None
+        if bone is None:
+            continue
+        to_mesh = body.matrix_world.inverted() @ armature.matrix_world
+        head, tail = to_mesh @ bone.head_local, to_mesh @ bone.tail_local
+        axis = tail - head
+        def away(c):
+            t = min(max((c - head).dot(axis) / max(axis.length_squared, 1e-12), 0.0), 1.0)
+            return c - (head + axis * t)
+        if sum(g.calc_area() * g.normal.dot(away(g.calc_center_median())) for g in region) < 0:
+            bmesh.ops.reverse_faces(bm, faces=region)
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
