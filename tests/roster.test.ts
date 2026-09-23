@@ -40,7 +40,8 @@ test('appearance presets reject unknown identities and do not leak edits across 
   assert.equal(warriorAppearance('veteran').matteIron, false);
   assert.equal(warriorAppearance('veteran').items, 'helmet_bronze');
   assert.equal(warriorAppearance('executioner').items, 'mask_iron,hood_rag');
-  for (const id of ['hero', 'pitborn', 'goblin', 'nightborn']) assert.equal(warriorAppearance(id).items, '');
+  assert.equal(warriorAppearance('goblin').items, 'helmet_scrap');   // Phase R: his scrap cap
+  for (const id of ['hero', 'pitborn', 'nightborn']) assert.equal(warriorAppearance(id).items, '');
 });
 
 test('Opened is supported on Wraith and Minotaur without enabling other creature executions', () => {

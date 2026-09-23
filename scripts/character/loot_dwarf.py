@@ -10,6 +10,7 @@ skin weights) and the two maps the loot build embeds for the DwarfIron material.
 The Knight (Brief 17) is cut the same way from his own TRELLIS.2 surface (--family knight → knight.glb, KnightIron). His BUILD is a
 uniform 1.18 root scale with no per-bone table, so his rest space is already a man's and his loot.json entries carry no `unscale`.
 """
+import json
 import os
 import sys
 from collections import defaultdict, deque
@@ -46,7 +47,17 @@ SLOT_OF = [('Head', 'Helmet'), ('neck', 'Helmet'), ('spine', 'Body'), ('pelvis',
 MIN_SLOT = int(args[args.index('--min-slot') + 1]) if '--min-slot' in args else 300   # a slot with fewer iron faces than this is speckle, not a piece
 
 
+# --slot-ratio Greaves=.2,Body=.4: a per-slot --ratio. What shreds a piece is too few faces left, so a big piece (a coat skirt) can go lower.
+SLOT_RATIO = {k: float(v) for k, v in (p.split('=') for p in args[args.index('--slot-ratio') + 1].split(','))} if '--slot-ratio' in args else {}
+BOOTS = '--boots' in args   # opt-in: foot/ball bones fill Boots instead of Greaves (a character with boots of his own)
+# --repose warrior: his rig rests in an A-pose (the Plague Doctor: hand_l at y .99) where the player's rests in a T (1.46); loot binds to
+# the player's rest, so an A-pose sleeve lands across the chest. Re-skin his surface onto src/assets/<name>.glb's rest joints first.
+REPOSE = args[args.index('--repose') + 1] if '--repose' in args else None
+
+
 def slot_for(bone):
+    if BOOTS and bone.lower().startswith(('foot', 'ball')):
+        return 'Boots'
     for prefix, slot in SLOT_OF:
         if bone.lower().startswith(prefix.lower()):
             return slot
@@ -57,6 +68,42 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=SOURCE)
 body = bpy.data.objects['CreatureBody']
 armature = body.find_armature()
+def binds(path):
+    """Each joint's world bind matrix (glTF mesh space, from the skin's inverse bind matrices). Not Blender's bone
+    matrices: the importer guesses their orientation from child positions, so two rigs with the same joints disagree."""
+    raw = open(path, 'rb').read()
+    n = int.from_bytes(raw[12:16], 'little')
+    gl = json.loads(raw[20:20 + n])
+    skin = gl['skins'][0]
+    acc = gl['accessors'][skin['inverseBindMatrices']]
+    view = gl['bufferViews'][acc['bufferView']]
+    ibm = np.frombuffer(raw, dtype='<f4', count=16 * acc['count'],
+                        offset=20 + n + 8 + view.get('byteOffset', 0) + acc.get('byteOffset', 0)).reshape(-1, 4, 4)
+    names = {j: gl['nodes'][j]['name'] for j in skin['joints']}
+    return {names[j]: np.linalg.inv(ibm[k].T) for k, j in enumerate(skin['joints'])}
+
+
+if REPOSE:   # re-skin his surface onto the player's rest joints: his A-pose arms turn 62° and every piece lands on the player's frame
+    his, player = binds(SOURCE), binds(os.path.abspath(f'src/assets/{REPOSE}.glb'))
+    skin = {name: player[name] @ np.linalg.inv(rest) for name, rest in his.items() if name in player}
+    to_z = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])   # glTF Y-up → Blender Z-up
+    V0 = len(body.data.vertices)
+    co = np.empty(V0 * 3)
+    body.data.vertices.foreach_get('co', co)
+    gl_co = np.c_[co.reshape(V0, 3) @ to_z, np.ones(V0)]
+    out = np.zeros((V0, 3))
+    total = np.zeros(V0)
+    names = {g.index: g.name for g in body.vertex_groups}
+    for v in body.data.vertices:
+        for g in v.groups:
+            if names[g.group] in skin:
+                out[v.index] += g.weight * (skin[names[g.group]] @ gl_co[v.index])[:3]
+                total[v.index] += g.weight
+    moved = total > 0
+    out[moved] /= total[moved, None]
+    out[~moved] = gl_co[~moved, :3]
+    body.data.vertices.foreach_set('co', (out @ to_z.T).ravel())
+    body.data.update()
 mesh = body.data
 material = mesh.materials[0]
 nodes = material.node_tree.nodes
@@ -187,8 +234,9 @@ for s, face_ids in sorted(pieces.items()):
     obj.parent = armature
     obj.modifiers.new('Armature', 'ARMATURE').object = armature
     obj['material'], obj['slot'] = MATERIAL, s
-    if RATIO < 1:
-        obj.modifiers.new('Loot budget', 'DECIMATE').ratio = RATIO
+    ratio = SLOT_RATIO.get(s, RATIO)
+    if ratio < 1:
+        obj.modifiers.new('Loot budget', 'DECIMATE').ratio = ratio
         obj.modifiers.move(len(obj.modifiers) - 1, 0)   # simplify the rest shape, then skin it
     kit.append(obj)
 os.makedirs(OUT, exist_ok=True)
