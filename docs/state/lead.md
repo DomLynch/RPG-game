@@ -93,6 +93,16 @@ retarget #530 to trunk.** Combat restarts fresh for item 2 (Nightborn profile + 
 a refused/blank fight the moment Window 1 publishes. **Deploy must NOT publish Window 1 until the retired-replay page is merged in
 it.** Brief Web on it first.
 
+### Stats deliverable 3 (server-authoritative awards): design questions out to Backend; SQL held. One question may be STRATEGY'S.
+(1) The only verified records are `daily_results`. LADDER kills are what drop loot (`dropFor`, `src/loot.ts:65`), and no ladder record
+reaches a verifier, so D3 needs a new `loot_claims` table (owner insert, unverified, the same pattern as `daily_results`) plus an
+`awards` table the client cannot write, filled by the verifier replaying with `decodeRecord` / `verifyRecord`.
+(2) **`victory_marks` is client-written (migration `202609200004`), and both the drop (`subRank(marks)`) and the tier
+(`tierAt(marks)`) read it.** A server award built on client marks would let a client claim an Origin-rung drop from a Recruit fight.
+Stats leans toward putting the rung in the record once PR B lands, so a wrong rung replays a different fight and is caught for free.
+Until then the tier stays client data, flagged as such. **Making marks authoritative changes what `victory_marks` means, which is a
+ranking question, so it goes to STRATEGY to rule.** #514 was closed and reopened to trigger `quality`; READY follows when green.
+
 ### Audio, ~07:10Z — phone pass on live `52dffed`: #529 READY (non-sim)
 The served `sprite.ogg` and `sprite.m4a` sha256 match git, so the measurements are of the shipped audio. #529 (head `5aa788b`)
 lowers the whip TELL (gain .3 -> .1) so it sits 8.4 dB under the lash on the phone band. The two had read equally loud (-29.2 vs
