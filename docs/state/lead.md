@@ -169,6 +169,11 @@ this session's cross-session sends were capped):**
 2. **Auditer, this week:** move the release-row matrix (and the lanes' browser gates) to the VPS, `root@49.12.7.18`: 16 cores,
    load ~3 when last measured. That means Playwright installed there and `deploy.sh` dispatching rows over ssh. The one-deployer rule
    stays; only the machine changes. **Cost estimate to Strategy before anyone builds.**
+   **PARKED AS POST-BETA (Strategy, ~06:30Z, on Dom's data): the average deploy is under 10 min, so today's 40 min tracks load
+   (17-18 live sessions plus audit sessions, and both slow deploys happened exactly then). It is not the norm. The Auditer still
+   sends the cost line so Dom knows the price. Nobody builds it during beta. The four pass conditions stay attached for when it
+   is picked up.** Today's levers instead: lanes gate only when they have a change; the fast suite only while a deploy is in
+   flight; Strategy is asking Dom to close the post-beta sessions and to consider pausing the per-Stop audit hook during the push.
    **Dom approved it in principle ("good idea, who does this?"). Owners, ruled by Strategy:** AUDITER builds it: `deploy.sh`
    dispatching the row matrix over ssh, the row runner on the VPS, and lanes' browser gates able to run there too.
    BACKEND provisions the VPS: node, Playwright + browsers, a repo checkout, the ssh path (key `~/.ssh/binance_futures_tool`).
