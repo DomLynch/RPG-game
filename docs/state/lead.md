@@ -50,7 +50,21 @@ every weapon at both levels, since every player weapon is also a warden's weapon
 **It changes `ai.ts`, so it moves `SIM_DIGEST` and needs a `RECORD_VERSION` bump** — ride the single bump to 6 (whoever is ready
 first takes it), never a second one.
 
-### DEPLOY DIED, 06:29Z: `2d614dc` killed with `EXIT=124`. FIRST THING FOR THE NEXT LEAD SESSION.
+### LIVE `52dffed` — BETA ITEM 1 DONE (verified by Lead, ~07:00Z)
+`release.json` = `52dffed0136cd596539c090bbc8614d6735b3e02` = trunk. Deploy's receipt: 33/33 rows (31 CI-trusted, rows 26 and 32 run
+locally), served `index.html` cmp-identical to dist, VPS `current` -> `releases/52dffed…`, **box FREE**. Lead verified that #506
+(finisher-complete latch), #511 (CC0 audio) and #513 (goblin unscale) are all ancestors of `52dffed`. Those three had never run as
+one tree, and they now have, through the full release matrix. **That publish was 3 minutes, not 50,** because #519 (the CI plan
+fix) made CI's release matrix run again, so 31 rows were CI-trusted. The earlier 50-minute `2d614dc` death was the saturated box
+and the untrusted matrix, not a code defect. Row 27 passed in this run.
+**Still owed on item 1: a human 375x812 look** at a fight to a kill with the loot panel on the live build. The matrix covers
+behaviour, not how it reads on a phone.
+**New, owner: Auditer (CI) — CI `check 32` (autopsy) fails on EVERY CI run** with a `.tap()` timeout on "Enter the arena" (line
+29), but passes locally every time (41 s today). It does not hurt deploys, since `deploy.sh` runs row 32 locally, but CI will
+never trust that row, so every deploy pays its local cost. Most likely a CI-runner timing or viewport difference. Needs a fix,
+not a longer timeout.
+
+### (superseded) DEPLOY DIED, 06:29Z: `2d614dc` killed with `EXIT=124`.
 The log ends: `Retrying release check 27 alone` -> `Deploy ceiling: no exit after 3000s in step 'release checks' — killing
 the deploy` -> `EXIT=124`. Live is still `fe0d8e0`; trunk is `52dffed` (`2d614dc` + #519 CI fix + #502). **Row 27
 (`scripts/veteran-polish-check.mjs`) is unproven: load or a real hang.** It hit 900 s in the matrix, and its solo retry then ran out
