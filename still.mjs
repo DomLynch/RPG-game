@@ -1,0 +1,22 @@
+import { chromium } from 'playwright';
+const [, , out, wear] = process.argv;
+const b = await chromium.launch({ args: ['--use-angle=metal', '--enable-gpu'] });
+const p = await b.newPage({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+p.on('pageerror', e => console.error('pageerror', e.message));
+await p.goto('http://127.0.0.1:5191/');
+await p.evaluate(([wear, idsJson]) => {
+  const k = 'frankendom.fighter.v1', prof = JSON.parse(localStorage.getItem(k) || '{"version":1,"id":"00000000-0000-4000-8000-000000000001","name":"Wanderer"}');
+  const ids = idsJson ? JSON.parse(idsJson) : { chest: 'dwarf.Body', arms: 'dwarf.Arms', hands: 'dwarf.Gloves', legs: 'dwarf.Greaves', feet: 'dwarf.Boots' };
+  prof.loot = wear === '1' ? { owned: Object.values(ids), equipped: ids } : { owned: [], equipped: {} };
+  localStorage.setItem(k, JSON.stringify(prof));
+}, [wear, process.env.IDS]);
+await p.goto('http://127.0.0.1:5191/?opponent=dwarf');
+await p.waitForTimeout(35000);
+await p.screenshot({ path: `${out}-full.png` });
+await p.screenshot({ path: `${out}-crop.png`, clip: { x: 145, y: 500, width: 90, height: 120 } });
+await p.getByRole('button', { name: 'Menu and field journal' }).click();
+await p.waitForTimeout(1500);
+await p.locator('label', { hasText: 'Profile' }).first().click();
+await p.waitForTimeout(2500);
+await p.screenshot({ path: `${out}-journal.png` });
+await b.close();
