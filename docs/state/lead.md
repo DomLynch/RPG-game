@@ -97,6 +97,26 @@ Audio were not.** Each brief below goes out the moment its session is up; acknow
 - **Executioner:** #502 gate then READY (MERGEABLE, 0 failed, told Deploy); re-open #494. Body work paused — post-beta.
 - **Veteran (up):** Centurion scutum + gladius kit from Legionary, cost by noon.
 
+**Dispatch receipts, 2026-09-23 ~06:00Z.** Briefs were sent by `local_` session id: `ListAgents` only shows mid-turn sessions,
+so a send to a display name bounces for an idle lane that is really there. **Acknowledged:** Finishers & Gore (step (a)
+first, in a fresh session; diagnosis in `docs/state/finishers.md`), Combat (knife item 1; local head `ee9a0d0` on `2d614dc`,
+waits on the deploy for its guard, replay and battery), Weapons (#473 carried forward as #520; gladius next in a fresh session;
+#419 later, without its own bump), Multi Chars (Greaves + `WORN_FROM` + stable drop index, in a fresh session). **Queued, no
+ack yet:** Stats, Web, Executioner, World, Audio.
+**NOT SENT, owed by Lead** (the app capped this session's cross-session sends until Dom writes here):
+- **Auditer** (`local_866b9640-bb94-4aa0-b8fc-df2bfc00e271`): re-open #505 off trunk as a NEW PR, with a combined-tree receipt and
+  a finisher-preview equivalence against the new trunk.
+- **Veteran** (`local_e360b41f-203f-43f3-bc1b-e9c75ae11da9`): the Centurion carries gladius + scutum at every rung for beta. The
+  scutum carry pose goes in `characters.ts` once, stacked on Weapons' gladius PR. The roster weapon line is in Window 1. Cost by noon.
+- **Combat:** "once" means one BUMP per window, not one PR. The knife takes 6, and each later PR (estoc, cleaver, shield) re-pins
+  its own digest without bumping, because each PR's own CI runs `record-version-guard` on its own tree. PR A v2 does not exist
+  (#503 is still `d211709`), so build the knife on plain trunk; don't stack on a guess.
+- **Weapons:** the gladius-before-maul order was INTENDED. It is in Strategy's own working brief ("gladius FIRST … Maul_* after,
+  post-beta pace"), because the Knight is post-beta.
+- **Strategy** (its session handed off at its ceiling): one line per lane confirming the acknowledgements above.
+**The deploy of `2d614dc` was still running at ~06:00Z** (614 log lines in, at the Dwarf's fairness battery, no failure). Every
+lane's gate waits on it.
+
 **Review rule for every PR from here (Lead's, before Deploy merges):** a combined-tree receipt on any PR touching a file another
 open PR touches, row receipts, and a rejected-designs paragraph wherever a design choice was made.
 
