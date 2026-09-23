@@ -475,7 +475,7 @@ const header = Buffer.alloc(44); header.write('RIFF', 0); header.writeUInt32LE(3
 await fs.writeFile(wavPath, Buffer.concat([header, Buffer.from(pcm.buffer)]));
 const encode = (args, file) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-map_metadata', '-1', '-fflags', '+bitexact', '-flags', '+bitexact', ...args, path.join(dir, file)]);   // bit-exact: no encoder tags, timestamps or random stream serials, so two builds are byte-identical
 encode(['-c:a', 'aac_at', '-b:a', '96k', '-movflags', '+faststart'], 'sprite.m4a');   // Apple AudioToolbox AAC-LC; Safari decodes it and honours its gapless padding
-encode(['-c:a', 'libopus', '-b:a', '80k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 80k / AAC 96k (aac_at steps coarsely; 96k is the last rung under budget): the five-voicing hit pool + eight-variant guards (owner's picks) push the sprite to ~44 s
+encode(['-c:a', 'libopus', '-b:a', '72k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 72k / AAC 96k (aac_at steps coarsely; 96k is the last rung under budget): six light + six heavy landings (2026-09-23) push the sprite to ~48 s; Opus went 80k → 72k to hold the 1.0 MB cap
 // Codec check: decode each encode and compare with the source over the impact cues — waveform SNR (dense transients are the
 // hard case for both codecs) and the decoded peak, which must stay under full scale for integer decoders.
 const codec = {};

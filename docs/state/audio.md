@@ -5,11 +5,12 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## Heavy landings on the rotation + loudness match — 2026-09-23 evening (Lead's brief, on the owner's "hits still sound the same")
 
 ### Now
-Branch `audio/heavy-rotation` (off trunk `63c56758`, contains #593), commit `e69786c3`, **not pushed, no PR yet**. Next session: when
-`~/.claude/state/deploy_in_flight.json` is absent, run `npm run quality:stop` (capture EXIT=, no tail), `node scripts/check-budget.mjs`,
-and `node scripts/audio-preview.mjs --label heavy-rot` against a trunk run (`--label trunk` from a trunk checkout) for the hit-light /
-hit-heavy / hit-riposte / blocked rows; then push, open the PR off trunk, send Lead READY with the numbers. The owner has the clip
-(`scratchpad/clip/hits-before-after.m4a` of session 268fc3d6) and hears it before merge (Strategy).
+PR #626 (branch `audio/heavy-rotation-r`, rebased on trunk `e455d850`; the older `audio/heavy-rotation` holds the pre-rebase commits
+and is not the PR). Its first CI run was red: `tests/audio.test.ts` budget assert, 1,025,213 B gzip against the 1.0 MB cap. Fixed by
+re-encoding Opus 80k → 72k (below). Still owed when the deploy lock is free: `npm run quality:stop` (capture EXIT=, no tail),
+`node scripts/check-budget.mjs`, and `node scripts/audio-preview.mjs --label heavy-rot` against a trunk run for the hit-light /
+hit-heavy / hit-riposte / blocked rows. The owner has the clip (`scratchpad/clip/hits-before-after.m4a` of session 268fc3d6) and
+hears it before merge (Strategy).
 
 ### What changed
 - Why the owner heard no change after #579: only light hits play `hit_flesh`. Heavy, charged, riposte (`HEAVY` in `src/audio/cues.ts`)
@@ -19,7 +20,11 @@ hit-heavy / hit-riposte / blocked rows; then push, open the PR off trunk, send L
 - Loudness match in `build-audio.mjs`: phone-band (> 300 Hz) K-weighted momentary max per variant; lights to −19, heavies −17
   (`HEAVY_LU` 2). Louder ones trimmed; quieter ones driven into tanh by the least drive that reaches target (cap ×12), re-peaked −4 dBFS.
   Before, lights spread −14.4 … −28.3. H ("messy stabber") needs ×4.7 light / ×9.7 heavy — audibly grittier; flagged to the owner.
-- Sprite: m4a 515,515 → 557,375 B, ogg 470,488 → 505,535 B. Budget not yet checked.
+- Sprite: m4a 515,515 → 557,375 B, ogg 470,488 → 505,535 B at 80k: 1,025,213 B gzip, over the 1.0 MB cap. Opus is now 72k
+  (`build-audio.mjs`): ogg 455,879 B, total 977,703 B gzip. The m4a (Safari) and the manifest are byte-identical; only the Opus
+  stream (Chrome/Android) lost bitrate. Owner-picked takes kept whole: trimming the heavy stretch would have saved only ~8 kB.
+- `tests/audio.test.ts` pins both rotations: `hit_flesh` and `hit_heavy` each have six variants, and 40 hosted landings reach all
+  six with no take twice running.
 
 ### Gotchas
 - Pure attenuation to the quietest variant is useless: it left every hit ~18–22 dB down. Lift quiet ones, trim loud ones.
