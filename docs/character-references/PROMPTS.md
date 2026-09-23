@@ -67,3 +67,36 @@ figure in frame with a margin above the head and below the feet, feet planted on
 line), plain neutral medium-gray background, even frontal studio light with soft shadows only on the body itself, arms
 clear of the torso so every limb reads as separate, hands slightly open with fingers apart, portrait orientation at least
 1536 px tall. No text.
+
+## Plague Doctor (Brief 18) — owner-approved reference, 2026-09-22
+
+`plague-doctor-v1.png` — **the owner picked this one**, candidate "E — the patched beak", on a three-option sheet he
+asked for ("give me 3 options"). He answered with the letter "c" and the image; the image is authoritative and he
+confirmed in the same breath — "ok so its e pitched beak". The sheet's columns were labelled C / B / E left to right,
+so a positional reading of the letter pointed at a different panel; recorded here because the next sheet should use
+A / B / C in order and remove the ambiguity.
+
+Text-to-image (no input image): Space `black-forest-labs/FLUX.1-dev`, endpoint `/infer` through `gradio_client`,
+**seed 190926**, `randomize_seed=False`, 896×1152, `guidance_scale=3.5`, `num_inference_steps=28`. Auth reused from
+`scripts/character/kontext.py` `token()`. The script was a throwaway in a scratchpad, not committed — `kontext.py`
+itself cannot do this step (`--image` is required; it is an image EDIT of an approved portrait).
+
+Five candidates were generated at the same seed, varying only the mask sentence, and three were shown. Dropped, with
+reasons kept: the textbook long beak (competent, but the cliché — held as the baseline to choose against) and a
+beakless hooded/plated one (its outline read as **the Executioner's**, so it was disqualified as a reskin risk at
+silhouette level, before any model existed).
+
+Known render artifact, NOT a design decision: FLUX gave every candidate **a second sword**. He carries ONE longsword
+(Dom's own word). No cane appears in any candidate — the cane-sword framing came through a relay and is not his
+instruction; see `docs/briefs/plague-doctor.md`.
+
+Palette is deliberately **warm black-brown waxed leather, not blue-black**, to hold him apart from the Nightborn at
+fight distance. Nothing here is derived from another fighter's assets: text-to-image from Brief 18's own description,
+no donor image.
+
+`plague-doctor-v1-silhouette.png` is computed from `plague-doctor-v1.png`'s own pixels (background = median of three
+60×60 corners, foreground = darker than bg−18, then a 3×3 min filter), not drawn. It is the input to deliverable 2.
+
+Prompt, verbatim:
+
+> Full-body dark medieval fantasy character concept, ONE original plague-doctor duellist standing upright, facing camera, weight on the back foot, holding a plain steel LONGSWORD point-down in one hand. Long heavy waxed coat, warm black-brown leather (NOT blue-black), pit-worn and grimed, closed to the throat, skirt falling below the knee; gloved hands, boots. No cane, no walking stick, no staff, no second weapon. Plain flat uniform light-grey studio background, even readable light, complete unbroken silhouette, no atmospheric haze, no props behind him, no text. Realistic hand-painted concept rendering, credible worn materials, no plastic, no toy, no cartoon. His mask is ASYMMETRIC and BROKEN-IN: a medium beak of layered boiled leather, cracked and scorched along one side, one lens missing and plated over with a riveted iron patch, the other a smoked lens; the brim is wide but warped and split at the front. An arena survivor's mask, repaired by hand, not a physician's clean instrument.
