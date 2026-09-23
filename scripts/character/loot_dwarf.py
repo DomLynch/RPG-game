@@ -32,8 +32,10 @@ MATERIAL = args[args.index('--material') + 1] if '--material' in args else f'{FA
 # --all: every face is a candidate, not only the metallic ones — the Plague Doctor's carriers are leather and a waxed coat, not iron.
 # --slots Helmet,Body: keep only these player slots (Recruit-2 for a masked archetype is Helmet + Body; Strategy, 2026-09-23).
 ALL = '--all' in args
-REMESH = float(args[args.index('--remesh-body') + 1]) if '--remesh-body' in args else 0
-BODY_RATIO = float(args[args.index('--body-ratio') + 1]) if '--body-ratio' in args else 0.3
+INFLATE = float(args[args.index('--inflate') + 1]) if '--inflate' in args else 0
+REMESH_SLOTS = set(args[args.index('--remesh') + 1].split(',')) if '--remesh' in args else set()   # ragged cloth that collapse cannot reduce
+REMESH_SIZE = float(args[args.index('--remesh-size') + 1]) if '--remesh-size' in args else 0.02
+BODY_RATIO = float(args[args.index('--remesh-ratio') + 1]) if '--remesh-ratio' in args else 0.22
 WELD = float(args[args.index('--weld') + 1]) if '--weld' in args else 1e-5   # the seam-split tolerance before decimating
 SLOTS = set(args[args.index('--slots') + 1].split(',')) if '--slots' in args else None
 SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
@@ -47,6 +49,9 @@ SLOT_OF = [('Head', 'Helmet'), ('neck', 'Helmet'), ('spine', 'Body'), ('pelvis',
 if '--boots' in args:
     SLOT_OF = [(b, 'Boots' if b in ('foot', 'ball') else sl) for b, sl in SLOT_OF]
 MIN_SLOT = int(args[args.index('--min-slot') + 1]) if '--min-slot' in args else 300   # a slot with fewer iron faces than this is speckle, not a piece
+
+
+SKIP_SLOTS = {'Skin'}
 
 
 def slot_for(bone):
@@ -96,6 +101,16 @@ for loop in mesh.loops:   # per-vertex metallic: every loop's texel, averaged
     metal[rep[loop.vertex_index]] += M[y, x, 2]
     count[rep[loop.vertex_index]] += 1
 metal /= np.maximum(count, 1)
+skin = np.zeros(R, dtype=bool)
+if '--no-skin' in args:   # a hood cut from a scan carries the face inside it; skin is warm (red over green), cloth and leather are not
+    A = pixels(albedo)
+    col = np.zeros((R, 3)); cnt = np.zeros(R)
+    for loop in mesh.loops:
+        u, v = uv[loop.index].uv
+        x = min(max(int(u * A.shape[1]), 0), A.shape[1] - 1); y = min(max(int(v * A.shape[0]), 0), A.shape[0] - 1)
+        col[rep[loop.vertex_index]] += A[y, x, :3]; cnt[rep[loop.vertex_index]] += 1
+    col /= np.maximum(cnt, 1)[:, None]
+    skin = (col[:, 0] > col[:, 1] * 1.12) & (col[:, 0] > 0.18)
 # Smooth over the mesh: the TRELLIS map is speckled; neighbour averages make patches out of it.
 edges = np.unique(np.sort(rep[np.array([[e.vertices[0], e.vertices[1]] for e in mesh.edges])], axis=1), axis=0)
 edges = edges[edges[:, 0] != edges[:, 1]]
@@ -116,6 +131,7 @@ for v in mesh.vertices:
     best = max(v.groups, key=lambda g: g.weight, default=None)
     dominant[v.index] = groups[best.group] if best else 'pelvis'
 slot = np.array([slot_for(b) for b in dominant])
+slot[skin[rep] & (slot == 'Helmet')] = 'Skin'   # --no-skin: not a piece
 # --leg-radius R (the Witch): a floor-length robe and cloak are skinned to the thigh/calf bones, so the dominant bone files them as
 # Greaves/Boots. A leg piece hugs its bone: a leg-weighted vertex farther than R from every leg bone segment is robe, so it is Body.
 LEG_R = float(args[args.index('--leg-radius') + 1]) if '--leg-radius' in args else None
@@ -186,7 +202,7 @@ for i, _ in faces:
 pieces = defaultdict(list)
 for s, patch in patches:
     pieces[s] += patch
-pieces = {s: f for s, f in pieces.items() if len(f) >= MIN_SLOT and (SLOTS is None or s in SLOTS)}
+pieces = {s: f for s, f in pieces.items() if s not in SKIP_SLOTS and len(f) >= MIN_SLOT and (SLOTS is None or s in SLOTS)}
 print('LOOT patches (faces, slot), largest first:', sorted(sizes, reverse=True)[:12])
 print(f'LOOT {FAMILY}: {int(iron.sum())}/{V} iron vertices; patches kept {len(patches)} → slots ' +
       ', '.join(f'{s}:{len(f)} faces' for s, f in sorted(pieces.items())))
@@ -200,7 +216,7 @@ for s, face_ids in sorted(pieces.items()):
     bm.faces.ensure_lookup_table()
     keep = set(face_ids)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context='FACES')
-    if True:   # weld the UV-seam splits first on every path (UVs are per-loop, so they survive), or decimating tears the piece into shards
+    if MATERIAL == 'Steel' or '--weld' in args:   # weld the UV-seam splits first (UVs are per-loop, so a textured piece keeps them), or decimating tears it into shards
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=WELD); bmesh.ops.dissolve_degenerate(bm, dist=WELD, edges=bm.edges[:]); bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
@@ -210,9 +226,10 @@ for s, face_ids in sorted(pieces.items()):
     for g in body.vertex_groups:
         obj.vertex_groups.new(name=g.name)
     # bmesh kept the deform layer, so the vertex groups came across by index; the armature skins them.
-    if s == 'Body' and REMESH:   # --remesh-body V (the Witch's ragged robe stalls collapse at 0.91): voxel shell, then collapse, then the
+    if s in REMESH_SLOTS:   # --remesh SLOTS (the Witch's ragged robe stalls collapse at 0.91): voxel shell, then collapse, then the
         src = obj.copy(); src.data = obj.data.copy(); bpy.context.scene.collection.objects.link(src)   # skin weights come back from here
-        obj.modifiers.new('Shell', 'REMESH').voxel_size = REMESH
+        obj.modifiers.new('Shell', 'REMESH').voxel_size = REMESH_SIZE
+        sm = obj.modifiers.new('Shell smooth', 'SMOOTH'); sm.iterations = 12; sm.factor = 0.8   # the voxel steps, ironed before the collapse
         obj.modifiers.new('Shell budget', 'DECIMATE').ratio = BODY_RATIO
         dg = bpy.context.evaluated_depsgraph_get()
         shell = bpy.data.meshes.new_from_object(obj.evaluated_get(dg), depsgraph=dg)
@@ -223,14 +240,21 @@ for s, face_ids in sorted(pieces.items()):
         bpy.context.view_layer.objects.active = obj
         bpy.ops.object.modifier_apply(modifier='Weights')
         bpy.data.objects.remove(src, do_unlink=True)
-    elif RATIO < 1:   # applied here, on the rest shape: the glTF exporter does not reliably apply a modifier stacked under a skin
+    elif RATIO < 1 and '--repose' in args:   # applied now: --repose bakes the armature below, so the budget cannot stay a modifier
         obj.modifiers.new('Loot budget', 'DECIMATE').ratio = RATIO
-        bpy.context.view_layer.update()
-        dec = bpy.data.meshes.new_from_object(obj.evaluated_get(bpy.context.evaluated_depsgraph_get()), preserve_all_data_layers=True, depsgraph=bpy.context.evaluated_depsgraph_get())
+        dg = bpy.context.evaluated_depsgraph_get()
+        dec = bpy.data.meshes.new_from_object(obj.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
         obj.modifiers.remove(obj.modifiers['Loot budget']); obj.data = dec
     obj.parent = armature
     obj.modifiers.new('Armature', 'ARMATURE').object = armature
     obj['material'], obj['slot'] = MATERIAL, s
+    if RATIO < 1 and s not in REMESH_SLOTS and '--repose' not in args:
+        obj.modifiers.new('Loot budget', 'DECIMATE').ratio = RATIO
+        obj.modifiers.move(len(obj.modifiers) - 1, 0)   # simplify the rest shape, then skin it
+    if INFLATE and s != 'Helmet':   # --inflate D: a slim scan's cloth pushed out along its normals so the player's broader frame stays inside it
+        obj.data.update()
+        for v in obj.data.vertices:
+            v.co += v.normal * INFLATE
     obj.data.name = obj.name   # the exporter names meshes after their data: no .001 suffixes from the shell copy
     kit.append(obj)
 # --repose DONOR (the Witch): creatures.py binds a reconstruction in its OWN A-pose (arms solved down to the scan's hands), but loot binds
