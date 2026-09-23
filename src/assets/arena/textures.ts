@@ -253,11 +253,11 @@ export function floorOverlay(p: Pixels, kind: 'clay' | 'frost' | 'moss', seed: n
       const k = Math.abs(cracks(u, v) - 0.5) < 0.009 || Math.abs(fine(u, v) - 0.5) < 0.006 ? 0.55 : 1;
       r *= k * 1.02; g *= k; b *= k;
     } else if (kind === 'frost') {   // rime on the high ground: lighter and bluer where the patch field is high, thinned at its edge
-      const f = Math.min(1, Math.max(0, (m - 0.52) * 6)) * (0.55 + 0.45 * fine(u, v));
-      r += (150 - r) * f; g += (158 - g) * f; b += (170 - b) * f;
+      const f = Math.min(1, Math.max(0, (m - 0.5) * 14)) * (0.5 + 0.5 * (fine(u, v) > 0.45 ? 1 : 0.4));   // a crisp rim, crystalline speckle
+      r += (172 - r) * f; g += (176 - g) * f; b += (182 - b) * f;
     } else {   // moss in the low ground: grey-green, dark at the heart
-      const f = Math.min(1, Math.max(0, (0.5 - m) * 5)) * (0.6 + 0.4 * fine(u, v));
-      r += (78 - r) * f; g += (92 - g) * f; b += (60 - b) * f;
+      const f = Math.min(1, Math.max(0, (0.56 - m) * 7)) * (0.7 + 0.3 * fine(u, v));
+      r += (66 - r) * f; g += (88 - g) * f; b += (44 - b) * f;
     }
     p.data[i] = clamp(r); p.data[i + 1] = clamp(g); p.data[i + 2] = clamp(b);
   }

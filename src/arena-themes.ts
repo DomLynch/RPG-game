@@ -50,7 +50,7 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
   // 2B — The Moss Ruin: a lime-plastered wall gone green, moss in the low ground, a grey rain-light, a thin crowd in drab wool, short
   // tattered cloths. (Replaces Torch Night: at night the opponent went near-black on a phone — Lead/Strategy readability bar.)
   '2b': {
-    id: '2b', name: 'The Moss Ruin', textures: { floor: 'moss', sand: [0.96, 0.97, 0.92], sandSeed: 23, stone: [0.92, 0.98, 0.9], stoneSeed: 29,
+    id: '2b', name: 'The Moss Ruin', textures: { floor: 'moss', sand: [1.04, 1.05, 1.0], sandSeed: 23, stone: [0.92, 0.98, 0.9], stoneSeed: 29,
       wall: { courses: 5, blocks: [2, 3], mortar: 0.12, hues: [[1, 1, 1], [0.94, 1.0, 0.92], [0.9, 0.96, 0.88], [1.02, 1.02, 0.98], [0.96, 0.98, 0.94], [0.88, 0.92, 0.86]] },
       sky: { base: [150, 158, 156], sun: [24, 24, 20], ground: [98, 104, 84] } },
     fog: '#9aa29c', fogDensity: 0.024, hemisphere: ['#c8d2cc', '#44483c', 1.75], sun: ['#e8eadc', 3.4], exposure: 1.3,
@@ -61,7 +61,7 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
   // 3A — The Frost Pit: rime on frozen ground, a wall of huge rough-hewn blocks, an overcast white sky with snow in the air, a sparse
   // crowd in furs, long stiff pennants.
   '3a': {
-    id: '3a', name: 'The Frost Pit', textures: { floor: 'frost', sand: [0.86, 0.9, 0.97], sandSeed: 37, stone: [0.94, 0.99, 1.08], stoneSeed: 41,
+    id: '3a', name: 'The Frost Pit', textures: { floor: 'frost', sand: [0.8, 0.83, 0.9], sandSeed: 37, stone: [0.94, 0.99, 1.08], stoneSeed: 41,
       wall: { courses: 3, blocks: [1, 3], mortar: 0.55, hues: [[1, 1, 1], [0.94, 0.97, 1.04], [0.9, 0.93, 0.98], [1.02, 1.02, 1.04], [0.86, 0.88, 0.92], [0.96, 0.98, 1.02]] },
       sky: { base: [198, 208, 216], sun: [28, 30, 34], ground: [150, 150, 152] } },
     fog: '#c3cbd2', fogDensity: 0.026, hemisphere: ['#e2eaf2', '#5a5e66', 1.7], sun: ['#e9f0ff', 3.3], exposure: 1.2,
