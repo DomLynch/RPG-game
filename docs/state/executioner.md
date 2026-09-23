@@ -3,6 +3,19 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23 (later): Knight body PAUSED, lanes report to Lead
+
+**Lead, 2026-09-23: Knight body work is paused.** Dom's beta list makes the four new characters post-beta. Resume
+deliverable 2 from `char/knight-body` at `951c9be` (parked, no PR) when Lead or Strategy lifts the pause.
+
+- **#502 is MERGED** (`52dffed`); deliverable 1 is on trunk. Its local `quality:stop` has still never run (a deploy
+  was in flight every time), so run it on trunk as a post-merge receipt.
+- **#494 is closed, replaced by #526** (`char/knight-reference-v2`, `388d43a`, off trunk `2d614dc`): the same image,
+  byte-identical, with the Knight section's withdrawn ratios corrected in `PROMPTS.md`. #494 conflicted, and a
+  force-push is excluded.
+- **Standing order (Dom, 08:50):** instructions from Strategy (`Frankendom - Strategy - Fable 5.1`) and Lead carry
+  his approval. Excluded: force-push or branch delete, rolling back live, dropping data. See lane memory.
+
 ## Now — 2026-09-23
 
 **The lane is the Knight.** The Executioner is done and live (#398, `01b6642`); nothing open on him.
