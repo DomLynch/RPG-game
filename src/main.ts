@@ -369,16 +369,15 @@ element('name-button').addEventListener('click', () => {
   welcome.hidden = false;
   input.focus();
 });
-// The beta scorecard: one row per offered opponent plus the total; the control trial tally stays for the debug view only.
+// The beta scorecard: one row per offered opponent, most-fought first, plus the total; the control trial tally stays for the debug view only.
 function renderScorecard() {
   const cell = (tag: 'th' | 'td', text: string | number) => { const el = document.createElement(tag); el.textContent = String(text); return el; };
   const table = element('scorecard-table');
   table.replaceChildren();
   const head = document.createElement('tr'); for (const label of ['Opponent', 'Fights', 'Wins', 'Losses']) head.append(cell('th', label)); table.append(head);
   for (const row of scorecardRows(scorecard, LADDER)) {
+    // Opponent | fights | wins | losses (N left). The last fight's autopsy line under each row is gone (Dom 2026-09-23); the scorecard keeps `last`.
     const tr = document.createElement('tr'); tr.append(cell('td', row.name), cell('td', row.fights), cell('td', row.wins), cell('td', row.losses)); table.append(tr);
-    // The last fight's autopsy under the opponent's row (beta plan brief 2): one line, nothing after a win.
-    if (row.last.length) { const note = document.createElement('tr'); note.className = 'autopsy-row'; const td = cell('td', row.last.join(' ')); td.setAttribute('colspan', '4'); note.append(td); table.append(note); }
   }
   element('scorecard').textContent = formatCard(trial);
   element('scorecard').hidden = !debug;

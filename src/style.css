@@ -1058,7 +1058,7 @@ dialog>p {
     max-width: 240px;
   }
   #loot-panel {
-    grid-row: 10;   /* the Take-one panel sits under the autopsy (explicit row like its siblings; `order` cannot beat their placed rows) */
+    grid-row: 10;   /* the Take-one panel sits under the rank row (explicit row like its siblings; `order` cannot beat their placed rows) */
   }
   footer {
     right: max(16px,env(safe-area-inset-right));
@@ -1749,9 +1749,6 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
 }
 dialog .rank-seg { --rank-fill: var(--js); }
 .rank-next { opacity: 0.65; }
-/* The last fight's autopsy under an opponent's row in the journal's Stats tab: a quiet serif sub-line that belongs to the row above. */
-dialog .scorecard-table tr:has(+ .autopsy-row) td { border-bottom: 0; padding-bottom: 2px; }
-dialog .scorecard-table .autopsy-row td { padding: 0 4px 9px; text-align: left; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); border-bottom: 1px solid var(--jl); font-variant-numeric: normal; }
 /* The daily warden (src/daily.ts): a card at the top of the journal's Options tab — the status line is the headline, one primary
    button, then the five board rows. A row is plain text today; a <b> title + trailing text lays out as two columns when the
    wiring emits it. li[data-verified=false] stays greyed; li[data-you=true] is the player's own row, pinned and lifted. */

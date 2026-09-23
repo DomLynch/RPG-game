@@ -1,8 +1,8 @@
 // Release check: the death screen and the autopsy (beta plan brief 2; Dom 2026-09-23 moved the autopsy off the death screen). A real
 // browser, the gate's own clock (scripts/lib/harness-clock.mjs): boot against the Centurion, draw the sword, stand still — the idle
 // fighter dies — then assert the death screen shows the rank row (`#fight-rank`: the account panel's component, class · bar · next class) and no
-// `#autopsy`; the scorecard's last-fight lines are one or two plain lines, the first naming the cause, no "!" or "?"; the field journal
-// carries them as a `tr.autopsy-row` right under the opponent's row; a rematch clears the rank line. Mirrors tests/graphics.test.ts
+// `#autopsy`; the scorecard's last-fight lines are one or two plain lines, the first naming the cause, no "!" or "?"; the field journal's
+// record lists the fought opponent first with no autopsy sub-row; a rematch clears the rank line. Mirrors tests/graphics.test.ts
 // "fight end: …" through the live DOM.
 // Never overrides combat state; the fight is the real one, on harness time, so it lands on the same tick on any machine.
 import { chromium } from 'playwright';
@@ -63,15 +63,14 @@ try {
   // (ROSTER.veteran.name), never pinned here: #464 renamed 'the Veteran' -> 'the Centurion' and this row broke on the literal.
   await page.getByRole('button', { name: 'Menu and field journal' }).tap();
   await run(100);
+  // The field journal opens on Profile (Dom 2026-09-23); the record is on Stats: most-fought first, no autopsy sub-rows any more.
+  await page.locator('label[for=journal-tab-fighter]').tap();
   receipt.journal = await page.evaluate((name) => {
-    const rows = [...document.querySelectorAll('#scorecard-table tr')];
-    const i = rows.findIndex(r => r.firstElementChild?.textContent === name);
-    const next = rows[i + 1];
-    return { name, veteranRow: i, nextClass: next?.className ?? null, note: next?.textContent ?? null };
+    const rows = [...document.querySelectorAll('#scorecard-table tr')].map(r => [...r.children].map(c => c.textContent));
+    return { name, first: rows[1], autopsyRows: document.querySelectorAll('#scorecard-table .autopsy-row').length };
   }, ROSTER.veteran.name);
-  assert.ok(receipt.journal.veteranRow >= 0, `${ROSTER.veteran.name} has a journal row`);
-  assert.equal(receipt.journal.nextClass, 'autopsy-row', `a tr.autopsy-row sits right under ${ROSTER.veteran.name}`);
-  assert.equal(receipt.journal.note, receipt.autopsy.join(' '), 'the journal note is the last fight\'s autopsy');
+  assert.deepEqual(receipt.journal.first, [ROSTER.veteran.name, '1', '0', '1'], `the one fought opponent, ${ROSTER.veteran.name}, is the first row`);
+  assert.equal(receipt.journal.autopsyRows, 0, 'no autopsy line under a record row');
   await page.locator('#close-journal').click();
   await run(100);
   // Rematch is inert until the finisher camera settles (owner 2026-09-22: no HUD button fires while it is still fading in) —
