@@ -505,7 +505,7 @@ test('the ladder: the first rung is the Centurion, and the bars carry his name l
 test('the journal opponent picker lists the ladder, shows the current rung, and a pick saves the rung and reloads without the URL override', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
   const select = app.element('opponent-select');
-  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf'], 'live rungs only: held Season 2 creatures are not offered');
+  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'knight', 'dwarf'], 'live rungs only: held Season 2 creatures are not offered');
   assert.equal(select.value, 'goblin', 'the picker shows the rung this device is on');
   select.value = 'nightborn'; select.dispatchEvent(new Event('change')); app.tick();
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn', 'the pick is saved as the rung');

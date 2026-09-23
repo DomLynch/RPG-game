@@ -6,7 +6,7 @@ import { OPPONENTS } from '../src/moves.ts';
 import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 
 test('the ladder is the encounter order minus the held recipes: the four creatures wait for after beta, the five men keep their order', () => {
-  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf']);
+  assert.deepEqual(LADDER.map(o => o.id), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'knight', 'dwarf']);
   assert.deepEqual(ENCOUNTERS.filter(o => o.hold).map(o => o.id), ['minotaur', 'wraith', 'werewolf', 'skeleton'], 'held recipes stay listed for the journal, greyed');
   assert.equal(nextAfter('veteran')?.id, 'pitborn'); assert.equal(nextAfter('veteran')?.name, 'the Pitborn');
   assert.equal(nextAfter('pitborn')?.id, 'goblin'); assert.equal(nextAfter('pitborn')?.name, 'the Goblin');
