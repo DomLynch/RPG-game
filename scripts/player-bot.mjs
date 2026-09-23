@@ -22,8 +22,8 @@ await fs.mkdir(dir, { recursive: true });
 const server = await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
-const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim() !== '';
+const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 20_000 }).trim();
+const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8', timeout: 20_000 }).trim() !== '';
 const receipt = { revision: `${revision}${dirty ? '-dirty' : ''}`, opponent: 'pitborn', difficulty: 'easy', strategy: 'guard-counter', reactionMs, observation: 'debug gap/stamina/phase and current combat events; no future state', fights: [] };
 try {
   for (const seed of seeds) {
