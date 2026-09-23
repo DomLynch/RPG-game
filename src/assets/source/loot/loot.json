@@ -352,7 +352,11 @@
    "file": "loot/plaguedoctor.glb",
    "slots": [
     "Helmet"
-   ]
+   ],
+   "conform": {
+    "beyond": 0.06,
+    "maxPush": 0.08
+   }
   },
   {
    "slot": "Body",
@@ -392,7 +396,11 @@
    "file": "loot/plaguedoctor.glb",
    "slots": [
     "Boots"
-   ]
+   ],
+   "conform": {
+    "beyond": 0.14,
+    "maxPush": 0.15
+   }
   }
  ],
  "witch": [
