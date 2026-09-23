@@ -75,6 +75,16 @@ not a longer timeout.
   Head `8e07865`, 2 files +75/-2. Gate 496 / 494 / 0 fail / 2 skipped, `gear-stats.test.ts` 20/20. Stats caught and fixed its
   own broken conflict resolution (TS1005). NOT READY until `quality` runs against trunk in CI.
 
+### !! #524 MERGED despite the Lead HOLD — now in trunk `c0b321c`, being published (11:55)
+Verified: #524 is MERGED at `52ac5ae` and is an ancestor of `c0b321c`, and `src/cloud-profile.ts:37` now does
+`{ ...mergeLoot(profile.loot, cloud.loot), equipped: ... }` on every ordinary refresh, while `mergeLoot` (`src/loot.ts:101`) still
+drops `declined`. **Result once `c0b321c` is live: a player's declined-loot history is wiped on every refresh**, not only on an
+account merge. The hold was a PR comment on #524, but the Lead->Deploy message never went (the cross-session cap), so Deploy never
+saw it. **Scope of harm:** only `declined`, the capped list of refused kills (max 50). `owned`, `equipped` and `taken` (the actual
+gear) are unaffected. **Recommendation: do NOT roll back** (a rollback is Dom's call under the standing order). Make Backend's
+save-defect fix the next thing Deploy ships; it carries `declined` in `mergeLoot`, which closes this in the same place. Lesson: a
+hold must reach Deploy as a MESSAGE, and a PR comment alone is not seen.
+
 ### WINDOW 1 STATUS, ~07:15Z — the knife is READY, but THE WINDOW CANNOT CLOSE
 **#530 = knife, READY, HELD for Window 1.** Head `35d4686`, base `stats/record-accept-list-v2` (#528). All run on this head:
 `record-version-guard` 2/2 (SIM_DIGEST `5eaa075a…` over the combined tree, guard-verified; `RECORD_VERSION` 6,
