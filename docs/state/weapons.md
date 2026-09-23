@@ -2,6 +2,78 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — weapons lane, as of 2026-09-23 (replace this section wholesale; it is the restart brief, not history)
+
+**Routing (Lead's #517):** lanes report to Lead, Strategy rules. Lead's order for this lane, which **supersedes** Strategy's
+morning order that had the `Maul_*` family before the gladius — dispatch is Lead's call, and both were told about the swap:
+
+1. **Gladius — FIRST.** Not a `WeaponId` yet (`src/moves.ts:187`). It is one-hand, so it rides the four shared hero clips
+   (`Attack`/`Return`/`Heavy`/`Riposte`, `clips: null`) — zero new animation. The job: the `WeaponId` + a `WEAPONS` entry (data), a
+   part in `scripts/build-weapon.mjs`, a **hero** entry in `scripts/blade-manifest.json` + `bake-blades`, the equip file
+   `src/assets/weapons/player/gladius.glb`, `Gladius` in `WEAPON_SLOTS` (`src/loot.ts`), `gladius` in `PLAYER_WEAPONS` — and **not**
+   in `PLAYER_WEAPONS_OFFERED` (Combat's). **Before opening:** heads-up to the Veteran lane (the Centurion carries gladius + scutum at
+   every rung, on his rig) and to Combat, because his pins move with it. Run the battery at **both** levels. It touches `src/moves.ts`,
+   so it lands in Window 1 **after the knife's bump to 6 (#515)** — no bump from this lane. The Centurion's roster weapon line is also Window 1,
+   so the gladius PR ships **inside that window's single publish**, not as its own release (Lead, 2026-09-23). Lead confirmed this
+   order was intended: gladius before the `Maul_*` family, and the Knight/Executioner donor stays on the warhammer stand-in.
+2. **Recreate #419 (estoc reach) off trunk as a new PR** — `CONFLICTING`, 271 commits behind, and force-push is excluded. Carry the
+   `ESTOC_MOVES` change forward **without** its own `RECORD_VERSION` 5→6 and `SIM_DIGEST` re-pin (Strategy: it rides the knife's 6).
+   Still blocked on Combat's Nightborn-profile item; stays draft; close #419 pointing at the new one. (#473 is replaced by this PR.)
+3. **`Maul_*` family — post-beta pace.** Chain: part (#509, merged) → 12 clips (`weapons/maul-clips` `114a40f`, pushed, **contact
+   keys NOT validated** — needs a rig build and the hero blade table) → hero blade table (`{weapon: maul, rig: hero, contact: [0.65,
+   0.87]}`, then `bake-blades`) → equip PR (`weapons/maul-player` `4ad035d`, **red on four tests by design**: `blade-rig`,
+   `record-version-guard`, `record.test.ts:100`, `weapons.test.ts:651` real reach — none relaxed). Strategy's ruling: the
+   `record.test.ts:100` change goes in the equip PR as its own commit, `maul` out of the assertion and `reaper` staying, because the
+   test's own premise ("the hero rig bakes no blade table for it") stops holding once the table exists.
+4. **#419 re-measure** — only after Combat's Nightborn-profile PR exists: one full battery on the pair, then a READY line.
+
+**Done (2026-09-22/23):** #509 maul part MERGED. #501 estoc findings + handover MERGED. The bearded-axe cost measurement that
+overturned Brief 15 §2 (a part + optional re-key, not a 13-clip family). The `Maul_*` family authored — its motion contract is
+**identical** to the warhammer's (reaches 1.65/1.90/1.40, contact sources .34/.48/.34, timings 22/8/26 · 36/6/36 · 18/5/26).
+
+**Open / blocked on others:** the knife's 6 (#515, Combat) gates items 1 and 3. Combat's Nightborn profile gates item 2's merge and
+item 4. Release check 32 (autopsy) was red on trunk `fe0d8e0` itself on 2026-09-22 — recheck before blaming any lane PR for it.
+
+**Gotchas:**
+1. **Run the full gate, not the targeted test you expect to fail.** On the maul equip this lane reported two blockers to Strategy
+   from a guard-only run; the full gate had four, and the two missed ones changed the plan.
+2. **`src/moves.ts` is inside `SIM_FILES`**, so adding any weapon to `PLAYER_WEAPONS` or a new `WeaponId` trips the version guard.
+   Every player-weapon PR sequences behind whoever carries the next bump.
+3. **`tests/blade-rig.test.ts` iterates `PLAYER_WEAPONS`**: every player weapon needs a **hero** blade table. A weapon with a
+   creature-only table (maul at `rig: minotaur`) is opponent-only by construction, and `record.test.ts:100` says so in its name.
+
+## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
+Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.
+
+**An explicit instruction is exactly where a stale assumption hides best.** It arrives pre-justified, so it does not trigger the check
+that an omission does. Concretely: the `grip` field (#440) came from the shield brief as a list of seven weapons. `MAUL` and `REAPER` were
+*not* on it, so they got checked — they spread `CLEAVER` and `ESTOC` and would have silently inherited `one-hand`, and both were set to
+`two-hand` deliberately. The trident *was* on it, as "trident as spear" under one-hand, so it was taken as given — and it was wrong:
+`src/characters.ts` maps the trident onto the `Trident_*` family and says in its own comment that unlisted roles falling back to the sword
+family is "wrong for a two-handed pole", and the scythe, same family shape, already read `two-hand`. The omissions were audited; the
+instruction was not. Fixed in #472. Check the values you were handed at least as hard as the ones you had to invent.
+
+**A weapon's brief can shut a lever by contract, and that is worth recording rather than rediscovering.** `tests/weapons.test.ts` pins the
+estoc's windup/active/recovery/stepIn/feintUntil/chamber to the sword's *exactly*, because "the sword's timings and lunges exactly" is what
+the weapon is. So "tune the thrust recovery like the knife's" was never available for it, however the numbers looked. Sweep it anyway and
+record the closed door with evidence — an ambiguous door gets pushed again by the next person.
+
+**The `RECORD_VERSION` guard asks a behaviour question, not a file question.** It hashes `SIM_FILES`, so *any* edit to `src/moves.ts`
+trips it — but the guard's own comment sets the rule: a re-pin without a bump needs a receipt that behaviour is unchanged. Two opposite
+answers on the same day, and the receipt is what separates them. #440 (knife recovery 15 → 20, scythe heel-jab 18 → 30) genuinely changed
+how fights play out, so the bump *was* the point. #472 (`TRIDENT.grip` → `two-hand`) changed a field no sim code reads — verified by grep
+across `duel.ts`, `ai.ts`, `sim.ts`, `combat.ts` — and both committed references replayed identically **without being regenerated**
+(1677/1452 ticks, same outcome, same state digests), with the fairness table unchanged. Bumping there would have refused every kill link
+minted that day for nothing. Ask what the change does, not which file it touched.
+
+### Not the shelf item it looks like: the maul (recorded ahead of the Knight)
+`MAUL` (`src/moves.ts`) is the `CLEAVER` spread with a two-hand grip and one overridden move, on `creaturePaths(CLEAVER_PATHS, 'Maul')`.
+There is **no maul asset in the repo** — the geometry lives inside the held `minotaur.glb`. So promoting it to a player weapon is a real
+deliverable, a hero-rig part *and* its own blade/contact table, not a data row. Confirmed by the lead. No owner yet; nothing started.
+
+*Correction 2026-09-23:* the maul line above ("No owner yet; nothing started") is stale. Owner is this lane (Strategy, 2026-09-23);
+the part landed as #509 and the 12-clip `Maul_*` family is on `weapons/maul-clips` — see **Now** for where it stands.
+
 ## Session handover — maul part shipped, estoc parked, and a trap waiting for whoever rigs the maul (weapons lane, 2026-09-22)
 
 **Now.** Nothing is in flight. #509 (the Knight's maul part) is ready and with Deploy in the code batch; #501 (this file) is in the
