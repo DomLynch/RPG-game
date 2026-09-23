@@ -273,6 +273,11 @@ export function createScene(
   let severHead: SeveredHead | null = null,
     killHeading = 0;
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
+  // Finisher complete (Lead brief 2026-09-22, for Web's loot panel): has the ceremony FINISHED PLAYING, and at what finish
+  // age did it first say so. Latched from the scene's own state in the frame loop below, never from a delay; cleared with
+  // the finish. `finishCompleteAt` is the number the FINISHER_SECONDS table in src/finishers.ts was measured from.
+  let finishComplete = false,
+    finishCompleteAt = 0;
   const wounds = createWoundDecals(scene, splatTexture);
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -392,8 +397,10 @@ export function createScene(
     // there is no push. `touring`: the arena cam is orbiting the fallen (from TOUR.afterSettle seconds after settled first
     // latches — the player always gets at least that much readable text — until a touch or Rematch). `age`: seconds since the
     // finish began, 0 outside a finish. Poll it in the frame loop; the rig owns the clocks.
-    finishPhase(): { settled: boolean; touring: boolean; age: number } {
-      return { settled: rig.settled, touring: rig.touring, age: rig.finishAge };
+    // `complete` is the finisher-complete event Web's loot panel keys on: the ceremony has finished playing (see the latch in
+    // the frame loop). `completeAt` is the finish age in seconds when it first latched — 0 until then.
+    finishPhase(): { settled: boolean; touring: boolean; age: number; complete: boolean; completeAt: number } {
+      return { settled: rig.settled, touring: rig.touring, age: rig.finishAge, complete: finishComplete, completeAt: finishCompleteAt };
     },
     // The fallen fighter's body on screen, in CSS pixels (owner 2026-09-22 gate: no HUD element may intersect it at settle time):
     // the bounding box of the victim rig's bones as drawn this frame (the Opened halves share the skeleton, so they are covered),
@@ -769,6 +776,20 @@ export function createScene(
         big: ['wraith', 'minotaur'].includes(opponentId),
         reach: openedReach,
       } : null);
+      // Finisher complete (Lead brief 2026-09-22): the kill has finished PLAYING, read off what the scene is actually doing
+      // rather than a guessed delay — (1) the victim's clip has run out (`victimProgress`: the slowed 0.75× finisher clock
+      // for a posed finisher, the plain fall's own progress for a plain death, so the plain death completes earlier and the
+      // number is per finisher), (2) the camera has settled (camera.ts SETTLE — the push-in and the side-view reveal end at
+      // different ages for different finishers), and (3) Decapitation's severed head has come to rest. Opened needs no term
+      // of its own: its reach stops growing at victimProgress 1 by construction above. Latches once and holds until the
+      // finish clears, so a late camera nudge cannot un-complete a ceremony the player has already watched end.
+      if (!practice.finish) {
+        finishComplete = false;
+        finishCompleteAt = 0;
+      } else if (!finishComplete && victimProgress >= 1 && rig.settled && (!severHead || severHead.resting)) {
+        finishComplete = true;
+        finishCompleteAt = rig.finishAge;
+      }
       const exposure = renderer.toneMappingExposure;
       if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
       renderer.render(scene, camera);

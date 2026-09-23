@@ -171,6 +171,7 @@
       "--only",
       "splitCrown,decapitation,runThrough,quietOne,opened,plainDeath",
       "--blood-check",
+      "--durations",
       "--no-video",
       "--label",
       "blood-gate"
