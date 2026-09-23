@@ -845,7 +845,8 @@ function frame(now: number) {
             shareButton.hidden = false; say(null);
             void encodeRecord(ended.record).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
           }
-          // The rank line on the fight-end panel; the autopsy lines now live only under the opponent's journal row (scorecard `last`).
+          // The rank row on the fight-end panel. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still writes them to the
+          // scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
           showFightRank(true);
           // The daily warden's one post (brief 4): the record, where the killing blow landed and the blows taken; guests are told to sign in.
           if (ended.post) {

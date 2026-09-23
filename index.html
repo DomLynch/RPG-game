@@ -10,7 +10,7 @@
 <body>
   <canvas id="world" aria-label="3D practice arena. Move with WASD or arrow keys. Drag to look around." tabindex="0"></canvas>
   <header><div class="brand">FRANKENDOM<span>ORIGINS</span></div><button id="sound-button" aria-pressed="true">Sound on</button><button id="journal-button" aria-label="Menu and field journal">Field journal <span>↗</span></button></header>
-  <aside class="identity"><span class="sigil" id="rank-sigil">I</span><div><button id="name-button" title="Rename your fighter">Wanderer</button><span id="rank" aria-label="Recruit I · ○ ○ ○">Recruit I</span><span id="save-status">Guest · saved on this device</span></div></aside>
+  <aside class="identity"><span class="sigil" id="rank-sigil">I</span><div><button id="name-button" title="Rename your fighter">Wanderer</button><span id="rank" role="img" aria-label="Recruit I · ○ ○ ○">Recruit I</span><span id="save-status">Guest · saved on this device</span></div></aside>
   <div class="place"><span>THE PROVING GROUND</span><h1>Origins Arena</h1><p>Longsword practice · Swordplay</p></div>
   <section id="welcome" class="welcome"><span id="welcome-eyebrow" class="eyebrow">YOUR FIRST FOOTSTEPS</span><h2 id="welcome-title">Make yourself known.</h2><p id="welcome-lead">One fighter. A path of your own.</p><form id="name-form"><label for="fighter-name">Fighter name</label><input id="fighter-name" maxlength="24" autocomplete="off" placeholder="Wanderer"><button type="submit" class="primary">Enter the arena <span>→</span></button></form><small>Saved in this browser. Your training opponent stands ready.</small></section>
   <div id="message" role="status" class="message" hidden></div>
@@ -27,7 +27,7 @@
   <pre id="perf" class="perf" aria-hidden="true" hidden></pre><pre id="debug" class="debug" aria-label="Combat debug overlay" hidden></pre>
   <dialog id="journal" aria-label="Field journal">
     <button id="close-journal" class="journal-close" aria-label="Close journal">✕</button>
-    <div class="fighter"><span class="fighter-sigil" id="journal-sigil">✦</span><div><strong id="journal-name">Wanderer</strong><span id="journal-rank" class="fighter-rank" aria-label="Recruit I · ○ ○ ○">Recruit I</span><span id="journal-save" class="fighter-save">Guest · saved on this device</span></div><button id="mobile-name">Rename</button></div>
+    <div class="fighter"><span class="fighter-sigil" id="journal-sigil">✦</span><div><strong id="journal-name">Wanderer</strong><span id="journal-rank" class="fighter-rank" role="img" aria-label="Recruit I · ○ ○ ○">Recruit I</span><span id="journal-save" class="fighter-save">Guest · saved on this device</span></div><button id="mobile-name">Rename</button></div>
     <section id="account" class="account" aria-label="Fighter account" hidden>
       <strong id="account-identity">Guest</strong>
       <p id="account-status" role="status">Opening account…</p>
