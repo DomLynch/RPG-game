@@ -1,17 +1,22 @@
 # Finishers & gore — project state
 
-## Now (Finishers & Gore lane, 2026-09-22 night)
+## Now (Finishers & Gore lane, 2026-09-23 afternoon)
 
-**In flight**: PR #455 `finishers/blood-conform` (head 42496eb on trunk c43c677) — blood conforming to the body. Handed to Lead, MERGEABLE, its own CI started. Not mine to merge or deploy.
+**Now**: PR #571 `finishers/floor-blood-real` @ 6efc7d3 (floor blood stains the sand). Handed to Lead for the batch with the shield and zoom fixes; the local blood gate and wounds gate both exit 0. Next is Dom's verdict on the phone once it is live. After that, the parked kill-camera framing (`finishers/kill-camera-hold`, measurement only, a separate PR per Lead's sequencing), then briefing Lead on the `characters.ts` finisher-geometry interface scope before touching that file.
 
-**Open, not closed**: on the Nightborn a head-slot mark measures −2.7 cm (behind the face mesh) at 0.3 s, unchanged by #455, and at 1.5 s/3 s the probe finds no surface within ±30 cm of the mark, so the re-glue keeps a stale anchor and it can hang off the body. Padded bind-pose bounding sphere was tested as the cause and disproved.
+**Done today**: #544 (B/C/D body-wound art rotating per hit, tint off black, floor stars gone) MERGED; #549 (drops from the body to the sand, CPU ×4 receipt) MERGED; #546 (quiet-one check waits for a live Rematch) MERGED. Step 0: the hero's runs are NOT clamped by `surfaceReach`; all 5 marks are uncapped (asserted in the wounds gate).
 
-**Next, briefed by Lead (Dom's phone, tonight — the loot panel covers the finisher, "I have never seen the decapitation land")**, sequenced after the live tip and #475: (1) hand Web *measured* per-finisher durations first so they are unblocked, then swap in a real "finisher complete" event so the loot sheet keys on the animation's end, not a timer — per finisher, never one constant, measured from the finisher actually playing in the preview harness, and anything derived labelled as derived and from what; (2) hold the kill camera so the body sits above the bottom 40% of a 375×812 phone frame through the whole loot beat. One PR, receipt is a phone screenshot with the body and the sheet together.
+**Open**: Nightborn head-slot mark −2.7 cm at 0.3 s and MISS at 1.5/3 s, cause unknown (bind-pose sphere disproved). The hero's chest wounds are mostly hidden from the play camera behind him by the facing test; that is correct, but Dom may read it as "no blood on me".
 
-**Also parked**: brief Lead on the `characters.ts` finisher-geometry interface scope before touching that file (readability plan item 2).
-
+**Gotchas**: `finisher-preview.mjs` `option('x')` reads the NEXT arg, so a bare `--wounds` as the last arg is silently off; use the release row's argument order. `play()` kept one frame cursor across windows until #549 (a second window stepped on from the first one's index). `rear()` renders one frame without advancing the wounds, so a probe after it reads stale facing. The PreToolUse deploy guard blocks a WHOLE compound command if it contains `node --test`, including the file edits in it. Never start a browser gate from a chained command that could outlive FREE: a deploy started mid-run on 09-23 and I had to kill my own blood gate.
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+
+## Blood that reads real: body art, drops, floor (owner 2026-09-23: "paint-ball graffiti stickers", then "cartoon-ish" on the floor)
+
+`src/gore.ts`. Body: Dom picked B/C/D of four FLUX candidates (scratchpad `gen.py`, white paper → alpha-cut); `WOUND_ART` rotates per hit from its own seed, drawn after the runs so their seeds hold; upright ±0.2 rad, top edge at the cut; `FRESH` #7a2a2c → #e0a0a0 (the multiply over the photo read as soot). Drops (`DROPS`): the first run of a stopped wound sheds a drop every 3–6 s until half dry; caps 8 falling / 24 spots; pooled. Floor (`multiplyOnto`, `scripts/blood/floor-textures.py`): the kill pool, hit splashes and drop spots MULTIPLY onto the sand, `dst × lerp(1, tex, a·opacity)` through premultiplied custom blending, so the grain shows and fades go to "no change"; near-black core, translucent rim, noise-drawn silhouette (lobes drew a star again), one-sided spatter; stains darken over 8 s.
+
+Evidence: #544 test:all 537/0/2, wounds gate exit 0; #549 gore 17/17, CPU ×4 red p50 1.3 / p95 2.0 vs off 1.1 / 1.7 ms; #571 test:all 563/0/2, blood gate + wounds gate exit 0, same-frame before/after `artifacts/character/floor-after/floor-pool-before-after.png` (375×812, hero killed at frame 2196, +3 s). Remaining: Dom's eye on the phone for #571.
 
 ## Blood conforms to the body it lands on (owner 2026-09-22, on a live fight: "blood is still floating on bodies... not joined to the gear or opponent")
 
