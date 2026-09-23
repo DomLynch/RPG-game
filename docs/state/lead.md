@@ -2,6 +2,73 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead — 2026-09-23 13:35 local: HANDOFF (context restart). Read this block, then the one below.
+**Now (the next session picks up):**
+1. **Phone smoke on Publish A** when Deploy sends the sha line + FREE: 375x812, a fight to a kill with the loot panel, on the live
+   build. The receipt goes to Strategy. At 13:30 A (`dd1d968`) was still in deploy.sh; live was still `c0b321c`.
+2. **#539**: wait for Stats' WORN_FROM-as-data commit (`export WORN_FROM: WornFrom = {}`, read by awardFor + the sweep, one line in
+   the PR body), then send Deploy "READY <head>". Backend's SQL OK at `1a0cec5` stands (the migration is unchanged). **Never send
+   "apply 202609230001"** until Stats' sweep PR (B2–B4) AND the client-claims PR are both merged and Backend-reviewed.
+3. **Publish B review**: #545 (Combat, Nightborn/estoc, DRAFT `c17004d`: trident-vs-nightborn 8->14->8), then Executioner
+   `anticipate` (17:00), then #543 (gladius, passed Lead review at `9858588`), then Veteran's scutum (16:00), then Combat's end-of-chain PR: the bump to
+   7, the one re-pin, the blade rebake, **SIM_FILES = the import closure** (Combat found 4 missing: blade.ts, blade-paths.ts,
+   roster.ts, finishers.ts; eslint.config.js:3 already lists them) plus a closure test, and gladius in PLAYER_WEAPONS_OFFERED.
+4. The next rolling batch (Deploy has it): #540 -> #537 -> #541 -> #542 -> #544 (blood art B/C/D, Dom's pick) -> #546 (quiet-one
+   Rematch wait), then #534 once the Auditer sends a re-gated sha. Finishers' droplets PR (body -> floor) stacks on #544 next.
+**ROUTING, Dom 13:4x/13:5x: only Lead messages Strategy.** Every lane, Deploy included, reports to Lead. Lead owns the
+Publish B clocks and hourly lines (Combat: #545 gates, Executioner by 17:00, bump to 7 + re-pin by 18:00; Weapons: #543;
+Veteran: scutum by 16:00; Finishers: droplets on #544) and gives Deploy the Publish B go when Combat's re-pin lands. Lead sends
+Strategy ONLY: publish sha lines, the phone-smoke receipt, any lane >30 min late on its clock, and ruling requests.
+**Publish A is LIVE `dd1d968`** (13:30, 33/33, row 32 passed locally in 73 s). Deploy starts the next batch after the smoke receipt
+or at ~13:52, whichever comes first. #539: Backend confirmed `1a0cec5` by its own run; Stats' WORN_FROM commit `be58866` is local,
+not pushed, and needs Backend's re-OK when it is.
+**Phone smoke on LIVE `dd1d968` (13:5x):** fight to kill + loot panel timing PASS (quiet-one check, `QA_URL=https://frankendom.com`,
+`--opponent goblin`, with #546's wait patched in locally: panel closed 0.02 s after the kill, open at the complete latch 3.22 s). The
+Veteran default loses all 3 scripted duels on v6, so always use goblin. **NOT run:** knife offered, tap-to-take + Undo, declined
+survives a refresh. They need Dom's phone or a new scripted check, and that is Strategy's call.
+**Addressing lanes:** send to ListAgents rows as `"<exact name> [ref]"`, or reply to a `uds:` from-address. Both skip Desktop's
+10-send cap.
+
+## Lead — 2026-09-23 ~13:20 local: Window 1 split, Publish A, and the rulings since noon
+**Now.** LIVE `c0b321c` (Deploy's receipt 12:31: 33/33, served index cmp-identical, VPS `current` -> `releases/c0b321c…`;
+Lead confirmed `release.json`). **Publish A is running:** #528 + #530 (v6, merged 12:38) -> #535 -> #521 -> #533. **Lead owes the
+375x812 phone smoke on it at FREE, with the receipt going to Strategy.** Next rolling batch, all non-sim and all Lead-reviewed READY:
+**#540** (retired-replay page, first, because A's v6 retires every v5 link) -> #538 (wear() on CreatureBody) -> #537 (World
+readability, file renamed to `colour-grade.ts`). Then #534 (Auditer match split, split only), after #535 and re-gated.
+**Window 1 is SPLIT (Strategy, on Dom's order 13:0x):** Publish B takes the bump to **7**: #532 (estoc, READY on trunk via merge
+`503bac0`) -> Combat's Nightborn/estoc profile (15:00) -> Executioner `anticipate` + cleaver (17:00) -> Weapons' gladius on #532
+(15:00) -> Veteran's scutum (16:00). **Combat owns the one bump and the one SIM_DIGEST re-pin, at the end.** Two waves of dead
+links accepted (one live account, grandfathered).
+**Old links in Publish A are safe without #540:** trunk's refusal path (`main.ts:504`, `:779`) shows "Recorded on an older build" +
+Play now. It is neither blank nor a wrong fight.
+
+**Rulings since noon:**
+- **`anticipate` spec CORRECTED (Combat caught it; Lead verified): step 3 below is WRONG.** A grade merged into the profile outside
+  SIM breaks replay: `src/replay.ts:16` rebuilds the warden from `OPPONENTS[opponent].profiles[record.profile]`, and the record
+  carries only `profile u8` (`src/record.ts:81`), so the fight would replay ungraded and diverge (in `verify-daily` too). **Ruled:
+  the value lives on the Executioner's own per-level profiles in `moves.ts`** (`{ ...PROFILES.normal, anticipate: X }`), with
+  `ai.ts:114` as specced. There is no record change and no `grades.ts` involvement. It rides Publish B's bump to 7.
+- **Retired-replay page: NO DATE (Lead).** The record header has none, and `fight_records.created_at` is server-only by
+  migration `202609220006`. We keep the privacy call rather than reverse it for a date.
+- **Loot awards (Strategy):** the player takes ANY one piece, armour or weapon (SCOPE.md line 14). The server VALIDATES the claimed
+  slot against the opponent's kit at the server's tier; the drop table decides what the opponent WEARS, never what the player gets.
+  #539 (D3) changes `src/awards.ts` to match. Kill-screen flow and copy are unchanged.
+- **#539 migration `202609230001` apply is HELD** until the client-claims PR ships in the same publish: `account_seed` is a one-shot
+  snapshot, so an early apply loses the wins in between. **Backend [B1], BLOCKING:** a single multi-row insert gets past the
+  60-per-hour cap (the STABLE policy function sees the count from before the statement; 500 rows -> 501 claims), fixed with a
+  BEFORE INSERT row trigger plus a 500-row regression in `awards-database-check.mjs`.
+- **CI check 32 does not gate (Strategy):** `deploy.sh` runs row 32 locally (passed in the c0b321c run, 72 s). Root cause and fix:
+  #533 (the tap waits for the rigs plus one painted frame; software GL on the runner stalls the shader-compile frame).
+- **#534 dedup:** the Auditer had folded #535's `mergeLoot` fix into its match split. Stripped at `7808f03`.
+
+**Gotchas:**
+- **The send cap:** a send to a `local_…` id goes through Desktop session messaging and stops after 10 per user message (a
+  mid-turn user message does not reset it). A send to a ListAgents row as `"<exact name> [ref]"`, or a reply to a `uds:` from, is
+  NOT capped. A PR comment is not a message: #524's HOLD was a comment, and Deploy merged it.
+- **SIM_FILES:** any helper put in `src/record.ts` trips record-version-guard as a sim change. Web's header peek lives in
+  `src/record-header.ts` for that reason.
+- **Quality gate timeout:** `quality:stop` overran the 300 s Stop budget on the loaded box; #541 raises it to 420 (the hook's max).
+
 ## Lead — 2026-09-23 morning: Strategy's #2, beta dispatch, and the anticipate spec
 **Now.** Dom: Lead is Strategy's #2 — lanes report to Lead, Strategy rules and keeps its state doc. Beta list in priority:
 (1) publish after testing together, (2) knife then cleaver + estoc balance, (3) loot: tap-to-take + Undo (#475), tiered
@@ -75,6 +142,16 @@ not a longer timeout.
   Head `8e07865`, 2 files +75/-2. Gate 496 / 494 / 0 fail / 2 skipped, `gear-stats.test.ts` 20/20. Stats caught and fixed its
   own broken conflict resolution (TS1005). NOT READY until `quality` runs against trunk in CI.
 
+### !! #524 MERGED despite the Lead HOLD — now in trunk `c0b321c`, being published (11:55)
+Verified: #524 is MERGED at `52ac5ae` and is an ancestor of `c0b321c`, and `src/cloud-profile.ts:37` now does
+`{ ...mergeLoot(profile.loot, cloud.loot), equipped: ... }` on every ordinary refresh, while `mergeLoot` (`src/loot.ts:101`) still
+drops `declined`. **Result once `c0b321c` is live: a player's declined-loot history is wiped on every refresh**, not only on an
+account merge. The hold was a PR comment on #524, but the Lead->Deploy message never went (the cross-session cap), so Deploy never
+saw it. **Scope of harm:** only `declined`, the capped list of refused kills (max 50). `owned`, `equipped` and `taken` (the actual
+gear) are unaffected. **Recommendation: do NOT roll back** (a rollback is Dom's call under the standing order). Make Backend's
+save-defect fix the next thing Deploy ships; it carries `declined` in `mergeLoot`, which closes this in the same place. Lesson: a
+hold must reach Deploy as a MESSAGE, and a PR comment alone is not seen.
+
 ### WINDOW 1 STATUS, ~07:15Z — the knife is READY, but THE WINDOW CANNOT CLOSE
 **#530 = knife, READY, HELD for Window 1.** Head `35d4686`, base `stats/record-accept-list-v2` (#528). All run on this head:
 `record-version-guard` 2/2 (SIM_DIGEST `5eaa075a…` over the combined tree, guard-verified; `RECORD_VERSION` 6,
@@ -120,6 +197,43 @@ start at zero. Stats builds it, and the PR comes through Lead.
 in the record. **The Lead ruling stands: the record carries an OPAQUE token, not the raw id,** because kill links are public. The
 check keeps Backend's shape and its "one decoder, two readers" path: the verifier computes `token(claim.user_id)` and compares
 it with `record.owner`. Poster binding is the next item after D3 and lands as PR B's format, in Window 1.
+
+### Visual review triaged (Strategy, ~07:50Z; report `~/Desktop/Business/reports/frankendom-visual-review-2026-09-23.md`)
+Already assigned: finisher framing and blood (Finishers). **Controls: Dom keeps those himself; nothing for Web.** **TWO cheap items
+for WORLD, after its phone perf receipt**, one PR each or combined, World's call:
+(a) **Fighter readability trial, lighting + material only:** key/rim light on fighters, slight desaturation of sand and wall, no
+asset changes. Before/after phone still at 375x812 in the PR body; Dom judges. This also fixes the Executioner's weapon against his
+dark torso, the Goblin's weapon at phone size and the Pitborn against the sand, **so no character lane touches a model.**
+(b) **Crowd recessive:** darken/desaturate the spectator material and lower its contrast so it stops competing with the fighters.
+Material only; the crowd rebuild stays deferred; perf unchanged within noise.
+**Post-beta:** surface polish (metal slabs, torn cloth) and the remaining per-character notes.
+**JUDGING RULE, adopted:** Dom judges camera + loot + blood together on ONE phone capture (contact -> reveal -> settled body -> loot
+open). Finishers and Web coordinate one capture when both are ready, not three separate approvals.
+
+### Web, ~07:45Z — #521 (loot panel v2) still DRAFT, correctly: the real-win run is owed
+Head `80710b6`, the re-open of #475 (closed by Lead with a pointer). Web caught **a serious defect of its own**: the touch that stops
+the post-kill tour, at (190, 300), now lands on the Centurion's second tile row (9 pieces since #478), and **a tile tap is the take**,
+so a stray touch took loot. Fixed: tiles and Undo are inert while `:root.endgame-fade` is on, the same rule Rematch and Share
+already follow. Proof on the 375x812 preview: fade ON, (190, 300) and all 9 tile centres go to `world`; fade OFF, the tap takes.
+`quality:ci` 520 / 518 / 0 fail / 2 skipped. **Owed before it leaves draft:** one full end-to-end killing run on `80710b6`, plus fresh
+screenshots.
+**Latent check bug (owner: whoever holds `scripts/quiet-one-browser-check.mjs`, likely Finishers/Deploy):** line 109 taps Rematch
+straight after a duel that did NOT kill, but Rematch is inert under the fade, so it waits on intercepted pointer events until timeout.
+Line 183 does it right (tap the arena first, then wait for the fade to lift). The duel's kill is not deterministic on a loaded Mac
+(2 of 3 runs, then 0 of 3), so **a deploy passes that row only when duel 1 happens to kill.** Trunk fails identically. It is latent,
+not the cause of any publish so far. Fix: give line 109 line 183's arena-tap-first step.
+
+### World, ~07:35Z — phone perf on live `52dffed`: an UPPER BOUND, not a verdict (the box was contended)
+CPU x4, 393x852 DPR 3 touch, cold load, first kill, 3 runs: p95 383 / 500 / 366 ms, worst-since-load 2,850 / 3,418 / 3,650 ms,
+p50 18.7 / 35.1 / 233.7 ms. **Same page, same seed, so the spread is the machine.** Unthrottled control: p50 65 / 35 ms, where an
+unthrottled M5 has run this arena at a 16.7 ms median before. Load was 24-44, with about 80 headless Chromium processes from other
+lanes. The sim fell behind (14.9 s of fight took 36 s of wall time). No `guard.glb` fetched, draws 97-99, ~386k tris, 0 page
+errors. **The real receipt is Dom's own `?perf=1` on his iPhone** (the instrument of record), or a re-run on a quiet Mac.
+**Two measurement traps, for EVERY lane with a browser gate:**
+1. `chromium.launch({headless:true})` WITHOUT `executablePath: chromium.executablePath()` renders on SwiftShader (software GL),
+   not the GPU. Verify with `UNMASKED_RENDERER_WEBGL`: "SwiftShader Device" vs "ANGLE Metal Renderer: Apple M5". **Any perf number
+   taken on SwiftShader is void.**
+2. `#reset-button` opacity '1' fires at fight START, not at the kill. **The finish signal is `#debug` `data-record`.**
 
 ### Audio, ~07:10Z — phone pass on live `52dffed`: #529 READY (non-sim)
 The served `sprite.ogg` and `sprite.m4a` sha256 match git, so the measurements are of the shipped audio. #529 (head `5aa788b`)
