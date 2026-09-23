@@ -1,5 +1,7 @@
 # Project state
 
+Current beta/launch scope: `docs/SCOPE.md` (dated, wins over older lines in any state file).
+
 One file per lane under `docs/state/`. Each lane appends its own entries at the top of its own file, with evidence and the remaining validation (AGENTS.md); nothing goes in this index but the table below. GAME_SPEC.md stays the canonical design. The pre-lane history (2026-09-13) lives in the archive file.
 
 | Lane | File | Entries | Latest entry |
