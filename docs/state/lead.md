@@ -64,6 +64,17 @@ behaviour, not how it reads on a phone.
 never trust that row, so every deploy pays its local cost. Most likely a CI-runner timing or viewport difference. Needs a fix,
 not a longer timeout.
 
+### Stats, ~07:05Z
+- **#528 = PR A v2 — REVIEWED, READY for Deploy, and NOT Window 1.** Head `e3bd67f` (`a0c6458` + a fast-forward merge of trunk
+  `5c19f8b`). It stays at version 5 with no byte-layout change, and `record-replay-check --strict` is IDENTICAL to the pre-change
+  receipt (veteran-walk-in 1677 `d953a09bed432ea1`, veteran-scripted 1452 `552f30e5b09f4841`, digestMatch true on both). It is a
+  digest re-pin with no bump, per the #439 precedent, so it alters no fights and publishes on the rolling cadence. The knife stacks
+  on it, so it needs to be on trunk first anyway. Gate: 494 / 492 / 0 fail / 2 skipped. **The `release-checks.test.ts:73` red is
+  CLOSED as load:** 7/7 three times alone on a quiet box, and it passes inside the full gate. #503 is closed with a pointer.
+- **#514 (resolver): base retargeted from `stats/lane` to trunk.** Deploy caught that it would have landed on the wrong branch.
+  Head `8e07865`, 2 files +75/-2. Gate 496 / 494 / 0 fail / 2 skipped, `gear-stats.test.ts` 20/20. Stats caught and fixed its
+  own broken conflict resolution (TS1005). NOT READY until `quality` runs against trunk in CI.
+
 ### (superseded) DEPLOY DIED, 06:29Z: `2d614dc` killed with `EXIT=124`.
 The log ends: `Retrying release check 27 alone` -> `Deploy ceiling: no exit after 3000s in step 'release checks' — killing
 the deploy` -> `EXIT=124`. Live is still `fe0d8e0`; trunk is `52dffed` (`2d614dc` + #519 CI fix + #502). **Row 27
