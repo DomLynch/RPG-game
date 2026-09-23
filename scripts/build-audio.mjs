@@ -15,7 +15,7 @@ const RATE = 48000, GAP = .04, LEAD = .02;
 // every weapon, guard and shield impact.
 const PITCH = .5;
 // Owner 2026-09-20, after playing the −30 % mix: the end-of-match cheer is still high — the crowd recordings go another 30 %.
-const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, shield: 1, slashkill: 1, swordhit: 1 };   // shield: the owner chose the raw recording, not the deeper one
+const PITCH_BY_SOURCE = { crowd: PITCH * .7, gasp: PITCH * .7, swordhit: 1 };   // the recordings play at their own pitch; the synth layers carry PITCH
 // Length-preserving pitch shift: asetrate lowers pitch and slows; atempo (≤ 2 per stage, chained) restores the length.
 const pitchFilter = pitch => { const tempo = 1 / pitch, stages = Math.ceil(Math.log(tempo) / Math.log(2)); return `asetrate=${RATE * pitch},aresample=${RATE},${Array.from({ length: stages }, () => `atempo=${tempo ** (1 / stages)}`).join(',')}`; };
 const S = seconds => Math.round(seconds * RATE);
@@ -25,9 +25,8 @@ const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(se
 const recordings = {}, sourceList = JSON.parse(await fs.readFile('src/assets/audio/SOURCES.json', 'utf8'));
 await fs.mkdir('artifacts/audio/source-cache', { recursive: true });
 for (const [name, source] of Object.entries(sourceList)) {
-  // A source is either a public URL (cached under source-cache) or a local file with no stable public URL (the Jochi SFX shield
-  // block: licensed for use but not for redistribution, so it lives in the gitignored cache — SOURCES.json says how to rebuild it);
-  // both are hash-pinned.
+  // A source is either a public URL (cached under source-cache) or a local file with no stable public URL; both are hash-pinned.
+  // Since 2026-09-23 every shipped recording is CC0 with a public URL, so a clean checkout rebuilds the sprite with no local cache.
   const file = source.file ?? `artifacts/audio/source-cache/${name}.mp3`;
   let bytes = await fs.readFile(file).catch(() => null);
   if (!bytes && source.file) throw new Error(`${name}: committed source ${source.file} missing`);
@@ -147,8 +146,9 @@ const STEEL = .7;
 const steel = (n, f0, t60, r, opts = {}) => dense(n, abs(f0 * STEEL), 16, t60, r, { top: 5.5, roll: .88, grit: .3, ...opts });
 // The four weapon-landing voicings (see hit_flesh). `heavy` = slower recording playback + more heft + longer body.
 const HITS = [
-  (r, heavy, heavyRate = .92) => {   // #6 recording: slash & kill (stated free use)
-    const n = S(heavy ? .62 : .5), take = recording('slashkill', .02, heavy ? .62 : .5, heavy ? heavyRate : vary(r, 1, .03));
+  (r, heavy, heavyRate = .92) => {   // CC0 recording: the same "Hit Impact Sword 3" a sixth lower — the deeper of the two takes.
+    // Was the SoundFX "Sword Slash & Beheading" clip, dropped 2026-09-23: its stated terms carry no redistribution grant.
+    const n = S(heavy ? .62 : .5), take = recording('swordhit', 0, heavy ? .62 : .5, (heavy ? heavyRate : vary(r, 1, .03)) * .86);
     return heavy ? mix(n, [take, 0, 1], [heft(n, 75, r, { t60: .35, drive: 5 }), .004, .45]) : take;
   },
   (r, heavy) => {   // #2 voiced: low thud, mid body, little above 300 Hz — a blunt landing
@@ -277,9 +277,19 @@ const RECIPES = {
     const tail = rumble(n, .3, r);
     return densify(mix(n, [click, 0, .5], [scrape, 0, .45], [ring, .002, .7], [beat, .002, .25], [zing, .001, .1], [body, .002, 1.2], [tone, .002, .5], [weight, .003, .45], [tail, .02, dbfs(-5)]), 2.4);
   },
+  // Parry, shield half: the same voicing block_shield uses, held longer and centred at the parry's measured ring. It replaces the
+  // Jochi SFX "Shield Block" recording (dropped 2026-09-23 — its terms forbid redistribution); the recording measured 882-1116 Hz
+  // centroid, 31-43 % above 300 Hz, -30 dB in .29-.32 s across its three takes, and this is voiced to that.
+  parry_shield(r) {
+    const n = S(.72), f = vary(r, 1, .06);
+    const click = mul(broad(n, r, abs(1400), abs(9000)), decay(n, .005));
+    const ring = dense(n, abs(1600 * f), 16, vary(r, .5, .1), r, { top: 4.6, roll: .88, grit: .3 });
+    const body = thud(n, r, { from: abs(3200 * f), to: abs(300 * f), fall: .07, t60: .16 });
+    const weight = heft(n, abs(92 * f), r, { t60: .3 });
+    return densify(mix(n, [click, 0, .45], [ring, .001, .8], [body, .002, .95], [weight, .003, .7], [rumble(n, .26, r), .02, dbfs(-6)]), 2.4);
+  },
   // Owner 2026-09-22: the armour-synth branch (the first 3 in the rendered guard-metal preview) removed — "remove them from the
-  // game." Parry: the Jochi SFX "Shield Block" recording (licensed for use, see SOURCES.json). block/block_perfect now split
-  // evenly between the steel ring and the shield clang.
+  // game." block/block_perfect split evenly between the steel ring and the shield clang.
   block(r, v) {
     return v >= 2 ? RECIPES.block_shield(r, false) : RECIPES.block_steel(r);
   },
@@ -287,7 +297,7 @@ const RECIPES = {
   block_perfect(r, v) {
     return v >= 2 ? RECIPES.block_shield(r, true) : RECIPES.block_perfect_steel(r);
   },
-  parry(r, v) { return v >= 3 ? RECIPES.parry_steel(r) : recording('shield', .75 * v, .72); },
+  parry(r, v) { return v >= 3 ? RECIPES.parry_steel(r) : RECIPES.parry_shield(r); },
   // Guard break: dull and wrong — close detuned low partials beating, a choked mid burst, a low thump, driven hard so it crunches.
   // Whip crack (Whipped: the lorarii/wall lash) — a real whip's supersonic tip, not a weapon: near-zero low end, a very fast
   // broadband burst that leans high (2–9 kHz), a thin descending sting as the leather uncoils, and a short dry tail (no ring,
@@ -299,6 +309,16 @@ const RECIPES = {
     const sting = mode(n, abs(3200 * f), .05, .5, { slide: .5, tau: .02 });
     const tail = mul(broad(n, r, abs(600), abs(3000)), decay(n, .05, .001));
     return densify(mix(n, [crack, 0, 1], [snap, 0, .7], [sting, .002, .3], [tail, .006, dbfs(-6)]), 2);
+  },
+  // Whip raise (WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash) — the tell, not the hit: leather dragging
+  // up through air, a soft rising rasp with no transient and no metal, so it reads across the arena as motion rather than an
+  // impact. It must never be mistaken for the crack that follows it. Two takes for the no-repeat rotation.
+  whip_raise(r, v) {
+    const n = S(.4), f = vary(r, 1, v % 2 ? .08 : -.08);
+    const lift = mul(sweepBandpass(noise(n, r), t => abs((420 + 1500 * Math.min(1, t * 1.25) ** 1.4) * f), 1.1), envelope(n, [[0, 0], [.06, .5], [.24, 1], [.34, .55], [n / RATE, 0]]));
+    const leather = mul(broad(n, r, abs(180 * f), abs(1400 * f)), envelope(n, [[0, 0], [.1, .7], [.3, .5], [n / RATE, 0]]));
+    const air = mul(broad(n, r, abs(2200), abs(7000)), envelope(n, [[0, 0], [.22, .35], [.33, .5], [n / RATE, 0]]));
+    return densify(mix(n, [lift, 0, 1], [leather, .004, .55], [air, .01, dbfs(-9)]), 1.7, { lift: 2 });
   },
   guard_break(r) {
     const n = S(.46), f = vary(r, 1, .07);
@@ -373,7 +393,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 3, hit_heavy: 2, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 3, hit_heavy: 2, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, whip_raise: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];

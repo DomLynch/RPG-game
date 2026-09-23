@@ -83,7 +83,18 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('Blocked', { perfect: false })]), ['block']);
   assert.deepEqual(names([ev('Blocked', { perfect: true })]), ['block_perfect']);
   assert.deepEqual(names([ev('Parried')]), ['parry']);
-  assert.deepEqual(names([ev('Whipped')]), ['whip']);   // the anti-turtling lash's only feedback
+  assert.deepEqual(names([ev('Whipped')]), ['whip']);   // the anti-turtling lash
+  // The tell: WhipRaised is air, delayed so its .4 s ends on the lash tick — 60 ticks of lead leaves .6 s of delay, the
+  // shorter 30-tick repeat leaves .1 s, and a lead short enough to overrun the cue never goes negative.
+  assert.deepEqual(names([ev('WhipRaised', { lead: 60 })]), ['whip_raise']);
+  assert.equal(cuesFor([ev('WhipRaised', { lead: 60 })])[0].delay, .6);
+  assert.equal(cuesFor([ev('WhipRaised', { lead: 30 })])[0].delay, .1);
+  assert.equal(cuesFor([ev('WhipRaised', { lead: 12 })])[0].delay, undefined);
+  // Each of the wall's six lorarii keeps one whip voice, on the raise and on the lash alike; an event with no guard is rate 1.
+  const rates = [0, 1, 2, 3, 4, 5].map(guard => cuesFor([ev('Whipped', { guard })])[0].rate);
+  assert.deepEqual(rates, [.94, .964, .988, 1.012, 1.036, 1.06]);
+  assert.equal(cuesFor([ev('WhipRaised', { lead: 60, guard: 3 })])[0].rate, 1.012);
+  assert.equal(cuesFor([ev('Whipped')])[0].rate, 1);   // no guard on the event (an older replay): the whip plays unshifted
   assert.deepEqual(names([ev('GuardBroken')]), ['guard_break', 'hit_flesh']);
   assert.deepEqual(names([ev('AttackStarted', { move: 'light_right' })]), ['whoosh_light']);
   assert.deepEqual(names([ev('AttackStarted', { move: 'heavy_riposte' })]), ['whoosh_heavy']);
