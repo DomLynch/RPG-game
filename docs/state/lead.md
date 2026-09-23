@@ -114,7 +114,12 @@ check the token against the claiming account; nobody else can read it. Stats and
 of the user id under a server secret, or a stored per-account random id). PR B's body states the privacy reason.
 **Ticket, not a blocker:** the same hole exists today in `daily_results` (B can post A's daily record under B's name). Backend to
 open it.
-**Still Strategy's:** server-side `victory_marks` (Backend recommended option (a)). The D3 migration is held on that ruling.
+**RULED by Strategy, ~07:30Z: `victory_marks` become SERVER-AUTHORITATIVE now.** Existing progress is grandfathered, and guests
+start at zero. Stats builds it, and the PR comes through Lead.
+**Reconciling Backend's form with the Lead ruling:** Backend proposed `record.owner === claim.user_id`, with the raw account id
+in the record. **The Lead ruling stands: the record carries an OPAQUE token, not the raw id,** because kill links are public. The
+check keeps Backend's shape and its "one decoder, two readers" path: the verifier computes `token(claim.user_id)` and compares
+it with `record.owner`. Poster binding is the next item after D3 and lands as PR B's format, in Window 1.
 
 ### Audio, ~07:10Z — phone pass on live `52dffed`: #529 READY (non-sim)
 The served `sprite.ogg` and `sprite.m4a` sha256 match git, so the measurements are of the shipped audio. #529 (head `5aa788b`)
