@@ -8,6 +8,53 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-24 (written 2026-09-23 evening, on Lead's word)
+
+**Tell Lead by 09:30 which goes first, with ETAs.** Two items, both mine:
+
+1. **Dom's PRIORITY 1: the Dwarf's six armour pieces.** Every opponent wears and offers six takeable armour pieces + its weapon,
+   Recruit rag & scrap first, LIVE target 2026-09-24 14:00. The Dwarf has `dwarf.Greaves`, `dwarf.Gloves` (+ `dwarf.Warhammer`);
+   add **Helmet, Body, Arms, Boots**. Build on Nightborn's welded pipeline once it lands (~09:00). One PR; body: the six listed,
+   tri counts, loot.glb size, a same-frame phone still of the Dwarf WEARING them, loot-layers green. The Centurion's set is already
+   six (+Crest, Shield).
+2. **The runtime equip loader + the Centurion re-land** (Strategy, 2026-09-23 ~15:25; the veteran.glb rebuild is off the table).
+   `loadWarriors` fetches `weapons/player/<weapon>.glb` for the opponent and grafts its `WeaponDrawn` (rigid under `hand_r`,
+   contact in extras, the same shape as his baked trident node) over the rig's own BEFORE `buildWarriors`, so blade/contact/trail
+   derive unchanged. Conditions: hand_r scale MEASURED per rig (numbers in the body); the row-2 roster-browser-check exception
+   worded exactly "the opponent's equip .glb only, ≤ 250 KB", in the row's comment with the ruling time, no other exception, and the
+   boot budget row unchanged; the re-land = loader + the swap re-applied + Combat's re-pin as ONE bump, with rows 2/11/12 asserting
+   the gladius + scutum DRAWN (the mesh, not just `@WeaponDrawn`). Afterwards: the player-wield half of #309 on the same loader, as a
+   separate PR.
+
+**Why the Centurion is still on the trident:** #547 (gladius + scutum + carry pose + `veteran.Gladius` loot) reached trunk via #557,
+failed Publish B's rows 2/11/12 (fixed in **#559, HELD**), and in the fight frames **he still drew the trident mesh**:
+veteran.glb's baked `WeaponDrawn` is the trident, and nothing in `src` loaded an equip file (loot.ts's #309 contract had no code).
+Combat's B' undo (`39fd0a5`, reviewed OK by this lane) put him back on the trident. **Re-land material, keep:** #547's commits
+(`char/centurion-scutum`), #559 (`char/centurion-release-rows`: the scutum's loot.glb loads 1 s after first paint; the veteran
+polearm rows assert sword family + `data-carried`), `char/centurion-gladius-scutum`. When re-landing: keep `veteran.Trident` as a
+`RETIRED_LOOT` id (Lead upheld: `cleanLoot` silently drops unknown ids, so a taken trident would vanish).
+
+## Done — 2026-09-23
+
+- **#538 `wear()` on creature-pipeline bodies** (merged). The Veteran's, Dwarf's and Executioner's Body slot names empty nodes, and
+  the body is one untagged `CreatureBody` draw, so `wear()` threw "no Body draw"; it now falls back to `CreatureBody`. Test in
+  `tests/loot-wear.test.ts`, mutation-checked.
+- **#566 worn shields render both sides** (Lead-reviewed, READY to Deploy, head `be2e8e1`; not yet verified live). Owner's iPhone
+  15:21: the shield was a hoop. loot.glb's `~kit.Shield.Leather` face is a single-sided disc (every normal +Z) on the hero's
+  FrontSide Leather, culled from behind. Shield-slot draws get a DoubleSide material copy, once per material. Same-frame 375×812
+  stills on the non-merge branch `evidence/shield-face`. **Receipt still owed: Dom's iPhone after it's live.**
+- **#547** (above) and **#559** (held) built and reviewed; **#483** (this doc) merged.
+
+## Gotchas — 2026-09-23
+
+- **`Material.clone()` copies `userData` but not `onBeforeCompile`.** A lighting pass that marks materials in userData would skip
+  a clone and leave it unpatched. Carry the hooks over explicitly.
+- **Release rows run against `dist`**: `npm run build` before running any row solo.
+- **`scripts/versus-cards.mjs`'s page code is a template literal**, so a backtick in a comment breaks it.
+- **Rung 1 is `initialDuel()`:** changing the Centurion's weapon moves every sim test that fights him (13 at #547). Those re-pins
+  are Combat's; budget for them in any swap.
+- **The deploy lock** is `~/.claude/hooks/deploy_guard.py` `active_lock()`: wait on it in a background until-loop.
+
 ## Now — 2026-09-22 (late)
 
 **This doc is PR #483 (`char/veteran-state`), open, docs-only, and is the handoff.** It sat red on trunk's own
