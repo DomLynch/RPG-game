@@ -164,21 +164,21 @@ test('gear stats: the integer form is not decoration — the obvious float expre
   assert.equal(loadoutFor(kit).res, exact(armour));
 });
 
-// The grid itself. 10 tiers × 7 loot-bearing slot kinds, one cell per cell, so a weight cannot be nudged without this snapshot saying
+// The grid itself. 10 tiers × every loot-bearing slot kind, one cell per cell, so a weight cannot be nudged without this snapshot saying
 // which cells moved. Points rather than multipliers: a multiplier is a fact about a whole kit, a point value is the table's own number.
 test('gear stats: the full tier × slot grid', () => {
   const grid = Object.fromEntries(TIERS.map(tier => [tier, Object.fromEntries(LOOT_SLOTS.map(slot => [slot, pointsFor(tier, slot)]))]));
   assert.deepEqual(grid, {
-    Recruit:    { Helmet:   0, Crest: 0, Body:   0, Arms:   0, Gloves:  0, Greaves:   0, Boots:   0, Trident:   0, Cleaver:   0, Knife:   0, Estoc:   0, Scythe:   0, Warhammer:   0 },
-    Legionary:  { Helmet:  20, Crest: 0, Body:  30, Arms:  12, Gloves:  8, Greaves:  18, Boots:  12, Trident: 100, Cleaver: 100, Knife: 100, Estoc: 100, Scythe: 100, Warhammer: 100 },
-    Gladiator:  { Helmet:  40, Crest: 0, Body:  60, Arms:  24, Gloves: 16, Greaves:  36, Boots:  24, Trident: 200, Cleaver: 200, Knife: 200, Estoc: 200, Scythe: 200, Warhammer: 200 },
-    Veteran:    { Helmet:  60, Crest: 0, Body:  90, Arms:  36, Gloves: 24, Greaves:  54, Boots:  36, Trident: 300, Cleaver: 300, Knife: 300, Estoc: 300, Scythe: 300, Warhammer: 300 },
-    Champion:   { Helmet:  80, Crest: 0, Body: 120, Arms:  48, Gloves: 32, Greaves:  72, Boots:  48, Trident: 400, Cleaver: 400, Knife: 400, Estoc: 400, Scythe: 400, Warhammer: 400 },
-    Praetorian: { Helmet: 100, Crest: 0, Body: 150, Arms:  60, Gloves: 40, Greaves:  90, Boots:  60, Trident: 500, Cleaver: 500, Knife: 500, Estoc: 500, Scythe: 500, Warhammer: 500 },
-    Master:     { Helmet: 120, Crest: 0, Body: 180, Arms:  72, Gloves: 48, Greaves: 108, Boots:  72, Trident: 600, Cleaver: 600, Knife: 600, Estoc: 600, Scythe: 600, Warhammer: 600 },
-    Primus:     { Helmet: 140, Crest: 0, Body: 210, Arms:  84, Gloves: 56, Greaves: 126, Boots:  84, Trident: 700, Cleaver: 700, Knife: 700, Estoc: 700, Scythe: 700, Warhammer: 700 },
-    Invictus:   { Helmet: 160, Crest: 0, Body: 240, Arms:  96, Gloves: 64, Greaves: 144, Boots:  96, Trident: 800, Cleaver: 800, Knife: 800, Estoc: 800, Scythe: 800, Warhammer: 800 },
-    Origin:     { Helmet: 180, Crest: 0, Body: 270, Arms: 108, Gloves: 72, Greaves: 162, Boots: 108, Trident: 900, Cleaver: 900, Knife: 900, Estoc: 900, Scythe: 900, Warhammer: 900 },
+    Recruit:    { Helmet:   0, Crest: 0, Body:   0, Arms:   0, Gloves:  0, Greaves:   0, Boots:   0, Shield: 0, Trident:   0, Cleaver:   0, Knife:   0, Estoc:   0, Scythe:   0, Warhammer:   0 },
+    Legionary:  { Helmet:  20, Crest: 0, Body:  30, Arms:  12, Gloves:  8, Greaves:  18, Boots:  12, Shield: 0, Trident: 100, Cleaver: 100, Knife: 100, Estoc: 100, Scythe: 100, Warhammer: 100 },
+    Gladiator:  { Helmet:  40, Crest: 0, Body:  60, Arms:  24, Gloves: 16, Greaves:  36, Boots:  24, Shield: 0, Trident: 200, Cleaver: 200, Knife: 200, Estoc: 200, Scythe: 200, Warhammer: 200 },
+    Veteran:    { Helmet:  60, Crest: 0, Body:  90, Arms:  36, Gloves: 24, Greaves:  54, Boots:  36, Shield: 0, Trident: 300, Cleaver: 300, Knife: 300, Estoc: 300, Scythe: 300, Warhammer: 300 },
+    Champion:   { Helmet:  80, Crest: 0, Body: 120, Arms:  48, Gloves: 32, Greaves:  72, Boots:  48, Shield: 0, Trident: 400, Cleaver: 400, Knife: 400, Estoc: 400, Scythe: 400, Warhammer: 400 },
+    Praetorian: { Helmet: 100, Crest: 0, Body: 150, Arms:  60, Gloves: 40, Greaves:  90, Boots:  60, Shield: 0, Trident: 500, Cleaver: 500, Knife: 500, Estoc: 500, Scythe: 500, Warhammer: 500 },
+    Master:     { Helmet: 120, Crest: 0, Body: 180, Arms:  72, Gloves: 48, Greaves: 108, Boots:  72, Shield: 0, Trident: 600, Cleaver: 600, Knife: 600, Estoc: 600, Scythe: 600, Warhammer: 600 },
+    Primus:     { Helmet: 140, Crest: 0, Body: 210, Arms:  84, Gloves: 56, Greaves: 126, Boots:  84, Shield: 0, Trident: 700, Cleaver: 700, Knife: 700, Estoc: 700, Scythe: 700, Warhammer: 700 },
+    Invictus:   { Helmet: 160, Crest: 0, Body: 240, Arms:  96, Gloves: 64, Greaves: 144, Boots:  96, Shield: 0, Trident: 800, Cleaver: 800, Knife: 800, Estoc: 800, Scythe: 800, Warhammer: 800 },
+    Origin:     { Helmet: 180, Crest: 0, Body: 270, Arms: 108, Gloves: 72, Greaves: 162, Boots: 108, Shield: 0, Trident: 900, Cleaver: 900, Knife: 900, Estoc: 900, Scythe: 900, Warhammer: 900 },
   });
 });
 
@@ -197,6 +197,22 @@ test('gear stats: a full set at every rung, as the paperdoll will show it', () =
     'Invictus\t1.1333333333333333\t0.8222222222222222',
     'Origin\t1.15\t0.8',
   ]);
+});
+
+// The Shield's 0 is a DECISION and gets its own test, because a 0 that is a decision and a 0 that is an oversight look identical in a
+// table. Brief 19 Addendum C item 3: the shield is the guard profile only, with "no flat incoming reduction" — Dom's earlier
+// "−20 % incoming" was withdrawn because one shield at Recruit would equal the whole Origin armour cap. A weight here would reinstate
+// exactly that, on top of the guard profile the shield already gets in the duel.
+test('gear stats: a shield is worth no RES at any tier — it pays out in the guard profile, not the table', () => {
+  assert.equal(SLOT_WEIGHT.Shield, 0, 'brief 19 Addendum C item 3: no flat incoming reduction, the -20% was withdrawn');
+  for (const tier of TIERS) {
+    assert.equal(pointsFor(tier, 'Shield'), 0, `a ${tier} shield must still be worth nothing in this table`);
+    assert.deepEqual(loadoutFor({ Shield: tier }), NAKED, `a ${tier} shield alone must fight exactly naked`);
+  }
+  // And it does not quietly join a full set: fullSet() takes the armour slots with weight, so the caps are unmoved by the new slot.
+  assert.equal(loadoutFor(fullSet('Origin')).res, CAPS.res, 'a full Origin set still lands exactly on the RES cap');
+  assert.equal(ARMOUR_SLOTS.filter(slot => SLOT_WEIGHT[slot] > 0).reduce((sum, slot) => sum + SLOT_WEIGHT[slot], 0), 100,
+    'the weights that count still sum to 100: no constant is fitted and the cap is still a whole set');
 });
 
 // ---- the paperdoll seam ---------------------------------------------------------------------------------------------------------

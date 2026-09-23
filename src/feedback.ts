@@ -67,7 +67,7 @@ export function createFeedback(host?: FeedbackHost) {
   }
   function play(cue: Cue, at: number) {
     const variants = MANIFEST[cue.name], index = nextVariant(random, variants.length, last[cue.name] ?? -1); last[cue.name] = index;
-    const [start, duration] = variants[index], rate = 1 + (random() * 2 - 1) * PITCH_SPREAD, t = at + (cue.delay ?? 0);
+    const [start, duration] = variants[index], rate = (cue.rate ?? 1) * (1 + (random() * 2 - 1) * PITCH_SPREAD), t = at + (cue.delay ?? 0);   // cue.rate: the lorarius's own whip voice, the spread on top of it
     let voice = voices.find(v => !v.source || v.until <= t);
     if (!voice) { voice = voices.reduce((a, b) => a.until <= b.until ? a : b); try { voice.source!.stop(t); } catch { /* already ended */ } }
     const source = context!.createBufferSource(); source.buffer = sprite!; source.playbackRate.value = rate;

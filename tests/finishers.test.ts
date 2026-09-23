@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src/finishers.ts';
+import { FINISHER_POSE, FINISHER_SECONDS, ROTATION, finisherSeconds, selectFinisher, type FinisherId } from '../src/finishers.ts';
 import type { Finish } from '../src/duel.ts';
 import type { HitLocation } from '../src/blade.ts';
 import type { MoveId, WeaponId } from '../src/moves.ts';
@@ -92,4 +92,25 @@ test('owner 2026-09-20: the same ceremony never plays twice in a row, the pool s
   // a first fight (no history) still draws every outcome, and never quietOne
   assert.equal(selectFinisher(kill('light_right', 'torso'), LONGSWORDS, null), 'decapitation');
   assert.ok(selectFinisher(kill('critical', 'legs'), LONGSWORDS, 'splitCrown') !== 'quietOne');
+});
+
+// The measured per-finisher durations (Lead brief 2026-09-22, for Web's loot panel). The game keys on the event
+// (view.finishPhase().complete in src/scene.ts); this table is the published figure Web budgets a layout against, measured by
+// `node scripts/finisher-preview.mjs --durations`. What is asserted here is the shape and the honesty of the table, not the
+// numbers themselves — those are whatever the harness measured, and the harness is the thing that re-checks them.
+test('finisher durations are per finisher, measured, and every shipped outcome has one', () => {
+  for (const id of ROTATION) assert.equal(typeof FINISHER_SECONDS[id as keyof typeof FINISHER_SECONDS], 'number', `${id} has a measured duration`);
+  assert.equal(typeof FINISHER_SECONDS.quietOne, 'number', 'The Quiet One is out of the rotation but still shipped, and still measured');
+  // Not one constant for all of them (the whole point of the brief): the rotation's outcomes do not share a single number.
+  assert.ok(new Set(ROTATION.map((id) => FINISHER_SECONDS[id as keyof typeof FINISHER_SECONDS])).size > 1, 'the rotation does not run on one constant');
+  // The plain death is the shortest: it plays at full speed while a posed finisher runs on the 0.75x presentation clock.
+  for (const [id, seconds] of Object.entries(FINISHER_SECONDS)) if (id !== 'plainDeath') assert.ok(seconds > FINISHER_SECONDS.plainDeath, `${id} outlasts the plain death (${seconds} vs ${FINISHER_SECONDS.plainDeath} s)`);
+  // Every one of them is past the camera's settle floor (camera.ts SETTLE.min 1.5 s) and inside a sane ceiling.
+  for (const [id, seconds] of Object.entries(FINISHER_SECONDS)) assert.ok(seconds >= 1.5 && seconds <= 12, `${id} sits in the plausible range (${seconds} s)`);
+  // A finisher with no clip of its own plays the plain death, so its figure is DERIVED and says so rather than posing as measured.
+  for (const id of ['splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened'] as FinisherId[]) assert.deepEqual(finisherSeconds(id).measured, true, `${id} is measured`);
+  for (const id of ['hamstrung', 'execution'] as FinisherId[]) {
+    assert.equal(FINISHER_POSE[id], null, `${id} has no clip of its own yet`);
+    assert.deepEqual(finisherSeconds(id), { seconds: FINISHER_SECONDS.plainDeath, measured: false }, `${id} derives the plain death's figure and is labelled derived`);
+  }
 });

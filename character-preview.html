@@ -186,6 +186,47 @@ const DETAILS = [
 const api = {
   loaded: false, error: null, SEQUENCE, ticks: SEQUENCE_TICKS,
   reset,
+  // Reskin evidence (node scripts/character-preview.mjs --flat --enemy <glb>): the opponent alone at the game's own fighting
+  // camera, on a plain flat background — no arena, no floor, no grid, nothing in the corners. Multi Chars' silhouette extractor
+  // thresholds each image from its own pixels (median of three 60x60 corners, mark darker than bg-18) and refuses to emit an IoU
+  // when those corners spread more than 25, so a gameplay still cannot serve: the arena behind the fighter thresholds with him.
+  // The camera and the lights are the frozen rig's; only the backdrop the mark is cut out of is chosen here.
+  async flatLock(orientation = 'landscape', background = '#e9eaec', zoom = 1) {
+    await reset(); stage(arena); player.visible = opponent.visible = true; renderer.toneMappingExposure = 1.3;
+    settle(30);                     // the lock camera settles on the pair exactly as the game's does
+    stage(studio);                  // the fighters move to the flat scene; both frames are the same world, so the settled camera still holds
+    player.visible = false; studioFloor.visible = false; grid.visible = false;
+    const backdrop = studio.background; studio.background = new THREE.Color(background);
+    // zoom > 1 renders at GAME_RATIO x zoom and copies a 1:1 window around HIS projected centre — the same camera and so the
+    // same outline, with more pixels on the mark (the IoU normalises both masks to one height, so resolution is accuracy).
+    const [w, h] = LOCK[orientation], W = w * GAME_RATIO, H = h * GAME_RATIO;
+    frame(w, h, GAME_RATIO * zoom); lockCamera(); renderer.render(studio, camera);
+    let png;
+    if (zoom > 1) {
+      const mid = new THREE.Vector3(O.x, 1, O.z).project(camera);
+      const sx = Math.min(w * GAME_RATIO * zoom - W, Math.max(0, (mid.x + 1) / 2 * w * GAME_RATIO * zoom - W / 2));
+      const sy = Math.min(h * GAME_RATIO * zoom - H, Math.max(0, (1 - mid.y) / 2 * h * GAME_RATIO * zoom - H / 2));
+      sheet.width = W; sheet.height = H; ctx.drawImage(canvas, sx, sy, W, H, 0, 0, W, H); png = sheet.toDataURL('image/png');
+    } else png = canvas.toDataURL('image/png');   // straight off the buffer: cells() would caption the top corners
+    // The mark's own plate: every draw unlit black, same camera, same frame. His skin, his gloves and the estoc's flat
+    // are brighter than any backdrop an 8-bit render can hold, so a bg-18 cut of the beauty pass loses part of his head
+    // and hands. Cut both by the identical rule (2026-09-22, two implementations): the plate is 204,877 px, the beauty
+    // pass loses 5,056 of them (2.47%) and adds none — a strict subset, so the loss is the whole disagreement. Identical
+    // under a global or a per-row background. A background gate cannot see it: it certifies the backdrop, not the cut.
+    const restore = [];
+    opponent.traverse(o => { if (!o.isMesh) return; const m = o.material; restore.push([o, m]);
+      o.material = new THREE.MeshBasicMaterial({ color: 0, map: m.map, alphaTest: m.alphaTest, transparent: m.transparent, side: m.side, skinning: !!o.isSkinnedMesh }); });
+    renderer.render(studio, camera);
+    let silhouette;
+    if (zoom > 1) { const mid = new THREE.Vector3(O.x, 1, O.z).project(camera);
+      const sx = Math.min(w * GAME_RATIO * zoom - W, Math.max(0, (mid.x + 1) / 2 * w * GAME_RATIO * zoom - W / 2));
+      const sy = Math.min(h * GAME_RATIO * zoom - H, Math.max(0, (1 - mid.y) / 2 * h * GAME_RATIO * zoom - H / 2));
+      sheet.width = W; sheet.height = H; ctx.drawImage(canvas, sx, sy, W, H, 0, 0, W, H); silhouette = sheet.toDataURL('image/png');
+    } else silhouette = canvas.toDataURL('image/png');
+    for (const [o, m] of restore) o.material = m;
+    studio.background = backdrop; studioFloor.visible = true; grid.visible = true; player.visible = true;
+    return { png, silhouette };
+  },
   // Weapons lane views (node scripts/character-preview.mjs --weapons [--enemy <glb>]): the opponent's weapon alone, in his hands, its
   // clips, the brief's phone lock camera and one scripted exchange — the same captures for the longsword baseline and every weapon after it.
   weaponRoles() { // role → the opponent's clip: a weapon build carries its own set (Trident_*, Scythe_*); the baseline Veteran uses the sword's

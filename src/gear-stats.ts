@@ -50,8 +50,13 @@ export const CAPS = { attack: 1.15, res: 0.80 } as const;
 //
 // The Crest is 0 and that is the design, not an omission: brief 19 says it carries nothing, because it is a mark of rank and not
 // armour. It stays in the table rather than being left out so that every armour slot resolves, and 0 reads as a decision.
+// The Shield is 0 and that is Dom's decision, not a placeholder and not the Crest's reason repeated. Brief 19 Addendum C item 3
+// (2026-09-23): the shield is the GUARD PROFILE only — two sides covered, stops heavies, cheaper hold, posture drains faster while
+// held — with "no flat incoming reduction", and his earlier "−20 % incoming" withdrawn because one shield at Recruit would equal the
+// whole Origin armour cap and stack to 36 %. A RES weight here would BE that withdrawn reduction, reinstated in a table. The shield
+// already pays out, in `stepDuel`'s guard, and paying it twice is the double-count the addendum exists to stop.
 export const SLOT_WEIGHT: Record<LootSlot, number> = {
-  Helmet: 20, Crest: 0, Body: 30, Arms: 12, Gloves: 8, Greaves: 18, Boots: 12,
+  Helmet: 20, Crest: 0, Body: 30, Arms: 12, Gloves: 8, Greaves: 18, Boots: 12, Shield: 0,
   // A weapon carries the whole Attack pool by itself, at its own tier — there is one main hand, so a weapon's weight is not shared
   // with anything and every weapon weighs the same. Which weapon you hold is `moves.ts`'s business (reach, speed, the fairness table);
   // this number is only how much its TIER is worth.

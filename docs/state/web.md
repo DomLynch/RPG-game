@@ -1,3 +1,119 @@
+## Now — web lane, 2026-09-22 23:xx (session close; read this first)
+
+**Nothing is in flight and nothing is half-done.** Merged tonight: #458 (viewer-page polish + the folded-in handover docs, 16:14:25Z)
+and #464 (the Centurion rename + "warden" out of player-facing copy, 16:40:59Z). Open and queued behind the publish: **#475**
+(loot panel — tap-to-take, Undo, gold skin; head bbfd087, base trunk after a retarget, every check pass or pending, none failed)
+and **#476** (this file; the lane's docs). The lead merges both; local receipts are evidence, not the gate — gotcha (e).
+
+**The one task waiting to be built, the moment its two blockers clear: make the loot panel WAIT for the finisher.** The bottom
+sheet is withdrawn; see the finisher-cover entry below for the measurements and the ruling. Blockers, in order: (1) #475 must merge
+— do not stack a third branch on these files; (2) the measured per-finisher durations come DIRECTLY from Finishers & Gore, not via
+the lead, with their finisher-complete event swapped in afterwards. Then one PR, receipt = a phone still with the body and the
+panel visible together. Do NOT hard-code the 4100 ms measured below.
+
+**Routed but not released** (the lead releases it after #475): Brief 19 deliverable 4, the panel half of gear stats — ATK and RES
+only, see the entry below for the exact format, and read PR #486 before building rather than trusting the relay.
+
+**Not mine:** the Veteran/shield kill-screen line (blocked on Multi Chars' #474), the Shieldmaiden/Knight work (no owner yet), the
+auditer's grade-C journal fixes (parked behind the lead's loader and Brief 14).
+
+**One thing checked and NOT acted on, 23:xx.** A relay said `src/arena.ts:446`'s `lorarii.standing` getter breaks typecheck on this
+lane's branch and asked for a one-line fix here. Verified: the break is real on the branches (`npx tsc --noEmit` →
+`src/arena.ts(446,49): error TS2304: Cannot find name 'lorarii'`), but it came in FROM the base they were cut from, not from any
+commit of this lane — `git diff --name-only origin/codex/01a09a76/task-1...web/state-2026-09-22-evening` is PROJECT_STATE.md and
+docs/state/web.md, and the loot branch does not touch arena.ts at all. Trunk (cb8ff5b) already has zero `lorarii.standing`, and
+neither PR has a failing check, because CI builds the merge with base. So the correct action was none: arena.ts belongs to the
+visuals lane, and editing it here would have "fixed" something already fixed upstream. If a branch of this lane ever does go red on
+it, the fix is a rebase onto trunk, not an edit.
+
+## 2026-09-22 — Loot panel: a tap is the take, Undo, and the gold skin — item 10 (Dom, with a phone still; lead's decisions)
+
+Dom: "should be auto equipped/taken without the double confirmation... or make it more intuitive... plus the black background should
+be the gold button colour, same, and semi transparent." Built on top of the names copy (PR #475, stacked on #464 — index.html keeps
+the meters AND #loot-panel on one physical line, so two branches cut from trunk would have conflicted there). The Take button is
+gone: a tap on a tile takes the piece, the tile flashes (`li[data-took]`), the tiles and Leave it go, and one line stays in their
+place — "The Nightborn's helmet is on you." with Undo beside it — for 4 s, main.ts owning the timer and every reset path clearing it
+through `hideLoot()`. Undo restores the ledger the take FOUND rather than a computed inverse: `store` writes provenance into `taken`
+and `wear` moves a paperdoll slot, so main.ts keeps the object and puts it back, and the panel reopens with nothing taken. Skin:
+`.loot-panel` is the fight cluster's sand at 55 % (`#b7a2768c`) with its blur kept, ink `#1b1916` type, tiles pale glass on gold.
+**Two findings the brief did not have.** (1) There was NO 300 ms tap guard to "keep" — nothing in loot-panel.ts, main.ts or the CSS
+(the shipped `.loot-panel{pointer-events:none}` is #102's pointer-transparency fix, not a time guard); with one tap now spending the
+fight's one take it is half the safety net, so it was built: `TAP_GUARD_MS = 300` on an injected clock. (2) Five tiles really did
+wrap to TWO rows at 375 on the shipped build (the estoc alone on the second): the phone HUD column is 270 px and 5 × 56 + gaps does
+not fit inside it, so the card breaks out of that column to 343 px rather than shrinking the 56 px targets; seven-piece opponents
+still wrap 5 + 2 instead of scrolling out of sight. Also not asked for and flagged: with Take gone, Leave it's full-transparent
+ghost let the sleeping Step and Guard read through its label, so it takes the cluster's dark glass. Receipts on a real Nightborn kill
+at 375×812 (the duel scripted from quiet-one-browser-check): card `rgba(183,162,118,0.55)` + `blur(6px)`, ink `rgb(27,25,22)`, card
+16,183 343×130, 5 tiles ONE row at x 25/85/145/205/265 y 225 all inside the card, Undo 285,226 65×34, panel gone after the line's
+4 s, `scrollWidth` 375, no page errors; the ledger measured before (`owned:[goblin.Arms]` + its provenance + a declined record),
+after the tap (plus nightborn.Helmet in owned/equipped/taken) and after Undo (byte-identical to before); a tap fired the instant the
+panel appeared left the ledger untouched. `npm run quality:ci` EXIT=0 — 509 tests, 507 pass, 0 fail, 2 skipped, Budget PASS;
+`endgame-hud-check` passed:true overlaps [] (card ends y 313, fallenRect y 464); `quiet-one-browser-check --opponent goblin`
+passed:true. New `tests/loot-panel.test.ts` (3 tests) covers the guard, the tap-take, the inert owned tile, decline, the line +
+Undo and hide; `tests/loot-layers.test.ts` pins that `#loot-take` is gone; `scripts/endgame-hud-check.mjs` drops it from its
+cluster list. Remaining validation: the lead's merge gate on #475, and #464 must merge first (it has: 16:40:59Z).
+
+**Also next, and MEASURED before building (order via the lead, 2026-09-22 evening; Dom's phone still of live 607126a): "the loot
+pickup covers the effect of the finishers".** His screenshot predates #464 and #475, so the first job was to check this lane's own
+build rather than the published one. Probe on the #475 tree at 375×812, a real Nightborn kill, sampling every 100 ms of page time
+from the kill (artifacts/loot-timing.mjs, the loot receipt's duel plus #debug's `finishPhase` / `fallenRect`):
+- **The timing half is real on this build too.** The panel is visible at t = 0 — the Killed event — and `finishPhase().settled`
+  does not go true until **t = 4100 ms**. It is up for the WHOLE finisher, 4.1 s of it. Cause is mine: #427 deliberately put
+  `#loot-panel` OUTSIDE the `:root.endgame-fade` group so the arena-cam tour could not fade it, and that same exemption is why it
+  does not wait for the finisher either. main.ts calls `offerLoot()` straight off the Killed event (~line 845).
+- **The geometry half does not describe this build.** At settle the panel measured x 16 y 183 343×130 — the TOP band, bottom edge
+  at 39 % of 812 — and the body's rect was x −14 y 353 213×208. They do not intersect (`panelOverlapsBodyAtSettle: false`), which
+  is also what `scripts/endgame-hud-check.mjs` asserts and why it passes. So "pops over the middle" is the old panel, not this one.
+- **The briefed fix contradicts two things, so it needs the lead before it is built.** (1) "Bottom sheet, at most the bottom 40 %"
+  puts the card at y 487–812, which OVERLAPS the measured body rect (y 353–561) by ~74 px — the opposite of the brief's own bar
+  that the panel never overlaps the body's framing. (2) The thumb zone is where the first post-kill touch lands, which is gotcha
+  (a) and the defect that aborted deploy #102. Moving the tiles there re-creates it unless the panel keeps its
+  pointer-transparency and the tour-stop touch is re-thought.
+- Cheapest fix consistent with both: keep the card where it is and make it WAIT — show it on the finisher-complete moment plus the
+  hold, which is the timing change Dom actually reported. Finishers & Gore are exposing that event; until it lands, their measured
+  durations, not a timer of mine (the lead's instruction).
+**Ruling (lead, 2026-09-22 evening): build the WAIT, the bottom sheet is withdrawn** — the geometry half of the brief went back to
+Strategy with these numbers so it cannot return as an order. The work, when it is unblocked: move the `offerLoot()` call site off
+the Killed event and onto finisher-complete plus the hold. Nothing else moves — not the card, the tiles, the guard or Undo — and
+`endgame-hud-check` keeps passing because the geometry is untouched, which is itself the evidence that this is the timing fix and
+not a redesign wearing one. **Order of operations, and do NOT route it through the lead:** (1) wait for #475 to merge — no third
+stacked branch on these files; (2) take the measured per-finisher durations DIRECTLY from Finishers & Gore (Split Crown,
+Decapitation, Run Through, Opened, Quiet One, plain — measured in their preview harness from the frame the camera settles and the
+body stops), with their real finisher-complete event swapped in afterwards; (3) one PR, receipt = a phone screenshot with the body
+and the panel visible together. Do NOT hard-code the 4100 ms measured above: it is one Nightborn kill with whatever finisher that
+seed picked, not a table, and a timer of our own is the thing the lead ruled out.
+
+**Next for this lane (routed 2026-09-22 evening by Strategy, NOT started — the lead releases it only after #475 and #464).** Brief 19,
+gear stats (Dom approved; PR #486, a new Stats lane). Web owns the PANEL half of its deliverable 4: the paperdoll shows the totals
+and the kill-screen take shows the delta of the piece being picked up. **Format settled later the same evening by Dom (Brief 19
+Addendum C, via Strategy) and it SUPERSEDES the first routing: TWO stats only, ATK and RES, whole points.** Paperdoll shows totals
+UNSIGNED — `ATK 15 · RES 20` at full Origin, `ATK 0 · RES 0` naked. The kill-screen take shows the piece's delta SIGNED, one token,
+on its own line — `+6 ATK` for a weapon, `+4 RES` for an armour piece; a take never moves both. The four-stat shape first routed
+here (Attack, Defence, Poise, Stamina) and any `+3 DEF +2 POI` form are VOID: no Defence, no Poise, no Stamina on gear. The Stats lane supplies the numbers; this lane owns copy and skin, in the same gold-glass language as the tap-to-take panel
+(#475). Nothing to do until the lead routes it. Relayed by a peer session, so confirm the brief with the lead before building —
+gotchas (g) and (h).
+
+## 2026-09-22 — The Veteran becomes the Centurion, and "warden" leaves every player-facing string (Dom via Strategy; PR #464, merged 16:40:59Z)
+
+Copy only. `src/roster.ts` `name` field alone — the id `veteran`, the body, rig, archetype, asset filenames and every LootId
+(`veteran.helmet`, `veteran.Trident`) untouched, so provenance, loot.glb and the kill-link fixtures do not move; the career RANK
+"Veteran" stays, deliberately. "Warden" leaves the player-facing strings and keeps the identifiers: `practiceHint(s, foe =
+'Opponent')` fed from a new `bareName()` in roster.ts, so nine coaching lines name whoever is in the arena ("Centurion defeated.
+Ready for a rematch?", "Parried! The Goblin is open.", "The Centurion rolled clear."); the HUD bars carry the name for EVERY rung
+now — main.ts had `if (opponent.id !== 'veteran')`, which is why the first rung still read "ARENA WARDEN" — with the meters'
+aria-labels following ("Centurion health" / "Centurion posture") and "OPPONENT" as the no-opponent fallback; the chip is
+"Difficulty: …"; the daily is a duel everywhere including the share title "Frankendom: the daily duel"; the replay banner names the
+fallen ("Replay over · the Goblin fell"). GAME_SPEC's design use, code comments, test names and the debug readout's `warden:` (which
+quiet-one-browser-check parses) are untouched. **The brief's "regenerate his versus card" was wrong and was NOT done**: the caption
+is DOM (`#versus-foe`, set at runtime from the roster), `scripts/versus-cards.mjs` renders only the two fighters and has no
+`fillText`, no name and no roster import, so re-rendering would produce a byte-different picture of the same fighters and spend
+budget for nothing; measured, `#versus-foe` reads "Centurion". Lead accepted the correction and routed it back to Strategy.
+Receipts: phone screenshots of the HUD and the daily card at 390×844, and in the same live DOM "THE CENTURION" / data-mobile
+"Centurion" / "Centurion health" / "Centurion posture" / "Daily duel" / "Today's duel" / "Difficulty: normal", with a sweep of every
+text node and every aria-label/title/placeholder/data-mobile for /warden/i returning `[]`. quality:ci EXIT=0 — 506 tests, 504 pass,
+0 fail, Budget PASS. **`scripts/quiet-one-browser-check.mjs` pinned the chip text `'Warden: easy'` and had to move with the copy**;
+re-pinned and re-run (`passed:true`, debug readout showing `ai easy`). See gotcha (f).
+
 ## 2026-09-22 — Viewer page: PLAY NOW as a proper primary, the stale-link line out of the header band (lead's brief, the #426/#427 follow-up)
 
 The follow-up owed once #426 was live. Two findings from a static preview of the viewer state (index.html + src/style.css, no sim)
@@ -35,6 +151,42 @@ its entry was folded in here and #444 closed rather than rebased separately (lea
 **Open.** (0) Veteran shield, kill-screen line (lead 18:45, Dom GO 18:40) — when a taken shield cannot be used yet, the panel says exactly "stowed until you fight one-handed."; shown while the shield is owned and a two-hander is in hand, gone the moment a one-hand weapon is equipped. Take-one stays strict: the shield is its own item, never bundled with a weapon. BLOCKED until Multi Chars' asset + back stow and Weapons' `grip` field exist; it is last in the order, after (1). (1) Viewer-page polish on the shared-fight screen — PLAY NOW's weight and placement as a proper primary, the stale-link line's style; the lead owns #426 itself, the seam is on trunk; this is the next task. (2) Auditer's grade-C journal fixes: real tab semantics (role=tab/tabpanel, aria-selected, aria-controls) + a visible focus style, one node test parsing index.html for the journal ids, delete the dead `dialog{}` block (~style.css 306-338), backfill entries for #241/#247/#279. (3) Strategy briefs 6 and 10, after beta. (4) Not mine: the loot budget line sits at 1,446,058 of 1,500,000 (#418's weapon draws) — the lead is taking the cap question separately.
 
 **Gotchas, all paid for with a deploy.** (a) A decision button must never sit where the first post-kill touch lands: that touch stops the arena-cam tour, so a button there declines the player's loot by accident — this is why Take/Leave it live in the thumb row and `.loot-panel` is pointer-transparent with `auto` only on its tiles. (b) Anything added to the endgame cluster must also be added to `scripts/endgame-hud-check.mjs`'s cluster list, or #424's gate does not hold it inside `#actions`. (c) A DOM module that touches `document` at import time breaks main.ts's VM harness (tests/graphics.test.ts) — export a factory taking the injected element lookup and register the module in the harness map; the fake element has no `removeAttribute`, so toggle a data value. (d) Rerun `node scripts/loot-layers.mjs` after any loot.glb change or `tests/loot-layers.test.ts` fails; weapon ids are excluded by design. (e) The lead's merge gate is quality + base + both browser jobs green on the PR head — local receipts are evidence, not the gate, and any push (docs included) restarts CI.
+
+Added after the fact, 2026-09-22 evening (they belong with the list above):
+(f) A PIN WHOSE MISS IS SILENT IS NOT A PIN (lead, 2026-09-22): `scripts/quiet-one-browser-check.mjs` matched the difficulty chip's
+text in a bounded loop — `for (let i = 0; i < 3 && (await ...textContent()) !== 'Warden: easy'; i++)` — so when the copy changed the
+loop simply gave up and the gate fought on at `normal`, still reporting passed:true. It turns a gate into a passenger. When copy a
+gate matches on changes, re-pin AND re-run it; when writing one, make the miss fail. Audit after it (2026-09-22): of the 33 release
+rows / 20 distinct scripts, that was the only retries-then-continues in a gate. Two near-misses that are NOT gates —
+`scripts/impact-preview.mjs`'s bounded sim loops (`i < 900 && !s.events.some(...)`) are preview generation and are not in
+release_commands; `scripts/audio-preview.mjs`'s `baseline ... .catch(() => null)` only drops the delta COLUMNS from its report, while
+its `--check` assertions are real `assert.ok` throws.
+(g) A CAUTION THAT NAMES A MECHANISM IS A CLAIM; CHECK IT BEFORE YOU BUILD AROUND IT (lead, 2026-09-22, after item 10). The brief
+said "keep the existing guard that ignores taps in the first ~300 ms"; there was no such guard — `.loot-panel{pointer-events:none}`
+is deploy #102's pointer-transparency fix, not a time guard. The same night, "regenerate his versus card" named a caption that is
+DOM, not pixels, and "five tiles must fit one row at 375" named a constraint that the shipped build was already breaking. Each was
+one cheap command away: grep the generator, grep for the guard, measure the live DOM. Run that command before writing code, then
+put the correction in the PR body AND the reply — building to a wrong premise spends a deploy-gated cycle, and quietly dropping
+part of a brief reads as scope-cutting.
+(h) A MERGED BASE DOES NOT SELF-HEAL (lead, 2026-09-22, after #475). A PR stacked on another branch keeps pointing at that branch
+after it merges: `gh pr view <n> --json baseRefName` still read `copy/centurion-and-duel` long after it landed at 16:40:59Z, while
+`mergeable` read MERGEABLE the whole time — `mergeable` says nothing about WHERE the merge lands, and this is the shape that put
+#358 into a lead branch instead of trunk and cost #371 to re-land. Retarget with `gh pr edit <n> --base codex/01a09a76/task-1`,
+then prove no rebase is owed: the old base's head must be an ancestor of trunk (`git branch -r --contains <sha>`) and the three-dot
+diff against trunk must show only your own files. Better still: do not stack twice — #475 was stacked only because index.html keeps
+the meters and #loot-panel on ONE physical line.
+(i) AN EXEMPTION GRANTED FOR ONE REASON SILENTLY BUYS A SECOND BEHAVIOUR NOBODY CHOSE (lead, 2026-09-22, after the finisher-cover
+order). #427 put `#loot-panel` OUTSIDE the `:root.endgame-fade` group for one stated reason — so the arena-cam tour could not fade
+it away mid-decision. The group is also what holds the endgame text back until `finishPhase().settled`, so the same exemption
+bought "does not wait for the finisher" for free, and `main.ts` calling `offerLoot()` straight off the Killed event made it
+visible at t = 0. Measured on the #475 tree: the panel is up for the WHOLE 4.1 s of the finisher (settled at t = 4100 ms). Nobody
+chose that; it came in the back of a choice about fading. The sharper statement (lead's, after reading the detail back): AN EXEMPTION REMOVES EVERYTHING THAT
+MECHANISM WAS DOING, NOT ONLY THE THING YOU MEANT TO EXEMPT. It did not merely fail to consider timing; it removed a timing
+behaviour that was riding on the same mechanism. So when exempting an element from a group, write down every behaviour the group
+was carrying for it, not just the one being escaped — and re-derive the others deliberately.
+(a, amended) Take is gone since item 10 — a tap on a tile is the take — so the thumb row holds Leave it alone. The rule
+that produced it is unchanged and still load-bearing: no decision button where the first post-kill touch lands, and
+`.loot-panel` stays pointer-transparent with `auto` only on its tiles and its Undo pill.
 
 ## 2026-09-22 — Take / Leave it move to the thumb row (deploy #102 abort; my defect)
 

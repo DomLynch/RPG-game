@@ -2,6 +2,124 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Session handover — maul part shipped, estoc parked, and a trap waiting for whoever rigs the maul (weapons lane, 2026-09-22)
+
+**Now.** Nothing is in flight. #509 (the Knight's maul part) is ready and with Deploy in the code batch; #501 (this file) is in the
+docs batch; #419 (estoc reach) is parked. The next piece of weapons work is whatever the next Strategy session assigns.
+
+**Done today.** #509 the maul PART at silhouette stage (`scripts/build-weapon.mjs`, one file, gate green 468/466/2 on base
+`fe0d8e0`). #501 the estoc findings off trunk. The bearded-axe cost measurement that overturned Brief 15 §2 (Strategy is having
+Pitborn correct the brief): **one-hand weapons in this repo do not get a clip family.** cleaver, estoc and knife each map ten move
+ids onto the same four shared hero clips — `Attack`, `Return`, `Heavy`, `Riposte` — with `clips: null` in `WEAPON_BUILDS`; only the
+two-hand poles own prefixed families. The brief's "~13 clips to author" is a two-hand pole family's cost (the scythe's) applied to a
+one-hand weapon. Real cost: a part, plus at most the already-shared `CLEAVER_KEYS` re-key.
+
+**Open.** #419 waits on a Nightborn **profile** item in Combat's lane (levers only, no data move): with the estoc at +0.30 m the
+Nightborn normal profile must hold `trident vs nightborn normal: charged heavy only` at ≤ 12/24 with margin (14/24 with the fix,
+8/24 without), fight length back under the 240-tick bar (321 exhausted over 24), and his hard-tier feint-and-punish identity pin
+intact (0/24). Combat stacks the estoc flip on #419 as one PR riding Stats' single bump to 6. Then ONE full-battery re-run on the
+pair and a READY line. **Do not re-run the battery before that PR exists** — nothing else moves those rows.
+
+**Gotchas.**
+1. **THE MAUL TRAP, for whoever rigs it next.** #509 is the part only — `clips: null`, no rig, no loadout. But `WEAPONS.maul.paths`
+   names `Maul_Slash` / `Maul_Heavy` / `Maul_Thrust`, and **those clips exist only on the creature side**: they are authored in
+   `scripts/build-creature-weapons.mjs` for the Minotaur, at the Minotaur's contact span `{from: .73, to: 1.11}`. The hero-rig part
+   this lane shipped has contact `{from: .65, to: .87}` — a different object at a different scale. So a hero-rig maul needs its own
+   family or a re-key onto the shared hero clips, exactly as the warhammer got `Warhammer_*` "on the trident's machinery" rather than
+   borrowing the Minotaur's creature-authored `Maul_*` set. **Anyone switching a hero-rig donor to the maul and expecting the paths
+   to resolve will bind to creature clips or to nothing.** Strategy has the Executioner doing that switch the day this lands.
+2. **The maul's crown is load-bearing, not cosmetic.** `WEAPONS.maul` and `WEAPONS.warhammer` carry identical reaches (light 1.65,
+   heavy 1.90, thrust 1.40 — both CLEAVER-derived), so the head crowns at the warhammer's .76. The `real reach` test does not cover
+   the maul yet because it is neither a shipped (rig, weapon) pair nor a player weapon; it starts covering it the moment it is rigged.
+   Do not "tidy" that height.
+3. **The stale-node_modules gotcha is install-date, not base-sha.** World reported that a worktree fast-forwarded onto `fe0d8e0` can
+   fail `quality:stop` on a missing `@types/node`, fixed by `npm ci`. This worktree **was** on `fe0d8e0` and did not hit it (468/466/2,
+   World's own post-`npm ci` numbers). It depends on when that worktree last installed. Do not run `npm ci` as a ritual, and do not
+   read a green gate on `fe0d8e0` as evidence the gotcha is imaginary.
+4. **Open the file before acting on a relayed mechanism.** Three plausible relays were wrong in one night, each from a competent
+   lane. The costly one: the kicker hover was relayed as the estoc's unblocking event, but it is gated on `guardShare === 0`, which
+   is the Goblin's profiles alone — it can never fire on the Nightborn. Acting on it meant a full battery re-run for the same table.
+
+## Estoc reach — re-measured and HELD: the estoc clears, the Nightborn breaks (weapons lane, 2026-09-22) — HELD, NOT PARKED
+The estoc was un-parked on the reach fix alone (Dom via Strategy, the lead relaying): `ESTOC.fight.close` is not touched, so the old
+stance-hunt revival condition below is **moot** and that hunt stays dead. #419 rebased onto trunk `1741dc5`, head `b1455d4`, PR draft.
+
+**The estoc itself clears with room.** `ESTOC_MOVES` = the sword's spacing convention **+ 0.30 m**, the blade's measured frontier. Full
+battery re-run, every weapon, both levels. Against a bar of margin ≥ 2, **zero estoc rows are below it** — worst are goblin normal thrust
+6/24 and executioner normal charged heavy 6/24 (cap 12), and goblin hard charged heavy 4/24 (cap 8). The four old rows: goblin normal
+thrust 24/24 → 6/24, goblin hard light spam 9/24 → 1/24, goblin hard thrust 23/24 → 3/24, dwarf hard thrust 10/24 → 3/24.
+
+**But the weapon does not travel alone, and that is the finding.** The Nightborn wields the estoc, so +0.30 m on every one of his moves
+changes how he fights everyone. Three consequences, each with an in-process control that restored cleanly:
+
+| # | finding | control |
+|---|---|---|
+| 1 | **new** over-cap row on the **trident** (shipped, offered): `trident vs nightborn normal: charged heavy only` 8/24 → **14/24**, cap 12 | estoc back on sword reach → 8, restored → 14 |
+| 2 | Nightborn **fight-length pin fails**: exhausted **321** ticks over 24 fights, bar 240 | `ESTOC_REACH = 0` passes (median 20.5 s, hero wins 10/24); `.30` fails |
+| 3 | Nightborn **fight-identity fails** at hard: the feint-and-punish his design names wins **0/24** | same |
+
+(2) and (3) are design contracts, not thresholds — his brief is that he is "beaten by wit, not stamina".
+
+**The lever the brief named is shut by contract, not by taste.** Tuning the estoc's thrust recovery the way the knife's was tuned breaks
+`tests/weapons.test.ts`, which pins the estoc's windup/active/recovery/stepIn/feintUntil/chamber to the sword's **exactly** — "the sword's
+timings and lunges exactly" is the weapon's brief. Swept before concluding it: 21 → trident 14 FAIL; 24 → trident 7 but the estoc's own
+goblin row goes to margin 0; 27 → 12 thin; 30/31/32 → both clear. Non-monotonic, *and* it breaks the defining test at every value. Record
+the closed door rather than leaving it ambiguous. Wind-up and stance untouched, as instructed.
+
+**The lead's ruling, 2026-09-22: the trident does NOT leave `PLAYER_WEAPONS_OFFERED`** — "un-offering a shipped weapon to make room for a
+shelf one is not a trade I'll make". The branch as pushed *does* remove it, because the table forces the pair (the test asserts a weapon
+with no over-cap row must be offered and one with a row must not be). That is why this cannot land as-is and is held rather than fixed: the
+invariant and the ruling disagree until the trident row goes away. Same invariant that forced the scythe in on #440 — the system working.
+
+**Held, deliberately, on a dependency.** Combat is fixing a shared approach defect in `src/ai.ts`: every opponent's approach settles at a
+*raw* reach value while `inReach` needs `reach − .1`, so wardens park just outside their own range. That changes stopping distance, which
+is exactly what +0.30 m interacts with — findings (2) and (3) are engagement-distance symptoms and may move on their own. Re-measuring
+before it lands would be the stale-base trap one layer up. **Nothing is retuned and nothing is measured again until that fix is on trunk.**
+
+`RECORD_VERSION` 5 → 6 with `SIM_DIGEST` re-pinned over the final tree and references regenerated (still replaying identically, 1677/1452).
+
+**BUMP RULING, 2026-09-22 (the lead) — the estoc's 6 is NOT this lane's to write.** Trunk carries `RECORD_VERSION = 5` (the batched
+knife+scythe flip). Stats' PR B needs 6 for the loadout tail and is ready first, so **Stats carries the bump and this lane rides it**; the
+rule is whoever is ready first takes it, and if #419 somehow lands ahead of Stats' PR B the order reverses. The `weapons/estoc-reach`
+branch currently writes 6 itself — that stays only while it is a draft, and **the bump comes out (with `SIM_DIGEST` re-pinned) before #419
+goes READY behind Stats**. One bump for many, because kill links are the viral surface and N bumps means N waves of dead links.
+
+**SEQUENCING, 2026-09-22 (the lead, correcting himself with Combat's answer).** Combat's **knife** is next, not the cleaver, and it
+touches the warden approach in `src/ai.ts` rather than estoc data — so #419's draft status does **not** gate them tomorrow; only the
+cleaver-and-after stacks on this lane. Read the other direction, that is this entry's unblocking event: the approach fix this entry is
+held on is the thing Combat is about to ship, so **watch trunk for `src/ai.ts`** rather than waiting to be told. Combat is taking this
+lane's knife `thrust.recovery` 15 → 20 as measured rather than re-deriving it.
+
+**CORRECTION, 2026-09-22 — the kicker hover is NOT this entry's unblocking event, and #419 should not be sequenced behind it.**
+Combat corrected their own mechanism (via the lead): the park is not the approach stop but the **kicker hover**, `src/ai.ts:323`
+`const hover = guardShare === 0 ? (reads.poker ? theirs.thrust.reach : reads.kicker ? theirs.kick.reach + .3 : 0) : 0`, with the clamp at
+`:330` zeroing forward drive below `hover − margin` (`:328`, margin `.05` for a kicker). That mechanism is real and the arithmetic
+reproduces: `MOVES.kick.reach` is 1.2, so hover = 1.50 and forward drive dies at **1.45**; the parked warden's *usable* reaches
+(`reach − .1`, the margin `inReach` keeps) are light 1.10, thrust 1.35, heavy 1.45 — parked at exactly the heavy's usable edge, only the
+heavy legal. **But those are the knife's reaches (1.2 / 1.45 / 1.55), not the estoc's** (1.95 / 2.30 / 2.20 with the fix). The warden is
+the **Goblin**, and that is forced: `guardShare = profile.guard ?? 1` (`:68`), and `guard: 0` appears in exactly one opponent's profiles
+in `src/moves.ts` — the goblin's easy/normal/hard (`:509–511`), whose comment says outright "never guards (guard 0)".
+
+**The Nightborn is not guardless**, so `hover` evaluates to 0 for him and the `hover > 0` clamp can never fire on his approach:
+`nightborn` (`src/moves.ts:495`) carries `guard: { window, recovery, commits }` — the directional-guard object, a different key — and
+none of his three profiles sets the AiProfile `guard` share, so it defaults to 1. **Therefore Combat's kicker-hover fix cannot move
+findings (2) or (3), and cannot move the trident row.** What it *does* explain is the `knife vs goblin hard: kick only untouched` 3/24
+stalemate this lane already routed to Combat as his approach rather than knife data — that row now has its mechanism, at 1.45 m.
+
+So the hold does not lift when that fix lands. Either a Nightborn-profile change is made, or the trident row is accepted and the flip
+test's membership pair is resolved by a product decision. **Do not re-run the full battery on the strength of the kicker fix alone** —
+it is a no-op for this weapon's problem, and re-measuring against it would buy the same table a second time.
+
+**Base check, 2026-09-22 (docs PR):** trunk has moved `1741dc5` → `cb8ff5b` (22 commits), and
+`git diff --stat b1455d4...cb8ff5b -- src/{ai,duel,moves,sim,record,opponents}.ts` is **empty** — not one sim file moved. So the numbers
+below are still the numbers on current trunk, and **Combat's `ai.ts` approach fix is not on trunk yet**: the dependency this entry is held
+on is unresolved, not silently satisfied. Re-measuring today would re-derive the same table. (The lane's flip-test rule did land, as
+`9ffce97`/#465.)
+
+Evidence: `b1455d4`. Gate 464/467 with 2 skipped and 1 failure, plus 93/94 slow — both failures are the Nightborn and both are caused by
+this change; neither pin was relaxed. Remaining validation: **re-run the full battery once Combat's `ai.ts` approach fix is on trunk**, then
+either the estoc lands nearly clean, or the surviving trident row goes to Combat as a Nightborn profile item and #419 waits for it.
+
 ## Knife flip prep — two rows fixed, one isn't knife data, and a program-level cost (weapons lane, 2026-09-22) — BLOCKED ON A DECISION
 Lead's item (1), knife. Three rows on trunk 187dd89, all reproduced: `knife vs veteran normal: thrust from range 18/24`,
 `knife vs goblin normal: thrust from range 15/24` (caps 12), `knife vs goblin hard: kick only untouched 3/24` (cap 2).
@@ -203,7 +321,7 @@ Two supporting facts, both measured rather than assumed:
 Handover: the lever is the Executioner reading a 22-tick tell (his reaction window), which is Combat's lane, not a weapon number. Until
 that moves, the row stands and the cleaver stays out of `PLAYER_WEAPONS_OFFERED`. Knife and scythe prep follow separately; nothing here
 blocks them, and nothing here touches the loot ids (takeable ≠ offered).
-## Estoc reach — PARKED, no stance value clears both axes (combat lane, 2026-09-22)
+## Estoc reach — PARKED, no stance value clears both axes (combat lane, 2026-09-22) — SUPERSEDED 2026-09-22: un-parked on the reach fix alone; the stance hunt stays dead and this entry's revival condition is moot (see the HELD entry above)
 The weapons lane's estoc reach fix (#419, now a draft) is correct about the blade and is NOT merged: it cannot ship until the estoc's
 stance is retuned, and no stance value exists that is safe. **To revive it, one of two things must change: either the Nightborn stops
 carrying the estoc, or the trident-vs-Nightborn fairness row is re-measured against a deliberately retuned Nightborn.** Neither is a

@@ -44,7 +44,7 @@ function glb(path: string) {
   };
   return { json, positions, jointNames, jointY, ibm, area, draws: json.nodes.filter(n => n.mesh !== undefined && n.skin !== undefined) };
 }
-const SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];
+const SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'];
 
 test('every loot draw is skinned to the hero bone order and names its opponent, slot and layer', () => {
   const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
@@ -53,7 +53,15 @@ test('every loot draw is skinned to the hero bone order and names its opponent, 
   assert.ok(!('animations' in loot.json), 'loot carries no clips: it binds to the player');
   for (const d of loot.draws) {
     const [opponent, slot, material] = d.name.split('.');
-    assert.deepEqual(d.extras, { opponent, slot, layer: d.extras?.layer }, `${d.name}: extras name the draw`);
+    // The shield carries one extra field: its `stow` transform (flat on the back), which travels as DATA rather than a second draw so
+    // nothing renders twice before the loader reads Weapons' `grip` to pick off-hand versus back.
+    const { stow, ...named } = (d.extras ?? {}) as Record<string, unknown>;
+    assert.deepEqual(named, { opponent, slot, layer: d.extras?.layer }, `${d.name}: extras name the draw`);
+    if (slot === 'Shield') { assert.ok(stow && typeof stow === 'object', `${d.name}: the shield carries its stow transform`);
+      const s = stow as { bone?: string; position?: number[]; rotation?: number[] };
+      assert.equal(s.bone, 'spine_03', 'stowed on the spine, not the hand');
+      assert.equal(s.position?.length, 3); assert.equal(s.rotation?.length, 3); }
+    else assert.equal(stow, undefined, `${d.name}: only the shield stows`);
     assert.ok(SLOTS.includes(slot), `${d.name}: slot ${slot}`);
     assert.ok(['replace', 'over'].includes(d.extras?.layer ?? ''), `${d.name}: layer ${d.extras?.layer}`);
     assert.ok(material, `${d.name}: material`);

@@ -27,8 +27,18 @@ deploys**:
 constant) fails exactly one test, and only because record.ts's bytes moved the digest. PR B must carry the real guard: v5 bytes on a
 v6 build decode to `v === 5` and throw on repack.
 
-**PR B carries the bump to 6 and Weapons rides it** (Lead, 2026-09-22: whoever is ready first takes the bump; their #419 is a draft and
-the estoc is parked). Do not expect a second bump to exist.
+**#514 — the kit resolver — is open**, stacked on `stats/lane` behind #488, `quality:stop` green (487 tests, 485 pass, 0 fail).
+`kitFrom(equipped, tierOf)` with `TierOf` keyed on the **piece** (`LootId`), not the opponent. **A tier is a property of the FIGHT, not
+of the recipe** (Strategy, withdrawing Lead's per-opponent reading): `tierAt(marks)` is `rankFor(marks).title`, so the same Centurion is
+a Recruit's Centurion early and a Praetorian's later. My first cut keyed on `OpponentId` and would have baked the withdrawn reading
+into the signature — caught before the PR opened because Multi Chars wrote the semantics down. The lookup lands in **`src/grades.ts`**,
+not `roster.ts`: `roster.ts` is a SIM module in `eslint.config.js` and cannot reach `career.ts`, and their `tests/sim-boundary.test.ts`
+failed on the first placement. Their PR is **#510** (head `eb256b0`); when it merges, only the call site changes.
+
+**Combat takes the bump to 6, not this lane** (their kicker-hover fix alters how fights step; mine does not, and PR B is a deploy
+behind PR A anyway). They have `RECORD_VERSION = 6` in their worktree, unpushed, and are holding `READABLE_VERSIONS` for me — widening
+the reader without the v5 decode branch would make every v5 link decode against an expected tail. PR B rebases onto trunk once their
+bump lands; if their fairness battery sinks it, this lane takes 6 instead. Weapons' #419 rides whichever lands.
 
 **Open on someone else's plate: a `LootId` has no tier.** `src/loot.ts:22` is `` `${OpponentId}.${LootSlot}` `` — no tier, no grade, and
 `grep -rn "grade" src/*.ts` outside `src/grades.ts` returns one unrelated hit, so `OPPONENTS.grade.house` in `grades.ts:19` names a
@@ -156,6 +166,10 @@ landed before the suite runs (see the gotcha at the top of this file):
   sentence.
 
 ## Gotchas
+
+- **After fast-forwarding onto trunk `fe0d8e0` or later, run `npm ci` before the gate.** This worktree's `node_modules` is the
+  2026-09-17 install, and `quality:stop` fails on a missing `@types/node` against the newer trunk — a stale install, not a breakage
+  (World hit it first; their gate went green straight after the `npm ci`). Relevant the moment PR B rebases.
 
 - **RESOLVED 2026-09-22 (was: trunk becec83 does not compile).** World's #485 landed: trunk is now `cb8ff5b`, `src/arena.ts` is byte-identical between it and this lane, and `npx tsc --noEmit` is clean. Kept below for the receipt shape, not as a live warning.
 - **Trunk becec83 did not compile, and the red was not ours.** `src/arena.ts:446` reads `get guards() { return

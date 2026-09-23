@@ -651,6 +651,46 @@ export function warhammer({ T: three = T, withAoUv = g => g, leather, variant = 
   group.userData.weapon = 'warhammer'; group.userData.variant = variant;
   return group;
 }
+
+// ── The maul (the Knight's; Brief 17, Dom 2026-09-22: "a masked heavy opponent wielding the maul, two-hand"). SILHOUETTE STAGE:
+// the part and its contact segment only — no rig, no clips, no loadout, and `src/moves.ts` is untouched because WEAPONS.maul is
+// already the data this needs (the cleaver spread, `grip: 'two-hand'`, thrust `stepIn .3` / `reach 1.4`, `guard: 'shaft'`,
+// `material: 'wood'`, `fight.thrustShare` .1). No maul mesh exists in the repo to start from: the Minotaur's geometry is inside the
+// HELD `minotaur.glb`, so nothing is copied from it — only its material vocabulary (MaulAshHaft / MaulLeather / WeatheredStone /
+// MaulIronBands), which is what "the maul" already looks like in this game.
+// THE CROWN IS THE WARHAMMER'S, DELIBERATELY. WEAPONS.maul and WEAPONS.warhammer carry identical reaches (light 1.65, heavy 1.90,
+// thrust 1.40 — both are CLEAVER-derived), so the striking segment has to sit at the same height on the haft or the two weapons
+// would claim one reach and measure another. The head therefore crowns at .76 like the warhammer's; the two-hander reads as a
+// two-hander from the BUTT instead (-.20 against its -.12), which lengthens the silhouette without moving what the sim sweeps.
+// Blunt and SYMMETRIC, which is the identity split from the warhammer: that one has a face on +x and a spike on −x, so its backhand
+// bites; a maul has the same dumb weight on both sides and strikes the same either way. No cutting edge anywhere on it.
+export const MAUL_VARIANTS = {
+  A: { name: 'A · two-hand maul: 1.06 m butt to crown, .20 m banded stone head', butt: -.20, head: .76, block: [.16, .20, .16], band: .022, langet: .26 },
+};
+export const MAUL_DEFAULT = 'A';
+export function maul({ T: three = T, withAoUv = g => g, leather, variant = MAUL_DEFAULT } = {}) {
+  const v = MAUL_VARIANTS[variant] ?? MAUL_VARIANTS[MAUL_DEFAULT];
+  const stone = new three.MeshStandardMaterial({ name: 'WeatheredStone', color: '#6e6a63', metalness: .05, roughness: .95 });   // quarried, not forged: no metal sheen
+  const iron = new three.MeshStandardMaterial({ name: 'MaulIronBands', color: '#4c4946', metalness: .8, roughness: .66 });      // the cleaver's pitted iron, as the warhammer uses
+  const ash = new three.MeshStandardMaterial({ name: 'MaulAshHaft', color: '#64452f', roughness: .86 });                        // the trident's brown oiled ash
+  const wrap = leather ?? new three.MeshStandardMaterial({ name: 'MaulLeather', color: '#4a3527', roughness: .8 });
+  const group = new three.Group(); group.name = 'WeaponDrawn';
+  const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };
+  const cyl = (rTop, rBottom, from, to, seg = 12) => new three.CylinderGeometry(rTop, rBottom, to - from, seg).translate(0, (from + to) / 2, 0);
+  const H = v.head, [bx, by, bz] = v.block;
+  piece(cyl(.023, .021, v.butt + .03, H + .06, 10), ash);                                   // the haft, thicker than the warhammer's: both fists pull on this one
+  piece(cyl(.026, .026, v.butt, v.butt + .03), iron);                                       // butt cap
+  piece(cyl(.028, .028, v.butt + .03, .24, 12), wrap);                                      // the leather wrap: under the rear hand, down past the butt cap
+  piece(new three.BoxGeometry(bx, by, bz), stone, H, 0, 0);                                  // the head: one squared stone, centred on the haft — no face, no spike, no edge
+  for (const y of [-1, 1]) piece(new three.BoxGeometry(bx + v.band, by * .16, bz + v.band), iron, H + y * by * .3, 0, 0);   // two iron bands hooping the stone
+  for (const z of [-1, 1]) {                                                               // langets: two riveted iron straps down the haft, the warhammer's convention
+    piece(new three.BoxGeometry(.014, v.langet, .024), iron, H - by / 2 - v.langet / 2 + .01, 0, z * .028);
+    for (const y of [.06, .15]) piece(new three.SphereGeometry(.006, 6, 4), iron, H - by / 2 - y, 0, z * .036);
+  }
+  group.userData.contact = { from: +(H - by / 2 - .01).toFixed(3), to: +(H + by / 2 + .01).toFixed(3) };   // the stone: what the sim sweeps
+  group.userData.weapon = 'maul'; group.userData.variant = variant;
+  return group;
+}
 // The Warhammer_* family on the base humanoid rig (the char lane's donor is build-warrior's, not the Minotaur's creature-authored
 // Maul_* set). Twelve clips on the trident's machinery; the sim placeholder is MAUL-based (moves.ts WEAPONS.warhammer), whose paths
 // name Warhammer_Slash / _Heavy / _Thrust, so those three carry the contact keys (.34 / .48 / .34 like the sword's).
@@ -723,6 +763,7 @@ export const WEAPON_BUILDS = {
   estoc: { part: sourced('estoc', estoc), clips: null, keys: {} },              // reconstructed by default; no re-key: an estoc has no edge to lead with; every clip stays the Nightborn's own
   scythe: { part: scythe, clips: scytheClips, keys: {} },      // mesh + the own 13-clip family (owner's pick: variant B)
   warhammer: { part: warhammer, clips: warhammerClips, keys: {} },   // the Dwarf's (on the shelf, 2026-09-20): part + the 12-clip Warhammer_* family
+  maul: { part: maul, clips: null, keys: {} },   // the Knight's (Brief 17, silhouette stage 2026-09-22): the part alone — no clips, no rig, no loadout; WEAPONS.maul already names the Minotaur's creature-authored Maul_* paths
 };
 
 // Standalone: the part alone (no rig), for the record and the harness turntable.

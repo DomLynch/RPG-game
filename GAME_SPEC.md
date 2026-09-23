@@ -54,8 +54,9 @@ Ship the core game from **Recruit through Origin**. Prioritize polished, readabl
 recoverable fighter identity, saved career marks and visible rank milestones. Origin is Season 1's achievement endpoint;
 it does not automatically unlock an unfinished RPG system. Preserve the enhanced combat already developed.
 
-Player stat allocation, armour-stat builds, inventory/lockers, respecs and monetization are **future seasons**, documented
-in `docs/progression-direction.md`. Do not build dormant runtime systems, payment flows or speculative database tables for
+**Current beta/launch scope lives in `docs/SCOPE.md` (dated; it wins over any older line here).** Gear stats as a GEAR layer
+(Attack on weapons, RES on armour, Brief 19) are in beta since 2026-09-22; player stat allocation, armour-class builds,
+inventory/lockers, respecs and monetization remain **future seasons**, documented in `docs/progression-direction.md`. Do not build dormant runtime systems, payment flows or speculative database tables for
 them now. The current Stat section is a future design constraint, not a Season 1 feature; later numeric proposals remain
 unsettled. Use existing typed content recipes and separate career/encounter state as the integration boundaries.
 

@@ -4,8 +4,21 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 
 ## Lane state — presentation / world, 2026-09-22 (trunk cb4e0ef)
 
-### Now
-Nothing in flight. Brief 13 (the six lorarii) is merged; Deploy is publishing cb4e0ef.
+### Now (2026-09-22, end of session)
+Four PRs open, all mine, none merged at the time of writing:
+- **#485 fix trunk** — URGENT, ahead of everything: trunk becec83 fails `tsc` (TS2304, arena.guards still read the removed
+  lorarii), which blocks every lane's build and quality:stop and stops Deploy publishing #467.
+- **#467 the guards come off the wall** — the owner's fix for tonight; sim untouched.
+- **#466 `?perf=1` overlay** — the instrument of record for the phone.
+- **#463 gotchas** — the four instrument rules below.
+
+Next work, on a fresh session: the REPLACEMENT presentation for the wall guards — six silhouettes baked into the wall
+texture at the sixths, a one-draw ribbon streak for the lash, a shadow sweep on the sand for the raise (scaled by the
+event's `lead` ticks). **No skinned meshes, no per-frame animation.** Bar: p95 under 16.7 ms on the owner's phone read
+through `?perf=1`, with the tell still readable from the fighting camera before the lash. `lorariusAngle(i, tick)` still
+gives the six sixths; `guard.glb` stays in the repo as the hero-rig reference.
+Also still open, non-urgent: measure the guards (or their replacement) while the camera is actually ON the walkway — take
+it from a finisher tour capture, where the camera frames the wall naturally.
 
 ### Done today
 - **Brief 13 — six lorarii on the walkway** (PRs #430 capsules, #435 model → reverted #442, #450 re-land). `src/lorarii.ts`:
@@ -40,6 +53,52 @@ Nothing in flight. Brief 13 (the six lorarii) is merged; Deploy is publishing cb
 - `Turn` is authored but never played (see Gotchas); if a patrol reversal ever wants it, the yaw-lerp has to go first.
 
 ### Gotchas (2026-09-22 — each one cost real time)
+- **Green on its own base is not green on trunk.** Two PRs whose diffs never touch the same LINES can merge cleanly into
+  code neither branch contained, and no per-branch CI ever runs the combination. Mine: #466 (the ?perf=1 overlay) ADDED
+  `get guards() { return lorarii.standing; }` to arena.ts while #467 (removing the guards) DELETED the lorarii it reads.
+  Both green on their own bases; trunk becec83 then failed `tsc --noEmit` with TS2304 and blocked every lane's build and
+  quality:stop until #485. The shape to watch is one PR adding a REFERENCE near another removing its REFERENT — renames,
+  deletions of shared symbols, cleanup PRs. If a gate fails in a file your branch does not touch, check trunk first
+  (`git show <trunk>:<file>`, tsc on a clean trunk checkout), tell the owning lane, and do not patch someone else's file —
+  that is exactly what the Pitborn lane did here and it saved the time.
+- **When you A/B a cost, make sure one arm actually has NONE of it.** I compared six guards against ONE guard, saw the same
+  loading hitches, and told the lane "not the guards". Wrong: one guard already pays the first-pose price, so neither arm
+  was a control. Against a genuine ZERO-guard build the worst frame from document start drops 974 -> 655 ms and frames over
+  25 ms go 13 -> 11. Both things were true at once — six skinned clones are nearly free in steady state (68.0 draws/frame
+  whether six, one or shadowless, because they are culled from the fighting camera) AND about a third of the load spike.
+  The owner overruled our numbers from his phone ("definitely slower now because the guards") and he was right; the guards
+  came off the wall the same night (#467), with RULES.wall.loiter and the whip audio untouched. **When the person playing
+  the game disagrees with a lane's measurement, suspect the measurement.**
+- **A check that runs on the Mac measures the Mac.** `guard-browser-check.mjs`'s "phone tier" is Playwright on this Mac at
+  852x393 DPR 2 with `isMobile` and NO CPU or GPU throttling, so every phone-tier frame time quoted on 2026-09-22 — mine
+  included — described this laptop's vsync, not an iPhone's GPU. Worse, rAF deltas cannot measure frame COST at 60 Hz at
+  all: p50 sits at ~16.7 ms for an empty page, so a 16.7 ms ceiling fails everything and a 18 ms one passes anything.
+  Multi Chars proved it from the other side (#462): six guards vs one gave IDENTICAL rAF (p50 16.7 / p95 18.5) while CPU
+  frame cost under x4 throttling moved 2.5x. Their row now asserts CPU frame cost instead. **The instrument of record for
+  the phone is `?perf=1` on the device** (main.ts, style.css `.perf`): p50 / p95 / max, dropped frames over 16.7 ms
+  COUNTED, worst frame since load, guards standing/asked-for, draws, triangles. Read the DROPPED COUNT, not the p95 — on a
+  vsync-capped device the p95 sits near 16.7 whatever happens and the dropped count is what moves.
+- **The first pose of a skinned model is expensive.** "Worst since load" on the phone viewport: 817 ms with six guards;
+  Multi Chars' harness 1,037 ms at six against 187 ms at one — shader compile or first-pose work, and it scales with guard
+  count where the steady state does not. It is a first-frame cost, not steady stutter; if a jank report is "at the start of
+  a fight" rather than throughout, this is the shape to chase.
+- **Assume nothing about the environment `main.ts` boots in.** `tests/graphics.test.ts` runs it in a node VM with no
+  `URLSearchParams` (49 tests failed on mine), and the same VM has bitten other lanes over import-time `document` and
+  `removeAttribute`. Read flags with a regex over `typeof location === 'undefined' ? '' : location.search`.
+- **A check that loads a preview page measures the preview page.** `scripts/guard-browser-check.mjs` boots
+  `guard-preview.html`, Multi Chars' standalone review page — NOT the game. Its "6 guards, 148,404 tris, 86 draws,
+  p95 17.6 ms" was quoted (by me, then by Lead) as the phone-tier cost of the guards IN GAME, and a budget row was set
+  from it. It never described the game at all. **Whenever you quote a number, say which page produced it.** The in-game
+  figures, counted by wrapping `drawElements`/`drawArrays` on the real canvas at 390x844 dsf 3: **68.0 draws/frame**, the
+  same with guard shadows on, with them off, and with `?guards=1` instead of six — because from the fighter's camera the
+  walkway is out of frame and all six are culled (and their mixers skipped). The lorarii cost ~0 while you fight; they
+  render only when the camera looks at the wall.
+- **`castShadow` on the lorarii was already a no-op**: `arena.ts` fits the sun's shadow camera to the pit floor and the
+  wall's foot, not the walkway, so the guards were never in the shadow pass. Turning it off changed 68.0 → 68.0.
+- **The loading-phase hitches are not the guards.** Frame-gap trace from document start (not an average — an average hides
+  this shape): worst frames 974 / 577 / 486 / 313 ms with six guards, and 956 / 603 / 410 / 272 ms with `?guards=1`. The
+  same hitches, slightly worse with ONE guard, so they belong to the other assets, not to guard.glb (504 KB, lands at
+  ~1.0 s, during loading and before the player can act).
 - **The boot fetch budget is a product rule, not a harness quirk.** Anything fetched before first paint costs EVERY cold load,
   phones included. `guard.glb` on the boot path took down deploy #105 (DEPLOY_EXIT=1, nine rows, no flakes). Load after first
   paint — and not inside a fight either: deferring it there stalled the main thread mid-exchange and

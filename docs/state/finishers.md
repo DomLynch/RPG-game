@@ -1,5 +1,16 @@
 # Finishers & gore — project state
 
+## Now (Finishers & Gore lane, 2026-09-22 night)
+
+**In flight**: PR #455 `finishers/blood-conform` (head 42496eb on trunk c43c677) — blood conforming to the body. Handed to Lead, MERGEABLE, its own CI started. Not mine to merge or deploy.
+
+**Open, not closed**: on the Nightborn a head-slot mark measures −2.7 cm (behind the face mesh) at 0.3 s, unchanged by #455, and at 1.5 s/3 s the probe finds no surface within ±30 cm of the mark, so the re-glue keeps a stale anchor and it can hang off the body. Padded bind-pose bounding sphere was tested as the cause and disproved.
+
+**Next, briefed by Lead (Dom's phone, tonight — the loot panel covers the finisher, "I have never seen the decapitation land")**, sequenced after the live tip and #475: (1) hand Web *measured* per-finisher durations first so they are unblocked, then swap in a real "finisher complete" event so the loot sheet keys on the animation's end, not a timer — per finisher, never one constant, measured from the finisher actually playing in the preview harness, and anything derived labelled as derived and from what; (2) hold the kill camera so the body sits above the bottom 40% of a 375×812 phone frame through the whole loot beat. One PR, receipt is a phone screenshot with the body and the sheet together.
+
+**Also parked**: brief Lead on the `characters.ts` finisher-geometry interface scope before touching that file (readability plan item 2).
+
+
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 ## Blood conforms to the body it lands on (owner 2026-09-22, on a live fight: "blood is still floating on bodies... not joined to the gear or opponent")
