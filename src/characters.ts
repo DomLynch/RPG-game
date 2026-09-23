@@ -3,7 +3,7 @@ import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { Direction, WeaponId } from './moves.ts';
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
+import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
@@ -258,7 +258,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           const material = piece.userData.slot === 'Shield' && looked instanceof MeshStandardMaterial ? bothSides(looked) : looked;
           const copy = new SkinnedMesh(piece.geometry, material);
           copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
-          copy.bind(body.skeleton, body.bindMatrix);
+          // The rig's bones with the PIECE's own inverse binds: every loot.glb draw is authored on the hero's bind pose, so on the hero these
+          // are his (identical, pinned by tests/grade-materials.test.ts) and on a re-proportioned opponent the piece follows his joints. With
+          // the rig's own inverse binds it stayed where the hero's body would be: the Dwarf's gloves hung above his head.
+          copy.bind(new Skeleton(body.skeleton.bones, piece.skeleton.boneInverses), body.bindMatrix);
           body.parent!.add(copy); worn.push(copy);
         }
       },

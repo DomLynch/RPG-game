@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { Color, Mesh, MeshStandardMaterial, type SkinnedMesh } from 'three';
+import { Box3, Color, Mesh, MeshStandardMaterial, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, gradeMaterial, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { GRADES, gradeFor } from '../src/grades.ts';
@@ -93,5 +93,20 @@ test('grade: every opponent that offers armour is dressed in all of it from his 
     opponent.wear(pieces.filter(p => lootWorn(p, ids)), 'Legionary');
     const on = new Set((opponent.worn() as SkinnedMesh[]).flatMap(p => (p.userData.ids as string[] | undefined) ?? [lootId(p)]));
     assert.deepEqual(ids.filter(l => !on.has(l)), [], `${id} wears every armour piece he offers`);
+    // Every piece is authored on the hero's bind pose and must follow THIS rig's joints: bound with the rig's own inverse binds, the
+    // Dwarf's gloves hung ~.27 m above his head (Phase L still, 2026-09-23). No piece may reach past the body it is worn on.
+    opponent.anchor.updateMatrixWorld(true);
+    const body = new Box3(); opponent.anchor.traverse(o => { if (o instanceof SkinnedMesh && !opponent.worn().includes(o) && o.visible) { o.computeBoundingBox(); body.union(o.boundingBox!.clone().applyMatrix4(o.matrixWorld)); } });
+    for (const p of opponent.worn() as SkinnedMesh[]) {
+      p.computeBoundingBox(); const box = p.boundingBox!.clone().applyMatrix4(p.matrixWorld);
+      const above = ['Helmet', 'Crest'].includes(String(p.userData.slot)) ? .25 : .05;   // a helmet sits over the skull, a crest stands proud of it
+      assert.ok(box.max.y <= body.max.y + above && box.min.y >= body.min.y - .05, `${p.name} stays on ${id}: y ${box.min.y.toFixed(2)}..${box.max.y.toFixed(2)} vs body ${body.min.y.toFixed(2)}..${body.max.y.toFixed(2)}`);
+    }
   }
+});
+
+test('grade: loot.glb is skinned on the hero\'s own bind pose, so binding a piece with its own inverse binds changes nothing on the player', async () => {
+  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('warrior.glb'));
+  let body: SkinnedMesh | undefined; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && o.userData.slot === 'Body' && !body) body = o; });
+  for (const piece of pieces) assert.ok(piece.skeleton.boneInverses.every((m, i) => m.equals(body!.skeleton.boneInverses[i])), `${piece.name}: the hero's inverse binds`);
 });
