@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseGuardCounter } from '../scripts/lib/player-bot-policy.mjs';
+import { chooseChargedAttack, chooseGuardCounter } from '../scripts/lib/player-bot-policy.mjs';
 
 const observation = (rest = {}) => ({ tick: 100, hp: 150, enemyHp: 190, stamina: 100, gap: 2, phase: 'ready', enemyPhase: 'attack', heavy: true, events: [], ...rest });
 
@@ -41,4 +41,23 @@ test('the player retreats when exhausted and sends no input after death', () => 
   assert.deepEqual(chooseGuardCounter(observation({ stamina: 30 }), state, 12), { keys: [], press: null });
   assert.deepEqual(chooseGuardCounter(observation({ stamina: 30, gap: 1 }), state, 12), { keys: ['KeyS'], press: null });
   assert.deepEqual(chooseGuardCounter(observation({ hp: 0 }), state, 12), { keys: [], press: null });
+});
+
+const charged = { range: 2.1, defense: 'dodge', windup: { heavy_overhead: 32 }, parryTicks: 12 };
+test('charged policy holds Heavy until the charged event, then releases it', () => {
+  const state = {};
+  assert.deepEqual(chooseChargedAttack(observation({ gap: 1.8, enemyPhase: 'ready' }), state, 12, charged), { keys: ['KeyG'], press: null });
+  assert.deepEqual(chooseChargedAttack(observation({ tick: 102, phase: 'attack' }), state, 12, charged).keys, ['KeyG']);
+  assert.deepEqual(chooseChargedAttack(observation({ tick: 140, phase: 'attack', events: [{ tick: 140, type: 'Charged', actor: 0 }] }), state, 12, charged).keys, []);
+});
+
+test('charged policy waits before rolling an overhead and parrying a readable tell', () => {
+  const tell = { tick: 100, type: 'AttackStarted', actor: 1, move: 'heavy_overhead', direction: 'overhead' };
+  const roll = {}, parry = {};
+  chooseChargedAttack(observation({ gap: 3, events: [tell] }), roll, 12, charged);
+  assert.equal(chooseChargedAttack(observation({ tick: 111, gap: 3 }), roll, 12, charged).press, null);
+  assert.deepEqual(chooseChargedAttack(observation({ tick: 112, gap: 3 }), roll, 12, charged), { keys: ['KeyS'], press: 'KeyE' });
+  const parryConfig = { ...charged, defense: 'parry' };
+  chooseChargedAttack(observation({ gap: 3, events: [tell] }), parry, 12, parryConfig);
+  assert.deepEqual(chooseChargedAttack(observation({ tick: 122, gap: 3 }), parry, 12, parryConfig), { keys: ['KeyQ', 'ArrowUp'], press: null });
 });

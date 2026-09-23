@@ -36,3 +36,37 @@ export function chooseGuardCounter(obs, state, reactionTicks) {
   }
   return { keys, press: null };
 }
+
+// Delayed tell-reading with the same charged-heavy input a player can hold.
+export function chooseChargedAttack(obs, state, reactionTicks, config) {
+  for (const e of obs.events) {
+    if (e.type === 'AttackStarted' && e.actor === 1) state.tell = { tick: e.tick, move: e.move, direction: e.direction };
+    if (e.type === 'Charged' && e.actor === 0) state.charged = true;
+    if ((e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0) { state.counterReady = e.tick + reactionTicks; state.counterUntil = e.tick + 20; }
+  }
+  if (!obs.hp || !obs.enemyHp) return { keys: [], press: null };
+  if (obs.phase === 'attack') return { keys: state.charging && !state.charged ? ['KeyG'] : [], press: null };
+  state.charging = false;
+  state.charged = false;
+  if (obs.phase === 'hurt' || obs.phase === 'roll') return { keys: [], press: null };
+  if (state.counterUntil >= obs.tick && obs.tick >= state.counterReady && obs.heavy) {
+    state.counterUntil = 0;
+    return { keys: ['KeyG'], press: null };
+  }
+  const tell = state.tell, age = tell ? obs.tick - tell.tick : 0;
+  if (tell && obs.enemyPhase === 'attack' && age >= reactionTicks && obs.phase === 'ready') {
+    if (config.defense === 'dodge' && tell.move === 'heavy_overhead' && state.answeredTell !== tell.tick && obs.stamina >= 30) {
+      state.answeredTell = tell.tick;
+      return { keys: ['KeyS'], press: 'KeyE' };
+    }
+    if (config.defense === 'parry' && state.answeredTell !== tell.tick && age >= (config.windup[tell.move] ?? 0) - config.parryTicks + 2) {
+      state.answeredTell = tell.tick;
+      return { keys: ['KeyQ', ...(MIRROR[tell.direction] ? [MIRROR[tell.direction]] : [])], press: null };
+    }
+    if (config.defense === 'guard') return { keys: ['KeyQ', ...(MIRROR[tell.direction] ? [MIRROR[tell.direction]] : [])], press: null };
+  }
+  if (obs.stamina < 35) return { keys: [], press: null };
+  if (obs.gap > config.range) return { keys: ['KeyW'], press: null };
+  if (obs.phase === 'ready' && obs.heavy) { state.charging = true; return { keys: ['KeyG'], press: null }; }
+  return { keys: [], press: null };
+}
