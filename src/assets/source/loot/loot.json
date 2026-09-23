@@ -248,6 +248,11 @@
  ],
  "dwarf": [
   {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "loot/dwarf_hero.glb"
+  },
+  {
    "slot": "Greaves",
    "layer": "over",
    "file": "loot/dwarf.glb",

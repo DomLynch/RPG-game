@@ -227,7 +227,8 @@ for mesh in new["meshes"]:
 # Hide inherited body art, retain every rigid weapon attachment and all bones/clips.
 # Fitted items that stay with the fighter across the rebuild (a rigid slot draw, its skin weights all on one bone).
 # The Veteran also keeps his v1 KeenTools head and neck (creatures.py cuts the reconstruction at the jaw line).
-KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}}
+# The Dwarf keeps the iron helm his donor wears (WARRIOR_ITEMS=helmet_dwarf in build-creatures.mjs), rigid on his Head.
+KEEP_SLOTS = {"veteran": {"Helmet", "Face", "Eyes"}, "dwarf": {"Helmet"}}
 weaponroots = [
     i
     for i, n in enumerate(d["nodes"])
