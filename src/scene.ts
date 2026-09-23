@@ -1,5 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
+import { lightFighter } from './grade.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadLoot, loadWarriors, lootWorn } from './characters.ts';
@@ -143,11 +144,15 @@ export function createScene(
   let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
   function dress() {
     if (!warriors) return;
-    if (!lootPieces) {
-      if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
-      return;
+    try {
+      if (!lootPieces) {
+        if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+        return;
+      }
+      warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
+    } finally {
+      lightFighter(player); lightFighter(opponent);   // key + rim on everything the fighters wear, loot included (grade.ts); idempotent
     }
-    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
