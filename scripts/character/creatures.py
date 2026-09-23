@@ -24,6 +24,13 @@ recipes = {
     # The Veteran is his own donor too: v1 (KeenTools head on the Studio body, backup) carries his rig, trident and
     # clips. The Kontext source stands in a 62° A-pose (docs/character-references/veteran-source-v1.png).
     "veteran": ("source/backups/veteran-v1", 62, 1.0, (0, -0.04, -0.025), 1.82, 16),
+    # The Knight (Brief 17). arm_angle 79 is a STARTING POINT FOR THE SOLVE, not a measurement: like the Executioner's,
+    # the real value is solved numerically until the posed WeaponDrawn origin lands in the reconstruction's palm. What is
+    # measured is only the gap — his reference's outer arm edge sits ~16 deg closer to vertical than the Veteran's or the
+    # Executioner's, whose edges both read 68.9 deg off their own references even though their solved angles differ (62
+    # and 64). That method cannot separate those two, so it cannot fix his; it can only say he is much tighter-armed, and
+    # 79 carries that gap onto the Veteran's 62. Re-solve before this ships.
+    "knight": ("source/creatures/knight-donor", 79, 1.0, (0, -0.04, -0.025), 1.85, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
