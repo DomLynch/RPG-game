@@ -65,3 +65,11 @@ test('loot: a piece takes the player\'s textured material of the same name, dres
   assert.equal(player.worn().length, 0);
   player.anchor.traverse(o => { if (o instanceof Mesh && typeof o.userData.slot === 'string' && o.userData.slot) assert.equal(o.visible, true, `${o.name} restored`); });
 });
+
+test('loot: a creature-pipeline body (the Veteran) wears loot, bound to his CreatureBody, whose Body slot names only empty nodes', async () => {
+  const all = await pieces(), { player } = buildWarriors(await parse('veteran.glb'));
+  player.wear(all.filter(p => lootWorn(p, ['veteran.Shield'])));
+  let body: SkinnedMesh | undefined; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && o.name === 'CreatureBody') body ??= o; });
+  assert.ok(player.worn().length > 0 && player.worn().every(p => p.userData.slot === 'Shield'), 'the scutum\'s draws are worn');
+  for (const draw of player.worn()) assert.equal(draw.skeleton, body!.skeleton, `${draw.name} is bound to his CreatureBody's rig`);
+});
