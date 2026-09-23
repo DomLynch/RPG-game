@@ -1572,6 +1572,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-hands[data-loot='veteran.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/veteran.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='veteran.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/veteran.Greaves.webp); }
 .doll:has(#slot-head[data-loot='veteran.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/veteran.Helmet.webp); }
+.doll:has(#slot-undefined[data-loot='veteran.Shield']) .doll-layer[data-layer='undefined'] { background-image: url(/game/img/loot/veteran.Shield.webp); }
 /* loot-layers:end */
 .doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 72px; }   /* room for the 40 px Store button */
 .doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }
