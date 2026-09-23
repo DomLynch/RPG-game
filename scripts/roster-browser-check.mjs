@@ -30,7 +30,7 @@ try {
   await waitForGame(page,{art:true});
   const state=await page.evaluate(()=>({enemy:document.querySelector('#target-health').max,overflow:document.documentElement.scrollWidth>innerWidth,welcome:document.querySelector('#welcome').hidden}));
   assert.equal(state.enemy,OPPONENTS[id].health);assert.equal(state.overflow,false);assert.equal(state.welcome,true);
-  assert.equal(rigs.length,2,'fetch only hero and selected opponent');assert.ok(rigs.every(r=>r.status===200));
+  assert.equal(rigs.length,2,`fetch only hero and selected opponent (fetched: ${rigs.map(r=>new URL(r.url).pathname.split('/').at(-1)).join(', ')})`);assert.ok(rigs.every(r=>r.status===200));
   assert.ok(rigs.some(r=>new URL(r.url).pathname.split('/').at(-1).startsWith(ROSTER[id].body+'-')));
   receipt.opponents.push({id,...state,rigs:[...rigs]});
  }

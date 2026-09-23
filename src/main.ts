@@ -946,6 +946,7 @@ function frame(now: number) {
     d.dataset.clock = `${raw.toFixed(4)}/${accumulator.toFixed(4)}/${paused() ? 'paused' : 'live'}`;   // last frame's raw elapsed s, the sim accumulator, whether the sim steps
     d.dataset.tip = (view.bladeTip?.() ?? []).map((v) => v.toFixed(4)).join(',');
     d.dataset.clips = view.playing?.() ?? '';
+    d.dataset.carried = view.carried?.() ?? '';
     d.dataset.blood = JSON.stringify(view.bloodState());
     d.dataset.finishPhase = practice.finish ? JSON.stringify(view.finishPhase()) : '';
     d.dataset.fallenRect = JSON.stringify(view.fallenRect());   // the release check's gate (brief 5): no HUD element may intersect this at settle time

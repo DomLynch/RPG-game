@@ -24,7 +24,11 @@ const hash = b => createHash('sha256').update(b).digest('hex');
 try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
   const view = async (opponent, mobile) => {
-    const prefix = opponent === 'executioner' ? 'Scythe' : 'Trident';
+    // What the opponent's rig must be playing. The Executioner's scythe has its own Scythe_* clips. The Centurion carries the gladius
+    // and scutum since ruling (A), 2026-09-23: the sword clip family (unprefixed roles) on the gladius equip file's WeaponDrawn, the
+    // scutum worn once it lands after first paint. His trident rows' /Trident_/ premise went with the trident.
+    const polearm = opponent === 'executioner';
+    const armed = polearm ? 'Scythe_' : ' [A-Za-z]+:[^ ]+@WeaponDrawn$', striking = polearm ? 'Scythe_(High|Reap|Sweep|Thrust)' : ' (Attack|Heavy|Riposte|Thrust|Return):[^ ]+@WeaponDrawn$';
     const started = Date.now();
     {
       const viewport = mobile ? { width: 852, height: 393 } : { width: 1100, height: 1050 };
@@ -56,7 +60,7 @@ try {
       const frames = [];
       const shot = async label => {
         const state = await page.evaluate(() => ({ clips: document.querySelector('#debug').dataset.clips, art: document.querySelector('#art-status').textContent, overflow: document.documentElement.scrollWidth > innerWidth }));
-        assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(`${prefix}_`));
+        assert.equal(state.art, ''); assert.equal(state.overflow, false); assert.match(state.clips, new RegExp(armed)); if (!polearm) assert.doesNotMatch(state.clips, /Trident_/);
         const path = `${dir}/${opponent}-${mobile ? 'phone' : 'desktop'}-${label}.png`;
         await page.screenshot({ path }); frames.push({ label, path, pageMs, ...state });
       };
@@ -77,7 +81,8 @@ try {
         await orbit(-220); await shot('start-side');
       }
       await page.getByRole('button', { name: 'Draw sword', exact: true }).click();
-      await until(p => new RegExp(`${p}_(High|Reap|Sweep|Thrust)`).test(document.querySelector('#debug').dataset.clips), 30000, prefix);
+      await until(p => new RegExp(p).test(document.querySelector('#debug').dataset.clips), 30000, striking);
+      if (!polearm) await until(() => document.querySelector('#debug').dataset.carried.split(',').includes('Shield'), 30000);   // the scutum is on him
       await shot('fight');
       for (let i = 0; i < 3; i++) { await run(120); await shot(`fight-${i}`); }
       receipt.views.push({ opponent, mobile, viewport, deviceScaleFactor, asset: response.url(), rigSha256, wallMs: Date.now() - started, frames });

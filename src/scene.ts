@@ -142,9 +142,13 @@ export function createScene(
   // starts only once the rigs are in and the worn set (or the opponent's `carries`, roster.ts) is non-empty, so it never shares the wire with a fight's download and never gates
   // readiness: the fight starts on the rigs alone and the pieces go on when they land.
   let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
+  // The opponent's `carries` (the Centurion's scutum) are not a boot fetch: loot.glb is 5 MB and the boot fetches the hero and the
+  // selected opponent only (roster-browser-check, the #435 rule). They are due once the first frame with both rigs has painted.
+  let carriesDue = false, markCarriesDue = () => {};
+  const carriesReady = new Promise<void>((resolve) => { markCarriesDue = () => { carriesDue = true; resolve(); dress(); }; });
   function dress() {
     if (!warriors) return;
-    const recipe = ROSTER[opponentId], carries: readonly string[] = 'carries' in recipe ? recipe.carries : [];
+    const recipe = ROSTER[opponentId], carries: readonly string[] = carriesDue && 'carries' in recipe ? recipe.carries : [];
     try {
       if (!lootPieces) {
         if ((worn.length || carries.length) && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
@@ -181,6 +185,7 @@ export function createScene(
         for (const name of ['foot_l', 'foot_r']) dustFeet.push(rig.anchor.getObjectByName(name) ?? null);
       dress();
       assetStatus('', 'ready');
+      requestAnimationFrame(() => setTimeout(markCarriesDue, 1000));   // after the first paint with both rigs, then a beat for the fight's own first frames
     })
     .catch((error) => {
       captureException(error);
@@ -311,7 +316,9 @@ export function createScene(
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     wear(ids: readonly string[]) { worn = ids; dress(); },
     // Resolves once any loot fetch in flight has landed and been put on (a still that must show the opponent's `carries` waits on it).
-    dressed: (): Promise<void> => lootLoading ?? Promise.resolve(),
+    dressed: (): Promise<void> => carriesReady.then(() => lootLoading ?? undefined),
+    // The opponent's worn loot slots right now, comma-separated (the debug readout's `carried`: the Centurion's `Shield`, once it lands).
+    carried: (): string => warriors?.opponent.worn().map((piece) => String(piece.userData.slot)).join(',') ?? '',
     arena,
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
