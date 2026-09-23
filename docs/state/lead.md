@@ -55,7 +55,18 @@ Every change that alters fights costs a `RECORD_VERSION`, and kill links die onc
 fight-altering PRs in the SAME publish share ONE bump**, with the digest re-pinned once at the end of the window.
 **Window 1 (bump to 6):** #515 knife + Combat's Nightborn/estoc profile item + the estoc flip (on Weapons' re-opened #419) +
 the Executioner profile and cleaver flip (the `anticipate` spec above) + the Centurion roster weapon line. Then Deploy publishes.
-Anything fight-altering that misses the window takes **7, with its own publish**. **Non-sim PRs cost nothing and publish on the
+Anything fight-altering that misses the window takes **7, with its own publish**.
+**Ruling (Lead, sequencing), 2026-09-23 ~06:20Z: Stats' PR B joins Window 1.** Combat found it. PR B puts a loadout tail on
+the v6 byte layout and rides the knife's bump without a second one, which means two byte layouts under one version number. If
+the knife publishes first, every link minted in between is a tail-less v6. The PR B build accepts it as v6, reads a tail that
+isn't there, and fails. **The version byte cannot catch it.** One publish for the whole window makes that impossible, because
+no v6 link is ever minted without the tail. The alternative, PR B taking 7, costs an extra wave of dead links for nothing.
+**Deploy: never publish Window 1 partially.** In particular, never ship the knife ahead of PR B because it went green first.
+PR B also owns re-writing the replay fixtures the knife writes at v6.
+**`READABLE_VERSIONS` `[5]` -> `[6]` on Combat's branch** (a replacement, not a widening: v5 stays refused). It is inside Stats'
+territory and Stats had asked for `[5]`, but that ask predates the stack and can't hold alongside a bump: their own guard
+requires the list to include `RECORD_VERSION`. Accepted provisionally. Whether PR B re-accepts 5 is Stats' call, and Strategy
+rules if they disagree. **Non-sim PRs cost nothing and publish on the
 rolling cadence in between:** #475 v2, #514 (after the tier re-land), #505 v2, #502, docs. "Publish after every two or three
 merges" applies to the non-sim PRs only.
 **Ruling (Strategy):** the Centurion carries gladius + scutum at **every** rung for beta (Veteran's option A); a Legionary gate
@@ -113,6 +124,9 @@ ack yet:** Stats, Web, Executioner, World, Audio.
   `stats/record-accept-list-v2` @ `a0c6458`, pushed so the knife can stack on it (digest `7e8b5cd8…`, hand-verified; no
   SIM_FILES moved between `544bcb4` and `2d614dc`). Stack the knife on it. (An earlier draft of this line said build on plain
   trunk; that was true before Stats pushed.)
+- **Deploy:** Window 1 now includes Stats' PR B. Never publish the window partially, and never ship the knife ahead of PR B
+  (the tail-less v6 hazard above).
+- **Stats:** PR B is in Window 1; it rewrites the knife's v6 fixtures; `READABLE_VERSIONS` went `[5]`->`[6]` on Combat's branch.
 - **Stats, reported ~06:10Z:** the tier-table re-land is `stats/gear-stats-table` @ `8d12a49`, local until green: #488 plus
   `Shield: 0` with a dedicated test. One open failure, stated by Stats: `tests/gear-stats.test.ts:169` (the tier x slot grid)
   failed once before the ten snapshot rows got `Shield`. The rows are patched, but the rerun is blocked by the deploy lock. Both
