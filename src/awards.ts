@@ -6,21 +6,19 @@
 // checks it — the piece must be in the opponent's kit at the tier he was met at (the server's marks before the win, src/grades.ts tierAt).
 // A claim with no piece (the take declined) is still a mark.
 import { TIERS, levelOf, tierAt, type Tier } from './grades.ts';
-import { LOOT, isLootId, type LootId } from './loot.ts';
+import { LOOT, WORN_FROM, isLootId, type LootId, type WornFrom } from './loot.ts';
 import type { OpponentId } from './roster.ts';
 
 export type Claim = { opponent: string; piece: string | null };
 export type Standing = { marks: number; owned: readonly string[] };
 export type Award = { piece: string; tier: number };
-// The rung a piece is first worn from (the kit floor ruled 2026-09-23 00:30, Multi Chars' to land in loot.ts as WORN_FROM). Until it
-// lands every piece floors at Recruit, the ruled default; the verifier passes the real table the day it exists.
-export type WornFrom = Partial<Record<LootId, Tier>>;
+// The kit floor is src/loot.ts WORN_FROM (empty in beta: every piece worn from Recruit). `wornFrom` is only for tests to inject a floor.
 
-export const kitAt = (opponent: string, tier: Tier, wornFrom: WornFrom = {}): readonly LootId[] =>
+export const kitAt = (opponent: string, tier: Tier, wornFrom: WornFrom = WORN_FROM): readonly LootId[] =>
   (LOOT[opponent as OpponentId] ?? []).filter(id => levelOf(wornFrom[id] ?? TIERS[0]) <= levelOf(tier));
 
 // null: nothing to award (the take was declined, or the piece is already his). A string: the claim is refused outright.
-export function awardFor(claim: Claim, standing: Standing, wornFrom: WornFrom = {}): Award | null | string {
+export function awardFor(claim: Claim, standing: Standing, wornFrom: WornFrom = WORN_FROM): Award | null | string {
   if (claim.piece === null) return null;
   const tier = tierAt(standing.marks);
   if (!isLootId(claim.piece) || !kitAt(claim.opponent, tier, wornFrom).includes(claim.piece)) return `${claim.piece} is not in ${claim.opponent}'s kit at ${tier}`;

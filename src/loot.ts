@@ -4,6 +4,7 @@
 // is takeable instead (WEAPON_SLOTS below) and fills the paperdoll's main hand. The paperdoll is the six armour slots plus the two hands;
 // the beta opens one locker and greys the rest. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
+import type { Tier } from './grades.ts';
 import type { WeaponId } from './moves.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
 
@@ -45,6 +46,11 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   dwarf: ['dwarf.Greaves', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
 };
+// The rung each piece is first worn from (the kit floor; server awards read it through src/awards.ts kitAt). Data, not a parameter:
+// filling it is a data change, no schema or code change. Empty = every piece worn from Recruit (beta ruling 2026-09-23); the values
+// are Multi Chars' to set, post-beta.
+export type WornFrom = Partial<Record<LootId, Tier>>;
+export const WORN_FROM: WornFrom = {};
 export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat());
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
