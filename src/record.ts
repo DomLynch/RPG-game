@@ -12,7 +12,8 @@ import type { Action, Intent } from './duel.ts';
 import { PLAYER_WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 8;   // 8: bump 8 (2026-09-23) — the Executioner's own normal profile (`anticipate`, #550) and the roster-v0 beta characters (Shieldmaiden, Knight, Plague Doctor, Witch) on their bodies' archetypes. A sim change, so older links are refused at decode.
+export const RECORD_VERSION = 9;   // 9: bump 9 (2026-09-23) — the park habit counts the first parked tick only (ai.ts); a one-tick park used to count every later tick of its swing, so a committing parrier (Nightborn, Plague Doctor) read a parker from one sloppy tap. A sim change, so older links are refused at decode.
+// 8: bump 8 (2026-09-23) — the Executioner's own normal profile (`anticipate`, #550) and the roster-v0 beta characters (Shieldmaiden, Knight, Plague Doctor, Witch) on their bodies' archetypes. A sim change, so older links are refused at decode.
 // 7: Publish B (2026-09-23), one bump for the chain — the estoc's real reach (#532), the Nightborn's profile (#545), the gladius as a player weapon (#543; the Centurion's swap, #547, is held), and the knife and scythe thrust tables rebaked on their 5's timings (the bake was stale since 5; blade-paths.ts is in the digest now). A sim change, so older links are refused at decode.
 // 6: the kicker-hover hold fix (2026-09-22) — a warden's hold now derives from the inReach margin of the move he has queued, so he stops parking at a gap his own plan cannot reach. A sim change, so older links are refused at decode rather than replaying a different fight.
 // 5: the batched weapon-data flip (2026-09-22) — the knife's thrust recovery 15 -> 20 and the scythe's heel-jab 18 -> 30, one bump for the pair rather than one each (the lead's ruling: kill links are the viral surface, and N bumps means N waves of dead links). 4 was taken by Brief 13's whip tell while this branch was in flight, so this is 5, not the 4 the branch first wrote.
@@ -29,7 +30,8 @@ export const RECORD_VERSION = 8;   // 8: bump 8 (2026-09-23) — the Executioner
 // [6] -> [7] with the writer bump to 7 (Publish B, 2026-09-23). REPLACED, not widened, for the same reason: a v6 record replays a fight
 // whose Nightborn fought a shorter estoc on another profile.
 // [7] -> [8] with the writer bump to 8: replaced, not widened (a v7 record replays an Executioner on the shared profile).
-export const READABLE_VERSIONS = [8] as const;
+// [8] -> [9] with the writer bump to 9: replaced, not widened (a v8 record with a one-tick park replays a Nightborn who read it as a habit).
+export const READABLE_VERSIONS = [9] as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type RecordProfile = 'easy' | 'normal' | 'hard';
