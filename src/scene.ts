@@ -147,7 +147,7 @@ export function createScene(
       if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
       return;
     }
-    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
+    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }));
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
