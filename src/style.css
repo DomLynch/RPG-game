@@ -1567,6 +1567,7 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-chest[data-loot='nightborn.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/nightborn.Body.webp); }
 .doll:has(#slot-feet[data-loot='nightborn.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/nightborn.Boots.webp); }
 .doll:has(#slot-hands[data-loot='nightborn.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/nightborn.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='nightborn.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/nightborn.Greaves.webp); }
 .doll:has(#slot-head[data-loot='nightborn.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/nightborn.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='pitborn.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/pitborn.Arms.webp); }
 .doll:has(#slot-chest[data-loot='pitborn.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/pitborn.Body.webp); }

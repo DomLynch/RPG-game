@@ -511,6 +511,27 @@ function dwarfHelmet(skullGrid) {
   console.log(`  dwarf helmet: crown ${crown.toFixed(3)} m above Head, rim radii ${dome.rings[0].radii.map(r => r.toFixed(3)).join(' ')}, nasal ${bar.length().toFixed(3)} m`);
 }
 if (LOOT) { lootOf = 'dwarf'; lootSlot = 'Helmet'; dwarfHelmet(triGrid(await playerWorn())); lootOf = ''; lootSlot = ''; }
+// The Nightborn's sixth piece (Phase R). His brief left his shins bare over the hose; Strategy 2026-09-23, on Dom's barefoot precedent
+// (Brief 14): a bare shin is Recruit-grade and a Greave goes OVER it, as boots go over bare feet, so he wears it and offers it. A duelist's
+// guard, not a soldier's: blackened steel from under the knee to above the ankle, held by two leather straps. Steel, not leather: his own
+// boots are knee-high tan leather, and a leather guard over them vanished into the boot (measured at the fighting camera). A full ring,
+// not a front plate: a plate's "front" guessed from the rest pose's toes landed on the outside of his leg in the fight stance. Fitted by
+// ray to whoever wears it — his own legs in nightborn.glb, the player's in loot.glb — so one recipe serves both; `over`, it hides nothing.
+if (fighter === 'nightborn' || LOOT) {
+  // In the loot build it is worn with his set, so it fits over his own knee boots too, not only the player's bare shins (Pitborn's review
+  // of #611: fitted to the shins alone, the boot came through the guard by up to 14 mm).
+  const boots = LOOT ? [...parts.values()].flat().filter(g => g.userData.slot === 'nightborn:Boots') : [];
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(LOOT ? [...await playerWorn(), ...boots] : [...parts.values()].flat());
+  if (LOOT) { lootOf = 'nightborn'; lootSlot = 'Greaves'; }
+  for (const side of ['l', 'r']) {
+    const knee = at(`calf_${side}`), ankle = at(`foot_${side}`);
+    const guard = ringHull(grid, knee, ankle, { stations: [.06, .2, .34, .48, .62, .76], azimuths: 14, gap: .010 });
+    add(guard.geometry, steel, `calf_${side}`);
+    for (const t of [.2, .62]) add(ringHull(grid, knee, ankle, { stations: [t - .025, t + .025], azimuths: 14, gap: .012 }).geometry, leather, `calf_${side}`);
+    console.log(`  nightborn greave ${side}: rings ${guard.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  }
+  if (LOOT) { lootOf = ''; lootSlot = ''; }
+}
 // The Witch's pieces (Phase R, Run 3): built shells, not cuts from her scan. Her TRELLIS cloth decimated to a hood floating in front of the
 // face and shards off the forearms (19:17 still), so the hood, bracers and boots are fitted by ray like everyone else's. Loot build only:
 // her own body wears the scan. Her Gloves are the shared pair; her Greaves are the Shieldmaiden's wraps above. Base palette tonight.
