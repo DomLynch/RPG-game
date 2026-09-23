@@ -52,7 +52,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A); the gladius is an equip file, not a draw
   // The Plague Doctor's six (Phase R): cut from his TRELLIS surface on his own baked maps, welded, ratio .5 (PR #590's recipe): loot_dwarf.py --family plaguedoctor --all --boots --slots Helmet,Body,Arms,Gloves,Greaves,Boots --ratio .5 --material PlaguedoctorCloth --color-size 512 --repose warrior. Greaves carries his coat skirt with the legs (bone-dominant).
   plaguedoctor: ['plaguedoctor.Helmet', 'plaguedoctor.Body', 'plaguedoctor.Arms', 'plaguedoctor.Gloves', 'plaguedoctor.Greaves', 'plaguedoctor.Boots', 'plaguedoctor.Longsword'],   // Strategy 2026-09-23: every rung offers its weapon, the longsword included (player/longsword.glb is the hero's own SwordDrawn)
-  witch: ['witch.Trident'],   // her Helmet (the hood) and Body (the robe) join when their loot.glb draws are cut (Brief 16's six slots)
+  witch: ['witch.Helmet', 'witch.Body', 'witch.Arms', 'witch.Gloves', 'witch.Greaves', 'witch.Boots', 'witch.Trident'],   // hood, bracers, boots: built shells (build-warrior.mjs); Gloves the shared pair; Body + Greaves the Shieldmaiden's tunic and wraps as PLACEHOLDERS until her authored robe + leggings
 };
 // The rung each piece is first worn from (the kit floor; server awards read it through src/awards.ts kitAt). Data, not a parameter:
 // filling it is a data change, no schema or code change. Empty = every piece worn from Recruit (beta ruling 2026-09-23); the values

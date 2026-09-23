@@ -1595,6 +1595,12 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-legs[data-loot='veteran.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/veteran.Greaves.webp); }
 .doll:has(#slot-head[data-loot='veteran.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/veteran.Helmet.webp); }
 .doll:has(#slot-undefined[data-loot='veteran.Shield']) .doll-layer[data-layer='undefined'] { background-image: url(/game/img/loot/veteran.Shield.webp); }
+.doll:has(#slot-arms[data-loot='witch.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/witch.Arms.webp); }
+.doll:has(#slot-chest[data-loot='witch.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/witch.Body.webp); }
+.doll:has(#slot-feet[data-loot='witch.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/witch.Boots.webp); }
+.doll:has(#slot-hands[data-loot='witch.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/witch.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='witch.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/witch.Greaves.webp); }
+.doll:has(#slot-head[data-loot='witch.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/witch.Helmet.webp); }
 /* loot-layers:end */
 .doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 72px; }   /* room for the 40 px Store button */
 .doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }
