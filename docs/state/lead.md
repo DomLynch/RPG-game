@@ -2,6 +2,54 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead — 2026-09-23 14:05–15:30 local: Publish B FAILED -> fallback revert + B' (swap held) -> equip loader tomorrow (read ALL of this first; later lines supersede earlier ones)
+**Dom 14:00 "accelerate" (Strategy ruled):** Publish B = #532 -> #545 -> #543 -> #547 -> **Combat's re-pin PR** (bump to 7, re-pin,
+SIM_FILES closure + test, knife/scythe rebake, gladius offered, #547's 12 re-signs), built on the COMBINED tree of #545 + #547 and
+**NOT #550**. The re-pin PR is asked for by ~14:50; the target is B live by 15:30. **#550 (Executioner anticipate + cleaver) = its own bump
+to 8 tonight** (Combat: cleaver 18->8, warhammer 12->7, trident 11->7, profile `{...normal, anticipate: 3, lapse: .2, read: .75}`).
+**The non-sim batch is running** (deploy.sh 13:59 on `b7bc78d`: #540 #537 #541 #542 #544 #546 #539 #548 #549 merged). #534 conflicted,
+so the Auditer merges trunk in and it goes after B. #539 merged as `0a81d8c`; the sweep PR is **#551** (Backend reviewing; the apply is still HELD).
+**LIVE DEFECT (Web's loot-smoke-check on `dd1d968`):** knife offered PASS, tap-take + Undo PASS, **a guest's decline does NOT
+survive a refresh**: `src/profile.ts:18` keeps loot only on `loot.owned.length` (#535 fixed only the signed-in path). Web is
+splitting out a one-line fix PR, and **it rides Publish B**. The smoke script's own PR is still due by 16:00.
+**B MECHANICS (Deploy acked):** the Publish B run = **#552** (guest-loot fix, READY `3c33660`) then **Combat's re-pin PR as the SINGLE B merge**.
+It MERGES the exact heads #545 `c17004d` + #547 `28a0fd0` (#547 contains #543 `9858588` and #532 `ac5a090`). Deploy checks
+all four are ancestors (`git merge-base --is-ancestor`) and stops if any head moved. The four siblings are never merged one by one,
+and moves.ts is never hand-resolved (#545 and #543 both edit it). Pre-ruled: a new over-cap row vs the gladius Centurion gets signed
+KNOWN_UNFAIR ("fixed in bump 8") and does not stop B; only an identity-pin failure or a crash stops B. Send Deploy the re-pin PR number.
+**LIVE `b7bc78d` (14:12).** **KNIFE RULING (Lead, 14:2x, under the pre-ruling):** the combined tree (`f3c3f60`) gives `knife vs veteran normal:
+thrust from range` 23/24 against the gladius Centurion (cap 12; it was 5/24 vs the trident). The knife STAYS OFFERED with a NARROW, named test
+exception, "fixed in bump 8". `cleaver vs veteran normal` 16/24 is signed KNOWN_UNFAIR, and trident 12/24 (margin 0) is a watch item. **Bump 8
+(#550) must fix the knife-vs-Centurion row as well as the cleaver rows.** **Strategy UPHELD it (14:3x), adding: bump 8 must NOT ship while the knife exception is still signed**; #550 removes it by fixing the row. The cleaver stays un-offered until then.
+**PUBLISH B GO (Lead, ~14:5x):** re-pin = **#557** (`66b557f`), and Lead verified all five ancestors (ac5a090, c17004d, 9858588, 28a0fd0, b7bc78d),
+v7, the 9-file SIM_FILES, and the knife exception keyed on the exact "23/24" row text. Deploy runs #552 then #557. After B: #551, #534, #556 (+the Auditer's row).
+Next, bump 8 = #550 (merge trunk in; remove OFFERED_DESPITE; fix the knife + cleaver rows). **#554 is cleared** (quality:stop exit 0, 516/0/2; the 12 errors were a hand-run `eslint scripts/…` no-undef, pre-existing on trunk's verify-daily.mjs, so a scripts/ Node-globals eslint config is a post-beta item for the Auditer). The post-B run: #551 -> #554 -> #534 -> #556 -> #558.
+**!! PUBLISH B FAILED deploy.sh (EXIT 1, 14:35, `9a53750`). LIVE is still `b7bc78d`. Trunk carries B (v7) UNPUBLISHED, and #552 (the guest fix) is merged but not live.**
+Rows 2, 11 and 12 failed twice (load 15–24), all from #547's swap (`veteran: weapon 'gladius', carries ['veteran.Shield']`): rows 11/12 polearm-browser-check
+still expect the Veteran on /Trident_/ (a stale row premise, so drop veteran from the polearm rows); row 2 roster-browser-check fetches a 3rd model on boot (likely the carried
+shield; preference: defer it after first paint per #435). **Veteran fixes forward by 15:15**, and the box is held. **Fallback at 15:15:** Deploy opens a PR that is `git revert -m 1`
+of #557 (NOT a force-push; a trunk revert, not a live rollback), publishes #552 + the post-B batch, and B re-lands as a revert-of-the-revert plus the fix. Strategy was told (slip) and accepted it, adding: the polearm rows must now EXPECT gladius+scutum, and the 3rd fetch must be REMOVED (teaching the check doesn't count); #552 is live by 15:45 either way; B by 16:00. **Fallback staged by Deploy, not pushed:** `deploy/revert-publish-b` @ `4a30ef6` = revert -m 1 of `9a53750`; src = b7bc78d + #552 only, v6, the guard 2/2. Re-landing B later = a revert of `4a30ef6` plus Veteran's fix, then a fresh deploy.sh.
+**15:0x DECISION (Lead): the FALLBACK RUNS.** Veteran's #559 (`a9b8c9c`) makes rows 2/11/12 pass (the scutum's 5 MB loot.glb is deferred 1 s past first paint),
+but it exposed that **the Centurion visibly DRAWS THE TRIDENT while the sim fights him with the gladius**: veteran.glb bakes the trident, and there is no runtime
+equip loader (loot.ts's #309 contract is unimplemented). #559 is HELD. Deploy pushes `4a30ef6` (the #557 revert) + the batch, so #552 is live before 15:45.
+**Asked Strategy:** hold the swap (Lead's recommendation: B' = #532 + #545 + #543 as a player weapon, the Veteran stays on the trident, and the knife exception dissolves)
+vs ship with the mismatch (revert-of-revert + #559). Either way B re-lands via a revert of `4a30ef6`, plus Combat's re-pin on that exact tree.
+**STRATEGY RULED (15:1x): HOLD THE SWAP, ship B'.** B' = #532 + #545 + #543 (gladius a PLAYER weapon), with the Veteran ON THE TRIDENT, target ~16:30. **Combat builds it**
+off trunk after the fallback: (1) revert the fallback revert, (2) reverse-apply #547's OWN diff **`a9d6734..28a0fd0`** (CORRECTED by Combat: `9858588..` would also strip #538's wear() fix `a9d6734`, which is on trunk; Veteran reviews), (3) the battery: knife vs veteran back
+to ~5/24, OFFERED_DESPITE REMOVED, (4) v7/closure/rebake kept, the re-pin LAST, (5) solo rows 2/11/12 green. Lead marks it READY, then Deploy runs it. #559 is HELD for the re-land.
+**Centurion re-land (tomorrow):** Strategy ruled a veteran.glb rebuild; Veteran scoped the **runtime equip loader** as cheaper (2–3 h vs 3–5 h, lower risk,
+also delivers #309). **Strategy RULED YES (15:2x): the EQUIP LOADER**, owned by Veteran, PR tomorrow morning; the rebuild is off the table. Row-2 exception exactly "the opponent's equip .glb only, ≤ 250 KB" in the row comment; the boot budget row is unchanged. Conditions: hand_r scale measured per rig; the re-land = loader + swap re-applied + Combat re-pin, ONE bump, rows 2/11/12 assert gladius+scutum DRAWN. Then #309 player-wield on the same loader, a separate PR (Veteran).
+**B' = #563 (`af5947c`) READY -> Deploy GO (with #554), Lead-verified: 39fd0a5 + 441eb38 are ancestors, v7, OFFERED_DESPITE gone, veteran on the trident. Next: the sha line to Strategy, then #550 bump 8 (cleaver vs executioner), and tomorrow Veteran's equip loader + the Centurion re-land.**
+**World (Dom via Strategy, 15:1x):** #537's fighter rim reads as a WHITE OUTLINE on the phone. One pass: grey + lower opacity so it reads as lighting, or revert the fighter rim only (keep the crowd/sand/wall). **CHANGED (Dom, 15:2x): no PR yet. World sends ONE composite of 4 same-frame 375x812 stills (goblin, hero back to camera, mid-arena): 0 = pre-#537, A = grey semi-transparent rim + key reverted, B = rim off + key half + specular down, C = full fighter-lighting revert (keep the crowd/sand/wall). Absolute path -> Lead -> Strategy -> Dom picks; renders only at FREE.** Dom also said it's "shining, not gritty" (the KEY too).
+**LIVE `441eb38` (14:56, the fallback: #560 revert, #552 guest fix, #551, #534, #556 row 34, #558; 34/34, v6). Sha line sent to Strategy.** Veteran OK'd B' undo `39fd0a5`; Combat merges trunk in, gates (+row 34), opens the B' PR -> Lead READY -> Deploy with #554.
+**15:0x STATUS (superseded above):** the fallback deploy.sh is running on `441eb38` (#560 revert, #551, #534, #556, #558; v6). #554 was NOT merged because it's still a DRAFT, and Stats was asked to `gh pr ready`.
+B' is built at `combat/publish-b-prime` @ `39fd0a5` (v7, SIM_DIGEST 3d3a9322…): knife vs vet 4/24, cleaver vs vet 4/24, trident 6/24; the only over-cap row is cleaver vs executioner
+18/24 (#550's). OFFERED_DESPITE is removed and the gladius is offered. It waits for the lock to run quality:stop, test:slow and rows 2/11/12, then the PR opens, and Lead marks it READY after Veteran's undo review.
+**Awards chain:** #551 (sweep, `66e798f`) is READY with Backend OK + Lead, and merges in the rolling run AFTER B (no src/ change). #554 (draft, `b0a8b89`,
+Backend's N1–N3: per-claim settle errors, a loss unit case, the recheck caveat) is retargeted and gated after #551. **The APPLY of 202609230001 + the VPS
+verify-loot unit need all of #551 + #554 + Stats' client-claims PR (offer from `my_standing()`, SCOPE.md loot v2 line), Backend-reviewed,
+and then Lead's explicit "apply 202609230001" to Deploy.**
+
 ## Lead — 2026-09-23 13:35 local: HANDOFF (context restart). Read this block, then the one below.
 **Now (the next session picks up):**
 1. **Phone smoke on Publish A** when Deploy sends the sha line + FREE: 375x812, a fight to a kill with the loot panel, on the live
@@ -25,7 +73,11 @@ not pushed, and needs Backend's re-OK when it is.
 **Phone smoke on LIVE `dd1d968` (13:5x):** fight to kill + loot panel timing PASS (quiet-one check, `QA_URL=https://frankendom.com`,
 `--opponent goblin`, with #546's wait patched in locally: panel closed 0.02 s after the kill, open at the complete latch 3.22 s). The
 Veteran default loses all 3 scripted duels on v6, so always use goblin. **NOT run:** knife offered, tap-to-take + Undo, declined
-survives a refresh. They need Dom's phone or a new scripted check, and that is Strategy's call.
+survives a refresh. **Strategy ruled at 13:5x: make it a scripted check.** Web writes `scripts/loot-smoke-check.mjs` (a PR by 16:00),
+and the Auditer wires it as a release row. Meanwhile Dom plays a knife duel on his phone. Next batch: #540 and #537 are on trunk; #541 #542 #544
+#546 (+#534, #539) publish as one run, and its sha line goes to Strategy. #549 (droplets, READY) merges right after #544, retargeted to trunk.
+**#547 (Veteran, `28a0fd0`, on #543):** swap + scutum + `veteran.Gladius` loot are in; 12 group-(a) sim-side reds await Combat's
+re-pin. `veteran.Trident` is kept as a RETIRED_LOOT id (upheld: cleanLoot would otherwise delete earned pieces).
 **Addressing lanes:** send to ListAgents rows as `"<exact name> [ref]"`, or reply to a `uds:` from-address. Both skip Desktop's
 10-send cap.
 
