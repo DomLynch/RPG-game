@@ -25,8 +25,9 @@ recipes = {
     # clips. The Kontext source stands in a 62° A-pose (docs/character-references/veteran-source-v1.png).
     "veteran": ("source/backups/veteran-v1", 62, 1.0, (0, -0.04, -0.025), 1.82, 16),
     # The Witch (Brief 16, option (b)): a woman on the Veteran's rig, trident family. The scan carries her body, so no bone
-    # scale; the Kontext source stands with her arms ~35° off her sides (docs/character-references/witch-source-v1.png).
-    "witch": ("source/backups/veteran-v1", 50, 1.0, (0, -0.04, -0.025), 1.80, 16),
+    # scale. Arm pose solved
+    # from the centred scan's hand clusters (±0.32, 0.925 m): 74° and a 0.88 reach put the donor's hand on them (docs/character-references/witch-source-v1.png).
+    "witch": ("source/backups/veteran-v1", 74, 0.88, (0, -0.04, -0.025), 1.80, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
@@ -244,10 +245,13 @@ if family == "veteran":
 coords = [mesh.matrix_world @ v.co for v in mesh.data.vertices]
 lo = min(v.z for v in coords)
 hi = max(v.z for v in coords)
+# A reconstruction that is not centred on x = 0 misplaces every limb against the donor. Measured, not tuned: the Witch's scan
+# sits 5.5 cm to her right at every height from boots (-0.052 at 0.5 m) to hood (-0.056 at 1.75 m).
+centre_x = {"witch": -0.055}.get(family, 0.0) * (hi - lo) / height
 for v, p in zip(mesh.data.vertices, coords):
     v.co = Vector(
         (
-            p.x * height / (hi - lo),
+            (p.x - centre_x) * height / (hi - lo),
             p.y * height / (hi - lo),
             (p.z - lo) * height / (hi - lo),
         )
@@ -399,8 +403,10 @@ for v in mesh.data.vertices:
     )
     # Disallow nearest-body transfer from attaching claws to the adjacent thigh.
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
-    if family in ("skeleton", "veteran", "witch"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
+    if family in ("skeleton", "veteran"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
         edge = 0.185 + max(0, 1.4 - z) * 0.26
+    if family == "witch":  # a narrower frame: her hands hang at 0.32 m, inside a man's 0.31 m edge at that height
+        edge = 0.15 + max(0, 1.4 - z) * 0.22
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
     arm_mix = max(
