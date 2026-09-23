@@ -134,24 +134,31 @@ export function createScene(
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
+  const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
   // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
   // loading screen instead of stalling the first exchange (measured 69 ms p95 in the first window when they arrived late under load).
   // The load is retryable: a phone that sleeps mid-download aborts the fetch (2 MiB of the Nightborn's 5.1 MB, 2026-09-21 09:15) and
   // the page is restored with the failure still showing. The capsules stay, the failure is reported, and `retryArt` runs the same
   // load again — the entry point calls it when the page returns to the foreground, the network comes back, or the player taps the notice.
-  // Loot (brief 5): the worn ids the entry point last gave (`wear`), the pieces of loot.glb once fetched, and the fetch in flight.
-  // Phase L (Strategy, 2026-09-23): the opponent wears his own loot.glb carriers, graded at the fight's tier like the player's. An opponent
-  // with carriers fetches loot.glb beside his rig, so he is dressed before the opened-waist bake and never pops his armour on mid-fight;
-  // otherwise the fetch waits until the player wears something, and never gates readiness. A failed fetch leaves both undressed, not the fight.
+  // Loot (brief 5): the worn ids the entry point last gave (`wear`), the pieces of loot.glb once fetched, and the fetch in flight. The fetch
+  // starts only once the rigs are in and the worn set is non-empty, so it never shares the wire with a fight's download and never gates
+  // readiness: the fight starts on the rigs alone and the pieces go on when they land.
+  // Phase L (Strategy, 2026-09-23): the opponent wears his own carriers, graded at the fight's tier like the player's. They come from his
+  // own cut of loot.glb (src/assets/loot/carriers-<opponent>.glb, scripts/split-loot.mjs), never the whole file, which would break the
+  // per-fight cap; the cut downloads beside his rig so he is dressed before the opened-waist bake and never pops armour on mid-fight.
+  // A failed cut leaves him undressed, not the fight.
   let tier: Tier | undefined;   // the fight's tier, the player's rank (Phase L): the loot pieces both rigs wear are graded by it
   const carriers: readonly string[] = (LOOT[opponentId] ?? []).filter((id) => !isWeaponLoot(id));
-  let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
-  const fetchLoot = () => (lootLoading ??= loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; }));
+  const carrierUrl = carriers.length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
+  let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
   function dress() {
     if (!warriors) return;
-    if (!lootPieces) { if (worn.length || carriers.length) void fetchLoot(); return; }
+    if (carried) warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, carriers)), tier);
+    if (!lootPieces) {
+      if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+      return;
+    }
     warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)), tier);
-    if (carriers.length) warriors.opponent.wear(lootPieces.filter((piece) => lootWorn(piece, carriers)), tier);
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
@@ -161,7 +168,7 @@ export function createScene(
     loading = Promise.all([
     loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
     arena.ready,
-    carriers.length ? fetchLoot() : null,
+    carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
   ])
     .then(([loaded]) => {
       warriors = loaded;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { Color, Mesh, MeshStandardMaterial, type SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, gradeMaterial, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
@@ -8,6 +8,7 @@ import { GRADES, gradeFor } from '../src/grades.ts';
 import { LOOT, isWeaponLoot } from '../src/loot.ts';
 import { OPPONENTS, type OpponentId } from '../src/moves.ts';
 import { ROSTER } from '../src/roster.ts';
+import { splitLoot } from '../scripts/split-loot.mjs';
 const mat = (p: SkinnedMesh) => p.material as MeshStandardMaterial, gradeable = (p: SkinnedMesh) => !!gradeFor('Recruit', mat(p).name);
 
 // Parse a shipped GLB in Node, as tests/loot-wear.test.ts does: geometry, rig and material names; images are the browser's.
@@ -60,8 +61,9 @@ test('grade: the player\'s worn loot is graded by his rank; his own body draws a
 // Phase L (Strategy, 2026-09-23): the opponent wears his own loot.glb carriers, graded at the fight's tier; his own draws, a creature's
 // baked *Surface included, keep their very materials. Every opponent that offers armour is dressed, so none can throw on the way in.
 const carriersOf = (id: string) => (LOOT[id as OpponentId] ?? []).filter(l => !isWeaponLoot(l));
+const cut = async (id: string) => lootPiecesOf((await parse(`loot/carriers-${id}.glb`)).scene);
 test('grade: an opponent wears his own carriers at the fight tier; his body, a baked *Surface included, is never touched', async () => {
-  const warrior = await parse('warrior.glb'), pieces = lootPiecesOf((await parse('loot.glb')).scene);
+  const warrior = await parse('warrior.glb'), pieces = [...await cut('executioner'), ...await cut('goblin')];
   const executioner = buildWarriors(warrior, await parse('executioner.glb'), ['longsword', 'scythe']).opponent;
   const own = materialsOf(executioner.anchor), ownLook = own.map(finish);
   assert.ok(own.some(m => m.name === 'ExecutionerSurface'), 'the Executioner is a creature body');
@@ -79,10 +81,14 @@ test('grade: an opponent wears his own carriers at the fight tier; his body, a b
   assert.deepEqual(materialsOf(goblin.anchor).filter(m => !goblin.worn().some(w => w.material === m)), goblinOwn, 'a palette-built body is not graded either: only what he wears');
 });
 
-test('grade: every opponent that offers armour is dressed in all of it, and no rig throws on the way in', async () => {
-  const warrior = await parse('warrior.glb'), pieces = lootPiecesOf((await parse('loot.glb')).scene);
+test('grade: every opponent that offers armour is dressed in all of it from his own cut, and no rig throws on the way in', async () => {
+  const warrior = await parse('warrior.glb'), whole = readFileSync(new URL('../src/assets/loot.glb', import.meta.url));
   for (const [id, recipe] of Object.entries(ROSTER)) {
-    const ids = carriersOf(id); if (!ids.length) continue;
+    const ids = carriersOf(id), file = new URL(`../src/assets/loot/carriers-${id}.glb`, import.meta.url);
+    if (!ids.length) { assert.ok(!existsSync(file), `${id} offers no armour, so he has no cut`); continue; }
+    assert.ok(splitLoot(whole, ids).equals(readFileSync(file)), `carriers-${id}.glb is loot.glb's cut: run node scripts/split-loot.mjs`);
+    const pieces = await cut(id);
+    assert.deepEqual(pieces.filter(p => !lootWorn(p, ids)).map(lootId), [], `${id}'s cut carries nobody else's kit`);
     const weapon = OPPONENTS[id as OpponentId].weapon, opponent = buildWarriors(warrior, await parse(`${recipe.body}.glb`), ['longsword', weapon]).opponent;
     opponent.wear(pieces.filter(p => lootWorn(p, ids)), 'Legionary');
     const on = new Set((opponent.worn() as SkinnedMesh[]).flatMap(p => (p.userData.ids as string[] | undefined) ?? [lootId(p)]));
