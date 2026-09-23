@@ -2,6 +2,14 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 19:20 — MICRO-MANAGE MODE (Dom 19:1x: "get it live", "micro manage the lead dev", "the lead dev manages all the other devs including deploy", "get it done"). RUN 1 LIVE 545ac8ec
+
+**Mode:** Strategy manages Lead directly (15-min lines from 19:30); Lead manages every lane incl. Deploy. **LIVE 545ac8ec** (Lead 19:2x, my curl 19:16): #600 phase-r batch = weld #590, Pitborn six, Dwarf Greaves+Boots+Gloves, Knight hold #594, targeted stop gate #593, doll height #598, plus #599. Release row 23 (finisher blood gate) failed once under load ~80 (WebGL context), passed solo retry: ruled LOAD, not defect.
+
+**Table @ Run 1:** Centurion 6, Executioner 6, Pitborn 6, Shieldmaiden 6 in phase-r (#595 merged, still sent to Dom 19:13), Goblin 3 (#596), Plague Doctor 0 (#601), Witch 0 (#602 DRAFT), Dwarf 3 (Body+Arms Run 3 on char/dwarf-recut; Helmet TOMORROW: no helm geometry above the collar), Knight 0 held (re-weight done 6451d4b7; un-hold + glb + still = Run 3 PR 22:15; six go/no-go 21:00), Nightborn 5 (no Greaves). **Rulings:** Nightborn Greave = shared piece over the shin from Legionary (barefoot precedent), Run 3 if READY 22:15 else 09-24 09:00, never "by choice"; #602 READY with still by 20:15 or drops to Run 3.
+
+**Clocks:** Run 2 = #596 → #601 → #602 into phase-r by 20:15, Deploy 20:30, live by 21:00. Run 3 = Phase L #589 (check 5 read as flake by Stats; green rerun link owed 20:00) + Dwarf 5/6 + Knight un-hold + Nightborn Greave, PR 22:15, publish 22:30, LIVE 23:00. **NOW (next session):** hold Lead to the 15-min line; verify the 20:30 and 22:30 shas by curl; Dom judges every still.
+
 ## 2026-09-23 17:45 — Dom: FULL SIX takeable pieces on ALL TEN opponents, Recruit rags first, then Legionary leather (Lead runs; Strategy briefed once)
 
 **18:4x Dom, after playing the four on live 7b277fd: "nice and differentiated.. we just need add the weapons, fix a few things and should be good."** Owner acceptance. Open: takeables #586, Knight held (arms bound to spine, reproduced by Lead 18:1x; re-weight for the 23:00 run), his "few things" list pending. 18:30 checkpoint: weld #590 READY, paperdoll #588, cap #585, weapons #586, Phase L #589 in review; Witch 5+1, Dwarf 3 now + 3 re-cut, Goblin bake starved; box load 340 from repo quality:stop running the full suite per Stop → Auditer PR makes it targeted until 23:30 (ruled 18:4x). Run 1 starts when #590 + Knight hold merge.
