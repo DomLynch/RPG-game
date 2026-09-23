@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { absorbCloud, cloudProfile, fighterDetails, profileDiffers, readAdmin, type CloudProfile } from '../src/cloud-profile.ts';
-import type { Profile } from '../src/profile.ts';
+import { absorbCloud, cloudProfile, fighterDetails, readAdmin, type CloudProfile } from '../src/cloud-profile.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 test('cloud saves carry the editable practice details and the client-reported mark count, never device identity', () => {

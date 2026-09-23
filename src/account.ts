@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile, type Profile } from './profile.ts';
 import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { marksOf } from './career.ts';
+import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
 
 export async function mountAccount(url: string, key: string) {
@@ -70,8 +72,11 @@ export async function mountAccount(url: string, key: string) {
       if (!userId) status.textContent = 'Sign in to keep your fighter name, opponent and career marks across devices.';
       else if (!saved) await sync(local(), turn);   // the account's first fighter: this device's
       else if (merge) {
-        const profile = absorbCloud(local(), saved);   // the higher mark count, the union of both sides' loot: nothing lost
+        const profile = local();
         profile.name = saved.display_name; profile.encounter = saved.encounter ?? undefined;
+        const victoryMarks = Math.max(marksOf(profile), saved.victory_marks);
+        if (victoryMarks) profile.career = { victoryMarks };
+        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length) profile.loot = loot;   // loot: the union of both, nothing lost
         if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
         if (differs(profile, saved) && !(await sync(profile, turn))) return;
         const target = new URL(location.href); target.searchParams.delete('opponent');
