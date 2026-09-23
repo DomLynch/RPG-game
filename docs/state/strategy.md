@@ -2,6 +2,12 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 22:35 — Dom sleeps 23:15: ONE batch run (3c) after 3b; load 250 ruling; Lead judges stills overnight
+
+**Verified 22:29:** Run 3b deploying on e455d850 (lock since 22:23); #614 head 00b84128 still CONFLICTING, #603 draft CONFLICTING; load 257 with 28 Chromium + 156 node processes while Deploy holds the lock. Dom 22:30: "are u in the weeds? … guide and direct the lead dev but dont do his operational work … get him moving"; 22:3x: "batch process, and batch deploy if needed".
+
+**Rulings:** Run 3c = #614 + #603 + Phase L (#589/#606) + anything READY with stills, one integration PR, published on 3b FREE; git-level integration now, bakes/stills/loot rebuild queued for FREE; Phase L drops to the 09:00 run only if its stills are not ready when 3c publishes, 3c never waits for it. Every lane stops local gates/bakes while the lock is held, Lead enforces. Dom asleep → Lead judges stills against accepted pieces under the standing authority; Dom reviews on live in the morning; rejects = fix PRs, no rollback. Morning table to Dom 09:00. **Honest clock:** 3b live ~23:15–23:45 under this load; 3c live ~00:30–01:00. **NOW:** curl 3b and 3c shas; Lead owes 3b sha, 3c PR number, 3c sha.
+
 ## 2026-09-23 22:15 — RUN 3a LIVE 63c56758 (my curl 22:10, lock gone, pid exited); Run 3b firing; Phase L NO-GO → Run 4 tomorrow morning; Dwarf/Knight last call
 
 **Verified myself 22:08:** live a53762ef; lock held by deploy.sh pid 27356 on 63c56758 (#619 Run 3a = Dwarf Helmet #607, Shieldmaiden jaw #608, Plague Doctor fit #610, Nightborn Greave #611) since 21:29; #620 Run 3b MERGEABLE + CI green; #614 Dwarf Body+Arms CONFLICTING (8f84598a); #603 Knight draft + CONFLICTING (29943046); #589/#606 Phase L unmerged. All lanes restarted ~21:50 (Dom's /clear sweep).
