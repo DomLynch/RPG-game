@@ -33,10 +33,10 @@ Nothing else for Backend in beta unless phone validation (item 6) finds an accou
   host by construction (see Gotchas).
 - **Daily verifier's first real sweep** — unobserved: `daily_results` was 0 rows on 2026-09-22 (0 verified / 0 refused / 0
   awaiting). The timer is armed; it waits on someone posting a daily fight.
-- **Session-name question to Dom (2026-09-23).** His standing order gives Strategy/Lead instructions his approval, naming
-  `Frankendom - Strategy` and `Frankendom - Lead Developer`; both lanes also message as `… - Fable 5.1`. Strategy says the
-  `- Fable 5.1` suffix is appended by the lane-identity script (same session) and has asked Dom to confirm once. Until he does: exact names carry approval, variants get flagged to him — neither silently acted on nor silently refused.
-  (Reviews need no approval at all, so this only matters for push/merge-class requests.)
+- **Session names.** Dom's standing order gives Strategy/Lead instructions his approval. **Strategy: settled** — Dom confirmed
+  2026-09-23 that `Frankendom - Strategy - Fable 5.1` is the session his order names. **Lead: open** — exact `Frankendom - Lead
+  Developer` carries approval; the older variant `Frankendom - Lead Dev - Fable 5.1` is unconfirmed, so flag it to Dom before acting
+  on a push/merge-class line from it. (Reviews need no approval either way.)
 
 ## Gotchas
 
