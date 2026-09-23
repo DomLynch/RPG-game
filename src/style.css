@@ -1539,8 +1539,8 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
    in the design scratchpad); three armour slots down each side, the two hands beneath. src/main.ts fills <i> from
    profile.loot.equipped, adds .on to a worn slot and un-hides its Store button (data-unwear). */
 .doll { display: grid; grid-template-columns: minmax(0, 1fr) minmax(88px, 104px) minmax(0, 1fr); grid-template-rows: repeat(4, auto); gap: 6px; align-items: stretch; }
-.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; position: relative; height: 100%; width: max-content; max-height: 320px; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0003); }
-.doll-figure img { display: block; height: 100%; width: auto; max-height: 320px; }
+.doll-figure { grid-column: 2; grid-row: 1 / 5; justify-self: center; align-self: end; position: relative; height: 100%; width: max-content; max-height: 380px; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0003); }
+.doll-figure img { display: block; height: 100%; width: auto; max-height: 380px; }
 /* Worn pieces over the figure (scripts/loot-layers.mjs): one layer per paperdoll key, cropped to the figure's frame, shown when the loader
    has put a loot id on that slot (#slot-<key>[data-loot]); the generated block below maps each id to its image. Render order: body, legs,
    feet, arms, hands, head. A live render of the rig (the lead's route B) replaces this element when it lands. */
@@ -1558,7 +1558,10 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-head[data-loot='executioner.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/executioner.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='goblin.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/goblin.Arms.webp); }
 .doll:has(#slot-chest[data-loot='goblin.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/goblin.Body.webp); }
+.doll:has(#slot-feet[data-loot='goblin.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/goblin.Boots.webp); }
 .doll:has(#slot-hands[data-loot='goblin.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/goblin.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='goblin.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/goblin.Greaves.webp); }
+.doll:has(#slot-head[data-loot='goblin.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/goblin.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='nightborn.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/nightborn.Arms.webp); }
 .doll:has(#slot-chest[data-loot='nightborn.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/nightborn.Body.webp); }
 .doll:has(#slot-feet[data-loot='nightborn.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/nightborn.Boots.webp); }
@@ -1570,6 +1573,18 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-hands[data-loot='pitborn.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/pitborn.Gloves.webp); }
 .doll:has(#slot-legs[data-loot='pitborn.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/pitborn.Greaves.webp); }
 .doll:has(#slot-head[data-loot='pitborn.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/pitborn.Helmet.webp); }
+.doll:has(#slot-arms[data-loot='plaguedoctor.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/plaguedoctor.Arms.webp); }
+.doll:has(#slot-chest[data-loot='plaguedoctor.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/plaguedoctor.Body.webp); }
+.doll:has(#slot-feet[data-loot='plaguedoctor.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/plaguedoctor.Boots.webp); }
+.doll:has(#slot-hands[data-loot='plaguedoctor.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/plaguedoctor.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='plaguedoctor.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/plaguedoctor.Greaves.webp); }
+.doll:has(#slot-head[data-loot='plaguedoctor.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/plaguedoctor.Helmet.webp); }
+.doll:has(#slot-arms[data-loot='shieldmaiden.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/shieldmaiden.Arms.webp); }
+.doll:has(#slot-chest[data-loot='shieldmaiden.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/shieldmaiden.Body.webp); }
+.doll:has(#slot-feet[data-loot='shieldmaiden.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/shieldmaiden.Boots.webp); }
+.doll:has(#slot-hands[data-loot='shieldmaiden.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/shieldmaiden.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='shieldmaiden.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/shieldmaiden.Greaves.webp); }
+.doll:has(#slot-head[data-loot='shieldmaiden.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/shieldmaiden.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='veteran.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/veteran.Arms.webp); }
 .doll:has(#slot-chest[data-loot='veteran.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/veteran.Body.webp); }
 .doll:has(#slot-feet[data-loot='veteran.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/veteran.Boots.webp); }
@@ -1578,6 +1593,12 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-legs[data-loot='veteran.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/veteran.Greaves.webp); }
 .doll:has(#slot-head[data-loot='veteran.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/veteran.Helmet.webp); }
 .doll:has(#slot-undefined[data-loot='veteran.Shield']) .doll-layer[data-layer='undefined'] { background-image: url(/game/img/loot/veteran.Shield.webp); }
+.doll:has(#slot-arms[data-loot='witch.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/witch.Arms.webp); }
+.doll:has(#slot-chest[data-loot='witch.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/witch.Body.webp); }
+.doll:has(#slot-feet[data-loot='witch.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/witch.Boots.webp); }
+.doll:has(#slot-hands[data-loot='witch.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/witch.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='witch.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/witch.Greaves.webp); }
+.doll:has(#slot-head[data-loot='witch.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/witch.Helmet.webp); }
 /* loot-layers:end */
 .doll .slot { display: flex; flex-direction: column; justify-content: center; min-height: 72px; }   /* room for the 40 px Store button */
 .doll [data-slot='head'], .doll [data-slot='chest'], .doll [data-slot='arms'], .doll [data-slot='main'] { grid-column: 1; }

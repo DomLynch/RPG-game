@@ -19,7 +19,7 @@ import console from 'node:console';
 const TRUNK = 'origin/codex/01a09a76/task-1', PHASE = 'origin/phase-r', ALWAYS = ['tests/record-version-guard.test.ts'];
 const FALLBACK = /^tests\/(loot|grades|characters|roster|ladder)[^/]*\.test\.ts$/;
 const git = (...args) => { try { return execFileSync('git', args, { encoding: 'utf8', timeout: 20000 }).trim(); } catch { return ''; } };
-const onPhase = spawnSync('git', ['merge-base', '--is-ancestor', PHASE, 'HEAD']).status === 0;   // built on phase-r (its tip is an ancestor of HEAD)
+const onPhase = spawnSync('git', ['merge-base', '--is-ancestor', PHASE, 'HEAD'], { timeout: 20000 }).status === 0;   // built on phase-r (its tip is an ancestor of HEAD)
 const base = onPhase ? PHASE : TRUNK;
 const changed = new Set([
   ...git('diff', '--name-only', `${base}...HEAD`).split('\n'),
@@ -43,7 +43,7 @@ for (const file of changed) {
 if (unmapped || changed.size === 0) for (const t of tests) if (FALLBACK.test(t)) picked.add(t);
 const files = [...picked].filter(t => tests.includes(t)).sort();
 console.log(`quality-stop-targeted: base ${base}; ${changed.size} changed file(s); ${files.length} test file(s)${unmapped ? ' (fallback set added: a changed file mapped to no test)' : ''}`);
-const run = (cmd, args) => { const r = spawnSync(cmd, args, { stdio: 'inherit' }); if (r.status !== 0) { console.error(`quality-stop-targeted: ${cmd} ${args.join(' ')} failed (${r.status})`); process.exit(r.status ?? 1); } };
+const run = (cmd, args) => { const r = spawnSync(cmd, args, { stdio: 'inherit', timeout: 15 * 60_000 }); if (r.status !== 0) { console.error(`quality-stop-targeted: ${cmd} ${args.join(' ')} failed (${r.status})`); process.exit(r.status ?? 1); } };
 run('npx', ['eslint', 'src']);
 run('npm', ['run', 'typecheck:tests']);
 run('node', ['--test', '--test-skip-pattern=\\[slow\\]', ...files]);

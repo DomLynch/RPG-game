@@ -198,8 +198,9 @@ if (LOOT) { lootOf = ''; lootSlot = ''; }
 // The Shieldmaiden's squared layered iron shoulder plates (reference A, #498): the flat hard shoulder line she was picked for, and with her
 // Body one of her two Recruit-2 identity carriers (Arms). Three overlapping lames per shoulder, each a six-sided open shell over the top of
 // the arm — the facets are the squared edge — stepping down and out from the shoulder joint, rigid on the upper arm. Opponent build only
-// for now; her loot piece is Scalable Chars' export.
-if (fighter === 'shieldmaiden') {
+// Phase R: the same plates are her Arms piece in loot.glb (`over`: they sit above the player's forearm wraps and hide nothing).
+if (fighter === 'shieldmaiden' || LOOT) {
+  if (LOOT) { lootOf = 'shieldmaiden'; lootSlot = 'Arms'; }
   const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
   for (const side of ['l', 'r']) {
     const shoulder = at(`upperarm_${side}`), elbow = at(`lowerarm_${side}`), out = Math.sign(elbow.x - shoulder.x);
@@ -213,6 +214,7 @@ if (fighter === 'shieldmaiden') {
       }
     }
   }
+  if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
 // Peaked closed sallet: elliptical rings give it a forged silhouette, tapered neck and brow.
 function shell(rings, material, bone, z = 0) {
@@ -337,7 +339,8 @@ if (LOOT) {
         // The tunic-class material is the one palette entry that differs per opponent (each KIT's linen colour and grime are baked into
         // his own gambeson maps): a loot tunic gets `Gambeson_<opponent>`, its own draw, its own maps at export. The runtime swaps a piece's
         // material for the player's only when the NAME matches, so this one keeps the opponent's look; Leather/Steel/Wrap stay his.
-        const materialName = o.userData.material === 'Gambeson' ? `Gambeson_${opponent}` : o.userData.material;
+        // `kit` names whose linen a BORROWED tunic keeps (the Witch's placeholder Body is the Shieldmaiden's): there is one bake per kit.
+        const materialName = o.userData.material === 'Gambeson' ? `Gambeson_${entry.kit ?? opponent}` : o.userData.material;
         let material = [...parts.keys()].find(m => m.name === materialName);
         if (!material && materialName !== o.userData.material) { material = new T.MeshStandardMaterial({ name: materialName, roughness: .88, metalness: 0 }); parts.set(material, []); }   // the tunic maps' uniform ORM as factors
         if (!material || (!o.userData.bone && !o.isSkinnedMesh)) throw new Error(`${entry.file}: mesh ${o.name} needs extras.material and extras.bone or skin weights`);
@@ -348,7 +351,7 @@ if (LOOT) {
         }
         if (entry.unscale) { if (!o.isSkinnedMesh) throw new Error(`${entry.file}: unscale needs skin weights on ${o.name}`); unscaler(entry.unscale)(g); }
         add(g, material, o.userData.bone, 0, 0, 0, 0, entry.slot); taken++;
-        if (entry.conform) lootConform.push({ id: `${opponent}.${entry.slot}`, g: parts.get(material).at(-1) });
+        if (entry.conform) lootConform.push({ id: `${opponent}.${entry.slot}`, g: parts.get(material).at(-1), options: entry.conform === true ? {} : entry.conform });
       });
       if (!taken && !entry.optional) throw new Error(`loot ${opponent}: nothing matched in ${entry.file} (${JSON.stringify({ slots: entry.slots, names: entry.names })})`);
     }
@@ -371,7 +374,7 @@ async function playerWorn() {
 // female body) is pushed out along its normals until it clears the player's body and level-1 kit, so it sits on him, not through him.
 if (LOOT && lootConform.length) {
   const grid = triGrid(await playerWorn()), report = new Map();
-  for (const { id, g } of lootConform) { const r = conformOver(grid, g), was = report.get(id) ?? { count: 0, vertices: 0, most: 0 }; report.set(id, { count: was.count + r.count, vertices: was.vertices + r.vertices, most: Math.max(was.most, r.most) }); }
+  for (const { id, g, options } of lootConform) { const r = conformOver(grid, g, options), was = report.get(id) ?? { count: 0, vertices: 0, most: 0 }; report.set(id, { count: was.count + r.count, vertices: was.vertices + r.vertices, most: Math.max(was.most, r.most) }); }
   for (const [id, r] of report) console.log(`  conform ${id}: ${r.count}/${r.vertices} positions pushed out, most ${(r.most * 100).toFixed(1)} cm`);
 }
 // The goblin's trophies (owner's brief): a bone-and-string necklace — five teeth and a finger on a cord that hugs the collar, rigid to spine_03 —
@@ -447,6 +450,80 @@ if (fighter === 'pitborn' || LOOT) {
   }
   if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
+// The Shieldmaiden's six (Phase R; reference A, #498). Her Arms are the squared plates above and her Gloves the shared pair; her Body and
+// Boots are cut from her own level-1 kit in loot.json (`conform`: her female frame, pushed out over the player's). Built here: an open
+// iron-banded cap worn on the back of the head behind the crown braids (a leather dome, three iron bands, the axis leaning back 24°), the
+// hauberk's mail skirt to mid-thigh (part of her Body: a hull round both thighs from the belt down, rigid to the pelvis and loose enough
+// to stride in), and leather leg wraps knee to ankle. Fitted by ray to whoever wears them. Material at Phase L: base palette tonight.
+if (fighter === 'shieldmaiden' || LOOT) {
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(LOOT ? await playerWorn() : [...parts.values()].flat());
+  if (LOOT) { lootOf = 'shieldmaiden'; lootSlot = 'Helmet'; }
+  // Fitted to the skull, not the hair: in her own build the rays see only the head (Face/Skin), and the gap clears the scalp hair.
+  const skullGrid = LOOT ? grid : triGrid([...parts.values()].flat().filter(g => ['Face', 'Skin'].includes(g.userData.slot)));
+  const head = at('Head').add(new T.Vector3(0, .06, .02)), back = new T.Vector3(0, 1, -1).normalize(), crown = surfaceAlong(skullGrid, head, back);
+  if (!crown) throw new Error('shieldmaiden cap: nothing behind the Head joint');
+  const capTo = head.clone().addScaledVector(back, crown), capOpts = { azimuths: 20, up: new T.Vector3(0, 0, 1) };
+  const cap = ringHull(skullGrid, head, capTo, { ...capOpts, stations: [.45, .56, .67, .78, .88, .95], gap: .016, cap: true });
+  add(cap.geometry, leather, 'Head');
+  for (const t of [.47, .66, .85]) add(ringHull(skullGrid, head, capTo, { ...capOpts, stations: [t - .03, t + .03], gap: .021 }).geometry, steel, 'Head');
+  console.log(`  shieldmaiden cap: ${crown.toFixed(3)} m from Head along the back-leaning axis, rim radii ${cap.rings[0].radii.map(r => r.toFixed(3)).join(' ')}`);
+  if (LOOT) lootSlot = 'Body';
+  const pelvis = at('pelvis'), knees = new T.Vector3().lerpVectors(at('calf_l'), at('calf_r'), .5), hips = new T.Vector3().lerpVectors(at('thigh_l'), at('thigh_r'), .5);
+  const skirt = ringHull(grid, hips.clone().setY(pelvis.y + .06), new T.Vector3(hips.x, knees.y, hips.z), { stations: [0, .15, .3, .45, .6], azimuths: 24, gap: .02, far: .24, pick: 'outer', up: new T.Vector3(0, 0, 1), scale: t => 1 + t * .12 });
+  add(skirt.geometry, steel, 'pelvis');
+  console.log(`  shieldmaiden mail skirt: rings ${skirt.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  if (LOOT) lootSlot = 'Greaves';
+  for (const side of ['l', 'r']) {
+    const legWrap = ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .88], azimuths: 14, gap: .005 });
+    add(legWrap.geometry, wrap, `calf_${side}`);
+  }
+  // The Witch's Greaves (Strategy, 2026-09-23): a PLACEHOLDER copy of these wraps under witch.Greaves until her authored leggings
+  // replace it (her scan's ragged cloth will not reduce to a clean shell). Same fit, same material; her dark retint is Phase L.
+  if (LOOT) {
+    lootOf = 'witch';
+    for (const side of ['l', 'r']) add(ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .88], azimuths: 14, gap: .005 }).geometry, wrap, `calf_${side}`);
+  }
+  if (LOOT) { lootOf = ''; lootSlot = ''; }
+}
+// The Witch's pieces (Phase R, Run 3): built shells, not cuts from her scan. Her TRELLIS cloth decimated to a hood floating in front of the
+// face and shards off the forearms (19:17 still), so the hood, bracers and boots are fitted by ray like everyone else's. Loot build only:
+// her own body wears the scan. Her Gloves are the shared pair; her Greaves are the Shieldmaiden's wraps above. Base palette tonight.
+if (LOOT) {
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(await playerWorn());
+  lootOf = 'witch';
+  // Helmet: a cowl from the neck to the crown, leaning back like the Shieldmaiden's cap, loose (cloth), with the face cut open between
+  // the chin and the brow.
+  lootSlot = 'Helmet';
+  const neck = at('Head').add(new T.Vector3(0, -.03, -.01)), up = new T.Vector3(0, 1, -.18).normalize(), crown = surfaceAlong(grid, neck, up);
+  if (!crown) throw new Error('witch hood: no crown above the Head joint');
+  const hoodTo = neck.clone().addScaledVector(up, crown), stations = [-.05, .12, .3, .48, .64, .78, .9, .97];
+  const hood = ringHull(grid, neck, hoodTo, { stations, azimuths: 24, gap: .035, cap: true, up: new T.Vector3(0, 0, 1), scale: t => t < .3 ? 1.12 : 1 });
+  // The face opening, cut by position: a triangle whose centre lies between chin and brow (the fraction along the hood's axis) and toward
+  // where the toes point (the rig's forward, measured rather than assumed from the ring frame) is dropped.
+  const forward = at('ball_l').sub(at('foot_l')).setY(0).normalize(), hp = hood.geometry.getAttribute('position'), ix = hood.geometry.index.array, kept = [];
+  for (let n = 0; n < ix.length; n += 3) {
+    const c = new T.Vector3(); for (let q = 0; q < 3; q++) c.add(new T.Vector3().fromBufferAttribute(hp, ix[n + q])); c.divideScalar(3);
+    const rel = c.sub(neck), along = rel.dot(up) / crown, side = rel.addScaledVector(up, -along * crown).normalize();
+    if (!(along > -.02 && along < .74 && side.dot(forward) > .73)) kept.push(ix[n], ix[n + 1], ix[n + 2]);
+  }
+  hood.geometry.setIndex(kept);
+  add(hood.geometry, cloth, 'Head');
+  console.log(`  witch hood: crown ${crown.toFixed(3)} m, rim radii ${hood.rings[0].radii.map(r => r.toFixed(3)).join(' ')}`);
+  for (const side of ['l', 'r']) {
+    // Arms: leather bracers, elbow to wrist.
+    lootSlot = 'Arms';
+    const bracer = ringHull(grid, at(`lowerarm_${side}`), at(`hand_${side}`), { stations: [.3, .45, .6, .75, .88], azimuths: 14, gap: .008 });
+    add(bracer.geometry, leather, `lowerarm_${side}`);
+    // Boots: a closed leather shoe heel to toe (the cap closes over the toes), and an ankle cuff on the calf.
+    lootSlot = 'Boots';
+    const ankle = at(`foot_${side}`), ball = at(`ball_${side}`);
+    const shoe = ringHull(grid, ankle, ball, { stations: [-.15, .1, .35, .6, .85, 1.05], azimuths: 14, gap: .006, far: .2, cap: true });
+    add(shoe.geometry, leather, `foot_${side}`);
+    const cuff = ringHull(grid, at(`calf_${side}`), ankle, { stations: [.8, .9, 1], azimuths: 14, gap: .012 });
+    add(cuff.geometry, leather, `calf_${side}`);
+  }
+  lootOf = ''; lootSlot = '';
+}
 // Gloves (brief 14, 2026-09-22): the one slot NO opponent wears today, so it is a single SHARED piece rather than six — the first
 // customer of the shared-draw manifest ("~shared" in loot.json). Fingerless by design: a wrist cuff and a back-of-hand plate rigid to
 // hand_X, with the fingers left bare because they ANIMATE and a rigidly-bound glove over them would tear open on a fist. Fitted by
@@ -454,7 +531,7 @@ if (fighter === 'pitborn' || LOOT) {
 // draws of his own, so this hides nothing and #434's coverage rule is satisfied by construction rather than by measurement.
 // Phase R: an opponent whose six pieces include the shared gloves WEARS them in his own fight build too, fitted to his own hands
 // (KIT_GLOVES; the loot build fits the player's, as before).
-const KIT_GLOVES = ['pitborn'];
+const KIT_GLOVES = ['pitborn', 'shieldmaiden'];
 if ((LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Gloves`)) || KIT_GLOVES.includes(fighter)) {
   const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
   const worn = (LOOT ? await playerWorn() : [...parts.values()].flat()).map(g => new T.Mesh(g, new T.MeshBasicMaterial({ side: T.DoubleSide })));
@@ -483,11 +560,13 @@ if ((LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Gloves`)) ||
     }
     // The hull, ring to ring; both ends left open and capped by the cuff band and the knuckle band, which are the two things a player
     // actually sees at fight distance.
-    const positions = [], point = (i, k) => { const r = rings[i], a = k % AZIMUTHS / AZIMUTHS * Math.PI * 2;
+    const positions = [], uvs = [], point = (i, k) => { const r = rings[i], a = k % AZIMUTHS / AZIMUTHS * Math.PI * 2;
       return r.origin.clone().addScaledVector(u, Math.cos(a) * r.radii[k % AZIMUTHS] * r.scale).addScaledVector(v, Math.sin(a) * r.radii[k % AZIMUTHS] * r.scale).toArray(); };
     for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < AZIMUTHS; k++)
-      for (const [ri, ki] of [[i, k], [i, k + 1], [i + 1, k + 1], [i, k], [i + 1, k + 1], [i + 1, k]]) positions.push(...point(ri, ki));
-    const hull = new T.BufferGeometry(); hull.setAttribute('position', new T.Float32BufferAttribute(positions, 3)); hull.computeVertexNormals();
+      for (const [ri, ki] of [[i, k], [i, k + 1], [i + 1, k + 1], [i, k], [i + 1, k + 1], [i + 1, k]]) { positions.push(...point(ri, ki)); uvs.push(ki / AZIMUTHS, ri / (rings.length - 1)); }
+    // UVs (Phase R) in a fight build only: there the gloves merge into the same Leather draw as the wearer's own uv'd kit (the
+    // Shieldmaiden's boots). loot.glb's shared gloves stay exactly as they shipped.
+    const hull = new T.BufferGeometry(); hull.setAttribute('position', new T.Float32BufferAttribute(positions, 3)); if (!LOOT) hull.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2)); hull.computeVertexNormals();
     add(hull, leather, `hand_${side}`);
     // Two bands of furniture, so the piece has trim for a grade to repaint (src/grades.ts): a cuff ring at the wrist and a knuckle bar
     // across the back of the hand. Both sized off the fitted hull, not guessed.
