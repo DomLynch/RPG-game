@@ -237,6 +237,16 @@ for s, face_ids in sorted(pieces.items()):
     # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
     # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    if REPOSE and s in ('Gloves', 'Boots'):   # skin a gauntlet or sabaton by its own slot's bones only, as the re-pose placed it:
+        deform = bm.verts.layers.deform.active   # his fists' thigh weight would drag a worn gauntlet toward the thigh mid-swing
+        for v in bm.verts:
+            d = v[deform]
+            own = {gi: w for gi, w in d.items() if groups[gi] in skin and slot_for(groups[gi]) == s}
+            if own:
+                total = sum(own.values())
+                d.clear()
+                for gi, w in own.items():
+                    d[gi] = w / total
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
@@ -299,7 +309,7 @@ if REPOSE:
                 lo, hi = skull.min(0), skull.max(0)   # glTF: x across, y up, z depth
                 co = np.array([tuple(world @ v.co) for v in vs])
                 span = lambda a: np.percentile(a, 98) - np.percentile(a, 2)   # percentiles: his crest and stray shards are not the shell
-                grow = 1.06 * max((hi[0] - lo[0]) / span(co[:, 0]), (hi[2] - lo[2]) / span(co[:, 1]))
+                grow = max(1.0, 1.06 * max((hi[0] - lo[0]) / span(co[:, 0]), (hi[2] - lo[2]) / span(co[:, 1])))   # never shrink a helm onto the skull
                 centre = Vector(co.mean(0))
                 lift = hi[1] + .015 - (centre.z + grow * (np.percentile(co[:, 2], 97) - centre.z))
                 to_local = world.inverted()
