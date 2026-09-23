@@ -31,7 +31,8 @@ disagrees with this file, this file wins and the older line is stale. Dated deci
 ## Launch (after beta)
 - **Ten archetypes**: the six above + Shieldmaiden (Brief 15, Pitborn lane; *replaces "the Nord"*), Witch (Brief 16, Multi Chars;
   witch-fire cast on the trident polearm family), Knight (Brief 17, Executioner lane; maul), Plague Doctor (Brief 18, Nightborn
-  lane; longsword). All four are launch scope, not beta; bodies land one at a time in that cost order; masked characters wait on an
+  lane; longsword). All four are launch scope, not beta — **except the Plague Doctor, moved to beta on the owner's word 2026-09-23
+  ("put them live now", via Lead)**, third in landing order; bodies land one at a time in that cost order; masked characters wait on an
   owner-approved reference sheet before their silhouette test.
 - **Ten weapons, 5 one-hand + 5 two-hand**: knife, cleaver, estoc, gladius, bearded axe | longsword (hero), warhammer, trident,
   scythe, maul; the Witch's bladed staff rides the trident family. Opponent grips 5/5.
