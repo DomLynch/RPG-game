@@ -1883,13 +1883,7 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         # The Shieldmaiden: TRELLIS.2 filled the jaw's unseen underside with near-black, which the mesh-head rule above keeps as hair —
         # on a bare-necked woman it read as a beard. Below the mouth line a dark texel is skin in shadow: it takes the head's own skin
         # (the median of its bright texels), ramped in over 2 cm so the lips and the jaw's lit front stay the reconstruction's.
-        jaw_vg = head.vertex_groups.new(name='jaw')
-        for v in head.data.vertices:
-            w = min(1.0, max(0.0, (rig_mid.z - 0.070 - v.co.z) / 0.02))   # the mouth sits ~6 cm under the eyes
-            if w > 0:
-                jaw_vg.add([v.index], w, 'REPLACE')
-        jaw = bake_attribute(head, 'jaw', select_only, size)
-        head.vertex_groups.remove(head.vertex_groups['jaw'])
+        jaw = jaw_mask(head, rig_mid.z - 0.070, 0.02, size)   # the mouth sits ~6 cm under the eyes
         lum = colour.max(axis=2)
         skin = np.median(colour[(lum > 0.35) & (jaw < 0.01)], axis=0)
         w = (jaw * np.clip((0.40 - lum) / 0.20, 0, 1))[..., None]
@@ -1912,7 +1906,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     filled = crown_fill(colour, dark, size, hair_zone, coverage=coverage, scalp=scalp, force=None if ear_zone is None else ear_zone > 0.5)
     crown_w = np.clip(1 - blur((~dark).astype(np.float32), 16) * 1.6, 0, 1) * dark * (scalp > 0.5) if HAIR == 'full' else np.zeros((size, size), np.float32)  # where the crown is synthesised strands (crown_fill's own blend weight)
     island = bake_attribute(head, None, select_only, size, margin=0) > 0.5  # the texture's islands
-    filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size, front=front)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
+    if not FIGHTERS[FIGHTER].get('jaw_skin'):  # a clean-shaven jaw has no stubble to re-grain: on her atlas the donor rows beside the jaw are braid, quilted back over the repainted chin as a beard
+        filled = stretch_refill(filled, 1 + 4 * stretch, dark | (coverage < 0.6), island, size, front=front)  # the lowered chin: its stretched photo's grain re-covered at a density that survives the stretch
     if HAIR != 'mesh':  # a mesh head's texture was matched to its flat-lit portrait by the adapter; and its atlas is mostly hair, whose median delight would pull the face down to
         filled = delight(filled, dark | (coverage < 0.6))  # the portraits' key light is baked in: the lit cheeks and forehead rendered brighter and shinier than the body
     if FIGHTERS[FIGHTER].get('photo_mul'):  # per-fighter skin tint ON THE PHOTOGRAPH (the Executioner's dark chocolate, owner
@@ -1922,6 +1917,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         mottle = (0.92 + P.fbm(size, 41, octaves=(4, 8, 16, 32)) * 0.18)[..., None]  # the painted body's own tone noise, so the band is skin, not paint
         global RING_TONE
         RING_TONE = ring_tones(head, filled, neck_z, neck_c, size)  # the head's own tone just above the band, around the neck
+        if FIGHTERS[FIGHTER].get('jaw_skin'):  # (see below: her ring reads shadow and hair, not skin)
+            RING_TONE = np.broadcast_to(skin[None, :], RING_TONE.shape).copy()
         az_c, az_s = head.vertex_groups.new(name='az_c'), head.vertex_groups.new(name='az_s')
         for v in head.data.vertices:
             a = math.atan2(v.co.y - neck_c.y, v.co.x - neck_c.x)
@@ -1937,6 +1934,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         occl = 1 - (1 - (0.55 + 0.45 * np.clip(blur(ao_kt, 4), 0, 1) ** 1.2)) * back * fade  # the painted body's own occlusion curve
         filled = filled * occl[..., None]
         RING_TONE = ring_tones(head, filled, neck_z, neck_c, size)  # re-read from the finished band (fade and nape occlusion in): what the neck below must continue
+        if FIGHTERS[FIGHTER].get('jaw_skin'):  # her ring above the cut is the jaw's shadowed underside and the nape's hair: the neck below takes her skin
+            RING_TONE = np.broadcast_to(skin[None, :], RING_TONE.shape).copy()
     if FIGHTERS[FIGHTER].get('pallor') and HAIR != 'mesh':  # the Nightborn's no-credits restyle of the STAND-IN scan texture (his brief): pale grey-white — his own head (a mesh) carries all of it already
         # skin, black hair, clean-shaven, sunken eyes, the throat scar. skin_mul pales only the painted body; the photographed head is
         # restyled here, on `filled`, before the gutters are margined. Position grids come from normalised vertex-group bakes (the az_c/az_s pattern).
@@ -1998,6 +1997,8 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
         normal = normal.copy()
         normal[..., 0] = np.clip(normal[..., 0] - gx * 6.0 * crown_w, 0, 1)
         normal[..., 1] = np.clip(normal[..., 1] + gy * 6.0 * crown_w, 0, 1)
+    if FIGHTERS[FIGHTER].get('jaw_skin'):  # the high→low bake inverts under her jaw (black charts on lit skin whatever the albedo): flat there
+        normal = normal * (1 - jaw[..., None]) + np.array([0.5, 0.5, 1.0])[None, None, :] * jaw[..., None]
     maps['Photo']['normal'] = save_two_sizes_fn('kt_face_normal', normal, 'Non-Color')
     rough = 0.62 + 0.38 * fade  # the photographed skin's sheen, going fully matte where the collar meets the body's matte skin
     rough = np.maximum(rough, 0.86 * crown_w)  # hair is matte: no broad skin sheen across the synthesised crown
@@ -2102,6 +2103,36 @@ def crown_fill(colour, dark, size, hair_zone, stubble=None, coverage=None, scalp
         w = np.maximum(w, blur(force.astype(np.float32), 4)[..., None])   # a 4-texel feather (the tile is 2048: the block blur needs a divisor)
     print(f'KEENTOOLS crown fill: hair tone {np.round(hair, 3)} from {int(band.sum())} texels')
     return filled * (1 - w) + synth * w
+
+
+def jaw_mask(obj, top, ramp, size):
+    """Texture-space weight of everything below height `top` (ramping in over `ramp` m), rasterised straight from each triangle's
+    own UVs on the layer the GLB samples (layer 0) — a vertex-group bake sampled another layer on a reconstruction and missed the chin."""
+    me = obj.data
+    me.calc_loop_triangles()
+    uv = me.uv_layers[0].data
+    mask = np.zeros((size, size), np.float32)
+    for tri in me.loop_triangles:
+        ws = [min(1.0, max(0.0, (top - me.vertices[v].co.z) / ramp)) for v in tri.vertices]
+        if max(ws) <= 0:
+            continue
+        pts = np.array([uv[li].uv[:] for li in tri.loops]) * size
+        x0, y0 = np.floor(pts.min(axis=0)).astype(int); x1, y1 = np.ceil(pts.max(axis=0)).astype(int)
+        xs, ys = np.meshgrid(np.arange(max(x0, 0), min(x1 + 1, size)), np.arange(max(y0, 0), min(y1 + 1, size)))
+        if not xs.size:
+            continue
+        (ax, ay), (bx, by), (cx, cy) = pts
+        det = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+        if abs(det) < 1e-12:
+            continue
+        px, py = xs + 0.5, ys + 0.5
+        l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / det
+        l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / det
+        l3 = 1 - l1 - l2
+        inside = (l1 >= -0.02) & (l2 >= -0.02) & (l3 >= -0.02)
+        w = l1 * ws[0] + l2 * ws[1] + l3 * ws[2]
+        mask[ys[inside], xs[inside]] = np.maximum(mask[ys[inside], xs[inside]], w[inside])
+    return mask   # rows run with v, as pixels() reads a Blender image (row 0 is v = 0)
 
 
 def ring_tones(head, colour, neck_z, neck_c, size, bins=36):
