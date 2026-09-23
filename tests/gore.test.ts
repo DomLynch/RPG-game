@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
-import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER } from '../src/gore.ts';
+import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER, WOUND_ART, WOUND_SIZE } from '../src/gore.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 const near = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
@@ -225,9 +225,22 @@ test('blood runs: a strand hangs along world-down on the surface whatever the bo
   }
 });
 
+test('wound art (owner 2026-09-23 picked B, C, D): each hit wears one of the three, seeded; the art stands near upright so its run points down', () => {
+  assert.equal(WOUND_ART.length, 3);
+  const w = createBodyWounds(new Scene(), null), r = rigWith('spine_03', [0, 1.2, 0]).root, seen = new Set<number>();
+  for (let i = 0; i < 40; i++) {
+    w.hit(1, r, { location: 'torso', direction: i % 2 ? 'right' : 'thrust', heading: i * 0.37 }, 1);
+    const m = w.entries[1][i % w.entries[1].length];
+    assert.ok(Number.isInteger(m.art) && m.art >= 0 && m.art < WOUND_ART.length, `art index ${m.art}`);
+    assert.ok(Math.abs(m.mark.rotation.z) <= WOUND_SIZE.tilt + 1e-9, `tilt ${m.mark.rotation.z.toFixed(2)} stays near upright`);
+    seen.add(m.art);
+  }
+  assert.equal(seen.size, 3, 'forty hits use all three wounds, never one image for every mark');
+});
+
 test('blood runs: seeded from the hit, not Math.random — two pools fed the same fight draw identical geometry; a different hit ordinal or heading draws different runs', () => {
   const geometry = (w: ReturnType<typeof createBodyWounds>) => w.entries[1].filter(m => m.group.visible).map(m => ({
-    rot: +m.mark.rotation.z.toFixed(9), runs: m.runs,
+    rot: +m.mark.rotation.z.toFixed(9), runs: m.runs, art: m.art,
     strands: m.strands.map(s => [s.live, +s.width.toFixed(9), +s.offset.toFixed(9), +s.start.toFixed(9), +s.duration.toFixed(9), +s.mesh.scale.y.toFixed(9)]),
   }));
   const play = (hits: [number, 'torso' | 'legs' | 'head', 'right' | 'left' | 'thrust'][]) => {
