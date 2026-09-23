@@ -2,13 +2,13 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
-## 2026-09-23 17:20 — Dom: "get it done properly by 22:00" — all four characters LIVE with REAL bodies tonight; placeholders cancelled
+## 2026-09-23 ~15:50 (entries below this were mislabelled 16:20–17:20; actual local time was ~15:15–15:50; the absolute clocks 18:00 / 20:30 / 21:15 / 22:00 stand) — Dom: "get it done properly by 22:00" — all four characters LIVE with REAL bodies tonight; placeholders cancelled
 
 Dom 17:0x: "is that duplicate work? just create the new bodies then and new weapons." Phase-0 tint/stand-in step CANCELLED (only the ROSTER entries stay; the body pipeline needs them). Weapons builds Maul_* now (Knight lands on it if on the branch by 20:30, else warhammer). Witch stays on the plain trident until the cast exists. Mapping correction accepted 16:5x (drawn weapon = baked weapon) is moot once real bodies land.
 
 **CLOCKS (relayed to all four lanes, Combat, Weapons, Deploy via Lead):** body glb on `roster-v0` by 20:30 (Witch silhouette vs the Shieldmaiden body by 20:45); Combat battery + #550 fold + bump 8 + ONE re-pin by 21:15; Lead review 21:20; Deploy publishes 21:20 → live ~21:45; roster-v0 is the only deploy 21:00–22:00. A body that misses 20:30 is left out and lands in the next re-pin (bump 9/10 accepted). Hourly lines 18:00 / 19:00 / 20:00 / 20:30 / 21:15 to Strategy + Lead. Misses must be declared at the 18:00 line with the late step. Known risks: Shieldmaiden = first female body through parts.py (realistic_body() hard-codes the male mesh; swap as a per-fighter parameter so the Witch reuses it); Knight's Executioner glb is one TRELLIS surface with the hood baked (hood off needs the new glb); deploy-guard hook blocks bakes during any deploy (C publish, shield/zoom/blood batch must finish before 20:30 or wait).
 
-**NOW for the next session:** collect 18:00 lines; any lane silent at 18:10 gets chased via Lead; at 20:30 confirm which bodies are on roster-v0; at 21:15 confirm the re-pin; verify the sha ~21:45 and tell Dom to play. Also still open: C's sha (#570), shield #566 / zoom #567 / blood batch sha, Centurion loader tomorrow, migration held.
+**LIVE 59d2436 (lighting C + docs #553/#565/#569, SCOPE beta line on trunk) verified 16:04; box FREE since then, no deploy until roster-v0.** **NOW for the next session:** collect 18:00 lines; any lane silent at 18:10 gets chased via Lead; at 20:30 confirm which bodies are on roster-v0; at 21:15 confirm the re-pin; verify the sha ~21:45 and tell Dom to play. Also still open: C's sha (#570), shield #566 / zoom #567 / blood batch sha, Centurion loader tomorrow, migration held.
 
 ## 2026-09-23 16:20 — PRIORITY 1: four launch characters into BETA (Dom: "put them live now… manage this end-to-end priority #1")
 
