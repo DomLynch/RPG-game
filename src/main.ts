@@ -1,7 +1,8 @@
 import { createInput } from './input.ts';
-import { RULES, type WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, type WeaponId } from './moves.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
+import { peekRecordHeader } from './record-header.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
@@ -514,7 +515,19 @@ if (replayText || sharedId) {
       element('welcome-eyebrow').textContent = 'THIS FIGHT HAS FADED'; element('welcome-title').textContent = 'Sign in and your kills are kept forever.'; element('welcome-lead').hidden = true;
       return;
     }
-    stalled = true; banner(message.startsWith('Fight record: version') ? 'Recorded on an older build' : 'This fight cannot be played here', true); updateHud();   // one small line, PLAY NOW under it
+    if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): say what the fight was from its header, never a blank arena
+      void text.then(peekRecordHeader).then((header) => {
+        const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? ROSTER[header.opponent].name : null;   // a link is public input: name only an opponent and weapon this game knows
+        if (!header || !foe) { stalled = true; banner('Recorded on an older build', true); updateHud(); return; }
+        const title = `${foe[0].toUpperCase()}${foe.slice(1)}`, weapon = `a ${header.weapon}`;
+        banner(null); watching = false; welcome.hidden = false;
+        element('welcome-eyebrow').textContent = 'RECORDED UNDER AN OLDER VERSION';
+        element('welcome-title').textContent = header.outcome === 'killed' ? `${title} fell to ${weapon}.` : header.outcome === 'died' ? `${title} won, against ${weapon}.` : `${title} against ${weapon}. Nobody fell.`;
+        element('welcome-lead').textContent = 'The fight rules have changed since, so it cannot be replayed.'; element('welcome-lead').hidden = false;
+      });
+      return;
+    }
+    stalled = true; banner('This fight cannot be played here', true); updateHud();   // one small line, PLAY NOW under it
   });
 }
 // The daily warden (brief 4): `?daily=1` asks the server for today's fight, moves to the day's opponent when the page booted another,
