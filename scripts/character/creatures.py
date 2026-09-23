@@ -24,13 +24,11 @@ recipes = {
     # The Veteran is his own donor too: v1 (KeenTools head on the Studio body, backup) carries his rig, trident and
     # clips. The Kontext source stands in a 62° A-pose (docs/character-references/veteran-source-v1.png).
     "veteran": ("source/backups/veteran-v1", 62, 1.0, (0, -0.04, -0.025), 1.82, 16),
-    # The Knight (Brief 17). arm_angle 79 is a STARTING POINT FOR THE SOLVE, not a measurement: like the Executioner's,
-    # the real value is solved numerically until the posed WeaponDrawn origin lands in the reconstruction's palm. What is
-    # measured is only the gap — his reference's outer arm edge sits ~16 deg closer to vertical than the Veteran's or the
-    # Executioner's, whose edges both read 68.9 deg off their own references even though their solved angles differ (62
-    # and 64). That method cannot separate those two, so it cannot fix his; it can only say he is much tighter-armed, and
-    # 79 carries that gap onto the Veteran's 62. Re-solve before this ships.
-    "knight": ("source/creatures/knight-donor", 79, 1.0, (0, -0.04, -0.025), 1.85, 16),
+    # The Knight (Brief 17). Arm pose solved like the Executioner's: the posed WeaponDrawn origin lands on the
+    # reconstruction's surface at (-0.278, 0.802) m, 0.2 mm off it, where knight-source-v1.png puts his right palm
+    # (~-0.30, 0.82 on a 1.85 m figure). 84 / 1.10 was the only low-gap solve near that hand in a 40-94 deg x
+    # 0.90-1.20 sweep; the seed it replaces, 79 / 1.0, sat 13.6 mm off the surface.
+    "knight": ("source/creatures/knight-donor", 84, 1.10, (0, -0.04, -0.025), 1.85, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
@@ -145,7 +143,7 @@ mesh.name = "CreatureBody"
 def base_colour_image(obj):
     for slot in obj.material_slots:
         for node in slot.material.node_tree.nodes:
-            if node.type == "TEX_IMAGE" and any(l.to_socket.name == "Base Color" for l in node.outputs[0].links):
+            if node.type == "TEX_IMAGE" and any(link.to_socket.name == "Base Color" for link in node.outputs[0].links):
                 return node.image
 
 
@@ -163,14 +161,18 @@ def skin_weight(px):
     r, g, b = px[:, 0], px[:, 1], px[:, 2]
     top, low = np.maximum(np.maximum(r, g), b), np.minimum(np.minimum(r, g), b)
     sat = (top - low) / np.maximum(top, 1e-4)
-    ramp = lambda x, lo, hi: np.clip((x - lo) / (hi - lo), 0, 1)
+    def ramp(x, lo, hi):
+        return np.clip((x - lo) / (hi - lo), 0, 1)
+
     return ramp(sat, 0.10, 0.16) * ramp(0.72 - sat, 0, 0.06) * ramp(r - g, 0.02, 0.05) * ramp(r - b, 0.06, 0.10) * ramp(g - b, 0.0, 0.02) * ramp(r, 0.2, 0.28)
 
 
 def match_skin(image, reference):
     """The reconstruction bakes its skin darker and redder than the photographed head it now wears. Per-channel gains
     on skin-weighted texels bring its mean skin to the donor neck tile's, so the collar seam is geometry, not colour."""
-    read = lambda img: np.array(img.pixels[:], dtype=np.float32).reshape(-1, 4)
+    def read(img):
+        return np.array(img.pixels[:], dtype=np.float32).reshape(-1, 4)
+
     ref = read(reference)
     # Only the texels the scan's neck strip shows (its collar tile is darker at the edges), still skin-weighted.
     strip, _ = uv_mask(bpy.data.objects["Face"], reference, lambda lo, hi: lo >= NECK_CUT - NECK_BAND + 0.03 and hi <= NECK_CUT - 0.03)
@@ -197,7 +199,7 @@ def uv_mask(obj, image, keep):
         if not keep(min(zs), max(zs)):
             continue
         faces += 1
-        pts = np.array([(uv[l].uv.x * w, (1 - uv[l].uv.y) * h) for l in poly.loop_indices])
+        pts = np.array([(uv[i].uv.x * w, (1 - uv[i].uv.y) * h) for i in poly.loop_indices])
         for tri in range(1, len(pts) - 1):
             a, b, c = pts[0], pts[tri], pts[tri + 1]
             x0, y0 = np.floor(np.minimum.reduce([a, b, c])).astype(int) - 2
@@ -258,6 +260,23 @@ for v, p in zip(mesh.data.vertices, coords):
     )
 mesh.matrix_world.identity()
 mesh.data.update()
+if family == "knight":
+    # knight-source-v1.png stands him with the maul's head grounded by his left boot, and TRELLIS fused it into the body. The
+    # rig draws its own weapon, so cut the baked one: the head (in front of the boots, below 0.35 m) and the haft (a tube from
+    # under the left fist down to the head), located on orthographic front/side renders of the normalised surface. The fist stays.
+    def baked_maul(p):
+        if 0.0 < p.x < 0.40 and p.y < -0.025 and p.z < 0.36:
+            return True
+        a, b = Vector((0.27, -0.04, 0.79)), Vector((0.17, -0.10, 0.30))
+        t = max(0.0, min(1.0, (p - a).dot(b - a) / (b - a).length_squared))
+        return p.z < 0.79 and (p - (a + (b - a) * t)).length < 0.045
+
+    bm = bmesh.new()
+    bm.from_mesh(mesh.data)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if baked_maul(v.co)], context="VERTS")
+    bm.to_mesh(mesh.data)
+    bm.free()
+    mesh.data.update()
 if family == "veteran":
     bm = bmesh.new()
     bm.from_mesh(mesh.data)
@@ -328,7 +347,9 @@ if tris > budget:
         detail = mesh.vertex_groups.new(name="Mobile surface budget")
         top = max(v.co.z for v in mesh.data.vertices)
         # The head proper (not the shoulders: the reconstructed plate is noisy and collapses smoother when decimated with the torso).
-        head_zone = lambda v: v.co.z > top * 0.76 and abs(v.co.x) < 0.14 * height
+        def head_zone(v):
+            return v.co.z > top * 0.76 and abs(v.co.x) < 0.14 * height
+
         for v in mesh.data.vertices:
             hand_zone = abs(v.co.x) > 0.40 * height and 0.40 * height < v.co.z < 0.62 * height
             detail.add([v.index], 0.0 if head_zone(v) or hand_zone else 1.0, "REPLACE")
@@ -405,6 +426,8 @@ for v in mesh.data.vertices:
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
     if family in ("skeleton", "veteran"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
         edge = 0.185 + max(0, 1.4 - z) * 0.26
+    if family == "knight":  # the same man on the hero rig, at BUILD.knight's 1.18
+        edge = 0.185 * 1.18 + max(0, 1.4 * 1.18 - z) * 0.26
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
     arm_mix = max(
@@ -412,10 +435,10 @@ for v in mesh.data.vertices:
     ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran") else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "knight") else 0.92)) / 0.10))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
-    keep_fingers = family in ("executioner", "dwarf", "veteran") and arm_mix > 0.5
+    keep_fingers = family in ("executioner", "dwarf", "veteran", "knight") and arm_mix > 0.5
     if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",
