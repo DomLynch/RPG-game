@@ -252,16 +252,23 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const slots = new Set(pieces.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
+        // The rig's bones with the PIECE's own inverse binds: every loot.glb draw is authored on the hero's bind pose, so on a re-proportioned
+        // opponent it must follow his joints. With the rig's own inverse binds it stayed where the hero's body would be (the Dwarf's gloves
+        // hung above his head, Phase L 2026-09-23). On the hero they are identical, so he keeps his own skeleton; elsewhere one retargeted
+        // skeleton per source skin, so a set of pieces costs one bone upload, not one each.
+        const retargeted = new Map<Skeleton, Skeleton>(), rig = body.skeleton;
+        const skeletonFor = (source: Skeleton): Skeleton => {
+          let skeleton = retargeted.get(source);
+          if (!skeleton) retargeted.set(source, (skeleton = source.boneInverses.every((m, i) => m.equals(rig.boneInverses[i])) ? rig : new Skeleton(rig.bones, source.boneInverses)));
+          return skeleton;
+        };
         for (const piece of pieces) {
           const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
           const looked = tier && own instanceof MeshStandardMaterial ? gradeMaterial(own, tier) : own;   // worn at the fight's tier (Phase L)
           const material = piece.userData.slot === 'Shield' && looked instanceof MeshStandardMaterial ? bothSides(looked) : looked;
           const copy = new SkinnedMesh(piece.geometry, material);
           copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
-          // The rig's bones with the PIECE's own inverse binds: every loot.glb draw is authored on the hero's bind pose, so on the hero these
-          // are his (identical, pinned by tests/grade-materials.test.ts) and on a re-proportioned opponent the piece follows his joints. With
-          // the rig's own inverse binds it stayed where the hero's body would be: the Dwarf's gloves hung above his head.
-          copy.bind(new Skeleton(body.skeleton.bones, piece.skeleton.boneInverses), body.bindMatrix);
+          copy.bind(skeletonFor(piece.skeleton), body.bindMatrix);
           body.parent!.add(copy); worn.push(copy);
         }
       },
