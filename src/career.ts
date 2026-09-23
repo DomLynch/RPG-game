@@ -7,7 +7,9 @@ import type { Profile } from './profile.ts';
 export const TITLES = ['Recruit', 'Legionary', 'Gladiator', 'Veteran', 'Champion', 'Praetorian', 'Master', 'Primus', 'Invictus', 'Origin'] as const;
 export const ORIGIN_MARKS = 205;
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V'] as const;
-type Rank = { title: (typeof TITLES)[number]; numeral: string; filled: number; pips: number; label: string };
+// step/fill: the class-progress bar (Dom 2026-09-23) — one segment per numeral, `step` of them done, the current one `fill` (0..1) full;
+// next: the class the bar climbs toward ('' at Origin, which has no bar).
+export type Rank = { title: (typeof TITLES)[number]; numeral: string; filled: number; pips: number; label: string; next: string; step: number; fill: number };
 export const marksOf = (profile: Pick<Profile, 'career'>): number => profile.career?.victoryMarks ?? 0;
 // Beta award policy (owner 2026-09-20): every won duel in the arena earns one mark — a rematch or a journal-picked opponent included.
 export function awardMark(profile: Profile): number {
@@ -15,6 +17,7 @@ export function awardMark(profile: Profile): number {
   profile.career = { victoryMarks };
   return victoryMarks;
 }
+export const RANK_STEPS = NUMERALS.length;
 export function rankFor(marks: number): Rank {
   let left = Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0;
   for (let tier = 0; tier < TITLES.length - 1; tier++) {
@@ -22,9 +25,9 @@ export function rankFor(marks: number): Rank {
     if (left < pips * NUMERALS.length) {
       const sub = Math.floor(left / pips), filled = left - sub * pips, title = TITLES[tier], numeral = NUMERALS[sub];
       const dots = [...Array(pips)].map((_, i) => (i < filled ? '●' : '○')).join(' ');
-      return { title, numeral, filled, pips, label: `${title} ${numeral} · ${dots}` };
+      return { title, numeral, filled, pips, label: `${title} ${numeral} · ${dots}`, next: TITLES[tier + 1], step: sub, fill: filled / pips };
     }
     left -= pips * NUMERALS.length;
   }
-  return { title: 'Origin', numeral: '', filled: 0, pips: 0, label: 'Origin' };
+  return { title: 'Origin', numeral: '', filled: 0, pips: 0, label: 'Origin', next: '', step: 0, fill: 0 };
 }

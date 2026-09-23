@@ -57,7 +57,7 @@ try {
     const box = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
     const visible = (el) => el && !el.hidden && getComputedStyle(el).display !== 'none' && getComputedStyle(el).opacity !== '0' && el.getBoundingClientRect().width > 0;
     const pick = (ids) => Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]).filter(([, el]) => visible(el)).map(([id, el]) => [id, box(el)]));
-    return { fallen, topBand: pick(['combat-status', 'autopsy', 'loot-panel']), cluster: pick(['reset-button', 'share-button', 'loot-decline']), actions: box(document.getElementById('actions')), resetOpacity: getComputedStyle(document.getElementById('reset-button')).opacity };
+    return { fallen, topBand: pick(['combat-status', 'fight-rank', 'loot-panel']), cluster: pick(['reset-button', 'share-button', 'loot-decline']), actions: box(document.getElementById('actions')), resetOpacity: getComputedStyle(document.getElementById('reset-button')).opacity };
   });
   receipt.fallenRect = sample.fallen; receipt.topBand = sample.topBand; receipt.cluster = sample.cluster; receipt.actionsBox = sample.actions;
   assert.ok(receipt.fallenRect, 'the fallen body has a screen rect after settle');
