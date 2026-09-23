@@ -50,7 +50,10 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // with a Goblin who stands somewhere else.
   const v5 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v5[2] = 5;
   assert.throws(() => unpackRecord(v5), /version 5 is not supported/);
-  assert.equal(RECORD_VERSION, 6);
+  // A version-6 stream joins them (2026-09-23, Publish B): the Centurion's gladius, the estoc's reach and the Nightborn's profile change the fight.
+  const v6 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v6[2] = 6;
+  assert.throws(() => unpackRecord(v6), /version 6 is not supported/);
+  assert.equal(RECORD_VERSION, 7);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
@@ -82,14 +85,19 @@ const KNOWN_UNFAIR = [
   // 3/24 and 4/24, but it pushes the Goblin's own fight-length pin to a 48.5 s median, over the 45 s ceiling — hence 20.)
   // The scythe's two "thrust from range" rows LEFT on 2026-09-22 when its heel-jab recovery went 18 -> 30 (see SCYTHE_MOVES.thrust):
   // Veteran 19/24 -> 8/24, Goblin 16/24 -> 6/24. It now has no row at any rung, so the table itself puts it in PLAYER_WEAPONS_OFFERED.
-  // estoc/goblin ×2 and estoc/dwarf hard — the estoc's move table sits .3–.4 m short of its blade bake (tests/weapons.test.ts "real reach"),
-  // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
+  // The estoc's four rows (goblin ×3, dwarf hard) LEFT on 2026-09-23 when Weapons put its move table on its blade's real reach (+0.30 m,
+  // #532) — every warden had misjudged its point. The Nightborn wields it, so the same reach made him swing himself out; his aggression
+  // (normal .6 → .55, hard .75 → .65, src/moves.ts) holds every weapon's row against him inside the cap with a margin of 4 or more.
+  // The Centurion (#547, 2026-09-23) fights the gladius, not the trident, and two rows came with him. Both are fixed in bump 8 (#550's
+  // publish), which may not ship while either is still here (Lead + Strategy, 2026-09-23).
+  'cleaver vs veteran normal: charged heavy only wins 16/24',
   'cleaver vs executioner normal: light spam wins 18/24',   // was 17/24: moved by the SCYTHE's thrust recovery 18 -> 30 (2026-09-22), because the Executioner WIELDS the scythe — the row is over the cap either way, and its cause is unchanged (his read of a 22-tick tell)
-  'estoc vs goblin normal: thrust from range wins 24/24',
-  'estoc vs goblin hard: light spam wins 9/24',   // was 11/24: moved by the KNIFE's thrust recovery 15 -> 20 (2026-09-22), because the Goblin WIELDS the knife — same number, safer direction, row still over the hard cap either way
-  'estoc vs goblin hard: thrust from range wins 23/24',   // 22 -> 23, same cause as the line above
-  'estoc vs dwarf hard: thrust from range wins 10/24',
+  'knife vs veteran normal: thrust from range wins 23/24',   // was 5/24 on the trident Veteran. Fixed in bump 8 (#550's publish); the knife stays offered meanwhile (OFFERED_DESPITE below)
 ];
+// The ONE row an offered weapon may carry, by name and number (Lead ruling (B), upheld by Strategy, 2026-09-23 14:2x): the knife was
+// offered before the Centurion's gladius made this row, and no flip may un-offer a weapon the player can already use. It is not a waiver
+// of offered-means-fair: any other offered weapon's row, or this row at any other number, still fails. Bump 8 must remove it.
+const OFFERED_DESPITE = ['knife vs veteran normal: thrust from range wins 23/24'];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {
   const seeds = 24, over: string[] = [];
@@ -108,7 +116,7 @@ test('weapon flip: every player weapon meets every live rung by the rung\'s caps
   // set, the stack is HELD, not merged — the new weapon waits for the row to go away rather than trading a live one for a shelf one.
   // And more generally: when this test forces a membership change you would not choose, that is the signal to stop and ask, not to comply.
   // It is telling you a product decision is required; it is not making that decision for you.
-  const unfair = new Set(over.map(row => row.split(' vs ')[0]));
+  const unfair = new Set(over.filter(row => !OFFERED_DESPITE.includes(row)).map(row => row.split(' vs ')[0]));
   for (const weapon of PLAYER_WEAPONS_OFFERED) { assert.ok(PLAYER_WEAPONS.includes(weapon), `${weapon} is a player weapon`); assert.ok(!unfair.has(weapon), `${weapon} is offered but has a pairing over a cap`); }
   for (const weapon of PLAYER_WEAPONS) if (!unfair.has(weapon)) assert.ok(PLAYER_WEAPONS_OFFERED.includes(weapon), `${weapon} is fair on every rung and must be offered`);
 });
