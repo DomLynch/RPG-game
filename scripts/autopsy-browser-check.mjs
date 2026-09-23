@@ -26,6 +26,12 @@ try {
   // Load waits are real time (assets); behaviour waits are harness time below.
   await page.goto(url.href);
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+  // The rigs attach when #art-status empties (scene.ts assetStatus 'ready') and the NEXT frame compiles every shader: on the runner's
+  // software GL that frame holds the main thread for tens of seconds, and a tap issued before it timed out on every CI run while the
+  // same tap passed on a Mac's GPU in milliseconds. So the tap waits for the rigs and then for one frame to paint after them — a load
+  // wait keyed on the event, not a longer timeout.
+  await page.waitForFunction(() => document.querySelector('#art-status').textContent === '', null, { timeout: 120000 });
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   await page.getByRole('button', { name: 'Enter the arena' }).tap();
   await page.waitForFunction(() => document.querySelector('#welcome').hidden && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
   const { run, until } = await harnessClock(page);
