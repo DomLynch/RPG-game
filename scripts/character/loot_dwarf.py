@@ -17,6 +17,7 @@ from collections import defaultdict, deque
 
 import bmesh
 import bpy
+from mathutils import Vector
 import numpy as np
 
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
@@ -35,7 +36,19 @@ MATERIAL = args[args.index('--material') + 1] if '--material' in args else f'{FA
 # --all: every face is a candidate, not only the metallic ones — the Plague Doctor's carriers are leather and a waxed coat, not iron.
 # --slots Helmet,Body: keep only these player slots (Recruit-2 for a masked archetype is Helmet + Body; Strategy, 2026-09-23).
 ALL = '--all' in args
+# --all --dark .3: of those, only faces whose smoothed albedo luminance is under this — the Dwarf's leather girdle is dark, the belly
+# skin around it is not, and neither is metallic, so the metal mask cannot tell them apart.
+DARK = float(args[args.index('--dark') + 1]) if '--dark' in args else None
 SLOTS = set(args[args.index('--slots') + 1].split(',')) if '--slots' in args else None
+# --out dwarf_upper: write the pieces to <name>.glb and leave <family>.glb and the family's maps untouched (the maps are the family's,
+# baked from the same surface, so a second cut shares them: the Dwarf's Helmet/Body/Arms re-cut beside his shipped Greaves/Boots).
+OUT_NAME = args[args.index('--out') + 1] if '--out' in args else FAMILY
+# --band Helmet:1.2:9 (repeatable): keep a slot's faces only where the face centre's rest-space height (Blender Z, metres) is in [lo, hi];
+# bone-slotting alone can hand a slot the wrong region (a "Helmet" that is the face and beard, a Body that eats the arms).
+BANDS = {b.split(':')[0]: tuple(map(float, b.split(':')[1:3])) for i, b in enumerate(args) if i and args[i - 1] == '--band'}
+# --shift Boots:0:0:-0.05 (repeatable): move a slot's piece in his rest space (Blender X/Y/Z, metres) before export. The dwarf's per-bone
+# unscale lands his boots 5.5 cm above the player's sole (measured against warrior.glb's foot-weighted skin, 2026-09-23); this is that fit.
+SHIFTS = {b.split(':')[0]: tuple(map(float, b.split(':')[1:4])) for i, b in enumerate(args) if i and args[i - 1] == '--shift'}
 SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
 OUT = 'src/assets/source/loot'
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
@@ -122,6 +135,7 @@ def pixels(image):
 
 
 M = pixels(mr)
+A = pixels(albedo)
 V = len(mesh.vertices)
 # The surface is split along every UV chart seam (59,770 vertices for 44,955 triangles): adjacency by index stops at the seams,
 # so every vertex maps to a representative by position and the smoothing and patches run on that graph.
@@ -131,15 +145,16 @@ _, rep = np.unique(np.round(P.reshape(V, 3), 5), axis=0, return_inverse=True)
 rep = rep.ravel()
 R = int(rep.max()) + 1
 uv = mesh.uv_layers.active.data
-metal = np.zeros(R)
+metal = np.zeros((R, 2))   # per representative: metallic, albedo luminance
 count = np.zeros(R)
 for loop in mesh.loops:   # per-vertex metallic: every loop's texel, averaged
     u, v = uv[loop.index].uv
     x = min(max(int(u * M.shape[1]), 0), M.shape[1] - 1)
     y = min(max(int(v * M.shape[0]), 0), M.shape[0] - 1)
-    metal[rep[loop.vertex_index]] += M[y, x, 2]
+    ya, xa = min(int(v * A.shape[0]), A.shape[0] - 1), min(int(u * A.shape[1]), A.shape[1] - 1)
+    metal[rep[loop.vertex_index]] += M[y, x, 2], A[max(ya, 0), max(xa, 0), :3] @ (0.2126, 0.7152, 0.0722)
     count[rep[loop.vertex_index]] += 1
-metal /= np.maximum(count, 1)
+metal /= np.maximum(count, 1)[:, None]
 # Smooth over the mesh: the TRELLIS map is speckled; neighbour averages make patches out of it.
 edges = np.unique(np.sort(rep[np.array([[e.vertices[0], e.vertices[1]] for e in mesh.edges])], axis=1), axis=0)
 edges = edges[edges[:, 0] != edges[:, 1]]
@@ -150,8 +165,10 @@ for _ in range(SMOOTH):
     np.add.at(s, edges[:, 1], metal[edges[:, 0]])
     np.add.at(n, edges[:, 0], 1)
     np.add.at(n, edges[:, 1], 1)
-    metal = s / n
-iron = (np.ones_like(metal, dtype=bool) if ALL else metal > METAL)[rep]   # back to the split vertices
+    metal = s / n[:, None]
+metal, lum = metal[:, 0], metal[:, 1]
+print(f'LOOT luminance percentiles 10/50/90: {np.percentile(lum, [10, 50, 90]).round(3)}')
+iron = ((lum < DARK if DARK is not None else np.ones_like(metal, dtype=bool)) if ALL else metal > METAL)[rep]   # back to the split vertices
 metal = metal[rep]
 # Dominant bone per vertex from the transferred weights.
 groups = {g.index: g.name for g in body.vertex_groups}
@@ -168,6 +185,10 @@ slot_rep = np.empty(R, dtype=object)
 slot_rep[rep] = slot
 face_iron = {i: sum(iron_rep[v] for v in vs) >= 2 for i, vs in faces}
 face_slot = {i: max(set(slot_rep[vs]), key=lambda s: list(slot_rep[vs]).count(s)) for i, vs in faces}
+for p in mesh.polygons if BANDS else ():
+    band = BANDS.get(face_slot[p.index])
+    if band and not band[0] <= p.center.z <= band[1]:
+        face_iron[p.index] = False
 by_edge = defaultdict(list)
 for i, vs in faces:
     for k in range(3):
@@ -223,6 +244,64 @@ for s, face_ids in sorted(pieces.items()):
     # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
     # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    # A --band edge slices through patches the slot kept whole, leaving slivers loose beside the piece (the Dwarf's girdle: 2,639 faces
+    # plus islands of 208/108/64/20/1). Once welded, an island under MIN_FACES is one of those, not a plate: drop it.
+    bm.faces.ensure_lookup_table()
+    seen, loose = set(), []
+    for f in bm.faces:
+        if f in seen:
+            continue
+        island, queue = [], [f]
+        seen.add(f)
+        while queue:
+            g = queue.pop()
+            island.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h not in seen:
+                        seen.add(h)
+                        queue.append(h)
+        if len(island) < MIN_FACES:
+            loose += island
+    bmesh.ops.delete(bm, geom=loose, context='FACES')
+    for v in bm.verts if s in SHIFTS else ():
+        v.co += Vector(SHIFTS[s])
+    # TRELLIS winds its surface about half inward (Goblin's check, 2026-09-23: Arms 57 %, Body 51 %, Boots 47 % facing into the skin), and
+    # the loot material is single-sided, so half a piece never drew. Wind each welded piece outward before export.
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    # recalc makes each connected region consistent but can leave a whole region inward. Outward is away from the line of the bone the
+    # region is skinned to (its dominant weight), the reference Goblin's winding check uses: a partial plate's own centre sits on its
+    # surface and gives no sign, a bone line does. A region whose area-weighted normals point toward that line is inside out: flip it.
+    deform = bm.verts.layers.deform.active
+    seen = set()
+    for f in bm.faces:
+        if f in seen:
+            continue
+        region, queue = [], [f]
+        seen.add(f)
+        while queue:
+            g = queue.pop()
+            region.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h not in seen:
+                        seen.add(h)
+                        queue.append(h)
+        weight = defaultdict(float)
+        for v in {v for g in region for v in g.verts}:
+            for group, w in v[deform].items():
+                weight[group] += w
+        bone = armature.data.bones.get(body.vertex_groups[max(weight, key=weight.get)].name) if weight else None
+        if bone is None:
+            continue
+        to_mesh = body.matrix_world.inverted() @ armature.matrix_world
+        head, tail = to_mesh @ bone.head_local, to_mesh @ bone.tail_local
+        axis = tail - head
+        def away(c):
+            t = min(max((c - head).dot(axis) / max(axis.length_squared, 1e-12), 0.0), 1.0)
+            return c - (head + axis * t)
+        if sum(g.calc_area() * g.normal.dot(away(g.calc_center_median())) for g in region) < 0:
+            bmesh.ops.reverse_faces(bm, faces=region)
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
@@ -244,11 +323,11 @@ for o in bpy.context.selected_objects:
     o.select_set(False)
 for o in kit + [armature]:
     o.select_set(True)
-bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, f'{FAMILY}.glb'), export_format='GLB', use_selection=True, export_extras=True,
+bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, f'{OUT_NAME}.glb'), export_format='GLB', use_selection=True, export_extras=True,
                           export_apply=True, export_yup=True, export_materials='NONE', export_skins=True, export_animations=False,
                           export_normals=True, export_texcoords=True)
 # The iron's own look: the baked colour (COLOR_SIZE) and the packed metallic/roughness at half that, JPEG — a fraction of the 2K WebPs the body ships.
-for image, size, name in (() if MATERIAL == 'Steel' else ((albedo, COLOR_SIZE, f'{FAMILY}_iron_color.jpg'), (mr, COLOR_SIZE // 2, f'{FAMILY}_iron_orm.jpg'))):
+for image, size, name in (() if MATERIAL == 'Steel' or OUT_NAME != FAMILY else ((albedo, COLOR_SIZE, f'{FAMILY}_iron_color.jpg'), (mr, COLOR_SIZE // 2, f'{FAMILY}_iron_orm.jpg'))):
     image.scale(size, size)
     image.filepath_raw = os.path.abspath(os.path.join(OUT, name))
     image.file_format = 'JPEG'
@@ -256,4 +335,4 @@ for image, size, name in (() if MATERIAL == 'Steel' else ((albedo, COLOR_SIZE, f
     image.save()
 for o in kit:
     print(f'PART {o.name} slot={o["slot"]} faces={len(o.data.polygons)}')
-print(f'PARTS {len(kit)} → {OUT}/{FAMILY}.glb')
+print(f'PARTS {len(kit)} → {OUT}/{OUT_NAME}.glb')
