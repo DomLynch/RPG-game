@@ -52,8 +52,11 @@ export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
 export const materialOf = (drawName: string): string => drawName.split('.').slice(2).join('.');
 // A piece cut from a TRELLIS surface (scripts/character/loot_dwarf.py) wears its family's baked maps as `<Family>Iron` (grades as metal)
 // or `<Family>Cloth` (a coat or hood: cloth), so a new family needs no row here.
-export const classOf = (material: string): keyof Grade | 'cloth' | null | undefined =>
-  CLASS_OF[material.split('_')[0] === 'Gambeson' ? 'Gambeson' : material] ?? (/^[A-Z][a-z]+Iron$/.test(material) ? 'metal' : /^[A-Z][a-z]+Cloth$/.test(material) ? 'cloth' : undefined);
+export const classOf = (material: string): keyof Grade | 'cloth' | null | undefined => {
+  const key = material.split('_')[0] === 'Gambeson' ? 'Gambeson' : material;
+  if (Object.hasOwn(CLASS_OF, key)) return CLASS_OF[key];   // null is a deliberate exemption, not a miss
+  return /^[A-Z][a-z]+Iron$/.test(material) ? 'metal' : /^[A-Z][a-z]+Cloth$/.test(material) ? 'cloth' : undefined;
+};
 
 export const GRADES: Record<Tier, Grade> = {
   // Rag and scrap: salvaged iron gone dull, no shine to catch the sun. The metal barely reads as metal, which is the point — a Recruit
