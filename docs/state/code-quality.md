@@ -2,6 +2,28 @@
 
 Worktree `~/Developer/frankendom-code-quality`, branches `quality/*`. Owns cross-lane guards, readability passes with equivalence receipts, and the 8/10 bar from the GPT audits (2026-09-22: architecture 8, readability 7.5, overall 7.5 on adab24a).
 
+## 2026-09-23 (later) — #522 re-opened as #534 (to Deploy), check 32 root cause fixed (#533 LIVE), mergeLoot duplicate dropped
+
+**Now.** #534 `quality/match-session-3` (head 1d69dc8 on dd1d968) is the match split alone, handed to Deploy: #522 had been closed unmerged, so Dom's morning check found the split absent from trunk. Rebased over #535, #533, #538 and #521; #521's loot Undo conflicted in main.ts and was resolved by hand (trunk's Undo logic kept over the match's own `lastDrop`; every reset path goes through `began()`, which now calls `hideLoot()` as #521 requires). Receipts on 1d69dc8: tsc clean; quality:stop 510 tests / 508 pass / 0 fail / 2 skipped; build ok; account-browser-check passed; CI quality + four browser gates green; release rows 1, 2, 13, 14, 29, 31 queued at hand-off. Merges with its release run green or a red row reproduced on the Mac.
+
+**Next.** (1) If a release row on #534 goes red, reproduce it on the Mac before anyone re-runs it. (2) Re-grade against trunk once #534 and Finishers' characters.ts geometry land; the 8/10 bar was these two gaps. (3) browser-check.mjs and counter-browser-check.mjs still mask the shader-compile stall with a 120 s tap timeout; the #533 wait is the pattern to move them to (not urgent, they pass).
+
+**Done.**
+- #533 LIVE in dd1d968: CI check 32 (autopsy) failed every run with `locator.tap` timing out on "Enter the arena" after "done scrolling" and passed on a Mac. Root cause: the frame loop renders every frame; the rigs attach when scene.ts reports ready (`#art-status` empties) and the NEXT frame compiles every shader, which on the runner's software GL holds the main thread for tens of seconds, exactly when the check tapped (it waited only for `#attack-button`). Fix: wait for `#art-status === ''` and one painted frame (two rAFs) before the tap; no timeout change. Lead: "good root cause".
+- The declined-history defect Lead's hold on #524 named (mergeLoot rebuilt only owned / equipped / taken, so absorbCloud dropped `declined` on every refresh): I wrote the fix and a regression test, then dropped both on Lead's order because Backend's #535 was already reviewed for it. #535 merged 86a928d; Lead confirmed it also keeps a refusals-only record. Rule learned: before fixing a defect another lane's hold names, check that lane's open PRs first.
+- Live verified from release.json: c0b321c at 08:31Z, dd1d968 at 09:30Z.
+
+**Open.**
+- #534 merge (Deploy).
+- Receipt 2 for #507 (a code push after merge still runs its rows) is still owed to Strategy; #534's push is that receipt once its rows complete (run on 1d69dc8).
+
+**Gotchas.**
+- A closed-unmerged PR's remote branch keeps its old head; pushing a rebase there is a force-push. Push under a new branch name and open a fresh PR instead.
+- `gh pr view --json mergeable` can lag the push by a minute and report the old head; `git ls-remote` is the truth.
+- Trunk moved three times in an hour this morning (#535, #533, #538/#521); rebase right before the gate, not after, or the receipts are for a stale head.
+- The deploy hook blocks `npm run build` and `node scripts/*-check.mjs` too, not only test suites; `git`, `gh`, `grep`, `node --check` and `release-rows-for.mjs` pass.
+- A scripts/ change triggers no release rows (`release-rows-for.mjs` → none); ask Deploy to run the row on the head.
+
 ## 2026-09-23 — match-session split (#505, to Deploy), CI zero-row skip (#507, READY), nine queued matrices cancelled
 
 **Now.** Two PRs handed over, both mergeable and waiting on Deploy's batch. #505 `quality/match-session` (head 71fd7da on fe0d8e0): src/match.ts owns the match state and every start / end / reset in four explicit modes (career, practice, replay, daily); one `begin()` reset; `end(afk)` applies the reward rule once — career writes the trial line, the scorecard row and one mark on a win; daily marks the day done on the device and hands the post back; practice and replay write nothing; a kill-link or daily load that resolves after a later start hands back a stale `epoch` and is refused. main.ts 939 → 879, DOM and frame loop only; the sim path is unchanged. tests/match.test.ts drives every mode through the production `Match` (the table tests/journeys.test.ts had deferred to this split); trial.ts exports `Trial`; tests/graphics.test.ts maps `./match.ts`. Lead approved the shape ("the move-only discipline holding") and said merges are Deploy's tonight; Strategy confirmed the route. #507 `quality/ci-skip-docs` (head 2df8ad9): every PR event computes release-rows-for.mjs first, zero rows → the matrix is skipped and one green `release rows (none for this diff)` job says so; quality.yml's `plan` job skips the two browser gates on the same condition (lint, tsc, node suites, account-db still run; trunk pushes unchanged); both concurrency groups key on the PR number; cancel-on-close.yml cancels a closed PR's runs. Strategy accepted READY.

@@ -13,6 +13,7 @@ import * as ladder from '../src/ladder.ts';
 import * as roster from '../src/roster.ts';
 import * as trial from '../src/trial.ts';
 import * as record from '../src/record.ts';
+import { peekRecordHeader } from '../src/record-header.ts';
 import * as loot from '../src/loot.ts';
 import * as lootPanel from '../src/loot-panel.ts';   // the kill screen's Take-one panel: main.ts builds it at boot with this harness's element lookup
 import * as replay from '../src/replay.ts';
@@ -56,7 +57,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
     render(state: { x: number; z: number; heading: number }, _locked: boolean, _dt: number, practice: combat.Practice, _events?: unknown, frozen = false) { rendered = practice; renderedBody = state; renderedFrozen = frozen; renders++; if (failDraw) { lost = loseDuringDraw; throw Error('shader lost during draw'); } } };
   const stored = new Map<string, string>([['frankendom.fighter.v1', JSON.stringify({ version: 1, id: 'harness-fighter', name: 'Tester', ...profileExtras })], ...Object.entries(seed)]);
   const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => { stored.set(key, value); } };
-  const modules: Record<string, unknown> = { './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
+  const modules: Record<string, unknown> = { './record-header.ts': { peekRecordHeader }, './feedback.ts': feedback, './sim.ts': sim, './combat.ts': combat, './profile.ts': profile, './ladder.ts': ladder, './roster.ts': roster, './trial.ts': trial, './record.ts': record, './loot.ts': loot, './loot-panel.ts': lootPanel, './replay.ts': replay, './share-store.ts': shareModule, './session.ts': { session }, './ai.ts': ai, './autopsy.ts': autopsyModule, './daily.ts': dailyModule, './api.ts': apiModule, './career.ts': career, './scorecard.ts': scorecard, './hud.ts': hud, './match.ts': matchModule, './input.ts': input, './moves.ts': moves, './scene.ts': { createScene: (_: unknown, status: (value: string, kind: 'loading' | 'ready' | 'failed') => void) => { if (initializationError) throw initializationError; report = status; status('', 'ready'); return view; } }, '@sentry/browser': { captureException: (error: unknown) => errors.push(error) } };
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports: {}, window: win, Event,
     document: Object.assign(doc, { hidden: false, getElementById: element, createElement: () => new Element(), createTextNode: (text: string) => Object.assign(new Element(), { textContent: text }), documentElement: element('html') }),
     innerWidth: 375, matchMedia: () => ({ matches: false }), HTMLInputElement: class {}, localStorage: storage, crypto: { randomUUID: () => 'test' }, performance: { now: () => now }, location: { reload: () => reloads++, href: 'https://frankendom.com/?opponent=veteran&debug', search, origin: 'https://frankendom.com', replace: (href: string) => { replaced.push(href); } }, URL,
@@ -748,6 +749,36 @@ test('kill links: an unknown or expired id lands on a plain page with the fight 
     assert.equal(s.element('welcome-eyebrow').textContent, 'THIS FIGHT HAS FADED'); assert.equal(s.element('welcome-title').textContent, 'Sign in and your kills are kept forever.');
     assert.equal(s.element('welcome-lead').hidden, true); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
   } finally { shareModule.fetchSharedRecord = fetchSharedRecord; apiModule.api = null; }
+});
+test('kill links: a retired record version says what the fight was from its header (who fell, to what), never a blank arena', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
+  for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const fight = rec.finish('killed');
+  const retired = async (outcome: record.Outcome, v: number) => {
+    const bytes = record.packRecord({ ...fight, outcome }); bytes[2] = v;   // the same bytes under a version this build no longer reads
+    const gz = new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    return record.toBase64Url(gz);
+  };
+  const killed = await retired('killed', 4);
+  await assert.rejects(record.decodeRecord(killed), /version 4 is not supported/, 'the fixture really is a refused version');
+  assert.deepEqual(await peekRecordHeader(killed), { v: 4, build: 'dev', opponent: 'nightborn', weapon: 'knife', outcome: 'killed' });
+  assert.equal(await peekRecordHeader('not-a-record'), null);
+  const s = boot({}, undefined, {}, `?opponent=nightborn&replay=${killed}`);
+  await settle(() => !s.element('welcome').hidden);
+  assert.equal(s.element('welcome').hidden, false, `the welcome (with its fight button) comes back; banner=${s.element('replay-banner').textContent}`);
+  assert.equal(s.element('welcome-eyebrow').textContent, 'RECORDED UNDER AN OLDER VERSION');
+  assert.equal(s.element('welcome-title').textContent, 'The Nightborn fell to a knife.');
+  assert.equal(s.element('welcome-lead').hidden, false); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
+  s.tick(); assert.equal(s.storage.getItem('frankendom.fight.v1'), null, 'a retired link is not an abandoned fight');
+  const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
+  await settle(() => !d.element('welcome').hidden);
+  assert.equal(d.element('welcome-title').textContent, 'The Nightborn won, against a knife.');
+  const odd = record.packRecord({ ...fight, weapon: 'banana' as never }); odd[2] = 4;   // a crafted header: the page names only what the game knows
+  const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
+  const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);
+  await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
+  assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
 });
 test('autopsy: a death puts at most two plain lines on the death screen, the same lines go under the opponent\'s journal row for the last fight, and a rematch clears them', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();

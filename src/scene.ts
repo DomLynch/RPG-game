@@ -1,5 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
+import { lightFighter } from './colour-grade.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadLoot, loadWarriors, lootWorn } from './characters.ts';
@@ -143,11 +144,15 @@ export function createScene(
   let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
   function dress() {
     if (!warriors) return;
-    if (!lootPieces) {
-      if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
-      return;
+    try {
+      if (!lootPieces) {
+        if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+        return;
+      }
+      warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
+    } finally {
+      lightFighter(player); lightFighter(opponent);   // key + rim on everything the fighters wear, loot included (colour-grade.ts); idempotent
     }
-    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
@@ -431,13 +436,13 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; opacity: number; drip: number }, { visible: number; opacity: number; drip: number }] } {
+    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
       const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
       const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
-      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; opacity: number; drip: number }, { visible: number; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible };
+      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
+      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
     }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
