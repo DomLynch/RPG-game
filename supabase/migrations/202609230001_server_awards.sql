@@ -28,6 +28,7 @@ create table public.loot_claims (
   record_hash text not null generated always as (encode(sha256(record::bytea), 'hex')) stored unique,
   verified boolean not null default false,
   checked_at timestamptz,
+  note text check (octet_length(note) <= 200),   -- the verifier's reason: a refused win, or a win whose piece was not awarded
   created_at timestamptz not null default now()
 );
 create index loot_claims_owner_recent on public.loot_claims (user_id, created_at desc);
@@ -82,8 +83,8 @@ create trigger loot_claims_verified_one_way before update on public.loot_claims 
 
 -- The verifier (202609210005's role, the VPS sweep): reads pending claims and the seed, flips `verified`, inserts an award. Nothing else.
 grant select on public.account_seed to frankendom_verifier;
-grant select (id, user_id, opponent, piece, record, verified, checked_at, created_at) on public.loot_claims to frankendom_verifier;
-grant update (verified, checked_at) on public.loot_claims to frankendom_verifier;
+grant select (id, user_id, opponent, piece, record, verified, checked_at, note, created_at) on public.loot_claims to frankendom_verifier;
+grant update (verified, checked_at, note) on public.loot_claims to frankendom_verifier;
 grant select on public.awards to frankendom_verifier;
 grant insert (claim_id, piece, tier) on public.awards to frankendom_verifier;
 create policy "the verifier reads the seed" on public.account_seed for select to frankendom_verifier using (true);
@@ -93,18 +94,23 @@ create policy "the verifier reads every award" on public.awards for select to fr
 create policy "the verifier awards" on public.awards for insert to frankendom_verifier with check (true);
 
 -- One account's server standing, as the client and the verifier read it. Never reads fighter_profiles: the device caches are not truth.
-create function public.standing_of(account uuid) returns table (marks integer, owned jsonb) language sql stable security definer set search_path = '' as $$
-  select coalesce((select s.marks from public.account_seed s where s.user_id = account), 0)
-           + (select count(*) from public.loot_claims c where c.user_id = account and c.verified)::integer,
+-- `before_claim`: only verified claims EARLIER than that claim by (created_at, id) count, with their awards — the standing the fight was
+-- fought at, whatever order the sweep verified claims in (Lead's ruling on Backend's [B3]). Null: every verified claim (my_standing).
+create function public.standing_of(account uuid, before_claim bigint) returns table (marks integer, owned jsonb) language sql stable security definer set search_path = '' as $$
+  with earlier as (
+    select c.id from public.loot_claims c
+    where c.user_id = account and c.verified
+      and (before_claim is null or (c.created_at, c.id) < (select x.created_at, x.id from public.loot_claims x where x.id = before_claim)))
+  select coalesce((select s.marks from public.account_seed s where s.user_id = account), 0) + (select count(*) from earlier)::integer,
          (select coalesce(jsonb_agg(p order by p), '[]'::jsonb) from (
             select jsonb_array_elements_text(s.owned) as p from public.account_seed s where s.user_id = account
             union
-            select a.piece from public.awards a join public.loot_claims c on c.id = a.claim_id where c.user_id = account) pieces)
+            select a.piece from public.awards a join earlier e on e.id = a.claim_id) pieces)
 $$;
-revoke all on function public.standing_of(uuid) from public, anon, authenticated;
-grant execute on function public.standing_of(uuid) to frankendom_verifier;
+revoke all on function public.standing_of(uuid, bigint) from public, anon, authenticated;
+grant execute on function public.standing_of(uuid, bigint) to frankendom_verifier;
 create function public.my_standing() returns table (marks integer, owned jsonb) language sql stable security definer set search_path = '' as
-  $$select * from public.standing_of(auth.uid()) where auth.uid() is not null$$;
+  $$select * from public.standing_of(auth.uid(), null) where auth.uid() is not null$$;
 revoke all on function public.my_standing() from public, anon;
 grant execute on function public.my_standing() to authenticated;
 
