@@ -111,7 +111,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // Perception runs on elapsed time, not the animation clock: a swing parked at its chamber is still a swing that started `reaction` ticks ago.
   // A read cut-spammer's cuts are anticipated, not reacted to: the warden is already waiting for the cut it knows is coming, so the cut is
   // noticed within a few ticks — the parry that a 14-tick cut is otherwise too fast for. Heavies and kicks keep the honest reaction.
-  const reaction = reads.spammer && (opponent.move === 'light_left' || opponent.move === 'light_right') ? Math.min(profile.reaction, READ.anticipate) : profile.reaction;
+  const reaction = reads.spammer && (opponent.move === 'light_left' || opponent.move === 'light_right') ? Math.min(profile.reaction, profile.anticipate ?? READ.anticipate) : profile.reaction;
   const noticed = threat && elapsed(opponent) >= reaction;
   if (!threat) { next.plan = null; next.readSide = null; }
   else if (elapsed(opponent) === reaction) {

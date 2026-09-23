@@ -71,7 +71,7 @@ test('weapon flip: the strategies\' distances scale by the player weapon\'s reac
 // An EXACT snapshot: a new over-cap pairing fails this test, and a pairing that comes back under its cap fails it too until the entry is
 // removed, so the list is edited only with a fresh table. Combat's ruling: every row is the warden's approach logic meeting a player reach
 // it has never seen (their slice), not weapon data and not a rung profile. A weapon with a row here is not in PLAYER_WEAPONS_OFFERED.
-const KNOWN_UNFAIR = [
+const KNOWN_UNFAIR: string[] = [
   // After the warden reach fix (combat/warden-reach, 2026-09-21): 11 rows → 8. Trident and warhammer come clean everywhere and are offered;
   // scythe was gated here too and LEFT on 2026-09-22 (below). What is left, by cause: cleaver/executioner — a pre-existing cut-tempo row
   // (Weapons: CLEAVER light 22/8/26 vs the sword's 20/8/22); knife/veteran and scythe/veteran — a poker parked at the Veteran's own range;
@@ -88,7 +88,7 @@ const KNOWN_UNFAIR = [
   // The estoc's four rows (goblin ×3, dwarf hard) LEFT on 2026-09-23 when Weapons put its move table on its blade's real reach (+0.30 m,
   // #532) — every warden had misjudged its point. The Nightborn wields it, so the same reach made him swing himself out; his aggression
   // (normal .6 → .55, hard .75 → .65, src/moves.ts) holds every weapon's row against him inside the cap with a margin of 4 or more.
-  'cleaver vs executioner normal: light spam wins 18/24',   // was 17/24: moved by the SCYTHE's thrust recovery 18 -> 30 (2026-09-22), because the Executioner WIELDS the scythe — the row is over the cap either way, and its cause is unchanged (his read of a 22-tick tell)
+  // cleaver/executioner LEFT on 2026-09-23: his normal profile is his own (anticipate 3, lapse .2, read .75; src/moves.ts), light spam 18/24 -> 8/24.
 ];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {
