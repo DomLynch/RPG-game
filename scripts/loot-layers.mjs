@@ -20,7 +20,7 @@ const PAGE = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;bac
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-const W = 700, H = 1400, renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+const W = 800, H = 1400, renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H); renderer.setPixelRatio(1); renderer.setClearColor(0x000000, 0);
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05; renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
@@ -34,8 +34,11 @@ const idle = rig.animations.find((c) => c.name === 'Idle'), mixer = new THREE.An
 const drawn = root.getObjectByName('SwordDrawn'), sheathed = root.getObjectByName('SwordSheathed'); if (drawn && sheathed) { drawn.visible = false; sheathed.visible = true; }
 root.updateMatrixWorld(true);
 const box = new THREE.Box3(); root.traverse((o) => { if (o.isSkinnedMesh) { o.computeBoundingBox(); box.union(o.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });
-const size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3()), fov = 18, dist = (size.y * 1.04 / 2) / Math.tan(THREE.MathUtils.degToRad(fov / 2));
-const camera = new THREE.PerspectiveCamera(fov, W / H, 0.05, 100), target = new THREE.Vector3(center.x, box.min.y + size.y * 0.5, center.z);
+// A FIXED frame (Phase R, 2026-09-23): the camera fits the bare body plus HEADROOM above the head (a knight's helm, a witch's hat) and
+// FOOT under the feet, on a canvas wide enough for the widest planned piece. The crop is the whole canvas, so adding a piece never
+// moves the frame and never re-renders the other layers; a piece that reaches the canvas edge fails the run (see below) instead.
+const HEADROOM = 1.36, FOOT = 0.06, size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3()), fov = 18, fit = size.y * HEADROOM, dist = (fit / 2) / Math.tan(THREE.MathUtils.degToRad(fov / 2));
+const camera = new THREE.PerspectiveCamera(fov, W / H, 0.05, 100), target = new THREE.Vector3(center.x, box.min.y - fit * FOOT + fit / 2, center.z);
 camera.position.set(target.x, target.y, target.z + dist); camera.lookAt(target); camera.updateProjectionMatrix();
 // The rig's draws and materials, as characters.ts wear() finds them.
 let body; const own = [], materials = new Map();
@@ -72,12 +75,12 @@ const server = createServer(async (req, res) => {
   try { res.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' }); res.end(await readFile(file)); } catch { res.writeHead(404); res.end(); }
 });
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
-const port = server.address().port, browser = await chromium.launch(), page = await browser.newPage({ viewport: { width: 700, height: 1400 }, deviceScaleFactor: 1 });
+const port = server.address().port, browser = await chromium.launch(), page = await browser.newPage({ viewport: { width: 800, height: 1400 }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => { console.error('page error:', e.message); process.exitCode = 1; });
 await page.goto(`http://127.0.0.1:${port}/`); await page.waitForFunction(() => window.ready, null, { timeout: 90000 });
 const ready = await page.evaluate(() => window.ready);
-// One frame for all: the union of the bare figure's and every layer's alpha bounds (a crown rises above the head), so the layers stack
-// pixel-for-pixel over the figure and nothing is clipped.
+// One frame for all, and it is FIXED: the whole canvas. Every layer's alpha bounds are still measured, for the kill screen's thumbnails
+// and to refuse a piece that touches the canvas edge (it would be clipped). Widening again means one PR that re-renders every layer.
 const shots = [[null, await page.screenshot({ omitBackground: true })]];
 for (const id of ready.ids) { await page.evaluate((id) => window.show(id), id); shots.push([id, await page.screenshot({ omitBackground: true })]); }
 const bounds = (png) => page.evaluate(async (b64) => {
@@ -87,13 +90,16 @@ const bounds = (png) => page.evaluate(async (b64) => {
   for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (p[(y * c.width + x) * 4 + 3] > 8) { top = Math.min(top, y); bottom = Math.max(bottom, y); left = Math.min(left, x); right = Math.max(right, x); }
   return bottom < 0 ? null : { top, bottom, left, right };
 }, png.toString('base64'));
-const pad = 6; let frame = null; const own = new Map();   // each layer's own bounds, for the kill screen's thumbnails
+const EDGE = 4, frame = { x: 0, y: 0, w: 800, h: 1400 }, own = new Map();   // each layer's own bounds, for the kill screen's thumbnails
+let spare = { top: Infinity, left: Infinity, right: Infinity, bottom: Infinity };
 for (const [id, png] of shots) {
   const b = await bounds(png); if (!b) { if (id) console.error(`${id} rendered nothing`); continue; }
   if (id) own.set(id, b);
-  frame = frame ? { top: Math.min(frame.top, b.top), bottom: Math.max(frame.bottom, b.bottom), left: Math.min(frame.left, b.left), right: Math.max(frame.right, b.right) } : b;
+  const room = { top: b.top, left: b.left, right: frame.w - 1 - b.right, bottom: frame.h - 1 - b.bottom };
+  if (Object.values(room).some((r) => r < EDGE)) throw new Error(`${id ?? 'the bare figure'} reaches the fixed frame's edge (${JSON.stringify(room)} px spare): widen the frame once, in its own PR that re-renders every layer`);
+  spare = Object.fromEntries(Object.entries(spare).map(([k, v]) => [k, Math.min(v, room[k])]));
 }
-frame = { x: frame.left - pad, y: frame.top - pad, w: frame.right - frame.left + 1 + pad * 2, h: frame.bottom - frame.top + 1 + pad * 2 };
+console.log('smallest spare margin (render px):', JSON.stringify(spare));
 const crop = (png) => page.evaluate(async ([b64, H, Q, frame]) => {
   const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
   const s = Math.min(1, H / frame.h), f = document.createElement('canvas'); f.width = Math.round(frame.w * s); f.height = Math.round(frame.h * s);
