@@ -50,6 +50,19 @@ every weapon at both levels, since every player weapon is also a warden's weapon
 **It changes `ai.ts`, so it moves `SIM_DIGEST` and needs a `RECORD_VERSION` bump** — ride the single bump to 6 (whoever is ready
 first takes it), never a second one.
 
+### The sim window (Strategy's rule, 2026-09-23) — how fight-altering PRs publish
+Every change that alters fights costs a `RECORD_VERSION`, and kill links die once per publish that carries one. So **all
+fight-altering PRs in the SAME publish share ONE bump**, with the digest re-pinned once at the end of the window.
+**Window 1 (bump to 6):** #515 knife + Combat's Nightborn/estoc profile item + the estoc flip (on Weapons' re-opened #419) +
+the Executioner profile and cleaver flip (the `anticipate` spec above) + the Centurion roster weapon line. Then Deploy publishes.
+Anything fight-altering that misses the window takes **7, with its own publish**. **Non-sim PRs cost nothing and publish on the
+rolling cadence in between:** #475 v2, #514 (after the tier re-land), #505 v2, #502, docs. "Publish after every two or three
+merges" applies to the non-sim PRs only.
+**Ruling (Strategy):** the Centurion carries gladius + scutum at **every** rung for beta (Veteran's option A); a Legionary gate
+needs tier as a sim input, which is Brief 19 deliverable 5 and behind Combat's queue. Veteran builds the scutum carry pose once in
+`characters.ts` (shared renderer, the player's shield reuses it), zero clips, stacked on Weapons' gladius PR. The roster weapon
+line is sim, so it is in Window 1. Flagged to Dom as reversible.
+
 ### Lane dispatch — sent, and where each stands
 Ten of Strategy's sends bounced and most of mine did: at 09:xx only Veteran, Nightborn, Strategy, Backend, Deploy, Goblin,
 Character Main and Hooks were running. **Combat, Stats, Web, Auditer, Executioner, Weapons, Multi Chars, Finishers, World and
