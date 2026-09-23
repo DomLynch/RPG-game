@@ -5,7 +5,6 @@ import { DoubleSide, FrontSide, Mesh, MeshStandardMaterial, SkinnedMesh, Texture
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, lootId, lootIds, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { LOOT_IDS, type LootId, isWeaponLoot } from '../src/loot.ts';
-import { lightFighter } from '../src/colour-grade.ts';
 
 // Parse a shipped GLB in Node: geometry, rig and material names; images are dropped (decoding is the browser's), as tests/characters.test.ts does.
 async function parse(file: string) {
@@ -84,10 +83,12 @@ test('loot: a worn shield renders both sides — its face is a single-sided disc
   for (const draw of shield) { const m = draw.material as MeshStandardMaterial; assert.equal(m.side, DoubleSide, `${draw.name} draws both sides`); assert.ok(!own.has(m), `${draw.name} is on its own copy, not the rig's material`); }
   for (const draw of helmet) assert.equal((draw.material as MeshStandardMaterial).side, FrontSide, 'other pieces are untouched');
   for (const m of own) if (m instanceof MeshStandardMaterial) assert.equal(m.side, FrontSide, `the rig's own ${m.name} stays front-sided`);
-  // The fighter lighting (colour-grade.ts) marks a material in userData and patches its shader: the copy must keep the patch, not just the mark.
-  const lit = new MeshStandardMaterial(); lightFighter(new Mesh(undefined, lit));
+  // A shader patch on the source material (a lighting pass marks userData and installs onBeforeCompile; clone() copies only the mark):
+  // the two-sided copy must keep the patch itself, whatever it is.
+  const lit = new MeshStandardMaterial(); lit.userData.patched = true;
+  lit.onBeforeCompile = () => {}; lit.customProgramCacheKey = () => 'patched';
   const helmetPiece = all.find(p => lootWorn(p, ['veteran.Helmet']))!; helmetPiece.userData.slot = 'Shield';
   const probe = buildWarriors(await parse('warrior.glb')).player; helmetPiece.material = lit; probe.wear([helmetPiece]);
   const copy = probe.worn()[0].material as MeshStandardMaterial;
-  assert.notEqual(copy, lit); assert.equal(copy.side, DoubleSide); assert.equal(copy.onBeforeCompile, lit.onBeforeCompile, 'the lighting patch carries to the two-sided copy');
+  assert.notEqual(copy, lit); assert.equal(copy.side, DoubleSide); assert.equal(copy.onBeforeCompile, lit.onBeforeCompile, 'the shader patch carries to the two-sided copy'); assert.equal(copy.customProgramCacheKey(), 'patched', 'and its program cache key');
 });
