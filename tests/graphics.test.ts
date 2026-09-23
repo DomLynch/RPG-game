@@ -722,6 +722,30 @@ test('kill links: an unknown or expired id lands on a plain page with the fight 
     assert.equal(s.element('welcome-lead').hidden, true); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
   } finally { shareModule.fetchSharedRecord = fetchSharedRecord; apiModule.api = null; }
 });
+test('kill links: a retired record version says what the fight was from its header (who fell, to what), never a blank arena', async () => {
+  const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
+  const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
+  for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const retired = async (outcome: record.Outcome, v: number) => {
+    const bytes = record.packRecord(rec.finish(outcome) && { ...rec.finished!, outcome }); bytes[2] = v;
+    const gz = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    return record.toBase64Url(gz);
+  };
+  const killed = await retired('killed', 4);
+  await assert.rejects(record.decodeRecord(killed), /version 4 is not supported/, 'the fixture really is a refused version');
+  assert.deepEqual(await record.peekRecordHeader(killed), { v: 4, build: 'dev', opponent: 'nightborn', weapon: 'knife', outcome: 'killed' });
+  assert.equal(await record.peekRecordHeader('not-a-record'), null);
+  const s = boot({}, undefined, {}, `?opponent=nightborn&replay=${killed}`);
+  await settle(() => !s.element('welcome').hidden);
+  assert.equal(s.element('welcome').hidden, false, `the welcome (with its fight button) comes back; banner=${s.element('replay-banner').textContent}`);
+  assert.equal(s.element('welcome-eyebrow').textContent, 'RECORDED UNDER AN OLDER VERSION');
+  assert.equal(s.element('welcome-title').textContent, 'The Nightborn fell to a knife.');
+  assert.equal(s.element('welcome-lead').hidden, false); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
+  s.tick(); assert.equal(s.storage.getItem('frankendom.fight.v1'), null, 'a retired link is not an abandoned fight');
+  const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
+  await settle(() => !d.element('welcome').hidden);
+  assert.equal(d.element('welcome-title').textContent, 'The Nightborn won, against a knife.');
+});
 test('autopsy: a death puts at most two plain lines on the death screen, the same lines go under the opponent\'s journal row for the last fight, and a rematch clears them', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
