@@ -36,7 +36,7 @@ async function geometryOnly({ doc, bin }) {
   return new GLTFLoader().parseAsync(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength), '');
 }
 const receipts = [];
-for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'source/backups/veteran-v1'], ['dwarf', 'source/creatures/dwarf-donor'], ['executioner', 'source/backups/executioner-v5'], ['veteran', 'source/backups/veteran-v1'], ['witch', 'source/backups/veteran-v1']].filter(([id]) => !ROSTER[id].hold).filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
+for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'source/backups/veteran-v1'], ['dwarf', 'source/creatures/dwarf-donor'], ['executioner', 'source/backups/executioner-v5'], ['veteran', 'source/backups/veteran-v1'], ['plaguedoctor', 'warrior'], ['knight', 'source/creatures/knight-donor'], ['witch', 'source/backups/veteran-v1']].filter(([id]) => !ROSTER[id].hold).filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
   const [raw, baseRaw, sourceRaw] = await Promise.all([`src/assets/${family}.glb`, `src/assets/${base}.glb`, `src/assets/source/creatures/${family}.glb`].map(p => fs.readFile(p)));
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
   const weaponKind = ROSTER[family].weapon;
@@ -98,7 +98,7 @@ for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], 
   asset.scene.traverse(o => { if (o.isMesh) triangles += (o.geometry.index?.count || o.geometry.attributes.position.count) / 3; });
   assert(triangles < 60000, 'Existing 60k character ceiling');
   const mixer = new AnimationMixer(asset.scene), point = new Vector3();
-  const weapon = asset.scene.getObjectByName('WeaponDrawn'), grip = new Vector3();
+  const weapon = asset.scene.getObjectByName('WeaponDrawn') ?? asset.scene.getObjectByName('SwordDrawn'), grip = new Vector3();
   assert(weapon && handVertices.size, 'The reconstructed hand must follow the grip joint');
   const gripClips = new Set(['Armed', 'Attack', 'Heavy', 'Guard', 'Thrust'].map(role => clipFor(weaponKind, role)));
   let poses = 0;
