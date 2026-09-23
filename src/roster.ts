@@ -35,6 +35,9 @@ export const ROSTER = {
   // stand-in until Weapons' Maul_* family lands (identical reach, same crown height). Archetype `knight` is the Executioner's row copied
   // verbatim at his own scale until Combat's battery sets his own. Last rung, so no existing career shifts.
   knight: { name: 'the Knight', body: 'knight', rig: 'hero', archetype: 'knight', weapon: 'warhammer', finishers: ['plainDeath'] },   // finishers: none validated on this body yet (the Dwarf rule); the harness pass adds them
+  // The Witch (Brief 16, beta on Dom's word 2026-09-23): a TRELLIS.2 reconstruction fitted to the Veteran's v1 rig (creatures.py
+  // `witch`), on the trident's polearm family until the Weapons lane's bladed staff lands. finishers: [] until each is measured on her.
+  witch: { name: 'the Witch', body: 'witch', rig: 'hero', archetype: 'witch', weapon: 'trident', finishers: [] },
 } as const satisfies Record<string, { name: string; body: string; rig: RigId; archetype: string; weapon: WeaponId; finishers?: readonly FinisherId[]; blood?: false; hold?: true }>;
 export type OpponentId = keyof typeof ROSTER;
 export function supportsFinishers(id: OpponentId, finisher?: FinisherId | null): boolean {

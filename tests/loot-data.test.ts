@@ -57,7 +57,7 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
 // file (the #309 contract), never a loot.glb draw, and it is the opponent's own weapon.
 test('loot: every weapon piece names a player weapon whose equip file ships with its clip family, sits in the main hand, and is its opponent\'s weapon', () => {
   const weapons = [...LOOT_IDS].filter(id => isWeaponLoot(id as LootId)) as LootId[];
-  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Warhammer', 'nightborn.Estoc', 'pitborn.Cleaver', 'veteran.Trident'], 'every live warden\'s weapon is takeable');
+  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Warhammer', 'nightborn.Estoc', 'pitborn.Cleaver', 'veteran.Trident', 'witch.Trident'], 'every live warden\'s weapon is takeable');
   // The longsword is the player's own weapon (the Plague Doctor fights with it): nothing to take, so no piece.
   for (const rung of LADDER.filter(rung => ROSTER[rung.id].weapon !== 'longsword')) assert.ok(weapons.includes(`${rung.id}.${ROSTER[rung.id].weapon[0]!.toUpperCase()}${ROSTER[rung.id].weapon.slice(1)}` as LootId), `${rung.id}'s weapon is a piece`);
   assert.deepEqual([...new Set(WEAPON_SLOTS)].length, WEAPON_SLOTS.length); assert.ok(WEAPON_SLOTS.every(slot => !(ARMOUR_SLOTS as readonly string[]).includes(slot)));

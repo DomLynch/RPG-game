@@ -46,6 +46,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   dwarf: ['dwarf.Greaves', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
   knight: ['knight.Helmet', 'knight.Body', 'knight.Warhammer'],   // Helmet and Body, his Recruit-2 identity carriers, cut from his TRELLIS plate (loot_dwarf.py --family knight)
+  witch: ['witch.Trident'],   // her Helmet (the hood) and Body (the robe) join when their loot.glb draws are cut (Brief 16's six slots)
 };
 // The rung each piece is first worn from (the kit floor; server awards read it through src/awards.ts kitAt). Data, not a parameter:
 // filling it is a data change, no schema or code change. Empty = every piece worn from Recruit (beta ruling 2026-09-23); the values

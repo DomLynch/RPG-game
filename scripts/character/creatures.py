@@ -32,6 +32,10 @@ recipes = {
     # (~-0.30, 0.82 on a 1.85 m figure). 84 / 1.10 was the only low-gap solve near that hand in a 40-94 deg x
     # 0.90-1.20 sweep; the seed it replaces, 79 / 1.0, sat 13.6 mm off the surface.
     "knight": ("source/creatures/knight-donor", 84, 1.10, (0, -0.04, -0.025), 1.85, 16),
+    # The Witch (Brief 16, option (b)): a woman on the Veteran's rig, trident family. The scan carries her body, so no bone
+    # scale. Arm pose solved
+    # from the centred scan's hand clusters (±0.32, 0.925 m): 74° and a 0.88 reach put the donor's hand on them (docs/character-references/witch-source-v1.png).
+    "witch": ("source/backups/veteran-v1", 74, 0.88, (0, -0.04, -0.025), 1.80, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
@@ -253,10 +257,13 @@ if family == "veteran":
 coords = [mesh.matrix_world @ v.co for v in mesh.data.vertices]
 lo = min(v.z for v in coords)
 hi = max(v.z for v in coords)
+# A reconstruction that is not centred on x = 0 misplaces every limb against the donor. Measured, not tuned: the Witch's scan
+# sits 5.5 cm to her right at every height from boots (-0.052 at 0.5 m) to hood (-0.056 at 1.75 m).
+centre_x = {"witch": -0.055}.get(family, 0.0) * (hi - lo) / height
 for v, p in zip(mesh.data.vertices, coords):
     v.co = Vector(
         (
-            p.x * height / (hi - lo),
+            (p.x - centre_x) * height / (hi - lo),
             p.y * height / (hi - lo),
             (p.z - lo) * height / (hi - lo),
         )
@@ -431,6 +438,8 @@ for v in mesh.data.vertices:
         edge = 0.185 + max(0, 1.4 - z) * 0.26
     if family == "knight":  # the same man on the hero rig, at BUILD.knight's 1.18
         edge = 0.185 * 1.18 + max(0, 1.4 * 1.18 - z) * 0.26
+    if family == "witch":  # a narrower frame: her hands hang at 0.32 m, inside a man's 0.31 m edge at that height
+        edge = 0.15 + max(0, 1.4 - z) * 0.22
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
     arm_mix = max(
@@ -438,10 +447,10 @@ for v in mesh.data.vertices:
     ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor", "knight") else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor", "knight", "witch") else 0.92)) / 0.10))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
-    keep_fingers = family in ("executioner", "dwarf", "veteran", "plaguedoctor", "knight") and arm_mix > 0.5
+    keep_fingers = family in ("executioner", "dwarf", "veteran", "plaguedoctor", "knight", "witch") and arm_mix > 0.5
     if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",
