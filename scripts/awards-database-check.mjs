@@ -2,8 +2,8 @@
 // disposable socket-only cluster as account-database-check.mjs: no DATABASE_URL, no SUPABASE_* and no service-role key is read, so it
 // cannot reach a hosted project.
 //
-// The seed is written at APPLY time from fighter_profiles, so the migrations are applied in two halves: everything before 202609230001,
-// then the fixture profiles, then 202609230001 and anything after it. Claims are settled by the REAL sweep, connected as the verifier
+// The seed is written at APPLY time from fighter_profiles, so the migrations are applied in two halves: every OTHER migration (hosted's
+// order: 202609230002 went on before 202609230001), then the fixture profiles, then 202609230001 last. Claims are settled by the REAL sweep, connected as the verifier
 // role, over records that replay headless: a scripted fight the player wins against the Goblin (easy, seed 1), and one he loses.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
@@ -50,13 +50,13 @@ try {
   const files = readdirSync(dir).filter(n => n.endsWith('.sql')).sort();
   if (!files.includes(D3)) throw Error(`${D3} is missing from ${dir}`);
   const apply = names => psql(names.map(n => readFileSync(join(dir, n), 'utf8')).join('\n'));
-  apply(files.filter(n => n < D3));
+  apply(files.filter(n => n !== D3));
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values
     ('${S}', 'Seeded', ${SEED_MARKS}, '{"owned":${JSON.stringify(SEED_OWNED)},"equipped":{}}'),
     ('${Z}', 'Zero', 0, '{"owned":[],"equipped":{}}'),
     ('${O}', 'Ordered', ${SEED_MARKS}, '{"owned":[],"equipped":{}}'),
     ('${R}', 'Rechecked', ${SEED_MARKS}, '{"owned":[],"equipped":{}}');`);
-  apply(files.filter(n => n >= D3));
+  apply([D3]);
   psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${G}', 'Convert', 50, '{"owned":["veteran.Body"],"equipped":{}}');`);   // the guest's device cache, carried over on sign-up
 
   const fail = message => { throw Error(message); };
@@ -87,6 +87,11 @@ try {
   // (1) seed: the fixture profiles, exactly those, exactly once; nothing a client or the verifier holds can write it again.
   const seeds = psql('select user_id || \'|\' || marks || \'|\' || owned::text from public.account_seed order by user_id;').split('\n');
   if (!same(seeds, [`${S}|${SEED_MARKS}|${JSON.stringify(SEED_OWNED)}`, `${Z}|0|[]`, `${O}|${SEED_MARKS}|[]`, `${R}|${SEED_MARKS}|[]`])) fail(`seed rows are not the fixture profiles: ${JSON.stringify(seeds)}`);
+  // Once only: a second apply must fail whole (plain CREATEs inside one transaction) and leave the seed as it was.
+  let reapplied = true;
+  try { apply([D3]); } catch { reapplied = false; }
+  if (reapplied) fail('202609230001 applied a second time');
+  if (!same(psql('select user_id || \'|\' || marks || \'|\' || owned::text from public.account_seed order by user_id;').split('\n'), seeds)) fail('a failed second apply changed the seed');
   if (!refused('authenticated', G, `insert into public.account_seed(user_id, marks, owned) values ('${G}', 99, '[]')`, 'insufficient_privilege')) fail('a client can write account_seed');
   if (!refused('authenticated', S, `update public.account_seed set marks = 99`, 'insufficient_privilege')) fail('a client can update account_seed');
   if (!refused('authenticated', S, `perform * from public.account_seed`, 'insufficient_privilege')) fail('a client can read account_seed');
