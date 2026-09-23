@@ -11,4 +11,6 @@ test('every roster id is in the newest encounter allowlist migration', () => {
   const sql = readFileSync(new URL(newest, dir), 'utf8');
   const allowed = new Set([...sql.slice(sql.indexOf('check (encounter in')).matchAll(/'([a-z]+)'/g)].map(m => m[1]));
   for (const id of Object.keys(ROSTER)) assert.ok(allowed.has(id), `${id} is missing from ${newest}`);
+  // Backend's condition on 202609230002: the list IS the roster, spelled as its keys, so no stale or misspelt id stays allowed either.
+  assert.deepEqual([...allowed].sort(), Object.keys(ROSTER).sort(), `${newest} allows ids that are not roster keys`);
 });
