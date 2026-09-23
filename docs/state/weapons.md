@@ -6,14 +6,14 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 
 **Routing:** report to **Lead only** (Dom, 2026-09-23 evening). Strategy rules; Lead dispatches.
 
-**NEXT — Strategy ruling 17:3x, via Lead: cut `shieldmaiden.Gladius` AND `plaguedoctor.Longsword` into `loot.glb`, ONE PR against trunk.**
-Start only after the #566/#567/#571 batch is live (Deploy was running it; Blender/export prep while the box is busy, no bakes or tests).
-- Non-sim, material `Steel`, same treatment as the other takeable weapons, so every rung offers its weapon.
-- `'Longsword'` into `WEAPON_SLOTS` (`src/loot.ts`). `loot.ts` is not in `SIM_FILES`: prove it with `tests/record-version-guard.test.ts`
-  staying green **with no bump**. A new slot also needs `SLOT_WEIGHT` in `src/gear-stats.ts` (100, like every weapon) and a new column
-  in the `gear stats: the full tier × slot grid` snapshot (`tests/gear-stats.test.ts`), no other cell moving — done that way for Gladius and Maul.
-- `LOOT.shieldmaiden` + `LOOT.plaguedoctor` entries, the loot-data draw pins, the loot-layers render, the budget rows (LOOT cap 2 MB, TOTAL 40 MB).
-- Then: targeted tests + `tsc` (no full suite tonight, Strategy's rule), the PR number, and a still of both pieces in the loot panel → Lead.
+**NEXT:** nothing assigned. Dom accepted the four new characters on live `7b277fd` ("nice and differentiated, we just need to add the
+weapons, fix a few things"). "Add the weapons" = the two takeables (#586, done) + the Knight back with a swinging maul (Knight/Combat,
+on the maul in `roster-v0`). "A few things" = Dom's list, routed item by item by Lead: wait for yours.
+
+**Done 2026-09-23 evening — #586 MERGED into `phase-r` (`28e0d34`), shipping in run 1:** `shieldmaiden.Gladius` + `plaguedoctor.Longsword`
+are takeable. `'Longsword'` in `WEAPON_SLOTS` + `SLOT_WEIGHT` 100 + its gear-grid column. `loot.json`/`loot.glb` UNCHANGED: weapon pieces are
+equip files, not draws (`tests/loot-data.test.ts` enforces it). `build-player-weapon.mjs` now accepts `longsword` (the hero's `SwordDrawn`
+saved as `WeaponDrawn`): `player/longsword.glb`, 2991 tris. Targeted tests 40/40, `record-version-guard` green with no bump.
 
 **Done 2026-09-23 (verified by content, not ancestry):**
 - **Gladius** (#543) and **estoc reach +0.30 m** (#532): LIVE in `59d2436` (Publish B was reverted by #560, back in B'). The gladius is
