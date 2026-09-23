@@ -12,6 +12,7 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Finishers & gore | [docs/state/finishers.md](docs/state/finishers.md) | 14 | 2026-09-21 — Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-li |
 | Visuals & world | [docs/state/world.md](docs/state/world.md) | 11 | 2026-09-20 — Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentati |
 | Sounds & music | [docs/state/audio.md](docs/state/audio.md) | 7 | 2026-09-20 — Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five p |
+| Stats, damage & defence | [docs/state/stats.md](docs/state/stats.md) | 1 | 2026-09-22 — Brief 19 deliverable 1: tier stat table, Attack + RES, caps exact, naked and Recruit both identity |
 | Code quality | [docs/state/code-quality.md](docs/state/code-quality.md) | 1 | 2026-09-22 — release matrix on PR pushes (#446), ai.ts/combat.ts line pass (#439 LIVE), match split assigned |
 | Web design | [docs/state/web.md](docs/state/web.md) | 12 | 2026-09-22 — Viewer page: PLAY NOW as a proper primary, the stale-link line out of the header ba |
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
