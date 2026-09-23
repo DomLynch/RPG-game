@@ -2,6 +2,30 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Heavy landings on the rotation + loudness match — 2026-09-23 evening (Lead's brief, on the owner's "hits still sound the same")
+
+### Now
+Branch `audio/heavy-rotation` (off trunk `63c56758`, contains #593), commit `e69786c3`, **not pushed, no PR yet**. Next session: when
+`~/.claude/state/deploy_in_flight.json` is absent, run `npm run quality:stop` (capture EXIT=, no tail), `node scripts/check-budget.mjs`,
+and `node scripts/audio-preview.mjs --label heavy-rot` against a trunk run (`--label trunk` from a trunk checkout) for the hit-light /
+hit-heavy / hit-riposte / blocked rows; then push, open the PR off trunk, send Lead READY with the numbers. The owner has the clip
+(`scratchpad/clip/hits-before-after.m4a` of session 268fc3d6) and hears it before merge (Strategy).
+
+### What changed
+- Why the owner heard no change after #579: only light hits play `hit_flesh`. Heavy, charged, riposte (`HEAVY` in `src/audio/cues.ts`)
+  played `hit_heavy` = one sword recording at two pitches. Now `hit_heavy` is the same six landings, heavy voicing: the four CC0 takes
+  at rate .88 with `heft(75 Hz)` at .4 (take normalised first, so the heft is relative), the sword hit and synth stab via their own
+  `heavy` branch. 2 → 6 variants.
+- Loudness match in `build-audio.mjs`: phone-band (> 300 Hz) K-weighted momentary max per variant; lights to −19, heavies −17
+  (`HEAVY_LU` 2). Louder ones trimmed; quieter ones driven into tanh by the least drive that reaches target (cap ×12), re-peaked −4 dBFS.
+  Before, lights spread −14.4 … −28.3. H ("messy stabber") needs ×4.7 light / ×9.7 heavy — audibly grittier; flagged to the owner.
+- Sprite: m4a 515,515 → 557,375 B, ogg 470,488 → 505,535 B. Budget not yet checked.
+
+### Gotchas
+- Pure attenuation to the quietest variant is useless: it left every hit ~18–22 dB down. Lift quiet ones, trim loud ones.
+- The deploy lock comes back within minutes between rolling runs; a `quality:stop` started in the gap got caught under Run 3a's lock
+  and had to be killed. Check the lock right before each heavy command.
+
 ## Flesh landings: six different sounds on rotation — 2026-09-23 (owner, by ear)
 
 The owner could not hear a flesh sound in play: of the five landings, four were the one CC0 sword-hit recording at different
