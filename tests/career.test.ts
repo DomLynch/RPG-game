@@ -19,6 +19,12 @@ test('labels read as the spec writes them, and bad counts fall to the first rung
   assert.equal(rankFor(ORIGIN_MARKS).label, 'Origin');
   for (const bad of [-5, 0.5, NaN, Infinity, -Infinity]) assert.equal(at(bad), 'Recruit I 0/3');
 });
+test('next names the class the pips climb toward, empty at Origin', () => {
+  assert.equal(rankFor(0).next, 'Legionary');
+  assert.equal(rankFor(32).next, 'Veteran');
+  assert.equal(rankFor(ORIGIN_MARKS - 1).next, 'Origin');
+  assert.equal(rankFor(ORIGIN_MARKS).next, '');
+});
 test('rank never moves backwards as marks grow', () => {
   const order = (marks: number) => { const r = rankFor(marks); return TITLES.indexOf(r.title) * 5 + ['I', 'II', 'III', 'IV', 'V', ''].indexOf(r.numeral); };
   for (let marks = 1; marks <= 300; marks++) assert.ok(order(marks) >= order(marks - 1), `marks ${marks}`);

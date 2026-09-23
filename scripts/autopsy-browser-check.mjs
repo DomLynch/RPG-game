@@ -1,7 +1,9 @@
-// Release check: the death-screen autopsy (beta plan brief 2). A real browser, the gate's own clock (scripts/lib/harness-clock.mjs):
-// boot against the Centurion, draw the sword, stand still — the idle fighter dies — then assert the autopsy: `#autopsy` visible with one
-// or two plain lines, the first naming the cause, no "!" or "?"; a rematch clears it; the field journal carries the same note as a
-// `tr.autopsy-row` right under the opponent's row. Mirrors tests/graphics.test.ts "autopsy: a death puts…" through the live DOM.
+// Release check: the death screen and the autopsy (beta plan brief 2; Dom 2026-09-23 moved the autopsy off the death screen). A real
+// browser, the gate's own clock (scripts/lib/harness-clock.mjs): boot against the Centurion, draw the sword, stand still — the idle
+// fighter dies — then assert the death screen shows the rank line (`#fight-rank`: the account panel's label + the next class) and no
+// `#autopsy`; the scorecard's last-fight lines are one or two plain lines, the first naming the cause, no "!" or "?"; the field journal
+// carries them as a `tr.autopsy-row` right under the opponent's row; a rematch clears the rank line. Mirrors tests/graphics.test.ts
+// "fight end: …" through the live DOM.
 // Never overrides combat state; the fight is the real one, on harness time, so it lands on the same tick on any machine.
 import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
@@ -43,14 +45,17 @@ try {
   const died = await until(() => window.__finish !== null, 6000 * 16.7);
   receipt.killed = await page.evaluate(() => window.__finish);
   assert.equal(receipt.killed.target, 0, 'the player is the one killed');
-  await until(() => !document.querySelector('#autopsy').hidden, 2000);
-  const lines = await page.evaluate(() => [...document.querySelector('#autopsy').children].map(c => ({ tag: c.tagName, text: c.textContent })));
-  receipt.autopsy = lines.map(l => l.text);
-  assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);
-  assert.ok(lines.every(l => l.tag === 'SPAN'), 'each line is a span');
-  assert.match(lines[0].text, CAUSE, `first line names the cause: ${lines[0].text}`);
-  for (const l of lines) assert.ok(!/[!?]/.test(l.text), `plain prose, no ! or ?: ${l.text}`);
-  assert.ok(await page.locator('#autopsy').isVisible(), '#autopsy is visible on the death screen');
+  // Dom 2026-09-23: the death screen shows the player's rank line where the autopsy was; the autopsy lines live on in the journal only.
+  await until(() => !document.querySelector('#fight-rank').hidden, 2000);
+  receipt.rank = await page.evaluate(() => ({ label: document.querySelector('#fight-rank-label').textContent, next: document.querySelector('#fight-rank-next').textContent, autopsyEl: document.querySelector('#autopsy') !== null }));
+  assert.match(receipt.rank.label, /^Recruit I · [○●]( [○●]){2}$/, `the account panel's rank label: ${receipt.rank.label}`);
+  assert.equal(receipt.rank.next, 'Legionary', 'the next class at the end of the pip row');
+  assert.equal(receipt.rank.autopsyEl, false, 'no #autopsy on the death screen');
+  assert.ok(await page.locator('#fight-rank').isVisible(), '#fight-rank is visible on the death screen');
+  receipt.autopsy = await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.scorecard.v1')).rows.veteran.last);
+  assert.ok(receipt.autopsy.length >= 1 && receipt.autopsy.length <= 2, `one or two lines, got ${receipt.autopsy.length}`);
+  assert.match(receipt.autopsy[0], CAUSE, `first line names the cause: ${receipt.autopsy[0]}`);
+  for (const l of receipt.autopsy) assert.ok(!/[!?]/.test(l), `plain prose, no ! or ?: ${l}`);
   await page.screenshot({ path: `${out}/death-screen.png` });
   // The field journal keeps the note under the opponent's row for the last fight. The name is read from the roster
   // (ROSTER.veteran.name), never pinned here: #464 renamed 'the Veteran' -> 'the Centurion' and this row broke on the literal.
@@ -64,17 +69,17 @@ try {
   }, ROSTER.veteran.name);
   assert.ok(receipt.journal.veteranRow >= 0, `${ROSTER.veteran.name} has a journal row`);
   assert.equal(receipt.journal.nextClass, 'autopsy-row', `a tr.autopsy-row sits right under ${ROSTER.veteran.name}`);
-  assert.equal(receipt.journal.note, receipt.autopsy.join(' '), 'the journal note is the death-screen text');
+  assert.equal(receipt.journal.note, receipt.autopsy.join(' '), 'the journal note is the last fight\'s autopsy');
   await page.locator('#close-journal').click();
   await run(100);
   // Rematch is inert until the finisher camera settles (owner 2026-09-22: no HUD button fires while it is still fading in) —
   // finishPhase() runs on the wall clock, not harness ticks, so this wait is real time, same as a player would see.
   await until(() => JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.settled === true, 3000);
-  // A rematch clears the autopsy.
+  // A rematch clears the rank line.
   await page.locator('#reset-button').click();
   await run(200);
-  const navigated = await page.evaluate(() => document.querySelector('#autopsy') === null).catch(() => true);   // a reload is fine: the new document boots hidden
-  if (!navigated) assert.equal(await page.evaluate(() => document.querySelector('#autopsy').hidden), true, 'the rematch hides the autopsy');
+  const navigated = await page.evaluate(() => document.querySelector('#fight-rank') === null).catch(() => true);   // a reload is fine: the new document boots hidden
+  if (!navigated) assert.equal(await page.evaluate(() => document.querySelector('#fight-rank').hidden), true, 'the rematch hides the rank line');
   receipt.diedAfterPageMs = died;
   assert.deepEqual(receipt.errors, []);
   receipt.passed = true;
@@ -82,4 +87,4 @@ try {
   await fs.writeFile(`${out}/receipt.json`, JSON.stringify(receipt, null, 2));
   await browser.close(); await server?.close();
 }
-console.log(JSON.stringify({ passed: receipt.passed, autopsy: receipt.autopsy, journal: receipt.journal, diedAfterPageMs: receipt.diedAfterPageMs, errors: receipt.errors }));
+console.log(JSON.stringify({ passed: receipt.passed, rank: receipt.rank, autopsy: receipt.autopsy, journal: receipt.journal, diedAfterPageMs: receipt.diedAfterPageMs, errors: receipt.errors }));

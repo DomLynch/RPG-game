@@ -27,9 +27,9 @@ test('the figure carries one layer per wearable paperdoll key, head drawn last',
   assert.match(html, /<div class="doll-figure"><img src="\/game\/img\/fighter\.webp"/);
 });
 
-// The kill screen's Take-one panel (src/loot-panel.ts): its ids in the HUD band under the autopsy, outside the endgame fade group, and
+// The kill screen's Take-one panel (src/loot-panel.ts): its ids in the HUD band under the rank line, outside the endgame fade group, and
 // the old drop line + Wear/Store row gone (one loot UI).
-test('the Take-one panel is in the HUD under the autopsy and the old drop line is gone', () => {
+test('the Take-one panel is in the HUD under the rank line and the old drop line is gone', () => {
   const html = read('index.html'), css = read('src/style.css');
   const hud = html.slice(html.indexOf('<section class="combat-hud"'), html.indexOf('</section></section>'));
   for (const id of ['loot-panel', 'loot-panel-title', 'loot-panel-pieces', 'loot-panel-note']) assert.ok(hud.includes(`id="${id}"`), id);
@@ -39,7 +39,8 @@ test('the Take-one panel is in the HUD under the autopsy and the old drop line i
   for (const id of ['loot-panel-actions', 'loot-decline']) { assert.ok(actions.includes(`id="${id}"`), `${id} must sit in #actions`); assert.ok(!hud.includes(`id="${id}"`), `${id} must not sit in the top band`); }
   assert.ok(!html.includes('id="loot-take"'), 'the Take button is gone: a tap on a tile is the take (Dom, 2026-09-22)');
   assert.match(css, /\.loot-panel \{[^}]*pointer-events: none/);   // the card lets an arena touch through; only its tiles take pointers
-  assert.ok(hud.indexOf('id="autopsy"') < hud.indexOf('id="loot-panel"'));
+  assert.ok(hud.indexOf('id="fight-rank"') < hud.indexOf('id="loot-panel"'));
+  assert.ok(!html.includes('id="autopsy"'), 'the death-screen autopsy is gone (Dom 2026-09-23): the rank line took its place');
   for (const gone of ['loot-drop', 'loot-choice', 'loot-wear', 'loot-store']) { assert.ok(!html.includes(gone), `${gone} in index.html`); assert.ok(!css.includes(gone), `${gone} in style.css`); }
   assert.ok(!/endgame-fade #loot-panel/.test(css), 'the panel must not fade with the tour');
 });

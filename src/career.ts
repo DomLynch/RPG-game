@@ -7,7 +7,7 @@ import type { Profile } from './profile.ts';
 export const TITLES = ['Recruit', 'Legionary', 'Gladiator', 'Veteran', 'Champion', 'Praetorian', 'Master', 'Primus', 'Invictus', 'Origin'] as const;
 export const ORIGIN_MARKS = 205;
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V'] as const;
-type Rank = { title: (typeof TITLES)[number]; numeral: string; filled: number; pips: number; label: string };
+type Rank = { title: (typeof TITLES)[number]; numeral: string; filled: number; pips: number; label: string; next: string };   // next: the class the pips climb toward ('' at Origin)
 export const marksOf = (profile: Pick<Profile, 'career'>): number => profile.career?.victoryMarks ?? 0;
 // Beta award policy (owner 2026-09-20): every won duel in the arena earns one mark — a rematch or a journal-picked opponent included.
 export function awardMark(profile: Profile): number {
@@ -22,9 +22,9 @@ export function rankFor(marks: number): Rank {
     if (left < pips * NUMERALS.length) {
       const sub = Math.floor(left / pips), filled = left - sub * pips, title = TITLES[tier], numeral = NUMERALS[sub];
       const dots = [...Array(pips)].map((_, i) => (i < filled ? '●' : '○')).join(' ');
-      return { title, numeral, filled, pips, label: `${title} ${numeral} · ${dots}` };
+      return { title, numeral, filled, pips, label: `${title} ${numeral} · ${dots}`, next: TITLES[tier + 1] };
     }
     left -= pips * NUMERALS.length;
   }
-  return { title: 'Origin', numeral: '', filled: 0, pips: 0, label: 'Origin' };
+  return { title: 'Origin', numeral: '', filled: 0, pips: 0, label: 'Origin', next: '' };
 }

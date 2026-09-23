@@ -54,9 +54,15 @@ for (const id of ['sound-button', 'mobile-sound'])
 const welcome = element('welcome');
 const journal = element<HTMLDialogElement>('journal');
 const message = element('message');
-const autopsyLines = element('autopsy');
-// The death-screen autopsy: at most two lines between the kill and the rematch button; hidden when there is nothing confident to say.
-function showAutopsy(lines: string[]) { autopsyLines.hidden = !lines.length; autopsyLines.replaceChildren(...lines.map((line) => { const span = document.createElement('span'); span.textContent = line; return span; })); }
+// The player's rank on the fight-end panel, win and loss (Dom 2026-09-23, replacing the death-screen autopsy): the account panel's
+// rank label with the class its pips climb toward at the end of the row. Marks are read after match.end, so a win shows its new pip.
+const fightRank = element('fight-rank');
+function showFightRank(on: boolean) {
+  fightRank.hidden = !on;
+  if (!on) return;
+  const rank = rankFor(marksOf(profile));
+  element('fight-rank-label').textContent = rank.label; element('fight-rank-next').textContent = rank.next;
+}
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
@@ -398,7 +404,7 @@ const controls = createInput({
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   clearInput(); state = previous = match.practice.fighter;
-  showAutopsy([]); hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
+  showFightRank(false); hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
 }
 resetButton.addEventListener('click', () => {
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -829,8 +835,8 @@ function frame(now: number) {
             shareButton.hidden = false; say(null);
             void encodeRecord(ended.record).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
           }
-          // The autopsy (brief 2): two plain lines on the death screen, and the same lines under the opponent's journal row for the last fight.
-          showAutopsy(ended.lines);
+          // The rank line on the fight-end panel; the autopsy lines now live only under the opponent's journal row (scorecard `last`).
+          showFightRank(true);
           // The daily warden's one post (brief 4): the record, where the killing blow landed and the blows taken; guests are told to sign in.
           if (ended.post) {
             const { daily, record, taken, done } = ended.post;
