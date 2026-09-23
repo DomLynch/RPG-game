@@ -26,6 +26,8 @@ CLOSE = int(args[args.index('--close') + 1]) if '--close' in args else 0   # fac
 COLOR_SIZE = int(args[args.index('--color-size') + 1]) if '--color-size' in args else 768   # the iron's colour map edge; loot.glb's 1.5 MB cap sets it
 JPEG_QUALITY = int(args[args.index('--jpeg-quality') + 1]) if '--jpeg-quality' in args else 82
 RATIO = float(args[args.index('--ratio') + 1]) if '--ratio' in args else 1.0   # decimate each piece to this share of its faces (loot.glb's 1.5 MB cap)
+# Measured 2026-09-23 on the Plague Doctor's Helmet and Body (docs/character-references/loot-weld/): .12 and .3 collapse a TRELLIS piece into
+# star fans and spikes, welded or not; .5 keeps the beak, hood, lapels and belts. Use .5 or higher for a carrier the player wears.
 FAMILY = args[args.index('--family') + 1] if '--family' in args else 'dwarf'   # whose TRELLIS surface to cut
 # --material Steel: the piece wears loot.glb's shared untextured Steel instead of its own baked maps (the Knight: 80 KB of loot headroom)
 MATERIAL = args[args.index('--material') + 1] if '--material' in args else f'{FAMILY.capitalize()}Iron'
@@ -171,8 +173,9 @@ for s, face_ids in sorted(pieces.items()):
     bm.faces.ensure_lookup_table()
     keep = set(face_ids)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context='FACES')
-    if MATERIAL == 'Steel':   # untextured: weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them
-        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
+    # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
