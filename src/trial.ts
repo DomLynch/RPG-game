@@ -6,7 +6,7 @@ import type { StoragePort } from './profile.ts';
 // strike circle was retired ("I tried both and prefer buttons"; one grammar means every control feature is built and tested once).
 // A card saved by the per-scheme trial (`{ scheme, card: { cluster, ring8 } }`) loads as its cluster tally; the ring's numbers are dropped.
 type Tally = { fights: number; wins: number; rematches: number; ticks: number; dealt: number; taken: number; active: number };   // active: real unpaused wall-clock ms (hit-stop included); ticks is simulation time
-type Trial = { card: Tally };
+export type Trial = { card: Tally };
 const KEY = 'frankendom.controls.v1';
 const isTally = (t: unknown): t is Tally => typeof t === 'object' && t !== null && ['fights', 'wins', 'rematches', 'ticks', 'dealt', 'taken'].every(k => Number.isFinite((t as Record<string, unknown>)[k]));
 const empty = (): Tally => ({ fights: 0, wins: 0, rematches: 0, ticks: 0, dealt: 0, taken: 0, active: 0 });

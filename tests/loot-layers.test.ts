@@ -36,7 +36,8 @@ test('the Take-one panel is in the HUD under the autopsy and the old drop line i
   // Take / Leave it belong to the bottom thumb row, not the top band: the first touch after a kill stops the arena-cam tour, and a
   // decision button under that thumb declines the loot by accident (deploy #102's quiet-one rows).
   const actions = html.slice(html.indexOf('<div class="actions" id="actions"'), html.indexOf('</footer>'));
-  for (const id of ['loot-panel-actions', 'loot-take', 'loot-decline']) { assert.ok(actions.includes(`id="${id}"`), `${id} must sit in #actions`); assert.ok(!hud.includes(`id="${id}"`), `${id} must not sit in the top band`); }
+  for (const id of ['loot-panel-actions', 'loot-decline']) { assert.ok(actions.includes(`id="${id}"`), `${id} must sit in #actions`); assert.ok(!hud.includes(`id="${id}"`), `${id} must not sit in the top band`); }
+  assert.ok(!html.includes('id="loot-take"'), 'the Take button is gone: a tap on a tile is the take (Dom, 2026-09-22)');
   assert.match(css, /\.loot-panel \{[^}]*pointer-events: none/);   // the card lets an arena touch through; only its tiles take pointers
   assert.ok(hud.indexOf('id="autopsy"') < hud.indexOf('id="loot-panel"'));
   for (const gone of ['loot-drop', 'loot-choice', 'loot-wear', 'loot-store']) { assert.ok(!html.includes(gone), `${gone} in index.html`); assert.ok(!css.includes(gone), `${gone} in style.css`); }

@@ -1,5 +1,6 @@
 import { ROSTER, supportsFinishers, resolveFinisher, hasBlood } from './roster.ts';
 import * as THREE from 'three';
+import { lightFighter } from './colour-grade.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { defenceReaction, loadLoot, loadWarriors, lootWorn } from './characters.ts';
@@ -143,11 +144,15 @@ export function createScene(
   let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
   function dress() {
     if (!warriors) return;
-    if (!lootPieces) {
-      if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
-      return;
+    try {
+      if (!lootPieces) {
+        if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+        return;
+      }
+      warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
+    } finally {
+      lightFighter(player); lightFighter(opponent);   // key + rim on everything the fighters wear, loot included (colour-grade.ts); idempotent
     }
-    warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
   }
   let loading: Promise<void> | null = null;
   function loadFighters(): Promise<void> {
@@ -273,6 +278,11 @@ export function createScene(
   let severHead: SeveredHead | null = null,
     killHeading = 0;
   let finishClock = -1; // the finisher corpse animates at 0.75× on a presentation clock (owner 2026-09-18: savour it) — the sim window stays 144 ticks
+  // Finisher complete (Lead brief 2026-09-22, for Web's loot panel): has the ceremony FINISHED PLAYING, and at what finish
+  // age did it first say so. Latched from the scene's own state in the frame loop below, never from a delay; cleared with
+  // the finish. `finishCompleteAt` is the number the FINISHER_SECONDS table in src/finishers.ts was measured from.
+  let finishComplete = false,
+    finishCompleteAt = 0;
   const wounds = createWoundDecals(scene, splatTexture);
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
@@ -392,8 +402,10 @@ export function createScene(
     // there is no push. `touring`: the arena cam is orbiting the fallen (from TOUR.afterSettle seconds after settled first
     // latches — the player always gets at least that much readable text — until a touch or Rematch). `age`: seconds since the
     // finish began, 0 outside a finish. Poll it in the frame loop; the rig owns the clocks.
-    finishPhase(): { settled: boolean; touring: boolean; age: number } {
-      return { settled: rig.settled, touring: rig.touring, age: rig.finishAge };
+    // `complete` is the finisher-complete event Web's loot panel keys on: the ceremony has finished playing (see the latch in
+    // the frame loop). `completeAt` is the finish age in seconds when it first latched — 0 until then.
+    finishPhase(): { settled: boolean; touring: boolean; age: number; complete: boolean; completeAt: number } {
+      return { settled: rig.settled, touring: rig.touring, age: rig.finishAge, complete: finishComplete, completeAt: finishCompleteAt };
     },
     // The fallen fighter's body on screen, in CSS pixels (owner 2026-09-22 gate: no HUD element may intersect it at settle time):
     // the bounding box of the victim rig's bones as drawn this frame (the Opened halves share the skeleton, so they are covered),
@@ -424,13 +436,13 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; opacity: number; drip: number }, { visible: number; opacity: number; drip: number }] } {
+    probe(): { sparks: number; burst: [number, number, number]; wound: { at: [number, number, number]; opacity: number; neck: [number, number, number] | null } | null; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // The opponent's pooled wound decal when it shows (the Quiet One's throat cut): where it sits, how strong, and where his neck is.
       const mark = wounds.entries[1], neck = warriors?.opponent.boneWorld('neck_01');
       const wound = mark.group.visible ? { at: mark.group.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], opacity: +mark.mark.material.opacity.toFixed(2), neck: neck ? (neck.toArray().map((v) => +v.toFixed(3)) as [number, number, number]) : null } : null;
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
-      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; opacity: number; drip: number }, { visible: number; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible };
+      const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
+      return { sparks: clash.alive(), burst: clash.last(), wound, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
     }, // debug probe for the presentation harness: live contact effects, the throat-cut decal and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
@@ -769,6 +781,20 @@ export function createScene(
         big: ['wraith', 'minotaur'].includes(opponentId),
         reach: openedReach,
       } : null);
+      // Finisher complete (Lead brief 2026-09-22): the kill has finished PLAYING, read off what the scene is actually doing
+      // rather than a guessed delay — (1) the victim's clip has run out (`victimProgress`: the slowed 0.75× finisher clock
+      // for a posed finisher, the plain fall's own progress for a plain death, so the plain death completes earlier and the
+      // number is per finisher), (2) the camera has settled (camera.ts SETTLE — the push-in and the side-view reveal end at
+      // different ages for different finishers), and (3) Decapitation's severed head has come to rest. Opened needs no term
+      // of its own: its reach stops growing at victimProgress 1 by construction above. Latches once and holds until the
+      // finish clears, so a late camera nudge cannot un-complete a ceremony the player has already watched end.
+      if (!practice.finish) {
+        finishComplete = false;
+        finishCompleteAt = 0;
+      } else if (!finishComplete && victimProgress >= 1 && rig.settled && (!severHead || severHead.resting)) {
+        finishComplete = true;
+        finishCompleteAt = rig.finishAge;
+      }
       const exposure = renderer.toneMappingExposure;
       if (dip > 0) renderer.toneMappingExposure = exposure * (1 - DIP_DEPTH * Math.min(1, dip / (DIP_FRAMES - 1)));   // held, then eased back
       renderer.render(scene, camera);

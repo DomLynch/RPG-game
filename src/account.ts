@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile, type Profile } from './profile.ts';
-import { createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
@@ -22,10 +22,14 @@ export async function mountAccount(url: string, key: string) {
   function render() {
     login.hidden = !!userId; logout.hidden = !userId;
     for (const button of [login, logout, retry]) button.disabled = busy;
-    headline(userId ? (saved && !profileDiffers(local(), saved) ? 'saved' : 'saving') : 'guest');
+    // A visible Retry means the last read or write failed: nothing is saving, and the line must not say so (audit 2026-09-23).
+    headline(userId ? (saved && !profileDiffers(device(), saved) ? 'saved' : retry.hidden ? 'saving' : 'unsynced') : 'guest');
   }
   const local = () => loadProfile(localStorage, () => crypto.randomUUID()).profile;
   const differs = profileDiffers;   // cloud-profile.ts: name, opponent, marks, owned, equipped, provenance
+  // What this device writes and compares: its fighter with the account's higher mark count and loot absorbed (cloud-profile.ts absorbCloud),
+  // so no refresh and no save can lower the account.
+  const device = () => (saved ? absorbCloud(local(), saved) : local());
   // The fighter card's save line (HUD and journal) tells the truth in three states; main.ts persist() writes 'saving' on every change
   // for a signed-in fighter and this file settles it once the cloud answers.
   const headline = (state: 'guest' | 'saving' | 'saved' | 'unsynced') => {
@@ -40,7 +44,7 @@ export async function mountAccount(url: string, key: string) {
     if (!userId) return false;
     if (!saveProfile(localStorage, profile)) { status.textContent = 'Device storage unavailable.'; return false; }   // the queue writes local(): the device is the source
     status.textContent = 'Saving to your account…'; delete status.dataset.saved; headline('saving');
-    const ok = await queue(local);
+    const ok = await queue(device);
     if (turn !== generation) return false;
     if (ok && saved) { status.textContent = ''; status.dataset.saved = saved.display_name; headline('saved'); return true; }   // the fighter card's save line says it (owner: the sentence was repetitive); data-saved is check 14's signal
     status.textContent = 'Save failed or changed on another device. Retry to read the latest save first.'; delete status.dataset.saved; retry.hidden = false; headline('unsynced');
@@ -72,12 +76,12 @@ export async function mountAccount(url: string, key: string) {
         profile.name = saved.display_name; profile.encounter = saved.encounter ?? undefined;
         const victoryMarks = Math.max(marksOf(profile), saved.victory_marks);
         if (victoryMarks) profile.career = { victoryMarks };
-        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length) profile.loot = loot;   // loot: the union of both, nothing lost
+        const loot = mergeLoot(profile.loot, saved.loot); if (loot.owned.length || loot.declined) profile.loot = loot;   // loot: the union of both, nothing lost
         if (!saveProfile(localStorage, profile)) throw Error('Device storage unavailable');
         if (differs(profile, saved) && !(await sync(profile, turn))) return;
         const target = new URL(location.href); target.searchParams.delete('opponent');
         location.replace(target.href); return;
-      } else if (differs(local(), saved)) await sync(local(), turn);
+      } else if (differs(device(), saved)) await sync(device(), turn);
       else { status.textContent = ''; status.dataset.saved = saved.display_name; }
     } catch {
       if (turn !== generation) return;
@@ -103,7 +107,7 @@ export async function mountAccount(url: string, key: string) {
   });
   retry.addEventListener('click', () => { void refresh(); });
   // Every recorded result persists the device's fighter (main.ts persist()); a signed-in account sends the gain up on the same beat.
-  window.addEventListener('frankendom:profile', () => { if (userId && saved && !busy && retry.hidden && differs(local(), saved)) void sync(local(), generation); });   // equip, provenance, marks, name: all of them
+  window.addEventListener('frankendom:profile', () => { if (userId && saved && !busy && retry.hidden && differs(device(), saved)) void sync(device(), generation); });   // equip, provenance, marks, name: all of them
   const callback = new URL(location.href), code = callback.searchParams.get('code');
   const flowId = callback.searchParams.get('sb_flow_id');
   const denied = callback.searchParams.has('error');

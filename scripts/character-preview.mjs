@@ -4,6 +4,8 @@
 //   node scripts/character-preview.mjs --against baseline    also print deltas against that label's stats
 //   --sheet 'Clip:0,.25,.5' --azimuth 180   key frames from a chosen angle (degrees; default 30)
 //   node scripts/character-preview.mjs --serve               keep a dev server up for manual review
+//   --flat --enemy /src/assets/nightborn.glb [--orientation portrait] [--background '#e9eaec']   the opponent alone at the fighting
+//                                                            camera on a plain flat background, for a silhouette/reskin measurement
 //   node scripts/character-preview.mjs --weapons --label live [--enemy /src/assets/veteran.glb]   (the shipped Veteran carries the trident)
 //                                                            weapons lane evidence into artifacts/weapons/<label>/ (the opponent's weapon)
 import { createServer } from 'vite';
@@ -40,6 +42,12 @@ try {
     const azimuth = Number(option('azimuth') ?? 30);
     if (!Number.isFinite(azimuth)) throw new Error('--azimuth must be a finite number of degrees');
     await save('sheet.png', await page.evaluate(([l, a, c]) => __preview.clipSheet(l, a, c), [list, azimuth * Math.PI / 180, args.includes('--close')]));
+    if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
+  }
+  if (args.includes('--flat')) { // one flat-background capture at the game's fighting camera: silhouette / reskin evidence, nothing else
+    const orientation = option('orientation') || 'landscape', background = option('background') || '#e9eaec', zoom = Number(option('zoom') ?? 1);
+    const flat = await page.evaluate(([o, b, z]) => __preview.flatLock(o, b, z), [orientation, background, zoom]);
+    await save('flat-lock.png', flat.png); await save('flat-lock-silhouette.png', flat.silhouette);
     if (errors.length) throw new Error(`Page errors:\n${errors.join('\n')}`); await browser.close(); await server.close(); process.exit(0);
   }
   if (args.includes('--moodboard')) { // Direction proposal only: swatches and silhouette blockout, no baseline captures.

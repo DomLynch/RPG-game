@@ -5,8 +5,9 @@
 //
 // One shared kit library dressed eight ways is what makes a 60-opponent roster affordable: 8 grades × N pieces costs N meshes, not 8N.
 // Pure data — no three, no loader. The runtime reads `gradeFor(tier, material)` and writes the factors onto the piece's own material.
-import { TITLES } from './career.ts';
+import { TITLES, rankFor } from './career.ts';
 import type { LootId } from './loot.ts';
+import type { OpponentId } from './roster.ts';
 
 // The ladder is the CAREER ladder: a tier and a rank are the same word (owner via Strategy, 2026-09-22), so the journal can say
 // "Praetorian iron" and mean one thing. `TIERS` is `career.ts`'s `TITLES` itself, not a copy — ten names that cannot drift from the
@@ -15,6 +16,20 @@ export const TIERS = TITLES;
 export type Tier = (typeof TIERS)[number];
 export const isTier = (value: unknown): value is Tier => typeof value === 'string' && (TIERS as readonly string[]).includes(value);
 export const levelOf = (tier: Tier): number => TIERS.indexOf(tier) + 1;
+
+// The TIER an opponent is MET at (brief 14's kit ladder, brief 19's stats). Deliberately NOT a field on `ROSTER`: the same Centurion
+// is a Recruit's Centurion early and a Praetorian's later, so the tier belongs to the FIGHT, not to the recipe. Derived, never stored
+// — a tier and a rank are the same word (`TIERS` is `TITLES` itself), so this is that one title rather than a second ladder that could
+// drift from it. A held recipe answers too: a saved encounter must still resolve.
+//
+// It lives HERE rather than in roster.ts because roster.ts is a simulation module (eslint.config.js `SIM`, tests/sim-boundary.test.ts)
+// and may import only its siblings. A cosmetic ladder does not get to widen the simulation boundary, and a fighter's career rung has
+// no business inside a deterministic replay.
+export const tierAt = (marks: number): Tier => rankFor(marks).title;
+// An opponent as a fight sees him: who he is, and the rung he is met at. The shape the kit floor (loot.ts `WORN_FROM`) and the tier
+// stats both read. Nothing consumes it yet, which is deliberate — it lands once so two lanes build on one field.
+export type OpponentAt = { id: OpponentId; tier: Tier };
+export const opponentAt = (id: OpponentId, marks: number): OpponentAt => ({ id, tier: tierAt(marks) });
 
 // What a grade can repaint. The cloth is NOT here: a tunic's colour is the opponent's house dye (OPPONENTS.grade.house), so a Recruit
 // and a champion of the same house wear the same linen over different metal — which is how a house reads across a roster.

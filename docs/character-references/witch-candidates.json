@@ -1,0 +1,23 @@
+[
+ {
+  "file": "witch-a-deep-hood.png",
+  "seed": 190926,
+  "prompt": "full body concept art of a lean adult woman gladiator-arena sorceress standing in a relaxed A-pose, facing the viewer, holding a long two-handed bladed staff vertically at her side \u2014 a dark wooden shaft taller than she is with a single narrow steel blade at the head; worn layered cloth and dark leather, muted greens and greys, no metal armour plate; a faint green glow at the staff's blade, never orange; plain flat uniform light-grey studio background, even readable light, complete unbroken silhouette, no props behind her, no text, realistic hand-painted concept rendering, no plastic, no toy, no cartoon, no anime. She wears a deep pointed hood and a long ragged cloak that falls to her calves, her face in shadow.",
+  "background": 206,
+  "silhouetteIoUvsNightborn": null
+ },
+ {
+  "file": "witch-b-hood-back.png",
+  "seed": 190926,
+  "prompt": "full body concept art of a lean adult woman gladiator-arena sorceress standing in a relaxed A-pose, facing the viewer, holding a long two-handed bladed staff vertically at her side \u2014 a dark wooden shaft taller than she is with a single narrow steel blade at the head; worn layered cloth and dark leather, muted greens and greys, no metal armour plate; a faint green glow at the staff's blade, never orange; plain flat uniform light-grey studio background, even readable light, complete unbroken silhouette, no props behind her, no text, realistic hand-painted concept rendering, no plastic, no toy, no cartoon, no anime. Her hood is thrown back off a long dark braid, wearing close-fitted travelling leathers over a long tunic, her face visible.",
+  "background": 206,
+  "silhouetteIoUvsNightborn": null
+ },
+ {
+  "file": "witch-c-wide-brim.png",
+  "seed": 190926,
+  "prompt": "full body concept art of a lean adult woman gladiator-arena sorceress standing in a relaxed A-pose, facing the viewer, holding a long two-handed bladed staff vertically at her side \u2014 a dark wooden shaft taller than she is with a single narrow steel blade at the head; worn layered cloth and dark leather, muted greens and greys, no metal armour plate; a faint green glow at the staff's blade, never orange; plain flat uniform light-grey studio background, even readable light, complete unbroken silhouette, no props behind her, no text, realistic hand-painted concept rendering, no plastic, no toy, no cartoon, no anime. She wears a wide low-brimmed hat over a short shoulder cape, with layered knee-length skirts over leggings.",
+  "background": 206,
+  "silhouetteIoUvsNightborn": null
+ }
+]

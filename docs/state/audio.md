@@ -2,6 +2,59 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Phone audio pass on live 52dffed — 2026-09-23 (Lead's brief)
+
+Measured the publish that is live (`52dffed`, contains #511; served `sprite.ogg`/`.m4a` sha256 match git byte for byte) with
+`scripts/audio-preview.mjs`'s phone band (> 300 Hz high-pass), which had **no probe for either whip cue** — added `whipped` and
+`whip-raised`, coverage pin 17 → 19 ordinary. Findings, phone LUFS: **the whip tell was as loud as the lash** (whip-raised
+−29.2, whipped −29.1, blocked −30.4): gain .3 on a dense swell equals .85 on a sparse crack once every cue is normalised to
+−4 dBFS. Fixed to gain .1 → −37.6, 8.4 dB under the lash. Reported, not changed (owner mix calls): the kick lands at −41.4
+phone against a light hit's −34.7, and a guard break loses 6.8 dB between full band and phone band (−29.6 → −36.4), because
+both are mostly under 300 Hz. Hits sit 4.3 dB under blocks on the phone band, as the owner set in #433.
+Gotcha: **there is no `npm run lint`** — `npm run --silent lint | tail` exits 0 on the missing script. The lint is `eslint src`
+inside `npm run quality:stop`; run that. My #511 "lint clean" was that hollow receipt; `eslint src` passes on the tree that
+contains it.
+
+## Lane state — 2026-09-23 (the whip split wired; the two non-CC0 clips re-sourced)
+
+### Now
+Both of tonight's items are in PR #511. **Correction to my own first read of `docs/SCOPE.md`:** its "wall lash: guards removed"
+line is about the skinned meshes, not the mechanic — `WhipRaised` and `Whipped` are both on trunk `fe0d8e0` (`src/duel.ts:262`
+and `:266`, carrying `lead` and `guard`), and World's `world/wall-silhouettes` is presentation only. A scope line that removes an
+asset does not remove the sim events that asset used to illustrate: check `git grep` on current trunk before calling a cue closed.
+Brief 13's whip split is therefore **done**, not closed.
+
+### Done today
+- The licensing row is settled by Strategy's ruling (2026-09-23): "credit and accept" is not an option when the licence forbids
+  redistribution — **re-source**. Neither non-CC0 clip is in the build any more, and the sprite now rebuilds from public CC0 URLs
+  alone (both cache files were moved out of the tree before the rebuild, which then succeeded — that is the receipt).
+  - Parry (was the Jochi SFX "Shield Block" recording, variants 0-2): now `RECIPES.parry_shield`, the same original voicing
+    `block_shield` already shipped, held to .72 s and centred on the measured ring of the clip it replaces.
+  - The first of the five weapon-landing voicings (was the SoundFX "Sword Slash & Beheading"): now the CC0 "Hit Impact Sword 3"
+    (freesound 547042, the owner's own 2026-09-22 pick) at rate .86 — a sixth below the fifth voicing, which plays it at rate 1.
+  - `shield` and `slashkill` are deleted from `src/assets/audio/SOURCES.json`; `src/assets/README.md` records what went and why.
+- The whip split (Brief 13): a new `whip_raise` cue — leather dragging up through air, .4 s, no transient and no metal, so the
+  tell can never be mistaken for the crack. `WhipRaised` delays it by `lead / 60 - .4` s so its end lands on the lash tick (.6 s
+  of delay before a first lash, .1 s before a 30-tick repeat, 0 when the lead is shorter than the cue). It is air, not an impact:
+  gain .3, room .5, because the man holding it is at the wall. `Whipped` keeps `#361`'s crack.
+- Each of the wall's six lorarii keeps one whip voice on both events — `Cue.rate` (new, optional) is .94 + guard × .024, so
+  guard 0 is the deepest and guard 5 the thinnest, and the ±5 % random spread now multiplies that instead of replacing it.
+  An event with no `guard` plays at rate 1, so a replay written before the tell still sounds right.
+
+### Open
+- The owner has not heard either replacement. He picked both departing clips by ear, so the voicings are auditionable, not final:
+  a different CC0 pick is a one-line change and the measured candidate table is in the PR.
+- `#341` (fatal-crowd check on the harness clock) and Auditer's grade-C findings #4-#8 stay parked, per Strategy.
+
+### Gotchas
+- **Only two cue slots ever used those clips**, not the six cues the older note implies: `parry` variants 0-2 and `HITS[0]`.
+  `block` / `block_perfect` are `block_shield`, an *original* voicing measured from the Jochi clip — measurements are not the
+  recording, so the guards never carried the risk. Check what a slot actually plays before sizing a licensing swap.
+- **No CC0 shield clang measured anywhere near the one being replaced.** Nine CC0 candidates auditioned: every one sat at a
+  4.0-6.9 kHz centroid with ~100 % of its energy above 300 Hz, against the incumbent's 882-1116 Hz and 31-43 %. The thin, bright
+  clangs on Freesound are not the same object as a struck shield with a body. That is why the parry went to the existing voicing
+  rather than to a new recording.
+
 ## Lane state — 2026-09-22 (live a2a901b and after; owner's mix pass, jeer beds, Brief 13)
 
 ### Now

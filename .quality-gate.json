@@ -171,6 +171,7 @@
       "--only",
       "splitCrown,decapitation,runThrough,quietOne,opened,plainDeath",
       "--blood-check",
+      "--durations",
       "--no-video",
       "--label",
       "blood-gate"
@@ -232,6 +233,10 @@
     [
       "node",
       "scripts/endgame-hud-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/loot-smoke-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -299,6 +304,29 @@
       "rows": [
         "account-database-check",
         "account-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "src/loot.ts",
+        "src/loot-panel.ts",
+        "src/loot-data.ts",
+        "src/profile.ts",
+        "src/cloud-profile.ts",
+        "src/main.ts",
+        "src/moves.ts",
+        "index.html",
+        "scripts/loot-smoke-check.mjs",
+        "scripts/lib/harness-clock.mjs"
+      ],
+      "rows": [
+        "roster-browser-check",
+        "record-replay-check",
+        "kill-link-check",
+        "finisher-preview:first",
+        "account-database-check",
+        "account-browser-check",
+        "loot-smoke-check"
       ]
     },
     {
@@ -395,5 +423,5 @@
       "--blood-check"
     ]
   ],
-  "timeout_seconds": 300
+  "timeout_seconds": 420
 }

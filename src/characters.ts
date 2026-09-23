@@ -27,6 +27,7 @@ export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
   cleaver: { Thrust: 'Riposte' },   // the Pitborn's, on the sword clip family until the weapons lane lands its own
   knife: { Thrust: 'Riposte' },   // the goblin's, on the sword clip family until the weapons lane lands its own
   estoc: { Thrust: 'Riposte' },   // the Nightborn's, likewise
+  gladius: { Thrust: 'Riposte' },   // the Centurion's: the sword family, zero clips (Strategy, 2026-09-23)
   scythe: { Idle: 'Scythe_Idle', Walk: 'Scythe_Walk', Jog: 'Scythe_Walk', Run: 'Scythe_Walk', Armed: 'Scythe_Idle', ArmedWalk: 'Scythe_Walk', StrafeLeft: 'Scythe_StrafeLeft', StrafeRight: 'Scythe_StrafeRight', Attack: 'Scythe_Reap', Return: 'Scythe_Reap', Heavy: 'Scythe_High', Thrust: 'Scythe_Thrust', Riposte: 'Scythe_Chain', Guard: 'Scythe_Guard', BlockImpact: 'Scythe_BlockImpact', Parry: 'Scythe_BlockImpact', Deflected: 'Scythe_Deflected', Hit: 'Scythe_Hit', Death: 'Scythe_Death' },   // the Executioner's, LIVE 2026-09-18 (the weapons lane's 13-clip family); one reap clip cuts both ways, and a shaft has no blade to turn, so a parry shows the block. The gait roles too — an unlisted role falls back to the SWORD's clip of that name, and the warden's pre-fight stand/walk read as a one-handed sword hold with the scythe mounted (owner review 2026-09-19: "arms behind his back"); a two-handed weapon has no jog/run of its own, the walk carries all gaits
   // One sweep clip cuts both ways (the sim's path is the same either side); no parry clip: a shaft has no blade to turn, so a parry shows the block.
   // The Dwarf's warhammer (weapons lane shelf, 2026-09-20): the maul's role map on the humanoid Warhammer_* family; Kick and Roll fall
@@ -207,7 +208,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
         root.traverse(object => {
           if (!(object instanceof Mesh)) return;
-          if (object instanceof SkinnedMesh && object.userData.slot === 'Body' && !body) body = object;
+          // A creature-pipeline body (Veteran, Dwarf, Executioner) is one untagged `CreatureBody` draw on the same skeleton; its Body slot names empty nodes.
+          if (object instanceof SkinnedMesh && (object.userData.slot === 'Body' || object.name === 'CreatureBody') && !body) body = object;
           if (object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material);
         });
         if (!body) throw new Error('The rig has no Body draw to hang loot on');

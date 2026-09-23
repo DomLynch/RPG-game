@@ -1,6 +1,6 @@
 import { quietOneClip } from './build-quiet-one.mjs';
 import { fitVeteranNeck, textureVeteranTrident } from './veteran-finish.mjs';
-import { warriorRecipe, DWARF_BONES } from './warrior-recipe.mjs';
+import { warriorRecipe, DWARF_BONES, GOBLIN_BONES, PROPORTION_TABLES } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
 // No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
@@ -122,9 +122,7 @@ const BUILD = { hero: { scale: 1, hunch: [] }, veteran: { scale: 1, hunch: [] },
   // "more bulky than the veteran, but thinner than the executioner"; a change is one number here (Strategy, 2026-09-23).
   knight: { scale: 1.18, hunch: [] },   // no hunch — full plate stands straight
   goblin: { scale: .835, hunch: [['spine_02', 9], ['spine_03', 9], ['neck_01', -8], ['Head', -8]], bob: .84, stride: .835 * .84, floor: .12,
-    bones: { thigh_l: [1, .84, 1], thigh_r: [1, .84, 1], calf_l: [1, .84, 1], calf_r: [1, .84, 1],   // short legs
-      upperarm_l: [1, 1.16, 1], upperarm_r: [1, 1.16, 1], lowerarm_l: [1, 1.16, 1], lowerarm_r: [1, 1.16, 1],   // long arms (the hands keep their size: the grip and the sword are untouched)
-      neck_01: [.86, .9, .86], Head: [1.17, 1.17, 1.17] } },   // a thin, shorter neck; a big head
+    bones: GOBLIN_BONES },   // short legs, long arms, a thin shorter neck and a big head (warrior-recipe.mjs)
   // The dwarf donor (2026-09-20): a short, wide man — the TRELLIS surface replaces this body in creature_pack.py, so only the joints,
   // inverse binds, stride and the trident matter. Legs lose 28 %, torso/limbs gain 20–25 % girth, a short thick neck and a bigger head;
   // `scale` .95 lands ~1.45 m standing. Owner asked for true dwarf proportions rather than the 1.60 m Veteran fit.
@@ -146,6 +144,7 @@ const slotOf = new Map();
 // has to be kept in step. Old-style per-opponent draws are untouched, so the runtime can resolve both ways while the loader catches up.
 const SHARED_PREFIX = '~';
 const lootPieces = new Map();   // `<opponent>.<slot>` → `~<family>.<slot>`
+let shieldStow = null;   // the shield's back transform, written onto its draws at export (the loader picks off-hand vs back by `grip`)
 let lootOf = '', lootSlot = ''; const lootLayer = new Map();   // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
 function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = lootSlot) {
   if (g.index) g = g.toNonIndexed();
@@ -271,7 +270,10 @@ if (LOOT) {
   const unscalers = new Map();
   const unscaler = name => {
     if (unscalers.has(name)) return unscalers.get(name);
-    const bones = { dwarf: DWARF_BONES }[name]; if (!bones) throw new Error(`loot: no proportion table for ${name}`);
+    // Every re-proportioned fighter answers here rather than a hand-kept list: the goblin's table used to sit inline in the
+    // narrowed `BUILD`, so `unscale: "goblin"` threw and a goblin-cut piece failed the BUILD, not the fit. A name with no table
+    // is still an error — unscaling against a fighter who was never re-proportioned is a manifest mistake.
+    const bones = PROPORTION_TABLES[name]; if (!bones) throw new Error(`loot: no proportion table for ${name}`);
     const { joint, frame, S, shift } = proportionField(bones);
     const M = skeleton.bones.map((_, i) => { const R = new T.Matrix4().makeRotationFromQuaternion(frame[i]), D = new T.Matrix4().makeScale(S[i].x - 1, S[i].y - 1, S[i].z - 1); return new T.Matrix3().setFromMatrix4(R.clone().multiply(D).multiply(R.clone().invert())); });
     const c = skeleton.bones.map((_, i) => shift[i].clone().sub(joint[i].clone().applyMatrix3(M[i])));
@@ -427,6 +429,34 @@ if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Gloves`)) {
   }
   lootOf = ''; lootSlot = '';
 }
+// The shield (shield spec, 2026-09-22): ONE small round for beta — the gladiator-correct shape, the Shieldmaiden's identity shape, and
+// the cheapest thing to put in the slot a player sees least. Three shapes (round, kite, tower) are the Season-2 expansion; the tier→shape
+// mapping stays data, so adding them is a table edit and two meshes rather than a re-author of this one.
+//
+// A dished board on a lathe profile: leather face, iron rim, bronze boss — leather and trim so a grade has both classes to repaint.
+// Strapped to the forearm, so it is rigid to `hand_l` and sits a little up the arm toward the elbow, its face out along +Z (the rig's
+// front in the T rest). The stow transform — flat on the back — travels as DATA on the piece, not as a second draw: the loader picks
+// off-hand versus back by reading Weapons' `grip`, and until that lands nothing must render twice.
+if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Shield`)) {
+  const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+  const hand = at('hand_l'), elbow = at('lowerarm_l'), along = hand.clone().sub(elbow).normalize();
+  const centre = hand.clone().addScaledVector(along, -.06);   // the grip is at the fist; the boss sits a little up the forearm
+  const RADIUS = .28, DISH = .045;
+  lootOf = SHARED_PREFIX + 'kit'; lootSlot = 'Shield';
+  // Lathe about Y, then laid face-out: the profile runs from the boss lip to the rim, dished away from the arm.
+  const face = new T.LatheGeometry([new T.Vector2(.052, DISH), new T.Vector2(.14, DISH * .62), new T.Vector2(.235, DISH * .24), new T.Vector2(RADIUS, 0)], 28);
+  const lie = g => g.rotateX(-Math.PI / 2).translate(centre.x, centre.y, centre.z);   // lathe axis Y → the shield's face normal is +Z
+  add(lie(face), leather, 'hand_l');
+  add(lie(new T.TorusGeometry(RADIUS - .012, .016, 6, 30)), trim, 'hand_l');                      // the iron rim, rolled over the boards
+  add(lie(new T.SphereGeometry(.055, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2)), trim, 'hand_l');     // the boss over the hand
+  add(lie(new T.CylinderGeometry(.056, .056, .014, 14)), leather, 'hand_l');                       // the boss collar
+  // Flat on the back, hung off the spine: centred between the shoulder blades, its face out along −Z, tilted so it does not clip the neck.
+  const back = at('spine_03');
+  shieldStow = { bone: 'spine_03', position: [+(back.x).toFixed(4), +(back.y - .06).toFixed(4), +(back.z - .10).toFixed(4)],
+                 rotation: [+(Math.PI).toFixed(4), 0, +(.18).toFixed(4)] };
+  console.log(`  shield: centre ${centre.toArray().map(v => v.toFixed(3))}, radius ${RADIUS}, stow at spine_03 ${shieldStow.position}`);
+  lootOf = ''; lootSlot = '';
+}
 // Sheathed straight sword on the hip; its visible guard establishes the neutral longsword.
 // Geometry is baked in bind space, with the scabbard angled away from the leg.
 // Leather scabbard with a bronze throat and chape, the same size and angle as the old plank so the sheathed sword fits.
@@ -578,6 +608,7 @@ if (LOOT) {   // one draw per (opponent, slot, material); nothing else in the fi
     const [opponent, slot] = mesh.userData.slot.split(':');
     if (!opponent || !slot) throw new Error(`loot draw without opponent/slot: ${mesh.userData.slot}`);
     mesh.name = `${opponent}.${slot}.${mesh.material.name}`; mesh.userData.opponent = opponent; mesh.userData.slot = slot; mesh.userData.layer = lootLayer.get(`${opponent}:${slot}`);
+    if (slot === 'Shield' && shieldStow) mesh.userData.stow = shieldStow;   // data, not a second draw: nothing renders twice before the loader reads `grip`
   }
   for (const name of ['SwordSheathed', 'SwordDrawn']) base.scene.getObjectByName(name)?.removeFromParent();
   base.scene.traverse(o => { if (o.isMesh && !o.isSkinnedMesh) o.visible = false; });

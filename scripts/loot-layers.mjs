@@ -47,7 +47,7 @@ loot.scene.traverse((o) => { if (o.isSkinnedMesh && typeof o.userData.slot === '
 // of these files learn to resolve the map. Seven kilobytes buys the UI staying exactly as it was.
 const idsOf = (p) => { const own = p.userData.opponent + '.' + p.userData.slot;
   const refs = Object.entries(shared).filter(([, target]) => target === own).map(([ref]) => ref); return refs.length ? refs : [own]; };
-const ARMOUR = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'];   // weapon draws (Weapons' equip files) are a separate render path
+const ARMOUR = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'];   // weapon draws (Weapons' equip files) are a separate render path
 const ids = [...new Set(pieces.filter((p) => ARMOUR.includes(p.userData.slot)).flatMap(idsOf))].sort();
 const occluder = new THREE.MeshBasicMaterial({ colorWrite: false });
 let worn = [];
