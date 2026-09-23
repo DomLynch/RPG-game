@@ -133,7 +133,7 @@ export function createScene(
   ];
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
-  const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
+  const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb', '!./assets/knight.glb'], { eager: true, query: '?url', import: 'default' });
   const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
   // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
   // loading screen instead of stalling the first exchange (measured 69 ms p95 in the first window when they arrived late under load).
@@ -212,7 +212,7 @@ export function createScene(
     ctx.beginPath();
     for (let i = 0; i <= 64; i++) {
       const angle = (i / 64) * Math.PI * 2,
-        r = splash ? 33 + Math.sin(angle * 7) * 6 + Math.cos(angle * 11) * 4 : 48;
+        r = splash ? 33 + Math.sin(angle * 2 + 1) * 5 + Math.cos(angle * 3 + 2) * 4 + Math.sin(angle * 5 + 0.5) * 2 : 48;   // low, out-of-phase lobes: a lopsided blot, never a star
       const x = 64 + Math.cos(angle) * r,
         y = 64 + Math.sin(angle) * r * (splash ? 1 : 0.65);
       if (i === 0) ctx.moveTo(x, y);

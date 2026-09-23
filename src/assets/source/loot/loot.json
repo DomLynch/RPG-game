@@ -1,5 +1,5 @@
 {
- "_": "Brief 5 loot: which authored piece each opponent drops and the player slot it fills. Sources are parts.py/items outputs in the shared unscaled rest space (build-warrior.mjs contract: extras.material/slot + extras.bone or skin weights). `slots`/`names` pick meshes out of a shared file; `unscale` names the BUILD proportion table a piece was cut under. Slots: Helmet, Crest, Body, Arms, Gloves, Greaves, Boots. `layer`: 'replace' hides the player's own draws in that slot (a helm hides the hair, a tunic the tunic, boots the sandals); 'over' is worn on top of them (greaves over bare shins, a plate over a wrap). Body = the tunic and what hangs on it (baldric, belt, buckle, studs, collar) \u2014 kilt/skirt/hose are leg cloth with no paperdoll slot and stay the player's; wraps are the Arms item where an opponent wears nothing over them. A tunic's material becomes Gambeson_<opponent> (his own linen bake) \u2014 see build-warrior.mjs. A `replace` piece must cover at least 80 % of the player's own draws in that slot (tests/loot.test.ts): the Pitborn's chest was a rag sash at 26 % and is not loot \u2014 he wears no tunic by design (parts.py KIT `bare`).",
+ "_": "Brief 5 loot: which authored piece each opponent drops and the player slot it fills. Sources are parts.py/items outputs in the shared unscaled rest space (build-warrior.mjs contract: extras.material/slot + extras.bone or skin weights). `slots`/`names` pick meshes out of a shared file; `unscale` names the BUILD proportion table a piece was cut under. Slots: Helmet, Crest, Body, Arms, Gloves, Greaves, Boots. `layer`: 'replace' hides the player's own draws in that slot (a helm hides the hair, a tunic the tunic, boots the sandals); 'over' is worn on top of them (greaves over bare shins, a plate over a wrap). Body = the tunic and what hangs on it (baldric, belt, buckle, studs, collar) — kilt/skirt/hose are leg cloth with no paperdoll slot and stay the player's; wraps are the Arms item where an opponent wears nothing over them. A tunic's material becomes Gambeson_<opponent> (his own linen bake) — see build-warrior.mjs. A `replace` piece must cover at least 80 % of the player's own draws in that slot (tests/loot.test.ts): the Pitborn's chest is a rag sash at 26 % of the player's tunic, so it ships `over` (worn on top of the tunic, hiding nothing) rather than `replace`. `conform`: the piece was cut from another frame (a broader or a female sculpt); the build pushes it out along its normals until it clears the player's body and level-1 kit (scripts/loot-fit.mjs).",
  "~shared": {
   "_": "Brief 14: pieces the whole roster shares. A shared piece is EXPORTED ONCE, as `~<id>.<material>`; an opponent wears it with {\"slot\", \"layer\", \"shared\": \"<id>\"} and contributes no geometry of its own. The build writes the `<opponent>.<slot>` -> `~<id>` map into loot.glb's own scene userData, so the file is self-describing and a loader can resolve either schema. Loot always binds to the PLAYER's rig, so a shared piece needs exactly one fit here - the per-rig-family dimension only exists in the opponents' own fight GLBs.",
   "kit.Gloves": {
@@ -179,6 +179,11 @@
  ],
  "goblin": [
   {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "loot/goblin_hero.glb"
+  },
+  {
    "slot": "Body",
    "layer": "replace",
    "file": "parts/level1_goblin.glb",
@@ -202,6 +207,22 @@
    "file": "@build:goblin-bracer"
   },
   {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "parts/level1_goblin.glb",
+   "slots": [
+    "Greaves"
+   ]
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "parts/level1_goblin.glb",
+   "slots": [
+    "Boots"
+   ]
+  },
+  {
    "slot": "Gloves",
    "layer": "over",
    "shared": "kit.Gloves"
@@ -209,9 +230,36 @@
  ],
  "pitborn": [
   {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "@build:pitborn-helmet"
+  },
+  {
+   "slot": "Body",
+   "layer": "over",
+   "file": "parts/level1_pitborn.glb",
+   "names": [
+    "tunic",
+    "belt",
+    "buckle",
+    "studs"
+   ],
+   "conform": true
+  },
+  {
    "slot": "Arms",
    "layer": "over",
    "file": "@build:pitborn-plates"
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "@build:pitborn-greaves"
+  },
+  {
+   "slot": "Boots",
+   "layer": "over",
+   "file": "@build:pitborn-boots"
   },
   {
    "slot": "Gloves",
@@ -230,9 +278,162 @@
    "unscale": "dwarf"
   },
   {
+   "slot": "Boots",
+   "layer": "over",
+   "file": "loot/dwarf.glb",
+   "slots": [
+    "Boots"
+   ],
+   "unscale": "dwarf"
+  },
+  {
    "slot": "Gloves",
    "layer": "over",
    "shared": "kit.Gloves"
+  }
+ ],
+ "shieldmaiden": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "@build:shieldmaiden-cap"
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "parts/level1_shieldmaiden.glb",
+   "names": [
+    "tunic",
+    "baldric",
+    "belt",
+    "buckle",
+    "studs"
+   ],
+   "conform": true
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "@build:shieldmaiden-mail-skirt"
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "@build:shieldmaiden-plates"
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "@build:shieldmaiden-leg-wraps"
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "parts/level1_shieldmaiden.glb",
+   "names": [
+    "boot_l",
+    "boot_r"
+   ],
+   "conform": {
+    "beyond": 0.09,
+    "maxPush": 0.1
+   }
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  }
+ ],
+ "plaguedoctor": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "loot/plaguedoctor.glb",
+   "slots": [
+    "Helmet"
+   ]
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "loot/plaguedoctor.glb",
+   "slots": [
+    "Body"
+   ]
+  },
+  {
+   "slot": "Arms",
+   "layer": "replace",
+   "file": "loot/plaguedoctor.glb",
+   "slots": [
+    "Arms"
+   ]
+  },
+  {
+   "slot": "Gloves",
+   "layer": "replace",
+   "file": "loot/plaguedoctor.glb",
+   "slots": [
+    "Gloves"
+   ]
+  },
+  {
+   "slot": "Greaves",
+   "layer": "replace",
+   "file": "loot/plaguedoctor.glb",
+   "slots": [
+    "Greaves"
+   ]
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "loot/plaguedoctor.glb",
+   "slots": [
+    "Boots"
+   ]
+  }
+ ],
+ "witch": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "@build:witch-hood"
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "parts/level1_shieldmaiden.glb",
+   "kit": "shieldmaiden",
+   "names": [
+    "tunic",
+    "baldric",
+    "belt",
+    "buckle",
+    "studs"
+   ],
+   "conform": true
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "@build:witch-bracers"
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "shared": "kit.Gloves"
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "@build:witch-leg-wraps"
+  },
+  {
+   "slot": "Boots",
+   "layer": "over",
+   "file": "@build:witch-boots"
   }
  ]
 }
