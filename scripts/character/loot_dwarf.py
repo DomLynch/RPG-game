@@ -41,6 +41,9 @@ OUT = 'src/assets/source/loot'
 SLOT_OF = [('Head', 'Helmet'), ('neck', 'Helmet'), ('spine', 'Body'), ('pelvis', 'Body'), ('clavicle', 'Body'),
            ('upperarm', 'Arms'), ('lowerarm', 'Arms'), ('hand', 'Gloves'), ('thumb', 'Gloves'), ('index', 'Gloves'), ('middle', 'Gloves'),
            ('ring', 'Gloves'), ('pinky', 'Gloves'), ('thigh', 'Greaves'), ('calf', 'Greaves'), ('foot', 'Greaves'), ('ball', 'Greaves')]
+# --boots: foot and ball bones fill Boots rather than Greaves — a sabaton is its own piece (the Knight's six; Dom, 2026-09-23).
+if '--boots' in args:
+    SLOT_OF = [(b, 'Boots' if b in ('foot', 'ball') else s) for b, s in SLOT_OF]
 MIN_SLOT = int(args[args.index('--min-slot') + 1]) if '--min-slot' in args else 300   # a slot with fewer iron faces than this is speckle, not a piece
 
 

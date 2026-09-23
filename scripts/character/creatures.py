@@ -436,14 +436,14 @@ for v in mesh.data.vertices:
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
     if family in ("skeleton", "veteran", "plaguedoctor"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
         edge = 0.185 + max(0, 1.4 - z) * 0.26
-    if family == "knight":  # the same man on the hero rig, at BUILD.knight's 1.18
-        edge = 0.185 * 1.18 + max(0, 1.4 * 1.18 - z) * 0.26
     if family == "witch":  # a narrower frame: her hands hang at 0.32 m, inside a man's 0.31 m edge at that height
         edge = 0.15 + max(0, 1.4 - z) * 0.22
+    if family == "knight":  # tight-armed plate: torso edge ~0.20-0.23 m, arms 0.22-0.38 m (ortho front of the normalised surface)
+        edge = 0.225
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
     arm_mix = max(
-        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf", "executioner") else 0.055))
+        0, min(1, (abs(x) - edge) / (0.10 if family in ("minotaur", "werewolf", "executioner") else 0.03 if family == "knight" else 0.055))
     ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
