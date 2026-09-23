@@ -27,7 +27,7 @@ if (doc.buffers.length !== 1 || doc.buffers[0].uri) throw new Error('expected on
 // The clips this weapon owns: its family (build-weapon.mjs names them <Family>_*) plus any sword clip the weapon build re-keys
 // (CLEAVER_KEYS: the cleaver's and knife's Heavy leads with the edge) — found by comparing every clip's bytes with the hero's own
 // warrior.glb. The runtime and the bake play these OVER the rig's same-named clips.
-const family = { warhammer: 'Warhammer_', trident: 'Trident_', scythe: 'Scythe_' }[weapon];
+const family = { warhammer: 'Warhammer_', trident: 'Trident_', scythe: 'Scythe_', maul: 'Maul_' }[weapon];
 // The baseline is a hero build with the sword from the same tree (--hero <path>, else built here): the committed warrior.glb can lag a
 // rebuild in clips no weapon touches (Death_QuietOne, 2026-09-21), and that drift must not ride along in every weapon file.
 const heroFlag = process.argv.indexOf('--hero');
