@@ -46,7 +46,14 @@ SLOT_OF = [('Head', 'Helmet'), ('neck', 'Helmet'), ('spine', 'Body'), ('pelvis',
 MIN_SLOT = int(args[args.index('--min-slot') + 1]) if '--min-slot' in args else 300   # a slot with fewer iron faces than this is speckle, not a piece
 
 
+# --slot-ratio Greaves=.2,Body=.4: a per-slot --ratio. What shreds a piece is too few faces left, so a big piece (a coat skirt) can go lower.
+SLOT_RATIO = {k: float(v) for k, v in (p.split('=') for p in args[args.index('--slot-ratio') + 1].split(','))} if '--slot-ratio' in args else {}
+BOOTS = '--boots' in args   # opt-in: foot/ball bones fill Boots instead of Greaves (a character with boots of his own)
+
+
 def slot_for(bone):
+    if BOOTS and bone.lower().startswith(('foot', 'ball')):
+        return 'Boots'
     for prefix, slot in SLOT_OF:
         if bone.lower().startswith(prefix.lower()):
             return slot
@@ -187,8 +194,9 @@ for s, face_ids in sorted(pieces.items()):
     obj.parent = armature
     obj.modifiers.new('Armature', 'ARMATURE').object = armature
     obj['material'], obj['slot'] = MATERIAL, s
-    if RATIO < 1:
-        obj.modifiers.new('Loot budget', 'DECIMATE').ratio = RATIO
+    ratio = SLOT_RATIO.get(s, RATIO)
+    if ratio < 1:
+        obj.modifiers.new('Loot budget', 'DECIMATE').ratio = ratio
         obj.modifiers.move(len(obj.modifiers) - 1, 0)   # simplify the rest shape, then skin it
     kit.append(obj)
 os.makedirs(OUT, exist_ok=True)
