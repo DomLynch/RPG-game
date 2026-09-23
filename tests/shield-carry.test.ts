@@ -99,3 +99,11 @@ test('shield carry: a two-hander\'s arm is untouched (its shield stows, #478), a
     f.arm().forEach(q => assert.ok([q.x, q.y, q.z, q.w].every(Number.isFinite), `${pose}@${p.toFixed(1)}: finite`));
   }
 });
+
+test('a creature-pipeline body (the Veteran) wears loot: it binds to his CreatureBody, whose Body slot names only empty nodes', async () => {
+  const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('veteran.glb'), undefined, ['knife', 'knife']);
+  player.wear(pieces.filter(p => lootWorn(p, ['veteran.Shield'])));
+  let body: SkinnedMesh | undefined; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && o.name === 'CreatureBody') body ??= o; });
+  assert.ok(player.worn().length > 0 && player.worn().every(p => p.userData.slot === 'Shield'), 'the scutum\'s draws are worn');
+  for (const draw of player.worn()) assert.equal(draw.skeleton, body!.skeleton, `${draw.name} is bound to his CreatureBody's 65-bone rig`);
+});
