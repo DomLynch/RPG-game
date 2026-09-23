@@ -257,6 +257,15 @@
    "unscale": "dwarf"
   },
   {
+   "slot": "Boots",
+   "layer": "over",
+   "file": "loot/dwarf.glb",
+   "slots": [
+    "Boots"
+   ],
+   "unscale": "dwarf"
+  },
+  {
    "slot": "Gloves",
    "layer": "over",
    "shared": "kit.Gloves"
