@@ -13,7 +13,8 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
    `anticipate` (17:00), then #543 (gladius, passed Lead review at `9858588`), then Veteran's scutum (16:00), then Combat's end-of-chain PR: the bump to
    7, the one re-pin, the blade rebake, **SIM_FILES = the import closure** (Combat found 4 missing: blade.ts, blade-paths.ts,
    roster.ts, finishers.ts; eslint.config.js:3 already lists them) plus a closure test, and gladius in PLAYER_WEAPONS_OFFERED.
-4. The next rolling batch (Deploy has it): #540 -> #537 -> #541 -> #542, then #534 once the Auditer sends a re-gated sha.
+4. The next rolling batch (Deploy has it): #540 -> #537 -> #541 -> #542 -> #544 (blood art B/C/D, Dom's pick) -> #546 (quiet-one
+   Rematch wait), then #534 once the Auditer sends a re-gated sha. Finishers' droplets PR (body -> floor) stacks on #544 next.
 **Addressing lanes:** send to ListAgents rows as `"<exact name> [ref]"`, or reply to a `uds:` from-address. Both skip Desktop's
 10-send cap.
 
