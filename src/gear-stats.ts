@@ -60,7 +60,7 @@ export const SLOT_WEIGHT: Record<LootSlot, number> = {
   // A weapon carries the whole Attack pool by itself, at its own tier — there is one main hand, so a weapon's weight is not shared
   // with anything and every weapon weighs the same. Which weapon you hold is `moves.ts`'s business (reach, speed, the fairness table);
   // this number is only how much its TIER is worth.
-  Trident: 100, Cleaver: 100, Knife: 100, Estoc: 100, Gladius: 100, Scythe: 100, Warhammer: 100,
+  Trident: 100, Cleaver: 100, Knife: 100, Estoc: 100, Scythe: 100, Warhammer: 100,
 };
 // The full armour pool and the full weapon pool, in the points `SLOT_WEIGHT × (levelOf - 1)` yields. Both are 900 (100 weight × the 9
 // rungs above Recruit), which is what makes a full Origin set land exactly on a cap rather than near it.

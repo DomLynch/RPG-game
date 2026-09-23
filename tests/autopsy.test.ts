@@ -15,7 +15,7 @@ function fight(strategy: (d: Duel) => Intent, seed: number, opponent: Opponent =
   const reads = readOpponent(ai.habits);
   return { h: ai.habits, reads, log, duel: d, lines: autopsy(ai.habits, reads, log, d) };
 }
-const fights = (strategy: (d: Duel) => Intent, seeds = 12, opponent: Opponent = OPPONENTS.veteran) => Array.from({ length: seeds }, (_, i) => fight(strategy, i + 1, opponent));
+const fights = (strategy: (d: Duel) => Intent, seeds = 12) => Array.from({ length: seeds }, (_, i) => fight(strategy, i + 1));
 const died = (f: Fight) => !!f.duel.finish && !f.duel.finish.draw && f.duel.finish.victim === 0;
 // A backstepping punisher: no battery strategy steps out of swings, so the stepper read gets its own script here.
 const stepAndPunish = (d: Duel): Intent => (swingStart(d) && ready(d) ? act('backstep') : ready(d) && d.fighters[1].phase === 'hurt' ? act('light') : idle());
@@ -47,8 +47,7 @@ test('autopsy: every read the warden makes has a habit line with its numbers, fo
 
 test('autopsy: the cause line names what the events say — a posture break, a guard break, exhaustion, or the blow and where it landed — and nothing on a win or a draw [slow]', () => {
   const seen = { posture: 0, guard: 0, exhausted: 0, plain: 0 };
-  // Coverage of every cause, on the trident Veteran (slice V) it was found on: against the Centurion's gladius (#547) no scripted death is by exhaustion.
-  for (const strategy of Object.values(STRATEGIES)) for (const f of fights(strategy, 8, { ...OPPONENTS.veteran, weapon: 'trident' })) {
+  for (const strategy of Object.values(STRATEGIES)) for (const f of fights(strategy, 8)) {
     const line = cause(f.log, f.duel), lines = f.lines;
     assert.ok(lines.length <= 2, 'at most two lines');
     if (!died(f)) { assert.equal(line, null, 'no cause on a win, a draw or a stall'); continue; }

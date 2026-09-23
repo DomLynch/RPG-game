@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, elapsed, lorariusGuard, idleIntent, initialDuel, legal, mirror, stepDuel, type Action, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, PATHS, PROFILES, RULES, total, type GuardProfile } from '../src/moves.ts';
+import { MOVES, PATHS, PROFILES, RULES, total, type GuardProfile } from '../src/moves.ts';
 import { decide, initialAi } from '../src/ai.ts';
 import { RADIUS, TARGET } from '../src/sim.ts';
 
@@ -652,7 +652,7 @@ test('wounds slow regeneration for a while, refresh without stacking, and only c
 
 test('events: every outcome is reported exactly once per contact and the stream is deterministic', () => {
   const counts: Record<string, number> = {};
-  let seed = 909, d = initialDuel({ ...OPPONENTS.veteran, weapon: 'trident' });   // the trident Veteran (slice V) this walk was tuned on: against the Centurion's gladius (#547) the walk saw no GuardBroken at all
+  let seed = 909, d = initialDuel();
   const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
   const pick = (): Action | null => { const r = random(); return r < .04 ? 'light' : r < .05 ? 'heavy' : r < .06 ? 'kick' : r < .07 ? 'dodge' : r < .08 ? 'backstep' : r < .12 ? 'parry' : null; };
   const held = [false, false];   // guard is a held input: it toggles occasionally rather than flickering every tick

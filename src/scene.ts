@@ -139,19 +139,17 @@ export function createScene(
   // the page is restored with the failure still showing. The capsules stay, the failure is reported, and `retryArt` runs the same
   // load again — the entry point calls it when the page returns to the foreground, the network comes back, or the player taps the notice.
   // Loot (brief 5): the worn ids the entry point last gave (`wear`), the pieces of loot.glb once fetched, and the fetch in flight. The fetch
-  // starts only once the rigs are in and the worn set (or the opponent's `carries`, roster.ts) is non-empty, so it never shares the wire with a fight's download and never gates
+  // starts only once the rigs are in and the worn set is non-empty, so it never shares the wire with a fight's download and never gates
   // readiness: the fight starts on the rigs alone and the pieces go on when they land.
   let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null;
   function dress() {
     if (!warriors) return;
-    const recipe = ROSTER[opponentId], carries: readonly string[] = 'carries' in recipe ? recipe.carries : [];
     try {
       if (!lootPieces) {
-        if ((worn.length || carries.length) && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
+        if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
         return;
       }
       warriors.player.wear(lootPieces.filter((piece) => lootWorn(piece, worn)));
-      if (carries.length) warriors.opponent.wear(lootPieces.filter((piece) => lootWorn(piece, carries)));
     } finally {
       lightFighter(player); lightFighter(opponent);   // key + rim on everything the fighters wear, loot included (colour-grade.ts); idempotent
     }
@@ -310,8 +308,6 @@ export function createScene(
     retryArt: loadFighters,
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     wear(ids: readonly string[]) { worn = ids; dress(); },
-    // Resolves once any loot fetch in flight has landed and been put on (a still that must show the opponent's `carries` waits on it).
-    dressed: (): Promise<void> => lootLoading ?? Promise.resolve(),
     arena,
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
