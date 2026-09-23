@@ -1049,16 +1049,16 @@ dialog>p {
   #combat-status[data-threat=true] {
     padding: 4px 6px;
   }
-  /* .combat-hud is a 2-column grid on phone; #autopsy and #loot-panel are new children after #combat-status (owner 2026-09-22
+  /* .combat-hud is a 2-column grid on phone; #fight-rank and #loot-panel are children after #combat-status (owner 2026-09-22
      move) and need their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
-  #autopsy {
+  #fight-rank {
     grid-column: 1/-1;
     grid-row: 9;
     margin: 4px 0 0;
     max-width: 240px;
   }
   #loot-panel {
-    grid-row: 10;   /* the Take-one panel sits under the autopsy (explicit row like its siblings; `order` cannot beat their placed rows) */
+    grid-row: 10;   /* the Take-one panel sits under the rank row (explicit row like its siblings; `order` cannot beat their placed rows) */
   }
   footer {
     right: max(16px,env(safe-area-inset-right));
@@ -1748,25 +1748,30 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
     opacity: 1;
   }
 }
-/* The death-screen autopsy (src/autopsy.ts): at most two plain lines. Docked in the top band under the health bars with the
-   fight hint, not floating over the arena (owner 2026-09-22: the centred overlay hid the gore and the finisher). In-flow inside
-   .combat-hud (.combat-hud p already gives it the 8 px top margin); left-aligned, pointer-events off like the rest of the HUD.
-   Georgia, the game's reading face; a soft shadow keeps it legible over sand. (Web design, brief 2.) */
-.autopsy {
+/* The rank row (Dom 2026-09-23), one component in three places: the account panel (#rank), the journal's fighter card
+   (#journal-rank) and the fight-end panel (#fight-rank, where the death-screen autopsy was, win and loss). Class + numeral left, a
+   segmented bar across the whole class (one segment per numeral, the current one part-filled via --fill from main.ts renderRank),
+   the next class right and dimmer. The account panel's type: 12 px, #eee7d9. Ids, not a class, so it outranks .identity div>span. */
+#rank, #journal-rank, #fight-rank {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+#rank, #fight-rank { font-size: 12px; color: #eee7d9; }   /* #journal-rank keeps .fighter-rank's size and ink on the journal's paper */
+#fight-rank {
   pointer-events: none;
-  color: #efe6d3;
-  font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif;
-  text-align: left;
-  text-shadow: 0 1px 2px #000c, 0 0 14px #0009;
+  text-shadow: 0 1px 5px #131b1d;
 }
-.autopsy span { display: block; }
-.autopsy span + span { margin-top: 4px; }
-@media (max-width: 900px), (pointer: coarse) {
-  .autopsy { font-size: 12px; }
+.rank-bar { display: inline-flex; gap: 2px; }
+.rank-seg {
+  width: 14px;
+  height: 5px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--rank-fill, #d2bd8c) var(--fill, 0%), color-mix(in srgb, currentColor 22%, transparent) var(--fill, 0%));
 }
-/* The last fight's autopsy under an opponent's row in the journal's Stats tab: a quiet serif sub-line that belongs to the row above. */
-dialog .scorecard-table tr:has(+ .autopsy-row) td { border-bottom: 0; padding-bottom: 2px; }
-dialog .scorecard-table .autopsy-row td { padding: 0 4px 9px; text-align: left; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); border-bottom: 1px solid var(--jl); font-variant-numeric: normal; }
+dialog .rank-seg { --rank-fill: var(--js); }
+.rank-next { opacity: 0.65; }
 /* The daily warden (src/daily.ts): a card at the top of the journal's Options tab — the status line is the headline, one primary
    button, then the five board rows. A row is plain text today; a <b> title + trailing text lays out as two columns when the
    wiring emits it. li[data-verified=false] stays greyed; li[data-you=true] is the player's own row, pinned and lifted. */
@@ -1795,10 +1800,10 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    touch or Rematch). main.ts's updateHud() toggles :root.endgame-fade from finishPhase() every frame. The buttons go inert
    while faded (lead review, 2026-09-22): an invisible Rematch under the player's thumb during the tour must not fire — the
    first tap during the tour reaches the arena instead, which is what stops it (scene.ts), and the HUD returns at 250 ms. */
-#autopsy, #reset-button, #share-button, #share-status {
+#fight-rank, #reset-button, #share-button, #share-status {
   transition: opacity 250ms ease-out;
 }
-:root.endgame-fade #autopsy,
+:root.endgame-fade #fight-rank,
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button,
 :root.endgame-fade #share-status {
@@ -1819,7 +1824,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  #autopsy, #reset-button, #share-button, #share-status { transition: none; }
+  #fight-rank, #reset-button, #share-button, #share-status { transition: none; }
 }
 
 /* First-fight cues (brief 8, copy approved by the lead 2026-09-21: "Block it." / "Other side." / "Now."). One line in the

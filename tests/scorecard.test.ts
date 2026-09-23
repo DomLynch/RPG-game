@@ -21,6 +21,12 @@ test('the card survives a reload and a bad or unknown row is dropped, never trus
   const blocked = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('quota'); } };
   assert.deepEqual(loadScorecard(blocked).rows, {}); assert.equal(saveScorecard(blocked, card), false);
 });
+test('journal rows sort by fights, most first; ties keep ladder order; the total stays last', () => {
+  const card = loadScorecard(memory());
+  recordResult(card, 'goblin', 'loss'); recordResult(card, 'goblin', 'win'); recordResult(card, 'nightborn', 'loss');
+  const ladder = [{ id: 'veteran', name: 'V' }, { id: 'executioner', name: 'E' }, { id: 'nightborn', name: 'N' }, { id: 'goblin', name: 'G' }] as const;
+  assert.deepEqual(scorecardRows(card, ladder).map((r) => [r.name, r.fights]), [['G', 2], ['N', 1], ['V', 0], ['E', 0], ['All fights', 3]]);
+});
 test('journal rows list every offered opponent, mark walk-aways, and end with the total', () => {
   const card = loadScorecard(memory());
   recordResult(card, 'veteran', 'loss', true); recordResult(card, 'veteran', 'win');
