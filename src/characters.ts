@@ -207,7 +207,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
         root.traverse(object => {
           if (!(object instanceof Mesh)) return;
-          if (object instanceof SkinnedMesh && object.userData.slot === 'Body' && !body) body = object;
+          // A creature-pipeline body (Veteran, Dwarf, Executioner) is one untagged `CreatureBody` draw on the same skeleton; its Body slot names empty nodes.
+          if (object instanceof SkinnedMesh && (object.userData.slot === 'Body' || object.name === 'CreatureBody') && !body) body = object;
           if (object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material);
         });
         if (!body) throw new Error('The rig has no Body draw to hang loot on');
