@@ -2,6 +2,14 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 22:15 — Post-reset checkpoint: Run 3a deploying (63c56758, 45 min under load 32), Phase L NO-GO → Run 4 tomorrow morning, Dwarf/Knight last call
+
+**Verified myself 22:08:** live a53762ef; lock held by deploy.sh pid 27356 on 63c56758 (#619 Run 3a = Dwarf Helmet #607, Shieldmaiden jaw #608, Plague Doctor fit #610, Nightborn Greave #611) since 21:29; #620 Run 3b MERGEABLE + CI green; #614 Dwarf Body+Arms CONFLICTING (8f84598a); #603 Knight draft + CONFLICTING (29943046); #589/#606 Phase L unmerged. All lanes restarted ~21:50 (Dom's /clear sweep).
+
+**Lead 22:12 (attributed, not re-checked):** Run 3a on row 23/35, ETA 22:25–22:40 is his estimate from row count; try 1 died on the deploy ceiling. #614: Veteran re-wound the pieces locally, nothing pushed. #603: Executioner has Weapons' changes at b544ece6, owes rebuild + 3 stills. Phase L: #589 newest stills are the 18:49 goblin-only set on an old head, no 3-opponent Recruit+Legionary stills, #606 draft with no split produced → NO-GO. Greaves: Web's live test says over-layer draws = NOT REAL; no Veteran receipt; #614's re-wind fixes a different defect (inward-wound faces).
+
+**Rulings 22:15:** (a) Phase L → Run 4 tomorrow morning, the 21:00 gate stands unchanged (3-opponent stills at Recruit + Legionary, split per opponent under the 12 MB cap); Run 3b = #620 + #617 + #612. (b) Greaves finding CLOSED NOT REAL on Web's live receipt; Veteran's repro no longer owed. (c) Dwarf #614 + Knight #603: MERGEABLE head + stills before the Auditer starts the 3b integration joins 3b; miss that and both go in a Run 3c tonight only if both are MERGEABLE with stills by 23:30, otherwise Run 4. Deadline set because they are the last two to six. **NOW:** curl the 3a sha when the lock clears; Dom told Phase L is tomorrow; 3b sha ~23:40.
+
 ## 2026-09-23 20:47 — RUN 2 LIVE a53762ef (my curl 20:47): Shieldmaiden, Goblin, Plague Doctor, Witch at six + floor blood; 8/10 opponents at six
 
 Lead 20:46: rows 35/35 (27 local + 8 CI-trusted), rows 3 and 9 timed out under load then passed solo, row 23 passed first time, EXIT 0, lock free, FREE broadcast. Remaining to six: Dwarf (Helmet #607 + Body/Arms #614 + Boots re-cut ≤ 22:00) and Knight (#603 six, fallback = un-hold alone in Run 3, six in Run 4; mid-swing glint caveat for Dom). Nightborn Greave f9f29962 in Run 3. **NOW:** 21:00 line = greaves REAL/NOT REAL + Phase L split/stills go-no-go + Witch clearance; Run 3 PR 22:15, publish 22:30, LIVE 23:00; Dom plays the four sixes on his phone on a53762ef.
