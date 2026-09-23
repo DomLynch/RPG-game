@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanName, type Profile } from './profile.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
-import { cleanLoot, emptyLoot, mergeLoot, type Loot } from './loot.ts';
+import { cleanLoot, emptyLoot, mergeLoot, sameKill, type Loot } from './loot.ts';
 import { marksOf } from './career.ts';
 
 export type CloudProfile = { display_name: string; encounter: OpponentId | null; revision: number; victory_marks: number; loot: Loot };
@@ -26,7 +26,8 @@ const canon = (value: unknown): string => JSON.stringify(value ?? {}, (_, v) => 
 export function profileDiffers(profile: Profile, cloud: CloudProfile): boolean {
   const mine = fighterDetails(profile), loot = cleanLoot(mine.loot), theirs = cleanLoot(cloud.loot);   // both sides cleaned: unknown ids never count as a change
   return mine.display_name !== cloud.display_name || mine.encounter !== cloud.encounter || mine.victory_marks > cloud.victory_marks
-    || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.taken) !== canon(theirs.taken);
+    || loot.owned.some(id => !theirs.owned.includes(id)) || canon(loot.equipped) !== canon(theirs.equipped) || canon(loot.taken) !== canon(theirs.taken)
+    || (loot.declined ?? []).some(k => !theirs.declined?.some(c => sameKill(c, k)));   // a refused offer the cloud lacks, like a new piece
 }
 // What the device may never take from the account by writing over it: the higher mark count and every piece of loot on either
 // side. Every refresh and every write absorbs these first (audit 2026-09-23: an older device's ordinary refresh differed on a name
@@ -35,7 +36,7 @@ export function profileDiffers(profile: Profile, cloud: CloudProfile): boolean {
 export function absorbCloud(profile: Profile, cloud: CloudProfile): Profile {
   const victoryMarks = Math.max(marksOf(profile), cloud.victory_marks);
   const loot = { ...mergeLoot(profile.loot, cloud.loot), equipped: profile.loot?.equipped ?? {} };
-  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(loot.owned.length ? { loot } : {}) };
+  return { ...profile, ...(victoryMarks ? { career: { victoryMarks } } : {}), ...(loot.owned.length || loot.declined ? { loot } : {}) };
 }
 // One cloud write at a time. A save asked for while one is in flight does not start a second write against the same revision (that
 // is a guaranteed conflict); it marks the queue and, once the current write lands, the LATEST device profile is written once more.

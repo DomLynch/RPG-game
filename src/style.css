@@ -1780,6 +1780,16 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 :root.endgame-fade #share-button {
   pointer-events: none;
 }
+/* The same rule for the loot panel's arena-side targets. The panel stays VISIBLE through the tour (it is outside the fade group),
+   but its tiles sit in the top band, where the player's first touch lands to stop the tour — and a tile tap is the take. Measured
+   on #521: the Centurion's nine pieces wrap to a second row that covers (190, 300), so the touch meant to hand the camera back
+   took his shield. While the tour rolls a touch anywhere only stops it (main.ts: document pointerdown -> view.stopTour()); the
+   tiles and Undo come back with the HUD 250 ms later, and then a tap is the take. Leave it sits in the thumb row, outside the
+   arena's touch path, and stays live. */
+:root.endgame-fade .loot-pieces button,
+:root.endgame-fade #loot-undo {
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
   #autopsy, #reset-button, #share-button, #share-status { transition: none; }
 }
@@ -1799,17 +1809,23 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
    :root.endgame-fade group, so the arena-cam tour does not fade it: it stays until Take, Leave it, Rematch or Next. A dark glass card
    over the sand; a row of piece tiles (thumbnail + name, owned ones greyed with "Yours"), the chosen tile lit in the game's sand; Take
    in sand, Leave it as a ghost. Both columns of the phone HUD grid. */
-.loot-panel { grid-column: 1 / -1; margin: 8px 0 0; pointer-events: none; padding: 10px 10px 8px; border-radius: 14px; background: #1b1916cc; border: 1px solid #e9d9b340; box-shadow: 0 4px 14px #0006; color: #f3e9cf; text-shadow: none; opacity: 0; transition: opacity 250ms ease-out; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+/* Skin (Dom, 2026-09-22, with a phone still: "the black background should be the gold button colour, same, and semi transparent"):
+   the card wears the sand of Take/Next (#b7a276) at ~55 %, keeps its blur, and the type turns to ink so it reads on gold. */
+.loot-panel { grid-column: 1 / -1; width: min(calc(100vw - 32px), 360px); margin: 8px 0 0; pointer-events: none; padding: 9px 8px 8px; border-radius: 14px; background: #b7a2768c; border: 1px solid #f0e3c9a6; box-shadow: 0 4px 14px #0006; color: #1b1916; text-shadow: none; opacity: 0; transition: opacity 250ms ease-out; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .loot-panel[data-on='1'] { opacity: 1; }
-.loot-panel-title { margin: 0 0 8px; font: 700 14px/1.25 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.01em; }
-.loot-pieces { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.loot-panel-title { margin: 0 0 7px; color: #1b1916; font: 700 14px/1.25 -apple-system, "SF Pro Display", system-ui, "Instrument Sans", Arial, sans-serif; letter-spacing: -.01em; }
+/* Five tiles in ONE row at 375 px (the lead, 2026-09-22: the weapon tile must never wrap alone). 5 x 56 + 4 x 4 = 296 needs more
+   than the phone HUD column's 254 px of inner width, so the card itself breaks out of that column (above) instead of the tiles
+   shrinking; the seven-piece opponents still wrap, 5 + 2, rather than scrolling out of sight. */
+.loot-pieces { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .loot-pieces li { flex: 0 0 auto; }
-.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #e9d9b340; background: #f3e9cf14; color: #f3e9cf; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.loot-pieces img { display: block; width: 44px; height: 44px; border-radius: 8px; background: #0004; }
+.loot-pieces button { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; min-height: 74px; padding: 4px 2px 5px; border-radius: 10px; justify-content: center; border: 1px solid #fff6e01f; background: #fdf6e340; color: #1b1916; font: 600 9.5px/1.15 "Instrument Sans", Arial, sans-serif; text-align: center; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.loot-pieces img { display: block; width: 44px; height: 44px; border-radius: 8px; background: #1b191614; }
 .loot-pieces button span { display: block; margin: 0; max-width: 52px; overflow-wrap: anywhere; color: inherit; }   /* the global `button span` rule adds a 14px left margin + the pale gold */
-.loot-pieces button small { font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase; color: #b7a276; }
-.loot-pieces button[aria-pressed='true'] { background: #b7a276; border-color: #e9d9b3; color: #1b1916; box-shadow: inset 0 0 0 2px #f0e3c93d; }
-.loot-pieces button:disabled { opacity: .45; cursor: default; }
+.loot-pieces button small { font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase; color: #1b191699; }
+/* The tap IS the take, so there is no selected state to hold any more — only the flash the tile gives as the panel closes. */
+.loot-pieces li[data-took='1'] button { background: #fdf6e3; border-color: #fff8e8; box-shadow: 0 0 0 2px #fff8e8b3, 0 2px 10px #0005; }
+.loot-pieces button:disabled { opacity: .5; cursor: default; }
 .loot-pieces button:disabled img { filter: grayscale(1); }
 /* Take / Leave it live in the BOTTOM row inside #actions, not in the top band with the tiles: Strategy's #380 layout rule (text up top,
    buttons in the thumb row) and, concretely, the first touch after a kill is the player's way to stop the arena-cam tour — a decision
@@ -1818,9 +1834,14 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 .loot-panel-actions { display: flex; gap: 8px; margin: 10px 0 0; z-index: 4; }
 #actions .loot-panel-actions button { position: static; width: auto; height: auto; flex: 1 1 0; white-space: nowrap; min-height: 40px !important; padding: 0 12px !important; border-radius: 999px; border: 1px solid #e9d9b3; background: #b7a276; color: #1b1916; font: 600 14px "Instrument Sans", Arial, sans-serif; box-shadow: inset 0 0 0 3px #f0e3c93d, 0 1px 3px #0006; cursor: pointer; touch-action: manipulation; }
 #actions .loot-panel-actions button:disabled { opacity: .4; cursor: default; }
-#actions .loot-panel-actions #loot-decline { background: transparent; border-color: #e9d9b380; color: #f3e9cf; box-shadow: none; }
-.loot-panel-note { margin: 0; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
-.loot-panel-note:empty { display: none; }
+/* With Take gone, Leave it is alone in the row and nothing else covers the sleeping Step and Guard underneath it, so the ghost
+   gets the cluster's own dark glass rather than full transparency — the label was reading on top of the round buttons. */
+#actions .loot-panel-actions #loot-decline { background: #1a2224cc; border-color: #e9d9b380; color: #f3e9cf; box-shadow: 0 1px 3px #0006; }
+/* The line that replaces the tiles after a take, with Undo beside it. Undo is the ONLY way back from a mis-tap, so it is a pill in
+   the card's own ink, not a quiet link; it takes pointers (the card does not) and is on screen for the caller's 4 s. */
+.loot-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: #1b1916; font: 15px/1.35 Georgia, "Iowan Old Style", "Times New Roman", serif; }
+#loot-undo { pointer-events: auto; flex: 0 0 auto; margin-left: auto; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #1b191633; background: #1b1916; color: #f3e9cf; font: 700 13px/1 "Instrument Sans", Arial, sans-serif; letter-spacing: .04em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+#loot-undo:active { background: #2b2822; }
 @media (prefers-reduced-motion: reduce) { .loot-panel { transition: none; } }
 @media (max-width: 900px), (pointer: coarse) {
   .actions[data-gestures=cluster] .loot-panel-actions { position: absolute; left: 0; top: 137px; width: 176px; justify-content: center; }

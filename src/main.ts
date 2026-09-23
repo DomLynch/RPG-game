@@ -1,7 +1,8 @@
 import { createInput } from './input.ts';
-import { RULES, type WeaponId } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, type WeaponId } from './moves.ts';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from './trial.ts';
 import { createRecorder, decodeRecord, encodeRecord, quantizeIntent, type FightRecord } from './record.ts';
+import { peekRecordHeader } from './record-header.ts';
 import { api } from './api.ts';
 import { session } from './session.ts';
 import { fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
@@ -68,7 +69,10 @@ function showAutopsy(lines: string[]) { autopsyLines.hidden = !lines.length; aut
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
 // A piece's kill-screen thumbnail (scripts/loot-layers.mjs); a weapon has none until its equip file renders, so its tile is its name.
 const lootThumb = (id: LootId) => (isWeaponLoot(id) ? undefined : `/game/img/loot/${id}.thumb.webp`);
-const lootPanel = createLootPanel(element, document);
+const lootPanel = createLootPanel(element, document, () => performance.now());   // the clock is injected: the panel's tap guard must be steppable by the harness
+let lootLineTimer: ReturnType<typeof setTimeout> | undefined;   // the Undo line's ~4 s on screen
+const LOOT_LINE_MS = 4000;
+const hideLoot = () => { clearTimeout(lootLineTimer); lootPanel.hide(); };   // every reset path drops the line's timer with the panel
 function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
   const pieces = (LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }));
@@ -76,11 +80,21 @@ function offerLoot(healthLeft: number) {
   lootPanel.show(`Take one from ${name}`, pieces, {
     onTake: (id: string) => {
       if (!isLootId(id) || lastDrop) return;   // one take per win
+      // Undo restores the ledger this take found, not a computed inverse: `store` writes provenance into `taken` and `wear` moves
+      // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
+      // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
+      const before = profile.loot;
       profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
       lastDrop = id; setLoot(wear(profile.loot, id));
-      lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`);
+      clearTimeout(lootLineTimer);
+      lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
+        clearTimeout(lootLineTimer);
+        lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
+        offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
+      });
+      lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
     },
-    onDecline: () => { profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); },
+    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); },
   });
 }
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/loot.ts); the scene wears it (view.wear), the
@@ -412,7 +426,7 @@ resetButton.addEventListener('click', () => {
   if (replay || stalled) {   // PLAY NOW: the same warden (and the record's seed when there is one), live, practice only
     practiceOnly = true; if (replay) matchSeed = replay.record.seed; replay = null; stalled = false; banner(null);
     clearInput(); recorded = false; activeMs = 0;
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; pendingLoot = null; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); hideLoot(); lastDrop = null; pendingLoot = null; state = previous = practice.fighter;
     shareButton.hidden = true; say(null); view.recenter(); canvas.focus(); updateHud();
     return;
   }
@@ -433,7 +447,7 @@ resetButton.addEventListener('click', () => {
   practice = initialPractice(matchSeed, opponent, playerWeapon);
   recorder = startRecorder();
   shareButton.hidden = true; say(null);
-  frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; pendingLoot = null;
+  frameEvents = []; fightLog = []; showAutopsy([]); hideLoot(); lastDrop = null; pendingLoot = null;
   state = previous = practice.fighter;
   view.recenter();
   canvas.focus();
@@ -478,7 +492,7 @@ const REPLAY_TAIL = 7;
 function startReplay(record: FightRecord, fromTick: number) {
   matchSeed = record.seed; playerWeapon = record.weapon; difficulty = record.profile; element('difficulty').textContent = `Difficulty: ${difficulty}`;
   recorder = null; recorded = false; activeMs = 0; clearInput();
-  practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; pendingLoot = null;
+  practice = initialPractice(matchSeed, opponent, playerWeapon); frameEvents = []; fightLog = []; showAutopsy([]); hideLoot(); lastDrop = null; pendingLoot = null;
   for (let tick = 0; tick < fromTick; tick++) practice = stepPractice(practice, record.intents[tick], opponent.profiles[difficulty]);
   state = previous = practice.fighter; accumulator = 0;
   replay = { record, cursor: fromTick }; stalled = false; shareButton.hidden = true; say(null);
@@ -501,7 +515,19 @@ if (replayText || sharedId) {
       element('welcome-eyebrow').textContent = 'THIS FIGHT HAS FADED'; element('welcome-title').textContent = 'Sign in and your kills are kept forever.'; element('welcome-lead').hidden = true;
       return;
     }
-    stalled = true; banner(message.startsWith('Fight record: version') ? 'Recorded on an older build' : 'This fight cannot be played here', true); updateHud();   // one small line, PLAY NOW under it
+    if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): say what the fight was from its header, never a blank arena
+      void text.then(peekRecordHeader).then((header) => {
+        const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? ROSTER[header.opponent].name : null;   // a link is public input: name only an opponent and weapon this game knows
+        if (!header || !foe) { stalled = true; banner('Recorded on an older build', true); updateHud(); return; }
+        const title = `${foe[0].toUpperCase()}${foe.slice(1)}`, weapon = `a ${header.weapon}`;
+        banner(null); watching = false; welcome.hidden = false;
+        element('welcome-eyebrow').textContent = 'RECORDED UNDER AN OLDER VERSION';
+        element('welcome-title').textContent = header.outcome === 'killed' ? `${title} fell to ${weapon}.` : header.outcome === 'died' ? `${title} won, against ${weapon}.` : `${title} against ${weapon}. Nobody fell.`;
+        element('welcome-lead').textContent = 'The fight rules have changed since, so it cannot be replayed.'; element('welcome-lead').hidden = false;
+      });
+      return;
+    }
+    stalled = true; banner('This fight cannot be played here', true); updateHud();   // one small line, PLAY NOW under it
   });
 }
 // The daily warden (brief 4): `?daily=1` asks the server for today's fight, moves to the day's opponent when the page booted another,
@@ -517,7 +543,7 @@ if (dailyParam(window.location?.search ?? '') && !replayText && !sharedId) {
     daily = fight; practiceOnly = true; matchSeed = fight.seed; difficulty = 'normal'; element('difficulty').textContent = 'Difficulty: normal';
     saveDaily(storage, { day: fight.day, started: true, submitted: false });
     recorded = false; activeMs = 0; clearInput();
-    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); lootPanel.hide(); lastDrop = null; pendingLoot = null; state = previous = practice.fighter;
+    practice = initialPractice(matchSeed, opponent, playerWeapon); recorder = startRecorder(); frameEvents = []; fightLog = []; showAutopsy([]); hideLoot(); lastDrop = null; pendingLoot = null; state = previous = practice.fighter;
     banner(`Daily #${fight.number} · ${ROSTER[opponent.id].name}`); updateHud();
   }).catch((error: unknown) => { banner(`No daily duel: ${error instanceof Error ? error.message : String(error)}`); });
 }

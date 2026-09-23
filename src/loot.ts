@@ -4,6 +4,7 @@
 // is takeable instead (WEAPON_SLOTS below) and fills the paperdoll's main hand. The paperdoll is the six armour slots plus the two hands;
 // the beta opens one locker and greys the rest. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career.ts';
+import type { Tier } from './grades.ts';
 import type { WeaponId } from './moves.ts';
 import { isOpponentId, type OpponentId } from './roster.ts';
 
@@ -48,6 +49,11 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
 // Retired pieces: no longer on any opponent (never offered, never dropped) but still known, so a player who took one keeps it and can
 // wield it. The Centurion carried the trident until Strategy's ruling (A), 2026-09-23, gave him the gladius and scutum.
 export const RETIRED_LOOT: readonly LootId[] = ['veteran.Trident'];
+// The rung each piece is first worn from (the kit floor; server awards read it through src/awards.ts kitAt). Data, not a parameter:
+// filling it is a data change, no schema or code change. Empty = every piece worn from Recruit (beta ruling 2026-09-23); the values
+// are Multi Chars' to set, post-beta.
+export type WornFrom = Partial<Record<LootId, Tier>>;
+export const WORN_FROM: WornFrom = {};
 export const LOOT_IDS: ReadonlySet<string> = new Set([...Object.values(LOOT).flat(), ...RETIRED_LOOT]);
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
@@ -100,5 +106,11 @@ export const store = (loot: Loot | undefined, id: LootId, taken?: Provenance): L
 export const recordTaken = (loot: Loot, id: LootId, recordId: string): Loot => (loot.taken?.[id] && loot.taken[id]!.recordId === null ? { ...loot, taken: { ...loot.taken, [id]: { ...loot.taken[id]!, recordId } } } : loot);
 export const wear = (loot: Loot, id: LootId): Loot => (loot.owned.includes(id) ? { ...loot, equipped: { ...loot.equipped, [paperdollOf(slotOf(id))]: id } } : loot);
 export const unwear = (loot: Loot, key: Paperdoll): Loot => { const equipped = { ...loot.equipped }; delete equipped[key]; return { ...loot, equipped }; };
-// A device record and a cloud record together: nothing is lost (owned is the union); the cloud's worn set wins when it has one.
-export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {}, taken: { ...cloud.taken, ...device?.taken } });
+// A device record and a cloud record together: nothing is lost (owned and declined are unions, declined kept to the last
+// DECLINED_KEPT); the cloud's worn set wins when it has one.
+export const sameKill = (a: Provenance, b: Provenance) => a.opponent === b.opponent && a.attempt === b.attempt && a.day === b.day;
+export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => {
+  const declined = [...(cloud.declined ?? []), ...(device?.declined ?? []).filter(k => !cloud.declined?.some(c => sameKill(c, k)))]
+    .sort((a, b) => a.day.localeCompare(b.day));   // oldest first, so the cap drops the oldest whichever side holds it
+  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {}, taken: { ...cloud.taken, ...device?.taken }, declined });
+};

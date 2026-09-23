@@ -44,6 +44,8 @@ jobs:
       - run: npm run quality:ci
       - name: Account database isolation
         run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
+      - name: Server awards database
+        run: PG_BIN="$(pg_config --bindir)" node scripts/awards-database-check.mjs
   base:
     # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
     if: github.event_name == 'pull_request'
