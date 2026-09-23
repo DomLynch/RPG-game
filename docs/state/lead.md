@@ -50,6 +50,31 @@ every weapon at both levels, since every player weapon is also a warden's weapon
 **It changes `ai.ts`, so it moves `SIM_DIGEST` and needs a `RECORD_VERSION` bump** — ride the single bump to 6 (whoever is ready
 first takes it), never a second one.
 
+### Four beta additions from the external review (Strategy, ruled 2026-09-23 ~06:40Z, in priority order)
+Report: `~/Desktop/Business/reports/frankendom-review-2026-09-23.md`. Its verdict is "serious indie, strong combat foundation,
+unfinished player experience". Everything else in it is either already in flight or post-beta.
+1. **SAVE DEFECT (beta item 3). BACKEND owns it, the Auditer reviews, this week, own small PR. VERIFIED by Lead on trunk:**
+   `mergeLoot` (`src/loot.ts:101`) rebuilds only `owned`/`equipped`/`taken`, so `declined` is DROPPED on every account merge, and
+   that is directly under a comment saying "nothing is lost". `profileDiffers` (`src/cloud-profile.ts:25-29`) compares only
+   `owned`/`equipped`/`taken`, so a **decline-only change never saves**. Fix: a bounded, deduplicated history merge
+   (`DECLINED_KEPT` = 50, which already exists at `loot.ts:81/93`) plus the field in change detection. Tests: login merge,
+   decline-only change, duplicate histories, the 50 cap.
+2. **RETIRED-REPLAY PAGE. WEB, small, rides WINDOW 1.** The knife bump kills every v5 link. An old shared link must land on an
+   explicit "this fight was recorded under an older version" page showing the durable result (winner, weapon, opponent, date from
+   the record header). Never a blank page, never a mis-simulated fight. Built against the `READABLE_VERSIONS` refusal path, and it
+   **merges with the bump, not after**.
+3. **GEAR VALIDATION ROWS. STATS, in the Brief 19 battery before deliverable 5 merges.** Max kit vs naked compounds to
+   1.15 / 0.80 = **1.4375** relative damage ratio; that is what the caps mean, but it has to be MEASURED: naked vs max-kit, equal-kit,
+   and mismatched-tier, at both AI levels, with win rate and fight length. Review the cap only if a row shows equipment beating
+   skill. Daily stays fixed-kit. Rows go into the battery plan now; no code yet.
+4. **PLAYER OBSERVATION PROTOCOL (item 6 sharpened). WEB + COMBAT, after the next publish.** Instrument the funnel on the public build:
+   first fight started/completed, loss -> rematch, first loot equipped, save success, next-day return, and stalls/errors by release
+   and device. Then Dom watches 5-10 unfamiliar players on the exact public sha, recording raw counts: can they explain a loss, do
+   they rematch, do they equip. **No interactive tutorial gets built on assumption.** If the answer is "cannot explain the loss",
+   the surface to improve is the existing autopsy (`src/autopsy.ts`), with no duplicate system.
+**Post-beta, recorded:** mastery milestones on the ladder (the career rule stands: one mark per win, no demotion), a wound/comeback
+retune (needs the observation first), and crowd/material/framing polish beyond World's phone pass.
+
 ### The sim window (Strategy's rule, 2026-09-23) — how fight-altering PRs publish
 Every change that alters fights costs a `RECORD_VERSION`, and kill links die once per publish that carries one. So **all
 fight-altering PRs in the SAME publish share ONE bump**, with the digest re-pinned once at the end of the window.
