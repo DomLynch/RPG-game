@@ -75,6 +75,19 @@ not a longer timeout.
   Head `8e07865`, 2 files +75/-2. Gate 496 / 494 / 0 fail / 2 skipped, `gear-stats.test.ts` 20/20. Stats caught and fixed its
   own broken conflict resolution (TS1005). NOT READY until `quality` runs against trunk in CI.
 
+### Audio, ~07:10Z — phone pass on live `52dffed`: #529 READY (non-sim)
+The served `sprite.ogg` and `sprite.m4a` sha256 match git, so the measurements are of the shipped audio. #529 (head `5aa788b`)
+lowers the whip TELL (gain .3 -> .1) so it sits 8.4 dB under the lash on the phone band. The two had read equally loud (-29.2 vs
+-29.1). It also adds the two missing whip probes (coverage 17 -> 19). Gates: quality:stop 0 fail, `audio-preview --check` exit 0.
+**Lead query:** Audio's own earlier report said `WhipRaised` / `Whipped` never reached trunk and SCOPE.md removed the lorarii
+guards. If so, this tunes a cue no fight fires. It is harmless and cheap, but worth confirming the cue is live before counting it.
+**Two mix calls for DOM (reported, not changed):** on a phone the kick lands at -41.4 LUFS against a light hit's -34.7, and a
+guard break loses 6.8 dB between full band and phone band (-29.6 -> -36.4). Both live mostly below 300 Hz, which phone speakers
+drop. Making either audible on a phone is a VOICING pass, not a gain change.
+**Receipt correction, self-reported:** this repo has NO `npm run lint`. Audio's "#511 lint clean" came from a missing-script call
+whose exit code was piped away. The real lint is `eslint src` inside quality:stop, and it passes on the tree containing #511, so
+nothing shipped broken. The receipt was hollow, though. **Every lane: cite quality:stop, not `npm run lint`.**
+
 ### (superseded) DEPLOY DIED, 06:29Z: `2d614dc` killed with `EXIT=124`.
 The log ends: `Retrying release check 27 alone` -> `Deploy ceiling: no exit after 3000s in step 'release checks' — killing
 the deploy` -> `EXIT=124`. Live is still `fe0d8e0`; trunk is `52dffed` (`2d614dc` + #519 CI fix + #502). **Row 27
