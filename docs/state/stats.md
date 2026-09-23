@@ -17,7 +17,29 @@ Both were caught on implausibility, not from the output. The probe now asserts t
 
 ## Now (2026-09-23 ~07:15Z)
 
-**Deliverable 3, server-authoritative awards: design agreed with Backend, migration HELD for Strategy's ruling on marks.**
+**Deliverable 3, server-authoritative awards: UNBLOCKED. Strategy ruled (relayed by Backend, 2026-09-23 ~07:30Z). This is the next
+build; start here.**
+
+Strategy's ruling:
+- **(a): marks are server-authoritative.** Every verified ladder win is one server mark. Drop, tier and rank come from verified data.
+  `victory_marks` and `owned` are caches. (c) isn't needed.
+- **Grandfather, don't reset.** A new `account_seed(user_id uuid pk references auth.users, marks int check 0..100000, owned jsonb,
+  seeded_at)`, **written only by this migration** with `insert … select` from `fighter_profiles` at apply time. **Never hardcode** a
+  real uuid or loot in git. RLS on, no client grant (owner-select only if the client needs it). One-off by construction: no function or
+  grant can re-run it. The post-apply receipt is a non-identifying summary ("1 account seeded, marks N, K pieces").
+- Server marks = `seed.marks + count(verified ladder wins)`. Server owned = `seed.owned ∪ awards`. **`awards` stays pure**: every row is
+  backed by a verified record, and no claims are faked for the seed.
+- **Guests:** loot is a device-only cache with no award. On guest→account the cache carries over as device-only cosmetics, and the
+  account's server marks **start at 0 from its first verified win**, so a forged guest cache never becomes rank.
+- The PR goes through **Lead**, with the migration and the tests. **Poster binding is NOT in this migration.** It's PR B's
+  record-format change (account id in the bytes, the verifier compares `record.owner` to `claim.user_id`), Lead's item. Interim: global
+  unique hash plus claiming before Share.
+- **Four more tests (Strategy), each mutation-tested with the probe first proving its mutation landed:** (1) seed: a fixture profile →
+  seeded exactly those, once; (2) verified win: server marks = seed + 1, and the drop = `dropFor` at the server subRank; (3) guest convert:
+  no seed row → marks 0, then 1 after the first verified win; (4) forged cache: the client writes `victory_marks = 100000` and an Origin
+  piece into `fighter_profiles.loot` → server marks and owned unchanged.
+
+The design below (agreed with Backend) still holds.
 Backend's review, accepted in full:
 - Two tables. `loot_claims`: owner insert, unverified, unique on `sha256(record)` **globally** (one award per fight), size and rate
   caps. `awards(claim_id pk references loot_claims(id), piece, tier, awarded_at)` with **no `user_id`**: owner-select goes through the
