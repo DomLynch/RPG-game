@@ -1,13 +1,18 @@
 ## Now — web lane, 2026-09-23 ~11:10Z (session close after #540/#552/#556; read this first)
 
-**PRIORITY 1 (Dom via Strategy → Lead, 2026-09-23 evening): Phase R paperdoll re-render, done ONCE.** Phase R (LIVE 2026-09-24
-14:00) gives all ten opponents six takeable armour pieces + a weapon, about 40 new loot layers. My part: BEFORE the first Phase R PR
-merges, widen the loot-layers frame to fit the widest new piece and re-render ALL current layers in ONE PR against trunk, so each
-Phase R PR only adds its own layers. **Owed to Lead by 09:00 2026-09-24:** (a) the frame size picked, (b) render time per layer,
-(c) the PR ETA. Relayed premise, NOT yet verified: "the knight.Helmet attempt needed 316→352". `git grep -w 316` over trunk's
-scripts/src/tests found nothing, so the frame constant and the render script have to be FOUND first. Start with the loot-layers
-render pipeline (Brief 5 export; memory `frankendom_loot_export_brief5.md`, `frankendom_loot_loader_2026-09-21.md`) and
-tests/loot-layers.test.ts. Measure the widest piece across the new layers before picking the size; don't just take 352.
+**Phase R (moved to 2026-09-23 night by Dom): the web half is DONE.**
+- **#588** MERGED into `phase-r`. The paperdoll loot-layers frame is FIXED now: `scripts/loot-layers.mjs` fits the camera to the bare body
+  ×`HEADROOM 1.36` above and `FOOT 0.06` under the feet on an 800×1400 canvas, and the crop is the whole canvas. Output 316×720 → 411×720.
+  All 27 layers + fighter.webp were re-rendered. A layer within 4 px of the canvas edge FAILS the run by name, so a Phase R piece can't
+  clip or move the others. Before this, the "frame" was the union of layer bounds and pieces already hit the canvas edge (union
+  y −6..1406). The "316→352" in the brief was that union growing, not a constant. Smallest spare margin at merge (render px): top 174,
+  left 202, right 90, bottom 56. Render time: ~0.5 s per layer warm (15 s for 28 renders; 97 s cold).
+- **#598** READY into `phase-r`, rides run 2 (20:00): `.doll-figure` / `.doll-figure img` max-height 320 → 380 px, which puts the body
+  back at ~90% of its old size (418 would reach into the slot cards). At 375×812 the figure is 217×380 between the cards (x 18–130 / 246–357).
+- Phase L: no web half (Stats' #589; the loot-panel thumbnails stay base material by Strategy's ruling).
+- Strategy order: once #593 (the targeted Stop gate) merges into phase-r, merge `origin/phase-r` into the working branch before the next Stop.
+- Gotcha: a Playwright script that opens the game and waits on `waitForFunction`/`evaluate` timed out headless (shader compile). The
+  browser pane on a `vite preview` (a local `.claude/launch.json`, not committed) worked for the Profile-tab check.
 
 **ALSO ON THE LIST (Lead, 13:2xZ): opponent cards + copy as a PR against TRUNK, once roster-v0 has merged there.** roster-v0 is FROZEN at
 c2a5c73 and publishing: do NOT push to it. At 13:21Z roster-v0 was not yet on trunk; check with
