@@ -35,10 +35,13 @@ equip loader (loot.ts's #309 contract is unimplemented). #559 is HELD. Deploy pu
 **Asked Strategy:** hold the swap (Lead's recommendation: B' = #532 + #545 + #543 as a player weapon, the Veteran stays on the trident, and the knife exception dissolves)
 vs ship with the mismatch (revert-of-revert + #559). Either way B re-lands via a revert of `4a30ef6`, plus Combat's re-pin on that exact tree.
 **STRATEGY RULED (15:1x): HOLD THE SWAP, ship B'.** B' = #532 + #545 + #543 (gladius a PLAYER weapon), with the Veteran ON THE TRIDENT, target ~16:30. **Combat builds it**
-off trunk after the fallback: (1) revert the fallback revert, (2) reverse-apply #547's diff `9858588..28a0fd0` (Veteran reviews), (3) the battery: knife vs veteran back
+off trunk after the fallback: (1) revert the fallback revert, (2) reverse-apply #547's OWN diff **`a9d6734..28a0fd0`** (CORRECTED by Combat: `9858588..` would also strip #538's wear() fix `a9d6734`, which is on trunk; Veteran reviews), (3) the battery: knife vs veteran back
 to ~5/24, OFFERED_DESPITE REMOVED, (4) v7/closure/rebake kept, the re-pin LAST, (5) solo rows 2/11/12 green. Lead marks it READY, then Deploy runs it. #559 is HELD for the re-land.
 **Centurion re-land (tomorrow):** Strategy ruled a veteran.glb rebuild; Veteran scoped the **runtime equip loader** as cheaper (2–3 h vs 3–5 h, lower risk,
 also delivers #309). **Strategy RULED YES (15:2x): the EQUIP LOADER**, owned by Veteran, PR tomorrow morning; the rebuild is off the table. Row-2 exception exactly "the opponent's equip .glb only, ≤ 250 KB" in the row comment; the boot budget row is unchanged. Conditions: hand_r scale measured per rig; the re-land = loader + swap re-applied + Combat re-pin, ONE bump, rows 2/11/12 assert gladius+scutum DRAWN. Then #309 player-wield on the same loader, a separate PR (Veteran).
+**15:0x STATUS:** the fallback deploy.sh is running on `441eb38` (#560 revert, #551, #534, #556, #558; v6). #554 was NOT merged because it's still a DRAFT, and Stats was asked to `gh pr ready`.
+B' is built at `combat/publish-b-prime` @ `39fd0a5` (v7, SIM_DIGEST 3d3a9322…): knife vs vet 4/24, cleaver vs vet 4/24, trident 6/24; the only over-cap row is cleaver vs executioner
+18/24 (#550's). OFFERED_DESPITE is removed and the gladius is offered. It waits for the lock to run quality:stop, test:slow and rows 2/11/12, then the PR opens, and Lead marks it READY after Veteran's undo review.
 **Awards chain:** #551 (sweep, `66e798f`) is READY with Backend OK + Lead, and merges in the rolling run AFTER B (no src/ change). #554 (draft, `b0a8b89`,
 Backend's N1–N3: per-claim settle errors, a loss unit case, the recheck caveat) is retargeted and gated after #551. **The APPLY of 202609230001 + the VPS
 verify-loot unit need all of #551 + #554 + Stats' client-claims PR (offer from `my_standing()`, SCOPE.md loot v2 line), Backend-reviewed,
