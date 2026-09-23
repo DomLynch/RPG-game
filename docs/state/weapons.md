@@ -2,10 +2,42 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-23 (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-23 evening (replace this section wholesale; it is the restart brief, not history)
 
-**Routing (Lead's #517):** lanes report to Lead, Strategy rules. Lead's order for this lane, which **supersedes** Strategy's
-morning order that had the `Maul_*` family before the gladius — dispatch is Lead's call, and both were told about the swap:
+**Routing:** report to **Lead only** (Dom, 2026-09-23 evening). Strategy rules; Lead dispatches.
+
+**NEXT — Strategy ruling 17:3x, via Lead: cut `shieldmaiden.Gladius` AND `plaguedoctor.Longsword` into `loot.glb`, ONE PR against trunk.**
+Start only after the #566/#567/#571 batch is live (Deploy was running it; Blender/export prep while the box is busy, no bakes or tests).
+- Non-sim, material `Steel`, same treatment as the other takeable weapons, so every rung offers its weapon.
+- `'Longsword'` into `WEAPON_SLOTS` (`src/loot.ts`). `loot.ts` is not in `SIM_FILES`: prove it with `tests/record-version-guard.test.ts`
+  staying green **with no bump**. A new slot also needs `SLOT_WEIGHT` in `src/gear-stats.ts` (100, like every weapon) and a new column
+  in the `gear stats: the full tier × slot grid` snapshot (`tests/gear-stats.test.ts`), no other cell moving — done that way for Gladius and Maul.
+- `LOOT.shieldmaiden` + `LOOT.plaguedoctor` entries, the loot-data draw pins, the loot-layers render, the budget rows (LOOT cap 2 MB, TOTAL 40 MB).
+- Then: targeted tests + `tsc` (no full suite tonight, Strategy's rule), the PR number, and a still of both pieces in the loot panel → Lead.
+
+**Done 2026-09-23 (verified by content, not ancestry):**
+- **Gladius** (#543) and **estoc reach +0.30 m** (#532): LIVE in `59d2436` (Publish B was reverted by #560, back in B'). The gladius is
+  sword-family, zero clips, reach = sword − 0.23 m (measured), hero blade table, `player/gladius.glb`. Pitborn renamed its grip material
+  `GladiusBoneGrip` on `roster-v0` `80e991a` (finisher blood never paints a grip) and rebuilt the glb.
+- **Maul** (#572): MERGED into `roster-v0` (`a71e208`). The 12-clip `Maul_*` family on the hero rig, `player/maul.glb`, hero blade table
+  (contact .65–.87), real reach thrust 1.517 / cut 1.630 vs table 1.40 / 1.65. In `PLAYER_WEAPONS`, **not offered**: one over-cap row,
+  `maul vs executioner normal: light spam wins 18/24`, the cleaver's row with the same cause (MAUL is the CLEAVER spread). The maul role
+  map dropped `Maul_Kick`/`Maul_Roll` (the hero family has neither; `fighterClips` throws on a missing clip).
+
+**Open:** `roster-v0`'s version guard is red until Combat's one bump to 8 + re-pin (the maul changed `src/moves.ts` + `src/blade-paths.ts`).
+Combat's Executioner profile clears both the cleaver and maul rows. Branches `weapons/estoc-reach-2`, `weapons/gladius` stay
+(deleting a shared branch is Dom's call; the Centurion re-land may need them).
+
+**Gotchas:**
+1. **"Live" is content, not ancestry.** A reverted merge keeps its commit an ancestor. Grep the file at the sha in
+   `https://frankendom.com/release.json`. In zsh quote `"${r}:path"`: a bare `$r:src` is a modifier ("bad substitution") and counts read 0.
+2. **A fresh `bake-blades` rebakes every table.** Splice only your weapon's table into `src/blade-paths.ts` and check every other one is
+   byte-identical; a stale table elsewhere is its owner's.
+3. **The deploy hook blocks every test, even one file, and shell scripts, while a deploy is in flight.** Commit, open the PR, schedule a retry.
+4. **A new player weapon trips several places at once:** `SLOT_WEIGHT` + the gear grid snapshot, the `tests/characters.test.ts` rig map,
+   and any test that used it as the "opponent-only" example (`record.test.ts`, `replay.test.ts`: swap to the reaper).
+
+## Superseded 2026-09-23 morning brief (kept for the record; every item below is done)
 
 1. **Gladius — FIRST.** Not a `WeaponId` yet (`src/moves.ts:187`). It is one-hand, so it rides the four shared hero clips
    (`Attack`/`Return`/`Heavy`/`Riposte`, `clips: null`) — zero new animation. The job: the `WeaponId` + a `WEAPONS` entry (data), a
