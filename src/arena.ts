@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CombatEvent } from './combat.ts';
-import { CROWD_DYES, CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
+import { CROWD_KINDS, mixSpectators, spectatorGeometry, spectatorMaterial } from './assets/arena/crowd.ts';
 import { BACKGROUND_GRADE, gradeMaterial } from './colour-grade.ts';
 import { phoneTier } from './quality.ts';
 import { loadArenaProps } from './arena-props.ts';
@@ -95,7 +95,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   const skyU = ((Math.atan2(-18, 15) / TAU) % 1 + 1) % 1, tint = (c: [number, number, number], t: [number, number, number]) => c.map((v, i) => Math.round(Math.min(255, v * t[i]))) as [number, number, number], solid = (r: number, g: number, b: number) => ({ width: 2, height: 2, data: new Uint8Array([r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255]) });
   const worker = typeof Worker === 'function' ? new Worker(new URL('./assets/arena/texture-worker.ts', import.meta.url), { type: 'module' }) : null;
   const heavy: HeavyTextures | null = worker ? null : generateHeavyTextures(phone, skyU, theme.textures);
-  const textures = { sand: dataTexture(heavy?.sand ?? solid(...tint([146, 120, 90], theme.textures.sand)), true), sandNormal: dataTexture(heavy?.sandNormal ?? solid(128, 128, 255), false), stone: dataTexture(heavy?.stone ?? solid(...tint([118, 112, 103], theme.textures.stone)), true), stoneNormal: dataTexture(heavy?.stoneNormal ?? solid(128, 128, 255), false), sky: dataTexture(heavy?.sky ?? solid(...tint([156, 168, 166], theme.textures.sky.base.map((c, i) => c / [169, 168, 156][i]) as [number, number, number])), true), banner: dataTexture(bannerAlpha(), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
+  const textures = { sand: dataTexture(heavy?.sand ?? solid(...tint([146, 120, 90], theme.textures.sand)), true), sandNormal: dataTexture(heavy?.sandNormal ?? solid(128, 128, 255), false), stone: dataTexture(heavy?.stone ?? solid(...tint([118, 112, 103], theme.textures.stone)), true), stoneNormal: dataTexture(heavy?.stoneNormal ?? solid(128, 128, 255), false), sky: dataTexture(heavy?.sky ?? solid(...tint([156, 168, 166], theme.textures.sky.base.map((c, i) => c / [169, 168, 156][i]) as [number, number, number])), true), banner: dataTexture(bannerAlpha(128, 256, theme.bannerSeed), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };
   textures.sky.wrapT = THREE.ClampToEdgeWrapping; textures.banner.wrapS = textures.banner.wrapT = textures.flame.wrapS = textures.flame.wrapT = textures.gateLight.wrapS = textures.gateLight.wrapT = THREE.ClampToEdgeWrapping;
   const sand = new THREE.MeshStandardMaterial({ name: 'sand', map: textures.sand, normalMap: textures.sandNormal, normalScale: new THREE.Vector2(0.7, 0.7), color: '#e2ddd6', roughness: 0.96, vertexColors: true });
   const stone = new THREE.MeshStandardMaterial({ name: 'stone', map: textures.stone, normalMap: textures.stoneNormal, normalScale: new THREE.Vector2(1.1, 1.1), color: '#b9b4ab', roughness: 0.93, vertexColors: true });
@@ -344,7 +344,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   tiers.forEach((_h, i) => {
     const r = wall.outer + i * tierDepth + 0.55, step = 1.05 / r, count = Math.floor(TAU / step);
     for (let s = 0; s < count; s++) {
-      const a = s * step + (hash(s, i, 17) - 0.5) * step * 0.28, occupied = hash(s, i, 19) > 0.4 + 0.18 * hash(Math.floor(s / 5), i, 71), segment = Math.floor(a / TAU * LAYOUT.segments);
+      const a = s * step + (hash(s, i, 17) - 0.5) * step * 0.28, occupied = hash(s, i, 19) > 1 - 0.6 * theme.fill + 0.18 * hash(Math.floor(s / 5), i, 71), segment = Math.floor(a / TAU * LAYOUT.segments);
       if ((i === 0 && inGate(a, r, 0.15)) || (i < 2 && brazierAngles.some(b => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) * r < 0.75))) continue; // fill surviving treads around the full ring; clear the arch lip and flames
       const [x, z] = polar(r + (hash(s, i, 73) - 0.5) * 0.3, a);
       if (crowdObstacles.some(b => x >= b.min.x && x <= b.max.x && z >= b.min.z && z <= b.max.z)) continue;
@@ -361,13 +361,13 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   vacancies.sort((a, b) => hash(a.id, 0, 113) - hash(b.id, 0, 113));
   for (const lowerOnly of [true, false]) for (let i = vacancies.length - 1; i >= 0; i--) {
     const p = vacancies[i], c = coverage[sector(p)];
-    if (lowerOnly ? !front(p) || c[1] >= 8 : c[0] >= 24) continue;
+    if (lowerOnly ? !front(p) || c[1] >= Math.round(8 * theme.fill) : c[0] >= Math.round(24 * theme.fill)) continue;
     seats.push(p); c[0]++; if (front(p)) c[1]++; vacancies.splice(i, 1);
   }
   for (const p of mixSpectators(seats)) people[p.kind * 2 + p.pose].push(p);
   people.forEach((list, k) => {
     const instanced = new THREE.InstancedMesh(spectatorGeometry(CROWD_KINDS[Math.floor(k / 2)], k % 2), crowdMaterial, list.length); instanced.name = `crowd ${CROWD_KINDS[Math.floor(k / 2)]}${k % 2 ? " folded" : ""}`; instanced.castShadow = false; instanced.receiveShadow = true; group.add(instanced);
-    list.forEach((p, j) => instanced.setColorAt(j, new THREE.Color(CROWD_DYES[p.dye]).multiplyScalar((0.38 + hash(p.id, 0, 41) * 0.16) * theme.crowd)));
+    list.forEach((p, j) => instanced.setColorAt(j, new THREE.Color(theme.dyes[p.dye]).multiplyScalar((0.38 + hash(p.id, 0, 41) * 0.16) * theme.crowd)));
     crowds.push({ mesh: instanced, people: list });
   });
   // The sky dome (unfogged; its horizon is painted the fog colour) and the ash plain with its far ridges. The dome has no pole: its
@@ -408,7 +408,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     }
     if (since > 2.2) mood = 'idle';
     coal.emissiveIntensity = 1.1 + 0.12 * Math.sin(time * 9.7) + 0.08 * Math.sin(time * 17.3 + 1.7) + 0.1 * (hash(Math.floor(time * 30), 0, 1) - 0.5) + flare * 1.3;
-    bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1), a, 1); });
+    bannerAngles.forEach((a, k) => { const [x, z] = polar(bannerR, a); place(banners, k, x, bannerTop, z, 0.055 * Math.sin(time * 1.15 + k * 1.9) + 0.02 * Math.sin(time * 3.3 + k * 4.1), a, theme.banner[1], theme.banner[0] / theme.banner[1]); });
     banners.instanceMatrix.needsUpdate = true;
     // Flames: a wave, not a pump (owner 2026-09-18) — a slow lean, a slow counter-rotation, a gentle breathe, a small fast lick;
     // the vertical scale barely moves. The tongue swells with the coals' flare on a landed blow.

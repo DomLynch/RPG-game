@@ -2,7 +2,9 @@
 // these are a few KB of code). Every function is pure in (size, seed) so tests/arena.test.ts can measure the same pixels the phone sees.
 // Materials rule: sand, stone, ash, iron, bone, blood — worn, matte, nothing saturated. Colours are sRGB bytes.
 export type Pixels = { width: number; height: number; data: Uint8Array };
-import type { SkyLook } from '../../arena-themes.ts';
+import type { SkyLook, WallStyle } from '../../arena-themes.ts';
+// Arena 1's wall: five uneven courses of 2–4 blocks, the joints half-dark, the six reused-stone hues.
+const ASHLAR: WallStyle = { courses: 5, blocks: [2, 4], mortar: 0.5, hues: [[1, 1, 1], [1.035, 1.0, 0.955], [0.95, 0.98, 1.03], [1.025, 0.98, 0.95], [1.015, 1.0, 0.95], [0.92, 0.925, 0.94]] };
 // An arena theme's tint (arena-themes.ts): a per-channel multiply over the finished map. [1, 1, 1] leaves Arena 1 byte-identical.
 export function tinted(p: Pixels, [r, g, b]: [number, number, number]): Pixels {
   if (r === 1 && g === 1 && b === 1) return p;
@@ -83,26 +85,26 @@ export function sandNormal(size = 512, seed = 7): Pixels {
   });
 }
 // The ashlar block layout, shared by the albedo and the normal map so the carved relief lands exactly on the printed blocks.
-function ashlar(seed: number) {
-  const courseH = Array.from({ length: 5 }, (_, c) => 0.7 + hash(c, 0, seed + 40) * 0.6), cSum = courseH.reduce((a, b) => a + b, 0);
+function ashlar(seed: number, { courses, blocks: [lo, hi] }: WallStyle = ASHLAR) {
+  const courseH = Array.from({ length: courses }, (_, c) => 0.7 + hash(c, 0, seed + 40) * 0.6), cSum = courseH.reduce((a, b) => a + b, 0);
   const courseAt = [0]; for (const h of courseH) courseAt.push(courseAt[courseAt.length - 1] + h / cSum);
-  const blocksOf = courseH.map((_h, c) => { const n = 2 + Math.floor(hash(c, 1, seed + 41) * 3), w = Array.from({ length: n }, (_, k) => 0.6 + hash(k, c, seed + 42) * 0.9), s = w.reduce((a, b) => a + b, 0), at = [0]; for (const x of w) at.push(at[at.length - 1] + x / s); return { at, stagger: hash(c, 2, seed + 43) }; });
+  const blocksOf = courseH.map((_h, c) => { const n = lo + Math.floor(hash(c, 1, seed + 41) * (hi - lo + 1)), w = Array.from({ length: n }, (_, k) => 0.6 + hash(k, c, seed + 42) * 0.9), s = w.reduce((a, b) => a + b, 0), at = [0]; for (const x of w) at.push(at[at.length - 1] + x / s); return { at, stagger: hash(c, 2, seed + 43) }; });
   const locate = (at: number[], t: number) => { let i = 0; while (i < at.length - 2 && t >= at[i + 1]) i++; return [i, (t - at[i]) / (at[i + 1] - at[i])] as const; };
   return { courseAt, blocksOf, locate };
 }
 // Ashlar stone: hand-laid, not robotic (owner). Uneven course heights, 2–4 uneven blocks a course with staggered joints that
 // wander, blocks sitting proud (casting a shadow on the course below) or recessed, a damaged block here and there, worn mortar,
 // a per-block chamfer, weather streaks, pitting, mottling, soot, a few cracks. One tile = 2 m × 2 m on the wall.
-export function stoneAlbedo(size = 512, seed = 11): Pixels {
+export function stoneAlbedo(size = 512, seed = 11, style: WallStyle = ASHLAR): Pixels {
   const mottle = fbm(8, 4, seed), soot = fbm(3, 3, seed + 7), grain = fbm(64, 2, seed + 13, 0.6), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), stains = fbm(6, 3, seed + 21), dampF = fbm(3, 3, seed + 17);
   // Reused stone: each block picks a hue — quarry grey, warm tan, cool slate, faint rose, sand-tinged, dark basalt. Half strength
   // (the full spread read as patchwork, 2026-09-17); the warm hues dampened toward grey again (still too yellow, 2026-09-18).
-  const hues: [number, number, number][] = [[1, 1, 1], [1.035, 1.0, 0.955], [0.95, 0.98, 1.03], [1.025, 0.98, 0.95], [1.015, 1.0, 0.95], [0.92, 0.925, 0.94]];
-  const { courseAt, blocksOf, locate } = ashlar(seed);
+  const hues = style.hues, depth = style.mortar;
+  const { courseAt, blocksOf, locate } = ashlar(seed, style);
   return pixels(size, size, (u, v, x, y) => {
     const [course, fy0] = locate(courseAt, v), { at, stagger } = blocksOf[course], [bi, fx0] = locate(at, (((u + stagger) % 1) + 1) % 1), block = hash(bi, course, seed);
     const jx = (grain(u * 5, v * 5) - 0.5) * 0.12, fx = Math.min(1, Math.max(0, fx0 + jx * 0.4)), fy = Math.min(1, Math.max(0, fy0 + jx));   // the joints wander
-    const wobble = 0.035 + 0.05 * grain(u * 3, v * 3), edge = Math.min(fx, 1 - fx, (fy - 0.02) * 2, (1 - fy) * 2), mortar = edge < wobble ? 0.5 + (edge / wobble) * 0.5 : 1;
+    const wobble = 0.035 + 0.05 * grain(u * 3, v * 3), edge = Math.min(fx, 1 - fx, (fy - 0.02) * 2, (1 - fy) * 2), mortar = edge < wobble ? (1 - depth) + (edge / wobble) * depth : 1;
     const proud = hash(bi, course, seed + 44), above = blocksOf[(course + 1) % blocksOf.length], [biAbove] = locate(above.at, (((u + above.stagger) % 1) + 1) % 1);
     const drop = hash(biAbove, course + 1, seed + 44) > 0.62 && fy > 0.88 ? 0.78 : 1, recess = proud < 0.3 ? 0.9 : 1;   // proud blocks throw a shadow down; recessed ones sit in shade
     const chamfer = mortar === 1 ? 1 + 0.09 * (0.5 - fx) + 0.11 * (0.5 - fy) : 1;   // worn arris: the sun catches the top-left of each block
@@ -118,8 +120,8 @@ export function stoneAlbedo(size = 512, seed = 11): Pixels {
 // Stone normal map: the relief the albedo only prints — the wall read flat and machine-smooth with colour alone (owner 2026-09-18).
 // Same layout, joint wander, chamfer and crack fields as stoneAlbedo, so every groove and step lands on its printed line; plus
 // erosion undulation, surface tooth, pitted dents and knocked corners. Tangent-space, +Y up, wraps.
-export function stoneNormal(size = 512, seed = 11): Pixels {
-  const { courseAt, blocksOf, locate } = ashlar(seed);
+export function stoneNormal(size = 512, seed = 11, style: WallStyle = ASHLAR): Pixels {
+  const { courseAt, blocksOf, locate } = ashlar(seed, style), groove = 3 * style.mortar;   // a plastered wall (shallow mortar) keeps shallow joints
   const grain = fbm(64, 2, seed + 13, 0.6), mottle = fbm(8, 4, seed), crackField = fbm(5, 4, seed + 5, 0.55), crackMask = fbm(3, 2, seed + 9), tooth = fbm(48, 2, seed + 71, 0.6);
   const height = new Float32Array(size * size);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
@@ -130,7 +132,7 @@ export function stoneNormal(size = 512, seed = 11): Pixels {
     let h = (hash(bi, course, seed + 44) - 0.5) * 1.1;                                     // proud and recessed blocks: the joints catch light
     const face = Math.min(1, Math.max(0, (edge - wobble) / 0.22));                         // 0 in the joint → 1 on the face
     h += (0.4 + 0.8 * hash(bi, course, seed + 60)) * face * face * (3 - 2 * face);         // the chamfer up to the face, per-block amplitude
-    if (edge < wobble) h -= 1.5 * Math.pow(1 - edge / wobble, 0.7);                        // the mortar groove itself
+    if (edge < wobble) h -= groove * Math.pow(1 - edge / wobble, 0.7);                        // the mortar groove itself
     h += (mottle(u * 2, v * 2) - 0.5) * 0.55 * face + (tooth(u, v) - 0.5) * 0.22;          // erosion undulation and surface tooth
     if (hash(bi, course, seed + 61) > 0.78) {                                              // a knocked corner: a bite out of one corner of the block
       const cx = hash(bi, course, seed + 62) > 0.5 ? 0.06 : 0.94, cy = hash(bi, course, seed + 63) > 0.5 ? 0.08 : 0.92;
@@ -239,3 +241,26 @@ export function luminance(p: Pixels): number {
   let sum = 0; for (let i = 0; i < p.data.length; i += 4) sum += 0.2126 * lin(p.data[i]) + 0.7152 * lin(p.data[i + 1]) + 0.0722 * lin(p.data[i + 2]);
   return sum / (p.data.length / 4);
 }
+// Floor materials beyond Arena 1's sand (arena-themes.ts `floor`), each an overlay on the gravelled sand so the grain, pebbles and
+// normal map stay: 'clay' dries into a crack network, 'frost' lies in thin grey-white patches, 'moss' creeps over the damp hollows.
+// Luminance is held near the sand's: a theme may change the ground's material and hue, never its separation from the fighters.
+export function floorOverlay(p: Pixels, kind: 'clay' | 'frost' | 'moss', seed: number): Pixels {
+  const size = p.width, patch = fbm(4, 4, seed + 101), cracks = fbm(6, 4, seed + 103, 0.55), fine = fbm(14, 3, seed + 107, 0.55);
+  for (let y = 0, i = 0; y < size; y++) for (let x = 0; x < size; x++, i += 4) {
+    const u = x / size, v = y / size, m = patch(u, v);
+    let r = p.data[i], g = p.data[i + 1], b = p.data[i + 2];
+    if (kind === 'clay') {   // polygonal drying cracks at two scales, dark and a touch redder in the gap
+      const k = Math.abs(cracks(u, v) - 0.5) < 0.009 || Math.abs(fine(u, v) - 0.5) < 0.006 ? 0.55 : 1;
+      r *= k * 1.02; g *= k; b *= k;
+    } else if (kind === 'frost') {   // rime on the high ground: lighter and bluer where the patch field is high, thinned at its edge
+      const f = Math.min(1, Math.max(0, (m - 0.52) * 6)) * (0.55 + 0.45 * fine(u, v));
+      r += (150 - r) * f; g += (158 - g) * f; b += (170 - b) * f;
+    } else {   // moss in the low ground: grey-green, dark at the heart
+      const f = Math.min(1, Math.max(0, (0.5 - m) * 5)) * (0.6 + 0.4 * fine(u, v));
+      r += (78 - r) * f; g += (92 - g) * f; b += (60 - b) * f;
+    }
+    p.data[i] = clamp(r); p.data[i + 1] = clamp(g); p.data[i + 2] = clamp(b);
+  }
+  return p;
+}
+
