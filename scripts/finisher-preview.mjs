@@ -66,7 +66,7 @@ function simulate(seed, hero = false, spare = false) {
     }
     // Hero window: the warden fights until the hero is at 60 % or below, then stands off — an idle hero would be dead within a
     // second, and the finisher's own gore takes over a killed body's wounds.
-    const attacking = hero && p.playerHealth > .6 * p.maxHealth;
+    const attacking = hero === 'kill' || (hero && p.playerHealth > .6 * p.maxHealth);   // 'kill': the warden fights on to the hero's death
     p = stepPractice(p, intent, attacking ? OPPONENTS[opponentId].profiles.normal : PASSIVE);
     for (const e of p.duel.events) {
       if (e.type === 'Hit' && e.actor === 0) lastHit = p.duel.tick;
@@ -104,6 +104,12 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
   const sim = simulate(${seedStart}, true);
   const at = sim.frames.findIndex(f => f.events.some(e => e.type === 'Hit' && e.target === 0) && f.practice.playerHealth <= .6 * f.practice.maxHealth && f.practice.playerHealth > 0);
   if (at >= 0) windows.heroWounded = { frames: sim.frames.slice(0, at + 200), killIndex: 1e9, hitIndex: at };
+}
+// The hero's death, for the floor pool under him (owner 2026-09-23 on the phone: "check the floor blood, looks cartoon-ish").
+{
+  const sim = simulate(${seedStart}, 'kill');
+  const at = sim.frames.findIndex(f => f.events.some(e => e.type === 'Killed'));
+  if (at >= 0) windows.heroDeath = { frames: sim.frames.slice(0, at + 200), killIndex: at, hitIndex: at };
 }
 // Outcomes outside the automatic rotation (The Quiet One since the beta cut, owner 2026-09-20) are still shipped and
 // forceable from the dev picker; the harness reaches them the same way — the production override on a real kill from a
@@ -286,6 +292,16 @@ try {
   await first.context().close();
   for (const p of info.provenance) console.log(`  ${p.finisher}: seed ${p.seed}${p.override ? ' (picker override — outside the automatic rotation)' : ''}, kill ${JSON.stringify(p.finish)}`);
   // Body wounds (owner 2026-09-21): one still of the warden at 60 % or below, mid-fight — marks on the struck body, then 'off' hides them.
+  // The floor death pool at phone size, 3 s after the hero falls: one still, same frame on any build (--floor).
+  if (args.includes('--floor')) {
+    const page = await open({ width: 375, height: 812 });
+    const count = await page.evaluate(() => __finisher.count('heroDeath')), kill = await page.evaluate(() => __finisher.hitIndex('heroDeath'));
+    assert.ok(count > 0, 'the warden must kill the hero for the floor-pool still');
+    await page.evaluate(([j]) => __finisher.play('heroDeath', j, 'red'), [Math.min(count - 1, kill + 180)]);
+    await page.screenshot({ path: `${dir}/floor-pool-375.png` });
+    console.log(`  floor: hero killed at frame ${kill}, still at +3 s → ${dir}/floor-pool-375.png`);
+    await page.context().close();
+  }
   if (option('wounds')) {
     const page = await open({ width: 393, height: 852 });
     const count = await page.evaluate(() => __finisher.count('wounded'));
