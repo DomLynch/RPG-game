@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 20:47 — RUN 2 LIVE a53762ef (my curl 20:47): Shieldmaiden, Goblin, Plague Doctor, Witch at six + floor blood; 8/10 opponents at six
+
+Lead 20:46: rows 35/35 (27 local + 8 CI-trusted), rows 3 and 9 timed out under load then passed solo, row 23 passed first time, EXIT 0, lock free, FREE broadcast. Remaining to six: Dwarf (Helmet #607 + Body/Arms #614 + Boots re-cut ≤ 22:00) and Knight (#603 six, fallback = un-hold alone in Run 3, six in Run 4; mid-swing glint caveat for Dom). Nightborn Greave f9f29962 in Run 3. **NOW:** 21:00 line = greaves REAL/NOT REAL + Phase L split/stills go-no-go + Witch clearance; Run 3 PR 22:15, publish 22:30, LIVE 23:00; Dom plays the four sixes on his phone on a53762ef.
+
 ## 2026-09-23 20:27 — Run 2 IN FLIGHT (#604 merged a53762ef, deploy.sh since 20:24); greaves scare cleared by byte-identical data; Dom's UI rulings
 
 **Run 2:** #604 = Shieldmaiden #595, Goblin #596, Plague Doctor #601, Witch #602, floor blood #605; trunk a53762ef, publish GO under rule (a): Dwarf Greaves/Boots byte-identical across 545ac8ec/5c3eac3f/a8bd4e39/b542a10f and wear() unchanged, so Run 2 cannot regress over-layer drawing; finding stays OPEN "unconfirmed" until Web+Veteran repro on live after FREE (21:00 line: REAL → Stats fix + repro-as-test in Run 3, or NOT REAL + why). Failure rule: revert the implicated PR; loot.glb is cumulative so an opponent revert cascades in reverse order via clean reverts, innocents re-land in Run 3.
