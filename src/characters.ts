@@ -149,8 +149,9 @@ export const GUARD_TILT: Record<Direction, { yaw: number; arm: number; spine: nu
 // left arm is re-aimed in the fighter's own frame (x = his left, y = up, z = toward the opponent): shoulder→elbow, then elbow→wrist — each
 // bone keeps its own length — and the wrist rolls the board about the forearm to face the front. RAISED is the guard: the board comes
 // up and forward over the chest; STRIKE swings it out to his left while the sword cuts across the front (the sword clips bring the sword
-// hand to the midline), so the blade never passes through the board. Directions only, so any rig's proportions carry it; the player's
-// shield reuses it. No clip changes.
+// hand to the midline): measured, the blade crosses the board on 3 frames of ~250, all at the rim or on the first frame of a clip
+// (tests/shield-carry.test.ts), where the clips' own hold crosses it on 66. Directions only, so any rig's proportions carry it; the
+// player's shield reuses it. No clip changes.
 export const SHIELD_CARRY = {
   carry: { elbow: new Vector3(.35, -.8, .45).normalize(), wrist: new Vector3(-.85, .1, .5).normalize() },
   raised: { elbow: new Vector3(.15, 0, 1).normalize(), wrist: new Vector3(-.9, .35, .3).normalize() },
@@ -199,12 +200,12 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     let aimedRotation: Quaternion | undefined;
     const offHand = ['upperarm_l', 'lowerarm_l', 'hand_l'].map(n => root.getObjectByName(n)), swordHand = root.getObjectByName('hand_r');
     let aimedOffHand: [Quaternion, Quaternion] | undefined;
-    // The shield carry's state: whether he holds a shield on the off hand, the carry's and the guard lift's eased weights, and the three
+    // The shield carry's state: whether he holds a shield on the off hand, the carry's, the guard lift's and the strike's eased weights, and the three
     // left-arm bones as the mixer left them (restored before every update, as the guard tilt is: a held clip does not rewrite them).
     let shieldArm = false, carry = 0, raise = 0, strike = 0, carried = false, faceLocal: Vector3 | undefined;
     const uncarried = [new Quaternion(), new Quaternion(), new Quaternion()];
     const aimBone = (bone: Object3D, child: Object3D, dir: Vector3, amount: number) => {
-      root.updateWorldMatrix(true, true);
+      bone.updateWorldMatrix(true, true);   // the arm chain only: the renderer and the trail refresh the rest themselves
       const origin = bone.getWorldPosition(new Vector3()), delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dir);
       bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
     };
@@ -218,21 +219,20 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         faceLocal = new Vector3(0, 0, 1).transformDirection(inverse);
       }
       uncarried.forEach((q, i) => q.copy(offHand[i]!.quaternion)); carried = true;
-      root.updateWorldMatrix(true, true);
+      root.updateWorldMatrix(true, false);
       const frame = root.getWorldQuaternion(new Quaternion()), { carry: c, raised: r, strike: s } = SHIELD_CARRY;
       const toward = (key: 'elbow' | 'wrist') => c[key].clone().lerp(r[key], lift).lerp(s[key], open).normalize().applyQuaternion(frame);
       const elbow = toward('elbow'), wrist = toward('wrist');
       aimBone(upperL, lowerL, elbow, amount);
       aimBone(lowerL, handL, wrist, amount);
       // Roll the board about the forearm until its face points as far toward the opponent as a board strapped along that forearm can.
-      root.updateWorldMatrix(true, true);
+      lowerL.updateWorldMatrix(true, true);
       const axis = handL.getWorldPosition(new Vector3()).sub(lowerL.getWorldPosition(new Vector3())).normalize();
       const face = faceLocal.clone().applyQuaternion(handL.getWorldQuaternion(new Quaternion())), front = new Vector3(0, 0, 1).applyQuaternion(frame);
       face.addScaledVector(axis, -face.dot(axis)); front.addScaledVector(axis, -front.dot(axis));
       if (face.lengthSq() < 1e-6 || front.lengthSq() < 1e-6) return;
       const roll = new Quaternion().slerp(new Quaternion().setFromUnitVectors(face.normalize(), front.normalize()), amount);
       handL.quaternion.copy(handL.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(roll).multiply(handL.getWorldQuaternion(new Quaternion())));
-      root.updateWorldMatrix(true, true);
     }
     // Guard side (owner 2026-09-20, five sides): the one Guard clip is the straight guard; a side tilts it after the mixer writes the
     // frame — the torso turns to that side, the sword arm lifts or drops. Measured on the warrior rig from the Guard pose (blade tip

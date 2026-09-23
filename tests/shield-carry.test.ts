@@ -77,11 +77,12 @@ test('shield carry: the board faces the opponent at rest, rises and comes forwar
   const guard = f.board();
   assert.ok(guard.centre.y > rest.centre.y + .15 && guard.centre.z > rest.centre.z + .05, 'on guard the board rises over the chest and comes forward');
   assert.ok(guard.face.z > .8, 'and faces the opponent');
-  // Without the shield the arm is the clip's own again: the carry eases out and the mixer's pose comes back.
+  // Without the shield the arm is the clip's own again: the carry eases out and the mixer's pose comes back. The bare fighter lives the
+  // same frames, so both idle loops are at the same phase.
   const bare = await fighter('cleaver', false);
-  settle(bare, 'ready');
+  settle(bare, 'ready'); settle(bare, 'guard');
   f.player.wear([]);
-  settle(f, 'ready', 90);
+  settle(f, 'ready', 90); settle(bare, 'ready', 90);
   const clip = bare.arm();
   f.arm().forEach((q, i) => assert.ok(q.angleTo(clip[i]) < .01, `bone ${i}: back on the clip after the shield comes off (${q.angleTo(clip[i]).toFixed(4)} rad)`));
 });
@@ -90,7 +91,8 @@ test('shield carry: a two-hander\'s arm is untouched (its shield stows, #478), a
   const shielded = await fighter('longsword', true), bare = await fighter('longsword', false);
   settle(shielded, 'guard'); settle(bare, 'guard');
   const clip = bare.arm();
-  shielded.arm().forEach((q, i) => assert.ok(q.angleTo(clip[i]) < 1e-6, `two-hand: bone ${i} is the clip's`));
+  // 1e-3 rad, not 0: angleTo is 2·acos|dot|, so the float noise of two separately parsed rigs alone reads ~4e-4 rad.
+  shielded.arm().forEach((q, i) => assert.ok(q.angleTo(clip[i]) < 1e-3, `two-hand: bone ${i} is the clip's (${q.angleTo(clip[i]).toFixed(5)} rad)`));
   const f = await fighter('knife', true);
   for (const pose of ['ready', 'attack', 'guard', 'death', 'sheathed'] as const) for (let p = 0; p <= 1; p += .1) {
     f.player.update(0, 1 / 30, pose, p, 'heavy');
