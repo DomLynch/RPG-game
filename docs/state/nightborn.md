@@ -3,6 +3,27 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23 (~18:30): weld PR #590 MERGED into phase-r; next is the Plague Doctor's six
+
+**Dom accepted the four new characters on live 7b277fd** (via Strategy): "nice and differentiated, we just need to add the weapons,
+fix a few things". Tonight's phase-r runs roll: each publish takes whichever six-piece sets are green, and later sets ride the next run.
+
+**Next (one PR into phase-r, base = phase-r, merge origin/phase-r before every push, never force; loot.glb is GENERATED: rebuild with
+`WARRIOR_LOOT=1 node scripts/build-warrior.mjs` after merging, never hand-merge the binary):**
+1. **The Plague Doctor, all six**, on the #590 recipe: `blender -b --python-exit-code 1 -P scripts/character/loot_dwarf.py -- --family
+   plaguedoctor --all --ratio .5 --material PlaguedoctorCloth` (add `--slots`). A Helmet+Body cut at .5 is kept locally in
+   `artifacts/pd-loot/` (gitignored). Problems to solve: **Greaves** captures the coat skirt plus the legs (29,660 faces, bone-dominant
+   thigh/calf); **Boots** needs the Executioner's `--boots` flag (foot/ball bones → Boots), which isn't on phase-r yet (check
+   `origin/knight/six`). Then add rows to `loot.json`/`src/loot.ts`, run `node scripts/loot-layers.mjs` (re-renders ALL layers; commit
+   the whole set), and `check-budget`.
+2. **State the per-opponent budget in the PR** (Lead): dist gzip delta for the full six at .5. Lead's estimate is 400–500 KB per opponent,
+   which overruns the 3.5 MB loot cap at seven opponents. Try `--color-size 512` (one colour+ORM atlas per opponent).
+3. **The Nightborn: add Greaves → six**, same pipeline, his own PR.
+4. Lines to Lead at :25/:55 while working (started / cutting n of 6 / on branch / blocked-on-what). Report to Lead only.
+
+**Gotcha:** Claude Desktop pauses cross-session messages after 10 in a row with no user message; the user must type to resume.
+Two unsent lines are covered by Lead's broadcast (ratio .5; the Knight's frame crop).
+
 ## Now — 2026-09-23 (night): PRIORITY 1 is textured carriers, the prerequisite for Phase R
 
 **Lead, relaying Dom's priority 1 (17:4x, via Strategy):** every one of the ten opponents wears and offers six takeable armour pieces
