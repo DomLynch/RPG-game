@@ -51,7 +51,7 @@ MIN_SLOT = int(args[args.index('--min-slot') + 1]) if '--min-slot' in args else 
 SLOT_RATIO = {k: float(v) for k, v in (p.split('=') for p in args[args.index('--slot-ratio') + 1].split(','))} if '--slot-ratio' in args else {}
 BOOTS = '--boots' in args   # opt-in: foot/ball bones fill Boots instead of Greaves (a character with boots of his own)
 # --repose warrior: his rig rests in an A-pose (the Plague Doctor: hand_l at y .99) where the player's rests in a T (1.46); loot binds to
-# the player's rest, so an A-pose sleeve lands across the chest. Pose his bones to src/assets/<name>.glb's rest rotations and bake it first.
+# the player's rest, so an A-pose sleeve lands across the chest. Re-skin his surface onto src/assets/<name>.glb's rest joints first.
 REPOSE = args[args.index('--repose') + 1] if '--repose' in args else None
 
 
@@ -69,7 +69,7 @@ bpy.ops.import_scene.gltf(filepath=SOURCE)
 body = bpy.data.objects['CreatureBody']
 armature = body.find_armature()
 def binds(path):
-    """Each joint's world bind matrix (glTF mesh space, from the skin's inverse bind matrices) and its parent joint. Not Blender's bone
+    """Each joint's world bind matrix (glTF mesh space, from the skin's inverse bind matrices). Not Blender's bone
     matrices: the importer guesses their orientation from child positions, so two rigs with the same joints disagree."""
     raw = open(path, 'rb').read()
     n = int.from_bytes(raw[12:16], 'little')
@@ -79,22 +79,13 @@ def binds(path):
     view = gl['bufferViews'][acc['bufferView']]
     ibm = np.frombuffer(raw, dtype='<f4', count=16 * acc['count'],
                         offset=20 + n + 8 + view.get('byteOffset', 0) + acc.get('byteOffset', 0)).reshape(-1, 4, 4)
-    parent = {c: i for i, node in enumerate(gl['nodes']) for c in node.get('children', [])}
     names = {j: gl['nodes'][j]['name'] for j in skin['joints']}
-    return {names[j]: (np.linalg.inv(ibm[k].T), names.get(parent.get(j))) for k, j in enumerate(skin['joints'])}
+    return {names[j]: np.linalg.inv(ibm[k].T) for k, j in enumerate(skin['joints'])}
 
 
-if REPOSE:   # re-skin his surface into the player's rest (his arms turn 62°); the armature is untouched, the build binds by bone name
+if REPOSE:   # re-skin his surface onto the player's rest joints: his A-pose arms turn 62° and every piece lands on the player's frame
     his, player = binds(SOURCE), binds(os.path.abspath(f'src/assets/{REPOSE}.glb'))
-    skin = {}   # joint → the matrix taking his rest to the posed rest, parents first
-    for name in sorted(his, key=lambda j: len(bpy.data.objects[armature.name].data.bones[j].parent_recursive) if j in armature.data.bones else 0):
-        rest, up = his[name]
-        posed = rest.copy()
-        if name in player and not np.allclose(player[name][0][:3, :3], rest[:3, :3], atol=1e-3):
-            posed[:3, :3] = player[name][0][:3, :3]   # rotation only: his proportions stay his
-        if up in skin:
-            posed[:3, 3] = (skin[up] @ rest[:, 3])[:3]   # the joint rides where his posed parent put it
-        skin[name] = posed @ np.linalg.inv(rest)
+    skin = {name: player[name] @ np.linalg.inv(rest) for name, rest in his.items() if name in player}
     to_z = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])   # glTF Y-up → Blender Z-up
     V0 = len(body.data.vertices)
     co = np.empty(V0 * 3)
