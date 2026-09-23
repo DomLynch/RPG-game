@@ -16,7 +16,7 @@ test('a claim is still a mark with nothing to award', () => {
 });
 
 test('a piece outside the opponent\'s kit is refused', () => {
-  for (const piece of ['veteran.Trident', 'goblin.Helmet', 'goblin.Axe', 'nonsense']) {
+  for (const piece of ['veteran.Trident', 'goblin.Crest', 'goblin.Axe', 'nonsense']) {
     assert.equal(typeof awardFor({ opponent: 'goblin', piece }, { marks: 0, owned: [] }), 'string', piece);
   }
   assert.equal(typeof awardFor({ opponent: 'minotaur', piece: 'veteran.Body' }, { marks: 0, owned: [] }), 'string');   // he carries no loot

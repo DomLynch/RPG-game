@@ -202,7 +202,7 @@ export function createScene(
     ctx.beginPath();
     for (let i = 0; i <= 64; i++) {
       const angle = (i / 64) * Math.PI * 2,
-        r = splash ? 33 + Math.sin(angle * 7) * 6 + Math.cos(angle * 11) * 4 : 48;
+        r = splash ? 33 + Math.sin(angle * 2 + 1) * 5 + Math.cos(angle * 3 + 2) * 4 + Math.sin(angle * 5 + 0.5) * 2 : 48;   // low, out-of-phase lobes: a lopsided blot, never a star
       const x = 64 + Math.cos(angle) * r,
         y = 64 + Math.sin(angle) * r * (splash ? 1 : 0.65);
       if (i === 0) ctx.moveTo(x, y);
@@ -314,6 +314,9 @@ export function createScene(
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     wear(ids: readonly string[]) { worn = ids; dress(); },
     arena,
+    // The loot pieces drawn on the player right now as `name|slot|layer`, for the debug probe (scripts/worn-loot-check.mjs); ' (hidden)'
+    // marks a worn copy that is detached or invisible, the failure that check exists for. Empty until loot.glb has landed.
+    wornDraws: (): string[] => (warriors?.player.worn() ?? []).map((m) => `${m.name}|${String(m.userData.slot)}|${String(m.userData.layer)}${m.visible && m.parent ? '' : ' (hidden)'}`),
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
       return {
