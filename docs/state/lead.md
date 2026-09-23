@@ -15,6 +15,17 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
    roster.ts, finishers.ts; eslint.config.js:3 already lists them) plus a closure test, and gladius in PLAYER_WEAPONS_OFFERED.
 4. The next rolling batch (Deploy has it): #540 -> #537 -> #541 -> #542 -> #544 (blood art B/C/D, Dom's pick) -> #546 (quiet-one
    Rematch wait), then #534 once the Auditer sends a re-gated sha. Finishers' droplets PR (body -> floor) stacks on #544 next.
+**ROUTING, Dom 13:4x/13:5x: only Lead messages Strategy.** Every lane, Deploy included, reports to Lead. Lead owns the
+Publish B clocks and hourly lines (Combat: #545 gates, Executioner by 17:00, bump to 7 + re-pin by 18:00; Weapons: #543;
+Veteran: scutum by 16:00; Finishers: droplets on #544) and gives Deploy the Publish B go when Combat's re-pin lands. Lead sends
+Strategy ONLY: publish sha lines, the phone-smoke receipt, any lane >30 min late on its clock, and ruling requests.
+**Publish A is LIVE `dd1d968`** (13:30, 33/33, row 32 passed locally in 73 s). Deploy starts the next batch after the smoke receipt
+or at ~13:52, whichever comes first. #539: Backend confirmed `1a0cec5` by its own run; Stats' WORN_FROM commit `be58866` is local,
+not pushed, and needs Backend's re-OK when it is.
+**Phone smoke on LIVE `dd1d968` (13:5x):** fight to kill + loot panel timing PASS (quiet-one check, `QA_URL=https://frankendom.com`,
+`--opponent goblin`, with #546's wait patched in locally: panel closed 0.02 s after the kill, open at the complete latch 3.22 s). The
+Veteran default loses all 3 scripted duels on v6, so always use goblin. **NOT run:** knife offered, tap-to-take + Undo, declined
+survives a refresh. They need Dom's phone or a new scripted check, and that is Strategy's call.
 **Addressing lanes:** send to ListAgents rows as `"<exact name> [ref]"`, or reply to a `uds:` from-address. Both skip Desktop's
 10-send cap.
 
