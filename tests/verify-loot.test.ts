@@ -42,6 +42,8 @@ test('the win is proven from the record: its opponent, a player kill, a replay t
   const lie = await encodeRecord({ ...(await decodeRecord(record)), intents: (await decodeRecord(record)).intents.slice(0, 400), ticks: 400 });   // cut short: no finish
   assert.match(String(await refusal({ opponent: 'goblin', record: lie })), /does not reach its finish/);
   assert.match(String(await refusal({ opponent: 'goblin', record: 'not base64 at all!' })), /unreadable record/);
+  const loss = await encodeRecord({ ...(await decodeRecord(record)), outcome: 'died' });   // Backend N2: a loss is refused here, not only in the DB check
+  assert.match(String(await refusal({ opponent: 'goblin', record: loss })), /outcome is died, not a win/);
 });
 
 test('a sweep settles every claim it checks: a refused win with its reason, an off-kit take as a mark with its reason, a take as an award', async () => {
@@ -68,6 +70,14 @@ test('a claim waits while an earlier one from its account is unchecked; a dry sw
   const dry = fakeDb([{ id: 5, user_id: U, opponent: 'goblin', piece: null, record: 'AAAA' }]);
   await verifyClaims(dry, { dry: true });
   assert.equal(dry.settled.size, 0);
+});
+
+test('a database error on one claim is reported and the sweep moves on (Backend N1)', async () => {
+  const db = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: null, record: 'AAAA' }, { id: 2, user_id: '22222222-2222-4222-8222-222222222222', opponent: 'goblin', piece: null, record: 'AAAA' }]);
+  const flaky = { ...db, settle: async (id: number, outcome: Parameters<typeof db.settle>[1]) => { if (id === 1) throw Error('psql: connection reset'); await db.settle(id, outcome); } };
+  const receipt = await verifyClaims(flaky);
+  assert.deepEqual(receipt.errors, [{ id: 1, error: 'psql: connection reset' }]);
+  assert.ok(db.settled.has(2));
 });
 
 test('the psql adapter settles in one transaction as the verifier and refuses malformed values', async () => {
