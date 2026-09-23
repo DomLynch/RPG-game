@@ -121,6 +121,18 @@ in the record. **The Lead ruling stands: the record carries an OPAQUE token, not
 check keeps Backend's shape and its "one decoder, two readers" path: the verifier computes `token(claim.user_id)` and compares
 it with `record.owner`. Poster binding is the next item after D3 and lands as PR B's format, in Window 1.
 
+### World, ~07:35Z — phone perf on live `52dffed`: an UPPER BOUND, not a verdict (the box was contended)
+CPU x4, 393x852 DPR 3 touch, cold load, first kill, 3 runs: p95 383 / 500 / 366 ms, worst-since-load 2,850 / 3,418 / 3,650 ms,
+p50 18.7 / 35.1 / 233.7 ms. **Same page, same seed, so the spread is the machine.** Unthrottled control: p50 65 / 35 ms, where an
+unthrottled M5 has run this arena at a 16.7 ms median before. Load was 24-44, with about 80 headless Chromium processes from other
+lanes. The sim fell behind (14.9 s of fight took 36 s of wall time). No `guard.glb` fetched, draws 97-99, ~386k tris, 0 page
+errors. **The real receipt is Dom's own `?perf=1` on his iPhone** (the instrument of record), or a re-run on a quiet Mac.
+**Two measurement traps, for EVERY lane with a browser gate:**
+1. `chromium.launch({headless:true})` WITHOUT `executablePath: chromium.executablePath()` renders on SwiftShader (software GL),
+   not the GPU. Verify with `UNMASKED_RENDERER_WEBGL`: "SwiftShader Device" vs "ANGLE Metal Renderer: Apple M5". **Any perf number
+   taken on SwiftShader is void.**
+2. `#reset-button` opacity '1' fires at fight START, not at the kill. **The finish signal is `#debug` `data-record`.**
+
 ### Audio, ~07:10Z — phone pass on live `52dffed`: #529 READY (non-sim)
 The served `sprite.ogg` and `sprite.m4a` sha256 match git, so the measurements are of the shipped audio. #529 (head `5aa788b`)
 lowers the whip TELL (gain .3 -> .1) so it sits 8.4 dB under the lash on the phone band. The two had read equally loud (-29.2 vs
