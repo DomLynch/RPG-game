@@ -239,7 +239,10 @@ finisherSelect.addEventListener('change', () => {
 // simulation stepped, so the fight can be replayed elsewhere. The build id is <html data-release>, 'dev' until the deploy stamps the
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile });
+// Local browser QA may select a seed without changing any combat rule or a public fight.
+const botSeed = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') && /[?&]debug\b/.test(window.location?.search ?? '')
+  ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile }, botSeed === undefined ? 731 : Number(botSeed) >>> 0);
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
 let state = match.practice.fighter,
   previous = state,

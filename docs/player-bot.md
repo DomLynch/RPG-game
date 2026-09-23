@@ -1,0 +1,9 @@
+# Local combat test player
+
+Build once (`npm run build`), then run `node scripts/player-bot.mjs`. The default batch fights Pitborn on Easy at three deterministic seeds derived from 731. Options: `--seed=731`, `--fights=3` (maximum 12), `--reaction-ms=180` (100–700), `--out=artifacts/combat/player-bot`. `--smoke` runs one fight.
+
+The controller uses the normal browser keyboard path: approach, hold directional guard, wait for a confirmed block, press Heavy for the guard counter, then recover stamina. It rolls back after a delayed overhead-heavy tell and may thrust into a missed swing's recovery. It can read the local debug overlay's current gap, stamina and fighter phase, and the `frankendom:combat` event stream's current attack direction and block result. Direction changes wait the configured reaction delay. It has no future state, damage override or direct simulation control. A local-only `debug=1&botSeed=N` URL selects the starting seed; public hosts ignore it.
+
+Each seed writes `seed-N.json` (all inputs and combat events with simulation ticks), `seed-N.webm` (full fight plus five seconds of its conclusion, with a visible seed/tick label) and the compact batch `summary.json`. Match video frames to JSON events using the on-video tick label. All runs, including losses and timeouts, are retained. Held keys are released in cleanup on wins, losses, timeouts and errors; a loss also verifies that Rematch starts with keys released. A new fight uses a fresh browser context. The receipt records whether release completed. The script exits nonzero unless a fight contains an Easy win with a block and a damaging heavy counter, and every attempted fight completed without a runner error.
+
+These are mechanical test results. Debug observations are more precise than a human's, and the browser viewport emulates a phone. Footage and physical phone playtests remain the evidence for readability and control feel.
