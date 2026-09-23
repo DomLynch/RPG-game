@@ -115,3 +115,14 @@ test('a tile names the piece, never its owner: every piece in the game reads as 
   assert.equal(tileLabel("the Centurion's helmet"), 'Helmet');
   assert.equal(tileLabel("the Centurion's trident"), 'Trident');
 });
+
+test('while the arena-cam tour rolls, the tiles and Undo are inert: the first touch stops the tour and never takes a piece', async () => {
+  // The panel stays visible through the tour, and its tiles sit where the first post-kill touch lands. A tile tap is the take, so
+  // without this rule the touch that hands the camera back took the piece under it (measured on #521: the Centurion's shield at
+  // 190,300). Rematch and Share already go inert under :root.endgame-fade for the same reason; the tiles and Undo join them.
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  const rule = css.match(/:root\.endgame-fade \.loot-pieces button,\s*:root\.endgame-fade #loot-undo\s*\{([^}]*)\}/);
+  assert.ok(rule, 'the fade rule names the tiles and Undo');
+  assert.match(rule![1]!, /pointer-events:\s*none/);
+});
