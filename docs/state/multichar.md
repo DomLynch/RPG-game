@@ -6,6 +6,12 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-23, evening (handoff)
 
+**TOMORROW (2026-09-24), Dom's PRIORITY 1 via Strategy → Lead, 17:xx:** every opponent wears and offers SIX takeable armour
+pieces + its weapon, Recruit rag & scrap first, **LIVE target 14:00**. Mine: **the Witch to all six**: Helmet = the hood,
+Body = robe + cloak (per SCOPE.md), Arms, Gloves, Greaves, Boots; `witch.Trident` stays. Build on the **Nightborn lane's welded
+pipeline once it lands (~09:00)**, not the untextured-Steel .12 cut (ruled out tonight). **One PR**; its body lists the six pieces,
+their tri counts, loot.glb size, a same-frame phone still of the Witch WEARING them, and loot-layers green.
+
 **Pick up:** nothing owed tonight (Lead, 17:04). The Witch is on `roster-v0` at `3707dee`; Combat retunes `ARCHETYPES.witch`
 and makes the one RECORD_VERSION bump at 21:15 (`combat/bump8-roster` `64dc777` already carries 8). Reports go to **Lead only** (Dom).
 Next Witch work when asked: finishers measured on her body (she ships `finishers: []`), then the cast clip, then the
