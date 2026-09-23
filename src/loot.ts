@@ -42,7 +42,8 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield', 'veteran.Trident'],
   executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Body', 'executioner.Arms', 'executioner.Greaves', 'executioner.Boots', 'executioner.Gloves', 'executioner.Scythe'],
   nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
-  pitborn: ['pitborn.Arms', 'pitborn.Gloves', 'pitborn.Cleaver'],   // no chest piece: he wears a rag sash, not a tunic (a `replace` piece must not undress the player — tests/loot.test.ts)
+  // His Body is the rag sash and belt worn `over` the player's tunic: a sash covers 26 % of a tunic, so as a `replace` it would undress him (#434, tests/loot.test.ts).
+  pitborn: ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves', 'pitborn.Cleaver'],
   dwarf: ['dwarf.Greaves', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
   knight: ['knight.Maul'],   // his Helmet and Body (the Recruit-2 carriers) come post-beta: a .12 cut on untextured Steel read as shards (UV-seam split)
