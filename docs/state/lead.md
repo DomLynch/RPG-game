@@ -29,6 +29,11 @@ Rows 2, 11 and 12 failed twice (load 15–24), all from #547's swap (`veteran: w
 still expect the Veteran on /Trident_/ (a stale row premise, so drop veteran from the polearm rows); row 2 roster-browser-check fetches a 3rd model on boot (likely the carried
 shield; preference: defer it after first paint per #435). **Veteran fixes forward by 15:15**, and the box is held. **Fallback at 15:15:** Deploy opens a PR that is `git revert -m 1`
 of #557 (NOT a force-push; a trunk revert, not a live rollback), publishes #552 + the post-B batch, and B re-lands as a revert-of-the-revert plus the fix. Strategy was told (slip) and accepted it, adding: the polearm rows must now EXPECT gladius+scutum, and the 3rd fetch must be REMOVED (teaching the check doesn't count); #552 is live by 15:45 either way; B by 16:00. **Fallback staged by Deploy, not pushed:** `deploy/revert-publish-b` @ `4a30ef6` = revert -m 1 of `9a53750`; src = b7bc78d + #552 only, v6, the guard 2/2. Re-landing B later = a revert of `4a30ef6` plus Veteran's fix, then a fresh deploy.sh.
+**15:0x DECISION (Lead): the FALLBACK RUNS.** Veteran's #559 (`a9b8c9c`) makes rows 2/11/12 pass (the scutum's 5 MB loot.glb is deferred 1 s past first paint),
+but it exposed that **the Centurion visibly DRAWS THE TRIDENT while the sim fights him with the gladius**: veteran.glb bakes the trident, and there is no runtime
+equip loader (loot.ts's #309 contract is unimplemented). #559 is HELD. Deploy pushes `4a30ef6` (the #557 revert) + the batch, so #552 is live before 15:45.
+**Asked Strategy:** hold the swap (Lead's recommendation: B' = #532 + #545 + #543 as a player weapon, the Veteran stays on the trident, and the knife exception dissolves)
+vs ship with the mismatch (revert-of-revert + #559). Either way B re-lands via a revert of `4a30ef6`, plus Combat's re-pin on that exact tree.
 **Awards chain:** #551 (sweep, `66e798f`) is READY with Backend OK + Lead, and merges in the rolling run AFTER B (no src/ change). #554 (draft, `b0a8b89`,
 Backend's N1–N3: per-claim settle errors, a loss unit case, the recheck caveat) is retargeted and gated after #551. **The APPLY of 202609230001 + the VPS
 verify-loot unit need all of #551 + #554 + Stats' client-claims PR (offer from `my_standing()`, SCOPE.md loot v2 line), Backend-reviewed,
