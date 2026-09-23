@@ -47,7 +47,7 @@ window.__step = 'ready';
 // A real kill: light to draw, walk in, paced plain heavy overheads (the pacing lets posture drain so the killing blow stays a
 // plain heavy_overhead — the warden is passive, both sides stepped through the real sim). Each seed yields its own kill
 // event; the seeded rotation maps it to a finisher, and we keep the first death window each shipped finisher draws.
-function simulate(seed, hero = false) {
+function simulate(seed, hero = false, spare = false) {
   let p = initialPractice(seed, OPPONENTS[opponentId]);
   const frames = [];
   let kill = -1;
@@ -62,7 +62,7 @@ function simulate(seed, hero = false) {
     else if (hero) { /* the hero stands and takes it: the warden fights on its normal profile */ }
     else if (f.phase === 'ready') {
       if (dist > 1.9) intent.move = { x: dx, z: dz, yaw: Math.atan2(dx, dz), run: false };
-      else if (tick - lastHit > 200) intent.action = 'heavy';
+      else if (tick - lastHit > 200 && !(spare && p.health <= .6 * p.enemyMaxHealth)) intent.action = 'heavy';   // spare: stop at 60 % so the wounds can drip
     }
     // Hero window: the warden fights until the hero is at 60 % or below, then stands off — an idle hero would be dead within a
     // second, and the finisher's own gore takes over a killed body's wounds.
@@ -94,9 +94,9 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
 // Body wounds (owner 2026-09-21): the same scripted duel from its first tick to the first landed blow that finds the warden at
 // 60 % health or below, plus a dozen frames to settle — the marks must already show on him there (before any finisher).
 {
-  const sim = simulate(${seedStart});
+  const sim = simulate(${seedStart}, false, true);
   const at = sim.frames.findIndex(f => f.events.some(e => e.type === 'Hit' && e.target === 1) && f.practice.health <= .6 * f.practice.enemyMaxHealth && f.practice.health > 0);
-  if (at >= 0) windows.wounded = { frames: sim.frames.slice(0, at + 200), killIndex: 1e9, hitIndex: at };   // 3.3 s past the blow: the runs lengthen, then hold
+  if (at >= 0) windows.wounded = { frames: sim.frames.slice(0, at + 600), killIndex: 1e9, hitIndex: at };   // 10 s past the blow: the runs lengthen, hold, and drip onto the sand
 }
 // The same on the PLAYER (owner 2026-09-23, a phone shot of the hero's back with no runs at all): the hero draws and stands, the
 // warden fights on its normal profile, up to the first landed blow that finds the hero at 60 % or below.
@@ -117,7 +117,7 @@ for (const id of wanted) if (windows[id] === undefined) {
 window.__provenance = provenance;
 if (wanted.some(id => windows[id] === undefined)) throw new Error('could not draw requested outcomes from the requested seeds: ' + JSON.stringify(provenance));
 window.__step = 'simulated';
-let cursor = -1, maxCameraStep = 0, currentMode = 'red';
+let cursor = -1, cursorWhich = null, maxCameraStep = 0, currentMode = 'red';
 window.__finisher = {
   provenance,
   inspect() {
@@ -232,6 +232,14 @@ window.__finisher = {
     return { finisher: which, override: !!w.override, frames: at, seconds: at < 0 ? null : +(at * TICK).toFixed(2), completeAt: +completeAt.toFixed(2) };
   },
   hitIndex(which) { return windows[which]?.hitIndex ?? -1; },
+  // Frame cost of a stretch of a window, played from its first frame in the given mode: ms per view.render over [from, to).
+  time(which, from, to, mode) {
+    view.setBloodMode(mode); currentMode = mode; cursor = -1; view.recenter(); present = false;
+    const ms = [];
+    for (let j = 0; j < to; j++) { const f = windows[which].frames[j], t0 = performance.now(); view.render(f.state, true, TICK, f.practice, f.events, false); if (j >= from) ms.push(performance.now() - t0); }
+    present = true; cursor = to - 1; cursorWhich = which; ms.sort((a, b) => a - b);
+    return { frames: ms.length, p50: +ms[ms.length >> 1].toFixed(2), p95: +ms[Math.floor(ms.length * .95)].toFixed(2), max: +ms.at(-1).toFixed(2), droplets: view.probe().droplets };
+  },
   probe() { return view.probe(); },
   killIndex(which) { return windows[which].killIndex; },
   play(which, i, mode) {
@@ -239,6 +247,7 @@ window.__finisher = {
     // and screenshots would show a stale frame. A fresh playback resets the cursor so the scene state rebuilds from tick 0.
     return new Promise(resolve => requestAnimationFrame(() => {
       view.setFinisherOverride(windows[which].override ?? null);   // the picker's own path for outcomes outside the rotation
+      if (which !== cursorWhich) { cursor = Number.MAX_SAFE_INTEGER; cursorWhich = which; }   // the cursor belongs to one window: another window replays from its own tick 0
       if (i <= cursor) view.setPreviousFinisher(null);   // every captured window is a first fight (the no-repeat rule reads the previous one)
       if (mode && mode !== currentMode) { view.setBloodMode(mode); currentMode = mode; }
       if (i <= cursor) { cursor = -1; maxCameraStep = 0; view.recenter(); }
@@ -317,7 +326,19 @@ try {
     console.log(`  hero wounds: ${hero.used} mark(s) in use, reach per mark ${JSON.stringify(hero.reach)} m (9 = no surface cap)`);
     assert.ok(hero.used >= 1, 'a blow on the hero at 60 % or below leaves a mark');
     assert.ok(hero.reach.every(r => r >= 0.08), `no hero run is capped short of 8 cm by the surface (${JSON.stringify(hero.reach)})`);
-    await save('wound-checks.json', JSON.stringify({ opponent, commit, runs, hero, red, off }, null, 2));
+    // Drops to the floor (owner 2026-09-23): by 10 s after the blow a stopped run has dripped onto the sand, and 'off' shows none.
+    await page.evaluate(([i]) => __finisher.play('wounded', i, 'red'), [count - 1]);
+    const drops = (await page.evaluate(() => __finisher.probe())).droplets;
+    await page.screenshot({ path: `${dir}/wounds-drops.png` });
+    console.log(`  drops: ${drops.spots} spot(s) on the sand, ${drops.falling} falling, 10 s after the blow`);
+    assert.ok(drops.spots >= 1, 'a stopped run drips onto the floor within 10 s of the blow');
+    // Phone budget (Lead brief 2026-09-23): the same dripping stretch at CPU ×4, blood red vs off — what the drops cost per frame.
+    const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    const budget = { red: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'red'), [hitIndex + 240, count]),
+      off: await page.evaluate(([a, b]) => __finisher.time('wounded', a, b, 'off'), [hitIndex + 240, count]) };
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    console.log(`  drops budget, CPU x4, ms per render: red p50 ${budget.red.p50} p95 ${budget.red.p95} (${budget.red.droplets.spots} spots) | off p50 ${budget.off.p50} p95 ${budget.off.p95}`);
+    await save('wound-checks.json', JSON.stringify({ opponent, commit, runs, hero, red, off, drops, budget }, null, 2));
     await page.context().close();
   }
   // Finisher-complete durations (Lead brief 2026-09-22, Web's loot panel). Each requested outcome is played frame by frame on

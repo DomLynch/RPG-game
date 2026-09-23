@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
-import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER, WOUND_ART, WOUND_SIZE } from '../src/gore.ts';
+import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER, WOUND_ART, WOUND_SIZE, DROPS } from '../src/gore.ts';
 import { OPPONENTS } from '../src/moves.ts';
 
 const near = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
@@ -335,4 +335,35 @@ test('surfaceHit: the mark is anchored to the point the blow met and lies flat o
   assert.ok(facing.dot(new Vector3(0, 0, 1)) > .99, 'the mark lies flat on the face it hit');
   bone.position.set(0, .5, 0); root.updateMatrixWorld(true); wounds.update(1 / 60, [null, root], [1, .3], 'red');
   assert.ok(Math.abs(mark.group.position.y - .5) < .02, 'the anchor rides the bone');
+});
+
+test('drops to the floor (owner 2026-09-23: "drop from body onto the floor, like droplets… rather slowly"): a stopped run sheds drops that fall and leave small spots on the sand; capped; off hides; rematch clears; stops once half dry', () => {
+  const w = createBodyWounds(new Scene(), null), r = rigWith('spine_03', [0, 1.2, 0]).root;
+  hitTorso(w, r);
+  run(w, r, 1);
+  assert.equal(w.droplets.falling + w.droplets.spots, 0, 'nothing drips while the runs are still growing');
+  let most = 0;
+  for (let i = 0; i < 60 * 8; i++) { w.update(1 / 60, [null, r], [1, 0.3], 'red'); most = Math.max(most, w.droplets.falling); }
+  assert.ok(w.droplets.spots >= 1, `a stopped run has dripped onto the floor (${w.droplets.spots} spot(s))`);
+  assert.ok(most <= DROPS.inFlight, 'never more drops in the air than the cap');
+  for (const spot of w.droplets.pool.filter(t => t.life > 0)) {
+    assert.ok(Math.abs(spot.mesh.position.y - DROPS.floor) < 0.01, 'the spot lies on the sand');
+    assert.ok(spot.mesh.scale.x >= DROPS.spot[0] - 1e-9 && spot.mesh.scale.x <= DROPS.spot[1] + 1e-9, `a small spot, not a pool (${spot.mesh.scale.x.toFixed(3)} m)`);
+    assert.ok(Math.hypot(spot.mesh.position.x, spot.mesh.position.z) < 0.5, 'under the fighter it fell from');
+  }
+  assert.ok(w.droplets.spots <= 3 * 5, `slowly — a few drops over 8 s, not a stream (${w.droplets.spots})`);
+  run(w, r, DRY.seconds * DROPS.until + 4);
+  const settled = w.droplets.pool.filter(t => t.life > 0).length;
+  run(w, r, 6);
+  assert.equal(w.droplets.falling, 0, 'a half-dry wound has stopped leaking');
+  assert.ok(w.droplets.pool.filter(t => t.life > 0).length <= settled, 'no new spots once dry');
+  w.update(1 / 60, [null, r], [1, 0.3], 'off');
+  assert.ok(w.droplets.pool.every(t => !t.mesh.visible), "blood 'off' hides the spots");
+  w.clear();
+  assert.equal(w.droplets.falling + w.droplets.spots, 0, 'rematch clears drops and spots');
+});
+
+test('drops are seeded: two pools fed the same fight leave spots in the same places', () => {
+  const play = () => { const w = createBodyWounds(new Scene(), null), r = rigWith('spine_03', [0, 1.2, 0]).root; hitTorso(w, r, 0.7); run(w, r, 9); return w.droplets.pool.filter(t => t.life > 0).map(t => [t.mesh.position.x, t.mesh.position.z, t.mesh.scale.x].map(v => +v.toFixed(6))); };
+  assert.deepEqual(play(), play());
 });
