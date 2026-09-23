@@ -1,6 +1,15 @@
 ## Now — web lane, 2026-09-23 ~11:10Z (session close after #540/#552/#556; read this first)
 
-**FIRST (Lead, 13:2xZ): opponent cards + copy as a PR against TRUNK, once roster-v0 has merged there.** roster-v0 is FROZEN at
+**PRIORITY 1 (Dom via Strategy → Lead, 2026-09-23 evening): Phase R paperdoll re-render, done ONCE.** Phase R (LIVE 2026-09-24
+14:00) gives all ten opponents six takeable armour pieces + a weapon, about 40 new loot layers. My part: BEFORE the first Phase R PR
+merges, widen the loot-layers frame to fit the widest new piece and re-render ALL current layers in ONE PR against trunk, so each
+Phase R PR only adds its own layers. **Owed to Lead by 09:00 2026-09-24:** (a) the frame size picked, (b) render time per layer,
+(c) the PR ETA. Relayed premise, NOT yet verified: "the knight.Helmet attempt needed 316→352". `git grep -w 316` over trunk's
+scripts/src/tests found nothing, so the frame constant and the render script have to be FOUND first. Start with the loot-layers
+render pipeline (Brief 5 export; memory `frankendom_loot_export_brief5.md`, `frankendom_loot_loader_2026-09-21.md`) and
+tests/loot-layers.test.ts. Measure the widest piece across the new layers before picking the size; don't just take 352.
+
+**ALSO ON THE LIST (Lead, 13:2xZ): opponent cards + copy as a PR against TRUNK, once roster-v0 has merged there.** roster-v0 is FROZEN at
 c2a5c73 and publishing: do NOT push to it. At 13:21Z roster-v0 was not yet on trunk; check with
 `git merge-base --is-ancestor origin/roster-v0 origin/codex/01a09a76/task-1`. The change is `public/game/index.html`, the landing page
 (`#ladder` "Meet the ladder" `article.foe` cards, the "Five opponents" faces strip ~line 133, the ranks table ~line 159). Add the
