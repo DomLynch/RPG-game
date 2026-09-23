@@ -15,49 +15,63 @@ disagreed with each other. Only the mutation proof caught it, and only because s
 
 Both were caught on implausibility, not from the output. The probe now asserts the source actually changed before running the suite.
 
-## Now
+## Now (2026-09-23 ~07:15Z)
 
-Deliverable 2 — the loadout in the fight record — settled with Lead and Strategy and split into two PRs that ship on **different
-deploys**:
+**Deliverable 3, server-authoritative awards: UNBLOCKED. Strategy ruled (relayed by Backend, 2026-09-23 ~07:30Z). This is the next
+build; start here.**
 
-**PR A is open as #503** (branch `stats/record-accept-list`, base trunk, `quality:stop` green: 483 pass / 0 fail / 2 skipped).
-`READABLE_VERSIONS` is in, `unpackRecord` returns the parsed version, `SIM_DIGEST` re-pinned to `1b92b247…` WITHOUT a bump with the
-`record-replay-check --strict` receipt identical either side (veteran-walk-in 1677/died/1677 `d953a09bed432ea1`, veteran-scripted
-1452/died/1452 `552f30e5b09f4841`). **Its new assertion is vacuous until the list widens** — the mutation probe (revert to the
-constant) fails exactly one test, and only because record.ts's bytes moved the digest. PR B must carry the real guard: v5 bytes on a
-v6 build decode to `v === 5` and throw on repack.
+Strategy's ruling:
+- **(a): marks are server-authoritative.** Every verified ladder win is one server mark. Drop, tier and rank come from verified data.
+  `victory_marks` and `owned` are caches. (c) isn't needed.
+- **Grandfather, don't reset.** A new `account_seed(user_id uuid pk references auth.users, marks int check 0..100000, owned jsonb,
+  seeded_at)`, **written only by this migration** with `insert … select` from `fighter_profiles` at apply time. **Never hardcode** a
+  real uuid or loot in git. (Strategy's first ruling said "documented in the migration with the seeded values". Backend specified
+  apply-time `insert … select` instead, and Strategy then accepted it "as specified … keeps the uuid and loot out of git". No conflict.) RLS on, no client grant (owner-select only if the client needs it). One-off by construction: no function or
+  grant can re-run it. The post-apply receipt is a non-identifying summary ("1 account seeded, marks N, K pieces").
+- Server marks = `seed.marks + count(verified ladder wins)`. Server owned = `seed.owned ∪ awards`. **`awards` stays pure**: every row is
+  backed by a verified record, and no claims are faked for the seed.
+- **Guests:** loot is a device-only cache with no award. On guest→account the cache carries over as device-only cosmetics, and the
+  account's server marks **start at 0 from its first verified win**, so a forged guest cache never becomes rank.
+- The PR goes through **Lead**, with the migration and the tests. **Poster binding is NOT in this migration.** It's PR B's
+  record-format change (account id in the bytes, the verifier compares `record.owner` to `claim.user_id`), Lead's item. Interim: global
+  unique hash plus claiming before Share.
+- **Four more tests (names Strategy's verbatim: "seed, verified win, guest convert, forged cache rejected"; the assertions below are
+  Backend's concretisation), each mutation-tested with the probe first proving its mutation landed:** (1) seed: a fixture profile →
+  seeded exactly those, once; (2) verified win: server marks = seed + 1, and the drop = `dropFor` at the server subRank; (3) guest convert:
+  no seed row → marks 0, then 1 after the first verified win; (4) forged cache: the client writes `victory_marks = 100000` and an Origin
+  piece into `fighter_profiles.loot` → server marks and owned unchanged.
 
-**#514 — the kit resolver — is open**, stacked on `stats/lane` behind #488, `quality:stop` green (487 tests, 485 pass, 0 fail).
-`kitFrom(equipped, tierOf)` with `TierOf` keyed on the **piece** (`LootId`), not the opponent. **A tier is a property of the FIGHT, not
-of the recipe** (Strategy, withdrawing Lead's per-opponent reading): `tierAt(marks)` is `rankFor(marks).title`, so the same Centurion is
-a Recruit's Centurion early and a Praetorian's later. My first cut keyed on `OpponentId` and would have baked the withdrawn reading
-into the signature — caught before the PR opened because Multi Chars wrote the semantics down. The lookup lands in **`src/grades.ts`**,
-not `roster.ts`: `roster.ts` is a SIM module in `eslint.config.js` and cannot reach `career.ts`, and their `tests/sim-boundary.test.ts`
-failed on the first placement. Their PR is **#510** (head `eb256b0`); when it merges, only the call site changes.
+The design below (agreed with Backend) still holds.
+Backend's review, accepted in full:
+- Two tables. `loot_claims`: owner insert, unverified, unique on `sha256(record)` **globally** (one award per fight), size and rate
+  caps. `awards(claim_id pk references loot_claims(id), piece, tier, awarded_at)` with **no `user_id`**: owner-select goes through the
+  join, and the verifier gets only `insert (claim_id, piece, tier)`, plus a trigger that refuses unverified claims. There's no column to
+  redirect an award with, so a leaked verifier credential can't mint loot for another account.
+- Armour claims carry **no piece**. The verifier computes it with `dropFor` (`src/loot.ts`). `piece` is only for the "Take one"
+  weapon choice, checked by importing `src/loot.ts`, never a LOOT mirror in SQL.
+- **Marks: option (a).** The verified-claim ledger *is* the mark ledger (server marks = count of verified wins), so `victory_marks`
+  and `owned` both become caches computed from verified data. The client posts a claim for **every** ladder win, before Share is offered.
+  **(b), "rung in the record", does NOT close the hole until deliverable 5**: a wrong rung replays a different fight only once the sim
+  reads the tier. That was my error, and Backend caught it.
+- **RULED: grandfather** (see Strategy's ruling above). Still for Strategy/Lead: record-to-account binding (B can claim A's shared kill; the same hole is in `daily_results` today, ticket
+  it), and guests holding no awards.
+- Backend's DB-check list is the acceptance criteria, every item mutation-tested: client can't write `awards` or flip a claim's
+  `verified`; verifier can't award a nonexistent claim or award twice; owner sees only their own awards, anon sees none; duplicate
+  record hash refused; caps trip.
+- Branch `stats/server-awards` exists off trunk, empty.
 
-**Combat takes the bump to 6, not this lane** (their kicker-hover fix alters how fights step; mine does not, and PR B is a deploy
-behind PR A anyway). They have `RECORD_VERSION = 6` in their worktree, unpushed, and are holding `READABLE_VERSIONS` for me — widening
-the reader without the v5 decode branch would make every v5 link decode against an expected tail. PR B rebases onto trunk once their
-bump lands; if their fairness battery sinks it, this lane takes 6 instead. Weapons' #419 rides whichever lands.
+**Open PRs:**
+- **#528**: PR A v2, READY, head `e3bd67f`. Held for **Window 1**: it publishes together with Combat's knife (bump to 6,
+  `READABLE_VERSIONS` `[5]`→`[6]` as a *replacement*) and PR B. Never split the window: a knife-first publish would mint tail-less v6
+  links that PR B can't read.
+- **#514**: kit resolver, retargeted to trunk (head `8e07865`), local gate 496/494/0/2. Its `quality`/`base`/`browser` jobs were
+  cancelled by `cancel-on-close` racing my close-and-reopen. The runs were re-run directly (`gh run rerun`). The READY line goes to
+  Deploy when they're green.
+- **#523** (tier-table re-land, `Shield: 0`) is **merged**, trunk `5c19f8b`. #503 is closed, superseded by #528.
 
-**Open on someone else's plate: a `LootId` has no tier.** `src/loot.ts:22` is `` `${OpponentId}.${LootSlot}` `` — no tier, no grade, and
-`grep -rn "grade" src/*.ts` outside `src/grades.ts` returns one unrelated hit, so `OPPONENTS.grade.house` in `grades.ts:19` names a
-field that does not exist on trunk. Every kit therefore resolves to the naked identity and the paperdoll reads 1.00/1.00 for everyone
-(Web found it while scoping deliverable 4). Proposed to Lead: the opponent → tier mapping is Multi Chars' (roster/kit data, a balance
-call with Strategy's name on it), the resolver and its tests are this lane's, written against the boundary first so their PR is data
-only. A piece with no tier must resolve to exactly 1.00, never a guess.
-
-- **PR A**: `unpackRecord` returns the version it actually parsed (today `src/record.ts:127` returns the constant, so a decode-then-
-  repack would silently upgrade a v5 record; `packRecord`'s existing guard at `:73` then turns that into a loud throw). Plus the
-  widened accept-list, pinned as **data beside `SIM_DIGEST`**. Re-pins `SIM_DIGEST` **without a bump** under the #439 precedent, with a
-  behaviour-unchanged receipt from `scripts/record-replay-check.mjs`.
-- **PR B**: bumps `RECORD_VERSION` to 6, signed by name in the pin, carrying the encoder and the loadout tail.
-
-**PR A is a server change, not a client one.** `scripts/verify-daily.mjs:12-13` imports `decodeRecord` from `src/record.ts` and
-`deploy.sh` rsyncs `src/**/*.ts` to the verifier host, so the deploy carrying PR A replaces the verifier's decoder too. One accept-list,
-executed on both sides — there is no second list in SQL (`mint_share` treats the record as opaque base64url).
-
-Before starting, rebase `stats/lane` onto a trunk where `src/arena.ts` compiles (see Gotchas).
+**PR B** (next after Window 1 is agreed): encoder + loadout tail at v6 on top of the knife, the real parsed-version guard (v5 bytes on
+a v6 build decode to `v === 5` and throw on repack; the PR A assertion is vacuous until then), and re-writing the knife's v6 replay
+fixtures.
 
 ## Done today
 
@@ -166,6 +180,15 @@ landed before the suite runs (see the gotcha at the top of this file):
   sentence.
 
 ## Gotchas
+
+- **Background gate loops walk past the one-deployer lock.** The lock is enforced by the session's PreToolUse hook, not by npm. A
+  Monitor that "retries while its own log mentions the lock" never sees the lock and runs immediately. Two suites ran through deploy
+  `2d614dc` that way, and one flaked `tests/release-checks.test.ts:73` (a 2 s timing test) under the load. Probe the lock with a
+  light hooked call first.
+- **Retargeting a PR's base does not trigger `quality.yml`** (pull_request opened/synchronize/reopened only). **Close-and-reopen doesn't
+  work either**: `cancel-on-close.yml` cancels whatever the reopen starts. Use `gh run rerun <id>` on the cancelled runs.
+- **A merge into a reverted branch brings nothing back.** Re-landing reverted work means `git revert <the revert>` on a fresh branch.
+- **Resolving an append/append conflict by slicing can drop the shared closing `});`.** Parse the file before trusting the resolution.
 
 - **After fast-forwarding onto trunk `fe0d8e0` or later, run `npm ci` before the gate.** This worktree's `node_modules` is the
   2026-09-17 install, and `quality:stop` fails on a missing `@types/node` against the newer trunk — a stale install, not a breakage
