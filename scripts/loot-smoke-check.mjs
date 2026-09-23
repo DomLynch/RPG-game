@@ -9,6 +9,7 @@ import { chromium } from 'playwright';
 import { harnessClock } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { preview } from 'vite';
 
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
@@ -23,7 +24,9 @@ await page.route('**/*sentry.io/**', route => route.abort());
 const ledger = () => page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.fighter.v1') || 'null')?.loot ?? null);
 const receipt = { url, revision: null, steps: {}, errors, passed: false };
 try {
-  receipt.revision = await page.request.get(new URL('/release.json', origin).href).then(r => r.ok() ? r.json() : null, () => null);
+  // The served revision: a deployed site's release.json; a local preview serves the SPA shell there, so it records this tree's HEAD.
+  receipt.revision = await page.request.get(new URL('/release.json', origin).href).then(r => r.json()).catch(() => null)
+    ?? (server ? { revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), source: 'local preview of this tree' } : null);
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
   for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
