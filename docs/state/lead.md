@@ -65,6 +65,15 @@ of the deploy's total budget. **These sends were written but NOT delivered (the 
 - **Strategy:** the sweep 2 report (this block plus the PR list: #523 Deploy-when-green, #520 + #516 green for Deploy, #524 new
   with `quality` red and owner unknown, #518 `plan` red since it likely carries the old apostrophe in its own workflow change, so
   it rebases onto #519).
+**Veteran, 06:3xZ: the shield-carry pose is BUILT and gated** on `char/centurion-gladius-scutum` @ `2aca298` (off `2d614dc`).
+It is `src/characters.ts` +~50 lines and `tests/shield-carry.test.ts` 3/3; quality:stop 479 / 477 pass / 0 fail / 2 skipped; zero
+clips. The left arm is re-aimed post-mixer to carry / raised / strike, in the fighter's own frame, and works on any rig. Measured:
+the blade crosses the board on 3 of ~250 frames (1 cm rims, one 8 cm), against 66 frames up to 25 cm on the clips' own hold, which
+is the regression floor. No PR yet; it stacks on Weapons' gladius PR. **New scope for the Window-1 Centurion change: `wear()`
+cannot dress the Centurion's own rig.** `veteran.glb`'s Body slot is non-mesh Object3D nodes, so `wear()` throws 'The rig has no
+Body draw to hang loot on'. The scutum on the OPPONENT needs that loader fix plus an opponent `wear` call in `scene.ts`, then the
+browser render check, the versus regen and the identity pin. **Veteran does NOT yet know its row 27 killed the deploy** (send
+blocked).
 **The 20-min cron sweep (`e7317592`) was DELETED at 06:30Z:** a cron-fired prompt does not reset the app's cross-session cap, so
 the sweep could look but could not message anyone, and it only added load. Re-create it only in a session that can actually send.
 
