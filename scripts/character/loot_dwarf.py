@@ -20,7 +20,7 @@ from collections import defaultdict, deque
 import bmesh
 import bpy
 import numpy as np
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 METAL = float(args[args.index('--metal') + 1]) if '--metal' in args else 0.35   # smoothed metallic above this is iron
@@ -253,6 +253,44 @@ for s, face_ids in sorted(pieces.items()):
         obj.modifiers.new('Loot budget', 'DECIMATE').ratio = ratio
         obj.modifiers.move(len(obj.modifiers) - 1, 0)   # simplify the rest shape, then skin it
     kit.append(obj)
+if REPOSE:
+    # --repose carries each vertex by its own bone, which holds only where his surface sits on his joints. The Knight's TRELLIS fists
+    # lie back along the forearm of his hand joints and his feet 12 cm outside his foot joints, so his gauntlets and sabatons landed
+    # beside the player's. Each side's Gloves/Boots piece is moved (translation only) so its centre is the player's own hand/foot centre.
+    raw = open(os.path.abspath('src/assets/source/parts/body_realistic.glb'), 'rb').read()
+    n = int.from_bytes(raw[12:16], 'little')
+    gl = json.loads(raw[20:20 + n])
+
+    def accessor(i):
+        a = gl['accessors'][i]
+        view = gl['bufferViews'][a['bufferView']]
+        dtype = {5126: '<f4', 5121: 'u1', 5123: '<u2'}[a['componentType']]
+        width = {'VEC3': 3, 'VEC4': 4}[a['type']]
+        return np.frombuffer(raw, dtype=dtype, count=a['count'] * width,
+                             offset=20 + n + 8 + view.get('byteOffset', 0) + a.get('byteOffset', 0)).reshape(-1, width)
+    joints = [gl['nodes'][j]['name'] for j in gl['skins'][0]['joints']]
+    points = defaultdict(list)
+    for m in gl['meshes']:
+        for prim in m['primitives']:
+            at = prim['attributes']
+            if 'JOINTS_0' not in at:
+                continue
+            P, J, W = accessor(at['POSITION']), accessor(at['JOINTS_0']), accessor(at['WEIGHTS_0'])
+            for co, j, w in zip(P, J, W):
+                points[joints[j[int(np.argmax(w))]].split('_')[0] + ('_l' if co[0] > 0 else '_r')].append(co)
+    for o in kit:
+        bone = {'Gloves': 'hand', 'Boots': 'foot'}.get(o['slot'])
+        if not bone:
+            continue
+        world = o.matrix_world
+        for side, sign in (('_l', 1), ('_r', -1)):
+            vs = [v for v in o.data.vertices if (world @ v.co).x * sign > 0]
+            target = np.mean(points[bone + side], axis=0)   # glTF Y-up
+            have = sum((world @ v.co for v in vs), Vector()) / len(vs)
+            shift = world.inverted().to_3x3() @ (Vector((target[0], -target[2], target[1])) - have)
+            for v in vs:
+                v.co += shift
+            print(f'FIT {o.name}{side}: moved {shift.length * 100:.1f} cm onto the player\'s {bone}')
 os.makedirs(OUT, exist_ok=True)
 for o in bpy.context.selected_objects:
     o.select_set(False)
