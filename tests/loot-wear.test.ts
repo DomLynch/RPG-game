@@ -71,7 +71,9 @@ test('loot: a creature-pipeline body (the Veteran) wears loot, bound to his Crea
   player.wear(all.filter(p => lootWorn(p, ['veteran.Shield'])));
   let body: SkinnedMesh | undefined; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && o.name === 'CreatureBody') body ??= o; });
   assert.ok(player.worn().length > 0 && player.worn().every(p => p.userData.slot === 'Shield'), 'the scutum\'s draws are worn');
-  for (const draw of player.worn()) assert.equal(draw.skeleton, body!.skeleton, `${draw.name} is bound to his CreatureBody's rig`);
+  // His bones, with the piece's own (the hero's) inverse binds: a creature body's inverse binds are his own, so the skeleton object is a
+  // retarget of his rig, not the rig itself (characters.ts wear, Phase L). Same bones, same order, is what "bound to his rig" means.
+  for (const draw of player.worn()) assert.ok(draw.skeleton.bones.length === body!.skeleton.bones.length && draw.skeleton.bones.every((b, i) => b === body!.skeleton.bones[i]), `${draw.name} is bound to his CreatureBody's rig`);
 });
 
 test('loot: a worn shield renders both sides — its face is a single-sided disc, so front-only it culled to a hoop from behind (2026-09-23)', async () => {
