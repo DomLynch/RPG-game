@@ -101,7 +101,8 @@ family = sys.argv[1]
 base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "skeleton": "source/backups/veteran-v1", "dwarf": "source/creatures/dwarf-donor", "executioner": "source/backups/executioner-v5", "veteran": "source/backups/veteran-v1", "plaguedoctor": "warrior", "knight": "source/creatures/knight-donor", "witch": "source/backups/veteran-v1"}[family]
 # Surface material factors per family: the retained maps stay byte-identical; a factor only scales them (glTF spec).
 # The Dwarf's TRELLIS metallic map reads his dented iron as polished steel under the arena lighting; 0.6 keeps the plate iron, not chrome.
-SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.35}}
+# The Knight's plate (metallicFactor 1, ~4.9k flipped normal corners) threw white glints mid-swing; the Dwarf's cap, a touch higher for plate.
+SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.35}, "knight": {"metallicFactor": 0.4}}
 # Surface material extensions per family, same rule (maps untouched). A reconstruction ships no normal map, so its smooth
 # surface takes the full dielectric specular as a wet-plastic sheen on skin, cloth and leather alike; the Executioner uses
 # the skin-strength specular the hand-built heads use (build-warrior.mjs: Face 0.5, Photo 0.35).
