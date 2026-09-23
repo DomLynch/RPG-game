@@ -144,6 +144,20 @@ export const GUARD_TILT: Record<Direction, { yaw: number; arm: number; spine: nu
   thrust: { yaw: 0, arm: 0, spine: 0 }, left: { yaw: .45, arm: 0, spine: 0 }, right: { yaw: -.45, arm: 0, spine: 0 },
   overhead: { yaw: 0, arm: -.5, spine: -.25 }, low: { yaw: 0, arm: .5, spine: .25 },
 };
+// A shield's face is a single-sided disc (loot.glb `~kit.Shield.Leather`: every normal and triangle faces bind +Z), so from behind (most
+// angles on the arm) it was culled and only the rim torus drew, a hoop (owner's iPhone, 2026-09-23 15:21). Shield draws render both sides,
+// on their own copy of the material they were given, so the rig's own Leather/brass on his body stays front-sided.
+const twoSided = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>();
+function bothSides(material: MeshStandardMaterial): MeshStandardMaterial {
+  let copy = twoSided.get(material);
+  if (!copy) {
+    copy = material.clone(); copy.side = DoubleSide;
+    // clone() copies userData (so a lighting pass's "already patched" mark) but not the shader hooks it installed: carry them over, whatever they are.
+    copy.onBeforeCompile = material.onBeforeCompile; copy.customProgramCacheKey = material.customProgramCacheKey;
+    twoSided.set(material, copy);
+  }
+  return copy;
+}
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0]) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1]) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
@@ -217,7 +231,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
         for (const piece of pieces) {
-          const material = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
+          const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
+          const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
           const copy = new SkinnedMesh(piece.geometry, material);
           copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
           copy.bind(body.skeleton, body.bindMatrix);
