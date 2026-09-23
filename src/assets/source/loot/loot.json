@@ -323,5 +323,60 @@
    "layer": "over",
    "shared": "kit.Gloves"
   }
+ ],
+ "knight": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Helmet"
+   ]
+  },
+  {
+   "slot": "Body",
+   "layer": "replace",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Body"
+   ],
+   "conform": true
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Arms"
+   ],
+   "conform": true
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Gloves"
+   ],
+   "conform": true
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Greaves"
+   ],
+   "conform": true
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Boots"
+   ],
+   "conform": true
+  }
  ]
 }

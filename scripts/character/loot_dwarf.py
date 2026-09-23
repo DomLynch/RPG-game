@@ -8,7 +8,8 @@ skin weights) and the two maps the loot build embeds for the DwarfIron material.
   blender -b --python-exit-code 1 -P scripts/character/loot_dwarf.py -- [--family knight] [--metal 0.35] [--min-faces 120]
 
 The Knight (Brief 17) is cut the same way from his own TRELLIS.2 surface (--family knight → knight.glb, KnightIron). His BUILD is a
-uniform 1.18 root scale with no per-bone table, so his rest space is already a man's and his loot.json entries carry no `unscale`.
+uniform 1.18 root scale with no per-bone table, but his GLB's rest mesh is AT that scale (helmet top 2.14 m): ROOT_SCALE divides it back
+to a man's frame here, so his loot.json entries carry no `unscale`. Six pieces: --family knight --all --ratio 0.5.
 """
 import os
 import sys
@@ -37,6 +38,7 @@ ALL = '--all' in args
 SLOTS = set(args[args.index('--slots') + 1].split(',')) if '--slots' in args else None
 SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
 OUT = 'src/assets/source/loot'
+ROOT_SCALE = {'knight': 1.18}.get(FAMILY, 1.0)   # build-warrior.mjs BUILD.knight: a uniform root scale baked into his rest mesh
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
 # Greaves, not Legs/Boots: the player's Legs draws are his kilt and his Boots his soles — iron shins and ankle plates go OVER bare
 # shins, one piece from knee to instep, like the Veteran's greaves (parts.py slot 'Greaves').
@@ -176,6 +178,7 @@ for s, face_ids in sorted(pieces.items()):
     # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
     # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bmesh.ops.scale(bm, vec=(1 / ROOT_SCALE,) * 3, verts=bm.verts)   # the feet stay on the ground: the rig's origin is between them
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
