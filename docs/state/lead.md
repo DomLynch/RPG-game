@@ -24,6 +24,11 @@ exception, "fixed in bump 8". `cleaver vs veteran normal` 16/24 is signed KNOWN_
 **PUBLISH B GO (Lead, ~14:5x):** re-pin = **#557** (`66b557f`), and Lead verified all five ancestors (ac5a090, c17004d, 9858588, 28a0fd0, b7bc78d),
 v7, the 9-file SIM_FILES, and the knife exception keyed on the exact "23/24" row text. Deploy runs #552 then #557. After B: #551, #534, #556 (+the Auditer's row).
 Next, bump 8 = #550 (merge trunk in; remove OFFERED_DESPITE; fix the knife + cleaver rows). **#554 is cleared** (quality:stop exit 0, 516/0/2; the 12 errors were a hand-run `eslint scripts/…` no-undef, pre-existing on trunk's verify-daily.mjs, so a scripts/ Node-globals eslint config is a post-beta item for the Auditer). The post-B run: #551 -> #554 -> #534 -> #556 -> #558.
+**!! PUBLISH B FAILED deploy.sh (EXIT 1, 14:35, `9a53750`). LIVE is still `b7bc78d`. Trunk carries B (v7) UNPUBLISHED, and #552 (the guest fix) is merged but not live.**
+Rows 2, 11 and 12 failed twice (load 15–24), all from #547's swap (`veteran: weapon 'gladius', carries ['veteran.Shield']`): rows 11/12 polearm-browser-check
+still expect the Veteran on /Trident_/ (a stale row premise, so drop veteran from the polearm rows); row 2 roster-browser-check fetches a 3rd model on boot (likely the carried
+shield; preference: defer it after first paint per #435). **Veteran fixes forward by 15:15**, and the box is held. **Fallback at 15:15:** Deploy opens a PR that is `git revert -m 1`
+of #557 (NOT a force-push; a trunk revert, not a live rollback), publishes #552 + the post-B batch, and B re-lands as a revert-of-the-revert plus the fix. Strategy was told (slip).
 **Awards chain:** #551 (sweep, `66e798f`) is READY with Backend OK + Lead, and merges in the rolling run AFTER B (no src/ change). #554 (draft, `b0a8b89`,
 Backend's N1–N3: per-claim settle errors, a loss unit case, the recheck caveat) is retargeted and gated after #551. **The APPLY of 202609230001 + the VPS
 verify-loot unit need all of #551 + #554 + Stats' client-claims PR (offer from `my_standing()`, SCOPE.md loot v2 line), Backend-reviewed,
