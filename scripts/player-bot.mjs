@@ -41,8 +41,9 @@ try {
       await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
       for (let n = 0; n < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; n++) await page.evaluate(() => document.querySelector('#difficulty').click());
       assert.equal(await page.locator('#difficulty').textContent(), 'Difficulty: easy');
+      const { run, until } = await harnessClock(page);
       await page.getByRole('button', { name: 'Enter the arena' }).tap();
-      await page.waitForFunction(() => document.querySelector('#welcome').hidden && document.querySelector('#art-status').textContent === '', null, { timeout: 90000 });
+      await until(() => document.querySelector('#welcome').hidden && document.querySelector('#art-status').textContent === '', 20000);
       await page.evaluate(() => {
         window.__botEvents = [];
         window.addEventListener('frankendom:combat', e => window.__botEvents.push(...e.detail.events));
@@ -50,7 +51,6 @@ try {
         Object.assign(label.style, { position: 'fixed', top: '2px', left: '2px', zIndex: '9999', background: '#111d', color: 'white', font: '12px monospace', padding: '3px' });
         document.body.append(label);
       });
-      const { run, until } = await harnessClock(page);
       fight.inputs.push({ tick: 0, key: 'KeyF', edge: 'press' });
       await page.keyboard.press('KeyF');
       await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 20000);
