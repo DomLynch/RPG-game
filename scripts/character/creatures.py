@@ -24,6 +24,9 @@ recipes = {
     # The Veteran is his own donor too: v1 (KeenTools head on the Studio body, backup) carries his rig, trident and
     # clips. The Kontext source stands in a 62° A-pose (docs/character-references/veteran-source-v1.png).
     "veteran": ("source/backups/veteran-v1", 62, 1.0, (0, -0.04, -0.025), 1.82, 16),
+    # The Plague Doctor (Brief 18): the player's own build is his donor — the hero rig at scale 1 already carries the
+    # longsword and every clip. Kontext source in a ~45° A-pose (docs/character-references/plague-doctor-source-v1.png).
+    "plaguedoctor": ("warrior", 62, 1.0, (0, -0.04, -0.025), 1.84, 16),
 }
 base, arm_angle, arm_stretch, arm_shift, height, smooth_steps = recipes[family]
 # The absolute heights below were tuned on ~1.80 m donors; the short dwarf donor scales them. Every other family keeps k = 1.
@@ -396,7 +399,7 @@ for v in mesh.data.vertices:
     )
     # Disallow nearest-body transfer from attaching claws to the adjacent thigh.
     edge = (0.23 + max(0, 1.30 - z) * 0.23) if family in ("minotaur", "werewolf", "executioner") else 0.27
-    if family in ("skeleton", "veteran"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
+    if family in ("skeleton", "veteran", "plaguedoctor"):  # a man on the Veteran's rig: arm starts 18.5 cm off the midline
         edge = 0.185 + max(0, 1.4 - z) * 0.26
     if family == "dwarf":
         edge = 0.185 * k + max(0, 1.4 * k - z) * 0.26
@@ -405,10 +408,10 @@ for v in mesh.data.vertices:
     ) * max(0, min(1, (1.62 * k - z) / 0.10))
     if rigid == head:
         arm_mix = 0
-    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran") else 0.92)) / 0.10))
+    arm_mix *= max(0, min(1, (z - (0.50 * k if family in ("minotaur", "werewolf", "skeleton", "dwarf", "executioner", "veteran", "plaguedoctor") else 0.92)) / 0.10))
     # Human hands (the Executioner): keep the donor's transferred finger weights on the arm so the clips curl his
     # fingers round the haft; the segment blend below is for claws and mitts and pins fingers rigid to the hand.
-    keep_fingers = family in ("executioner", "dwarf", "veteran") and arm_mix > 0.5
+    keep_fingers = family in ("executioner", "dwarf", "veteran", "plaguedoctor") and arm_mix > 0.5
     if not rigid and not keep_fingers:
         arm_names = (
             "upperarm",
