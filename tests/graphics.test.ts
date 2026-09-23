@@ -519,11 +519,16 @@ test('graphics startup preserves the original failure and stack for monitoring',
   assert.throws(() => boot({}, failure), error => error === failure);
 });
 
+type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; style: { getPropertyValue(k: string): string } };
+const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
   const app = boot({ id: 'tester-1234', career: { victoryMarks: 32 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
-  assert.equal(app.element('rank').textContent, 'Gladiator I · ● ● ○ ○ ○');
+  // The rank row (Dom 2026-09-23): class + numeral, one bar segment per numeral of the class (the current one part-filled), the next class.
+  assert.deepEqual(rankRow(app.element('rank')), { label: 'Gladiator I · ● ● ○ ○ ○', now: 'Gladiator I', fills: ['40%', '0%', '0%', '0%', '0%'], next: 'Veteran' });
+  assert.deepEqual(rankRow(app.element('journal-rank')), rankRow(app.element('rank')), 'the journal card renders the same component');
   assert.equal(app.element('rank-sigil').textContent, 'I');
-  assert.equal(boot().element('rank').textContent, 'Recruit I · ○ ○ ○');
+  assert.deepEqual(rankRow(boot().element('rank')), { label: 'Recruit I · ○ ○ ○', now: 'Recruit I', fills: ['0%', '0%', '0%', '0%', '0%'], next: 'Legionary' });
+  assert.deepEqual(rankRow(boot({ id: 'tester-1234', career: { victoryMarks: 42 } }).element('rank')).fills, ['100%', '100%', '40%', '0%', '0%'], 'done numerals full, the current one part-filled');
 });
 
 test('the journal test tools stay hidden without ?debug; the roster flag is the account module\'s to set', () => {
@@ -780,20 +785,20 @@ test('kill links: a retired record version says what the fight was from its head
   await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
   assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
 });
-test('autopsy: a death puts at most two plain lines on the death screen, the same lines go under the opponent\'s journal row for the last fight, and a rematch clears them', () => {
+test('fight end: the rank line replaces the death-screen autopsy on a loss, the autopsy lines go under the opponent\'s journal row, and a rematch clears the rank line', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish, 'the idle fighter dies'); assert.equal(app.rendered.finish.victim, 0);
-  const el = app.element('autopsy');
-  assert.equal(el.hidden, false, 'the autopsy shows on the death screen');
-  const lines = el.children.map((c) => c.textContent);
+  const el = app.element('fight-rank');
+  assert.equal(el.hidden, false, 'the rank line shows on the death screen');
+  assert.deepEqual(rankRow(el), rankRow(app.element('rank')), 'the account panel\'s component, no save text');
+  assert.equal(rankRow(el).next, 'Legionary', 'the next class at the right end of the bar');
+  const lines = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!).rows.veteran.last;
   assert.ok(lines.length >= 1 && lines.length <= 2, `one or two lines, got ${lines.length}`);
   assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
   for (const line of lines) assert.ok(!/[!?]/.test(line), 'no exclamation marks');
-  const card = JSON.parse(app.storage.getItem('frankendom.scorecard.v1')!);
-  assert.deepEqual(card.rows.veteran.last, lines, 'the journal keeps the last fight\'s lines under the opponent');
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
-  assert.equal(el.hidden, true, 'a rematch clears the autopsy');
+  assert.equal(el.hidden, true, 'a rematch clears the rank line');
 });
 test('daily warden: a build without the account service refuses ?daily=1 with a banner and fights as usual; the journal says so too', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
