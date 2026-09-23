@@ -337,6 +337,7 @@
    "slot": "Body",
    "layer": "replace",
    "file": "parts/level1_shieldmaiden.glb",
+   "kit": "shieldmaiden",
    "names": [
     "tunic",
     "baldric",
