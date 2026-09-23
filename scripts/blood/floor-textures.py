@@ -10,7 +10,7 @@ from PIL import Image
 from scipy import ndimage
 
 OUT = 'src/assets/blood/'
-CORE, MID, EDGE = np.array([0.24, 0.015, 0.025]), np.array([0.62, 0.03, 0.05]), np.array([0.86, 0.40, 0.40])   # multipliers: near-black core → wet crimson → a thin stain
+CORE, MID, EDGE = np.array([0.15, 0.008, 0.03]), np.array([0.44, 0.02, 0.07]), np.array([0.72, 0.30, 0.36])   # multipliers: near-black core → deep crimson → a thin stain (owner 2026-09-23: "a bit bright red, darker, crimson")
 
 
 def fbm(size, rng, octaves=5):
@@ -34,9 +34,10 @@ def texture(size, seed, lobes, body, spatter):
     # Tendrils: blood runs off the pool in a few fingers of different length (the reference photos), not a round edge.
     yy, xx = np.mgrid[0:size, 0:size] / (size / 2) - 1
     for _ in range(rng.integers(3, 6)):
-        ang, length, width = rng.uniform(0, 2 * np.pi), body * rng.uniform(.35, .9), body * rng.uniform(.08, .2)
+        ang, length, width = rng.uniform(0, 2 * np.pi), body * rng.uniform(.35, .9), body * rng.uniform(.14, .28)
         along, across = xx * np.cos(ang) + yy * np.sin(ang) - body * .6, -xx * np.sin(ang) + yy * np.cos(ang)
-        blob = np.maximum(blob, ((along / length) ** 2 + (across / (width * (1 - np.clip(along / length, 0, 1) * .6))) ** 2 < 1) * (0.5 + fbm(size, rng, 4) > .8))
+        blob = np.maximum(blob, ((along / length) ** 2 + (across / (width * (1 - np.clip(along / length, 0, 1) * .35))) ** 2 < 1) * (0.5 + fbm(size, rng, 4) > .8))
+    blob = ndimage.gaussian_filter(blob.astype(float), size / 60) > .5   # round the fingers off: a run of blood ends in a blunt bead, never a spike
     lab, n = ndimage.label(blob); sizes = ndimage.sum(blob, lab, range(1, n + 1))
     blob = ndimage.binary_fill_holes(np.isin(lab, 1 + np.where(sizes >= sizes.max() * .02)[0])).astype(float)   # the pool plus its bigger satellites
     # Spatter halo: many small drops, denser near the pool, a few stretched along their flight.
@@ -63,6 +64,10 @@ def texture(size, seed, lobes, body, spatter):
     return Image.fromarray((img * 255).astype(np.uint8), 'RGBA')
 
 
-texture(512, 190923, (2, 3, 5, 7), .6, 260).save(OUT + 'floor-pool.png', optimize=True)
-texture(256, 230919, (2, 3, 4, 6), .34, 120).save(OUT + 'floor-splash.png', optimize=True)
-print('wrote', OUT + 'floor-pool.png', OUT + 'floor-splash.png')
+# Several shapes of each (owner 2026-09-23: "non symmetrical and differentiated per blob"): the pool hands them out in turn, so
+# two stains side by side are never the same silhouette. The first of each keeps the old file name.
+for i, seed in enumerate((190923, 51187)):
+    texture(512, seed, (2, 3, 5, 7), .6, 260).save(OUT + 'floor-pool' + ('-' + 'abcd'[i] if i else '') + '.png', optimize=True)
+for i, seed in enumerate((230919, 77421, 90313, 12457)):
+    texture(256, seed, (2, 3, 4, 6), .3 + .03 * i, 90 + 25 * i).save(OUT + 'floor-splash' + ('-' + 'abcd'[i] if i else '') + '.png', optimize=True)
+print('wrote', OUT + 'floor-pool*.png', OUT + 'floor-splash*.png')

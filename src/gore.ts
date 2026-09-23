@@ -29,17 +29,20 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
     scene.add(splat);
     return { mesh: splat, life: 0, grow: 0, age: 0, dark: false, pool: false }; // grow: a kill pool spreads over ~2 s instead of appearing at once
   });
-  let splatIndex = 0, photo = false, maps: { pool: THREE.Texture; splash: THREE.Texture } | null = null;
+  let splatIndex = 0, photo = false, maps: { pool: THREE.Texture[]; splash: THREE.Texture[] } | null = null;
   // The floor stains the sand (owner 2026-09-23, on the death pool: "looks cartoon-ish, a bit more real needed"): textures made to
   // multiply onto it (scripts/blood/floor-textures.py) — a near-black core, thin translucent edges the grain shows through, a spatter
   // halo — drawn with multiplyOnto(), so blood darkens the sand instead of painting over it. The canvas star stands in until they
   // land (and under node), with the old tint.
   const tone = (mode: BloodMode) => (mode === 'dark' ? '#352426' : '#681a19');
   if (typeof document !== 'undefined')
-    Promise.all([BLOOD_TEXTURES.floorPool, BLOOD_TEXTURES.floorSplash].map((f) => new THREE.TextureLoader().loadAsync(BLOOD_ASSET(f)))).then(([pool, splash]) => {
-      pool.colorSpace = splash.colorSpace = THREE.SRGBColorSpace; photo = true; maps = { pool, splash };
-      for (const splat of splats) multiplyOnto(splat.mesh.material, splat.pool ? pool : splash);
+    Promise.all([...FLOOR_POOLS, ...FLOOR_SPLASHES].map((f) => new THREE.TextureLoader().loadAsync(BLOOD_ASSET(f)))).then((all) => {
+      for (const t of all) t.colorSpace = THREE.SRGBColorSpace;
+      photo = true; maps = { pool: all.slice(0, FLOOR_POOLS.length), splash: all.slice(FLOOR_POOLS.length) };
+      splats.forEach((splat, i) => multiplyOnto(splat.mesh.material, shape(splat.pool, i)));
     }).catch(() => {});   // no textures: the canvas star stays
+  // Each stain its own silhouette (owner 2026-09-23: "non symmetrical and differentiated per blob"): the shapes go round in turn.
+  const shape = (pool: boolean, i: number) => (pool ? maps!.pool : maps!.splash)[i % (pool ? maps!.pool : maps!.splash).length];
   return {
     // A flesh hit: a splash under the struck fighter, living 20 s.
     splash(target: { x: number; z: number }, bloodMode: BloodMode) {
@@ -49,7 +52,7 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
       splat.mesh.position.set(target.x, 0.022 + (splatIndex % 12) * 0.0001, target.z);
       splat.mesh.scale.set(0.22 + (splatIndex % 3) * 0.05, 0.13 + (splatIndex % 4) * 0.035, 1);
       splat.mesh.rotation.z = splatIndex * 2.4;
-      splat.age = 0; splat.dark = bloodMode === 'dark'; splat.pool = false; if (maps) multiplyOnto(splat.mesh.material, maps.splash);
+      splat.age = 0; splat.dark = bloodMode === 'dark'; splat.pool = false; if (maps) multiplyOnto(splat.mesh.material, shape(false, splatIndex));
       splat.mesh.material.color.set(photo ? FLOOR_FRESH : tone(bloodMode));
     },
     // A kill: the corpse keeps pooling after the splashes fade (cleared on rematch like everything else).
@@ -60,7 +63,7 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
       pool.mesh.position.set(target.x, 0.03, target.z);
       pool.mesh.rotation.z = splatIndex * 2.4;
       pool.mesh.scale.set(0.3, 0.2, 1);
-      pool.age = 0; pool.dark = bloodMode === 'dark'; pool.pool = true; if (maps) multiplyOnto(pool.mesh.material, maps.pool);
+      pool.age = 0; pool.dark = bloodMode === 'dark'; pool.pool = true; if (maps) multiplyOnto(pool.mesh.material, shape(true, splatIndex));
       pool.mesh.material.color.set(photo ? FLOOR_FRESH : tone(bloodMode));
     },
     update(dt: number) {
@@ -219,6 +222,7 @@ export function multiplyOnto(material: THREE.MeshBasicMaterial, map: THREE.Textu
 }
 const FLOOR_FRESH = new THREE.Color('#ffffff'), FLOOR_DRIED = new THREE.Color('#b09a9a'), FLOOR_DARK_MODE = new THREE.Color('#a8a0a0');
 const FLOOR_DRY = 8;   // seconds for a stain to settle from wet to dried
+const FLOOR_POOLS = ['floor-pool.png', 'floor-pool-b.png'], FLOOR_SPLASHES = ['floor-splash.png', 'floor-splash-b.png', 'floor-splash-c.png', 'floor-splash-d.png'];
 export const BLOOD_TEXTURES = { floorPool: 'floor-pool.png', floorSplash: 'floor-splash.png', drip: 'blood-drip.png', dripNormal: 'blood-drip-normal.png' } as const;
 // The wound itself, authored for a vertical body, not a floor (owner 2026-09-23 on the phone: "paint-ball graffiti stickers… less
 // uniform… more dripping style not a star"; he picked B, C and D from four FLUX candidates): B a cut with uneven streaks, C a patch
