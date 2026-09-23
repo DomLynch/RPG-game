@@ -3,6 +3,44 @@
 Opponent 5 by brief number, the fourth rung: the pale duelist with the estoc, hero rig at scale 1.03, poise 0, and the only committing parry
 on the ladder. Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23 (evening): the Plague Doctor is a playable body on roster-v0
+
+**Now (next session picks up):**
+1. Watch the 21:20 roster-v0 publish. After it, verify the live bundle from the public side: `release.json` revision, then that
+   `plaguedoctor-*.glb` is served and the ladder offers him after the Dwarf.
+2. **Silhouette test (Brief 18 deliverable 2), measured on the REAL body now** (Lead OK'd skipping the gate for tonight; owed after).
+   Use a `--flat` plate at the fighter's camera (PR #500), not a matte: he has a mesh. Compare against the nine.
+3. Post-beta carriers: textured Helmet (beak mask, brim, hood) and Body (the coat), from `char/plague-doctor-loot` @ `817828e`.
+4. Finishers: he ships `finishers: ['plainDeath']` only. Run the finisher harness on his body and list what passes (the Dwarf rule).
+
+**Done today (all on `origin/roster-v0`, pushed with no force, merged with the branch first each time):**
+- `7ce5c24`: body + roster row. Source: a two-pass FLUX Kontext edit of the approved reference into a front A-pose
+  (`docs/character-references/plague-doctor-source-v1.png`, the chain in `.kontext.json`). TRELLIS.2 seed 190926/1024/100k/2048,
+  then `node scripts/build-creatures.mjs plaguedoctor` with **donor `warrior.glb`** (the hero rig, the longsword and its clips).
+  50,970 tris, 25/25 clips, bind error 4e-6, max grip gap 0.066 m (Guard), versus card rendered.
+  `ROSTER.plaguedoctor` is the last rung. `ARCHETYPES.plagueDoctor` = the Nightborn row verbatim, scale 1 measured (top 1.840 m vs 1.822).
+- `0f508f9`: migration `202609230002`, one file for all 14 encounter ids (the four new ones included). Backend re-OK'd it at `936a541`.
+- `936a541`: `tests/encounter-migration.test.ts` checks every ROSTER key is in the newest encounter migration.
+- `f076d19`: he joins `tests/characters.test.ts` FIGHTERS (38/38, [slow] included).
+- Receipts at `7ce5c24`: tsc, eslint src, typecheck:tests, 25 targeted test files 209/209, build, check-budget PASS
+  (his pairing 7.30 of 12 MB).
+
+**Open:**
+- `record-version-guard` is red on roster-v0 **by design**: Combat does one RECORD_VERSION 7 → 8 re-pin at 21:15 after the
+  last body. Lead ruled no lane bumps it.
+- No carrier loot pieces ship tonight for any of the four (Lead's ruling). He drops nothing, and the longsword is the player's own.
+- Combat owns his real archetype row and battery. Web owns the marketing-page opponent cards (the Dwarf is missing there too).
+
+**Gotchas (each cost time today):**
+- **Opponent ids must match `^[a-z]{1,32}$`**: `loot_claims.opponent` in `202609230001_server_awards.sql`. `plague_doctor` would have broken
+  his loot claims. Every new id also needs the `fighter_profiles_encounter_check` migration, or cloud sync fails on his rung.
+- **Kontext keeps the source pose** unless the prompt is short and pose-first. Pass 1 fixed the facing and removed the swords; pass 2
+  raised the arms. The Space returns **WebP named .png**: re-encode with `sips -s format png` before committing.
+- The player's build names its sword node **`SwordDrawn`**, not `WeaponDrawn`. `creature-check.mjs` now falls back like the game does.
+- **TRELLIS meshes are split at every UV seam.** Decimating a loot piece tears it into shards unless the seams are welded first
+  (`loot_dwarf.py` on Steel, branch above). Untextured Steel at .12 still reads as foil on leather: carriers need their own texture.
+- Park this worktree on a trunk branch when idle. The Stop-hook quality gate runs here, and roster-v0 carries red tests by design.
+
 ## Now — 2026-09-23 (later)
 
 **Strategy's three rulings of 2026-09-23 01:15, which set how deliverable 1 is run:**
