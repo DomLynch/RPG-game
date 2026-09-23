@@ -2,6 +2,13 @@
 // these are a few KB of code). Every function is pure in (size, seed) so tests/arena.test.ts can measure the same pixels the phone sees.
 // Materials rule: sand, stone, ash, iron, bone, blood — worn, matte, nothing saturated. Colours are sRGB bytes.
 export type Pixels = { width: number; height: number; data: Uint8Array };
+import type { SkyLook } from '../../arena-themes.ts';
+// An arena theme's tint (arena-themes.ts): a per-channel multiply over the finished map. [1, 1, 1] leaves Arena 1 byte-identical.
+export function tinted(p: Pixels, [r, g, b]: [number, number, number]): Pixels {
+  if (r === 1 && g === 1 && b === 1) return p;
+  for (let i = 0; i < p.data.length; i += 4) { p.data[i] = clamp(p.data[i] * r); p.data[i + 1] = clamp(p.data[i + 1] * g); p.data[i + 2] = clamp(p.data[i + 2] * b); }
+  return p;
+}
 
 // Portable integer hash → [0, 1). No Math.sin: identical on every platform, so a capture is a capture.
 export function hash(x: number, y: number, seed: number): number {
@@ -147,15 +154,16 @@ export function stoneNormal(size = 512, seed = 11): Pixels {
 }
 // The sky: an ash-grey dome, its horizon the scene's fog colour so the dome and the fog meet, with one break of light around the sun.
 // Equirectangular: u around, v from the horizon (0.5) to the zenith (1). `sunU` is the sun's azimuth on the dome's u axis.
-export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, seed = 19): Pixels {
+export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, seed = 19, look: SkyLook = { base: [169, 168, 156], sun: [70, 52, 30], ground: [128, 104, 78] }): Pixels {
+  const { base: [br, bg, bb], sun: [sr, sg, sb], ground: [gr, gg, gb] } = look;
   const cloud = fbm(4, 4, seed), wisp = fbm(12, 3, seed + 3);
   return pixels(width, height, (u, v) => {
     const up = Math.max(0, (v - 0.5) * 2), du = Math.min(Math.abs(u - sunU), 1 - Math.abs(u - sunU)) * 2.2, dv = (v - sunV) * 2.8, sun = Math.exp(-(du * du + dv * dv) * 2.4);
     const c = cloud(u, v * 2) - 0.5, w = wisp(u, v * 3) - 0.5, shade = 1 - 0.32 * up + 0.14 * c + 0.05 * w;
     // Below the horizon the dome is never seen, but as the scene's environment map this half is what metal reflects from underneath:
     // the sand's own warm tone, blending into the horizon over the last few degrees (audit 2026-09-20: reflections of this sky, not a studio).
-    const ground = Math.min(1, Math.max(0, (0.5 - v) * 14)), sky: [number, number, number] = [169 * shade + 70 * sun, 168 * shade * 0.98 + 52 * sun, 156 * shade * 0.94 + 30 * sun];
-    return [sky[0] + (128 - sky[0]) * ground, sky[1] + (104 - sky[1]) * ground, sky[2] + (78 - sky[2]) * ground];
+    const ground = Math.min(1, Math.max(0, (0.5 - v) * 14)), sky: [number, number, number] = [br * shade + sr * sun, bg * shade * 0.98 + sg * sun, bb * shade * 0.94 + sb * sun];
+    return [sky[0] + (gr - sky[0]) * ground, sky[1] + (gg - sky[1]) * ground, sky[2] + (gb - sky[2]) * ground];
   });
 }
 // A torn banner: a cut mask. Ragged hem, frayed sides, a few holes; the cloth colour is the material's.

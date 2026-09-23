@@ -8,6 +8,7 @@ import { OPPONENTS, RULES, weaponOf, type OpponentId, type WeaponId } from './mo
 import { FINISHER_POSE, type FinisherId } from './finishers.ts';
 import { TARGET, wrapAngle, type State } from './sim.ts';
 import { buildArena } from './arena.ts';
+import { arenaFor } from './arena-themes.ts';
 import { createFootDust } from './foot-dust.ts';
 import { HEAVY_CLASS, clashStrength, createClashSparks } from './clash-sparks.ts';
 import { shoveFor } from './camera-kick.ts';
@@ -25,7 +26,9 @@ export function createScene(
   // which any future in-progress status line would have defeated).
   assetStatus: (status: string, kind: 'loading' | 'ready' | 'failed') => void = () => {},
   opponentId: OpponentId = 'veteran',
+  arenaOverride?: string,   // ?arena=2b: a dev look / still capture; otherwise the ladder band picks (arena-themes.ts)
 ) {
+  const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
   // shadow map at 512² — the MSAA framebuffer at 1.5× on a ~1170×2532-class phone is ~200 MB of GPU memory.
   const PHONE = phoneTier(),
@@ -35,10 +38,10 @@ export function createScene(
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.3;
+  renderer.toneMappingExposure = theme.exposure;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#a9a89c');
-  scene.fog = new THREE.FogExp2('#a9a89c', 0.018);
+  scene.background = new THREE.Color(theme.fog);
+  scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
   let environmentTarget: THREE.WebGLRenderTarget | undefined;
   // The environment map: the arena's own ash sky (an equirect the world lane paints, warm sand below the horizon) once it has landed,
   // so bronze and iron reflect this place; the studio RoomEnvironment only until then (audit 2026-09-20).
@@ -62,8 +65,8 @@ export function createScene(
   // Brass for the capsule stand-ins (it warms on a threat while they stand in); the arena has its own materials in arena.ts.
   // The brass target ring under the opponent is gone (owner 2026-09-21: a UI shape on the sand, and the hero never had one).
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
-  scene.add(new THREE.HemisphereLight('#c9cfc6', '#4a4238', 1.6));
-  const sun = new THREE.DirectionalLight('#ffe2b8', 4.2);
+  scene.add(new THREE.HemisphereLight(...theme.hemisphere));
+  const sun = new THREE.DirectionalLight(...theme.sun);
   sun.position.set(-15, 26, -18);
   sun.castShadow = true;
   sun.shadow.mapSize.set(PHONE ? 512 : 1024, PHONE ? 512 : 1024);
@@ -97,7 +100,7 @@ export function createScene(
   ) {
     return mesh(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
   }
-  const arena = buildArena(scene),
+  const arena = buildArena(scene, theme),
     footDust = createFootDust(scene),
     clash = createClashSparks(scene);
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
