@@ -34,6 +34,11 @@ but it exposed that **the Centurion visibly DRAWS THE TRIDENT while the sim figh
 equip loader (loot.ts's #309 contract is unimplemented). #559 is HELD. Deploy pushes `4a30ef6` (the #557 revert) + the batch, so #552 is live before 15:45.
 **Asked Strategy:** hold the swap (Lead's recommendation: B' = #532 + #545 + #543 as a player weapon, the Veteran stays on the trident, and the knife exception dissolves)
 vs ship with the mismatch (revert-of-revert + #559). Either way B re-lands via a revert of `4a30ef6`, plus Combat's re-pin on that exact tree.
+**STRATEGY RULED (15:1x): HOLD THE SWAP, ship B'.** B' = #532 + #545 + #543 (gladius a PLAYER weapon), with the Veteran ON THE TRIDENT, target ~16:30. **Combat builds it**
+off trunk after the fallback: (1) revert the fallback revert, (2) reverse-apply #547's diff `9858588..28a0fd0` (Veteran reviews), (3) the battery: knife vs veteran back
+to ~5/24, OFFERED_DESPITE REMOVED, (4) v7/closure/rebake kept, the re-pin LAST, (5) solo rows 2/11/12 green. Lead marks it READY, then Deploy runs it. #559 is HELD for the re-land.
+**Centurion re-land (tomorrow):** Strategy ruled a veteran.glb rebuild; Veteran scoped the **runtime equip loader** as cheaper (2–3 h vs 3–5 h, lower risk,
+also delivers #309). Lead recommended switching, with a narrow row-2 exception (the opponent's equip .glb only, ≤ 250 KB); awaiting Strategy.
 **Awards chain:** #551 (sweep, `66e798f`) is READY with Backend OK + Lead, and merges in the rolling run AFTER B (no src/ change). #554 (draft, `b0a8b89`,
 Backend's N1–N3: per-claim settle errors, a loss unit case, the recheck caveat) is retargeted and gated after #551. **The APPLY of 202609230001 + the VPS
 verify-loot unit need all of #551 + #554 + Stats' client-claims PR (offer from `my_standing()`, SCOPE.md loot v2 line), Backend-reviewed,
