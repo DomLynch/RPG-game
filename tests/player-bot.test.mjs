@@ -32,8 +32,24 @@ test('a missed overhead may be punished once from reach', () => {
   const state = { tell: null, counterUntil: 0 };
   const missed = { tick: 100, type: 'AttackMissed', actor: 1, move: 'heavy_overhead' };
   assert.notEqual(chooseGuardCounter(observation({ events: [missed], enemyPhase: 'other' }), state, 12).press, 'KeyT');
-  assert.deepEqual(chooseGuardCounter(observation({ tick: 112, enemyPhase: 'other' }), state, 12), { keys: ['KeyW'], press: 'KeyT' });
+  assert.deepEqual(chooseGuardCounter(observation({ tick: 112, gap: 1.8, enemyPhase: 'other' }), state, 12), { keys: ['KeyW'], press: 'KeyT' });
   assert.notEqual(chooseGuardCounter(observation({ tick: 113 }), state, 12).press, 'KeyT');
+});
+
+test('a distant miss is chased without throwing an out-of-range stab', () => {
+  const state = {};
+  chooseGuardCounter(observation({ events: [{ tick: 100, type: 'AttackMissed', actor: 1 }] }), state, 12);
+  assert.deepEqual(chooseGuardCounter(observation({ tick: 112, gap: 3.1 }), state, 12), { keys: ['KeyW'], press: null });
+  assert.deepEqual(chooseGuardCounter(observation({ tick: 120, gap: 1.8 }), state, 12), { keys: ['KeyW'], press: 'KeyT' });
+});
+
+test('near the wall the player advances or attacks instead of retreating', () => {
+  const wall = { wallRadius: 7.15 };
+  assert.deepEqual(chooseGuardCounter(observation({ radius: 7.5, stamina: 30, gap: 1 }), {}, 12, wall), { keys: [], press: null });
+  assert.deepEqual(chooseGuardCounter(observation({ radius: 7.5, gap: 1 }), {}, 12, wall), { keys: [], press: 'KeyG' });
+  const state = {};
+  chooseGuardCounter(observation({ radius: 7.5, events: [{ tick: 100, type: 'AttackStarted', actor: 1, move: 'heavy_overhead' }] }), state, 12, wall);
+  assert.deepEqual(chooseGuardCounter(observation({ radius: 7.5, tick: 112 }), state, 12, wall), { keys: ['KeyW'], press: 'KeyE' });
 });
 
 test('the player retreats when exhausted and sends no input after death', () => {
@@ -60,4 +76,12 @@ test('charged policy waits before rolling an overhead and parrying a readable te
   const parryConfig = { ...charged, defense: 'parry' };
   chooseChargedAttack(observation({ gap: 3, events: [tell] }), parry, 12, parryConfig);
   assert.deepEqual(chooseChargedAttack(observation({ tick: 122, gap: 3 }), parry, 12, parryConfig), { keys: ['KeyQ', 'ArrowUp'], press: null });
+});
+
+test('charged policy moves inward rather than retreating at the wall', () => {
+  const state = {};
+  const config = { ...charged, wallRadius: 7.15 };
+  chooseChargedAttack(observation({ radius: 7.5, events: [{ tick: 100, type: 'AttackStarted', actor: 1, move: 'heavy_overhead' }] }), state, 12, config);
+  assert.deepEqual(chooseChargedAttack(observation({ radius: 7.5, tick: 112 }), state, 12, config), { keys: ['KeyW'], press: 'KeyE' });
+  assert.deepEqual(chooseChargedAttack(observation({ radius: 7.5, stamina: 20, gap: 1.8, enemyPhase: 'ready' }), {}, 12, config), { keys: ['KeyW'], press: null });
 });

@@ -7,7 +7,8 @@ import { preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { chooseChargedAttack, chooseGuardCounter } from './lib/player-bot-policy.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
-import { OPPONENTS, RULES, WEAPONS } from '../src/moves.ts';
+import { LONGSWORD, OPPONENTS, RULES, WEAPONS } from '../src/moves.ts';
+import { RADIUS } from '../src/sim.ts';
 
 const option = (name, fallback) => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1] ?? fallback;
 const seedArg = Number(option('seed', '731'));
@@ -36,12 +37,12 @@ const browser = await chromium.launch({ headless: true, executablePath: chromium
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 20_000 }).trim();
 const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8', timeout: 20_000 }).trim() !== '';
 const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge'] };
-const receipt = { revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, video: recordVideo, observation: 'debug gap/stamina/phase and current combat events; no future state', fights: [] };
+const receipt = { revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, video: recordVideo, observation: 'debug gap/position/stamina/phase and current combat events; no future state', fights: [] };
 try {
   for (const opponent of opponents) for (const seed of seeds) {
     const [range, defense] = CONFIG[opponent];
     const windup = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, timing]) => [move, timing.windup]));
-    const config = { range, defense, windup, parryTicks: RULES.parry };
+    const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4 };
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, ...(recordVideo ? { recordVideo: { dir, size: { width: 390, height: 844 } } } : {}) });
     const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], events: [], samples: [], errors: [] };
     const release = async () => { for (const key of [...held]) { try { await page.keyboard.up(key); fight.inputs.push({ tick: fight.durationSeconds == null ? null : Math.round(fight.durationSeconds * 60), key, edge: 'up', reason: 'end/reset/error' }); } catch (error) { fight.errors.push(`release ${key}: ${error}`); } finally { held.delete(key); } } };
@@ -74,7 +75,10 @@ try {
         const obs = await page.evaluate(cursor => {
           const text = document.querySelector('#debug').textContent, lines = text.split('\n'), enemy = lines.findIndex(l => l.startsWith('warden:'));
           const own = lines.findIndex(l => l.startsWith('you:'));
+          const pos = lines[own + 2]?.match(/pos (-?[\d.]+),(-?[\d.]+)/);
+          if (!pos) throw new Error('combat debug lacks player position');
           return { tick: Number(document.querySelector('#debug').dataset.tick), gap: Number(text.match(/gap ([\d.]+)/)?.[1] ?? 99),
+            radius: Math.hypot(Number(pos[1]), Number(pos[2])),
             hp: Number(document.querySelector('#player-health').value), enemyHp: Number(document.querySelector('#target-health').value),
             stamina: Number(text.match(/you: hp \d+ st (\d+)/)?.[1] ?? 0),
             phase: lines[own + 1]?.includes('/') ? 'attack' : lines[own + 1]?.trim().split(/[ +]/)[0], enemyPhase: lines[enemy + 1]?.trim().split(/[ +]/)[0] === 'ready' ? 'ready' : lines[enemy + 1]?.includes('/') ? 'attack' : 'other',
@@ -83,7 +87,7 @@ try {
         }, cursor);
         cursor = obs.count;
         fight.events.push(...obs.events);
-        if (!fight.samples.length || obs.tick - fight.samples.at(-1).tick >= 60) fight.samples.push({ tick: obs.tick, hp: obs.hp, enemyHp: obs.enemyHp, stamina: obs.stamina, gap: obs.gap });
+        if (!fight.samples.length || obs.tick - fight.samples.at(-1).tick >= 60) fight.samples.push({ tick: obs.tick, hp: obs.hp, enemyHp: obs.enemyHp, stamina: obs.stamina, gap: obs.gap, radius: obs.radius });
         if (steps && steps % 600 === 0) console.log(JSON.stringify({ seed, tick: obs.tick, hp: obs.hp, enemyHp: obs.enemyHp, blocks: fight.events.filter(e => e.type === 'Blocked' && e.actor === 0).length }));
         if (!obs.hp || !obs.enemyHp || obs.tick >= 5400) break;
         const choose = strategy === 'counter' ? chooseGuardCounter : chooseChargedAttack;
@@ -100,6 +104,9 @@ try {
       fight.durationSeconds = +(end.tick / 60).toFixed(2);
       fight.damageDealt = fight.events.filter(e => e.type === 'Hit' && e.actor === 0).reduce((n, e) => n + (e.damage ?? 0), 0);
       fight.damageTaken = fight.events.filter(e => ((e.type === 'Hit' || e.type === 'GuardBroken') && e.actor === 1) || (e.type === 'Blocked' && e.actor === 0) || (e.type === 'Whipped' && e.target === 0)).reduce((n, e) => n + (e.damage ?? 0), 0);
+      fight.wallWhips = fight.events.filter(e => e.type === 'Whipped' && e.target === 0).length;
+      fight.thrustStarts = fight.events.filter(e => e.type === 'AttackStarted' && e.actor === 0 && e.move === 'thrust').length;
+      fight.thrustHits = fight.events.filter(e => e.type === 'Hit' && e.actor === 0 && e.move === 'thrust').length;
       for (const [name, type, move] of [['blocks', 'Blocked'], ['parries', 'Parried'], ['counterStarts', 'AttackStarted', 'heavy_counter'], ['counterHits', 'Hit', 'heavy_counter'], ['exhaustions', 'StaminaExhausted']])
         fight[name] = fight.events.filter(e => e.type === type && e.actor === 0 && (!move || e.move === move)).length;
       await release();
