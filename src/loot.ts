@@ -97,5 +97,11 @@ export const store = (loot: Loot | undefined, id: LootId, taken?: Provenance): L
 export const recordTaken = (loot: Loot, id: LootId, recordId: string): Loot => (loot.taken?.[id] && loot.taken[id]!.recordId === null ? { ...loot, taken: { ...loot.taken, [id]: { ...loot.taken[id]!, recordId } } } : loot);
 export const wear = (loot: Loot, id: LootId): Loot => (loot.owned.includes(id) ? { ...loot, equipped: { ...loot.equipped, [paperdollOf(slotOf(id))]: id } } : loot);
 export const unwear = (loot: Loot, key: Paperdoll): Loot => { const equipped = { ...loot.equipped }; delete equipped[key]; return { ...loot, equipped }; };
-// A device record and a cloud record together: nothing is lost (owned is the union); the cloud's worn set wins when it has one.
-export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {}, taken: { ...cloud.taken, ...device?.taken } });
+// A device record and a cloud record together: nothing is lost (owned and declined are unions, declined kept to the last
+// DECLINED_KEPT); the cloud's worn set wins when it has one.
+export const sameKill = (a: Provenance, b: Provenance) => a.opponent === b.opponent && a.attempt === b.attempt && a.day === b.day;
+export const mergeLoot = (device: Loot | undefined, cloud: Loot): Loot => {
+  const declined = [...(cloud.declined ?? []), ...(device?.declined ?? []).filter(k => !cloud.declined?.some(c => sameKill(c, k)))]
+    .sort((a, b) => a.day.localeCompare(b.day));   // oldest first, so the cap drops the oldest whichever side holds it
+  return cleanLoot({ owned: [...(device?.owned ?? []), ...cloud.owned], equipped: Object.keys(cloud.equipped).length ? cloud.equipped : device?.equipped ?? {}, taken: { ...cloud.taken, ...device?.taken }, declined });
+};
