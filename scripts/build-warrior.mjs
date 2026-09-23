@@ -492,7 +492,7 @@ if (LOOT) {
   const neck = at('Head').add(new T.Vector3(0, -.03, -.01)), up = new T.Vector3(0, 1, -.18).normalize(), crown = surfaceAlong(grid, neck, up);
   if (!crown) throw new Error('witch hood: no crown above the Head joint');
   const hoodTo = neck.clone().addScaledVector(up, crown), stations = [.05, .18, .34, .5, .65, .78, .9, .96, .985, .995];   // .985/.995: the cap's fan cut a chord through the crown
-  const hood = ringHull(grid, neck, hoodTo, { stations, azimuths: 24, gap: .035, cap: true, up: new T.Vector3(0, 0, 1), scale: t => t < .3 ? 1.12 : t >= .9 ? 1.06 : 1 });   // 1.06 at the crown: it still ran 9 mm inside the scalp's front
+  const hood = ringHull(grid, neck, hoodTo, { stations, azimuths: 24, gap: .035, cap: true, up: new T.Vector3(0, 0, 1), scale: t => t < .3 ? 1.12 : t >= .9 ? 1.1 : 1 });   // 1.1 at the crown: at 1.06 it still ran 8 mm inside the scalp's front
   // The face opening, cut by position: a triangle whose centre lies between chin and brow (the fraction along the hood's axis) and toward
   // where the toes point (the rig's forward, measured rather than assumed from the ring frame) is dropped.
   const forward = at('ball_l').sub(at('foot_l')).setY(0).normalize(), hp = hood.geometry.getAttribute('position'), ix = hood.geometry.index.array, kept = [];
@@ -531,16 +531,17 @@ if (LOOT) {
     add(bracer.geometry, leather, `lowerarm_${side}`);
     // Greaves: cross-gartered leg wraps, knee to ankle: a dark leather wrap with four straps bound over it.
     lootSlot = 'Greaves';
-    const knee = at(`calf_${side}`), shin = ringHull(grid, knee, at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .86], azimuths: 14, gap: .004 });
+    const knee = at(`calf_${side}`), shin = ringHull(grid, knee, at(`foot_${side}`), { stations: [.08, .24, .4, .56, .72, .86], azimuths: 14, gap: .008 });
     add(shin.geometry, leather, `calf_${side}`);
-    for (const t of [.16, .36, .56, .76]) add(ringHull(grid, knee, at(`foot_${side}`), { stations: [t - .02, t + .02], azimuths: 14, gap: .009 }).geometry, wrap, `calf_${side}`);
+    for (const t of [.16, .36, .56, .76]) add(ringHull(grid, knee, at(`foot_${side}`), { stations: [t - .02, t + .02], azimuths: 14, gap: .013 }).geometry, wrap, `calf_${side}`);
     // Boots: a leather shoe heel to ball, a toe box capped over the toes along the FLAT forward (ankle→ball slopes ~26°, so its own cap
     // ran into the sole short of the toe tips), and an ankle cuff below the leg wraps.
     lootSlot = 'Boots';
     const ankle = at(`foot_${side}`), ball = at(`ball_${side}`);
-    const shoe = ringHull(grid, ankle, ball, { stations: [-.3, -.1, .1, .35, .6, .85, 1], azimuths: 14, gap: .006, far: .2 });
+    // gap .011 (shoe) and .013 (toe box): the sandal's heel and ball straps sit proud of the skin.
+    const shoe = ringHull(grid, ankle, ball, { stations: [-.3, -.1, .1, .35, .6, .85, 1], azimuths: 14, gap: .011, far: .2 });
     add(shoe.geometry, leather, `foot_${side}`);
-    const flat = ball.clone().sub(ankle).setY(0).normalize(), toe = ringHull(grid, ball.clone().addScaledVector(flat, -.03), ball.clone().addScaledVector(flat, .085), { stations: [0, .2, .4, .6, .75], azimuths: 14, gap: .008, far: .2, cap: true });
+    const flat = ball.clone().sub(ankle).setY(0).normalize(), toe = ringHull(grid, ball.clone().addScaledVector(flat, -.03), ball.clone().addScaledVector(flat, .085), { stations: [0, .2, .4, .6, .75], azimuths: 14, gap: .013, far: .2, cap: true });
     add(toe.geometry, leather, `ball_${side}`);
     const cuff = ringHull(grid, at(`calf_${side}`), ankle, { stations: [.88, .96, 1.05], azimuths: 14, gap: .016 });
     add(cuff.geometry, leather, `calf_${side}`);
