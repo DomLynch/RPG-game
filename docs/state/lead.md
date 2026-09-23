@@ -74,6 +74,12 @@ cannot dress the Centurion's own rig.** `veteran.glb`'s Body slot is non-mesh Ob
 Body draw to hang loot on'. The scutum on the OPPONENT needs that loader fix plus an opponent `wear` call in `scene.ts`, then the
 browser render check, the versus regen and the identity pin. **Veteran does NOT yet know its row 27 killed the deploy** (send
 blocked).
+**Executioner, 06:4xZ: #494 re-landed as #526** (head `388d43a`, off `2d614dc`, docs + one byte-identical image, no release rows).
+It corrected the withdrawn shoulder ratios on the way: the PROMPTS.md paragraph now gives the matte figures (0.367 / 0.374 / 0.360)
+and says no Knight candidate spread exists. **Reviewed by Lead: ready for Deploy once CI is green.** #502 is merged; its local
+quality:stop is now a post-merge receipt owed at FREE, not a gate. Knight body is parked at `char/knight-body` @ `951c9be`.
+**Note: Executioner believes a deploy is still in flight. It is not; the deploy DIED. Every lane waiting on "FREE" is waiting on
+a signal nobody will send until Deploy is told.**
 **The 20-min cron sweep (`e7317592`) was DELETED at 06:30Z:** a cron-fired prompt does not reset the app's cross-session cap, so
 the sweep could look but could not message anyone, and it only added load. Re-create it only in a session that can actually send.
 
