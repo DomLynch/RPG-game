@@ -4,6 +4,39 @@ The lane that makes a sixty-opponent roster affordable: the shared kit library, 
 Asset-level entries also land in `character.md` (the character pipeline's own doc) — this file is the lane's standing state, not a copy of them.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23, evening (handoff)
+
+**Pick up:** nothing owed tonight (Lead, 17:04). The Witch is on `roster-v0` at `3707dee`; Combat retunes `ARCHETYPES.witch`
+and makes the one RECORD_VERSION bump at 21:15 (`combat/bump8-roster` `64dc777` already carries 8). Reports go to **Lead only** (Dom).
+Next Witch work when asked: finishers measured on her body (she ships `finishers: []`), then the cast clip, then the
+Weapons lane's bladed staff replacing the stock trident. **Paused:** Greaves + `WORN_FROM` + stable drop index (WORN_FROM is post-beta).
+
+## Done — 2026-09-23
+- **The Witch moved launch → beta (Dom) and her real body is on roster-v0 `3707dee`.** Route: Kontext A-pose source
+  (`docs/character-references/witch-source-v1.png`, prompt + json beside it) → TRELLIS.2 → `creatures.py` recipe `witch` on the
+  frozen `source/backups/veteran-v1` donor (hero rig, trident clips). No new RigId, no bone scale, no parts.py.
+  ROSTER `witch` (last rung, `finishers: []`), `ARCHETYPES.witch` = verbatim Veteran at scale 1 (by construction: the scan is
+  normalised to the 1.80 m donor) as Combat's placeholder, `LOOT.witch = ['witch.Trident']`, `public/versus/witch.webp`.
+  Receipts: `creature-check witch` 38/38 clips, 190 finite poses, 48,974 tris, worst grip gap 1.6 cm; per-fight 7,300,295 of 12 MB.
+- **Brief 16 deliverable 1, the 3-way silhouette** (Witch / Shieldmaiden / Veteran, flat black, fighting camera): bare IoU
+  0.578 / 0.672 / 0.620. Witch–Shieldmaiden is the least alike pair, so option (b) holds. Accepted by Lead.
+- Flagged the dist TOTAL cap at 31.45 of 32 MB with three new bodies in; Lead raised it to 40 MB (`cd28ea4`), per-fight unchanged.
+
+## Open
+- `record-version-guard` is red on roster-v0 until Combat's 21:15 bump: the ONE expected red (Lead's rule; any other red is real).
+- Witch hood/robe as loot carriers: **post-beta** (Lead: untextured Steel .12 cuts on TRELLIS surfaces read badly and turn loot-layers red).
+
+## Gotchas — 2026-09-23
+- **Kontext "arms out" webs a cloak wrist-to-ankle** (bat wings, which tear on every guard). Ask for arms ~30° off the sides and
+  the cloak "behind her back only, not attached to her arms"; generate 3 seeds and pick.
+- **`creatures.py` never recentred a scan.** Hers sat −5.5 cm in x at every height, so there's now a per-family `centre_x`.
+  Measure band mid-x at 0.5/1.0/1.3/1.75 m before fitting any new scan.
+- **Solve the arm from the scan's hand clusters, don't guess.** Compare the centroid (|x|>0.3, z 0.85–1.05) with the donor's
+  posed `hand_l/r`. I guessed a y offset twice and made it worse; the gap was x (74° / 0.88). A narrower frame also needs its
+  own arm edge, or the support hand gets no hand weights ("supporting hand detached (Infinity)").
+- Silhouette "loadout" masks only show weapons **baked** into a GLB; the trident attaches at runtime, so the versus still is the loadout read.
+- A fresh worktree can lack `@types/node` (typecheck:tests fails TS2688); `npm ci` fixes it.
+
 ## Now — 2026-09-22, end of session (handoff)
 
 **Both coordinator sessions ended tonight.** Strategy's ended between issuing the tier instruction and my report; Lead
