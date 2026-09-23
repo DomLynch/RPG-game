@@ -31,7 +31,12 @@ disagrees with this file, this file wins and the older line is stale. Dated deci
 ## Launch (after beta)
 - **Ten archetypes**: the six above + Shieldmaiden (Brief 15, Pitborn lane; *replaces "the Nord"*), Witch (Brief 16, Multi Chars;
   witch-fire cast on the trident polearm family), Knight (Brief 17, Executioner lane; maul), Plague Doctor (Brief 18, Nightborn
-  lane; longsword). All four are launch scope, not beta; bodies land one at a time in that cost order; masked characters wait on an
+  lane; longsword). **2026-09-23 16:0x, Dom: all four move into BETA** ("put them live now"): fastest playable path first (an OPPONENTS
+  entry on the closest rig, the reference look, Helmet + Body carriers), one PR and one publish per character, order Shieldmaiden, Knight,
+  Plague Doctor, Witch; the line below is superseded for these four. **As shipped (LIVE `5c0a32c`, 2026-09-23 17:32):** all four real
+  bodies in ONE publish (roster-v0, bump 8), ladder rungs 7–10 (Plague Doctor, Knight, Witch, Shieldmaiden); the Helmet + Body carriers
+  were PULLED for all four until post-beta (UV-seam splits on untextured Steel; basis Nightborn's weld on char/plague-doctor-loot),
+  so each takeable piece is its WEAPON only; shieldmaiden.Gladius and plaguedoctor.Longsword join loot.glb next (Strategy 17:3x). Previously: all four were launch scope, not beta; bodies land one at a time in that cost order; masked characters wait on an
   owner-approved reference sheet before their silhouette test.
 - **Ten weapons, 5 one-hand + 5 two-hand**: knife, cleaver, estoc, gladius, bearded axe | longsword (hero), warhammer, trident,
   scythe, maul; the Witch's bladed staff rides the trident family. Opponent grips 5/5.

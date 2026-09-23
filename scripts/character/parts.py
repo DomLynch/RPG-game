@@ -60,6 +60,10 @@ KIT = {'hero': {'linen': (0.52, 0.47, 0.37), 'grime': 0.55, 'greaves': False, 'b
        # The Executioner: charcoal-black linen (above the Nightborn's 12 % phone-size floor), heavily grimed, the brute frame
        # at 1.36 — 20 % over the Pitborn (BUILD.executioner). The helm slot carries the iron half-mask + ragged hood; leather
        # buckle harness over bare arms (see artifacts/source/face/executioner/reference/). Greaves and boots; ears under the hood.
+       # The Shieldmaiden (Brief 15, reference A #498): the realistic FEMALE body, a closed tunic to mid-thigh standing for the mail hauberk
+       # over its gambeson, boots, no helm in v1 (her open cap is a later Helmet piece), no greaves (leg wraps), no frame gains — her
+       # squared iron shoulder plates (Arms, a Recruit-2 carrier with Body) are authored in build-warrior.mjs.
+       'shieldmaiden': {'linen': (0.20, 0.20, 0.21), 'grime': 0.55, 'greaves': False, 'build': False, 'bare': False, 'brute': False, 'helm': False, 'closed': True, 'boots': True, 'barefoot': False, 'ears': False, 'body': 'female'},
        'executioner': {'linen': (0.16, 0.15, 0.17), 'grime': 0.85, 'greaves': True, 'build': True, 'bare': False, 'brute': True, 'helm': True, 'barefoot': False, 'ears': False}}[FIGHTER]  # build: the heavier frame (B2 of the body brief)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -78,18 +82,19 @@ def realistic_body():
     arms raised rigidly into the rig's T rest, then weighted from the CC0 body by nearest surface."""
     global body
     from mathutils import Matrix
+    name = f"GEO-body_{KIT.get('body', 'male')}_realistic"  # KIT body: 'male' (every man) or 'female' (the Shieldmaiden, the Witch)
     with bpy.data.libraries.load(HBM, link=False) as (src, dst):
-        dst.objects = [n for n in src.objects if n in ('GEO-body_male_realistic', 'GEO-body_male_realistic.eye.L', 'GEO-body_male_realistic.eye.R')]
-    hbm = bpy.data.objects['GEO-body_male_realistic']
-    eyes = [bpy.data.objects[n] for n in ('GEO-body_male_realistic.eye.L', 'GEO-body_male_realistic.eye.R')]
+        dst.objects = [n for n in src.objects if n in (name, f'{name}.eye.L', f'{name}.eye.R')]
+    hbm = bpy.data.objects[name]
+    eyes = [bpy.data.objects[n] for n in (f'{name}.eye.L', f'{name}.eye.R')]
     global HIGH
     HIGH = hbm.copy()  # keeps the bundle's multires sculpt for a high→low normal bake
     HIGH.data = hbm.data.copy()
     HIGH.name = 'BodyHigh'
     bpy.context.collection.objects.link(HIGH)
     for m in HIGH.modifiers:
-        if m.type == 'MULTIRES':
-            m.levels = m.render_levels = m.total_levels
+        if m.type == 'MULTIRES':  # the male sculpt has one level; the female's three are capped at two (~170k faces, the male's density)
+            m.levels = m.render_levels = min(m.total_levels, 2)
     for o in [hbm] + eyes:
         bpy.context.collection.objects.link(o)
         o.data = o.data.copy()  # the two eyes share a mesh; transforms can only be applied to single-user data

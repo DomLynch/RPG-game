@@ -67,7 +67,7 @@ test('replay: the share link carries the opponent as its own parameter and the r
 });
 
 test('replay: a record this build cannot step is a refusal with a reason, never a throw (a crafted link must not kill the frame loop)', () => {
-  const rec = createRecorder({ weapon: 'maul', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
+  const rec = createRecorder({ weapon: 'reaper', build: 'x', opponent: 'veteran', profile: 'normal', seed: 1 });
   for (let i = 0; i < 120; i++) rec.push({ move: { x: 0, z: -1, yaw: 0, run: false }, action: i % 30 === 0 ? 'light' : null, guard: false, lock: true });
   const v = verifyRecord(rec.finish('abandoned'));
   assert.equal(v.ok, false); if (!v.ok) assert.match(v.reason, /cannot step the record/);

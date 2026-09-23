@@ -1,6 +1,27 @@
 # Combat — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+## Publish B′ live (v7, the Veteran on the trident) — combat lane, 2026-09-23 evening
+
+Supersedes the Publish B entry below wherever the two conflict. #557 (B, with the Centurion swap) reached trunk and was reverted (#560)
+when Strategy held the swap. **B′ = #563, live as `a50f22f`** (release.json checked).
+
+**Now:** bump 8 = **#550** (`combat/executioner-anticipate` @ `9801276`). Merge trunk into it (no force-push). The one row to fix is
+`cleaver vs executioner normal: light spam 18/24` → ≤ 12; then offer the cleaver. No new over-cap rows, the Executioner's identity pins
+intact, re-pin last, and a before → after table for Lead. On #545's tree its profile measured cleaver 8, warhammer 7, trident 7 and
+knife thrust 11 (unchanged): **re-measure on the v7 tree**, because the base moved.
+
+**Done:** B′ recipe: `4a30ef6` → a revert of it → reverse of #547's own `a9d6734..28a0fd0` (not `9858588..`, which would strip #538) →
+trunk merge. v7, `SIM_DIGEST` 3d3a9322…, replay refs 1677/1452. On B′: knife vs veteran 4/24, cleaver vs veteran 4/24, trident vs veteran
+6/24, gladius offered (worst 2/24). **`OFFERED_DESPITE` never shipped**, and `KNOWN_UNFAIR` holds only the cleaver vs executioner row.
+Receipts: quality:stop 523/0/2, test:slow 101/101, guard 4/4, release rows 2/11/12/34 solo.
+
+**Open:** the Centurion's gladius + scutum (#547) is held until he reads as a gladius fighter. With it, knife vs veteran was 23/24 and
+cleaver vs veteran 16/24, so that return owes a battery too.
+
+**Gotchas:** before reversing a PR's diff, check its range for commits carried from elsewhere. `blade-paths.ts`, `blade.ts`,
+`roster.ts` and `finishers.ts` are in the digest now: a rebake or roster change needs a bump.
+
 ## Publish B (v7) and the road to bump 8 — combat lane, 2026-09-23
 
 **Now:** bump 8 = **#550** (`combat/executioner-anticipate` @ `9801276`, stacked on #545): the Executioner's own normal profile

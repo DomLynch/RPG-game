@@ -27,13 +27,13 @@ test('gaits blend continuously, stay normalized and settle to idle at rest', () 
 });
 
 // Parse the shipped geometry/rig/clips in Node. Image decoding/CSP is exercised in the browser.
-// Six fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig), the Pitborn (the same rig at
+// Seven fighters ship: the player's warrior.glb, the Veteran (his own head, helm and maps on the same rig), the Pitborn (the same rig at
 // OPPONENTS.pitborn.scale with a hunched spine — his ceilings scale with him), the Nightborn and the goblin (the rig re-proportioned and
-// scaled to OPPONENTS.goblin.scale of a man's height), and the Executioner (the brute frame at OPPONENTS.executioner.scale, mask and hood).
-const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 'goblin.glb', 'executioner.glb'] as const;
-const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale };
+// scaled to OPPONENTS.goblin.scale of a man's height), and the Executioner (the brute frame at OPPONENTS.executioner.scale, mask and hood), and the Plague Doctor (a TRELLIS.2 body on the player's own rig and longsword, scale 1).
+const FIGHTERS = ['warrior.glb', 'veteran.glb', 'pitborn.glb', 'nightborn.glb', 'goblin.glb', 'executioner.glb', 'plaguedoctor.glb'] as const;
+const SCALE: Record<(typeof FIGHTERS)[number], number> = { 'warrior.glb': 1, 'veteran.glb': 1, 'pitborn.glb': OPPONENTS.pitborn.scale, 'nightborn.glb': OPPONENTS.nightborn.scale, 'goblin.glb': OPPONENTS.goblin.scale, 'executioner.glb': OPPONENTS.executioner.scale, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.scale };
 // The weapon each shipped rig carries is the simulation's word (moves.ts OPPONENTS): the player's longsword, the Veteran's trident, the Pitborn's cleaver, the Nightborn's estoc and the goblin's knife (sword clips until the weapons lane lands them).
-const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon };
+const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 'longsword', 'veteran.glb': OPPONENTS.veteran.weapon, 'pitborn.glb': OPPONENTS.pitborn.weapon, 'nightborn.glb': OPPONENTS.nightborn.weapon, 'goblin.glb': OPPONENTS.goblin.weapon, 'executioner.glb': OPPONENTS.executioner.weapon, 'plaguedoctor.glb': OPPONENTS.plaguedoctor.weapon };
 async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' = 'warrior.glb') {
   const bytes = readFileSync(new URL(`../src/assets/${file}`, import.meta.url));
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
@@ -169,7 +169,7 @@ test('the Veteran is the warrior\'s rig: same bones, the shared clips identical 
 });
 
 test('the role table resolves every role for both weapons to a clip the rig carries, and the attack roles play the clips the blade tables were baked from [slow]', async () => {
-  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), scythe: await readWarrior('executioner.glb'), maul: await readWarrior('minotaur.glb'), reaper: await readWarrior('wraith.glb') , warhammer: await readWarrior('weapons/warhammer/veteran-warhammer.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
+  const rigs = { longsword: await readWarrior('warrior.glb'), trident: await readWarrior('veteran.glb'), cleaver: await readWarrior('pitborn.glb'), estoc: await readWarrior('nightborn.glb'), knife: await readWarrior('goblin.glb'), gladius: await readWarrior('warrior.glb'), scythe: await readWarrior('executioner.glb'), maul: await readWarrior('minotaur.glb'), reaper: await readWarrior('wraith.glb') , warhammer: await readWarrior('weapons/warhammer/veteran-warhammer.glb') } as const;   // the estoc, the knife and the scythe ride the sword clip family until the weapons lane lands them
   for (const weapon of Object.keys(WEAPON_CLIPS) as WeaponId[]) {
     const names = rigs[weapon].animations.map(a => a.name);
     for (const role of ROLES) assert.ok(names.includes(clipFor(weapon, role)), `${weapon} ${role} → ${clipFor(weapon, role)}`);

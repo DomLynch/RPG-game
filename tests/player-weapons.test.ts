@@ -50,7 +50,12 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   // with a Goblin who stands somewhere else.
   const v5 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v5[2] = 5;
   assert.throws(() => unpackRecord(v5), /version 5 is not supported/);
-  assert.equal(RECORD_VERSION, 6);
+  // A version-6 stream joins them (2026-09-23, Publish B): the estoc's reach and the Nightborn's profile change the fight.
+  const v6 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v6[2] = 6;
+  assert.throws(() => unpackRecord(v6), /version 6 is not supported/);
+  const v7 = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); v7[2] = 7;
+  assert.throws(() => unpackRecord(v7), /version 7 is not supported/);
+  assert.equal(RECORD_VERSION, 8);
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
@@ -68,7 +73,7 @@ test('weapon flip: the strategies\' distances scale by the player weapon\'s reac
 // An EXACT snapshot: a new over-cap pairing fails this test, and a pairing that comes back under its cap fails it too until the entry is
 // removed, so the list is edited only with a fresh table. Combat's ruling: every row is the warden's approach logic meeting a player reach
 // it has never seen (their slice), not weapon data and not a rung profile. A weapon with a row here is not in PLAYER_WEAPONS_OFFERED.
-const KNOWN_UNFAIR = [
+const KNOWN_UNFAIR: string[] = [
   // After the warden reach fix (combat/warden-reach, 2026-09-21): 11 rows → 8. Trident and warhammer come clean everywhere and are offered;
   // scythe was gated here too and LEFT on 2026-09-22 (below). What is left, by cause: cleaver/executioner — a pre-existing cut-tempo row
   // (Weapons: CLEAVER light 22/8/26 vs the sword's 20/8/22); knife/veteran and scythe/veteran — a poker parked at the Veteran's own range;
@@ -82,13 +87,15 @@ const KNOWN_UNFAIR = [
   // 3/24 and 4/24, but it pushes the Goblin's own fight-length pin to a 48.5 s median, over the 45 s ceiling — hence 20.)
   // The scythe's two "thrust from range" rows LEFT on 2026-09-22 when its heel-jab recovery went 18 -> 30 (see SCYTHE_MOVES.thrust):
   // Veteran 19/24 -> 8/24, Goblin 16/24 -> 6/24. It now has no row at any rung, so the table itself puts it in PLAYER_WEAPONS_OFFERED.
-  // estoc/goblin ×2 and estoc/dwarf hard — the estoc's move table sits .3–.4 m short of its blade bake (tests/weapons.test.ts "real reach"),
-  // so every warden misjudges its point until Weapons corrects ESTOC_MOVES.
-  'cleaver vs executioner normal: light spam wins 18/24',   // was 17/24: moved by the SCYTHE's thrust recovery 18 -> 30 (2026-09-22), because the Executioner WIELDS the scythe — the row is over the cap either way, and its cause is unchanged (his read of a 22-tick tell)
-  'estoc vs goblin normal: thrust from range wins 24/24',
-  'estoc vs goblin hard: light spam wins 9/24',   // was 11/24: moved by the KNIFE's thrust recovery 15 -> 20 (2026-09-22), because the Goblin WIELDS the knife — same number, safer direction, row still over the hard cap either way
-  'estoc vs goblin hard: thrust from range wins 23/24',   // 22 -> 23, same cause as the line above
-  'estoc vs dwarf hard: thrust from range wins 10/24',
+  // The estoc's four rows (goblin ×3, dwarf hard) LEFT on 2026-09-23 when Weapons put its move table on its blade's real reach (+0.30 m,
+  // #532) — every warden had misjudged its point. The Nightborn wields it, so the same reach made him swing himself out; his aggression
+  // (normal .6 → .55, hard .75 → .65, src/moves.ts) holds every weapon's row against him inside the cap with a margin of 4 or more.
+  // cleaver/executioner LEFT on 2026-09-23: his normal profile is his own (anticipate 3, lapse .2, read .75; src/moves.ts), light spam 18/24 -> 8/24.
+  // maul/executioner LEFT with the cleaver row (bump 8, 2026-09-23): same cause (the 22-tick tell), same fix (#550): light spam 18/24 -> 7/24.
+  // The four beta characters (roster-v0) are on LADDER and measured here. Their placeholder profiles (base copies) produced two rows,
+  // 'trident/scythe vs plaguedoctor normal: charged heavy only untouched 3/24' (limit 2). Signing them would have un-offered two shipped
+  // weapons, so the Plague Doctor took one forced retune instead (lapse .3 -> .2, src/moves.ts): at most 1 untouched, worst row 6/24.
+  // Watch: warhammer vs knight normal charged heavy only 12/24, on the cap.
 ];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {

@@ -21,12 +21,13 @@ export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunT
 export type Role = (typeof CLIPS)[number] | (typeof COMBAT_CLIPS)[number] | (typeof FINISHER_CLIPS)[number] | 'Thrust';
 export const ROLES: readonly Role[] = [...CLIPS, ...COMBAT_CLIPS, ...FINISHER_CLIPS, 'Thrust'];
 export const WEAPON_CLIPS: Record<WeaponId, Partial<Record<Role, string>>> = {
-  maul: { Idle: 'Maul_Idle', Walk: 'Maul_Walk', Jog: 'Maul_Walk', Run: 'Maul_Walk', Armed: 'Maul_Idle', ArmedWalk: 'Maul_Walk', StrafeLeft: 'Maul_StrafeLeft', StrafeRight: 'Maul_StrafeRight', Attack: 'Maul_Slash', Return: 'Maul_Slash', Heavy: 'Maul_Heavy', Thrust: 'Maul_Thrust', Riposte: 'Maul_Thrust', Guard: 'Maul_Guard', BlockImpact: 'Maul_Guard', Parry: 'Maul_Guard', Deflected: 'Maul_Hit', Hit: 'Maul_Hit', Death: 'Maul_Death', Kick: 'Maul_Kick', Roll: 'Maul_Roll' },
+  maul: { Idle: 'Maul_Idle', Walk: 'Maul_Walk', Jog: 'Maul_Walk', Run: 'Maul_Walk', Armed: 'Maul_Idle', ArmedWalk: 'Maul_Walk', StrafeLeft: 'Maul_StrafeLeft', StrafeRight: 'Maul_StrafeRight', Attack: 'Maul_Slash', Return: 'Maul_Slash', Heavy: 'Maul_Heavy', Thrust: 'Maul_Thrust', Riposte: 'Maul_Thrust', Guard: 'Maul_Guard', BlockImpact: 'Maul_Guard', Parry: 'Maul_Guard', Deflected: 'Maul_Hit', Hit: 'Maul_Hit', Death: 'Maul_Death' },   // Kick and Roll fall back to the shared clips (the warhammer's convention): the hero rig's Maul_* family (2026-09-23) has neither, and the held Minotaur carries plain Kick/Roll too
   reaper: { Idle: 'Reaper_Idle', Walk: 'Reaper_Walk', Jog: 'Reaper_Walk', Run: 'Reaper_Walk', Armed: 'Reaper_Idle', ArmedWalk: 'Reaper_Walk', StrafeLeft: 'Reaper_StrafeLeft', StrafeRight: 'Reaper_StrafeRight', Attack: 'Reaper_Slash', Return: 'Reaper_Slash', Heavy: 'Reaper_Heavy', Thrust: 'Reaper_Thrust', Riposte: 'Reaper_Thrust', Guard: 'Reaper_Guard', BlockImpact: 'Reaper_Guard', Parry: 'Reaper_Guard', Deflected: 'Reaper_Hit', Hit: 'Reaper_Hit', Death: 'Reaper_Death', Kick: 'Reaper_Kick', Roll: 'Reaper_Roll' },
   longsword: { Thrust: 'Riposte' },
   cleaver: { Thrust: 'Riposte' },   // the Pitborn's, on the sword clip family until the weapons lane lands its own
   knife: { Thrust: 'Riposte' },   // the goblin's, on the sword clip family until the weapons lane lands its own
   estoc: { Thrust: 'Riposte' },   // the Nightborn's, likewise
+  gladius: { Thrust: 'Riposte' },   // the Centurion's: the sword family, zero clips (Strategy, 2026-09-23)
   scythe: { Idle: 'Scythe_Idle', Walk: 'Scythe_Walk', Jog: 'Scythe_Walk', Run: 'Scythe_Walk', Armed: 'Scythe_Idle', ArmedWalk: 'Scythe_Walk', StrafeLeft: 'Scythe_StrafeLeft', StrafeRight: 'Scythe_StrafeRight', Attack: 'Scythe_Reap', Return: 'Scythe_Reap', Heavy: 'Scythe_High', Thrust: 'Scythe_Thrust', Riposte: 'Scythe_Chain', Guard: 'Scythe_Guard', BlockImpact: 'Scythe_BlockImpact', Parry: 'Scythe_BlockImpact', Deflected: 'Scythe_Deflected', Hit: 'Scythe_Hit', Death: 'Scythe_Death' },   // the Executioner's, LIVE 2026-09-18 (the weapons lane's 13-clip family); one reap clip cuts both ways, and a shaft has no blade to turn, so a parry shows the block. The gait roles too — an unlisted role falls back to the SWORD's clip of that name, and the warden's pre-fight stand/walk read as a one-handed sword hold with the scythe mounted (owner review 2026-09-19: "arms behind his back"); a two-handed weapon has no jog/run of its own, the walk carries all gaits
   // One sweep clip cuts both ways (the sim's path is the same either side); no parry clip: a shaft has no blade to turn, so a parry shows the block.
   // The Dwarf's warhammer (weapons lane shelf, 2026-09-20): the maul's role map on the humanoid Warhammer_* family; Kick and Roll fall
@@ -143,6 +144,20 @@ export const GUARD_TILT: Record<Direction, { yaw: number; arm: number; spine: nu
   thrust: { yaw: 0, arm: 0, spine: 0 }, left: { yaw: .45, arm: 0, spine: 0 }, right: { yaw: -.45, arm: 0, spine: 0 },
   overhead: { yaw: 0, arm: -.5, spine: -.25 }, low: { yaw: 0, arm: .5, spine: .25 },
 };
+// A shield's face is a single-sided disc (loot.glb `~kit.Shield.Leather`: every normal and triangle faces bind +Z), so from behind (most
+// angles on the arm) it was culled and only the rim torus drew, a hoop (owner's iPhone, 2026-09-23 15:21). Shield draws render both sides,
+// on their own copy of the material they were given, so the rig's own Leather/brass on his body stays front-sided.
+const twoSided = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>();
+function bothSides(material: MeshStandardMaterial): MeshStandardMaterial {
+  let copy = twoSided.get(material);
+  if (!copy) {
+    copy = material.clone(); copy.side = DoubleSide;
+    // clone() copies userData (so a lighting pass's "already patched" mark) but not the shader hooks it installed: carry them over, whatever they are.
+    copy.onBeforeCompile = material.onBeforeCompile; copy.customProgramCacheKey = material.customProgramCacheKey;
+    twoSided.set(material, copy);
+  }
+  return copy;
+}
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0]) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1]) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
@@ -216,7 +231,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
         for (const piece of pieces) {
-          const material = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
+          const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
+          const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
           const copy = new SkinnedMesh(piece.geometry, material);
           copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
           copy.bind(body.skeleton, body.bindMatrix);

@@ -179,12 +179,13 @@ export type AiProfile = {
   interrupt?: number;  // 0..1 chance to cut INTO a slower tell when his own cut lands first (a fast fighter's counter-swing; 0 = never attacks into a threat)
   kick?: number;       // 0..1 share of answers to a read roller or backstepper that are kicks (the one blow their timing does not escape)
   dash?: number;       // 0..1 chance to sprint into an opening (a whiff, a stagger) from outside reach instead of walking (a darter closes in a few ticks)
+  anticipate?: number; // ticks to notice a read cut-spammer's cut (src/ai.ts; the reaction still caps it). Absent = READ.anticipate (8), every warden as it was
 };
 // A weapon is data a fighter carries: its move table, its blade paths (baked per weapon by scripts/bake-blades.mjs from
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change.
-export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'gladius' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
 export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
 export type Grip = 'one-hand' | 'two-hand';   // how many hands the weapon needs. DATA ONLY: nothing in the sim reads it, no reach/timing/damage
 // depends on it, and no fairness row moves with it. The Veteran shield's stow logic reads it (a two-hander stows the shield to the back, a
@@ -326,20 +327,46 @@ export const KNIFE: Weapon = { id: 'knife', moves: KNIFE_MOVES, paths: KNIFE_PAT
 // blade does to the sword's moves: the THRUST is the weapon (a little more damage, chains into a second), the cuts are whacks with a rod
 // (less damage, no chip), the riposte is his payoff (he parries everything). Live variant A, baked from his own rig.
 export const ESTOC_PATHS: Record<PathId, PathSpec> = PATHS;   // the sword's clips at the sword's timings: the bake differs only by the point and his rig
+// Reach: the sword's spacing convention plus 0.30 m — the estoc's contact segment is the last 40 cm of a longer blade (.75–1.15 m vs the
+// sword's .18–.86), so the same swings land further. Measured standing-start frontier vs the sword's on both rigs (tests/weapons.test.ts
+// "real reach", 2026-09-22): light +.27, heavy +.27, thrust +.26. The table sat at the sword's numbers until then and every warden
+// misjudged the point by that much (the estoc's over-cap rows in tests/player-weapons.test.ts); the sword's own nominal-to-real offset
+// (light −.07, thrust −.05, heavy −.30) is kept as is.
+const ESTOC_REACH = .30, estocReach = (sword: number): number => +(sword + ESTOC_REACH).toFixed(2);
 const ESTOC_MOVES: Record<MoveId, MoveDef> = {
-  light_right: { ...MOVES.light_right, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },   // a whack with a rod
-  light_left: { ...MOVES.light_left, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: 1.65 },
-  heavy_overhead: { ...MOVES.heavy_overhead, damage: 15, chip: .25, staminaDamage: 26, posture: 28, reach: 1.9 },
+  light_right: { ...MOVES.light_right, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: estocReach(MOVES.light_right.reach) },   // a whack with a rod
+  light_left: { ...MOVES.light_left, damage: 9, staminaDamage: 12, stagger: 20, posture: 16, reach: estocReach(MOVES.light_left.reach) },
+  heavy_overhead: { ...MOVES.heavy_overhead, damage: 15, chip: .25, staminaDamage: 26, posture: 28, reach: estocReach(MOVES.heavy_overhead.reach) },
   // The thrust: his weapon. A little more than the sword's stab, and it chains into a second (the riposte path, 12/5/19): "thrusts and short chains".
-  thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 14, follow: ['thrust'] }, damage: 14, stamina: 20, staminaDamage: 22, stagger: 20, posture: 18, reach: 2 },
-  slash_riposte: { ...MOVES.slash_riposte, damage: 26, reach: 1.65 },
-  riposte: { ...MOVES.riposte, damage: 26, reach: 1.65 },
-  heavy_riposte: { ...MOVES.heavy_riposte, reach: 1.9 },
-  heavy_counter: { ...MOVES.heavy_counter, reach: 1.9 },
-  critical: { ...MOVES.critical, reach: 1.9 },
+  thrust: { ...MOVES.thrust, chainPath: 'riposte', chained: { windup: 12, active: 5, recovery: 19 }, chain: { window: 14, follow: ['thrust'] }, damage: 14, stamina: 20, staminaDamage: 22, stagger: 20, posture: 18, reach: estocReach(MOVES.thrust.reach) },
+  slash_riposte: { ...MOVES.slash_riposte, damage: 26, reach: estocReach(MOVES.slash_riposte.reach) },
+  riposte: { ...MOVES.riposte, damage: 26, reach: estocReach(MOVES.riposte.reach) },
+  heavy_riposte: { ...MOVES.heavy_riposte, reach: estocReach(MOVES.heavy_riposte.reach) },
+  heavy_counter: { ...MOVES.heavy_counter, reach: estocReach(MOVES.heavy_counter.reach) },
+  critical: { ...MOVES.critical, reach: estocReach(MOVES.critical.reach) },
   kick: MOVES.kick,
 };
 export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
+// ── Gladius (weapons lane, 2026-09-23): the Centurion's, and a player weapon. Strategy's 09:42 ruling: a STATIC one-hand gladius on the
+// sword family, zero clips — the sword's paths, timings and lunges exactly (the only thing that changes is the node under hand_r). Its
+// identity is the short blade: a legionary's cut-and-thrust sword that fights close, so the cuts hit a little softer than a longsword's
+// and the thrust (the gladius's point is the weapon) a little harder. Reach is the sword's convention MINUS the shorter blade, measured
+// off the hero bake the way the estoc's was (tests/weapons.test.ts "real reach"), never guessed from the blade's length: standing-start
+// frontier on the hero rig 2026-09-23, gladius vs longsword, thrust 1.814 vs 2.046 (−.232) and cut 1.492 vs 1.725 (−.233).
+const GLADIUS_REACH = -.23, gladiusReach = (sword: number): number => +(sword + GLADIUS_REACH).toFixed(2);
+const GLADIUS_MOVES: Record<MoveId, MoveDef> = {
+  light_right: { ...MOVES.light_right, damage: 12, reach: gladiusReach(MOVES.light_right.reach) },
+  light_left: { ...MOVES.light_left, damage: 12, reach: gladiusReach(MOVES.light_left.reach) },
+  heavy_overhead: { ...MOVES.heavy_overhead, damage: 16, reach: gladiusReach(MOVES.heavy_overhead.reach) },
+  thrust: { ...MOVES.thrust, damage: 13, reach: gladiusReach(MOVES.thrust.reach) },   // the point is the weapon
+  slash_riposte: { ...MOVES.slash_riposte, reach: gladiusReach(MOVES.slash_riposte.reach) },
+  riposte: { ...MOVES.riposte, reach: gladiusReach(MOVES.riposte.reach) },
+  heavy_riposte: { ...MOVES.heavy_riposte, reach: gladiusReach(MOVES.heavy_riposte.reach) },
+  heavy_counter: { ...MOVES.heavy_counter, reach: gladiusReach(MOVES.heavy_counter.reach) },
+  critical: { ...MOVES.critical, reach: gladiusReach(MOVES.critical.reach) },
+  kick: MOVES.kick,
+};
+export const GLADIUS: Weapon = { id: 'gladius', moves: GLADIUS_MOVES, paths: PATHS, guard: 'blade', material: 'steel', reach: GLADIUS_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .5, close: 1.0 } };   // half the non-cut openers are thrusts; it closes inside a longsword's cut, as the knife does
 // ── Scythe (weapons lane, 2026-09-18): the Executioner's, baked from src/assets/weapons/scythe/warrior-scythe.glb (the man-scale bake
 // rig — the cleaver convention). Everything is an arc — the REAP is the horizontal cut (the
 // edge sweeps chest height), the HIGH is the headsman's diagonal, the THRUST is the heel-jab (a scythe has no point; the Stab button's
@@ -422,11 +449,11 @@ const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
 };
 const WARHAMMER: Weapon = { id: 'warhammer', moves: WARHAMMER_MOVES, paths: creaturePaths(CLEAVER_PATHS, 'Warhammer'), guard: 'shaft', material: 'iron', reach: WARHAMMER_MOVES.thrust.reach, grip: 'two-hand', guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.15 } };
 const REAPER: Weapon = { ...ESTOC, id: 'reaper', grip: 'two-hand', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, its own KNIFE_MOVES / KNIFE_PATHS on his rig (#86; artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, gladius: GLADIUS, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, its own KNIFE_MOVES / KNIFE_PATHS on his rig (#86; artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 // The weapons a player can carry (Brief 5 loot): each has an equip file under src/assets/weapons/player and a bake on the hero rig
 // (tests/blade-rig.test.ts pins both). The weapons lane appends here when a new equip file ships.
-export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe'];
+export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'knife', 'estoc', 'gladius', 'warhammer', 'trident', 'scythe', 'maul'];
 // The weapons a player may be OFFERED (loot, paperdoll, equip): a subset of PLAYER_WEAPONS with no pairing over a cap in the 24-seed player
 // weapon battery (scripts/player-weapon-battery.mjs; tests/player-weapons.test.ts derives the excluded set from that table). Combat signed
 // the table 2026-09-21: the warhammer is fair on every live rung and is the first loot weapon; after the warden reach fix (combat/warden-reach)
@@ -434,7 +461,7 @@ export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'kni
 // "thrust from range" rows left the list, so it has no pairing over a cap at any rung. This list is not a taste call — the test derives
 // the excluded set from the table and REQUIRES a weapon with no row to be offered, so the entry follows the measurement. Cleaver, knife
 // and estoc still wait on the over-cap list (see KNOWN_UNFAIR there), and each of their remaining rows is Combat's, not weapon data.
-export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident', 'scythe', 'knife'];
+export const PLAYER_WEAPONS_OFFERED: readonly WeaponId[] = ['longsword', 'warhammer', 'trident', 'scythe', 'knife', 'estoc', 'gladius', 'cleaver', 'maul'];
 
 export const PROFILES: Record<'easy' | 'normal' | 'hard', AiProfile> = {
   // discipline sits above a heavy's cost so the warden rests instead of swinging itself into exhaustion.
@@ -455,6 +482,9 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // Hard: pressure .7 and a discipline floor of 30 keep him cutting instead of resting (the shared hard was two wins tighter than normal;
   // docs/state/combat.md). His own table so the Executioner (shared PROFILES) is untouched.
   veteran: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },   // the trident since slice V (2026-09-16)
+  // PLACEHOLDER for Combat's retune (Lead, 2026-09-23): a verbatim copy of the Veteran's profile; only `scale` is hers, measured off
+  // witch.glb (the reconstruction is fitted to the Veteran's 1.80 m rig, so her standing ratio is 1).
+  witch: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },
   // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
   // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
   // a barrel body; the hit capsule follows the measured height like the goblin's. Sturdier than a man: 170 health and poise 12 — a stab (11)
@@ -476,6 +506,15 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     normal: { reaction: 14, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .1, read: .6 },
     hard: { reaction: 12, accuracy: .9, parry: .4, dodge: .3, aggression: .95, pressure: .75, discipline: 24, lapse: .08, read: .75 },   // parry .3 → .4, dodge .2 → .3 (owner, 2026-09-20): hard was 15/24 for the hero's brain; more answers, 17/24 (sweep). discipline 20 → 24 with the cleaver (slice W): its hack costs 42, and at 20 he swung himself empty into the whiff punisher (10/24 at hard, over the cap); 24 keeps him hot-headed (the Veteran holds 40) and the punisher at 7/24
   } },
+  // The Shieldmaiden (Brief 15, 2026-09-23): a PLACEHOLDER — the Pitborn's profile verbatim, only `scale` her measured standing ratio
+  // (tests/characters.test.ts), so her body can land before Combat's retune. Combat replaces this row in the same commit as the digest re-pin.
+  shieldmaiden: { scale: 1, health: 190, poise: 16, profiles: {
+    easy: { reaction: 28, accuracy: .5, parry: .05, dodge: .05, aggression: .6, pressure: .6, discipline: 30, lapse: .45, read: .45 },
+    // Reaction 14 and lapse .1: he notices the stab in time to block it and answers what he sees, so stop-hitting him as he walks in no
+    // longer wins on its own; the whiff punisher stays the answer (the probe that set these: docs/state/combat.md).
+    normal: { reaction: 14, accuracy: .85, parry: .15, dodge: .1, aggression: .8, pressure: .7, discipline: 25, lapse: .1, read: .6 },
+    hard: { reaction: 12, accuracy: .9, parry: .4, dodge: .3, aggression: .95, pressure: .75, discipline: 24, lapse: .08, read: .75 },   // parry .3 → .4, dodge .2 → .3 (owner, 2026-09-20): hard was 15/24 for the hero's brain; more answers, 17/24 (sweep). discipline 20 → 24 with the cleaver (slice W): its hack costs 42, and at 20 he swung himself empty into the whiff punisher (10/24 at hard, over the cap); 24 keeps him hot-headed (the Veteran holds 40) and the punisher at 7/24
+  } },
   // The Nightborn (opponent 5, the vampire duelist): the parry is his whole game — the highest parry share on the roster, the fastest
   // reaction, thrusts over cuts (pressure), a low dodge share, a man's health and no poise (a duelist is staggered like anyone; his
   // defence is the blade, not the hide). His guard is what makes him a fight and not a reskin: a 16-tick parry window (a man's is 10)
@@ -490,8 +529,17 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
     // Easy: a human reaction, a quarter parry and more lapses put him with the other rungs' easy (an 8-tick reaction and a .45 parry had
     // made easy as hard as hard; docs/state/combat.md); the commit is still there to learn.
     easy: { reaction: 16, accuracy: .7, parry: .25, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .4, read: .7 },
-    normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .6, pressure: .45, discipline: 45, lapse: .3, read: .85 },   // pressure .45: enough heavies that a roller is charged through (a cut-and-thrust man rolls too easily)
-    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .75, pressure: .6, discipline: 35, lapse: .05, read: .95 },   // discipline 40 → 35, pressure .5 → .6 (owner, 2026-09-20): hard was no harder than normal (9/24 both); 18/24 now. Discipline 30 left no honest answer (feint-and-punish 0/24 at hard); 35 keeps it at 4.
+    normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .55, pressure: .45, discipline: 45, lapse: .3, read: .85 },   // pressure .45: enough heavies that a roller is charged through (a cut-and-thrust man rolls too easily). aggression .6 → .55 (2026-09-23, the estoc's +0.30 m reach): with the longer blade in reach more often he swung himself into exhaustion (321 ticks over 24 AI fights, bar 240) and a trident charger won 14/24; .55 → 108 ticks and 8/24
+    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .65, pressure: .6, discipline: 35, lapse: .05, read: .95 },   // discipline 40 → 35, pressure .5 → .6 (owner, 2026-09-20): hard was no harder than normal (9/24 both); 18/24 now. Discipline 30 left no honest answer (feint-and-punish 0/24 at hard); 35 keeps it at 4. aggression .75 → .65 (2026-09-23): the estoc's +0.30 m reach took the feint-and-punish to 0/24 again; .65 → 7/24.
+  } },
+  // The Plague Doctor: a PLACEHOLDER — the Nightborn's row verbatim (Lead, 2026-09-23), only the scale measured: his body tops out at
+  // 1.840 m against the player's 1.822 (hero rig, scale 1). Combat owns his real row and battery.
+  plagueDoctor: { scale: 1, health: RULES.health, poise: 0, guard: { window: 16, recovery: 40, commits: true }, profiles: {
+    // Easy: a human reaction, a quarter parry and more lapses put him with the other rungs' easy (an 8-tick reaction and a .45 parry had
+    // made easy as hard as hard; docs/state/combat.md); the commit is still there to learn.
+    easy: { reaction: 16, accuracy: .7, parry: .25, dodge: .1, aggression: .5, pressure: .4, discipline: 55, lapse: .4, read: .7 },
+    normal: { reaction: 6, accuracy: .85, parry: .7, dodge: .1, aggression: .55, pressure: .45, discipline: 45, lapse: .2, read: .85 },   // Combat retune at bump 8 (2026-09-23), the placeholder's one forced change: lapse .3 → .2. With the Nightborn's .3 he failed to touch a charger in 3/24 fights with the trident and the scythe (limit 2); .2 → at most 1, worst wins row 6/24
+    hard: { reaction: 5, accuracy: .95, parry: .8, dodge: .15, aggression: .65, pressure: .6, discipline: 35, lapse: .05, read: .95 },   // discipline 40 → 35, pressure .5 → .6 (owner, 2026-09-20): hard was no harder than normal (9/24 both); 18/24 now. Discipline 30 left no honest answer (feint-and-punish 0/24 at hard); 35 keeps it at 4. aggression .75 → .65 (2026-09-23): the estoc's +0.30 m reach took the feint-and-punish to 0/24 again; .65 → 7/24.
   } },
   // The goblin (opponent 4, the pit-runner): small, fast, mean — 0.78× a man (his measured standing height; the rig is re-proportioned, not
   // shrunk: build-warrior.mjs BUILD.goblin), 100 health, poise 0 (anything staggers him). Reaction fast, parry 0 (he never parries), the dodge
@@ -506,8 +554,16 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   } },
   // The Executioner (opponent 6): 1.36 — 20 % over the Pitborn's 1.13 (owner, 2026-09-17), a big man's
   // health and poise. His arc is the scythe's (reap 1.40–2.10 m, a dead band inside 1.4 m, the shaft guard). He carries the
-  // Veteran's brain (PROFILES); a profile of his own is the combat lane's call.
-  executioner: { scale: 1.36, health: 160, poise: 12, profiles: PROFILES },
+  // Veteran's brain (PROFILES); a profile of his own is the combat lane's call. Normal is his own since 2026-09-23 (Lead's anticipate
+  // spec): a cut-spammer farmed him (light spam 18/24 with the cleaver, 12 warhammer, 11 trident; cap 12) because his 14-tick reaction
+  // was clamped to the shared 8 on a read spam and still met the cut late. anticipate 3 + lapse .3 → .2 take those three to 8, 7, 7;
+  // read .7 → .75 keeps the knife's thrust-from-range row where it was (11/24; .2 lapse alone put it on the cap at 12).
+  // The value lives here, keyed by (opponent, level), because that is all a fight record carries: src/replay.ts rebuilds the profile
+  // from OPPONENTS[opponent].profiles[level], so a value merged in from outside the sim would replay a different fight.
+  executioner: { scale: 1.36, health: 160, poise: 12, profiles: { easy: PROFILES.easy, normal: { ...PROFILES.normal, anticipate: 3, lapse: .2, read: .75 }, hard: PROFILES.hard } },
+  // The Knight: PLACEHOLDER — a verbatim copy of the Executioner's archetype with only `scale` changed, to BUILD.knight's 1.18 (the
+  // provisional tie-break on his measured 0.367 shoulder ratio, Brief 17). His own tuning is the combat lane's (re-pin, 2026-09-23).
+  knight: { scale: 1.18, health: 160, poise: 12, profiles: PROFILES },
 };
 
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) =>

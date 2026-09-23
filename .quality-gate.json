@@ -1,9 +1,8 @@
 {
   "commands": [
     [
-      "npm",
-      "run",
-      "quality:stop"
+      "node",
+      "scripts/quality-stop-targeted.mjs"
     ]
   ],
   "manual": [
@@ -237,6 +236,10 @@
     [
       "node",
       "scripts/loot-smoke-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/viewport-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -327,6 +330,23 @@
         "account-database-check",
         "account-browser-check",
         "loot-smoke-check"
+      ]
+    },
+    {
+      "paths": [
+        "src/scene.ts",
+        "src/camera.ts",
+        "src/style.css",
+        "scripts/viewport-check.mjs"
+      ],
+      "rows": [
+        "roster-browser-check",
+        "record-replay-check",
+        "kill-link-check",
+        "finisher-preview:first",
+        "account-database-check",
+        "account-browser-check",
+        "viewport-check"
       ]
     },
     {
