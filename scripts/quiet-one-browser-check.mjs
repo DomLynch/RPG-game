@@ -106,6 +106,9 @@ async function fight(name) {
   if (await page.locator('#target-health').evaluate(e => +e.value) === 0) { killed = true; break; }
   if (attempt === 3) break;
   console.log(`duel ${attempt} did not kill (page time ${elapsed} ms) — rematch\n`, await page.locator('#debug').textContent());
+  // The faded endgame row is inert (pointer-events: none) until the ceremony completes (#506), so a tap there does nothing and
+  // the wait below times out: tap only once Rematch is shown and the fade has lifted.
+  await until(() => !document.querySelector('#reset-button').hidden && !document.documentElement.classList.contains('endgame-fade'), 20000);
   await page.locator('#reset-button').tap();
   await until(() => document.querySelector('#target-health').value > 0 && document.querySelector('#player-health').value > 0 && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', 20000);
   }
