@@ -1,6 +1,33 @@
 # Combat — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+## Publish B (v7) and the road to bump 8 — combat lane, 2026-09-23
+
+**Now:** bump 8 = **#550** (`combat/executioner-anticipate` @ `9801276`, stacked on #545): the Executioner's own normal profile
+`{ ...PROFILES.normal, anticipate: 3, lapse: .2, read: .75 }` plus `ai.ts:114` `profile.anticipate ?? READ.anticipate`. It must also
+fix the rows that #557 signed: `knife vs veteran normal: thrust from range 23/24` (the named `OFFERED_DESPITE` exception),
+`cleaver vs veteran normal: charged heavy only 16/24` and `cleaver vs executioner normal: light spam 18/24`. Then remove
+`OFFERED_DESPITE` and offer the cleaver. **Bump 8 does not ship while `OFFERED_DESPITE` is signed** (Lead + Strategy). Merge trunk into
+#550 once B is live. Theory to measure: the Centurion's gladius (sword −0.23 m) lets a knife poker park at his range. Watch item:
+`trident vs veteran normal: charged heavy only 12/24`, on the cap.
+
+**Done today:** #530 knife (v6, Publish A, live). **#545**: the Nightborn's `aggression` normal .6→.55, hard .75→.65. That fixed the
+three findings the estoc's +0.30 m reach (#532) caused (trident 14→8/24, exhausted 321→108 ticks, hard feint-and-punish 0→7/24), and the
+estoc is offered. **#557**, the single Publish B merge (#545 + #547 + #543 + #532 + trunk): `RECORD_VERSION` 7, `READABLE_VERSIONS` [7],
+`SIM_DIGEST` d63f3a22…; `SIM_FILES` widened to the sim's runtime import closure (+ blade.ts, blade-paths.ts, roster.ts, finishers.ts)
+with a test that walks the closure; the knife and scythe thrust tables rebaked (stale since 5); gladius offered; #547's reds re-signed
+(trident-mechanics pins now fight an explicit trident Veteran). Tables and receipts are in the PR bodies.
+
+**Open:** #557's merge and publish is Deploy's (Lead gave GO: #552, then #557). After it lands: #550 → bump 8 (above). Veteran lane
+owes the regenerated versus card and identity pin (#547).
+
+**Gotchas:** a fight record carries only (opponent, level byte), and `replay.ts:16` rebuilds the profile from `OPPONENTS[id].profiles[level]`.
+So every AI value lives in moves.ts per-opponent profiles, never merged in from grades.ts (Lead's first anticipate spec had that bug).
+The blade bake samples `total(spec)`: any timing change needs `node scripts/bake-blades.mjs`, and the closure test now catches a
+forgotten one via the digest. Profile knobs are chaotic: single values are non-monotonic across seeds (Nightborn aggression .50/.55/.60
+put scythe at 14/8/9), so measure every weapon's row, not the target alone. While `~/.claude/state/deploy_in_flight.json` exists, every
+`node --test` is blocked, even a single file.
+
 
 ## The knife is offerable — and the mechanism below this entry was wrong (combat lane, 2026-09-22)
 
