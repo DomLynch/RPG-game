@@ -38,7 +38,7 @@ vs ship with the mismatch (revert-of-revert + #559). Either way B re-lands via a
 off trunk after the fallback: (1) revert the fallback revert, (2) reverse-apply #547's diff `9858588..28a0fd0` (Veteran reviews), (3) the battery: knife vs veteran back
 to ~5/24, OFFERED_DESPITE REMOVED, (4) v7/closure/rebake kept, the re-pin LAST, (5) solo rows 2/11/12 green. Lead marks it READY, then Deploy runs it. #559 is HELD for the re-land.
 **Centurion re-land (tomorrow):** Strategy ruled a veteran.glb rebuild; Veteran scoped the **runtime equip loader** as cheaper (2–3 h vs 3–5 h, lower risk,
-also delivers #309). Lead recommended switching, with a narrow row-2 exception (the opponent's equip .glb only, ≤ 250 KB); awaiting Strategy.
+also delivers #309). **Strategy RULED YES (15:2x): the EQUIP LOADER**, owned by Veteran, PR tomorrow morning; the rebuild is off the table. Row-2 exception exactly "the opponent's equip .glb only, ≤ 250 KB" in the row comment; the boot budget row is unchanged. Conditions: hand_r scale measured per rig; the re-land = loader + swap re-applied + Combat re-pin, ONE bump, rows 2/11/12 assert gladius+scutum DRAWN. Then #309 player-wield on the same loader, a separate PR (Veteran).
 **Awards chain:** #551 (sweep, `66e798f`) is READY with Backend OK + Lead, and merges in the rolling run AFTER B (no src/ change). #554 (draft, `b0a8b89`,
 Backend's N1–N3: per-claim settle errors, a loss unit case, the recheck caveat) is retargeted and gated after #551. **The APPLY of 202609230001 + the VPS
 verify-loot unit need all of #551 + #554 + Stats' client-claims PR (offer from `my_standing()`, SCOPE.md loot v2 line), Backend-reviewed,
