@@ -726,9 +726,10 @@ test('kill links: a retired record version says what the fight was from its head
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const fight = rec.finish('killed');
   const retired = async (outcome: record.Outcome, v: number) => {
-    const bytes = record.packRecord(rec.finish(outcome) && { ...rec.finished!, outcome }); bytes[2] = v;
-    const gz = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    const bytes = record.packRecord({ ...fight, outcome }); bytes[2] = v;   // the same bytes under a version this build no longer reads
+    const gz = new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
     return record.toBase64Url(gz);
   };
   const killed = await retired('killed', 4);
