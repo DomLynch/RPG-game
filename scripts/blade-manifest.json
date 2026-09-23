@@ -11,6 +11,7 @@
     {"weapon": "maul", "rig": "minotaur", "glb": "src/assets/minotaur.glb", "node": "WeaponDrawn", "contact": [0.73, 1.11], "scale": 1},
     {"weapon": "reaper", "rig": "wraith", "glb": "src/assets/wraith.glb", "node": "ReaperEdge", "contact": [0, 0.868], "scale": 1.5},
     {"weapon": "knife", "rig": "hero", "glb": "src/assets/warrior.glb", "attach": "src/assets/weapons/player/knife.glb", "node": "WeaponDrawn", "contact": [0.12, 0.52]},
-    {"weapon": "estoc", "rig": "hero", "glb": "src/assets/warrior.glb", "attach": "src/assets/weapons/player/estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15]}
+    {"weapon": "estoc", "rig": "hero", "glb": "src/assets/warrior.glb", "attach": "src/assets/weapons/player/estoc.glb", "node": "WeaponDrawn", "contact": [0.75, 1.15]},
+    {"weapon": "gladius", "rig": "hero", "glb": "src/assets/warrior.glb", "attach": "src/assets/weapons/player/gladius.glb", "node": "WeaponDrawn", "contact": [0.16, 0.62]}
   ]
 }

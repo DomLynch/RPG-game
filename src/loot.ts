@@ -12,7 +12,7 @@ export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greav
 // No draw in loot.glb — the visual is the weapon's equip file (src/assets/weapons/player/<weapon>.glb, the #309 contract) loaded when
 // `equipped.main` is set, and the fight is fought with that weapon (moves.ts PLAYER_WEAPONS). Grows with the equip files; whether a
 // weapon is OFFERED stays moves.ts PLAYER_WEAPONS_OFFERED (Combat's fairness table), not this list.
-export const WEAPON_SLOTS = ['Trident', 'Cleaver', 'Knife', 'Estoc', 'Scythe', 'Warhammer'] as const;
+export const WEAPON_SLOTS = ['Trident', 'Cleaver', 'Knife', 'Estoc', 'Gladius', 'Scythe', 'Warhammer'] as const;
 export const LOOT_SLOTS = [...ARMOUR_SLOTS, ...WEAPON_SLOTS] as const;
 export type LootSlot = (typeof LOOT_SLOTS)[number];
 export type WeaponSlot = (typeof WEAPON_SLOTS)[number];
@@ -38,14 +38,17 @@ export const LOCKERS = { open: 1, total: 6 } as const;   // beta: one open locke
 // Body is the tunic and what hangs on it (baldric, belt, buckle, studs, collar) in the opponent's own linen; kilts are leg cloth with no
 // paperdoll slot and stay the player's. The Goblin's Body carries his trophy necklace, the Pitborn's Arms his bone plates.
 export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
-  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield', 'veteran.Trident'],
+  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield', 'veteran.Gladius'],
   executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Body', 'executioner.Arms', 'executioner.Greaves', 'executioner.Boots', 'executioner.Gloves', 'executioner.Scythe'],
   nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
   pitborn: ['pitborn.Arms', 'pitborn.Gloves', 'pitborn.Cleaver'],   // no chest piece: he wears a rag sash, not a tunic (a `replace` piece must not undress the player — tests/loot.test.ts)
   dwarf: ['dwarf.Greaves', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
 };
-export const LOOT_IDS: ReadonlySet<string> = new Set(Object.values(LOOT).flat());
+// Retired pieces: no longer on any opponent (never offered, never dropped) but still known, so a player who took one keeps it and can
+// wield it. The Centurion carried the trident until Strategy's ruling (A), 2026-09-23, gave him the gladius and scutum.
+export const RETIRED_LOOT: readonly LootId[] = ['veteran.Trident'];
+export const LOOT_IDS: ReadonlySet<string> = new Set([...Object.values(LOOT).flat(), ...RETIRED_LOOT]);
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
 export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));

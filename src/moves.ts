@@ -184,7 +184,7 @@ export type AiProfile = {
 // scripts/blade-manifest.json), the kind of guard it makes, its material (audio picks cues by it) and the reach the AI reasons with.
 // Every MOVES/PATHS/blade-path lookup in the simulation goes through the fighter's weapon (`weaponOf`), so a second weapon is a table,
 // not a rule change.
-export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
+export type WeaponId = 'longsword' | 'trident' | 'cleaver' | 'estoc' | 'knife' | 'gladius' | 'scythe' | 'maul' | 'reaper' | 'warhammer';
 export type Material = 'iron' | 'bronze' | 'wood' | 'steel';   // steel: the estoc — thin and bright to the ear, not the longsword's iron (the Nightborn brief)
 export type Grip = 'one-hand' | 'two-hand';   // how many hands the weapon needs. DATA ONLY: nothing in the sim reads it, no reach/timing/damage
 // depends on it, and no fairness row moves with it. The Veteran shield's stow logic reads it (a two-hander stows the shield to the back, a
@@ -346,6 +346,26 @@ const ESTOC_MOVES: Record<MoveId, MoveDef> = {
   kick: MOVES.kick,
 };
 export const ESTOC: Weapon = { id: 'estoc', moves: ESTOC_MOVES, paths: ESTOC_PATHS, guard: 'blade', material: 'steel', reach: ESTOC_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .75, close: 1.15 } };   // three quarters of non-cut openers are thrusts; the live-point battery catches habitual rollers without changing spacing or timings
+// ── Gladius (weapons lane, 2026-09-23): the Centurion's, and a player weapon. Strategy's 09:42 ruling: a STATIC one-hand gladius on the
+// sword family, zero clips — the sword's paths, timings and lunges exactly (the only thing that changes is the node under hand_r). Its
+// identity is the short blade: a legionary's cut-and-thrust sword that fights close, so the cuts hit a little softer than a longsword's
+// and the thrust (the gladius's point is the weapon) a little harder. Reach is the sword's convention MINUS the shorter blade, measured
+// off the hero bake the way the estoc's was (tests/weapons.test.ts "real reach"), never guessed from the blade's length: standing-start
+// frontier on the hero rig 2026-09-23, gladius vs longsword, thrust 1.814 vs 2.046 (−.232) and cut 1.492 vs 1.725 (−.233).
+const GLADIUS_REACH = -.23, gladiusReach = (sword: number): number => +(sword + GLADIUS_REACH).toFixed(2);
+const GLADIUS_MOVES: Record<MoveId, MoveDef> = {
+  light_right: { ...MOVES.light_right, damage: 12, reach: gladiusReach(MOVES.light_right.reach) },
+  light_left: { ...MOVES.light_left, damage: 12, reach: gladiusReach(MOVES.light_left.reach) },
+  heavy_overhead: { ...MOVES.heavy_overhead, damage: 16, reach: gladiusReach(MOVES.heavy_overhead.reach) },
+  thrust: { ...MOVES.thrust, damage: 13, reach: gladiusReach(MOVES.thrust.reach) },   // the point is the weapon
+  slash_riposte: { ...MOVES.slash_riposte, reach: gladiusReach(MOVES.slash_riposte.reach) },
+  riposte: { ...MOVES.riposte, reach: gladiusReach(MOVES.riposte.reach) },
+  heavy_riposte: { ...MOVES.heavy_riposte, reach: gladiusReach(MOVES.heavy_riposte.reach) },
+  heavy_counter: { ...MOVES.heavy_counter, reach: gladiusReach(MOVES.heavy_counter.reach) },
+  critical: { ...MOVES.critical, reach: gladiusReach(MOVES.critical.reach) },
+  kick: MOVES.kick,
+};
+export const GLADIUS: Weapon = { id: 'gladius', moves: GLADIUS_MOVES, paths: PATHS, guard: 'blade', material: 'steel', reach: GLADIUS_MOVES.thrust.reach, grip: 'one-hand', fight: { thrustShare: .5, close: 1.0 } };   // half the non-cut openers are thrusts; it closes inside a longsword's cut, as the knife does
 // ── Scythe (weapons lane, 2026-09-18): the Executioner's, baked from src/assets/weapons/scythe/warrior-scythe.glb (the man-scale bake
 // rig — the cleaver convention). Everything is an arc — the REAP is the horizontal cut (the
 // edge sweeps chest height), the HIGH is the headsman's diagonal, the THRUST is the heel-jab (a scythe has no point; the Stab button's
@@ -428,11 +448,11 @@ const WARHAMMER_MOVES: Record<MoveId, MoveDef> = { ...CLEAVER_MOVES,
 };
 const WARHAMMER: Weapon = { id: 'warhammer', moves: WARHAMMER_MOVES, paths: creaturePaths(CLEAVER_PATHS, 'Warhammer'), guard: 'shaft', material: 'iron', reach: WARHAMMER_MOVES.thrust.reach, grip: 'two-hand', guardProfile: { costScale: 1.15, heavyBreaks: true }, fight: { thrustShare: .1, close: 1.15 } };
 const REAPER: Weapon = { ...ESTOC, id: 'reaper', grip: 'two-hand', moves: Object.fromEntries(Object.entries(ESTOC_MOVES).map(([id, move]) => [id, id === 'kick' ? move : { ...move, stepIn: .15, minReach: 1.4, reach: id.includes('heavy') || id === 'critical' ? 2.1 : id === 'thrust' || id === 'riposte' ? 2.0 : 2.55 }])) as Record<MoveId, MoveDef>, reach: 2.55, guard: 'shaft', material: 'steel', paths: creaturePaths(ESTOC_PATHS, 'Reaper'), fight: { thrustShare: .15, close: 1.9 } };
-export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, its own KNIFE_MOVES / KNIFE_PATHS on his rig (#86; artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
+export const WEAPONS: Record<WeaponId, Weapon> = { longsword: LONGSWORD, trident: TRIDENT, cleaver: CLEAVER, estoc: ESTOC, knife: KNIFE, gladius: GLADIUS, scythe: SCYTHE, maul: MAUL, reaper: REAPER, warhammer: WARHAMMER };   // estoc: LIVE variant A, the Nightborn's thin thrust-first blade (artifacts/character/BRIEF-nightborn.md § Weapon)   // knife: the goblin's short hooked knife, its own KNIFE_MOVES / KNIFE_PATHS on his rig (#86; artifacts/character/BRIEF-goblin.md)   // scythe: LIVE since 2026-09-18 — the Executioner carries it (the flip: artifacts/weapons/REQUESTS.md §15)
 export const weaponOf = (id: WeaponId): Weapon => WEAPONS[id];
 // The weapons a player can carry (Brief 5 loot): each has an equip file under src/assets/weapons/player and a bake on the hero rig
 // (tests/blade-rig.test.ts pins both). The weapons lane appends here when a new equip file ships.
-export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'knife', 'estoc', 'warhammer', 'trident', 'scythe'];
+export const PLAYER_WEAPONS: readonly WeaponId[] = ['longsword', 'cleaver', 'knife', 'estoc', 'gladius', 'warhammer', 'trident', 'scythe'];
 // The weapons a player may be OFFERED (loot, paperdoll, equip): a subset of PLAYER_WEAPONS with no pairing over a cap in the 24-seed player
 // weapon battery (scripts/player-weapon-battery.mjs; tests/player-weapons.test.ts derives the excluded set from that table). Combat signed
 // the table 2026-09-21: the warhammer is fair on every live rung and is the first loot weapon; after the warden reach fix (combat/warden-reach)
