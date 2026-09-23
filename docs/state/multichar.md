@@ -6,7 +6,14 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-23, 21:10 (handoff)
 
-**Pick up:** nothing owed. The Witch's six are done: #602 merged to phase-r (`cd06b7f4`) and went live in Run 2 (per Lead, `a53762ef`);
+**Pick up NOW (Lead 21:1x, Dom's no-idle order):** the Witch's OWN baked family maps (Strategy's Phase M item). Her pieces wear the
+player's Leather/Gambeson/Wrap today. New branch off `phase-r`: write the bake plan, then do a first texture pass. It is NOT in tonight's runs unless it is
+READY with stills before **22:45**. Lead wants a one-line "working on:" reply (sent from the previous session at handoff).
+Starting points: other families bake per-family `<family>_iron_color/orm.jpg` in `src/assets/source/loot/`, picked up by name in
+build-warrior's loot export (the `(Iron|Cloth)$` material-name rule near "lootMaps"). Her scan's albedo is in the creatures pipeline
+(`src/assets/source/creatures/witch.*`). The built shells have ringHull UVs (u = around, v = along), so a tiling cloth/leather map is the natural first pass.
+
+**Also:** the Witch's six are done: #602 merged to phase-r (`cd06b7f4`) and went live in Run 2 (per Lead, `a53762ef`);
 **#609** (her own Body and Greaves, plus the fit fixes) is READY for Run 3 at head `d0473519`, base `phase-r`, as Lead told the Goblin lane.
 If Run 3 bounces #609, it is a rebuild only: merge phase-r, run `WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, then `node scripts/loot-layers.mjs`
 and the loot tests, then push. Next Witch work when asked: her own baked loot maps (Strategy: Phase M polish), finishers, the cast clip.
