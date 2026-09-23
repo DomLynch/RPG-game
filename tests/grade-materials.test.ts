@@ -3,8 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Color, Mesh, MeshStandardMaterial, type SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, gradeMaterial, lootId, lootPiecesOf } from '../src/characters.ts';
-import { GRADES } from '../src/grades.ts';
+import { buildWarriors, gradeMaterial, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
+import { GRADES, gradeFor } from '../src/grades.ts';
+import { LOOT, isWeaponLoot } from '../src/loot.ts';
+import { OPPONENTS, type OpponentId } from '../src/moves.ts';
+import { ROSTER } from '../src/roster.ts';
+const mat = (p: SkinnedMesh) => p.material as MeshStandardMaterial, gradeable = (p: SkinnedMesh) => !!gradeFor('Recruit', mat(p).name);
 
 // Parse a shipped GLB in Node, as tests/loot-wear.test.ts does: geometry, rig and material names; images are the browser's.
 async function parse(file: string) {
@@ -53,20 +57,35 @@ test('grade: the player\'s worn loot is graded by his rank; his own body draws a
   assert.deepEqual([now, now.map(finish)], [own, ownLook], 'the player\'s own draws keep their very materials and look: only what he wears is graded');
 });
 
-test('grade: a palette-built opponent\'s kit takes the fight tier; a creature body with a baked *Surface keeps its authored look', async () => {
-  const warrior = await parse('warrior.glb');
-  const { opponent } = buildWarriors(warrior, await parse('goblin.glb'), ['longsword', 'knife']);
-  const kept = materialsOf(opponent.anchor).filter(m => ['Bone', 'Skin', 'Heraldry', 'Gambeson'].includes(m.name));
-  opponent.grade('Recruit');
-  const goblin = materialsOf(opponent.anchor);
-  assert.deepEqual(finish(goblin.find(m => m.name === 'Steel')!), GRADES.Recruit.metal);
-  assert.deepEqual(finish(goblin.find(m => m.name === 'Leather')!), GRADES.Recruit.leather);
-  assert.deepEqual(goblin.filter(m => ['Bone', 'Skin', 'Heraldry', 'Gambeson'].includes(m.name)), kept, 'bone, skin and cloth keep their very materials');
-  assert.ok(kept.length >= 4);
-  opponent.grade('Legionary');
-  assert.deepEqual(finish(materialsOf(opponent.anchor).find(m => m.name === 'Steel')!), GRADES.Legionary.metal, 'a rank-up regrades him');
-  const centurion = buildWarriors(warrior, await parse('veteran.glb'), ['longsword', 'trident']).opponent;
-  const before = materialsOf(centurion.anchor);
-  centurion.grade('Recruit');
-  assert.deepEqual(materialsOf(centurion.anchor), before, 'the Centurion (VeteranSurface) keeps every material, his Bronze included');
+// Phase L (Strategy, 2026-09-23): the opponent wears his own loot.glb carriers, graded at the fight's tier; his own draws, a creature's
+// baked *Surface included, keep their very materials. Every opponent that offers armour is dressed, so none can throw on the way in.
+const carriersOf = (id: string) => (LOOT[id as OpponentId] ?? []).filter(l => !isWeaponLoot(l));
+test('grade: an opponent wears his own carriers at the fight tier; his body, a baked *Surface included, is never touched', async () => {
+  const warrior = await parse('warrior.glb'), pieces = lootPiecesOf((await parse('loot.glb')).scene);
+  const executioner = buildWarriors(warrior, await parse('executioner.glb'), ['longsword', 'scythe']).opponent;
+  const own = materialsOf(executioner.anchor), ownLook = own.map(finish);
+  assert.ok(own.some(m => m.name === 'ExecutionerSurface'), 'the Executioner is a creature body');
+  executioner.wear(pieces.filter(p => lootWorn(p, carriersOf('executioner'))), 'Recruit');
+  const carried = executioner.worn() as SkinnedMesh[], graded = carried.filter(gradeable);
+  assert.ok(graded.length, 'the Executioner carries gradeable pieces');
+  for (const p of graded) assert.deepEqual(finish(mat(p)), gradeFor('Recruit', mat(p).name), `${p.name} wears the Recruit grade`);
+  const recruit = graded.map(p => finish(mat(p)));
+  executioner.wear(pieces.filter(p => lootWorn(p, carriersOf('executioner'))), 'Legionary');
+  assert.notDeepEqual((executioner.worn() as SkinnedMesh[]).filter(gradeable).map(p => finish(mat(p))), recruit, 'Legionary leather is not Recruit rag & scrap');
+  const body = materialsOf(executioner.anchor).filter(m => !executioner.worn().some(w => w.material === m));
+  assert.deepEqual([body, body.map(finish)], [own, ownLook], 'his own draws keep their very materials and look, the ExecutionerSurface included');
+  const goblin = buildWarriors(warrior, await parse('goblin.glb'), ['longsword', 'knife']).opponent, goblinOwn = materialsOf(goblin.anchor);
+  goblin.wear(pieces.filter(p => lootWorn(p, carriersOf('goblin'))), 'Recruit');
+  assert.deepEqual(materialsOf(goblin.anchor).filter(m => !goblin.worn().some(w => w.material === m)), goblinOwn, 'a palette-built body is not graded either: only what he wears');
+});
+
+test('grade: every opponent that offers armour is dressed in all of it, and no rig throws on the way in', async () => {
+  const warrior = await parse('warrior.glb'), pieces = lootPiecesOf((await parse('loot.glb')).scene);
+  for (const [id, recipe] of Object.entries(ROSTER)) {
+    const ids = carriersOf(id); if (!ids.length) continue;
+    const weapon = OPPONENTS[id as OpponentId].weapon, opponent = buildWarriors(warrior, await parse(`${recipe.body}.glb`), ['longsword', weapon]).opponent;
+    opponent.wear(pieces.filter(p => lootWorn(p, ids)), 'Legionary');
+    const on = new Set((opponent.worn() as SkinnedMesh[]).flatMap(p => (p.userData.ids as string[] | undefined) ?? [lootId(p)]));
+    assert.deepEqual(ids.filter(l => !on.has(l)), [], `${id} wears every armour piece he offers`);
+  }
 });

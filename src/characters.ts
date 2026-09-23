@@ -184,7 +184,6 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
   function create(opponent: boolean) {
     const { asset, clips, weapon } = opponent && enemy ? enemy : hero, specs = attackSpecs(weapon);
     const root = clone(asset.scene), anchor = new Group(); anchor.add(root);
-    const palette: [Mesh, MeshStandardMaterial][] = [];   // the opponent's gradeable draws and their authored material (Strategy's Phase L ruling (A))
     // A re-proportioned fighter's walk cycle covers less ground than a man's (build-warrior.mjs writes `stride`, root scale × leg scale, on
     // the rig node): his locomotion clips play faster by that so the feet keep planting at the simulation's travel speed. A man's is 1.
     let stride = 1; asset.scene.traverse(o => { if (typeof o.userData.stride === 'number' && o.userData.stride > 0) stride = o.userData.stride; });
@@ -196,12 +195,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       if (object.material instanceof MeshStandardMaterial && object.material.name === 'Heraldry' && opponent && !enemy) {
         object.material = object.material.clone(); object.material.color.set('#663c32');
       }
-      if (opponent && object.material instanceof MeshStandardMaterial && gradeFor('Recruit', object.material.name)) palette.push([object, object.material]);
     });
-    // A creature-pipeline body (one baked *Surface: the Centurion, the Executioner, the new four) keeps its authored look whole, its
-    // Bronze or Leather props included (Strategy, Phase L): grading only is for the palette-built fighters.
-    let creature = false; root.traverse(o => { if (o instanceof Mesh && o.material instanceof MeshStandardMaterial && o.material.name.endsWith('Surface')) creature = true; });
-    if (creature) palette.length = 0;
     let opened: ReturnType<typeof openWaist> | undefined;
     const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>();   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
     const spectral = spectralAppearance(root);
@@ -242,9 +236,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // Wear these loot pieces (loadLoot) and nothing else: each is bound to this rig's skeleton beside his own body draw, so it follows every
       // clip; a `replace` piece hides his own draws in that slot (a helmet hides hair too); an `over` piece sits on top of them. A piece's
       // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson); the rest keep their own.
-      // The opponent's palette draws at the fight's tier (Phase L). A creature body's single baked *Surface material has no grade and keeps
-      // its authored look; the player's own draws are never graded, only what he wears.
-      grade(tier: Tier) { for (const [draw, base] of palette) draw.material = gradeMaterial(base, tier); },
+      // Phase L (Strategy, 2026-09-23): only the loot.glb pieces a rig wears are graded, at the fight's tier — the player's worn loot and
+      // the opponent's own carriers alike. A rig's own draws, a creature's baked *Surface included, are never touched.
       wear(pieces: readonly SkinnedMesh[], tier?: Tier) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
@@ -261,7 +254,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         root.traverse(object => { if (object instanceof Mesh && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
         for (const piece of pieces) {
           const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
-          const looked = tier && own instanceof MeshStandardMaterial ? gradeMaterial(own, tier) : own;   // worn at the player's rank (Phase L)
+          const looked = tier && own instanceof MeshStandardMaterial ? gradeMaterial(own, tier) : own;   // worn at the fight's tier (Phase L)
           const material = piece.userData.slot === 'Shield' && looked instanceof MeshStandardMaterial ? bothSides(looked) : looked;
           const copy = new SkinnedMesh(piece.geometry, material);
           copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
