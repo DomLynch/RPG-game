@@ -524,6 +524,41 @@ if (LOOT) {
   }
   lootOf = ''; lootSlot = '';
 }
+// The Nightborn's Greaves (Phase R, Run 3; Dom 2026-09-23: "they are all humanoids, so will have the 6 slots.. if its under a robe or
+// cloth thats fine"). Loot build only: his fight body stays byte-identical to the estoc rig (tests/weapons.test.ts), and in the fight his
+// knee boots cover the shins. A plate greave, not wraps: a steel shell over the front of the shin from the knee to the ankle, flared over
+// the kneecap, double-walled so it reads as plate from any side, with two leather bands across it. `over`: nothing hidden.
+if (LOOT) {
+  // Fitted over his own knee boots as well as the player's shins: worn as his set, the plate straps over the boot's leather (fitted to the
+  // shin alone it lay within a centimetre of the boot and cut through it); over bare shins it stands ~1.5 cm off the skin, as plate does.
+  const boots = [...parts.values()].flat().filter(g => g.userData.slot === 'nightborn:Boots');
+  if (!boots.length) throw new Error('nightborn greaves: his Boots must be loaded before they are fitted over');
+  const at = jointOf(skeleton, boneIndex), grid = triGrid([...await playerWorn(), ...boots]);
+  lootOf = 'nightborn'; lootSlot = 'Greaves';
+  for (const side of ['l', 'r']) {
+    const knee = at(`calf_${side}`), ankle = at(`foot_${side}`), axis = ankle.clone().sub(knee).normalize();
+    // The shin's front, as the Pitborn's plate: halfway between the rig's +Z and where the foot points (the rest pose toes out ~20°).
+    const toes = at(`ball_${side}`).sub(ankle).setY(0).normalize().add(new T.Vector3(0, 0, 1)).normalize();
+    const shell = (gap, stations = [.07, .16, .29, .43, .58, .73, .87], scale = t => t < .1 ? 1.05 : 1) => {
+      const hull = ringHull(grid, knee, ankle, { stations, azimuths: 24, gap, scale });
+      const p = hull.geometry.getAttribute('position'), ix = hull.geometry.index.array, kept = [];
+      for (let n = 0; n < ix.length; n += 6) {   // keep the quads (ringHull writes two triangles each) on the front half-and-a-bit of the shin: the calf stays bare
+        const c = new T.Vector3(); for (let q = 0; q < 6; q++) c.add(new T.Vector3().fromBufferAttribute(p, ix[n + q])); c.divideScalar(6);
+        const off = c.sub(knee); off.addScaledVector(axis, -off.dot(axis)).normalize();
+        if (off.dot(toes) > -.2) kept.push(...ix.slice(n, n + 6));
+      }
+      hull.geometry.setIndex(kept);
+      return hull;
+    };
+    const outer = shell(.012), inner = shell(.009).geometry, ii = inner.index.array;
+    for (let n = 0; n < ii.length; n += 3) [ii[n + 1], ii[n + 2]] = [ii[n + 2], ii[n + 1]];   // the inner wall faces the shin
+    inner.index.needsUpdate = true; inner.computeVertexNormals();
+    add(outer.geometry, steel, `calf_${side}`); add(inner, steel, `calf_${side}`);
+    for (const t of [.2, .7]) add(shell(.015, [t - .025, t + .025], () => 1).geometry, wrap, `calf_${side}`);   // leather bands across the plate, on its own arc: a full strap stood off a bare calf by the boot's thickness
+    console.log(`  nightborn greave ${side}: shell rings ${outer.rings.map(r => (r.radii.reduce((s, x) => s + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  }
+  lootOf = ''; lootSlot = '';
+}
 // Gloves (brief 14, 2026-09-22): the one slot NO opponent wears today, so it is a single SHARED piece rather than six — the first
 // customer of the shared-draw manifest ("~shared" in loot.json). Fingerless by design: a wrist cuff and a back-of-hand plate rigid to
 // hand_X, with the fingers left bare because they ANIMATE and a rigidly-bound glove over them would tear open on a fist. Fitted by

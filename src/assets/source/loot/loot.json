@@ -163,6 +163,11 @@
    ]
   },
   {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "@build:nightborn-greaves"
+  },
+  {
    "slot": "Boots",
    "layer": "replace",
    "file": "parts/level1_nightborn.glb",
