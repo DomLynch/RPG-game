@@ -13,7 +13,9 @@ morning order that had the `Maul_*` family before the gladius — dispatch is Le
    `src/assets/weapons/player/gladius.glb`, `Gladius` in `WEAPON_SLOTS` (`src/loot.ts`), `gladius` in `PLAYER_WEAPONS` — and **not**
    in `PLAYER_WEAPONS_OFFERED` (Combat's). **Before opening:** heads-up to the Veteran lane (the Centurion carries gladius + scutum at
    every rung, on his rig) and to Combat, because his pins move with it. Run the battery at **both** levels. It touches `src/moves.ts`,
-   so it lands in Window 1 **after the knife's bump to 6 (#515)** — no bump from this lane.
+   so it lands in Window 1 **after the knife's bump to 6 (#515)** — no bump from this lane. The Centurion's roster weapon line is also Window 1,
+   so the gladius PR ships **inside that window's single publish**, not as its own release (Lead, 2026-09-23). Lead confirmed this
+   order was intended: gladius before the `Maul_*` family, and the Knight/Executioner donor stays on the warhammer stand-in.
 2. **Recreate #419 (estoc reach) off trunk as a new PR** — `CONFLICTING`, 271 commits behind, and force-push is excluded. Carry the
    `ESTOC_MOVES` change forward **without** its own `RECORD_VERSION` 5→6 and `SIM_DIGEST` re-pin (Strategy: it rides the knife's 6).
    Still blocked on Combat's Nightborn-profile item; stays draft; close #419 pointing at the new one. (#473 is replaced by this PR.)
