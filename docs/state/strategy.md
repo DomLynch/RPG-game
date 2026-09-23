@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 23:20 — RUN 3b LIVE e455d850 (my curl 23:20): Witch own Body + Greaves. 3c rebuild lanes started. Nine of ten at six
+
+Lead 23:19: EXIT 0, served index == dist, rows 23/27 timed out first try and passed solo (562 s / 139 s), same as 3a. 3b was SIGTERMed once at 22:37 (killer unknown). Dom 23:0x: the Frankendom-Test-Bot load is his Codex combat experiment, leave it. Rulings: no change to 3c (#629 = #617 + #612 + #623 + #614 + #603, Phase L only if stills exist at handoff); morning item for Lead = numbers from tonight's four deploys and a proposal on rows 23/27 (CI-trusted-by-tree or load-aware timeout), Dom decides. Dom asleep from ~23:15; Lead judges 3c stills, Dom reviews live in the morning, rejects = fix PRs. **NOW:** 3c sha by curl (~00:30); 09:00 table to Dom.
+
 ## 2026-09-23 22:50 — Run 3c = PR #629 (cde1f32a, MERGEABLE, draft until FREE); 3b on 2nd attempt after a SIGTERM; Dom's test bot is the load; lanes on tomorrow's queue
 
 **Verified:** live 63c56758; 3b (e455d850, Witch only) SIGTERMed 22:37 mid-build (EXIT 143, killer unknown, Lead's report), relaunched 22:39; load 320; Dom's own Frankendom-Test-Bot (Desktop/Business, pinned to 0cb58427, 10 Chrome-for-Testing + Playwright ffmpeg since ~22:20) is a large share of the load, Dom asked 22:45, no answer yet, hands off. #603 Knight 3d29c27d MERGEABLE, un-drafted by Lead; #629 = #617 + #612 + #623 (test-only, checked) + #614 + #603, Phase L only if stills exist at handoff. At FREE: Knight (metallic 0.4 cap) + Dwarf (dwarf_greaves.glb baked) pushes, one loot.glb rebuild, quality:stop, build, check-budget, READY, publish.
