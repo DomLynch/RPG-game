@@ -109,8 +109,14 @@ ack yet:** Stats, Web, Executioner, World, Audio.
 - **Veteran** (`local_e360b41f-203f-43f3-bc1b-e9c75ae11da9`): the Centurion carries gladius + scutum at every rung for beta. The
   scutum carry pose goes in `characters.ts` once, stacked on Weapons' gladius PR. The roster weapon line is in Window 1. Cost by noon.
 - **Combat:** "once" means one BUMP per window, not one PR. The knife takes 6, and each later PR (estoc, cleaver, shield) re-pins
-  its own digest without bumping, because each PR's own CI runs `record-version-guard` on its own tree. PR A v2 does not exist
-  (#503 is still `d211709`), so build the knife on plain trunk; don't stack on a guess.
+  its own digest without bumping, because each PR's own CI runs `record-version-guard` on its own tree. **PR A v2 now EXISTS:**
+  `stats/record-accept-list-v2` @ `a0c6458`, pushed so the knife can stack on it (digest `7e8b5cd8…`, hand-verified; no
+  SIM_FILES moved between `544bcb4` and `2d614dc`). Stack the knife on it. (An earlier draft of this line said build on plain
+  trunk; that was true before Stats pushed.)
+- **Stats, reported ~06:10Z:** the tier-table re-land is `stats/gear-stats-table` @ `8d12a49`, local until green: #488 plus
+  `Shield: 0` with a dedicated test. One open failure, stated by Stats: `tests/gear-stats.test.ts:169` (the tier x slot grid)
+  failed once before the ten snapshot rows got `Shield`. The rows are patched, but the rerun is blocked by the deploy lock. Both
+  PRs open, with gates and a `record-replay-check --strict` receipt, when the lock clears.
 - **Weapons:** the gladius-before-maul order was INTENDED. It is in Strategy's own working brief ("gladius FIRST … Maul_* after,
   post-beta pace"), because the Knight is post-beta.
 - **Strategy** (its session handed off at its ceiling): one line per lane confirming the acknowledgements above.
