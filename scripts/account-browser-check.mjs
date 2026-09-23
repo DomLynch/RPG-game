@@ -114,6 +114,7 @@ try {
   failRead = true;
   await page.reload(); await ready(page); await page.locator('#journal-button').tap();
   await page.getByText('Could not read your account.', { exact: false }).waitFor();
+  assert.equal(await page.locator('#save-status').textContent(), 'Signed in · not synced', 'a failed account read never claims a save is underway (audit 2026-09-23)');
   failLogout = true; await page.locator('#account-logout').tap();
   // Supabase clears the local session even if remote revocation fails; no stale account controls may survive.
   await page.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();

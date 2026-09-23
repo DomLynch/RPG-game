@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cloudProfile, fighterDetails, readAdmin } from '../src/cloud-profile.ts';
+import { absorbCloud, cloudProfile, fighterDetails, readAdmin, type CloudProfile } from '../src/cloud-profile.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 test('cloud saves carry the editable practice details and the client-reported mark count, never device identity', () => {
@@ -60,4 +60,23 @@ test('the save queue serialises writes and coalesces to the latest profile', asy
   const failing = createSaveQueue(async () => { throw Error('conflict'); });
   assert.equal(await failing(() => ({ version: 1, id: 'd', name: 'x' })), false, 'a failed write resolves false, nothing retried here');
   assert.equal(await failing(() => ({ version: 1, id: 'd', name: 'y' })), false, 'and the queue is usable again');
+});
+
+test('an older device never lowers the account: what it writes carries the higher mark count and both sides\' loot (audit 2026-09-23)', () => {
+  const cloud: CloudProfile = { display_name: 'Aldren', encounter: 'goblin', revision: 3, victory_marks: 20, loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } } };
+  // The reproduced defect: a device that last synced at 10 marks renames the fighter; the ordinary refresh saw a difference and wrote the whole fighter.
+  const stale: Profile = { version: 1, id: 'device-a', name: 'Aldren the Bold', encounter: 'goblin', career: { victoryMarks: 10 }, loot: { owned: ['goblin.Body'], equipped: {} } };
+  const written = fighterDetails(absorbCloud(stale, cloud));
+  assert.equal(written.victory_marks, 20, 'the account\'s 20 marks survive a write from a device at 10');
+  assert.deepEqual([...written.loot.owned].sort(), ['goblin.Body', 'veteran.Helmet'], 'loot is the union: the device\'s new piece joins, the account\'s piece stays');
+  assert.equal(written.display_name, 'Aldren the Bold', 'the rename is the device\'s to send'); assert.equal(written.encounter, 'goblin');
+  assert.deepEqual(written.loot.equipped, {}, 'the equipped set stays the device\'s (unequipping is a change the device makes)');
+  // A device behind on marks alone has nothing to send once absorbed: no write, so no revision churn.
+  const behind: Profile = { version: 1, id: 'device-b', name: 'Aldren', encounter: 'goblin', career: { victoryMarks: 10 }, loot: { owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } } };
+  assert.equal(profileDiffers(absorbCloud(behind, cloud), cloud), false);
+  // Nothing on either side: no career key is invented, and an empty loot stays absent.
+  const fresh: Profile = { version: 1, id: 'device-c', name: 'Wanderer' };
+  const empty: CloudProfile = { display_name: 'Wanderer', encounter: null, revision: 1, victory_marks: 0, loot: { owned: [], equipped: {} } };
+  assert.deepEqual(absorbCloud(fresh, empty), fresh);
+  assert.equal(absorbCloud(fresh, cloud).career?.victoryMarks, 20, 'a fresh device takes the account\'s marks');
 });
