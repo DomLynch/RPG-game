@@ -8,8 +8,9 @@ skin weights) and the two maps the loot build embeds for the DwarfIron material.
   blender -b --python-exit-code 1 -P scripts/character/loot_dwarf.py -- [--family knight] [--metal 0.35] [--min-faces 120]
 
 The Knight (Brief 17) is cut the same way from his own TRELLIS.2 surface (--family knight → knight.glb, KnightIron). His BUILD is a
-uniform 1.18 root scale with no per-bone table, but his GLB's rest mesh is AT that scale (helmet top 2.14 m): ROOT_SCALE divides it back
-to a man's frame here, so his loot.json entries carry no `unscale`. Six pieces: --family knight --all --ratio 0.5.
+uniform 1.18 root scale with no per-bone table, carried on his GLB's scene root node, and his rest is an A-pose: --repose re-skins him
+onto the player's rest AND gives the exported armature the player's root scale, so his loot.json entries carry no `unscale`. Six pieces:
+  --family knight --all --repose warrior --ratio .5 --slot-ratio Arms=.4,Greaves=.4 --color-size 512
 """
 import json
 import os
@@ -19,6 +20,7 @@ from collections import defaultdict, deque
 import bmesh
 import bpy
 import numpy as np
+from mathutils import Matrix
 
 args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 METAL = float(args[args.index('--metal') + 1]) if '--metal' in args else 0.35   # smoothed metallic above this is iron
@@ -39,7 +41,6 @@ ALL = '--all' in args
 SLOTS = set(args[args.index('--slots') + 1].split(',')) if '--slots' in args else None
 SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
 OUT = 'src/assets/source/loot'
-ROOT_SCALE = {'knight': 1.18}.get(FAMILY, 1.0)   # build-warrior.mjs BUILD.knight: a uniform root scale baked into his rest mesh
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
 # Greaves, not Legs/Boots: the player's Legs draws are his kilt and his Boots his soles — iron shins and ankle plates go OVER bare
 # shins, one piece from knee to instep, like the Veteran's greaves (parts.py slot 'Greaves').
@@ -87,6 +88,11 @@ def binds(path):
 
 if REPOSE:   # re-skin his surface onto the player's rest joints: his A-pose arms turn 62° and every piece lands on the player's frame
     his, player = binds(SOURCE), binds(os.path.abspath(f'src/assets/{REPOSE}.glb'))
+    # Both GLBs carry a scene-root scale on a parent node (the player .9/.97/.97; the Knight x1.18 on top, his BUILD); the mesh and
+    # the binds are in skin space below it, so the re-skin needs no scale, but the export must sit under the PLAYER's root, not his.
+    raw = open(os.path.abspath(f'src/assets/{REPOSE}.glb'), 'rb').read()
+    gl = json.loads(raw[20:20 + int.from_bytes(raw[12:16], 'little')])
+    player_root = gl['nodes'][gl['scenes'][0]['nodes'][0]].get('scale', [1, 1, 1])
     skin = {name: player[name] @ np.linalg.inv(rest) for name, rest in his.items() if name in player}
     to_z = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])   # glTF Y-up → Blender Z-up
     V0 = len(body.data.vertices)
@@ -97,8 +103,12 @@ if REPOSE:   # re-skin his surface onto the player's rest joints: his A-pose arm
     total = np.zeros(V0)
     names = {g.index: g.name for g in body.vertex_groups}
     for v in body.data.vertices:
+        # A hand or foot vertex blends only its own slot's bones: the Knight's fists hung against his skirt, so they carry thigh
+        # weight, and blending a hand turned 62° with an unturned thigh left his gauntlets floating halfway (2026-09-23).
+        dom = max(v.groups, key=lambda g: g.weight, default=None)
+        own = slot_for(names[dom.group]) if dom and names[dom.group] in skin else None
         for g in v.groups:
-            if names[g.group] in skin:
+            if names[g.group] in skin and (own not in ('Gloves', 'Boots') or slot_for(names[g.group]) == own):
                 out[v.index] += g.weight * (skin[names[g.group]] @ gl_co[v.index])[:3]
                 total[v.index] += g.weight
     moved = total > 0
@@ -106,6 +116,8 @@ if REPOSE:   # re-skin his surface onto the player's rest joints: his A-pose arm
     out[~moved] = gl_co[~moved, :3]
     body.data.vertices.foreach_set('co', (out @ to_z.T).ravel())
     body.data.update()
+    sx, sy, sz = player_root
+    armature.matrix_world = Matrix.Diagonal((sx, sz, sy, 1))   # the player's root, whatever parent the importer made (glTF Y-up → Z-up)
 mesh = body.data
 material = mesh.materials[0]
 nodes = material.node_tree.nodes
@@ -225,7 +237,6 @@ for s, face_ids in sorted(pieces.items()):
     # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
     # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
-    bmesh.ops.scale(bm, vec=(1 / ROOT_SCALE,) * 3, verts=bm.verts)   # the feet stay on the ground: the rig's origin is between them
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
