@@ -50,6 +50,24 @@ every weapon at both levels, since every player weapon is also a warden's weapon
 **It changes `ai.ts`, so it moves `SIM_DIGEST` and needs a `RECORD_VERSION` bump** — ride the single bump to 6 (whoever is ready
 first takes it), never a second one.
 
+### DEPLOY DIED, 06:29Z: `2d614dc` killed with `EXIT=124`. FIRST THING FOR THE NEXT LEAD SESSION.
+The log ends: `Retrying release check 27 alone` -> `Deploy ceiling: no exit after 3000s in step 'release checks' — killing
+the deploy` -> `EXIT=124`. Live is still `fe0d8e0`; trunk is `52dffed` (`2d614dc` + #519 CI fix + #502). **Row 27
+(`scripts/veteran-polish-check.mjs`) is unproven: load or a real hang.** It hit 900 s in the matrix, and its solo retry then ran out
+of the deploy's total budget. **These sends were written but NOT delivered (the cross-session cap), so send them first:**
+- **Deploy:** run row 27 ALONE outside any deploy on a quiet box and note the wall time. On a normal-time pass, re-deploy `52dffed`
+  and send the sha line to Lead + Strategy. If it hangs or fails alone, it is a Veteran-lane defect: send the output to Lead and
+  do not publish around it.
+- **Veteran:** your row 27 killed the publish. Look for an unbounded wait, a page event that never fires, or an asset path broken
+  since #478/#502. That comes before the scutum pose.
+- **Backend:** save defect, PR today (spec below). **Web:** retired-replay page rides Window 1, plus the observation funnel.
+  **Stats:** `[6]` exactly, plus the gear rows in the plan today.
+- **Strategy:** the sweep 2 report (this block plus the PR list: #523 Deploy-when-green, #520 + #516 green for Deploy, #524 new
+  with `quality` red and owner unknown, #518 `plan` red since it likely carries the old apostrophe in its own workflow change, so
+  it rebases onto #519).
+**The 20-min cron sweep (`e7317592`) was DELETED at 06:30Z:** a cron-fired prompt does not reset the app's cross-session cap, so
+the sweep could look but could not message anyone, and it only added load. Re-create it only in a session that can actually send.
+
 ### Deploy `2d614dc` did NOT publish (confirmed by Lead from the log, 06:23Z)
 Release check **27/33, `veteran-polish-check.mjs`, hit the 900 s CEILING and was killed: FAILED (exit null)**. Rows 31 and 32 passed
 after it; deploy.sh was still running and live was still `fe0d8e0`. A ceiling kill on a saturated box is most likely load, not
