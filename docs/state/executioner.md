@@ -3,6 +3,25 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-23 18:45: the Knight is HELD (#594); next is the depth-aware ARM RE-WEIGHT (target 23:00 Phase L)
+
+**Now (next session):** re-weight the Knight's arms in `scripts/character/creatures.py`, then land in ONE PR: the un-hold +
+the new `knight.glb` + his six loot pieces + a MID-SWING still. Dom accepted the four new characters on live 7b277fd; "add the
+weapons" = the Knight back with a SWINGING maul.
+- **The defect:** `src/assets/knight.glb` (since 322bb1d) weighted his arms to `spine_02`: 8,482 of the vertices past |x| .25,
+  and ~220 on the arm bones. His gauntlets hang at his hips while the maul swings. Cause: my `edge = 0.185*1.18 + max(0, 1.4*1.18 - z)*.26`
+  line put the arm cut-off outside his tight arms. Diagnose with `scratchpad bones.py`-style dominant-bone histograms.
+- **Tried (branch `knight/six`, WIP 1 commit):** the default edge .27/.055 moves the arms but smears the chest like a cape;
+  edge .225/ramp .03 moves the arms but drags the skirt/belt, because his fists hang beside the skirt at the same x/z. **The fix
+  needs depth (y), or a nearest-bone-segment transfer restricted by region**, not an |x| edge. Render the check with
+  `node scripts/character-preview.mjs --src /src/assets/knight.glb --sheet 'Maul_Heavy:0,.35,.6;Maul_Slash:.4' --azimuth 60`.
+- **Loot recipe (Lead, via Nightborn):** Nightborn's weld on every path (`char/loot-weld-textures` @ 37e44a2) + his own maps
+  (no --material Steel) + decimate ratio **.5** (.12 and .3 shred) + one 512 atlas per opponent. Use `--boots` (knight/six adds it:
+  foot/ball → Boots). His pieces currently render TOO HIGH/cropped in the paperdoll: his 1.18 root is not unscaled, so fix that too.
+  No Arms/Gloves patches can exist until the arms are weighted to arm bones. LOOT cap is 3.5 MB (#585).
+- **#594 (hold)** is open against phase-r @ 01ff59e5: hold: true, scene.ts glob, ladder/graphics tests, SIM_DIGEST re-pinned
+  WITHOUT a bump (#439 rule; replay check cmp-identical). The un-hold reverts the hold and the glob line and restores the ladder tests.
+
 ## Now — 2026-09-24 (assigned by Lead, 2026-09-23 evening): the Knight to SIX takeable armour pieces, LIVE target 14:00
 
 Dom's priority 1 (via Strategy): every opponent wears and offers six takeable armour pieces plus its weapon, Recruit rag and
