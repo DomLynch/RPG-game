@@ -2,6 +2,7 @@ import { quietOneClip } from './build-quiet-one.mjs';
 import { fitVeteranNeck, textureVeteranTrident } from './veteran-finish.mjs';
 import { warriorRecipe, DWARF_BONES, GOBLIN_BONES, PROPORTION_TABLES } from './warrior-recipe.mjs';
 import { warriorAppearance } from './warrior-appearance.mjs';
+import { conformOver, jointOf, ringHull, surfaceAlong, triGrid } from './loot-fit.mjs';
 // Offline art build. Inputs: official CC0 Standard archives extracted under artifacts/source.
 // No additional packages: use the same Three.js geometry, skinning and glTF tools as the game.
 import fs from 'node:fs/promises';
@@ -146,7 +147,8 @@ const slotOf = new Map();
 const SHARED_PREFIX = '~';
 const lootPieces = new Map();   // `<opponent>.<slot>` → `~<family>.<slot>`
 let shieldStow = null;   // the shield's back transform, written onto its draws at export (the loader picks off-hand vs back by `grip`)
-let lootOf = '', lootSlot = ''; const lootLayer = new Map();   // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
+let lootOf = '', lootSlot = ''; const lootLayer = new Map(), lootConform = [];   // lootConform: manifest pieces cut from another frame, pushed out over the player once his body is loaded (loot.json `conform`)
+   // loot build only: the opponent whose pieces are being added, the slot its primitives fall into (add()'s default slot — '' in every other build, so nothing changes), opponent:slot → 'replace' | 'over'   // loot build: the opponent whose pieces are being added, and the slot primitives fall into; '' otherwise
 function add(g, material, bone, x = 0, y = 0, z = 0, rotation = 0, slot = lootSlot) {
   if (g.index) g = g.toNonIndexed();
   g.userData.slot = LOOT ? `${lootOf}:${slot}` : slot;   // loot: draws group per (opponent, slot, material)
@@ -346,6 +348,7 @@ if (LOOT) {
         }
         if (entry.unscale) { if (!o.isSkinnedMesh) throw new Error(`${entry.file}: unscale needs skin weights on ${o.name}`); unscaler(entry.unscale)(g); }
         add(g, material, o.userData.bone, 0, 0, 0, 0, entry.slot); taken++;
+        if (entry.conform) lootConform.push({ id: `${opponent}.${entry.slot}`, g: parts.get(material).at(-1) });
       });
       if (!taken && !entry.optional) throw new Error(`loot ${opponent}: nothing matched in ${entry.file} (${JSON.stringify({ slots: entry.slots, names: entry.names })})`);
     }
@@ -363,6 +366,13 @@ async function playerWorn() {
     asset.scene.updateMatrixWorld(true); asset.scene.traverse(o => { if (o.isMesh) list.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); });
   }
   return (playerWornCache = list);
+}
+// loot.json `conform` (Phase R, 2026-09-23): a piece cut from an opponent's own frame (the Pitborn's broader sculpt, the Shieldmaiden's
+// female body) is pushed out along its normals until it clears the player's body and level-1 kit, so it sits on him, not through him.
+if (LOOT && lootConform.length) {
+  const grid = triGrid(await playerWorn()), report = new Map();
+  for (const { id, g } of lootConform) { const r = conformOver(grid, g), was = report.get(id) ?? { count: 0, vertices: 0, most: 0 }; report.set(id, { count: was.count + r.count, vertices: was.vertices + r.vertices, most: Math.max(was.most, r.most) }); }
+  for (const [id, r] of report) console.log(`  conform ${id}: ${r.count}/${r.vertices} positions pushed out, most ${(r.most * 100).toFixed(1)} cm`);
 }
 // The goblin's trophies (owner's brief): a bone-and-string necklace — five teeth and a finger on a cord that hugs the collar, rigid to spine_03 —
 // and one iron bracer that doesn't match on the left forearm (the sword hand stays free): a tapered sleeve with two rivet bands, rigid to
@@ -401,16 +411,55 @@ if (fighter === 'goblin' || LOOT) {
   console.log(`  goblin trophies: cord front ${ring[0].toArray().map(v => v.toFixed(3))}, nape ${ring[18].toArray().map(v => v.toFixed(3))}`);
   if (LOOT) { lootOf = ''; lootSlot = ''; }
 }
+// The Pitborn's rag and scrap (Phase R, Lead 2026-09-23: six takeable pieces per opponent, Recruit rag and scrap first). A pit brute's
+// kit is what he tore off the dead: a dented iron skullcap, rag wraps up the shins with a scrap plate lashed over each, rag foot wraps.
+// Every piece is fitted by ray to whoever wears it (scripts/loot-fit.mjs) — his own body in pitborn.glb, the player's body and level-1
+// kit in loot.glb — so one recipe serves both files. Helmet `replace` (hides hair); Greaves and Boots `over`: rags wound over whatever is
+// on the shin or foot, so they hide nothing and can never undress him (tests/loot.test.ts). Material at Phase L: base palette tonight.
+if (fighter === 'pitborn' || LOOT) {
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(LOOT ? await playerWorn() : [...parts.values()].flat());
+  if (LOOT) lootOf = 'pitborn';
+  // Helmet: a dome of rings from the crown down to a rim tilted brow-high at the front, nape-low at the back (the axis leans back 11°).
+  if (LOOT) lootSlot = 'Helmet';
+  const head = at('Head'), up = new T.Vector3(0, 1, -.2).normalize(), crown = surfaceAlong(grid, head, up);
+  if (!crown) throw new Error('pitborn helmet: no crown above the Head joint');
+  const skull = ringHull(grid, head, head.clone().addScaledVector(up, crown), { stations: [.54, .64, .74, .84, .92, .97], azimuths: 20, gap: .006, cap: true, up: new T.Vector3(0, 0, 1) });
+  add(skull.geometry, steel, 'Head');
+  const rim = ringHull(grid, head, head.clone().addScaledVector(up, crown), { stations: [.52, .58], azimuths: 20, gap: .012, up: new T.Vector3(0, 0, 1) });
+  add(rim.geometry, wrap, 'Head');   // the rag lining showing under the rim
+  console.log(`  pitborn helmet: crown ${crown.toFixed(3)} m above Head, rim radii ${skull.rings[0].radii.map(r => r.toFixed(3)).join(' ')}`);
+  for (const side of ['l', 'r']) {
+    // Greaves: rag wound knee to ankle, and a scrap plate over the shin's front, rigid to the calf.
+    if (LOOT) lootSlot = 'Greaves';
+    const knee = at(`calf_${side}`), ankle = at(`foot_${side}`);
+    const wrapHull = ringHull(grid, knee, ankle, { stations: [.1, .26, .42, .58, .74, .9], azimuths: 14, gap: .005 });
+    add(wrapHull.geometry, wrap, `calf_${side}`);
+    // The shin's front is where the kneecap faces: halfway between the rig's +Z and where the foot points (the rest pose toes out ~20°).
+    const toes = at(`ball_${side}`).sub(ankle).setY(0).normalize().add(new T.Vector3(0, 0, 1)).normalize(), mid = new T.Vector3().lerpVectors(knee, ankle, .42), front = surfaceAlong(grid, mid, toes, { far: .2 });
+    if (!front) throw new Error(`pitborn greaves: no shin in front of ${side}`);
+    const shinPlate = new T.SphereGeometry(1, 16, 10).scale(.042, .105, .016).rotateY(Math.atan2(toes.x, toes.z)), plateAt = mid.clone().addScaledVector(toes, front + .017);
+    add(shinPlate, steel, `calf_${side}`, plateAt.x, plateAt.y, plateAt.z);
+    // Boots: rag foot wraps from the ankle to the ball, toes left out.
+    if (LOOT) lootSlot = 'Boots';
+    const ball = at(`ball_${side}`), foot = ringHull(grid, ankle, ball, { stations: [-.12, .1, .32, .54, .76, .96], azimuths: 14, gap: .005, far: .2 });
+    add(foot.geometry, wrap, `foot_${side}`);
+    console.log(`  pitborn ${side}: shin rings ${wrapHull.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}, foot rings ${foot.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  }
+  if (LOOT) { lootOf = ''; lootSlot = ''; }
+}
 // Gloves (brief 14, 2026-09-22): the one slot NO opponent wears today, so it is a single SHARED piece rather than six — the first
 // customer of the shared-draw manifest ("~shared" in loot.json). Fingerless by design: a wrist cuff and a back-of-hand plate rigid to
 // hand_X, with the fingers left bare because they ANIMATE and a rigidly-bound glove over them would tear open on a fist. Fitted by
 // raycast from the hand's own axis at every station, so it sits on the hand whatever is underneath. `over`: the player has no Gloves
 // draws of his own, so this hides nothing and #434's coverage rule is satisfied by construction rather than by measurement.
-if (LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Gloves`)) {
+// Phase R: an opponent whose six pieces include the shared gloves WEARS them in his own fight build too, fitted to his own hands
+// (KIT_GLOVES; the loot build fits the player's, as before).
+const KIT_GLOVES = ['pitborn'];
+if ((LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Gloves`)) || KIT_GLOVES.includes(fighter)) {
   const at = name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
-  const worn = (await playerWorn()).map(g => new T.Mesh(g, new T.MeshBasicMaterial({ side: T.DoubleSide })));
+  const worn = (LOOT ? await playerWorn() : [...parts.values()].flat()).map(g => new T.Mesh(g, new T.MeshBasicMaterial({ side: T.DoubleSide })));
   const ray = new T.Raycaster(); ray.far = .2;
-  lootOf = SHARED_PREFIX + 'kit'; lootSlot = 'Gloves';
+  if (LOOT) { lootOf = SHARED_PREFIX + 'kit'; lootSlot = 'Gloves'; }
   for (const side of ['l', 'r']) {
     const wrist = at(`hand_${side}`), knuckle = at(`middle_01_${side}`), axis = knuckle.clone().sub(wrist), span = axis.length(); axis.normalize();
     const up = Math.abs(axis.y) > .9 ? new T.Vector3(0, 0, 1) : new T.Vector3(0, 1, 0);
