@@ -25,7 +25,8 @@ Strategy's ruling:
   `victory_marks` and `owned` are caches. (c) isn't needed.
 - **Grandfather, don't reset.** A new `account_seed(user_id uuid pk references auth.users, marks int check 0..100000, owned jsonb,
   seeded_at)`, **written only by this migration** with `insert … select` from `fighter_profiles` at apply time. **Never hardcode** a
-  real uuid or loot in git. RLS on, no client grant (owner-select only if the client needs it). One-off by construction: no function or
+  real uuid or loot in git. (Strategy's first ruling said "documented in the migration with the seeded values". Backend specified
+  apply-time `insert … select` instead, and Strategy then accepted it "as specified … keeps the uuid and loot out of git". No conflict.) RLS on, no client grant (owner-select only if the client needs it). One-off by construction: no function or
   grant can re-run it. The post-apply receipt is a non-identifying summary ("1 account seeded, marks N, K pieces").
 - Server marks = `seed.marks + count(verified ladder wins)`. Server owned = `seed.owned ∪ awards`. **`awards` stays pure**: every row is
   backed by a verified record, and no claims are faked for the seed.
@@ -34,7 +35,8 @@ Strategy's ruling:
 - The PR goes through **Lead**, with the migration and the tests. **Poster binding is NOT in this migration.** It's PR B's
   record-format change (account id in the bytes, the verifier compares `record.owner` to `claim.user_id`), Lead's item. Interim: global
   unique hash plus claiming before Share.
-- **Four more tests (Strategy), each mutation-tested with the probe first proving its mutation landed:** (1) seed: a fixture profile →
+- **Four more tests (names Strategy's verbatim: "seed, verified win, guest convert, forged cache rejected"; the assertions below are
+  Backend's concretisation), each mutation-tested with the probe first proving its mutation landed:** (1) seed: a fixture profile →
   seeded exactly those, once; (2) verified win: server marks = seed + 1, and the drop = `dropFor` at the server subRank; (3) guest convert:
   no seed row → marks 0, then 1 after the first verified win; (4) forged cache: the client writes `victory_marks = 100000` and an Origin
   piece into `fighter_profiles.loot` → server marks and owned unchanged.
@@ -51,8 +53,7 @@ Backend's review, accepted in full:
   and `owned` both become caches computed from verified data. The client posts a claim for **every** ladder win, before Share is offered.
   **(b), "rung in the record", does NOT close the hole until deliverable 5**: a wrong rung replays a different fight only once the sim
   reads the tier. That was my error, and Backend caught it.
-- **Waiting on Strategy/Dom:** whether existing marks and `owned` are grandfathered or reset (live has ~1 `fighter_profiles` row).
-  Also for Strategy/Lead: record-to-account binding (B can claim A's shared kill; the same hole is in `daily_results` today, ticket
+- **RULED: grandfather** (see Strategy's ruling above). Still for Strategy/Lead: record-to-account binding (B can claim A's shared kill; the same hole is in `daily_results` today, ticket
   it), and guests holding no awards.
 - Backend's DB-check list is the acceptance criteria, every item mutation-tested: client can't write `awards` or flip a claim's
   `verified`; verifier can't award a nonexistent claim or award twice; owner sees only their own awards, anon sees none; duplicate
