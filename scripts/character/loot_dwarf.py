@@ -266,6 +266,9 @@ for s, face_ids in sorted(pieces.items()):
     bmesh.ops.delete(bm, geom=loose, context='FACES')
     for v in bm.verts if s in SHIFTS else ():
         v.co += Vector(SHIFTS[s])
+    # TRELLIS winds its surface about half inward (Goblin's check, 2026-09-23: Arms 57 %, Body 51 %, Boots 47 % facing into the skin), and
+    # the loot material is single-sided, so half a piece never drew. Wind each welded piece outward before export.
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new(f'{FAMILY}_{s.lower()}')
     bm.to_mesh(me)
     bm.free()
