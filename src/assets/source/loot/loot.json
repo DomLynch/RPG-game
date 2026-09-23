@@ -421,17 +421,8 @@
   },
   {
    "slot": "Body",
-   "layer": "replace",
-   "file": "parts/level1_shieldmaiden.glb",
-   "kit": "shieldmaiden",
-   "names": [
-    "tunic",
-    "baldric",
-    "belt",
-    "buckle",
-    "studs"
-   ],
-   "conform": true
+   "layer": "over",
+   "file": "@build:witch-bodice"
   },
   {
    "slot": "Arms",
