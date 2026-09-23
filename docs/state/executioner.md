@@ -3,6 +3,19 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-24 (assigned by Lead, 2026-09-23 evening): the Knight to SIX takeable armour pieces, LIVE target 14:00
+
+Dom's priority 1 (via Strategy): every opponent wears and offers six takeable armour pieces plus its weapon, Recruit rag and
+scrap first. **This lane owns the Knight:** Helmet, Body, Arms, Gloves, Greaves, Boots (he keeps `knight.Maul`). The
+Executioner's own set is already six.
+- **Build on Nightborn's WELDED pipeline once it lands (~09:00)**: the seam weld is on `char/plague-doctor-loot` @ `817828e`,
+  plus textures. **No quick cuts**: the unwelded `loot_dwarf.py --family knight --ratio .12 --material Steel` cut renders as
+  shards (see the 17:0x correction below).
+- **One PR.** Its body lists the six pieces, triangle counts, loot.glb size (check-budget, cap 2.0 MB gzip), and a
+  same-frame phone still of the Knight WEARING them. `node scripts/loot-layers.mjs` must be green, and look at its renders
+  before pushing.
+- Open at handoff: `record-version-guard` is red on roster-v0 (RECORD_VERSION 7, sim digest moved). Combat's bump; not this lane's.
+
 ## Now — 2026-09-23 16:40: the KNIGHT is on roster-v0 (beta), complete
 
 **Correction 17:0x — roster-v0 @ c725dce: knight.Helmet + knight.Body are PULLED (Lead).** loot-layers.test was red on
