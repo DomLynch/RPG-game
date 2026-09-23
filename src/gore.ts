@@ -52,7 +52,7 @@ export function createSplatPool(scene: THREE.Scene, splatTexture: THREE.Texture 
       splat.mesh.position.set(target.x, 0.022 + (splatIndex % 12) * 0.0001, target.z);
       splat.mesh.scale.set(0.22 + (splatIndex % 3) * 0.05, 0.13 + (splatIndex % 4) * 0.035, 1);
       splat.mesh.rotation.z = splatIndex * 2.4;
-      splat.age = 0; splat.dark = bloodMode === 'dark'; splat.pool = false; if (maps) multiplyOnto(splat.mesh.material, shape(false, splatIndex));
+      splat.age = 0; splat.dark = bloodMode === 'dark'; splat.pool = false; if (maps) multiplyOnto(splat.mesh.material, shape(false, splatIndex >> 1));   // >> 1: off the scale terms' period, so a shape never keeps one aspect
       splat.mesh.material.color.set(photo ? FLOOR_FRESH : tone(bloodMode));
     },
     // A kill: the corpse keeps pooling after the splashes fade (cleared on rematch like everything else).
@@ -344,10 +344,11 @@ export function createBodyWounds(scene: THREE.Scene, splatTexture: THREE.Texture
   if (typeof document !== 'undefined') {
     const loader = new THREE.TextureLoader();
     const srgb = (t: THREE.Texture) => { t.colorSpace = THREE.SRGBColorSpace; return t; };
-    const files = [BLOOD_TEXTURES.drip, BLOOD_TEXTURES.dripNormal, BLOOD_TEXTURES.floorSplash, ...WOUND_ART.flatMap((a) => [a.map, a.normal])];
-    Promise.all(files.map((f) => loader.loadAsync(BLOOD_ASSET(f)))).then(([drip, dripNormal, floor, ...wounds]) => {
-      srgb(drip); srgb(floor); photo = true;
-      for (const spot of spots) multiplyOnto(spot.mesh.material, floor);   // the drop spots stain the sand like the splashes
+    const files = [BLOOD_TEXTURES.drip, BLOOD_TEXTURES.dripNormal, ...WOUND_ART.flatMap((a) => [a.map, a.normal]), ...FLOOR_SPLASHES];
+    Promise.all(files.map((f) => loader.loadAsync(BLOOD_ASSET(f)))).then(([drip, dripNormal, ...rest]) => {
+      const wounds = rest.slice(0, WOUND_ART.length * 2), floors = rest.slice(WOUND_ART.length * 2);
+      srgb(drip); floors.forEach(srgb); photo = true;
+      spots.forEach((spot, i) => multiplyOnto(spot.mesh.material, floors[i % floors.length]));   // the drop spots stain the sand like the splashes, each its own shape
       art = WOUND_ART.map((_, i) => ({ map: srgb(wounds[i * 2]), normal: wounds[i * 2 + 1] }));
       for (const side of fighters) for (const mark of side) {
         wear(mark);

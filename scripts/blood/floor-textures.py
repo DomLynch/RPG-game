@@ -66,7 +66,7 @@ def texture(size, seed, lobes, body, spatter):
 
 # Several shapes of each (owner 2026-09-23: "non symmetrical and differentiated per blob"): the pool hands them out in turn, so
 # two stains side by side are never the same silhouette. The first of each keeps the old file name.
-for i, seed in enumerate((190923, 51187)):
+for i, seed in enumerate((88001, 51187)):   # 190923 kept two tapered points on its right edge (Finishers review of #605)
     texture(512, seed, (2, 3, 5, 7), .6, 260).save(OUT + 'floor-pool' + ('-' + 'abcd'[i] if i else '') + '.png', optimize=True)
 for i, seed in enumerate((230919, 77421, 90313, 12457)):
     texture(256, seed, (2, 3, 4, 6), .3 + .03 * i, 90 + 25 * i).save(OUT + 'floor-splash' + ('-' + 'abcd'[i] if i else '') + '.png', optimize=True)
