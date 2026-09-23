@@ -13,6 +13,9 @@ Starting points: other families bake per-family `<family>_iron_color/orm.jpg` in
 build-warrior's loot export (the `(Iron|Cloth)$` material-name rule near "lootMaps"). Her scan's albedo is in the creatures pipeline
 (`src/assets/source/creatures/witch.*`). The built shells have ringHull UVs (u = around, v = along), so a tiling cloth/leather map is the natural first pass.
 
+**Lock rule (Lead 21:2x, Dom "no rest or breaks"):** don't wait for a FREE broadcast. Check `~/.claude/state/deploy_in_flight.json` yourself;
+if it is absent, run bakes/stills at once; while it is held, write code.
+
 **Also:** the Witch's six are done: #602 merged to phase-r (`cd06b7f4`) and went live in Run 2 (per Lead, `a53762ef`);
 **#609** (her own Body and Greaves, plus the fit fixes) is READY for Run 3 at head `d0473519`, base `phase-r`, as Lead told the Goblin lane.
 If Run 3 bounces #609, it is a rebuild only: merge phase-r, run `WARRIOR_LOOT=1 node scripts/build-warrior.mjs`, then `node scripts/loot-layers.mjs`
