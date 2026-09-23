@@ -1558,7 +1558,10 @@ dialog .scorecard-table tr:last-child td { color: var(--jf); font-weight: 600; }
 .doll:has(#slot-head[data-loot='executioner.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/executioner.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='goblin.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/goblin.Arms.webp); }
 .doll:has(#slot-chest[data-loot='goblin.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/goblin.Body.webp); }
+.doll:has(#slot-feet[data-loot='goblin.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/goblin.Boots.webp); }
 .doll:has(#slot-hands[data-loot='goblin.Gloves']) .doll-layer[data-layer='hands'] { background-image: url(/game/img/loot/goblin.Gloves.webp); }
+.doll:has(#slot-legs[data-loot='goblin.Greaves']) .doll-layer[data-layer='legs'] { background-image: url(/game/img/loot/goblin.Greaves.webp); }
+.doll:has(#slot-head[data-loot='goblin.Helmet']) .doll-layer[data-layer='head'] { background-image: url(/game/img/loot/goblin.Helmet.webp); }
 .doll:has(#slot-arms[data-loot='nightborn.Arms']) .doll-layer[data-layer='arms'] { background-image: url(/game/img/loot/nightborn.Arms.webp); }
 .doll:has(#slot-chest[data-loot='nightborn.Body']) .doll-layer[data-layer='chest'] { background-image: url(/game/img/loot/nightborn.Body.webp); }
 .doll:has(#slot-feet[data-loot='nightborn.Boots']) .doll-layer[data-layer='feet'] { background-image: url(/game/img/loot/nightborn.Boots.webp); }

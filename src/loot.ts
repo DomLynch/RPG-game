@@ -45,7 +45,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   // His Body is the rag sash and belt worn `over` the player's tunic: a sash covers 26 % of a tunic, so as a `replace` it would undress him (#434, tests/loot.test.ts).
   pitborn: ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves', 'pitborn.Cleaver'],
   dwarf: ['dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],   // Helmet/Body/Arms held (Lead, 2026-09-23 18:4x): the metallic-mask cut left shards; re-cut follows
-  goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
+  goblin: ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves', 'goblin.Knife'],   // Phase R: the scrap cap, iron shin plates and rag foot bindings
   knight: ['knight.Maul'],   // his Helmet and Body (the Recruit-2 carriers) come post-beta: a .12 cut on untextured Steel read as shards (UV-seam split)
   shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A); the gladius is an equip file, not a draw
   plaguedoctor: ['plaguedoctor.Longsword'],   // Strategy 2026-09-23: every rung offers its weapon, the longsword included (player/longsword.glb is the hero's own SwordDrawn)
