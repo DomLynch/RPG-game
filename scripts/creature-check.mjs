@@ -36,7 +36,7 @@ async function geometryOnly({ doc, bin }) {
   return new GLTFLoader().parseAsync(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength), '');
 }
 const receipts = [];
-for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'source/backups/veteran-v1'], ['dwarf', 'source/creatures/dwarf-donor'], ['executioner', 'source/backups/executioner-v5'], ['veteran', 'source/backups/veteran-v1'], ['plaguedoctor', 'warrior']].filter(([id]) => !ROSTER[id].hold).filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
+for (const [family, base] of [['minotaur', 'pitborn'], ['wraith', 'nightborn'], ['werewolf', 'pitborn'], ['skeleton', 'source/backups/veteran-v1'], ['dwarf', 'source/creatures/dwarf-donor'], ['executioner', 'source/backups/executioner-v5'], ['veteran', 'source/backups/veteran-v1'], ['plaguedoctor', 'warrior'], ['knight', 'source/creatures/knight-donor']].filter(([id]) => !ROSTER[id].hold).filter(([id]) => process.argv.length < 3 || process.argv.slice(2).includes(id))) {
   const [raw, baseRaw, sourceRaw] = await Promise.all([`src/assets/${family}.glb`, `src/assets/${base}.glb`, `src/assets/source/creatures/${family}.glb`].map(p => fs.readFile(p)));
   const output = glb(raw), original = glb(baseRaw), source = glb(sourceRaw), { doc } = output;
   const weaponKind = ROSTER[family].weapon;

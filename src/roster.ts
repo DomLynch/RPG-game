@@ -30,6 +30,11 @@ export const ROSTER = {
   // copied verbatim (the brief's closest fit to poke-and-withdraw) until Combat's battery sets his own. Last rung, so no existing career shifts. Id has no underscore:
   // loot_claims.opponent is ^[a-z]{1,32}$ (supabase/migrations/202609230001_server_awards.sql).
   plaguedoctor: { name: 'the Plague Doctor', body: 'plaguedoctor', rig: 'hero', archetype: 'plagueDoctor', weapon: 'longsword', finishers: ['plainDeath'] },   // finishers: none validated on this body yet (the Dwarf rule); the harness pass adds them
+  // The Knight (Brief 17; owner 2026-09-23 via Lead and Strategy: launch → beta). A TRELLIS.2 body on a donor of the hero rig at
+  // BUILD.knight's 1.18 (build-creatures.mjs knight), the reference's baked maul cut away. He carries the WARHAMMER as the maul's
+  // stand-in until Weapons' Maul_* family lands (identical reach, same crown height). Archetype `knight` is the Executioner's row copied
+  // verbatim at his own scale until Combat's battery sets his own. Last rung, so no existing career shifts.
+  knight: { name: 'the Knight', body: 'knight', rig: 'hero', archetype: 'knight', weapon: 'warhammer', finishers: ['plainDeath'] },   // finishers: none validated on this body yet (the Dwarf rule); the harness pass adds them
 } as const satisfies Record<string, { name: string; body: string; rig: RigId; archetype: string; weapon: WeaponId; finishers?: readonly FinisherId[]; blood?: false; hold?: true }>;
 export type OpponentId = keyof typeof ROSTER;
 export function supportsFinishers(id: OpponentId, finisher?: FinisherId | null): boolean {

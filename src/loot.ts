@@ -45,6 +45,7 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   pitborn: ['pitborn.Arms', 'pitborn.Gloves', 'pitborn.Cleaver'],   // no chest piece: he wears a rag sash, not a tunic (a `replace` piece must not undress the player — tests/loot.test.ts)
   dwarf: ['dwarf.Greaves', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Body', 'goblin.Arms', 'goblin.Gloves', 'goblin.Knife'],
+  knight: ['knight.Warhammer'],   // his Helmet and Body (the Recruit-2 identity carriers) join when their loot.glb draws are cut
 };
 // The rung each piece is first worn from (the kit floor; server awards read it through src/awards.ts kitAt). Data, not a parameter:
 // filling it is a data change, no schema or code change. Empty = every piece worn from Recruit (beta ruling 2026-09-23); the values

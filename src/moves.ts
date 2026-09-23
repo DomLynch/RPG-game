@@ -543,6 +543,9 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // health and poise. His arc is the scythe's (reap 1.40–2.10 m, a dead band inside 1.4 m, the shaft guard). He carries the
   // Veteran's brain (PROFILES); a profile of his own is the combat lane's call.
   executioner: { scale: 1.36, health: 160, poise: 12, profiles: PROFILES },
+  // The Knight: PLACEHOLDER — a verbatim copy of the Executioner's archetype with only `scale` changed, to BUILD.knight's 1.18 (the
+  // provisional tie-break on his measured 0.367 shoulder ratio, Brief 17). His own tuning is the combat lane's (re-pin, 2026-09-23).
+  knight: { scale: 1.18, health: 160, poise: 12, profiles: PROFILES },
 };
 
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) =>
