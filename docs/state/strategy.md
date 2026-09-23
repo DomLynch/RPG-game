@@ -2,6 +2,14 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-23 20:05 — Run 2 grew to four (#604 at 20:30); Phase L = opponent.wear() #606 gated; ARENA 2 + 3 briefed (World, own run after Phase L)
+
+**Run 2 (#604, Deploy 20:30):** Shieldmaiden #595, Goblin #596, Plague Doctor #601 (re-cut in rest pose), Witch #602 (ring-hull hood/bracers/boots); four stills with Dom; loot ≈ 2.35 / 3.5 MB. **Run 3 (PR READY ≤ 22:15, Auditer integrates phase-r-int from 21:30):** Dwarf Helmet #607 READY, Dwarf Body+Arms 21:30, Knight #603 six on KnightIron, Witch own Body+Greaves 21:15, Nightborn Greave (Pitborn) 21:45, floor blood #605, Phase L baseline #589 (check 5 was a flake, green 35872913651) + opponent.wear() #606 (Stats, DRAFT). 817828e already on phase-r as d7ad353f.
+
+**Rulings 19:5x–20:0x:** opponent.wear() GO tonight, gated: code 21:00, 3-opponent stills at Recruit + Legionary by 21:30 (one *Surface body), no z-fighting, per-fight 12 MB cap NOT raised → split loot per opponent and count what the fight loads; not green by 21:00 → Run 4 tonight, baseline ships Run 3. Witch on player Leather/Gambeson/Wrap accepted; own bake = named Phase M polish. Never gate merge/publish on CI green: started run + local rows. Panel/paperdoll per-tier thumbnails = Run 4. Dom 19:3x: humanoid = six slots, a piece under a robe/cloth counts as worn.
+
+**NEW BRIEF (Dom 20:0x): Arena 2 + Arena 3 on rotation.** World lane, own branch now, PR 09-24 12:00, own run after Phase L. Rotation = ladder band (1–3 / 4–7 / 8–10) behind one seam so per-fight random is a one-line switch; Dom can override. Zero sim change, inside per-fight + dist caps, A/B labelled stills per arena to Dom first. **NOW:** verify #604 sha ~20:45; 21:00 split answer; 21:30 Phase L stills to Dom; 22:30 Run 3 sha; Run 4 tonight if anything slips.
+
 ## 2026-09-23 19:20 — MICRO-MANAGE MODE (Dom 19:1x: "get it live", "micro manage the lead dev", "the lead dev manages all the other devs including deploy", "get it done"). RUN 1 LIVE 545ac8ec
 
 **Mode:** Strategy manages Lead directly (15-min lines from 19:30); Lead manages every lane incl. Deploy. **LIVE 545ac8ec** (Lead 19:2x, my curl 19:16): #600 phase-r batch = weld #590, Pitborn six, Dwarf Greaves+Boots+Gloves, Knight hold #594, targeted stop gate #593, doll height #598, plus #599. Release row 23 (finisher blood gate) failed once under load ~80 (WebGL context), passed solo retry: ruled LOAD, not defect.
