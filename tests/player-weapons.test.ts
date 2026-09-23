@@ -88,8 +88,16 @@ const KNOWN_UNFAIR = [
   // The estoc's four rows (goblin ×3, dwarf hard) LEFT on 2026-09-23 when Weapons put its move table on its blade's real reach (+0.30 m,
   // #532) — every warden had misjudged its point. The Nightborn wields it, so the same reach made him swing himself out; his aggression
   // (normal .6 → .55, hard .75 → .65, src/moves.ts) holds every weapon's row against him inside the cap with a margin of 4 or more.
+  // The Centurion (#547, 2026-09-23) fights the gladius, not the trident, and two rows came with him. Both are fixed in bump 8 (#550's
+  // publish), which may not ship while either is still here (Lead + Strategy, 2026-09-23).
+  'cleaver vs veteran normal: charged heavy only wins 16/24',
   'cleaver vs executioner normal: light spam wins 18/24',   // was 17/24: moved by the SCYTHE's thrust recovery 18 -> 30 (2026-09-22), because the Executioner WIELDS the scythe — the row is over the cap either way, and its cause is unchanged (his read of a 22-tick tell)
+  'knife vs veteran normal: thrust from range wins 23/24',   // was 5/24 on the trident Veteran. Fixed in bump 8 (#550's publish); the knife stays offered meanwhile (OFFERED_DESPITE below)
 ];
+// The ONE row an offered weapon may carry, by name and number (Lead ruling (B), upheld by Strategy, 2026-09-23 14:2x): the knife was
+// offered before the Centurion's gladius made this row, and no flip may un-offer a weapon the player can already use. It is not a waiver
+// of offered-means-fair: any other offered weapon's row, or this row at any other number, still fails. Bump 8 must remove it.
+const OFFERED_DESPITE = ['knife vs veteran normal: thrust from range wins 23/24'];
 
 test('weapon flip: every player weapon meets every live rung by the rung\'s caps; the over-cap pairings are exactly the signed snapshot, and only weapons with no row are offered [slow]', () => {
   const seeds = 24, over: string[] = [];
@@ -108,7 +116,7 @@ test('weapon flip: every player weapon meets every live rung by the rung\'s caps
   // set, the stack is HELD, not merged — the new weapon waits for the row to go away rather than trading a live one for a shelf one.
   // And more generally: when this test forces a membership change you would not choose, that is the signal to stop and ask, not to comply.
   // It is telling you a product decision is required; it is not making that decision for you.
-  const unfair = new Set(over.map(row => row.split(' vs ')[0]));
+  const unfair = new Set(over.filter(row => !OFFERED_DESPITE.includes(row)).map(row => row.split(' vs ')[0]));
   for (const weapon of PLAYER_WEAPONS_OFFERED) { assert.ok(PLAYER_WEAPONS.includes(weapon), `${weapon} is a player weapon`); assert.ok(!unfair.has(weapon), `${weapon} is offered but has a pairing over a cap`); }
   for (const weapon of PLAYER_WEAPONS) if (!unfair.has(weapon)) assert.ok(PLAYER_WEAPONS_OFFERED.includes(weapon), `${weapon} is fair on every rung and must be offered`);
 });
