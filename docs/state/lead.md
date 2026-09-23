@@ -27,7 +27,9 @@ not pushed, and needs Backend's re-OK when it is.
 Veteran default loses all 3 scripted duels on v6, so always use goblin. **NOT run:** knife offered, tap-to-take + Undo, declined
 survives a refresh. **Strategy ruled at 13:5x: make it a scripted check.** Web writes `scripts/loot-smoke-check.mjs` (a PR by 16:00),
 and the Auditer wires it as a release row. Meanwhile Dom plays a knife duel on his phone. Next batch: #540 and #537 are on trunk; #541 #542 #544
-#546 (+#534, #539) publish as one run, and its sha line goes to Strategy.
+#546 (+#534, #539) publish as one run, and its sha line goes to Strategy. #549 (droplets, READY) merges right after #544, retargeted to trunk.
+**#547 (Veteran, `28a0fd0`, on #543):** swap + scutum + `veteran.Gladius` loot are in; 12 group-(a) sim-side reds await Combat's
+re-pin. `veteran.Trident` is kept as a RETIRED_LOOT id (upheld: cleanLoot would otherwise delete earned pieces).
 **Addressing lanes:** send to ListAgents rows as `"<exact name> [ref]"`, or reply to a `uds:` from-address. Both skip Desktop's
 10-send cap.
 
