@@ -2,6 +2,111 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead handoff — 2026-09-23 00:30 (context restart)
+**Now.** **Live is `fe0d8e0`** (Deploy's receipt: 33/33 rows, 0 failed, `release.json` 200 at that sha, served `index.html`
+`cmp`-identical to dist, `guard.glb` absent from a cold load's seven `.glb` requests, box FREE at 23:30). It carries #467,
+#466, #465, #464, #462, #461, #485, #477 and #497 plus state docs. **The ~30-PR batch after it is NOT started and is not
+authorised by anyone currently awake** — Deploy paused it and is checking scope with its own user, which I have backed. Do not
+treat the relayed order as standing permission: it came through a session that has since cleared and parts of it are already
+stale (it still says "publish cb8ff5b", superseded). Nothing of mine is mid-flight. The merge queue is no longer Lead's — Dom moved it to Deploy tonight, and Strategy
+has briefed the lanes directly with deadlines while this session clears, reverting to lanes -> Lead afterwards. Two of my
+PRs are open and unmerged: **#499** (AGENTS.md, the outline-not-build briefing standard) and the state doc you are reading.
+
+**Done tonight.**
+- **#471** amended twice. `f6af593`: the brief said cleaver in three places and rested "zero new animation authoring" on the
+  Pitborn's `Cleaver_*` set, which the bearded-axe amendment removes — it was understating its own cost. `099c24d`: new §5a
+  naming her six takeable pieces against direction A, with `Helmet` and `Gloves` recorded as **open proposals awaiting Dom**
+  because A is bare-headed and bare-handed. Pitborn and the Executioner lane both flagged the cleaver independently.
+- **#499**, new AGENTS.md bullet, corrected three times as the lanes measured it properly. Character briefs specify
+  **outline, not build**; an approved reference is a **direction, not a render**; every brief **names all six** takeable
+  pieces (naming is not authoring — build order stays Recruit-2 first, and SCOPE.md's launch bar already says the six are
+  scheduled, not optional). Plus the two measurement rules the lanes paid for: a background gate certifies the backdrop and
+  **not the cut** (cut the mask from an unlit plate, `--flat`, #500), and **never upscale a short mask** to the comparison
+  height — that invents edge detail on one side of the pair only, a bias rather than noise.
+- Rulings taken: the **estoc's brief does not change** (thrust recovery is not a lever; the trident row goes to Combat as a
+  Nightborn-profile item); **Stats' PR B carries the single bump to 6**, Weapons rides it, rule is whoever is ready first;
+  **Greaves before Helmet**; the **paperdoll keeps `ATK 0 · RES 0`** on a bare fighter; the **opponent -> tier mapping is
+  Multi Chars'**, the resolver is Stats', a piece with no tier resolves to exactly 1.00.
+- Owner briefs sent to every active lane and the per-item owner/next-PR/ETA lines returned to Strategy.
+
+**Open.**
+- **Brief 14 is mine and barely started.** `src/grades.ts` already exists on trunk and already declares
+  `GradeRecord = { level, tier, kit: LootId[], epithet, house }` at :74 — the remaining work is adding `profile?: GradeProfile`
+  to it and `grade?` to the `ROSTER` recipes. Combat owns `GradeProfile`'s values: perception is **not** a new axis, it scales
+  the existing `profile.reaction` in absolute ticks, and `anticipate` must stay because `ai.ts:114` clamps the spam read to
+  `READ.anticipate` (8), so any per-grade `reaction` above 8 is swallowed on exactly the cleaver row. Combat's cleaver PR is
+  gated on this.
+  **BLOCKER found 2026-09-23 03:xx, after the draft above went to Combat: `grade?: GradeRecord` CANNOT go on `ROSTER`.**
+  `src/roster.ts` is a simulation module (`SIM` in `eslint.config.js`) and `tests/sim-boundary.test.ts` allows SIM files to import
+  only each other — its regex catches `import type ... from` too, so even a type-only import of `./grades.ts` fails. Multi Chars
+  hit the same boundary on #510 from a placement Strategy specified, which is how this surfaced. So the field belongs in a
+  non-SIM module keyed by `OpponentId` — `grades.ts` itself is the natural home, since it already owns `GradeRecord` and already
+  imports `career.ts` and `loot.ts`. Combat has been told; the shape of `GradeProfile` is unaffected.
+- **#419 (estoc) waits on a Nightborn-profile item in Combat's lane, NOT on Combat's ai.ts seam fix.** Weapons reproduced the
+  kicker hover exactly and then showed it cannot apply to the Nightborn: `guardShare = profile.guard ?? 1` gates it, and
+  `guard: 0` occurs in exactly one opponent's three profiles (`src/moves.ts:503-505`, the guardless goblin). The Nightborn's
+  `guard:` is the directional-guard object, a different key, so his share defaults to 1 and `hover` is 0. The estoc hold is a
+  product decision — accept the trident row and resolve the flip test's membership pair, or change the Nightborn's profile.
+  The seam fix does have a second customer Combat may not have counted: the `knife vs goblin hard: kick only` 3/24 row, whose
+  mechanism is that same 1.45 m park.
+- **#446 CI cost: DONE by the Auditer lane as #507 (`quality/ci-skip-docs`), reported READY to Strategy** — zero-row diffs skip the matrix and the browser gates behind one green "release rows (none for this diff)" job, per-PR concurrency, cancel-on-close. It was unstarted on me; do not pick it up. Original statement of the problem: the workflow runs the full release matrix on docs-only pushes and keeps runs
+  queued for closed PRs, starving trunk's own run. Fix is to skip the matrix when `release-rows-for.mjs` returns zero rows and
+  cancel in-progress runs on PR close. `gh run cancel` on queued runs mostly does not take.
+- **#490 (Brief 18, the Plague Doctor) is unowned.** The Executioner lane correctly refused it — Dom widened them to the
+  Knight only. Strategy to place it.
+- **The bare Knight reads as nobody** (Executioner, #502): shoulder/height 0.367 in kit to 0.246 stripped, and none of the
+  bare outline is his. Open proposal for Dom: one non-takeable silhouette feature in the bare build.
+- **CLOSED, not open — the stripped-identity question was dissolved by Strategy, and correctly.** I had escalated it as a
+  binary for Dom (identity moves onto the body, or the brief says stripped means generic). Both horns assumed a stripped state
+  exists in the game; none does. Take-one removes at most one piece per kill, the opponent respawns kitted, and a grade is a
+  MATERIAL variant on a shared mesh, not a different mesh (`src/grades.ts` states this as its premise) — so a Recruit's scrap
+  Body piece carries the same outline as the Origin one. Ruling: **the gate is in-kit at every rung; the bare pass is
+  informational, recorded beside the in-kit number, never a bar.** Every launch character's Recruit-2 are her two
+  identity-carrying slots (Knight, Plague Doctor, Witch: Helmet + Body; Shieldmaiden A: Body + Helmet). A body-level identity
+  feature is a per-character taste call for the owner, not a rule. The two failures the Executioner and Pitborn lanes measured
+  were real and the measurement stands — the bar was wrong, not the finding. My §6 gate-satisfied ruling is consistent with
+  this and stands; that lane builds.
+- **Strategy's session ended, so its open decisions came back to Lead.** Ruled: the `unscale: "goblin"` build failure is its own
+  small PR before Boots — `scripts/build-warrior.mjs` throws `loot: no proportion table for goblin` because only the dwarf is
+  registered, so it is a build fix rather than kit work and should not ride inside a kit PR. Also live: Stats imports from
+  `src/grades.ts`, never `src/roster.ts` (same SIM boundary as above); the boots cost line is a bounded range labelled a floor,
+  not a single number; and the kit library's rule that a shaft is pinned by FRACTION of calf length, never absolute height
+  (the Goblin lane measured girth identical at matched fractions but the same fraction sitting 36.4 mm lower at 50 %), which
+  bites Greaves harder than Boots and goes in the Greaves PR.
+- **Licensing, and the one item on this list with an outside-the-repo consequence: #511 (Audio, draft).** Two sprite slots were
+  playing non-CC0 recordings on a shipped build — parry variants 0-2 and `HITS[0]`. Strategy's ruling before its session ended:
+  a licence that forbids redistribution cannot be credited-and-accepted, so re-source rather than attribute. Both are replaced
+  with CC0 or original material and the sprite now needs public CC0 URLs only. **It is a draft on purpose** — Dom picked both
+  departing clips by ear and has not heard the replacements; audition WAVs are with him. Flip on his word. Scope is exactly
+  those two slots: `block`/`block_perfect` are an original voicing MEASURED FROM the departing clip, and a measurement is not
+  the recording, so the guard cues never carried the risk whatever the older README implies.
+- Mine also: the SCOPE.md broadcast to the lanes once #492 lands.
+
+**Gotchas.**
+- **Check the file before writing the type.** I drafted a `grade` type and sent it to Combat without opening `src/grades.ts`.
+  It already existed, `Grade` was already taken there for the material triple, and my draft would not have compiled.
+- **`OPPONENTS` at `src/moves.ts:513` is DERIVED from `ROSTER`.** Adding `grade` there type-checks and never reaches the
+  recipes. `grades.ts:19`'s own comment says `OPPONENTS.grade.house`, so the wrong name is already on trunk.
+- **A unit rule is not a sign rule.** Addendum C's "whole points" means integers, never `1.15`; Brief 19:49's signed delta
+  stands. Paperdoll totals unsigned, kill-screen take signed. I relayed the addendum as superseding the sign and two lanes
+  built to it.
+- **Relayed premises cost more than they save.** Four lanes corrected me tonight — Combat (the knife is next, not the
+  cleaver, and #419 does not sequence them), Character Main (scope is `warrior.glb` only; I mis-routed three items),
+  Weapons (the >=2 margin was already met; rebasing buys nothing, empty sim diff across 22 commits), Web (#475 draws no
+  number at all). Each was a claim I passed on without opening the file.
+- **A valid background is not a valid mask, and a measured number can still measure the wrong thing.** The hole figure went
+  20,677 px -> 9,644 -> **6,973 (3.5 % of the mask)** as two lanes checked each other; the first counted the figure's own
+  negative space as a defect. Ask what the number was measured against.
+- **The 80 % coverage rule is not a silhouette measure.** `tests/loot.test.ts` compares the loot draw's mesh surface area in
+  m² against the PLAYER's own draws in that slot; it is a test that runs when the draw exists, not something checkable from a
+  reference or a mask. I instructed a lane to measure it off a mask, and #471 §5a asserted the hauberk "clears comfortably —
+  but it is measured, not asserted" when nothing had been measured. Fixed at `06eaec3`.
+- **Every silhouette figure published before 2026-09-23 is withdrawn, in both directions.** Thresholded silhouettes fuse an arm
+  into the torso where a hand rests on a thigh, polished plate sits at the backdrop's own luminance, and one lane's bare panels
+  were rendered with the arms held out. Corrected off u2net mattes: three men inside 0.014, candidates 0.043 apart. Quote these.
+- A branch checked out in another worktree cannot be checked out here. Commit via `hash-object`/`commit-tree` and push the
+  sha, rather than reaching into that worktree.
+
 ## Lead handoff — 2026-09-22 17:45 (restart)
 **Now.** Live == trunk == c7d942a, empty deploy queue (Deploy's receipt: 33/33, DEPLOY_EXIT=0, 17:40). Nothing of mine mid-flight.
 

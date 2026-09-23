@@ -1,5 +1,21 @@
 # Character — project state
 
+## Now — hero lane (main character only), 2026-09-22
+**Scope:** the player character (`warrior.glb`) ONLY. Dom, in the hero session: "you are main char only (IGNORE THE
+MINATUR AND WRAITH)… only update the main char if I ask". Other fighters, creature donors and new archetypes are other
+lanes' — a brief relayed by Lead or Strategy is not Dom asking. Brief 16 (the Witch) was declined on this and routed:
+the (a) new-RigId vs (b) mesh-only-proportions question is Scalable Chars', who own `BUILD.bones` and the inverse unscale.
+**Shipped:** hero hands v44 (#405, merged 163587d) — see the entry below. Trunk cb8ff5b; live 607126a does not carry it yet,
+it goes out with the next deploy whose release run passes.
+**Parked on Dom's word (beta row 3):** the Veteran and Executioner still carry the pre-v43 spider hand, because
+`creatures.py keep_fingers` copies their TRELLIS donors' baked weights and both donors
+(`src/assets/source/backups/{veteran-v1,executioner-v5}.glb`) predate the fix. Regenerating those donors is an
+other-fighter change; `tests/hero-hands.test.ts` keeps both rows `skip:`-flagged so the gap stays visible. Scalable Chars
+already rebuilt pitborn/goblin/nightborn (entry below).
+**For new characters:** `parts.py` now carries `fit_finger_bones`, so ANY humanoid built through it — new archetypes
+included — gets correct knuckles for free; only bodies whose `body_*` parts predate it need a rebuild.
+**Worktree:** ~/Developer/frankendom-char. Memory key: `-Users-domininclynch-Developer-frankendom-char`.
+
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 ## Loot v2 — every visible armour slot is takeable (Scalable Chars, 2026-09-22; owner via Strategy/Lead: "any armour or weapon slot")

@@ -194,6 +194,32 @@ window.__finisher = {
     return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(this.inspect()))));
   },
   count(which) { return windows[which]?.frames.length ?? 0; },
+  // Finisher-complete duration (Lead brief 2026-09-22): step this window's REAL frames from its first tick and report the
+  // frame at which src/scene.ts first says the ceremony has finished playing ('finishPhase().complete'), counted from the
+  // Killed event. If the captured window runs out first the last frame is held — 'practice.finish' holds until rematch, so
+  // the presentation clock keeps running exactly as it does in the game — up to a 12 s cap. Nothing here guesses: the number
+  // is where the scene's own latch fired. Rendering is suppressed ('present = false') so this costs no compositor frames.
+  duration(which) {
+    const w = windows[which];
+    view.setFinisherOverride(w.override ?? null);
+    view.setPreviousFinisher(null);
+    cursor = -1; maxCameraStep = 0; view.recenter();
+    present = false;
+    let at = -1, completeAt = 0;
+    for (let j = 0; j < w.frames.length; j++) {
+      const f = w.frames[j];
+      view.render(f.state, true, TICK, f.practice, f.events, false);
+      if (at < 0 && j >= w.killIndex) { const p = view.finishPhase(); if (p.complete) { at = j - w.killIndex; completeAt = p.completeAt; } }
+    }
+    const last = w.frames.at(-1), tail = w.frames.length - 1 - w.killIndex;
+    for (let k = 0; at < 0 && k < 60 * 12; k++) {
+      view.render(last.state, true, TICK, last.practice, [], false);
+      const p = view.finishPhase();
+      if (p.complete) { at = tail + k + 1; completeAt = p.completeAt; }
+    }
+    present = true; cursor = -1; view.recenter();
+    return { finisher: which, override: !!w.override, frames: at, seconds: at < 0 ? null : +(at * TICK).toFixed(2), completeAt: +completeAt.toFixed(2) };
+  },
   hitIndex(which) { return windows[which]?.hitIndex ?? -1; },
   probe() { return view.probe(); },
   killIndex(which) { return windows[which].killIndex; },
@@ -269,6 +295,26 @@ try {
     const off = (await page.evaluate(() => __finisher.probe())).bodyWounds;
     assert.equal(off[1].visible, 0, "blood 'off' hides the body wounds");
     await save('wound-checks.json', JSON.stringify({ opponent, commit, runs, red, off }, null, 2));
+    await page.context().close();
+  }
+  // Finisher-complete durations (Lead brief 2026-09-22, Web's loot panel). Each requested outcome is played frame by frame on
+  // the production path and we record where src/scene.ts's own `finishPhase().complete` first fires, counted from the Killed
+  // event. This is the measurement behind the FINISHER_SECONDS table in src/finishers.ts — one number per finisher, measured,
+  // never one constant for all of them, and never a guessed delay. The runtime keys on the event; the table exists so Web can
+  // budget its layout against a real figure and so a drift in the ceremony shows up here as a changed number.
+  if (option('durations')) {
+    const page = await open({ width: 393, height: 852 });
+    const rows = [];
+    for (const id of ORDER) rows.push(await page.evaluate(([which]) => __finisher.duration(which), [id]));
+    for (const r of rows) console.log(`  duration: ${r.finisher.padEnd(13)} ${r.seconds === null ? 'NEVER COMPLETED' : `${r.seconds} s`} (scene age at latch ${r.completeAt} s${r.override ? ', picker override' : ''})`);
+    for (const r of rows) {
+      assert.ok(r.seconds !== null, `${r.finisher}: the finisher-complete latch never fired within 12 s of the kill`);
+      // Sanity, not a guess: the latch cannot precede the camera settle floor (camera.ts SETTLE.min 1.5 s) and a ceremony
+      // that ran past 12 s would be a bug, not a long finisher. The per-finisher number itself is whatever was measured.
+      assert.ok(r.seconds >= 1.5, `${r.finisher}: completed at ${r.seconds} s, before the camera could have settled`);
+      assert.ok(Math.abs(r.completeAt - r.seconds) < 0.25, `${r.finisher}: the scene's own finish age at the latch (${r.completeAt} s) disagrees with the frames counted from the Killed event (${r.seconds} s)`);
+    }
+    await save('finisher-durations.json', JSON.stringify({ opponent, commit, rows }, null, 2));
     await page.context().close();
   }
   // Mode stills: one clean playthrough per blood mode per outcome (scene state evolves with playback, so each mode replays from scratch).

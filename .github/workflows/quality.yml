@@ -5,12 +5,28 @@
 # checks still run in scripts/deploy.sh until each is moved onto the harness clock.
 name: quality
 on:
+  # Docs-only changes are skipped: a markdown edit cannot break the build, the node suites or a browser gate, and
+  # docs-only PRs (the lane state docs) were 28 of 40 open PRs on 2026-09-22 — 70% of this workflow's load, each one
+  # spending ~20 min of runner time on text. The branch has no required status checks, so a skipped run leaves nothing
+  # pending. A PR that touches any non-docs file still runs the full gate.
+  # `**.md` (not `**/*.md`): the latter needs a slash, so it would miss root-level AGENTS.md / PROJECT_STATE.md.
+  # When a docs-only commit is trunk HEAD there is no CI run for it, so scripts/deploy.sh finds no green run and
+  # falls back to the full local quality gate — slower at deploy time, never less safe.
   push:
     branches: [codex/01a09a76/task-1]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   pull_request:
     branches: [codex/01a09a76/task-1]
+    # Repeated rather than a YAML anchor: the Actions workflow parser does not support anchors or aliases.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+# One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), and
+# cancel-on-close.yml cancels a closed PR's runs.
 concurrency:
-  group: quality-${{ github.ref }}
+  group: quality-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   quality:
@@ -46,8 +62,9 @@ jobs:
       matrix:
         gate:
           - { name: combat, script: scripts/browser-check.mjs, required: true }
-          # The counter gate passes on the Mac, on a GPU-less VPS and in deploy.sh, but not yet on this runner (guard never enables
-          # under harness time there); its receipt is uploaded for diagnosis and it does not block until it passes here.
+          # The counter gate passes on the Mac, on a GPU-less VPS and in deploy.sh; on this runner it failed at first (guard never
+          # enabled under harness time) and passed 6/6 on 2026-09-22 (Hooks dev's sample). Still optional here — ~9 min of gate time
+          # on its own — until someone promotes it on a longer sample; its receipt is uploaded for diagnosis.
           - { name: counter, script: scripts/counter-browser-check.mjs, required: false }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest

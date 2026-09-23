@@ -1,6 +1,11 @@
 # Combat — project state
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
+## Two PRs closed, 2026-09-22 20:40 (lead, Dom via Strategy)
+**#370 "Brief 8: the Veteran's authored opening" — CLOSED, not abandoned.** The branch was OPEN and CONFLICTING against trunk and had been since the beta stack landed; rebasing it is part of its remaining cost, and the opponent it scripts is being renamed (the Veteran opponent becomes **the Centurion**, name field only). Brief 8 stays on the board: redo the authored opening against the Centurion after the shield. Do not resurrect this branch — cut a fresh one.
+
+**#186 "Reaper Wraith: inside the point the kick counts from" — CLOSED under the creatures hold.** Draft, conflicting, and the Season-2 creatures are held for beta ([[frankendom_season2_creatures_on_hold]]). The finding itself is worth keeping: the Reaper's kick counted from the point rather than from inside it. Re-open the work with the creature roster, not before.
+
 ## The whip tell + the estoc park — combat lane, 2026-09-22
 
 **Brief 13, the lorarii's tell (#441, `combat/whip-tell`).** The anti-turtling lash had no warning: the first a player knew of it was

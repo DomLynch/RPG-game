@@ -1,5 +1,7 @@
 # Project state
 
+Current beta/launch scope: `docs/SCOPE.md` (dated, wins over older lines in any state file).
+
 One file per lane under `docs/state/`. Each lane appends its own entries at the top of its own file, with evidence and the remaining validation (AGENTS.md); nothing goes in this index but the table below. GAME_SPEC.md stays the canonical design. The pre-lane history (2026-09-13) lives in the archive file.
 
 | Lane | File | Entries | Latest entry |
@@ -7,13 +9,13 @@ One file per lane under `docs/state/`. Each lane appends its own entries at the 
 | Strategy | [docs/state/strategy.md](docs/state/strategy.md) | 1 | 2026-09-22 — restart from memory, Brief 13/14 status, loot v2 wielding, tier table, shield brief |
 | Lead | [docs/state/lead.md](docs/state/lead.md) | 20 | 2026-09-21 — Release check 9 (polearm-browser-check) became checks 9–12; everything after ren |
 | Combat | [docs/state/combat.md](docs/state/combat.md) | 34 | 2026-09-21 — Anti-turtling — combat half (sim rules + warden), 2026-09-21 |
-| Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 16 | 2026-09-22 — Scythe flip prep — heel-jab recovery 18 → 30, both rows cleared, the scythe is offerable |
+| Weapons | [docs/state/weapons.md](docs/state/weapons.md) | 18 | 2026-09-22 — Estoc reach — re-measured and HELD: the estoc clears, the Nightborn breaks |
 | Character | [docs/state/character.md](docs/state/character.md) | 17 | 2026-09-21 — Loot export v1 — Brief 5, Scalable Chars lane, 2026-09-21 (Strategy's assignment on the owner's "take t |
 | Finishers & gore | [docs/state/finishers.md](docs/state/finishers.md) | 14 | 2026-09-21 — Finisher side view: measured reach for Quiet One too, foreshortened fit, rate-li |
 | Visuals & world | [docs/state/world.md](docs/state/world.md) | 11 | 2026-09-20 — Arena props, startup worker, crowd cull, sky environment, sparks v2 — presentati |
 | Sounds & music | [docs/state/audio.md](docs/state/audio.md) | 7 | 2026-09-20 — Combat audio — consolidated lane state — 2026-09-20 (reconciliation after five p |
 | Code quality | [docs/state/code-quality.md](docs/state/code-quality.md) | 1 | 2026-09-22 — release matrix on PR pushes (#446), ai.ts/combat.ts line pass (#439 LIVE), match split assigned |
-| Web design | [docs/state/web.md](docs/state/web.md) | 12 | 2026-09-22 — Viewer page: PLAY NOW as a proper primary, the stale-link line out of the header ba |
+| Web design | [docs/state/web.md](docs/state/web.md) | 14 | 2026-09-22 — Loot panel: a tap is the take, Undo, and the gold skin — item 10 (Dom, with a ph |
 | Career | [docs/state/career.md](docs/state/career.md) | 2 | 2026-09-20 — AFK fights run on — career lane, 2026-09-20 (owner: "nothing more, nothing less, |
 | Archive (pre-lane history) | [docs/state/archive-2026-09-21.md](docs/state/archive-2026-09-21.md) | 8 | 2026-09-13 — First-hit slice — implemented 2026-09-13 |
 

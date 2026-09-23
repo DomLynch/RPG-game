@@ -54,3 +54,33 @@ export const FINISHER_POSE: Record<FinisherId, 'splitCrown' | 'decapitation' | '
   hamstrung: null,
   execution: null,
 };
+
+// How long each finisher actually takes to finish playing, in seconds from the Killed event — MEASURED, one number per
+// finisher, never one constant for all of them (Lead brief 2026-09-22, for Web's loot panel).
+//
+// What the runtime uses: nothing here. The game keys on the event — `view.finishPhase().complete` in src/scene.ts, which
+// latches off the scene's own state (the victim's clip has run out, the camera has settled, a severed head has come to
+// rest). This table exists so Web can budget a layout against a real figure instead of a guessed delay, and so a drift in
+// the ceremony shows up as a changed number here rather than as a panel that lands too early.
+//
+// How they were measured: `node scripts/finisher-preview.mjs --label finisher-durations --durations`, which plays each
+// outcome's REAL captured kill window frame by frame on the production path and records the frame the scene's own latch
+// fires on. Measured 2026-09-22 on the Veteran (the harness's default rig, seeds 731–748; The Quiet One is out of the
+// automatic rotation, so its window is the dev picker's own path on a real kill, as the harness labels it). Receipt:
+// `artifacts/character/finisher-durations/finisher-durations.json`. Re-measure with that command when a clip, the camera
+// or the finisher clock changes — the harness asserts the latch fires and agrees with the scene's own finish age.
+export const FINISHER_SECONDS = {
+  splitCrown: 4.07,
+  decapitation: 3.2,
+  runThrough: 4.12,
+  plainDeath: 2.4,
+  quietOne: 3.77,
+  opened: 3.2,
+} as const satisfies Record<Exclude<FinisherId, 'hamstrung' | 'execution'>, number>;
+
+// Hamstrung and Execution have no clip yet (FINISHER_POSE null): the plain death plays in their place, so their duration is
+// DERIVED from the measured plain death, not measured in its own right. Everything else is the measured number above.
+export function finisherSeconds(id: FinisherId): { seconds: number; measured: boolean } {
+  const measured = (FINISHER_SECONDS as Partial<Record<FinisherId, number>>)[id];
+  return measured === undefined ? { seconds: FINISHER_SECONDS.plainDeath, measured: false } : { seconds: measured, measured: true };
+}
