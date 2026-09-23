@@ -237,6 +237,8 @@ for s, face_ids in sorted(pieces.items()):
     # Weld the UV-seam splits first, or decimating to --ratio tears the piece into shards along them. The baked maps survive:
     # bmesh keeps UVs per loop, so each corner keeps its own texel after its vertex is merged.
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    if FAMILY == 'knight':   # his TRELLIS surface is wound ~50/50 (Goblin's check, 2026-09-23): face every region outward
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     if REPOSE and s in ('Gloves', 'Boots'):   # skin a gauntlet or sabaton by its own slot's bones only, as the re-pose placed it:
         deform = bm.verts.layers.deform.active   # his fists' thigh weight would drag a worn gauntlet toward the thigh mid-swing
         for v in bm.verts:
