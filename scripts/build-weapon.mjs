@@ -396,7 +396,7 @@ export const GLADIUS_DEFAULT = 'A';
 export function gladius({ T: three = T, withAoUv = g => g, variant = GLADIUS_DEFAULT } = {}) {
   const v = GLADIUS_VARIANTS[variant] ?? GLADIUS_VARIANTS[GLADIUS_DEFAULT];
   const steel = new three.MeshStandardMaterial({ name: 'GladiusSteel', color: '#a9adb1', metalness: .9, roughness: .38 });   // forged steel, a short bright line
-  const bone = new three.MeshStandardMaterial({ name: 'GladiusBone', color: '#d8ccb0', roughness: .7 });                       // the handguard and grip: bone, the legion's
+  const bone = new three.MeshStandardMaterial({ name: 'GladiusBoneGrip', color: '#d8ccb0', roughness: .7 });                       // the handguard and grip: bone, the legion's
   const bronze = new three.MeshStandardMaterial({ name: 'GladiusBronze', color: '#8a6a3a', metalness: .85, roughness: .45 });  // the guard plate and the pommel nut
   const group = new three.Group(); group.name = 'WeaponDrawn';
   const piece = (geometry, material, y = 0, x = 0, z = 0) => { const mesh = new three.Mesh(withAoUv(geometry), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh); return mesh; };

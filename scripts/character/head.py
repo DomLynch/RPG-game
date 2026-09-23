@@ -33,6 +33,7 @@ def split_tiles(obj):
         me.materials.append(bpy.data.materials.new(f'{name}_slot'))
     uv = me.uv_layers.active.data
     group = obj.vertex_groups.new(name='face')
+    cells = atlas_cells(sorted({tile_of(uv, p) for p in me.polygons} - {0}))
     for p in me.polygons:
         t = tile_of(uv, p)
         if t == 0:
@@ -40,10 +41,19 @@ def split_tiles(obj):
             group.add(list(p.vertices), 1.0, 'REPLACE')
         else:
             p.material_index = 1
-            qx, qy = QUADRANT[min(t, 3)]
+            qx, qy, size = cells[t]
             for li in p.loop_indices:
                 u, v = uv[li].uv
-                uv[li].uv = ((u - t) * 0.5 + qx, v * 0.5 + qy)
+                uv[li].uv = ((u - t) * size + qx, v * size + qy)
+
+
+def atlas_cells(tiles):
+    """Each body tile's cell in the `Skin` atlas: (x, y, size). The male's three tiles keep their shipped quadrants; any other
+    body (the realistic female spreads over tiles 1002-1009) packs into a ceil(sqrt(n)) grid, row by row from the top-left."""
+    if set(tiles) <= set(QUADRANT):
+        return {t: (*QUADRANT[t], 0.5) for t in tiles}
+    grid = math.ceil(math.sqrt(len(tiles)))
+    return {t: ((i % grid) / grid, 1 - (i // grid + 1) / grid, 1 / grid) for i, t in enumerate(tiles)}
 
 
 def face_group(obj):
@@ -1562,6 +1572,10 @@ FIGHTERS = {
     'executioner': {'kt_glb': 'artifacts/source/keentools/01a0a628-a661-7ec2-89ec-735ecb733b5f.glb',
                     'cams': ((0, 0), (35, 0), (-35, 0), (90, 0), (-90, 0), (0, 25), (0, -20)), 'chin': False, 'hair_lum': 0.14, 'hair': 'buzz', 'scars': False, 'decimate': 0.08,
                     'skin_mul': (0.66, 0.55, 0.46), 'photo_mul': (0.66, 0.55, 0.46)},  # owner 2026-09-18: dark-chocolate (mid-African) skin, "not full black" — skin_mul paints the body, photo_mul tints the STAND-IN photograph too, or the collar reads two people; both take the same factor so the hue stays matched
+    # The Shieldmaiden (Brief 15, reference A #498, Dom 2026-09-22): TRELLIS.2 on a FLUX front portrait of reference A, the Nightborn's
+    # route (trellis_head.py). Her two crown braids come with the reconstruction ('hair': 'mesh'). decimate 0.14 as the Nightborn's.
+    'shieldmaiden': {'kt_glb': 'artifacts/source/keentools/shieldmaiden-trellis-01.glb',
+                     'cams': ((0, 0), (0, 25), (0, -20), (35, 0), (-35, 0), (90, 0), (-90, 0)), 'chin': True, 'hair_lum': 0.30, 'hair': 'mesh', 'scars': False, 'decimate': 0.14, 'scale_by_eyes': True, 'jaw_skin': True},
 }
 FIGHTER = 'hero'
 KT_GLB = FIGHTERS[FIGHTER]['kt_glb']
@@ -1632,6 +1646,8 @@ def keentools_skin_tone(eye_l, eye_r, crown_z):
     kt_top = max(v.co.z for p in mesh.polygons if p.material_index == 0 for v in [mesh.vertices[i] for i in p.vertices])
     eye_scale = abs(eye_l.x - eye_r.x) / abs(cents[0].x - cents[1].x)
     scale = 1.10 * (crown_z - (eye_l.z + eye_r.z) / 2) / (kt_top - mid.z)  # by head height, then +10% (owner's call, 2026-09-15: a heroic read at the phone camera)
+    if FIGHTERS[FIGHTER].get('scale_by_eyes'):  # a raised hairstyle (the Shieldmaiden's braid crown) makes the scan's crown no measure of the skull:
+        scale = eye_scale                        # by height it shrank her face to 0.79x and the cut under the jaw landed on the chin
     SCALE_HEIGHT = scale / 1.10  # the size at which the scan's head matches the base head's height — the base head is a target at that size
     SCALE = scale
     NECK_Z = (eye_l.z + eye_r.z) / 2 - NECK_DROP_KT * scale
@@ -1863,6 +1879,22 @@ def keentools_head(weights_from, eye_l, eye_r, armature, select_only, tag, save_
     dark = (colour.max(axis=2) < 0.06) | ((coverage < seen_edge) & ((hair_zone > 0.5) | (back > 0.3))) | (coverage < 0.3)
     if HAIR == 'mesh':  # a reconstruction is textured all round: its black texels are black hair, not an unseen crown to synthesise
         dark = np.zeros_like(dark)
+    if FIGHTERS[FIGHTER].get('jaw_skin'):
+        # The Shieldmaiden: TRELLIS.2 filled the jaw's unseen underside with near-black, which the mesh-head rule above keeps as hair —
+        # on a bare-necked woman it read as a beard. Below the mouth line a dark texel is skin in shadow: it takes the head's own skin
+        # (the median of its bright texels), ramped in over 2 cm so the lips and the jaw's lit front stay the reconstruction's.
+        jaw_vg = head.vertex_groups.new(name='jaw')
+        for v in head.data.vertices:
+            w = min(1.0, max(0.0, (rig_mid.z - 0.070 - v.co.z) / 0.02))   # the mouth sits ~6 cm under the eyes
+            if w > 0:
+                jaw_vg.add([v.index], w, 'REPLACE')
+        jaw = bake_attribute(head, 'jaw', select_only, size)
+        head.vertex_groups.remove(head.vertex_groups['jaw'])
+        lum = colour.max(axis=2)
+        skin = np.median(colour[(lum > 0.35) & (jaw < 0.01)], axis=0)
+        w = (jaw * np.clip((0.40 - lum) / 0.20, 0, 1))[..., None]
+        colour = colour * (1 - w) + skin[None, None, :] * w
+        print(f'KEENTOOLS jaw skin: {int((w[..., 0] > 0.5).sum())} dark texels under the mouth repainted {tuple(round(float(c), 3) for c in skin)}')
     if FIGHTERS[FIGHTER].get('backdrop_cool'):  # the portraits' neutral backdrop projected onto the crown at grazing angles: a cool texel (blue ≥ 85 % of red) above the hairline is neither skin nor stubble — unseen, so the fill covers it (per fighter: grey hair is cool too)
         backdrop = (hair_zone > 0.5) & (colour[:, :, 2] >= colour[:, :, 0] * 0.85)   # skin and stubble here run b ≈ .6–.7 r; the backdrop's graded edge ~.9
         print(f'KEENTOOLS backdrop on the crown: {int((backdrop & ~dark).sum())} cool texels marked unseen')
