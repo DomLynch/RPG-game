@@ -61,6 +61,10 @@ the v6 byte layout and rides the knife's bump without a second one, which means 
 the knife publishes first, every link minted in between is a tail-less v6. The PR B build accepts it as v6, reads a tail that
 isn't there, and fails. **The version byte cannot catch it.** One publish for the whole window makes that impossible, because
 no v6 link is ever minted without the tail. The alternative, PR B taking 7, costs an extra wave of dead links for nothing.
+**RULED (Strategy, 2026-09-23 ~06:10Z): `READABLE_VERSIONS` goes `[5]` -> `[6]` EXACTLY, with no re-accept of 5.** The knife
+alters fights, so every v5 link dies under the record rule, and the guard test's own condition (sim digest changed => the
+accept-list is exactly `[RECORD_VERSION]`) says the same. The Window-1 PR bodies (the knife, and Stats' PR B) must state both
+this and the no-partial-publish rule.
 **Deploy: never publish Window 1 partially.** In particular, never ship the knife ahead of PR B because it went green first.
 PR B also owns re-writing the replay fixtures the knife writes at v6.
 **`READABLE_VERSIONS` `[5]` -> `[6]` on Combat's branch** (a replacement, not a widening: v5 stays refused). It is inside Stats'
