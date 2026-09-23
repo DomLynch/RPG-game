@@ -5,13 +5,20 @@ import { harnessClock } from './lib/harness-clock.mjs';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+// Three independent counters, each on a fresh page with its own arena boot. COUNTER_ONLY=<move> runs just one of them so CI
+// can fan them out across runners (quality.yml); unset runs all three, which is what deploy.sh and .quality-gate.json do.
+const COUNTERS=[['attack-button','slash_riposte','Attack',24],['thrust-button','riposte','Riposte',24],['heavy-button','heavy_riposte','Heavy',30]];
+const only=(process.env.COUNTER_ONLY||'').trim();
+const selected=only?COUNTERS.filter(([,move])=>move===only):COUNTERS;
+// A typo must fail the gate, never pass it by running nothing.
+if(!selected.length) throw new Error(`COUNTER_ONLY=${only} matches no counter; expected one of: ${COUNTERS.map(([,m])=>m).join(', ')}`);
 const server=process.env.QA_URL?null:await preview({preview:{host:'127.0.0.1',port:0,strictPort:true}});
 const url=new URL(process.env.QA_URL||`http://127.0.0.1:${server.httpServer.address().port}`);url.searchParams.set('debug','1');
 const browser=await chromium.launch({headless:true,executablePath:chromium.executablePath()});
-const receipt={url:url.href,physicalPhone:false,counters:[],errors:[]};
+const receipt={url:url.href,physicalPhone:false,only:only||null,counters:[],errors:[]};
 const dir='artifacts/weapons/counter-buttons';await fs.mkdir(dir,{recursive:true});
 try {
- for(const [button,move,clip,damage] of [['attack-button','slash_riposte','Attack',24],['thrust-button','riposte','Riposte',24],['heavy-button','heavy_riposte','Heavy',30]]) {
+ for(const [button,move,clip,damage] of selected) {
   // 1× pixel density: this gate asserts events, clips and health, not pixels, and software-GL runners render every harness frame.
   const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:1});
   page.on('pageerror',e=>receipt.errors.push(String(e)));await page.route('**/*sentry.io/**',r=>r.abort());
