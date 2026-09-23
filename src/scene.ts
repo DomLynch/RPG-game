@@ -311,12 +311,9 @@ export function createScene(
     // The player's worn loot by id (src/loot.ts equipped set): applied now when the rigs and pieces are in, else when they land.
     wear(ids: readonly string[]) { worn = ids; dress(); },
     arena,
-    // The loot pieces drawn on the player right now as `name|slot|layer` (' (hidden)' if a worn copy is detached or invisible), and his own
-    // draws a `replace` piece covers as `name|slot` (' (shown)' if one still shows) — for the debug probe, scripts/worn-loot-check.mjs.
-    wornDraws: (): { worn: string[]; covered: string[] } => ({
-      worn: (warriors?.player.worn() ?? []).map((m) => `${m.name}|${String(m.userData.slot)}|${String(m.userData.layer)}${m.visible && m.parent ? '' : ' (hidden)'}`),
-      covered: (warriors?.player.covered() ?? []).map((m) => `${m.name}|${String(m.userData.slot)}${m.visible ? ' (shown)' : ''}`),
-    }),
+    // The loot pieces drawn on the player right now as `name|slot|layer`, for the debug probe (scripts/worn-loot-check.mjs); ' (hidden)'
+    // marks a worn copy that is detached or invisible, the failure that check exists for. Empty until loot.glb has landed.
+    wornDraws: (): string[] => (warriors?.player.worn() ?? []).map((m) => `${m.name}|${String(m.userData.slot)}|${String(m.userData.layer)}${m.visible && m.parent ? '' : ' (hidden)'}`),
     bloodState() {
       const opened = warriors?.opponent.anchor.getObjectByName('Opened');
       return {
