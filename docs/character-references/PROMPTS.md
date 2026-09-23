@@ -100,3 +100,39 @@ no donor image.
 Prompt, verbatim:
 
 > Full-body dark medieval fantasy character concept, ONE original plague-doctor duellist standing upright, facing camera, weight on the back foot, holding a plain steel LONGSWORD point-down in one hand. Long heavy waxed coat, warm black-brown leather (NOT blue-black), pit-worn and grimed, closed to the throat, skirt falling below the knee; gloved hands, boots. No cane, no walking stick, no staff, no second weapon. Plain flat uniform light-grey studio background, even readable light, complete unbroken silhouette, no atmospheric haze, no props behind him, no text. Realistic hand-painted concept rendering, credible worn materials, no plastic, no toy, no cartoon. His mask is ASYMMETRIC and BROKEN-IN: a medium beak of layered boiled leather, cracked and scorched along one side, one lens missing and plated over with a riveted iron patch, the other a smoked lens; the brim is wide but warped and split at the front. An arena survivor's mask, repaired by hand, not a physician's clean instrument.
+
+
+## The Knight (reference, 2026-09-22) — owner-approved
+
+Owner picked the great helm from a three-option sheet, then asked for less mass — *"maybe less muscle/size… so more bulky
+than the veteran, but thinner than the executioner/brute"* — and chose **lean plate** from a second sheet of three mass
+variants. Six head treatments were generated first and cut to three on the **silhouette**, the criterion deliverable 1
+tests: great helm, bascinet, sallet and barred cage give near-identical outlines, so offering them as separate choices
+would have been false variety. The three shown were this great helm, an iron mask over a mail coif with **no helmet**
+(the option that tested Brief 17's closed-helm proposal against Dom's actual word, "masked"), and a cloaked knight.
+
+**Differentiation from the Executioner was checked, not assumed** — and the first measurement was wrong. Ratios first
+taken here (Executioner 0.36, Knight variants 0.39-0.40) came off threshold silhouettes that fused the arms into the
+torso, which inflates a plate figure and barely touches a bare-armed one; they are **withdrawn** (#502). Off u2net
+mattes: **Knight 0.367, Executioner 0.374, Veteran 0.360** shoulder-width over height — three humans inside 0.014, the
+Knight marginally narrower. No corrected candidate spread exists: only the approved image landed. So mass is *not* what
+separates them - the separator is that the Executioner's outline is **soft** (hood,
+bare arms, falling cloth) and the Knight's is **hard** (squared pauldrons, flat plate edges, articulated limbs). Keep that
+contrast when the body is built; "between the Veteran and the Executioner in bulk" is a build-spec number, not something
+the reference settles.
+
+Text-to-image, **not** an edit of an existing fighter: `black-forest-labs/FLUX.1-schnell` via `gradio_client` with the
+owner's signed-in HF token, seed **190926** fixed across all candidates so the variation is the design and not the noise,
+832x1216, 4 steps. **Nothing is inherited** from the Veteran's palette or any existing donor - new design from Brief 17's
+text, so neither a reskin nor consistent by accident. Note `scripts/character/kontext.py` cannot produce these: it is an
+image-to-image edit step (`--image` required) and there is no text-to-image script in `scripts/character/`.
+
+Two generator artifacts, labelled rather than re-rolled (the owner picked a design, not a render): a first pass rendered
+**axes** instead of mauls, so the prompt was rewritten to specify a blunt cylindrical sledgehammer head with no blade and
+regenerated; and the maul head still renders oddly in some variants. The maul asset is Weapons' deliverable regardless.
+
+SHA-256: `ba9baaf4d02fd7a67ad857f5a58a8a24ad62cfc3429c8fba489d5036b5cb522f`
+
+Prompt:
+
+> Full-body studio photograph of one armoured arena fighter in a fully closed flat-topped great helm with a single narrow eye slit — no face, no skin, no hair visible anywhere. Standing symmetrical A-pose facing camera, arms slightly out from his sides, hands empty and open, feet apart. HE IS NOT A MUSCULAR GIANT AND NOT A BRUTE: underneath he is an ordinary athletic man of normal height and normal shoulder width. Slim fitted plate held close to the body, a narrow upright column of steel; clearly slighter than a big man. All of his bulk is ARMOUR — hard angular articulated steel plate, padding and mail — never muscle. Straight vertical lines, flat plate surfaces, crisp geometric edges and hard corners. Dark weathered steel, battered and pitted, no heraldry, no bright colour, metal and dark leather only. Beside his right foot, head-down on the ground, stands a two-handed WAR MAUL: a thick straight wooden haft and a heavy BLUNT CYLINDRICAL IRON SLEDGEHAMMER HEAD with flat faces — a hammer, NOT an axe, NO blade, NO edge. Plain flat uniform light grey studio background, soft even lighting, no shadow on the background, photorealistic, sharp detail, whole figure from helmet to boots inside the frame.
