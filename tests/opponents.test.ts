@@ -286,11 +286,12 @@ test('AI vs AI at normal: the Veteran\'s brain in the hero body against the Nigh
 // ── The Executioner (opponent 5, 2026-09-18 by the roster lane; gated 2026-09-20 by the combat lane): the man's brain (PROFILES) in a 1.36×
 // brute with 160 hp, poise 12 and the scythe — huge reach, a shaft guard. No bespoke answer is prescribed for him; the standard rules are the gate.
 const E = OPPONENTS.executioner;
-test('the Executioner is set up from his data: the live scythe, 1.36× scale, 160 health, poise 12, the shared PROFILES; the hero is unchanged', () => {
+test('the Executioner is set up from his data: the live scythe, 1.36× scale, 160 health, poise 12, the shared easy and hard PROFILES and a normal of his own (the shared normal + anticipate 3, lapse .2, read .75); the hero is unchanged', () => {
   const [hero, him] = initialDuel(E).fighters;
   assert.deepEqual(hero, initialDuel().fighters[0]);
   assert.equal(him.weapon, 'scythe'); assert.equal(WEAPONS.scythe.placeholder, undefined); assert.equal(him.scale, 1.36); assert.equal(him.health, 160); assert.equal(him.maxHealth, 160); assert.equal(him.poise, 12);
-  assert.equal(E.profiles, PROFILES);
+  assert.equal(E.profiles.easy, PROFILES.easy); assert.equal(E.profiles.hard, PROFILES.hard);
+  assert.deepEqual(E.profiles.normal, { ...PROFILES.normal, anticipate: 3, lapse: .2, read: .75 }, 'only the spam read, the lapse and the side read differ from the shared normal');
 });
 
 test('fight identity — reach: the Executioner passes the fairness battery at normal and hard (no cheese over the caps, every strategy touched), an honest script can beat him, and a man parked inside his point is not left alone [slow]', () => {
