@@ -145,6 +145,21 @@ ack yet:** Stats, Web, Executioner, World, Audio.
 **The deploy of `2d614dc` was still running at ~06:00Z** (614 log lines in, at the Dwarf's fairness battery, no failure). Every
 lane's gate waits on it.
 
+**#523 (Stats: tier-table re-land) — REVIEWED by Lead, READY for Deploy once its CI is green (33 checks pending at 06:2xZ).**
+Head `8d12a49`, non-sim, so it publishes on the rolling cadence. The body carries what the review rule asks for: the revert
+reason with the exact TS2741 reproduced, a combined-tree note (`git diff --stat 2d614dc 52dffed -- src tests` is empty), and
+the rejected design, a RES weight on the shield, which would reinstate Dom's withdrawn -20 % (one Recruit shield would equal the
+Origin armour cap). Local gate: `tsc` clean, `quality:stop` 493 / 491 pass / 0 fail / 2 skipped, including the
+`gear-stats.test.ts:169` grid rerun. #514 re-opens on top of it.
+**Stats PR A v2** (`a0c6458`): not a PR yet. Its gate had 1 failure, `tests/release-checks.test.ts:73`, a 2 s process-group timing
+test, on a branch touching only `src/record.ts` + two record tests. That reads as load, but it stays red until it passes on a
+quiet box. Stats is not opening the PR before then, which is right.
+**A one-deployer-rule gap, self-reported by Stats:** their background retry loop ran two gates at 05:57-06:01Z DURING the
+`2d614dc` deploy. The loop polled for the lock in its own logs, but **the lock is enforced by the session hook, which a background
+script cannot see.** So any lane's unattended loop can walk straight past the deploy lock, and this is the likely cause of the
+timing-test flakes. Fix candidate for the Auditer: a lock FILE (or a `scripts/deploy-lock.mjs --check` exit code) that the hook
+and any script both read, so the rule doesn't depend on being inside a Claude turn.
+
 **Why everything is slow (Strategy measured it, ~06:15Z):** one saturated Mac. Load average 76-105 on 10 cores: 34 Chrome,
 238 node and 81 python processes, 17 Claude sessions plus the per-Stop audit-review sessions, and the Research Agent Bot project
 deploying on the same box. Every lane gate and every deploy row queue up on it. **Two orders, owed to the lanes (not yet sent;
