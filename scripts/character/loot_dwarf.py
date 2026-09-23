@@ -35,6 +35,12 @@ MATERIAL = args[args.index('--material') + 1] if '--material' in args else f'{FA
 # --slots Helmet,Body: keep only these player slots (Recruit-2 for a masked archetype is Helmet + Body; Strategy, 2026-09-23).
 ALL = '--all' in args
 SLOTS = set(args[args.index('--slots') + 1].split(',')) if '--slots' in args else None
+# --out dwarf_upper: write the pieces to <name>.glb and leave <family>.glb and the family's maps untouched (the maps are the family's,
+# baked from the same surface, so a second cut shares them: the Dwarf's Helmet/Body/Arms re-cut beside his shipped Greaves/Boots).
+OUT_NAME = args[args.index('--out') + 1] if '--out' in args else FAMILY
+# --band Helmet:1.2:9 (repeatable): keep a slot's faces only where the face centre's rest-space height (Blender Z, metres) is in [lo, hi];
+# bone-slotting alone can hand a slot the wrong region (a "Helmet" that is the face and beard, a Body that eats the arms).
+BANDS = {b.split(':')[0]: tuple(map(float, b.split(':')[1:3])) for i, b in enumerate(args) if i and args[i - 1] == '--band'}
 SOURCE = os.path.abspath(f'src/assets/{FAMILY}.glb')
 OUT = 'src/assets/source/loot'
 # Player slot per bone: a vertex belongs to the slot of the bone that owns most of it.
@@ -121,6 +127,10 @@ slot_rep = np.empty(R, dtype=object)
 slot_rep[rep] = slot
 face_iron = {i: sum(iron_rep[v] for v in vs) >= 2 for i, vs in faces}
 face_slot = {i: max(set(slot_rep[vs]), key=lambda s: list(slot_rep[vs]).count(s)) for i, vs in faces}
+for p in mesh.polygons if BANDS else ():
+    band = BANDS.get(face_slot[p.index])
+    if band and not band[0] <= p.center.z <= band[1]:
+        face_iron[p.index] = False
 by_edge = defaultdict(list)
 for i, vs in faces:
     for k in range(3):
@@ -196,11 +206,11 @@ for o in bpy.context.selected_objects:
     o.select_set(False)
 for o in kit + [armature]:
     o.select_set(True)
-bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, f'{FAMILY}.glb'), export_format='GLB', use_selection=True, export_extras=True,
+bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, f'{OUT_NAME}.glb'), export_format='GLB', use_selection=True, export_extras=True,
                           export_apply=True, export_yup=True, export_materials='NONE', export_skins=True, export_animations=False,
                           export_normals=True, export_texcoords=True)
 # The iron's own look: the baked colour (COLOR_SIZE) and the packed metallic/roughness at half that, JPEG — a fraction of the 2K WebPs the body ships.
-for image, size, name in (() if MATERIAL == 'Steel' else ((albedo, COLOR_SIZE, f'{FAMILY}_iron_color.jpg'), (mr, COLOR_SIZE // 2, f'{FAMILY}_iron_orm.jpg'))):
+for image, size, name in (() if MATERIAL == 'Steel' or OUT_NAME != FAMILY else ((albedo, COLOR_SIZE, f'{FAMILY}_iron_color.jpg'), (mr, COLOR_SIZE // 2, f'{FAMILY}_iron_orm.jpg'))):
     image.scale(size, size)
     image.filepath_raw = os.path.abspath(os.path.join(OUT, name))
     image.file_format = 'JPEG'
@@ -208,4 +218,4 @@ for image, size, name in (() if MATERIAL == 'Steel' else ((albedo, COLOR_SIZE, f
     image.save()
 for o in kit:
     print(f'PART {o.name} slot={o["slot"]} faces={len(o.data.polygons)}')
-print(f'PARTS {len(kit)} → {OUT}/{FAMILY}.glb')
+print(f'PARTS {len(kit)} → {OUT}/{OUT_NAME}.glb')

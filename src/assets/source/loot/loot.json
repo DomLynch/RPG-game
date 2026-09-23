@@ -248,6 +248,24 @@
  ],
  "dwarf": [
   {
+   "slot": "Body",
+   "layer": "over",
+   "file": "loot/dwarf_upper.glb",
+   "slots": [
+    "Body"
+   ],
+   "unscale": "dwarf"
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "loot/dwarf_upper.glb",
+   "slots": [
+    "Arms"
+   ],
+   "unscale": "dwarf"
+  },
+  {
    "slot": "Greaves",
    "layer": "over",
    "file": "loot/dwarf.glb",
