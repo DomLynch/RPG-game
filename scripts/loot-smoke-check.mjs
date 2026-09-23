@@ -30,9 +30,13 @@ try {
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
   for (let i = 0; i < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; i++) { await page.evaluate(() => document.querySelector('#difficulty').click()); await page.waitForTimeout(150); }
+  // The rigs attach when #art-status empties and the NEXT frame compiles every shader: on the runner's software GL that frame holds
+  // the main thread for tens of seconds and a tap issued before it times out (check 32, #533). The tap waits for the rigs and one
+  // painted frame after them — a load wait keyed on the event, not a longer timeout.
+  await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   await page.getByRole('button', { name: 'Enter the arena' }).tap();
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
-  await page.waitForFunction(() => document.querySelector('#art-status').textContent === '' && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
   const { run, until } = await harnessClock(page); await run(200);
 
   // ---- the goblin win (quiet-one-browser-check.mjs fight(), goblin branch) -------------------------------------------------------
