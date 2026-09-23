@@ -42,7 +42,7 @@ OUT = 'src/assets/source/loot'
 # shins, one piece from knee to instep, like the Veteran's greaves (parts.py slot 'Greaves').
 SLOT_OF = [('Head', 'Helmet'), ('neck', 'Helmet'), ('spine', 'Body'), ('pelvis', 'Body'), ('clavicle', 'Body'),
            ('upperarm', 'Arms'), ('lowerarm', 'Arms'), ('hand', 'Gloves'), ('thumb', 'Gloves'), ('index', 'Gloves'), ('middle', 'Gloves'),
-           ('ring', 'Gloves'), ('pinky', 'Gloves'), ('thigh', 'Greaves'), ('calf', 'Greaves'), ('foot', 'Greaves'), ('ball', 'Greaves')]
+           ('ring', 'Gloves'), ('pinky', 'Gloves'), ('thigh', 'Greaves'), ('calf', 'Greaves'), ('foot', 'Boots'), ('ball', 'Boots')]
 MIN_SLOT = int(args[args.index('--min-slot') + 1]) if '--min-slot' in args else 300   # a slot with fewer iron faces than this is speckle, not a piece
 
 
