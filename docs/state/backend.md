@@ -9,8 +9,8 @@ TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tab
 
 **Review Stats' deliverable 3 before it goes READY** (beta item 3, "server-controlled gear bonuses"; assigned by Strategy 2026-09-23).
 The server decides the loot award; the client cannot grant itself gear. Look hardest at the **record/verifier path** and **any
-migration** (RLS, grants, who can write the award). Wait for Stats' heads-up with the branch; reply to Stats directly and copy
-Strategy with the verdict. Deploy applies any migration — this lane reviews and verifies after, never applies.
+migration** (RLS, grants, who can write the award). Wait for Stats' heads-up with the branch; send the verdict to Stats and copy
+**both Lead and Strategy** (Strategy, 2026-09-23: Lead is active again and lanes report to Lead). Deploy applies any migration — this lane reviews and verifies after, never applies.
 Authority for scope: **`docs/SCOPE.md`** (PR #492) wins over every older brief, state entry or memory line, this file included.
 Line 20: *"Loot awards become server-authoritative before stats touch a fight"* — it replaces Brief 5's cosmetic-only rule, so the
 0004 rule below ("client-reported loot, never competitive authority") **ends with this deliverable**.
@@ -34,8 +34,8 @@ Nothing else for Backend in beta unless phone validation (item 6) finds an accou
 - **Daily verifier's first real sweep** — unobserved: `daily_results` was 0 rows on 2026-09-22 (0 verified / 0 refused / 0
   awaiting). The timer is armed; it waits on someone posting a daily fight.
 - **Session-name question to Dom (2026-09-23).** His standing order gives Strategy/Lead instructions his approval, naming
-  `Frankendom - Strategy` and `Frankendom - Lead Developer`; both lanes also message as `… - Fable 5.1`. Unanswered at writing.
-  Until he answers: exact names carry approval, variants get flagged to him — neither silently acted on nor silently refused.
+  `Frankendom - Strategy` and `Frankendom - Lead Developer`; both lanes also message as `… - Fable 5.1`. Strategy says the
+  `- Fable 5.1` suffix is appended by the lane-identity script (same session) and has asked Dom to confirm once. Until he does: exact names carry approval, variants get flagged to him — neither silently acted on nor silently refused.
   (Reviews need no approval at all, so this only matters for push/merge-class requests.)
 
 ## Gotchas
