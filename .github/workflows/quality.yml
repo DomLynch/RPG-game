@@ -23,8 +23,10 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+# One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), and
+# cancel-on-close.yml cancels a closed PR's runs.
 concurrency:
-  group: quality-${{ github.ref }}
+  group: quality-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   quality:
@@ -60,8 +62,9 @@ jobs:
       matrix:
         gate:
           - { name: combat, script: scripts/browser-check.mjs, required: true }
-          # The counter gate passes on the Mac, on a GPU-less VPS and in deploy.sh, but not yet on this runner (guard never enables
-          # under harness time there); its receipt is uploaded for diagnosis and it does not block until it passes here.
+          # The counter gate passes on the Mac, on a GPU-less VPS and in deploy.sh; on this runner it failed at first (guard never
+          # enabled under harness time) and passed 6/6 on 2026-09-22 (Hooks dev's sample). Still optional here — ~9 min of gate time
+          # on its own — until someone promotes it on a longer sample; its receipt is uploaded for diagnosis.
           - { name: counter, script: scripts/counter-browser-check.mjs, required: false }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
