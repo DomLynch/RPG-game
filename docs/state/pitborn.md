@@ -5,7 +5,50 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-24 ~13:00 (signature effects, Lead's assignment for Dom's 13:05 deadline)
+## Now — 2026-09-24 ~15:30 (handover before /clear)
+
+**Pick up: #680 bot report (Lead's assignment, Strategy pre-approved). Blood-flag PRs are done.**
+- **#680** `pitborn/bot-limited-obs`, head `a962f66b`, base `codex/01a0ceea/task-3` (#668). Worktree = this checkout's main
+  dir (`~/Developer/frankendom-pitborn`, branch pitborn/bot-limited-obs). Lead approved the fix: no `data-threat`
+  (enemy "attack" = seen swing start → seen end), charge only from actorless `ChargeCue` (ignored on own hold) or hold time
+  (heavy past windup+8). Report: per opponent W/L, chargedHeavies correct/guardedInto/other + cue named, defence table.
+- **Batch in flight** (background, lock-aware, aborts+retries an opponent if a deploy starts):
+  `$SP/batch.sh $SP` with `SP=/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/a5938653-bdfb-4ddb-9c0c-a30aabaf0c92/scratchpad`.
+  Progress `$SP/batch-progress.log`; fights `$SP/bot-limited-final/*.json`, `$SP/bot-debug-final/*.json` (summary.json is per
+  opponent run, so aggregate from the per-fight JSONs). Scratch dies with the session: if it's gone, rerun
+  `node scripts/player-bot.mjs --opponents=all --fights=3 --no-video` (limited) and `--observation=debug`, only when the lock is FREE.
+  DO NOT edit files in the main worktree while it runs (each opponent is a fresh node process).
+- **Then, still owed on #680 (all in the same report):**
+  1. Merge #668's head `9483f894` into #680 as a normal commit. Conflicts in player-bot-review.mjs, player-bot.mjs,
+     tests/player-bot-review.test.mjs are additive: keep their `defenceExchanges` AND my defenceEarned/summarizeDefences/
+     chargedAnswers; my perception filter wins where they differ.
+  2. Headless scenario script (Lead approved): node, real sim, no sim change — `initialPractice(seed, OPPONENTS[id])` +
+     `stepPractice(p, intent, OPPONENTS[id].profiles.easy)`, or `stepDuel` with scripted opponent intents; `legal(f, action)`;
+     actions `light|heavy|thrust|kick|dodge|backstep|parry`; a dodge with no move rolls AWAY from the foe. Delay = 11 ticks.
+     KICK: close range, opponent holding guard → kick (vsGuard stagger 36) → (i) earliest legal quick attack (landed?) and
+     (ii) reposition; report stagger ticks, whether `Staggered` is perceived (tick+11) inside the window. ROLL: back vs angled
+     roll vs the same heavy (plain + charged), damage avoided, ticks to first useful hit, distance to wall (RADIUS 8.55), centre
+     and near-wall starts. Cross-check kicks vs ~/Developer/frankendom-player-bot/artifacts/combat/kick-candidate-2 and
+     kick-candidate-all-3 (READ ONLY, Codex worktree).
+  3. GOBLIN: the loss is Codex's `~/Developer/frankendom-player-bot/artifacts/combat/limited-all-easy-3/goblin-2504048581.json`
+     (read only). Replay seed 2504048581 in the browser under MY filter with a per-tick trace (legal = controls' aria-disabled /
+     accepts(); requested = bot keys/press; accepted = player start events). Verdict: missed chance / unclear recovery feedback /
+     rejected inputs / no escape; say whether the loss reproduces.
+  4. Fact: the tactical bot never kicks (no KeyC in policy); opponents kicked it 35× in 18 interim fights.
+- Send Lead (`Frankendom - Lead Developer`) the head + both batch results + the above. Post the report on #680.
+
+**Blood flags — done, handed over.**
+- #667 Dwarf Hammer Wound C: head `e052c1e1`, base trunk, CI green, Lead: "verified and READY to Deploy". SHIPPED
+  `dwarf: { variant: 'C', name: 'Hammer Wound' }`, `blood: true` on C only. Evidence strip: branch `evidence/dwarf-wound`.
+- #661 Butcher's Wake: head `690c74a8` (bloodMode added to the test frame after CI went red), CI green; taken by Executioner
+  into #682 `effects/batch-0924`. Push NOTHING more to `pitborn/sig-butchers-wake` without telling Executioner/Lead.
+- #666 Shieldmaiden Splintered Defiance: still waits for her shield.
+
+**Gotchas:** `tsc -p .` does not type-check tests — CI runs `npm run typecheck:tests` (tsconfig.tests.json). Deploys start
+often; the PreToolUse hook blocks tests/builds during one (even `node --test` on one file in a loop). Never pkill by name: another
+lane's player-bot (artifacts/combat, step 64) runs on this Mac. zsh `$C:r…` is a filename modifier — brace variables before `:`.
+
+## Then — 2026-09-24 ~13:00 (signature effects, Lead's assignment for Dom's 13:05 deadline)
 
 **Three PRs open, all waiting on Dom via Strategy. Nothing to build until one comes back.** HOLD browser renders until Lead says
 World's Witch strip has landed (Mac at load 50–100).
