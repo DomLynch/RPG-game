@@ -34,13 +34,17 @@ absence of one. Grafting must never be the only way to progress.
 - **Diablo-style rolled properties** on parts (Brutal / Scarred / Ancient) — light, after V1.
 - **Targeted hunting** (you hunt the creature whose part you want) falls out of 1 + 4 for free.
 
-## Out or held (Strategy's 10–20%; Dom to align)
+**V3 — Dom: "3 is important" (2026-09-24), overruling Strategy's hold**
+- **Player-created monsters.** Players assemble unused parts into creatures of their own: training opponents, arena
+  defenders, pets, PvE encounters other players can challenge. "Build yourself. Then build your monster." Requirement
+  before it starts: the creature pipeline must assemble a creature from parts at runtime (rig + slot library), not
+  hand-fit per body, or the cost multiplies; that pipeline work is the V3 spine.
+
+## Out or held (Dom aligned 2026-09-24 on these three)
 - **Losing an equipped graft to the winner in PvP, and single-copy global artifacts.** On a phone game with a small base this
   is griefing, support load and rage-quits, and our PvP is ghosts only. Keep the *history* (provenance) without the *loss*.
   Revisit only if live PvP ever exists and the base is large.
 - **Evolution replacing levelling.** Held as written above: evolution is a layer on the ladder, never a replacement.
-- **Player-created monsters.** Our creature pipeline is TRELLIS + hand-fit per body; letting players assemble creatures
-  multiplies that cost and the QA. V4 at the earliest.
 - **World ecosystem (populations shift with community kills).** Only means something with a real population; at our scale a
   fake "Orc population: CRITICAL" banner reads as fake. Hold until there are enough players to move it honestly.
 
