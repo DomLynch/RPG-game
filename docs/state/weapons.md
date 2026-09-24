@@ -2,40 +2,47 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-24 (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-24 evening (replace this section wholesale; it is the restart brief, not history)
 
-**Now.** Nothing new is assigned. Two threads wait on Lead:
-- **#673, the Profile pack** (head 8cdf952b, base trunk): Lead has checked it, and Strategy has the ruling.
-- **#660, Goblin Hooked Wound** (A/B/C, head 8ea3a5fe): ruled to ship as C. HOLD: Lead sends rebase instructions after World's framework PR.
+**Now — three threads for Lead (Frankendom - Lead Developer), in this order:**
+1. **Blood flags (#677 on trunk 5f32ad45). All code done; waiting on CI.** For each PR: trunk merged in as a normal commit (the
+   `src/scene.ts` import-block conflict kept every trunk line plus the effect's import), then `blood: true` on every variant plus a test
+   pinning A/B(/C) and the SHIPPED variant through `pickSignature('ship')`, plain push, retargeted to trunk. Each diff = 3 files only.
+   - #658 Nightborn: head `53236c94`. That is an empty commit: `quality.yml` fires only on a push to a PR already based on trunk, and
+     the retarget came after the push to `f7fa2085`, so no quality run happened there.
+   - #660 Goblin: head `14d4858d`. `quality` passed. The one "fail" is a CANCELLED `check ${{ matrix... }}` row from a superseded
+     release-checks run, not a real failure.
+   - #662 Plague: head `f97087eb`. The first run failed typecheck: #677 added a required `bloodMode` to `SignatureFrame`, and the test
+     built one without it. Fixed with `bloodMode: 'red'`.
+   - Local: each branch's test file plus `signature.test.ts` pass (11/12/12). `f97087eb` itself is not yet typechecked locally; CI covers it.
+   - **Next:** when #658 and #662 CI is green, send Lead the three heads and the CI result.
+2. **#678, the opponent charge cue `charge_foe`:** head `77ab22d8`, CI 41 pass, 1 skipped, green. Opponent `Charged` → `charge_foe`,
+   player → `charge`, pinned in `tests/audio.test.ts`. Sprite gzip is 998,067 B against the 1,000,000 cap. **Not yet sent to Lead**,
+   because Lead's order is the blood PRs first. **Lead then REFINED it (Strategy, from Dom's plan):** the cue must RISE, climbing through
+   the whole Charging hold. The receipt must add how long it climbs and what happens on a cut-short hold or a feint. Design worked out,
+   NOT yet coded:
+   - Start on the opponent's `Charging` event (actor 1, charge === 1), not on `Charged`. Only `heavy_overhead` has `charges: true`,
+     and `Charging` also fires for a merely chambered light, so gate the rise on the move charging.
+   - Climb for 0.9 s = `RULES.charge.max` 54 ticks. At max the sim auto-releases, so a natural end = the forced swing. Optional mark at
+     ~0.48 s (Charged, 29 ticks after Charging).
+   - Cut on release / feint / stagger: there is no release event, and adding one = a sim change (SIM_FILES), so don't. Instead add
+     `holding?: boolean` to `ArenaFrame` (`src/audio/arena.ts`), set in `src/main.ts:908` from `fighters[1]`: `phase === 'attack'`
+     && `charge > 0` && `age <= chamber`. `feedback.ts` remembers the voice playing `charge_foe` and fades it out (~30–40 ms) when
+     `holding` goes false. Release → `AttackActive` is 16–24 ticks for a heavy, so an event-only cut would climb past the release.
+   - Sprite budget: 1,933 B of headroom. A 0.9 s cue is longer than the current 0.36 s one, so drop to 1 variant only if the
+     `>= 2 variants` test allows it (it doesn't), or trim elsewhere. Measure gzip after every rebuild.
+3. **Standing:** #673 merged. #651 merged. #674 (this doc) is open.
 
-When Lead answers, do what the message says. Do not rebase #660 on your own.
-
-**Done today (2026-09-24)**
-- **Signature effects** (brief: `docs/briefs/signature-effects.md` on origin/strategy/state-1235). Each is one file plus one import line in `src/scene.ts`:
-  - #658 Nightborn Blood Recall, A plus B (dark drops with a trail), head 926ca29e.
-  - #660 Goblin Hooked Wound: A draws over the rigs, B is depth-tested, C is a heavy sagging strand with drops that have a trail.
-  - #662 Plague Doctor Rot Bloom, A plus B (25 cm, darker), head 46dd289a. It is based on World's `world/signature-dwarf-stamp` for the `site` param.
-- **#673, the Profile PACK row under WORN:**
-  - `Loot.pack`, with `PACK = {open: 2, total: 5}` replacing the unused LOCKERS.
-  - Store = `stow`; Wear from the pack = `wearFromPack`, with a swap.
-  - `wear()` removes a piece from the pack.
-  - `recoverPack` at load puts back what Store had lost.
-  - Signed in: `profileDiffers` sees the pack, and `absorbCloud` keeps the device's pack.
-  - Take flow: `wearTaken` packs the displaced piece, and when the pack is full, `takeWouldDrop` makes the panel ask with Replace.
-- **#651, the maul head in stone:** all checks green, waiting on Dom's yes.
-
-**Open**
-- #658 and #662 need Dom's picks, which go through Strategy.
-- #651 needs Dom's visual yes.
-- `knight.glb` needs a rebuild by the Executioner lane after #651.
-
-**Gotchas**
-1. **Capture timing.** `page.screenshot` takes about 0.5 s at @2x, which is too slow for effects under a second. Use a CDP `Page.startScreencast` ring buffer and pick frames by time after the HP change. The idle player gets hit by the AI only after "Enter the arena" and "Draw sword".
-2. **Camera and victim marks.** The fight camera sits behind the player, so anything on the player's chest, or an opponent standing behind him (the Goblin at 0.78 scale), is hidden. Put victim marks on the shoulder or upper arm (the `site` param). To shoot an opponent in view, hold `KeyA` so the player strafes.
-3. **Phone readability.** Bright round emissive beads read as "berries". Blood that reads at 375 px is dark, small, stretched along its motion, and has a short trail. Decal art needs about 30 px on screen to read; 256² canvas veins under 1 px vanish.
-4. **The deploy hook blocks the whole command.** It blocks the entire Bash command, including edits chained with a test. Run edits on their own, then run tests after FREE.
-5. **Playwright `addInitScript` runs on every navigation.** Seed localStorage only when it is empty, or a reload check proves nothing.
-6. **The journal harness's fake DOM has no `removeAttribute`.** Set attributes to `''` instead (tests/graphics.test.ts).
+**Gotchas (new today)**
+1. **The deploy hook blocks even single-file tests and `tsc` while a deploy holds the lock.** Push, then let CI run, then test after FREE.
+2. **`npx tsc --noEmit -p .` does NOT typecheck `tests/`.** Use `npm run typecheck:tests`; that is what `quality:ci` runs.
+3. **Retargeting a PR base after a push triggers no `quality` run.** Retarget first, then push (or push an empty commit).
+4. **`gh pr checks` reports cancelled matrix rows as `fail`.** Read the run's job conclusions before calling a PR red.
+5. **zsh reads `$b:t` as a path modifier.** Write `"${b}:path"` in git show loops, and quote `--jq '.x[0:8]'`.
+6. **`build-audio.mjs` needs all 10 recordings in `artifacts/audio/source-cache`.** The downloads time out; copy them from
+   `~/Developer/frankendom-audio/artifacts/audio/source-cache` (hash-pinned). An unchanged rebuild is byte-identical to trunk.
+7. (Earlier) **Capture timing.** Use a CDP screencast, not `page.screenshot`. The camera sits behind the player: put marks on the
+   shoulder, and strafe with KeyA. Blood must be dark, small, stretched and trailed.
 
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.
