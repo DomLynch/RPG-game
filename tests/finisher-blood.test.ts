@@ -34,8 +34,11 @@ test('off never emits, changing the finisher clears old pools, resources are own
   assert.ok(blood.inspect().pools.length>0);
   blood.update(0,'runThrough',0,[],'red');assert.equal(blood.inspect().pools.length,0);
   let disposed=0,textureDisposed=0;map.addEventListener('dispose',()=>textureDisposed++);
-  for(const child of blood.group.children) { const mesh=child as InstancedMesh;mesh.geometry.addEventListener('dispose',()=>disposed++);(mesh.material as import('three').Material).addEventListener('dispose',()=>disposed++); }
-  blood.dispose();assert.equal(disposed,4);assert.equal(textureDisposed,0);
+  const owned=new Set<{addEventListener(t:'dispose',f:()=>void):void}>();
+  for(const child of blood.group.children) { const mesh=child as InstancedMesh;owned.add(mesh.geometry);owned.add(mesh.material as import('three').Material); }
+  for(const r of owned)r.addEventListener('dispose',()=>disposed++);
+  assert.equal(owned.size,9,'one droplet geometry and material, one shared stain plane, a material per floor shape (2 pools + 4 splashes)');
+  blood.dispose();assert.equal(disposed,owned.size);assert.equal(textureDisposed,0);
 });
 
 
@@ -74,4 +77,16 @@ test('a kill bloodies the striking part of every shipped weapon and never its ha
   // Reconstructed parts (weapons Phase 2): the head is the striking part, the baked shaft is the handle — on a two-hander and on the hero's sword.
   assert.deepEqual(['WeaponTrident', 'WeaponTridentShaft'].map((m) => bloodiesMaterial(m, true)), [true, false], 'the trident\'s baked shaft stays clean');
   assert.deepEqual(['WeaponLongsword', 'WeaponLongswordShaft', 'Blade'].map((m) => bloodiesMaterial(m, false)), [true, false, true], 'the reconstructed longsword bloodies its blade only');
+});
+
+test('the spray stains take the floor shapes in turn: a seep a pool shape, a landed droplet a splash shape', () => {
+  const blood=createFinisherBlood(new Texture()),source:BloodSource={site:'jugular',position:new Vector3(3,.4,4),direction:new Vector3(1,0,0),strength:1};
+  for(let i=0;i<300;i++)blood.update(1/60,'decapitation',1,[source],'red');
+  const meshes=blood.group.children.filter(c=>c.name.startsWith('FinisherPools')) as InstancedMesh[];
+  assert.equal(meshes.length,6);
+  const used=meshes.map(m=>m.count);
+  assert.ok(used.slice(0,2).some(n=>n>0),`the wound's seep draws a pool shape: ${used}`);
+  assert.ok(used.slice(2).filter(n=>n>0).length>=3,`the landed spray spreads over the splash shapes, not one: ${used}`);
+  assert.equal(used.reduce((a,b)=>a+b,0),blood.inspect().pools.length,'every stain drawn exactly once');
+  blood.dispose();
 });
