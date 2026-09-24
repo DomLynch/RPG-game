@@ -515,6 +515,16 @@ test('the journal opponent picker lists the ladder, shows the current rung, and 
   assert.equal(app.replaced.length, 1, 'an unknown value does nothing'); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn');
 });
 
+test('the arena test pick reloads into the new arena on its own: changing only the arena is enough (Dom, 2026-09-24)', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
+  const select = app.element('arena-select');
+  select.value = 'b'; select.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(app.replaced.length, 1, 'one navigation, without touching Opponent');
+  assert.ok(!app.replaced[0].includes('arena='), `a URL arena would win over the pick, so it is dropped: ${app.replaced[0]}`);
+  assert.ok(app.replaced[0].includes('debug'), 'other query flags survive');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
+});
+
 test('graphics startup preserves the original failure and stack for monitoring', () => {
   const failure = new Error('GPU allocation failed');
   assert.throws(() => boot({}, failure), error => error === failure);
