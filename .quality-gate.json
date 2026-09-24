@@ -8,13 +8,13 @@
   "manual": [
     "Desktop and mobile browser movement/camera/persistence/failure checks",
     "Live HTTPS, asset and release parity",
-    "Two-pass code review"
+    "Two-pass code review",
+    "Player bot, by hand (needs npm run build; never while a deploy holds the lock): node scripts/player-bot.mjs --opponent=pitborn --fights=3 --step-ms=64 --no-video --out=artifacts/combat/player-bot-gate"
   ],
   "completion_commands": [
     ["node", "--test", "tests/player-bot.test.mjs"],
     ["node", "--test", "tests/player-bot-review.test.mjs"],
-    ["node", "--test", "tests/player-bot-observation.test.mjs"],
-    ["node", "scripts/player-bot.mjs", "--opponent=pitborn", "--fights=3", "--step-ms=64", "--no-video", "--out=artifacts/combat/player-bot-gate"]
+    ["node", "--test", "tests/player-bot-observation.test.mjs"]
   ],
   "release_commands": [
     [
