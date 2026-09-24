@@ -8,6 +8,28 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-24 ~11:30 (handoff, context restart)
+
+**Pick up, in order:**
+
+1. **#665 Veteran signature (`veteran/battle-scars`, head `48d9e350`, base `world/signature-effects`; the framework #655 is
+   MERGED, so retarget the base to trunk if GitHub has not).** B = **Blade Bite** registered (metal curls tear off the trident
+   on HIS parry; contact measured per frame as closest points between the two weapon segments). A (Battle Scars) is kept in the
+   file but NOT registered, on Lead's word: he wears no torso armour, so a metal gouge on cloth breaks the truth rule. C =
+   twisted shavings (7 ribbons, 2 stay caught in the tines). **Owed:** the C shavings strip (renders were held for World's
+   Witch/arena captures), then Dom's yes/no/again. tsc clean, signature tests 7/7, not iPhone-checked.
+2. **The Centurion equip loader + gladius/scutum re-land** — still mine, still unstarted. Spec is in the 2026-09-23 entries
+   below and memory `frankendom_centurion_gladius_scutum_2026-09-23` (measure hand_r per rig; the exact row-2 exception
+   wording; loader + swap + Combat re-pin as ONE bump). Read Stats' `opponent.wear()` PR first.
+3. **#638 "Run 4" (`phase-r-int-4`, 80e458b3) is now superseded.** Both halves are live on their own: #637 Dwarf shells
+   (`da4108ed`) and #643 Knight body-cover (`d075d053`, the bare-chest fix) are ancestors of live `91d9f749` (checked with
+   `git merge-base --is-ancestor`, each). Ask Lead to confirm, then close #638; do not re-integrate it.
+
+## Done — 2026-09-24 (morning)
+
+- **#637 Dwarf built shells LIVE** — live `release.json` revision `91d9f749`, #637's merge `da4108ed` is its ancestor.
+- **#665 opened** (08:26Z) for the signature brief, B + C variants as above.
+
 ## Now — 2026-09-24 07:30 (handoff after the Dwarf six)
 
 **Pick up:** the **Centurion equip loader + re-land** (item 2 of the entry below). The Dwarf six is done from this lane's side:
