@@ -2,6 +2,8 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 14:39 (+04, `date`) — LIVE 6830afcf: #651 maul head (Knight's grey chest block gone), #656 dead kill links → PLAY NOW, #664 rank strip through the end tour. My curl: release.json 6830afcf, bundle /assets/index-BX82YY8k.js has supabase.co. Next run: #670 Arena Draw A + #671 arena-select fix
+
 ## 2026-09-24 14:31 (+04, `date`) — Dom: "would a game tree be more efficient?" Yes. The Business-level CodeGraph daemon (pid 851, cwd ~/Desktop/Business, 18 GB index) stopped; 18 worktree daemons kept; load 33 by my uptime. Recommended to Dom: delete ~/Desktop/Business/.codegraph (his disk, his call)
 
 Rule for every lane (memory project_codegraph_index_per_worktree_not_business): CodeGraph indexes one frankendom-* worktree, never ~/Desktop/Business; a Business-rooted worker or daemon is killed on sight. Lead has recorded my owner-proxy mode as UNCONFIRMED until Dom says it in the Lead session (correct hygiene); merges continue under Dom's 09-23 standing order meanwhile; asked Dom for the one-line confirmation. Load by my own uptime: 178 → 61 (14:30) → 33 (14:31).
