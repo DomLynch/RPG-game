@@ -1,4 +1,27 @@
-## Now — web lane, 2026-09-22 23:xx (session close; read this first)
+## Now — web lane, 2026-09-24 (session close at ~305k; read this first)
+
+**Pick up:** Dom picks an Arena Draw direction on draft PR #642 (A iron board · B stone wheel · C gallows plaques; PNGs also untracked
+in `mockups-arena-draw/`). When he picks: build it on its own branch (ladder chooses FIRST, then animate; ≤1.5 s; tap to skip;
+portraits only, `public/game/img/<id>.webp`; frame-budget receipt on the phone). Mockup source (not in repo): scratchpad `draw/draw3.html`.
+Queue after it, in Lead's order, ONE at a time: (3) TWO SHARE BUTTONS — "Share fight" (today's link) + "Export clip" (vertical 10–15 s
+MediaRecorder clip of the replay ending on the kill, combat audio, no touch controls, small mark, share-sheet files else save,
+reduced-gore toggle; receipt = export time + size on Dom's phone); (4) COACH MODE tactics board + Watch, only after Combat's four
+policies pass their battery. **Dom's rule for every visual feature: THREE labelled mockups first, Dom picks, then build.**
+
+**Done today:** #627 (cleanLoot slot-named key warns) MERGED. #639 open — static og:title/og:image on index.html so `/s/<id>` kill links
+preview in WhatsApp (no per-fight still exists anywhere; that needs Backend + Deploy). #644 open — `scripts/opponent-portraits.mjs`
+(the /game portrait rig, recovered) + dwarf/knight/shieldmaiden/plaguedoctor/witch cutouts; quality:ci EXIT=0 574/0, Budget PASS.
+Phone pass on live fa0c27d1 (10 full sets + Veteran IV win/loss) reported to Lead: Executioner helmet missing, Shieldmaiden bare back,
+Dwarf body/arms/greaves (known) rejected with NO console warning, weapons never visible while sheathed, Knife tile has no thumb.
+
+**Open:** #639 and #644 wait for Lead's merge. #642 waits for Dom. The finisher-WAIT for the loot panel (entry below) is still unbuilt.
+
+**Gotchas:** (a) headless Chromium on this Mac needs `--use-angle=metal --enable-gpu --ignore-gpu-blocklist` for the live game or any
+GLB render — SwiftShader blocks the main thread and the page never boots. (b) A returning guest profile has no "Enter the arena" button;
+tap it only if visible. (c) The deploy lock (`~/.claude/state/deploy_in_flight.json`) comes and goes every few minutes — re-check it
+immediately before every render, not once. (d) The versus cards (`public/versus/`) are full scenes, useless as portraits.
+
+## 2026-09-22 23:xx — previous session close
 
 **Nothing is in flight and nothing is half-done.** Merged tonight: #458 (viewer-page polish + the folded-in handover docs, 16:14:25Z)
 and #464 (the Centurion rename + "warden" out of player-facing copy, 16:40:59Z). Open and queued behind the publish: **#475**
