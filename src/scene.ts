@@ -174,6 +174,9 @@ export function createScene(
   ])
     .then(([loaded]) => {
       warriors = loaded;
+      // Graft slice 1 stills (block B, preview only): ?graft=a|b|c grafts the Witch's arm onto the player (src/graft-preview.ts).
+      const graft = /[?&]graft=([abc])(?:&|$)/.exec(typeof location === 'undefined' ? '' : location.search)?.[1] as 'a' | 'b' | 'c' | undefined;
+      if (graft) void import('./graft-preview.ts').then((m) => m.graftFromUrl(loaded.player.anchor, fighterUrls['./assets/witch.glb']!, graft)).then((r) => { (globalThis as { __graft?: unknown }).__graft = r; }).catch((error: unknown) => captureException(error));
       if (supportsFinishers(opponentId, 'opened')) loaded.opponent.prepareOpened();
       for (const proxy of [player, opponent]) {
         proxy.traverse((object) => {
