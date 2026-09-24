@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 07:10 — DOM RULED: hourly Lead self-wake overnight from tonight (day rule unchanged, no timers)
+
+Lead told: at Dom's "asleep", start a 60-minute self-wake loop in Lead's own session; per wake = READY → publish + sha, dark lane → one chase, finished table/PR → relay (split messages past the app cap), nothing → one line; stop when Dom is up. Memory: feedback_overnight_hourly_lead_wake_2026-09-24. Owed: Lead's ack, Run 4 sha, Dom's pick on rows 23/27.
+
 ## 2026-09-24 07:05 — Overnight correction, attrition table = NOT over-handicapping, Run 4 in flight, rows 23/27 for Dom
 
 CORRECTION to my 06:55 line ("six and a half hours lost"): Stats finished the attrition table at 01:58 and Lead's relay to me was blocked by the app's message cap; #637 (Dwarf shells) and #603 (Knight, 1db7afd5) were pushed. The dead time is ~02:00–06:55 with every session idle, cause = no event wakes an idle session and my overnight order asked for silence; Dom told 06:55, one hourly Lead wake overnight recommended, his call. My gh search missed the overnight PRs (GitHub dates are UTC, local is +4).
