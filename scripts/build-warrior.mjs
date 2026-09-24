@@ -350,6 +350,10 @@ if (LOOT) {
           g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
         }
         if (entry.unscale) { if (!o.isSkinnedMesh) throw new Error(`${entry.file}: unscale needs skin weights on ${o.name}`); unscaler(entry.unscale)(g); }
+        if (entry.scale) {   // loot.json `scale` [x, y, z] about the `bone`'s joint: the Knight's great helm was 43 cm deep on a 27 cm head, its visor ~10 cm off the face
+          const p = jointOf(skeleton, boneIndex)(entry.bone); g.translate(-p.x, -p.y, -p.z).scale(...entry.scale).translate(p.x, p.y, p.z); g.computeBoundingBox();
+          console.log(`  loot ${opponent}.${entry.slot}: scaled ${entry.scale.join(' ')} about ${entry.bone}, z ${g.boundingBox.min.z.toFixed(3)} to ${g.boundingBox.max.z.toFixed(3)}`);
+        }
         add(g, material, entry.bone ?? o.userData.bone, 0, 0, 0, 0, entry.slot); taken++;   // loot.json `bone`: rigid to that bone instead of the cut's own weights (the Knight's helm lagged his head mid-stride)
         if (entry.conform) lootConform.push({ id: `${opponent}.${entry.slot}`, g: parts.get(material).at(-1), options: entry.conform === true ? {} : entry.conform });
       });

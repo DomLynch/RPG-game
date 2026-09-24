@@ -459,7 +459,8 @@
    "slots": [
     "Helmet"
    ],
-   "bone": "Head"
+   "bone": "Head",
+   "scale": [1, 1, 0.72]
   },
   {
    "slot": "Body",
