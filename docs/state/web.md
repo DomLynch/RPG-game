@@ -1,4 +1,39 @@
-## Now — web lane, 2026-09-24 afternoon (session close at ~306k; read this first)
+## Now — web lane, 2026-09-24 evening (session close; read this first)
+
+**Pick up: the Lead's capture-only task, "do BLOCK, PARRY and DODGE read as three different events on the phone?"** No code.
+Receipt: ONE sheet of three stills at 375x812 from the LIVE build (a5590911 once live, else 5655ac94), each AT IMPACT with the
+player in front: block, parry, dodge. Name the audio cue(s) for each (from src/audio/cues.ts + manifest, CONFIRMED in the live run)
+and one plain line per still on what the bodies do. Push to `evidence/defence-reads`, send the Lead the branch. If all three already
+read, it closes with no work. NO browser runs while `~/.claude/state/deploy_in_flight.json` exists (a5590911 was deploying at close).
+- Script ready, not yet run: `artifacts/defence.mjs` (gitignored). Run `node artifacts/defence.mjs <outdir> block|parry|dodge` from
+  the repo root; it plays frankendom.com/?opponent=veteran&debug=1, retries until the target event (Blocked/Parried/Dodged, actor 0),
+  screenshots that frame, and logs AudioBufferSourceNode.start offsets mapped to MANIFEST names (+ OscillatorNode = synth fallback).
+  Untested: the parry timing (Q at tell+280 ms) and dodge (ArrowLeft held + E at tell+300 ms) may need tuning; guard side per move:
+  heavy_overhead ArrowUp, kick ArrowDown, light_right ArrowLeft, light_left ArrowRight, thrust none (a guard covers mirror(attack)).
+- Already read from code (cues.ts, identical on 5655ac94 and trunk): Blocked → `block` (or `block_perfect`), gain 1; Parried →
+  `parry`, gain 1; Dodged → NO impact cue at all, only the `roll` whoosh at the roll's start (.12) and the attacker's swing whoosh.
+
+**Done today (evening):**
+- **#676 MERGED (61a87175)** — fight HUD: red "Incoming strike…" banner out (styling + text); `#fight-rank` permanent under the meters
+  with the player's name at its left (`.rank-name`, appended last, CSS `order:-1`); white event line under it; blank line when nothing
+  happened (phone `min-height: 1.4em` keeps the row); guard-break words by cause (`resultBreak` on the projection, presentation only).
+  Gates re-keyed from the "Incoming strike" text to `data-threat` (tell→guard 432 ms trunk vs 444 ms #676, under a frame);
+  autopsy gate compares the rank row without `.rank-name`. Evidence: `evidence/web-hud` (HUD stills + Witch charge/break/line strip).
+- **#681 MERGED** — practiceHint strings-only (Strategy's rule: the line says WHAT HAPPENED or WHAT STATE YOU ARE IN, never what to do
+  or when). Removed the opponent-state reads and advice tails; trimmed to state words (Charging…/Charged/Chambered, Exhausted,
+  Guarding, Follow-through, Posture broken, …); "Parried!", "Your strike was turned aside", "Your posture broke", "You fell. Rematch?".
+  Only `tests/combat.test.ts` pins these strings.
+
+**Open / reported to Lead:** the Witch's charge wind-up does NOT read as a charge without text (frame 1 of the strip); Strategy said
+that becomes a separate ask, not this lane's. The charge cue (`charge` sprite, cues.ts:56) fires on either fighter's Charged.
+Still queued behind the defence capture: share-button mockups (3 first), the loot finisher-WAIT.
+
+**Gotchas (new):** (i) `frankendom:combat` window events fire ONLY with `?debug=1` (main.ts) — hide `#debug` with a style tag for
+stills. (ii) A synthetic PointerEvent on #guard-button throws on setPointerCapture; hold guard with KeyQ (+ an arrow for the side).
+(iii) zsh: `$C:refs/...` is read as a `:r` modifier — write `${C}:refs/...`. (iv) The first `git push` of a commit-tree evidence
+commit fails once and succeeds on retry. (v) Scratch capture scripts go in `artifacts/` (gitignored), never the repo.
+
+## Earlier — web lane, 2026-09-24 afternoon close
 
 **Pick up: the fight-HUD brief (Dom described it on his Centurion screenshot; Strategy + Lead ruled, NO mockups, ONE 375-wide phone
 still as the receipt, to Lead then Strategy).** Branch off trunk AFTER #664 merges (same rank row); if started earlier, rebase.
