@@ -22,6 +22,8 @@ Ask after every exchange where the player took damage, was guard-broken, or bloc
 
 Also note, per exchange, without asking: did they see the charge coming (a look, a hand move, a word), and did they tell the parry from the block without the text. When their posture breaks, note whether they showed any sign of knowing it before the critical landed (the bot cannot measure this; the playtest is the only instrument).
 
+One observer runs a listen check before the session starts, phone sound on: when the opponent winds up a heavy, a rising cue should climb for the whole hold and stop dead on a feint or a stagger. Note yes/no once; it is not a player question.
+
 ## Scoring sheet (one row per exchange)
 
 | player | fight | exchange | what they said happened | why they said | next they'd try | saw the charge? | parry ≠ block? | observer: what actually happened |
