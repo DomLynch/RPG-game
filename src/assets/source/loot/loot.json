@@ -316,20 +316,12 @@
   },
   {
    "slot": "Body",
-   "layer": "replace",
-   "file": "parts/level1_shieldmaiden.glb",
-   "names": [
-    "tunic",
-    "baldric",
-    "belt",
-    "buckle",
-    "studs"
-   ],
-   "conform": true
+   "layer": "over",
+   "file": "@build:shieldmaiden-hauberk"
   },
   {
    "slot": "Body",
-   "layer": "replace",
+   "layer": "over",
    "file": "@build:shieldmaiden-mail-skirt"
   },
   {
@@ -365,22 +357,12 @@
   {
    "slot": "Helmet",
    "layer": "replace",
-   "file": "loot/plaguedoctor.glb",
-   "slots": [
-    "Helmet"
-   ],
-   "conform": {
-    "beyond": 0.06,
-    "maxPush": 0.08
-   }
+   "file": "@build:plaguedoctor-mask"
   },
   {
    "slot": "Body",
-   "layer": "replace",
-   "file": "loot/plaguedoctor.glb",
-   "slots": [
-    "Body"
-   ]
+   "layer": "over",
+   "file": "@build:plaguedoctor-coat"
   },
   {
    "slot": "Arms",
@@ -455,12 +437,7 @@
   {
    "slot": "Helmet",
    "layer": "replace",
-   "file": "loot/knight.glb",
-   "slots": [
-    "Helmet"
-   ],
-   "bone": "Head",
-   "scale": [1, 1, 0.72]
+   "file": "@build:knight-great-helm"
   },
   {
    "slot": "Body",
