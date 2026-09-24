@@ -70,24 +70,19 @@ test('a check that fails is retried once alone; a persistent failure exits non-z
   assert.ok(!existsSync(join(root, 'artifacts', 'release-checks.json')), 'no receipt on failure');
 });
 
+// "Killed, not waited out" is asserted by ORDER, not by a clock (same fix as tests/deploy-ceiling.test.ts, #628). At load 200+ node
+// startup alone ran past the 2 s ceiling, so the old honest `node scripts/sleep.mjs 10` was itself killed and the wedge's pid file was
+// never written. Now nothing here starts node: the honest check is `true`, and the wedge is an `sh` whose forked subshell (the
+// grandchild, like jpegtran under a check's node) sleeps 30 s, then writes a marker. That subshell holds the check's stdout pipe, and
+// the runner resolves a check on 'close', so the run cannot return before the grandchild dies or writes. Marker absent on return = the
+// group was killed. A kill that reached only the direct child makes this test slow (30 s) and red, never green.
 test('a check that never exits is killed at the ceiling, process group included, and counts as a failure', () => {
-  // The deploy #71 wedge: a check whose grandchild blocks forever at 0 % CPU. `wedge.mjs` execFileSyncs a `sleep 600` (sync wait,
-  // like execFileSync('jpegtran', { input })), so SIGTERM to the check would not end the sleep either.
-  const root = repo([['node', 'scripts/wedge.mjs'], ['node', 'scripts/sleep.mjs', '10']]);
-  writeFileSync(join(root, 'scripts', 'wedge.mjs'), "import { execFileSync } from 'node:child_process'; import { writeFileSync } from 'node:fs'; writeFileSync('wedge.pid', String(process.pid)); execFileSync('sleep', ['600']);");
-  const started = Date.now();
+  const root = repo([['sh', '-c', '(sleep 30; touch wedge.finished); exit'], ['true']]);
   const result = run(root, { RELEASE_CHECK_CEILING_S: '2' });
-  const took = (Date.now() - started) / 1000;
   assert.notEqual(result.status, 0, 'the wedged check fails the run: ' + result.stdout);
   assert.match(result.stdout, /check 1\/2 CEILING 2s — killing the process group/);
   assert.match(result.stdout, /check 2\/2 passed/, 'the honest check still passes');
-  assert.ok(took < 30, `killed at the ceiling (took ${took.toFixed(1)}s, not the sleep's 600 s)`);
-  // The grandchild `sleep 600` died with the group, not just the check process.
-  const wedgePid = Number(readFileSync(join(root, 'wedge.pid'), 'utf8'));
-  // SIGKILL delivery to the group is asynchronous: give the kernel a moment to reap before declaring survivors.
-  let survivors = '';
-  for (let i = 0; i < 20; i++) { survivors = spawnSync('pgrep', ['-f', '^sleep 600$'], { encoding: 'utf8' }).stdout.trim(); if (!survivors) break; execFileSync('sleep', ['0.1']); }
-  assert.equal(survivors, '', `no orphaned sleep 600 after the ceiling (wedge pid ${wedgePid})`);
+  assert.ok(!existsSync(join(root, 'wedge.finished')), 'the grandchild died with the group, not waited out');
 });
 
 test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
