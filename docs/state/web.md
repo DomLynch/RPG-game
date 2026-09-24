@@ -1,4 +1,27 @@
-## Now — web lane, 2026-09-24 evening (session close; read this first)
+## Now — web lane, 2026-09-24 late evening (read this first)
+
+**Done; next from Lead.** Nothing in flight. Live = playtest sha **e37a74c7** (frozen until the playtest). Lead is CEO with full
+authority (Dom, 2026-09-24): questions go to Lead, never to Dom.
+
+**Done tonight:**
+- **Defence audit v1** — `evidence/defence-reads` @ 6ff9f47d, LIVE a5590911, 375x812, stills at the impact tick. Cues confirmed live:
+  Blocked → `block`, Parried → `parry` (+ attacker whoosh on both), Dodged → NO impact cue, only `roll`. Verdict: dodge reads from the
+  body; block and parry did NOT (same attacker pose at impact, told apart only by sound + text). Lead sent it to Strategy as a fail.
+- **Defence audit v2** — `evidence/defence-reads-v2` @ 423d98f6, on World's PR #686 @ b1fe8d66 (parry tell on the ATTACKER, no sim
+  change): block/parry/parry+6/dodge, text-covered copies. Parry now throws the Centurion's trident out wide and high, torso upright;
+  block keeps him hunched in, trident low. **Strategy PASSED it; #686 is live in e37a74c7.**
+
+**Open:** share-button mockups (3 first) and the loot finisher-WAIT stay queued, released only by Lead.
+
+**Gotchas (new):** (vi) Dodge input = HOLD E ≥ `HOLD_MS` 150 (a tap is a backstep); a straight-back roll from default spacing leaves
+reach and the sim says `AttackMissed`, not `Dodged` — hold a side arrow to get "Evaded!" vs a blade. (vii) Parry = Q pressed ~6 ticks
+before `AttackActive` (window `RULES.parry` 10 ticks); time from the attacker's `AttackStarted` + the move's `windup` in moves.ts.
+(viii) `src/audio/manifest.ts` now ends `} as const;` — parse with `(?: as const)?`. (ix) The player stands passive between capture
+attempts, so the lorarii whip him (`whip` cue) and he can die; cap retries. (x) PR-head captures: `git archive <sha> | tar -x` into
+the scratchpad, symlink node_modules, `npx vite build`, `npx vite preview --port 4186`; `artifacts/defence.mjs` takes `BASE=` and
+`LATER=<ticks>`; `artifacts/defence-sheet2.mjs` makes the text-covered copies and sheets.
+
+## Earlier — web lane, 2026-09-24 evening close
 
 **Pick up: the Lead's capture-only task, "do BLOCK, PARRY and DODGE read as three different events on the phone?"** No code.
 Receipt: ONE sheet of three stills at 375x812 from the LIVE build (a5590911 once live, else 5655ac94), each AT IMPACT with the
