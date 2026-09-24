@@ -2,7 +2,7 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
-## 2026-09-24 14:39 (+04, `date`) — LIVE 6830afcf: #651 maul head (Knight's grey chest block gone), #656 dead kill links → PLAY NOW, #664 rank strip through the end tour. My curl: release.json 6830afcf, bundle /assets/index-BX82YY8k.js has supabase.co. Next run: #670 Arena Draw A + #671 arena-select fix
+## 2026-09-24 14:39 (+04, `date`) — LIVE 6830afcf: #651 maul head (Knight's grey chest block gone), #656 dead kill links → PLAY NOW, #664 rank strip through the end tour. My curl: release.json 6830afcf, bundle /assets/index-BX82YY8k.js has supabase.co and the PLAY NOW string. NOT verified by me: the maul head (a .glb asset, 1,574,764 bytes on trunk vs 1,287,904 before; no hashed path found in index.html or the bundle to HEAD) and the rank-strip behaviour (#664 is main.ts/style.css logic, no grep-able string); both are per Lead/Deploy. Next run: #670 Arena Draw A + #671 arena-select fix
 
 ## 2026-09-24 14:31 (+04, `date`) — Dom: "would a game tree be more efficient?" Yes. The Business-level CodeGraph daemon (pid 851, cwd ~/Desktop/Business, 18 GB index) stopped; 18 worktree daemons kept; load 33 by my uptime. Recommended to Dom: delete ~/Desktop/Business/.codegraph (his disk, his call)
 
