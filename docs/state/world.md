@@ -2,6 +2,42 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — signatures framework (SHIPPED + bloodMode), Witch shipped, 2026-09-24 afternoon
+
+### Now
+- **#669 Witch (The Grasp)**: Strategy YES. GREEN at 21c51cab, MERGEABLE onto trunk 5f32ad45. Handed to Lead to re-READY; Deploy merges it.
+  After it is live: confirm on the phone that a player (tools closed) sees the staff sparks and the Grasp against the Witch with no admin pick.
+- Lead dispatches `blood: true` to the effect lanes now that #677 is on trunk. Blood list sent: Nightborn B, Goblin C, Pitborn A,
+  Plague B = blood. Executioner A, Knight B, Veteran C, Witch A = not blood. The Dwarf "Wound (C)" (#667) enters SHIPPED with its own PR.
+- Owed: the phone `?perf=1` reading for the Witch and for arenas A–D. Dom's pick of two of A–D for ARENA_PICK is still open.
+
+### Done today (afternoon)
+- **#663 merged (d45f4837)**: Dwarf Hammer Stamp registered but not shipped, `?signature=` only counts while the test tools are open.
+- **#677 merged (5f32ad45)**: `SHIPPED` in src/signature.ts is the ruled variant per opponent, on for every player (nightborn B, executioner A,
+  pitborn A, plaguedoctor B, goblin C, knight B "Rivet B", veteran C, witch A). New mode `ship`: tools closed = ship, whatever the URL says. The
+  admin select gains "Shipped" as its default and keeps Off / On / A–C. `SignatureFrame.bloodMode` is added; an effect with `blood: true` does not fire on blood off.
+  A ruled letter whose module is not registered shows nothing, so each lane's effect PR switches it on as it lands.
+- **#669 Witch AGAIN** (Strategy on d67bca77): the sparks are crossed-quad streaks (8 x 1.4 cm, 60–140 ms, ≤ 1.4 m/s), and a spent one collapses
+  to zero area. The hand is opaque (transparent: false) and near-black with a red rim; the crumble order sits in an alphaMap, fingertips first, and the ash sheds
+  off the crumble front. It is always on the RIGHT shoulder. Strip: origin/evidence/witch-again. Perf (headless Mac, not a phone): p95 16.0 ms, 0/313 dropped.
+- **#671 evidence**: origin/evidence/world-arena-select, captured on live d45f4837. After an arena-only change (→ B) the page reloads into the Rain Yard, and the opponent is unchanged.
+
+### Open
+- None blocked on this lane. #669 waits only on Deploy's queue.
+
+### Gotchas
+- **Check the COMBINATION of your open PRs, and your PR with every PR queued ahead of it.** #677 made `bloodMode` required; #669's test
+  frame lacked it, so each was green alone and trunk would have failed tsc. My #669+#677 merge-tree check missed #659 (the Knight import on
+  the same scene.ts line). Build the merge tree of trunk + every queued PR ahead of yours: `git merge-tree --write-tree`, then `commit-tree`,
+  then a detached worktree with node_modules symlinked, then tsc + tests.
+- **A translucent dark decal reads as a hollow outline on the phone.** Noise in the alpha made the black fill see-through and left only
+  the red rim. Keep the art opaque and put the dissolve order in an alphaMap with `transparent: false` (alphaTest still discards).
+- **Parked Points are not gone.** Points parked under the floor still showed as loose white squares mid-arena. Collapse a spent
+  particle to zero area instead.
+- **The deploy guard blocks `node --test` even for one file.** Plan local runs for after FREE. `tsc`, git and gh still work during a deploy.
+  `timeout` does not exist on macOS (exit 127).
+- A reload that skips the welcome form (name already stored) breaks capture scripts that wait for "Enter the arena". Submit only when `#welcome` is visible.
+
 ## Lane state — arenas 2/3, arena select, signature effects, 2026-09-24
 
 ### Now
