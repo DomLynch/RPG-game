@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { explainDecisions, intentFor, selectMoments, videoSecondAt } from '../scripts/lib/player-bot-review.mjs';
+import { damageSources, explainDecisions, intentFor, selectMoments, videoSecondAt } from '../scripts/lib/player-bot-review.mjs';
 
 test('the receipt separates attempted inputs from accepted attacks and results', () => {
   const decisions = [
@@ -34,4 +34,28 @@ test('a later hit is not attributed to guard after the bot changed input', () =>
   const decisions = [{ tick: 100, intent: 'guard' }, { tick: 110, intent: 'close distance' }];
   const events = [{ tick: 120, type: 'Hit', actor: 1, target: 0 }];
   assert.equal(explainDecisions(decisions, events)[0].outcome, 'no contact');
+});
+
+test('timeout aftermath cannot become an active-fight highlight or a negative clip', () => {
+  const events = [{ tick: 2907, type: 'Hit', actor: 0, target: 1 }, { tick: 5597, type: 'Whipped', actor: 0, target: 0 }];
+  assert.ok(!selectMoments(events, [], 5400).some(m => m.tick > 5400 || m.kind === 'wall punishment'));
+  const samples = [{ tick: 0, videoSeconds: 4.009 }, { tick: 5400, videoSeconds: 122.369 }];
+  assert.equal(videoSecondAt(-1, samples), 4.009);
+  assert.equal(videoSecondAt(5417, samples), 122.369);
+});
+
+test('damage sources count guard break once and keep arena damage separate', () => {
+  const events = [
+    { tick: 10, type: 'Hit', actor: 0, target: 1, move: 'heavy_overhead', damage: 12 },
+    { tick: 20, type: 'GuardBroken', actor: 0, target: 1, move: 'heavy_overhead', damage: 27 },
+    { tick: 20, type: 'Hit', actor: 0, target: 1, move: 'heavy_overhead', damage: 27 }, // duplicate result in a future event emitter
+    { tick: 25, type: 'Blocked', actor: 1, target: 0, damage: 2 },
+    { tick: 30, type: 'Whipped', actor: 1, target: 1, damage: 3 },
+    { tick: 40, type: 'Hit', actor: 1, target: 0, damage: 8 },
+  ];
+  assert.deepEqual(damageSources(events), {
+    player: { hits: 12, guardBreaks: 27, blockedChip: 2, total: 41 },
+    opponent: { hits: 8, guardBreaks: 0, blockedChip: 0, total: 8 },
+    arena: { toPlayer: 0, toOpponent: 3 },
+  });
 });

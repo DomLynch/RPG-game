@@ -5,8 +5,8 @@ import fs from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
-import { chooseChargedAttack, chooseGuardCounter } from './lib/player-bot-policy.mjs';
-import { explainDecisions, intentFor, selectMoments, videoSecondAt } from './lib/player-bot-review.mjs';
+import { chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack } from './lib/player-bot-policy.mjs';
+import { damageSources, explainDecisions, intentFor, selectMoments, videoSecondAt } from './lib/player-bot-review.mjs';
 import { limitedObservation } from './lib/player-bot-observation.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
 import { LONGSWORD, OPPONENTS, RULES, WEAPONS } from '../src/moves.ts';
@@ -30,7 +30,7 @@ const opponents = requested === 'all' ? playable : requested.split(',');
 assert.ok(Number.isInteger(count) && count > 0 && count <= 12);
 assert.ok(Number.isFinite(reactionMs) && reactionMs >= 100 && reactionMs <= 700);
 assert.ok([16, 32, 64].includes(stepMs));
-assert.ok(['charged', 'counter'].includes(strategy));
+assert.ok(['charged', 'counter', 'tactical'].includes(strategy));
 assert.ok(['debug', 'limited'].includes(observation));
 assert.ok(opponents.length && opponents.every(id => playable.includes(id)), 'choose a playable opponent or --opponents=all');
 const nextSeed = seed => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -50,7 +50,7 @@ try {
     const windup = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, timing]) => [move, timing.windup]));
     const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4 };
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, ...(recordVideo ? { recordVideo: { dir, size: { width: 390, height: 844 } } } : {}) });
-    const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], decisions: [], events: [], samples: [], errors: [] };
+    const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], decisions: [], eligibleOpportunities: [], events: [], samples: [], errors: [] };
     const videoStart = performance.now();
     const release = async () => { for (const key of [...held]) { try { await page.keyboard.up(key); fight.inputs.push({ tick: fight.durationSeconds == null ? null : Math.round(fight.durationSeconds * 60), key, edge: 'up', reason: 'end/reset/error' }); } catch (error) { fight.errors.push(`release ${key}: ${error}`); } finally { held.delete(key); } } };
     const keys = async (wanted, tick) => {
@@ -80,32 +80,57 @@ try {
       fight.inputs.push({ tick: 0, key: 'KeyF', edge: 'press' });
       await page.keyboard.press('KeyF');
       await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 20000);
-      let cursor = 0, memory = { tell: null, counterUntil: 0 }, perception = {}, perceivedEvents = [], lastInput = '';
+      let cursor = 0, memory = { tell: null, counterUntil: 0 }, perception = {}, perceivedEvents = [], lastInput = '', seenEligible = new Set();
       for (let steps = 0; steps < 3000; steps++) {
         const obs = await page.evaluate(cursor => {
           const text = document.querySelector('#debug').textContent, lines = text.split('\n'), enemy = lines.findIndex(l => l.startsWith('warden:'));
           const own = lines.findIndex(l => l.startsWith('you:'));
           const pos = lines[own + 2]?.match(/pos (-?[\d.]+),(-?[\d.]+)/);
           if (!pos) throw new Error('combat debug lacks player position');
+          const ownBar = lines[own + 1]?.trim() ?? '', enemyBar = lines[enemy + 1]?.trim() ?? '';
           return { tick: Number(document.querySelector('#debug').dataset.tick), gap: Number(text.match(/gap ([\d.]+)/)?.[1] ?? 99),
             radius: Math.hypot(Number(pos[1]), Number(pos[2])),
             hp: Number(document.querySelector('#player-health').value), enemyHp: Number(document.querySelector('#target-health').value),
             stamina: Number(text.match(/you: hp \d+ st (\d+)/)?.[1] ?? 0),
-            phase: lines[own + 1]?.includes('/') ? 'attack' : lines[own + 1]?.trim().split(/[ +]/)[0], enemyPhase: lines[enemy + 1]?.trim().split(/[ +]/)[0] === 'ready' ? 'ready' : lines[enemy + 1]?.includes('/') ? 'attack' : 'other',
+            phase: ownBar.includes('/') ? 'attack' : ownBar.split(/[ +]/)[0], enemyPhase: enemyBar.split(/[ +]/)[0] === 'ready' ? 'ready' : enemyBar.includes('/') ? 'attack' : 'other',
+            ownState: ownBar.split(/[ +]/)[0], ownAge: Number(ownBar.match(/\s(\d+)(?:\/|$)/)?.[1] ?? 0), enemyState: enemyBar.split(/[ +]/)[0],
             heavy: document.querySelector('#heavy-button').getAttribute('aria-disabled') === 'false',
+            light: document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false',
+            thrust: document.querySelector('#thrust-button').getAttribute('aria-disabled') === 'false',
+            kick: document.querySelector('#kick-button').getAttribute('aria-disabled') === 'false',
+            dodge: document.querySelector('#dodge-button').getAttribute('aria-disabled') === 'false',
             events: window.__botEvents.slice(cursor), count: window.__botEvents.length };
         }, cursor);
         cursor = obs.count;
         fight.events.push(...obs.events);
-        if (!fight.samples.length || obs.tick - fight.samples.at(-1).tick >= 60) fight.samples.push({ tick: obs.tick, videoSeconds: (performance.now() - videoStart) / 1000, hp: obs.hp, enemyHp: obs.enemyHp, stamina: obs.stamina, gap: obs.gap, radius: obs.radius });
+        if (!fight.samples.length || obs.tick - fight.samples.at(-1).tick >= 60) {
+          fight.samples.push({ tick: obs.tick, videoSeconds: (performance.now() - videoStart) / 1000, hp: obs.hp, enemyHp: obs.enemyHp, stamina: obs.stamina, gap: obs.gap, radius: obs.radius });
+          if (recordVideo) {
+            const geometry = await page.evaluate(() => {
+              const box = document.querySelector('#world').getBoundingClientRect();
+              return { layout: [document.documentElement.clientWidth, document.documentElement.clientHeight], canvas: [box.x, box.y, box.width, box.height] };
+            });
+            fight.videoGeometry ??= { initial: geometry, checks: 0, changes: [], suitableForReview: true };
+            fight.videoGeometry.checks++;
+            const [w, h] = geometry.layout, [x, y, cw, ch] = geometry.canvas;
+            if (Math.abs(x) > 1 || Math.abs(y) > 1 || Math.abs(cw - w) > 1 || Math.abs(ch - h) > 1 || JSON.stringify(geometry) !== JSON.stringify(fight.videoGeometry.initial)) {
+              fight.videoGeometry.suitableForReview = false;
+              if (fight.videoGeometry.changes.length < 4) fight.videoGeometry.changes.push({ tick: obs.tick, ...geometry });
+            }
+          }
+        }
         if (steps && steps % 600 === 0) console.log(JSON.stringify({ seed, tick: obs.tick, hp: obs.hp, enemyHp: obs.enemyHp, blocks: fight.events.filter(e => e.type === 'Blocked' && e.actor === 0).length }));
         if (!obs.hp || !obs.enemyHp || obs.tick >= 5400) break;
         const seen = observation === 'limited' ? limitedObservation(obs, perception, Math.ceil(reactionMs / 1000 * 60)) : obs;
         perceivedEvents.push(...seen.events);
-        const choose = strategy === 'counter' ? chooseGuardCounter : chooseChargedAttack;
+        const choose = strategy === 'counter' ? chooseGuardCounter : strategy === 'tactical' ? chooseTacticalAttack : chooseChargedAttack;
         const decision = choose(seen, memory, Math.ceil(reactionMs / 1000 * 60), config);
+        for (const opportunity of decision.eligible ?? []) {
+          const id = `${opportunity.kind}/${opportunity.tick}`;
+          if (!seenEligible.has(id)) { seenEligible.add(id); fight.eligibleOpportunities.push({ observedTick: obs.tick, ...opportunity }); }
+        }
         const input = `${decision.keys.join(',')}/${decision.press ?? ''}`;
-        if (input !== lastInput || decision.press) fight.decisions.push({ tick: obs.tick, intent: intentFor(decision, seen, strategy, perceivedEvents.slice(-8)), keys: decision.keys, press: decision.press, phase: seen.phase, gap: seen.gap, actualGap: obs.gap, stamina: seen.stamina, radius: seen.radius });
+        if (input !== lastInput || decision.press) fight.decisions.push({ tick: obs.tick, intent: intentFor(decision, seen, strategy, perceivedEvents.slice(-8)), reason: decision.reason, keys: decision.keys, press: decision.press, phase: seen.phase, gap: seen.gap, actualGap: obs.gap, stamina: seen.stamina, radius: seen.radius });
         lastInput = input;
         await keys(decision.keys, obs.tick);
         if (decision.press) { await page.keyboard.press(decision.press); fight.inputs.push({ tick: obs.tick, key: decision.press, edge: 'press' }); }
@@ -113,18 +138,27 @@ try {
         await run(stepMs);
       }
       const end = await page.evaluate(() => ({ tick: Number(document.querySelector('#debug').dataset.tick), hp: Number(document.querySelector('#player-health').value), enemyHp: Number(document.querySelector('#target-health').value), events: window.__botEvents }));
+      fight.endTick = end.tick;
       fight.events = end.events;
       if (fight.samples.at(-1)?.tick < end.tick) fight.samples.push({ ...fight.samples.at(-1), tick: end.tick, videoSeconds: (performance.now() - videoStart) / 1000 });
       fight.finalHealth = { player: end.hp, opponent: end.enemyHp };
       fight.outcome = end.enemyHp === 0 ? 'win' : end.hp === 0 ? 'loss' : 'timeout';
       fight.durationSeconds = +(end.tick / 60).toFixed(2);
-      fight.damageDealt = fight.events.filter(e => e.type === 'Hit' && e.actor === 0).reduce((n, e) => n + (e.damage ?? 0), 0);
-      fight.damageTaken = fight.events.filter(e => ((e.type === 'Hit' || e.type === 'GuardBroken') && e.actor === 1) || (e.type === 'Blocked' && e.actor === 0) || (e.type === 'Whipped' && e.target === 0)).reduce((n, e) => n + (e.damage ?? 0), 0);
+      fight.damageSources = damageSources(fight.events);
+      fight.damageDealt = fight.damageSources.player.total;
+      fight.damageTaken = fight.damageSources.opponent.total + fight.damageSources.arena.toPlayer;
       fight.wallWhips = fight.events.filter(e => e.type === 'Whipped' && e.target === 0).length;
       fight.thrustStarts = fight.events.filter(e => e.type === 'AttackStarted' && e.actor === 0 && e.move === 'thrust').length;
       fight.thrustHits = fight.events.filter(e => e.type === 'Hit' && e.actor === 0 && e.move === 'thrust').length;
       fight.thrustDamage = fight.events.filter(e => e.type === 'Hit' && e.actor === 0 && e.move === 'thrust').reduce((n, e) => n + (e.damage ?? 0), 0);
       fight.emptySwings = fight.events.filter(e => e.type === 'AttackMissed' && e.actor === 0).length;
+      fight.attacksByMove = Object.fromEntries([...new Set(fight.events.filter(e => e.type === 'AttackStarted' && e.actor === 0).map(e => e.move))].map(move => [move, {
+        starts: fight.events.filter(e => e.type === 'AttackStarted' && e.actor === 0 && e.move === move).length,
+        hits: fight.events.filter(e => e.type === 'Hit' && e.actor === 0 && e.move === move).length,
+        hitDamage: fight.events.filter(e => e.type === 'Hit' && e.actor === 0 && e.move === move).reduce((n, e) => n + (e.damage ?? 0), 0),
+        guardBreakDamage: fight.events.filter(e => e.type === 'GuardBroken' && e.actor === 0 && e.move === move).reduce((n, e) => n + (e.damage ?? 0), 0),
+      }]));
+      fight.defensiveChoices = Object.fromEntries(['roll', 'backstep', 'guard', 'parry', 'feint'].map(action => [action, fight.events.filter(e => e.type === 'ActionStarted' && e.actor === 0 && e.action === action).length]));
       fight.secondsNearWall = +(fight.samples.reduce((n, s, i) => n + (s.radius >= config.wallRadius ? ((fight.samples[i + 1]?.tick ?? end.tick) - s.tick) / 60 : 0), 0)).toFixed(2);
       const contacts = fight.events.filter(e => ['Hit', 'Blocked', 'Parried'].includes(e.type)).map(e => e.tick);
       const contactTicks = [0, ...contacts, end.tick], contactGaps = contactTicks.slice(1).map((tick, i) => tick - contactTicks[i]);
@@ -142,7 +176,7 @@ try {
         await run(1000); // record the consequence and end screen after the decisive health event
         await page.evaluate(({ seed, opponent }) => { document.querySelector('#bot-receipt').textContent = `${opponent} ${seed} · tick ${document.querySelector('#debug').dataset.tick}`; }, { seed, opponent });
       }
-      fight.events = await page.evaluate(() => window.__botEvents);
+      fight.aftermathEvents = await page.evaluate(start => window.__botEvents.slice(start), end.events.length);
       fight.decisions = explainDecisions(fight.decisions, fight.events);
       fight.moments = selectMoments(fight.events, fight.decisions, end.tick);
       fight.videoTailSeconds = recordVideo ? 5 : 0;
@@ -162,10 +196,12 @@ try {
         fight.video = `${dir}/${opponent}-${seed}.webm`;
         await fs.rename(await video.path(), fight.video);
         if (recordClips && fight.moments) for (const [index, moment] of fight.moments.entries()) {
-          const fromTick = Math.max(0, moment.tick - 180), toTick = Math.min(Math.round(fight.durationSeconds * 60), moment.tick + 180);
+          const fromTick = Math.max(0, moment.tick - 180), toTick = Math.min(fight.endTick, moment.tick + 180);
+          if (toTick <= fromTick) continue;
           const from = videoSecondAt(fromTick, fight.samples), to = videoSecondAt(toTick, fight.samples);
-          if (to - from < .2) continue;
+          if (!Number.isFinite(from) || !Number.isFinite(to) || to - from < .2) continue;
           const speed = (to - from) / ((toTick - fromTick) / 60);
+          if (!Number.isFinite(speed) || speed <= 0) continue;
           const path = `${dir}/${opponent}-${seed}-${index + 1}.mp4`;
           const box = fight.debugRect;
           const mask = box ? `drawbox=x=0:y=0:w=iw:h=${Math.ceil(box.y + box.height + 12)}:color=black:t=fill,` : '';

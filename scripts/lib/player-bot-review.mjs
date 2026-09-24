@@ -1,5 +1,8 @@
 // Explain a test player's choices without changing the fight or reading future state.
 export function intentFor(decision, obs, strategy, recentEvents) {
+  if (decision.reason) return decision.reason;
+  if (decision.press === 'KeyF') return 'quick slash';
+  if (decision.press === 'KeyC') return 'kick guard';
   if (decision.press === 'KeyT') return 'punish missed swing with thrust';
   if (decision.press === 'KeyE') return 'evade attack';
   if (decision.press === 'KeyG') return recentEvents.some(e => (e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0 && obs.tick - e.tick <= 20)
@@ -14,7 +17,7 @@ export function intentFor(decision, obs, strategy, recentEvents) {
 export function explainDecisions(decisions, events) {
   return decisions.map((d, index) => {
     const after = events.filter(e => e.tick >= d.tick && e.tick <= d.tick + 180);
-    if (d.press === 'KeyT' || d.press === 'KeyG' || d.intent === 'charge heavy') {
+    if (['KeyF', 'KeyT', 'KeyG', 'KeyC'].includes(d.press) || d.intent === 'charge heavy' || d.intent === 'charged heavy at reach') {
       const started = after.find(e => e.type === 'AttackStarted' && e.actor === 0 && e.tick <= d.tick + 8);
       if (!started) return { ...d, outcome: 'no attack started', evidence: d.phase === 'ready' ? 'no matching start event' : `input during ${d.phase}` };
       const result = after.find(e => e.tick >= started.tick && e.actor === 0 && (e.type === 'Hit' || e.type === 'AttackMissed'));
@@ -35,8 +38,10 @@ export function explainDecisions(decisions, events) {
 }
 
 export function selectMoments(events, decisions, endTick) {
+  events = events.filter(e => e.tick <= endTick);
+  decisions = decisions.filter(d => d.tick <= endTick);
   const picks = [];
-  const add = (kind, tick) => { if (picks.length < 4 && !picks.some(p => Math.abs(p.tick - tick) < 120)) picks.push({ kind, tick }); };
+  const add = (kind, tick) => { if (Number.isFinite(tick) && tick >= 0 && tick <= endTick && picks.length < 4 && !picks.some(p => Math.abs(p.tick - tick) < 120)) picks.push({ kind, tick }); };
   for (const e of events) if (e.type === 'AttackMissed' && e.actor === 0) { add('missed attack', e.tick); break; }
   for (const d of decisions) if (d.intent.includes('guard') && d.outcome === 'got hit') { add('failed guard', d.evidence); break; }
   for (const e of events) if (e.type === 'Whipped' && e.target === 0) { add('wall punishment', e.tick); break; }
@@ -48,8 +53,27 @@ export function selectMoments(events, decisions, endTick) {
 }
 
 export function videoSecondAt(tick, samples) {
+  if (!samples.length) return 0;
+  if (tick <= samples[0].tick) return samples[0].videoSeconds;
+  if (tick >= samples.at(-1).tick) return samples.at(-1).videoSeconds;
   const nextIndex = samples.findIndex(s => s.tick >= tick);
-  if (nextIndex < 1) return samples[Math.max(0, nextIndex)]?.videoSeconds ?? samples.at(-1)?.videoSeconds ?? 0;
   const a = samples[nextIndex - 1], b = samples[nextIndex];
-  return a.videoSeconds + (b.videoSeconds - a.videoSeconds) * (tick - a.tick) / (b.tick - a.tick);
+  return b.tick === a.tick ? b.videoSeconds : a.videoSeconds + (b.videoSeconds - a.videoSeconds) * (tick - a.tick) / (b.tick - a.tick);
+}
+
+// Raw event damage may exceed remaining health. Arena lashes have their own source.
+export function damageSources(events) {
+  const breakKeys = new Set(events.filter(e => e.type === 'GuardBroken').map(e => `${e.tick}/${e.actor}/${e.target}/${e.move}`));
+  const sum = predicate => events.reduce((total, e) => total + (predicate(e) ? (e.damage ?? 0) : 0), 0);
+  const side = actor => {
+    const target = 1 - actor;
+    const hits = sum(e => e.type === 'Hit' && e.actor === actor && e.target === target && !breakKeys.has(`${e.tick}/${e.actor}/${e.target}/${e.move}`));
+    const guardBreaks = sum(e => e.type === 'GuardBroken' && e.actor === actor && e.target === target);
+    const blockedChip = sum(e => e.type === 'Blocked' && e.actor === target && e.target === actor);
+    return { hits, guardBreaks, blockedChip, total: hits + guardBreaks + blockedChip };
+  };
+  return { player: side(0), opponent: side(1), arena: {
+    toPlayer: sum(e => e.type === 'Whipped' && e.target === 0),
+    toOpponent: sum(e => e.type === 'Whipped' && e.target === 1),
+  } };
 }
