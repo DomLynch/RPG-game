@@ -21,9 +21,18 @@ export function recallPosition(out: THREE.Vector3, from: THREE.Vector3, offset: 
   return out.lerp(tip, k * k);
 }
 
-export function createBloodRecall() {
+// How the beads look. A: round, bright, lit a little from inside (dark red on the sand did not read at phone size). B (Lead + Strategy on
+// the A receipt, "berries, not blood"): the wound-blood colour, smaller, stretched along the way each drop moves, and a short tapering trail
+// of `trail` shrinking copies a few hundredths of a second behind it.
+export type RecallLook = { color: string; emissive: string; size: readonly [number, number]; trail: number; stretch: number };
+export const RECALL_A: RecallLook = { color: '#8a0a0e', emissive: '#5a0006', size: RECALL.size, trail: 0, stretch: 0 };
+export const RECALL_B: RecallLook = { color: '#3e0306', emissive: '#120001', size: [0.009, 0.016], trail: 3, stretch: 0.35 };
+const TRAIL_STEP = 0.022;   // seconds between a drop and each copy behind it
+
+export function createBloodRecall(look: RecallLook = RECALL_A) {
   const geometry = new THREE.IcosahedronGeometry(1, 1);
-  const material = new THREE.MeshStandardMaterial({ color: '#8a0a0e', emissive: '#5a0006', roughness: 0.15, metalness: 0.1 });   // lit from inside a little: dark red on the sand does not read at phone size
+  const material = new THREE.MeshStandardMaterial({ color: look.color, emissive: look.emissive, roughness: 0.15, metalness: 0.1 });
+  const copies = 1 + look.trail, before = new THREE.Vector3();
   let mesh: THREE.InstancedMesh | null = null;
   const from = new THREE.Vector3(), tip = new THREE.Vector3(), at = new THREE.Vector3(), scratch = new THREE.Object3D(), across = new THREE.Vector3(), up = new THREE.Vector3();
   const velocities = Array.from({ length: RECALL.drops }, () => new THREE.Vector3());
@@ -53,7 +62,7 @@ export function createBloodRecall() {
       const met = surfaceHit(root, bone, outward);
       if (met) from.copy(met.point); else bone.getWorldPosition(from).addScaledVector(outward, site.radius * frame.scale[victim]);
       if (!mesh) {
-        mesh = new THREE.InstancedMesh(geometry, material, RECALL.drops);
+        mesh = new THREE.InstancedMesh(geometry, material, RECALL.drops * copies);
         mesh.frustumCulled = false;
         let world: THREE.Object3D = root; while (world.parent) world = world.parent;   // world-space beads: they belong to the scene
         world.add(mesh);
@@ -66,7 +75,7 @@ export function createBloodRecall() {
         // fight camera (behind the player) sees them, not in the gap his own body hides.
         const v = velocities[i].copy(across).multiplyScalar((rand() < 0.5 ? -1 : 1) * (0.5 + rand() * 0.7)).add(up.set(0, 0.7 + rand() * 0.6, 0)).addScaledVector(outward, 0.25).normalize();
         v.multiplyScalar(RECALL.spread[0] + rand() * (RECALL.spread[1] - RECALL.spread[0]));
-        sizes[i] = RECALL.size[0] + rand() * (RECALL.size[1] - RECALL.size[0]);
+        sizes[i] = look.size[0] + rand() * (look.size[1] - look.size[0]);
         delays[i] = rand() * 0.08;   // they leave for the blade one after another, not as a block
       }
       age = 0; mesh.visible = true;
@@ -76,17 +85,23 @@ export function createBloodRecall() {
       if (frame.yielding) { hide(); return; }
       age += dt;
       if (age > recallTime + 0.1 || !bladeTip(frame, tip)) { hide(); return; }
-      for (let i = 0; i < RECALL.drops; i++) {
-        const t = Math.max(0, age - delays[i]);
+      for (let i = 0; i < RECALL.drops; i++) for (let c = 0; c < copies; c++) {
+        const t = Math.max(0, age - delays[i] - c * TRAIL_STEP);
         recallPosition(scratch.position, from, velocities[i], tip, t);
         const fly = Math.max(0, (t - RECALL.burst - RECALL.hang) / RECALL.fly);
-        // Round while it hangs; stretched along its path as it is pulled in; gone as it reaches the steel.
-        const s = sizes[i] * (fly >= 1 ? 0 : 1 - fly * fly * 0.6);
-        at.copy(tip).sub(scratch.position);
-        if (fly > 0 && at.lengthSq() > 1e-6) scratch.quaternion.setFromUnitVectors(THREE.Object3D.DEFAULT_UP, at.normalize()); else scratch.quaternion.identity();
-        scratch.scale.set(s, s * (1 + fly * 2.5), s);
+        // Gone as it reaches the steel; a trail copy is smaller the farther back it is. A: round while it hangs, stretched toward the tip
+        // as it is pulled in. B: stretched along its own motion (the speed over the last trail step) all the way.
+        const s = (fly >= 1 || (c > 0 && t <= 0) ? 0 : sizes[i] * (1 - fly * fly * 0.6)) * (1 - c / copies * 0.8);
+        let length = 1 + fly * 2.5;
+        if (look.stretch > 0) {
+          recallPosition(before, from, velocities[i], tip, Math.max(0, t - TRAIL_STEP));
+          at.subVectors(scratch.position, before);
+          length = 1 + Math.min(4, at.length() / TRAIL_STEP * look.stretch);
+        } else at.copy(tip).sub(scratch.position);
+        if ((look.stretch > 0 || fly > 0) && at.lengthSq() > 1e-8) scratch.quaternion.setFromUnitVectors(THREE.Object3D.DEFAULT_UP, at.normalize()); else scratch.quaternion.identity();
+        scratch.scale.set(s, s * length, s);
         scratch.updateMatrix();
-        mesh.setMatrixAt(i, scratch.matrix);
+        mesh.setMatrixAt(i * copies + c, scratch.matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
     },
@@ -94,9 +109,11 @@ export function createBloodRecall() {
   };
 }
 
-const recall = createBloodRecall();
-registerSignature({
-  opponent: 'nightborn', variant: 'A', name: 'Blood Recall',
-  when: (event) => hitBy(event) && !!event.location,
-  fire: recall.fire, update: recall.update, clear: recall.clear,
-});
+for (const [variant, look] of [['A', RECALL_A], ['B', RECALL_B]] as const) {
+  const recall = createBloodRecall(look);
+  registerSignature({
+    opponent: 'nightborn', variant, name: variant === 'A' ? 'Blood Recall' : 'Blood Recall (dark drops, trail)',
+    when: (event) => hitBy(event) && !!event.location,
+    fire: recall.fire, update: recall.update, clear: recall.clear,
+  });
+}
