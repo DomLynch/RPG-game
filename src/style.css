@@ -1137,8 +1137,9 @@ dialog>p {
   }
 }
 
-#thrust-button {
-  display: none;
+#thrust-button,
+#skill-button {
+  display: none;   /* cluster-only buttons: shown by the phone cluster's rules */
 }
 .actions {
   touch-action: none;
@@ -1178,7 +1179,7 @@ dialog>p {
   .actions[data-gestures=cluster] {
     display: block;
     position: relative;
-    width: 184px;
+    width: 221px;   /* 184 + 37 for SKILL (below): the cluster is right-anchored, so the six move 37 px left and the gutter holds */
     height: 216px;
   }
   .actions[data-gestures=cluster] button{
@@ -1263,6 +1264,17 @@ dialog>p {
     height: 58px;
     left: 126px;
     top: 58px;
+  }
+  /* SKILL (Dom 2026-09-24; Strategy's brief): the seventh button of the family, text only, placement A — above HEAVY, right of
+     STAB, HEAVY's 58 px. Rim gap 32 px to STAB and to HEAVY: wider than any button's gap to its nearest neighbour among the six
+     (17.6–30.2 px), so a fast Stab never catches its edge. Two states: ready, and cooling = the cluster's own dim (aria-disabled,
+     kept by hud.ts while data-cooling is set) — no ring, no countdown. */
+  .actions[data-gestures=cluster] #skill-button {
+    display: block;
+    width: 58px;
+    height: 58px;
+    left: 163px;
+    top: -24px;
   }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;

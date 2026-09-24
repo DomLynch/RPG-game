@@ -17,6 +17,7 @@ export function createHud(element: Lookup) {
   const attackButton = element<HTMLButtonElement>('attack-button');
   const kickButton = element<HTMLButtonElement>('kick-button');
   const heavyButton = element<HTMLButtonElement>('heavy-button');
+  const skillButton = element<HTMLButtonElement>('skill-button');
   const dodgeButton = element<HTMLButtonElement>('dodge-button');
   const guardButton = element<HTMLButtonElement>('guard-button');
   const thrustButton = element<HTMLButtonElement>('thrust-button');
@@ -106,6 +107,8 @@ export function createHud(element: Lookup) {
       attackButton.setAttribute('aria-disabled', String(!controlsReady || !ok[0]));
       const ended = !practice.health || !practice.playerHealth;
       heavyButton.hidden = ended;
+      skillButton.hidden = ended;   // the seventh button follows Heavy's visibility; its action is not wired yet
+      skillButton.setAttribute('aria-disabled', String(!controlsReady || !!skillButton.dataset.cooling));   // lit with the cluster, dim while cooling
       heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
       attackButton.hidden = ended;
       // A stalled viewer page (record ran out, or the link never decoded) shows the button over the frozen frame: it is the only way on.
