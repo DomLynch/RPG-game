@@ -250,6 +250,11 @@ const arenaSelect = element<HTMLSelectElement>('arena-select');
 arenaSelect.value = storedArena; if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // the options are index.html's (ArenaKey values); an unknown stored key reads as Ladder and arenaFor() ignores it
 arenaSelect.addEventListener('change', () => {
   try { if (arenaSelect.value) sessionStorage.setItem(ARENA_PICK_KEY, arenaSelect.value); else sessionStorage.removeItem(ARENA_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
+  // The arena is built at load, so a pick only shows after one (Dom on his phone, 2026-09-24: an arena-only change did nothing until he also
+  // changed Opponent). Reload the way the opponent pick does, dropping `?arena=`, which would otherwise win over the stored pick.
+  const url = new URL(location.href);
+  url.searchParams.delete('arena');
+  location.replace(url.href);
 });
 // The signature-effect preview (docs/briefs/signature-effects.md): Off / On / A–C for the opponent's signature, beside the Arena pick and gated
 // with it. It applies live and is kept for the session; `?signature=` wins. Unset = off, so players see nothing Dom has not passed.
