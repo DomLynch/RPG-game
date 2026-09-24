@@ -152,8 +152,12 @@ export const GUARD_TILT: Record<Direction, { yaw: number; arm: number; spine: nu
 // spine_01 yaw and side-bend, spine_02 side-bend, upperarm_r lift), eased in over the hold and out through the swing. Presentation only.
 export type ChargeLean = { yaw: number; side: number; chest: number; arm: number };
 const NO_LEAN: ChargeLean = { yaw: 0, side: 0, chest: 0, arm: 0 };
+// One entry per active opponent, fitted on the roster sheet (held heavy at 375x812, the player guarding). Tall rigs share the Witch's lean;
+// the short ones (dwarf, goblin) sit under the player's shoulder, so they bend further and twist the other way to bring the weapon head up clear.
+const LEAN_OUT: ChargeLean = { yaw: .25, side: .55, chest: .25, arm: .55 }, LEAN_LOW: ChargeLean = { yaw: -.5, side: .9, chest: .35, arm: .3 };
 export const CHARGE_LEAN: Partial<Record<OpponentId, ChargeLean>> = {
-  witch: { yaw: .25, side: .55, chest: .25, arm: .55 },
+  veteran: LEAN_OUT, pitborn: LEAN_OUT, nightborn: LEAN_OUT, executioner: LEAN_OUT, plaguedoctor: LEAN_OUT, knight: LEAN_OUT, witch: LEAN_OUT,
+  shieldmaiden: LEAN_OUT, dwarf: LEAN_LOW, goblin: LEAN_LOW,
 };
 // A charging swing parked at its chamber (duel.ts rewinds age to the chamber while held); false from the tick it is released.
 export function holdingCharge(f: Pick<Fighter, 'phase' | 'move' | 'charge' | 'age' | 'weapon'>): boolean {

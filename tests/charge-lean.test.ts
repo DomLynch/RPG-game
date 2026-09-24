@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CHARGE_LEAN, holdingCharge } from '../src/characters.ts';
-import { TRIDENT } from '../src/moves.ts';
+import { TRIDENT, WEAPONS } from '../src/moves.ts';
+import { ROSTER } from '../src/roster.ts';
 
 const chamber = TRIDENT.moves.heavy_overhead.chamber!;
 const f = (o: Partial<Parameters<typeof holdingCharge>[0]>) => holdingCharge({ phase: 'attack', move: 'heavy_overhead', charge: 5, age: chamber, weapon: 'trident', ...o });
@@ -15,6 +16,11 @@ test('the charged-heavy lean holds while a charging swing is parked at its chamb
   assert.equal(f({ phase: 'ready' }), false, 'not attacking');
 });
 
-test('the lean is presentation data for the Witch first (Strategy picked B, Lean-out)', () => {
-  assert.ok(CHARGE_LEAN.witch && CHARGE_LEAN.witch.side > 0 && CHARGE_LEAN.witch.arm > 0);
+test('every active opponent leans out on a held heavy, and every one of their heavies charges (Strategy picked B, roster sheet)', () => {
+  for (const [id, entry] of Object.entries(ROSTER)) {
+    if ('hold' in entry && entry.hold) continue;
+    const lean = CHARGE_LEAN[id as keyof typeof CHARGE_LEAN];
+    assert.ok(lean && lean.side > 0, `${id} leans out to the side`);
+    assert.ok(WEAPONS[entry.weapon].moves.heavy_overhead.charges, `${id}'s ${entry.weapon} heavy charges, so the lean can show`);
+  }
 });
