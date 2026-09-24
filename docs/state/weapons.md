@@ -2,36 +2,19 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-24 evening (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-24 night (replace this section wholesale; it is the restart brief, not history)
 
-**Now — three threads for Lead (Frankendom - Lead Developer), in this order:**
-1. **Blood flags (#677 on trunk 5f32ad45). All code done; waiting on CI.** For each PR: trunk merged in as a normal commit (the
-   `src/scene.ts` import-block conflict kept every trunk line plus the effect's import), then `blood: true` on every variant plus a test
-   pinning A/B(/C) and the SHIPPED variant through `pickSignature('ship')`, plain push, retargeted to trunk. Each diff = 3 files only.
-   - #658 Nightborn: head `53236c94`. That is an empty commit: `quality.yml` fires only on a push to a PR already based on trunk, and
-     the retarget came after the push to `f7fa2085`, so no quality run happened there.
-   - #660 Goblin: head `14d4858d`. `quality` passed. The one "fail" is a CANCELLED `check ${{ matrix... }}` row from a superseded
-     release-checks run, not a real failure.
-   - #662 Plague: head `f97087eb`. The first run failed typecheck: #677 added a required `bloodMode` to `SignatureFrame`, and the test
-     built one without it. Fixed with `bloodMode: 'red'`.
-   - Local: each branch's test file plus `signature.test.ts` pass (11/12/12). `f97087eb` itself is not yet typechecked locally; CI covers it.
-   - **Next:** when #658 and #662 CI is green, send Lead the three heads and the CI result.
-2. **#678, the opponent charge cue `charge_foe`:** head `77ab22d8`, CI 41 pass, 1 skipped, green. Opponent `Charged` → `charge_foe`,
-   player → `charge`, pinned in `tests/audio.test.ts`. Sprite gzip is 998,067 B against the 1,000,000 cap. **Not yet sent to Lead**,
-   because Lead's order is the blood PRs first. **Lead then REFINED it (Strategy, from Dom's plan):** the cue must RISE, climbing through
-   the whole Charging hold. The receipt must add how long it climbs and what happens on a cut-short hold or a feint. Design worked out,
-   NOT yet coded:
-   - Start on the opponent's `Charging` event (actor 1, charge === 1), not on `Charged`. Only `heavy_overhead` has `charges: true`,
-     and `Charging` also fires for a merely chambered light, so gate the rise on the move charging.
-   - Climb for 0.9 s = `RULES.charge.max` 54 ticks. At max the sim auto-releases, so a natural end = the forced swing. Optional mark at
-     ~0.48 s (Charged, 29 ticks after Charging).
-   - Cut on release / feint / stagger: there is no release event, and adding one = a sim change (SIM_FILES), so don't. Instead add
-     `holding?: boolean` to `ArenaFrame` (`src/audio/arena.ts`), set in `src/main.ts:908` from `fighters[1]`: `phase === 'attack'`
-     && `charge > 0` && `age <= chamber`. `feedback.ts` remembers the voice playing `charge_foe` and fades it out (~30–40 ms) when
-     `holding` goes false. Release → `AttackActive` is 16–24 ticks for a heavy, so an event-only cut would climb past the release.
-   - Sprite budget: 1,933 B of headroom. A 0.9 s cue is longer than the current 0.36 s one, so drop to 1 variant only if the
-     `>= 2 variants` test allows it (it doesn't), or trim elsewhere. Measure gzip after every rebuild.
-3. **Standing:** #673 merged. #651 merged. #674 (this doc) is open.
+**Now — two PRs waiting on CI, then Lead publishes. Do not push to either unless CI goes red (Lead's order).**
+1. **#684, the signature batch:** head `035f6086`, stacked on Exec's #682 `7b06a113`, merging #658 `53236c94`, #660 `14d4858d`
+   and #662 `f97087eb`. The only conflicts were in the `src/scene.ts` import block, resolved by keeping every line from both sides.
+   Diff against #682: 7 files, +580/−0. Local, with the lock FREE: tsc 0, typecheck:tests 0, signature tests 35/35. Lead
+   VERIFIED it; READY once CI is green. Lead closes #658, #660 and #662 after it merges.
+2. **#678, the rising opponent charge cue:** head `0885d499`. `charge_foe` starts on the opponent's `Charging` (actor 1, only
+   for a move that `charges`) and loops for 0.9 s = `RULES.charge.max`, with rate x1.6 and level 35 %→100 %. It fades out over
+   35 ms on the first frame with `ArenaFrame.holding === false` (`foeHolding` in `src/main.ts`). Her `Charged` → no cue (Lead
+   ruled this is what "pinned to the opponent's Charged" means). Gate 471/471. Lead verified it merges clean on #684; it rides
+   the publish AFTER #682 + #684.
+3. **Next:** when CI settles, send Lead the result for both PRs. #674 (this doc) is open.
 
 **Gotchas (new today)**
 1. **The deploy hook blocks even single-file tests and `tsc` while a deploy holds the lock.** Push, then let CI run, then test after FREE.
@@ -43,6 +26,15 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
    `~/Developer/frankendom-audio/artifacts/audio/source-cache` (hash-pinned). An unchanged rebuild is byte-identical to trunk.
 7. (Earlier) **Capture timing.** Use a CDP screencast, not `page.screenshot`. The camera sits behind the player: put marks on the
    shoulder, and strafe with KeyA. Blood must be dark, small, stretched and trailed.
+8. **Sprite gzip headroom is 816 B** (999,184 of the 1,000,000 cap, `tests/audio.test.ts`). The NEXT audio addition breaks the
+   cap: make room first (trim or loop an existing cue). A rising or sustained cue is a short loop plus rate and gain ramps
+   in `feedback.ts`, never a long sample.
+9. **`tests/graphics.test.ts` runs `main.ts` with stubbed modules, and `./duel.ts` is not among them.** A new runtime import
+   from duel.ts in main.ts crashes the hit-stop test (`movesOf is not a function`). Use `weaponOf` from `moves.ts`, or
+   `import type`.
+10. **A loop needs a silent seam.** Phase the sample to start and end mid-trough, then measure the encoded edges
+   (ffmpeg `volumedetect` on the first and last 5 ms).
+
 
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.
