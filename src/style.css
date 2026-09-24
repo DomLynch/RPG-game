@@ -653,6 +653,128 @@ dialog>p {
   color: #c1ad79;
 }
 
+/* The Arena Draw (src/arena-draw.ts; Dom 2026-09-24, #642 direction A): an iron roster board hung on two chains, bars over its
+   window, a stop bar across the middle, and a riveted name plate that drops on the slam. It lives inside #versus, over the still,
+   and is the one part of the card that takes a pointer (tap to skip). Only transform moves (the strip, the plate, a 120 ms shake),
+   so the phone's compositor carries it. Sizes are the mockup's at 375 px: board 240×450, slot 196×236. */
+.arena-draw {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(ellipse 80% 60% at 50% 45%, #0e0c0a66 30%, #000000c0);
+  pointer-events: auto;
+  --slot: 236px;
+  --gap: 10px;
+  --iron: radial-gradient(ellipse 40% 30% at 20% 30%, #8a4a248c, transparent 70%), radial-gradient(ellipse 30% 40% at 80% 75%, #6b3a1f99, transparent 70%), repeating-linear-gradient(90deg, #ffffff06 0 1px, transparent 1px 3px), linear-gradient(180deg, #3b3733, #24211f);
+}
+.draw-chain {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 142px);
+  width: 14px;
+  height: calc(max(24px, 50% - 300px) + 30px);   /* down to the board's top rivets: it hangs from them, and never crosses the plate */
+  border-inline: 3px solid #1b1917;
+  background: repeating-linear-gradient(180deg, transparent 0 2px, #57504a 2px 4px, #2c2825 4px 13px, #57504a 13px 15px, transparent 15px 18px);
+}
+.draw-chain-r { left: calc(50% + 128px); }
+.draw-board, .draw-plate {
+  position: absolute;
+  left: 50%;
+  border-radius: 3px;
+  background: var(--iron);
+  box-shadow: inset 0 0 0 1px #0c0b0a, inset 0 2px 0 #ffffff12, inset 0 -3px 6px #0009, 0 10px 30px #000c;
+}
+.draw-board {
+  top: max(24px, 50% - 300px);
+  width: 240px;
+  height: 450px;
+  margin-left: -120px;
+  padding: 22px;
+}
+.draw-board::before {   /* the frame's rivets, one every ~38 px round the 22 px band; the window covers the middle */
+  content: '';
+  position: absolute;
+  inset: 5px;
+  background: radial-gradient(circle at 40% 35%, #8a7d6c 0 1.5px, #3a3430 3px, #151311 4px, transparent 4.8px) 0 0 / 38px 38px round;
+}
+.arena-draw[data-slam='1'] .draw-board { animation: draw-shake 120ms ease-out; }
+@keyframes draw-shake { 30% { transform: translateY(5px); } 60% { transform: translateY(-2px); } }
+.draw-window {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: #0d0c0b;
+}
+.draw-window::after {   /* the window's depth: the strip runs out of the dark at both ends */
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 14px 22px #000000f2, inset 0 -14px 22px #000000f2;
+}
+.draw-strip {
+  --draw-to: 0;
+  transform: translateY(calc(203px - var(--slot) / 2 - var(--draw-to) * (var(--slot) + var(--gap))));   /* 203 = half the 406 px window: the stop slot centres */
+}
+.arena-draw[data-run='1'] .draw-strip { transition: transform 1100ms cubic-bezier(0.12, 0.62, 0.22, 1); }   /* DRAW_RUN_MS */
+.draw-slot {
+  height: var(--slot);
+  margin-bottom: var(--gap);
+  overflow: hidden;
+  border: 2px solid #0e0d0c;
+  background: radial-gradient(ellipse at 50% 40%, #5a4f44, #2e2924 75%);
+}
+.draw-slot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: brightness(0);
+  opacity: 0.88;
+}
+.arena-draw[data-slam='1'] .draw-slot[data-hit] img { filter: none; opacity: 1; }
+.draw-bars {   /* four vertical bars over the window */
+  position: absolute;
+  inset: 0 12px 0 0;   /* bars at 36/75/114/153 px (the mockup's fifths); the right inset keeps a fifth bar off the window's edge */
+  background: repeating-linear-gradient(90deg, transparent 0 32px, #141210 32px 33px, #4a443e 33px 36px, #1c1a18 36px 39px);
+  background-position: 4px 0;
+}
+.draw-stop {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: calc(50% + 70px);
+  height: 8px;
+  background: var(--iron);
+  box-shadow: 0 2px 4px #000a;
+}
+.draw-plate {
+  top: calc(max(24px, 50% - 300px) + 472px);
+  width: 315px;
+  margin-left: -157px;
+  padding: 12px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(-24px);
+}
+.arena-draw[data-slam='1'] .draw-plate { opacity: 1; transform: none; transition: transform 160ms cubic-bezier(0.3, 1.6, 0.5, 1), opacity 80ms linear; }
+.draw-name {
+  display: block;
+  color: #f0e2bf;
+  font: 25px Georgia, "Times New Roman", serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 #000;
+}
+.draw-weapon {
+  display: block;
+  margin-top: 7px;
+  color: #cbb58a;
+  font: 600 12px/1 Arial, sans-serif;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.versus:has(.arena-draw:not([hidden])) .versus-caption,
+.versus:has(.arena-draw:not([hidden])) .versus-loading { opacity: 0; }
+
 .combat-hud {
   position: fixed;
   top: 220px;
