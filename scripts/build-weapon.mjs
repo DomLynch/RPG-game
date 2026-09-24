@@ -9,6 +9,7 @@
 // Weapons: the trident (own clip set, two-handed) and the Pitborn's CLEAVER (the longsword's clip family — same length — with its own
 // edge-leading Heavy keys; no new clips, so the renderer needs nothing to draw it).
 import * as T from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // Keep the elbow's anatomical hinge in the shoulder–elbow–wrist plane. A shortest-
 // arc aim only points each bone: it retains the sword pose's axial roll, so the
@@ -709,7 +710,10 @@ export const MAUL_VARIANTS = {
 export const MAUL_DEFAULT = 'A';
 export function maul({ T: three = T, withAoUv = g => g, leather, variant = MAUL_DEFAULT } = {}) {
   const v = MAUL_VARIANTS[variant] ?? MAUL_VARIANTS[MAUL_DEFAULT];
-  const stone = new three.MeshStandardMaterial({ name: 'WeatheredStone', color: '#6e6a63', metalness: .05, roughness: .95 });   // quarried, not forged: no metal sheen
+  // Quarried, not forged: no metal sheen. Dom 2026-09-24 saw the first one (#6e6a63, flat, no maps) as a "grey rectangle" — beside the
+  // Knight's textured plate a flat mid-grey reads near-white. Darker base; build-warrior's finishMaterials gives WeatheredStone its
+  // mottled colour, pitted normal and rough maps by name, and the block is bevelled below so its edges catch light like dressed stone.
+  const stone = new three.MeshStandardMaterial({ name: 'WeatheredStone', color: '#4a4640', metalness: .05, roughness: .95 });
   const iron = new three.MeshStandardMaterial({ name: 'MaulIronBands', color: '#4c4946', metalness: .8, roughness: .66 });      // the cleaver's pitted iron, as the warhammer uses
   const ash = new three.MeshStandardMaterial({ name: 'MaulAshHaft', color: '#64452f', roughness: .86 });                        // the trident's brown oiled ash
   const wrap = leather ?? new three.MeshStandardMaterial({ name: 'MaulLeather', color: '#4a3527', roughness: .8 });
@@ -720,7 +724,7 @@ export function maul({ T: three = T, withAoUv = g => g, leather, variant = MAUL_
   piece(cyl(.023, .021, v.butt + .03, H + .06, 10), ash);                                   // the haft, thicker than the warhammer's: both fists pull on this one
   piece(cyl(.026, .026, v.butt, v.butt + .03), iron);                                       // butt cap
   piece(cyl(.028, .028, v.butt + .03, .24, 12), wrap);                                      // the leather wrap: under the rear hand, down past the butt cap
-  piece(new three.BoxGeometry(bx, by, bz), stone, H, 0, 0);                                  // the head: one squared stone, centred on the haft — no face, no spike, no edge
+  piece(new RoundedBoxGeometry(bx, by, bz, 3, .018), stone, H, 0, 0);                        // the head: one squared stone, centred on the haft — bevelled, no face, no spike, no edge
   for (const y of [-1, 1]) piece(new three.BoxGeometry(bx + v.band, by * .16, bz + v.band), iron, H + y * by * .3, 0, 0);   // two iron bands hooping the stone
   for (const z of [-1, 1]) {                                                               // langets: two riveted iron straps down the haft, the warhammer's convention
     piece(new three.BoxGeometry(.014, v.langet, .024), iron, H - by / 2 - v.langet / 2 + .01, 0, z * .028);
