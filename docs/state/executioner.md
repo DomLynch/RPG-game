@@ -13,7 +13,7 @@ union (as #682 did). Receipt: a labelled 375 still of HER wearing the shield (pl
 then Strategy. Tests: tsc, typecheck:tests, npm test, `node --test tests/signature*.test.ts`, and check-budget output (dist is at
 38.58 of 40 MB gz). No deploy. No loot.glb builds or browser while the deploy lock is held.
 **#706:** READY sent to Deploy on Lead's order, to merge AFTER the playtest (not with Weapons' 10:00 WEAPON-TAKE run). Lead ran
-loot.test.ts on 46b28f2f himself: 4/4 pass. The paperdoll #slot-undefined fix went to Web.
+loot.test.ts on 46b28f2f in a clean worktree: 4/4 pass. The paperdoll #slot-undefined fix went to Web.
 
 ## Now — 2026-09-24 ~19:xx UTC: #706 shieldmaiden.Shield with Lead for READY; #666 blocked on World's carriers
 
