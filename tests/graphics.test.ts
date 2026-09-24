@@ -609,12 +609,14 @@ test('end-of-fight text and buttons fade with view.finishPhase(): hidden until s
   app.setFinishPhase({ settled: false, touring: false, age: 0.3 });
   app.tick();
   assert.ok(html.classList.contains('endgame-fade'), 'not yet settled: still faded');
+  assert.ok(html.classList.contains('endgame-hush'), 'not yet settled: the rank row is hushed too');
   app.setFinishPhase({ settled: true, touring: false, age: 1.6 });
   app.tick();
   assert.ok(!html.classList.contains('endgame-fade'), 'settled, no tour: visible');
   app.setFinishPhase({ settled: true, touring: true, age: 5.2 });
   app.tick();
   assert.ok(html.classList.contains('endgame-fade'), 'touring: faded again');
+  assert.ok(!html.classList.contains('endgame-hush'), 'touring: the rank row stays up (Dom 2026-09-24: it read as missing)');
   app.setFinishPhase({ settled: true, touring: false, age: 9 });
   app.tick();
   assert.ok(!html.classList.contains('endgame-fade'), 'tour ended (a touch or Rematch): visible again');

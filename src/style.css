@@ -1811,7 +1811,7 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 #fight-rank, #reset-button, #share-button, #share-status {
   transition: opacity 250ms ease-out;
 }
-:root.endgame-fade #fight-rank,
+:root.endgame-hush #fight-rank,   /* the rank row fades only before settle: it stays up through the tour (main.ts, Dom 2026-09-24) */
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button,
 :root.endgame-fade #share-status {
