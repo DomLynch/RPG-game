@@ -20,7 +20,11 @@ test('every active opponent leans out on a held heavy, and every one of their he
   for (const [id, entry] of Object.entries(ROSTER)) {
     if ('hold' in entry && entry.hold) continue;
     const lean = CHARGE_LEAN[id as keyof typeof CHARGE_LEAN];
-    assert.ok(lean && lean.side > 0, `${id} leans out to the side`);
+    assert.ok(lean && lean.side !== 0, `${id} leans out to the side`);
     assert.ok(WEAPONS[entry.weapon].moves.heavy_overhead.charges, `${id}'s ${entry.weapon} heavy charges, so the lean can show`);
   }
+});
+
+test('the Goblin lifts his knife arm clear instead of leaning low (Strategy 2026-09-24: LEAN_LOW hid it behind the player)', () => {
+  assert.ok((CHARGE_LEAN.goblin?.lift ?? 0) < 0, 'the knife arm rises');
 });

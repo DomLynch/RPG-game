@@ -150,14 +150,17 @@ export const GUARD_TILT: Record<Direction, { yaw: number; arm: number; spine: nu
 // opponent, so a held heavy read as a plain one. While the swing is parked at its chamber the whole upper body leans out to the side, clear
 // of the player's silhouette, the weapon arm lifting the head of the weapon skyward. Added after the mixer like the guard tilt (radians:
 // spine_01 yaw and side-bend, spine_02 side-bend, upperarm_r lift), eased in over the hold and out through the swing. Presentation only.
-export type ChargeLean = { yaw: number; side: number; chest: number; arm: number };
+export type ChargeLean = { yaw: number; side: number; chest: number; arm: number; lift?: number };   // lift: upperarm_r pitch, negative raises the arm
 const NO_LEAN: ChargeLean = { yaw: 0, side: 0, chest: 0, arm: 0 };
 // One entry per active opponent, fitted on the roster sheet (held heavy at 375x812, the player guarding). Tall rigs share the Witch's lean;
-// the short ones (dwarf, goblin) sit under the player's shoulder, so they bend further and twist the other way to bring the weapon head up clear.
+// the Dwarf sits under the player's shoulder, so he bends further and twists the other way to bring the hammer head up clear. The Goblin is
+// too short for any lean to clear the player (LEAN_LOW hid his knife behind the left shoulder, Strategy 2026-09-24): he leans the other way
+// and throws the knife arm straight up, so the hooked blade stands above the player's right shoulder.
 const LEAN_OUT: ChargeLean = { yaw: .25, side: .55, chest: .25, arm: .55 }, LEAN_LOW: ChargeLean = { yaw: -.5, side: .9, chest: .35, arm: .3 };
+const LEAN_HIGH: ChargeLean = { yaw: .4, side: -.7, chest: -.3, arm: 1, lift: -1.6 };
 export const CHARGE_LEAN: Partial<Record<OpponentId, ChargeLean>> = {
   veteran: LEAN_OUT, pitborn: LEAN_OUT, nightborn: LEAN_OUT, executioner: LEAN_OUT, plaguedoctor: LEAN_OUT, knight: LEAN_OUT, witch: LEAN_OUT,
-  shieldmaiden: LEAN_OUT, dwarf: LEAN_LOW, goblin: LEAN_LOW,
+  shieldmaiden: LEAN_OUT, dwarf: LEAN_LOW, goblin: LEAN_HIGH,
 };
 // A charging swing parked at its chamber (duel.ts rewinds age to the chamber while held); false from the tick it is released.
 export function holdingCharge(f: Pick<Fighter, 'phase' | 'move' | 'charge' | 'age' | 'weapon'>): boolean {
@@ -313,7 +316,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           tilted.forEach((b, i) => untilted[i].copy(b.quaternion)); tiltApplied = true;
           if (spine1) { spine1.rotation.y += tilt.yaw + leaning * l.yaw; spine1.rotation.z += leaning * l.side; }
           if (spine2) { spine2.rotation.x += tilt.spine; spine2.rotation.z += leaning * l.chest; }
-          if (upperArm) { upperArm.rotation.x += tilt.arm; upperArm.rotation.y += leaning * l.arm; }
+          if (upperArm) { upperArm.rotation.x += tilt.arm + leaning * (l.lift ?? 0); upperArm.rotation.y += leaning * l.arm; }
         }
         spectralLife = spectral?.(step, dead, progress, pose === 'opened') ?? 1;
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
