@@ -15,8 +15,10 @@ never Dom.**
 - Lead's rulings: the fight weapon = `weaponOf(equipped.main)` if it's in PLAYER_WEAPONS, else 'longsword'. Pass it as a
   Match constructor option (match.ts is not a SIM_FILE) and into createScene, so loadWarriors gets [player, opponent].
   A kill-link page draws the RECORD's weapon, not the viewer's; the record arrives async after createScene starts, so
-  solve the ordering (hold the player rig until the link resolves, or reload the rig on mismatch). Daily = the equipped
-  weapon. A same-page rematch keeps the loaded weapon. Drawn = sim always (the Knight maul rule).
+  solve the ordering (hold the player rig until the link resolves, or reload the rig on mismatch). The latent trident
+  kill-link drawn!=sim is fixed in the same PR. DAILY stays in a FIXED KIT: Strategy overruled Lead, docs/SCOPE.md "Daily
+  duel is fought in a fixed kit", Brief 19. Only career and rematch use the equipped weapon. A same-page rematch keeps
+  the loaded weapon. Drawn = sim always (the Knight maul rule).
 - Do NOT touch SIM_FILES (duel/moves/ai/sim/record/blade/blade-paths/roster/finishers). If you must, stop and tell Lead.
 - Tests: a pinned test that equipped.main -> Match.weapon and the scene's player weapon agree for all 9 WEAPON_SLOTS,
   plus the kill-link path. Run tsc, typecheck:tests, npm test.
