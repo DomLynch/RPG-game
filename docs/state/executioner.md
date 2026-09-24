@@ -3,6 +3,31 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-24 evening: done; next from Lead
+
+**Now (next session):** nothing open. Stand by for Lead (Frankendom - Lead Developer). Lead is CEO with Dom's full authority:
+send questions to Lead, never to Dom. Playtest sha e37a74c7 is FROZEN until the playtest, so push nothing that would ride it.
+The Dwarf's charge passes as marginal (Strategy); revisit only if the playtest names it as unseen.
+
+**Done today (LIVE in e37a74c7; frankendom.com release.json checked)**
+- #682 effects batch (Butcher's Wake + Reaping Scar + Blade Bite) @ 7b06a113.
+- #685 charged-heavy lean for the whole active roster @ 6531f2bc: `LEAN_OUT` (the Witch's values) on the 8 tall rigs, dwarf `LEAN_LOW`
+  {yaw -.5, side .9, chest .35, arm .3}. Every active weapon's heavy_overhead charges (chamber 7-12); tests/charge-lean.test.ts pins
+  one lean per non-held roster entry plus the charge.
+- #687 goblin follow-up @ d0fb1135: `LEAN_LOW` hid his knife behind the player's left shoulder (Strategy). Now `LEAN_HIGH`
+  {yaw .4, side -.7, chest -.3, arm 1, lift -1.6}. The new optional `ChargeLean.lift` = upperarm_r pitch, negative raises. He leans to
+  screen right, with the hook above the player's right shoulder. Release head step 12.8 vs 12.6 px without the lean; render median 1.7 vs 1.3 ms.
+- Evidence: evidence/charge-roster @ a07249bc (10-opponent sheet + goblin before/after).
+
+**Open** None. Not checked on an iPhone.
+
+**Gotchas**
+- Untracked `scripts/zz-charge-roster.mjs`: one still per opponent plus a sheet. Use `--ids a,b@variant --table f.json` to override
+  CHARGE_LEAN in the page (value 0 = no lean) and `--crop x,y,w,h`. The sheet framing was `40,15,295,560`, which the Executioner's scythe needs.
+- Short rigs: a sideways lean alone lays the weapon flat. Negative yaw brings the dwarf's hammer head up; the goblin needs `lift`.
+- Evidence branches only ever ADD. Build the evidence tree from the previous evidence tip, never from the code commit (0a8abcd1
+  dropped the roster sheet; a07249bc restored it).
+
 ## Now — 2026-09-24 ~14:20 UTC: effects batch #682 in CI; next = CHARGE_LEAN across the roster
 
 **Now (next session):**
