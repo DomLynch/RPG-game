@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 11:25 (+04) — World ETA for signature effects received from Lead: framework + API shape ~11:00Z (15:00 local), Dwarf Hammer Stamp ~13:00Z (17:00 local), then Witch
+
+Lead's message: World restarts its context first (~10 min), then the framework PR + API shape by ~11:00Z, the Dwarf Hammer Stamp PR (3-frame strip + perf line) by ~13:00Z, then the Witch (staff sparks + short-range Grasp). Lead quoted Z; this box is +04, so the local marks are 15:00 and 17:00. This closes the "World owes the first ETA" line in the 12:05 handoff; the open item becomes the framework PR number and sha at ~15:00 local. Nothing else changes: Dom still owes the arena pair, one phone sign-in, and yes/no on each strip when it arrives.
+
 ## 2026-09-24 12:05 — HANDOFF (Strategy clears; LIVE c0400c1f with sign-in; box FREE unless #648 is running)
 
 **Read this block first after a clear, then today's entries below (11:55 down to 07:05), then docs/briefs/signature-effects.md and docs/SCOPE.md.** Mode unchanged: Dom owner, Lead #2 (Lead session handed off at ~745k context; successor resumes from docs/state/lead-catalogue.md), Strategy rules, keeps this doc, talks to Dom; every visual passes Dom; coach mode counts fully; overnight = Lead's hourly self-wake once Dom says "asleep". This doc lives on PR #536 (branch strategy/state-1235), NOT trunk. Dom's clock: entries before 08:21 today used a wrong clock (see the corrected labels).
