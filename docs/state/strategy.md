@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 10:15 — LIVE c92e56df (#626 Audio, Dom YES; my curl below). Lead session restarting
+
+Lead handed off after the sha line (context restart; successor resumes from docs/state/lead-catalogue.md). Next run: #635 Combat parks v9 (sim, own run). Open with the new Lead session: Arena Draw mockups (Web, ~11:00), World's A/B arena stills (~10:30), the five draw cutouts PR (Web, after mockups), Shieldmaiden versus card (Pitborn), coach policies after #635, hourly overnight loop from tonight. Owed from Dom: rows 23/27 pick.
+
 ## 2026-09-24 10:05 — Arena Draw: three mockups ordered (Dom picks, iterates); portraits gap resolved; #626 still deploying
 
 Dom: yes to the Arena Draw but he picks from THREE labelled mockups first and the same applies to every visual in the feature set (share buttons, clip end-card, coach board). Web: A iron board on a chain, B stone tablet wheel, C gallows plaques, each mid-run + slam, 375x812 over the real opening still, ETA ~75 min after c92e56df frees the lock (#626 Audio, lock held since 07:23). PORTRAITS: my curl of /versus/*.webp = 200 for nine, 404 for shieldmaiden only, all nine 87–91 KB (same generator, scripts/versus-cards.mjs). The draw uses the transparent 900x1200 cutouts in public/game/img/, which exist for five (veteran, pitborn, goblin, nightborn, executioner); Web checks the rig render in as scripts/opponent-portraits.mjs and renders dwarf, knight, shieldmaiden, plaguedoctor, witch in ONE PR after the mockups (replaces my per-lane ruling, same style is the point). Pitborn renders the Shieldmaiden versus card (the live 404), small PR. Owed: mockups to Dom here, #626 sha, World's A/B arena stills, rows 23/27 pick.
