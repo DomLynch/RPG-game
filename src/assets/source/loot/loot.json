@@ -359,6 +359,11 @@
    "slot": "Gloves",
    "layer": "over",
    "shared": "kit.Gloves"
+  },
+  {
+   "slot": "Shield",
+   "layer": "over",
+   "file": "@build:shieldmaiden-shield"
   }
  ],
  "plaguedoctor": [
