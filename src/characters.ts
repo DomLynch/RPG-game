@@ -5,13 +5,14 @@ import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { Direction, WeaponId } from './moves.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from './roster.ts';
-import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
+import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist } from './opened.ts';
+import { gradeFor, type Tier } from './grades.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -185,6 +186,25 @@ function bothSides(material: MeshStandardMaterial): MeshStandardMaterial {
   }
   return copy;
 }
+// Grade materials (brief 14; Phase L #589, re-applied as Block A tier dressing): a palette draw at a tier is its own material with grades.ts's
+// factors written on — a CLONE, because the rig's materials are shared (a worn piece borrows the rig's own Steel by name, `wear` below), so
+// repainting in place would repaint the player's body. Cached per (material, tier) like `bothSides`, so every draw of one material at one
+// tier shares one GPU program. A material with no grade (bone, Ruby, skin, a creature's baked *Surface, and cloth — cloth is the house
+// dye) comes back as itself.
+const graded = new WeakMap<MeshStandardMaterial, Map<Tier, MeshStandardMaterial>>();
+export function gradeMaterial(material: MeshStandardMaterial, tier: Tier): MeshStandardMaterial {
+  const finish = gradeFor(tier, material.name);
+  if (!finish) return material;
+  let byTier = graded.get(material);
+  if (!byTier) graded.set(material, (byTier = new Map()));
+  let copy = byTier.get(tier);
+  if (!copy) {
+    copy = material.clone(); copy.color.set(finish.color); copy.metalness = finish.metalness; copy.roughness = finish.roughness;
+    copy.onBeforeCompile = material.onBeforeCompile; copy.customProgramCacheKey = material.customProgramCacheKey;   // as bothSides: clone() drops the hooks
+    byTier.set(tier, copy);
+  }
+  return copy;
+}
 export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword']) {
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0]) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1]) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
@@ -246,7 +266,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // mapless palette material is swapped for his material of the same name (Steel, Leather, Heraldry, Gambeson); the rest keep their own.
       // One bad piece never undresses the rest: each is dressed on its own, and a piece that throws is skipped (its slot stays his own),
       // warned and handed to `failed` with its id; only a rig with no body to hang anything on throws.
-      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}) {
+      // `tier` grades what he wears (grades.ts): one tier for the whole set (the opponent's kit, at the rung he is met at), or per piece
+      // (the player's, each at the tier it was taken at). A rig's own draws, a creature's baked *Surface included, are never graded.
+      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tier?: Tier | ((piece: SkinnedMesh) => Tier | undefined)) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
         let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
@@ -257,13 +279,23 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           if (object.material instanceof MeshStandardMaterial && object.material.name && object.material.map) materials.set(object.material.name, object.material);
         });
         if (!body) throw new Error('The rig has no Body draw to hang loot on');
+        // The rig's bones with the PIECE's own inverse binds (#606): every loot.glb draw is authored on the hero's bind pose, so on a
+        // re-proportioned body it must follow his joints — with the rig's own inverse binds the Dwarf's gloves hung above his head. On the
+        // hero they are identical, so he keeps his own skeleton; elsewhere one retargeted skeleton per source skin.
+        const retargeted = new Map<Skeleton, Skeleton>(), rig = body.skeleton;
+        const skeletonFor = (source: Skeleton): Skeleton => {
+          let skeleton = retargeted.get(source);
+          if (!skeleton) retargeted.set(source, (skeleton = source.boneInverses.length === rig.boneInverses.length && source.boneInverses.every((m, i) => m.equals(rig.boneInverses[i])) ? rig : new Skeleton(rig.bones, source.boneInverses)));
+          return skeleton;
+        };
         for (const piece of pieces) {
           try {
             const own = piece.material instanceof MeshStandardMaterial ? materials.get(piece.material.name) ?? piece.material : piece.material;
-            const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
+            const at = typeof tier === 'function' ? tier(piece) : tier, looked = at && own instanceof MeshStandardMaterial ? gradeMaterial(own, at) : own;
+            const material = piece.userData.slot === 'Shield' && looked instanceof MeshStandardMaterial ? bothSides(looked) : looked;
             const copy = new SkinnedMesh(piece.geometry, material);
             copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
-            copy.bind(body.skeleton, body.bindMatrix);
+            copy.bind(piece.skeleton ? skeletonFor(piece.skeleton) : body.skeleton, body.bindMatrix);
             body.parent!.add(copy); worn.push(copy);
           } catch (error) {
             const id = lootId(piece); console.warn(`loot: ${id} (${piece.name}) could not be worn and was skipped`, error); failed(id, error);
@@ -425,6 +457,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         severed = false;
         root.getObjectByName('Head')?.scale.setScalar(1);
       },
+      // The opened-waist bake snapshots what he wears; a re-dress at a new tier (a rematch after a rank-up) bakes it again, between fights.
+      rebakeOpened() { if (!opened) return; opened.dispose(); opened = undefined; this.prepareOpened(); },
       // Bake during loading/reset, keeping the one-time mesh work outside the killing frame.
       prepareOpened() {
         if (opened) return;
