@@ -62,18 +62,35 @@ export const battleScars: SignatureEffect = {
 // off with a bright scrape along his shaft. The contact point is measured, not assumed: the closest points between the two weapons' striking
 // segments this frame. Transient only (curls settle and go within 1.4 s): it leaves no mark. The scrape's sound is the audio lane's.
 const SCRAPE_LIFE = 0.3, GRAVITY = 9.8;
-type Curl = { mesh: THREE.Object3D; velocity: THREE.Vector3; spin: THREE.Vector3; age: number };
+type Curl = { mesh: THREE.Object3D; velocity: THREE.Vector3; spin: THREE.Vector3; age: number; stuck: boolean };
 const a0 = new THREE.Vector3(), a1 = new THREE.Vector3(), b0 = new THREE.Vector3(), b1 = new THREE.Vector3(), onA = new THREE.Vector3(), onB = new THREE.Vector3();
 const shaftDir = new THREE.Vector3(), across = new THREE.Vector3(), yAxis = new THREE.Vector3(0, 1, 0);
 
 // A weapon's striking segment in world space (`contact` from/to along its local +Y, as the blade bake and the tip probe read it).
+const drawnOf = (root: THREE.Object3D | null) => root?.getObjectByName('WeaponDrawn') ?? root?.getObjectByName('SwordDrawn');
 function segment(root: THREE.Object3D | null, from: THREE.Vector3, to: THREE.Vector3, wholeShaft: boolean): boolean {
-  const drawn = root?.getObjectByName('WeaponDrawn') ?? root?.getObjectByName('SwordDrawn');
+  const drawn = drawnOf(root);
   if (!drawn) return false;
   drawn.updateWorldMatrix(true, false);
   const contact = (drawn.userData.contact as { from: number; to: number } | undefined) ?? { from: 0.1, to: 0.86 };
   drawn.localToWorld(from.set(0, wholeShaft ? 0 : contact.from, 0)); drawn.localToWorld(to.set(0, contact.to, 0));
   return true;
+}
+// C's shaving: a thin steel ribbon that curls round and twists as it goes, no outline. Built once per size; `turns` and `twist` vary the shape.
+function shaving(length: number, width: number, turns: number, twist: number): THREE.BufferGeometry {
+  const steps = 18, positions: number[] = [], index: number[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps, a = t * turns * Math.PI * 2, r = (length / (turns * Math.PI * 2)) * (1.25 - 0.6 * t);
+    const cx = Math.cos(a) * r, cz = Math.sin(a) * r, cy = t * length * 0.35, w = width * (0.35 + 0.65 * Math.sin(Math.PI * t)), tw = twist * t;
+    // Across the ribbon: between the rise axis and the radial direction, turning with the twist.
+    const ux = Math.cos(a) * Math.sin(tw), uy = Math.cos(tw), uz = Math.sin(a) * Math.sin(tw);
+    positions.push(cx - ux * w / 2, cy - uy * w / 2, cz - uz * w / 2, cx + ux * w / 2, cy + uy * w / 2, cz + uz * w / 2);
+    if (i < steps) { const k = i * 2; index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(index); geometry.computeVertexNormals();
+  return geometry;
 }
 // Closest points between segments p0-p1 and q0-q1 (clamped), written to onP / onQ.
 function closest(p0: THREE.Vector3, p1: THREE.Vector3, q0: THREE.Vector3, q1: THREE.Vector3, onP: THREE.Vector3, onQ: THREE.Vector3) {
@@ -85,9 +102,10 @@ function closest(p0: THREE.Vector3, p1: THREE.Vector3, q0: THREE.Vector3, q1: TH
   onP.copy(p0).addScaledVector(d1, s); onQ.copy(q0).addScaledVector(d2, t);
 }
 
-// How a bite looks: B = six small bright curls sprayed off the contact; C (Strategy's AGAIN prep) = four larger dark-steel curls, each with
-// one bright edge, bitten from the tines (the nearest point of the trident head to the blade) and dropping close to it. Each variant owns its pool; only one is ever chosen.
-type Style = { name: string; count: number; life: number; radius: number; tube: number; body: { color: string; emissive: string; metalness: number; roughness: number }; edge: string | null; speed: number; lift: number; head: boolean };   // head: measure the bite on the trident head (the tines) only
+// How a bite looks: B = six small bright ring curls sprayed off the contact; C (Strategy + Lead AGAIN) = seven twisted steel shavings of
+// three shapes and varied sizes, bitten from the tines (the nearest point of the trident head to the blade), two left caught there and the
+// rest dropping close to it. Each variant owns its pool; only one is ever chosen.
+type Style = { name: string; count: number; life: number; radius?: number; tube?: number; body: { color: string; emissive: string; metalness: number; roughness: number }; speed: number; lift: number; head: boolean; shavings?: boolean; stuck?: number };   // head: measure the bite on the tines only; shavings: C's twisted ribbons (else rings of radius/tube); stuck: how many stay on the tines
 function bladeBite(variant: 'B' | 'C', style: Style) {
   const curls: Curl[] = [];
   let group: THREE.Group | null = null, scrape: THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial> | null = null, scrapeAge = SCRAPE_LIFE, bites = 0;
@@ -97,15 +115,15 @@ function bladeBite(variant: 'B' | 'C', style: Style) {
     if (group) { if (group.parent !== top) top.add(group); return; }   // a rebuilt scene takes them with it
     group = new THREE.Group();
     top.add(group);
-    // A torn curl of metal: most of a thin ring, sized so a phone at 375 px can follow it; C adds one bright edge along its outside.
-    const geometry = new THREE.TorusGeometry(style.radius, style.tube, 5, 14, Math.PI * 1.5);
-    const material = new THREE.MeshStandardMaterial(style.body);
-    const edge = style.edge ? { geometry: new THREE.TorusGeometry(style.radius + style.tube * 0.9, style.tube * 0.35, 4, 14, Math.PI * 1.5), material: new THREE.MeshBasicMaterial({ color: style.edge, toneMapped: false }) } : null;
+    // B: a torn curl of metal, most of a thin ring. C: thin ribbons (seen from both sides). Both sized so a phone at 375 px can follow them.
+    const shapes = style.shavings ? [shaving(0.09, 0.012, 1.6, 2.2), shaving(0.06, 0.009, 2.3, 3.4), shaving(0.12, 0.015, 1.1, 1.4)]
+      : [new THREE.TorusGeometry(style.radius ?? 0.03, style.tube ?? 0.006, 5, 14, Math.PI * 1.5)];
+    const material = new THREE.MeshStandardMaterial({ ...style.body, side: style.shavings ? THREE.DoubleSide : THREE.FrontSide });
     for (let i = 0; i < style.count; i++) {
-      const mesh = new THREE.Mesh(geometry, material);
-      if (edge) mesh.add(new THREE.Mesh(edge.geometry, edge.material));
+      const mesh = new THREE.Mesh(shapes[i % shapes.length], material);
+      if (style.shavings) mesh.scale.setScalar(0.7 + ((i * 0.37) % 0.7));   // varied sizes
       mesh.visible = false; group.add(mesh);
-      curls.push({ mesh, velocity: new THREE.Vector3(), spin: new THREE.Vector3(), age: style.life });
+      curls.push({ mesh, velocity: new THREE.Vector3(), spin: new THREE.Vector3(), age: style.life, stuck: false });
     }
     // The scrape: a short hot streak along his shaft at the contact point, gone in 0.3 s.
     scrape = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.22, 0.018), new THREE.MeshBasicMaterial({ color: '#fff1c4', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
@@ -121,13 +139,22 @@ function bladeBite(variant: 'B' | 'C', style: Style) {
       ensure(root);
       shaftDir.subVectors(a1, a0).normalize();
       across.subVectors(onB, onA); if (across.lengthSq() < 1e-6) across.crossVectors(shaftDir, yAxis); across.normalize();
+      const weapon = drawnOf(root)!;
       curls.forEach((c, i) => {
         const j = ++bites * 0.618 + i;
+        if (c.stuck) { group!.add(c.mesh); c.stuck = false; }   // a shaving left on the tines by the last bite is reused
         c.mesh.position.copy(onA);
+        c.mesh.rotation.set(j, j * 2, j * 3);
+        if (i < (style.stuck ?? 0)) {
+          // D: this one stays caught in the tines, riding the trident at the point it tore from (until the next bite or the fight's end).
+          weapon.updateWorldMatrix(true, false);
+          weapon.attach(c.mesh);
+          c.stuck = true; c.age = style.life; c.mesh.visible = true;
+          return;
+        }
         // Torn off the far side of the contact, away from the attacker's edge, up and along the shaft (C: gently, so they stay by the head).
         c.velocity.copy(across).multiplyScalar(-(0.8 + (j % 0.9)) * style.speed).addScaledVector(shaftDir, Math.sin(j * 3.1) * 1.1 * style.speed).add(yAxis.clone().multiplyScalar((1.2 + (j % 1.1)) * style.lift));
         c.spin.set(18 * Math.sin(j * 2.3), 14 * Math.cos(j * 1.7), 16 * Math.sin(j * 4.1));
-        c.mesh.rotation.set(j, j * 2, j * 3);
         c.age = 0; c.mesh.visible = true;
       });
       scrape!.position.copy(onA);
@@ -141,7 +168,7 @@ function bladeBite(variant: 'B' | 'C', style: Style) {
         scrape.visible = scrapeAge < SCRAPE_LIFE;
       }
       for (const c of curls) {
-        if (c.age >= style.life) continue;
+        if (c.stuck || c.age >= style.life) continue;
         c.age += dt;
         c.velocity.y -= GRAVITY * dt;
         c.mesh.position.addScaledVector(c.velocity, dt);
@@ -151,10 +178,12 @@ function bladeBite(variant: 'B' | 'C', style: Style) {
       }
     },
     clear() {
-      for (const c of curls) { c.age = style.life; c.mesh.visible = false; }
+      for (const c of curls) { if (c.stuck) { group?.add(c.mesh); c.stuck = false; } c.age = style.life; c.mesh.visible = false; }
       if (scrape) { scrapeAge = SCRAPE_LIFE; scrape.visible = false; }
     },
   });
 }
-bladeBite('B', { name: 'Blade Bite', count: 6, life: 1.4, radius: 0.03, tube: 0.006, body: { color: '#f2e2b8', metalness: 0.7, roughness: 0.25, emissive: '#8a6a30' }, edge: null, speed: 1, lift: 1, head: false });
-bladeBite('C', { name: 'Blade Bite (dark curls)', count: 4, life: 1.8, radius: 0.05, tube: 0.01, body: { color: '#34332f', metalness: 0.85, roughness: 0.45, emissive: '#000000' }, edge: '#f4e6c2', speed: 0.35, lift: 0.45, head: true });
+bladeBite('B', { name: 'Blade Bite', count: 6, life: 1.4, radius: 0.03, tube: 0.006, body: { color: '#f2e2b8', metalness: 0.7, roughness: 0.25, emissive: '#8a6a30' }, speed: 1, lift: 1, head: false });
+// C (Strategy + Lead AGAIN, 09:5xZ; replaces the ring curls, whose strip stays on evidence/): twisted steel shavings, no outline, varied
+// sizes, two left caught in the tines.
+bladeBite('C', { name: 'Blade Bite (shavings)', count: 7, life: 1.6, body: { color: '#c9c6bd', metalness: 0.9, roughness: 0.28, emissive: '#2a2824' }, speed: 0.5, lift: 0.6, head: true, shavings: true, stuck: 2 });

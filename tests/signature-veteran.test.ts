@@ -8,11 +8,11 @@ const fighters = [{}, {}] as unknown as readonly [Fighter, Fighter];
 const hit = (target: 0 | 1, move: string, damage: number): CombatEvent => ({ tick: 1, type: 'Hit', actor: target ? 0 : 1, target, move: move as CombatEvent['move'], damage, location: 'torso', heading: 0 });
 
 test('the Veteran registers Blade Bite B and C (no A), so "On" resolves to B; A is kept unregistered', () => {
-  assert.deepEqual(SIGNATURES.veteran?.map((e) => `${e.variant}:${e.name}`), ['B:Blade Bite', 'C:Blade Bite (dark curls)']);
+  assert.deepEqual(SIGNATURES.veteran?.map((e) => `${e.variant}:${e.name}`), ['B:Blade Bite', 'C:Blade Bite (shavings)']);
   assert.equal(pickSignature(SIGNATURES.veteran, 'on')?.name, 'Blade Bite');
   assert.equal(pickSignature(SIGNATURES.veteran, 'B')?.name, 'Blade Bite');
   assert.equal(pickSignature(SIGNATURES.veteran, 'A'), null);
-  assert.equal(pickSignature(SIGNATURES.veteran, 'C')?.name, 'Blade Bite (dark curls)');
+  assert.equal(pickSignature(SIGNATURES.veteran, 'C')?.name, 'Blade Bite (shavings)');
   assert.equal(pickSignature(SIGNATURES.veteran, 'C')!.when({ tick: 1, type: 'Parried', actor: 1, target: 0, move: 'light_right' }, fighters), true);
 });
 
