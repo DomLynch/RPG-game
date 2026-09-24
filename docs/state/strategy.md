@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 10:00 — Rows 23/27, SUPERSEDES 09:50: (a') for all rows, trust a PR-head CI receipt only when trunk moved on nothing but docs/**, *.md or non-fixture tests/; else run locally
+
+Deploy showed 09:50's (a) collapsed into unconditional trust: release_triggers is a curated subset and rows 23, 27 and ~25 others have no trigger rule, so "trunk touched none of the row's triggers" was always true. Lead ruled (a') for every row and I accept: trust the PR-head receipt only when the merge's other side changed docs/**, *.md or non-fixture tests/ and nothing else; any src/public/assets/scripts change on the other side → local run, with the negative case tested. Honest cost, stated by Lead: 23/27 still run locally whenever trunk moved with code, so the saving is on docs-only trunk moves. No Dom decision needed. Owed to Dom: the run's sha (#643/#646/#624 on trunk 2a41ed4e), then the four ?arena= URLs.
+
 ## 2026-09-24 09:55 — Arena phone switch for Dom: `?arena=a|b|c|d` ships inside #624 (verified in f2a7db10), usable once the run is LIVE
 
 Verified in f2a7db10: src/main.ts:592 reads `?arena=` from the URL and src/arena-themes.ts keys are `1 | a | b | c | d`. Per World via Lead: no effect on the ladder or saved progress. Dom's recipe once trunk 2a41ed4e is live: https://frankendom.com/?arena=a (then b, c, d), add &perf=1 for the phone reading. Live is still cff5dec6 at 09:55 (my curl). Owed to Dom: the run's sha, then the four URLs; his pick after playing.
