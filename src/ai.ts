@@ -74,7 +74,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (opponent.phase === 'guard' && opponent.parrying && opponent.age === 0) h.parries++;
   if (opponent.phase === 'roll' && opponent.age === 0) h.rolls++;
   if (opponent.phase === 'backstep' && opponent.age === 0) h.steps++;
-  if (opponent.phase === 'attack' && opponent.charge === 1) h.parks++;   // the first tick a swing sat at its chamber
+  // the first tick a swing sat at its chamber: age is rewound to the chamber only while parked, and charge stays 1 through the rest of
+  // a swing released after a one-tick park, so charge === 1 alone counted every later tick of that swing as a park (bump 9)
+  if (opponent.phase === 'attack' && opponent.charge === 1 && opponent.move && opponent.age === theirs[opponent.move].chamber) h.parks++;
   if (opponent.phase === 'attack' && opponent.age === 0 && opponent.move) {   // ripostes, counters and criticals are earned, not habits
     if (opponent.move === 'heavy_overhead') h.heavies++;
     else if (opponent.move === 'thrust') h.thrusts++;
