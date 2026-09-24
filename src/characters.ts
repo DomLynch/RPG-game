@@ -67,21 +67,32 @@ type FighterAsset = { scene: Group; animations: AnimationClip[] };
 // A dropped connection is not a broken rig. Safari reports a failed fetch as `TypeError: Load failed` (Chrome: `Failed to fetch`),
 // and a 5 MB fighter on a phone drops now and then (Sentry FRANKENDOM-6: nine sessions in five days, every release). Such a
 // failure is retried with a short back-off before the game gives up on the art; a rig that parses but is wrong is not retried.
-export const transientLoadError = (error: unknown): boolean => error instanceof TypeError || /Load failed|Failed to fetch|NetworkError|network error|ERR_(NETWORK|CONNECTION|INTERNET)/i.test(String((error as { message?: string })?.message ?? error));
+// A rig whose maps are missing is the other transient (Sentry FRANKENDOM-C, 2026-09-20 on): GLTFLoader swallows a failed image
+// decode into a null map (loadTexture's catch returns null), and on a phone under memory pressure the decode is what fails, not
+// the fetch. Every shipped body carries its maps (tests/characters.test.ts pins the GLB contract), so a missing map is retried too.
+export const TEXTURES_MISSING = 'Warrior textures did not load';
+export const transientLoadError = (error: unknown): boolean => error instanceof TypeError || /Load failed|Failed to fetch|NetworkError|network error|ERR_(NETWORK|CONNECTION|INTERNET)/i.test(String((error as { message?: string })?.message ?? error)) || (error as { message?: string })?.message === TEXTURES_MISSING;
 export async function retryTransient<T>(attempt: () => Promise<T>, attempts = 3, delayMs = 800, sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms))): Promise<T> {
   for (let i = 1; ; i++) {
     try { return await attempt(); }
     catch (error) { if (i >= attempts || !transientLoadError(error)) throw error; await sleep(delayMs * i); }
   }
 }
-async function loadFighter(url: string) {
-  const asset = await retryTransient(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
-  const creature = asset.scene.getObjectByName('CreatureBody');
-  const steel = asset.scene.getObjectByName('Steel');
-  const textured = creature
+// The maps a fighter must arrive with: a reconstructed surface (CreatureBody) its colour and ORM, a kit body (Steel) its colour and
+// normal. Exported so the test can hold a parsed scene to the same bar the loader does.
+export function fighterTextured(scene: Object3D): boolean {
+  const creature = scene.getObjectByName('CreatureBody');
+  const steel = scene.getObjectByName('Steel');
+  return Boolean(creature
     ? creature instanceof SkinnedMesh && creature.material instanceof MeshStandardMaterial && creature.material.map && creature.material.roughnessMap
-    : steel instanceof Mesh && steel.material instanceof MeshStandardMaterial && steel.material.map && steel.material.normalMap;
-  if (!textured) throw new Error('Warrior textures did not load');
+    : steel instanceof Mesh && steel.material instanceof MeshStandardMaterial && steel.material.map && steel.material.normalMap);
+}
+async function loadFighter(url: string) {
+  const asset = await retryTransient(async () => {
+    const loaded = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url);
+    if (!fighterTextured(loaded.scene)) throw new Error(TEXTURES_MISSING);
+    return loaded;
+  });
   // The owner's iPhone defect (2026-09-18): under GPU memory pressure iOS silently drops uploaded fighter
   // textures — black mannequins. On phones we cap the skins at 1K before the first upload (the 2K Gambeson
   // atlas is the offender); desktop keeps the full set. three.js uploads lazily, so this runs pre-render.
