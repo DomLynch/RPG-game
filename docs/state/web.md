@@ -5,7 +5,9 @@ still as the receipt, to Lead then Strategy).** Branch off trunk AFTER #664 merg
 (a) Keep the small white event line (`#combat-status`, e.g. "Stop-hit thrust hit · −17", text from src/combat.ts:147–158).
     REMOVE the larger red-background banner: that is `#combat-status[data-threat=true]` (style.css ~755 desktop, ~1049 phone:
     `background: #542c23cc`, border-left, padding; hud.ts:93 sets data-threat). Confirm with Lead whether only the red styling goes
-    or the "Incoming strike…" threat text too. Lead's words: "REMOVE the larger red-background banner ('Incoming strike…' block)".
+    or the "Incoming strike…" threat text too. ANSWERED (Lead, 2026-09-24): BOTH go — the red-background styling AND the
+    "Incoming strike…" threat text (Dom asked for the block removed; matches the standing "no cues by default" rule). The small
+    white event line ("Stop-hit thrust hit · −17") stays.
 (b) The rank row (`renderRank`, main.ts ~61) is PERMANENT in the fight HUD, sitting with the health bars — start, fight and end,
     not only `showFightRank(true)` at fight end. Note #664's `:root.endgame-hush #fight-rank` fade: decide whether it still applies.
 (c) Move the small white event line down, beneath the fighter status block (phone grid rows: .combat-hud is a 2-col grid,
