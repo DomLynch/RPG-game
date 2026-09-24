@@ -12,8 +12,8 @@ import { surfaceHit, woundSite, type WoundHit } from './gore.ts';
 export type SignatureMode = 'off' | 'ship' | 'on' | 'A' | 'B' | 'C';
 export type SignatureVariant = 'A' | 'B' | 'C';
 export const SIGNATURE_MODES: readonly SignatureMode[] = ['off', 'ship', 'on', 'A', 'B', 'C'];
-// The ruled variant per opponent (Strategy for Dom, 2026-09-24): on by default for every player. An opponent missing here (the Witch, the
-// Dwarf, anyone not yet ruled) shows nothing outside the admin preview. A letter whose effect is not registered yet also shows nothing.
+// The ruled variant per opponent (Strategy for Dom, 2026-09-24): on by default for every player. An opponent missing here (the Dwarf,
+// anyone not yet ruled) shows nothing outside the admin preview. A letter whose effect is not registered yet also shows nothing.
 export const SHIPPED: Partial<Record<OpponentId, { variant: SignatureVariant; name: string }>> = {
   nightborn: { variant: 'B', name: 'Blood Recall' },
   executioner: { variant: 'A', name: 'The Reaping Scar' },
@@ -22,6 +22,7 @@ export const SHIPPED: Partial<Record<OpponentId, { variant: SignatureVariant; na
   goblin: { variant: 'C', name: 'Hooked Wound' },
   knight: { variant: 'B', name: 'Rivet B' },   // flying rivets, no dent or socket (Rivet C closed, Strategy 2026-09-24)
   veteran: { variant: 'C', name: 'Blade Bite' },   // shavings off the trident (Strategy YES 2026-09-24 15:40)
+  witch: { variant: 'A', name: 'The Grasp' },   // staff sparks + the crumbling claw, no blood (Strategy YES on #669 @ 72131bee)
 };
 // Hard caps per fight (brief rule 4, Lead's numbers): marks on one body, on one shield, on the floor.
 export const SIGNATURE_CAPS = { body: 6, shield: 4, floor: 8 } as const;
