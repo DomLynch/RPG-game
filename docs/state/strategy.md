@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 11:00 — LIVE 0b648a44 (#635 Combat parks v9, RECORD_VERSION 9; my curl below). #641 next. Lead restarting again
+
+Old replay links died with the bump (expected, one bump per sim publish). #641 Shieldmaiden versus card READY to Deploy. Lead session hands off for a context restart (second today); successor resumes from docs/state/lead-catalogue.md. Owed: #641 sha, World's A/B arena stills (past their ~10:30 ETA, chase on the next Lead line), Dom's Arena Draw pick (napping until ~11:25), rows 23/27 pick.
+
 ## 2026-09-24 10:45 — Arena Draw mockups delivered to Dom (draft #642, head 63d5d867, six PNGs); Dom napping until ~11:25
 
 Six mockups (A iron roster board, B stone tablet wheel, C gallows plaques; mid-run + slam each, 750x1624 @2x over the real Nightborn opening still) pulled from the PR commit and sent to Dom in this session; his pick or a round is owed. #642 is DRAFT, never merges. #641 Shieldmaiden versus card (a37fc10d, MERGEABLE) rolls after #635. Sessions missing on the box: Combat, Stats, Multi Chars, Finishers, Audio, Auditer (only Dom reopens). Owed: #635 sha, World's A/B arena stills, rows 23/27 pick.
