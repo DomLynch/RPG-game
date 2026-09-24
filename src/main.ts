@@ -1,5 +1,6 @@
 import { createInput } from './input.ts';
-import { PLAYER_WEAPONS, RULES } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, weaponOf } from './moves.ts';
+import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
@@ -29,6 +30,8 @@ import type { FinisherId } from './finishers.ts';
 import { HEAVY_MOVES, createHud } from './hud.ts';
 import { createArenaDraw } from './arena-draw.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+// The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
+const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
 const canvas = element<HTMLCanvasElement>('world');
 // Page zoom is locked (owner, 2026-09-17: an accidental pinch cost the HUD mid-fight; the accessibility trade is recorded in
 // tests/input.test.ts). iOS Safari ignores the viewport meta in the browser, so the pinch gesture itself is blocked here.
@@ -910,6 +913,7 @@ function frame(now: number) {
         ended: !!practice.finish,
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
+        holding: foeHolding(practice.duel.fighters[1]),
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       });
