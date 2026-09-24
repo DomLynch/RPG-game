@@ -116,7 +116,7 @@ function bladeBite(variant: 'B' | 'C', style: Style) {
     group = new THREE.Group();
     top.add(group);
     // B: a torn curl of metal, most of a thin ring. C: thin ribbons (seen from both sides). Both sized so a phone at 375 px can follow them.
-    const shapes = style.shavings ? [shaving(0.09, 0.012, 1.6, 2.2), shaving(0.06, 0.009, 2.3, 3.4), shaving(0.12, 0.015, 1.1, 1.4)]
+    const shapes = style.shavings ? [shaving(0.18, 0.03, 1.6, 2.2), shaving(0.13, 0.024, 2.3, 3.4), shaving(0.24, 0.036, 1.1, 1.4)]
       : [new THREE.TorusGeometry(style.radius ?? 0.03, style.tube ?? 0.006, 5, 14, Math.PI * 1.5)];
     const material = new THREE.MeshStandardMaterial({ ...style.body, side: style.shavings ? THREE.DoubleSide : THREE.FrontSide });
     for (let i = 0; i < style.count; i++) {
@@ -159,6 +159,7 @@ function bladeBite(variant: 'B' | 'C', style: Style) {
       });
       scrape!.position.copy(onA);
       scrape!.quaternion.setFromUnitVectors(yAxis, shaftDir);
+      weapon.attach(scrape!);   // the scrape rides the shaft it was scored on (in world space it hung in the air once he moved)
       scrapeAge = 0;
     },
     update(dt) {
