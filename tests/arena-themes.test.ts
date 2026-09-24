@@ -17,7 +17,7 @@ test('the ladder band picks the arena: rungs 1–3 Arena 1, 4–7 Arena 2, 8–1
     assert.equal(arenaFor(o.id).id, want, `${o.id} (rung ${rung})`);
   });
   assert.equal(arenaFor('veteran').id, '1');
-  assert.equal(arenaFor('veteran', '3b').id, '3b');
+  assert.equal(arenaFor('veteran', 'd').id, 'd');
   assert.equal(arenaFor('veteran', 'nonsense').id, '1');
 });
 
@@ -55,10 +55,10 @@ test('every arena\'s floor stays darker than the hero\'s skin, and each new aren
   }
 });
 
-test('no theme moves the geometry: every arena builds the same meshes, vertex for vertex', () => {
+test('no theme moves the geometry: every arena builds the same meshes, vertex for vertex (weather and light shafts are not geometry)', () => {
   const shape = (key: keyof typeof ARENA_THEMES) => {
     const scene = new THREE.Scene(), arena = buildArena(scene, ARENA_THEMES[key]), out: string[] = [];
-    arena.group.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.Points) out.push(`${o.name}:${o.geometry.attributes.position.count}:${Array.from(o.geometry.attributes.position.array as Float32Array).reduce((a, b) => a + b, 0).toFixed(3)}`); });
+    arena.group.traverse(o => { if ((o instanceof THREE.Mesh || o instanceof THREE.Points) && o.name !== 'motes' && o.name !== 'light-shafts') out.push(`${o.name}:${o.geometry.attributes.position.count}:${Array.from(o.geometry.attributes.position.array as Float32Array).reduce((a, b) => a + b, 0).toFixed(3)}`); });
     arena.dispose(); return out;
   };
   const one = shape('1');
@@ -70,7 +70,7 @@ test('every arena keeps the play circle and the camera clamp clear, crowd and wa
     const scene = new THREE.Scene(), arena = buildArena(scene, ARENA_THEMES[key]); scene.updateMatrixWorld(true);
     const v = new THREE.Vector3(), im = new THREE.Matrix4();
     arena.group.traverse(o => {
-      if (!(o instanceof THREE.Mesh)) return;
+      if (!(o instanceof THREE.Mesh) || o.name === 'light-shafts') return;   // additive light, no depth write: a fighter walks through it lit, never hidden (arena.ts)
       const p = o.geometry.attributes.position, n = o instanceof THREE.InstancedMesh ? o.count : 1;
       for (let k = 0; k < n; k++) {
         if (o instanceof THREE.InstancedMesh) o.getMatrixAt(k, im); else im.identity();
@@ -81,6 +81,20 @@ test('every arena keeps the play circle and the camera clamp clear, crowd and wa
         }
       }
     });
+    arena.dispose();
+  }
+});
+
+test('what the solid-geometry rules skip is really not solid: light shafts are additive light, the weather is a Points cloud', () => {
+  for (const key of Object.keys(ARENA_THEMES) as (keyof typeof ARENA_THEMES)[]) {
+    const scene = new THREE.Scene(), arena = buildArena(scene, ARENA_THEMES[key]), shafts = arena.group.getObjectByName('light-shafts');
+    assert.equal(!!shafts, !!ARENA_THEMES[key].shafts, `${key}: light shafts only where the theme asks for them`);
+    if (shafts) {
+      const m = (shafts as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      assert.ok(m.blending === THREE.AdditiveBlending && !m.depthWrite && !shafts.castShadow, `${key}: the shafts must be additive, depth-write off and shadowless`);
+    }
+    const weather = arena.group.getObjectByName('motes');
+    assert.ok(weather instanceof THREE.Points && !(weather as THREE.Points).castShadow, `${key}: the weather is one shadowless Points cloud`);
     arena.dispose();
   }
 });

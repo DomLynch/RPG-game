@@ -2,7 +2,7 @@
 // these are a few KB of code). Every function is pure in (size, seed) so tests/arena.test.ts can measure the same pixels the phone sees.
 // Materials rule: sand, stone, ash, iron, bone, blood — worn, matte, nothing saturated. Colours are sRGB bytes.
 export type Pixels = { width: number; height: number; data: Uint8Array };
-import type { SkyLook, WallStyle } from '../../arena-themes.ts';
+import type { Patch, SkyLook, WallStyle } from '../../arena-themes.ts';
 // Arena 1's wall: five uneven courses of 2–4 blocks, the joints half-dark, the six reused-stone hues.
 const ASHLAR: WallStyle = { courses: 5, blocks: [2, 4], mortar: 0.5, hues: [[1, 1, 1], [1.035, 1.0, 0.955], [0.95, 0.98, 1.03], [1.025, 0.98, 0.95], [1.015, 1.0, 0.95], [0.92, 0.925, 0.94]] };
 // An arena theme's tint (arena-themes.ts): a per-channel multiply over the finished map. [1, 1, 1] leaves Arena 1 byte-identical.
@@ -157,7 +157,7 @@ export function stoneNormal(size = 512, seed = 11, style: WallStyle = ASHLAR): P
 // The sky: an ash-grey dome, its horizon the scene's fog colour so the dome and the fog meet, with one break of light around the sun.
 // Equirectangular: u around, v from the horizon (0.5) to the zenith (1). `sunU` is the sun's azimuth on the dome's u axis.
 export function skyPixels(width = 512, height = 256, sunU = 0.86, sunV = 0.77, seed = 19, look: SkyLook = { base: [169, 168, 156], sun: [70, 52, 30], ground: [128, 104, 78] }): Pixels {
-  const { base: [br, bg, bb], sun: [sr, sg, sb], ground: [gr, gg, gb] } = look;
+  const { base: [br, bg, bb], sun: [sr, sg, sb], ground: [gr, gg, gb] } = look; sunV = look.sunV ?? sunV;
   const cloud = fbm(4, 4, seed), wisp = fbm(12, 3, seed + 3);
   return pixels(width, height, (u, v) => {
     const up = Math.max(0, (v - 0.5) * 2), du = Math.min(Math.abs(u - sunU), 1 - Math.abs(u - sunU)) * 2.2, dv = (v - sunV) * 2.8, sun = Math.exp(-(du * du + dv * dv) * 2.4);
@@ -255,12 +255,25 @@ export function floorOverlay(p: Pixels, _kind: 'clay', seed: number): Pixels {
 // LINEAR multiplier over the floor colour, halved to fit a byte (0.5 = no change). Clay and flags get a broad tone mottle (damp and
 // sun-bleached ground, worn and grimed stone) centred on no change, so their 3 m tile stops reading as a grid from the fighting camera.
 export const PATCH_SPAN = 26;
-export function patchPixels(size: number, kind: 'clay' | 'flag', seed: number): Pixels {
+export function patchPixels(size: number, kind: Patch, seed: number): Pixels {
   const field = fbm(6, 5, seed + 111), speck = fbm(40, 2, seed + 113, 0.6);
+  if (kind === 'puddle') {   // standing water in the low ground: a touch darker, and the floor shader drops its roughness by A (arena.ts)
+    return pixels(size, size, (u, v) => { const f = Math.min(1, Math.max(0, (field(u, v) - 0.53) * 9)); return [0.62 * 127.5, 0.66 * 127.5, 0.7 * 127.5, f * 255]; });
+  }
+  if (kind === 'blood') {   // old blood soaked into the sand: ragged brown-red stains, darkest at their hearts, a spatter at the rims
+    return pixels(size, size, (u, v) => {
+      const m = field(u, v), s2 = speck(u, v), f = Math.min(1, Math.max(0, (m - 0.6) * 7)) * (0.75 + 0.25 * s2) + (s2 > 0.74 && m > 0.52 ? 0.5 : 0);
+      return [0.62 * 127.5, 0.3 * 127.5, 0.26 * 127.5, Math.min(1, f) * 255];
+    });
+  }
   const tone: [number, number, number] = kind === 'clay' ? [0.26, 0.3, 0.34] : [0.2, 0.21, 0.24];
   return pixels(size, size, (u, v) => {
     const t = Math.max(-1, Math.min(1, (field(u, v) - 0.5) * 3 + (speck(u, v) - 0.5) * 0.4));
     return [(1 + t * tone[0]) * 127.5, (1 + t * tone[1]) * 127.5, (1 + t * tone[2]) * 127.5, 255];
   });
+}
+// A rain streak: a thin, soft vertical line down the middle of the sprite (Points draw square sprites; the streak is in the texture).
+export function streakPixels(size = 32): Pixels {
+  return pixels(size, size, (u, v) => { const a = Math.max(0, 1 - Math.abs(u - 0.5) * 22) * Math.sin(Math.PI * v) ** 0.6; return [255, 255, 255, Math.round(255 * a)]; });
 }
 

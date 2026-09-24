@@ -67,7 +67,8 @@ export function createScene(
   const brass = new THREE.MeshStandardMaterial({ color: '#ad9365', metalness: 0.65, roughness: 0.48 });
   scene.add(new THREE.HemisphereLight(...theme.hemisphere));
   const sun = new THREE.DirectionalLight(...theme.sun);
-  sun.position.set(-15, 26, -18);
+  const sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18])), sunPower = theme.sun[1];   // a theme may move the key light (noon overhead, firelight low)
+  sun.position.copy(sunHome);
   sun.castShadow = true;
   sun.shadow.mapSize.set(PHONE ? 512 : 1024, PHONE ? 512 : 1024);
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 70 });   // the pit floor to the wall's foot (11.7 m), not the tiers: 1.25× sharper shadows on the sand for free (audit 2026-09-20)
@@ -631,6 +632,11 @@ export function createScene(
         stepSeveredHead(severHead, dt);
       }
       const animationDt = frozen ? 0 : dt;
+      if (theme.light?.flicker) {   // firelight: the key light breathes and sways a little, so the long shadows move
+        const t = performance.now() / 1000, f = theme.light.flicker;
+        sun.intensity = sunPower * (1 + f * (0.6 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 13.1 + 1.3)));
+        sun.position.set(sunHome.x + 0.7 * Math.sin(t * 1.7), sunHome.y + 0.3 * Math.sin(t * 2.9), sunHome.z + 0.7 * Math.cos(t * 1.3));
+      }
       arena.update(animationDt, events, rig.started ? camera : undefined, { tick: practice.duel.tick, fighters: [state, practice.enemy] });   // the crowd culls against the settled camera; the first frame draws everyone; the lorarii pace on the sim tick and watch the fighters
       const dx = state.x - player.position.x,
         dz = state.z - player.position.z,
