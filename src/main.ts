@@ -286,16 +286,16 @@ arenaSelect.addEventListener('change', () => {
   url.searchParams.delete('arena');
   location.replace(url.href);
 });
-// The signature-effect preview (docs/briefs/signature-effects.md): Off / On / A–C for the opponent's signature, beside the Arena pick and gated
-// with it. It applies live and is kept for the session; `?signature=` wins. It counts only while the test tools are open (admin or ?debug);
-// otherwise it is off (signature.ts resolveSignature), so players see nothing Dom has not passed.
+// The signature-effect preview (docs/briefs/signature-effects.md): Shipped / Off / On / A–C for the opponent's signature, beside the Arena pick
+// and gated with it. It applies live and is kept for the session; `?signature=` wins. It counts only while the test tools are open (admin or
+// ?debug); otherwise it is Shipped (signature.ts SHIPPED), so players see only the variant Dom ruled.
 const SIGNATURE_PICK_KEY = 'frankendom.signature-override';
 const signatureSelect = element<HTMLSelectElement>('signature-select');
 const applySignature = () => view?.setSignature?.(window.location?.search ?? '', signatureSelect.value, !element('test-tools').hidden);
-signatureSelect.value = (() => { try { return sessionStorage.getItem(SIGNATURE_PICK_KEY) ?? 'off'; } catch { return 'off'; } })();
-if (signatureSelect.selectedIndex < 0) signatureSelect.value = 'off';
+signatureSelect.value = (() => { try { return sessionStorage.getItem(SIGNATURE_PICK_KEY) ?? 'ship'; } catch { return 'ship'; } })();
+if (signatureSelect.selectedIndex < 0) signatureSelect.value = 'ship';
 signatureSelect.addEventListener('change', () => {
-  try { if (signatureSelect.value !== 'off') sessionStorage.setItem(SIGNATURE_PICK_KEY, signatureSelect.value); else sessionStorage.removeItem(SIGNATURE_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
+  try { if (signatureSelect.value !== 'ship') sessionStorage.setItem(SIGNATURE_PICK_KEY, signatureSelect.value); else sessionStorage.removeItem(SIGNATURE_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
   applySignature();
 });
 {

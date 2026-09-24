@@ -286,7 +286,7 @@ export function createScene(
   let finishComplete = false,
     finishCompleteAt = 0;
   const wounds = createWoundDecals(scene, splatTexture);
-  const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); off unless the admin select or ?signature= asks
+  const signatures = createSignatures(scene, opponentId);   // the opponent's signature effect (signature.ts); the ruled variant (SHIPPED) unless the admin select or ?signature= asks
   const bodyWounds = createBodyWounds(scene, splatTexture);   // owner 2026-09-21: blood from every cut once a fighter is at 60 % or below
   const blade = createBladeBlood();
   let heading = Math.PI;
@@ -384,7 +384,7 @@ export function createScene(
       finisherOverride = id;
     },
     setSignature(search: string, selected: string | null, toolsOpen: boolean) {
-      signatures.setMode(resolveSignature(search, selected, toolsOpen));   // off unless the test tools are open (signature.ts)
+      signatures.setMode(resolveSignature(search, selected, toolsOpen));   // the ruled variant unless the test tools are open (signature.ts)
     },
     signatureProbe() {
       return { ...signatures.probe(), marks: signatures.marks.where() };
@@ -773,6 +773,7 @@ export function createScene(
         roots: [warriors?.player.anchor ?? null, warriors?.opponent.anchor ?? null],
         scale: [1, OPPONENTS[opponentId].scale],
         yielding: !!practice.finish,
+        bloodMode,
       }, camera.position, [!!practice.finish && practice.finish.victim === 0 && finisher !== null && finisher !== 'plainDeath', detailedBlood && finisher !== 'plainDeath']);
       bloodSources =
         detailedBlood && warriors
