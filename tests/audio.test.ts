@@ -98,7 +98,11 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('GuardBroken')]), ['guard_break', 'hit_flesh']);
   assert.deepEqual(names([ev('AttackStarted', { move: 'light_right' })]), ['whoosh_light']);
   assert.deepEqual(names([ev('AttackStarted', { move: 'heavy_riposte' })]), ['whoosh_heavy']);
-  assert.deepEqual(names([ev('Charged')]), ['charge']);
+  // The charge tell is per fighter (Strategy 2026-09-24): the player's gather on the player's Charged only, the opponent's own
+  // cue on the opponent's only — never both, never swapped.
+  assert.deepEqual(names([ev('Charged', { actor: 0 })]), ['charge']);
+  assert.deepEqual(names([ev('Charged', { actor: 1 })]), ['charge_foe']);
+  assert.deepEqual(names([ev('Charged', { actor: 0 }), ev('Charged', { actor: 1 })]), ['charge', 'charge_foe']);
   assert.deepEqual(names([ev('ActionStarted', { action: 'draw' })]), ['draw']);
   // The killing tick: the hit lands first, the fall is layered slightly after it.
   const kill = cuesFor([ev('AttackActive'), ev('Killed', { move: 'heavy_overhead' }), ev('Hit', { move: 'heavy_overhead', charged: true }), ev('Staggered', { actor: 1 })]);
