@@ -1,13 +1,12 @@
 // Graft slice 1 — STILLS ONLY (block B, Lead 2026-09-24): the Witch's casting arm (skill: Witch-fire) on the player rig, three directions.
-// A preview for Dom's pick, reached only through ?graft=a|b|c; nothing ships from this file as it stands. The arm is cut from her baked
-// CreatureBody by skin weight (the triangles her left arm's bones own) and bound to the player's own bones with her inverse binds (the
-// #705 carrier rule), and the player's own left-arm skin and bracer are hidden the same way. The three directions differ in how the seam
-// is dressed, not in tint: (a) raw and stitched, (b) bound in bandage, (c) the arm burning with witch-fire in the veins.
+// A preview for Dom's pick, reached only through ?graft=a|b|c; nothing ships from this file as it stands. Her cloak hides both her arms,
+// so the grafted arm is the player's own left arm (the triangles its bones own), re-skinned ashen like hers; his bracer comes off it. The three directions differ in how the seam
+// is dressed, not in tint: (a) raw and stitched, (b) bound in bandage, (c) the arm burning with witch-fire in the veins (green, never orange: docs/briefs/witch.md).
 import * as THREE from 'three';
 
 export type GraftStyle = 'a' | 'b' | 'c';
 const ARM = /^(upperarm|lowerarm|hand|index|middle|pinky|ring|thumb)_.*l$/;   // her left (casting) arm below the shoulder; the clavicle stays his
-const SEAM = { along: 0.07, radius: 0.064 };   // metres from the shoulder joint down the upper arm, and the ring's radius there
+const SEAM = { along: 0.1, radius: 0.058 };   // metres from the shoulder joint down the upper arm, and the ring's radius there
 
 // The triangles whose three corners are mostly owned by the arm's bones (weight > half), as a new index list over the same vertices.
 function armTriangles(mesh: THREE.SkinnedMesh, keep: boolean): number[] {
@@ -30,7 +29,7 @@ function veinTexture(): THREE.CanvasTexture {
   g.lineCap = 'round';
   for (let v = 0; v < 90; v++) {
     let x = rnd() * size, y = rnd() * size, a = rnd() * Math.PI * 2;
-    g.strokeStyle = `rgba(255,${120 + Math.round(rnd() * 90)},40,${0.55 + rnd() * 0.45})`;
+    g.strokeStyle = `rgba(${60 + Math.round(rnd() * 70)},255,90,${0.55 + rnd() * 0.45})`;
     g.lineWidth = 1 + rnd() * 2.2; g.beginPath(); g.moveTo(x, y);
     for (let s = 0; s < 14; s++) { a += (rnd() - 0.5) * 0.9; x += Math.cos(a) * 9; y += Math.sin(a) * 9; g.lineTo(x, y); }
     g.stroke();
@@ -56,37 +55,37 @@ export function graftArm(anchor: THREE.Object3D, witch: THREE.Object3D, style: G
   witch.traverse(o => { if (o instanceof THREE.SkinnedMesh && o.name === 'CreatureBody') body = o; });
   anchor.traverse(o => { if (o instanceof THREE.SkinnedMesh && (o.material as THREE.Material).name === 'Skin') skin = o; if (o instanceof THREE.SkinnedMesh && (o.material as THREE.Material).name === 'Wrap' && o.userData.slot === 'Arms') bracers.push(o); });
   if (!body || !skin) throw new Error('graft: need her CreatureBody and his Skin');
-  // Hide his left arm: the same weight rule over his skin and his arm wraps (a copy of the index; the geometry is shared with nothing else).
-  for (const own of [skin, ...bracers]) { const g = own.geometry.clone(); g.setIndex(armTriangles(own, false)); own.geometry = g; }
-  // Her arm, bound to HIS bones (by name) with HER inverse binds.
-  const tris = armTriangles(body, true), geometry = body.geometry.clone(); geometry.setIndex(tris);
+  // Her CreatureBody keeps both arms inside the cloak (her upperarm_l owns no vertices), so a cut of "her arm" is only sleeve rags with
+  // no upper arm. The grafted arm is therefore HIS arm's own geometry on his own bones (it fits by construction), skinned ashen and
+  // dead like hers. (Her sleeve rags were tried as a cuff and read as a loose black shard at the wrist; dropped.)
+  for (const own of bracers) { const g = own.geometry.clone(); g.setIndex(armTriangles(own, false)); own.geometry = g; }
+  const armIndex = armTriangles(skin, true), rest = skin.geometry.clone(); rest.setIndex(armTriangles(skin, false));
+  const armGeometry = skin.geometry.clone(); armGeometry.setIndex(armIndex); skin.geometry = rest;
+  const ash = (skin.material as THREE.MeshStandardMaterial).clone(); ash.name = 'GraftSkin';
+  ash.color.set('#7f8c78'); ash.roughness = 0.9;   // a factor only darkens the map: grey-green, bloodless
+  if (style === 'c') { ash.emissive.set('#7dff6a'); ash.emissiveMap = veinTexture(); ash.emissiveIntensity = 1.6; }
+  const arm = new THREE.SkinnedMesh(armGeometry, ash); arm.name = 'graft-arm'; arm.castShadow = arm.receiveShadow = true; arm.frustumCulled = false;
+  arm.bind(skin.skeleton, skin.bindMatrix); skin.parent!.add(arm);
   const byName = new Map<string, THREE.Bone>(); skin.skeleton.bones.forEach(b => byName.set(b.name, b));
-  const bones = body.skeleton.bones.map(b => byName.get(b.name)!);
-  const material = (body.material as THREE.MeshStandardMaterial).clone();
-  if (style === 'c') { material.emissive.set('#ff9a3a'); material.emissiveMap = veinTexture(); material.emissiveIntensity = 2.2; }
-  const arm = new THREE.SkinnedMesh(geometry, material); arm.name = 'graft-arm'; arm.castShadow = arm.receiveShadow = true; arm.frustumCulled = false;
-  arm.bind(new THREE.Skeleton(bones, body.skeleton.boneInverses), skin.bindMatrix);
-  skin.parent!.add(arm);
   // The seam.
   const upper = byName.get('upperarm_l')!, lower = byName.get('lowerarm_l')!;
   if (style === 'a') {   // raw: a livid weal of sewn flesh, and black thread crossing it
-    aroundArm(upper, lower, new THREE.TorusGeometry(SEAM.radius, 0.011, 8, 28).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#6e1f1c', roughness: 0.55 }), SEAM.along);
+    aroundArm(upper, lower, new THREE.TorusGeometry(SEAM.radius, 0.016, 8, 28).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#6e1f1c', roughness: 0.55 }), SEAM.along);
     const thread = new THREE.MeshStandardMaterial({ color: '#141010', roughness: 0.8 });
     for (let k = 0; k < 14; k++) {
-      const stitch = new THREE.BoxGeometry(0.004, 0.034, 0.004).rotateZ(k % 2 ? 0.5 : -0.5);
+      const stitch = new THREE.BoxGeometry(0.006, 0.05, 0.006).rotateZ(k % 2 ? 0.5 : -0.5);
       const a = (k / 14) * Math.PI * 2; stitch.translate(Math.cos(a) * (SEAM.radius + 0.008), 0, Math.sin(a) * (SEAM.radius + 0.008)); stitch.rotateY(0);
       aroundArm(upper, lower, stitch, thread, SEAM.along);
     }
   } else if (style === 'b') {   // bound: three turns of dirty linen over the seam, one slipped lower
     const linen = new THREE.MeshStandardMaterial({ color: '#b9ab8f', roughness: 0.95, side: THREE.DoubleSide });
-    for (const [along, r, h, tilt] of [[0.035, SEAM.radius + 0.012, 0.045, 0.12], [0.07, SEAM.radius + 0.01, 0.04, -0.18], [0.105, SEAM.radius + 0.004, 0.035, 0.08]] as const)
+    for (const [along, r, h, tilt] of [[0.07, SEAM.radius + 0.012, 0.05, 0.12], [0.11, SEAM.radius + 0.01, 0.045, -0.18], [0.15, SEAM.radius + 0.004, 0.04, 0.08]] as const)
       aroundArm(upper, lower, new THREE.CylinderGeometry(r, r * 0.96, h, 24, 1, true).rotateZ(tilt), linen, along);
   } else {   // witch-fire: the seam itself glows, where her fire meets his flesh
-    aroundArm(upper, lower, new THREE.TorusGeometry(SEAM.radius, 0.008, 8, 28).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#2a1206', emissive: '#ff9a3a', emissiveIntensity: 3 }), SEAM.along);
+    aroundArm(upper, lower, new THREE.TorusGeometry(SEAM.radius, 0.013, 8, 28).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#0b1a08', emissive: '#7dff6a', emissiveIntensity: 3 }), SEAM.along);
   }
-  // Cost: her arm's share of her surface's vertex data, and her colour map (whole, before any crop).
-  const used = new Set(tris), stride = Object.values(geometry.attributes).reduce((n, a) => n + (a as THREE.BufferAttribute).itemSize * (a as THREE.BufferAttribute).array.BYTES_PER_ELEMENT, 0);
-  return { armVertices: used.size, armTriangles: tris.length / 3, bytes: { geometry: used.size * stride + tris.length * 4, texture: 0 } };
+  // Cost: the arm reuses his vertices, so what it adds is one index list (plus the vein canvas in (c), drawn at runtime, not shipped).
+  return { armVertices: new Set(armIndex).size, armTriangles: armIndex.length / 3, bytes: { geometry: armIndex.length * 4, texture: 0 } };
 }
 
 // The in-game hook's entry (scene.ts, ?graft=): her GLB loaded on its own, then the same graft as the studio sheet.
