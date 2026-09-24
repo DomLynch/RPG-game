@@ -5,7 +5,39 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-24 ~15:30 (handover before /clear)
+## Now — 2026-09-24 ~19:30: waiting on Strategy's kick ruling
+
+**Nothing to build until Strategy rules.** The bot report (Strategy item 5) is delivered. Lead verified it and took it
+to Strategy with three asks, plus a flag that the Witch and the Veteran have the same sim profile.
+- **The report:** `docs/player-bot-limited-report-2026-09-24.md` on #680 (`pitborn/bot-limited-obs`), head
+  `c6e06ff6`, MERGEABLE against `codex/01a0ceea/task-3` (#668). `01e6ae68` merges #668's `9483f894` (additive: both
+  defenceExchanges and defenceEarned kept, the limited filter unchanged).
+  - Checks on the merged tree: player-bot tests 29/29; quality-stop-targeted 412/412; the `.quality-gate` Pitborn
+    bot gate 3/3.
+  - Reproduction: `scripts/player-bot-scenarios.mjs` (kick and roll) and `scripts/player-bot-replay.mjs` (tick replay).
+- **The three rulings asked for:**
+  1. KICK (Combat's lever). A guarded kick staggers 30→66, but the kicker's first legal action is 57 and the fastest
+     windup is 16, so there is no punish even at zero delay.
+  2. The wall roll. Rolling straight back takes 4–8 of 9 charged heavies; rolling sideways on the hold-time read
+     takes 0 of 9.
+  3. GOBLIN. Codex's loss was a stale guard: carried from the tell at 1889 to a guard at 1924, then posture broken at
+     1939 and no escape by 2028. Under #680's filter the same seed is a win.
+- **Gate:** the limited bot at `a962f66b` won 24/27 Easy fights with 0 errors, and passed on all nine opponents.
+- **Open, human only:** whether the posture-broken state reads on screen (a browser look).
+- **Open, mine:** the debug-observation pass. It is lock-aware: stopped by the a5590911/e37a74c7 deploys, it resumes by
+  itself. Post its numbers on #680 as a comment. Then fast-forward the main worktree's local `pitborn/bot-limited-obs`
+  (still at `a962f66b`; it was left alone so the running batch's scripts did not change) to `c6e06ff6`. Remove the
+  scratchpad worktrees `wt-merge` and `wt-state`.
+
+**Gotchas from this task:**
+- A side worktree needs a `node_modules` symlink **and** `npm run build` before the Stop gate's bot run works.
+  `player-bot.mjs` serves `dist/` through Vite preview; without it, every `page.goto` returns
+  ERR_HTTP_RESPONSE_CODE_FAILURE.
+- Recorded bot fights replay exactly in node. Apply each key edge at tick + 1, with yaw = aim + π (see the replay
+  script).
+- Kick move ids are shared across weapons; to tell opponents apart, check `OPPONENTS[id]`, not the move names.
+
+## Then — 2026-09-24 ~15:30 (handover before /clear)
 
 **Pick up: #680 bot report (Lead's assignment, Strategy pre-approved). Blood-flag PRs are done.**
 - **#680** `pitborn/bot-limited-obs`, head `a962f66b`, base `codex/01a0ceea/task-3` (#668). Worktree = this checkout's main
