@@ -28,10 +28,14 @@ export function strandPoints(out: THREE.Vector3[], a: THREE.Vector3, b: THREE.Ve
 // it shows only where his knife hand and blade are actually in view, and whatever stands in front hides it.
 // C (Strategy's "again" prep): a heavier strand in dark wound-red that keeps a deep curve under its own weight as it stretches, then a snap
 // that throws its drops out and up so they are seen flying. Depth-tested, like B.
-export type HookStyle = { overRigs: boolean; color: string; emissive: string; width: readonly [number, number]; sag: number; taut: number; fling: number; drop: number };
+export type HookStyle = { overRigs: boolean; color: string; emissive: string; width: readonly [number, number]; sag: number; taut: number; fling: number; drop: number; drops?: { color: string; emissive: string; trail: number; stretch: number } };
 export const HOOK_A: HookStyle = { overRigs: true, color: '#7a0a0c', emissive: '#3a0004', width: HOOK.width, sag: HOOK.sag, taut: 0.7, fling: 0.6, drop: 0.011 };
 export const HOOK_B: HookStyle = { ...HOOK_A, overRigs: false };
-export const HOOK_C: HookStyle = { overRigs: false, color: '#4a0407', emissive: '#160002', width: [0.055, 0.026], sag: 0.2, taut: 0.25, fling: 1.6, drop: 0.017 };
+// C's drops take the Nightborn's Blood Recall B look (Strategy: round red drops read as "berries"): the wound-blood colour, small, stretched
+// along their motion, with a short tapering trail of shrinking copies TRAIL_STEP behind on the same fall.
+export const HOOK_C: HookStyle = { overRigs: false, color: '#4a0407', emissive: '#160002', width: [0.055, 0.026], sag: 0.2, taut: 0.25, fling: 1.6, drop: 0.009,
+  drops: { color: '#3e0306', emissive: '#120001', trail: 3, stretch: 0.35 } };
+const TRAIL_STEP = 0.022;   // seconds between a drop and each copy behind it (Blood Recall B's)
 
 export function createHookedWound(style: HookStyle = HOOK_A) {
   const overRigs = style.overRigs;
@@ -50,7 +54,9 @@ export function createHookedWound(style: HookStyle = HOOK_A) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setIndex(index);
-  const drops = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), material, HOOK.drops);
+  const copies = 1 + (style.drops?.trail ?? 0), past = new THREE.Vector3(), motion = new THREE.Vector3();
+  const dropMaterial = style.drops ? new THREE.MeshStandardMaterial({ color: style.drops.color, emissive: style.drops.emissive, roughness: 0.15, metalness: 0.1 }) : material;
+  const drops = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), dropMaterial, HOOK.drops * copies);
   let strand: THREE.Mesh | null = null;
   const points = Array.from({ length: n }, () => new THREE.Vector3());
   const woundLocal = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3(), snapPoint = new THREE.Vector3();
@@ -135,10 +141,23 @@ export function createHookedWound(style: HookStyle = HOOK_A) {
         for (let i = 0; i < HOOK.drops; i++) {
           dropVelocity[i].y -= HOOK.gravity * dt;
           dropAt[i].addScaledVector(dropVelocity[i], dt);
-          const s = dropAt[i].y > 0.02 ? style.drop + (i % 3) * 0.003 : 0;
+          const s = dropAt[i].y > 0.02 ? style.drop + (i % 3) * (style.drops ? 0.002 : 0.003) : 0;
           if (s) falling++;
-          scratch.position.copy(dropAt[i]); scratch.scale.set(s, s * 1.6, s); scratch.updateMatrix();
-          drops.setMatrixAt(i, scratch.matrix);
+          for (let c = 0; c < copies; c++) {
+            // A trail copy sits where the drop was c steps ago on the same fall (p − vΔ − ½gΔ², v the drop's velocity now), smaller the
+            // farther back, and never before the snap.
+            const back = c * TRAIL_STEP, shown = s && age - snapped >= back ? s * (1 - c / copies * 0.8) : 0;
+            scratch.position.copy(dropAt[i]).addScaledVector(dropVelocity[i], -back); scratch.position.y -= 0.5 * HOOK.gravity * back * back;
+            if (style.drops) {
+              motion.copy(dropVelocity[i]); motion.y += HOOK.gravity * back;   // the velocity it had then
+              const length = 1 + Math.min(4, motion.length() * style.drops.stretch);
+              past.copy(motion).normalize();
+              scratch.quaternion.setFromUnitVectors(THREE.Object3D.DEFAULT_UP, past);
+              scratch.scale.set(shown, shown * length, shown);
+            } else { scratch.quaternion.identity(); scratch.scale.set(shown, shown * 1.6, shown); }
+            scratch.updateMatrix();
+            drops.setMatrixAt(i * copies + c, scratch.matrix);
+          }
         }
         drops.instanceMatrix.needsUpdate = true;
         if (!falling && recoil >= 1) hide();
