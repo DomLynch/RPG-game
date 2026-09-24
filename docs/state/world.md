@@ -2,6 +2,23 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — rain frame rate (#697), 2026-09-24 night
+
+### Now
+- **#697** (head ac2dd3aa, FROZEN): Strategy said YES, slant included ("reads as wind-driven rain"). It rides the #695 publish. Next step only if
+  Dom's `?perf=1` on the iPhone still shows a gap between `?arena=1` and `?arena=b`: then the wet floor (roughness 0.34) and the puddle mirror (0.04).
+
+### Done
+- Rain is now one static mesh of thin camera-facing quads that fall in the vertex shader on `rainTime` (`rainStreaks` in arena.ts). It used to be
+  1500 point sprites of 0.5 m, and the streak filled only 9 % of each square's width. Blended fragments on the phone canvas: 156k (0.33 screens)
+  → 18.6k (0.04). Per-frame upload: 18 KB → 0. Evidence stills: `origin/evidence/world-rain-perf` (4a37d5b8).
+- #686 parry tell is LIVE in e37a74c7 (the playtest sha).
+
+### Gotchas
+- **The Mac cannot see phone GPU cost.** The M5 via Chromium/Metal, at 16× the pixels and uncapped, showed rain = sand. WebKit headless is
+  vsync-capped at 60 even at 36× the pixels. For a fill problem, count the blended fragments analytically, and read `?perf=1` on the device.
+- A point sprite is screen-aligned, so it hides any drift in its path. A quad on the fall axis shows it: the "new" slant was the old 0.12 drift.
+
 ## Lane state — parry tell (#686), 2026-09-24 evening
 
 ### Now
