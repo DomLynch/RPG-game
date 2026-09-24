@@ -4,7 +4,29 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 
 ## Now — weapons lane, as of 2026-09-24 21:30 (replace this section wholesale; it is the restart brief, not history)
 
-**Now — nothing open. Stand by for Lead (Lead is CEO; questions go to Lead, never to Dom).**
+**Now — NEW TASK from Lead (21:40 +04), not yet started: a weapon taken at the kill screen must be the weapon the
+player holds AND fights with. Due: PR + receipts by 2026-09-25 10:00 +04, before the playtest. Lead is CEO; ask Lead,
+never Dom.**
+- Bug (Dom, from a phone, live e37a74c7): take an opponent's weapon and the character doesn't change; armour mostly does.
+- Lead's diagnosis, UNVERIFIED (open the files first): take()+wearTaken() store it in `profile.loot.equipped.main`, and
+  it persists. But `src/match.ts:41` has `weapon: WeaponId = 'longsword'`, set only by startReplay from the record. And
+  `src/scene.ts:142` builds rig weapons from `initialPractice(731, OPPONENTS[opponentId])` with no player weapon, so it
+  always draws the longsword.
+- Lead's rulings: the fight weapon = `weaponOf(equipped.main)` if it's in PLAYER_WEAPONS, else 'longsword'. Pass it as a
+  Match constructor option (match.ts is not a SIM_FILE) and into createScene, so loadWarriors gets [player, opponent].
+  A kill-link page draws the RECORD's weapon, not the viewer's; the record arrives async after createScene starts, so
+  solve the ordering (hold the player rig until the link resolves, or reload the rig on mismatch). Daily = the equipped
+  weapon. A same-page rematch keeps the loaded weapon. Drawn = sim always (the Knight maul rule).
+- Do NOT touch SIM_FILES (duel/moves/ai/sim/record/blade/blade-paths/roster/finishers). If you must, stop and tell Lead.
+- Tests: a pinned test that equipped.main -> Match.weapon and the scene's player weapon agree for all 9 WEAPON_SLOTS,
+  plus the kill-link path. Run tsc, typecheck:tests, npm test.
+- Receipts: reproduce on LIVE first (take a weapon, next fight, a 375 still of the hand). After the fix: one 375 still
+  per weapon family in the hand, plus one armour piece per slot (Shield included) on the rig. Say which armour slot
+  fails, if any.
+- No browser while ~/.claude/state/deploy_in_flight.json exists. Tonight Deploy runs #694, then #695 + #697. Code now,
+  browser after.
+- Reply to Lead with the PR number and head, or a slip line.
+
 
 **Done today**
 - #684, the signature batch (Nightborn, Goblin, Plague Doctor, blood-flagged), and #678, the rising opponent charge cue: both
