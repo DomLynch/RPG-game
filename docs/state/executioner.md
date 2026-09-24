@@ -9,6 +9,12 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 (`loot.json` `scale` [1,1,.72] about Head: visor 0.8 cm, back 2.3 cm). It is NOT READY until Dom says yes to the comparison
 (https://github.com/DomLynch/RPG-game/pull/643#issuecomment-5807801460, images on evidence/knight-643 @ 17e14d00). If Dom asks
 for dark iron, give the three shells a KnightIron-coloured untextured material; the ringHull shells carry no UVs.
+
+**Also queued (Lead, 2026-09-24 ~05:30): the live 'grey rectangle' Dom saw on the Knight is his MAUL HEAD** — an untextured
+WeatheredStone cube (#6e6a63, scripts/build-weapon.mjs:712), reading near-white at chest height. Not #643: trunk's knight.glb is
+byte-identical to #643's. WEAPONS fixes the head (material + bevel) in build-weapon.mjs and hands over the rebuilt donor; THIS LANE then
+rebuilds knight.glb (`node scripts/build-creatures.mjs knight`, not creature_pack.py alone: a pack-only rerun gives 5.27 MB vs the
+shipped 6.68 MB) and posts idle + mid-swing before/after stills at 375x812 for Dom before READY. Before still: artifacts/character/knight-live-idle/sheet.png.
 Answer Lead/Veteran/Combat questions. If Lead or Dom wants the great helm smaller, that's the next change (see Open).
 Do not push to #603 (`knight/six-r` @ `1db7afd5`): it's in #643's history and was held out of Run 4.
 
