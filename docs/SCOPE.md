@@ -1,6 +1,6 @@
 # Frankendom — current scope (read this before any older scope line)
 
-Owner decisions as of **2026-09-24 09:00**, kept current by Strategy. When an older document, brief, state entry or memory
+Owner decisions as of **2026-09-24 22:30**, kept current by Strategy. When an older document, brief, state entry or memory
 disagrees with this file, this file wins and the older line is stale. Dated decisions below name what they replaced.
 
 ## Beta (the freeze)
@@ -11,9 +11,20 @@ disagrees with this file, this file wins and the older line is stale. Dated deci
   runtime creature assembly and player-created monsters. A PURE human path progresses on the existing kit + gear layer at
   parity. NOT in scope (aligned): graft loss in PvP + single-copy artifacts, evolution replacing the ladder, the world
   ecosystem. *Replaces "Creatures on hold" and "Frankenstein body parts from kills: parked, no date".*
+- **SKILL (Dom 2026-09-24 22:0x)**: the fourth fight button. Take a body part, gain its skill; one skill equipped per duel, chosen
+  on the loot panel by tapping the grafted part; 15 s cooldown, damage at or above a heavy, blockable, guardable, parriable, with a
+  readable tell; humans get a weapon technique in the same slot. Skills are combinations: the part gives the move, the weapon modifies
+  it (V1 part × weapon, V2 part × part), discrete and visible, never a hidden number; thousands of combinations is the goal. The take
+  is ONE item per kill, body part OR armour piece. "Skill" is the game's word everywhere (button, loot panel, paperdoll, fight text,
+  specs). Existing attack timings never change. Build order: the one-creature Witch slice first (kill → take arm → graft → equip
+  Witch-fire → fight with SKILL → replay), nothing else in grafting before it runs end to end.
+- **Two different rules, not one (2026-09-24 22:30)**: *impossible combos* are anatomy capacity + incompatibility, hard, shown on the
+  loot panel before the graft; *secret synergies* are permitted pairs that hide a bonus, never documented, found and posted by
+  players. grafting-direction.md's "forbidden pairs hide a bonus" means the second; the first never hides anything.
 - **Six opponents**, the live archetypes: the Centurion (was "the Veteran"; ids and assets stay `veteran`), Goblin, Pitborn,
   Nightborn, Executioner, Dwarf. *Replaces "beta = five opponents" (2026-09-20).* Creatures (Minotaur, Wraith, Werewolf, Skeleton)
-  stay on hold, assets kept in the repo.
+  are OFF hold (grafting is beta, 2026-09-24 22:30); they enter behind the one-creature Witch slice, in Lead's block order, assets in the repo.
+  *Replaces "stay on hold".*
 - **Finishers**: Plain + Split Crown + Decapitation + Run Through + Opened. No new finishers for beta. Real dripping blood ordered
   (Gore lane) for every fight.
 - **Career**: the ten-title ladder in `src/career.ts` (Recruit → Origin, I–V sub-ranks, Origin singular at 205 wins). Rank grants
@@ -81,8 +92,8 @@ disagrees with this file, this file wins and the older line is stale. Dated deci
   (Night Pit, Rain Yard, High Noon Blood Sand, Sunken Cistern) as phone stills + perf line, Dom picks.
 - **Post-beta queue, in order** (Strategy 2026-09-24 00:05, unchanged): one earned victory headline on the kill screen; best-of-three
   on one promotion fight; Witch's cast turned back on her (one cast, one reflection); one signature technique on one weapon (trident
-  hook-and-draw); PvP victory trophies + live disarm behind ghost PvP. Later ideas parked with no date: Frankenstein body parts from
-  kills, one-life Pit run with a memorial wall, mercy at the kill (spare → rival or recruit), challenge links vs a friend's ghost.
+  hook-and-draw); PvP victory trophies + live disarm behind ghost PvP. Later ideas parked with no date:
+  one-life Pit run with a memorial wall, mercy at the kill (spare → rival or recruit), challenge links vs a friend's ghost.
 
 ## Rules that do not move
 Skill decides, gear tilts (a naked Recruit beats every rung under its cap). No stat changes timing. Sim stays pure and deterministic;
