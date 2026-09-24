@@ -5,12 +5,17 @@
    record version it can't read, show the kill-frame still + the opponent's name + a PLAY NOW button that starts a fight against that
    opponent, instead of "not playable". Small PR, tests, phone still; send the PR to Lead. Start at `src/share-store.ts` (`sharedIdFrom`)
    and the replay/"not playable" path in main.ts; `tests/*` has the "kill links: an unknown or expired id…" test to extend.
-2. **Arena Draw BUILD — Strategy picked A** (iron roster board on a chain behind a barred frame; #642's A stills are the reference, source
+2. **LIVE DEFECT — rank strip missing at fight START and END** (Dom, phone, guest, live 9394e8a4, `?arena=b` vs the Knight). The
+   "Recruit → Gladiator" row with pips = this lane's #612 component: `renderRank` (main.ts ~61), shared by the journal card, the account
+   panel and `#fight-rank`. Check first whether the `?arena=` dev-look path or the arena-theme code skips the opening/fight-end panel,
+   then whether guest-only matters (it shouldn't: marks are local). Reproduce at 375×812 with `?arena=b&opponent=knight`, start + end,
+   and compare with no `?arena`. Fix PR + regression test, sent to Lead.
+3. **Arena Draw BUILD — Strategy picked A** (iron roster board on a chain behind a barred frame; #642's A stills are the reference, source
    scratchpad `draw/draw3.html`). ≤1.5 s, tap to skip, portraits `public/game/img/<id>.webp` (all ten once #644 is live), the ladder picks
    FIRST then animates, frame-budget receipt on the phone.
-3. Share buttons — THREE mockups first ("Share fight" + "Export clip": vertical 10–15 s MediaRecorder clip ending on the kill, combat
+4. Share buttons — THREE mockups first ("Share fight" + "Export clip": vertical 10–15 s MediaRecorder clip ending on the kill, combat
    audio, no touch controls, small mark, share-sheet files else save, reduced-gore toggle; receipt = export time + size on Dom's phone).
-4. Coach mode tactics board + Watch — only after Combat's four policies pass their battery.
+5. Coach mode tactics board + Watch — only after Combat's four policies pass their battery.
 **Dom's rule for every visual feature: THREE labelled mockups first, Dom picks, then build.**
 
 **Done today:** #627 (cleanLoot slot-named key warns) MERGED. #639 open — static og:title/og:image on index.html so `/s/<id>` kill links
