@@ -2,6 +2,25 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — NEXT JOB queued: graft slice 1 (Witch's arm on the player), 2026-09-24 late
+
+### Now: start here after /clear
+- **Block B, graft slice 1 (Lead brief, Dom's rulings via Strategy). STILLS ONLY: no build, no merge, no deploy.** A kill yields ONE take, either a
+  body part OR an armour piece from that opponent. A grafted part changes how the player looks (an orc arm reads as an orc arm), and it rides the SAME
+  carrier pipeline as #705 (per-opponent cut, `scripts/split-loot.mjs`, bound with the piece's own inverse binds). First part: the **Witch's casting arm**
+  on the PLAYER rig. Say which arm reads best.
+- **Deliverable:**
+  - THREE labelled 375x812 stills over the real game frame with real assets. They must be three GENUINELY different directions, not three tints:
+    e.g. (a) raw stitched-on, (b) bound or bandaged at the seam, (c) her arm with the witch-fire glow in the veins.
+  - Each shows the player in guard at the fight camera (hold `q`; see scratch `pit-still.mjs` pattern), plus one studio ¾ view each (`tier-sheet.mjs` pattern).
+  - How the SEAM sits on the player's shoulder in the stab, slash and heavy poses.
+  - Added dist bytes per option. Dist is at 38.58 of 40 MB gzip; tell Lead before anything passes 39.5.
+  - PNGs on an evidence branch; send Lead the paths.
+- Starting points: witch.glb is one baked CreatureBody (WitchSurface) on the hero rig. Her LOOT already has `witch.Arms` (bracers). The arm has to be
+  cut from her surface (`scripts/character/loot_dwarf.py --family witch`, the TRELLIS cut recipe the Phase R pieces used) and must hide the player's own arm
+  draws (a `replace` on slot Arms, plus the skin under it: check which draws carry the player's arm skin).
+- #705 is PASSED at 3cf1018b and frozen: READY to Deploy after the playtest ("CI queue is not a gate"; "merge after the playtest, not in the 10:00 run").
+
 ## Lane state — tier dressing (#705), 2026-09-24 late
 
 ### Now
