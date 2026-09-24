@@ -3,9 +3,12 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-24 04:3x UTC: #643 (Knight body cover) is with Lead; #603 is superseded
+## Now — 2026-09-24 05:0x UTC: #643 waits on DOM's yes (steel shells vs his dark iron); #603 is superseded
 
-**Now (next session):** wait for Lead's verdict on **#643** (`knight/body-cover` @ `440ddc92`, against trunk, MERGEABLE).
+**Now (next session):** #643 (`knight/body-cover` @ `0726db15`, MERGEABLE) passed Lead on Body/Arms/Greaves; the helm is fixed
+(`loot.json` `scale` [1,1,.72] about Head: visor 0.8 cm, back 2.3 cm). It is NOT READY until Dom says yes to the comparison
+(https://github.com/DomLynch/RPG-game/pull/643#issuecomment-5807801460, images on evidence/knight-643 @ 17e14d00). If Dom asks
+for dark iron, give the three shells a KnightIron-coloured untextured material; the ringHull shells carry no UVs.
 Answer Lead/Veteran/Combat questions. If Lead or Dom wants the great helm smaller, that's the next change (see Open).
 Do not push to #603 (`knight/six-r` @ `1db7afd5`): it's in #643's history and was held out of Run 4.
 
@@ -23,8 +26,7 @@ Do not push to #603 (`knight/six-r` @ `1db7afd5`): it's in #643's history and wa
   any sim file; `record-replay-check --strict` passes on the merged tree.
 
 **Open**
-- The great helm: centred on the player's head (±2 cm) but 43 cm deep against a 27 cm head, so the visor sits ~10 cm in front
-  of the face in 3/4 and stride views. A size call for Dom or Lead.
+- The top and back of the player's scalp show above the helm crown (the great helm cut is open at the back; same on #603).
 - The steel shells read lighter and bluer than the Knight's own dark iron (named in the PR for Dom).
 
 **Gotchas**
