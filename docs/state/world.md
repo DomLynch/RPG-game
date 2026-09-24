@@ -5,8 +5,12 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## Lane state — tier dressing (#705), 2026-09-24 late
 
 ### Now
-- **#705 tier dressing** (head 3cf1018b; evidence `origin/evidence/world-tier-dressing` @ 4e149952): v3 handed to Lead after Strategy's NOT YET.
-  Lead carries it to Strategy. Post-playtest item #1, no deploy before the playtest. Wait for the ruling; push only if it asks for changes.
+- **#705 tier dressing: Strategy PASSED v3 at 3cf1018b.** Keep that head frozen (the judged head stays the judged head). AFTER the playtest, send
+  Deploy READY with the lines "CI queue is not a gate" and "merge after the playtest, not in the 10:00 run".
+- **Follow-up (next pass, its own PR, NOT in #705):** the Recruit's rust helmet reads close to hair colour at the fight camera. Try a lighter
+  rust or a rim highlight, and send an in-pit still (`?tier=Recruit`) as the receipt.
+- **Budget rule (Lead):** dist is 38.58 of 40 MB gzip. Every new mesh or texture PR carries `check-budget` output, and tell Lead BEFORE
+  anything takes dist past 39.5 MB.
 - #666 (Shieldmaiden signature) builds on #705's opponent-worn carriers. The Shieldmaiden's LOOT list has no Shield id: if #666 wants her
   shield worn, that is a LOOT entry.
 - Still parked: the parried player's Deflected (`enemyParried`), and the wet floor / puddle mirror if Dom's `?perf=1` still shows a rain gap after #697.
