@@ -241,7 +241,7 @@ finisherSelect.addEventListener('change', () => {
   const value = finisherSelect.value;
   view.setFinisherOverride(value === 'auto' ? null : (value as FinisherId));
 });
-// The arena test override (admin test tools, like the finisher): which arena the NEXT fight builds in. The arena is built at load and
+// The arena test override (Options tab beside Opponent, gated with the admin test tools): which arena the NEXT fight builds in. The arena is built at load and
 // Next reloads the page, so the pick is stored and read at load; `?arena=` in the URL still wins. Unset = the ladder band decides.
 // Test tool only: no ladder or progress change, and nothing is read or built when it is unset.
 const ARENA_PICK_KEY = 'frankendom.arena-override';
@@ -397,6 +397,7 @@ function renderScorecard() {
 const testTools = element('test-tools');
 if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
+element('arena-row').hidden = !debug;   // the Arena pick (Options tab) is a test tool: shown with them, hidden from players
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
