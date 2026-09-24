@@ -12,7 +12,7 @@ export const GRASP = { size: 0.5, close: 0.18, hold: 0.22, crumble: 0.55 } as co
 const SPARKS = 24, ASH = 40;
 // Strategy AGAIN on d67bca77 (2026-09-24): points read as white confetti squares and strays survived loose in the arena. A spark is now a
 // streak along its own velocity, 60–140 ms long, at 0.8–1.4 m/s, so none travels further than ~0.2 m from the staff head.
-export const SPARK = { lifeMin: 0.06, lifeMax: 0.14, speedMin: 0.8, speedMax: 1.4, length: 0.05, width: 0.008 } as const;
+export const SPARK = { lifeMin: 0.06, lifeMax: 0.14, speedMin: 0.8, speedMax: 1.4, length: 0.08, width: 0.014 } as const;
 
 export const graspLands = (event: CombatEvent) =>
   (event.type === 'Hit' || event.type === 'GuardBroken') && event.actor === OPPONENT_SIDE && event.charged === true;
@@ -118,8 +118,8 @@ function build(root: THREE.Object3D) {
   scene.add(sparks.mesh, ash.mesh, hand);
 }
 
-// Where the hand closes: the top of the struck shoulder (the Dwarf's reasoning — the fight camera sits behind and above the player she
-// strikes, and a chest mark faces away from it), picked from the tick. Placed in the world at the moment of the blow, then it follows
+// Where the hand closes: the top of the struck RIGHT shoulder (the Dwarf's reasoning — the fight camera sits behind and above the player she
+// strikes, and a chest mark faces away from it; Strategy kept the right shoulder, 2026-09-24). Placed in the world at the moment of the blow, then it follows
 // the shoulder bone for its short life.
 let handBone: THREE.Object3D | null = null;
 const handLocal = new THREE.Vector3(), handNormal = new THREE.Vector3();
@@ -127,7 +127,7 @@ function grasp(event: CombatEvent, frame: SignatureFrame) {
   const victim = event.target, root = victim === undefined ? null : frame.roots[victim];
   if (!root) return;
   if (!hand) build(root);
-  const side = event.tick % 2 ? 1 : -1, bone = root.getObjectByName(side > 0 ? 'upperarm_l' : 'upperarm_r') ?? root.getObjectByName('spine_03');
+  const side = -1, bone = root.getObjectByName('upperarm_r') ?? root.getObjectByName('spine_03');
   if (!bone || !hand) return;
   root.updateWorldMatrix(true, true);
   const heading = frame.fighters[victim!].body.heading, scale = frame.scale[victim!];
