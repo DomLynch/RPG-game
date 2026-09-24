@@ -25,13 +25,20 @@ test('Splintered Defiance answers only a heavy the Shieldmaiden blocks', () => {
   assert.equal(effect().when(blocked(0, 'heavy_overhead'), fighters), false, "the player's block is not hers");
 });
 
-test('with no shield on her the splinters still fly from her guard, and no shield mark is made', () => {
+test('with no shield on her a blocked heavy does nothing: no splinters, no mark (no wood off a gladius)', () => {
   const { marks, frame } = rig(false);
+  const before = signatureState().fired;
+  effect().fire(blocked(1, 'heavy_overhead'), frame);
+  assert.deepEqual(signatureState(), { fired: before, chips: 0, splinters: 0 });
+  assert.equal(marks.count('shield'), 0);
+});
+
+test('with a shield a blocked heavy throws splinters from its rim, and they are gone after their life', () => {
+  const { frame } = rig(true);
   effect().fire(blocked(1, 'heavy_overhead'), frame);
   assert.equal(signatureState().splinters, SPLINTER.pieces);
-  assert.equal(marks.count('shield'), 0);
   for (let t = 0; t < SPLINTER.seconds + 0.1; t += 1 / 60) effect().update!(1 / 60, frame);
-  assert.equal(signatureState().splinters, 0, 'the splinters are gone after their life');
+  assert.equal(signatureState().splinters, 0);
 });
 
 test('with a shield each blocked heavy chips its rim, and the chips stay up to the shield cap', () => {

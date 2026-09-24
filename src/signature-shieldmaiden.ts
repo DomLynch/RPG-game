@@ -6,7 +6,7 @@ import { OPPONENT_SIDE, defendedBy, isHeavy, registerSignature, type SignatureFr
 // event the duel already emits (the defender is `actor`, the attacker's move rides on it).
 // Her shield is a Shield-slot loot mesh (loot.glb `~kit.Shield`), which an opponent wears only once Phase L's carriers land. When she carries
 // one, each chip is a pale-wood mark pinned to its rim (frame.marks.shield, 4 for the fight, oldest reused) and the splinters fly from there.
-// Until then the splinters fly from her guard hand, so the block still reads; no mark is made on a shield she does not have.
+// Until then it does NOTHING: wood splintering off a block made with a gladius would break the brief's truth rule (Lead, 2026-09-24).
 export const SPLINTER = {
   pieces: 18, bursts: 2,          // splinters per blocked heavy; bursts alive at once
   speed: [1.8, 3.4], up: 2.2,     // m/s outward toward the attacker, and upward kick
@@ -42,23 +42,17 @@ export function shieldOf(root: THREE.Object3D): THREE.Object3D | null {
 
 function fire(_event: unknown, frame: SignatureFrame) {
   const root = frame.roots[OPPONENT_SIDE], foe = frame.roots[1 - OPPONENT_SIDE];
-  if (!root) return;
+  const shield = root && shieldOf(root);
+  if (!root || !shield) return;   // no shield on her, nothing to splinter
   build(root); fired++;
   root.updateWorldMatrix(true, true);
   const toward = (foe ? foe.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3()).sub(root.getWorldPosition(scratch)).setY(0).normalize();
-  const shield = shieldOf(root);
-  let at: THREE.Vector3;
-  if (shield) {
-    // The rim on the attacker's side, near the top where a heavy comes down: the shield's box, pushed out along the facing.
-    const box = new THREE.Box3().setFromObject(shield), centre = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
-    at = centre.clone().addScaledVector(toward, Math.max(size.x, size.z) * 0.5).setY(centre.y + size.y * (0.25 + 0.2 * rand()));
-    const normal = at.clone().sub(centre).normalize();
-    frame.marks.shield(OPPONENT_SIDE, shield, at, normal, { ...SPLINTER.chip, color: WOOD, roughness: 0.92, tilt: (rand() - 0.5) * 1.2, fadeIn: 0.05 });
-    chips++;
-  } else {
-    const hand = root.getObjectByName('hand_r') ?? root;
-    at = hand.getWorldPosition(new THREE.Vector3()).addScaledVector(toward, 0.12);
-  }
+  // The rim on the attacker's side, near the top where a heavy comes down: the shield's box, pushed out along the facing.
+  const box = new THREE.Box3().setFromObject(shield), centre = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+  const at = centre.clone().addScaledVector(toward, Math.max(size.x, size.z) * 0.5).setY(centre.y + size.y * (0.25 + 0.2 * rand()));
+  const normal = at.clone().sub(centre).normalize();
+  frame.marks.shield(OPPONENT_SIDE, shield, at, normal, { ...SPLINTER.chip, color: WOOD, roughness: 0.92, tilt: (rand() - 0.5) * 1.2, fadeIn: 0.05 });
+  chips++;
   const side = scratch.copy(toward).cross(yAxis).normalize();
   const free = pieces.filter((p) => !p.live);
   const burst = (free.length >= SPLINTER.pieces ? free : [...pieces].sort((a, b) => b.age - a.age)).slice(0, SPLINTER.pieces);
