@@ -29,6 +29,7 @@ import './signature-veteran.ts';   // the Veteran's Battle Scars registers itsel
 import './signature-nightborn.ts';   // Nightborn A: Blood Recall
 import './signature-goblin.ts';   // Goblin A: Hooked Wound
 import './signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
+import './signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splintered Defiance
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
