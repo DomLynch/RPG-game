@@ -47,6 +47,28 @@ function darkDent(): THREE.CanvasTexture {
   return darkTexture;
 }
 
+let socketTexture: THREE.CanvasTexture | null = null;
+// C's mark (Strategy's AGAIN prep): the socket the rivet tore out of. A dark depression about a rivet's footprint, and round it the plate's
+// highlight BROKEN into ragged flecks and gaps (a disturbed surface), never a drawn rim line. Deterministic, drawn once.
+function socket(): THREE.CanvasTexture {
+  if (socketTexture) return socketTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const g = canvas.getContext('2d')!;
+  const pit = g.createRadialGradient(64, 66, 2, 64, 64, 34);
+  pit.addColorStop(0, 'rgba(2,2,3,1)'); pit.addColorStop(0.6, 'rgba(8,8,10,0.95)'); pit.addColorStop(1, 'rgba(12,12,14,0)');
+  g.fillStyle = pit; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 46; i++) {   // the broken highlight: flecks at uneven radii, light above (the lit side), dark scuffs below
+    const a = i * 2.39996, r = 30 + ((i * 17) % 22), x = 64 + Math.cos(a) * r, y = 64 + Math.sin(a) * r * 0.9;
+    const lit = Math.sin(a) < 0.1;
+    g.fillStyle = lit ? `rgba(215,215,222,${0.35 + ((i * 7) % 5) / 10})` : `rgba(4,4,6,${0.4 + ((i * 3) % 4) / 10})`;
+    g.save(); g.translate(x, y); g.rotate(a + 1.3); g.fillRect(-(2 + (i % 4)), -1.2, 4 + 2 * (i % 4), 2.4); g.restore();
+  }
+  socketTexture = new THREE.CanvasTexture(canvas);
+  socketTexture.colorSpace = THREE.SRGBColorSpace;
+  return socketTexture;
+}
+
 type Rivet = { mesh: THREE.Mesh; velocity: THREE.Vector3; spin: THREE.Vector3; age: number };
 const rivets: Rivet[] = [];
 let group: THREE.Group | null = null, pops = 0, rivetMaterial: THREE.MeshStandardMaterial | null = null;
@@ -73,8 +95,8 @@ const struck = (event: CombatEvent) => event.type === 'Hit' && event.target === 
 
 // One burst, two looks: A (the lit crescent dent, bright rivets) and B (Strategy's AGAIN: a dark bruised dent lit only on its top edge, dark iron
 // rivets). The rivet pool is shared; only one variant is ever chosen, and each dresses the shared material when it fires.
-type Look = { name: string; map: () => THREE.CanvasTexture; rivet: { color: string; emissive: string; metalness: number; roughness: number } };
-const rivetBurst = (variant: 'A' | 'B', look: Look) => registerSignature({
+type Look = { name: string; map: () => THREE.CanvasTexture; size: number; rivet: { color: string; emissive: string; metalness: number; roughness: number } };
+const rivetBurst = (variant: 'A' | 'B' | 'C', look: Look) => registerSignature({
   opponent: 'knight', variant, name: look.name,
   when: struck,
   fire(event, frame: SignatureFrame) {
@@ -83,7 +105,7 @@ const rivetBurst = (variant: 'A' | 'B', look: Look) => registerSignature({
     const hit: WoundHit = { location: event.location ?? 'torso', direction: weaponOf(attacker.weapon).moves[event.move]?.direction ?? 'center', heading: knight.body.heading };
     const scale = frame.scale[OPPONENT_SIDE];
     // The dent: the sim's hit site on his body (the blood wounds' site table and surface ray), in the body pool.
-    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: 0.42 * scale, height: 0.42 * scale, map: look.map(), metalness: 0.6, roughness: 0.5, fadeIn: 0.03, tilt: pops * 1.3 }, scale)) return;
+    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: look.size * scale, height: look.size * scale, map: look.map(), metalness: 0.6, roughness: 0.5, fadeIn: 0.03, tilt: pops * 1.3 }, scale)) return;
     // The same site again for where the rivets leave from, and the bone that shudders.
     const site = woundSite(hit), bone = root.getObjectByName(site.bone)!;
     out.set(...site.dir).normalize().applyAxisAngle(up, hit.heading);
@@ -123,5 +145,6 @@ const rivetBurst = (variant: 'A' | 'B', look: Look) => registerSignature({
     for (const r of rivets) { r.age = SETTLE; r.mesh.visible = false; }
   },
 });
-rivetBurst('A', { name: 'Rivet Burst', map: dent, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
-rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } });
+rivetBurst('A', { name: 'Rivet Burst', map: dent, size: 0.42, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
+rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, size: 0.42, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } });
+rivetBurst('C', { name: 'Rivet Burst (socket)', map: socket, size: 0.16, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } });
