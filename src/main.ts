@@ -71,9 +71,14 @@ function renderRank(host: HTMLElement, rank: Rank) {
   }));
   host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
 }
-// The fight-end panel's rank row, win and loss (it replaced the death-screen autopsy). Marks are read after match.end, so a win shows its gain.
+// The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars, the player's name small at its left): start, fight and end.
+// Redrawn on every persist (a rename) and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
-function showFightRank(on: boolean) { fightRank.hidden = !on; if (on) renderRank(fightRank, rankFor(marksOf(profile))); }
+function renderFightRank() {
+  renderRank(fightRank, rankFor(marksOf(profile)));
+  const name = document.createElement('span'); name.className = 'rank-name'; name.textContent = profile.name;
+  fightRank.append(name);   // last child, drawn first (CSS order): the rank component's own children keep their positions
+}
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
@@ -191,6 +196,7 @@ function persist() {
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
     ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
   for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
+  renderFightRank();
 }
 persist();
 // The right thumb is the button cluster (the v8 strike circle was retired 2026-09-20: one grammar, built and tested once).
@@ -472,7 +478,7 @@ const controls = createInput({
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   clearInput(); state = previous = match.practice.fighter;
-  replayStill.hidden = true; showFightRank(false); hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
 }
 resetButton.addEventListener('click', () => {
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -926,9 +932,9 @@ function frame(now: number) {
             shareButton.hidden = false; say(null);
             void encodeRecord(ended.record).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
           }
-          // The rank row on the fight-end panel. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still writes them to the
-          // scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
-          showFightRank(true);
+          // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still
+          // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
+          renderFightRank();
           // The daily warden's one post (brief 4): the record, where the killing blow landed and the blows taken; guests are told to sign in.
           if (ended.post) {
             const { daily, record, taken, done } = ended.post;
