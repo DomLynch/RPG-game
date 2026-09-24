@@ -140,6 +140,7 @@ for (const [variant, style] of [['A', ROT_A], ['B', ROT_B]] as const) {
   const rot = createRotBloom(style);
   registerSignature({
     opponent: 'plaguedoctor', variant, name: variant === 'A' ? 'Rot Bloom' : 'Rot Bloom (a hand\'s width, darker)',
+    blood: true,   // a gore stain on flesh: blood-off is the gore opt-out, so it stands down then (#677)
     when: (event) => hitBy(event) && !!event.location,
     fire: rot.fire, update: rot.update, clear: rot.clear,
   });

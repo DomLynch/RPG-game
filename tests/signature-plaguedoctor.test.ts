@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
-import { SIGNATURES, pickSignature, createSignatureMarks, type SignatureFrame } from '../src/signature.ts';
+import { SHIPPED, SIGNATURES, pickSignature, createSignatureMarks, type SignatureFrame } from '../src/signature.ts';
 import { ROT, rotSite } from '../src/signature-plaguedoctor.ts';
 
 test('Rot Bloom is the Plague Doctor\'s A and answers only a blade blow he lands', () => {
@@ -18,6 +18,12 @@ test('Rot Bloom is the Plague Doctor\'s A and answers only a blade blow he lands
 test('variant B (a hand\'s width, darker) sits beside the A; On still means the A', () => {
   assert.equal(pickSignature(SIGNATURES.plaguedoctor, 'B')?.name, 'Rot Bloom (a hand\'s width, darker)');
   assert.equal(pickSignature(SIGNATURES.plaguedoctor, 'on')?.variant, 'A');
+});
+
+test('Rot Bloom is blood: every variant, the shipped B included, stands down while the player has blood off', () => {
+  for (const variant of ['A', 'B'] as const) assert.equal(pickSignature(SIGNATURES.plaguedoctor, variant)?.blood, true, `variant ${variant}`);
+  assert.equal(SHIPPED.plaguedoctor?.variant, 'B');
+  assert.equal(pickSignature(SIGNATURES.plaguedoctor, 'ship', SHIPPED.plaguedoctor?.variant)?.blood, true, 'what players get is flagged');
 });
 
 test('a torso blow blooms on the shoulder the fight camera sees, on the side the blow came from; head and legs keep the table', () => {
