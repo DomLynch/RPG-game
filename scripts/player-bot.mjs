@@ -45,7 +45,7 @@ const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', 
 const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8', timeout: 20_000 }).trim() !== '';
 const identity = strategy === 'tactical' ? 'LATEST tactical' : 'ARCHIVED diagnostic';
 console.log(JSON.stringify({ identity, revision: `${revision}${dirty ? '-dirty' : ''}`, strategy, difficulty: 'easy', observation, headed }));
-const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge'] };
+const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], knight: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge'] };
 const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, headed, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'player view: stamina/health meters, perceivable events only (a swing seen starting and ending, its side; the charge sound without whose it is; contact sounds, whiffs, rolls), all opponent-side information delayed; charge inferred from the sound or the windup hold time; distance rounded to half-metres; current own phase', fights: [] };
 try {
   for (const opponent of opponents) for (const seed of seeds) {
