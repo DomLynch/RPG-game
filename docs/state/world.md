@@ -9,6 +9,8 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
   body part OR an armour piece from that opponent. A grafted part changes how the player looks (an orc arm reads as an orc arm), and it rides the SAME
   carrier pipeline as #705 (per-opponent cut, `scripts/split-loot.mjs`, bound with the piece's own inverse binds). First part: the **Witch's casting arm**
   on the PLAYER rig. Say which arm reads best.
+- **Vocabulary (Dom, via Lead):** the idea is called SKILL. Taking a body part gains its skill; the Witch's arm carries the skill **Witch-fire**.
+  Label the stills that way. Nothing else in the brief changes.
 - **Deliverable:**
   - THREE labelled 375x812 stills over the real game frame with real assets. They must be three GENUINELY different directions, not three tints:
     e.g. (a) raw stitched-on, (b) bound or bandaged at the seam, (c) her arm with the witch-fire glow in the veins.
