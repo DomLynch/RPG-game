@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseChargedAttack, chooseGuardCounter } from '../scripts/lib/player-bot-policy.mjs';
+import { chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack } from '../scripts/lib/player-bot-policy.mjs';
 
 const observation = (rest = {}) => ({ tick: 100, hp: 150, enemyHp: 190, stamina: 100, gap: 2, phase: 'ready', enemyPhase: 'attack', heavy: true, events: [], ...rest });
 
@@ -84,4 +84,55 @@ test('charged policy moves inward rather than retreating at the wall', () => {
   chooseChargedAttack(observation({ radius: 7.5, events: [{ tick: 100, type: 'AttackStarted', actor: 1, move: 'heavy_overhead' }] }), state, 12, config);
   assert.deepEqual(chooseChargedAttack(observation({ radius: 7.5, tick: 112 }), state, 12, config), { keys: ['KeyW'], press: 'KeyE' });
   assert.deepEqual(chooseChargedAttack(observation({ radius: 7.5, stamina: 20, gap: 1.8, enemyPhase: 'ready' }), {}, 12, config), { keys: ['KeyW'], press: null });
+});
+
+test('tactical player waits for a real missed swing then chooses a reachable quick punish', () => {
+  const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  const miss = { tick: 100, type: 'AttackMissed', actor: 1, move: 'heavy_overhead' };
+  assert.equal(chooseTacticalAttack(observation({ events: [miss], gap: 1.4, enemyPhase: 'other', light: true }), state, 12, config).reason, 'wait for missed-swing punish');
+  assert.deepEqual(chooseTacticalAttack(observation({ tick: 112, gap: 1.4, enemyPhase: 'other', light: true }), state, 12, config).press, 'KeyF');
+  const distant = {};
+  chooseTacticalAttack(observation({ events: [miss], gap: 1.8, enemyPhase: 'other', thrust: true }), distant, 12, config);
+  assert.equal(chooseTacticalAttack(observation({ tick: 112, gap: 1.8, enemyPhase: 'other', thrust: true }), distant, 12, config).press, 'KeyT');
+});
+
+test('tactical player answers a confirmed block with a quick counter before heavy is earned', () => {
+  const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  chooseTacticalAttack(observation({ events: [{ tick: 100, type: 'Blocked', actor: 0 }], gap: 1.5, light: true }), state, 12, config);
+  const action = chooseTacticalAttack(observation({ tick: 112, gap: 1.5, light: true }), state, 12, config);
+  assert.equal(action.press, 'KeyF');
+  assert.equal(action.reason, 'slash after defence');
+});
+
+test('tactical heavy counter requires four actual quick attack starts', () => {
+  const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  const quicks = [0, 1, 2, 3].map(i => ({ tick: 100 + i, type: 'AttackStarted', actor: 0, move: 'thrust' }));
+  chooseTacticalAttack(observation({ tick: 200, events: [...quicks, { tick: 200, type: 'Blocked', actor: 0 }], gap: 1.5 }), state, 12, config);
+  const counter = chooseTacticalAttack(observation({ tick: 212, gap: 1.5 }), state, 12, config);
+  assert.equal(counter.press, 'KeyG');
+  assert.notEqual(chooseTacticalAttack(observation({ tick: 212, gap: 1.5 }), state, 12, config).press, 'KeyG');
+});
+
+test('tactical policy guards a tell after its reaction delay', () => {
+  const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  const tell = { tick: 100, type: 'AttackStarted', actor: 1, move: 'heavy_overhead', direction: 'overhead' };
+  chooseTacticalAttack(observation({ tick: 100, events: [tell], gap: 3 }), state, 12, config);
+  assert.equal(chooseTacticalAttack(observation({ tick: 111, gap: 3 }), state, 12, config).press, null);
+  assert.deepEqual(chooseTacticalAttack(observation({ tick: 112, gap: 3 }), state, 12, config).keys, ['KeyQ', 'ArrowUp']);
+});
+
+test('tactical policy rolls sideways once after an observed charged overhead', () => {
+  const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  const charge = { tick: 100, type: 'Charged', actor: 1, move: 'heavy_overhead' };
+  chooseTacticalAttack(observation({ tick: 100, events: [charge], gap: 1.2, stamina: 40 }), state, 12, config);
+  const roll = chooseTacticalAttack(observation({ tick: 112, gap: 1.2, stamina: 40 }), state, 12, config);
+  assert.deepEqual({ keys: roll.keys, press: roll.press }, { keys: ['KeyA'], press: 'KeyE' });
+  assert.notEqual(chooseTacticalAttack(observation({ tick: 113, gap: 1.2, stamina: 40 }), state, 12, config).press, 'KeyE');
+});
+
+test('tactical player does not repeat quick attacks into a ready opponent at low stamina', () => {
+  const config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  assert.equal(chooseTacticalAttack(observation({ gap: 1.4, stamina: 42, enemyPhase: 'ready', light: true }), {}, 12, config).press, null);
+  assert.equal(chooseTacticalAttack(observation({ gap: 1.8, stamina: 42, enemyPhase: 'ready', thrust: true }), {}, 12, config).press, null);
+  assert.equal(chooseTacticalAttack(observation({ gap: 1.4, stamina: 34, enemyPhase: 'ready', light: true }), {}, 12, config).press, null);
 });

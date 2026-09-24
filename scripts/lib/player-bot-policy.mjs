@@ -73,3 +73,71 @@ export function chooseChargedAttack(obs, state, reactionTicks, config) {
   if (obs.phase === 'ready' && obs.heavy) { state.charging = true; return { keys: ['KeyG'], press: null }; }
   return { keys: [], press: null };
 }
+
+// Review policy: take a reachable punish or earned counter, otherwise create a safe heavy opening.
+export function chooseTacticalAttack(obs, state, reactionTicks, config) {
+  state.attacks ??= 0;
+  state.heavies ??= 0;
+  for (const e of obs.events) {
+    if (e.type === 'AttackStarted' && e.actor === 1) state.tell = { tick: e.tick, move: e.move, direction: e.direction };
+    if (e.type === 'Charged' && e.actor === 1 && e.move === 'heavy_overhead') state.chargedThreat = e.tick;
+    if (e.type === 'AttackMissed' && e.actor === 1) state.miss = { tick: e.tick, ready: e.tick + reactionTicks, until: e.tick + 30 };
+    if ((e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0) state.defence = { tick: e.tick, ready: e.tick + reactionTicks, until: e.tick + 20 };
+    if (e.type === 'Blocked' && e.actor === 1) state.enemyBlock = e.tick;
+    if (e.type === 'AttackStarted' && e.actor === 0) {
+      state.attacks++;
+      if (e.move?.startsWith('heavy')) state.heavies++;
+      else state.quickRestUntil = e.tick + 70;
+      state.heavyPending = 0;
+    }
+    if (e.type === 'Charged' && e.actor === 0) state.charged = true;
+  }
+  const eligible = [];
+  const choice = (keys, press, reason) => ({ keys, press, reason, eligible: [...eligible] });
+  if (!obs.hp || !obs.enemyHp) return choice([], null, 'fight ended');
+  const own = obs.ownState ?? obs.phase, nearWall = obs.radius >= config.wallRadius;
+  if (['hurt', 'roll', 'backstep'].includes(own)) return choice([], null, 'recover action');
+  if (own === 'attack' || obs.phase === 'attack') return choice(state.charging && !state.charged ? ['KeyG'] : [], null, 'finish committed attack');
+  state.charging = false; state.charged = false;
+  if (state.heavyPending && obs.tick - state.heavyPending > 8) state.heavyPending = 0;
+  const heavyAllowed = !state.heavyPending && 5 * (state.heavies + 1) <= state.attacks + 1;
+  if (state.chargedThreat && state.rolledCharge !== state.chargedThreat && obs.tick >= state.chargedThreat + reactionTicks
+      && obs.enemyPhase === 'attack' && (own === 'ready' || own === 'guard') && obs.stamina >= 35) {
+    state.rolledCharge = state.chargedThreat;
+    eligible.push({ kind: 'evade charged overhead', tick: state.chargedThreat });
+    return choice([nearWall ? 'KeyW' : 'KeyA'], 'KeyE', 'lateral roll clear of charged overhead');
+  }
+  const counterReady = state.defence && obs.tick >= state.defence.ready && obs.tick <= state.defence.until && obs.stamina >= 30 && obs.gap <= 1.9;
+  const quickReady = state.miss && obs.tick >= state.miss.ready && obs.tick <= state.miss.until && obs.stamina >= 45 && obs.gap <= config.thrustRange && (own === 'ready' || own === 'guard');
+  if (counterReady) eligible.push({ kind: 'guard counter', tick: state.defence.tick });
+  if (quickReady) eligible.push({ kind: 'quick punish', tick: state.miss.tick });
+  if (counterReady) {
+    state.defence = null;
+    if (heavyAllowed && obs.heavy) { state.heavyPending = obs.tick; return choice([], 'KeyG', 'budgeted heavy after defence'); }
+    if (obs.gap <= 1.55 && obs.light && obs.stamina >= 55) return choice([], 'KeyF', 'slash after defence');
+    if (obs.thrust && obs.stamina >= 50) return choice([], 'KeyT', 'thrust after defence');
+  }
+  if (state.miss && obs.tick < state.miss.ready && obs.tick <= state.miss.until)
+    return choice(obs.gap > config.thrustRange ? ['KeyW'] : [], null, 'wait for missed-swing punish');
+  if (quickReady) {
+    state.miss = null;
+    if (obs.gap <= 1.55 && obs.light && obs.stamina >= 55) return choice(['KeyW'], 'KeyF', 'quick slash after miss');
+    if (obs.thrust && obs.stamina >= 50) return choice(['KeyW'], 'KeyT', 'reachable thrust after miss');
+  }
+  const tell = state.tell, age = tell ? obs.tick - tell.tick : 0;
+  if (tell && obs.enemyPhase === 'attack' && age >= reactionTicks && (own === 'ready' || own === 'guard')) {
+    const side = MIRROR[tell.direction];
+    if (side) { eligible.push({ kind: 'guard tell', tick: tell.tick }); return choice(['KeyQ', side], null, 'guard the observed attack'); }
+  }
+  if (obs.enemyPhase === 'attack') return choice([], null, 'wait for attack tell');
+  if (state.quickRestUntil > obs.tick) return choice(obs.gap < 1.25 && !nearWall ? ['KeyS'] : [], null, 'recover after quick attack');
+  if (obs.stamina < 50) return choice(nearWall && obs.gap > 1.2 ? ['KeyW'] : [], null, 'recover defensive stamina');
+  if (obs.gap > config.thrustRange) return choice(['KeyW'], null, 'close to thrust range');
+  if (heavyAllowed && obs.heavy && state.enemyBlock && obs.tick - state.enemyBlock <= 60 && obs.gap <= 1.9) {
+    state.heavyPending = obs.tick; state.charging = true;
+    return choice(['KeyG'], null, 'budgeted heavy against guard');
+  }
+  if (obs.gap <= 1.55 && obs.light && obs.stamina >= 55) return choice([], 'KeyF', 'range-aware quick slash');
+  if (obs.thrust) return choice([], 'KeyT', 'range-aware thrust');
+  return choice([], null, 'wait for legal quick attack');
+}
