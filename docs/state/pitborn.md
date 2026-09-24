@@ -16,6 +16,10 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
    - Then rerun `node scripts/player-bot.mjs --opponents=all --fights=3 --no-video` after `npm run build`, and send
      Lead the table.
    - Receipts: `artifacts/receipts-0924/gate-v2/`.
+   - **Lead's READY condition:**
+     - The Shieldmaiden is back to 3/0 and no other opponent drops.
+     - The per-opponent table and the new sha are in the #680 PR body.
+     - Deadline: A1, Fri 09-25 evening. If it's missed, #680 comes out of A1.
 2. **Review the Auditer's #707** (`stats/loadout-seam`, `9ddf6801`, RECORD_VERSION 10→11, for the Mon 09-28 window).
    Strategy approved me standing in for Combat. Focus on `src/duel.ts`:
    - Loadout reaches stepDuel only through the hit maths.
