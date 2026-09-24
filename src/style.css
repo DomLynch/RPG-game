@@ -1635,6 +1635,18 @@ dialog .rack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; b
    piece's by default, any tile's while it is hovered or focused (a tap focuses it: the li carries tabindex="0"). */
 .rack li { outline: none; }
 .rack li:focus-visible { border-color: var(--ja); }
+/* The pack under WORN (loot.ts PACK; Strategy from Dom's screenshot 2026-09-24): main.ts renderLoot writes five <li>: the open slots are
+   <li data-loot><span>name</span><button data-wear>Wear</button></li> or <li class="pack-empty">, the rest <li class="pack-locked">,
+   greyed with a padlock and no price. Same tile language as the slots and the rack; #pack-full is the one-line reason Store is disabled. */
+.pack { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.pack li { display: flex; flex-direction: column; min-height: 88px; padding: 6px; border: 1px dashed var(--jl); border-radius: 12px; background: #fff6; font: 600 10.5px/1.2 "Instrument Sans", Arial, sans-serif; color: var(--jf); overflow-wrap: anywhere; }
+.pack li[data-loot] { border-style: solid; border-color: var(--jf); background: #fff; }
+.pack li span { flex: 1; }
+.pack li span::first-letter { text-transform: uppercase; }
+dialog .pack button { margin: 8px -2px -2px; min-height: 40px; padding: 0 8px; border-radius: 8px; font-size: 10px; }   /* the rack's 40 px tap height */
+.pack li.pack-locked { opacity: .45; background: var(--jl) center / 18px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E"); border-style: solid; }
+.pack-note { margin: 6px 0 0; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); }
+dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
 .rack li small { display: none; position: absolute; left: 0; right: 0; bottom: 0; margin: 0; min-height: 36px; max-height: 36px; overflow: hidden; font: 12.5px/1.4 Georgia, "Iowan Old Style", "Times New Roman", serif; color: var(--jm); background: var(--jb); }
 .rack li[data-worn='true'] small { display: block; }
 .rack li[data-worn='true'] ~ li[data-worn='true'] small { display: none; }   /* two worn pieces: only the first's caption by default */

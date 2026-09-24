@@ -13,7 +13,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { LOOT, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, slotOf, stow, store, unwear, wear, wearFromPack, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
@@ -120,8 +120,24 @@ function renderLoot() {
     element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? match.weapon[0]!.toUpperCase() + match.weapon.slice(1) : 'Empty';
     element(`slot-${key}`).classList.toggle('on', !!id || key === 'main');
     element(`slot-${key}`).setAttribute('data-loot', id ?? '');   // the worn id, for the paperdoll's image layers (style.css loot-layers block)
-    element(`slot-${key}-off`).hidden = !id;
+    const off = element<HTMLButtonElement>(`slot-${key}-off`);
+    off.hidden = !id; off.disabled = packFull(loot);   // Store moves the piece into the pack; a full pack says why beneath it (#pack-full)
+    if (off.disabled) off.setAttribute('aria-describedby', 'pack-full'); else off.removeAttribute('aria-describedby');
   }
+  // The pack (loot.ts PACK): the open slots hold what Store put there, each with Wear; the rest are drawn locked, a placeholder only.
+  const pack = Array.from({ length: PACK.total }, (_, i) => {
+    const li = document.createElement('li'), id = loot.pack?.[i];
+    if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
+    if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); return li; }
+    const name = document.createElement('span'), button = document.createElement('button');
+    li.setAttribute('data-loot', id); name.textContent = pieceName(id);
+    button.type = 'button'; button.setAttribute('data-wear', id); button.textContent = 'Wear';
+    button.addEventListener('click', () => setLoot(wearFromPack(profile.loot ?? emptyLoot(), id)));
+    li.append(name, button);
+    return li;
+  });
+  element('pack').replaceChildren(...pack);
+  element('pack-full').hidden = !(packFull(loot) && Object.keys(loot.equipped).length);
   const rows = loot.owned.map((id) => {
     const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
     li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
@@ -143,7 +159,7 @@ function renderLoot() {
   while (rows.length < 5) { const li = document.createElement('li'); li.className = 'rack-empty'; rows.push(li); }
   element('loot-rack').replaceChildren(...rows);
 }
-for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(unwear(profile.loot ?? emptyLoot(), key)));
+for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(stow(profile.loot ?? emptyLoot(), key)));
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
