@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 07:30 — RUN 4 LIVE da4108ed (Lead's curl 07:05, mine below): #637 Dwarf built shells alone. Knight HELD
+
+Knight #603 held by Lead (right call, no ruling needed): worn by the player his Body `replace` leaves the chest bare, breaks the never-less-dressed rule; fix on knight/body-cover (all-`over` built shells), Executioner has the brief. Run 4: 36/36 rows (33 CI-trusted, 3 local), index == dist. Next from Lead: non-sim batch (#628 + #633 first), Combat's thrust measurement. Dom's morning ideas (manager mode, 60-roster reel, clip export, Frankenstein parts, one-life Pit, mercy, challenge links, director's cut) answered in chat; all post-beta, order 5-4-2-1-3; SCOPE.md post-beta heading still owed by me. Owed from Dom: rows 23/27 pick.
+
 ## 2026-09-24 07:10 — DOM RULED: hourly Lead self-wake overnight from tonight (day rule unchanged, no timers)
 
 Lead told: at Dom's "asleep", start a 60-minute self-wake loop in Lead's own session; per wake = READY → publish + sha, dark lane → one chase, finished table/PR → relay (split messages past the app cap), nothing → one line; stop when Dom is up. Memory: feedback_overnight_hourly_lead_wake_2026-09-24. Owed: Lead's ack, Run 4 sha, Dom's pick on rows 23/27.
