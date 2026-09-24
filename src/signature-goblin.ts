@@ -24,11 +24,14 @@ export function strandPoints(out: THREE.Vector3[], a: THREE.Vector3, b: THREE.Ve
   return out;
 }
 
-export function createHookedWound() {
+// A draws the strand over the rigs; B (Strategy's "again" on A: over the player's back it read as the player bleeding) depth-tests it, so
+// it shows only where his knife hand and blade are actually in view, and whatever stands in front hides it.
+export function createHookedWound(overRigs = true) {
   const material = new THREE.MeshStandardMaterial({ color: '#7a0a0c', emissive: '#3a0004', roughness: 0.2, metalness: 0.05, side: THREE.DoubleSide });
-  // The strand draws over the rigs (no depth test), gore.ts's rule for wounds: he is short and the fight camera sits behind the player,
-  // so a strand at his chest height is behind the player's back more often than not. The falling drops depth-test as normal.
-  const strandMaterial = material.clone(); strandMaterial.depthTest = false; strandMaterial.depthWrite = false;
+  // A: the strand draws over the rigs (no depth test), gore.ts's rule for wounds: he is short and the fight camera sits behind the player,
+  // so a strand at his chest height is behind the player's back more often than not. The falling drops depth-test as normal in both.
+  const strandMaterial = overRigs ? material.clone() : material;
+  if (overRigs) { strandMaterial.depthTest = false; strandMaterial.depthWrite = false; }
   const n = HOOK.points, ribbons = 2;   // two ribbons crossed at right angles read as a round strand from any camera, with no camera needed
   const positions = new Float32Array(ribbons * n * 2 * 3);
   const index: number[] = [];
@@ -91,7 +94,7 @@ export function createHookedWound() {
       bone = found;
       if (!strand) {
         let world: THREE.Object3D = root; while (world.parent) world = world.parent;
-        strand = new THREE.Mesh(geometry, strandMaterial); strand.frustumCulled = false; strand.renderOrder = 3;
+        strand = new THREE.Mesh(geometry, strandMaterial); strand.frustumCulled = false; strand.renderOrder = overRigs ? 3 : 0;
         drops.frustumCulled = false;
         world.add(strand, drops);
       }
@@ -137,9 +140,11 @@ export function createHookedWound() {
   };
 }
 
-const hooked = createHookedWound();
-registerSignature({
-  opponent: 'goblin', variant: 'A', name: 'Hooked Wound',
-  when: (event) => hitBy(event) && !!event.location,
-  fire: hooked.fire, update: hooked.update, clear: hooked.clear,
-});
+for (const variant of ['A', 'B'] as const) {
+  const hooked = createHookedWound(variant === 'A');
+  registerSignature({
+    opponent: 'goblin', variant, name: variant === 'A' ? 'Hooked Wound' : 'Hooked Wound (hidden when his hand is)',
+    when: (event) => hitBy(event) && !!event.location,
+    fire: hooked.fire, update: hooked.update, clear: hooked.clear,
+  });
+}

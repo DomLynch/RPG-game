@@ -15,6 +15,11 @@ test('Hooked Wound is the Goblin\'s A and answers only a blade blow he lands', (
   assert.equal(effect!.when(hit(1, 'kick'), fighters), false);
 });
 
+test('variant B (depth-tested strand) sits beside the A; On still means the A', () => {
+  assert.equal(pickSignature(SIGNATURES.goblin, 'B')?.name, 'Hooked Wound (hidden when his hand is)');
+  assert.equal(pickSignature(SIGNATURES.goblin, 'on')?.variant, 'A');
+});
+
 test('the strand runs wound to knife with a sag, and after the snap each half pulls back into its own end', () => {
   const a = new THREE.Vector3(0, 1.2, 0), b = new THREE.Vector3(0.6, 1.2, 0);
   const out = Array.from({ length: HOOK.points }, () => new THREE.Vector3());
