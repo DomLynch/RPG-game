@@ -3,6 +3,40 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-24 04:3x UTC: #643 (Knight body cover) is with Lead; #603 is superseded
+
+**Now (next session):** wait for Lead's verdict on **#643** (`knight/body-cover` @ `440ddc92`, against trunk, MERGEABLE).
+Answer Lead/Veteran/Combat questions. If Lead or Dom wants the great helm smaller, that's the next change (see Open).
+Do not push to #603 (`knight/six-r` @ `1db7afd5`): it's in #643's history and was held out of Run 4.
+
+**Done today**
+- `9a182321` → `1db7afd5` (#603): the Knight's rebuild plus phase-r de650b76 merged in. loot_dwarf.py: phase-r's island drop and
+  outward winding run for every family; the Knight's Gloves/Boots own-slot re-pose skinning is kept ahead of the winding.
+- **#643** `ea512119`, `440ddc92`: worn by the player, the Knight's Body `replace` left him bare-chested (the plate's front sat
+  inside the player's chest, the sides hung behind like wings); Arms/Greaves read as shards (Lead, 07:20 on run4-knight-front.png).
+  Now `@build:knight-chest/-arms/-greaves` in build-warrior.mjs: ringHull shells over `triGrid(await playerWorn())`, all `over`.
+  Breastplate spine_01→spine_03 at stations 0–1.46 with `pick:'outer'`, skinBySpine (lifted out of the Witch block); rerebraces,
+  vambraces, closed greaves; no cuisses. loot.json gains a per-entry `bone` (knight.Helmet → Head).
+- Receipts: suites 108/108; loot-layers exit 0; check-budget PASS (loot 2,537,949 / 3.5M); version guard 4/4;
+  ladder/roster/loot-data/graphics 66/66; tsc clean.
+- SIM_DIGEST re-pinned at 9 WITHOUT a bump (8c13363f…): trunk's v9 pin was taken with the Knight held, and `hold` isn't read by
+  any sim file; `record-replay-check --strict` passes on the merged tree.
+
+**Open**
+- The great helm: centred on the player's head (±2 cm) but 43 cm deep against a 27 cm head, so the visor sits ~10 cm in front
+  of the face in 3/4 and stride views. A size call for Dom or Lead.
+- The steel shells read lighter and bluer than the Knight's own dark iron (named in the PR for Dom).
+
+**Gotchas**
+- **A bad render from your own harness is evidence, not an artifact.** My scratch paperdoll showed the bare chest at 01:0x and I
+  put it down to the harness; Lead's frame proved it real. Only a fight-rig still disagreeing with it *and* a view that can show
+  the defect clears it. worn-loot-check's arena still was too small to show a bare chest.
+- `loot-layers` renders front-on and orthographic: it can't see a depth error (the helm) or a plate buried under the tunic.
+  Use Veteran's `wearAll` render page (orbit plus ArmedWalk; copied to the worktree root, deleted after).
+- spine_01→spine_03 is a SHORT axis: stations .2–1.12 fit a rib band. A breastplate needs about 0–1.46.
+- `timeout` doesn't exist on macOS (exit 127). The Stop gate times out at 420 s under load 80+; a manual run took 356 s.
+- Deploys ran back to back overnight; wait on `~/.claude/state/deploy_in_flight.json` with an until-loop, never assume FREE.
+
 ## Now — 2026-09-23 18:45: the Knight is HELD (#594); next is the depth-aware ARM RE-WEIGHT (target 23:00 Phase L)
 
 **Progress 18:5x — `knight/six` @ 6451d4b7 (pushed; not a PR):** the arm split is DONE and works. For the Knight, `arm_mix` compares
