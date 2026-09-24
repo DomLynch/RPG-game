@@ -20,7 +20,7 @@ Ask after every exchange where the player took damage, was guard-broken, or bloc
 2. **Why did you take damage?** (or, when they didn't: **What did that defence get you?**)
 3. **What would you try next?**
 
-Also note, per exchange, without asking: did they see the charge coming (a look, a hand move, a word), and did they tell the parry from the block without the text.
+Also note, per exchange, without asking: did they see the charge coming (a look, a hand move, a word), and did they tell the parry from the block without the text. When their posture breaks, note whether they showed any sign of knowing it before the critical landed (the bot cannot measure this; the playtest is the only instrument).
 
 ## Scoring sheet (one row per exchange)
 
