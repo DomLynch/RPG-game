@@ -874,12 +874,6 @@ dialog>p {
 .posture[data-critical=true]::-webkit-meter-optimum-value {
   background: #f0553a;
 }
-#combat-status[data-threat=true] {
-  color: #ffe4a6;
-  background: #542c23cc;
-  padding: 7px;
-  border-left: 2px solid #e0aa6a;
-}
 .actions {
   display: grid;
   grid-template-columns: repeat(3,auto);
@@ -1159,23 +1153,20 @@ dialog>p {
   }
   #combat-status {
     grid-column: 1/-1;
-    grid-row: 7;
+    grid-row: 8;
     font-size: 10px;
     font-weight: 400;
     line-height: 1.4;
-    min-height: 0;
+    min-height: 1.4em;   /* a blank line keeps its row, so the HUD below never jumps when an event is written */
     margin: 4px 0 0;
     max-width: 240px;
     color: #f1e8d8;
   }
-  #combat-status[data-threat=true] {
-    padding: 4px 6px;
-  }
-  /* .combat-hud is a 2-column grid on phone; #fight-rank and #loot-panel are children after #combat-status (owner 2026-09-22
-     move) and need their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
+  /* .combat-hud is a 2-column grid on phone; #fight-rank (row 7, with the meters) sits above #combat-status (row 8) and #loot-panel
+     (owner 2026-09-22 move; fight HUD, Dom 2026-09-24) and needs their own explicit full-width span and row, or the grid auto-places each into a single half-width column. */
   #fight-rank {
     grid-column: 1/-1;
-    grid-row: 9;
+    grid-row: 7;
     margin: 4px 0 0;
     max-width: 240px;
   }
@@ -1927,6 +1918,7 @@ dialog .slot-off:disabled { opacity: .45; cursor: not-allowed; }
   pointer-events: none;
   text-shadow: 0 1px 5px #131b1d;
 }
+#fight-rank .rank-name { order: -1; flex: none; max-width: 88px; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }   /* small, never crowding the bar */
 .rank-bar { display: inline-flex; gap: 2px; }
 .rank-seg {
   width: 14px;
@@ -1967,7 +1959,6 @@ dialog .daily-go:hover { background: var(--jsh); border-color: var(--jse); color
 #fight-rank, #reset-button, #share-button, #share-status {
   transition: opacity 250ms ease-out;
 }
-:root.endgame-hush #fight-rank,   /* the rank row fades only before settle: it stays up through the tour (main.ts, Dom 2026-09-24) */
 :root.endgame-fade #reset-button,
 :root.endgame-fade #share-button,
 :root.endgame-fade #share-status {

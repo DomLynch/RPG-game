@@ -55,9 +55,8 @@ test('the warden threat flag and move drive the incoming warning; the projection
   let s = ready();
   for (let i = 0; i < 600 && !s.threat; i++) s = stepPractice(s, idle());
   assert.equal(s.threat, true); assert.equal(s.threatMove, 'heavy_overhead'); assert.equal(s.enemyAttacking, true);
-  assert.match(practiceHint(s), /^Incoming strike — heavy: guard takes chip/);   // the browser gate times the tell on 'Incoming strike'
-  assert.match(practiceHint({ ...s, threatMove: 'thrust' }), /^Incoming strike — thrust: fast and long/);
-  assert.match(practiceHint({ ...s, duel: { ...s.duel, fighters: [s.duel.fighters[0], { ...s.duel.fighters[1], charge: 3 }] } }), /^Incoming strike — charged heavy: a guard will break/);
+  // The threat banner's text is gone (Dom 2026-09-24, Lead's ruling): no cue by default; the gates time the tell on the flag (hud.ts data-threat).
+  for (const t of [s, { ...s, threatMove: 'thrust' as const }]) assert.doesNotMatch(practiceHint(t), /Incoming strike/);
   const charging: Practice = { ...s, duel: { ...s.duel, fighters: [{ ...s.duel.fighters[0], phase: 'attack' as const, move: 'heavy_overhead' as const, charge: 5, charged: false }, s.duel.fighters[1]] } };
   assert.match(practiceHint(charging), /^Charging/); assert.match(practiceHint({ ...charging, duel: { ...charging.duel, fighters: [{ ...charging.duel.fighters[0], charged: true }, charging.duel.fighters[1]] } }), /^Charged/);
   assert.equal(actorPose(s, 1).pose, 'attack'); assert.equal(actorPose(s, 1).attack, 'heavy');
@@ -79,7 +78,7 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   assert.match(practiceHint(exhausted), /Exhausted/);
   const chained = tick(stepPractice(ready(4), act('light'), passive), SWORD.recovery, idle(), passive);
   assert.ok(chained.chain > 0); assert.match(practiceHint(chained), /Light again/);
-  assert.match(practiceHint(ready()), /Hold guard/); assert.match(practiceHint(stepPractice(ready(), { ...idle(), guard: true }, passive)), /Guarding/);
+  assert.equal(practiceHint(ready()), '', 'nothing happened: the event line is blank'); assert.match(practiceHint(stepPractice(ready(), { ...idle(), guard: true }, passive)), /Guarding/);
   const hurt = { ...hit, result: 'hurt' as const, resultAge: 3, resultDamage: 38 }; assert.match(practiceHint(hurt), /Hit taken · −38/);
   assert.match(practiceHint({ ...hit, result: 'hit', resultAge: 3, resultDamage: 14, resultCounter: true }), /Counter right cut hit · −14/);
   assert.match(practiceHint({ ...hit, result: 'hurt', resultAge: 3, resultDamage: 14, resultCounter: true }), /Countered · −14/);
@@ -95,6 +94,10 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   assert.match(practiceHint({ ...countering, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 25, resultPerfect: false }), /heavy to counter/);
   for (const [result, text] of [['blocked', /Blocked/], ['parried', /Parried! The Opponent/], ['dodged', /Evaded/], ['broken', /Guard broken/], ['enemyBlocked', /Opponent blocked/], ['enemyBroken', /Guard shattered/], ['enemyParried', /turned aside/], ['enemyDodged', /rolled clear/], ['miss', /Miss/]] as const) assert.match(practiceHint({ ...hit, result, resultAge: 3 }), text);
   assert.doesNotMatch(practiceHint({ ...hit, result: 'enemyParried', resultAge: 3 }), /^Parried/, 'the warden parrying must not read as the player parrying');
+  // A broken guard names its cause in plain words (Strategy 2026-09-24): the charged heavy, the kick, else just the fact.
+  assert.equal(practiceHint({ ...hit, result: 'broken', resultAge: 3, resultBreak: 'charged' }), 'Guard broken: a charged heavy breaks guard.');
+  assert.equal(practiceHint({ ...hit, result: 'broken', resultAge: 3, resultBreak: 'kick' }), 'Guard broken: a kick breaks guard.');
+  assert.equal(practiceHint({ ...hit, result: 'broken', resultAge: 3, resultBreak: null }), 'Guard broken.');
   // The lines name whoever is in the arena (Dom via Strategy, 2026-09-22): 'Opponent' above is the no-opponent fallback, and the
   // caller (hud.ts, from roster.ts bareName) passes the rung's own name.
   assert.equal(practiceHint({ ...hit, health: 0 }, 'Centurion'), 'Centurion defeated. Ready for a rematch?');
