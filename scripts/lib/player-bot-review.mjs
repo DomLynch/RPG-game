@@ -12,16 +12,18 @@ export function intentFor(decision, obs, strategy, recentEvents) {
 }
 
 export function explainDecisions(decisions, events) {
-  return decisions.map(d => {
+  return decisions.map((d, index) => {
     const after = events.filter(e => e.tick >= d.tick && e.tick <= d.tick + 180);
-    if (d.press === 'KeyT' || d.press === 'KeyG') {
+    if (d.press === 'KeyT' || d.press === 'KeyG' || d.intent === 'charge heavy') {
       const started = after.find(e => e.type === 'AttackStarted' && e.actor === 0 && e.tick <= d.tick + 8);
       if (!started) return { ...d, outcome: 'no attack started', evidence: d.phase === 'ready' ? 'no matching start event' : `input during ${d.phase}` };
       const result = after.find(e => e.tick >= started.tick && e.actor === 0 && (e.type === 'Hit' || e.type === 'AttackMissed'));
       return { ...d, outcome: result?.type === 'Hit' ? 'hit' : result?.type === 'AttackMissed' ? 'missed' : 'unresolved', evidence: result?.tick ?? started.tick };
     }
     if (d.intent.includes('guard')) {
-      const result = after.find(e => (e.actor === 0 && (e.type === 'Blocked' || e.type === 'Parried')) || (e.type === 'Hit' && e.target === 0));
+      const nextInputTick = decisions[index + 1]?.tick ?? Infinity;
+      const result = after.find(e => e.tick <= nextInputTick &&
+        ((e.actor === 0 && (e.type === 'Blocked' || e.type === 'Parried')) || (e.type === 'Hit' && e.target === 0)));
       return { ...d, outcome: result?.type === 'Hit' ? 'got hit' : result ? 'defended' : 'no contact', evidence: result?.tick ?? null };
     }
     if (d.press === 'KeyE') {

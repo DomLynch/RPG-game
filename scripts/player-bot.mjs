@@ -7,6 +7,7 @@ import { preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { chooseChargedAttack, chooseGuardCounter } from './lib/player-bot-policy.mjs';
 import { explainDecisions, intentFor, selectMoments, videoSecondAt } from './lib/player-bot-review.mjs';
+import { limitedObservation } from './lib/player-bot-observation.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
 import { LONGSWORD, OPPONENTS, RULES, WEAPONS } from '../src/moves.ts';
 import { RADIUS } from '../src/sim.ts';
@@ -20,7 +21,9 @@ const reactionMs = Number(option('reaction-ms', '180'));
 const stepMs = Number(option('step-ms', '32'));
 const recordVideo = !process.argv.includes('--no-video');
 const recordClips = recordVideo && !process.argv.includes('--no-clips');
+const showDebugVideo = process.argv.includes('--show-debug-video');
 const strategy = option('strategy', 'charged');
+const observation = option('observation', 'debug');
 const requested = option('opponents', option('opponent', 'pitborn'));
 const playable = ENCOUNTERS.filter(entry => !entry.hold).map(entry => entry.id);
 const opponents = requested === 'all' ? playable : requested.split(',');
@@ -28,6 +31,7 @@ assert.ok(Number.isInteger(count) && count > 0 && count <= 12);
 assert.ok(Number.isFinite(reactionMs) && reactionMs >= 100 && reactionMs <= 700);
 assert.ok([16, 32, 64].includes(stepMs));
 assert.ok(['charged', 'counter'].includes(strategy));
+assert.ok(['debug', 'limited'].includes(observation));
 assert.ok(opponents.length && opponents.every(id => playable.includes(id)), 'choose a playable opponent or --opponents=all');
 const nextSeed = seed => (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 const seeds = Array.from({ length: count }, (_, i) => { let seed = first; for (let n = 0; n < i; n++) seed = nextSeed(seed); return seed; });
@@ -39,15 +43,15 @@ const browser = await chromium.launch({ headless: true, executablePath: chromium
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 20_000 }).trim();
 const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8', timeout: 20_000 }).trim() !== '';
 const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge'] };
-const receipt = { revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, video: recordVideo, clips: recordClips, observation: 'debug gap/position/stamina/phase and current combat events; no future state', fights: [] };
+const receipt = { revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'rounded delayed distance/position and delayed combat events; current own phase/stamina/health', fights: [] };
 try {
   for (const opponent of opponents) for (const seed of seeds) {
     const [range, defense] = CONFIG[opponent];
     const windup = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, timing]) => [move, timing.windup]));
     const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4 };
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, ...(recordVideo ? { recordVideo: { dir, size: { width: 390, height: 844 } } } : {}) });
-    const videoStart = performance.now();
     const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], decisions: [], events: [], samples: [], errors: [] };
+    const videoStart = performance.now();
     const release = async () => { for (const key of [...held]) { try { await page.keyboard.up(key); fight.inputs.push({ tick: fight.durationSeconds == null ? null : Math.round(fight.durationSeconds * 60), key, edge: 'up', reason: 'end/reset/error' }); } catch (error) { fight.errors.push(`release ${key}: ${error}`); } finally { held.delete(key); } } };
     const keys = async (wanted, tick) => {
       for (const key of [...held]) if (!wanted.includes(key)) { await page.keyboard.up(key); held.delete(key); fight.inputs.push({ tick, key, edge: 'up' }); }
@@ -63,18 +67,20 @@ try {
       const { run, until } = await harnessClock(page);
       await page.getByRole('button', { name: 'Enter the arena' }).tap();
       await until(() => document.querySelector('#welcome').hidden && document.querySelector('#art-status').textContent === '', 20000);
-      await page.evaluate(showLabel => {
+      await page.evaluate(({ showLabel, showDebug }) => {
         window.__botEvents = [];
         window.addEventListener('frankendom:combat', e => window.__botEvents.push(...e.detail.events));
         if (!showLabel) return;
+        if (!showDebug) document.querySelector('#debug').style.visibility = 'hidden';
         const label = document.createElement('div'); label.id = 'bot-receipt';
         Object.assign(label.style, { position: 'fixed', top: '2px', left: '2px', zIndex: '9999', background: '#111d', color: 'white', font: '12px monospace', padding: '3px' });
         document.body.append(label);
-      }, recordVideo);
+      }, { showLabel: recordVideo, showDebug: showDebugVideo });
+      if (recordVideo && showDebugVideo) fight.debugRect = await page.locator('#debug').boundingBox();
       fight.inputs.push({ tick: 0, key: 'KeyF', edge: 'press' });
       await page.keyboard.press('KeyF');
       await until(() => document.querySelector('#guard-button').getAttribute('aria-disabled') === 'false', 20000);
-      let cursor = 0, memory = { tell: null, counterUntil: 0 }, lastInput = '';
+      let cursor = 0, memory = { tell: null, counterUntil: 0 }, perception = {}, perceivedEvents = [], lastInput = '';
       for (let steps = 0; steps < 3000; steps++) {
         const obs = await page.evaluate(cursor => {
           const text = document.querySelector('#debug').textContent, lines = text.split('\n'), enemy = lines.findIndex(l => l.startsWith('warden:'));
@@ -94,10 +100,12 @@ try {
         if (!fight.samples.length || obs.tick - fight.samples.at(-1).tick >= 60) fight.samples.push({ tick: obs.tick, videoSeconds: (performance.now() - videoStart) / 1000, hp: obs.hp, enemyHp: obs.enemyHp, stamina: obs.stamina, gap: obs.gap, radius: obs.radius });
         if (steps && steps % 600 === 0) console.log(JSON.stringify({ seed, tick: obs.tick, hp: obs.hp, enemyHp: obs.enemyHp, blocks: fight.events.filter(e => e.type === 'Blocked' && e.actor === 0).length }));
         if (!obs.hp || !obs.enemyHp || obs.tick >= 5400) break;
+        const seen = observation === 'limited' ? limitedObservation(obs, perception, Math.ceil(reactionMs / 1000 * 60)) : obs;
+        perceivedEvents.push(...seen.events);
         const choose = strategy === 'counter' ? chooseGuardCounter : chooseChargedAttack;
-        const decision = choose(obs, memory, Math.ceil(reactionMs / 1000 * 60), config);
+        const decision = choose(seen, memory, Math.ceil(reactionMs / 1000 * 60), config);
         const input = `${decision.keys.join(',')}/${decision.press ?? ''}`;
-        if (input !== lastInput || decision.press || obs.events.length) fight.decisions.push({ tick: obs.tick, intent: intentFor(decision, obs, strategy, fight.events.slice(-8)), keys: decision.keys, press: decision.press, phase: obs.phase, gap: obs.gap, stamina: obs.stamina, radius: obs.radius });
+        if (input !== lastInput || decision.press) fight.decisions.push({ tick: obs.tick, intent: intentFor(decision, seen, strategy, perceivedEvents.slice(-8)), keys: decision.keys, press: decision.press, phase: seen.phase, gap: seen.gap, actualGap: obs.gap, stamina: seen.stamina, radius: seen.radius });
         lastInput = input;
         await keys(decision.keys, obs.tick);
         if (decision.press) { await page.keyboard.press(decision.press); fight.inputs.push({ tick: obs.tick, key: decision.press, edge: 'press' }); }
@@ -159,9 +167,11 @@ try {
           if (to - from < .2) continue;
           const speed = (to - from) / ((toTick - fromTick) / 60);
           const path = `${dir}/${opponent}-${seed}-${index + 1}.mp4`;
+          const box = fight.debugRect;
+          const mask = box ? `drawbox=x=0:y=0:w=iw:h=${Math.ceil(box.y + box.height + 12)}:color=black:t=fill,` : '';
           try {
-            execFileSync('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-ss', String(from), '-i', fight.video, '-t', String(to - from), '-vf', `setpts=(PTS-STARTPTS)/${speed},fps=30`, '-an', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', path], { timeout: 60000, stdio: 'pipe' });
-            moment.clip = path; moment.simSeconds = +((toTick - fromTick) / 60).toFixed(2); moment.audio = false;
+            execFileSync('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-ss', String(from), '-t', String(to - from), '-i', fight.video, '-vf', `${mask}setpts=(PTS-STARTPTS)/${speed},fps=30`, '-fps_mode', 'vfr', '-an', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', path], { timeout: 60000, stdio: 'pipe' });
+            moment.clip = path; moment.simSeconds = +((toTick - fromTick) / 60).toFixed(2); moment.audio = false; moment.debugMasked = !!box;
           } catch (error) { moment.clipError = String(error); }
         }
       }
