@@ -40,8 +40,8 @@ function ensureRivets(root: THREE.Object3D) {
   if (group) { if (group.parent !== top) top.add(group); return; }   // a rebuilt scene takes the rivets with it
   group = new THREE.Group();
   top.add(group);
-  const geometry = new THREE.CylinderGeometry(0.022, 0.028, 0.016, 8);   // a domed iron rivet head, about 5 cm across (a phone has to see it fall)
-  const material = new THREE.MeshStandardMaterial({ color: '#a09d96', metalness: 0.8, roughness: 0.35 });
+  const geometry = new THREE.CylinderGeometry(0.045, 0.055, 0.03, 10);   // a rivet head drawn at about 10 cm so a phone at 375 px can follow it off the plate
+  const material = new THREE.MeshStandardMaterial({ color: '#e2ddd2', metalness: 0.55, roughness: 0.3, emissive: '#6a6458' });
   for (let i = 0; i < RIVETS; i++) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.visible = false;
@@ -61,7 +61,7 @@ registerSignature({
     const hit: WoundHit = { location: event.location ?? 'torso', direction: weaponOf(attacker.weapon).moves[event.move]?.direction ?? 'center', heading: knight.body.heading };
     const scale = frame.scale[OPPONENT_SIDE];
     // The dent: the sim's hit site on his body (the blood wounds' site table and surface ray), in the body pool.
-    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: 0.17 * scale, height: 0.17 * scale, map: dent(), metalness: 0.6, roughness: 0.5, tilt: pops * 1.3 }, scale)) return;
+    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: 0.42 * scale, height: 0.42 * scale, map: dent(), metalness: 0.6, roughness: 0.5, fadeIn: 0.03, tilt: pops * 1.3 }, scale)) return;
     // The same site again for where the rivets leave from, and the bone that shudders.
     const site = woundSite(hit), bone = root.getObjectByName(site.bone)!;
     out.set(...site.dir).normalize().applyAxisAngle(up, hit.heading);
