@@ -2,6 +2,57 @@
 
 Worktree `~/Developer/frankendom-code-quality`, branches `quality/*`. Owns cross-lane guards, readability passes with equivalence receipts, and the 8/10 bar from the GPT audits (2026-09-22: architecture 8, readability 7.5, overall 7.5 on adab24a).
 
+## 2026-09-24 — trunk audit for Dom (c1bbd1b2 all green), #700 fighter-map retry + roster map contract (to Deploy), Stop gate stays targeted
+
+**Now.** #700 `quality/fighter-textures-retry` (to Deploy): Sentry FRANKENDOM-C / -F "Warrior textures did not load" (4 events since 09-20, last 09-24 02:58Z) was thrown after `retryTransient`, so never retried. Root cause: three 0.186 `GLTFLoader.loadTexture` catches a failed image decode and returns `null`, so on a phone under memory pressure the rig arrives with a null map and no fetch error. Fix: the map check runs inside the retried attempt and `transientLoadError` counts it (three attempts, back-off, then the same error). `fighterTextured(scene)` exported; tests/characters.test.ts pins it on synthetic scenes and reads every `ROSTER` body's GLB JSON plus warrior.glb for the slots the loader demands (nothing pinned that before; guard.glb, map-less, shows the check discriminates). Receipts on the head: quality:stop 599 / 597 pass / 0 fail / 2 skipped; tsc src + tests clean; eslint clean.
+
+**Audit of trunk c1bbd1b2 (Dom: "how many LOC, anything broken?").** src 11,601 lines over 46 TypeScript files; tests 11,664; scripts 9,992. eslint, tsc src, tsc tests, unit suite (598 / 596 / 0 / 2), check-budget (PASS, worst pairing veteran 9.20 of 12 MB, loot 2.37 of 3.5, dist 32.8 of 40 MB gzip), npm audit (0) all green. Live e37a74c is on trunk, 166 commits behind head. main.ts is back to 1,029 lines (879 after the match split yesterday) after the fight HUD, arena draw, signatures, pack flow and charge-cue merges; a second move-only pass is the next readability item once the beta rush settles. One HACK marker in src (moves.ts:247, the scythe's diagonal, by design).
+
+**Stop gate.** The RESTORE owed from Lead's 09-23 morning table (commands back to `npm run quality:stop` at 23:30) is recommended dropped: the box sat at load 86–138 at 23:49 on 09-23 with five lanes' Stop gates running at once (goblin, backend, finishers, multichar, combat) and this lane's targeted gate timed out at the 420 s hook ceiling on an UNCHANGED tree. scripts/quality-stop-targeted.mjs stays the gate unless Lead says otherwise (told 09-24).
+
+**Next.** (1) Deploy merges #700; after it is live, resolve FRANKENDOM-C and -F only if no new event on the new revision in 48 h. (2) browser-check.mjs and counter-browser-check.mjs onto the #533 shader-compile wait (they pass; not urgent). (3) Re-grade against trunk; main.ts regrowth is the readability gap now.
+
+**Done.**
+- #568 (yesterday afternoon's state entry) closed unmerged; its entry is the next section below, unchanged.
+- #534 merged 09-23 10:43Z at c4bfb54; Receipt 2 for #507 stands (rows 1, 2, 13, 14, 29, 31 ran on its pushes).
+
+**Open.**
+- #700 merge (Deploy). Lead's word on the Stop gate.
+
+**Gotchas.**
+- A Stop hook that times out leaves no 6-hour pass record; the next stop re-runs the whole gate. Under load, stop less.
+- GLTFLoader swallows texture decode failures; any "rig loaded but a map is null" is a decode, not an asset, unless the GLB JSON test says otherwise.
+
+## 2026-09-23 (afternoon) — #567 iPhone half-canvas fix (READY), #556 loot-smoke wired (row 34), #534 fully green at c4bfb54
+
+**Now — Phase R moved to TONIGHT (Dom 17:5x via Lead): the LOOT estimate is DONE.** Base 1,327,597 gzip (dist loot.glb, 27 armour pieces / 40 draws) → ~49,170 a piece; +36 pieces ≈ 3,097,717, does not fit 2,000,000. Raise PR **#585** into `phase-r` (head 0dc145d on 7b277fd): LOOT 2 → 3.5 MB, numbers in the commit. loot.glb never counts toward PER_FIGHT (fight formula excludes loot and equip GLBs); the two weapons are equip GLBs (TOTAL only); trunk dist total 24,874,631 of 40,000,000. Receipt owed on #585: budget test + tsc after deploy 7b277fd frees the box (a watch is armed). Phase-r publishes 20:30.
+
+**Also tonight: targeted Stop gate, PR #593 into phase-r** (Strategy yes via Lead; box at load 200–340 from every lane's full-suite Stop). scripts/quality-stop-targeted.mjs = eslint src + typecheck:tests + record-version-guard + the changed files' tests; .quality-gate.json commands point at it; npm run quality:stop untouched. **RESTORE owed (Lead's morning table): commands back to ['npm','run','quality:stop'] at 23:30 on 2026-09-23 or after the last Phase R/L run, whichever is later.** Receipt: 13 files / 76 tests pass on the branch.
+
+**Superseded — PRIORITY 1 for 2026-09-24 by 10:00 (Dom via Strategy via Lead, 2026-09-23 evening).** All ten opponents get six takeable armour pieces + weapon tomorrow (~40 new loot.glb draws on Nightborn's welded pipeline). Estimate loot.glb gzip at full six-piece sets from the current per-piece average on the weld PR (find it: Nightborn's open PR on the welded loot pipeline); caps are LOOT 2,000,000, TOTAL 40,000,000, PER_FIGHT 12,000,000 gzip (scripts/check-budget.mjs). If it will not fit, send Lead the number and open a one-line raise PR against trunk. Also check the loot-image / paperdoll budget row (scripts/loot-layers.mjs, tests/loot-layers.test.ts, and whatever check-budget counts for the thumbnails). Base facts for it (Lead's question, 2026-09-23 evening): check-budget measures DIST (scripts/check-budget.mjs `dist = argv[2] || 'dist'`) with zlib gzipSync level 6, never src and never gzip -9; the build's scripts/optimize-glb.mjs shrinks src/assets/loot.glb 5,066,536 B raw to dist/assets/loot-<hash>.glb 2,480,544 B raw = 1,327,597 gzip on trunk 9a7cb61's loot (Lead's 2,180,657 was src at -9; Character Main's 1,446,168 is another head, roster-v0). Measure the weld PR's own build the same way, then per-piece average × the new draw count.
+Then the items below.
+
+Three PRs with Deploy, none mine to merge: #534 `quality/match-session-3` head c4bfb54 (the match split; trunk b7bc78d merged in as a merge commit; every CI check and the local gate green; batch after Publish B). #567 `quality/viewport-layout-size` head 15d4e55 (Lead READY, batch after World's option C; option C also touches src/scene.ts, so on a conflict merge trunk in, no force-push). #556 (Web's loot smoke check) carries my commit 4e8c491: release row 34 plus its trigger rule; it lands after #552 and takes trunk before its row is green. #556 and #567 both append a row and insert a trigger rule above `src/**` in .quality-gate.json: whichever merges second needs a trivial rebase of that file.
+
+**Next.** (0) Post-beta ticket (Lead, 2026-09-23): drop the held Season-2 creatures (minotaur / wraith / werewolf / skeleton) from dist; assets stay in the repo. (1) If Deploy reports a conflict on #567 or #534, merge trunk in and re-gate. (2) After #567 ships, the final receipt is Dom's iPhone: pinch, release, canvas stays full-screen. (3) Re-grade against trunk once #534 and Finishers' characters.ts geometry land. (4) browser-check.mjs and counter-browser-check.mjs still mask the shader-compile stall with a 120 s tap timeout; the #533 wait is the pattern.
+
+**Done.**
+- roster-v0 cd28ea4 (Strategy ruling via Lead): check-budget TOTAL 32 → 40 MB gzip, PER_FIGHT 12 MB unchanged, no test pins it; budget test 4/4, tsc clean.
+- roster-v0 636ce4d (second Strategy ruling): check-budget LOOT 1.5 → 2 MB gzip (four characters' Recruit-2 pieces on shared Steel, ~130 KB each); TOTAL and PER_FIGHT unchanged; budget test 4/4, tsc clean; Executioner told (the Knight's loot was parked on it).
+- #567: live bug on a50f22f (canvas in the top half after a page zoom, void below, HUD floating, camera far). Trigger: iOS Safari reports the zoomed VISUAL viewport in innerWidth/innerHeight; scene.ts resize() used them and renderer.setSize wrote inline px style. Fix: size from documentElement.clientWidth/Height, setSize(w, h, false), projections use the same numbers. Reproducer scripts/viewport-check.mjs (row 35): on trunk the emulated 2.5× zoom leaves the canvas 157×341 with inline style (fails); after, 393×852 with none (passes). Gate 526/524/0/2.
+- #556: Web's loot-smoke-check wired as row 34 with a trigger rule above `src/**` repeating the boot-path six; the welcome tap now waits for the rigs and one painted frame (#533's stall). Passed all three steps on a local preview merged with #552.
+- #534: fourth rebase of the day (over #535, #533, #538/#521, then #540/#537/#541), every time because merges landed between my push and Deploy's batch; main.ts is every lane's file.
+- Deploy timing audit for Dom: 52dffed 3 min with 31 checks trusted; the other four today 21–50 min with 0–28 trusted, because trunk pushes cancel each other's receipts, the quality reuse needs an unmoved trunk, and lane gates loaded the box (load 40–70) during deploys. Solution proposed: one batch one tree (rebase the batch, full matrix on the head, merge when green), a pre-merge trusted-checks predictor (not built), keep the box clear during deploys.
+
+**Open.**
+- #534, #556, #567 merges (Deploy). Receipt 2 for #507 (a code push after merge still runs its rows) is satisfied by #534's pushes (rows 1, 2, 13, 14, 29, 31 ran on 1d69dc8 and c4bfb54); tell Strategy when asked.
+
+**Gotchas.**
+- iOS Safari: innerWidth/innerHeight are the visual viewport; never size a canvas from them. Emulate the report in Chromium with a defineProperty getter plus a resize event; WebKit is not installed for Playwright and Lead ruled it stays so.
+- Web's branch is checked out in their worktree: work on a local branch from their head and push it to their ref as a fast-forward (`git push origin local:web/branch`).
+- release-rows-for.mjs is first-match: a specific trigger rule must sit above `src/**` and repeat the six it would otherwise shadow.
+- The deploy hook also blocks `npm run build` and `node scripts/*-check.mjs`; `git`, `gh`, `grep`, `node --check`, `release-rows-for.mjs` and single-file tests pass.
+
 ## 2026-09-23 (later) — #522 re-opened as #534 (to Deploy), check 32 root cause fixed (#533 LIVE), mergeLoot duplicate dropped
 
 **Now.** #534 `quality/match-session-3` (head 1d69dc8 on dd1d968) is the match split alone, handed to Deploy: #522 had been closed unmerged, so Dom's morning check found the split absent from trunk. Rebased over #535, #533, #538 and #521; #521's loot Undo conflicted in main.ts and was resolved by hand (trunk's Undo logic kept over the match's own `lastDrop`; every reset path goes through `began()`, which now calls `hideLoot()` as #521 requires). Receipts on 1d69dc8: tsc clean; quality:stop 510 tests / 508 pass / 0 fail / 2 skipped; build ok; account-browser-check passed; CI quality + four browser gates green; release rows 1, 2, 13, 14, 29, 31 queued at hand-off. Merges with its release run green or a red row reproduced on the Mac.
