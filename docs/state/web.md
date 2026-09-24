@@ -4,10 +4,9 @@
 "terrible, ugly, and crass" (relayed by Lead). Lead's order: do not iterate, build nothing, no fourth option. Strategy decides
 whether the item comes back and in what direction. Stand by for Lead.
 
-**Rejection record: the THIRD overlay rejection, after #537 and #670 (Lead's framing).** The pattern: a gold-glass or panel
-overlay drawn over the arena reads as CHEAP to Dom. #670 was the Arena Draw roster board (reverted in #694). #537's merged title is
-"Fighter readability: key + rim on the fighters; crowd, sand and wall pushed back"; that it counts as an overlay rejection is the
-Lead's record, not verified here. Tonight's three were the loot panel's own skin, over the opening, as Dom directed via Strategy,
+**Rejection record: the SECOND overlay rejection, after #670; #537 was the stills-before-merge failure** (a visual shipped without
+live 375 stills — a process failure, not an overlay; corrected by Lead). The pattern: a gold-glass or panel overlay drawn over the
+arena reads as CHEAP to Dom. #670 was the Arena Draw roster board (reverted in #694). Tonight's three were the loot panel's own skin, over the opening, as Dom directed via Strategy,
 and they still failed. So "same skin as the loot panel" does not make an arena overlay acceptable. Do not propose card, plate or
 banner overlays over the 3D arena again without a new direction from Strategy.
 
