@@ -1,5 +1,15 @@
-import { Color, DynamicDrawUsage, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Texture, Vector3 } from 'three';
+import { AddEquation, Color, CustomBlending, DstColorFactor, DynamicDrawUsage, OneMinusSrcAlphaFactor, SRGBColorSpace, TextureLoader, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Texture, Vector3 } from 'three';
 import type { FinisherId } from './finishers.ts';
+
+// Blood on the floor multiplies onto the sand: dst × lerp(1, texture, alpha·opacity). Premultiplied output makes alpha and opacity
+// fade it toward "no change" — never toward white, which a plain MultiplyBlending ignores opacity for.
+export function multiplyOnto(material: MeshBasicMaterial, map: Texture) {
+  Object.assign(material, { map, blending: CustomBlending, blendEquation: AddEquation, blendSrc: DstColorFactor,
+    blendDst: OneMinusSrcAlphaFactor, premultipliedAlpha: true, transparent: true, depthWrite: false, toneMapped: false });
+  material.needsUpdate = true;
+}
+// The floor stain shapes (scripts/blood/floor-textures.py): two pools, four splashes, handed out in turn so no two neighbours match.
+export const FLOOR_POOLS = ['floor-pool.png', 'floor-pool-b.png'], FLOOR_SPLASHES = ['floor-splash.png', 'floor-splash-b.png', 'floor-splash-c.png', 'floor-splash-d.png'];
 
 export type BloodSource = { site: string; position: Vector3; direction: Vector3; strength: number };
 
@@ -55,18 +65,28 @@ export function finisherBloodSources(kind: FinisherId, victim: Object3D, head: O
   return [source('blade-wound',location === 'head' ? crown : location === 'legs' ? at('thigh_r') ?? chest : chest,forward,.9)];
 }
 
-// Fixed resources: two draws, 160 ballistic droplets and 80 growing floor stains. No allocation per emission.
+// Fixed resources: 160 ballistic droplets and 80 growing floor stains in seven draws — the droplets, and one per floor shape
+// (owner 2026-09-23 on the live finishers: the spray landed as flat bright-red blots, all one shape). A wound's seep takes a
+// pool shape, a landed droplet a splash shape, each in turn; once the textures land they multiply onto the sand like the
+// splashes (multiplyOnto). The borrowed canvas splat with the old tint stands in until then, and forever under node.
+// No allocation per emission.
 export function createFinisherBlood(map: Texture) {
   const group = new Group(); group.name = 'FinisherBlood'; group.visible = false;
   const dropMaterial = new MeshStandardMaterial({color:'#740f19',roughness:.46,metalness:0});
-  const poolMaterial = new MeshBasicMaterial({map,color:'#68121a',transparent:true,opacity:.86,depthWrite:false,toneMapped:false});
+  const plane = new PlaneGeometry(2,2), SHAPES = FLOOR_POOLS.length + FLOOR_SPLASHES.length;
+  const poolMaterials = Array.from({length:SHAPES},()=>new MeshBasicMaterial({map,color:'#68121a',transparent:true,opacity:.86,depthWrite:false,toneMapped:false}));
   const drops = new InstancedMesh(new SphereGeometry(1,8,4),dropMaterial,160);
-  const pools = new InstancedMesh(new PlaneGeometry(2,2),poolMaterial,80);
-  drops.name = 'FinisherDroplets'; pools.name = 'FinisherPools';
-  for (const mesh of [drops,pools]) { mesh.instanceMatrix.setUsage(DynamicDrawUsage); mesh.frustumCulled=false; }
-  group.add(drops,pools);
+  const pools = poolMaterials.map((m,i)=>Object.assign(new InstancedMesh(plane,m,80),{name:`FinisherPools${i}`}));
+  drops.name = 'FinisherDroplets';
+  for (const mesh of [drops,...pools]) { mesh.instanceMatrix.setUsage(DynamicDrawUsage); mesh.frustumCulled=false; }
+  group.add(drops,...pools);
+  let photo = false, tint = '#68121a';
+  if (typeof document !== 'undefined')
+    Promise.all([...FLOOR_POOLS,...FLOOR_SPLASHES].map(f=>new TextureLoader().loadAsync(new URL(`./assets/blood/${f}`, import.meta.url).href))).then(all=>{
+      all.forEach((t,i)=>{t.colorSpace=SRGBColorSpace;multiplyOnto(poolMaterials[i],t);poolMaterials[i].opacity=1;});photo=true;
+    }).catch(()=>{});   // no textures: the canvas splat stays
   const particles = Array.from({length:160},()=>({position:new Vector3(),velocity:new Vector3(),life:0,size:0}));
-  const stains = Array.from({length:80},()=>({position:new Vector3(),radius:0,target:0,angle:0,site:''}));
+  const stains = Array.from({length:80},()=>({position:new Vector3(),radius:0,target:0,angle:0,site:'',shape:0}));
   const velocityDirection = new Vector3(), turn = new Quaternion(), zAxis = new Vector3(0,0,1);
   const dummy = new Object3D(), yAxis = new Vector3(0,1,0), flat = new Quaternion().setFromAxisAngle(new Vector3(1,0,0),-Math.PI/2), tone = new Color();
   let active: FinisherId | null = null, elapsed = 0, cursor = 0, stainCursor = 0, serial = 0;
@@ -74,12 +94,12 @@ export function createFinisherBlood(map: Texture) {
   function reset() {
     for (const p of particles) p.life=0;
     for (const s of stains) { s.radius=0; s.target=0; }
-    drops.count=pools.count=0; pending=[]; cursor=stainCursor=serial=emitted=landed=0; elapsed=0; active=null; lateSeeded=false; group.visible=false;
+    drops.count=0;for(const m of pools)m.count=0; pending=[]; cursor=stainCursor=serial=emitted=landed=0; elapsed=0; active=null; lateSeeded=false; group.visible=false;
   }
   function stain(position: Vector3, amount: number, site: string) {
     // Merge nearby landings without pulling a previous pool along with a moving wound.
     let s=stains.find(p=>p.target>0 && (p.position.x-position.x)**2+(p.position.z-position.z)**2<.2*.2);
-    if (!s) { s=stains[stainCursor++%stains.length]; s.position.set(position.x,.025,position.z);s.radius=.035;s.target=.055;s.angle=serial*2.4;s.site=site; }
+    if (!s) { s=stains[stainCursor++%stains.length]; s.position.set(position.x,.025,position.z);s.radius=.035;s.target=.055;s.angle=serial*2.4;s.site=site;s.shape=site==='spray' ? FLOOR_POOLS.length+stainCursor%FLOOR_SPLASHES.length : stainCursor%FLOOR_POOLS.length; }
     s.target=Math.min(.85,Math.sqrt(s.target*s.target+amount));
   }
   reset();
@@ -89,7 +109,8 @@ export function createFinisherBlood(map: Texture) {
       if (!kind) { if(active)reset(); return; }
       if(active!==kind) {reset();active=kind;}
       group.visible=mode!=='off';
-      dropMaterial.color.set(mode==='dark' ? '#342127' : '#740f19'); poolMaterial.color.set(mode==='dark' ? '#2b2226' : '#68121a');
+      dropMaterial.color.set(mode==='dark' ? '#342127' : '#740f19'); tint=mode==='dark' ? '#2b2226' : '#68121a';
+      for(const m of poolMaterials)m.color.set(photo ? (mode==='dark' ? '#a8a0a0' : '#ffffff') : tint);   // multiplied: white = the texture's own crimson
       // Hold state at zero dt; off hides and clears airborne drops but never freezes the bleed clock.
       if(dt<=0)return;
       dt=Math.min(dt,.1);elapsed+=dt;
@@ -118,19 +139,21 @@ export function createFinisherBlood(map: Texture) {
         dummy.scale.set(p.size,p.size*(1.4+Math.min(1.2,p.velocity.length()*.2)),p.size);dummy.updateMatrix();drops.setMatrixAt(count++,dummy.matrix);
       }
       drops.count=count;drops.instanceMatrix.needsUpdate=true;
-      count=0;
+      for(const m of pools)m.count=0;
+      let layer=0;
       for(const s of stains) {
         if(!s.target)continue;
         s.radius+=(s.target-s.radius)*(1-Math.exp(-dt*2.2));
-        dummy.position.copy(s.position);dummy.position.y+=count*.00004;
+        const mesh=pools[s.shape];
+        dummy.position.copy(s.position);dummy.position.y+=layer++*.00004;
         dummy.quaternion.copy(flat).multiply(turn.setFromAxisAngle(zAxis,s.angle));
-        dummy.scale.set(s.radius,s.radius*(.7+.2*Math.sin(s.angle)**2),1);dummy.updateMatrix();pools.setMatrixAt(count,dummy.matrix);
-        tone.setScalar(.75+.25*Math.min(1,s.radius/.2));pools.setColorAt(count++,tone);
+        dummy.scale.set(s.radius,s.radius*(.7+.2*Math.sin(s.angle)**2),1);dummy.updateMatrix();mesh.setMatrixAt(mesh.count,dummy.matrix);
+        tone.setScalar(.75+.25*Math.min(1,s.radius/.2));mesh.setColorAt(mesh.count++,tone);
       }
-      pools.count=count;pools.instanceMatrix.needsUpdate=true;if(pools.instanceColor)pools.instanceColor.needsUpdate=true;
+      for(const m of pools){m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;}
     },
-    inspect() { return {kind:active,elapsed,emitted,landed,color:poolMaterial.color.getHexString(),airborne:drops.count,visible:group.visible,pools:stains.filter(s=>s.target>0).map(s=>({position:s.position.toArray(),radius:s.radius,site:s.site})),capacity:{drops:particles.length,pools:stains.length}}; },
+    inspect() { return {kind:active,elapsed,emitted,landed,color:tint.slice(1),airborne:drops.count,visible:group.visible,pools:stains.filter(s=>s.target>0).map(s=>({position:s.position.toArray(),radius:s.radius,site:s.site})),capacity:{drops:particles.length,pools:stains.length}}; },
     reset,
-    dispose() {reset();group.removeFromParent();drops.geometry.dispose();pools.geometry.dispose();dropMaterial.dispose();poolMaterial.dispose();},
+    dispose() {reset();group.removeFromParent();drops.geometry.dispose();plane.dispose();dropMaterial.dispose();for(const m of poolMaterials){if(m.map!==map)m.map?.dispose();m.dispose();}},
   };
 }

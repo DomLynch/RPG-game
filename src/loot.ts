@@ -44,8 +44,8 @@ export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
   nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Greaves', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
   // His Body is the rag sash and belt worn `over` the player's tunic: a sash covers 26 % of a tunic, so as a `replace` it would undress him (#434, tests/loot.test.ts).
   pitborn: ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves', 'pitborn.Cleaver'],
-  // Phase R six: the iron helm (build-warrior.mjs @build:dwarf-helmet, Character Main), the war-girdle (loot/dwarf_upper.glb) and iron shoulder
-  // plates (loot/dwarf_arms.glb) cut by loot_dwarf.py, then greaves, boots (loot/dwarf_boots.glb, heel to toe) and the shared gloves.
+  // Phase R six: the iron helm, war-belt and apron, shoulder plates and greaves built in build-warrior.mjs (@build:dwarf-*), the boots
+  // (loot/dwarf_boots.glb, heel to toe) cut by loot_dwarf.py, and the shared gloves.
   dwarf: ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],
   goblin: ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves', 'goblin.Knife'],   // Phase R: the scrap cap, iron shin plates and rag foot bindings
   knight: ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots', 'knight.Maul'],   // Phase R: his six, cut from his own welded TRELLIS body, re-posed onto the hero rest, on his baked KnightIron maps (#603)
@@ -89,7 +89,11 @@ export function cleanLoot(value: unknown): Loot {
   const raw = (value && typeof value === 'object' ? value : {}) as Partial<Loot>;
   const owned = Array.isArray(raw.owned) ? [...new Set(raw.owned.filter(isLootId))] : [];
   const equipped: Loot['equipped'] = {};
-  if (raw.equipped && typeof raw.equipped === 'object') for (const [key, id] of Object.entries(raw.equipped)) if (key in PAPERDOLL && isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
+  if (raw.equipped && typeof raw.equipped === 'object') for (const [key, id] of Object.entries(raw.equipped)) {
+    // Keyed by PAPERDOLL key (legs, chest), never slot name (Greaves, Body): a wrong key is dropped, and said so — it once hid a live check's answer.
+    if (!(key in PAPERDOLL)) { console.warn(`loot: equipped key "${key}" is not a paperdoll key (${Object.keys(PAPERDOLL).join(', ')}); ${String(id)} is not worn`); continue; }
+    if (isLootId(id) && owned.includes(id) && paperdollOf(slotOf(id)) === key) equipped[key as Paperdoll] = id;
+  }
   const taken: NonNullable<Loot['taken']> = {};
   if (raw.taken && typeof raw.taken === 'object') for (const [id, p] of Object.entries(raw.taken)) if (isLootId(id) && owned.includes(id) && cleanProvenance(p)) taken[id] = cleanProvenance(p)!;
   const declined = Array.isArray(raw.declined) ? raw.declined.map(cleanProvenance).filter((p): p is Provenance => !!p).slice(-DECLINED_KEPT) : [];

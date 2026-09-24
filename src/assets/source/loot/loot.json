@@ -281,29 +281,17 @@
   {
    "slot": "Body",
    "layer": "over",
-   "file": "loot/dwarf_upper.glb",
-   "slots": [
-    "Body"
-   ],
-   "unscale": "dwarf"
+   "file": "@build:dwarf-belt"
   },
   {
    "slot": "Arms",
    "layer": "over",
-   "file": "loot/dwarf_arms.glb",
-   "slots": [
-    "Arms"
-   ],
-   "unscale": "dwarf"
+   "file": "@build:dwarf-plates"
   },
   {
    "slot": "Greaves",
    "layer": "over",
-   "file": "loot/dwarf_greaves.glb",
-   "slots": [
-    "Greaves"
-   ],
-   "unscale": "dwarf"
+   "file": "@build:dwarf-greaves"
   },
   {
    "slot": "Boots",
@@ -470,7 +458,8 @@
    "file": "loot/knight.glb",
    "slots": [
     "Helmet"
-   ]
+   ],
+   "bone": "Head"
   },
   {
    "slot": "Body",

@@ -350,7 +350,7 @@ if (LOOT) {
           g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from(index.array, i => map[i]), 4));
         }
         if (entry.unscale) { if (!o.isSkinnedMesh) throw new Error(`${entry.file}: unscale needs skin weights on ${o.name}`); unscaler(entry.unscale)(g); }
-        add(g, material, o.userData.bone, 0, 0, 0, 0, entry.slot); taken++;
+        add(g, material, entry.bone ?? o.userData.bone, 0, 0, 0, 0, entry.slot); taken++;   // loot.json `bone`: rigid to that bone instead of the cut's own weights (the Knight's helm lagged his head mid-stride)
         if (entry.conform) lootConform.push({ id: `${opponent}.${entry.slot}`, g: parts.get(material).at(-1), options: entry.conform === true ? {} : entry.conform });
       });
       if (!taken && !entry.optional) throw new Error(`loot ${opponent}: nothing matched in ${entry.file} (${JSON.stringify({ slots: entry.slots, names: entry.names })})`);
@@ -505,6 +505,91 @@ function dwarfHelmet(skullGrid) {
   console.log(`  dwarf helmet: crown ${crown.toFixed(3)} m above Head, rim radii ${dome.rings[0].radii.map(r => r.toFixed(3)).join(' ')}, nasal ${bar.length().toFixed(3)} m`);
 }
 if (LOOT) { lootOf = 'dwarf'; lootSlot = 'Helmet'; dwarfHelmet(triGrid(await playerWorn())); lootOf = ''; lootSlot = ''; }
+// The Dwarf's war-belt, shoulder plates and greaves (Phase R fix, Lead 2026-09-24): built shells, not cuts from his scan. Cut out of the
+// TRELLIS surface (loot_dwarf.py) the greaves were shards over bare shin with a spike, the girdle sat under the player's tunic and the
+// shoulder iron was one shard (stills on #614) — the Witch's lesson. Fitted by ray over the player's body and kit, plus the Dwarf's own
+// boots, which are worn with the set. Loot build only: his own fight build wears his scan.
+if (LOOT) {
+  const boots = [...parts.values()].flat().filter(g => g.userData.slot === 'dwarf:Boots');
+  const at = jointOf(skeleton, boneIndex), grid = triGrid([...await playerWorn(), ...boots]), up = new T.Vector3(0, 0, 1);
+  lootOf = 'dwarf';
+  // Body: a broad leather war-belt OVER the tunic with a brass band through it, and an leather apron hanging from it in
+  // front to mid-thigh. The belt is skinned by height across pelvis→spine_01 as the Witch's bodice is; the apron is flared and fitted
+  // round BOTH thighs ('outer') so a stride swings the legs behind it, not through it.
+  lootSlot = 'Body';
+  const pelvis = at('pelvis'), waist = at('spine_01'), spine = ['pelvis', 'spine_01', 'spine_02'].map(n => ({ i: boneIndex(n), y: at(n).y }));
+  const skinBySpine = g => {
+    g = g.index ? g.toNonIndexed() : g;
+    const p = g.getAttribute('position'), index = [], weight = [];
+    for (let k = 0; k < p.count; k++) {
+      const y = p.getY(k), j = Math.max(0, Math.min(spine.length - 2, spine.findLastIndex(b => b.y <= y))), f = Math.min(1, Math.max(0, (y - spine[j].y) / (spine[j + 1].y - spine[j].y)));
+      index.push(spine[j].i, spine[j + 1].i, 0, 0); weight.push(1 - f, f, 0, 0);
+    }
+    g.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4));
+    return g;
+  };
+  const beltFrom = pelvis.clone().setY(pelvis.y - .02), beltTo = waist.clone().setY(waist.y + .06);
+  const belt = ringHull(grid, beltFrom, beltTo, { stations: [.2, .4, .6, .8], azimuths: 24, gap: .016, up });
+  add(skinBySpine(belt.geometry), leather);
+  add(skinBySpine(ringHull(grid, beltFrom, beltTo, { stations: [.44, .56], azimuths: 24, gap: .022, up }).geometry), trim);
+  const forward = at('ball_l').sub(at('foot_l')).setY(0).add(at('ball_r').sub(at('foot_r')).setY(0)).normalize();
+  const knees = new T.Vector3().lerpVectors(at('calf_l'), at('calf_r'), .5), top = beltFrom.clone(), bottom = new T.Vector3(top.x, (top.y + knees.y) / 2 - .02, top.z);
+  const frontOnly = (g, axisFrom, half) => {   // keep the triangles whose centre faces forward within `half` of straight ahead
+    const p = g.getAttribute('position'), ix = g.index.array, kept = [], c = new T.Vector3();
+    for (let n = 0; n < ix.length; n += 3) {
+      c.set(0, 0, 0); for (let q = 0; q < 3; q++) c.add(new T.Vector3().fromBufferAttribute(p, ix[n + q])); c.divideScalar(3);
+      if (c.sub(axisFrom).setY(0).normalize().dot(forward) > Math.cos(half)) kept.push(ix[n], ix[n + 1], ix[n + 2]);
+    }
+    g.setIndex(kept); return g;
+  };
+  // gap .065: the player's kilt pleats stand proud of the ring the rays average over, and at .024 and .045 they came through the leather.
+  const apron = ringHull(grid, top, bottom, { stations: [0, .12, .24, .36, .48, .6, .72, .84, .92, 1], azimuths: 48, gap: .065, far: .28, pick: 'outer', up, scale: t => 1 + t * .28 });   // flared to the hem: a torn kilt flap stood through it at .15
+  // Skinned like the kilt under it: pelvis at the belt, blending to half on each thigh by the hem. Rigid to the pelvis, a kilt flap that
+  // follows the thigh swung through it in the idle (the third bake's stills).
+  const thighs = [boneIndex('thigh_l'), boneIndex('thigh_r')], hip = boneIndex('pelvis'), skinApron = g => {
+    g = g.index ? g.toNonIndexed() : g; const p = g.getAttribute('position'), index = [], weight = [];
+    for (let k = 0; k < p.count; k++) { const f = .6 * Math.min(1, Math.max(0, (top.y - p.getY(k)) / (top.y - bottom.y))); index.push(hip, ...thighs, 0); weight.push(1 - f, f / 2, f / 2, 0); }
+    g.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4)); return g;
+  };
+  // Rays at 48 azimuths still slip past a thin torn flap of the kilt, so clear it by measurement: the furthest-forward point of the player's
+  // body and kit across the apron's height and width, and every apron vertex pushed straight forward to at least 1.5 cm in front of it,
+  // eased in over the top third so the apron still hangs from the belt rather than standing off it as a board.
+  const side = new T.Vector3(-forward.z, 0, forward.x), reach = await (async () => { let most = -Infinity; const q = new T.Vector3();
+    for (const g of await playerWorn()) { const p = g.getAttribute('position'); for (let k = 0; k < p.count; k++) { q.fromBufferAttribute(p, k);
+      if (q.y < bottom.y - .02 || q.y > top.y - .03) continue; const r = q.clone().sub(top).setY(0); if (Math.abs(r.dot(side)) < .16) most = Math.max(most, r.dot(forward)); } }
+    return most; })();
+  const ap = apron.geometry.getAttribute('position'), ar = new T.Vector3();
+  for (let k = 0; k < ap.count; k++) { ar.fromBufferAttribute(ap, k); const f = ar.clone().sub(top).setY(0).dot(forward); const ease = Math.min(1, (top.y - ar.y) / ((top.y - bottom.y) * .35)); if (f > 0 && f < reach + .015) ap.setXYZ(k, ...ar.addScaledVector(forward, (reach + .015 - f) * ease ** 2).toArray()); }
+  apron.geometry.computeVertexNormals();
+  add(skinApron(frontOnly(apron.geometry, top, .78)), leather);
+  console.log(`  dwarf belt: rings ${belt.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}, apron to ${bottom.y.toFixed(3)} m, kilt front ${reach.toFixed(3)} m`);
+  for (const side of ['l', 'r']) {
+    // Arms: an iron dome over each shoulder with a brass rim. A dome, not a ring fitted round the arm: at the shoulder the rays toward the
+    // body land on the torso and the ring's edge came out torn. Skinned half to the clavicle, half to the upper arm: rigid to the arm, the
+    // drop from the bind T to the idle turned it on its side (a crescent from the front, the second bake's stills).
+    lootSlot = 'Arms';
+    const shoulder = at(`upperarm_${side}`), arm = at(`lowerarm_${side}`).sub(shoulder).normalize(), over = shoulder.clone().addScaledVector(arm, .035);
+    const lift = surfaceAlong(grid, over, new T.Vector3(0, 1, 0));
+    if (!lift) throw new Error(`dwarf shoulder plate: nothing above ${side} shoulder`);
+    const domeAt = over.clone().add(new T.Vector3(0, lift - .03, 0)), half = Math.PI * .46, bones = [boneIndex(`clavicle_${side}`), boneIndex(`upperarm_${side}`)];
+    const shared = g => {
+      g = g.toNonIndexed().translate(domeAt.x, domeAt.y, domeAt.z); const n = g.getAttribute('position').count;
+      g.setAttribute('skinIndex', new T.Uint16BufferAttribute(Array.from({ length: n }, () => [...bones, 0, 0]).flat(), 4));
+      g.setAttribute('skinWeight', new T.Float32BufferAttribute(Array.from({ length: n }, () => [.5, .5, 0, 0]).flat(), 4)); return g;
+    };
+    add(shared(new T.SphereGeometry(1, 20, 8, 0, Math.PI * 2, 0, half).scale(.085, .062, .09)), steel);
+    add(shared(new T.SphereGeometry(1.04, 20, 2, 0, Math.PI * 2, half - .06, .07).scale(.085, .062, .09)), trim);
+    // Greaves: a closed iron shell knee to ankle, a brass rim under the knee and one leather strap.
+    lootSlot = 'Greaves';
+    const knee = at(`calf_${side}`), ankle = at(`foot_${side}`);
+    const shell = ringHull(grid, knee, ankle, { stations: [.06, .18, .32, .46, .6, .74, .86], azimuths: 16, gap: .011 });
+    add(shell.geometry, steel, `calf_${side}`);
+    add(ringHull(grid, knee, ankle, { stations: [.05, .1], azimuths: 16, gap: .016 }).geometry, trim, `calf_${side}`);
+    add(ringHull(grid, knee, ankle, { stations: [.6, .65], azimuths: 16, gap: .015 }).geometry, leather, `calf_${side}`);
+    console.log(`  dwarf ${side}: shoulder dome ${lift.toFixed(3)} m above the arm, greave rings ${shell.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  }
+  lootOf = ''; lootSlot = '';
+}
 // The Nightborn's sixth piece (Phase R). His brief left his shins bare over the hose; Strategy 2026-09-23, on Dom's barefoot precedent
 // (Brief 14): a bare shin is Recruit-grade and a Greave goes OVER it, as boots go over bare feet, so he wears it and offers it. A duelist's
 // guard, not a soldier's: blackened steel from under the knee to above the ankle, held by two leather straps. Steel, not leather: his own
@@ -601,23 +686,22 @@ if (LOOT) {
 // The Knight's Body, Arms and Greaves on the player (Lead, 2026-09-24). His TRELLIS cuts are his own plate in his own frame: worn by the
 // player, the Body `replace` stripped the tunic while its front sank inside the player's chest (bare-chested, the side plates hanging
 // behind like wings), and the Arms and Greaves cut edges read as shards. So these three are fitted by ray over the player and his level-1
-// kit instead, closed shells in steel and `over`, so taking one can never undress him: a breastplate from above the scabbard's belt loop
-// to under the collar, skinned along the spine like the Witch's bodice, with two ridge bands; rerebraces and vambraces; cuisses and
-// closed greaves. His Helmet, Gloves and Boots stay the TRELLIS cuts.
+// kit instead, closed shells in steel and `over`, so taking one can never undress him: a breastplate from the belt
+// to under the collar, skinned along the spine like the Witch's bodice, with two ridge bands; rerebraces and vambraces; closed greaves
+// (no cuisses: the kit's skirt covers the thigh and came through them). His Helmet, Gloves and Boots stay the TRELLIS cuts.
 if (LOOT) {
   const at = jointOf(skeleton, boneIndex), grid = triGrid(await playerWorn()), up = new T.Vector3(0, 0, 1);
   lootOf = 'knight'; lootSlot = 'Body';
   const waist = at('spine_01'), chest = at('spine_03');
-  const plate = ringHull(grid, waist, chest, { stations: [.3, .42, .54, .66, .78, .9, 1.02, 1.12], azimuths: 24, gap: .016, up });
+  const plate = ringHull(grid, waist, chest, { stations: [0, .12, .26, .42, .58, .74, .9, 1.06, 1.2, 1.34, 1.46], azimuths: 24, gap: .016, pick: 'outer', up });   // belt to collar (spine_01→spine_03 is short: .2–1.12 was a rib band); outer: over the tunic
   add(skinBySpine(plate.geometry, at), steel);
-  for (const t of [.46, .82]) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .02, t + .02], azimuths: 24, gap: .021, up }).geometry, at), steel);
+  for (const t of [.3, .95]) add(skinBySpine(ringHull(grid, waist, chest, { stations: [t - .02, t + .02], azimuths: 24, gap: .021, pick: 'outer', up }).geometry, at), steel);
   console.log(`  knight breastplate: rings ${plate.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
   for (const side of ['l', 'r']) {
     lootSlot = 'Arms';
     add(ringHull(grid, at(`upperarm_${side}`), at(`lowerarm_${side}`), { stations: [.15, .3, .45, .6, .75, .88], azimuths: 14, gap: .012 }).geometry, steel, `upperarm_${side}`);
     add(ringHull(grid, at(`lowerarm_${side}`), at(`hand_${side}`), { stations: [.12, .26, .4, .54, .66], azimuths: 14, gap: .012 }).geometry, steel, `lowerarm_${side}`);
     lootSlot = 'Greaves';
-    add(ringHull(grid, at(`thigh_${side}`), at(`calf_${side}`), { stations: [.3, .44, .58, .72, .86], azimuths: 14, gap: .014 }).geometry, steel, `thigh_${side}`);
     add(ringHull(grid, at(`calf_${side}`), at(`foot_${side}`), { stations: [.04, .18, .32, .46, .6, .74], azimuths: 14, gap: .012 }).geometry, steel, `calf_${side}`);
   }
   lootOf = ''; lootSlot = '';

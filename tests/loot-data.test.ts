@@ -115,6 +115,16 @@ test('loot: a saved record is cleaned — known ids only, no duplicates, worn pi
   assert.equal(lootName('veteran.Helmet', 'the Veteran'), 'the Veteran\'s helmet');
 });
 
+test('loot: equipped is keyed by paperdoll key, never slot name — a slot-named key is dropped and warned about by name, a paperdoll key is kept silently', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const owned = ['nightborn.Greaves', 'nightborn.Body'];
+  assert.deepEqual(cleanLoot({ owned, equipped: { Greaves: 'nightborn.Greaves', Body: 'nightborn.Body' } }), { owned, equipped: {} }, 'slot names are not paperdoll keys');
+  assert.equal(warn.mock.callCount(), 2);
+  assert.match(String(warn.mock.calls[0]!.arguments[0]), /equipped key "Greaves" is not a paperdoll key .*legs.*nightborn\.Greaves is not worn/);
+  assert.deepEqual(cleanLoot({ owned, equipped: { legs: 'nightborn.Greaves', chest: 'nightborn.Body' } }), { owned, equipped: { legs: 'nightborn.Greaves', chest: 'nightborn.Body' } });
+  assert.equal(warn.mock.callCount(), 2, 'paperdoll keys warn about nothing');
+});
+
 test('loot: provenance is written once at the drop, cleaned like the rest, its record id fills once from null, and a merge keeps it', () => {
   const p = { opponent: 'veteran' as const, attempt: 5, healthLeft: 12, recordId: null, day: '2026-09-22' };
   let loot = store(undefined, 'veteran.Helmet', p);
