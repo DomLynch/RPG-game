@@ -28,9 +28,28 @@ function dent(): THREE.CanvasTexture {
   return dentTexture;
 }
 
+let darkTexture: THREE.CanvasTexture | null = null;
+// B's dent: a bruised dark-steel impression, darkest a little below centre, with the bright rim only on the top (lit) edge.
+function darkDent(): THREE.CanvasTexture {
+  if (darkTexture) return darkTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const g = canvas.getContext('2d')!;
+  const bruise = g.createRadialGradient(64, 72, 6, 64, 64, 56);
+  bruise.addColorStop(0, 'rgba(4,4,5,0.95)'); bruise.addColorStop(0.5, 'rgba(14,14,16,0.85)'); bruise.addColorStop(0.85, 'rgba(30,30,33,0.4)'); bruise.addColorStop(1, 'rgba(30,30,33,0)');
+  g.fillStyle = bruise; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = 'rgba(0,0,0,0.9)'; g.lineWidth = 10;
+  g.beginPath(); g.arc(64, 62, 36, Math.PI * 0.2, Math.PI * 0.8); g.stroke();   // the shadowed lower wall of the hollow
+  g.strokeStyle = 'rgba(200,200,206,0.9)'; g.lineWidth = 9;
+  g.beginPath(); g.arc(64, 66, 38, Math.PI * 1.22, Math.PI * 1.78); g.stroke();   // canvas top = up on the plate: the edge the light falls on
+  darkTexture = new THREE.CanvasTexture(canvas);
+  darkTexture.colorSpace = THREE.SRGBColorSpace;
+  return darkTexture;
+}
+
 type Rivet = { mesh: THREE.Mesh; velocity: THREE.Vector3; spin: THREE.Vector3; age: number };
 const rivets: Rivet[] = [];
-let group: THREE.Group | null = null, pops = 0;
+let group: THREE.Group | null = null, pops = 0, rivetMaterial: THREE.MeshStandardMaterial | null = null;
 let shaken: THREE.Object3D | null = null, shake = SHUDDER;
 const axis = new THREE.Vector3(), turn = new THREE.Quaternion(), out = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
 
@@ -41,7 +60,7 @@ function ensureRivets(root: THREE.Object3D) {
   group = new THREE.Group();
   top.add(group);
   const geometry = new THREE.CylinderGeometry(0.045, 0.055, 0.03, 10);   // a rivet head drawn at about 10 cm so a phone at 375 px can follow it off the plate
-  const material = new THREE.MeshStandardMaterial({ color: '#e2ddd2', metalness: 0.55, roughness: 0.3, emissive: '#6a6458' });
+  const material = (rivetMaterial = new THREE.MeshStandardMaterial());
   for (let i = 0; i < RIVETS; i++) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.visible = false;
@@ -52,8 +71,11 @@ function ensureRivets(root: THREE.Object3D) {
 
 const struck = (event: CombatEvent) => event.type === 'Hit' && event.target === OPPONENT_SIDE && event.move !== 'kick' && (isHeavy(event) || (event.damage ?? 0) >= SUBSTANTIAL);
 
-registerSignature({
-  opponent: 'knight', variant: 'A', name: 'Rivet Burst',
+// One burst, two looks: A (the lit crescent dent, bright rivets) and B (Strategy's AGAIN: a dark bruised dent lit only on its top edge, dark iron
+// rivets). The rivet pool is shared; only one variant is ever chosen, and each dresses the shared material when it fires.
+type Look = { name: string; map: () => THREE.CanvasTexture; rivet: { color: string; emissive: string; metalness: number; roughness: number } };
+const rivetBurst = (variant: 'A' | 'B', look: Look) => registerSignature({
+  opponent: 'knight', variant, name: look.name,
   when: struck,
   fire(event, frame: SignatureFrame) {
     const root = frame.roots[OPPONENT_SIDE], knight = frame.fighters[OPPONENT_SIDE], attacker = frame.fighters[event.actor];
@@ -61,13 +83,14 @@ registerSignature({
     const hit: WoundHit = { location: event.location ?? 'torso', direction: weaponOf(attacker.weapon).moves[event.move]?.direction ?? 'center', heading: knight.body.heading };
     const scale = frame.scale[OPPONENT_SIDE];
     // The dent: the sim's hit site on his body (the blood wounds' site table and surface ray), in the body pool.
-    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: 0.42 * scale, height: 0.42 * scale, map: dent(), metalness: 0.6, roughness: 0.5, fadeIn: 0.03, tilt: pops * 1.3 }, scale)) return;
+    if (!frame.marks.body(OPPONENT_SIDE, root, hit, { width: 0.42 * scale, height: 0.42 * scale, map: look.map(), metalness: 0.6, roughness: 0.5, fadeIn: 0.03, tilt: pops * 1.3 }, scale)) return;
     // The same site again for where the rivets leave from, and the bone that shudders.
     const site = woundSite(hit), bone = root.getObjectByName(site.bone)!;
     out.set(...site.dir).normalize().applyAxisAngle(up, hit.heading);
     const met = surfaceHit(root, bone, out), from = met ? met.point : bone.getWorldPosition(new THREE.Vector3()).addScaledVector(out, site.radius * scale), normal = met ? met.normal : out;
     shaken = bone; shake = 0;
     ensureRivets(root);
+    Object.assign(rivetMaterial!, { metalness: look.rivet.metalness, roughness: look.rivet.roughness }); rivetMaterial!.color.set(look.rivet.color); rivetMaterial!.emissive.set(look.rivet.emissive);
     const count = isHeavy(event) || (event.damage ?? 0) >= 24 ? 2 : 1;
     for (let k = 0; k < count; k++) {
       const r = rivets[pops++ % RIVETS], j = pops * 0.618;
@@ -100,3 +123,5 @@ registerSignature({
     for (const r of rivets) { r.age = SETTLE; r.mesh.visible = false; }
   },
 });
+rivetBurst('A', { name: 'Rivet Burst', map: dent, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
+rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } });
