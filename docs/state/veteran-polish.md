@@ -16,8 +16,14 @@ the character-name convention (`executioner.md`) is preferred.
    Include these two lines: "CI queue is not a gate" and "merge after the playtest, not the 10:00 run". **Do not push to #709**:
    the judged head stays the judged head.
 2. **#717, the Shieldmaiden's second pass** (`char/shieldmaiden-lamellar`, `bae3bbb2`, stacked on #709): lamellar Body plus a
-   spangenhelm, sent to Lead for Strategy's judgement. Dom's two-failures rule applies. Retarget it to trunk once #709 merges.
-3. The **Centurion equip loader** stays parked until Monday's sim window (below).
+   spangenhelm. **Strategy PASSED it for the fight frame.** It merges after the playtest in the chain #709 → #717. Retarget it to trunk
+   once #709 lands; do not push to it.
+3. **Follow-up before A3 (Wed 2026-09-30), a NEW PR after #709 → #717 merge** (Lead): (a) the lamellar hem breaks into a loose grid
+   of floating plates with jagged sides in the front and ¾ studio views, with the red skirt showing through. The hem tiles must overlap
+   like the chest rows, with no gaps and no free-floating plates (more azimuths, a wider plate, or a closed leather band behind each
+   row). (b) Her Boots are the level-1 knee boots (`parts/level1_shieldmaiden.glb`, conformed): the player's toes poke through the
+   toe box in ¾. Swap in the `shoe()` shell over the foot. Receipt: front and ¾ stills, to Lead.
+4. The **Centurion equip loader** stays parked until Monday's sim window (below).
 
 ## Done — 2026-09-24 (evening/night)
 
