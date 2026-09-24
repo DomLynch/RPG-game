@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 09:55 — Arena phone switch for Dom: `?arena=a|b|c|d` ships inside #624 (verified in f2a7db10), usable once the run is LIVE
+
+Verified in f2a7db10: src/main.ts:592 reads `?arena=` from the URL and src/arena-themes.ts keys are `1 | a | b | c | d`. Per World via Lead: no effect on the ladder or saved progress. Dom's recipe once trunk 2a41ed4e is live: https://frankendom.com/?arena=a (then b, c, d), add &perf=1 for the phone reading. Live is still cff5dec6 at 09:55 (my curl). Owed to Dom: the run's sha, then the four URLs; his pick after playing.
+
 ## 2026-09-24 09:50 — Rows 23/27: Lead's refinement accepted (trust the PR-head CI receipt only when trunk moved on none of the row's trigger files, else run locally)
 
 Deploy found rows 23/27 were already "trusted-by-tree" but the tree never matched: CI runs on the PR head, and the merge onto a moved trunk is a different tree, so the trust never fired. Lead ruled, and I accept: trust the PR-head receipt when the merge's other side touches none of that row's trigger files; otherwise run the row locally. Keeps Dom's "trust CI" without letting, say, a Knight change ride a blood-gate receipt taken before it. Deploy writes it with tests after the current run (#643 → #646 → #624 on trunk 2a41ed4e, deploying now). No Dom decision needed. Owed to Dom: the run's sha (my curl), the arena phone override, Web's dead-link page.
