@@ -8,6 +8,18 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-24 (afternoon): done; next from Lead
+
+Standing by. Nothing building, nothing open from this lane except this doc PR (#583). Lead's rulings (acting with Dom's
+authority), each checked:
+
+- **#665 Blade Bite: variant B is FINAL** and live. Merge `7b06a113` is an ancestor of live `e37a74c7` (the playtest sha,
+  frozen until tomorrow's playtest; `release.json` read). **The C shavings strip is cancelled.** It comes back only if the
+  playtest answers point at Blade Bite.
+- **#638 is CLOSED as superseded.** #637 (`18ea2180`) and #643 (`d075d053`) are both ancestors of `e37a74c7`.
+- **The Centurion equip loader + gladius/scutum re-land** (item 2 below) is parked, not started. It waits on Lead's next
+  assignment, like everything else.
+
 ## Now — 2026-09-24 ~11:30 (handoff, context restart)
 
 **Pick up, in order:**
