@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 14:31 (+04, `date`) — Dom: "would a game tree be more efficient?" Yes. The Business-level CodeGraph daemon (pid 851, cwd ~/Desktop/Business, 18 GB index) stopped; 18 worktree daemons kept; load 33 by my uptime. Recommended to Dom: delete ~/Desktop/Business/.codegraph (his disk, his call)
+
+Rule for every lane (memory project_codegraph_index_per_worktree_not_business): CodeGraph indexes one frankendom-* worktree, never ~/Desktop/Business; a Business-rooted worker or daemon is killed on sight. Lead has recorded my owner-proxy mode as UNCONFIRMED until Dom says it in the Lead session (correct hygiene); merges continue under Dom's 09-23 standing order meanwhile; asked Dom for the one-line confirmation. Load by my own uptime: 178 → 61 (14:30) → 33 (14:31).
+
 ## 2026-09-24 14:29 (+04, `date`) — OPS CALL (mine, under the chairman model): killed three CodeGraph indexer workers (2h15+, ~290% CPU, indexing ~/Desktop/Business, not a worktree) that pinned the Mac at load 178 and blocked every receipt render. Load 178 → 153 in 5 s. Serve daemons kept; index rebuilds on demand. 6830afcf (#651 maul + #656 dead links + #664 rank strip) deploying; next run #670 + #671 (World's arena-select fix). Lead hands off to a fresh session after 6830afcf verifies (docs/state/lead-catalogue.md)
 
 Dom 14:35: "think of yourself as the MBB consultant, COO and CEO, and me the hands-off chairman. I make decisions when shit hits the fan or when I come in annoyingly one day and micromanage, complain, then disappear." Lead had asked Dom about the indexers; ruled that such calls come to me, never Dom. Lesson: a peer's "three indexers at 400%" was right, but the first ps showed the CodeGraph processes at 0% because they were the daemons, not the workers; sort by CPU before acting.
