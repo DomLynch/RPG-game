@@ -2,6 +2,34 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — RESUME HERE, 2026-09-24 23:20 (two jobs in flight)
+
+### 1. LIVE DEFECT, Goblin white light (Strategy 23:10, on Dom's word; reply to Lead with Strategy copied). ROOT CAUSE FOUND, fix not written.
+- Dom's iPhone, at the "You fell. Rematch?" frame: the Goblin's head and shoulders are blown out white. Cause: **the charge glow in `src/scene.ts`**,
+  `const glows = [0, 1].map(() => new THREE.PointLight('#ff9a3c', 0, 3, 2))`, driven around `glows.forEach` (~line 757). While a fighter holds a
+  charge in phase 'attack', its intensity is `f.charged ? 8 : 1 + 4*charge/min`, the colour is `#fff3d0` (near-white) once charged, and it sits at y 1.2 within 3 m.
+  It follows the fighter's phase, and the duel freezes on its last tick at a kill, so **an opponent who kills with a charged heavy keeps an intensity-8
+  white light on his head and shoulders through the whole death tableau**. It is a per-fighter light, which Lighting C (#570) removed for the key/rim but not this.
+- Fix (Strategy's rule: no fighter light, background grade only): delete the glows (scene.ts decl + the forEach block). Charge tells that remain:
+  CHARGE_LEAN pose, the signature Charging/Charged effects, audio, and the combat.ts line "Charging…/Charged". Say so in the PR.
+- Per opponent: the glow is not Goblin-specific. EVERY fighter (all six opponents AND the player) lights while holding a charge, because the AI charges
+  heavies for all of them (ai.ts `held`). The persistent white shows on whoever killed with a charged heavy. Confirm with stills, don't assume.
+- Receipt: a composite of same-frame 375 stills, Goblin before/after at the fight camera, plus one line per opponent. Deterministic method: the first
+  fight is seeded (731 warden). `/?opponent=goblin&debug`, submit the name, draw, hold `q`, and poll `#debug` text for the enemy line containing
+  `CHARGED` (combat.ts describe: `charge N CHARGED`), then screenshot. Do it on trunk and on the fix. PR for the next run, no deploy of its own.
+
+### 2. Graft slice 1 stills (Witch's arm, skill Witch-fire): **DUE FRI 2026-09-25 10:00 +04**. Code written, nothing rendered yet.
+- Branch `world/graft-stills` @ c7982dda (NOT for PR): `src/graft-preview.ts` cuts her left (casting) arm from her CreatureBody by skin weight
+  (> .5 on upperarm_l..fingers_l), binds it to the player's bones by name with her inverse binds, hides his left-arm Skin and Arms-slot Wrap
+  triangles, and dresses the seam three ways: a) a raw stitched weal, b) bandage turns, c) witch-fire veins (`#ff9a3a` emissive vein canvas, glowing seam).
+  The in-game hook is `?graft=a|b|c` in scene.ts (after `warriors = loaded`). SEAM radius/offset are first guesses: check them in the renders.
+- Scratch scripts: `origin/evidence/world-scratch-scripts` @ 25d5c3ec (graft-sheet.mjs = studio ¾ + stab/slash/heavy seam close-ups;
+  pit-still.mjs = fight camera 375x812 DPR3, hold `q` for guard; add `&graft=x`). Copy to the repo root as a dotfile, run, delete.
+- **Read `docs/skill-witch-arm.md` (or wherever #720 put it) on trunk FIRST: Strategy's four rulings on the Witch arm ("cooling is a plain dim of
+  SKILL, no ring, no countdown") may change the directions.** Also `docs/SCOPE.md` on PR #715.
+- Still owed: dist bytes per option (the arm is ~? of 65,917 witch vertices; her colour map is 668 KB webp; report crop share), all PNGs on an evidence
+  branch, paths to Lead.
+
 ## Lane state — NEXT JOB queued: graft slice 1 (Witch's arm on the player), 2026-09-24 late
 
 ### Now: start here after /clear
