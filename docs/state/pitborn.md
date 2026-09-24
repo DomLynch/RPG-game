@@ -7,15 +7,19 @@ Append new entries at the TOP. Keep evidence and remaining validation in every e
 
 ## Now — 2026-09-24 night: receipts accepted; three items for tomorrow, after the playtest sha
 
-**Tomorrow (Lead's order).** Start after the playtest sha; never run a browser while the deploy lock is held.
-1. **Pitborn Easy loses on trunk.** The limited bot goes 1W/2L. Seeds 2230671998 and 2504048581 lose the SAME fight: the
-   bot's PostureBroken at tick 2645, then his slash_riposte kills at 2721 (45.35 s). Player dealt 160, took 144, blocked 10.
-   It is a real loss, not a harness cap. Answer: is it Pitborn tuning, or bot play?
-2. **The seed doesn't branch some Easy fights.** Browser fights differ by seed for most opponents, but Pitborn's two
-   non-731 seeds give one fight, all 3 Knight fights are one fight, and Shieldmaiden has 2 distinct. Every Easy gate is
-   weaker than "3 fights". Find where the Easy AI stops consuming the seed (`initialPractice(seed)`, the AI's rng).
-3. **#680 needs a knight row** in `scripts/player-bot.mjs` CONFIG: `knight: [2.1, 'dodge']` (his archetype copies the
-   Executioner's). Without it `--opponents=all` crashes after plaguedoctor. #680 stays parked until Lead orders its merge.
+**Done later the same night (Dom: keep moving). Waiting on Lead's call.** All on #680, head `f7d12580`; no src change, no deploy.
+1. **Seed branching fixed.** The bot's seeds were 731, lcg(731), lcg²(731), which is the same lcg the opponent AI rolls
+   with. So fight n+1 started one draw after fight n, and such pairs can fall into step. The Pitborn recording replays
+   exactly under the next seed; headless, 0–3 of 30 lcg-successor pairs per opponent replay the same fight.
+   `fightSeeds()` (a murmur3 chain) gives 731, 1637974753 and 3024046025; with it, 0 of 30 collide.
+   - The Knight is seed-independent for another reason: the bot beats him 150/0 before any AI roll matters.
+   - Not changed: `src/match.ts` `nextSeed` (the Rematch seed) uses the same lcg. It's a one-line src change, offered
+     to Lead for a later window.
+2. **Pitborn Easy loss: bot play, not tuning.** At ~1.2 m on low stamina, the bot only guards or "recovers". His chambered
+   lights turn its late parries into blocks, posture breaks, then a critical (46) or a slash_riposte kills it.
+   On the new seeds Pitborn is 2W/1L over 3 distinct fights, which passes. The proposed fix is in the bot's policy
+   (disengage when stamina is low and posture high) and is awaiting Lead.
+3. **Knight CONFIG row** added in `67aa8d1c`.
 
 **Done tonight.**
 - #693 (head `dc133f17`, test only) is inside #695. The straight-back roll already escapes a charged heavy: centre and
