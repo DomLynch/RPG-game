@@ -9,6 +9,7 @@
 // Every reset goes through begin(): adding a piece of match state means clearing it in one place, not six.
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
+import { NAKED, type Loadout } from './duel.ts';
 import type { WeaponId } from './moves.ts';
 import { recordPractice, recordRematch, saveTrial, type Trial } from './trial.ts';
 import { recordResult, saveScorecard, type Scorecard } from './scorecard.ts';
@@ -38,6 +39,7 @@ export const nextSeed = (seed: number): number => (Math.imul(seed, 1664525) + 10
 export class Match {
   mode: Mode = 'career';
   seed: number;
+  loadout: Loadout = NAKED;   // the player's gear (brief 19): the page sets it from the SERVER's awards (setLoadout), never the device's cache; the opponent fights naked until the ladder retune
   weapon: WeaponId = 'longsword';   // the player's weapon (moves.ts PLAYER_WEAPONS): the longsword until the loot slice wires the equipped set; a replay takes the record's
   difficulty: Difficulty = 'normal';
   practice: Practice;
@@ -68,12 +70,25 @@ export class Match {
   private begin(mode: Mode) {
     this.mode = mode;
     this.epoch++;
-    this.practice = initialPractice(this.seed, this.opponent, this.weapon);
-    this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, profile: this.difficulty, seed: this.seed });
+    const loadouts = this.loadouts(mode);
+    this.practice = initialPractice(this.seed, this.opponent, this.weapon, loadouts);
+    this.recorder = mode === 'replay' ? null : createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, profile: this.difficulty, seed: this.seed, loadouts });
     this.recorded = false; this.activeMs = 0;
     this.frameEvents = []; this.fightLog = [];
     this.lastRecord = null; this.lastDrop = null;
     this.replay = null; this.stalled = false;
+  }
+  // The pair a mode fights with (brief 19): the daily is a skill board, so both sides are naked; a replay is the record's own (set in
+  // startReplay); everything else is the player's gear against a naked opponent (his tier is the ladder retune, not this slice).
+  private loadouts(mode: Mode): [Loadout, Loadout] { return mode === 'daily' ? [NAKED, NAKED] : [this.loadout, NAKED]; }
+  // The player's gear arrived or changed (the server's awards read, an equip). A fight nobody has stepped yet re-seats on it, recorder
+  // and all, so the first career fight of a visit wears what the account owns; a fight in progress keeps what it started with.
+  setLoadout(loadout: Loadout) {
+    this.loadout = loadout;
+    if (this.mode === 'replay' || this.mode === 'daily' || this.practice.duel.tick > 0 || (this.recorder?.ticks ?? 0) > 0) return;
+    const loadouts = this.loadouts(this.mode);
+    this.practice = initialPractice(this.seed, this.opponent, this.weapon, loadouts);
+    this.recorder = createRecorder({ build: this.build, opponent: this.opponent.id, weapon: this.weapon, profile: this.difficulty, seed: this.seed, loadouts });
   }
   // Rematch: the same warden, differently seeded. A career fight stays career; a daily's rematch is practice (the day's one
   // attempt is over and never posts again); a practice fight stays practice.
@@ -98,6 +113,7 @@ export class Match {
     this.seed = record.seed; this.weapon = record.weapon; this.difficulty = record.profile;
     this.daily = null;
     this.begin('replay');
+    this.practice = initialPractice(this.seed, this.opponent, this.weapon, record.loadouts);   // the gear the fight was fought with, not this player's
     for (let tick = 0; tick < fromTick; tick++) this.practice = stepPractice(this.practice, record.intents[tick], this.opponent.profiles[this.difficulty]);
     this.replay = { record, cursor: fromTick };
     return true;

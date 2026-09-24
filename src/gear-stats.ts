@@ -15,7 +15,8 @@
 // fighter can still beat every rung under its fairness cap. And **no stat changes the timing of any attack, parry, roll or wind-up** —
 // a longsword tell is a longsword tell at every tier — which is why every number here is a damage multiplier and none is a duration.
 // The caps below are the whole of that promise and `tests/gear-stats.test.ts` holds them exactly.
-import { levelOf, type Tier } from './grades.ts';
+import { NAKED, type Loadout } from './duel.ts';
+import { TIERS, levelOf, type Tier } from './grades.ts';
 import { ARMOUR_SLOTS, WEAPON_SLOTS, isWeaponSlot, slotOf, type Loot, type LootId, type LootSlot } from './loot.ts';
 import type { OpponentId } from './roster.ts';
 
@@ -25,10 +26,10 @@ import type { OpponentId } from './roster.ts';
 // A record of multipliers rather than a fixed pair by design: brief 19 asks for a shape the Origin character layer EXTENDS rather than
 // replaces. That layer resolves item ids plus an approved allocation into the same kind of object, and its stats join as further
 // fields without this table changing.
-export type Loadout = { attack: number; res: number };
+export type { Loadout } from './duel.ts';   // the sim owns the shape (deliverable 5): the seam's input, so duel.ts imports nothing from here
 // No gear: the exact identity. Every number here is what the game does today, so a naked loadout must be a no-op at the seam and a
 // naked fight must replay byte-identical to a record made before stats existed (that is deliverable 2's flag, proved against this).
-export const NAKED: Loadout = { attack: 1, res: 1 };
+export { NAKED } from './duel.ts';
 
 // What a full Origin set is worth. Attack gets the smaller range on purpose (brief 19): raw damage is what kill timings, finisher
 // windows and the fight-length pins are measured against, so it moves least.
@@ -145,3 +146,15 @@ export const wholePoints = (l: Loadout): { atk: number; res: number } => ({
   atk: Math.round((l.attack - 1) * 100),
   res: Math.round((1 - l.res) * 100),
 });
+
+// ---- the fight's Loadout, from the server ------------------------------------------------------------------------------------------
+// Deliverable 5's source (docs/SCOPE.md: "loot awards become server-authoritative before stats touch a fight"): a piece's tier is the
+// one the server's `awards` row fixed when the verifier accepted the win (migration 202609230001, `tier` = levelOf at the standing before
+// it), read by src/cloud-profile.ts readAwards. NEVER the device's owned list, and never the client-written Provenance tier World is
+// adding for display (Lead, 2026-09-24) — both are caches a client can write. An equipped piece with no award resolves to nothing, so it
+// is worn as a cosmetic and fights as the identity; a guest, an offline read or a missing table is `null` and fights naked, exactly.
+export const tierOfLevel = (level: number | undefined): Tier | undefined => level === undefined ? undefined : TIERS[level - 1];
+export function serverLoadout(equipped: Loot['equipped'], awards: ReadonlyMap<string, number> | null): Loadout {
+  if (!awards) return NAKED;
+  return loadoutFor(kitFrom(equipped, (piece) => tierOfLevel(awards.get(piece))));
+}

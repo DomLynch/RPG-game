@@ -1,4 +1,5 @@
-// Loot (beta plan brief 5): visual cosmetics only, no stats. Every armour piece is a draw in src/assets/loot.glb (Scalable Chars' export,
+// Loot (beta plan brief 5): cosmetics on the rig; what a piece is WORTH is src/gear-stats.ts (brief 19), and only at the tier the
+// server awarded. Every armour piece is a draw in src/assets/loot.glb (Scalable Chars' export,
 // 2026-09-21), named `<opponent>.<slot>.<material>`; its id here is the name without the material. One fixed armour piece per opponent
 // per career sub-rank drops on a win, never a duplicate; nothing is ever lost (the trophy rack keeps everything owned). A weapon piece
 // is takeable instead (WEAPON_SLOTS below) and fills the paperdoll's main hand. The paperdoll is the six armour slots plus the two hands;

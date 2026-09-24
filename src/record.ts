@@ -8,11 +8,11 @@
 // per-tick bytes (stick x, stick z, camera-yaw delta, action, guard side, flags) — gzipped and base64url'd. Columns of mostly
 // repeated or zero bytes gzip well: a 30 s fight (1,800 ticks) lands well under 2 KB (tests/record.test.ts measures a real one).
 // Nothing here talks to the network; recording stays in memory until a later slice's Share.
-import type { Action, Intent } from './duel.ts';
+import { NAKED, type Action, type Intent, type Loadout } from './duel.ts';
 import { PLAYER_WEAPONS, type Direction, type WeaponId } from './moves.ts';
 import type { OpponentId } from './roster.ts';
 
-export const RECORD_VERSION = 10;   // 10: bump 10 (2026-09-24, Dom's drive-by) — the Witch's own Easy profile (#691) and the kick-into-guard stagger 36 -> 48 (#692), one bump for both (the straight-back roll, #693, needed no sim change). Older links are refused at decode (Dom accepts). 9: bump 9 (2026-09-23) — the park habit counts the first parked tick only (ai.ts); a one-tick park used to count every later tick of its swing, so a committing parrier (Nightborn, Plague Doctor) read a parker from one sloppy tap. A sim change, so older links are refused at decode.
+export const RECORD_VERSION = 11;   // 11: bump 11 (2026-09-24, brief 19 deliverable 5) — the record carries both fighters' Loadouts (Attack, RES) and the sim applies them at the hit; a v10 record fought naked and would replay as one, but the bump rides the version window with whatever else it carries, so it is replaced, not widened. 10: bump 10 (2026-09-24, Dom's drive-by) — the Witch's own Easy profile (#691) and the kick-into-guard stagger 36 -> 48 (#692), one bump for both (the straight-back roll, #693, needed no sim change). Older links are refused at decode (Dom accepts). 9: bump 9 (2026-09-23) — the park habit counts the first parked tick only (ai.ts); a one-tick park used to count every later tick of its swing, so a committing parrier (Nightborn, Plague Doctor) read a parker from one sloppy tap. A sim change, so older links are refused at decode.
 // 8: bump 8 (2026-09-23) — the Executioner's own normal profile (`anticipate`, #550) and the roster-v0 beta characters (Shieldmaiden, Knight, Plague Doctor, Witch) on their bodies' archetypes. A sim change, so older links are refused at decode.
 // 7: Publish B (2026-09-23), one bump for the chain — the estoc's real reach (#532), the Nightborn's profile (#545), the gladius as a player weapon (#543; the Centurion's swap, #547, is held), and the knife and scythe thrust tables rebaked on their 5's timings (the bake was stale since 5; blade-paths.ts is in the digest now). A sim change, so older links are refused at decode.
 // 6: the kicker-hover hold fix (2026-09-22) — a warden's hold now derives from the inReach margin of the move he has queued, so he stops parking at a gap his own plan cannot reach. A sim change, so older links are refused at decode rather than replaying a different fight.
@@ -32,13 +32,15 @@ export const RECORD_VERSION = 10;   // 10: bump 10 (2026-09-24, Dom's drive-by) 
 // [7] -> [8] with the writer bump to 8: replaced, not widened (a v7 record replays an Executioner on the shared profile).
 // [8] -> [9] with the writer bump to 9: replaced, not widened (a v8 record with a one-tick park replays a Nightborn who read it as a habit).
 // [9] -> [10] with the writer bump to 10: replaced, not widened (a v9 record replays a Witch on the Centurion's Easy).
-export const READABLE_VERSIONS = [10] as const;
+// [10] -> [11] with the writer bump to 11: replaced, not widened (see RECORD_VERSION; a v10 record is a naked fight, readable in principle as [NAKED, NAKED]).
+export const READABLE_VERSIONS = [11] as const;
 export type RecordVersion = (typeof READABLE_VERSIONS)[number];
 
 export type RecordProfile = 'easy' | 'normal' | 'hard';
 export type Outcome = 'killed' | 'died' | 'draw' | 'abandoned';
-export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; profile: RecordProfile; seed: number };
-export type FightRecord = RecordMeta & { v: RecordVersion; ticks: number; outcome: Outcome; intents: Intent[] };
+// `loadouts`: the player's gear and the opponent's, as the fight was fought (brief 19); a recorder given none records the naked pair.
+export type RecordMeta = { build: string; opponent: OpponentId; weapon: WeaponId; profile: RecordProfile; seed: number; loadouts?: [Loadout, Loadout] };
+export type FightRecord = RecordMeta & { v: RecordVersion; loadouts: [Loadout, Loadout]; ticks: number; outcome: Outcome; intents: Intent[] };
 
 // Quantization: the stick to 1/127 per axis, the camera yaw to 1/128 of a half-turn (about 1.4°). The live game steps the
 // quantized intent (main.ts), so a replay reproduces the fight bit for bit.
@@ -79,7 +81,7 @@ export function createRecorder(meta: RecordMeta) {
       return q;
     },
     finish(outcome: Outcome): FightRecord {
-      done ??= { v: RECORD_VERSION, ...meta, ticks: intents.length, outcome, intents: intents.slice() };
+      done ??= { v: RECORD_VERSION, ...meta, loadouts: meta.loadouts ?? [NAKED, NAKED], ticks: intents.length, outcome, intents: intents.slice() };
       return done;
     },
   };
@@ -87,7 +89,13 @@ export function createRecorder(meta: RecordMeta) {
 
 // ---- binary layout ---------------------------------------------------------------------------------------------------------
 // magic 'F' 'K' | version u8 | build: len u8 + ascii | opponent: len u8 + ascii | weapon: len u8 + ascii (version 2) | profile u8 | seed u32 LE | ticks u32 LE | outcome u8
+// | loadouts (version 11): four f64 LE — player attack, player res, opponent attack, opponent res — exact doubles, so a replay multiplies by the same bits the fight did
 // then six columns of `ticks` bytes each: x i8, z i8, yaw-delta u8 (byte yaw minus previous byte yaw, mod 256), action u8, dir u8, flags u8.
+// A multiplier is a positive finite double; the caps (src/gear-stats.ts) sit at 0.80 and 1.15, and a record is public input, so anything
+// outside a wide sane band is refused rather than stepped.
+const LOADOUT_BYTES = 4 * 8;
+const loadoutFields = (l: [Loadout, Loadout]) => [l[0].attack, l[0].res, l[1].attack, l[1].res];
+const loadoutInRange = (m: number) => Number.isFinite(m) && m > 0 && m < 16;
 const ascii = (s: string) => { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c > 127) throw Error(`Fight record: non-ASCII in "${s}"`); b[i] = c; } return b; };
 
 export function packRecord(r: FightRecord): Uint8Array {
@@ -97,12 +105,13 @@ export function packRecord(r: FightRecord): Uint8Array {
   if (build.length > 255 || opp.length > 255 || wpn.length > 255) throw Error('Fight record: build, opponent or weapon id too long');
   const profile = PROFILES.indexOf(r.profile), outcome = OUTCOMES.indexOf(r.outcome);
   if (profile < 0 || outcome < 0) throw Error('Fight record: unknown profile or outcome');
-  const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 4 + 4 + 1, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
+  const n = r.ticks, head = 3 + 1 + build.length + 1 + opp.length + 1 + wpn.length + 1 + 4 + 4 + 1 + LOADOUT_BYTES, out = new Uint8Array(head + 6 * n), dv = new DataView(out.buffer);
   let o = 0;
   out[o++] = 0x46; out[o++] = 0x4b; out[o++] = RECORD_VERSION;
   out[o++] = build.length; out.set(build, o); o += build.length;
   out[o++] = opp.length; out.set(opp, o); o += opp.length; out[o++] = wpn.length; out.set(wpn, o); o += wpn.length;
-  out[o++] = profile; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o] = outcome;
+  out[o++] = profile; dv.setUint32(o, r.seed >>> 0, true); o += 4; dv.setUint32(o, n, true); o += 4; out[o++] = outcome;
+  for (const m of loadoutFields(r.loadouts)) { if (!loadoutInRange(m)) throw Error('Fight record: loadout out of range'); dv.setFloat64(o, m, true); o += 8; }
   const col = (k: number) => head + k * n;
   let prevYaw = 0;
   for (let i = 0; i < n; i++) {
@@ -126,8 +135,11 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   const str = () => { const len = bytes[o++]; if (o + len > bytes.length) throw Error('Fight record: truncated'); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(bytes[o + i]); o += len; return s; };
   const build = str(), opponent = str() as OpponentId, weapon = str() as WeaponId;
   if (!PLAYER_WEAPONS.includes(weapon)) throw Error('Fight record: unknown weapon');   // the hero rig bakes blade tables for these only; an opponent-only weapon (maul, reaper) would throw inside the frame loop
-  if (o + 1 + 4 + 4 + 1 > bytes.length) throw Error('Fight record: truncated');
+  if (o + 1 + 4 + 4 + 1 + LOADOUT_BYTES > bytes.length) throw Error('Fight record: truncated');
   const profile = PROFILES[bytes[o++]], seed = dv.getUint32(o, true); o += 4; const n = dv.getUint32(o, true); o += 4; const outcome = OUTCOMES[bytes[o++]];
+  const fields: number[] = [];
+  for (let k = 0; k < 4; k++) { const m = dv.getFloat64(o, true); o += 8; if (!loadoutInRange(m)) throw Error('Fight record: loadout out of range'); fields.push(m); }
+  const loadouts: [Loadout, Loadout] = [{ attack: fields[0], res: fields[1] }, { attack: fields[2], res: fields[3] }];
   if (!profile || !outcome) throw Error('Fight record: unknown profile or outcome');
   if (n > MAX_RECORD_TICKS) throw Error(`Fight record: ${n} ticks is past the ${MAX_RECORD_TICKS}-tick limit`);
   if (bytes.length !== o + 6 * n) throw Error('Fight record: length does not match its tick count');
@@ -146,7 +158,7 @@ export function unpackRecord(bytes: Uint8Array): FightRecord {
   }
   // The version PARSED, not the constant: returning `RECORD_VERSION` here would let a decode-then-repack silently relabel an older
   // record as this build's, and packRecord's guard above would then throw on a record this function had just called well-formed.
-  return { v: v as RecordVersion, build, opponent, weapon, profile, seed, ticks: n, outcome, intents };
+  return { v: v as RecordVersion, build, opponent, weapon, profile, seed, loadouts, ticks: n, outcome, intents };
 }
 
 // ---- transport: gzip + base64url (no padding). CompressionStream is in every browser the game targets and in Node ≥ 18. --------

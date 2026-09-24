@@ -37,6 +37,10 @@ try {
       assert.equal(request.method(), 'GET'); assert.equal(url.searchParams.get('select'), 'user_id'); assert.equal(url.searchParams.get('user_id'), `eq.${user.id}`);
       return json(admin ? { user_id: user.id } : null);
     }
+    if (url.pathname === '/rest/v1/awards') {   // the server's awards (brief 19): the fight's Loadout reads them beside the admins row; RLS keeps them to the account's own
+      assert.equal(request.method(), 'GET'); assert.equal(url.searchParams.get('select'), 'piece,tier');
+      return json([{ piece: 'veteran.Helmet', tier: 5 }]);
+    }
     // The journal's daily line (PR #327) asks the server on every journal open, guest or not: today's warden and the day's board.
     if (url.pathname === '/rest/v1/rpc/daily_fight') { assert.equal(request.method(), 'POST'); return json({ day: new Date().toISOString().slice(0, 10), number: 1, seed: 12345 }); }
     if (url.pathname === '/rest/v1/rpc/mint_share') {   // one short server-minted share id for guests and fighters alike (migration 202609220009)

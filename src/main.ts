@@ -28,6 +28,7 @@ import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
+import { serverLoadout } from './gear-stats.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
@@ -316,6 +317,10 @@ signatureSelect.addEventListener('change', () => {
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile });
+// Gear (brief 19, deliverable 5): the player's Loadout is the equipped set at the tiers the SERVER awarded (session.awards, read by
+// account.ts) — a guest, an unawarded piece or a read that failed fights naked. Re-resolved when the awards land and on every equip.
+const gearUp = () => match.setLoadout(serverLoadout(profile.loot?.equipped ?? {}, session.awards));
+window.addEventListener('frankendom:awards', gearUp); window.addEventListener('frankendom:profile', gearUp);
 // The render pair (state → previous, interpolated by the frame's leftover time) and the fixed-step accumulator.
 let state = match.practice.fighter,
   previous = state,

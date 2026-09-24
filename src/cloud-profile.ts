@@ -77,3 +77,21 @@ export async function readAdmin(db: SupabaseClient, userId: string): Promise<boo
   if (error) throw error;
   return !!data && (data as { user_id?: unknown }).user_id === userId;
 }
+
+// The server's awards (migration 202609230001): every piece this account was AWARDED, at the tier the verifier fixed. The only source a
+// Loadout's tiers may have (docs/SCOPE.md: server-authoritative before stats touch a fight; src/gear-stats.ts serverLoadout) — never the
+// device's owned list or a Provenance tier, which the client writes. Null and never a throw for a guest, offline, the table missing
+// (PGRST205 on a host without the migration), permission denied or a malformed row: the caller fights naked, exactly, and nothing about
+// the account or the fight waits on this read.
+export async function readAwards(db: SupabaseClient): Promise<Map<string, number> | null> {
+  try {
+    const { data, error } = await db.from('awards').select('piece,tier');
+    if (error || !Array.isArray(data)) return null;
+    const tiers = new Map<string, number>();
+    for (const row of data as { piece?: unknown; tier?: unknown }[]) {
+      if (typeof row.piece !== 'string' || typeof row.tier !== 'number' || !Number.isInteger(row.tier) || row.tier < 1) return null;
+      tiers.set(row.piece, Math.max(tiers.get(row.piece) ?? 0, row.tier));   // the same piece awarded twice keeps its better rung
+    }
+    return tiers;
+  } catch { return null; }
+}

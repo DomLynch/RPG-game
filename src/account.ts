@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile, type Profile } from './profile.ts';
-import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
+import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readAwards, readFighter, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { marksOf } from './career.ts';
 import { mergeLoot } from './loot.ts';
 import { session } from './session.ts';
@@ -70,6 +70,11 @@ export async function mountAccount(url: string, key: string) {
       const admin = userId ? await readAdmin(db, userId).catch(() => false) : false;
       if (turn !== generation) return;
       showTools(admin);
+      // The server's awards feed the fight's Loadout (brief 19): read here, beside the roster, and published for main.ts; a failed
+      // read is a naked fight, never a failed account.
+      const awards = userId ? await readAwards(db) : null;
+      if (turn !== generation) return;
+      session.awards = awards; window.dispatchEvent(new Event('frankendom:awards'));
       if (!userId) status.textContent = 'Sign in to keep your fighter name, opponent and career marks across devices.';
       else if (!saved) await sync(local(), turn);   // the account's first fighter: this device's
       else if (merge) {

@@ -16,8 +16,16 @@ export type Intent = {
   cancel?: boolean;             // input cancellation: drop any buffered action
 };
 export const idleIntent = (): Intent => ({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+// Gear stats (brief 19, deliverable 5): the two multipliers a fighter fights with, resolved OUTSIDE the sim (src/gear-stats.ts, from
+// the server's awards) and handed in. Attack scales the damage this fighter DEALS, RES the damage he TAKES, chip included — and nothing
+// else: no timing, no posture (`shake`), and poise reads the unscaled blow, so gear never changes who staggers (Lead, 2026-09-24:
+// "skill decides"). NAKED is the exact identity, by construction and not by rounding luck: `geared` below returns the blow untouched when
+// the product is 1, so a fight without gear steps byte-identically to one recorded before stats existed. The sim owns this type so
+// gear-stats.ts imports it, never the reverse (the sim-boundary test).
+export type Loadout = { attack: number; res: number };
+export const NAKED: Loadout = { attack: 1, res: 1 };
 export type Fighter = {
-  body: State; health: number; stamina: number; rest: number; exhausted: boolean; wound: number; woundSite: HitLocation;
+  body: State; loadout: Loadout; health: number; stamina: number; rest: number; exhausted: boolean; wound: number; woundSite: HitLocation;
   phase: Phase; age: number; move: MoveId | null; chained: boolean; landed: boolean;
   chain: number; lastMove: MoveId | null; parryCooldown: number; punish: number; stun: number;
   posture: number; critical: number;   // posture 0..RULES.posture.max; critical = ticks left in which Heavy is the critical on a broken opponent
@@ -54,11 +62,12 @@ export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((Math
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero'): Fighter => ({ weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', loadout: Loadout = NAKED): Fighter => ({ weapon, rig, loadout, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false });
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
-export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
+export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready', loadout: Loadout = NAKED): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig, loadout);
 // The player's weapon (moves.ts PLAYER_WEAPONS). The longsword keeps its draw beat; any other weapon starts armed (the draw beat becomes a ready stance).
-export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword'): Duel => ({ tick: 0, fighters: [createFighter(initialState(), weapon === 'longsword' ? 'sheathed' : 'ready', weapon), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
+// `loadouts`: the player's gear and the opponent's, resolved outside (brief 19); absent, both fight naked — exactly the fight before stats.
+export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = 'longsword', loadouts: [Loadout, Loadout] = [NAKED, NAKED]): Duel => ({ tick: 0, fighters: [createFighter(initialState(), weapon === 'longsword' ? 'sheathed' : 'ready', weapon, 1, 0, RULES.health, undefined, 1, 1, 'hero', loadouts[0]), opponentFighter(opponent, { ...TARGET, heading: 0, distance: 0 }, 'ready', loadouts[1])], finish: null, events: [] });
 
 export const aim = (from: State, to: State): number => Math.atan2(to.x - from.x, to.z - from.z);
 export const distance = (a: State, b: State): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -305,6 +314,10 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (walledHit) shake(j, R.wall.posture);
     };
     let walledHit = false;
+    // Gear (brief 19): the attacker's Attack and the defender's RES scale the blow's NUMBER — what the bar loses and what the event says —
+    // and nothing else. Poise, stagger and posture below read the unscaled blow. A product of exactly 1 returns the blow untouched (the
+    // naked identity is a branch, not a rounding), so a table value need not be an integer for a naked fight to be bit-identical.
+    const gear = A.loadout.attack * D.loadout.res, geared = (blow: number) => gear === 1 ? blow : Math.round(blow * gear);
     const wound = (damage: number, knockback: number, mark = !!def.path) => {
       D.health = Math.max(0, D.health - damage);
       if (mark) {
@@ -327,18 +340,18 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       events.push({ tick, type: 'Parried', actor: j, target: i, move: a.move, weapon: weapon.id, material: weapon.material }, { tick, type: 'Staggered', actor: i, ticks: R.parryStun });
       shake(i, R.posture.parry);
     } else if (raised && !guarding && def.vsGuard) {   // a kick into a guard held on any other side: the shove lands as before. The low guard braces it — an ordinary block below.
-      spend(j, def.vsGuard.staminaDamage); wound(def.damage, def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: def.damage, location, heading: a.body.heading, weapon: weapon.id, material: weapon.material }); stagger(def.vsGuard.stagger); shake(j, def.posture);
+      spend(j, def.vsGuard.staminaDamage); wound(geared(def.damage), def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: geared(def.damage), location, heading: a.body.heading, weapon: weapon.id, material: weapon.material }); stagger(def.vsGuard.stagger); shake(j, def.posture);
     } else if (guarding && !breaks && d.stamina >= (d.age - g.window < R.perfectBlock ? blockCost * R.perfectBlockCost : blockCost)) {
       // A guard raised just in time (its first perfectBlock ticks as a block, never a parry window) pays half and stops the chip; the
       // discounted price is what has to be affordable.
-      const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost, chip = perfect ? 0 : Math.round(def.damage * def.chip * R.location[location]);
+      const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost, chip = perfect ? 0 : geared(Math.round(def.damage * def.chip * R.location[location]));
       spend(j, cost); D.counterWindow = R.guardCounter;   // a block opens the guard-counter window
       events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect, weapon: weapon.id, material: weapon.material, ...(chip ? { damage: chip } : {}) });
       if (chip) { wound(chip, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
       shake(j, def.posture * (perfect ? R.posture.perfect : 1));
     } else {
       const damage = Math.round(def.damage * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
-      if (guarding) { spend(j, R.breakCost); wound(damage, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage, location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
+      if (guarding) { spend(j, R.breakCost); wound(geared(damage), def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage: geared(damage), location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
       else {
         // Hyper-armour: a heavy parked at its chamber, a charged heavy, or any move past its poise point. A short hold that was released
         // uncharged is a plain heavy again (armour from its poise tick only).
@@ -354,7 +367,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         if (!def.path) spend(j, def.staminaDamage);
         // Poise: a brute shrugs a plain blow under his threshold — no stagger, no knockback; the wound and the posture still count.
         const shrugged = poised || (dealt < d.poise && !counter && !stop && !rear && !charged);
-        wound(dealt, shrugged ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: dealt, location, heading: a.body.heading, counter: counter || stop, rear, charged, weapon: weapon.id, material: weapon.material, ...(stop ? { stop: true } : {}), ...(trip ? { trip: true } : {}) });
+        wound(geared(dealt), shrugged ? 0 : def.knockback); events.push({ tick, type: 'Hit', actor: i, target: j, move: a.move, damage: geared(dealt), location, heading: a.body.heading, counter: counter || stop, rear, charged, weapon: weapon.id, material: weapon.material, ...(stop ? { stop: true } : {}), ...(trip ? { trip: true } : {}) });
         if (!shrugged || !D.health) stagger(stun);
         shake(j, def.posture * (counter ? R.counter.damage : 1));
       }
