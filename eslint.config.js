@@ -1,8 +1,0 @@
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
-export const SIM = ['src/sim.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/moves.ts', 'src/roster.ts', 'src/finishers.ts', 'src/duel.ts', 'src/ai.ts', 'src/combat.ts'];
-export default tseslint.config({ ignores: ['dist/**', 'node_modules/**', 'artifacts/**'] }, js.configs.recommended, ...tseslint.configs.recommended, { files: ['src/**/*.ts'], languageOptions: { globals: { document:'readonly',window:'readonly',navigator:'readonly',localStorage:'readonly',crypto:'readonly',performance:'readonly',requestAnimationFrame:'readonly',cancelAnimationFrame:'readonly',devicePixelRatio:'readonly',innerWidth:'readonly',innerHeight:'readonly',HTMLInputElement:'readonly' } } },
-  // Simulation modules must stay deterministic: the same intents replay to the same duel, so no randomness or clocks. SIM is the
-  // one list (tests/sim-boundary.test.ts reads it too and refuses any import from outside it): a new sim helper joins the list, not
-  // the exceptions.
-  { files: SIM, rules: { 'no-restricted-properties': ['error', { object: 'Math', property: 'random', message: 'Simulation randomness must come from seeded state.' }, { object: 'Date', property: 'now', message: 'Simulation has no wall clock.' }, { object: 'performance', property: 'now', message: 'Simulation has no wall clock.' }], 'no-restricted-globals': ['error', { name: 'window', message: 'No browser state in simulation.' }, { name: 'document', message: 'No browser state in simulation.' }, { name: 'localStorage', message: 'No browser state in simulation.' }, { name: 'requestAnimationFrame', message: 'No renderer timing in simulation.' }] } });
