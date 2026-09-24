@@ -3,6 +3,35 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-24 11:3x UTC: signature effects + Knight rebuild handed to Lead; all wait on Dom's yes/no/again
+
+**Now (next session):** wait for Lead/Strategy verdicts and Dom's word; answer them. Nothing is mid-build.
+- #657 Reaping Scar (Executioner A) @ 677009e6 — Lead: reads well.
+- #659 Rivet Burst (Knight) @ f0ca52e4 — A lit crescent dent (Lead: "reads as a glyph"; leave unless Dom says again),
+  B dark dent (rivets solved, dent invisible), C socket (rivets read, SOCKET DOES NOT READ at rivet-footprint size;
+  lever = ~2x size or lighter surround, Strategy's call). Last strip was on #672's knight.glb.
+- #665 Veteran @ 48d9e350 — A Battle Scars kept UNREGISTERED (no torso armour, truth rule); B Blade Bite (ring curls) = On;
+  C = twisted shavings (was rings, superseded 09:5xZ), 2 stay caught in the tines; scrape streak now rides the shaft.
+- #672 Knight rebuilt on #651 maul head @ bf9bbb14 — READY with Deploy; before/after stills show nothing wrong.
+- All four signature PRs are stacked on World's framework #655 (world/signature-effects @ 367e4dd3).
+
+**Done today** PRs #657 #659 #665 (signature effects, each its own file + one import line in scene.ts + a trigger test),
+#672 (knight.glb 6,679,956 -> 6,967,096 B, byte-exact with Weapons' build; budget PASS, knight pairing 8,068,178 gz).
+Evidence: branch evidence/signature-executioner @ 3b9c1e0a (all strips, zooms, Knight before/after).
+
+**Open** Dom's yes/no/again on every variant. None iPhone-checked. Scrape SOUND is the audio lane's.
+
+**Gotchas**
+- The framework's letters stop at C (signature.ts SIGNATURE_MODES, World's file). A 4th look means replacing a letter.
+- `pickSignature('on')` = A first: to make On resolve to B, leave A unregistered (export it; test pins it).
+- Body marks at the default chase camera: anything under ~0.4 m on dark plate is invisible at 375 px. Moving things read.
+- Contact points on the Veteran sit behind the player's body; measure on the tines for anything that must be seen.
+- Receipts: untracked `scripts/zz-sig-strip.mjs` drives the real createScene + stepPractice (`--want miss|hit|parried`,
+  `--signature A|B|C|off`, `--at` tick offsets, prints mark screen positions). For a model before/after, swap the glb
+  in from `git show <ref>:src/assets/<x>.glb`, render, then `git checkout HEAD -- src/assets/<x>.glb`.
+- zsh eats `$c:refs/...` as a modifier: write `${c}:refs/heads/...` when pushing a commit-tree sha.
+- Deploys ran back to back all day; the hook blocks tsc and even single-file tests while one is in flight.
+
 ## Now — 2026-09-24 05:0x UTC: #643 waits on DOM's yes (steel shells vs his dark iron); #603 is superseded
 
 **Now (next session):** #643 (`knight/body-cover` @ `0726db15`, MERGEABLE) passed Lead on Body/Arms/Greaves; the helm is fixed
