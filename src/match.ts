@@ -102,6 +102,17 @@ export class Match {
     this.replay = { record, cursor: fromTick };
     return true;
   }
+  // The rig could not carry the weapon (its equip file failed): the fight is fought with the one it does carry, so drawn = simulated.
+  // A live fight starts over on it (the rigs land before the controls wake: nothing the player did is lost); a replay cannot change
+  // weapon, so it becomes the unreadable-link page and PLAY NOW fights on the carried one. False when the weapon was already the carried one.
+  rearm(weapon: WeaponId): boolean {
+    if (weapon === this.weapon) return false;
+    this.weapon = weapon;
+    const replay = this.mode === 'replay';
+    this.begin(replay ? 'practice' : this.mode);
+    this.stalled = replay;   // the unreadable-link page: one line, PLAY NOW under it
+    return true;
+  }
   // Today's duel: its seed on the normal profile, and the day's one attempt is spent the moment the fight starts (a reload
   // mid-fight is the attempt). Refused (false) after a later start, as startReplay.
   startDaily(fight: DailyFight, epoch: number): boolean {

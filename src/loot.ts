@@ -69,9 +69,10 @@ export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
 // The weapon a career or rematch fight is fought with: the equipped main hand when the hero rig carries it (moves.ts PLAYER_WEAPONS),
 // else the longsword. main.ts gives it to the Match and the scene draws the Match's, so the hand and the simulation never disagree.
-export const fightWeapon = (loot: Loot | undefined): WeaponId => {
+// `carried`: the weapons this build can draw (scene.ts CARRIED_WEAPONS, those with an equip file).
+export const fightWeapon = (loot: Loot | undefined, carried: readonly WeaponId[] = PLAYER_WEAPONS): WeaponId => {
   const weapon = loot?.equipped.main && weaponOf(loot.equipped.main);
-  return weapon && PLAYER_WEAPONS.includes(weapon) ? weapon : 'longsword';
+  return weapon && PLAYER_WEAPONS.includes(weapon) && carried.includes(weapon) ? weapon : 'longsword';
 };
 export const paperdollOf = (slot: LootSlot): Paperdoll => (Object.keys(PAPERDOLL) as Paperdoll[]).find(key => (PAPERDOLL[key] as readonly LootSlot[]).includes(slot))!;
 // A piece's name for a line of copy: "the Veteran's helmet".

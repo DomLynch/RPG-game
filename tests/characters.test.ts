@@ -7,9 +7,9 @@ import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Gr
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
-import { OPPONENTS, PATHS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
+import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, armWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -833,4 +833,31 @@ test('a dropped fighter fetch is retried with back-off; a rig that parses but is
   assert.equal(calls, 1); assert.deepEqual(waits, []);
   assert.equal(transientLoadError(new TypeError('Load failed')), true); assert.equal(transientLoadError(new Error('NetworkError when attempting to fetch resource.')), true);
   assert.equal(transientLoadError(new Error('Warrior is missing Guard')), false); assert.equal(transientLoadError(new SyntaxError('Unexpected token')), false);
+});
+
+// The weapon take: every player weapon's equip file (scripts/build-player-weapon.mjs) goes into the hero's hand in place of the sword pair,
+// with its own clip family; a file that fails to load or fit leaves the fight on the longsword, never on the capsules.
+async function readEquip(weapon: string) {
+  const bytes = readFileSync(new URL(`../src/assets/weapons/player/${weapon}.glb`, import.meta.url)), size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+  json.images = []; json.textures = []; json.materials = (json.materials ?? []).map((m: { name: string }) => ({ name: m.name }));
+  json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
+  globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
+  return new GLTFLoader().parseAsync(JSON.stringify(json), '');
+}
+test('an equip file puts its weapon in the hero\'s hand for every player weapon, and a failed one falls back to the longsword without throwing', async () => {
+  const [hero, veteran] = await Promise.all([readWarrior('warrior.glb'), readWarrior('veteran.glb')]);
+  for (const weapon of PLAYER_WEAPONS.filter(w => w !== 'longsword')) {
+    const failed: unknown[] = [], armed = armWarriors(hero, veteran, [weapon, 'trident'], await readEquip(weapon), e => failed.push(e));
+    assert.equal(armed.playerWeapon, weapon, `${weapon}: carried`); assert.deepEqual(failed, [], `${weapon}: the file fits`);
+    const held = armed.player.anchor.getObjectByName('WeaponDrawn')!;
+    assert.ok(held, `${weapon}: WeaponDrawn in hand`); assert.equal(held.parent?.name, 'hand_r', `${weapon}: under hand_r`);
+    assert.equal(armed.player.anchor.getObjectByName('SwordDrawn'), undefined, `${weapon}: the sword is gone`);
+    for (const [pose, attack] of [['ready', 'light'], ['attack', 'light'], ['attack', 'heavy'], ['attack', 'thrust']] as const) armed.player.update(0, 1 / 60, pose, .5, attack, .4);
+  }
+  assert.ok(hero.scene.getObjectByName('SwordDrawn'), 'the loaded rig stays whole for the fallback');
+  for (const part of [Error('Load failed'), await readEquip('trident').then(p => { p.scene.getObjectByName('WeaponDrawn')!.name = 'Other'; return p; })]) {
+    const failed: unknown[] = [], armed = armWarriors(hero, veteran, ['trident', 'trident'], part, e => failed.push(e));
+    assert.equal(armed.playerWeapon, 'longsword', 'a failed equip file: the longsword'); assert.equal(failed.length, 1, 'reported once');
+    assert.ok(armed.player.anchor.getObjectByName('SwordDrawn'), 'the sword in hand');
+  }
 });

@@ -193,3 +193,22 @@ test('a career fight with the equipped knife records the knife, and its kill lin
   assert.equal(viewer.practice.duel.fighters[0].weapon, 'knife', 'the replay sims the knife');
   assert.equal(initialPractice(731, veteran, viewer.weapon).duel.fighters[0].weapon, 'knife', 'the replay page draws the knife');
 });
+
+test('a weapon without an equip file in the build, or whose file fails at load, is fought and drawn as the longsword', async () => {
+  const loot: Loot = { owned: ['veteran.Trident'], equipped: { main: 'veteran.Trident' } };
+  assert.equal(fightWeapon(loot, ['longsword', 'knife']), 'longsword', 'no trident file in the build: the longsword before the Match exists');
+  assert.equal(fightWeapon(loot, PLAYER_WEAPONS), 'trident');
+  // The file failed at runtime (characters.ts armWarriors carries the longsword): the live fight starts over on it before the controls wake.
+  const m = new Match(veteran, 'dev', table(), 731, 'trident');
+  assert.equal(m.rearm('trident'), false, 'the rig carries what was asked: nothing changes');
+  assert.ok(m.rearm('longsword')); assert.equal(m.weapon, 'longsword'); assert.equal(m.mode, 'career');
+  assert.equal(m.practice.duel.fighters[0].weapon, 'longsword'); assert.equal(m.recorder?.ticks, 0);
+  play(m); assert.equal(m.end(false).record!.weapon, 'longsword', 'the record carries what was fought');
+  // A kill link whose weapon could not be drawn becomes the unreadable-link page; PLAY NOW fights on the longsword.
+  const rec = createRecorder({ build: 'dev', opponent: 'veteran', weapon: 'trident', profile: 'normal', seed: 3 });
+  rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const v = new Match(veteran, 'dev', table(), 731, 'knife');
+  assert.ok(v.startReplay(rec.finish('abandoned'), 0, v.epoch)); assert.ok(v.rearm('longsword'));
+  assert.equal(v.replay, null); assert.equal(v.stalled, true); assert.equal(v.mode, 'practice');
+  v.playNow(); assert.equal(v.practice.duel.fighters[0].weapon, 'longsword');
+});
