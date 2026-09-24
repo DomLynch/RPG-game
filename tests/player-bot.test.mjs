@@ -182,3 +182,14 @@ test('worn down (posture high, stamina low), the tactical bot rolls out of a see
   const fresh = chooseTacticalAttack(observation({ tick: 112, gap: 1.2, stamina: 40, posture: 20, radius: 3 }), { tell: swing }, 12, config);
   assert.equal(fresh.reason, 'guard the observed attack');
 });
+
+test('the tactical bot does not block a heavy its stamina cannot pay for', () => {
+  const config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  const heavy = { tick: 100, type: 'AttackStarted', actor: 1, move: 'heavy_overhead', direction: 'overhead' };
+  const roll = chooseTacticalAttack(observation({ tick: 112, gap: 1.4, stamina: 40, posture: 0, radius: 3 }), { tell: heavy }, 12, config);
+  assert.deepEqual([roll.keys, roll.press], [['KeyS'], 'KeyE']);
+  const walk = chooseTacticalAttack(observation({ tick: 112, gap: 1.4, stamina: 20, posture: 0, radius: 3 }), { tell: heavy }, 12, config);
+  assert.deepEqual([walk.keys, walk.press], [['KeyS'], null]);
+  const block = chooseTacticalAttack(observation({ tick: 112, gap: 1.4, stamina: 80, posture: 0, radius: 3 }), { tell: heavy }, 12, config);
+  assert.equal(block.reason, 'guard the observed attack');
+});

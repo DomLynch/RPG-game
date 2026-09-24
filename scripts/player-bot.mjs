@@ -50,7 +50,8 @@ try {
   for (const opponent of opponents) for (const seed of seeds) {
     const [range, defense] = CONFIG[opponent];
     const windup = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, timing]) => [move, timing.windup]));
-    const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4 };
+    const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4,
+      heavyBlockCost: WEAPONS[OPPONENTS[opponent].weapon].moves.heavy_overhead.staminaDamage };   // a block of his heavy costs this much stamina (the player's guard costScale is 1)
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, ...(recordVideo ? { recordVideo: { dir, size: { width: 390, height: 844 } } } : {}) });
     const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], decisions: [], eligibleOpportunities: [], events: [], samples: [], track: [], errors: [] };
     const videoStart = performance.now();

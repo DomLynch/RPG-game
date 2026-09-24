@@ -152,6 +152,11 @@ export function chooseTacticalAttack(obs, state, reactionTicks, config) {
   const tell = state.tell, age = tell ? obs.tick - tell.tick : 0;
   if (tell && obs.enemyPhase === 'attack' && age >= reactionTicks && (own === 'ready' || own === 'guard')) {
     if (worn && obs.dodge !== false && obs.stamina >= 30) { eligible.push({ kind: 'disengage', tick: tell.tick }); return choice([away], 'KeyE', 'roll out: posture high, stamina low'); }
+    // A heavy costs more stamina to block than a low bar holds, and an unpaid block is a guard break: roll out, or walk if a roll is unaffordable.
+    if (tell.move === 'heavy_overhead' && obs.stamina < (config.heavyBlockCost ?? 45)) {
+      eligible.push({ kind: 'disengage', tick: tell.tick });
+      return obs.dodge !== false && obs.stamina >= 30 ? choice([away], 'KeyE', 'roll out: heavy, stamina too low to block') : choice([away], null, 'walk out: heavy, stamina too low to block');
+    }
     const side = MIRROR[tell.direction];
     if (side) { eligible.push({ kind: 'guard tell', tick: tell.tick }); return choice(['KeyQ', side], null, 'guard the observed attack'); }
   }
