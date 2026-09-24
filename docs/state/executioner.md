@@ -3,6 +3,18 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-24 late: #666 UNBLOCKED; build it on #705 (world/tier-dressing @ 3cf1018b)
+
+**Now (next session):** #666 (Shieldmaiden signature A, Splintered Defiance; pitborn/sig-splintered-defiance @ 61d65db2). Lead: the
+opponent loot carriers ride INSIDE #705 (World's tier dressing, Strategy PASSED @ 3cf1018b); there is no separate carriers PR.
+Stack #666 on `world/tier-dressing` (base it there, or rebase once #705 lands after the playtest), merged with #706 (her shield,
+char/shieldmaiden-shield @ 46b28f2f) so she actually carries a Shield-slot mesh. Resolve the scene.ts signature import block as a
+union (as #682 did). Receipt: a labelled 375 still of HER wearing the shield (plus the splinter strip on a blocked heavy) to LEAD first,
+then Strategy. Tests: tsc, typecheck:tests, npm test, `node --test tests/signature*.test.ts`, and check-budget output (dist is at
+38.58 of 40 MB gz). No deploy. No loot.glb builds or browser while the deploy lock is held.
+**#706:** READY sent to Deploy on Lead's order, to merge AFTER the playtest (not with Weapons' 10:00 WEAPON-TAKE run). Lead ran
+loot.test.ts on 46b28f2f in a clean worktree: 4/4 pass. The paperdoll #slot-undefined fix went to Web.
+
 ## Now — 2026-09-24 ~19:xx UTC: #706 shieldmaiden.Shield with Lead for READY; #666 blocked on World's carriers
 
 **Now (next session):**
