@@ -2,6 +2,8 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 15:26 (+04, `date`) — LIVE 91d9f749: #671 arena-select fix (an arena pick on the Options tab reloads into that arena on its own; no Opponent change needed). My curl: release.json 91d9f749, bundle /assets/index-Tt6rrvS5.js has supabase.co and the arena-override key. Load 42. Next run: #672 Knight rebuild + #673 Pack, both ruled yes, on CI
+
 ## 2026-09-24 15:13 (+04, `date`) — RULED YES: Pack #673 @ 03b1cc23 (Weapons; 2 open + 3 padlocked, Store into the pack, Wear back, "Pack full" reason; take-flow gap folded in before merge) and Knight rebuild #672 @ bf9bbb14 (Executioner; grey cube → dark stone in idle and mid-swing). Both READY for the run after #671
 
 My eye on both stills (copies in my scratchpad: pack-one-stored, pack-full, knight-maul-before-after). Weapons' claims not checked by me: local + signed-in persistence, old records' unworn pieces packed at load (tested 5/5 per Lead); live proof = Dom's lost Pitborn boots reappearing in his pack. Take-flow gap (taking into an occupied slot drops the old piece) folded into #673; head moves; Lead re-verifies then merges.
