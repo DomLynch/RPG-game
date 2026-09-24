@@ -2,6 +2,26 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lead — 2026-09-24 22:50 +04: Evaded! shipping, WEAPON-TAKE full loader, block A–D plan accepted, SKILL slice started
+**Now.** #712 "Evaded!" (dc15c012) merged as 40014b11. Deploy is running it ALONE, because Dom told Deploy directly "deploy please" (lock since 18:41:53Z).
+When `release.json` shows 40014b11: grep the bundle, then send Strategy the sha line. Next is **#713 WEAPON-TAKE** (7bb0393a, the full equip loader, out of draft, no SIM_FILES).
+I've read the code: a load or fit failure falls back to the longsword on the rig, fightWeapon only offers CARRIED_WEAPONS, and the Match re-arms.
+Once the lock is free I run tsc and npm test on 7bb0393a and check CI, then READY it to Deploy as its OWN run tonight (it doesn't wait for 10:00). Then the sha line.
+**Done today (verified by me).** #712: tsc 0, npm test 608/606/0/2, and the new test fails 6 of 8 with trunk's combat.ts put back (the reproducer).
+#706's flagged loot test: 4/4 on 46b28f2f. #680 is bot-only plus the localhost ?debug seed in main.ts. #708 isn't sim (events.ts/match.ts).
+#710/#711 are docs-only. Rulings from Strategy: #705 PASS, #709 PASS, #717 PASS for the fight frame, #716 NOT YET (hood and robe silhouette),
+#706 PASS on the player-worn still, the SKILL button PASS with its layout revision owed, the Witch as the slice creature.
+**Plan (ACCEPTED by Strategy).** A1, Fri 09-25 evening: ONE post-playtest run: #714 → #709 → #717 → #716 (only if PASSED; rebuild) → #706 (rebase + rebuild loot.glb) → #705 → #708 → #680.
+A2, Mon 09-28: the v11 window with #707, after Pitborn's duel.ts review (Combat re-reads it before B2). A3, Wed 09-30: the Shieldmaiden hem/boot shoe follow-up (Veteran),
+#666 (Executioner, stacked on #705 world/tier-dressing), Auditer findings A→B, and playtest triage by Sat.
+Block B = the SKILL slice (Witch arm → Witch-fire). B0 receipts: Web's SKILL still PASSED (layout rev: directly above HEAVY, the six unmoved, due 23:45),
+Weapons' spec #720 (ffa51dce; 4 rulings asked of Strategy: guardable override, damage 26, can it kill, the Shield rule), World's 3 arm directions due Fri 10:00.
+B1: a preview branch before Wed 09-30 (re-cut the date with the sha line). B2: live in the Mon 10-05 v12 window. C1: provenance on 10-09. D1: an assembly design doc on 10-16.
+**Open.** Combat and Backend have no sessions; Strategy is asking Dom to open both. Brief 3 (the data model) is due from Dom by Sun 09-27. SCOPE.md is on PR #715 (docs).
+**Gotchas.** Four PRs rebuild the binary src/assets/loot.glb (#709/#717/#716/#706): merge them in order, and the owner rebases and rebuilds; never hand-merge.
+#714's loot-layers test catches the shield going back to #slot-undefined. SKILL vocabulary: never "special". The button is plain text, same look as the six,
+and COOLING = dim only. Strategy's socket moved from 37768 to 78436; use ListAgents names plus [ref] where a name is duplicated. zsh `echo =====` breaks a command.
+
 ## Lead — 2026-09-23 14:05–15:30 local: Publish B FAILED -> fallback revert + B' (swap held) -> equip loader tomorrow (read ALL of this first; later lines supersede earlier ones)
 **Dom 14:00 "accelerate" (Strategy ruled):** Publish B = #532 -> #545 -> #543 -> #547 -> **Combat's re-pin PR** (bump to 7, re-pin,
 SIM_FILES closure + test, knife/scythe rebake, gladius offered, #547's 12 re-signs), built on the COMBINED tree of #545 + #547 and
