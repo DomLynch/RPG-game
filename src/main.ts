@@ -241,6 +241,16 @@ finisherSelect.addEventListener('change', () => {
   const value = finisherSelect.value;
   view.setFinisherOverride(value === 'auto' ? null : (value as FinisherId));
 });
+// The arena test override (admin test tools, like the finisher): which arena the NEXT fight builds in. The arena is built at load and
+// Next reloads the page, so the pick is stored and read at load; `?arena=` in the URL still wins. Unset = the ladder band decides.
+// Test tool only: no ladder or progress change, and nothing is read or built when it is unset.
+const ARENA_PICK_KEY = 'frankendom.arena-override';
+const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY) ?? ''; } catch { return ''; } })();
+const arenaSelect = element<HTMLSelectElement>('arena-select');
+arenaSelect.value = storedArena; if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // the options are index.html's (ArenaKey values); an unknown stored key reads as Ladder and arenaFor() ignores it
+arenaSelect.addEventListener('change', () => {
+  try { if (arenaSelect.value) sessionStorage.setItem(ARENA_PICK_KEY, arenaSelect.value); else sessionStorage.removeItem(ARENA_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
+});
 {
   // The bars name whoever is in the arena (Dom via Strategy, 2026-09-22): no rung is exempt any more — the first one used to keep
   // index.html's "ARENA WARDEN", which is now the no-opponent fallback "OPPONENT". The meters' labels follow for a screen reader.
@@ -589,7 +599,7 @@ try {
       if (kind !== 'loading') hideVersus();
     },
     opponent.id,
-    /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1],   // dev look / stills: ?arena=3b (arena-themes.ts)
+    /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
   );
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
 } catch (error) {
