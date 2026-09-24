@@ -21,7 +21,7 @@ test('the sheet grows, tears into drops, and the drops land as at most two floor
   const scene = new THREE.Scene(), marks = createSignatureMarks(scene);
   const root = new THREE.Group(), bone = new THREE.Bone();
   bone.name = 'spine_02'; bone.position.set(0, 1.25, 0); root.add(bone); scene.add(root);
-  const frame = { fighters, roots: [root, null] as const, scale: [1, 1.13] as const, yielding: false, marks };
+  const frame = { fighters, roots: [root, null] as const, scale: [1, 1.13] as const, yielding: false, bloodMode: 'red' as const, marks };
   wake.fire(hit(1, 'heavy_overhead'), frame);
   assert.deepEqual(wakeState(), { sheets: 1, drops: 0 });
   for (let t = 0; t < WAKE.tear + 0.02; t += 1 / 60) wake.update!(1 / 60, frame);
