@@ -5,7 +5,26 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-24
+## Now — 2026-09-24 ~13:00 (signature effects, Lead's assignment for Dom's 13:05 deadline)
+
+**Three PRs open, all waiting on Dom via Strategy. Nothing to build until one comes back.** HOLD browser renders until Lead says
+World's Witch strip has landed (Mac at load 50–100).
+- **#661 Pitborn Butcher's Wake (A)**, head `e1169159`, base `world/signature-dwarf-stamp` @ `ef7e9f86`. `src/signature-pitborn.ts`
+  + tests + one import line in `scene.ts`. His heavy tears a curved blood sheet off the cleaver → drops → 2 floor spots. Lead: reads;
+  sent to Strategy.
+- **#666 Shieldmaiden Splintered Defiance (A)**, head `61d65db2`, titled "waits for her shield (#606)". She has NO shield in game.
+  Lead ruled **no fallback**: with no `userData.slot === 'Shield'` mesh the effect does nothing; with one, rim chips via
+  `marks.shield` (cap 4) + splinters from the rim. Node-tested on a mock shield only, never rendered.
+- **#667 Dwarf Hammer Stamp B + C** (prep, not ruled), head `402d5cb8`, into `world/signature-dwarf-stamp` (off `dc2d6368`).
+  B = 2× dark bruise square (Strategy: "a smudge", frame 1 "a censor block"). C = chamfered-octagon hammer face, 0.25 s fade-in
+  (Lead + me: still a flat black octagon, a hole/sticker not a bruise). A untouched. Next pass if asked: lighter mid-tones, a
+  visible rim, less opaque core.
+- **Veteran Battle Scars**: reassigned to Executioner. Not ours.
+- **Open gap (World's, not ours):** no signature honours blood-off; `SignatureFrame` has no `bloodMode`.
+- #661 and #666 each add an adjacent import line to `scene.ts`, so merging both gives a trivial conflict. All three need retargeting
+  once #655 and the Dwarf branch land.
+
+## Then — 2026-09-24 morning
 
 **Nothing open in this lane.** Everything below the 09-23 handover has shipped; live `c0400c1f` contains all of it
 (`git merge-base --is-ancestor`, checked against frankendom.com/release.json).
