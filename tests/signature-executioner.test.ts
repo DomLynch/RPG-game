@@ -15,5 +15,5 @@ test('the Reaping Scar answers only his own heavy that missed: not a light miss,
   assert.equal(when(missed(1, 'light_right')), false, 'his light missed');
   assert.equal(when(missed(0, 'heavy_overhead')), false, 'the player\'s heavy missed');
   assert.equal(when({ tick: 1, type: 'Hit', actor: 1, target: 0, move: 'heavy_overhead', damage: 18 }), false, 'his heavy landed');
-  assert.equal(when({ tick: 1, type: 'Dodged', actor: 0, target: 1, move: 'heavy_overhead' }), false, 'the player dodged it (the sim writes a miss separately if it whiffs)');
+  assert.equal(when({ tick: 1, type: 'Dodged', actor: 0, target: 1, move: 'heavy_overhead' }), false, 'the player dodged it');
 });
