@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 import { preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack } from './lib/player-bot-policy.mjs';
-import { damageSources, explainDecisions, intentFor, selectMoments, videoSecondAt } from './lib/player-bot-review.mjs';
+import { chargedAnswers, damageSources, defenceEarned, explainDecisions, intentFor, selectMoments, summarizeDefences, videoSecondAt } from './lib/player-bot-review.mjs';
 import { limitedObservation } from './lib/player-bot-observation.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
 import { LONGSWORD, OPPONENTS, RULES, WEAPONS } from '../src/moves.ts';
@@ -24,7 +24,7 @@ const headed = process.argv.includes('--headed');
 const recordClips = recordVideo && !process.argv.includes('--no-clips');
 const showDebugVideo = process.argv.includes('--show-debug-video');
 const strategy = option('strategy', 'tactical');
-const observation = option('observation', 'debug');
+const observation = option('observation', 'limited');
 const requested = option('opponents', option('opponent', 'pitborn'));
 const playable = ENCOUNTERS.filter(entry => !entry.hold).map(entry => entry.id);
 const opponents = requested === 'all' ? playable : requested.split(',');
@@ -46,14 +46,14 @@ const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8',
 const identity = strategy === 'tactical' ? 'LATEST tactical' : 'ARCHIVED diagnostic';
 console.log(JSON.stringify({ identity, revision: `${revision}${dirty ? '-dirty' : ''}`, strategy, difficulty: 'easy', observation, headed }));
 const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge'] };
-const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, headed, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'rounded delayed distance/position and delayed combat events; current own phase/stamina/health', fights: [] };
+const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, headed, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'player view: HUD threat flag, stamina/health meters, perceivable events only (windup side/kind, charge cue, contact sounds), all opponent-side information delayed; distance rounded to half-metres; current own phase', fights: [] };
 try {
   for (const opponent of opponents) for (const seed of seeds) {
     const [range, defense] = CONFIG[opponent];
     const windup = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, timing]) => [move, timing.windup]));
     const config = { range, defense, windup, parryTicks: RULES.parry, thrustRange: LONGSWORD.moves.thrust.reach - .1, wallRadius: RADIUS - RULES.wall.loiter.band - .4 };
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, ...(recordVideo ? { recordVideo: { dir, size: { width: 390, height: 844 } } } : {}) });
-    const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], decisions: [], eligibleOpportunities: [], events: [], samples: [], errors: [] };
+    const page = await context.newPage(), video = page.video(), held = new Set(), fight = { opponent, seed, inputs: [], decisions: [], eligibleOpportunities: [], events: [], samples: [], track: [], errors: [] };
     const videoStart = performance.now();
     const release = async () => { for (const key of [...held]) { try { await page.keyboard.up(key); fight.inputs.push({ tick: fight.durationSeconds == null ? null : Math.round(fight.durationSeconds * 60), key, edge: 'up', reason: 'end/reset/error' }); } catch (error) { fight.errors.push(`release ${key}: ${error}`); } finally { held.delete(key); } } };
     const keys = async (wanted, tick) => {
@@ -103,10 +103,12 @@ try {
             thrust: document.querySelector('#thrust-button').getAttribute('aria-disabled') === 'false',
             kick: document.querySelector('#kick-button').getAttribute('aria-disabled') === 'false',
             dodge: document.querySelector('#dodge-button').getAttribute('aria-disabled') === 'false',
+            threat: document.querySelector('#combat-status').dataset.threat === 'true', meterStamina: Number(document.querySelector('#stamina').value),
             events: window.__botEvents.slice(cursor), count: window.__botEvents.length };
         }, cursor);
         cursor = obs.count;
         fight.events.push(...obs.events);
+        if (fight.track.at(-1)?.tick !== obs.tick) fight.track.push({ tick: obs.tick, gap: obs.gap, radius: +obs.radius.toFixed(2) });
         if (!fight.samples.length || obs.tick - fight.samples.at(-1).tick >= 60) {
           fight.samples.push({ tick: obs.tick, videoSeconds: (performance.now() - videoStart) / 1000, hp: obs.hp, enemyHp: obs.enemyHp, stamina: obs.stamina, gap: obs.gap, radius: obs.radius });
           if (recordVideo) {
@@ -186,6 +188,10 @@ try {
       }
       fight.aftermathEvents = await page.evaluate(start => window.__botEvents.slice(start), end.events.length);
       fight.decisions = explainDecisions(fight.decisions, fight.events);
+      const moveDamage = Object.fromEntries(Object.entries(WEAPONS[OPPONENTS[opponent].weapon].moves).map(([move, def]) => [move, def.damage]));
+      fight.defences = defenceEarned(fight.events, fight.track, moveDamage, RULES.charge.damage);
+      fight.defenceSummary = summarizeDefences(fight.defences);
+      fight.chargedHeavies = chargedAnswers(fight.events, fight.decisions);
       fight.moments = selectMoments(fight.events, fight.decisions, end.tick);
       fight.videoTailSeconds = recordVideo ? 5 : 0;
       if (fight.outcome === 'loss') {
@@ -220,11 +226,18 @@ try {
         }
       }
       await fs.writeFile(`${dir}/${opponent}-${seed}.json`, JSON.stringify(fight, null, 2));
-      const { inputs, decisions, events, samples, ...summary } = fight;
-      receipt.fights.push({ ...summary, inputCount: inputs.length, decisionCount: decisions.length, eventCount: events.length, sampleCount: samples.length });
+      const { inputs, decisions, events, samples, track, defences, ...summary } = fight;
+      receipt.fights.push({ ...summary, defenceRows: defences, inputCount: inputs.length, decisionCount: decisions.length, eventCount: events.length, sampleCount: samples.length });
       console.log(JSON.stringify({ opponent, seed, outcome: fight.outcome, durationSeconds: fight.durationSeconds, blocks: fight.blocks, counterHits: fight.counterHits, error: fight.error }));
     }
   }
+  receipt.report = Object.fromEntries(opponents.map(id => {
+    const fights = receipt.fights.filter(f => f.opponent === id), charged = fights.flatMap(f => f.chargedHeavies ?? []);
+    const tally = list => list.reduce((n, x) => ({ ...n, [x]: (n[x] ?? 0) + 1 }), {});
+    return [id, { wins: fights.filter(f => f.outcome === 'win').length, losses: fights.filter(f => f.outcome === 'loss').length, timeouts: fights.filter(f => f.outcome === 'timeout').length,
+      chargedHeavies: { total: charged.length, answers: tally(charged.map(c => c.answer)), reactedToCharge: charged.filter(c => c.reactedToCharge).length, damageTaken: charged.reduce((n, c) => n + c.damage, 0) },
+      defences: summarizeDefences(fights.flatMap(f => f.defenceRows ?? [])) }];
+  }));
   receipt.rates = Object.fromEntries(opponents.map(id => [id, receipt.fights.filter(f => f.opponent === id && f.outcome === 'win').length / count]));
   receipt.passed = opponents.every(id => receipt.rates[id] >= 2 / 3) && receipt.fights.every(f => !f.error && !f.errors.length && f.inputsReleased && (strategy !== 'tactical' || f.attackMix.passed));
   assert.ok(receipt.passed, 'at least two-thirds real Easy wins per selected opponent; no run errors');

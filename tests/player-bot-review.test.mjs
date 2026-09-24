@@ -59,3 +59,33 @@ test('damage sources count guard break once and keep arena damage separate', () 
     arena: { toPlayer: 0, toOpponent: 3 },
   });
 });
+
+test('each defence reports what it earned: damage avoided, window opened and used, distance', async () => {
+  const { defenceEarned, summarizeDefences, chargedAnswers } = await import('../scripts/lib/player-bot-review.mjs');
+  const events = [
+    { tick: 10, type: 'AttackStarted', actor: 1, move: 'light_right' },
+    { tick: 30, type: 'Blocked', actor: 0, target: 1, move: 'light_right', perfect: false, damage: 2 },
+    { tick: 40, type: 'AttackStarted', actor: 0, move: 'heavy_counter' },
+    { tick: 60, type: 'Hit', actor: 0, target: 1, move: 'heavy_counter', damage: 20 },
+    { tick: 100, type: 'AttackStarted', actor: 1, move: 'heavy_overhead' },
+    { tick: 130, type: 'Charged', actor: 1, move: 'heavy_overhead' },
+    { tick: 150, type: 'ActionStarted', actor: 0, action: 'roll' },
+    { tick: 165, type: 'Dodged', actor: 0, target: 1, move: 'heavy_overhead' },
+    { tick: 300, type: 'ActionStarted', actor: 0, action: 'backstep' },
+  ];
+  const track = [{ tick: 0, gap: 1.5, radius: 2 }, { tick: 150, gap: 1.2, radius: 3 }, { tick: 180, gap: 2.2, radius: 3.5 }, { tick: 300, gap: 2, radius: 3 }];
+  const list = defenceEarned(events, track, { light_right: 10, heavy_overhead: 20 });
+  assert.deepEqual(list.map(d => [d.type, d.avoided, d.windowOpened, d.windowUsed, d.counterMove, d.landed, d.result]), [
+    ['block', 8, true, true, true, true, 'chip'],
+    ['roll', 30, true, false, false, false, 'dodged'],
+    ['backstep', 0, false, false, false, false, 'no attack in flight'],
+  ]);
+  assert.equal(list[1].charged, true);
+  assert.equal(list[1].distance, 1);
+  const summary = summarizeDefences(list);
+  assert.equal(summary.roll.avoided, 30);
+  assert.equal(summary.block.landed, 1);
+  assert.equal(summary.backstep.underThreat, 0);
+  const charged = chargedAnswers(events, [{ tick: 145, reason: 'lateral roll clear of charged overhead' }]);
+  assert.deepEqual(charged, [{ tick: 130, move: 'heavy_overhead', answer: 'rolled', playerActions: ['roll'], reactedToCharge: true, damage: 0 }]);
+});

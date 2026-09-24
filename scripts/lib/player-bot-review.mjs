@@ -77,3 +77,85 @@ export function damageSources(events) {
     toOpponent: sum(e => e.type === 'Whipped' && e.target === 1),
   } };
 }
+
+// What each of the player's defences earned, from the exact event log (a review measure, never bot input). `moves` maps the
+// opponent's move ids to their base damage; `track` is the exact {tick, gap, radius} per bot step.
+const RESOLVES = e => (e.type === 'Hit' || e.type === 'GuardBroken') && e.actor === 1 && e.target === 0
+  || (e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged') && e.actor === 0 && e.target === 1
+  || e.type === 'AttackMissed' && e.actor === 1;
+const RIPOSTES = new Set(['riposte', 'slash_riposte', 'heavy_riposte']);
+// Ticks in which an answer counts as using the window: the guard counter (RULES.guardCounter), the parry stun (RULES.parryStun), and a
+// whiffed swing's recovery for an evade.
+export const DEFENCE_WINDOWS = { block: 20, 'perfect block': 20, parry: 90, roll: 45, backstep: 45 };
+
+// The opponent attack a defence answered: the last one started at or before it that resolves at or after it.
+function attackAt(events, tick) {
+  const starts = events.filter(e => e.type === 'AttackStarted' && e.actor === 1 && e.tick <= tick);
+  for (let i = starts.length - 1; i >= 0; i--) {
+    const start = starts[i], end = events.find(e => e.tick >= start.tick && RESOLVES(e));
+    if (!end || end.tick >= tick) return { start, end, charged: events.some(e => e.type === 'Charged' && e.actor === 1 && e.tick >= start.tick && (!end || e.tick <= end.tick)) };
+    if (i < starts.length - 1) break;
+  }
+  return null;
+}
+const gapAt = (track, tick) => { let best = null; for (const t of track) { if (t.tick > tick) break; best = t; } return best; };
+
+export function defenceEarned(events, track, moves, charge = 1.5) {
+  const list = [];
+  for (const e of events) {
+    let type = null;
+    if (e.type === 'Blocked' && e.actor === 0) type = e.perfect ? 'perfect block' : 'block';
+    else if (e.type === 'Parried' && e.actor === 0) type = 'parry';
+    else if (e.type === 'ActionStarted' && e.actor === 0 && (e.action === 'roll' || e.action === 'backstep')) type = e.action;
+    if (!type) continue;
+    const attack = attackAt(events, e.tick), end = attack?.end;
+    const nominal = attack ? Math.round((moves[attack.start.move] ?? 0) * (attack.charged ? charge : 1)) : 0;
+    let avoided = 0, result = 'no attack in flight';
+    if (type === 'block' || type === 'perfect block') { avoided = Math.max(0, nominal - (e.damage ?? 0)); result = e.damage ? 'chip' : 'clean'; }
+    else if (type === 'parry') { avoided = nominal; result = 'parried'; }
+    else if (end) {
+      const clear = end.type === 'Dodged' || end.type === 'AttackMissed';
+      avoided = clear ? nominal : 0;
+      result = clear ? (end.type === 'Dodged' ? 'dodged' : 'swing missed') : end.type === 'Hit' || end.type === 'GuardBroken' ? 'hit anyway' : 'defended otherwise';
+    }
+    // An evade only opens a window when the opponent's swing went to air; blocks and parries always open theirs.
+    const opened = type === 'roll' || type === 'backstep' ? result === 'dodged' || result === 'swing missed' : true;
+    const from = type === 'roll' || type === 'backstep' ? end?.tick ?? e.tick : e.tick, until = from + DEFENCE_WINDOWS[type];
+    const nextThreat = events.find(x => x.type === 'AttackStarted' && x.actor === 1 && x.tick > from)?.tick ?? Infinity;
+    const answer = opened ? events.find(x => x.type === 'AttackStarted' && x.actor === 0 && x.tick > from && x.tick <= Math.min(until, nextThreat)) : undefined;
+    const landed = answer ? events.some(x => x.type === 'Hit' && x.actor === 0 && x.move === answer.move && x.tick >= answer.tick && x.tick <= answer.tick + 60) : false;
+    const before = gapAt(track, e.tick), after = gapAt(track, e.tick + 30);
+    list.push({ tick: e.tick, type, against: attack?.start.move ?? null, charged: !!attack?.charged, result, avoided, windowOpened: opened,
+      windowUsed: !!answer, answer: answer?.move ?? null, counterMove: !!answer && (answer.move === 'heavy_counter' || RIPOSTES.has(answer.move)), landed,
+      distance: before && after ? +(after.gap - before.gap).toFixed(2) : null, wall: before && after ? +(after.radius - before.radius).toFixed(2) : null });
+  }
+  return list;
+}
+
+// Per defence type: count, damage avoided, windows opened/used/landed, mean distance change (+ = space gained) and mean wall drift (+ = toward the wall).
+export function summarizeDefences(list) {
+  const out = {};
+  for (const type of Object.keys(DEFENCE_WINDOWS)) {
+    const rows = list.filter(d => d.type === type), moved = rows.filter(d => d.distance !== null);
+    const mean = key => moved.length ? +(moved.reduce((n, d) => n + d[key], 0) / moved.length).toFixed(2) : null;
+    out[type] = { count: rows.length, underThreat: rows.filter(d => d.against).length, avoided: rows.reduce((n, d) => n + d.avoided, 0),
+      hitAnyway: rows.filter(d => d.result === 'hit anyway').length, windowsOpened: rows.filter(d => d.windowOpened).length,
+      windowsUsed: rows.filter(d => d.windowUsed).length, landed: rows.filter(d => d.landed).length, distance: mean('distance'), wall: mean('wall') };
+  }
+  return out;
+}
+
+// How each of the opponent's charged heavies was answered, and whether the bot's own decisions show it saw the charge.
+export function chargedAnswers(events, decisions) {
+  return events.filter(e => e.type === 'Charged' && e.actor === 1).map(c => {
+    const start = events.filter(e => e.type === 'AttackStarted' && e.actor === 1 && e.tick <= c.tick).at(-1);
+    const end = events.find(e => e.tick >= c.tick && RESOLVES(e));
+    const between = events.filter(e => e.actor === 0 && e.type === 'ActionStarted' && e.tick >= (start?.tick ?? c.tick) && e.tick <= (end?.tick ?? Infinity)).map(e => e.action);
+    const answer = !end ? 'fight ended'
+      : end.type === 'Dodged' ? 'rolled' : end.type === 'Parried' ? 'parried' : end.type === 'Blocked' ? (end.perfect ? 'perfect block' : 'blocked')
+      : end.type === 'GuardBroken' ? 'guard broken' : end.type === 'Hit' ? 'hit clean'
+      : between.includes('backstep') ? 'backstepped' : between.includes('roll') ? 'rolled (out of reach)' : 'missed (spacing)';
+    const saw = decisions.some(d => d.tick >= c.tick && d.tick <= (end?.tick ?? c.tick + 60) && /charged/.test(d.reason ?? d.intent ?? ''));
+    return { tick: c.tick, move: c.move, answer, playerActions: between, reactedToCharge: saw, damage: end && (end.type === 'Hit' || end.type === 'GuardBroken') ? end.damage ?? 0 : 0 };
+  });
+}
