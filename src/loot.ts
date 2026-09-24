@@ -134,6 +134,14 @@ export const stow = (loot: Loot, key: Paperdoll): Loot => {
   const id = loot.equipped[key];
   return id && !packFull(loot) ? { ...unwear(loot, key), pack: [...(loot.pack ?? []), id] } : loot;
 };
+// A take into an occupied slot (the kill-screen loot panel): the piece it replaces goes into the pack when there is room. With the pack
+// full it would leave the Profile tab, so the panel asks first (takeWouldDrop) and the take goes through only on the player's word.
+export const displacedBy = (loot: Loot, id: LootId): LootId | null => { const held = loot.equipped[paperdollOf(slotOf(id))]; return held && held !== id ? held : null; };
+export const takeWouldDrop = (loot: Loot, id: LootId) => !!displacedBy(loot, id) && packFull(loot);
+export const wearTaken = (loot: Loot, id: LootId): Loot => {
+  const held = displacedBy(loot, id);
+  return wear(held && !packFull(loot) ? { ...loot, pack: [...(loot.pack ?? []), held] } : loot, id);
+};
 // Wear from the pack: the piece leaves the pack for its slot, and whatever that slot held takes the pack place it left.
 export const wearFromPack = (loot: Loot, id: LootId): Loot => {
   const at = loot.pack?.indexOf(id) ?? -1;

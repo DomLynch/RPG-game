@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, wear, wearFromPack, type Loot } from '../src/loot.ts';
+import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, takeWouldDrop, wear, wearFromPack, wearTaken, type Loot } from '../src/loot.ts';
 import { loadProfile, saveProfile, type StoragePort } from '../src/profile.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 
@@ -67,4 +67,18 @@ test('signed in: a Store is a change to save, and the device\'s pack is the one 
   assert.deepEqual(absorbed.loot?.pack, []);
   // Sign-in on a fresh device: the account's pack comes down with its pieces.
   assert.deepEqual(mergeLoot(undefined, device).pack, ['veteran.Body']);
+});
+
+test('a take into an occupied slot packs the piece it replaces when there is room; with the pack full it would drop it, so the panel asks', () => {
+  const loot: Loot = { ...worn(), owned: [...worn().owned, 'pitborn.Helmet'] };   // the Pitborn's helmet just taken (store ran), the Centurion's on
+  assert.equal(takeWouldDrop(loot, 'pitborn.Helmet'), false, 'room in the pack: no question');
+  const taken = wearTaken(loot, 'pitborn.Helmet');
+  assert.equal(taken.equipped.head, 'pitborn.Helmet');
+  assert.deepEqual(taken.pack, ['veteran.Helmet'], 'the replaced helmet is in the pack, not gone');
+  const full: Loot = { ...loot, owned: [...loot.owned, 'nightborn.Boots', 'nightborn.Body'], pack: ['nightborn.Boots', 'nightborn.Body'] };
+  assert.equal(takeWouldDrop(full, 'pitborn.Helmet'), true, 'pack full and the slot taken: ask first');
+  assert.equal(takeWouldDrop(full, 'pitborn.Greaves'), false, 'an empty slot drops nothing');
+  const replaced = wearTaken(full, 'pitborn.Helmet');   // the player said Replace
+  assert.equal(replaced.equipped.head, 'pitborn.Helmet'); assert.deepEqual(replaced.pack, ['nightborn.Boots', 'nightborn.Body']);
+  assert.ok(replaced.owned.includes('veteran.Helmet'), 'still owned: the trophy list keeps everything');
 });
