@@ -17,7 +17,8 @@ import { phoneTier } from './quality.ts';
 import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
-import { createSignatures, signatureMode } from './signature.ts';
+import { createSignatures, resolveSignature } from './signature.ts';
+import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
 import './signature-knight.ts';   // the Knight's Rivet Burst registers itself
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
@@ -382,11 +383,11 @@ export function createScene(
     setFinisherOverride(id: FinisherId | null) {
       finisherOverride = id;
     },
-    setSignature(pick: string | null) {
-      signatures.setMode(signatureMode(pick));   // off | on | A | B | C; anything else is off
+    setSignature(search: string, selected: string | null, toolsOpen: boolean) {
+      signatures.setMode(resolveSignature(search, selected, toolsOpen));   // off unless the test tools are open (signature.ts)
     },
     signatureProbe() {
-      return signatures.probe();
+      return { ...signatures.probe(), marks: signatures.marks.where() };
     }, // debug probe: which signature effect is chosen, how often it fired, and the marks it holds
     get yaw() {
       return rig.yaw;
