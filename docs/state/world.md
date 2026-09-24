@@ -5,6 +5,9 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## Lane state — RESUME HERE, 2026-09-24 23:20 (two jobs in flight)
 
 ### 1. LIVE DEFECT, Goblin white light (Strategy 23:10, on Dom's word; reply to Lead with Strategy copied). ROOT CAUSE FOUND, fix not written.
+- **STRATEGY RULED YES (23:30): delete the charge glow. No replacement light, no dimmer version.** Receipt: same-tick before/after stills on a seeded
+  fight at CHARGED, PLUS one kill-screen still (an opponent killed the player with a charged heavy, the "You fell" tableau) showing the tableau clean.
+  PR for the next run, no deploy of its own. Witch-arm stills Fri 10:00 unchanged.
 - Dom's iPhone, at the "You fell. Rematch?" frame: the Goblin's head and shoulders are blown out white. Cause: **the charge glow in `src/scene.ts`**,
   `const glows = [0, 1].map(() => new THREE.PointLight('#ff9a3c', 0, 3, 2))`, driven around `glows.forEach` (~line 757). While a fighter holds a
   charge in phase 'attack', its intensity is `f.charged ? 8 : 1 + 4*charge/min`, the colour is `#fff3d0` (near-white) once charged, and it sits at y 1.2 within 3 m.
