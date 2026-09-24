@@ -5,37 +5,48 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-24 night: receipts accepted; three items for tomorrow, after the playtest sha
+## Now — 2026-09-25 ~00:30: two jobs queued from Lead
 
-**Done later the same night (Dom: keep moving). Waiting on Lead's call.** All on #680, head `f7d12580`; no src change, no deploy.
-1. **Seed branching fixed.** The bot's seeds were 731, lcg(731), lcg²(731), which is the same lcg the opponent AI rolls
-   with. So fight n+1 started one draw after fight n, and such pairs can fall into step. The Pitborn recording replays
-   exactly under the next seed; headless, 0–3 of 30 lcg-successor pairs per opponent replay the same fight.
-   `fightSeeds()` (a murmur3 chain) gives 731, 1637974753 and 3024046025; with it, 0 of 30 collide.
-   - The Knight is seed-independent for another reason: the bot beats him 150/0 before any AI roll matters.
-   - Not changed: `src/match.ts` `nextSeed` (the Rematch seed) uses the same lcg. It's a one-line src change, offered
-     to Lead for a later window.
-2. **Pitborn Easy loss: bot play, not tuning.** At ~1.2 m on low stamina, the bot only guards or "recovers". His chambered
-   lights turn its late parries into blocks, posture breaks, then a critical (46) or a slash_riposte kills it.
-   On the new seeds Pitborn is 2W/1L over 3 distinct fights, which passes. The proposed fix is in the bot's policy
-   (disengage when stamina is low and posture high) and is awaiting Lead.
-3. **Knight CONFIG row** added in `67aa8d1c`.
+**Pick up, in order** (no deploy; no browser while `~/.claude/state/deploy_in_flight.json` exists):
+1. **#680 Shieldmaiden regression.** The full Easy gate on #680 `03234673` passes 10/10. Shieldmaiden went 3/0 → 2/1
+   (seed 3024046025 lost at 56.1 s). Her thrusts did 106 damage because the bot's "back off: posture high, stamina low"
+   walks straight back into her gladius thrust (reach 2.25 plus the lunge).
+   - Fix, bot only (`scripts/lib/player-bot-policy.mjs`): back off only past thrust reach + lunge, or roll when her
+     thrust is in range.
+   - Then rerun `node scripts/player-bot.mjs --opponents=all --fights=3 --no-video` after `npm run build`, and send
+     Lead the table.
+   - Receipts: `artifacts/receipts-0924/gate-v2/`.
+2. **Review the Auditer's #707** (`stats/loadout-seam`, `9ddf6801`, RECORD_VERSION 10→11, for the Mon 09-28 window).
+   Strategy approved me standing in for Combat. Focus on `src/duel.ts`:
+   - Loadout reaches stepDuel only through the hit maths.
+   - Poise and stagger are unscaled.
+   - A naked loadout is bit-identical to v10 (the opponent and the daily are always naked).
+   - The v11 record carries both pairs, and the refs were regenerated with outcomes unchanged.
+   - Run `record-replay-check --strict`, plus a bot Easy gate on the #707 tree vs trunk with the same W/L on the naked
+     opponents.
+   - Verdict (PASS, or the exact lines at fault) to Lead **and** the Auditer. No merge.
 
-**Done tonight.**
-- #693 (head `dc133f17`, test only) is inside #695. The straight-back roll already escapes a charged heavy: centre and
-  wall 0/10, "Evaded!". My 09-24 report's 4–8/9 was the scenario walking back into the parked charge. Lead ruled that
-  walking into a visible charge is teaching.
-- Receipts on #695 `41f2f7bf` (trunk + #691 Witch + #692 kick stagger 48 + #693 + bump 10):
-  - kick→punish 10/10 on all three follow-ups (trunk 0/10);
-  - straight-back roll 0/10;
-  - Witch vs Centurion now differ (browser, 3 fights: Witch L10 H0 K4 BS8 vs Centurion L2 H3 T1 K4 P2);
-  - Easy gate passes 9/10 (Goblin 2/1 with one 90 s timeout; Pitborn 1/2, as on trunk).
-  - Lead accepted them; #695 went READY to Deploy.
+**Done 09-24 night / 09-25:**
+- **#712** "Evaded!" only when the player's own roll/backstep beat the swing. Head `dc15c012`; Lead verified it and
+  sent it READY for Weapons' 10:00 run. `combat.ts` only (not a SIM_FILES file). `project()` tracks
+  `evadeAt`/`swingAt`. The `fighter.evaded` 2-tick window was too short for a backstep.
+- **#680** (parked until after the playtest; head `03234673`):
+  - knight CONFIG row;
+  - `fightSeeds()` replaces the AI's own lcg for batch seeds (731, 1637974753, 3024046025). lcg-successor seeds fell
+    into step and replayed one fight;
+  - disengage when posture ≥ 50 and stamina < 50;
+  - never block a heavy the stamina bar can't pay for (cost = his weapon's `heavy_overhead.staminaDamage`).
+  - Pitborn Easy 3/0.
+- Pitborn Easy loss verdict: the bot's play, not tuning. Lead accepted it.
+- Parked by Lead for the next version window: `src/match.ts` `nextSeed` (the Rematch seed) uses the same lcg as the AI.
+- **#693** (test only) went in with #695.
 
-**Gotchas.**
-- The receipts runner and gate logs are in `artifacts/receipts-0924/` (gitignored). `receipts.sh <sha>` builds a
-  detached side worktree next to itself and overlays the parked #680 bot scripts plus the botSeed hook.
-- The headless scenario and the browser Easy gate count 10 live opponents (goblin included), not 9.
+**Gotchas:**
+- Bot fight seeds must never come from the AI's lcg.
+- To check whether two fights really differ, replay the recorded inputs under another seed with
+  `artifacts/receipts-0924/replay.mjs`.
+- Scenario scripts: separate "hold after the roll" from "walk back in".
+- Kill only your own PIDs (`pgrep -f` on your own unique `--out=`).
 
 ## Then — 2026-09-24 evening: done; next from Lead
 
