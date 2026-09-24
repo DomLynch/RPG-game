@@ -2,19 +2,18 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-24 night (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-24 19:00 (replace this section wholesale; it is the restart brief, not history)
 
-**Now — two PRs waiting on CI, then Lead publishes. Do not push to either unless CI goes red (Lead's order).**
-1. **#684, the signature batch:** head `035f6086`, stacked on Exec's #682 `7b06a113`, merging #658 `53236c94`, #660 `14d4858d`
-   and #662 `f97087eb`. The only conflicts were in the `src/scene.ts` import block, resolved by keeping every line from both sides.
-   Diff against #682: 7 files, +580/−0. Local, with the lock FREE: tsc 0, typecheck:tests 0, signature tests 35/35. Lead
-   VERIFIED it; READY once CI is green. Lead closes #658, #660 and #662 after it merges.
-2. **#678, the rising opponent charge cue:** head `0885d499`. `charge_foe` starts on the opponent's `Charging` (actor 1, only
-   for a move that `charges`) and loops for 0.9 s = `RULES.charge.max`, with rate x1.6 and level 35 %→100 %. It fades out over
-   35 ms on the first frame with `ArenaFrame.holding === false` (`foeHolding` in `src/main.ts`). Her `Charged` → no cue (Lead
-   ruled this is what "pinned to the opponent's Charged" means). Gate 471/471. Lead verified it merges clean on #684; it rides
-   the publish AFTER #682 + #684.
-3. **Next:** when CI settles, send Lead the result for both PRs. #674 (this doc) is open.
+**Now — both PRs MERGED (18:53–18:54 +04). Nothing open but #674 (this doc). Wait for Lead's next task.**
+1. **#684, the signature batch** (Nightborn, Goblin and Plague Doctor effects, blood-flagged): merged as `3285dc6b`, head
+   `035f6086`. CI quality green; the 9 release-checks cancels came from cancel-on-close. Lead closes #658, #660 and #662.
+2. **#678, the rising opponent charge cue:** merged, head `0885d499`. `charge_foe` starts on the opponent's `Charging` (actor 1,
+   only for a move that `charges`) and loops for 0.9 s = `RULES.charge.max`, with rate x1.6 and level 35 %→100 %. It fades out
+   over 35 ms on the first frame with `ArenaFrame.holding === false` (`foeHolding` in `src/main.ts`). Her `Charged` → no cue
+   (Lead ruled this). CI quality green; one cancel-on-close cancel.
+3. **Not yet live:** release.json showed `a5590911` at merge time, and the deploy session owns the next publish. When it is
+   live, check that `foeHolding` is in the deployed bundle, then listen to an opponent heavy charge on a phone: a full-hold climb,
+   and a clean cut on a feint.
 
 **Gotchas (new today)**
 1. **The deploy hook blocks even single-file tests and `tsc` while a deploy holds the lock.** Push, then let CI run, then test after FREE.
