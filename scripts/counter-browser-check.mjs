@@ -28,8 +28,8 @@ try {
   await page.evaluate(()=>{
    window.__combat=[];window.__clips=[];window.__tellAt=0;
    window.addEventListener('frankendom:combat',e=>window.__combat.push(e.detail));
-   const observer=new MutationObserver(()=>{if(document.querySelector('#combat-status').textContent.startsWith('Incoming strike')){window.__tellAt=performance.now();observer.disconnect();}});
-   observer.observe(document.querySelector('#combat-status'),{childList:true});
+   const observer=new MutationObserver(()=>{if(document.querySelector('#combat-status').dataset.threat==='true'){window.__tellAt=performance.now();observer.disconnect();}});
+   observer.observe(document.querySelector('#combat-status'),{attributes:true,attributeFilter:['data-threat']});
    new MutationObserver(()=>window.__clips.push(document.querySelector('#debug').dataset.clips)).observe(document.querySelector('#debug'),{attributes:true,attributeFilter:['data-clips']});
   });
   const cdp=await page.context().newCDPSession(page);

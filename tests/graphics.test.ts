@@ -810,7 +810,7 @@ test('kill links: a retired record version converts — the warden\'s still, who
   await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
   assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
 });
-test('fight end: the rank line replaces the death-screen autopsy on a loss, the autopsy lines go under the opponent\'s journal row, and a rematch clears the rank line', () => {
+test('fight end: the rank line replaces the death-screen autopsy on a loss, the autopsy lines go under the opponent\'s journal row, and a rematch keeps the rank row', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish, 'the idle fighter dies'); assert.equal(app.rendered.finish.victim, 0);
@@ -823,7 +823,7 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
   for (const line of lines) assert.ok(!/[!?]/.test(line), 'no exclamation marks');
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
-  assert.equal(el.hidden, true, 'a rematch clears the rank line');
+  assert.equal(el.hidden, false, 'the rank row is permanent: a rematch keeps it (Dom 2026-09-24)');
 });
 test('daily warden: a build without the account service refuses ?daily=1 with a banner and fights as usual; the journal says so too', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };

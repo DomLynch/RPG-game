@@ -37,6 +37,7 @@ export type Practice = {
   duel: Duel; ai: AiState; events: CombatEvent[];
   result: Result; resultAge: number; resultDamage: number; resultStamina: number;
   resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultTrip: boolean; resultWalled: boolean;
+  resultBreak: 'charged' | 'kick' | null;   // what broke a guard, for the event line's words (presentation only; the sim is untouched)
   maxStamina: number; enemyMaxStamina: number; legWound: boolean;   // attrition: the bars' ceilings this duel and a slowing leg wound
   maxHealth: number; enemyMaxHealth: number;   // the health bars' ceilings (an opponent may carry more than a man)
   fighter: State; enemy: State; finish: Finish | null;
@@ -64,7 +65,7 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
   let result: Result = previous?.result ?? 'none', resultAge = previous ? Math.min(120, previous.resultAge + 1) : 0;
   let resultDamage = previous?.resultDamage ?? 0, resultStamina = previous?.resultStamina ?? 0, resultPerfect = previous?.resultPerfect ?? false;
   let resultCounter = previous?.resultCounter ?? false, resultStop = previous?.resultStop ?? false, resultTrip = previous?.resultTrip ?? false;
-  let resultWalled = previous?.resultWalled ?? false;
+  let resultWalled = previous?.resultWalled ?? false, resultBreak = previous?.resultBreak ?? null;
   for (const event of duel.events) {
     const pair = RESULTS[event.type];
     if (!pair) continue;
@@ -72,11 +73,12 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
     // the renderer keys on 'blocked'; perfection rides alongside
     resultAge = 0; resultDamage = event.damage ?? 0; resultStamina = event.stamina ?? 0;
     resultPerfect = !!event.perfect; resultCounter = !!event.counter || !!event.rear; resultStop = !!event.stop; resultTrip = !!event.trip;
+    resultBreak = event.type !== 'GuardBroken' ? null : event.charged ? 'charged' : event.move === 'kick' ? 'kick' : null;
     resultWalled = duel.events.some(e => e.type === 'Staggered' && e.walled && e.actor === event.target);   // the blow drove them into the ring wall
   }
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled,
+    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak,
     maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth,
     fighter: p.body, enemy: w.body, finish: duel.finish,
     phase: legacyPhase(p), age: p.age, attack: clipOf(p), chain: p.chain,
@@ -130,12 +132,6 @@ export function practiceHint(s: Practice, foe = 'Opponent'): string {
   if (me.phase === 'attack' && me.charge) {
     return !movesOf(me)[me.move!].charges ? 'Chambered · release to strike · back to centre to feint' : me.charged ? 'Charged · breaks a guard' : 'Charging… keep holding';
   }
-  if (s.threat) {
-    if (s.threatMove === 'heavy_overhead') {
-      return s.duel.fighters[1].charge ? 'Incoming strike — charged heavy: a guard will break · roll or parry the release!' : 'Incoming strike — heavy: guard takes chip · parry or roll';
-    }
-    return s.threatMove === 'thrust' ? 'Incoming strike — thrust: fast and long · block it or step aside' : 'Incoming strike — roll or time your guard!';
-  }
   if (me.exhausted) return 'Exhausted · walk it off until your stamina returns';
   if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return `${foe} guarding · heavy or close-range kick`;
   if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
@@ -150,7 +146,8 @@ export function practiceHint(s: Practice, foe = 'Opponent'): string {
       blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}${me.counterWindow > 0 ? ' · heavy to counter' : ''}`,
       parried: `Parried! The ${foe} is open.`,
       dodged: 'Evaded!',
-      broken: 'Guard broken · a charged heavy or kick goes through a guard',
+      // Plain words (Strategy 2026-09-24): the charge tell lives in motion + sound, so the line names what broke the guard.
+      broken: s.resultBreak === 'charged' ? 'Guard broken: a charged heavy breaks guard. Roll or parry the release.' : s.resultBreak === 'kick' ? 'Guard broken: a kick breaks guard.' : 'Guard broken.',
       enemyBlocked: `${foe} blocked · use a heavy attack or change angle`,
       enemyBroken: 'Guard shattered · press the opening',
       enemyParried: 'Your strike was turned aside — recover!',
