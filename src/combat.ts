@@ -126,7 +126,7 @@ const NAMES: Record<MoveId, string> = {
 export function practiceHint(s: Practice, foe = 'Opponent'): string {
   const me = s.duel.fighters[0];
   if (s.finish?.draw) return 'You both fell. Rematch?';
-  if (!s.playerHealth) return 'You fell. Rematch and try another defence.';
+  if (!s.playerHealth) return 'You fell. Rematch?';
   if (!s.health) return `${foe} defeated. Ready for a rematch?`;
   if (s.phase === 'sheathed') return `Draw your sword. The ${foe} will counterattack.`;
   if (s.phase === 'draw') return 'Drawing longsword…';
@@ -145,16 +145,16 @@ export function practiceHint(s: Practice, foe = 'Opponent'): string {
       miss: 'Miss',
       hurt: `${s.resultStop ? 'Stop-hit — you walked onto the point' : s.resultTrip ? 'Swept — a low blade trips a roll' : s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}${wall('pinned on the wall')}`,
       blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}`,
-      parried: `Parried! The ${foe} is open.`,
+      parried: 'Parried!',
       dodged: 'Evaded!',
       // Plain words (Strategy 2026-09-24): the charge tell lives in motion + sound, so the line names what broke the guard.
       broken: s.resultBreak === 'charged' ? 'Guard broken: a charged heavy breaks guard.' : s.resultBreak === 'kick' ? 'Guard broken: a kick breaks guard.' : 'Guard broken.',
       enemyBlocked: `${foe} blocked`,
       enemyBroken: 'Guard shattered',
-      enemyParried: 'Your strike was turned aside — recover!',
+      enemyParried: 'Your strike was turned aside',
       enemyDodged: `The ${foe} rolled clear.`,
       enemyKicked: `Kicked · −${s.resultDamage}`,
-      postureBroken: 'Your posture broke — brace for the critical',
+      postureBroken: 'Your posture broke',
       enemyPostureBroken: '',   // it read the opponent's state and named the answer: removed, the line is blank
     }[s.result];
   }
