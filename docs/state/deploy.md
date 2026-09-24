@@ -10,22 +10,24 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-24 ~14:20Z)
-- **In flight: `a5590911`** (#679 Witch charge lean B @ 142b25fe), launched 14:13Z detached from `~/Developer/frankendom-deploy`
-  (pid 33294), log `~/Developer/deploy-a5590911f8abe1ca6ea7c4a3bc9435172d2c4d3f.log`. On restart: if release.json shows
-  a5590911, verify (below) and send Lead the live sha; if the log has no `Published` line, read the failure (retry on a `gh`
-  ETIMEDOUT; route a real row failure to Lead). Lead has NOT yet been sent the live sha for it.
-- **Last verified live: `5655ac94`** (#667).
-- **Queue:** empty. #661 arrives inside Executioner's batch PR (#661 + #657 + #665), only on Lead's READY.
+## Now (2026-09-24 ~15:40Z)
+- **Live `e37a74c7`** (Lead's stack of six: #682 Exec effects, #684 Weapons signature batch incl. #658/#660/#662, #678
+  charge_foe cue, #685 charge-lean roster, #687 goblin LEAN_HIGH, #686 parry tell). Box FREE. Tomorrow's playtest runs on it.
+- **Queue:** empty for tonight (Lead). #661 arrives inside Executioner's batch PR (#661 + #657 + #665), only on Lead's READY.
 - **Routing:** Lead is `local_1bcdcf54-…` ("Frankendom - Lead Developer"); sha lines go to Lead only (Lead relays).
   Lead may hold a green PR for its own "COMBINED OK" (combined-tree tsc + tests) when the PR's CI predates trunk: wait for it.
 - **Verify each publish:** release.json = sha; `curl -s https://frankendom.com/ | cmp - dist/index.html`; VPS
-  `readlink /var/www/frankendom/current`; log line "Built bundle carries the Supabase origin and the auth storageKey."
-- **Merge form:** `gh pr merge N --merge --match-head-commit <full head>` after `gh pr checks N` shows no pending/fail.
-- **Background load:** the Codex player-bot lane (`node scripts/player-bot.mjs`, cwd ~/Developer/frankendom-player-bot) ran
-  through the 174537be deploy; not ours, do not kill (Lead raised it on #668). Rows still passed.
+  `readlink /var/www/frankendom/current`; log line "Built bundle carries the Supabase origin and the auth storageKey.";
+  served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`.
+- **Merge form:** `gh pr merge N --merge --match-head-commit <full head>` after `gh pr checks N` shows no fail; for a
+  stack, merge in Lead's order re-checking head + fail count before each, then combined-tree `tsc` + `typecheck:tests`.
+- **Background load:** the Codex player-bot lane (`node scripts/player-bot.mjs`, cwd ~/Developer/frankendom-player-bot) is
+  not ours, do not kill (Lead raised it on #668).
 
 ## Done 2026-09-24
+Evening, verified live (release.json + served index cmp + VPS current + guard line + supabase.co): a5590911 (#679 Witch
+charge lean B; 36/36 local rows), e37a74c7 (#682 #684 #678 #685 #687 #686 merged in Lead's order; trunk tree identical to
+Lead's test merge f1c9eac0; 36/36 local rows). #683 (this doc) merged 78c24033.
 Late morning / early afternoon, all verified live (release.json + served index cmp + VPS current + bundle guard line):
 c90bd83b (#672 knight.glb, #673 Profile PACK), d45f4837 (#663 signature site/gate; #659 split off on a scene.ts import
 conflict), 2c3dd94a (#676 fight HUD, #659 Knight Rivet B), 5f32ad45 (#677 World framework, signature ship mode ON),
@@ -79,6 +81,9 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **`gh pr checks` prints a CANCELLED job as "fail".** Merging a PR while its CI is mid-run cancels the in-flight jobs
+  (#682 rows 32/33/34 on 2026-09-24), which then read as red and produced a false URGENT stop. Read the conclusion
+  (`gh pr view N --json statusCheckRollup`) before treating a post-merge red as real; those rows passed locally.
 - **The built-bundle guard is a deploy.sh step, not a release row** (#653): CI builds guest-only, so a row would be red on
   every PR, and a row can be trusted away. The minifier writes the storageKey in BACKTICKS; the pattern accepts all three quotes.
 - **After a merge, the next PR shows mergeable UNKNOWN for a few seconds.** That is GitHub recomputing, not a conflict: re-read
