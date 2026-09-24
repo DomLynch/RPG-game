@@ -1,0 +1,73 @@
+{
+  "origin": "http://127.0.0.1:55983",
+  "revision": null,
+  "states": {
+    "bare": {
+      "equipped": {},
+      "draws": [],
+      "covered": [],
+      "lootFetched": []
+    },
+    "witch": {
+      "equipped": {
+        "head": "witch.Helmet",
+        "chest": "witch.Body",
+        "arms": "witch.Arms",
+        "hands": "witch.Gloves",
+        "legs": "witch.Greaves",
+        "feet": "witch.Boots"
+      },
+      "draws": [
+        "witchBodyAntique_brass|Body|over",
+        "~kitGlovesAntique_brass|Gloves|over",
+        "~kitGlovesLeather|Gloves|over",
+        "witchGreavesWitchCloth|Greaves|over",
+        "witchHelmetWitchCloth|Helmet|replace",
+        "witchArmsWitchLeather|Arms|over",
+        "witchBodyWitchLeather|Body|over",
+        "witchBootsWitchLeather|Boots|over",
+        "witchGreavesWitchLeather|Greaves|over"
+      ],
+      "covered": [],
+      "lootFetched": [
+        200
+      ]
+    },
+    "shieldmaiden": {
+      "equipped": {
+        "head": "shieldmaiden.Helmet",
+        "chest": "shieldmaiden.Body",
+        "arms": "shieldmaiden.Arms",
+        "hands": "shieldmaiden.Gloves",
+        "legs": "shieldmaiden.Greaves",
+        "feet": "shieldmaiden.Boots"
+      },
+      "draws": [
+        "shieldmaidenArmsSteel|Arms|over",
+        "shieldmaidenBodySteel|Body|replace",
+        "shieldmaidenHelmetSteel|Helmet|replace",
+        "shieldmaidenBodyAntique_brass|Body|replace",
+        "~kitGlovesAntique_brass|Gloves|over",
+        "shieldmaidenBodyLeather|Body|replace",
+        "shieldmaidenBootsLeather|Boots|replace",
+        "shieldmaidenHelmetLeather|Helmet|replace",
+        "~kitGlovesLeather|Gloves|over",
+        "shieldmaidenGreavesWrap|Greaves|over",
+        "shieldmaidenBodyGambeson_shieldmaiden|Body|replace"
+      ],
+      "covered": [
+        "Steel|Body",
+        "Antique_brassBody|Body",
+        "LeatherBody|Body",
+        "LeatherBoots|Boots",
+        "Gambeson|Body",
+        "WrapBoots|Boots"
+      ],
+      "lootFetched": [
+        200
+      ]
+    }
+  },
+  "errors": [],
+  "passed": true
+}
