@@ -2,6 +2,33 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — tier dressing (#705), 2026-09-24 late
+
+### Now
+- **#705 tier dressing** (head 3cf1018b; evidence `origin/evidence/world-tier-dressing` @ 4e149952): v3 handed to Lead after Strategy's NOT YET.
+  Lead carries it to Strategy. Post-playtest item #1, no deploy before the playtest. Wait for the ruling; push only if it asks for changes.
+- #666 (Shieldmaiden signature) builds on #705's opponent-worn carriers. The Shieldmaiden's LOOT list has no Shield id: if #666 wants her
+  shield worn, that is a LOOT entry.
+- Still parked: the parried player's Deflected (`enemyParried`), and the wet floor / puddle mirror if Dom's `?perf=1` still shows a rain gap after #697.
+
+### Done
+- #705 took over Phase L #589 + #606 (both closed as superseded). The opponent wears `kitWorn(opponent, twoHanded, tier)` from his own cut
+  `src/assets/loot/carriers-<opponent>.glb` (`scripts/split-loot.mjs`; re-run it after loot.glb changes, and a test compares the cut byte for byte), graded at
+  `tierAt(marks)`. `main.ts metAt` is read at load and at each rematch; `?tier=<Rank>` changes the look only. The player's pieces are graded per piece at
+  `Provenance.tier` (optional 1..10, DISPLAY ONLY, missing = Recruit), and the player's own unslotted skinned straps follow a worn Body piece.
+  Graded leather drops its colour map. Two-handers leave the shield off (back-stow unbuilt). Recruit wears no crest.
+- Sizes in dist: carriers 0.19–1.36 MB raw (veteran 1.01 / 0.54 gzip). check-budget PASS, but **dist is 38.58 of 40 MB**.
+
+### Gotchas
+- **A colour factor can only darken a texture.** Graded leather on the player borrowed his dark-brown textured Leather, so every tier looked the
+  same. On the opponent the kit kept its own mapless palette material, so it read. Before judging a grade, check which material the draw actually uses.
+- **A body piece's straps sit UNDER the player's own baldric and belt** (unslotted, never hidden by a `replace`), so a tunic's grade is invisible
+  unless his straps follow it.
+- **Weapon grip wraps are unslotted Leather too**, but static meshes under `WeaponDrawn`. Restrict any body regrade to SkinnedMesh.
+- A studio render is not the fight frame: at the fight camera the Centurion's shoulder plate is out of view and a rust helmet reads as hair. Take the
+  in-pit still (`?tier=`, hold `q` for guard) before sending a look.
+- The Lead session's socket changes on restart: `ListAgents` before SendMessage, and send the bare name with its `[ref]` when several share it.
+
 ## Lane state — rain frame rate (#697), 2026-09-24 night
 
 ### Now
