@@ -1536,6 +1536,9 @@ function finishMaterials(glb, authored = new Map(), procedural = true) {   // pr
   const grain=texture((x,y)=>[126+noise(x,y)*4,126+noise(y,x)*4,255,255]);
   const hide=texture((x,y)=>{const pore=noise(x,y)*18, blotch=(noise(x>>3,y>>3)+noise(x>>5,y>>5))*30;const v=150+pore-blotch;return [v,v*.86,v*.72,255]});
   const hideNormal=texture((x,y)=>[122+noise(x,y)*12,122+noise(y,x)*12,255,255]);
+  // The maul's head (WeatheredStone): mottled quarried stone — broad blotches, fine speckle, darker pits — over a darker base factor.
+  const stone=texture((x,y)=>{const blotch=(noise(x>>3,y>>3)-.5)*46+(noise(x>>5,y>>5)-.5)*40, pit=noise(x,y)>.93?-50:0;const v=196+blotch+noise(x,y)*22+pit;return [v,v*.97,v*.93,255]});
+  const stoneNormal=texture((x,y)=>[116+noise(x,y)*24+(noise(x>>2,y>>2)-.5)*16,116+noise(y,x)*24+(noise(y>>2,x>>2)-.5)*16,255,255]);
   for(const m of j.materials) {
     const p=m.pbrMetallicRoughness, a=authored.get(m.name) ?? {};
     // Authored slots own their channel outright; anything not authored keeps the procedural map below.
@@ -1546,6 +1549,7 @@ function finishMaterials(glb, authored = new Map(), procedural = true) {   // pr
     if(procedural&&m.name==='Blade') {p.metallicRoughnessTexture={index:rough};p.roughnessFactor=.7;m.normalTexture={index:grain,scale:.15};}
     if(procedural&&m.name==='Steel') {if(!a.baseColor)p.baseColorTexture={index:metal};if(!a.metallicRoughness){p.metallicRoughnessTexture={index:rough};p.roughnessFactor=1;}if(!a.normal)m.normalTexture={index:grain,scale:.3};}
     if(procedural&&(m.name==='Gambeson'||m.name==='Heraldry')) {if(!a.baseColor)p.baseColorTexture={index:linen};if(!a.normal)m.normalTexture={index:grain,scale:.5};}
+    if(procedural&&m.name==='WeatheredStone') {if(!a.baseColor)p.baseColorTexture={index:stone};if(!a.normal)m.normalTexture={index:stoneNormal,scale:.8};}   // roughness stays the scalar .95: a third map cost ~75 KB for no visible change
     if(procedural&&m.name==='Leather') {if(!a.baseColor)p.baseColorTexture={index:hide};if(!a.normal)m.normalTexture={index:hideNormal,scale:.6};}
     // The Executioner's blackened iron (owner, v3 review: the mask and greaves read darker and shinier than the hood — fake):
     // drop the ORM map for scalar matte factors; with metalness down the diffuse returns and they read as charcoal iron beside the hood's cloth.

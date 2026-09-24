@@ -10,17 +10,22 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-24 11:10)
-- **Live `c0400c1f`** (#649 on top of 9394e8a4), built WITH the account settings: served `index-B_hyiYHp.js` carries the Supabase
-  origin, the lazy `account-BFuxefc7.js` carries storageKey `frankendom.auth.v1`. Box FREE.
-- **Next, in order:** (1) guard PR (Lead + Strategy): a FAILING release row for any production deploy whose BUILT bundle lacks the
-  Supabase host / auth storageKey (missing or wrong key file both fail), with a test (missing → fail, present → pass). Today
-  `scripts/check-account-config.mjs` only prints "guest-only build". (2) #648 admin Arena selector: HELD, World is amending it
-  (Options tab); publish only on Lead's re-READY at the NEW head, never ce21808e. (3) Watch trunk `release-checks` on c0400c1f
-  (queued at 11:05); tell Lead if red.
-- **Routing:** sha lines to Lead AND Strategy (Lead asked 09-24). Strategy has several same-name sessions: send by the local `[ref]`.
+## Now (2026-09-24 ~11:35Z)
+- **Live `91d9f749`** (#671). Box FREE. Every deploy since 64787c22 runs the built-bundle guard (#653): the log must show
+  "Built bundle carries the Supabase origin and the auth storageKey." before publish.
+- **Queue (Lead READY, each at its exact head on green CI; same run if both green, else #672 first; stop if a head moves):**
+  (1) #672 `bf9bbb14` Executioner knight.glb rebuild for the #651 maul (2 asset files). (2) #673 `8cdf952b` Weapons' Profile
+  PACK row + take-flow fix (11 files; Strategy YES). At 11:3xZ both MERGEABLE, CI still running (#672: rows 23/32/33/34).
+- **Routing:** sha lines to Lead AND Strategy. Address by name + `[ref]` from ListAgents (socket paths go stale on restart);
+  Lead `[feb990]`, Strategy `[36b3e6]` at 11:30Z. A fresh Lead session is taking over (handoff in docs/state/lead-catalogue.md).
+- **Verify each publish:** release.json = sha; `cmp dist/index.html` vs served; VPS `readlink /var/www/frankendom/current`;
+  served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`.
 
 ## Done 2026-09-24
+Afternoon, all verified live (release.json + served index cmp + VPS current + supabase.co in served bundle): 4099f5c0 (#648),
+0e4ba5ae (#653 guard, #654 five arenas, #655 signature effects), 6830afcf (#651 #656 #664), 13e603f0 (#670 Arena Draw A),
+91d9f749 (#671). CI trust (a') first exercised on 0e4ba5ae: 6/36 same-tree; 6830afcf 8/36; later runs 0/36 (CI not done at start).
+Morning:
 All verified live (release.json + served index.html cmp + VPS `current`): fa0c27d1 (Run 3c), da4108ed (#637), e8d8ec00 (non-sim
 batch #633 #628 #627 #631 #636 #625), c92e56df (#626), 0b648a44 (#635 parks v9, RECORD_VERSION 9), 82c3b9c1 (#641), 88229760
 (#639), cff5dec6 (#644), 2a41ed4e (#643 #646 #624), 9394e8a4 (#647 CI trust a'), c0400c1f (#649 + accounts restored).
@@ -64,6 +69,10 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **The built-bundle guard is a deploy.sh step, not a release row** (#653): CI builds guest-only, so a row would be red on
+  every PR, and a row can be trusted away. The minifier writes the storageKey in BACKTICKS; the pattern accepts all three quotes.
+- **After a merge, the next PR shows mergeable UNKNOWN for a few seconds.** That is GitHub recomputing, not a conflict: re-read
+  before stopping. `gh pr checks --watch` can exit early on a network blip; poll the pending count instead.
 - **Every deploy log opens with the account line: read it.** "Account integration disabled: guest-only build." is a broken
   production build, not a note, until the guard PR makes it fail.
 - **A same-revision redeploy** (rebuild of the live sha) used to die at deploy.sh:79 on bash 3.2 (`link_args[@]: unbound`); #649 fixed it.

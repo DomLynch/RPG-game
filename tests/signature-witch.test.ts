@@ -23,7 +23,7 @@ test('Witch: the staff crackles while she is charged, the hand closes on the str
   const rig = (bones: string[]) => { const root = new THREE.Object3D(); for (const name of bones) { const b = new THREE.Object3D(); b.name = name; b.position.y = 1.4; root.add(b); } scene.add(root); return root; };
   const player = rig(['upperarm_l', 'upperarm_r', 'spine_03']), witch = rig(['WeaponDrawn']);
   const duel = initialDuel(OPPONENTS.witch), fighters = duel.fighters;
-  const frame = (charged: boolean) => ({ fighters: [fighters[0], { ...fighters[1], charged, phase: charged ? 'attack' as const : 'ready' as const }] as const, roots: [player, witch] as const, scale: [1, 1] as const, yielding: false });
+  const frame = (charged: boolean) => ({ fighters: [fighters[0], { ...fighters[1], charged, phase: charged ? 'attack' as const : 'ready' as const }] as const, roots: [player, witch] as const, scale: [1, 1] as const, yielding: false, bloodMode: 'red' as const });
   const streaks = () => scene.children.find((o) => o.renderOrder === 5) as THREE.Mesh;   // the spark pool (the ash pool is built after it)
   signatures.render(1 / 60, [], frame(false), null, [false, false]);
   assert.equal(streaks().visible, false, 'no sparks before the charge');
