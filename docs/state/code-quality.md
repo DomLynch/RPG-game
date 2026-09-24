@@ -8,16 +8,16 @@ Worktree `~/Developer/frankendom-code-quality`, branches `quality/*`. Owns cross
 
 **Audit of trunk c1bbd1b2 (Dom: "how many LOC, anything broken?").** src 11,601 lines over 46 TypeScript files; tests 11,664; scripts 9,992. eslint, tsc src, tsc tests, unit suite (598 / 596 / 0 / 2), check-budget (PASS, worst pairing veteran 9.20 of 12 MB, loot 2.37 of 3.5, dist 32.8 of 40 MB gzip), npm audit (0) all green. Live e37a74c is on trunk, 166 commits behind head. main.ts is back to 1,029 lines (879 after the match split yesterday) after the fight HUD, arena draw, signatures, pack flow and charge-cue merges; a second move-only pass is the next readability item once the beta rush settles. One HACK marker in src (moves.ts:247, the scythe's diagonal, by design).
 
-**Stop gate.** The RESTORE owed from Lead's 09-23 morning table (commands back to `npm run quality:stop` at 23:30) is recommended dropped: the box sat at load 86–138 at 23:49 on 09-23 with five lanes' Stop gates running at once (goblin, backend, finishers, multichar, combat) and this lane's targeted gate timed out at the 420 s hook ceiling on an UNCHANGED tree. scripts/quality-stop-targeted.mjs stays the gate unless Lead says otherwise (told 09-24).
+**Stop gate.** The RESTORE owed from Lead's 09-23 morning table (commands back to `npm run quality:stop` at 23:30) is recommended dropped: the box sat at load 86–138 at 23:49 on 09-23 with five lanes' Stop gates running at once (goblin, backend, finishers, multichar, combat) and this lane's targeted gate timed out at the 420 s hook ceiling on an UNCHANGED tree. Lead agreed (09-24): the restore is dropped, scripts/quality-stop-targeted.mjs is the settled gate. Item closed.
 
-**Next.** (1) Deploy merges #700; after it is live, resolve FRANKENDOM-C and -F only if no new event on the new revision in 48 h. (2) browser-check.mjs and counter-browser-check.mjs onto the #533 shader-compile wait (they pass; not urgent). (3) Re-grade against trunk; main.ts regrowth is the readability gap now.
+**Next.** (1) #700 goes to Deploy tomorrow morning (09-25) on its own run after the weapon-take fix (Lead: not behind tonight's sim bump before the playtest); hold its head, no rebase unless asked. Once live, after it is live, resolve FRANKENDOM-C and -F only if no new event on the new revision in 48 h. (2) browser-check.mjs and counter-browser-check.mjs onto the #533 shader-compile wait (they pass; not urgent). (3) Re-grade against trunk; main.ts regrowth is the readability gap now.
 
 **Done.**
 - #568 (yesterday afternoon's state entry) closed unmerged; its entry is the next section below, unchanged.
 - #534 merged 09-23 10:43Z at c4bfb54; Receipt 2 for #507 stands (rows 1, 2, 13, 14, 29, 31 ran on its pushes).
 
 **Open.**
-- #700 merge (Deploy). Lead's word on the Stop gate.
+- #700 merge (Deploy, 09-25 morning).
 
 **Gotchas.**
 - A Stop hook that times out leaves no 6-hour pass record; the next stop re-runs the whole gate. Under load, stop less.
