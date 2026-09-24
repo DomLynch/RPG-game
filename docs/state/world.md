@@ -11,6 +11,8 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
   on the PLAYER rig. Say which arm reads best.
 - **Vocabulary (Dom, via Lead):** the idea is called SKILL. Taking a body part gains its skill; the Witch's arm carries the skill **Witch-fire**.
   Label the stills that way. Nothing else in the brief changes.
+- **Due: Sat 2026-09-26 12:00 +04 at the latest; earlier is better** (Dom picks the same day the stills land). Scope reference: `docs/SCOPE.md` on PR #715
+  (creatures are off hold, and it has a SKILL bullet): read it from that PR's branch first.
 - **Deliverable:**
   - THREE labelled 375x812 stills over the real game frame with real assets. They must be three GENUINELY different directions, not three tints:
     e.g. (a) raw stitched-on, (b) bound or bandaged at the seam, (c) her arm with the witch-fire glow in the veins.
