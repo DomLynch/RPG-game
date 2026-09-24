@@ -5,29 +5,23 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-24 ~19:30: waiting on Strategy's kick ruling
+## Now — 2026-09-24 evening: done; next from Lead
 
-**Nothing to build until Strategy rules.** The bot report (Strategy item 5) is delivered. Lead verified it and took it
-to Strategy with three asks, plus a flag that the Witch and the Veteran have the same sim profile.
-- **The report:** `docs/player-bot-limited-report-2026-09-24.md` on #680 (`pitborn/bot-limited-obs`), head
-  `c6e06ff6`, MERGEABLE against `codex/01a0ceea/task-3` (#668). `01e6ae68` merges #668's `9483f894` (additive: both
-  defenceExchanges and defenceEarned kept, the limited filter unchanged).
-  - Checks on the merged tree: player-bot tests 29/29; quality-stop-targeted 412/412; the `.quality-gate` Pitborn
-    bot gate 3/3.
-  - Reproduction: `scripts/player-bot-scenarios.mjs` (kick and roll) and `scripts/player-bot-replay.mjs` (tick replay).
-- **The three rulings asked for:**
-  1. KICK (Combat's lever). A guarded kick staggers 30→66, but the kicker's first legal action is 57 and the fastest
-     windup is 16, so there is no punish even at zero delay.
-  2. The wall roll. Rolling straight back takes 4–8 of 9 charged heavies; rolling sideways on the hold-time read
-     takes 0 of 9.
-  3. GOBLIN. Codex's loss was a stale guard: carried from the tell at 1889 to a guard at 1924, then posture broken at
-     1939 and no escape by 2028. Under #680's filter the same seed is a win.
-- **Gate:** the limited bot at `a962f66b` won 24/27 Easy fights with 0 errors, and passed on all nine opponents.
-- **Open, human only:** whether the posture-broken state reads on screen (a browser look).
-- **Open, mine:** the debug-observation pass. It is lock-aware: stopped by the a5590911/e37a74c7 deploys, it resumes by
-  itself. Post its numbers on #680 as a comment. Then fast-forward the main worktree's local `pitborn/bot-limited-obs`
-  (still at `a962f66b`; it was left alone so the running batch's scripts did not change) to `c6e06ff6`. Remove the
-  scratchpad worktrees `wt-merge` and `wt-state`.
+**Nothing open in this lane.** The bot report (Strategy item 5) is delivered, and Strategy accepted it as the playtest
+baseline.
+- **Strategy's rulings:**
+  - KICK: parked for Monday's sim window, as **Combat's** item, not ours.
+  - Wall roll: no tune; it is teaching.
+  - GOBLIN: closed.
+  - The posture-broken read: now in the playtest script.
+  - Witch = Veteran: parked until after beta.
+- **#680** (`pitborn/bot-limited-obs`), head `c6e06ff6`, MERGEABLE against #668's branch. It holds the report, the #668
+  merge (`01e6ae68`), `scripts/player-bot-scenarios.mjs` and `scripts/player-bot-replay.mjs`.
+- **Both batches are in.**
+  - Limited: 24/27 wins, 0 errors, gate pass on all nine.
+  - Debug: 27/27, 0 errors. The comparison is posted on #680 (issuecomment-5816962070).
+  - Under debug, witch and veteran diverge although their `OPPONENTS` records differ only by id. That is browser-side,
+    not sim.
 
 **Gotchas from this task:**
 - A side worktree needs a `node_modules` symlink **and** `npm run build` before the Stop gate's bot run works.
