@@ -21,15 +21,11 @@ test('the Rivet Burst answers a substantial blow landed on the Knight, and nothi
   assert.equal(when({ tick: 1, type: 'Blocked', actor: 1, target: 0, move: 'heavy_overhead' }), false, 'a blocked heavy');
 });
 
-test('B (dark dent) and C (socket) are further looks on the same trigger; A stays the default for On', async () => {
+test('B (dark dent) is a second look on the same trigger; A stays the default for On', async () => {
   const { pickSignature } = await import('../src/signature.ts');
-  assert.deepEqual(SIGNATURES.knight?.map((e) => e.variant), ['A', 'B', 'C']);
+  assert.deepEqual(SIGNATURES.knight?.map((e) => e.variant), ['A', 'B']);
   assert.equal(pickSignature(SIGNATURES.knight, 'on')?.name, 'Rivet Burst');
   const b = pickSignature(SIGNATURES.knight, 'B')!;
   assert.equal(b.when(hit(1, 'heavy_overhead', 18), fighters), true);
   assert.equal(b.when(hit(1, 'light_right', 14), fighters), false);
-  const c = pickSignature(SIGNATURES.knight, 'C')!;
-  assert.equal(c.name, 'Rivet Burst (socket)');
-  assert.equal(c.when(hit(1, 'heavy_overhead', 18), fighters), true);
-  assert.equal(c.when(hit(1, 'light_right', 14), fighters), false);
 });
