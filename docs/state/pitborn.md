@@ -5,7 +5,22 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-23 night (handover)
+## Now — 2026-09-24
+
+**Nothing open in this lane.** Everything below the 09-23 handover has shipped; live `c0400c1f` contains all of it
+(`git merge-base --is-ancestor`, checked against frankendom.com/release.json).
+- **Shieldmaiden six (#595)** merged 09-23, live.
+- **Her jaw band (#608, `dcb47253`)**: the dark chin read as a beard; fixed and carried to trunk by Run 3 (#616/#619).
+  The "Open tonight" item below is closed.
+- **Her kilt strips (#646, `07ad5c8`, merged 09-24 05:28Z)**: the hero's 11 kilt strips hung below her closed tunic
+  and cut the mail into a jagged hem. `parts.py` KIT `'kilt': False`, her row only; every other fighter still gets 11.
+  `level1_shieldmaiden.glb` 841,372 → 751,340 B, `shieldmaiden.glb` 6,370,680 → 6,290,728 B; her face/skin
+  textures and `body_shieldmaiden.glb` re-baked byte-identical to trunk.
+- **Next:** whatever Phase L (#589/#606, the Stats lane's) asks of the Pitborn and Shieldmaiden sets (materials). Not
+  yet asked. The #595 known list stands as unassigned polish: her cap reads as a band at fight distance, her
+  boots are mid-calf where the reference is low, and the Pitborn's shin plates sit slightly outboard.
+
+## Then — 2026-09-23 night (handover)
 
 **Phase R (six takeable armour pieces + weapon per opponent) was pulled forward to TONIGHT and is done for this lane.**
 - **The Pitborn, #591**: MERGED into `phase-r` (run 1). Helmet (iron skullcap, replace), Body (rag sash + belt as `over`: it
