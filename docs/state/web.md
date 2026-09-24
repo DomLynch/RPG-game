@@ -1,4 +1,29 @@
-## Now — web lane, 2026-09-24 late night (read this first)
+## Now — web lane, 2026-09-24 23:xx (read this first)
+
+**Waiting on two rulings; nothing to build until Lead relays them.**
+1. **SKILL button — draft PR #719** (`web/skill-button` @ 56544225; stills `evidence/skill-button` @ 7b8f18d9, delivered 22:45, deadline
+   00:30). Strategy is judging: (a) the gap rule. I used each button's gap to its NEAREST neighbour (six max 30.2 px, STEP–KICK) → SKILL
+   sits 32.0 px from STAB and from HEAVY. If they mean every neighbouring pair (SLASH–STEP 43.5, STEP–GUARD 59.6), SKILL moves far out.
+   (b) Lead's flag: with the 37 px shift, STAB/SLASH sit over the player's body and sword arm; the levers are cluster down, or tightening
+   the six's widest gaps. Hold the draft as is until ruled. Recapture: `artifacts/special-built.mjs <dir>` (iPhone insets substituted
+   for env() via route) then `artifacts/special-sheet.mjs` (edit its SP path). No merge, no deploy.
+2. **#714 paperdoll Shield** — READY, post-playtest merge by Lead. If #706 regenerates loot-layers first, rerun it after #714.
+
+**Done tonight (late):**
+- #714: `scripts/loot-layers.mjs` had its own PAPERDOLL without `off: ['Shield']` → `#slot-undefined`. Fixed + throws on unmapped;
+  off layer in the figure; slot cards above the figure (a shield reached the FEET card). Evidence `evidence/paperdoll-shield` @ 6c099509.
+- #709 duplicate worn labels: NOT ours. Veteran's harness listed meshes, one per material; Veteran deduped (Lead confirmed).
+- SKILL spec history, so the next session doesn't rebuild old versions: icon + gold ring → text SPECIAL, equilateral → renamed
+  SKILL → Strategy's brief: text only, HEAVY size, gap to STAB wider than the cluster's gaps, cooling = dim ONLY (no ring, no
+  countdown), "skill" in every identifier.
+
+**Gotchas (new):** (xii) hud.ts `update()` early-returns on an unchanged state key, so a DOM attribute set from a test script
+won't be re-read until the sim state changes; set `aria-disabled` yourself for a still. (xiii) Headless Chromium's env(safe-area-*)
+is 0: route `**/assets/*.css` and replaceAll `env(safe-area-inset-X)` with iPhone values. (xiv) A `//` comment inserted by sed into
+a one-line statement silently comments out its closing brackets. (xv) Rename the git branch when an identifier is renamed
+(web/special-button → web/skill-button).
+
+## Earlier — web lane, 2026-09-24 late night
 
 **Opponent-reveal item STOPPED.** Dom saw the A/B/C sheet (`evidence/opponent-reveal-mockups` @ b0d64ce9) and rejected all three:
 "terrible, ugly, and crass" (relayed by Lead). Lead's order: do not iterate, build nothing, no fourth option. Strategy decides
