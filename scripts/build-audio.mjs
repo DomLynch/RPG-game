@@ -352,6 +352,20 @@ const RECIPES = {
     const bow = mul(broad(n, r, 600 * f, 2400 * f), swell);
     return densify(mix(n, [y, 0, .7], [drone, 0, .9], [bow, 0, .4]), 1.6, { lift: 2 });
   },
+  // The opponent's charge (Strategy 2026-09-24): "she is charging" must not sound like your own gather — a harsher partial set,
+  // ratcheted at ~13 Hz like a blade drawn back against leather. It RISES (Strategy, from Dom's plan): the sample is a steady
+  // loop, and feedback.ts climbs its rate and gain over the whole hold, then fades it the tick the hold ends. Exactly five
+  // ratchet cycles, each gated to silence in its trough, phased so the region starts and ends mid-trough: the loop seam lands
+  // in ~19 ms of silence. Above 300 Hz, for a phone.
+  charge_foe(r) {
+    const f = vary(r, 1, .04), n = Math.round(5 * RATE / (13 * f));
+    const ratchet = new Float32Array(n); for (let i = 0; i < n; i++) ratchet[i] = Math.max(0, Math.sin(2 * Math.PI * 5 * i / n + 1.5 * Math.PI)) ** .7;   // both ends mid-trough
+    const y = new Float32Array(n);
+    [1, 1.41, 2.3, 3.3].forEach((ratio, k) => { let ph = r() * 6.28; for (let i = 0; i < n; i++) { ph += 2 * Math.PI * 760 * PITCH * f * ratio / RATE; y[i] += Math.sin(ph) * (.65 ** k) * ratchet[i]; } });
+    const growl = mul(biquad(biquad(noise(n, r), 'bandpass', 900 * f, 1.4), 'lowpass', 1800), ratchet);
+    const rasp = mul(broad(n, r, 1400 * f, 4800 * f), ratchet);
+    return mul(densify(mix(n, [y, 0, .75], [growl, 0, .6], [rasp, 0, .5]), 1.6, { lift: 2 }), ratchet.map(v => v > 0 ? 1 : 0));   // re-gate: densify's filters must not ring into the seam
+  },
   // Movement-start textures only: cloth/leather friction and loose sand, no invented landing impact.
   roll(r) {
     const n = S(.32);
@@ -403,7 +417,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 6, hit_heavy: 6, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, whip_raise: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 6, hit_heavy: 6, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, whip_raise: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3, charge_foe: 2 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];
