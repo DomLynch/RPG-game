@@ -118,7 +118,8 @@ export const decline = (loot: Loot | undefined, kill: Provenance): Loot => { con
 export const store = (loot: Loot | undefined, id: LootId, taken?: Provenance): Loot => { const l = loot ?? emptyLoot(); return l.owned.includes(id) ? l : { ...l, owned: [...l.owned, id], ...(taken ? { taken: { ...l.taken, [id]: taken } } : {}) }; };
 // The fight's short id, once it exists: fills a null recordId and nothing else.
 export const recordTaken = (loot: Loot, id: LootId, recordId: string): Loot => (loot.taken?.[id] && loot.taken[id]!.recordId === null ? { ...loot, taken: { ...loot.taken, [id]: { ...loot.taken[id]!, recordId } } } : loot);
-export const wear = (loot: Loot, id: LootId): Loot => (loot.owned.includes(id) ? { ...loot, equipped: { ...loot.equipped, [paperdollOf(slotOf(id))]: id } } : loot);
+// Wearing a piece takes it out of the pack if it was there: a piece is worn or packed, never both.
+export const wear = (loot: Loot, id: LootId): Loot => (loot.owned.includes(id) ? { ...loot, equipped: { ...loot.equipped, [paperdollOf(slotOf(id))]: id }, ...(loot.pack ? { pack: loot.pack.filter((p) => p !== id) } : {}) } : loot);
 export const unwear = (loot: Loot, key: Paperdoll): Loot => { const equipped = { ...loot.equipped }; delete equipped[key]; return { ...loot, equipped }; };
 // A record from before the pack (no `pack` at all): Store had unworn its pieces into nothing. Its owned, unworn pieces go into the pack, so
 // what Dom lost comes back; profile.ts applies this once, at load. A record that has a pack, even an empty one, is left as it is.

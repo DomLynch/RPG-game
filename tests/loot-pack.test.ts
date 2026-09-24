@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, wearFromPack, type Loot } from '../src/loot.ts';
+import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, wear, wearFromPack, type Loot } from '../src/loot.ts';
 import { loadProfile, saveProfile, type StoragePort } from '../src/profile.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
 
@@ -30,6 +30,7 @@ test('a stored piece is worn back from the pack; a piece already in that slot ta
   assert.equal(swap.equipped.head, 'pitborn.Helmet');
   assert.deepEqual(swap.pack, ['veteran.Helmet', 'veteran.Body'], 'the helmet it replaced goes into the pack, nothing vanishes');
   assert.equal(wearFromPack(back, 'pitborn.Boots'), back, 'a piece not in the pack is not worn from it');
+  assert.deepEqual(wear({ ...packed, owned: packed.owned }, 'veteran.Body').pack, ['veteran.Helmet'], 'worn any other way, it leaves the pack too: worn or packed, never both');
 });
 
 test('a stored piece survives a refresh: saved, reloaded, still in the pack and not worn', () => {

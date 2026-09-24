@@ -926,4 +926,12 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   app.element('slot-head-off').click();
   assert.deepEqual(app.worn, []); assert.equal(app.element('slot-head-name').textContent, 'Empty'); assert.equal(app.element('slot-head-off').hidden, true); assert.equal(row(0).attributes.get('data-worn'), 'false');
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.owned, ['veteran.Helmet', 'nightborn.Body'], 'nothing is lost by taking it off');
+  // Store puts it in the pack under WORN (Dom's screenshot 2026-09-24: before the pack it vanished from the Profile tab), and Wear brings it back.
+  const pack = () => app.element('pack').children;
+  assert.equal(pack().length, 5, 'two open pack slots and three locked');
+  assert.equal(pack()[0]!.attributes.get('data-loot'), 'veteran.Helmet', 'the stored helmet is in the first pack slot');
+  assert.equal(pack()[2]!.className, 'pack-locked'); assert.equal(pack()[4]!.className, 'pack-locked');
+  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'the pack persists');
+  pack()[0]!.children[1]!.click();
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
 });

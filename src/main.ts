@@ -122,7 +122,7 @@ function renderLoot() {
     element(`slot-${key}`).setAttribute('data-loot', id ?? '');   // the worn id, for the paperdoll's image layers (style.css loot-layers block)
     const off = element<HTMLButtonElement>(`slot-${key}-off`);
     off.hidden = !id; off.disabled = packFull(loot);   // Store moves the piece into the pack; a full pack says why beneath it (#pack-full)
-    if (off.disabled) off.setAttribute('aria-describedby', 'pack-full'); else off.removeAttribute('aria-describedby');
+    off.setAttribute('aria-describedby', off.disabled ? 'pack-full' : '');
   }
   // The pack (loot.ts PACK): the open slots hold what Store put there, each with Wear; the rest are drawn locked, a placeholder only.
   const pack = Array.from({ length: PACK.total }, (_, i) => {
