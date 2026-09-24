@@ -2,6 +2,8 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 18:21 (+04, `date`) — Resumed after the clear (Dom: CEO, manage Lead, stay out of the weeds, conserve tokens). Live by my curl 18:21: 5655ac94; #679 pose B MERGED 18:13, sha owed. One message to Lead: shas (#679; blood batch #661+#657+#665; Weapons #658 CONFLICTING / #660 / #662 quality check, Lead's to clear) + ETAs for the defence-audit sheet, the roster charge sheet, the rising charge cue, the bot report (#680 CONFLICTING, the run is what I want). Playtest script written by me once the defence sheet rules and pose B is live. No check-chasing by me from here; next action on Lead's line
+
 ## 2026-09-24 18:19 (+04, `date`) — HANDOFF (Strategy clears on Dom's word). READ THIS FIRST, then the entries below down to 15:36, then docs/briefs/coach-mode.md (on PR #640) and docs/SCOPE.md
 
 **MODE:** Dom = CHAIRMAN, Strategy = CEO, Lead Dev = COO (Dom restated 16:0x). I rule, Lead runs the lanes and verifies, Dom decides only when he drops in and his rulings (including older ones in trunk history) override mine. Judge every receipt myself on the evidence branch, same hour; curl every sha before logging LIVE; never read game code; briefs name requirements, not geometry. This doc lives on branch strategy/state-1235 / PR #536; the trunk copy stops at 09-23 09:48 and is stale. Every stamp from `date`.
