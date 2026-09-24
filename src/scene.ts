@@ -37,6 +37,9 @@ export function createScene(
   assetStatus: (status: string, kind: 'loading' | 'ready' | 'failed') => void = () => {},
   opponentId: OpponentId = 'veteran',
   arenaOverride?: string,   // ?arena=3b: a dev look / still capture; otherwise the ladder band picks (arena-themes.ts)
+  // The player's weapon, as the Match fights it. A promise when the page is still waiting on a kill link or the daily (the record or
+  // the day decides the weapon): the rigs load once it settles, so the hand always holds what the simulation swings.
+  playerWeapon: WeaponId | Promise<WeaponId> = 'longsword',
 ) {
   const theme = arenaFor(opponentId, arenaOverride);
   // Phone tier (the owner's iPhone GPU-pressure defect, 2026-09-18): cap the backing store at 1.25× and the
@@ -139,10 +142,7 @@ export function createScene(
   const dustFeet: (THREE.Object3D | null)[] = [],
     dustPositions = Array.from({ length: 4 }, () => new THREE.Vector3());
   // The player, and the chosen opponent; each rig plays the clips of the weapon the simulation gives that side (moves.ts OPPONENTS, duel.ts initialDuel).
-  const weapons = initialPractice(731, OPPONENTS[opponentId]).duel.fighters.map((f) => f.weapon) as [
-    WeaponId,
-    WeaponId,
-  ];
+  const weapons = Promise.resolve(playerWeapon).then((weapon) => initialPractice(731, OPPONENTS[opponentId], weapon).duel.fighters.map((f) => f.weapon) as [WeaponId, WeaponId]);
   // Every roster body except the held ones (roster.ts `hold`): glob patterns must be literals, so the exclusions are spelled out here —
   // tests/roster.test.ts checks the two lists agree. Held GLBs stay in src/assets for their lanes; they are just not in the beta bundle.
   const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
@@ -169,7 +169,7 @@ export function createScene(
     if (loading) return loading;
     assetStatus('Loading warriors…', 'loading');
     loading = Promise.all([
-    loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], weapons),
+    weapons.then((pair) => loadWarriors(fighterUrls['./assets/warrior.glb'], fighterUrls[`./assets/${ROSTER[opponentId].body}.glb`], pair)),
     arena.ready,
   ])
     .then(([loaded]) => {
