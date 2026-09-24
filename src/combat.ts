@@ -121,6 +121,8 @@ const NAMES: Record<MoveId, string> = {
 // `foe`: the opponent's own name without its article ("Centurion", "Goblin"), so the coaching lines name whoever is in the arena
 // (Dom via Strategy, 2026-09-22: "warden" leaves every player-facing string; identifiers keep it). The default covers the callers
 // that have no opponent loaded — the sim's own tests and any hint drawn before the rung is known.
+// The line reports WHAT HAPPENED or WHAT STATE YOU ARE IN, never what to do or when (Strategy 2026-09-24, Dom 09-20 "no visual
+// cues"): no line reads the opponent's state or names an answer; a state line is its state word; with nothing to report it is blank.
 export function practiceHint(s: Practice, foe = 'Opponent'): string {
   const me = s.duel.fighters[0];
   if (s.finish?.draw) return 'You both fell. Rematch?';
@@ -128,39 +130,37 @@ export function practiceHint(s: Practice, foe = 'Opponent'): string {
   if (!s.health) return `${foe} defeated. Ready for a rematch?`;
   if (s.phase === 'sheathed') return `Draw your sword. The ${foe} will counterattack.`;
   if (s.phase === 'draw') return 'Drawing longsword…';
-  if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken — Heavy for the critical!';
+  if (me.critical > 0 && me.phase !== 'attack') return 'Posture broken';
   if (me.phase === 'attack' && me.charge) {
-    return !movesOf(me)[me.move!].charges ? 'Chambered · release to strike · back to centre to feint' : me.charged ? 'Charged · breaks a guard' : 'Charging… keep holding';
+    return !movesOf(me)[me.move!].charges ? 'Chambered' : me.charged ? 'Charged' : 'Charging…';
   }
-  if (me.exhausted) return 'Exhausted · walk it off until your stamina returns';
-  if (s.enemyMode === 'guard' && !s.reaction && !s.enemyAttacking) return `${foe} guarding · heavy or close-range kick`;
-  if (s.phase === 'ready' && s.chain > 0) return 'Light again to follow through · or reset your footing';
+  if (me.exhausted) return 'Exhausted';
+  if (s.phase === 'ready' && s.chain > 0) return 'Follow-through';
   if (s.result !== 'none' && s.resultAge < 120) {
     const name = me.chained ? 'follow-up' : NAMES[me.lastMove ?? 'light_right'];
     const wall = (text: string) => s.resultWalled ? ` · ${text}` : '';
     return {
-      kicked: 'Kick connected · press the opening',
+      kicked: 'Kick connected',
       hit: `${s.resultStop ? 'Stop-hit' : s.resultCounter ? 'Counter' : 'Clean'} ${name} hit · −${s.resultDamage}${wall('into the wall')}`,
-      miss: `Miss — close the distance and face the ${foe}.`,
+      miss: 'Miss',
       hurt: `${s.resultStop ? 'Stop-hit — you walked onto the point' : s.resultTrip ? 'Swept — a low blade trips a roll' : s.resultCounter ? 'Countered' : 'Hit taken'} · −${s.resultDamage}${wall('pinned on the wall')}`,
-      blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}${me.counterWindow > 0 ? ' · heavy to counter' : ''}`,
+      blocked: `${s.resultPerfect ? 'Perfect block' : 'Blocked'} · −${Math.round(s.resultStamina)} stamina${s.resultDamage ? ` · −${s.resultDamage} chip` : ''}`,
       parried: `Parried! The ${foe} is open.`,
       dodged: 'Evaded!',
       // Plain words (Strategy 2026-09-24): the charge tell lives in motion + sound, so the line names what broke the guard.
       broken: s.resultBreak === 'charged' ? 'Guard broken: a charged heavy breaks guard.' : s.resultBreak === 'kick' ? 'Guard broken: a kick breaks guard.' : 'Guard broken.',
-      enemyBlocked: `${foe} blocked · use a heavy attack or change angle`,
-      enemyBroken: 'Guard shattered · press the opening',
+      enemyBlocked: `${foe} blocked`,
+      enemyBroken: 'Guard shattered',
       enemyParried: 'Your strike was turned aside — recover!',
       enemyDodged: `The ${foe} rolled clear.`,
       enemyKicked: `Kicked · −${s.resultDamage}`,
       postureBroken: 'Your posture broke — brace for the critical',
-      enemyPostureBroken: `${foe} staggering · Heavy for the critical!`,
+      enemyPostureBroken: '',   // it read the opponent's state and named the answer: removed, the line is blank
     }[s.result];
   }
-  if (s.phase === 'guard') return me.parrying ? 'Parry window open' : 'Guarding · release to recover stamina';
+  if (s.phase === 'guard') return 'Guarding';
   if (me.exposed) return 'Parry missed · guard down for a moment';
-  if (s.posture >= RULES.posture.max * .7) return 'Your posture is breaking · back off or parry';
-  if (s.enemyPosture >= RULES.posture.max * .7) return `${foe} near a posture break · keep the pressure on`;
+  if (s.posture >= RULES.posture.max * .7) return 'Your posture is breaking';
   return '';   // nothing happened: the line is blank (Strategy 2026-09-24, Dom 09-20 "no visual cues"; the coach hint went 09-19, f5410421)
 }
 
