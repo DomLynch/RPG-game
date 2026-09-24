@@ -104,7 +104,11 @@ export const MOVES: Record<MoveId, MoveDef> = {
   kick: {
     id: 'kick', direction: 'low', path: null, chainPath: null, chained: null, chain: null,
     windup: 18, active: 1, recovery: 25, damage: 4, stamina: 25, staminaDamage: 15, stagger: 18, poise: 0, poiseFrom: 0,
-    breaksGuard: false, chip: 0, parryable: false, knockback: 6, stepIn: .55, feintUntil: 0, reach: 1.2, vsGuard: { stagger: 36, staminaDamage: 45 }, posture: 24, chamber: null, charges: false,
+    breaksGuard: false, chip: 0, parryable: false, knockback: 6, stepIn: .55, feintUntil: 0, reach: 1.2, vsGuard: { stagger: 48, staminaDamage: 45 }, posture: 24, chamber: null, charges: false,
+    // vsGuard.stagger 48 (was 36; Dom, 2026-09-24): the kick that opens a guard must be punishable. The kicker's first legal
+    // attack plus every player weapon's fastest contact (the thrust; cleaver/warhammer/maul the slowest) now lands at least
+    // 3 ticks inside the stagger against every opponent. At 36 the stagger ended 2–9 ticks before that contact. Symmetric:
+    // an opponent's kick on your guard stuns you as long. Pinned in tests/duel.test.ts ('the kick that opens a guard...').
   },
 };
 
