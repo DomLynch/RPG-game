@@ -172,6 +172,7 @@ for (const [variant, style] of [['A', HOOK_A], ['B', HOOK_B], ['C', HOOK_C]] as 
   const hooked = createHookedWound(style);
   registerSignature({
     opponent: 'goblin', variant, name: NAMES[variant],
+    blood: true,   // a blood strand and drops: they stand down while the player has blood off (#677)
     when: (event) => hitBy(event) && !!event.location,
     fire: hooked.fire, update: hooked.update, clear: hooked.clear,
   });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { SIGNATURES, pickSignature } from '../src/signature.ts';
+import { SHIPPED, SIGNATURES, pickSignature } from '../src/signature.ts';
 import { HOOK, strandPoints } from '../src/signature-goblin.ts';
 import type { CombatEvent } from '../src/duel.ts';
 
@@ -22,6 +22,12 @@ test('variant B (depth-tested strand) sits beside the A; On still means the A', 
 
 test('variant C (heavy strand, flung drops) sits beside A and B', () => {
   assert.equal(pickSignature(SIGNATURES.goblin, 'C')?.name, 'Hooked Wound (heavy strand, flung drops)');
+});
+
+test('Hooked Wound is blood: every variant, the shipped C included, stands down while the player has blood off', () => {
+  for (const variant of ['A', 'B', 'C'] as const) assert.equal(pickSignature(SIGNATURES.goblin, variant)?.blood, true, `variant ${variant}`);
+  assert.equal(SHIPPED.goblin?.variant, 'C');
+  assert.equal(pickSignature(SIGNATURES.goblin, 'ship', SHIPPED.goblin?.variant)?.blood, true, 'what players get is flagged');
 });
 
 test('the strand runs wound to knife with a sag, and after the snap each half pulls back into its own end', () => {
