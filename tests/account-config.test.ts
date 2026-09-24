@@ -25,7 +25,7 @@ test('a production bundle without the Supabase origin or with the wrong auth sto
     for (const [name, body] of Object.entries(files)) writeFileSync(join(dist, 'assets', name), body);
     return spawnSync(process.execPath, ['scripts/check-built-account.mjs', dist], { encoding: 'utf8' });
   };
-  const origin = 'const u="https://rxbewmzmovelckzoosss.supabase.co";', key = 'auth:{storageKey:"frankendom.auth.v1"}';
+  const origin = 'const u="https://rxbewmzmovelckzoosss.supabase.co";', key = 'auth:{storageKey:`frankendom.auth.v1`}';
   assert.equal(run({ 'index-a.js': origin, 'account-b.js': key }).status, 0);
   for (const [files, message] of [
     [{ 'index-a.js': 'guest', 'account-b.js': key }, /Supabase project origin/],

@@ -7,7 +7,7 @@ const dir = join(process.argv[2] ?? 'dist', 'assets');
 const js = readdirSync(dir).filter((file) => file.endsWith('.js')).map((file) => readFileSync(join(dir, file), 'utf8')).join('\n');
 const missing = [
   [/https:\/\/[a-z0-9-]+\.supabase\.co/, 'the Supabase project origin'],
-  [/["']frankendom\.auth\.v1["']/, "the auth storageKey 'frankendom.auth.v1'"],
+  [/[`"']frankendom\.auth\.v1[`"']/, "the auth storageKey 'frankendom.auth.v1'"],
 ].filter(([pattern]) => !pattern.test(js)).map(([, what]) => what);
 if (missing.length) throw Error(`Guest-only build: the bundle in ${dir} lacks ${missing.join(' and ')}. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.production.local before a production deploy.`);
 console.log('Built bundle carries the Supabase origin and the auth storageKey.');
