@@ -163,3 +163,36 @@ export function chargedAnswers(events, decisions) {
     return { tick: c.tick, move: c.move, answer, verdict, cue, playerActions: between, reactedToCharge: !!named, damage: end && (end.type === 'Hit' || end.type === 'GuardBroken') ? end.damage ?? 0 : 0 };
   });
 }
+
+// One observed opponent attack through its resolved defence and the next useful player hit.
+export function defenceExchanges(events, decisions, samples, endTick) {
+  const active = events.filter(e => e.tick <= endTick);
+  const tells = active.filter(e => e.type === 'AttackStarted' && e.actor === 1);
+  return tells.map((tell, index) => {
+    const until = tells[index + 1]?.tick ?? endTick + 1;
+    const contact = active.find(e => e.tick >= tell.tick && e.tick < until && (
+      (e.actor === 1 && e.type === 'ActionStarted' && e.action === 'feint') ||
+      (e.move === tell.move && ((e.actor === 0 && ['Blocked', 'Parried', 'Dodged'].includes(e.type)) ||
+        (e.actor === 1 && ['Hit', 'GuardBroken', 'AttackMissed'].includes(e.type))))));
+    const interrupt = active.find(e => e.tick >= tell.tick && e.tick < (contact?.tick ?? until) &&
+      e.type === 'Hit' && e.actor === 0 && e.target === 1 &&
+      (e.stop || active.some(s => s.tick === e.tick && s.type === 'Staggered' && s.actor === 1)));
+    const result = interrupt ?? contact;
+    const action = result && decisions.filter(d => d.tick >= tell.tick && d.tick <= result.tick &&
+      (d.press === 'KeyE' || d.keys?.includes('KeyQ'))).at(-1);
+    const before = samples.filter(s => s.tick <= tell.tick).at(-1) ?? samples[0];
+    const after = result && (samples.find(s => s.tick >= result.tick) ?? samples.at(-1));
+    const nextHit = interrupt ?? (result && active.find(e => e.tick > result.tick && e.type === 'Hit' && e.actor === 0 && e.target === 1));
+    const nextEnemyHit = result && active.find(e => e.tick > result.tick && e.type === 'Hit' && e.actor === 1 && e.target === 0);
+    return { tell: { tick: tell.tick, move: tell.move, direction: tell.direction },
+      choice: action ? { tick: action.tick, intent: action.intent, keys: action.keys, press: action.press } : null,
+      result: result ? { tick: result.tick, type: interrupt ? 'Interrupted' : result.action === 'feint' ? 'Feinted' : result.type,
+        damageTaken: interrupt ? 0 : result.damage ?? 0,
+        demonstratedAvoidance: result.type === 'Dodged' || result.type === 'AttackMissed' } : null,
+      nextUsefulHit: nextHit ? { tick: nextHit.tick, move: nextHit.move, damage: nextHit.damage,
+        secondsLater: +((nextHit.tick - result.tick) / 60).toFixed(2), beforeNextEnemyHit: !nextEnemyHit || nextHit.tick < nextEnemyHit.tick,
+        beforeNextEnemyAttack: nextHit.tick < until } : null,
+      spacing: before && after ? { before: { tick: before.tick, gap: before.gap, radius: before.radius },
+        after: { tick: after.tick, gap: after.gap, radius: after.radius } } : null };
+  });
+}
