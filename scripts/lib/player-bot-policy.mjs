@@ -43,7 +43,7 @@ export function chooseGuardCounter(obs, state, reactionTicks, config) {
 export function chooseChargedAttack(obs, state, reactionTicks, config) {
   for (const e of obs.events) {
     if (e.type === 'AttackStarted' && e.actor === 1) state.tell = { tick: e.tick, move: e.move, direction: e.direction };
-    if (e.type === 'Charged' && e.actor === 0) state.charged = true;
+    if (e.type === 'Charged' && e.actor === 0 || e.type === 'ChargeCue' && state.charging) state.charged = true;
     if ((e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0) { state.counterReady = e.tick + reactionTicks; state.counterUntil = e.tick + 20; }
   }
   if (!obs.hp || !obs.enemyHp) return { keys: [], press: null };
@@ -80,7 +80,11 @@ export function chooseTacticalAttack(obs, state, reactionTicks, config) {
   state.heavies ??= 0;
   for (const e of obs.events) {
     if (e.type === 'AttackStarted' && e.actor === 1) state.tell = { tick: e.tick, move: e.move, direction: e.direction };
-    if (e.type === 'Charged' && e.actor === 1 && e.move === 'heavy_overhead') state.chargedThreat = e.tick;
+    // A charge is known from the debug event, or (limited) the charge sound while a seen heavy is winding up and we are not holding
+    // our own: the cue is one sound for either fighter, so on our own hold it is ours.
+    if (e.type === 'Charged' && e.actor === 1 && e.move === 'heavy_overhead') state.chargedThreat = { tick: e.tick, ready: e.tick + reactionTicks, cue: 'event' };
+    if (e.type === 'ChargeCue' && !state.charging && state.tell?.move === 'heavy_overhead' && obs.enemyPhase === 'attack')
+      state.chargedThreat = { tick: e.tick, ready: e.tick + reactionTicks, cue: 'sound' };
     if (e.type === 'AttackMissed' && e.actor === 1) state.miss = { tick: e.tick, ready: e.tick + reactionTicks, until: e.tick + 30 };
     if ((e.type === 'Blocked' || e.type === 'Parried') && e.actor === 0) state.defence = { tick: e.tick, ready: e.tick + reactionTicks, until: e.tick + 20 };
     if (e.type === 'Blocked' && e.actor === 1) state.enemyBlock = e.tick;
@@ -90,8 +94,12 @@ export function chooseTacticalAttack(obs, state, reactionTicks, config) {
       else state.quickRestUntil = e.tick + 70;
       state.heavyPending = 0;
     }
-    if (e.type === 'Charged' && e.actor === 0) state.charged = true;
+    if (e.type === 'Charged' && e.actor === 0 || e.type === 'ChargeCue' && state.charging) state.charged = true;
   }
+  // Hold time: a seen heavy still winding up well past its plain windup is being held for the charge.
+  const heldFor = config.windup?.heavy_overhead + (config.holdMargin ?? 8);
+  if (state.tell?.move === 'heavy_overhead' && obs.enemyPhase === 'attack' && obs.tick - state.tell.tick >= heldFor
+      && (state.chargedThreat?.tick ?? -1) < state.tell.tick) state.chargedThreat = { tick: obs.tick, ready: obs.tick, cue: 'hold time' };
   const eligible = [];
   const choice = (keys, press, reason) => ({ keys, press, reason, eligible: [...eligible] });
   if (!obs.hp || !obs.enemyHp) return choice([], null, 'fight ended');
@@ -101,11 +109,12 @@ export function chooseTacticalAttack(obs, state, reactionTicks, config) {
   state.charging = false; state.charged = false;
   if (state.heavyPending && obs.tick - state.heavyPending > 8) state.heavyPending = 0;
   const heavyAllowed = !state.heavyPending && 5 * (state.heavies + 1) <= state.attacks + 1;
-  if (state.chargedThreat && state.rolledCharge !== state.chargedThreat && obs.tick >= state.chargedThreat + reactionTicks
+  const threat = state.chargedThreat;
+  if (threat && state.rolledCharge !== threat.tick && obs.tick >= threat.ready
       && obs.enemyPhase === 'attack' && (own === 'ready' || own === 'guard') && obs.stamina >= 35) {
-    state.rolledCharge = state.chargedThreat;
-    eligible.push({ kind: 'evade charged overhead', tick: state.chargedThreat });
-    return choice([nearWall ? 'KeyW' : 'KeyA'], 'KeyE', 'lateral roll clear of charged overhead');
+    state.rolledCharge = threat.tick;
+    eligible.push({ kind: 'evade charged overhead', tick: threat.tick, cue: threat.cue });
+    return choice([nearWall ? 'KeyW' : 'KeyA'], 'KeyE', `lateral roll clear of charged overhead (${threat.cue})`);
   }
   const counterReady = state.defence && obs.tick >= state.defence.ready && obs.tick <= state.defence.until && obs.stamina >= 30 && obs.gap <= 1.9;
   const quickReady = state.miss && obs.tick >= state.miss.ready && obs.tick <= state.miss.until && obs.stamina >= 45 && obs.gap <= config.thrustRange && (own === 'ready' || own === 'guard');

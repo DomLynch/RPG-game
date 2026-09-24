@@ -155,7 +155,11 @@ export function chargedAnswers(events, decisions) {
       : end.type === 'Dodged' ? 'rolled' : end.type === 'Parried' ? 'parried' : end.type === 'Blocked' ? (end.perfect ? 'perfect block' : 'blocked')
       : end.type === 'GuardBroken' ? 'guard broken' : end.type === 'Hit' ? 'hit clean'
       : between.includes('backstep') ? 'backstepped' : between.includes('roll') ? 'rolled (out of reach)' : 'missed (spacing)';
-    const saw = decisions.some(d => d.tick >= c.tick && d.tick <= (end?.tick ?? c.tick + 60) && /charged/.test(d.reason ?? d.intent ?? ''));
-    return { tick: c.tick, move: c.move, answer, playerActions: between, reactedToCharge: saw, damage: end && (end.type === 'Hit' || end.type === 'GuardBroken') ? end.damage ?? 0 : 0 };
+    // The cue the bot's own decision named, from the swing's start (a hold-time read can come before the charge lands) to its end.
+    const named = decisions.find(d => d.tick >= (start?.tick ?? c.tick) && d.tick <= (end?.tick ?? c.tick + 60) && /charged/.test(d.reason ?? d.intent ?? ''));
+    const cue = named ? /\((sound|hold time|event)\)/.exec(named.reason ?? '')?.[1] ?? 'unnamed' : 'nothing';
+    const verdict = ['rolled', 'parried', 'rolled (out of reach)'].includes(answer) ? 'correct'
+      : ['blocked', 'perfect block', 'guard broken'].includes(answer) ? 'guarded into' : 'other';
+    return { tick: c.tick, move: c.move, answer, verdict, cue, playerActions: between, reactedToCharge: !!named, damage: end && (end.type === 'Hit' || end.type === 'GuardBroken') ? end.damage ?? 0 : 0 };
   });
 }

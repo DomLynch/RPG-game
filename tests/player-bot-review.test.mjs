@@ -86,6 +86,7 @@ test('each defence reports what it earned: damage avoided, window opened and use
   assert.equal(summary.roll.avoided, 30);
   assert.equal(summary.block.landed, 1);
   assert.equal(summary.backstep.underThreat, 0);
-  const charged = chargedAnswers(events, [{ tick: 145, reason: 'lateral roll clear of charged overhead' }]);
-  assert.deepEqual(charged, [{ tick: 130, move: 'heavy_overhead', answer: 'rolled', playerActions: ['roll'], reactedToCharge: true, damage: 0 }]);
+  const charged = chargedAnswers(events, [{ tick: 145, reason: 'lateral roll clear of charged overhead (sound)' }]);
+  assert.deepEqual(charged, [{ tick: 130, move: 'heavy_overhead', answer: 'rolled', verdict: 'correct', cue: 'sound', playerActions: ['roll'], reactedToCharge: true, damage: 0 }]);
+  assert.equal(chargedAnswers(events, [])[0].cue, 'nothing');
 });

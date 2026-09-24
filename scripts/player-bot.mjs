@@ -46,7 +46,7 @@ const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8',
 const identity = strategy === 'tactical' ? 'LATEST tactical' : 'ARCHIVED diagnostic';
 console.log(JSON.stringify({ identity, revision: `${revision}${dirty ? '-dirty' : ''}`, strategy, difficulty: 'easy', observation, headed }));
 const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge'] };
-const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, headed, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'player view: HUD threat flag, stamina/health meters, perceivable events only (windup side/kind, charge cue, contact sounds), all opponent-side information delayed; distance rounded to half-metres; current own phase', fights: [] };
+const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, headed, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'player view: stamina/health meters, perceivable events only (a swing seen starting and ending, its side; the charge sound without whose it is; contact sounds, whiffs, rolls), all opponent-side information delayed; charge inferred from the sound or the windup hold time; distance rounded to half-metres; current own phase', fights: [] };
 try {
   for (const opponent of opponents) for (const seed of seeds) {
     const [range, defense] = CONFIG[opponent];
@@ -103,7 +103,7 @@ try {
             thrust: document.querySelector('#thrust-button').getAttribute('aria-disabled') === 'false',
             kick: document.querySelector('#kick-button').getAttribute('aria-disabled') === 'false',
             dodge: document.querySelector('#dodge-button').getAttribute('aria-disabled') === 'false',
-            threat: document.querySelector('#combat-status').dataset.threat === 'true', meterStamina: Number(document.querySelector('#stamina').value),
+            meterStamina: Number(document.querySelector('#stamina').value),
             events: window.__botEvents.slice(cursor), count: window.__botEvents.length };
         }, cursor);
         cursor = obs.count;
@@ -235,7 +235,8 @@ try {
     const fights = receipt.fights.filter(f => f.opponent === id), charged = fights.flatMap(f => f.chargedHeavies ?? []);
     const tally = list => list.reduce((n, x) => ({ ...n, [x]: (n[x] ?? 0) + 1 }), {});
     return [id, { wins: fights.filter(f => f.outcome === 'win').length, losses: fights.filter(f => f.outcome === 'loss').length, timeouts: fights.filter(f => f.outcome === 'timeout').length,
-      chargedHeavies: { total: charged.length, answers: tally(charged.map(c => c.answer)), reactedToCharge: charged.filter(c => c.reactedToCharge).length, damageTaken: charged.reduce((n, c) => n + c.damage, 0) },
+      chargedHeavies: { total: charged.length, correct: charged.filter(c => c.verdict === 'correct').length, guardedInto: charged.filter(c => c.verdict === 'guarded into').length,
+        other: charged.filter(c => c.verdict === 'other').length, answers: tally(charged.map(c => c.answer)), cueNamed: tally(charged.map(c => c.cue)), damageTaken: charged.reduce((n, c) => n + c.damage, 0) },
       defences: summarizeDefences(fights.flatMap(f => f.defenceRows ?? [])) }];
   }));
   receipt.rates = Object.fromEntries(opponents.map(id => [id, receipt.fights.filter(f => f.opponent === id && f.outcome === 'win').length / count]));
