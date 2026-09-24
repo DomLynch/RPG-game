@@ -28,7 +28,6 @@ import { LADDER, opponentFor } from './ladder.ts';
 import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
-import { createArenaDraw } from './arena-draw.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 // The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
 const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
@@ -423,7 +422,6 @@ element('name-form').addEventListener('submit', (event) => {
   profile.name = cleanName(input.value);
   persist();
   welcome.hidden = true;
-  startDraw();   // a first visit: the draw waits for the name (the welcome sits over the card)
   clearInput();
   feedback.unlock();
   canvas.focus();
@@ -643,21 +641,9 @@ if (typeof document !== 'undefined' && document.body)
 const versus = element('versus'), versusStill = element<HTMLImageElement>('versus-still');
 // The fight waits behind the card (versusUp: buttons asleep, no ticks); the card lifts the moment the rigs are in. Owner 2026-09-21:
 // a plain still — no drift, no opening camera move ("lets remove it and simplify things").
-// The Arena Draw (src/arena-draw.ts, Dom 2026-09-24) plays once on the card, over the still, for a fight this page will fight: never on
-// a kill link's viewer page, and not under the welcome (it starts when the name is given). The card holds until the draw ends, so the
-// rigs coming in fast never cut the slam short; a tap on the board skips it.
-const arenaDraw = createArenaDraw(element('arena-draw'), document);
-let drawing: Promise<void> | null = null, drawn = false;
-function startDraw() {
-  if (drawn || watching || !versusUp || !welcome.hidden) return;
-  drawn = true;
-  const foe = ROSTER[opponent.id], reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  drawing = arenaDraw.play(LADDER.map((rung) => rung.id), opponent.id, { name: foe.name, weapon: foe.weapon }, (ms) => new Promise((done) => setTimeout(done, ms)), reduced)
-    .finally(() => { drawing = null; if (assetsReady || artFailed) hideVersus(); });
-}
-const hideVersus = () => { if (drawing) return; versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
+const hideVersus = () => { versusUp = false; updateHud(); if (versus.hidden || versus.dataset.out) return; versus.dataset.out = 'true'; versus.addEventListener('transitionend', () => { versus.hidden = true; }, { once: true }); };
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
-versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; updateHud(); startDraw(); } });
+versusStill.addEventListener('load', () => { if (!assetsReady) { versus.hidden = false; versusUp = true; updateHud(); } });
 element('versus-foe').textContent = bareName(opponent.id);
 versusStill.src = `versus/${opponent.id}.webp`;   // document-relative: the page is served at the site root (public/versus/)
 let view: ReturnType<typeof createScene>, artFailed = false;
@@ -671,7 +657,6 @@ try {
       element('art-status').dataset.retry = String(artFailed);
       // Keyed on the machine-readable kind, never on the display string: a future in-progress status line (a download-stage
       // line, a retry notice) must not lift the card early and reveal the capsule stand-ins (audit 2026-09-22).
-      if (kind === 'failed') arenaDraw.skip();   // the retry notice is not held behind the board
       if (kind !== 'loading') hideVersus();
     },
     opponent.id,
