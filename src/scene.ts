@@ -21,6 +21,9 @@ import { createSignatures, resolveSignature } from './signature.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
 import './signature-knight.ts';   // the Knight's Rivet Burst registers itself
 import './signature-witch.ts';   // registers the Witch's Grasp
+import './signature-pitborn.ts';   // registers the Pitborn's Butcher's Wake
+import './signature-executioner.ts';   // the Executioner's Reaping Scar registers itself
+import './signature-veteran.ts';   // the Veteran's Battle Scars registers itself
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
