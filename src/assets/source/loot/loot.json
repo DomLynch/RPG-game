@@ -474,21 +474,13 @@
   },
   {
    "slot": "Body",
-   "layer": "replace",
-   "file": "loot/knight.glb",
-   "slots": [
-    "Body"
-   ],
-   "conform": true
+   "layer": "over",
+   "file": "@build:knight-chest"
   },
   {
    "slot": "Arms",
    "layer": "over",
-   "file": "loot/knight.glb",
-   "slots": [
-    "Arms"
-   ],
-   "conform": true
+   "file": "@build:knight-arms"
   },
   {
    "slot": "Gloves",
@@ -504,11 +496,7 @@
   {
    "slot": "Greaves",
    "layer": "over",
-   "file": "loot/knight.glb",
-   "slots": [
-    "Greaves"
-   ],
-   "conform": true
+   "file": "@build:knight-greaves"
   },
   {
    "slot": "Boots",
