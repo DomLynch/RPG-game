@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 09:10 — Four features ordered into the game (Dom: "integrate"); SCOPE.md PR #640
+
+Lead briefed 09:00: (1) Arena Draw, (2) Open Graph on the replay page, (3) two share buttons with a real clip export (reduced-gore toggle), (4) coach mode = full fight, rank + loot, Combat policies + Web board; each after its lane's current beta item, Lead sequences. Rematch skipped. SCOPE.md dated section on #640 (docs/scope-2026-09-24, docs only) for the docs batch. Owed: Lead's sequencing line, Web's Arena Draw stills ETA, World's A/B stills ~10:30, rows 23/27 pick from Dom.
+
 ## 2026-09-24 08:50 — DOM RULED: coach mode counts fully (rank + loot); Arena Draw ordered (Web)
 
 Coach/watch mode = a full fight with a chosen playstyle, so it progresses rank and loot like a played fight; no exhibition variant, "keep the game simple". Post-beta. ARENA DRAW sent to Lead for Web (after Web's beta item): vertical portrait strip on a chain behind an iron frame, silhouettes, slams on the ladder's opponent with name + weapon, ≤1.5 s, tap to skip, no reroll/near-miss/rival weighting, plain still stays; two labelled stills to Dom first, frame receipt. Web also checks the replay page's Open Graph tags (kill-frame still + title inline on WhatsApp). From the GPT/Kimi reviews, taken post-beta: two share buttons (link vs exported clip, reduced-gore export), rematch-from-the-bad-moment (deterministic replay makes it cheap). Not taken: finisher composer, live crowd voting. Owed: Web's ETA, rows 23/27 pick from Dom.
