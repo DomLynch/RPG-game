@@ -2,18 +2,28 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-24 19:00 (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-24 21:30 (replace this section wholesale; it is the restart brief, not history)
 
-**Now — both PRs MERGED (18:53–18:54 +04). Nothing open but #674 (this doc). Wait for Lead's next task.**
-1. **#684, the signature batch** (Nightborn, Goblin and Plague Doctor effects, blood-flagged): merged as `3285dc6b`, head
-   `035f6086`. CI quality green; the 9 release-checks cancels came from cancel-on-close. Lead closes #658, #660 and #662.
-2. **#678, the rising opponent charge cue:** merged, head `0885d499`. `charge_foe` starts on the opponent's `Charging` (actor 1,
-   only for a move that `charges`) and loops for 0.9 s = `RULES.charge.max`, with rate x1.6 and level 35 %→100 %. It fades out
-   over 35 ms on the first frame with `ArenaFrame.holding === false` (`foeHolding` in `src/main.ts`). Her `Charged` → no cue
-   (Lead ruled this). CI quality green; one cancel-on-close cancel.
-3. **Not yet live:** release.json showed `a5590911` at merge time, and the deploy session owns the next publish. When it is
-   live, check that `foeHolding` is in the deployed bundle, then listen to an opponent heavy charge on a phone: a full-hold climb,
-   and a clean cut on a feint.
+**Now — nothing open. Stand by for Lead (Lead is CEO; questions go to Lead, never to Dom).**
+
+**Done today**
+- #684, the signature batch (Nightborn, Goblin, Plague Doctor, blood-flagged), and #678, the rising opponent charge cue: both
+  LIVE in `e37a74c7`, the playtest sha.
+- #674, the state doc: merged by Deploy (docs only).
+- **#692, the kick punish window** (Dom's order): head `2632c9b0`, ACCEPTED by Lead and integrated in #695 (`41f2f7bf`) with
+  Lead's single RECORD_VERSION bump. Do NOT push to #692: Deploy merges by head.
+  - Change: `MOVES.kick.vsGuard.stagger` 36 → 48. It is symmetric: an opponent's kick on the player's guard is also 48.
+  - Ticks in Lead's frame (kick pressed at 12): first legal 57, window end 66 → 78, fastest contact 73 (longsword thrust).
+    The worst weapon (cleaver/warhammer/maul thrust) is at 75, so the slack is 3. The scythe's thrust whiffs on range
+    after the kick, both before and after this change; its fastest landing follow-up is the kick, at 3 inside.
+  - Test: `tests/duel.test.ts` "the kick that opens a guard is punishable…" covers every opponent × all 9 weapons. It
+    fails at 36 and passes at 48.
+  - Easy gate A/B, Pitborn with the same seeds: 1W/2L both at 36 AND at 48, and the losing seeds match to 0.01 s. So the
+    gate's Pitborn failure predates the kick; it comes from trunk drift since #680's report (a962f66b). That is
+    Pitborn/Combat's to own. Lead ruled no option (a), i.e. no player-only stagger.
+  - 375 px still accepted: guard up at contact, broken open at +10/+30/+46, sim Staggered 48.
+
+**Open:** nothing for this lane. The Pitborn Easy-gate failure on current trunk is not ours (evidence above).
 
 **Gotchas (new today)**
 1. **The deploy hook blocks even single-file tests and `tsc` while a deploy holds the lock.** Push, then let CI run, then test after FREE.
@@ -33,7 +43,12 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
    `import type`.
 10. **A loop needs a silent seam.** Phase the sample to start and end mid-trough, then measure the encoded edges
    (ffmpeg `volumedetect` on the first and last 5 ms).
-
+11. **The Easy gate (`scripts/player-bot.mjs`) is NOT on trunk**; it lives on #680's branch. To gate a sim change, make a
+   throwaway branch = #680 + your commit, build it, and run `--opponents=all --fights=3 --no-video`. A red opponent needs
+   an A/B on the same seeds without your commit before you blame the change: it is deterministic.
+12. **To force an opponent's guard in a scripted still, re-force `phase: 'guard'` with `age: 1` every tick.** At age >= the
+   window with no guard intent, the sim drops the guard that same tick, and the kick lands unguarded (stagger 18, not 48).
+   Verify the Staggered ticks in the sim before sending any still.
 
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.
