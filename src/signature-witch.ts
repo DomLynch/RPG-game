@@ -8,7 +8,7 @@ import { OPPONENT_SIDE, registerSignature, type SignatureFrame } from './signatu
 //  - When that charged blow LANDS (a Hit or a GuardBroken carrying `charged`), a black clawed hand closes over the struck shoulder and
 //    crumbles to ash. The hit is her real melee hit; the hand only shows where it landed.
 export const GRASP = { size: 0.26, close: 0.18, hold: 0.22, crumble: 0.55 } as const;   // metres; seconds: closing, holding, crumbling
-const SPARKS = 18, ASH = 22;
+const SPARKS = 24, ASH = 22;
 
 export const graspLands = (event: CombatEvent) =>
   (event.type === 'Hit' || event.type === 'GuardBroken') && event.actor === OPPONENT_SIDE && event.charged === true;
@@ -72,8 +72,8 @@ const scratch = new THREE.Vector3(), scratchQuat = new THREE.Quaternion(), up = 
 
 function build(root: THREE.Object3D) {
   let scene = root; while (scene.parent) scene = scene.parent;   // the pools are in world space: they hang off the scene itself
-  sparks = pointsPool(SPARKS, '#ffd27a', 0.035, THREE.AdditiveBlending);
-  ash = pointsPool(ASH, '#2a2424', 0.03, THREE.NormalBlending);
+  sparks = pointsPool(SPARKS, '#ffe2a0', 0.07, THREE.AdditiveBlending);   // 7 cm: 3.5 cm read as specks from the fight camera (first strip)
+  ash = pointsPool(ASH, '#2a2424', 0.045, THREE.NormalBlending);
   hand = new THREE.Mesh(new THREE.PlaneGeometry(GRASP.size, GRASP.size), new THREE.MeshBasicMaterial({ map: handArt(), color: '#ffffff', transparent: true, depthWrite: false, depthTest: false, alphaTest: 0.01, side: THREE.DoubleSide }));
   hand.renderOrder = 4; hand.visible = false;
   scene.add(sparks.points, ash.points, hand);
