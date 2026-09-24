@@ -361,6 +361,9 @@ function updateHud() {
   // the win's one loot offer. Timing only — nothing moves, and the loot panel is outside the fade group as before.
   const hushed = pendingLoot !== null ? !phase?.complete : !phase?.settled;
   document.documentElement.classList.toggle('endgame-fade', !!phase && (hushed || (phase.touring && !watching)));
+  // The rank row keeps only the hush, not the tour (Dom 2026-09-24, phone: the strip was "missing" at fight end — it showed for ~3 s
+  // between settle and the tour, then faded until a touch). Text in the top band, no pointer: it stays up while the camera rolls.
+  document.documentElement.classList.toggle('endgame-hush', !!phase && hushed);
   // The loot panel opens on the finisher-complete event, not a delay of ours: `complete` is the scene's own latch (the victim's
   // clip has run out, the camera has settled, a severed head has come to rest), so a long ceremony is never cut short and a
   // short one never leaves the player waiting. src/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
