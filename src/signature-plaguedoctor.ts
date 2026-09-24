@@ -12,13 +12,21 @@ export const ROT = { size: 0.17, grow: 0.85, opacity: 0.95 } as const;   // metr
 
 // The stain, drawn once to a canvas (browser only; under node the mark is an untextured dark square): a bruised core and veins that branch
 // out from it and thin to nothing, near-black purple at the heart going sickly green-black at the tips.
-let art: THREE.Texture | null | undefined;
-function rotArt(): THREE.Texture | null {
-  if (art !== undefined) return art;
-  if (typeof document === 'undefined') return (art = null);
+// A: 17 cm, the first look. B (Strategy's "again" on A: a faint smudge at 375 px): a hand's width, darker, with fewer, thicker veins so the
+// branching still reads at phone distance.
+export type RotStyle = { size: number; veins: number; vein: number; step: number; fade: number };
+export const ROT_A: RotStyle = { size: ROT.size, veins: 8, vein: 0.075, step: 0.04, fade: 0.35 };
+export const ROT_B: RotStyle = { size: 0.25, veins: 6, vein: 0.11, step: 0.055, fade: 0.1 };
+const arts = new Map<RotStyle, THREE.Texture | null>();
+function rotArt(style: RotStyle = ROT_A): THREE.Texture | null {
+  if (arts.has(style)) return arts.get(style)!;
+  const art = drawRot(style); arts.set(style, art); return art;
+}
+function drawRot(style: RotStyle): THREE.Texture | null {
+  if (typeof document === 'undefined') return null;
   const size = 256, canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
   const g = canvas.getContext('2d');
-  if (!g) return (art = null);
+  if (!g) return null;
   const c = size / 2;
   let seed = 9173;
   const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
@@ -32,24 +40,24 @@ function rotArt(): THREE.Texture | null {
   g.lineCap = 'round';
   const vein = (x: number, y: number, angle: number, width: number, depth: number) => {
     for (let step = 0; step < 9 && width > 0.6; step++) {
-      const length = size * (0.04 + rand() * 0.04);
+      const length = size * (style.step + rand() * style.step);
       angle += (rand() - 0.5) * 0.9;
       const nx = x + Math.cos(angle) * length, ny = y + Math.sin(angle) * length;
       const r = Math.hypot(nx - c, ny - c) / (size * 0.5);
       if (r > 0.95) return;
-      g.strokeStyle = `rgba(${Math.round(18 + 22 * r)},${Math.round(6 + 34 * r)},${Math.round(16 - 4 * r)},${(1 - 0.35 * r).toFixed(2)})`;
+      g.strokeStyle = `rgba(${Math.round(18 + 22 * r)},${Math.round(6 + 34 * r)},${Math.round(16 - 4 * r)},${(1 - style.fade * r).toFixed(2)})`;
       g.lineWidth = width; g.beginPath(); g.moveTo(x, y); g.lineTo(nx, ny); g.stroke();
       x = nx; y = ny; width *= 0.86;
       if (depth < 2 && rand() < 0.35) vein(x, y, angle + (rand() < 0.5 ? -1 : 1) * (0.5 + rand() * 0.6), width * 0.8, depth + 1);
     }
   };
-  for (let i = 0; i < 8; i++) vein(c, c, (i / 8) * Math.PI * 2 + rand() * 0.5, size * 0.075, 0);
+  for (let i = 0; i < style.veins; i++) vein(c, c, (i / style.veins) * Math.PI * 2 + rand() * 0.5, size * style.vein, 0);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
-  return (art = texture);
+  return texture;
 }
-export const rotLook = (fadeIn: number): MarkLook => ({
-  width: ROT.size, height: ROT.size, map: rotArt(), color: rotArt() ? '#ffffff' : '#1a0c16', opacity: ROT.opacity, roughness: 0.7, fadeIn,
+export const rotLook = (fadeIn: number, style: RotStyle = ROT_A): MarkLook => ({
+  width: style.size, height: style.size, map: rotArt(style), color: rotArt(style) ? '#ffffff' : '#1a0c16', opacity: ROT.opacity, roughness: 0.7, fadeIn,
 });
 
 // Where the stain shows: the fight camera sits behind and above the player he is striking, so a chest mark faces away and the facing rule
@@ -64,7 +72,7 @@ export function rotSite(tick: number, location: string, direction: string): Mark
     : { bone: `upperarm_${l}`, dir: [side * 0.25, 0.9, -0.35], radius: 0.07 };
 }
 
-export function createRotBloom() {
+export function createRotBloom(style: RotStyle = ROT_A) {
   const material = new THREE.MeshStandardMaterial({ transparent: true, depthWrite: false, depthTest: false, polygonOffset: true, polygonOffsetFactor: -2, roughness: 0.7 });
   const plane = new THREE.PlaneGeometry(1, 1);
   let mesh: THREE.Mesh | null = null, bone: THREE.Object3D | null = null, age = -1;
@@ -75,7 +83,7 @@ export function createRotBloom() {
   const settle = (frame: SignatureFrame) => {
     if (!pending) return;
     const { victim, root, event, direction, heading, scale, site } = pending;
-    frame.marks.body(victim, root, { location: event.location!, direction, heading }, rotLook(0), scale, site);
+    frame.marks.body(victim, root, { location: event.location!, direction, heading }, rotLook(0, style), scale, site);
     if (mesh) mesh.visible = false;
     age = -1; pending = null;
   };
@@ -103,7 +111,7 @@ export function createRotBloom() {
           let world: THREE.Object3D = root; while (world.parent) world = world.parent;
           world.add(mesh);
         }
-        material.map = rotArt(); material.color.set(rotArt() ? '#ffffff' : '#1a0c16'); material.needsUpdate = true;
+        material.map = rotArt(style); material.color.set(rotArt(style) ? '#ffffff' : '#1a0c16'); material.needsUpdate = true;
       }
       pending = { victim, root, event, direction, heading, scale: frame.scale[victim], site };
       age = 0;
@@ -117,7 +125,7 @@ export function createRotBloom() {
         p.copy(local); bone.localToWorld(p);
         n.copy(normalLocal).applyQuaternion(bone.getWorldQuaternion(q)).normalize();
         mesh.position.copy(p); mesh.lookAt(p.clone().add(n));
-        const s = ROT.size * (0.2 + 0.8 * (1 - (1 - k) ** 2));   // spreads fast, then slows and stops
+        const s = style.size * (0.2 + 0.8 * (1 - (1 - k) ** 2));   // spreads fast, then slows and stops
         mesh.scale.set(s, s, 1);
         material.opacity = ROT.opacity * Math.min(1, age / 0.1);
         mesh.visible = true;
@@ -128,9 +136,11 @@ export function createRotBloom() {
   };
 }
 
-const rot = createRotBloom();
-registerSignature({
-  opponent: 'plaguedoctor', variant: 'A', name: 'Rot Bloom',
-  when: (event) => hitBy(event) && !!event.location,
-  fire: rot.fire, update: rot.update, clear: rot.clear,
-});
+for (const [variant, style] of [['A', ROT_A], ['B', ROT_B]] as const) {
+  const rot = createRotBloom(style);
+  registerSignature({
+    opponent: 'plaguedoctor', variant, name: variant === 'A' ? 'Rot Bloom' : 'Rot Bloom (a hand\'s width, darker)',
+    when: (event) => hitBy(event) && !!event.location,
+    fire: rot.fire, update: rot.update, clear: rot.clear,
+  });
+}

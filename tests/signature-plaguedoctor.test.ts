@@ -15,6 +15,11 @@ test('Rot Bloom is the Plague Doctor\'s A and answers only a blade blow he lands
   assert.equal(effect!.when(hit(1, 'kick'), fighters), false);
 });
 
+test('variant B (a hand\'s width, darker) sits beside the A; On still means the A', () => {
+  assert.equal(pickSignature(SIGNATURES.plaguedoctor, 'B')?.name, 'Rot Bloom (a hand\'s width, darker)');
+  assert.equal(pickSignature(SIGNATURES.plaguedoctor, 'on')?.variant, 'A');
+});
+
 test('a torso blow blooms on the shoulder the fight camera sees, on the side the blow came from; head and legs keep the table', () => {
   assert.equal(rotSite(1, 'torso', 'right')?.bone, 'upperarm_l');
   assert.equal(rotSite(1, 'torso', 'left')?.bone, 'upperarm_r');
