@@ -17,8 +17,9 @@ authority), each checked:
   frozen until tomorrow's playtest; `release.json` read). **The C shavings strip is cancelled.** It comes back only if the
   playtest answers point at Blade Bite.
 - **#638 is CLOSED as superseded.** #637 (`18ea2180`) and #643 (`d075d053`) are both ancestors of `e37a74c7`.
-- **The Centurion equip loader + gladius/scutum re-land** (item 2 below) is parked, not started. It waits on Lead's next
-  assignment, like everything else.
+- **The Centurion equip loader + gladius/scutum re-land** (item 2 below) is **PARKED until Monday's sim window** (Lead ruling,
+  2026-09-24 evening). Moving him off the trident is a RECORD_VERSION bump, the sim is frozen until then, it is not a playtest
+  item, and `e37a74c7` is frozen. Lead assigns it at the Monday window with the playtest results in hand. Do not start it early.
 
 ## Now — 2026-09-24 ~11:30 (handoff, context restart)
 
