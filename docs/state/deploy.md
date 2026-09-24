@@ -10,18 +10,28 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-24 ~11:35Z)
-- **Live `91d9f749`** (#671). Box FREE. Every deploy since 64787c22 runs the built-bundle guard (#653): the log must show
-  "Built bundle carries the Supabase origin and the auth storageKey." before publish.
-- **Queue (Lead READY, each at its exact head on green CI; same run if both green, else #672 first; stop if a head moves):**
-  (1) #672 `bf9bbb14` Executioner knight.glb rebuild for the #651 maul (2 asset files). (2) #673 `8cdf952b` Weapons' Profile
-  PACK row + take-flow fix (11 files; Strategy YES). At 11:3xZ both MERGEABLE, CI still running (#672: rows 23/32/33/34).
-- **Routing:** sha lines to Lead AND Strategy. Address by name + `[ref]` from ListAgents (socket paths go stale on restart);
-  Lead `[feb990]`, Strategy `[36b3e6]` at 11:30Z. A fresh Lead session is taking over (handoff in docs/state/lead-catalogue.md).
-- **Verify each publish:** release.json = sha; `cmp dist/index.html` vs served; VPS `readlink /var/www/frankendom/current`;
-  served `assets/index-*.js` contains `rxbewmzmovelckzoosss.supabase.co`.
+## Now (2026-09-24 ~14:20Z)
+- **In flight: `a5590911`** (#679 Witch charge lean B @ 142b25fe), launched 14:13Z detached from `~/Developer/frankendom-deploy`
+  (pid 33294), log `~/Developer/deploy-a5590911f8abe1ca6ea7c4a3bc9435172d2c4d3f.log`. On restart: if release.json shows
+  a5590911, verify (below) and send Lead the live sha; if the log has no `Published` line, read the failure (retry on a `gh`
+  ETIMEDOUT; route a real row failure to Lead). Lead has NOT yet been sent the live sha for it.
+- **Last verified live: `5655ac94`** (#667).
+- **Queue:** empty. #661 arrives inside Executioner's batch PR (#661 + #657 + #665), only on Lead's READY.
+- **Routing:** Lead is `local_1bcdcf54-…` ("Frankendom - Lead Developer"); sha lines go to Lead only (Lead relays).
+  Lead may hold a green PR for its own "COMBINED OK" (combined-tree tsc + tests) when the PR's CI predates trunk: wait for it.
+- **Verify each publish:** release.json = sha; `curl -s https://frankendom.com/ | cmp - dist/index.html`; VPS
+  `readlink /var/www/frankendom/current`; log line "Built bundle carries the Supabase origin and the auth storageKey."
+- **Merge form:** `gh pr merge N --merge --match-head-commit <full head>` after `gh pr checks N` shows no pending/fail.
+- **Background load:** the Codex player-bot lane (`node scripts/player-bot.mjs`, cwd ~/Developer/frankendom-player-bot) ran
+  through the 174537be deploy; not ours, do not kill (Lead raised it on #668). Rows still passed.
 
 ## Done 2026-09-24
+Late morning / early afternoon, all verified live (release.json + served index cmp + VPS current + bundle guard line):
+c90bd83b (#672 knight.glb, #673 Profile PACK), d45f4837 (#663 signature site/gate; #659 split off on a scene.ts import
+conflict), 2c3dd94a (#676 fight HUD, #659 Knight Rivet B), 5f32ad45 (#677 World framework, signature ship mode ON),
+174537be (#669 Witch Grasp, #681 practiceHint strings), 5655ac94 (#667 Dwarf Wound C, blood on). #675 (this doc) merged.
+**2c3dd94a first attempt died at merged-on-trunk on `spawnSync gh ETIMEDOUT`** (nothing built/published); the same
+`gh pr list` answered in 3 s a minute later and a relaunch of the same sha published clean.
 Afternoon, all verified live (release.json + served index cmp + VPS current + supabase.co in served bundle): 4099f5c0 (#648),
 0e4ba5ae (#653 guard, #654 five arenas, #655 signature effects), 6830afcf (#651 #656 #664), 13e603f0 (#670 Arena Draw A),
 91d9f749 (#671). CI trust (a') first exercised on 0e4ba5ae: 6/36 same-tree; 6830afcf 8/36; later runs 0/36 (CI not done at start).
