@@ -68,10 +68,10 @@ test('every loot draw is skinned to the hero bone order and names its opponent, 
     assert.deepEqual(loot.jointNames(d.skin!), heroJoints, `${d.name}: same joints, same order, as warrior.glb`);
     assert.ok(loot.ibm(d.skin!).equals(hero.ibm(hero.draws[0].skin!)), `${d.name}: inverse bind matrices byte-identical to the player's — the loader binds every piece with his Body bindMatrix`);
   }
-  assert.ok(loot.draws.some(d => d.name === 'dwarf.Greaves.DwarfIron'), 'the Dwarf drops his greaves');
+  assert.ok(loot.draws.some(d => d.name === 'dwarf.Greaves.Steel'), 'the Dwarf drops his greaves');
 });
 
-test('the Dwarf\'s greaves, unscaled from his frame, sit on the hero\'s shins', () => {
+test('the Dwarf\'s greaves sit on the hero\'s shins', () => {   // built shells fitted to his shins since the #614 fix (build-warrior.mjs), no longer cut and unscaled
   const hero = glb('../src/assets/warrior.glb'), loot = glb('../src/assets/loot.glb');
   const skin = hero.positions('Skin'), cell = 0.03, grid = new Map<string, number[][]>();
   const key = (p: number[]) => p.map(v => Math.floor(v / cell)).join(',');
@@ -83,12 +83,11 @@ test('the Dwarf\'s greaves, unscaled from his frame, sit on the hero\'s shins', 
     return best;
   };
   const fit = (draw: string) => { const d = loot.positions(draw).map(nearest).sort((a, b) => a - b); return { q: (f: number) => d[Math.floor(f * (d.length - 1))], ys: loot.positions(draw).map(p => p[1]) }; };
-  const dwarf = fit('dwarf.Greaves.DwarfIron'), authored = fit('veteran.Greaves.Bronze');   // the yardstick: greaves parts.py fitted to this body by recipe
+  const dwarf = fit('dwarf.Greaves.Steel'), authored = fit('veteran.Greaves.Bronze');   // the yardstick: greaves parts.py fitted to this body by recipe
   const cm = (m: number) => (m * 100).toFixed(1), report = (f: typeof dwarf) => `median ${cm(f.q(0.5))} / p90 ${cm(f.q(0.9))} / max ${cm(f.q(1))} cm from the skin, y ${Math.min(...f.ys).toFixed(2)}..${Math.max(...f.ys).toFixed(2)} m`;
   console.log(`  dwarf greaves: ${report(dwarf)}\n  veteran greaves (authored): ${report(authored)}`);
   // Span: the hero's own shin, knee (calf joint) to sole (ball joint), from warrior.glb's bind — the Dwarf's shins are 28 % shorter.
   const skin0 = hero.draws[0].skin!, knee = hero.jointY(skin0, 'calf_l'), sole = hero.jointY(skin0, 'ball_l');
-  // …and reach the knee: on the Dwarf's own frame they stop 16 cm short of it.
   assert.ok(Math.max(...dwarf.ys) < knee + 0.05 && Math.max(...dwarf.ys) > knee - 0.10 && Math.min(...dwarf.ys) > sole - 0.05, `greaves lie between the hero's knee (${knee.toFixed(2)} m) and sole (${sole.toFixed(2)} m): y ${Math.min(...dwarf.ys).toFixed(2)}..${Math.max(...dwarf.ys).toFixed(2)}`);
   // Stand-off: no looser than the authored greaves on the same shin, with a cut piece's ragged edge allowed 2× at the tail.
   assert.ok(dwarf.q(0.5) <= 1.5 * authored.q(0.5) + 0.005, `median ${cm(dwarf.q(0.5))} cm vs authored ${cm(authored.q(0.5))} cm`);
