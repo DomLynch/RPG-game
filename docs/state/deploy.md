@@ -10,15 +10,24 @@
   `index.html` (no cache), the client reads the id from the path. `/assets/` and `release.json` are unaffected. Verify with
   `curl -sI https://frankendom.com/s/1a` → `200`, `content-type: text/html`.
 
-## Now (2026-09-23 15:20)
-- **Live `a50f22f` == trunk before the docs merges, RECORD_VERSION 7.** B': #563 (revert of the #560 revert, the #547 Centurion
-  swap undone, veteran back on the trident with no carries, v7 re-pinned) plus #554. 0 release rows failed; release.json, served
-  index.html cmp and VPS `current` all verified. Box FREE. #553 (Lead docs) merged after, not deployed (docs only).
-- Strategy and Lead both confirmed at ~15:15, on Dom's direct request, that every merge and publish today was on their orders.
-- **HELD:** #559 (Centurion re-land), #550 (draft, bump 8, rebases after B'). Migration `202609230001` and the verify-loot VPS unit
-  wait for Lead's explicit "apply 202609230001", which must note Backend's sign-off on #554. Hosted is at 0010.
-- **Routing (Dom, 13:50):** sha lines, FREE lines and blockers go to **Lead only**; Lead relays to Strategy. Standing order (08:50):
-  Lead's and Strategy's instructions are Dom's. Excluded, ask Dom: force-push or delete a shared branch, roll back live, drop data.
+## Now (2026-09-24 11:10)
+- **Live `c0400c1f`** (#649 on top of 9394e8a4), built WITH the account settings: served `index-B_hyiYHp.js` carries the Supabase
+  origin, the lazy `account-BFuxefc7.js` carries storageKey `frankendom.auth.v1`. Box FREE.
+- **Next, in order:** (1) guard PR (Lead + Strategy): a FAILING release row for any production deploy whose BUILT bundle lacks the
+  Supabase host / auth storageKey (missing or wrong key file both fail), with a test (missing → fail, present → pass). Today
+  `scripts/check-account-config.mjs` only prints "guest-only build". (2) #648 admin Arena selector: HELD, World is amending it
+  (Options tab); publish only on Lead's re-READY at the NEW head, never ce21808e. (3) Watch trunk `release-checks` on c0400c1f
+  (queued at 11:05); tell Lead if red.
+- **Routing:** sha lines to Lead AND Strategy (Lead asked 09-24). Strategy has several same-name sessions: send by the local `[ref]`.
+
+## Done 2026-09-24
+All verified live (release.json + served index.html cmp + VPS `current`): fa0c27d1 (Run 3c), da4108ed (#637), e8d8ec00 (non-sim
+batch #633 #628 #627 #631 #636 #625), c92e56df (#626), 0b648a44 (#635 parks v9, RECORD_VERSION 9), 82c3b9c1 (#641), 88229760
+(#639), cff5dec6 (#644), 2a41ed4e (#643 #646 #624), 9394e8a4 (#647 CI trust a'), c0400c1f (#649 + accounts restored).
+**Incident:** every deploy from a53762e (09-23 20:46) to 9394e8a4 shipped guest-only: `~/Developer/frankendom-deploy/.env.production.local`
+held only VITE_SENTRY_DSN after the rehome; the Supabase URL + publishable key stayed in `~/Desktop/Business/frankendom/`. Fixed by
+copying the two VITE_SUPABASE_* lines (untracked). Audit of the old root: nothing else build-relevant left behind (only
+`.serena/project.local.yml`).
 
 ## Done 2026-09-23
 fe0d8e0 (overnight) and 52dffed (morning). Then, all verified live: c0b321c (12:31), dd1d968 (Publish A, v6: #528 #530 #535 #521
@@ -55,6 +64,11 @@ forward by #387 and #389), #418×#415 (loot layers never regenerated — fixed b
   #424 made the gate deterministic, but the underlying framing question is Character/Visuals'.
 
 ## Gotchas
+- **Every deploy log opens with the account line: read it.** "Account integration disabled: guest-only build." is a broken
+  production build, not a note, until the guard PR makes it fail.
+- **A same-revision redeploy** (rebuild of the live sha) used to die at deploy.sh:79 on bash 3.2 (`link_args[@]: unbound`); #649 fixed it.
+- **CI trust (a', #647):** a PR-head receipt counts after the merge only when the tree delta is docs/**, *.md or tests/ outside
+  fixtures. Never decide trust from `release_triggers`: it is a curated subset, so rows it omits would be trusted across any change.
 - **A stacked chain merged through one combined PR leaves the sibling PRs OPEN.** GitHub only auto-closes a PR when its commits land
   in the PR's own base; #545/#543/#547 were based on stack branches. The ancestry check (`git merge-base --is-ancestor <head>
   <combined head>`) is the proof that they shipped, not GitHub's state.
