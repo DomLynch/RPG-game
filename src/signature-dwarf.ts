@@ -97,3 +97,42 @@ export const bruiseLook = (): MarkLook => ({
   opacity: STAMP.opacity, roughness: 0.75, metalness: 0, fadeIn: STAMP.fadeIn,
 });
 registerSignature({ opponent: 'dwarf', variant: 'B', name: 'Hammer Stamp (bruise)', when: heavyHitBy, fire: stamp(bruiseLook) });
+
+// Variant C (Lead's prep for Dom's pick, 2026-09-24, not ruled; Strategy on B: "reads as a smudge", its first frame "a censor block"): B's
+// size and darkness, shaped as the hammer's FACE, an octagonal flat with chamfered corners, deepest along its struck edge, a faint pushed-up
+// rim, every edge soft. It rises over a quarter-second instead of popping in, so no frame shows a hard-edged square: struck, not pasted.
+export const STAMP_C = { size: STAMP_B.size, fadeIn: 0.25 } as const;
+let faceArt: THREE.Texture | null | undefined;
+function faceTexture(): THREE.Texture | null {
+  if (faceArt !== undefined) return faceArt;
+  if (typeof document === 'undefined') return (faceArt = null);
+  const size = 128, canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
+  const g = canvas.getContext('2d');
+  if (!g) return (faceArt = null);
+  const c = size / 2, face = size * 0.27, cut = face * 0.42;
+  const octagon = (r: number, k: number) => {
+    g.beginPath();
+    g.moveTo(c - r + k, c - r); g.lineTo(c + r - k, c - r); g.lineTo(c + r, c - r + k); g.lineTo(c + r, c + r - k);
+    g.lineTo(c + r - k, c + r); g.lineTo(c - r + k, c + r); g.lineTo(c - r, c + r - k); g.lineTo(c - r, c - r + k); g.closePath();
+  };
+  // The faint rim: the surface pushed up round the face, a thin lighter band, blurred away.
+  g.filter = 'blur(2.5px)';
+  octagon(face * 1.22, cut * 1.22); g.fillStyle = 'rgba(138,90,78,0.6)'; g.fill();
+  // The impression: the octagonal face, dark, with soft edges.
+  g.filter = 'blur(1.2px)';   // soft, but the chamfered corners still read at ~25 px on a phone (a 3 px blur rounded it to a blob)
+  octagon(face, cut); g.fillStyle = 'rgba(30,14,18,0.95)'; g.fill();
+  // The struck edge: the hammer lands a little off flat, so one side of the face bites deeper.
+  g.filter = 'blur(2px)';
+  const bite = g.createLinearGradient(c - face, c - face, c + face, c + face);
+  bite.addColorStop(0, 'rgba(8,3,6,0.9)'); bite.addColorStop(0.6, 'rgba(8,3,6,0)');
+  octagon(face * 0.9, cut * 0.9); g.fillStyle = bite; g.fill();
+  g.filter = 'none';
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
+  return (faceArt = texture);
+}
+export const faceLook = (): MarkLook => ({
+  width: STAMP_C.size, height: STAMP_C.size, map: faceTexture(), color: faceTexture() ? '#ffffff' : '#1a0e10',
+  opacity: STAMP.opacity, roughness: 0.7, metalness: 0, fadeIn: STAMP_C.fadeIn,
+});
+registerSignature({ opponent: 'dwarf', variant: 'C', name: 'Hammer Stamp (struck face)', when: heavyHitBy, fire: stamp(faceLook) });
