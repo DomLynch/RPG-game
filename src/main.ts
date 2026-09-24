@@ -252,15 +252,16 @@ arenaSelect.addEventListener('change', () => {
   try { if (arenaSelect.value) sessionStorage.setItem(ARENA_PICK_KEY, arenaSelect.value); else sessionStorage.removeItem(ARENA_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
 });
 // The signature-effect preview (docs/briefs/signature-effects.md): Off / On / A–C for the opponent's signature, beside the Arena pick and gated
-// with it. It applies live and is kept for the session; `?signature=` wins. Unset = off, so players see nothing Dom has not passed.
+// with it. It applies live and is kept for the session; `?signature=` wins. It counts only while the test tools are open (admin or ?debug);
+// otherwise it is off (signature.ts resolveSignature), so players see nothing Dom has not passed.
 const SIGNATURE_PICK_KEY = 'frankendom.signature-override';
 const signatureSelect = element<HTMLSelectElement>('signature-select');
-const signaturePick = () => /[?&]signature=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? signatureSelect.value;
+const applySignature = () => view?.setSignature?.(window.location?.search ?? '', signatureSelect.value, !element('test-tools').hidden);
 signatureSelect.value = (() => { try { return sessionStorage.getItem(SIGNATURE_PICK_KEY) ?? 'off'; } catch { return 'off'; } })();
 if (signatureSelect.selectedIndex < 0) signatureSelect.value = 'off';
 signatureSelect.addEventListener('change', () => {
   try { if (signatureSelect.value !== 'off') sessionStorage.setItem(SIGNATURE_PICK_KEY, signatureSelect.value); else sessionStorage.removeItem(SIGNATURE_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
-  view?.setSignature?.(signaturePick());
+  applySignature();
 });
 {
   // The bars name whoever is in the arena (Dom via Strategy, 2026-09-22): no rung is exempt any more — the first one used to keep
@@ -615,7 +616,9 @@ try {
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
   );
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
-  view.setSignature?.(signaturePick());   // the signature preview's pick (off unless an admin or ?signature= chose one)
+  applySignature();   // the signature preview's pick (off unless the test tools are open)
+  // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
+  if (typeof MutationObserver !== 'undefined') new MutationObserver(applySignature).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
 } catch (error) {
   element('performance').textContent = '3D unavailable';
   message.hidden = false;

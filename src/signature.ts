@@ -32,6 +32,7 @@ export type SignatureEffect = {
   update?: (dt: number, frame: SignatureFrame) => void;
   clear?: () => void;
 };
+export type MarkSite = { bone: string; dir: [number, number, number]; radius: number };   // the struck fighter's frame: +x his left, +z his front
 // How a mark looks: the effect owns the art, the pool owns the slot and its lifetime.
 export type MarkLook = {
   width: number; height: number;          // metres
@@ -61,6 +62,14 @@ export function signatureMode(asked: string | null | undefined): SignatureMode {
   asked ??= '';
   const mode = (asked.length === 1 ? asked.toUpperCase() : asked.toLowerCase()) as SignatureMode;
   return SIGNATURE_MODES.includes(mode) ? mode : 'off';
+}
+
+// Which mode applies, from `?signature=` (wins), else the admin select's value. The preview is a TEST TOOL: it counts only while the test tools
+// are open (the admins roster or ?debug, the same gate as the Arena pick). Closed tools = off, whatever the URL or a stale session says
+// (Lead, #655 review: a player typing ?signature=on must not see an effect Dom has not passed).
+export function resolveSignature(search: string, selected: string | null, toolsOpen: boolean): SignatureMode {
+  if (!toolsOpen) return 'off';
+  return signatureMode(/[?&]signature=(\w+)/.exec(search)?.[1] ?? selected);
 }
 
 // The registry: one list per opponent, A first. Effects register from their own modules (one PR each).
@@ -111,13 +120,17 @@ export function createSignatureMarks(scene: THREE.Scene) {
   return {
     // A mark on a struck body at the site the sim named (the same site table and surface ray as the blood wounds, torso slot). Returns
     // false when the rig has no such bone (the mark is then simply not made).
-    body(side: Side, root: THREE.Object3D, hit: WoundHit, look: MarkLook, scale = 1): boolean {
-      const site = woundSite(hit), bone = root.getObjectByName(site.bone);
+    // `site` overrides the table when an effect knows better where its blow meets the body (the Dwarf's overhead lands on the shoulder's top).
+    body(side: Side, root: THREE.Object3D, hit: WoundHit, look: MarkLook, scale = 1, site: MarkSite = woundSite(hit)): boolean {
+      const bone = root.getObjectByName(site.bone);
       if (!bone) return false;
       root.updateWorldMatrix(true, true);
       const out = new THREE.Vector3(...site.dir).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), hit.heading);
-      const met = surfaceHit(root, bone, out);
-      const point = met ? met.point.addScaledVector(met.normal, 0.004) : bone.getWorldPosition(new THREE.Vector3()).addScaledVector(out, site.radius * scale);
+      // The surface ray can meet whatever else the rig carries first (the Dwarf capture put a stamp on the player's raised sword, 25 cm off
+      // his shoulder): a point farther from the bone than the site's own neighbourhood is not the body, so the site's radius is used instead.
+      const at = bone.getWorldPosition(new THREE.Vector3()), found = surfaceHit(root, bone, out);
+      const met = found && found.point.distanceTo(at) <= Math.max(0.12, site.radius * 2) * scale ? found : null;
+      const point = met ? met.point.addScaledVector(met.normal, 0.004) : at.addScaledVector(out, site.radius * scale);
       const slot = take(bodies[side]); dress(slot, look); pin(slot, bone, point, met ? met.normal : out);
       return true;
     },
@@ -148,6 +161,10 @@ export function createSignatureMarks(scene: THREE.Scene) {
       }
     },
     clear() { for (const slot of all) { slot.used = false; slot.parent = null; slot.mesh.visible = false; } },
+    // Where each used mark sits and how far it is from the object it rides (debug probe: a mark that drifted off its body shows here).
+    where(): { side: Side | null; at: [number, number, number]; off: number; parent: string | null }[] {
+      return all.filter((s) => s.used).map((s) => ({ side: s.side, at: s.mesh.position.toArray().map((v) => +v.toFixed(3)) as [number, number, number], off: s.parent ? +s.mesh.position.distanceTo(s.parent.getWorldPosition(scratchEye)).toFixed(3) : 0, parent: s.parent?.name ?? null }));
+    },
     count(kind: 'body' | 'shield' | 'floor', side: Side = OPPONENT_SIDE): number {
       return (kind === 'floor' ? floor : kind === 'body' ? bodies[side] : shields[side]).filter((s) => s.used).length;
     },
