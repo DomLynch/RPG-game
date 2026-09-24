@@ -3,6 +3,40 @@
 The sixth opponent: the giant in the iron half-mask, scythe, hero rig at scale 1.36.
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Now — 2026-09-24 ~14:20 UTC: effects batch #682 in CI; next = CHARGE_LEAN across the roster
+
+**Now (next session):**
+1. **#682 "Effects batch: Butcher's Wake + Reaping Scar + Blade Bite"** (`effects/batch-0924` @ `7b06a113`, off trunk 5655ac94, merges
+   #661 @ 690c74a8, #657 @ 1a52f684, #665 @ 3db14dad as normal commits; the scene.ts import block keeps all six lines). CI was 5 pass / 35
+   pending at handoff. When green, send Lead the head and the green CI (Lead: Frankendom - Lead Developer). Pitborn was told the batch owns #661's head.
+2. **Charged-heavy lean, roster-wide** (Strategy picked B "Lean-out"; #679 Witch-only is YES and READY with Deploy). Fit `CHARGE_LEAN` in
+   src/characters.ts per opponent/weapon for the 10 active opponents: veteran trident, pitborn cleaver, goblin knife (goblin rig),
+   nightborn estoc (nightborn rig), executioner scythe, dwarf warhammer, plaguedoctor longsword, knight maul, witch trident (done),
+   shieldmaiden gladius. Short weapons carry it with the lean. Only moves with `charges: true` park (sword-family heavy_overhead
+   spread + scythe line 399); check each weapon's heavy really charges before fitting. Receipt = ONE sheet, one held-charge still per
+   opponent at 375 over the shoulder with the player guarding, NO strips; then ONE PR (branch off #679's char/charge-lean or trunk once #679 lands).
+
+**Done today (this session)**
+- #659 Knight Rivet B only (C reverted), retargeted to trunk, trunk merged in (resolveSignature). Went out via Deploy.
+- #657 / #665 retargeted to trunk + trunk merged in (green), then folded into #682.
+- #679 `char/charge-lean` @ 142b25fe: `CHARGE_LEAN` + `holdingCharge()` + a lean layer on the guard-tilt bones, eased by two cascaded
+  eases (follow rate 18). 41 CI pass. Evidence: evidence/charge-pose-witch @ d0a40098 (mockups A/B/C + lean strip).
+  Release-window head step 4.4 px vs 1.0 without (a single-stage ease gave 7.5 px), render median 3.6 vs 3.4 ms.
+
+**Open** Dom/Strategy's word on the roster sheet. Nothing is mid-edit; the working tree is clean apart from untracked scratch.
+
+**Gotchas**
+- Untracked harnesses: `scripts/zz-charge-pose.mjs` (bone-offset mockups, table `scripts/zz-charge-poses.json`, `--pose base,A,B,C
+  --labels "a|b|c"`, writes sheet.png) and `scripts/zz-charge-strip.mjs` (charge start/mid-hold/release strip + head-step pop metric +
+  perf; `--nolean` for the baseline). Both render the real createScene with the player guarding. Bone axes on the hero rig:
+  spine_01 x = bow forward, y = twist (weapon swings to screen right), z = side lean (screen left); upperarm_r x = drop weapon low right,
+  y = raise weapon up/right. Other rigs (goblin, nightborn) need their own probe.
+- No magick/PIL on this Mac: compose sheets in a Playwright page (the harnesses do).
+- trunk has `SHIPPED` in signature.ts (ship mode): executioner A, knight B, veteran C, pitborn A. Don't add On-resolution hacks.
+- Every effect PR's import lands in the same scene.ts block: batch them, and resolve as a union of lines.
+- `npm run typecheck:tests` catches test-frame type drift that tsc -p . misses (bloodMode after #677).
+- zsh globs `.x[0:8]` in unquoted jq and has no `grep -P`: quote jq filters, use awk.
+
 ## Now — 2026-09-24 11:3x UTC: signature effects + Knight rebuild handed to Lead; all wait on Dom's yes/no/again
 
 **Strategy ruled 15:40 local:** #665 C (shavings @ 48d9e350) SHIPS as the Veteran's signature via World's SHIPPED map (veteran -> C);
