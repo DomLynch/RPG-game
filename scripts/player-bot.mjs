@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 import { preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
 import { chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack } from './lib/player-bot-policy.mjs';
-import { damageSources, explainDecisions, intentFor, selectMoments, videoSecondAt } from './lib/player-bot-review.mjs';
+import { damageSources, defenceExchanges, explainDecisions, intentFor, selectMoments, videoSecondAt } from './lib/player-bot-review.mjs';
 import { limitedObservation } from './lib/player-bot-observation.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
 import { LONGSWORD, OPPONENTS, RULES, WEAPONS } from '../src/moves.ts';
@@ -166,6 +166,7 @@ try {
       const heavyStarts = ownStarts.filter(e => e.move?.startsWith('heavy')).length;
       fight.attackMix = { attacks: ownStarts.length, heavies: heavyStarts, heavyPercent: ownStarts.length ? +(100 * heavyStarts / ownStarts.length).toFixed(1) : null,
         passed: ownStarts.length > 0 && 5 * heavyStarts <= ownStarts.length };
+      fight.defenceExchanges = defenceExchanges(fight.events, fight.decisions, fight.samples, end.tick);
       fight.defensiveChoices = Object.fromEntries(['roll', 'backstep', 'guard', 'parry', 'feint'].map(action => [action, fight.events.filter(e => e.type === 'ActionStarted' && e.actor === 0 && e.action === action).length]));
       fight.secondsNearWall = +(fight.samples.reduce((n, s, i) => n + (s.radius >= config.wallRadius ? ((fight.samples[i + 1]?.tick ?? end.tick) - s.tick) / 60 : 0), 0)).toFixed(2);
       const contacts = fight.events.filter(e => ['Hit', 'Blocked', 'Parried'].includes(e.type)).map(e => e.tick);

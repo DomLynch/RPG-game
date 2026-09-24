@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { damageSources, explainDecisions, intentFor, selectMoments, videoSecondAt } from '../scripts/lib/player-bot-review.mjs';
+import { damageSources, defenceExchanges, explainDecisions, intentFor, selectMoments, videoSecondAt } from '../scripts/lib/player-bot-review.mjs';
 
 test('the receipt separates attempted inputs from accepted attacks and results', () => {
   const decisions = [
@@ -58,4 +58,57 @@ test('damage sources count guard break once and keep arena damage separate', () 
     opponent: { hits: 8, guardBreaks: 0, blockedChip: 0, total: 8 },
     arena: { toPlayer: 0, toOpponent: 3 },
   });
+});
+
+test('defence report connects a real tell, parry and useful hit without inventing avoided damage', () => {
+  const events = [
+    { tick: 133, type: 'AttackStarted', actor: 1, move: 'light_right', direction: 'right' },
+    { tick: 155, type: 'Parried', actor: 0, move: 'light_right' },
+    { tick: 180, type: 'Hit', actor: 0, target: 1, move: 'slash_riposte', damage: 24 },
+    { tick: 200, type: 'Hit', actor: 1, target: 0, move: 'thrust', damage: 8 },
+  ];
+  const choices = [{ tick: 148, intent: 'guard the observed attack', keys: ['KeyQ', 'ArrowLeft'], press: null }];
+  const samples = [{ tick: 94, gap: 2.37, radius: 1.4 }, { tick: 155, gap: 0.85, radius: 0.42 }];
+  const [exchange] = defenceExchanges(events, choices, samples, 200);
+  assert.equal(exchange.result.type, 'Parried');
+  assert.equal(exchange.result.damageTaken, 0);
+  assert.equal(exchange.result.demonstratedAvoidance, false);
+  assert.deepEqual(exchange.nextUsefulHit, { tick: 180, move: 'slash_riposte', damage: 24, secondsLater: 0.42, beforeNextEnemyHit: true, beforeNextEnemyAttack: true });
+  assert.deepEqual(exchange.spacing, { before: { tick: 94, gap: 2.37, radius: 1.4 }, after: { tick: 155, gap: 0.85, radius: 0.42 } });
+});
+
+test('a stopped enemy attack is reported as an interruption, not an unresolved defence', () => {
+  const events = [
+    { tick: 600, type: 'AttackStarted', actor: 1, move: 'kick' },
+    { tick: 606, type: 'Hit', actor: 0, target: 1, move: 'thrust', damage: 17, stop: true },
+  ];
+  const [exchange] = defenceExchanges(events, [], [], 606);
+  assert.equal(exchange.result.type, 'Interrupted');
+  assert.equal(exchange.result.damageTaken, 0);
+  assert.equal(exchange.nextUsefulHit.secondsLater, 0);
+});
+
+test('an enemy feint is recorded without pretending a defence landed', () => {
+  const events = [
+    { tick: 639, type: 'AttackStarted', actor: 1, move: 'light_right' },
+    { tick: 650, type: 'ActionStarted', actor: 1, action: 'feint' },
+  ];
+  const [exchange] = defenceExchanges(events, [], [], 650);
+  assert.equal(exchange.result.type, 'Feinted');
+  assert.equal(exchange.result.damageTaken, 0);
+  assert.equal(exchange.nextUsefulHit, null);
+});
+
+test('a later hit after a new incoming attack is not credited to the previous defence', () => {
+  const events = [
+    { tick: 387, type: 'AttackStarted', actor: 1, move: 'kick' },
+    { tick: 405, type: 'Hit', actor: 1, target: 0, move: 'kick', damage: 4 },
+    { tick: 451, type: 'AttackStarted', actor: 1, move: 'light_right' },
+    { tick: 473, type: 'Parried', actor: 0, move: 'light_right' },
+    { tick: 505, type: 'Hit', actor: 0, target: 1, move: 'heavy_riposte', damage: 24 },
+  ];
+  const rows = defenceExchanges(events, [], [], 505);
+  assert.equal(rows[0].nextUsefulHit.tick, 505);
+  assert.equal(rows[0].nextUsefulHit.beforeNextEnemyAttack, false);
+  assert.equal(rows[1].nextUsefulHit.beforeNextEnemyAttack, true);
 });
