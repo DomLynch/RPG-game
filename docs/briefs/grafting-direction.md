@@ -1,7 +1,7 @@
-# Grafting — the Season 2 direction (Dom + Strategy, 2026-09-24)
+# Grafting — the Season 1 direction (Dom + Strategy, 2026-09-24)
 
 Fantasy: **Fight creatures. Steal what makes them powerful. Rebuild yourself.** Beta scope (docs/SCOPE.md) is untouched; this
-is the post-beta / Season 2 line that brings the parked creatures back. Nothing here changes a timing: a graft grants a
+is the post-beta Season 1 line that brings the parked creatures back. Nothing here changes a timing: a graft grants a
 discrete move or a visible consequence, never a passive number that alters the duel's clock (the pillar holds).
 
 ## Two paths at parity (Dom, 2026-09-24)
@@ -45,5 +45,5 @@ absence of one. Grafting must never be the only way to progress.
   fake "Orc population: CRITICAL" banner reads as fake. Hold until there are enough players to move it honestly.
 
 ## Sequencing
-Beta → playtest → the presentation and progression items already queued → **V1 above as the Season 2 spine**, creatures
+Beta → playtest → the presentation and progression items already queued → **V1 above as the Season 1 spine**, creatures
 returning one at a time through the existing pipeline. Strategy writes the V1 brief when Dom greenlights the season.
