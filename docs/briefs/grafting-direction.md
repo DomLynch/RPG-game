@@ -50,3 +50,23 @@ absence of one. Grafting must never be the only way to progress.
 ## Sequencing
 Beta → playtest → the presentation and progression items already queued → grafting in build order 1, 2, 3, creatures
 returning through the pipeline as parts are needed. Strategy writes the order-1 brief on Dom's approval of the full list.
+
+## Batch 2 — added on Dom's approval (2026-09-24 ~21:xx), the ten that attach to the body
+1. **Stitching grid with neighbours.** Parts have shapes on a body grid; adjacent parts combine. Deepens the capacity budget.
+2. **Hidden broken combos, never documented.** Players find and post them (the forbidden-pairs rule, now with silence).
+3. **Monsters graft too.** An opponent that beat a Witch starts casting; enemies are never quite the same twice. Pairs with
+   bosses-steal-you. Constraint: one enemy wearing your arm is fine; NO hierarchy of rivals that remember and get promoted
+   (WB's Nemesis patent, 2021).
+4. **Embalming fluid.** Every graft needs it; found in the arena's economy; the preservation currency for 5.
+5. **Limbs rot.** Unpreserved parts decay, the economy drains, preservation is a craft.
+6. **Harvest from other players' corpses, asynchronously.** Their ghost loses nothing; you get a copy that carries its history
+   (who wore it, what it killed). Fits ghost PvP; consistent with the no-loss rule.
+7. **Anatomy dex with shinies.** Albino orc arms as the rare variants (bestiary + mutations).
+8. **Always three things nearly finished.** A graft settling, a set at three of four, a limb half preserved. A retention rule.
+9. **Death advances the story.** The doctor who stitches you back has something new to say every time.
+10. **The daily abomination.** Same seed and part pool for everyone once a day, leaderboard, emoji grid of your build to share.
+    Builds on the daily duel and the share sheet. Free distribution on mobile web.
+
+Out of batch 2 (Strategy, Dom aligned): body-as-health-bar (replaces the tuned duel; visible battle damage gives the feel),
+limbs as keys and size trade-offs (need areas and a map), reputation/disguise (needs factions), the sandworm (no world to
+make noise in).
