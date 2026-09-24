@@ -19,6 +19,7 @@ import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
 import { createSignatures, resolveSignature } from './signature.ts';
 import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
+import './signature-pitborn.ts';   // registers the Pitborn's Butcher's Wake
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
