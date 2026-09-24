@@ -95,7 +95,7 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   for (const [result, text] of [['blocked', /Blocked/], ['parried', /Parried! The Opponent/], ['dodged', /Evaded/], ['broken', /Guard broken/], ['enemyBlocked', /Opponent blocked/], ['enemyBroken', /Guard shattered/], ['enemyParried', /turned aside/], ['enemyDodged', /rolled clear/], ['miss', /Miss/]] as const) assert.match(practiceHint({ ...hit, result, resultAge: 3 }), text);
   assert.doesNotMatch(practiceHint({ ...hit, result: 'enemyParried', resultAge: 3 }), /^Parried/, 'the warden parrying must not read as the player parrying');
   // A broken guard names its cause in plain words (Strategy 2026-09-24): the charged heavy, the kick, else just the fact.
-  assert.equal(practiceHint({ ...hit, result: 'broken', resultAge: 3, resultBreak: 'charged' }), 'Guard broken: a charged heavy breaks guard. Roll or parry the release.');
+  assert.equal(practiceHint({ ...hit, result: 'broken', resultAge: 3, resultBreak: 'charged' }), 'Guard broken: a charged heavy breaks guard.');
   assert.equal(practiceHint({ ...hit, result: 'broken', resultAge: 3, resultBreak: 'kick' }), 'Guard broken: a kick breaks guard.');
   assert.equal(practiceHint({ ...hit, result: 'broken', resultAge: 3, resultBreak: null }), 'Guard broken.');
   // The lines name whoever is in the arena (Dom via Strategy, 2026-09-22): 'Opponent' above is the no-opponent fallback, and the

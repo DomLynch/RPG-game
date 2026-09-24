@@ -147,7 +147,7 @@ export function practiceHint(s: Practice, foe = 'Opponent'): string {
       parried: `Parried! The ${foe} is open.`,
       dodged: 'Evaded!',
       // Plain words (Strategy 2026-09-24): the charge tell lives in motion + sound, so the line names what broke the guard.
-      broken: s.resultBreak === 'charged' ? 'Guard broken: a charged heavy breaks guard. Roll or parry the release.' : s.resultBreak === 'kick' ? 'Guard broken: a kick breaks guard.' : 'Guard broken.',
+      broken: s.resultBreak === 'charged' ? 'Guard broken: a charged heavy breaks guard.' : s.resultBreak === 'kick' ? 'Guard broken: a kick breaks guard.' : 'Guard broken.',
       enemyBlocked: `${foe} blocked · use a heavy attack or change angle`,
       enemyBroken: 'Guard shattered · press the opening',
       enemyParried: 'Your strike was turned aside — recover!',
