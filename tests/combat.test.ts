@@ -58,7 +58,7 @@ test('the warden threat flag and move drive the incoming warning; the projection
   // The threat banner's text is gone (Dom 2026-09-24, Lead's ruling): no cue by default; the gates time the tell on the flag (hud.ts data-threat).
   for (const t of [s, { ...s, threatMove: 'thrust' as const }]) assert.doesNotMatch(practiceHint(t), /Incoming strike/);
   const charging: Practice = { ...s, duel: { ...s.duel, fighters: [{ ...s.duel.fighters[0], phase: 'attack' as const, move: 'heavy_overhead' as const, charge: 5, charged: false }, s.duel.fighters[1]] } };
-  assert.match(practiceHint(charging), /^Charging/); assert.match(practiceHint({ ...charging, duel: { ...charging.duel, fighters: [{ ...charging.duel.fighters[0], charged: true }, charging.duel.fighters[1]] } }), /^Charged/);
+  assert.match(practiceHint(charging), /^Charging…$/); assert.match(practiceHint({ ...charging, duel: { ...charging.duel, fighters: [{ ...charging.duel.fighters[0], charged: true }, charging.duel.fighters[1]] } }), /^Charged$/);
   assert.equal(actorPose(s, 1).pose, 'attack'); assert.equal(actorPose(s, 1).attack, 'heavy');
   const theirs = attackSpecs(s.duel.fighters[1].weapon);   // the warden's own weapon's timing (the Veteran fights with the trident)
   assert.ok(Math.abs(actorPose(s, 1).contact - theirs.heavy.contact / theirs.heavy.recovery) < 1e-12);
@@ -71,28 +71,28 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   assert.match(practiceHint(hit), new RegExp(`Clean right cut hit · −${MOVES.light_right.damage}`));
   assert.doesNotMatch(practiceHint(tick(hit, 120, idle(), passive)), /Clean/);
   const guarding = { ...hit, duel: { ...hit.duel, fighters: [hit.duel.fighters[0], { ...hit.duel.fighters[1], phase: 'guard' as const, age: 12 }] } } as Practice;
-  assert.match(practiceHint({ ...guarding, enemyMode: 'guard', reaction: 0, enemyAttacking: false }), /Opponent guarding/);
-  assert.match(practiceHint({ ...hit, health: 0 }), /Opponent defeated/); assert.match(practiceHint({ ...hit, playerHealth: 0 }), /You fell/);
+  assert.doesNotMatch(practiceHint({ ...guarding, enemyMode: 'guard', reaction: 0, enemyAttacking: false }), /guarding/, 'the opponent\'s guard is not read out (Strategy 2026-09-24)');
+  assert.match(practiceHint({ ...hit, health: 0 }), /Opponent defeated/); assert.equal(practiceHint({ ...hit, playerHealth: 0 }), 'You fell. Rematch?');
   assert.match(practiceHint(initialPractice()), /Draw your sword/); assert.match(practiceHint(stepPractice(initialPractice(), act('light'))), /Drawing/);
   const exhausted = project({ ...ready().duel, fighters: [{ ...ready().duel.fighters[0], exhausted: true, stamina: 3 }, ready().duel.fighters[1]] }, ready().ai);
-  assert.match(practiceHint(exhausted), /Exhausted/);
+  assert.equal(practiceHint(exhausted), 'Exhausted');
   const chained = tick(stepPractice(ready(4), act('light'), passive), SWORD.recovery, idle(), passive);
-  assert.ok(chained.chain > 0); assert.match(practiceHint(chained), /Light again/);
-  assert.equal(practiceHint(ready()), '', 'nothing happened: the event line is blank'); assert.match(practiceHint(stepPractice(ready(), { ...idle(), guard: true }, passive)), /Guarding/);
+  assert.ok(chained.chain > 0); assert.equal(practiceHint(chained), 'Follow-through');
+  assert.equal(practiceHint(ready()), '', 'nothing happened: the event line is blank'); assert.equal(practiceHint(stepPractice(ready(), { ...idle(), guard: true }, passive)), 'Guarding');
   const hurt = { ...hit, result: 'hurt' as const, resultAge: 3, resultDamage: 38 }; assert.match(practiceHint(hurt), /Hit taken · −38/);
   assert.match(practiceHint({ ...hit, result: 'hit', resultAge: 3, resultDamage: 14, resultCounter: true }), /Counter right cut hit · −14/);
   assert.match(practiceHint({ ...hit, result: 'hurt', resultAge: 3, resultDamage: 14, resultCounter: true }), /Countered · −14/);
-  assert.match(practiceHint({ ...hit, result: 'enemyPostureBroken', resultAge: 3 }), /Opponent staggering · Heavy for the critical/);
-  assert.match(practiceHint({ ...hit, result: 'postureBroken', resultAge: 3 }), /Your posture broke/);
-  assert.match(practiceHint({ ...hit, result: 'none', posture: 75 }), /Your posture is breaking/); assert.match(practiceHint({ ...hit, result: 'none', enemyPosture: 75 }), /Opponent near a posture break/);
-  assert.match(practiceHint({ ...hit, result: 'none', duel: { ...hit.duel, fighters: [{ ...hit.duel.fighters[0], critical: 30, phase: 'ready' as const }, hit.duel.fighters[1]] } }), /^Posture broken — Heavy for the critical/);
+  assert.equal(practiceHint({ ...hit, result: 'enemyPostureBroken', resultAge: 3 }), '', 'the opponent\'s stagger is not read out');
+  assert.equal(practiceHint({ ...hit, result: 'postureBroken', resultAge: 3 }), 'Your posture broke');
+  assert.match(practiceHint({ ...hit, result: 'none', posture: 75 }), /^Your posture is breaking$/); assert.equal(practiceHint({ ...hit, result: 'none', enemyPosture: 75 }), '', 'the opponent\'s posture is not read out');
+  assert.match(practiceHint({ ...hit, result: 'none', duel: { ...hit.duel, fighters: [{ ...hit.duel.fighters[0], critical: 30, phase: 'ready' as const }, hit.duel.fighters[1]] } }), /^Posture broken$/);
   assert.match(describe({ ...hit, duel: { ...hit.duel, fighters: [{ ...hit.duel.fighters[0], posture: 42, critical: 7 }, hit.duel.fighters[1]] } }), /po 42 CRIT 7/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 12.5, resultPerfect: true }), /Perfect block · −13 stamina$/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 25, resultPerfect: false }), /^Blocked · −25 stamina$/);
   assert.match(practiceHint({ ...hit, result: 'blocked', resultAge: 3, resultDamage: 7, resultStamina: 40, resultPerfect: false }), /^Blocked · −40 stamina · −7 chip$/);
   const countering = project({ ...hit.duel, fighters: [{ ...hit.duel.fighters[0], counterWindow: 12 }, hit.duel.fighters[1]] }, hit.ai);
-  assert.match(practiceHint({ ...countering, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 25, resultPerfect: false }), /heavy to counter/);
-  for (const [result, text] of [['blocked', /Blocked/], ['parried', /Parried! The Opponent/], ['dodged', /Evaded/], ['broken', /Guard broken/], ['enemyBlocked', /Opponent blocked/], ['enemyBroken', /Guard shattered/], ['enemyParried', /turned aside/], ['enemyDodged', /rolled clear/], ['miss', /Miss/]] as const) assert.match(practiceHint({ ...hit, result, resultAge: 3 }), text);
+  assert.match(practiceHint({ ...countering, result: 'blocked', resultAge: 3, resultDamage: 0, resultStamina: 25, resultPerfect: false }), /^Blocked · −25 stamina$/, 'the counter window is not named');
+  for (const [result, text] of [['blocked', /Blocked/], ['parried', /^Parried!$/], ['dodged', /Evaded/], ['broken', /Guard broken/], ['enemyBlocked', /^Opponent blocked$/], ['enemyBroken', /^Guard shattered$/], ['enemyParried', /^Your strike was turned aside$/], ['enemyDodged', /rolled clear/], ['miss', /^Miss$/], ['kicked', /^Kick connected$/]] as const) assert.match(practiceHint({ ...hit, result, resultAge: 3 }), text);
   assert.doesNotMatch(practiceHint({ ...hit, result: 'enemyParried', resultAge: 3 }), /^Parried/, 'the warden parrying must not read as the player parrying');
   // A broken guard names its cause in plain words (Strategy 2026-09-24): the charged heavy, the kick, else just the fact.
   assert.equal(practiceHint({ ...hit, result: 'broken', resultAge: 3, resultBreak: 'charged' }), 'Guard broken: a charged heavy breaks guard.');
@@ -101,7 +101,7 @@ test('hints prioritise defeat, drawing, threats, exhaustion, warden guard, chain
   // The lines name whoever is in the arena (Dom via Strategy, 2026-09-22): 'Opponent' above is the no-opponent fallback, and the
   // caller (hud.ts, from roster.ts bareName) passes the rung's own name.
   assert.equal(practiceHint({ ...hit, health: 0 }, 'Centurion'), 'Centurion defeated. Ready for a rematch?');
-  assert.equal(practiceHint({ ...hit, result: 'parried', resultAge: 3 }, 'Goblin'), 'Parried! The Goblin is open.');
+  assert.equal(practiceHint({ ...hit, result: 'parried', resultAge: 3 }, 'Goblin'), 'Parried!', 'the opponent\'s opening is not read out');
   assert.equal(practiceHint({ ...hit, result: 'enemyDodged', resultAge: 3 }, 'Centurion'), 'The Centurion rolled clear.');
 });
 
