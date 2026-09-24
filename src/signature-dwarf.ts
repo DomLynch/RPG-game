@@ -149,4 +149,4 @@ export const woundLook = (): MarkLook => ({
   width: STAMP_C.size, height: STAMP_C.size, map: woundTexture(), color: woundTexture() ? '#ffffff' : '#5a0e1c',
   opacity: STAMP.opacity, roughness: 0.45, metalness: 0, fadeIn: STAMP_C.fadeIn,
 });
-registerSignature({ opponent: 'dwarf', variant: 'C', name: 'Hammer Wound', when: heavyHitBy, fire: stamp(woundLook) });
+registerSignature({ opponent: 'dwarf', variant: 'C', name: 'Hammer Wound', blood: true, when: heavyHitBy, fire: stamp(woundLook) });   // a flesh wound: stands down with blood off (#677)

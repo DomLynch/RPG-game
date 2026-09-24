@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SIGNATURES, pickSignature } from '../src/signature.ts';
+import { SHIPPED, SIGNATURES, pickSignature } from '../src/signature.ts';
 import { STAMP, STAMP_B, STAMP_C } from '../src/signature-dwarf.ts';
 
 test('the Dwarf has A and B; on still picks A, B picks the bruise at about twice the size', () => {
@@ -14,4 +14,10 @@ test('C is the wound: larger than B, rising over a beat, on still picks A', () =
   assert.ok(STAMP_C.size > STAMP_B.size);
   assert.ok(STAMP_C.fadeIn > STAMP.fadeIn);
   assert.equal(pickSignature(SIGNATURES.dwarf, 'on')?.name, 'Hammer Stamp');
+});
+
+test('the shipped Dwarf is the wound, and it is blood: it stands down while the player has blood off', () => {
+  assert.equal(SHIPPED.dwarf?.variant, 'C');
+  assert.equal(pickSignature(SIGNATURES.dwarf, 'C')?.blood, true);
+  assert.equal(pickSignature(SIGNATURES.dwarf, 'A')?.blood, undefined, 'the stamps are not blood');
 });
