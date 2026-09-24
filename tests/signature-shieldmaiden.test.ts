@@ -15,7 +15,7 @@ function rig(withShield: boolean) {
   hand.name = 'hand_r'; hand.position.set(0.2, 1.1, 0.3); her.add(hand); player.position.set(0, 0, 3);
   if (withShield) { const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.05)); shield.userData.slot = 'Shield'; shield.position.set(-0.3, 1.1, 0.3); her.add(shield); }
   scene.add(her, player);
-  return { marks, frame: { fighters, roots: [player, her] as const, scale: [1, 1] as const, yielding: false, marks } };
+  return { marks, frame: { fighters, roots: [player, her] as const, scale: [1, 1] as const, yielding: false, bloodMode: 'red' as const, marks } };
 }
 
 test('Splintered Defiance answers only a heavy the Shieldmaiden blocks', () => {
