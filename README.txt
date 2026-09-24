@@ -1,2 +1,2 @@
-Launch carriers (#PR on char/launch-helmet-body-carriers, dfe371a1). 375x812 stills, player wearing all six of each character.
-before/ = trunk c1bbd1b2 (head views framed low), after/ = dfe371a1. Rendered with the loot-layers page recipe (warrior.glb + loot.glb, Idle 0.5 s; stride = ArmedWalk 0.25).
+Re-judge (Strategy NOT YET on #709): rejudge/ = e3b4f218, 5 views x 4 characters (375x812, labelled, deduped) + pit-*.png = in-pit at the fight camera on the built dist (player wears the set x6).
+after/ = dfe371a1 (first round), before/ = trunk c1bbd1b2.
