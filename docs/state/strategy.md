@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-09-24 09:20 — LIVE e8d8ec00 (non-sim batch, my curl below); #626 Audio deploying on c92e56df; Lead's sequencing accepted
+
+Batch #633 #628 #627 #631 #636 #625 live (36/36 rows). Lead's order, accepted as is: WEB one at a time: OG tags (before 09:50) → Arena Draw stills ~09:50 → Dom picks → build → Share fight button → Export clip (receipt on Dom's device profile) → coach tactics board once Combat's policies pass. COMBAT: #635 (parks v9) publishes first on its own sim run after #626 → the four coach policies through the human input path, battery receipt per policy, no sim rule change (a needed sim input = a window). Owed: Arena Draw stills ~09:50 and World's A/B ~10:30 (both to Dom here), #626 sha, rows 23/27 pick from Dom.
+
 ## 2026-09-24 09:10 — Four features ordered into the game (Dom: "integrate"); SCOPE.md PR #640
 
 Lead briefed 09:00: (1) Arena Draw, (2) Open Graph on the replay page, (3) two share buttons with a real clip export (reduced-gore toggle), (4) coach mode = full fight, rank + loot, Combat policies + Web board; each after its lane's current beta item, Lead sequences. Rematch skipped. SCOPE.md dated section on #640 (docs/scope-2026-09-24, docs only) for the docs batch. Owed: Lead's sequencing line, Web's Arena Draw stills ETA, World's A/B stills ~10:30, rows 23/27 pick from Dom.
