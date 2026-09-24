@@ -71,7 +71,9 @@ export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 // The armour an opponent is dressed in for a fight (tier dressing): his pieces minus the weapon, and minus the shield when he fights
 // two-handed. A two-hander stows the shield on his back (moves.ts Grip), and back-stow is not built, so it stays off rather than hang
 // on the forearm across his haft. A one-hander (the Shieldmaiden's gladius) brings it up, which is the shield as authored.
-export const kitWorn = (opponent: OpponentId, twoHanded: boolean): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield'));
+// A Recruit's kit carries no crest (Strategy, #705): the plume is the first thing a Legionary earns, and at 375 it is what tells the two apart.
+// Presentation only — the award rule (awards.ts kitAt, WORN_FROM) is untouched, so a crest taken at Recruit is still the player's to wear.
+export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest'));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
 export const paperdollOf = (slot: LootSlot): Paperdoll => (Object.keys(PAPERDOLL) as Paperdoll[]).find(key => (PAPERDOLL[key] as readonly LootSlot[]).includes(slot))!;

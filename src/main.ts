@@ -14,7 +14,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { levelOf, tierAt, type Tier } from './grades.ts';
+import { isTier, levelOf, tierAt, type Tier } from './grades.ts';
 import { LOOT, PACK, PAPERDOLL, takenTier, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
@@ -132,6 +132,9 @@ const wornTiers = (): Partial<Record<string, Tier>> => Object.fromEntries(wornId
 // The rung this fight meets the opponent at (grades.ts tierAt, the server's awardFor formula): read at load and at each rematch, before the
 // fight's marks land, so a take records the tier he was actually met at and his kit never regrades mid-finisher.
 let metAt: Tier = 'Recruit';   // set from the profile's marks at boot, below
+// Stills and dev look (like ?arena=): ?tier=<Rank> dresses the OPPONENT's kit at that rung. It is never written to a take (metAt is), so it
+// cannot change what a piece records, and nothing reads it but the rig.
+const lookTier = ((t) => (isTier(t) ? t : undefined))(/[?&]tier=(\w+)/.exec(typeof location === 'undefined' ? '' : location.search)?.[1]);
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function setLoot(loot: Loot) { profile.loot = loot; persist(); view.wear(wornIds(), wornTiers()); renderLoot(); }
 function renderLoot() {
@@ -501,7 +504,7 @@ resetButton.addEventListener('click', () => {
     return;
   } // the next fighter is another rig: a fresh page loads it
   match.rematch();   // a daily's rematch is practice and never posts; a career fight stays career
-  metAt = tierAt(marksOf(profile)); view.setTier(metAt);   // a win may have moved the rung: he comes back dressed for it
+  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // a win may have moved the rung: he comes back dressed for it
   began();
   view.recenter();
   canvas.focus();
@@ -669,7 +672,7 @@ try {
     opponent.id,
     /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
   );
-  metAt = tierAt(marksOf(profile)); view.setTier(metAt);   // his kit at the rung he is met at
+  metAt = tierAt(marksOf(profile)); view.setTier(lookTier ?? metAt);   // his kit at the rung he is met at
   view.wear(wornIds(), wornTiers());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
   applySignature();   // the signature preview's pick (off unless the test tools are open)
   // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.

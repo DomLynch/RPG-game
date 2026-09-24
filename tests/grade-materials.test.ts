@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { Box3, Color, Mesh, MeshStandardMaterial, SkinnedMesh } from 'three';
+import { Box3, Color, Mesh, MeshStandardMaterial, SkinnedMesh, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, gradeMaterial, lootId, lootPiecesOf, lootWorn } from '../src/characters.ts';
 import { GRADES, gradeFor } from '../src/grades.ts';
@@ -35,15 +35,20 @@ test('grade: a Steel material at Recruit is a CLONE carrying the Recruit factors
   const legionary = gradeMaterial(steel, 'Legionary');
   assert.notDeepEqual(finish(legionary), finish(recruit), 'Legionary leather is not Recruit rag & scrap');
   assert.deepEqual(finish(gradeMaterial(new MeshStandardMaterial({ name: 'Leather' }), 'Recruit')), GRADES.Recruit.leather);
+  const hide = new MeshStandardMaterial({ name: 'Leather' }); hide.map = new Texture();
+  assert.equal(gradeMaterial(hide, 'Gladiator').map, null, 'graded leather drops its dark colour map, so a light hide can read');
+  assert.ok(hide.map, 'the rig\'s own leather keeps its map');
+  const plate = new MeshStandardMaterial({ name: 'Steel' }); plate.map = new Texture();
+  assert.equal(gradeMaterial(plate, 'Gladiator').map, plate.map, 'metal keeps its map');
   for (const name of ['Bone', 'Ruby', 'Skin', 'Heraldry', 'Gambeson', 'Gambeson_veteran', 'VeteranSurface']) {
     const m = new MeshStandardMaterial({ name });
     assert.equal(gradeMaterial(m, 'Recruit'), m, `${name} keeps its own look: no grade, no clone`);
   }
 });
 
-test('grade: the player\'s worn loot is graded by his rank; his own body draws are not', async () => {
+test('grade: the player\'s worn loot is graded; of his own draws only the straps over a worn tunic follow it, and come back when it is off', async () => {
   const pieces = lootPiecesOf((await parse('loot.glb')).scene), { player } = buildWarriors(await parse('warrior.glb'));
-  const own = materialsOf(player.anchor), ownLook = own.map(finish);
+  const own = materialsOf(player.anchor), ownLook = own.map(finish), ownNames: string[] = []; player.anchor.traverse(o => { if (o instanceof Mesh && o.material instanceof MeshStandardMaterial) ownNames.push(o.name); });
   player.wear(pieces.filter(p => ['veteran.Helmet', 'veteran.Body'].includes(lootId(p))), undefined, 'Recruit');
   const worn = player.worn() as SkinnedMesh[], steel = worn.find(p => (p.material as MeshStandardMaterial).name === 'Steel');
   assert.ok(steel, 'the Veteran\'s tunic carries a Steel draw');
@@ -54,8 +59,17 @@ test('grade: the player\'s worn loot is graded by his rank; his own body draws a
   assert.notEqual(steel!.material, source, 'the parsed piece keeps its own material for the next dressing');
   player.wear(pieces.filter(p => lootId(p) === 'veteran.Body'), undefined, 'Legionary');
   assert.deepEqual(finish(player.worn().find(p => p.name === steel!.name)!.material as MeshStandardMaterial), GRADES.Legionary.metal);
-  const now = materialsOf(player.anchor).filter(m => !player.worn().some(w => w.material === m));
-  assert.deepEqual([now, now.map(finish)], [own, ownLook], 'the player\'s own draws keep their very materials and look: only what he wears is graded');
+  // His own unslotted straps and buckles (the baldric and belt over the chest) take the worn Body piece's grade — the one exception, so the
+  // taken tunic reads its rung (Strategy, #705). Every other draw of his keeps its very material and look.
+  const strap = (m: MeshStandardMaterial) => ['Leather', 'Antique brass'].includes(m.name);
+  let straps: Mesh[] = []; player.anchor.traverse(o => { if (o instanceof SkinnedMesh && !player.worn().includes(o) && !o.userData.slot && o.material instanceof MeshStandardMaterial && strap(o.material)) straps.push(o); });
+  assert.ok(straps.length >= 2, 'his baldric and belt');
+  for (const o of straps) assert.deepEqual(finish(o.material as MeshStandardMaterial), gradeFor('Legionary', (o.material as MeshStandardMaterial).name), `${o.name}: his strap wears the tunic's Legionary grade`);
+  const now = materialsOf(player.anchor).filter(m => !player.worn().some(w => w.material === m) && !straps.some(o => o.material === m));
+  const kept = own.filter((m, i) => !(strap(m) && straps.some(o => o.name === ownNames[i])));
+  assert.deepEqual(now.map(finish), kept.map(finish), 'the rest of his own draws keep their look');
+  player.wear([]);
+  assert.deepEqual([materialsOf(player.anchor), materialsOf(player.anchor).map(finish)], [own, ownLook], 'with the tunic off, every one of his own draws is back on its very material');
 });
 
 // Phase L (Strategy, 2026-09-23): the opponent wears his own loot.glb carriers, graded at the fight's tier; his own draws, a creature's
@@ -143,4 +157,18 @@ test('kit: an opponent is dressed in his armour, never his weapon, and a two-han
     const twoHanded = WEAPONS[OPPONENTS[id].weapon].grip === 'two-hand';
     assert.ok(kitWorn(id, twoHanded).every(l => !isWeaponLoot(l)), `${id}: no weapon draw`);
   }
+});
+// Strategy (2026-09-24, #705 NOT YET): Recruit and Legionary were the same Centurion at 375. Adjacent low rungs must differ in more than hue —
+// in lightness AND shine — and a Recruit wears no crest. The body's straps (leather) carry the rung too, so a taken tunic reads its tier.
+test('grade: Recruit and Legionary differ in lightness and shine, not just hue; a Recruit wears no crest', () => {
+  const lum = (hex: string) => { const c = new Color(hex); return .2126 * c.r + .7152 * c.g + .0722 * c.b; };   // linear, as the renderer sees it
+  for (const group of ['metal', 'leather'] as const) {   // the big surfaces: plate and straps
+    const r = GRADES.Recruit[group], l = GRADES.Legionary[group], g = GRADES.Gladiator[group];
+    assert.ok(Math.max(lum(r.color), lum(l.color)) > 2 * Math.min(lum(r.color), lum(l.color)), `${group}: Recruit ${r.color} and Legionary ${l.color} differ in lightness by 2x or more`);
+    assert.ok(Math.max(lum(g.color), lum(l.color)) > 2 * Math.min(lum(g.color), lum(l.color)), `${group}: Legionary ${l.color} and Gladiator ${g.color} differ in lightness by 2x or more`);
+  }
+  assert.ok(Math.abs(GRADES.Recruit.metal.roughness - GRADES.Legionary.metal.roughness) >= .3, 'rust is matte, blackened iron has a sheen');
+  assert.ok(GRADES.Legionary.trim.metalness - GRADES.Recruit.trim.metalness >= .5, 'the studs: dead scrap at Recruit, bright brass at Legionary');
+  assert.ok(!kitWorn('veteran', true, 'Recruit').includes('veteran.Crest'), 'no plume on a Recruit');
+  assert.ok(kitWorn('veteran', true, 'Legionary').includes('veteran.Crest'), 'the plume from Legionary up');
 });

@@ -12,7 +12,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { budgetTextures, FIGHTER_TEXTURE_CAP, phoneTier } from './quality.ts';
 import { splitSkull } from './skull.ts';
 import { openWaist } from './opened.ts';
-import { gradeFor, type Tier } from './grades.ts';
+import { classOf, gradeFor, type Tier } from './grades.ts';
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -200,6 +200,10 @@ export function gradeMaterial(material: MeshStandardMaterial, tier: Tier): MeshS
   let copy = byTier.get(tier);
   if (!copy) {
     copy = material.clone(); copy.color.set(finish.color); copy.metalness = finish.metalness; copy.roughness = finish.roughness;
+    // Leather drops its colour map: the hero's leather texture is dark brown, and a colour factor can only darken it, so buff or tan hide
+    // multiplied onto it stayed dark and a taken tunic's straps read the same at every rung (Strategy, #705). Its normal and roughness
+    // maps stay. Metal keeps its map — a graded helmet already reads.
+    if (classOf(material.name) === 'leather') copy.map = null;
     copy.onBeforeCompile = material.onBeforeCompile; copy.customProgramCacheKey = material.customProgramCacheKey;   // as bothSides: clone() drops the hooks
     byTier.set(tier, copy);
   }
@@ -225,6 +229,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     });
     let opened: ReturnType<typeof openWaist> | undefined;
     const worn: SkinnedMesh[] = [], covered = new Map<Mesh, boolean>();   // loot pieces on this rig, and the rig's own draws they hide (with their visibility before)
+    const restrapped = new Map<Mesh, Mesh['material']>();   // his own straps and buckles regraded with a worn Body piece, and their own material
     const spectral = spectralAppearance(root);
     let spectralLife = 1;
     const mixer = new AnimationMixer(root);
@@ -271,6 +276,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tier?: Tier | ((piece: SkinnedMesh) => Tier | undefined)) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
+        for (const [draw, material] of restrapped) draw.material = material; restrapped.clear();
         let body: SkinnedMesh | undefined; const materials = new Map<string, MeshStandardMaterial>();
         root.traverse(object => {
           if (!(object instanceof Mesh)) return;
@@ -302,6 +308,17 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           }
         }
         const slots = new Set(worn.filter(p => p.userData.layer === 'replace').map(p => String(p.userData.slot)));
+        // A worn Body piece's own straps sit UNDER his baldric and belt (unslotted Leather and Antique brass that no slot hides), so on the
+        // chest the piece read as its house-dye tunic at every tier (Strategy, #705: a taken body piece must show its rung). While one is worn
+        // at a tier, those straps and buckles take its grade; they go back to his own material when it comes off. Nothing else of his is touched.
+        // The player's rig only: an opponent's own body, palette or baked, is never regraded (his kit is what shows his rung).
+        const chest = opponent ? undefined : worn.find(p => p.userData.slot === 'Body'), chestTier = chest && (typeof tier === 'function' ? tier(chest) : tier);
+        if (chestTier) root.traverse(object => {
+          // Skinned body draws only: a weapon's grip wrap (the scythe's, the maul's) is a static mesh under WeaponDrawn and stays the weapon's.
+          if (!(object instanceof SkinnedMesh) || worn.includes(object) || object.userData.slot || !(object.material instanceof MeshStandardMaterial)) return;
+          const looked = gradeMaterial(object.material, chestTier);
+          if (looked !== object.material) { restrapped.set(object, object.material); object.material = looked; }
+        });
         if (slots.has('Helmet')) slots.add('Hair');
         root.traverse(object => { if (object instanceof Mesh && !worn.includes(object as SkinnedMesh) && slots.has(String(object.userData.slot))) { covered.set(object, object.visible); object.visible = false; } });
       },

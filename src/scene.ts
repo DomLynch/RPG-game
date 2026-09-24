@@ -163,12 +163,12 @@ export function createScene(
   // dressed before the opened-waist bake and never pops armour on mid-fight; a failed cut leaves him undressed, not the fight. The player's
   // pieces are graded each at the tier it was taken at (`wear`'s tiers).
   let tier: Tier | undefined, tiers: Partial<Record<string, Tier>> = {};
-  const carriers: readonly string[] = kitWorn(opponentId, weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand');
-  const carrierUrl = carriers.length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
+  const twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
+  const carrierUrl = kitWorn(opponentId, twoHanded).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
   let worn: readonly string[] = [], lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
   function dress() {
     if (!warriors) return;
-    if (carried) warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, carriers)), (id, error) => captureException(error, { tags: { loot: id } }), tier);
+    if (carried) { const kit = kitWorn(opponentId, twoHanded, tier); warriors.opponent.wear(carried.filter((piece) => lootWorn(piece, kit)), (id, error) => captureException(error, { tags: { loot: id } }), tier); }
     if (!lootPieces) {
       if (worn.length && !lootLoading) lootLoading = loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; });
       return;
