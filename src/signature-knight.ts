@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isHeavy, OPPONENT_SIDE, registerSignature, type SignatureFrame } from './signature.ts';
+import { isHeavy, OPPONENT_SIDE, registerSignature, type SignatureEffect, type SignatureFrame } from './signature.ts';
 import { surfaceHit, woundSite, type WoundHit } from './gore.ts';
 import { weaponOf } from './moves.ts';
 import type { CombatEvent } from './duel.ts';
@@ -74,7 +74,7 @@ const struck = (event: CombatEvent) => event.type === 'Hit' && event.target === 
 // One burst, two looks: A (the lit crescent dent, bright rivets) and B (Strategy's AGAIN: a dark bruised dent lit only on its top edge, dark iron
 // rivets). The rivet pool is shared; only one variant is ever chosen, and each dresses the shared material when it fires.
 type Look = { name: string; map: () => THREE.CanvasTexture; rivet: { color: string; emissive: string; metalness: number; roughness: number } };
-const rivetBurst = (variant: 'A' | 'B', look: Look) => registerSignature({
+const rivetBurst = (variant: 'A' | 'B', look: Look): SignatureEffect => ({
   opponent: 'knight', variant, name: look.name,
   when: struck,
   fire(event, frame: SignatureFrame) {
@@ -123,5 +123,6 @@ const rivetBurst = (variant: 'A' | 'B', look: Look) => registerSignature({
     for (const r of rivets) { r.age = SETTLE; r.mesh.visible = false; }
   },
 });
-rivetBurst('A', { name: 'Rivet Burst', map: dent, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
-rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } });
+// Strategy closed the Knight on B (the flying dark rivets): A stays built but unregistered, so On resolves to B (pickSignature takes A first).
+export const rivetBurstA = rivetBurst('A', { name: 'Rivet Burst', map: dent, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
+registerSignature(rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } }));
