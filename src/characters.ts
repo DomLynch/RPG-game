@@ -3,6 +3,8 @@ import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, type Attack, type Practice } from './combat.ts';
 import type { Direction, WeaponId } from './moves.ts';
+import { movesOf, type Fighter } from './duel.ts';
+import type { OpponentId } from './roster.ts';
 import { AnimationMixer, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -144,6 +146,21 @@ export const GUARD_TILT: Record<Direction, { yaw: number; arm: number; spine: nu
   thrust: { yaw: 0, arm: 0, spine: 0 }, left: { yaw: .45, arm: 0, spine: 0 }, right: { yaw: -.45, arm: 0, spine: 0 },
   overhead: { yaw: 0, arm: -.5, spine: -.25 }, low: { yaw: 0, arm: .5, spine: .25 },
 };
+// Charged-heavy lean (Strategy 2026-09-24, mockup B "Lean-out"): from the chase camera the player's own body covers the middle of the
+// opponent, so a held heavy read as a plain one. While the swing is parked at its chamber the whole upper body leans out to the side, clear
+// of the player's silhouette, the weapon arm lifting the head of the weapon skyward. Added after the mixer like the guard tilt (radians:
+// spine_01 yaw and side-bend, spine_02 side-bend, upperarm_r lift), eased in over the hold and out through the swing. Presentation only.
+export type ChargeLean = { yaw: number; side: number; chest: number; arm: number };
+const NO_LEAN: ChargeLean = { yaw: 0, side: 0, chest: 0, arm: 0 };
+export const CHARGE_LEAN: Partial<Record<OpponentId, ChargeLean>> = {
+  witch: { yaw: .25, side: .55, chest: .25, arm: .55 },
+};
+// A charging swing parked at its chamber (duel.ts rewinds age to the chamber while held); false from the tick it is released.
+export function holdingCharge(f: Pick<Fighter, 'phase' | 'move' | 'charge' | 'age' | 'weapon'>): boolean {
+  if (f.phase !== 'attack' || !f.move || f.charge <= 0) return false;
+  const move = movesOf(f)[f.move];
+  return move.charges && move.chamber !== null && f.age <= move.chamber;
+}
 // A shield's face is a single-sided disc (loot.glb `~kit.Shield.Leather`: every normal and triangle faces bind +Z), so from behind (most
 // angles on the arm) it was culled and only the rim torus drew, a hoop (owner's iPhone, 2026-09-23 15:21). Shield draws render both sides,
 // on their own copy of the material they were given, so the rig's own Leather/brass on his body stays front-sided.
@@ -207,6 +224,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     // tilted for the beta; the weapons lane replaces it with authored guard clips family by family. Blended so a slide never snaps.
     const spine1 = root.getObjectByName('spine_01'), spine2 = root.getObjectByName('spine_02');
     const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
+    let leaning = 0, leanDrive = 0;   // the charged-heavy lean's weight, 0..1, and the ease that drives it
     let tiltApplied = false;   // the mixer rewrites a bone only when its clip value changes (a held guard's does not), so the tilt is undone by hand before every update
     let speed = 0;
     let severed = false;   // decapitation is once per kill; unsever() resets on rematch
@@ -249,7 +267,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
       playing(): string { if (opened?.group.visible) return `Opened:WaistCut@${blade.name}`; let best: Role = 'Idle'; for (const role of ROLES) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'opened' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null) {
+      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'quietOne' | 'opened' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null, lean: ChargeLean | null = null, holding = false) {
         // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
         // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
         if (pose !== 'opened' && opened) { opened.group.visible = false; root.visible = true; }
@@ -282,11 +300,16 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         mixer.update(step);
         const guarding = guardSide && (pose === 'guard' || pose === 'block' || pose === 'parry') ? GUARD_TILT[guardSide] : GUARD_TILT.thrust, ease = 1 - Math.exp(-step * 16);
         for (const k of ['yaw', 'arm', 'spine'] as const) tilt[k] += (guarding[k] - tilt[k]) * ease;
-        if (tilt.yaw || tilt.spine || tilt.arm) {
+        // Two cascaded eases: the lean starts and stops at zero speed, so neither the hold nor the release pops.
+        const follow = 1 - Math.exp(-step * 18);
+        leanDrive += (Number(!!lean && holding) - leanDrive) * follow; leaning += (leanDrive - leaning) * follow;
+        if (leaning < 1e-3 && leanDrive < 1e-3) leaning = leanDrive = 0;
+        const l = lean ?? NO_LEAN;
+        if (tilt.yaw || tilt.spine || tilt.arm || leaning) {
           tilted.forEach((b, i) => untilted[i].copy(b.quaternion)); tiltApplied = true;
-          if (spine1) spine1.rotation.y += tilt.yaw;
-          if (spine2) spine2.rotation.x += tilt.spine;
-          if (upperArm) upperArm.rotation.x += tilt.arm;
+          if (spine1) { spine1.rotation.y += tilt.yaw + leaning * l.yaw; spine1.rotation.z += leaning * l.side; }
+          if (spine2) { spine2.rotation.x += tilt.spine; spine2.rotation.z += leaning * l.chest; }
+          if (upperArm) { upperArm.rotation.x += tilt.arm; upperArm.rotation.y += leaning * l.arm; }
         }
         spectralLife = spectral?.(step, dead, progress, pose === 'opened') ?? 1;
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
