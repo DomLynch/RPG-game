@@ -1,4 +1,20 @@
-## Now — web lane, 2026-09-24 late evening (read this first)
+## Now — web lane, 2026-09-24 night (read this first)
+
+**Waiting on Dom's pick of the opponent-reveal mockups; nothing builds until then (the rule since #670).** When Lead relays the pick,
+build that one in the loot panel's skin and nothing else.
+
+**Done tonight (night):**
+- **#694 "Revert #670 Arena Draw (Dom)"** — a clean `git revert -m 1 13e603f0`, on Dom's direct order via Strategy. MERGED as
+  9aec952c; the live release.json read 9aec952c at 21:4x (checked). Receipt `evidence/revert-670` @ e40b92e0: plain versus still, no roster board.
+- **Opponent reveal mockups** — `evidence/opponent-reveal-mockups` @ b0d64ce9: reveal-A/B/C.png + reveal-sheet.png + README.
+  A = the loot panel's card in its top-band place, with name, weapon and his kit thumbs; B = nameplates over each fighter; C = a gold-glass
+  banner laid on the sand between them. Dom's direction (via Strategy): the loot panel's look, semi-transparent gold, in-world,
+  no cage or board. Generator: `artifacts/reveal-mockups.mjs <outdir> <bg.png>` (gitignored).
+
+**Gotcha (new):** (xi) in a mockup's inline `style="…"`, font names must use SINGLE quotes — a `"Instrument Sans"` closes the
+attribute and every line silently falls back to one serif size.
+
+## Earlier — web lane, 2026-09-24 late evening
 
 **Done; next from Lead.** Nothing in flight. Live = playtest sha **e37a74c7** (frozen until the playtest). Lead is CEO with full
 authority (Dom, 2026-09-24): questions go to Lead, never to Dom.
