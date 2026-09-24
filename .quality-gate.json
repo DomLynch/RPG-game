@@ -14,7 +14,7 @@
     ["node", "--test", "tests/player-bot.test.mjs"],
     ["node", "--test", "tests/player-bot-review.test.mjs"],
     ["node", "--test", "tests/player-bot-observation.test.mjs"],
-    ["node", "scripts/player-bot.mjs", "--strategy=charged", "--opponent=pitborn", "--fights=3", "--step-ms=64", "--no-video", "--out=artifacts/combat/player-bot-gate"]
+    ["node", "scripts/player-bot.mjs", "--opponent=pitborn", "--fights=3", "--step-ms=64", "--no-video", "--out=artifacts/combat/player-bot-gate"]
   ],
   "release_commands": [
     [

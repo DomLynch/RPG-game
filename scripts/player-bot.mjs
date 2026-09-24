@@ -20,9 +20,10 @@ const count = Number(option('fights', process.argv.includes('--smoke') ? '1' : '
 const reactionMs = Number(option('reaction-ms', '180'));
 const stepMs = Number(option('step-ms', '32'));
 const recordVideo = !process.argv.includes('--no-video');
+const headed = process.argv.includes('--headed');
 const recordClips = recordVideo && !process.argv.includes('--no-clips');
 const showDebugVideo = process.argv.includes('--show-debug-video');
-const strategy = option('strategy', 'charged');
+const strategy = option('strategy', 'tactical');
 const observation = option('observation', 'debug');
 const requested = option('opponents', option('opponent', 'pitborn'));
 const playable = ENCOUNTERS.filter(entry => !entry.hold).map(entry => entry.id);
@@ -39,11 +40,13 @@ const dir = option('out', 'artifacts/combat/player-bot');
 await fs.mkdir(dir, { recursive: true });
 const server = await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
+const browser = await chromium.launch({ headless: !headed, executablePath: chromium.executablePath() });
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 20_000 }).trim();
 const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8', timeout: 20_000 }).trim() !== '';
+const identity = strategy === 'tactical' ? 'LATEST tactical' : 'ARCHIVED diagnostic';
+console.log(JSON.stringify({ identity, revision: `${revision}${dirty ? '-dirty' : ''}`, strategy, difficulty: 'easy', observation, headed }));
 const CONFIG = { veteran: [2.1, 'guard'], pitborn: [2.1, 'dodge'], goblin: [1.8, 'parry'], nightborn: [2.1, 'parry'], executioner: [2.1, 'dodge'], dwarf: [1.8, 'dodge'], plaguedoctor: [1.8, 'parry'], witch: [2.1, 'guard'], shieldmaiden: [1.8, 'dodge'] };
-const receipt = { revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'rounded delayed distance/position and delayed combat events; current own phase/stamina/health', fights: [] };
+const receipt = { identity, revision: `${revision}${dirty ? '-dirty' : ''}`, opponents, difficulty: 'easy', strategy, reactionMs, stepMs, headed, video: recordVideo, clips: recordClips, observation, observationAccess: observation === 'debug' ? 'exact current debug gap/position/stamina/phase and combat events' : 'rounded delayed distance/position and delayed combat events; current own phase/stamina/health', fights: [] };
 try {
   for (const opponent of opponents) for (const seed of seeds) {
     const [range, defense] = CONFIG[opponent];
@@ -61,6 +64,7 @@ try {
       page.on('pageerror', e => fight.errors.push(String(e)));
       await page.route('**/*sentry.io/**', route => route.abort());
       await page.goto(`${origin}/?opponent=${opponent}&debug=1&botSeed=${seed}`);
+      await page.evaluate(({ identity, revision, opponent, seed }) => { document.title = `${identity} · ${revision.slice(0, 8)} · ${opponent} ${seed}`; }, { identity, revision, opponent, seed });
       await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 90000 });
       for (let n = 0; n < 3 && (await page.locator('#difficulty').textContent()) !== 'Difficulty: easy'; n++) await page.evaluate(() => document.querySelector('#difficulty').click());
       assert.equal(await page.locator('#difficulty').textContent(), 'Difficulty: easy');
@@ -70,8 +74,8 @@ try {
       await page.evaluate(({ showLabel, showDebug }) => {
         window.__botEvents = [];
         window.addEventListener('frankendom:combat', e => window.__botEvents.push(...e.detail.events));
-        if (!showLabel) return;
         if (!showDebug) document.querySelector('#debug').style.visibility = 'hidden';
+        if (!showLabel) return;
         const label = document.createElement('div'); label.id = 'bot-receipt';
         Object.assign(label.style, { position: 'fixed', top: '2px', left: '2px', zIndex: '9999', background: '#111d', color: 'white', font: '12px monospace', padding: '3px' });
         document.body.append(label);
@@ -158,6 +162,10 @@ try {
         hitDamage: fight.events.filter(e => e.type === 'Hit' && e.actor === 0 && e.move === move).reduce((n, e) => n + (e.damage ?? 0), 0),
         guardBreakDamage: fight.events.filter(e => e.type === 'GuardBroken' && e.actor === 0 && e.move === move).reduce((n, e) => n + (e.damage ?? 0), 0),
       }]));
+      const ownStarts = fight.events.filter(e => e.type === 'AttackStarted' && e.actor === 0);
+      const heavyStarts = ownStarts.filter(e => e.move?.startsWith('heavy')).length;
+      fight.attackMix = { attacks: ownStarts.length, heavies: heavyStarts, heavyPercent: ownStarts.length ? +(100 * heavyStarts / ownStarts.length).toFixed(1) : null,
+        passed: ownStarts.length > 0 && 5 * heavyStarts <= ownStarts.length };
       fight.defensiveChoices = Object.fromEntries(['roll', 'backstep', 'guard', 'parry', 'feint'].map(action => [action, fight.events.filter(e => e.type === 'ActionStarted' && e.actor === 0 && e.action === action).length]));
       fight.secondsNearWall = +(fight.samples.reduce((n, s, i) => n + (s.radius >= config.wallRadius ? ((fight.samples[i + 1]?.tick ?? end.tick) - s.tick) / 60 : 0), 0)).toFixed(2);
       const contacts = fight.events.filter(e => ['Hit', 'Blocked', 'Parried'].includes(e.type)).map(e => e.tick);
@@ -218,7 +226,7 @@ try {
     }
   }
   receipt.rates = Object.fromEntries(opponents.map(id => [id, receipt.fights.filter(f => f.opponent === id && f.outcome === 'win').length / count]));
-  receipt.passed = opponents.every(id => receipt.rates[id] >= 2 / 3) && receipt.fights.every(f => !f.error && !f.errors.length && f.inputsReleased);
+  receipt.passed = opponents.every(id => receipt.rates[id] >= 2 / 3) && receipt.fights.every(f => !f.error && !f.errors.length && f.inputsReleased && (strategy !== 'tactical' || f.attackMix.passed));
   assert.ok(receipt.passed, 'at least two-thirds real Easy wins per selected opponent; no run errors');
 } finally {
   await fs.writeFile(`${dir}/summary.json`, JSON.stringify(receipt, null, 2));

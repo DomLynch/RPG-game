@@ -96,25 +96,43 @@ test('tactical player waits for a real missed swing then chooses a reachable qui
   assert.equal(chooseTacticalAttack(observation({ tick: 112, gap: 1.8, enemyPhase: 'other', thrust: true }), distant, 12, config).press, 'KeyT');
 });
 
-test('tactical player uses a confirmed block for a legal heavy counter', () => {
+test('tactical player answers a confirmed block with a quick counter before heavy is earned', () => {
   const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
-  chooseTacticalAttack(observation({ events: [{ tick: 100, type: 'Blocked', actor: 0 }], gap: 1.5 }), state, 12, config);
-  const action = chooseTacticalAttack(observation({ tick: 112, gap: 1.5 }), state, 12, config);
-  assert.equal(action.press, 'KeyG');
-  assert.equal(action.reason, 'confirmed guard counter');
+  chooseTacticalAttack(observation({ events: [{ tick: 100, type: 'Blocked', actor: 0 }], gap: 1.5, light: true }), state, 12, config);
+  const action = chooseTacticalAttack(observation({ tick: 112, gap: 1.5, light: true }), state, 12, config);
+  assert.equal(action.press, 'KeyF');
+  assert.equal(action.reason, 'slash after defence');
 });
 
-test('tactical policy retains the proven delayed overhead evade', () => {
+test('tactical heavy counter requires four actual quick attack starts', () => {
+  const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  const quicks = [0, 1, 2, 3].map(i => ({ tick: 100 + i, type: 'AttackStarted', actor: 0, move: 'thrust' }));
+  chooseTacticalAttack(observation({ tick: 200, events: [...quicks, { tick: 200, type: 'Blocked', actor: 0 }], gap: 1.5 }), state, 12, config);
+  const counter = chooseTacticalAttack(observation({ tick: 212, gap: 1.5 }), state, 12, config);
+  assert.equal(counter.press, 'KeyG');
+  assert.notEqual(chooseTacticalAttack(observation({ tick: 212, gap: 1.5 }), state, 12, config).press, 'KeyG');
+});
+
+test('tactical policy guards a tell after its reaction delay', () => {
   const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
   const tell = { tick: 100, type: 'AttackStarted', actor: 1, move: 'heavy_overhead', direction: 'overhead' };
   chooseTacticalAttack(observation({ tick: 100, events: [tell], gap: 3 }), state, 12, config);
   assert.equal(chooseTacticalAttack(observation({ tick: 111, gap: 3 }), state, 12, config).press, null);
-  assert.deepEqual(chooseTacticalAttack(observation({ tick: 112, gap: 3 }), state, 12, config).keys, ['KeyA']);
+  assert.deepEqual(chooseTacticalAttack(observation({ tick: 112, gap: 3 }), state, 12, config).keys, ['KeyQ', 'ArrowUp']);
 });
 
-test('tactical player uses a faster legal attack instead of a costly charge at low stamina', () => {
+test('tactical policy rolls sideways once after an observed charged overhead', () => {
+  const state = {}, config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  const charge = { tick: 100, type: 'Charged', actor: 1, move: 'heavy_overhead' };
+  chooseTacticalAttack(observation({ tick: 100, events: [charge], gap: 1.2, stamina: 40 }), state, 12, config);
+  const roll = chooseTacticalAttack(observation({ tick: 112, gap: 1.2, stamina: 40 }), state, 12, config);
+  assert.deepEqual({ keys: roll.keys, press: roll.press }, { keys: ['KeyA'], press: 'KeyE' });
+  assert.notEqual(chooseTacticalAttack(observation({ tick: 113, gap: 1.2, stamina: 40 }), state, 12, config).press, 'KeyE');
+});
+
+test('tactical player does not repeat quick attacks into a ready opponent at low stamina', () => {
   const config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
-  assert.equal(chooseTacticalAttack(observation({ gap: 1.4, stamina: 42, enemyPhase: 'ready', light: true }), {}, 12, config).press, 'KeyF');
-  assert.equal(chooseTacticalAttack(observation({ gap: 1.8, stamina: 42, enemyPhase: 'ready', thrust: true }), {}, 12, config).press, 'KeyT');
+  assert.equal(chooseTacticalAttack(observation({ gap: 1.4, stamina: 42, enemyPhase: 'ready', light: true }), {}, 12, config).press, null);
+  assert.equal(chooseTacticalAttack(observation({ gap: 1.8, stamina: 42, enemyPhase: 'ready', thrust: true }), {}, 12, config).press, null);
   assert.equal(chooseTacticalAttack(observation({ gap: 1.4, stamina: 34, enemyPhase: 'ready', light: true }), {}, 12, config).press, null);
 });
