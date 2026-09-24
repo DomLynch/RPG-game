@@ -18,6 +18,7 @@ import { createCameraRig } from './camera.ts';
 import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
 import { createBladeBlood, createBodyWounds, createSplatPool, createWoundDecals } from './gore.ts';
 import { createSignatures, signatureMode } from './signature.ts';
+import './signature-knight.ts';   // the Knight's Rivet Burst registers itself
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 export function createScene(
