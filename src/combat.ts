@@ -38,6 +38,7 @@ export type Practice = {
   result: Result; resultAge: number; resultDamage: number; resultStamina: number;
   resultPerfect: boolean; resultCounter: boolean; resultStop: boolean; resultTrip: boolean; resultWalled: boolean;
   resultBreak: 'charged' | 'kick' | null;   // what broke a guard, for the event line's words (presentation only; the sim is untouched)
+  evadeAt: number; swingAt: number;   // ticks of the player's last roll/backstep start and the opponent's last swing start (-1: none yet)
   maxStamina: number; enemyMaxStamina: number; legWound: boolean;   // attrition: the bars' ceilings this duel and a slowing leg wound
   maxHealth: number; enemyMaxHealth: number;   // the health bars' ceilings (an opponent may carry more than a man)
   fighter: State; enemy: State; finish: Finish | null;
@@ -66,9 +67,15 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
   let resultDamage = previous?.resultDamage ?? 0, resultStamina = previous?.resultStamina ?? 0, resultPerfect = previous?.resultPerfect ?? false;
   let resultCounter = previous?.resultCounter ?? false, resultStop = previous?.resultStop ?? false, resultTrip = previous?.resultTrip ?? false;
   let resultWalled = previous?.resultWalled ?? false, resultBreak = previous?.resultBreak ?? null;
+  let evadeAt = previous?.evadeAt ?? -1, swingAt = previous?.swingAt ?? -1;
   for (const event of duel.events) {
+    if (event.type === 'ActionStarted' && event.actor === 0 && (event.action === 'roll' || event.action === 'backstep')) evadeAt = event.tick;
+    if (event.type === 'AttackStarted' && event.actor === 1) swingAt = event.tick;
     const pair = RESULTS[event.type];
     if (!pair) continue;
+    // An opponent's whiff reads "Evaded!" only when the player rolled or backstepped during that swing: the player's own evade took
+    // them out of it. A swing at a player who stood or walked is air, and the line stays as it was.
+    if (event.type === 'AttackMissed' && event.actor === 1 && evadeAt < swingAt && p.phase !== 'roll' && p.phase !== 'backstep') continue;
     result = event.type === 'Hit' && event.move === 'kick' ? (event.actor === 0 ? 'kicked' : 'enemyKicked') : pair[event.actor];
     // the renderer keys on 'blocked'; perfection rides alongside
     resultAge = 0; resultDamage = event.damage ?? 0; resultStamina = event.stamina ?? 0;
@@ -78,7 +85,7 @@ export function project(duel: Duel, ai: AiState, previous?: Practice): Practice 
   }
   const wardenTiming = w.phase === 'attack' ? timing(w) : null;
   return {
-    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak,
+    duel, ai, events: duel.events, result, resultAge, resultDamage, resultStamina, resultPerfect, resultCounter, resultStop, resultTrip, resultWalled, resultBreak, evadeAt, swingAt,
     maxStamina: p.maxStamina, enemyMaxStamina: w.maxStamina, legWound: p.legWound, maxHealth: p.maxHealth, enemyMaxHealth: w.maxHealth,
     fighter: p.body, enemy: w.body, finish: duel.finish,
     phase: legacyPhase(p), age: p.age, attack: clipOf(p), chain: p.chain,
