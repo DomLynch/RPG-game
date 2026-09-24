@@ -48,25 +48,22 @@ function darkDent(): THREE.CanvasTexture {
 }
 
 let socketTexture: THREE.CanvasTexture | null = null;
-// C's mark (Strategy, 2026-09-24 15:40 local: "a lighter surround, not size"): the socket the rivet tore out of. A dark hole a little
-// smaller than the rivet, inside a ring of bright bare metal where the rivet head sat and scraped the plate clean. The ring's outer edge is
-// ~1.4x the rivet head (56 of 64 px at size 0.15 x 1.18 body scale = ~15.5 cm against the 11 cm head; never past 1.5x). Drawn once.
+// C's mark (Strategy's AGAIN prep): the socket the rivet tore out of. A dark depression about a rivet's footprint, and round it the plate's
+// highlight BROKEN into ragged flecks and gaps (a disturbed surface), never a drawn rim line. Deterministic, drawn once.
 function socket(): THREE.CanvasTexture {
   if (socketTexture) return socketTexture;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 128;
   const g = canvas.getContext('2d')!;
-  const ring = g.createRadialGradient(64, 64, 28, 64, 64, 56);   // bare metal: brightest just outside the hole, fading into the plate
-  ring.addColorStop(0, 'rgba(236,233,224,1)'); ring.addColorStop(0.55, 'rgba(206,203,195,0.95)'); ring.addColorStop(0.85, 'rgba(170,168,162,0.55)'); ring.addColorStop(1, 'rgba(150,148,142,0)');
-  g.fillStyle = ring; g.beginPath(); g.arc(64, 64, 56, 0, Math.PI * 2); g.fill();
-  for (let i = 0; i < 18; i++) {   // a few scrape marks across the bright ring so it reads as torn metal, not a painted disc
-    const a = i * 2.39996, r0 = 32 + (i % 3) * 3, r1 = r0 + 10 + ((i * 7) % 12);
-    g.strokeStyle = `rgba(120,118,112,${0.35 + ((i * 3) % 4) / 10})`; g.lineWidth = 1.5;
-    g.beginPath(); g.moveTo(64 + Math.cos(a) * r0, 64 + Math.sin(a) * r0); g.lineTo(64 + Math.cos(a + 0.12) * r1, 64 + Math.sin(a + 0.12) * r1); g.stroke();
+  const pit = g.createRadialGradient(64, 66, 2, 64, 64, 34);
+  pit.addColorStop(0, 'rgba(2,2,3,1)'); pit.addColorStop(0.6, 'rgba(8,8,10,0.95)'); pit.addColorStop(1, 'rgba(12,12,14,0)');
+  g.fillStyle = pit; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 46; i++) {   // the broken highlight: flecks at uneven radii, light above (the lit side), dark scuffs below
+    const a = i * 2.39996, r = 30 + ((i * 17) % 22), x = 64 + Math.cos(a) * r, y = 64 + Math.sin(a) * r * 0.9;
+    const lit = Math.sin(a) < 0.1;
+    g.fillStyle = lit ? `rgba(215,215,222,${0.35 + ((i * 7) % 5) / 10})` : `rgba(4,4,6,${0.4 + ((i * 3) % 4) / 10})`;
+    g.save(); g.translate(x, y); g.rotate(a + 1.3); g.fillRect(-(2 + (i % 4)), -1.2, 4 + 2 * (i % 4), 2.4); g.restore();
   }
-  const hole = g.createRadialGradient(64, 66, 2, 64, 64, 30);   // the hole itself, a touch darker low where the light doesn't reach
-  hole.addColorStop(0, 'rgba(2,2,3,1)'); hole.addColorStop(0.8, 'rgba(8,8,10,1)'); hole.addColorStop(1, 'rgba(30,30,32,1)');
-  g.fillStyle = hole; g.beginPath(); g.arc(64, 64, 30, 0, Math.PI * 2); g.fill();
   socketTexture = new THREE.CanvasTexture(canvas);
   socketTexture.colorSpace = THREE.SRGBColorSpace;
   return socketTexture;
@@ -150,4 +147,4 @@ const rivetBurst = (variant: 'A' | 'B' | 'C', look: Look) => registerSignature({
 });
 rivetBurst('A', { name: 'Rivet Burst', map: dent, size: 0.42, rivet: { color: '#e2ddd2', emissive: '#6a6458', metalness: 0.55, roughness: 0.3 } });
 rivetBurst('B', { name: 'Rivet Burst (dark dent)', map: darkDent, size: 0.42, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } });
-rivetBurst('C', { name: 'Rivet Burst (socket)', map: socket, size: 0.15, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } });
+rivetBurst('C', { name: 'Rivet Burst (socket)', map: socket, size: 0.16, rivet: { color: '#3a3936', emissive: '#000000', metalness: 0.85, roughness: 0.5 } });
