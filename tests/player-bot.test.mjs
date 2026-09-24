@@ -167,3 +167,18 @@ test('fight seeds start at the given seed and never step the AI\'s own lcg', () 
   for (const a of seeds) for (const b of seeds) assert.notEqual(lcg(a), b);
   assert.deepEqual(fightSeeds(731, 3), seeds.slice(0, 3));
 });
+
+test('worn down (posture high, stamina low), the tactical bot rolls out of a seen swing and walks out between swings', () => {
+  const config = { ...charged, thrustRange: 1.9, wallRadius: 7.15 };
+  const swing = { tick: 100, type: 'AttackStarted', actor: 1, move: 'light_right', direction: 'right' };
+  const state = {};
+  chooseTacticalAttack(observation({ events: [swing], gap: 1.2, stamina: 40, posture: 70, radius: 3 }), state, 12, config);
+  const out = chooseTacticalAttack(observation({ tick: 112, gap: 1.2, stamina: 40, posture: 70, radius: 3 }), state, 12, config);
+  assert.deepEqual([out.keys, out.press, out.reason], [['KeyS'], 'KeyE', 'roll out: posture high, stamina low']);
+  const wall = chooseTacticalAttack(observation({ tick: 112, gap: 1.2, stamina: 40, posture: 70, radius: 7.5 }), { tell: swing }, 12, config);
+  assert.deepEqual(wall.keys, ['KeyA']);
+  const between = chooseTacticalAttack(observation({ gap: 1.4, stamina: 40, posture: 70, radius: 3, enemyPhase: 'ready' }), {}, 12, config);
+  assert.deepEqual([between.keys, between.press], [['KeyS'], null]);
+  const fresh = chooseTacticalAttack(observation({ tick: 112, gap: 1.2, stamina: 40, posture: 20, radius: 3 }), { tell: swing }, 12, config);
+  assert.equal(fresh.reason, 'guard the observed attack');
+});

@@ -146,12 +146,17 @@ export function chooseTacticalAttack(obs, state, reactionTicks, config) {
     if (obs.gap <= 1.55 && obs.light && obs.stamina >= 55) return choice(['KeyW'], 'KeyF', 'quick slash after miss');
     if (obs.thrust && obs.stamina >= 50) return choice(['KeyW'], 'KeyT', 'reachable thrust after miss');
   }
+  // Worn down: posture high (the on-screen meter) and stamina low. Another block would feed the posture break, so get out: roll away
+  // from a seen swing (sideways at the wall), and between swings walk out of reach until the meter drains.
+  const worn = obs.posture >= (config.postureOut ?? 50) && obs.stamina < 50, away = nearWall ? 'KeyA' : 'KeyS';
   const tell = state.tell, age = tell ? obs.tick - tell.tick : 0;
   if (tell && obs.enemyPhase === 'attack' && age >= reactionTicks && (own === 'ready' || own === 'guard')) {
+    if (worn && obs.dodge !== false && obs.stamina >= 30) { eligible.push({ kind: 'disengage', tick: tell.tick }); return choice([away], 'KeyE', 'roll out: posture high, stamina low'); }
     const side = MIRROR[tell.direction];
     if (side) { eligible.push({ kind: 'guard tell', tick: tell.tick }); return choice(['KeyQ', side], null, 'guard the observed attack'); }
   }
   if (obs.enemyPhase === 'attack') return choice([], null, 'wait for attack tell');
+  if (worn && obs.gap < (config.disengageGap ?? 3)) return choice([away], null, 'back off: posture high, stamina low');
   if (state.quickRestUntil > obs.tick) return choice(obs.gap < 1.25 && !nearWall ? ['KeyS'] : [], null, 'recover after quick attack');
   if (obs.stamina < 50) return choice(nearWall && obs.gap > 1.2 ? ['KeyW'] : [], null, 'recover defensive stamina');
   if (obs.gap > config.thrustRange) return choice(['KeyW'], null, 'close to thrust range');

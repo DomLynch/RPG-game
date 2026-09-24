@@ -103,6 +103,7 @@ try {
             kick: document.querySelector('#kick-button').getAttribute('aria-disabled') === 'false',
             dodge: document.querySelector('#dodge-button').getAttribute('aria-disabled') === 'false',
             meterStamina: Number(document.querySelector('#stamina').value),
+            posture: Number(document.querySelector('#posture').value),   // the player's own posture meter (on screen)
             events: window.__botEvents.slice(cursor), count: window.__botEvents.length };
         }, cursor);
         cursor = obs.count;
