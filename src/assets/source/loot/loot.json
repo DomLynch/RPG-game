@@ -450,5 +450,54 @@
    "layer": "over",
    "file": "@build:witch-boots"
   }
+ ],
+ "knight": [
+  {
+   "slot": "Helmet",
+   "layer": "replace",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Helmet"
+   ],
+   "bone": "Head",
+   "scale": [1, 1, 0.72]
+  },
+  {
+   "slot": "Body",
+   "layer": "over",
+   "file": "@build:knight-chest"
+  },
+  {
+   "slot": "Arms",
+   "layer": "over",
+   "file": "@build:knight-arms"
+  },
+  {
+   "slot": "Gloves",
+   "layer": "over",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Gloves"
+   ],
+   "conform": {
+    "maxPush": 0.02
+   }
+  },
+  {
+   "slot": "Greaves",
+   "layer": "over",
+   "file": "@build:knight-greaves"
+  },
+  {
+   "slot": "Boots",
+   "layer": "replace",
+   "file": "loot/knight.glb",
+   "slots": [
+    "Boots"
+   ],
+   "conform": {
+    "maxPush": 0.02
+   }
+  }
  ]
 }
