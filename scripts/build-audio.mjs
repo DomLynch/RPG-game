@@ -179,9 +179,13 @@ const HITS = [
     return heavy ? mix(n, [take, 0, 1], [heft(n, 75, r, { t60: .35, drive: 5 }), .004, .4]) : take;
   },
   // Owner 2026-09-23: four CC0 flesh landings, picked by ear from twelve (B, C, H, J; SOURCES.json) — each one take, at its own pitch,
-  // with the .12 s fade-out he auditioned. Light hits only: they are what makes a landing sound like flesh rather than steel.
-  ...[['fleshslice', .13, .75], ['bloodyblade', .07, .6], ['messystab', 4.23, .7], ['meatysplosh', .04, .7]].map(([name, at, seconds]) => () =>
-    mul(recording(name, at, seconds), envelope(S(seconds), [[0, 1], [seconds - .12, 1], [seconds, 0]]))),
+  // with the .12 s fade-out he auditioned. Heavy (Lead 2026-09-23, on the owner's "hits still sound the same"): the same take played
+  // slower and lower, with the sword hit's heft under it, so a heavy landing is the same flesh hit harder rather than a different sound.
+  ...[['fleshslice', .13, .75], ['bloodyblade', .07, .6], ['messystab', 4.23, .7], ['meatysplosh', .04, .7]].map(([name, at, seconds]) => (r, heavy) => {
+    const rate = heavy ? .88 : 1, length = seconds / rate, n = S(length);
+    const take = normalize(mul(recording(name, at, length, rate), envelope(n, [[0, 1], [length - .12, 1], [length, 0]])), 0);   // heft is .4 of the take, not of the file's level
+    return heavy ? mix(n, [take, 0, 1], [heft(n, 75, r, { t60: .35, drive: 5 }), .004, .4]) : take;
+  }),
 ];
 const RECIPES = {
   // Air: a wide, breathy wash whose centre sweeps low (220 → 900 Hz), never a whistle.
@@ -217,7 +221,8 @@ const RECIPES = {
   // keeps the slash-kill recording only — every synth heavy was cut. bone_crack still draws its two from the table.
   hit_flesh(r, v) { return HITS[[4, 3, 5, 6, 7, 8][v % 6]](r, false); },   // owner 2026-09-23: six different sounds, never one twice running — the
   // sword hit, the synth stab and the four CC0 flesh takes; the sword hit's lower take (HITS[0]) left the light rotation, it was the same recording
-  hit_heavy(r, v) { return HITS[0](r, true, v % 2 ? .86 : .92); },   // two takes of the one recording: the rotation rule wants ≥ 2
+  hit_heavy(r, v) { return HITS[[4, 3, 5, 6, 7, 8][v % 6]](r, true); },   // the same six, hit harder (Lead 2026-09-23): heavy, charged and riposte
+  // landings were one recording at two pitches, so every heavy blow sounded alike; now they rotate like the light ones
   // Kick: a cloth slap and a dull mid thud, no edge, no ring.
   hit_kick(r) {
     const n = S(.28), f = vary(r, 1, .08);
@@ -398,7 +403,7 @@ const RECIPES = {
     return fadeOut(densify(mix(n, [click, 0, .5], [steelSet, .001, 1], [splash, 0, 1.2], [body, 0, .8], [thump, .002, sub[1]], [weight, .002, sub[1] * .8], [rumble(n, .3, r), .01, dbfs(-8)]), 2.2), .08);
   },
 };
-const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 6, hit_heavy: 2, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, whip_raise: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
+const VARIANTS = { whoosh_light: 4, whoosh_heavy: 4, draw: 2, hit_flesh: 6, hit_heavy: 6, hit_kick: 4, block: 4, block_perfect: 4, parry: 6, guard_break: 4, whip: 2, whip_raise: 2, charge: 2, kill: 3, roll: 4, backstep: 4, death_voice: 4, flesh_cut: 4, flesh_stab: 2, flesh_tear: 2, bone_crack: 2, crowd_gasp: 2, crowd_cheer: 3 };
 
 // --- Sprite assembly ---------------------------------------------------------------------------------------------------
 const cues = [];
@@ -406,6 +411,30 @@ for (const [name, count] of Object.entries(VARIANTS)) for (let v = 0; v < count;
   let seed = 0; for (const c of `${name}#${v}`) seed = (seed * 31 + c.charCodeAt(0)) | 0;
   cues.push({ name, variant: v, samples: normalize(RECIPES[name](rng(seed), v), -4) });   // −4 dBFS: lossy decoders overshoot dense transients by 3–4 dB, and integer decoders would clip that
 }
+// Loudness match for the landing rotations (Lead 2026-09-23). Peak normalisation left the six light landings 14 LU apart on a
+// phone (the bass-heavy "messy stabber" at the bottom: its low end spends the peak and a phone plays none of it), so the rotation
+// read as some hits missing. Measure: phone-band (> 300 Hz) K-weighted momentary max, the speaker this mix is voiced for. A landing
+// above its target is trimmed; one below is driven into tanh — heft()'s trick, the harmonics land where the speaker plays — and
+// re-peaked at −4 dBFS, by the smallest drive that reaches the target (capped at MAX_DRIVE). Heavies sit HEAVY_LU above lights.
+const LIGHT_LUFS = -19, HEAVY_LU = 2, MAX_DRIVE = 12, MATCHED = { hit_flesh: LIGHT_LUFS, hit_heavy: LIGHT_LUFS + HEAVY_LU };
+function phoneMomentary(x) {
+  const w = 2 * Math.PI * 300 / RATE, c = Math.cos(w), alpha = Math.sin(w) / (2 * Math.SQRT1_2), a0 = 1 + alpha;   // RBJ Butterworth high-pass, twice
+  const hp = [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - alpha) / a0];
+  const filter = (x, [b0, b1, b2, a1, a2]) => { const y = new Float64Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0; for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; } return y; };
+  const k = [hp, hp, [1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, .73248077421585], [1, -2, 1, -1.99004745483398, .99007225036621]].reduce(filter, x);   // BS.1770 K-weighting at 48 kHz
+  const block = S(.4), hop = S(.1); let max = 0;
+  for (let start = 0; start === 0 || start + block <= k.length; start += hop) { let sum = 0; for (let i = start; i < Math.min(k.length, start + block); i++) sum += k[i] * k[i]; max = Math.max(max, sum / block); }
+  return -.691 + 10 * Math.log10(max);
+}
+const driven = (x, drive) => normalize(x.map(v => Math.tanh(v * drive / dbfs(-4))), -4);
+const landings = cues.filter(c => c.name in MATCHED);
+for (const c of landings) {
+  const target = MATCHED[c.name]; c.before = phoneMomentary(c.samples); c.drive = 1;
+  if (c.before > target) c.samples = c.samples.map(v => v * 10 ** ((target - c.before) / 20));
+  else { let lo = .1, hi = MAX_DRIVE; if (phoneMomentary(driven(c.samples, hi)) > target) for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (phoneMomentary(driven(c.samples, mid)) < target) lo = mid; else hi = mid; } c.drive = hi; c.samples = driven(c.samples, hi); }
+  c.after = phoneMomentary(c.samples);
+}
+console.log(`landings, phone momentary LUFS before → after (tanh drive): ${landings.map(c => `${c.name}#${c.variant} ${c.before.toFixed(1)} → ${c.after.toFixed(1)}${c.drive > 1 ? ` (×${c.drive.toFixed(1)})` : ''}`).join(' · ')}`);
 const total = cues.reduce((t, c) => t + LEAD + c.samples.length / RATE + GAP, 0);
 const sprite = silence(S(total)), manifest = {};
 let cursor = 0;
@@ -446,7 +475,7 @@ const header = Buffer.alloc(44); header.write('RIFF', 0); header.writeUInt32LE(3
 await fs.writeFile(wavPath, Buffer.concat([header, Buffer.from(pcm.buffer)]));
 const encode = (args, file) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-map_metadata', '-1', '-fflags', '+bitexact', '-flags', '+bitexact', ...args, path.join(dir, file)]);   // bit-exact: no encoder tags, timestamps or random stream serials, so two builds are byte-identical
 encode(['-c:a', 'aac_at', '-b:a', '96k', '-movflags', '+faststart'], 'sprite.m4a');   // Apple AudioToolbox AAC-LC; Safari decodes it and honours its gapless padding
-encode(['-c:a', 'libopus', '-b:a', '80k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 80k / AAC 96k (aac_at steps coarsely; 96k is the last rung under budget): the five-voicing hit pool + eight-variant guards (owner's picks) push the sprite to ~44 s
+encode(['-c:a', 'libopus', '-b:a', '72k', '-vbr', 'on', '-application', 'audio'], 'sprite.ogg');   // 72k / AAC 96k (aac_at steps coarsely; 96k is the last rung under budget): six light + six heavy landings (2026-09-23) push the sprite to ~48 s; Opus went 80k → 72k to hold the 1.0 MB cap
 // Codec check: decode each encode and compare with the source over the impact cues — waveform SNR (dense transients are the
 // hard case for both codecs) and the decoded peak, which must stay under full scale for integer decoders.
 const codec = {};
