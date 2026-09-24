@@ -2,6 +2,29 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## Lane state — parry tell (#686), 2026-09-24 evening
+
+### Now
+- **#686 parry tell** (head b1fe8d66): Lead verified it. The stack trunk + #684 → #678 → #685 → #686 merges clean. Web is capturing the v2 defence
+  sheet on this head (375x812: three stills at the impact tick, plus a parry still about 6 ticks later), and Strategy rules on it. **Don't push to
+  #686 unless CI goes red or Strategy's ruling asks for a change.**
+
+### Done
+- Why a parry read as a block at impact: every Deflected clip opens on the attack's contact pose (build-warrior.mjs, build-weapon.mjs). The
+  parry's 70 ms hit-stop also renders at dt 0, where eased weights never move. So the attacker held the attack pose, and the weapon tip on trunk
+  sat 0.000 m from where it sits after a block. The fix is in `src/characters.ts`: Deflected plays from `DEFLECT_FROM = .35` (the thrown-widest
+  key in every family), and its weight snaps the way a live blade's does. Test on the impact frame, parried vs blocked: longsword 0.725 m and
+  0.676 rad, trident 1.049 m and 0.897 rad. Presentation only.
+
+### Open (follow-up, PARKED by Lead)
+- **The player being parried (`enemyParried`) has no Deflected reaction.** `defenceReaction` covers the player only as the defender, and a
+  parried player shows the `hurt` phase's pose instead. Not a playtest gate. It comes back if the playtest's "why did you take damage"
+  answers point at it.
+
+### Gotchas
+- **dt 0 freezes eased weights.** Any pose that must show on an impact frame inside a hit-stop has to set its weight directly, as the
+  active-blade rule does; an eased blend holds the previous pose for the whole stop.
+
 ## Lane state — signatures framework (SHIPPED + bloodMode), Witch shipped, 2026-09-24 afternoon
 
 ### Now
