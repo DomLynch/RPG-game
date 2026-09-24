@@ -2,6 +2,20 @@
 
 Worktree `~/Developer/frankendom-code-quality`, branches `quality/*`. Owns cross-lane guards, readability passes with equivalence receipts, and the 8/10 bar from the GPT audits (2026-09-22: architecture 8, readability 7.5, overall 7.5 on adab24a).
 
+## 2026-09-24 (night) — #707 gear seam (brief 19 d5, v11, to Deploy's version window), #708 audit C+D, GPT audit routed
+
+**Now.** #707 `stats/loadout-seam` head 9ddf6801 (Lead-assigned, design approved): Fighter.loadout; `geared()` at the hit scales only the number on Hit / GuardBroken / kick-into-guard / block chip; poise, stagger, posture, whip on the unscaled blow; naked identity is a branch. RECORD_VERSION 10→11, four f64 after the outcome byte, READABLE [11]; verifyRecord replays with the record's pair. Player Loadout = equipped × SERVER `awards` tier (cloud-profile.ts readAwards, never throws; session.awards; main.ts gearUp → Match.setLoadout); opponent NAKED, daily NAKED both sides, replay the record's; an un-stepped fight re-seats on arriving gear. Receipts: RES 25/12/18/12/24 → 20/10/14/10/19 same ticks, ends 1115 both; fixtures re-recorded, tick/outcome/Killed unchanged, digest = v10 once `loadout` is stripped (d953a09bed432ea1, 552f30e5b09f4841); v10 record kept as fixture and replayed under v11; quality:stop 608/606/0/2; replay-check --strict; account-browser-check (awards REST mocked). **Merges in the next version window (Lead), never alone; hold the head.** #708 `quality/audit-c-d` head baf92480: events.ts `struck()` + `blowsTaken()` for the daily's hits-taken (finding C), Match.end() once by the match (finding D); 604/602/0/2.
+
+**GPT audit (Dom, 2026-09-24 night, on f523a7d): 8/10 architecture, 7.5–8 overall.** Findings: A mergeLoot resurrects an emptied equipped set and an old null provenance overwrites a Watch link (Backend + Lead); B Share reads match fields after awaits and races a new start — snapshot at press (Lead/Web); C and D mine, #708. Its item 5 (immutable starting-fight configuration) is what #707's record does for gear. Routed to Strategy (Lead's session unreachable at 22:xx).
+
+**Next.** (1) Combat's review of duel.ts on #707 (session not listed tonight; the request is in the PR). (2) If Strategy hands me A or B, do A first. (3) Unchanged: browser-check wait pattern; main.ts regrowth pass.
+
+**Gotchas.**
+- A new src module main.ts imports must be added to tests/graphics.test.ts's VM module map or the boot test dies with "is not a function" after the test ended (gear-stats.ts tonight).
+- account-browser-check asserts every unmatched REST path is fighter_profiles: a new table read needs its own mock branch.
+- The deploy hook blocks `node scripts/record-replay-check.mjs` too; single-file `node --test` runs pass.
+- The replay fixture digest hashes the whole Fighter: a new field moves it with the fight unchanged — strip the field to prove identity.
+
 ## 2026-09-24 — trunk audit for Dom (c1bbd1b2 all green), #700 fighter-map retry + roster map contract (to Deploy), Stop gate stays targeted
 
 **Now.** #700 `quality/fighter-textures-retry` (to Deploy): Sentry FRANKENDOM-C / -F "Warrior textures did not load" (4 events since 09-20, last 09-24 02:58Z) was thrown after `retryTransient`, so never retried. Root cause: three 0.186 `GLTFLoader.loadTexture` catches a failed image decode and returns `null`, so on a phone under memory pressure the rig arrives with a null map and no fetch error. Fix: the map check runs inside the retried attempt and `transientLoadError` counts it (three attempts, back-off, then the same error). `fighterTextured(scene)` exported; tests/characters.test.ts pins it on synthetic scenes and reads every `ROSTER` body's GLB JSON plus warrior.glb for the slots the loader demands (nothing pinned that before; guard.glb, map-less, shows the check discriminates). Receipts on the head: quality:stop 599 / 597 pass / 0 fail / 2 skipped; tsc src + tests clean; eslint clean.
