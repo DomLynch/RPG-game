@@ -104,7 +104,11 @@ export const MOVES: Record<MoveId, MoveDef> = {
   kick: {
     id: 'kick', direction: 'low', path: null, chainPath: null, chained: null, chain: null,
     windup: 18, active: 1, recovery: 25, damage: 4, stamina: 25, staminaDamage: 15, stagger: 18, poise: 0, poiseFrom: 0,
-    breaksGuard: false, chip: 0, parryable: false, knockback: 6, stepIn: .55, feintUntil: 0, reach: 1.2, vsGuard: { stagger: 36, staminaDamage: 45 }, posture: 24, chamber: null, charges: false,
+    breaksGuard: false, chip: 0, parryable: false, knockback: 6, stepIn: .55, feintUntil: 0, reach: 1.2, vsGuard: { stagger: 48, staminaDamage: 45 }, posture: 24, chamber: null, charges: false,
+    // vsGuard.stagger 48 (was 36; Dom, 2026-09-24): the kick that opens a guard must be punishable. The kicker's first legal
+    // attack plus every player weapon's fastest contact (the thrust; cleaver/warhammer/maul the slowest) now lands at least
+    // 3 ticks inside the stagger against every opponent. At 36 the stagger ended 2–9 ticks before that contact. Symmetric:
+    // an opponent's kick on your guard stuns you as long. Pinned in tests/duel.test.ts ('the kick that opens a guard...').
   },
 };
 
@@ -482,9 +486,14 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // Hard: pressure .7 and a discipline floor of 30 keep him cutting instead of resting (the shared hard was two wins tighter than normal;
   // docs/state/combat.md). His own table so the Executioner (shared PROFILES) is untouched.
   veteran: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },   // the trident since slice V (2026-09-16)
-  // PLACEHOLDER for Combat's retune (Lead, 2026-09-23): a verbatim copy of the Veteran's profile; only `scale` is hers, measured off
-  // witch.glb (the reconstruction is fitted to the Veteran's 1.80 m rig, so her standing ratio is 1).
-  witch: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },
+  // `scale` is measured off witch.glb (the reconstruction is fitted to the Veteran's 1.80 m rig, so her standing ratio is 1).
+  // Her own Easy (Dom, 2026-09-24): same trident as the Centurion, a different fight. He plants and throws heavies and thrusts
+  // (pressure 0); she sweeps lights (pressure .75), hops back out after she lands (disengage), drifts round him (circle), takes her
+  // evasions as backsteps (step), and blocks less. Same difficulty: the hero's easy brain beats her 6/24 (him 5/24), its normal
+  // brain 22/24 (him 23/24), 24 seeds, tests/witch-profile.test.ts. Normal and hard are still the Veteran's until Combat's retune.
+  witch: { scale: 1, health: RULES.health, poise: 0, profiles: { ...PROFILES,
+    easy: { reaction: 26, accuracy: .5, parry: .05, dodge: .2, aggression: .45, pressure: .75, discipline: 50, lapse: .5, read: .5, disengage: .5, circle: .6, step: .7, guard: .4 },
+    hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } } },
   // The dwarf (character lane, 2026-09-20): the Veteran's trident game on a short, wide, re-proportioned rig (build-warrior.mjs BUILD.dwarf).
   // Measured in the shared Idle he stands 1.361 m to the hero's 1.745 (×0.780; tests/characters.test.ts pins it) — the goblin's height with
   // a barrel body; the hit capsule follows the measured height like the goblin's. Sturdier than a man: 170 health and poise 12 — a stab (11)

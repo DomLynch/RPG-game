@@ -5,6 +5,7 @@ import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, EXCHANGE_BEATS, scriptExchange } from '../src/audio/exchange.ts';
 import { cuesFor, nextVariant, seeded, type DeathPresentation } from '../src/audio/cues.ts';
 import { MANIFEST, SPRITE_SECONDS } from '../src/audio/manifest.ts';
+import { RULES } from '../src/moves.ts';
 import { spriteFormats } from '../src/audio/sprite.ts';
 import { createFeedback, VOICES } from '../src/feedback.ts';
 import type { CombatEvent } from '../src/combat.ts';
@@ -35,7 +36,7 @@ test('every event type the exchange emits has a cue probe, and probe names are u
 // host's lifecycle: the harness owns rendering.
 class Recorder {
   starts: { when: number; offset?: number; duration?: number }[] = []; stops: number[] = []; state = 'suspended'; sampleRate = 48000; currentTime = 99; destination = {}; suspended = 0; resumed = 0; buffers: Float32Array[] = [];
-  node() { const { starts, stops } = this, param = () => ({ value: 0, setValueAtTime() {}, cancelScheduledValues() {}, exponentialRampToValueAtTime() {} }); return { buffer: null, type: '', curve: null, frequency: param(), Q: param(), gain: param(), playbackRate: param(), threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(), connect() { return this; }, disconnect() {}, start(when: number, offset?: number, duration?: number) { starts.push({ when, offset, duration }); }, stop(when: number) { stops.push(when); }, onended: null }; }
+  node() { const { starts, stops } = this, param = () => ({ value: 0, setValueAtTime() {}, cancelScheduledValues() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }); return { buffer: null, type: '', curve: null, frequency: param(), Q: param(), gain: param(), playbackRate: param(), threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(), connect() { return this; }, disconnect() {}, start(when: number, offset?: number, duration?: number) { starts.push({ when, offset, duration }); }, stop(when: number) { stops.push(when); }, onended: null }; }
   createGain() { return this.node(); } createBufferSource() { return this.node(); } createBiquadFilter() { return this.node(); } createOscillator() { return this.node(); } createWaveShaper() { return this.node(); } createDynamicsCompressor() { return this.node(); } createConvolver() { return this.node(); }
   createBuffer(_c: number, length: number) { const data = new Float32Array(length); this.buffers.push(data); return { getChannelData: () => data }; }
   resume() { this.resumed++; return Promise.resolve(); } suspend() { this.suspended++; return Promise.resolve(); }
@@ -98,7 +99,15 @@ test('events map to material cues, impacts before air, at most four per tick, an
   assert.deepEqual(names([ev('GuardBroken')]), ['guard_break', 'hit_flesh']);
   assert.deepEqual(names([ev('AttackStarted', { move: 'light_right' })]), ['whoosh_light']);
   assert.deepEqual(names([ev('AttackStarted', { move: 'heavy_riposte' })]), ['whoosh_heavy']);
-  assert.deepEqual(names([ev('Charged')]), ['charge']);
+  // The charge tell is per fighter (Strategy 2026-09-24): the player's gather on the player's Charged only; the opponent's own
+  // cue RISES from her Charging through the whole hold (charge.max = 0.9 s), so her Charged adds nothing — never both, never swapped.
+  assert.deepEqual(names([ev('Charged', { actor: 0 })]), ['charge']);
+  assert.deepEqual(names([ev('Charged', { actor: 1 })]), [], "her Charged lands mid-climb: no second cue");
+  assert.deepEqual(names([ev('Charging', { actor: 1, move: 'heavy_overhead' })]), ['charge_foe']);
+  assert.equal(cuesFor([ev('Charging', { actor: 1, move: 'heavy_overhead' })])[0].hold, RULES.charge.max / 60, 'it climbs for the whole hold, to the forced swing');
+  assert.deepEqual(names([ev('Charging', { actor: 1, move: 'light_right' })]), [], 'a chambered light is not a charge');
+  assert.deepEqual(names([ev('Charging', { actor: 0, move: 'heavy_overhead' })]), [], 'your own hold is silent until your Charged');
+  assert.deepEqual(names([ev('Charged', { actor: 0 }), ev('Charging', { actor: 1, move: 'heavy_overhead' })]), ['charge', 'charge_foe']);
   assert.deepEqual(names([ev('ActionStarted', { action: 'draw' })]), ['draw']);
   // The killing tick: the hit lands first, the fall is layered slightly after it.
   const kill = cuesFor([ev('AttackActive'), ev('Killed', { move: 'heavy_overhead' }), ev('Hit', { move: 'heavy_overhead', charged: true }), ev('Staggered', { actor: 1 })]);
@@ -141,6 +150,21 @@ test('the sprite manifest is well-formed and the shipped audio stays inside the 
   assert.deepEqual(spriteFormats(() => ''), ['aac', 'opus'], 'no answer: AAC first');
 });
 
+test("the opponent's charge loops and climbs for the whole hold, and fades out the tick her hold ends", () => {
+  const { context, feedback, at } = hosted(5, SPRITE), frame = (holding: boolean) => ({ match: 1, ended: false, tick: 0, holding });
+  feedback.unlock();
+  at(2); feedback.update([ev('Charging', { actor: 1, move: 'heavy_overhead' })], undefined, frame(true));
+  const [start] = context.starts, hold = RULES.charge.max / 60;
+  assert.ok(MANIFEST.charge_foe.some(([s]) => s === start.offset) && start.duration === undefined, `a looped charge_foe region (${JSON.stringify(start)})`);
+  assert.equal(context.stops.length, 1); assert.ok(Math.abs(context.stops[0] - (2 + hold + .035)) < 1e-9, 'a natural end just past the forced swing');
+  at(2.3); feedback.update([], undefined, frame(true));
+  assert.equal(context.stops.length, 1, 'still holding: nothing cut');
+  at(2.4); feedback.update([], undefined, frame(false));   // released, feinted or staggered
+  assert.equal(context.stops.length, 2); assert.ok(Math.abs(context.stops[1] - 2.435) < 1e-9, `cut 35 ms after the hold ends (${context.stops[1]})`);
+  at(2.5); feedback.update([], undefined, frame(false));
+  assert.equal(context.stops.length, 2, 'cut once');
+});
+
 test('with a decoded sprite, cues play sprite regions on pooled voices; past the cap the soonest-ending voice is stolen', () => {
   const { context, feedback, at } = hosted(3, SPRITE);
   feedback.unlock();
@@ -160,6 +184,18 @@ test('a duel reseeds on its draw, so the same fight rolls the same variants and 
   const fight = () => { const { context, feedback, at } = hosted(11, SPRITE); feedback.unlock(); at(0); feedback.update([ev('ActionStarted', { action: 'draw' })]); for (let i = 1; i < 12; i++) { at(i); feedback.update([ev('Hit', { move: 'light_right' })]); } return context.starts.map(s => s.offset); };
   assert.deepEqual(fight(), fight());
   const offsets = fight(); assert.ok(offsets.every((o, i) => i === 0 || o !== offsets[i - 1]), 'consecutive hits never reuse a variant');
+});
+
+test('light and heavy landings each rotate through six different takes, never one twice running', () => {
+  for (const [cue, move] of [['hit_flesh', 'light_right'], ['hit_heavy', 'heavy_overhead']] as const) {
+    assert.equal(MANIFEST[cue].length, 6, `${cue} has six variants (owner 2026-09-23: sword, stab, B, C, H, J)`);
+    const { context, feedback, at } = hosted(17, SPRITE); feedback.unlock(); at(0); feedback.update([ev('ActionStarted', { action: 'draw' })]);
+    for (let i = 1; i <= 40; i++) { at(i); feedback.update([ev('Hit', { move })]); }
+    const regions = context.starts.map(s => MANIFEST[cue].findIndex(([start]) => start === s.offset)).filter(v => v >= 0);
+    assert.equal(regions.length, 40, `every ${move} landing plays a ${cue} region`);
+    assert.ok(regions.every((v, i) => i === 0 || v !== regions[i - 1]), `${cue}: no take twice running`);
+    assert.deepEqual([...new Set(regions)].sort(), [0, 1, 2, 3, 4, 5], `${cue}: all six takes are reached`);
+  }
 });
 
 test('movement starts have distinct cloth/sand cues, without synthetic landing events', () => {

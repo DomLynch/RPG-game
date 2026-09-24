@@ -92,3 +92,14 @@ test('loot: a worn shield renders both sides — its face is a single-sided disc
   const copy = probe.worn()[0].material as MeshStandardMaterial;
   assert.notEqual(copy, lit); assert.equal(copy.side, DoubleSide); assert.equal(copy.onBeforeCompile, lit.onBeforeCompile, 'the shader patch carries to the two-sided copy'); assert.equal(copy.customProgramCacheKey(), 'patched', 'and its program cache key');
 });
+
+test('loot: one piece that cannot be worn is skipped and named; the rest of the set is still worn and its slot stays his own', async () => {
+  const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
+  const good = all.filter(p => ['veteran.Helmet', 'veteran.Greaves'].includes(lootId(p)));
+  const broken = good[0]!.clone(); broken.geometry = null as never; broken.userData = { opponent: 'nightborn', slot: 'Body', layer: 'replace' };   // a copy of it throws
+  const failures: string[] = [], warn = console.warn; console.warn = () => {};
+  try { player.wear([broken, ...good], (id) => failures.push(id)); } finally { console.warn = warn; }
+  assert.deepEqual(failures, ['nightborn.Body'], 'the failure names the piece');
+  assert.deepEqual([...new Set(player.worn().map(lootId))].sort(), ['veteran.Greaves', 'veteran.Helmet'], 'the good pieces are still worn');
+  assert.ok(draws(player.anchor, 'Body').every(d => d.visible), 'a skipped replace piece hides nothing: he keeps his own tunic');
+});

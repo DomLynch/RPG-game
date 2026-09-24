@@ -505,13 +505,23 @@ test('the ladder: the first rung is the Centurion, and the bars carry his name l
 test('the journal opponent picker lists the ladder, shows the current rung, and a pick saves the rung and reloads without the URL override', () => {
   const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
   const select = app.element('opponent-select');
-  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'plaguedoctor', 'witch', 'shieldmaiden'], 'live rungs only: held Season 2 creatures are not offered');
+  assert.deepEqual(select.children.map(o => o.value), ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden'], 'live rungs only: held Season 2 creatures are not offered');
   assert.equal(select.value, 'goblin', 'the picker shows the rung this device is on');
   select.value = 'nightborn'; select.dispatchEvent(new Event('change')); app.tick();
   assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn', 'the pick is saved as the rung');
   assert.equal(app.replaced.length, 1, 'one navigation'); assert.ok(!app.replaced[0].includes('opponent='), `the URL override is dropped: ${app.replaced[0]}`); assert.ok(app.replaced[0].includes('debug'), 'other query flags survive');
   select.value = 'cyclops'; select.dispatchEvent(new Event('change')); app.tick();
   assert.equal(app.replaced.length, 1, 'an unknown value does nothing'); assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'nightborn');
+});
+
+test('the arena test pick reloads into the new arena on its own: changing only the arena is enough (Dom, 2026-09-24)', () => {
+  const app = boot({ id: 'tester-0001', ladder: 'goblin' }); app.tick();
+  const select = app.element('arena-select');
+  select.value = 'b'; select.dispatchEvent(new Event('change')); app.tick();
+  assert.equal(app.replaced.length, 1, 'one navigation, without touching Opponent');
+  assert.ok(!app.replaced[0].includes('arena='), `a URL arena would win over the pick, so it is dropped: ${app.replaced[0]}`);
+  assert.ok(app.replaced[0].includes('debug'), 'other query flags survive');
+  assert.equal(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).ladder, 'goblin', 'the rung is untouched');
 });
 
 test('graphics startup preserves the original failure and stack for monitoring', () => {
@@ -609,12 +619,14 @@ test('end-of-fight text and buttons fade with view.finishPhase(): hidden until s
   app.setFinishPhase({ settled: false, touring: false, age: 0.3 });
   app.tick();
   assert.ok(html.classList.contains('endgame-fade'), 'not yet settled: still faded');
+  assert.ok(html.classList.contains('endgame-hush'), 'not yet settled: the rank row is hushed too');
   app.setFinishPhase({ settled: true, touring: false, age: 1.6 });
   app.tick();
   assert.ok(!html.classList.contains('endgame-fade'), 'settled, no tour: visible');
   app.setFinishPhase({ settled: true, touring: true, age: 5.2 });
   app.tick();
   assert.ok(html.classList.contains('endgame-fade'), 'touring: faded again');
+  assert.ok(!html.classList.contains('endgame-hush'), 'touring: the rank row stays up (Dom 2026-09-24: it read as missing)');
   app.setFinishPhase({ settled: true, touring: false, age: 9 });
   app.tick();
   assert.ok(!html.classList.contains('endgame-fade'), 'tour ended (a touch or Rematch): visible again');
@@ -755,7 +767,7 @@ test('kill links: an unknown or expired id lands on a plain page with the fight 
     assert.equal(s.element('welcome-lead').hidden, true); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
   } finally { shareModule.fetchSharedRecord = fetchSharedRecord; apiModule.api = null; }
 });
-test('kill links: a retired record version says what the fight was from its header (who fell, to what), never a blank arena', async () => {
+test('kill links: a retired record version converts — the warden\'s still, who fell to what, and PLAY NOW against that warden (Dom 2026-09-24)', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   const rec = record.createRecorder({ weapon: 'knife', build: 'dev', opponent: 'nightborn', profile: 'normal', seed: 5 });
   for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
@@ -770,22 +782,29 @@ test('kill links: a retired record version says what the fight was from its head
   assert.deepEqual(await peekRecordHeader(killed), { v: 4, build: 'dev', opponent: 'nightborn', weapon: 'knife', outcome: 'killed' });
   assert.equal(await peekRecordHeader('not-a-record'), null);
   const s = boot({}, undefined, {}, `?opponent=nightborn&replay=${killed}`);
-  await settle(() => !s.element('welcome').hidden);
-  assert.equal(s.element('welcome').hidden, false, `the welcome (with its fight button) comes back; banner=${s.element('replay-banner').textContent}`);
-  assert.equal(s.element('welcome-eyebrow').textContent, 'RECORDED UNDER AN OLDER VERSION');
-  assert.equal(s.element('welcome-title').textContent, 'The Nightborn fell to a knife.');
-  assert.equal(s.element('welcome-lead').hidden, false); assert.equal(s.element('replay-banner').hidden, true, 'no error banner');
+  await settle(() => /Your turn/.test(s.element('replay-banner').textContent));
+  assert.equal(s.element('replay-still').hidden, false, `the warden's still shows; banner=${s.element('replay-banner').textContent}`);
+  assert.equal((s.element('replay-still') as unknown as HTMLImageElement).src, '/game/img/nightborn.webp'); assert.equal((s.element('replay-still') as unknown as HTMLImageElement).alt, 'The Nightborn');
+  assert.equal(s.element('replay-banner').textContent, 'The Nightborn fell to a knife. Your turn.'); assert.equal(s.element('replay-banner').dataset.stale, '1');
+  assert.equal(s.element('welcome').hidden, true, 'no name form: a viewer needs no name');
+  assert.equal(s.element('reset-button').hidden, false); assert.equal(s.element('reset-button').dataset.play, '1', 'PLAY NOW under it');
   s.tick(); assert.equal(s.storage.getItem('frankendom.fight.v1'), null, 'a retired link is not an abandoned fight');
+  s.element('reset-button').dispatchEvent(new Event('click'));
+  assert.equal(s.element('replay-still').hidden, true, 'the still goes with the fight'); assert.equal(s.element('replay-banner').hidden, true);
+  assert.equal(s.replaced.length, 0, 'the page already runs the Nightborn: PLAY NOW fights them here');
+  const v = boot({}, undefined, {}, `?replay=${killed}`);   // booted on this device's rung (the Veteran): re-opened once on the record's warden
+  await settle(() => v.replaced.length > 0);
+  assert.equal(v.replaced.length, 1); assert.match(v.replaced[0], /opponent=nightborn/);
   const d = boot({}, undefined, {}, `?opponent=nightborn&replay=${await retired('died', 3)}`);
-  await settle(() => !d.element('welcome').hidden);
-  assert.equal(d.element('welcome-title').textContent, 'The Nightborn won, against a knife.');
+  await settle(() => /Your turn/.test(d.element('replay-banner').textContent));
+  assert.equal(d.element('replay-banner').textContent, 'The Nightborn won, against a knife. Your turn.');
   const odd = record.packRecord({ ...fight, weapon: 'banana' as never }); odd[2] = 4;   // a crafted header: the page names only what the game knows
   const oddText = record.toBase64Url(new Uint8Array(await new Response(new Blob([new Uint8Array(odd)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));
   const u = boot({}, undefined, {}, `?opponent=nightborn&replay=${oddText}`);
   await settle(() => u.element('replay-banner').textContent === 'Recorded on an older build');
   assert.equal(u.element('replay-banner').textContent, 'Recorded on an older build'); assert.equal(u.element('welcome').hidden, true);
 });
-test('fight end: the rank line replaces the death-screen autopsy on a loss, the autopsy lines go under the opponent\'s journal row, and a rematch clears the rank line', () => {
+test('fight end: the rank line replaces the death-screen autopsy on a loss, the autopsy lines go under the opponent\'s journal row, and a rematch keeps the rank row', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
   for (let i = 0; i < 6000 && !app.rendered.finish; i++) app.tick();
   assert.ok(app.rendered.finish, 'the idle fighter dies'); assert.equal(app.rendered.finish.victim, 0);
@@ -798,7 +817,7 @@ test('fight end: the rank line replaces the death-screen autopsy on a loss, the 
   assert.match(lines[0], /^(Your posture broke|Your guard broke|You were out of stamina|The (cut|heavy|thrust|kick|riposte|counter|critical) landed on your (head|torso|legs)\.)/, lines[0]);
   for (const line of lines) assert.ok(!/[!?]/.test(line), 'no exclamation marks');
   app.element('reset-button').dispatchEvent(new Event('click')); app.tick();
-  assert.equal(el.hidden, true, 'a rematch clears the rank line');
+  assert.equal(el.hidden, false, 'the rank row is permanent: a rematch keeps it (Dom 2026-09-24)');
 });
 test('daily warden: a build without the account service refuses ?daily=1 with a banner and fights as usual; the journal says so too', async () => {
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -926,4 +945,12 @@ test('loot: the equipped set dresses the rig at boot, the journal shows the pape
   app.element('slot-head-off').click();
   assert.deepEqual(app.worn, []); assert.equal(app.element('slot-head-name').textContent, 'Empty'); assert.equal(app.element('slot-head-off').hidden, true); assert.equal(row(0).attributes.get('data-worn'), 'false');
   assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.owned, ['veteran.Helmet', 'nightborn.Body'], 'nothing is lost by taking it off');
+  // Store puts it in the pack under WORN (Dom's screenshot 2026-09-24: before the pack it vanished from the Profile tab), and Wear brings it back.
+  const pack = () => app.element('pack').children;
+  assert.equal(pack().length, 5, 'two open pack slots and three locked');
+  assert.equal(pack()[0]!.attributes.get('data-loot'), 'veteran.Helmet', 'the stored helmet is in the first pack slot');
+  assert.equal(pack()[2]!.className, 'pack-locked'); assert.equal(pack()[4]!.className, 'pack-locked');
+  assert.deepEqual(JSON.parse(app.storage.getItem('frankendom.fighter.v1')!).loot.pack, ['veteran.Helmet'], 'the pack persists');
+  pack()[0]!.children[1]!.click();
+  assert.deepEqual(app.worn, ['veteran.Helmet'], 'Wear from the pack puts it back on'); assert.equal(pack()[0]!.className, 'pack-empty');
 });

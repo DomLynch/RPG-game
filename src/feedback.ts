@@ -10,6 +10,7 @@ import { createArenaAudio, type ArenaFrame } from './audio/arena.ts';
 type FeedbackHost = { context: BaseAudioContext; now: () => number; seed?: number; sprite?: AudioBuffer | null; balance?: { combat: number; finish: number } };   // balance: evidence renders of the mix stage at other levels
 export const VOICES = 8;   // simultaneous sample voices; the oldest-ending one is stolen past that
 const BASE_SEED = 731;
+const RISE = 1.6, RISE_FLOOR = .35, CUT = .035;   // the opponent's charge: rate ×1.6 and level from 35 % over the hold; a 35 ms fade when it ends
 // Owner phone mix (2026-09-19): half ordinary FX, +50 % for the fatal sequence. Owner 2026-09-20, phone at 20 % volume still loud:
 // everything but the bell at 40 % (−8 dB): the first cut to 70 % was −3 dB, inaudible on the phone and swallowed by the output guard on the
 // finishers (1.5 × .7 still clipped it); at .4 both combat and finish sit under the guard's linear region, so the whole cut is heard and the
@@ -33,6 +34,7 @@ export function createFeedback(host?: FeedbackHost) {
   let sprite: AudioBuffer | null | undefined, loading: Promise<boolean> | undefined, enabled = true, quieted = false, duel = 0, random = seeded(BASE_SEED);
   const sources = new Set<AudioScheduledSourceNode>();
   const voices: Voice[] = [], last: Partial<Record<CueName, number>> = {};
+  let rising: { voice: Voice; source: AudioBufferSourceNode } | undefined;   // the opponent's charge while it climbs; cut when her hold ends
   const live = () => !!host || context?.state === 'running';
   const now = () => host ? host.now() : context!.currentTime;
   function unlock() {
@@ -71,8 +73,16 @@ export function createFeedback(host?: FeedbackHost) {
     let voice = voices.find(v => !v.source || v.until <= t);
     if (!voice) { voice = voices.reduce((a, b) => a.until <= b.until ? a : b); try { voice.source!.stop(t); } catch { /* already ended */ } }
     const source = context!.createBufferSource(); source.buffer = sprite!; source.playbackRate.value = rate;
-    source.connect(voice.gain); voice.gain.gain.setValueAtTime(cue.gain, t); voice.send.gain.setValueAtTime(cue.room, t);
-    sources.add(source); source.start(t, start, duration); voice.source = source; voice.until = t + duration / rate;
+    source.connect(voice.gain); voice.gain.gain.cancelScheduledValues(t); voice.gain.gain.setValueAtTime(cue.gain, t); voice.send.gain.setValueAtTime(cue.room, t);
+    if (cue.hold) {
+      // A rising cue: the sample loops while rate and level climb for `hold` seconds, which ends where the sim forces the swing.
+      // The climb is the tell; update() fades it early the tick the hold ends.
+      source.loop = true; source.loopStart = start; source.loopEnd = start + duration;
+      source.playbackRate.setValueAtTime(rate, t); source.playbackRate.linearRampToValueAtTime(rate * RISE, t + cue.hold);
+      voice.gain.gain.setValueAtTime(cue.gain * RISE_FLOOR, t); voice.gain.gain.linearRampToValueAtTime(cue.gain, t + cue.hold);
+      sources.add(source); source.start(t, start); source.stop(t + cue.hold + CUT); voice.source = source; voice.until = t + cue.hold + CUT;
+      rising = { voice, source };
+    } else { sources.add(source); source.start(t, start, duration); voice.source = source; voice.until = t + duration / rate; }
     source.onended = () => { sources.delete(source); source.disconnect(); if (voice.source === source) voice.source = null; };
   }
   // Fallback while the sprite is still decoding: the original synthesised air, body and inharmonic steel layers.
@@ -98,6 +108,7 @@ export function createFeedback(host?: FeedbackHost) {
     for (const source of sources) { try { source.stop(now()); } catch { /* already ended */ } }
     sources.clear();
     balance!.gain.cancelScheduledValues(now()); balance!.gain.setValueAtTime(level.combat, now());
+    rising = undefined;
     for (const voice of voices) { voice.source = null; voice.until = 0; voice.gain.gain.cancelScheduledValues(now()); voice.send.gain.cancelScheduledValues(now()); }
   }
   return {
@@ -119,6 +130,11 @@ export function createFeedback(host?: FeedbackHost) {
       // Death ends the duel: the impact, voice, delayed body and crowd share the finishing level.
       // Empty post-death ticks keep it; fresh combat or quiet/mute returns to the ordinary level.
       if (events.length) balance!.gain.setValueAtTime(events.some(e => e.type === 'Killed') ? level.finish : level.combat, time);
+      // Her hold ended (release, feint, stagger, or the forced swing at the maximum): the climb stops with a short fade, not a click.
+      if (rising && frame?.holding === false) {
+        const { voice, source } = rising; rising = undefined;
+        if (voice.source === source) { const g = voice.gain.gain; g.cancelScheduledValues(time); g.setValueAtTime(g.value, time); g.linearRampToValueAtTime(0, time + CUT); try { source.stop(time + CUT); } catch { /* already ended */ } voice.until = time + CUT; }
+      }
       if (sprite) { for (const cue of cuesFor(events, presentation, frame?.opponent)) play(cue, time); return; }
       if (events.some(e => e.type === 'Hit' || e.type === 'GuardBroken')) synth('hit', time);
       else if (events.some(e => e.type === 'Parried')) synth('parry', time);

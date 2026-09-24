@@ -3,7 +3,8 @@
 // and cleared on rematch. The finisher blood (cut sites, arterial sources) lives in finisher-blood.ts; the impact dots stay
 // with the scene's contact effects.
 import * as THREE from 'three';
-import { bloodiesMaterial } from './finisher-blood.ts';
+import { bloodiesMaterial, FLOOR_POOLS, FLOOR_SPLASHES, multiplyOnto } from './finisher-blood.ts';
+export { multiplyOnto };
 import type { HitLocation } from './blade.ts';
 import type { Direction } from './moves.ts';
 
@@ -213,16 +214,8 @@ export function woundSite(hit: Pick<WoundHit, 'location' | 'direction'>, limb: 0
 // plus small normal maps from their own luminance so the arena sun catches the bead. Loaded lazily in the browser only; the
 // node tests build the pool without textures (the canvas splat stands in until the PNG lands, and forever under node).
 const BLOOD_ASSET = (file: string) => new URL(`./assets/blood/${file}`, import.meta.url).href;
-// Blood on the floor multiplies onto the sand: dst × lerp(1, texture, alpha·opacity). Premultiplied output makes alpha and opacity
-// fade it toward "no change" — never toward white, which a plain MultiplyBlending ignores opacity for.
-export function multiplyOnto(material: THREE.MeshBasicMaterial, map: THREE.Texture) {
-  Object.assign(material, { map, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.DstColorFactor,
-    blendDst: THREE.OneMinusSrcAlphaFactor, premultipliedAlpha: true, transparent: true, depthWrite: false, toneMapped: false });
-  material.needsUpdate = true;
-}
 const FLOOR_FRESH = new THREE.Color('#ffffff'), FLOOR_DRIED = new THREE.Color('#b09a9a'), FLOOR_DARK_MODE = new THREE.Color('#a8a0a0');
 const FLOOR_DRY = 8;   // seconds for a stain to settle from wet to dried
-const FLOOR_POOLS = ['floor-pool.png', 'floor-pool-b.png'], FLOOR_SPLASHES = ['floor-splash.png', 'floor-splash-b.png', 'floor-splash-c.png', 'floor-splash-d.png'];
 export const BLOOD_TEXTURES = { floorPool: 'floor-pool.png', floorSplash: 'floor-splash.png', drip: 'blood-drip.png', dripNormal: 'blood-drip-normal.png' } as const;
 // The wound itself, authored for a vertical body, not a floor (owner 2026-09-23 on the phone: "paint-ball graffiti stickers… less
 // uniform… more dripping style not a star"; he picked B, C and D from four FLUX candidates): B a cut with uneven streaks, C a patch

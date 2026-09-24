@@ -280,6 +280,20 @@ test('the warden adapts: a turtle is kicked and charged through more; a light-sp
   assert.deepEqual(readOpponent(watch(PROFILES.normal, 2400, () => idle()).habits), { parryHappy: false, turtle: false, roller: false, stepper: false, spammer: false, parker: false, poker: false, kicker: false });
 });
 
+test('a park is counted once per swing, even when it lasts one tick (bump 9: charge stays 1 through the rest of a released swing)', () => {
+  const parksAfter = (parked: number) => {
+    let d = arena(3), ai = initialAi(731);
+    for (let t = 0; t < 60; t++) {
+      ai = decide(d, 1, ai, PROFILES.normal).ai;   // the warden only watches; his own intent stays idle
+      const me = d.fighters[0];
+      d = stepDuel(d, [{ ...idleIntent(), action: t === 0 ? 'light' : null, held: t === 0 || (me.phase === 'attack' && me.charge < parked) }, idleIntent()]);
+    }
+    return ai.habits;
+  };
+  for (const parked of [1, 2, 8]) assert.deepEqual({ lights: parksAfter(parked).lights, parks: parksAfter(parked).parks }, { lights: 1, parks: 1 }, `one swing parked ${parked} tick(s)`);
+  assert.equal(parksAfter(0).parks, 0, 'a tap never parks');
+});
+
 test('the thrust: a minority opener planned only after the first heavy, thrown from wherever it stands (no walk-back), never into a guard — and the stop-hit into an opponent walking onto the point', () => {
   const fresh = (seed: number, extra: Partial<AiState>): AiState => ({ ...initialAi(seed), mode: 'approach', decision: 500, wait: 0, next: null, ...extra });
   // Seeds are spread with a multiplicative hash: consecutive small seeds give near-identical first draws from the LCG.

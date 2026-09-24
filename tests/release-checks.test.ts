@@ -70,24 +70,19 @@ test('a check that fails is retried once alone; a persistent failure exits non-z
   assert.ok(!existsSync(join(root, 'artifacts', 'release-checks.json')), 'no receipt on failure');
 });
 
+// "Killed, not waited out" is asserted by ORDER, not by a clock (same fix as tests/deploy-ceiling.test.ts, #628). At load 200+ node
+// startup alone ran past the 2 s ceiling, so the old honest `node scripts/sleep.mjs 10` was itself killed and the wedge's pid file was
+// never written. Now nothing here starts node: the honest check is `true`, and the wedge is an `sh` whose forked subshell (the
+// grandchild, like jpegtran under a check's node) sleeps 30 s, then writes a marker. That subshell holds the check's stdout pipe, and
+// the runner resolves a check on 'close', so the run cannot return before the grandchild dies or writes. Marker absent on return = the
+// group was killed. A kill that reached only the direct child makes this test slow (30 s) and red, never green.
 test('a check that never exits is killed at the ceiling, process group included, and counts as a failure', () => {
-  // The deploy #71 wedge: a check whose grandchild blocks forever at 0 % CPU. `wedge.mjs` execFileSyncs a `sleep 600` (sync wait,
-  // like execFileSync('jpegtran', { input })), so SIGTERM to the check would not end the sleep either.
-  const root = repo([['node', 'scripts/wedge.mjs'], ['node', 'scripts/sleep.mjs', '10']]);
-  writeFileSync(join(root, 'scripts', 'wedge.mjs'), "import { execFileSync } from 'node:child_process'; import { writeFileSync } from 'node:fs'; writeFileSync('wedge.pid', String(process.pid)); execFileSync('sleep', ['600']);");
-  const started = Date.now();
+  const root = repo([['sh', '-c', '(sleep 30; touch wedge.finished); exit'], ['true']]);
   const result = run(root, { RELEASE_CHECK_CEILING_S: '2' });
-  const took = (Date.now() - started) / 1000;
   assert.notEqual(result.status, 0, 'the wedged check fails the run: ' + result.stdout);
   assert.match(result.stdout, /check 1\/2 CEILING 2s — killing the process group/);
   assert.match(result.stdout, /check 2\/2 passed/, 'the honest check still passes');
-  assert.ok(took < 30, `killed at the ceiling (took ${took.toFixed(1)}s, not the sleep's 600 s)`);
-  // The grandchild `sleep 600` died with the group, not just the check process.
-  const wedgePid = Number(readFileSync(join(root, 'wedge.pid'), 'utf8'));
-  // SIGKILL delivery to the group is asynchronous: give the kernel a moment to reap before declaring survivors.
-  let survivors = '';
-  for (let i = 0; i < 20; i++) { survivors = spawnSync('pgrep', ['-f', '^sleep 600$'], { encoding: 'utf8' }).stdout.trim(); if (!survivors) break; execFileSync('sleep', ['0.1']); }
-  assert.equal(survivors, '', `no orphaned sleep 600 after the ceiling (wedge pid ${wedgePid})`);
+  assert.ok(!existsSync(join(root, 'wedge.finished')), 'the grandchild died with the group, not waited out');
 });
 
 test('RELEASE_CHECK_CONCURRENCY=1 is the old serial behaviour', () => {
@@ -190,4 +185,57 @@ esac
   r = spawnSync(process.execPath, [resolver, m], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI_TRUST_GH: '/nonexistent/gh' } });
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '', 'gh failure -> nothing trusted, exit 0');
+});
+
+test('ci-trusted-checks trusts a PR-head receipt across a merge only when trunk moved by docs/tests alone', () => {
+  // Lead's ruling 2026-09-24 (a'): branch B was checked by CI on its own tree; trunk moved under it before the merge.
+  // Docs / *.md / tests outside fixtures on the other side -> the receipt still vouches; any other file -> run locally.
+  const repo = mkdtempSync(join(tmpdir(), 'ci-trust-delta-'));
+  const g = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+  const put = (file: string, text: string) => { mkdirSync(join(repo, file, '..'), { recursive: true }); writeFileSync(join(repo, file), text); };
+  g('init', '-q', '-b', 'trunk'); g('config', 'user.email', 't@t'); g('config', 'user.name', 't');
+  put('src/a.ts', '1\n'); g('add', '.'); g('commit', '-qm', 'T0');
+  g('checkout', '-qb', 'branch'); put('src/a.ts', '2\n'); g('commit', '-qam', 'B');
+  const b = g('rev-parse', 'HEAD');
+  const bTree = g('rev-parse', 'HEAD^{tree}');
+  const mergeAfter = (label: string, files: string[]) => {
+    g('checkout', '-q', '-B', `trunk-${label}`, `${b}~1`);
+    for (const file of files) put(file, `${label}\n`);
+    g('add', '.'); g('commit', '-qm', `trunk moves: ${label}`);
+    g('merge', '-q', '--no-ff', '-m', `M ${label}`, 'branch');
+    return g('rev-parse', 'HEAD');
+  };
+  const docsOnly = mergeAfter('docs', ['docs/state/deploy.md', 'README.md', 'tests/other.test.ts']);
+  const code = mergeAfter('code', ['docs/note.md', 'src/b.ts']);
+  const fixture = mergeAfter('fixture', ['tests/fixtures/record.json']);
+  const dir = mkdtempSync(join(tmpdir(), 'ci-trust-delta-gh-'));
+  const fake = join(dir, 'gh');
+  writeFileSync(fake, `#!/bin/bash
+case "$1 $2" in
+  "run list")
+    for i in "$@"; do case "$prev" in --commit) commit="$i";; esac; prev="$i"; done
+    if [ "$commit" = "${b}" ]; then echo '[{"databaseId":7,"headSha":"${b}","url":"https://x/runs/7","status":"completed"}]'; else echo '[]'; fi;;
+  "run view") echo '[{"name":"check 23 (finisher-preview)","conclusion":"success"}]';;
+  "run download")
+    for i in "$@"; do case "$prev" in --dir) dir="$i";; esac; prev="$i"; done
+    mkdir -p "$dir/release-check-23-receipt"
+    printf '%s' '${JSON.stringify({ index: 23, status: 0, tree: bTree, sha: b })}' > "$dir/release-check-23-receipt/release-check-23.json";;
+  *) exit 1;;
+esac
+`);
+  execFileSync('chmod', ['+x', fake]);
+  const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
+  const call = (sha: string) => spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI_TRUST_GH: fake } });
+  let r = call(docsOnly);
+  assert.equal(r.stdout, '23', 'trunk moved by docs, *.md and a non-fixture test only -> the branch receipt vouches: ' + r.stderr);
+  assert.match(r.stderr, /\(23:docs\/tests-only delta\)/);
+  r = call(code);
+  assert.equal(r.stdout, '', 'trunk moved by a src file -> run locally: ' + r.stderr);
+  assert.match(r.stderr, /23:other-tree\(1 code file\(s\), e\.g\. src\/b\.ts\)/);
+  r = call(fixture);
+  assert.equal(r.stdout, '', 'tests/fixtures feed the replay rows -> run locally: ' + r.stderr);
+  assert.match(r.stderr, /23:other-tree\(1 code file\(s\), e\.g\. tests\/fixtures\/record\.json\)/);
+  r = call(b);
+  assert.equal(r.stdout, '23', 'the branch head itself: same tree');
+  assert.match(r.stderr, /\(23:same-tree\)/);
 });

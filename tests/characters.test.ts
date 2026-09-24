@@ -456,6 +456,25 @@ test('defence presentation follows confirmed contacts and yields immediately to 
  assert.equal(defenceReaction({...s,result:'blocked'})?.pose,'block');
  assert.equal(defenceReaction({...s,result:'enemyBlocked',enemyMode:'guard'},true)?.pose,'block');
 });
+// The parry tell (Strategy 2026-09-24): on the impact tick a parried attacker must already differ from a blocked one — the weapon thrown off
+// line and the body turned — with the parry's hit-stop running at dt 0. Before, Deflected opened on the contact pose behind an eased weight.
+test('a parried attacker is thrown off line on the impact frame, not after the hit-stop', async t => {
+  for (const [file, weapon] of [['warrior.glb', 'longsword'], ['veteran.glb', 'trident']] as const) {
+    const { opponent } = buildWarriors(await readWarrior('warrior.glb'), await readWarrior(file), ['longsword', weapon]);
+    const drawn = opponent.anchor.getObjectByName('WeaponDrawn') ?? opponent.anchor.getObjectByName('SwordDrawn')!, to = (drawn.userData.contact as { to: number } | undefined)?.to ?? .86;
+    const spine = opponent.anchor.getObjectByName('spine_02')!, arm = opponent.anchor.getObjectByName('upperarm_r')!;
+    const read = () => { opponent.anchor.updateMatrixWorld(true); return { tip: drawn.localToWorld(new Vector3(0, to, 0)), spine: spine.getWorldQuaternion(spine.quaternion.clone()), arm: arm.getWorldQuaternion(arm.quaternion.clone()) }; };
+    const swingTo = () => { for (let i = 0; i < 30; i++) opponent.update(0, 1 / 60, 'ready', 1); for (let i = 0; i <= 8; i++) opponent.update(0, 1 / 60, 'attack', .35 * i / 8, 'light', .35); };
+    swingTo(); opponent.update(0, 0, 'attack', .35, 'light', .35); const blocked = read();   // a block: the attacker holds the contact pose through the stop
+    swingTo(); opponent.update(0, 0, 'deflected', 0); const parried = read();              // a parry: same tick, same frozen frame
+    const moved = parried.tip.distanceTo(blocked.tip), turned = Math.max(parried.spine.angleTo(blocked.spine), parried.arm.angleTo(blocked.arm));
+    t.diagnostic(`${weapon}: impact frame, parried vs blocked: weapon ${moved.toFixed(3)} m, body ${turned.toFixed(3)} rad`);
+    assert.ok(moved > .15, `${weapon}: the parried weapon leaves the blocked line on the impact frame (${moved.toFixed(3)} m)`);
+    assert.ok(turned > .1, `${weapon}: the parried body turns on the impact frame (${turned.toFixed(3)} rad)`);
+    for (let i = 1; i <= 6; i++) opponent.update(0, 1 / 60, 'deflected', i / 36);
+    assert.ok(read().tip.distanceTo(blocked.tip) > .15, `${weapon}: still off line six ticks later`);
+  }
+});
 test('block recoil and parry visibly redirect the shipped blade and recover their guard pose',async()=>{
  const asset=await readWarrior(),mixer=new AnimationMixer(asset.scene),blade=asset.scene.getObjectByName('SwordDrawn')!;
  for(const name of ['BlockImpact','Parry']){

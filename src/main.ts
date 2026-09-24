@@ -1,5 +1,6 @@
 import { createInput } from './input.ts';
-import { PLAYER_WEAPONS, RULES } from './moves.ts';
+import { PLAYER_WEAPONS, RULES, weaponOf } from './moves.ts';
+import type { Fighter } from './duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord } from './record.ts';
 import { peekRecordHeader } from './record-header.ts';
@@ -13,7 +14,7 @@ import './style.css';
 import { STEP, wrapAngle } from './sim.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { marksOf, rankFor, RANK_STEPS, type Rank } from './career.ts';
-import { LOOT, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, recordTaken, slotOf, store, unwear, wear, type Loot, type LootId, type Paperdoll } from './loot.ts';
+import { LOOT, PACK, PAPERDOLL, decline, emptyLoot, isLootId, isWeaponLoot, lootName, paperdollOf, packFull, recordTaken, slotOf, stow, store, takeWouldDrop, displacedBy, unwear, wear, wearFromPack, wearTaken, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { createLootPanel } from './loot-panel.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows } from './scorecard.ts';
 import { dailyBoard, dailyOpponent, dailyParam, dailyShareText, fetchDaily, fetchDailySummary, loadDaily, postDaily, saveDaily } from './daily.ts';
@@ -28,6 +29,8 @@ import type { FinisherId } from './finishers.ts';
 
 import { HEAVY_MOVES, createHud } from './hud.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+// The opponent's swing is parked in its chamber: the hold her rising charge cue climbs through. Release, a feint or a stagger ends it.
+const foeHolding = (f: Fighter) => f.phase === 'attack' && f.charge > 0 && f.move !== null && f.age <= (weaponOf(f.weapon).moves[f.move].chamber ?? -1);
 const canvas = element<HTMLCanvasElement>('world');
 // Page zoom is locked (owner, 2026-09-17: an accidental pinch cost the HUD mid-fight; the accessibility trade is recorded in
 // tests/input.test.ts). iOS Safari ignores the viewport meta in the browser, so the pinch gesture itself is blocked here.
@@ -70,9 +73,14 @@ function renderRank(host: HTMLElement, rank: Rank) {
   }));
   host.replaceChildren(make('span', 'rank-now', `${rank.title} ${rank.numeral}`), bar, make('span', 'rank-next', rank.next));
 }
-// The fight-end panel's rank row, win and loss (it replaced the death-screen autopsy). Marks are read after match.end, so a win shows its gain.
+// The fight HUD's rank row (Dom 2026-09-24: permanent, with the health bars, the player's name small at its left): start, fight and end.
+// Redrawn on every persist (a rename) and after match.end, so a win shows its gain.
 const fightRank = element('fight-rank');
-function showFightRank(on: boolean) { fightRank.hidden = !on; if (on) renderRank(fightRank, rankFor(marksOf(profile))); }
+function renderFightRank() {
+  renderRank(fightRank, rankFor(marksOf(profile)));
+  const name = document.createElement('span'); name.className = 'rank-name'; name.textContent = profile.name;
+  fightRank.append(name);   // last child, drawn first (CSS order): the rank component's own children keep their positions
+}
 // The kill screen's Take-one panel (src/loot-panel.ts, Strategy brief 2026-09-22; replaces the drop line + Wear/Store row, which the
 // arena-cam tour faded out ~5 s after settle): offered = LOOT[opponent] minus owned, in slot order; one take per win; Take = store with
 // provenance + wear (the journal's Wear path, view.wear included); Leave it = hide. Every reset path hides it.
@@ -86,23 +94,30 @@ function offerLoot(healthLeft: number) {
   const owned = profile.loot?.owned ?? [], attempt = scorecard.rows[opponent.id]?.fights ?? 1, name = ROSTER[opponent.id].name;
   const pieces = (LOOT[opponent.id] ?? []).map((id) => ({ id, name: pieceName(id), owned: owned.includes(id), image: lootThumb(id) }));
   if (!pieces.some((piece) => !piece.owned)) return;   // everything of his is already yours: nothing to take
-  lootPanel.show(`Take one from ${name}`, pieces, {
-    onTake: (id: string) => {
-      if (!isLootId(id) || match.lastDrop) return;   // one take per win
-      // Undo restores the ledger this take found, not a computed inverse: `store` writes provenance into `taken` and `wear` moves
-      // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
-      // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
-      const before = profile.loot;
-      profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
-      match.lastDrop = id; setLoot(wear(profile.loot, id));
+  const take = (id: string, sure = false): void => {
+    if (!isLootId(id) || match.lastDrop) return;   // one take per win
+    // The slot is taken and the pack is full: the piece there would leave the Profile tab, so ask before replacing it (Lead, #673).
+    const held = profile.loot && displacedBy(profile.loot, id);
+    if (!sure && held && takeWouldDrop(profile.loot!, id)) {
+      lootPanel.ask(`Your pack is full: ${pieceName(held)} would be lost from your Profile.`, 'Replace', () => take(id, true));
+      return;
+    }
+    // Undo restores the ledger this take found, not a computed inverse: `store` writes provenance into `taken` and `wear` moves
+    // the paperdoll slot, so putting the object back is the only thing that leaves owned, taken and equipped exactly as they were
+    // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
+    const before = profile.loot;
+    profile.loot = store(profile.loot, id, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) });
+    match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
+    clearTimeout(lootLineTimer);
+    lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
       clearTimeout(lootLineTimer);
-      lootPanel.confirm(`${pieceName(id)[0]!.toUpperCase()}${pieceName(id).slice(1)} is on you.`, () => {
-        clearTimeout(lootLineTimer);
-        match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
-        offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
-      });
-      lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
-    },
+      match.lastDrop = null; profile.loot = before; persist(); view.wear(wornIds()); renderLoot();   // setLoot, but `before` may be undefined: a first take must not leave an empty loot object behind
+      offerLoot(healthLeft);   // the panel comes back with nothing taken and nothing selected
+    });
+    lootLineTimer = setTimeout(() => lootPanel.hide(), LOOT_LINE_MS);
+  };
+  lootPanel.show(`Take one from ${name}`, pieces, {
+    onTake: (id: string) => take(id),
     onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, { opponent: opponent.id, attempt, healthLeft, recordId: null, day: new Date().toISOString().slice(0, 10) }); persist(); lootPanel.hide(); },
   });
 }
@@ -120,8 +135,24 @@ function renderLoot() {
     element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? match.weapon[0]!.toUpperCase() + match.weapon.slice(1) : 'Empty';
     element(`slot-${key}`).classList.toggle('on', !!id || key === 'main');
     element(`slot-${key}`).setAttribute('data-loot', id ?? '');   // the worn id, for the paperdoll's image layers (style.css loot-layers block)
-    element(`slot-${key}-off`).hidden = !id;
+    const off = element<HTMLButtonElement>(`slot-${key}-off`);
+    off.hidden = !id; off.disabled = packFull(loot);   // Store moves the piece into the pack; a full pack says why beneath it (#pack-full)
+    off.setAttribute('aria-describedby', off.disabled ? 'pack-full' : '');
   }
+  // The pack (loot.ts PACK): the open slots hold what Store put there, each with Wear; the rest are drawn locked, a placeholder only.
+  const pack = Array.from({ length: PACK.total }, (_, i) => {
+    const li = document.createElement('li'), id = loot.pack?.[i];
+    if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
+    if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); return li; }
+    const name = document.createElement('span'), button = document.createElement('button');
+    li.setAttribute('data-loot', id); name.textContent = pieceName(id);
+    button.type = 'button'; button.setAttribute('data-wear', id); button.textContent = 'Wear';
+    button.addEventListener('click', () => setLoot(wearFromPack(profile.loot ?? emptyLoot(), id)));
+    li.append(name, button);
+    return li;
+  });
+  element('pack').replaceChildren(...pack);
+  element('pack-full').hidden = !(packFull(loot) && Object.keys(loot.equipped).length);
   const rows = loot.owned.map((id) => {
     const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
     li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
@@ -143,7 +174,7 @@ function renderLoot() {
   while (rows.length < 5) { const li = document.createElement('li'); li.className = 'rack-empty'; rows.push(li); }
   element('loot-rack').replaceChildren(...rows);
 }
-for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(unwear(profile.loot ?? emptyLoot(), key)));
+for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) element(`slot-${key}-off`).addEventListener('click', () => setLoot(stow(profile.loot ?? emptyLoot(), key)));
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
@@ -167,6 +198,7 @@ function persist() {
   for (const [id, text] of [['name-button', profile.name], ['journal-name', profile.name], ['rank-sigil', rank.numeral || '✦'], ['journal-sigil', rank.numeral || '✦'],
     ['save-status', saved], ['journal-save', saved]]) element(id).textContent = text;
   for (const id of ['rank', 'journal-rank']) renderRank(element(id), rank);
+  renderFightRank();
 }
 persist();
 // The right thumb is the button cluster (the v8 strike circle was retired 2026-09-20: one grammar, built and tested once).
@@ -241,6 +273,33 @@ finisherSelect.addEventListener('change', () => {
   const value = finisherSelect.value;
   view.setFinisherOverride(value === 'auto' ? null : (value as FinisherId));
 });
+// The arena test override (Options tab beside Opponent, gated with the admin test tools): which arena the NEXT fight builds in. The arena is built at load and
+// Next reloads the page, so the pick is stored and read at load; `?arena=` in the URL still wins. Unset = the ladder band decides.
+// Test tool only: no ladder or progress change, and nothing is read or built when it is unset.
+const ARENA_PICK_KEY = 'frankendom.arena-override';
+const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY) ?? ''; } catch { return ''; } })();
+const arenaSelect = element<HTMLSelectElement>('arena-select');
+arenaSelect.value = storedArena; if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // the options are index.html's (ArenaKey values); an unknown stored key reads as Ladder and arenaFor() ignores it
+arenaSelect.addEventListener('change', () => {
+  try { if (arenaSelect.value) sessionStorage.setItem(ARENA_PICK_KEY, arenaSelect.value); else sessionStorage.removeItem(ARENA_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
+  // The arena is built at load, so a pick only shows after one (Dom on his phone, 2026-09-24: an arena-only change did nothing until he also
+  // changed Opponent). Reload the way the opponent pick does, dropping `?arena=`, which would otherwise win over the stored pick.
+  const url = new URL(location.href);
+  url.searchParams.delete('arena');
+  location.replace(url.href);
+});
+// The signature-effect preview (docs/briefs/signature-effects.md): Shipped / Off / On / A–C for the opponent's signature, beside the Arena pick
+// and gated with it. It applies live and is kept for the session; `?signature=` wins. It counts only while the test tools are open (admin or
+// ?debug); otherwise it is Shipped (signature.ts SHIPPED), so players see only the variant Dom ruled.
+const SIGNATURE_PICK_KEY = 'frankendom.signature-override';
+const signatureSelect = element<HTMLSelectElement>('signature-select');
+const applySignature = () => view?.setSignature?.(window.location?.search ?? '', signatureSelect.value, !element('test-tools').hidden);
+signatureSelect.value = (() => { try { return sessionStorage.getItem(SIGNATURE_PICK_KEY) ?? 'ship'; } catch { return 'ship'; } })();
+if (signatureSelect.selectedIndex < 0) signatureSelect.value = 'ship';
+signatureSelect.addEventListener('change', () => {
+  try { if (signatureSelect.value !== 'ship') sessionStorage.setItem(SIGNATURE_PICK_KEY, signatureSelect.value); else sessionStorage.removeItem(SIGNATURE_PICK_KEY); } catch { /* storage blocked: the pick lasts this page only */ }
+  applySignature();
+});
 {
   // The bars name whoever is in the arena (Dom via Strategy, 2026-09-22): no rung is exempt any more — the first one used to keep
   // index.html's "ARENA WARDEN", which is now the no-opponent fallback "OPPONENT". The meters' labels follow for a screen reader.
@@ -278,6 +337,7 @@ if (perf) element('perf').hidden = false;
 const replayBanner = element('replay-banner'), shareButton = element<HTMLButtonElement>('share-button'), shareStatus = element('share-status');
 // `stale`: the link itself is the message (expired record, older build) rather than a status about a fight that is playing — that
 // line leaves the header band for the slot right above PLAY NOW, in the house serif (style.css `.replay-banner[data-stale='1']`).
+const replayStill = element<HTMLImageElement>('replay-still');   // a retired kill link's warden still; any start takes it down (began)
 const banner = (text: string | null, stale = false) => { replayBanner.textContent = text ?? ''; replayBanner.hidden = !text; replayBanner.dataset.stale = text && stale ? '1' : '0'; };
 // The status takes the share link's place (style.css .share-status): a confirmation clears after 2 s and the label returns;
 // everything else — an error to act on, a raw link to copy, a sign-in prompt — stays until the next fight. Named, not measured:
@@ -339,6 +399,9 @@ function updateHud() {
   // the win's one loot offer. Timing only — nothing moves, and the loot panel is outside the fade group as before.
   const hushed = pendingLoot !== null ? !phase?.complete : !phase?.settled;
   document.documentElement.classList.toggle('endgame-fade', !!phase && (hushed || (phase.touring && !watching)));
+  // The rank row keeps only the hush, not the tour (Dom 2026-09-24, phone: the strip was "missing" at fight end — it showed for ~3 s
+  // between settle and the tour, then faded until a touch). Text in the top band, no pointer: it stays up while the camera rolls.
+  document.documentElement.classList.toggle('endgame-hush', !!phase && hushed);
   // The loot panel opens on the finisher-complete event, not a delay of ours: `complete` is the scene's own latch (the victim's
   // clip has run out, the camera has settled, a severed head has come to rest), so a long ceremony is never cut short and a
   // short one never leaves the player waiting. src/finishers.ts FINISHER_SECONDS holds the measured per-finisher figure Web
@@ -387,6 +450,8 @@ function renderScorecard() {
 const testTools = element('test-tools');
 if (debug) testTools.dataset.debug = 'true';
 testTools.hidden = !debug;
+element('arena-row').hidden = !debug;   // the Arena pick (Options tab) is a test tool: shown with them, hidden from players
+element('signature-row').hidden = !debug;   // so is the signature-effect preview beside it
 element('journal-button').addEventListener('click', () => {
   clearInput();
   renderScorecard(); renderLoot();
@@ -414,7 +479,7 @@ const controls = createInput({
 // After any start (src/match.ts): the render pair on the new fighter, the death screen's panels away, the share line cleared.
 function began() {
   clearInput(); state = previous = match.practice.fighter;
-  showFightRank(false); hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
+  replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; shareButton.hidden = true; say(null); updateHud();
 }
 resetButton.addEventListener('click', () => {
   watching = false;   // the player chose to fight: from here the AFK rule applies as in any live fight
@@ -498,15 +563,21 @@ if (replayText || sharedId) {
       element('welcome-eyebrow').textContent = 'THIS FIGHT HAS FADED'; element('welcome-title').textContent = 'Sign in and your kills are kept forever.'; element('welcome-lead').hidden = true;
       return;
     }
-    if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): say what the fight was from its header, never a blank arena
+    if (message.startsWith('Fight record: version')) {   // a retired version (the rules changed): the link converts into a fight against the same warden, never a dead page
       void text.then(peekRecordHeader).then((header) => {
-        const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? ROSTER[header.opponent].name : null;   // a link is public input: name only an opponent and weapon this game knows
+        const foe = header && isOpponentId(header.opponent) && (PLAYER_WEAPONS as readonly string[]).includes(header.weapon) ? header.opponent : null;   // a link is public input: name only an opponent and weapon this game knows
         if (!header || !foe) { match.stalled = true; banner('Recorded on an older build', true); updateHud(); return; }
-        const title = `${foe[0].toUpperCase()}${foe.slice(1)}`, weapon = `a ${header.weapon}`;
-        banner(null); watching = false; welcome.hidden = false;
-        element('welcome-eyebrow').textContent = 'RECORDED UNDER AN OLDER VERSION';
-        element('welcome-title').textContent = header.outcome === 'killed' ? `${title} fell to ${weapon}.` : header.outcome === 'died' ? `${title} won, against ${weapon}.` : `${title} against ${weapon}. Nobody fell.`;
-        element('welcome-lead').textContent = 'The fight rules have changed since, so it cannot be replayed.'; element('welcome-lead').hidden = false;
+        if (epoch !== match.epoch) { banner(null); return; }
+        if (foe !== opponent.id && !urlOpponent) {   // once, as a readable link does: the re-opened page boots that warden's rig, so PLAY NOW fights them
+          const target = new URL(location.href); target.searchParams.set('opponent', foe); location.replace(target.href); return;
+        }
+        // Dom 2026-09-24 ("dead links must convert"): the warden's still, who fell to what, and PLAY NOW under it — the same stalled
+        // viewer page as any unreadable link (practice rules, no AFK mark), with the fight it names one tap away. No per-fight still
+        // exists anywhere, so the still is the warden's roster portrait (public/game/img, scripts/opponent-portraits.mjs).
+        const name = ROSTER[foe].name, title = `${name[0].toUpperCase()}${name.slice(1)}`, weapon = `a ${header.weapon}`;
+        replayStill.src = `/game/img/${foe}.webp`; replayStill.alt = title; replayStill.hidden = false;
+        match.stalled = true; updateHud();
+        banner(header.outcome === 'killed' ? `${title} fell to ${weapon}. Your turn.` : header.outcome === 'died' ? `${title} won, against ${weapon}. Your turn.` : `${title} against ${weapon}. Nobody fell. Your turn.`, true);
       });
       return;
     }
@@ -589,8 +660,12 @@ try {
       if (kind !== 'loading') hideVersus();
     },
     opponent.id,
+    /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1] ?? (storedArena || undefined),   // dev look / stills: ?arena=d, else the test tools' Arena pick (arena-themes.ts)
   );
   view.wear(wornIds());   // the worn loot goes on the rig when the pieces land; the fight never waits for them
+  applySignature();   // the signature preview's pick (off unless the test tools are open)
+  // The admins roster opens the tools after load (account.ts): apply the pick again whenever they open or close.
+  if (typeof MutationObserver !== 'undefined') new MutationObserver(applySignature).observe(element('test-tools'), { attributes: true, attributeFilter: ['hidden'] });
 } catch (error) {
   element('performance').textContent = '3D unavailable';
   message.hidden = false;
@@ -829,6 +904,7 @@ function frame(now: number) {
         ended: !!practice.finish,
         tick: practice.duel.tick,
         drawing: practice.duel.fighters[0].phase === 'draw',
+        holding: foeHolding(practice.duel.fighters[1]),
         opponent: opponent.id,
         loiter: Math.max(practice.duel.fighters[0].loiter, practice.duel.fighters[1].loiter) / RULES.wall.loiter.ticks,   // Brief 13: the crowd turns on a wall-hugger (audio lane; one line, lead to review)
       });
@@ -845,9 +921,9 @@ function frame(now: number) {
             shareButton.hidden = false; say(null);
             void encodeRecord(ended.record).then((text) => { element('debug').dataset.share = text; }, () => {});   // the gates read the encoded record here
           }
-          // The rank row on the fight-end panel. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still writes them to the
-          // scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
-          showFightRank(true);
+          // Redraw the rank row with the marks this fight earned. The autopsy lines are shown nowhere now (Dom 2026-09-23); match.end still
+          // writes them to the scorecard's `last`, kept so the Combat lane can fix the parker count and bring them back without a data gap.
+          renderFightRank();
           // The daily warden's one post (brief 4): the record, where the killing blow landed and the blows taken; guests are told to sign in.
           if (ended.post) {
             const { daily, record, taken, done } = ended.post;
@@ -908,7 +984,7 @@ function frame(now: number) {
     d.dataset.blood = JSON.stringify(view.bloodState());
     d.dataset.finishPhase = match.practice.finish ? JSON.stringify(view.finishPhase()) : '';
     d.dataset.fallenRect = JSON.stringify(view.fallenRect());   // the release check's gate (brief 5): no HUD element may intersect this at settle time
-    d.dataset.worn = JSON.stringify(view.wornDraws?.() ?? []);   // the loot meshes on the player's rig (scripts/worn-loot-check.mjs)
+    d.dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] });   // the loot meshes on the player's rig (scripts/worn-loot-check.mjs)
   } // frame probe: frozen flag, tick, drawn blade tip, the clip each rig plays, the finish clock, the fallen body's screen rect
   if (!document.hidden && elapsed > 0) frames.push(elapsed * 1000);
   if (perf && elapsed > 0) { const ms = elapsed * 1000; perfFrames.push([now, ms]); if (ms > perfWorst) perfWorst = ms; while (perfFrames.length && now - perfFrames[0][0] > 5000) perfFrames.shift(); }

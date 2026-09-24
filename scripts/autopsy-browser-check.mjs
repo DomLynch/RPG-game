@@ -47,11 +47,12 @@ try {
   assert.equal(receipt.killed.target, 0, 'the player is the one killed');
   // Dom 2026-09-23: the death screen shows the player's rank line where the autopsy was; the autopsy lines live on in the journal only.
   await until(() => !document.querySelector('#fight-rank').hidden, 2000);
-  receipt.rank = await page.evaluate(() => { const row = document.querySelector('#fight-rank'); return { label: row.getAttribute('aria-label'), now: row.querySelector('.rank-now')?.textContent, segments: row.querySelectorAll('.rank-seg').length, next: row.querySelector('.rank-next')?.textContent, same: row.innerHTML === document.querySelector('#rank').innerHTML, autopsyEl: document.querySelector('#autopsy') !== null }; });
+  receipt.rank = await page.evaluate(() => { const row = document.querySelector('#fight-rank'); return { label: row.getAttribute('aria-label'), now: row.querySelector('.rank-now')?.textContent, segments: row.querySelectorAll('.rank-seg').length, next: row.querySelector('.rank-next')?.textContent, same: (() => { const c = row.cloneNode(true); c.querySelector('.rank-name')?.remove(); return c.innerHTML === document.querySelector('#rank').innerHTML; })(), name: row.querySelector('.rank-name')?.textContent, autopsyEl: document.querySelector('#autopsy') !== null }; });
   assert.match(receipt.rank.label, /^Recruit I · [○●]( [○●]){2}$/, `the rank row's accessible label: ${receipt.rank.label}`);
   assert.equal(receipt.rank.now, 'Recruit I'); assert.equal(receipt.rank.segments, 5, 'one bar segment per numeral');
   assert.equal(receipt.rank.next, 'Legionary', 'the next class at the right end of the bar');
-  assert.equal(receipt.rank.same, true, 'the fight-end row is the account panel\'s component');
+  assert.equal(receipt.rank.same, true, 'the fight-end row is the account panel\'s component')   // plus the player's name (Dom 2026-09-24), removed before comparing
+  assert.ok(receipt.rank.name, 'the player\'s name leads the fight rank row');
   assert.equal(receipt.rank.autopsyEl, false, 'no #autopsy on the death screen');
   assert.ok(await page.locator('#fight-rank').isVisible(), '#fight-rank is visible on the death screen');
   receipt.autopsy = await page.evaluate(() => JSON.parse(localStorage.getItem('frankendom.scorecard.v1')).rows.veteran.last);
@@ -76,11 +77,11 @@ try {
   // Rematch is inert until the finisher camera settles (owner 2026-09-22: no HUD button fires while it is still fading in) —
   // finishPhase() runs on the wall clock, not harness ticks, so this wait is real time, same as a player would see.
   await until(() => JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null')?.settled === true, 3000);
-  // A rematch clears the rank line.
+  // The rank row is permanent (Dom 2026-09-24): a rematch keeps it.
   await page.locator('#reset-button').click();
   await run(200);
-  const navigated = await page.evaluate(() => document.querySelector('#fight-rank') === null).catch(() => true);   // a reload is fine: the new document boots hidden
-  if (!navigated) assert.equal(await page.evaluate(() => document.querySelector('#fight-rank').hidden), true, 'the rematch hides the rank line');
+  const navigated = await page.evaluate(() => document.querySelector('#fight-rank') === null).catch(() => true);   // a reload is fine: the new document draws it again at boot
+  if (!navigated) assert.equal(await page.evaluate(() => document.querySelector('#fight-rank').hidden), false, 'the rank row stays through a rematch');
   receipt.diedAfterPageMs = died;
   assert.deepEqual(receipt.errors, []);
   receipt.passed = true;

@@ -2,45 +2,38 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — weapons lane, as of 2026-09-23 (replace this section wholesale; it is the restart brief, not history)
+## Now — weapons lane, as of 2026-09-24 19:00 (replace this section wholesale; it is the restart brief, not history)
 
-**Routing (Lead's #517):** lanes report to Lead, Strategy rules. Lead's order for this lane, which **supersedes** Strategy's
-morning order that had the `Maul_*` family before the gladius — dispatch is Lead's call, and both were told about the swap:
+**Now — both PRs MERGED (18:53–18:54 +04). Nothing open but #674 (this doc). Wait for Lead's next task.**
+1. **#684, the signature batch** (Nightborn, Goblin and Plague Doctor effects, blood-flagged): merged as `3285dc6b`, head
+   `035f6086`. CI quality green; the 9 release-checks cancels came from cancel-on-close. Lead closes #658, #660 and #662.
+2. **#678, the rising opponent charge cue:** merged, head `0885d499`. `charge_foe` starts on the opponent's `Charging` (actor 1,
+   only for a move that `charges`) and loops for 0.9 s = `RULES.charge.max`, with rate x1.6 and level 35 %→100 %. It fades out
+   over 35 ms on the first frame with `ArenaFrame.holding === false` (`foeHolding` in `src/main.ts`). Her `Charged` → no cue
+   (Lead ruled this). CI quality green; one cancel-on-close cancel.
+3. **Not yet live:** release.json showed `a5590911` at merge time, and the deploy session owns the next publish. When it is
+   live, check that `foeHolding` is in the deployed bundle, then listen to an opponent heavy charge on a phone: a full-hold climb,
+   and a clean cut on a feint.
 
-1. **Gladius — FIRST.** Not a `WeaponId` yet (`src/moves.ts:187`). It is one-hand, so it rides the four shared hero clips
-   (`Attack`/`Return`/`Heavy`/`Riposte`, `clips: null`) — zero new animation. The job: the `WeaponId` + a `WEAPONS` entry (data), a
-   part in `scripts/build-weapon.mjs`, a **hero** entry in `scripts/blade-manifest.json` + `bake-blades`, the equip file
-   `src/assets/weapons/player/gladius.glb`, `Gladius` in `WEAPON_SLOTS` (`src/loot.ts`), `gladius` in `PLAYER_WEAPONS` — and **not**
-   in `PLAYER_WEAPONS_OFFERED` (Combat's). **Before opening:** heads-up to the Veteran lane (the Centurion carries gladius + scutum at
-   every rung, on his rig) and to Combat, because his pins move with it. Run the battery at **both** levels. It touches `src/moves.ts`,
-   so it lands in Window 1 **after the knife's bump to 6 (#515)** — no bump from this lane. The Centurion's roster weapon line is also Window 1,
-   so the gladius PR ships **inside that window's single publish**, not as its own release (Lead, 2026-09-23). Lead confirmed this
-   order was intended: gladius before the `Maul_*` family, and the Knight/Executioner donor stays on the warhammer stand-in.
-2. **Recreate #419 (estoc reach) off trunk as a new PR** — `CONFLICTING`, 271 commits behind, and force-push is excluded. Carry the
-   `ESTOC_MOVES` change forward **without** its own `RECORD_VERSION` 5→6 and `SIM_DIGEST` re-pin (Strategy: it rides the knife's 6).
-   Still blocked on Combat's Nightborn-profile item; stays draft; close #419 pointing at the new one. (#473 is replaced by this PR.)
-3. **`Maul_*` family — post-beta pace.** Chain: part (#509, merged) → 12 clips (`weapons/maul-clips` `114a40f`, pushed, **contact
-   keys NOT validated** — needs a rig build and the hero blade table) → hero blade table (`{weapon: maul, rig: hero, contact: [0.65,
-   0.87]}`, then `bake-blades`) → equip PR (`weapons/maul-player` `4ad035d`, **red on four tests by design**: `blade-rig`,
-   `record-version-guard`, `record.test.ts:100`, `weapons.test.ts:651` real reach — none relaxed). Strategy's ruling: the
-   `record.test.ts:100` change goes in the equip PR as its own commit, `maul` out of the assertion and `reaper` staying, because the
-   test's own premise ("the hero rig bakes no blade table for it") stops holding once the table exists.
-4. **#419 re-measure** — only after Combat's Nightborn-profile PR exists: one full battery on the pair, then a READY line.
+**Gotchas (new today)**
+1. **The deploy hook blocks even single-file tests and `tsc` while a deploy holds the lock.** Push, then let CI run, then test after FREE.
+2. **`npx tsc --noEmit -p .` does NOT typecheck `tests/`.** Use `npm run typecheck:tests`; that is what `quality:ci` runs.
+3. **Retargeting a PR base after a push triggers no `quality` run.** Retarget first, then push (or push an empty commit).
+4. **`gh pr checks` reports cancelled matrix rows as `fail`.** Read the run's job conclusions before calling a PR red.
+5. **zsh reads `$b:t` as a path modifier.** Write `"${b}:path"` in git show loops, and quote `--jq '.x[0:8]'`.
+6. **`build-audio.mjs` needs all 10 recordings in `artifacts/audio/source-cache`.** The downloads time out; copy them from
+   `~/Developer/frankendom-audio/artifacts/audio/source-cache` (hash-pinned). An unchanged rebuild is byte-identical to trunk.
+7. (Earlier) **Capture timing.** Use a CDP screencast, not `page.screenshot`. The camera sits behind the player: put marks on the
+   shoulder, and strafe with KeyA. Blood must be dark, small, stretched and trailed.
+8. **Sprite gzip headroom is 816 B** (999,184 of the 1,000,000 cap, `tests/audio.test.ts`). The NEXT audio addition breaks the
+   cap: make room first (trim or loop an existing cue). A rising or sustained cue is a short loop plus rate and gain ramps
+   in `feedback.ts`, never a long sample.
+9. **`tests/graphics.test.ts` runs `main.ts` with stubbed modules, and `./duel.ts` is not among them.** A new runtime import
+   from duel.ts in main.ts crashes the hit-stop test (`movesOf is not a function`). Use `weaponOf` from `moves.ts`, or
+   `import type`.
+10. **A loop needs a silent seam.** Phase the sample to start and end mid-trough, then measure the encoded edges
+   (ffmpeg `volumedetect` on the first and last 5 ms).
 
-**Done (2026-09-22/23):** #509 maul part MERGED. #501 estoc findings + handover MERGED. The bearded-axe cost measurement that
-overturned Brief 15 §2 (a part + optional re-key, not a 13-clip family). The `Maul_*` family authored — its motion contract is
-**identical** to the warhammer's (reaches 1.65/1.90/1.40, contact sources .34/.48/.34, timings 22/8/26 · 36/6/36 · 18/5/26).
-
-**Open / blocked on others:** the knife's 6 (#515, Combat) gates items 1 and 3. Combat's Nightborn profile gates item 2's merge and
-item 4. Release check 32 (autopsy) was red on trunk `fe0d8e0` itself on 2026-09-22 — recheck before blaming any lane PR for it.
-
-**Gotchas:**
-1. **Run the full gate, not the targeted test you expect to fail.** On the maul equip this lane reported two blockers to Strategy
-   from a guard-only run; the full gate had four, and the two missed ones changed the plan.
-2. **`src/moves.ts` is inside `SIM_FILES`**, so adding any weapon to `PLAYER_WEAPONS` or a new `WeaponId` trips the version guard.
-   Every player-weapon PR sequences behind whoever carries the next bump.
-3. **`tests/blade-rig.test.ts` iterates `PLAYER_WEAPONS`**: every player weapon needs a **hero** blade table. A weapon with a
-   creature-only table (maul at `rig: minotaur`) is opponent-only by construction, and `record.test.ts:100` says so in its name.
 
 ## Lane lessons — where a stale assumption hides, and what the version guard is actually asking (weapons lane, 2026-09-22)
 Three rules from the flip work, kept here because each cost something to learn and none is obvious from the code.

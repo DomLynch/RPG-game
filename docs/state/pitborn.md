@@ -5,7 +5,185 @@ bare-chested, fighting with the cleaver. Rung 2 of the beta ladder. **This lane 
 from 2026-09-22 (Dom's own line; Lead allocated, Strategy confirmed).
 Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
-## Now — 2026-09-22
+## Now — 2026-09-24 evening: done; next from Lead
+
+**Nothing open in this lane.** The bot report (Strategy item 5) is delivered, and Strategy accepted it as the playtest
+baseline.
+- **Strategy's rulings:**
+  - KICK: parked for Monday's sim window, as **Combat's** item, not ours.
+  - Wall roll: no tune; it is teaching.
+  - GOBLIN: closed.
+  - The posture-broken read: now in the playtest script.
+  - Witch = Veteran: parked until after beta.
+- **#680** (`pitborn/bot-limited-obs`), head `c6e06ff6`, MERGEABLE against #668's branch. It holds the report, the #668
+  merge (`01e6ae68`), `scripts/player-bot-scenarios.mjs` and `scripts/player-bot-replay.mjs`.
+- **Both batches are in.**
+  - Limited: 24/27 wins, 0 errors, gate pass on all nine.
+  - Debug: 27/27, 0 errors. The comparison is posted on #680 (issuecomment-5816962070).
+  - Under debug, witch and veteran diverge although their `OPPONENTS` records differ only by id. That is browser-side,
+    not sim.
+
+**Gotchas from this task:**
+- A side worktree needs a `node_modules` symlink **and** `npm run build` before the Stop gate's bot run works.
+  `player-bot.mjs` serves `dist/` through Vite preview; without it, every `page.goto` returns
+  ERR_HTTP_RESPONSE_CODE_FAILURE.
+- Recorded bot fights replay exactly in node. Apply each key edge at tick + 1, with yaw = aim + π (see the replay
+  script).
+- Kick move ids are shared across weapons; to tell opponents apart, check `OPPONENTS[id]`, not the move names.
+
+## Then — 2026-09-24 ~15:30 (handover before /clear)
+
+**Pick up: #680 bot report (Lead's assignment, Strategy pre-approved). Blood-flag PRs are done.**
+- **#680** `pitborn/bot-limited-obs`, head `a962f66b`, base `codex/01a0ceea/task-3` (#668). Worktree = this checkout's main
+  dir (`~/Developer/frankendom-pitborn`, branch pitborn/bot-limited-obs). Lead approved the fix: no `data-threat`
+  (enemy "attack" = seen swing start → seen end), charge only from actorless `ChargeCue` (ignored on own hold) or hold time
+  (heavy past windup+8). Report: per opponent W/L, chargedHeavies correct/guardedInto/other + cue named, defence table.
+- **Batch in flight** (background, lock-aware, aborts+retries an opponent if a deploy starts):
+  `$SP/batch.sh $SP` with `SP=/private/tmp/claude-501/-Users-domininclynch-Developer-frankendom-pitborn/a5938653-bdfb-4ddb-9c0c-a30aabaf0c92/scratchpad`.
+  Progress `$SP/batch-progress.log`; fights `$SP/bot-limited-final/*.json`, `$SP/bot-debug-final/*.json` (summary.json is per
+  opponent run, so aggregate from the per-fight JSONs). Scratch dies with the session: if it's gone, rerun
+  `node scripts/player-bot.mjs --opponents=all --fights=3 --no-video` (limited) and `--observation=debug`, only when the lock is FREE.
+  DO NOT edit files in the main worktree while it runs (each opponent is a fresh node process).
+- **Then, still owed on #680 (all in the same report):**
+  1. Merge #668's head `9483f894` into #680 as a normal commit. Conflicts in player-bot-review.mjs, player-bot.mjs,
+     tests/player-bot-review.test.mjs are additive: keep their `defenceExchanges` AND my defenceEarned/summarizeDefences/
+     chargedAnswers; my perception filter wins where they differ.
+  2. Headless scenario script (Lead approved): node, real sim, no sim change — `initialPractice(seed, OPPONENTS[id])` +
+     `stepPractice(p, intent, OPPONENTS[id].profiles.easy)`, or `stepDuel` with scripted opponent intents; `legal(f, action)`;
+     actions `light|heavy|thrust|kick|dodge|backstep|parry`; a dodge with no move rolls AWAY from the foe. Delay = 11 ticks.
+     KICK: close range, opponent holding guard → kick (vsGuard stagger 36) → (i) earliest legal quick attack (landed?) and
+     (ii) reposition; report stagger ticks, whether `Staggered` is perceived (tick+11) inside the window. ROLL: back vs angled
+     roll vs the same heavy (plain + charged), damage avoided, ticks to first useful hit, distance to wall (RADIUS 8.55), centre
+     and near-wall starts. Cross-check kicks vs ~/Developer/frankendom-player-bot/artifacts/combat/kick-candidate-2 and
+     kick-candidate-all-3 (READ ONLY, Codex worktree).
+  3. GOBLIN: the loss is Codex's `~/Developer/frankendom-player-bot/artifacts/combat/limited-all-easy-3/goblin-2504048581.json`
+     (read only). Replay seed 2504048581 in the browser under MY filter with a per-tick trace (legal = controls' aria-disabled /
+     accepts(); requested = bot keys/press; accepted = player start events). Verdict: missed chance / unclear recovery feedback /
+     rejected inputs / no escape; say whether the loss reproduces.
+  4. Fact: the tactical bot never kicks (no KeyC in policy); opponents kicked it 35× in 18 interim fights.
+- Send Lead (`Frankendom - Lead Developer`) the head + both batch results + the above. Post the report on #680.
+
+**Blood flags — done, handed over.**
+- #667 Dwarf Hammer Wound C: head `e052c1e1`, base trunk, CI green, Lead: "verified and READY to Deploy". SHIPPED
+  `dwarf: { variant: 'C', name: 'Hammer Wound' }`, `blood: true` on C only. Evidence strip: branch `evidence/dwarf-wound`.
+- #661 Butcher's Wake: head `690c74a8` (bloodMode added to the test frame after CI went red), CI green; taken by Executioner
+  into #682 `effects/batch-0924`. Push NOTHING more to `pitborn/sig-butchers-wake` without telling Executioner/Lead.
+- #666 Shieldmaiden Splintered Defiance: still waits for her shield.
+
+**Gotchas:** `tsc -p .` does not type-check tests — CI runs `npm run typecheck:tests` (tsconfig.tests.json). Deploys start
+often; the PreToolUse hook blocks tests/builds during one (even `node --test` on one file in a loop). Never pkill by name: another
+lane's player-bot (artifacts/combat, step 64) runs on this Mac. zsh `$C:r…` is a filename modifier — brace variables before `:`.
+
+## Then — 2026-09-24 ~13:00 (signature effects, Lead's assignment for Dom's 13:05 deadline)
+
+**Three PRs open, all waiting on Dom via Strategy. Nothing to build until one comes back.** HOLD browser renders until Lead says
+World's Witch strip has landed (Mac at load 50–100).
+- **#661 Pitborn Butcher's Wake (A)**, head `e1169159`, base `world/signature-dwarf-stamp` @ `ef7e9f86`. `src/signature-pitborn.ts`
+  + tests + one import line in `scene.ts`. His heavy tears a curved blood sheet off the cleaver → drops → 2 floor spots. Lead: reads;
+  sent to Strategy.
+- **#666 Shieldmaiden Splintered Defiance (A)**, head `61d65db2`, titled "waits for her shield (#606)". She has NO shield in game.
+  Lead ruled **no fallback**: with no `userData.slot === 'Shield'` mesh the effect does nothing; with one, rim chips via
+  `marks.shield` (cap 4) + splinters from the rim. Node-tested on a mock shield only, never rendered.
+- **#667 Dwarf Hammer Stamp B + C** (prep, not ruled), head `402d5cb8`, into `world/signature-dwarf-stamp` (off `dc2d6368`).
+  B = 2× dark bruise square (Strategy: "a smudge", frame 1 "a censor block"). C = chamfered-octagon hammer face, 0.25 s fade-in
+  (Lead + me: still a flat black octagon, a hole/sticker not a bruise). A untouched. Next pass if asked: lighter mid-tones, a
+  visible rim, less opaque core.
+- **Veteran Battle Scars**: reassigned to Executioner. Not ours.
+- **Open gap (World's, not ours):** no signature honours blood-off; `SignatureFrame` has no `bloodMode`.
+- #661 and #666 each add an adjacent import line to `scene.ts`, so merging both gives a trivial conflict. All three need retargeting
+  once #655 and the Dwarf branch land.
+
+## Then — 2026-09-24 morning
+
+**Nothing open in this lane.** Everything below the 09-23 handover has shipped; live `c0400c1f` contains all of it
+(`git merge-base --is-ancestor`, checked against frankendom.com/release.json).
+- **Shieldmaiden six (#595)** merged 09-23, live.
+- **Her jaw band (#608, `dcb47253`)**: the dark chin read as a beard; fixed and carried to trunk by Run 3 (#616/#619).
+  The "Open tonight" item below is closed.
+- **Her kilt strips (#646, `07ad5c8`, merged 09-24 05:28Z)**: the hero's 11 kilt strips hung below her closed tunic
+  and cut the mail into a jagged hem. `parts.py` KIT `'kilt': False`, her row only; every other fighter still gets 11.
+  `level1_shieldmaiden.glb` 841,372 → 751,340 B, `shieldmaiden.glb` 6,370,680 → 6,290,728 B; her face/skin
+  textures and `body_shieldmaiden.glb` re-baked byte-identical to trunk.
+- **Next:** whatever Phase L (#589/#606, the Stats lane's) asks of the Pitborn and Shieldmaiden sets (materials). Not
+  yet asked. The #595 known list stands as unassigned polish: her cap reads as a band at fight distance, her
+  boots are mid-calf where the reference is low, and the Pitborn's shin plates sit slightly outboard.
+
+## Then — 2026-09-23 night (handover)
+
+**Phase R (six takeable armour pieces + weapon per opponent) was pulled forward to TONIGHT and is done for this lane.**
+- **The Pitborn, #591**: MERGED into `phase-r` (run 1). Helmet (iron skullcap, replace), Body (rag sash + belt as `over`: it
+  covers 26 % of the player's tunic, so it never undresses him; #434's floor applies to `replace` only), Arms (bone
+  plates), Gloves (`~kit`), Greaves (shin wraps + scrap plate), Boots (foot wraps), cleaver. loot.glb +84.5 KB gzip.
+- **The Shieldmaiden, #595**: OPEN, head `4b5a8a80`, for the next back-to-back run. Helmet (open banded cap behind the
+  braids), Body (her tunic kit + mail skirt to mid-thigh, skirt filed under Body), Arms (shoulder plates), Gloves,
+  Greaves (leg wraps), Boots; gladius from Weapons' #586. Toe fix done (boot tip extended up to 9.6 cm for the player's
+  toes; the toe shape now shows in the leather). loot.glb +264.6 KB gzip. Loot tests 25/25 + tsc at `03029113`; the last
+  merge (#598, two CSS lines) has no re-run because a deploy lock blocked it.
+- Both are parts-pipeline fighters: Nightborn's TRELLIS weld does not apply; pieces are ray-fitted by the new
+  `scripts/loot-fit.mjs`. Both `pitborn.glb` and `shieldmaiden.glb` were rebuilt so the opponents WEAR their six (the
+  held Minotaur/Werewolf bakes on the Pitborn base go stale). Material is the base palette: **material at Phase L**.
+- Known, listed in #595: her cap reads as a band at fight distance; her boots are mid-calf, not the reference's low
+  pair; the Pitborn's shin plates sit slightly outboard. Stills (untracked): `artifacts/phase-r/*-wearing.png`.
+- **Next for this lane, in order:** whatever Phase L asks of these two sets (materials); then the jaw band below.
+
+**Open tonight, not pushed: the Shieldmaiden's dark chin/jaw band.** Visible at close range, reads as a beard. The fix
+goes as a PR against trunk (a visual glb change, no sim files) with a same-frame before/after still for Lead. The work is
+on LOCAL branch `pitborn/shieldmaiden-body` @ `74de033` (a WIP commit, deliberately not pushed). Next step: one
+instrumented run that prints the chin texels' brightness at each stage of `head.py`'s scan-texture pass (after the
+`jaw_skin` repaint, before and after `fill_margin`) to find which stage restores them. Measured so far:
+- NOT the teeth (tinted pure red, the patch stayed black); NOT culling (a double-sided Photo changed nothing); NOT
+  the normal map (sampled flat under the chin); NOT a second UV layer (the adapter head has one).
+- REAL and fixed in the WIP: the female sculpt keeps parts of its head on BODY tiles, so the Face-tile cut left Skin
+  standing inside the scanned head up to z 1.662 (now cut at the neck, z 1.566: `parts.py`, female only); and the neck
+  stub took its tone from a ring of jaw shadow + nape hair (now her skin: `jaw_skin` pins `RING_TONE`).
+- The shipped `kt_face_color` still carries dark texels at the chin's UVs (p10 luminance 0.118 in the lowest 15 % of
+  the head) although the repaint logs ~56k texels changed, so a later stage overwrites them. Suspect `fill_margin`
+  treating chin texels as gutter (`core` from `bake_attribute`); not proven.
+- Drop the WIP's `teeth_scale: 0.6` before the PR: it changed nothing.
+
+## Done — 2026-09-23
+
+- **The Shieldmaiden into beta** (Dom, "put them live now"; Brief 15, reference A #498). Pushed into `roster-v0` at
+  `80e991a`; roster-v0 is on trunk (`7b277fd`), and Combat's bump 8 (`RECORD_VERSION` 8) covers her row. What landed:
+  - `parts.py` KIT `body: 'female'`: the realistic female body as a per-fighter switch (the Witch reuses it); the
+    female sculpt's multires capped at 2 levels.
+  - `head.split_tiles` packs any number of UDIM tiles (`atlas_cells`; the male's three keep their shipped quadrants).
+  - Her own head: FLUX.1-dev portrait of reference A (`artifacts/source/face/shieldmaiden/shieldmaiden-01.png`, prompt
+    beside it) → TRELLIS.2 → `trellis_head.py`; braid crown as mesh; `scale_by_eyes` (sized by height, the raised
+    braids shrank her face to 0.79× and put the neck cut on her chin).
+  - `trellis_head.py` BGR fix: the texture was read BGR against an RGB portrait (blue skin; the Nightborn's near-grey
+    sample hid it).
+  - Squared layered iron shoulder plates (Arms) in `build-warrior.mjs`, double-walled; gladius in hand;
+    `shieldmaiden.glb` 3.47 MB gzip; last rung after the Witch.
+  - `ARCHETYPES.shieldmaiden` = the Pitborn's profile verbatim at scale 1, a PLACEHOLDER for Combat's retune.
+  - Gladius grip material `GladiusBone` → `GladiusBoneGrip` (finisher blood never paints the grip); player
+    `gladius.glb` rebuilt from the same source.
+- Phase-0 tint stand-in: written, then cancelled by Lead/Strategy before any push; nothing of it shipped.
+
+## Open
+
+- The jaw band (above): this lane, PR to trunk.
+- Her loot pieces: tomorrow's assignment (above).
+- Her shield-carry pose (#547 closed; not wired for an opponent): unowned, raise with Lead after the loot work.
+- The roster-v0 weapon-flip snapshot had two NEW over-cap rows against the Plague Doctor (trident, scythe: `charged
+  heavy only untouched 3/24`): Combat's battery, not this lane's.
+
+## Gotchas (cost time today)
+
+- **The deploy lock blocks `node --test` and Blender**, even single files, and deploys run back to back (5c0a32c then
+  7b277fd). Queue work behind a watcher on `~/.claude/hooks/deploy_guard.py` `active_lock()`; never retry in a loop.
+- **The deploy hook matches words in a whole command**, heredoc text included: a doc edit that mentions a bake is
+  refused. Edit files with the Edit tool and keep builds in their own command.
+- **Four lanes appending to the same pinned lists** (ROSTER, ladder, picker, loot-data, roster count, BUILD) conflict on
+  every merge: keep both sides and re-sequence the rung assertions. `roster-v0` moved between fetch and push twice:
+  always `merge-base --is-ancestor` before pushing.
+- **The female body is not the male's topology**: 9 UDIM tiles (not 4), and head surfaces on body tiles. Anything
+  keyed on "tile 0 = head" is wrong for her.
+- **FLUX prompt trap (new):** "two braids"/"plaits" hang the braids past the shoulders every seed; "milkmaid crown
+  braid … like a halo" keeps them on top.
+- `character-preview.mjs` weapon stats list the HERO's longsword materials; read the opponent's `sword` panel.
+
+## Earlier — 2026-09-22 (superseded by the entry above)
 
 **BLOCKED ON #478 — the Shieldmaiden.** Her design direction is picked and her body is deliberately not
 started. Strategy's ruling: silhouette stage only, nothing wearable before the shield asset lands, because a
