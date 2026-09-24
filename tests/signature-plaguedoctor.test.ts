@@ -38,7 +38,7 @@ test('the stain spreads, then settles into one capped body mark that stays; a fi
   const scene = new THREE.Scene(), root = new THREE.Group(), arm = new THREE.Bone(); arm.name = 'upperarm_l'; arm.position.y = 1.3; root.add(arm); scene.add(root);
   const marks = createSignatureMarks(scene);
   const fighters = [{ body: { x: 0, z: 4, heading: Math.PI }, weapon: 'longsword' }, { body: { x: 0, z: 2.5, heading: 0 }, weapon: 'longsword' }] as unknown as readonly [Fighter, Fighter];
-  const frame = (yielding = false): SignatureFrame => ({ fighters, roots: [root, null], scale: [1, 1], yielding, marks });
+  const frame = (yielding = false): SignatureFrame => ({ fighters, roots: [root, null], scale: [1, 1], yielding, marks, bloodMode: 'red' });
   const effect = pickSignature(SIGNATURES.plaguedoctor, 'A')!;
   const blow: CombatEvent = { tick: 3, type: 'Hit', actor: 1, target: 0, move: 'light_right', location: 'torso' };
   effect.fire(blow, frame());
