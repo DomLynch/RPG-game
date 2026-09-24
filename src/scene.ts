@@ -260,13 +260,6 @@ export function createScene(
   sparks.frustumCulled = false;
   sparks.visible = false;
   scene.add(sparks);
-  // Charge glow: a warm light on a fighter holding a heavy, white once the hold has charged. Placeholder for the visual lane's charge VFX.
-  const glows = [0, 1].map(() => {
-    const light = new THREE.PointLight('#ff9a3c', 0, 3, 2);
-    light.castShadow = false;
-    scene.add(light);
-    return light;
-  });
   const splats = createSplatPool(scene, splatTexture);
   let bloodMode: 'red' | 'dark' | 'off' = 'red',
     impactDuration = 0.18,
@@ -751,14 +744,6 @@ export function createScene(
         }
       }
       brass.color.set(practice.threat ? '#e7a35e' : '#ad9365');
-      glows.forEach((glow, i) => {
-        const f = practice.duel.fighters[i],
-          at = i ? practice.enemy : state;
-        glow.position.set(at.x, 1.2, at.z);
-        glow.intensity =
-          f.phase === 'attack' && f.charge ? (f.charged ? 8 : 1 + (4 * f.charge) / RULES.charge.min) : 0;
-        glow.color.set(f.charged ? '#fff3d0' : '#ff9a3c');
-      });
       if (practice.health) opponent.rotation.y = practice.enemy.heading;
       const blend = 1 - Math.exp(-dt * 8);
       heading += wrapAngle(state.heading - heading) * blend;
