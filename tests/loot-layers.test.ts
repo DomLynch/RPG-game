@@ -43,6 +43,9 @@ test('the Take-one panel is in the HUD under the rank line and the old drop line
   assert.ok(!html.includes('id="autopsy"'), 'the death-screen autopsy is gone (Dom 2026-09-23): the rank line took its place');
   for (const gone of ['loot-drop', 'loot-choice', 'loot-wear', 'loot-store']) { assert.ok(!html.includes(gone), `${gone} in index.html`); assert.ok(!css.includes(gone), `${gone} in style.css`); }
   assert.ok(!/endgame-fade #loot-panel/.test(css), 'the panel must not fade with the tour');
+  assert.ok(!/endgame-(fade|hush) #fight-rank/.test(css), 'the rank row is permanent with the meters (Dom 2026-09-24): it never fades');
+  assert.ok(hud.indexOf('id="fight-rank"') < hud.indexOf('id="combat-status"'), 'the event line sits under the rank row');
+  assert.ok(!/data-threat=true/.test(css), 'the red threat banner is gone');
 });
 
 // Decline (the lead's shape, 2026-09-22): a refused offer is the kill recorded with no piece, newest last and capped, and it survives a
