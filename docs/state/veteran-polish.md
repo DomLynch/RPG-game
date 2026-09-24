@@ -8,6 +8,38 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-24 07:30 (handoff after the Dwarf six)
+
+**Pick up:** the **Centurion equip loader + re-land** (item 2 of the entry below). The Dwarf six is done from this lane's side:
+
+- **Dwarf six: #637 (`char/dwarf-shells`, 18ea2180) ships ALONE as Run 4** (Lead READY'd it to Deploy ~07:20). Verify live after
+  Deploy publishes: `release.json` revision contains 18ea2180, and the Dwarf's Body/Arms/Greaves read in the journal.
+- **#638 "Run 4" integration (`phase-r-int-4`, 80e458b3 = #603 Knight + #637) stays OPEN, NOT merged** — the Knight's worn Body is a
+  `replace` that strips the tunic and leaves him bare-chested (evidence/dwarf-recut `run4-knight-front.png`). **Executioner owns the
+  fix** (sent the ringHull chest-shell recipe 07:25). When it lands: re-merge onto phase-r, rebuild loot.glb ONCE, loot suites +
+  grades, tsc, build, check-budget, in-arena back frames, then hand #638 back to Lead.
+
+## Done — 2026-09-24 (overnight)
+
+- **#614** (cut Body/Arms, re-wound Greaves) merged in 3c (#629 → trunk fa0c27d1, live) and **read as shards worn**: greaves dark
+  shards + a spike, the girdle under the tunic, the arms one shard. Lead ruled NOT READY → fix PR.
+- **#637 built shells** in `build-warrior.mjs` (`@build:dwarf-belt/plates/greaves`, the Witch pattern): a closed steel greave knee to ankle
+  (fit median 1.2 / max 1.6 cm, better than the authored Veteran's 1.5 / 2.0), a leather war-belt over the tunic + a front apron, and
+  a steel dome on each shoulder. Dead cuts `dwarf_upper/arms/greaves.glb` removed. loot.glb 9.61 → 8.92 MB; loot 41/41, tsc, build,
+  check-budget PASS (dwarf 8.52 M of 12 M). Stills next to the Goblin on `evidence/dwarf-recut` (`shells-*`, `run4-*`).
+- The **paperdoll layers 3c shipped were stale** (18:25, before the Greaves re-wind); #637 carries the re-render.
+
+## Gotchas — 2026-09-24
+
+- **TRELLIS surface cuts do not read as worn armour.** Built shells (`ringHull` over `playerWorn()`) do. Use them for any new piece.
+- **A piece rigid to `upperarm_*` turns on its side in the idle** (the bind is a T): skin shoulder pieces half clavicle / half upper arm.
+- **An apron rigid to the pelvis lets the kilt through**, and rays miss thin kilt flaps even at 48 azimuths: measure the kit's
+  furthest-forward point and push, and skin the lower apron toward both thighs.
+- **Re-run `node scripts/loot-layers.mjs` after every loot.glb bake** — the journal otherwise shows the previous pieces.
+- **The in-game rig does not show loot unless the pieces clear the kit**; the render check that works is loot-layers' page with all six
+  worn + a camera yaw + an `ArmedWalk` frame (scratch script pattern in memory `frankendom_dwarf_six_pieces_2026-09-24`).
+- **A `replace` Body must cover what it hides** — the loot tests did not catch the Knight's bare chest; only a front render did.
+
 ## Now — 2026-09-24 (written 2026-09-23 evening, on Lead's word)
 
 **Tell Lead by 09:30 which goes first, with ETAs.** Two items, both mine:
