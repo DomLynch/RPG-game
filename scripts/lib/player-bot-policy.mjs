@@ -1,4 +1,17 @@
 // Test player's one tactic. Observations are current debug state and events, never future simulation state.
+// Fight seeds for a batch: the first as given, then a murmur3 finalizer chain. Not the AI's own lcg: a seed one lcg step after
+// another starts the opponent's roll stream one draw later, and such pairs can fall into step and replay the same fight
+// (Pitborn in the 2026-09-24 browser gate; Goblin and five others headless), so a 3-fight gate row held 1 or 2 real fights.
+export function fightSeeds(first, count) {
+  const seeds = [first >>> 0];
+  while (seeds.length < count) {
+    let s = (seeds.at(-1) ^ 0x9e3779b9) >>> 0;
+    s = Math.imul(s ^ (s >>> 16), 0x85ebca6b) >>> 0; s = Math.imul(s ^ (s >>> 13), 0xc2b2ae35) >>> 0;
+    seeds.push((s ^ (s >>> 16)) >>> 0);
+  }
+  return seeds;
+}
+
 const MIRROR = { right: 'ArrowLeft', left: 'ArrowRight', overhead: 'ArrowUp', low: 'ArrowDown' };
 
 export function chooseGuardCounter(obs, state, reactionTicks, config) {

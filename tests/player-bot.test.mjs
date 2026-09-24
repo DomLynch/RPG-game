@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack } from '../scripts/lib/player-bot-policy.mjs';
+import { chooseChargedAttack, chooseGuardCounter, chooseTacticalAttack, fightSeeds } from '../scripts/lib/player-bot-policy.mjs';
 
 const observation = (rest = {}) => ({ tick: 100, hp: 150, enemyHp: 190, stamina: 100, gap: 2, phase: 'ready', enemyPhase: 'attack', heavy: true, events: [], ...rest });
 
@@ -158,4 +158,12 @@ test('limited: a charge is read from the charge sound (not on our own hold) or f
   chooseTacticalAttack({ ...base, tick: 101, events: [swing] }, state, 11, config);
   assert.doesNotMatch(chooseTacticalAttack({ ...base, tick: 140, events: [] }, state, 11, config).reason, /charged/);
   assert.match(chooseTacticalAttack({ ...base, tick: 148, events: [] }, state, 11, config).reason, /charged overhead \(hold time\)/);
+});
+
+test('fight seeds start at the given seed and never step the AI\'s own lcg', () => {
+  const lcg = s => (Math.imul(s, 1664525) + 1013904223) >>> 0, seeds = fightSeeds(731, 6);
+  assert.equal(seeds[0], 731);
+  assert.equal(new Set(seeds).size, 6);
+  for (const a of seeds) for (const b of seeds) assert.notEqual(lcg(a), b);
+  assert.deepEqual(fightSeeds(731, 3), seeds.slice(0, 3));
 });
