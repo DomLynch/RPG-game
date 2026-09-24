@@ -61,10 +61,8 @@ export const battleScars: SignatureEffect = {
 // Variant B, the one registered: Blade Bite. When he PARRIES, metal curls tear from the point where the blades met on his trident and fly
 // off with a bright scrape along his shaft. The contact point is measured, not assumed: the closest points between the two weapons' striking
 // segments this frame. Transient only (curls settle and go within 1.4 s): it leaves no mark. The scrape's sound is the audio lane's.
-const CURLS = 6, CURL_LIFE = 1.4, SCRAPE_LIFE = 0.3, GRAVITY = 9.8;
-type Curl = { mesh: THREE.Mesh; velocity: THREE.Vector3; spin: THREE.Vector3; age: number };
-const curls: Curl[] = [];
-let group: THREE.Group | null = null, scrape: THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial> | null = null, scrapeAge = SCRAPE_LIFE, bites = 0;
+const SCRAPE_LIFE = 0.3, GRAVITY = 9.8;
+type Curl = { mesh: THREE.Object3D; velocity: THREE.Vector3; spin: THREE.Vector3; age: number };
 const a0 = new THREE.Vector3(), a1 = new THREE.Vector3(), b0 = new THREE.Vector3(), b1 = new THREE.Vector3(), onA = new THREE.Vector3(), onB = new THREE.Vector3();
 const shaftDir = new THREE.Vector3(), across = new THREE.Vector3(), yAxis = new THREE.Vector3(0, 1, 0);
 
@@ -86,66 +84,77 @@ function closest(p0: THREE.Vector3, p1: THREE.Vector3, q0: THREE.Vector3, q1: TH
   if (t < 0) { t = 0; s = a > 1e-8 ? THREE.MathUtils.clamp(-c / a, 0, 1) : 0; } else if (t > 1) { t = 1; s = a > 1e-8 ? THREE.MathUtils.clamp((b - c) / a, 0, 1) : 0; }
   onP.copy(p0).addScaledVector(d1, s); onQ.copy(q0).addScaledVector(d2, t);
 }
-function ensure(root: THREE.Object3D) {
-  let top: THREE.Object3D = root;
-  while (top.parent) top = top.parent;
-  if (group) { if (group.parent !== top) top.add(group); return; }   // a rebuilt scene takes them with it
-  group = new THREE.Group();
-  top.add(group);
-  // A torn curl of bright metal: most of a thin ring, about 6 cm across, so a phone at 375 px can follow it.
-  const geometry = new THREE.TorusGeometry(0.03, 0.006, 5, 14, Math.PI * 1.5);
-  const material = new THREE.MeshStandardMaterial({ color: '#f2e2b8', metalness: 0.7, roughness: 0.25, emissive: '#8a6a30' });
-  for (let i = 0; i < CURLS; i++) {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.visible = false; group.add(mesh);
-    curls.push({ mesh, velocity: new THREE.Vector3(), spin: new THREE.Vector3(), age: CURL_LIFE });
-  }
-  // The scrape: a short hot streak along his shaft at the contact point, gone in 0.3 s.
-  scrape = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.22, 0.018), new THREE.MeshBasicMaterial({ color: '#fff1c4', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-  scrape.visible = false; group.add(scrape);
-}
 
-registerSignature({
-  opponent: 'veteran', variant: 'B', name: 'Blade Bite',
-  when: (event) => defendedBy(event, 'Parried'),
-  fire(_event, frame: SignatureFrame) {
-    const root = frame.roots[OPPONENT_SIDE];
-    if (!root || !segment(root, a0, a1, true) || !segment(frame.roots[0], b0, b1, false)) return;
-    closest(a0, a1, b0, b1, onA, onB);   // onA: where on his trident the blade bit
-    ensure(root);
-    shaftDir.subVectors(a1, a0).normalize();
-    across.subVectors(onB, onA); if (across.lengthSq() < 1e-6) across.crossVectors(shaftDir, yAxis); across.normalize();
-    curls.forEach((c, i) => {
-      const j = ++bites * 0.618 + i;
-      c.mesh.position.copy(onA);
-      // Torn off the far side of the contact, away from the attacker's edge, spraying up and along the shaft.
-      c.velocity.copy(across).multiplyScalar(-(0.8 + (j % 0.9))).addScaledVector(shaftDir, Math.sin(j * 3.1) * 1.1).add(yAxis.clone().multiplyScalar(1.2 + (j % 1.1)));
-      c.spin.set(18 * Math.sin(j * 2.3), 14 * Math.cos(j * 1.7), 16 * Math.sin(j * 4.1));
-      c.mesh.rotation.set(j, j * 2, j * 3);
-      c.age = 0; c.mesh.visible = true;
-    });
-    scrape!.position.copy(onA);
-    scrape!.quaternion.setFromUnitVectors(yAxis, shaftDir);
-    scrapeAge = 0;
-  },
-  update(dt) {
-    if (scrape && scrapeAge < SCRAPE_LIFE) {
-      scrapeAge += dt;
-      scrape.material.opacity = Math.max(0, 1 - scrapeAge / SCRAPE_LIFE);
-      scrape.visible = scrapeAge < SCRAPE_LIFE;
+// How a bite looks: B = six small bright curls sprayed off the contact; C (Strategy's AGAIN prep) = four larger dark-steel curls, each with
+// one bright edge, bitten from the tines (the nearest point of the trident head to the blade) and dropping close to it. Each variant owns its pool; only one is ever chosen.
+type Style = { name: string; count: number; life: number; radius: number; tube: number; body: { color: string; emissive: string; metalness: number; roughness: number }; edge: string | null; speed: number; lift: number; head: boolean };   // head: measure the bite on the trident head (the tines) only
+function bladeBite(variant: 'B' | 'C', style: Style) {
+  const curls: Curl[] = [];
+  let group: THREE.Group | null = null, scrape: THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial> | null = null, scrapeAge = SCRAPE_LIFE, bites = 0;
+  const ensure = (root: THREE.Object3D) => {
+    let top: THREE.Object3D = root;
+    while (top.parent) top = top.parent;
+    if (group) { if (group.parent !== top) top.add(group); return; }   // a rebuilt scene takes them with it
+    group = new THREE.Group();
+    top.add(group);
+    // A torn curl of metal: most of a thin ring, sized so a phone at 375 px can follow it; C adds one bright edge along its outside.
+    const geometry = new THREE.TorusGeometry(style.radius, style.tube, 5, 14, Math.PI * 1.5);
+    const material = new THREE.MeshStandardMaterial(style.body);
+    const edge = style.edge ? { geometry: new THREE.TorusGeometry(style.radius + style.tube * 0.9, style.tube * 0.35, 4, 14, Math.PI * 1.5), material: new THREE.MeshBasicMaterial({ color: style.edge, toneMapped: false }) } : null;
+    for (let i = 0; i < style.count; i++) {
+      const mesh = new THREE.Mesh(geometry, material);
+      if (edge) mesh.add(new THREE.Mesh(edge.geometry, edge.material));
+      mesh.visible = false; group.add(mesh);
+      curls.push({ mesh, velocity: new THREE.Vector3(), spin: new THREE.Vector3(), age: style.life });
     }
-    for (const c of curls) {
-      if (c.age >= CURL_LIFE) continue;
-      c.age += dt;
-      c.velocity.y -= GRAVITY * dt;
-      c.mesh.position.addScaledVector(c.velocity, dt);
-      if (c.mesh.position.y < 0.01) { c.mesh.position.y = 0.01; c.velocity.multiplyScalar(0.3); c.velocity.y = Math.abs(c.velocity.y) * 0.3; c.spin.multiplyScalar(0.3); }
-      c.mesh.rotation.x += c.spin.x * dt; c.mesh.rotation.y += c.spin.y * dt; c.mesh.rotation.z += c.spin.z * dt;
-      if (c.age >= CURL_LIFE) c.mesh.visible = false;
-    }
-  },
-  clear() {
-    for (const c of curls) { c.age = CURL_LIFE; c.mesh.visible = false; }
-    if (scrape) { scrapeAge = SCRAPE_LIFE; scrape.visible = false; }
-  },
-});
+    // The scrape: a short hot streak along his shaft at the contact point, gone in 0.3 s.
+    scrape = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.22, 0.018), new THREE.MeshBasicMaterial({ color: '#fff1c4', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    scrape.visible = false; group.add(scrape);
+  };
+  registerSignature({
+    opponent: 'veteran', variant, name: style.name,
+    when: (event) => defendedBy(event, 'Parried'),
+    fire(_event, frame: SignatureFrame) {
+      const root = frame.roots[OPPONENT_SIDE];
+      if (!root || !segment(root, a0, a1, !style.head) || !segment(frame.roots[0], b0, b1, false)) return;
+      closest(a0, a1, b0, b1, onA, onB);   // onA: where on his trident the blade bit
+      ensure(root);
+      shaftDir.subVectors(a1, a0).normalize();
+      across.subVectors(onB, onA); if (across.lengthSq() < 1e-6) across.crossVectors(shaftDir, yAxis); across.normalize();
+      curls.forEach((c, i) => {
+        const j = ++bites * 0.618 + i;
+        c.mesh.position.copy(onA);
+        // Torn off the far side of the contact, away from the attacker's edge, up and along the shaft (C: gently, so they stay by the head).
+        c.velocity.copy(across).multiplyScalar(-(0.8 + (j % 0.9)) * style.speed).addScaledVector(shaftDir, Math.sin(j * 3.1) * 1.1 * style.speed).add(yAxis.clone().multiplyScalar((1.2 + (j % 1.1)) * style.lift));
+        c.spin.set(18 * Math.sin(j * 2.3), 14 * Math.cos(j * 1.7), 16 * Math.sin(j * 4.1));
+        c.mesh.rotation.set(j, j * 2, j * 3);
+        c.age = 0; c.mesh.visible = true;
+      });
+      scrape!.position.copy(onA);
+      scrape!.quaternion.setFromUnitVectors(yAxis, shaftDir);
+      scrapeAge = 0;
+    },
+    update(dt) {
+      if (scrape && scrapeAge < SCRAPE_LIFE) {
+        scrapeAge += dt;
+        scrape.material.opacity = Math.max(0, 1 - scrapeAge / SCRAPE_LIFE);
+        scrape.visible = scrapeAge < SCRAPE_LIFE;
+      }
+      for (const c of curls) {
+        if (c.age >= style.life) continue;
+        c.age += dt;
+        c.velocity.y -= GRAVITY * dt;
+        c.mesh.position.addScaledVector(c.velocity, dt);
+        if (c.mesh.position.y < 0.01) { c.mesh.position.y = 0.01; c.velocity.multiplyScalar(0.3); c.velocity.y = Math.abs(c.velocity.y) * 0.3; c.spin.multiplyScalar(0.3); }
+        c.mesh.rotation.x += c.spin.x * dt; c.mesh.rotation.y += c.spin.y * dt; c.mesh.rotation.z += c.spin.z * dt;
+        if (c.age >= style.life) c.mesh.visible = false;
+      }
+    },
+    clear() {
+      for (const c of curls) { c.age = style.life; c.mesh.visible = false; }
+      if (scrape) { scrapeAge = SCRAPE_LIFE; scrape.visible = false; }
+    },
+  });
+}
+bladeBite('B', { name: 'Blade Bite', count: 6, life: 1.4, radius: 0.03, tube: 0.006, body: { color: '#f2e2b8', metalness: 0.7, roughness: 0.25, emissive: '#8a6a30' }, edge: null, speed: 1, lift: 1, head: false });
+bladeBite('C', { name: 'Blade Bite (dark curls)', count: 4, life: 1.8, radius: 0.05, tube: 0.01, body: { color: '#34332f', metalness: 0.85, roughness: 0.45, emissive: '#000000' }, edge: '#f4e6c2', speed: 0.35, lift: 0.45, head: true });
