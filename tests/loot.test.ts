@@ -118,3 +118,32 @@ test('loot: no `replace` piece undresses the player — each covers at least 80 
     }
   }
 });
+
+// The launch characters' Helmet and Body carriers (2026-09-24): their TRELLIS cuts passed the 80 % area rule above while reading worn as
+// torn shells — the Plague Doctor's coat as shards over a bare chest (half its faces wound inward, so a single-sided material drew half of
+// it), the Shieldmaiden's tunic bare at the back. Area cannot see that; winding can. Every draw of these carriers is a built shell whose
+// faces point away from its own centre, ≥ 85 % of them (the built pieces measure 89–100 %, the cuts they replaced 50–53 %).
+test('loot: the launch characters\' Helmet and Body carriers are built shells wound outward, not TRELLIS cuts', () => {
+  const loot = glb('../src/assets/loot.glb'), { json } = loot, bin = readFileSync(new URL('../src/assets/loot.glb', import.meta.url));
+  const jsonLength = bin.readUInt32LE(12), data = bin.subarray(28 + jsonLength);
+  const manifest = JSON.parse(readFileSync(new URL('../src/assets/source/loot/loot.json', import.meta.url), 'utf8'));
+  for (const opponent of ['witch', 'knight', 'shieldmaiden', 'plaguedoctor']) for (const slot of ['Helmet', 'Body']) {
+    for (const entry of manifest[opponent].filter((e: { slot: string }) => e.slot === slot)) assert.ok(entry.file.startsWith('@build:'), `${opponent}.${slot} is built, not cut from ${entry.file}`);
+    const draws = loot.draws.filter(d => d.name.startsWith(`${opponent}.${slot}.`));
+    assert.ok(draws.length, `${opponent}.${slot} has draws`);
+    for (const draw of draws) for (const prim of json.meshes[draw.mesh!].primitives) {
+      const pa = json.accessors[prim.attributes.POSITION], pv = json.bufferViews[pa.bufferView], ia = json.accessors[prim.indices], iv = json.bufferViews[ia.bufferView];
+      const f = new Float32Array(data.buffer.slice(data.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0), data.byteOffset + (pv.byteOffset ?? 0) + (pa.byteOffset ?? 0) + pa.count * 12));
+      const off = data.byteOffset + (iv.byteOffset ?? 0) + (ia.byteOffset ?? 0);
+      const index = ia.componentType === 5125 ? new Uint32Array(data.buffer.slice(off, off + ia.count * 4)) : new Uint16Array(data.buffer.slice(off, off + ia.count * 2));
+      const c = [0, 1, 2].map(a => { let n = 0; for (let k = 0; k < pa.count; k++) n += f[k * 3 + a]; return n / pa.count; });
+      let outward = 0;
+      for (let t = 0; t < index.length; t += 3) {
+        const [A, B, C] = [0, 1, 2].map(j => [0, 1, 2].map(a => f[index[t + j] * 3 + a]));
+        const u = B.map((x, a) => x - A[a]), v = C.map((x, a) => x - A[a]), m = [0, 1, 2].map(a => (A[a] + B[a] + C[a]) / 3 - c[a]);
+        if ((u[1] * v[2] - u[2] * v[1]) * m[0] + (u[2] * v[0] - u[0] * v[2]) * m[1] + (u[0] * v[1] - u[1] * v[0]) * m[2] > 0) outward++;
+      }
+      assert.ok(outward / (index.length / 3) >= .85, `${draw.name}: ${(100 * outward / (index.length / 3)).toFixed(0)} % of its faces point outward`);
+    }
+  }
+});

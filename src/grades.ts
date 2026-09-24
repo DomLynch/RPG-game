@@ -43,7 +43,7 @@ export type Grade = { metal: Finish; trim: Finish; leather: Finish };
 export const CLASS_OF: Record<string, keyof Grade | 'cloth' | null> = {
   Steel: 'metal', Bronze: 'metal', DwarfIron: 'metal', Blade: 'metal',
   'Antique brass': 'trim',
-  Leather: 'leather', Wrap: 'leather',
+  Leather: 'leather', Wrap: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
   Heraldry: 'cloth', Gambeson: 'cloth',
   Bone: null, BoneWorn: null, Ruby: null, Skin: null, Hair: null, Eyes: null,
 };

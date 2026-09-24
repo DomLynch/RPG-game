@@ -710,6 +710,94 @@ if (LOOT) {
   }
   lootOf = ''; lootSlot = '';
 }
+// The launch characters' Helmet and Body carriers (Lead, 2026-09-24, SCOPE.md's pulled carriers): the last three TRELLIS cuts in Helmet and
+// Body, and the Shieldmaiden's borrowed tunic, read worn at 375 as torn shells. The Plague Doctor's coat was shards over a bare chest, his
+// beak a fragment with the scalp through it, the Knight's helm open at the crown, the tunic bare at the back (53 % of its faces wound
+// inward). Their UVs split along every TRELLIS seam (1.5–5k seam edges a piece). Built here instead, fitted by ray over the player and
+// his level-1 kit like the Witch's and the Knight's other pieces, with outward winding and no UV seams. The Plague Doctor's coat and the
+// hauberk are `over`, so taking one never undresses him. Loot build only: each fighter's own body still wears its scan.
+const waxed = new T.MeshStandardMaterial({ name: 'Waxed leather', color: '#26211d', roughness: .55 });   // the doctor's waxed coat and hood, near black
+if (LOOT) parts.set(waxed, []);
+if (LOOT) {
+  const at = jointOf(skeleton, boneIndex), grid = triGrid(await playerWorn()), up = new T.Vector3(0, 0, 1);
+  const forward = at('ball_l').sub(at('foot_l')).setY(0).normalize();
+  // Drop the QUADS (ringHull's triangles come in pairs) whose centre lies in a band along a hull's axis and toward `forward`: a face
+  // opening, an eye slit, a coat's front. Whole quads, so the edge follows the rings instead of a sawtooth of half-quads.
+  const cut = (g, from, axis, span, lo, hi, cone) => {
+    const p = g.getAttribute('position'), ix = g.index.array, kept = [], c = new T.Vector3(), q = new T.Vector3();
+    for (let n = 0; n < ix.length; n += 6) {
+      const m = Math.min(6, ix.length - n); c.set(0, 0, 0); for (let k = 0; k < m; k++) c.add(q.fromBufferAttribute(p, ix[n + k])); c.divideScalar(m);
+      const rel = c.sub(from), along = rel.dot(axis) / span, side = rel.addScaledVector(axis, -along * span).normalize();
+      if (!(along > lo && along < hi && side.dot(forward) > cone)) for (let k = 0; k < m; k++) kept.push(ix[n + k]);
+    }
+    g.setIndex(kept); return g;
+  };
+  // The Knight's great helm: a closed steel pot from under the jaw to the crown, never narrower than the skull at the brow (the neck
+  // rings would otherwise pinch in), a flat-ish top, an eye slit and two ridge bands.
+  lootOf = 'knight'; lootSlot = 'Helmet';
+  {
+    const head = at('Head'), axis = new T.Vector3(0, 1, -.1).normalize(), crown = surfaceAlong(grid, head, axis);
+    if (!crown) throw new Error('knight helm: no crown above the Head joint');
+    const top = head.clone().addScaledVector(axis, crown), slit = [.5, .56];
+    const helm = ringHull(grid, head, top, { stations: [-.45, -.3, -.15, 0, .15, .3, .42, slit[0], slit[1], .66, .78, .88, .95, .985, .995], azimuths: 24, gap: .022, cap: true, up });   // .985/.995: the cap's fan cut a chord through the crown (the Witch's hood)
+    // Below the brow, a pot: each azimuth at the brow ring's own radius there plus 1.5 cm (the nose and chin stand proud of the forehead),
+    // never more than 10 % past it (the jaw and shoulder rays vary). The ring frame is ringHull's: u = ref × axis, v = axis × u.
+    const ring = helm.rings[7].radii, u = new T.Vector3().crossVectors(up, axis).normalize(), v = new T.Vector3().crossVectors(axis, u).normalize();
+    const browAt = (dir) => { const a = (Math.atan2(dir.dot(v), dir.dot(u)) / (Math.PI * 2) + 1) % 1 * 24, i = Math.floor(a) % 24, f = a - Math.floor(a); return ring[i] * (1 - f) + ring[(i + 1) % 24] * f; };
+    const brow = ring.reduce((n, r) => n + r, 0) / 24, p = helm.geometry.getAttribute('position'), q = new T.Vector3();
+    for (let k = 0; k < p.count; k++) {
+      q.fromBufferAttribute(p, k).sub(head); const along = q.dot(axis), radial = q.clone().addScaledVector(axis, -along), r = radial.length(), dir = radial.normalize(), b = browAt(dir);
+      if (along < crown * slit[0]) p.setXYZ(k, ...head.clone().addScaledVector(axis, along).addScaledVector(dir, Math.min(Math.max(r, b + .015), b * 1.1 + .015)).toArray());
+    }
+    helm.geometry.computeVertexNormals();
+    add(cut(helm.geometry, head, axis, crown, slit[0] - .005, slit[1] + .005, .55), steel, 'Head');
+    for (const t of [.3, .8]) add(ringHull(grid, head, top, { stations: [t - .02, t + .02], azimuths: 24, gap: .03, up }).geometry, steel, 'Head');
+    console.log(`  knight great helm: crown ${crown.toFixed(3)} m, brow radius ${brow.toFixed(3)} m`);
+  }
+  // The Plague Doctor's mask: a waxed hood with the face open, a wide-brimmed hat on the crown and the beak — his three identity carriers.
+  lootOf = 'plaguedoctor'; lootSlot = 'Helmet';
+  {
+    const neck = at('Head').add(new T.Vector3(0, -.03, -.01)), axis = new T.Vector3(0, 1, -.12).normalize(), crown = surfaceAlong(grid, neck, axis);
+    if (!crown) throw new Error('plague doctor hood: no crown above the Head joint');
+    const hood = ringHull(grid, neck, neck.clone().addScaledVector(axis, crown), { stations: [.02, .16, .32, .48, .64, .78, .9, .97], azimuths: 24, gap: .03, cap: true, up, scale: t => t < .3 ? 1.1 : 1.04 });
+    add(cut(hood.geometry, neck, axis, crown, -.05, .72, .78), waxed, 'Head');
+    const brimAt = neck.clone().addScaledVector(axis, crown * .88), q = new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), axis);
+    add(new T.CylinderGeometry(.2, .2, .012, 32).applyQuaternion(q), waxed, 'Head', brimAt.x, brimAt.y, brimAt.z);
+    const hatAt = brimAt.clone().addScaledVector(axis, .055);
+    add(new T.CylinderGeometry(.105, .118, .11, 24).applyQuaternion(q), waxed, 'Head', hatAt.x, hatAt.y, hatAt.z);
+    add(new T.CylinderGeometry(.12, .12, .018, 24).applyQuaternion(q), leather, 'Head', brimAt.x + axis.x * .016, brimAt.y + axis.y * .016, brimAt.z + axis.z * .016);   // the hat band
+    // The beak: from the bridge of the nose, forward and down ~25°, over the face opening.
+    const nose = neck.clone().addScaledVector(axis, crown * .42), face = surfaceAlong(grid, nose, forward);
+    if (!face) throw new Error('plague doctor beak: no face in front of the Head joint');
+    const dir = forward.clone().multiplyScalar(Math.cos(.44)).addScaledVector(new T.Vector3(0, -1, 0), Math.sin(.44)).normalize(), length = .21;
+    const base = nose.clone().addScaledVector(forward, face - .01), mid = base.clone().addScaledVector(dir, length / 2);
+    add(new T.ConeGeometry(.052, length, 16).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), dir)), boneWorn, 'Head', mid.x, mid.y, mid.z);
+    console.log(`  plague doctor mask: crown ${crown.toFixed(3)} m, face ${face.toFixed(3)} m in front of the nose line`);
+  }
+  // His coat: waxed leather from the collar over the tunic, skinned along the spine, then a long skirt from the belt to the knee that
+  // flares and is OPEN at the front (a coat, and the legs stride through the gap), rigid to the pelvis like the Shieldmaiden's mail.
+  lootSlot = 'Body';
+  {
+    const waist = at('spine_01'), chest = at('spine_03');
+    const coat = ringHull(grid, waist, chest, { stations: [-.1, 0, .12, .26, .42, .58, .74, .9, 1.06, 1.2, 1.34, 1.46], azimuths: 24, gap: .024, pick: 'outer', up });
+    add(skinBySpine(coat.geometry, at), waxed);
+    add(skinBySpine(ringHull(grid, waist, chest, { stations: [.08, .16], azimuths: 24, gap: .032, pick: 'outer', up }).geometry, at), leather);   // the belt
+    const pelvis = at('pelvis'), knees = new T.Vector3().lerpVectors(at('calf_l'), at('calf_r'), .5), hips = new T.Vector3().lerpVectors(at('thigh_l'), at('thigh_r'), .5);
+    const from = hips.clone().setY(pelvis.y + .08), to = new T.Vector3(hips.x, knees.y, hips.z), axis = to.clone().sub(from), span = axis.length(); axis.normalize();
+    const skirt = ringHull(grid, from, to, { stations: [0, .15, .3, .45, .6, .75, .9], azimuths: 32, gap: .03, far: .3, pick: 'outer', up, scale: t => 1 + t * .3 });
+    add(cut(skirt.geometry, from, axis, span, .12, 2, .82), waxed, 'pelvis');
+    console.log(`  plague doctor coat: rings ${coat.rings.map(r => (r.radii.reduce((n, x) => n + x, 0) / r.radii.length).toFixed(3)).join(' ')}`);
+  }
+  // The Shieldmaiden's hauberk: a mail shirt from the belt to the collar with short sleeves, over the tunic (her mail skirt is built above).
+  lootOf = 'shieldmaiden'; lootSlot = 'Body';
+  {
+    const waist = at('spine_01'), chest = at('spine_03');
+    add(skinBySpine(ringHull(grid, waist, chest, { stations: [-.4, -.25, -.1, .05, .2, .42, .58, .74, .9, 1.06, 1.2, 1.34, 1.46], azimuths: 24, gap: .018, pick: 'outer', up }).geometry, at), steel);
+    add(skinBySpine(ringHull(grid, waist, chest, { stations: [.02, .12], azimuths: 24, gap: .026, pick: 'outer', up }).geometry, at), leather);   // the belt
+    for (const side of ['l', 'r']) add(ringHull(grid, at(`upperarm_${side}`), at(`lowerarm_${side}`), { stations: [.02, .14, .26, .38], azimuths: 14, gap: .014 }).geometry, steel, `upperarm_${side}`);
+  }
+  lootOf = ''; lootSlot = '';
+}
 // Gloves (brief 14, 2026-09-22): the one slot NO opponent wears today, so it is a single SHARED piece rather than six — the first
 // customer of the shared-draw manifest ("~shared" in loot.json). Fingerless by design: a wrist cuff and a back-of-hand plate rigid to
 // hand_X, with the fingers left bare because they ANIMATE and a rigidly-bound glove over them would tear open on a fist. Fitted by
