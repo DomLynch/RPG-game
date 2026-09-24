@@ -37,8 +37,8 @@ chip .4, posture 32, staminaDamage 30, reach 1.9, parryable, charges. The heavie
 
 **The cooldown: 900 ticks (15 s at 60 Hz), a new per-fighter counter.** It is spent at **commitment** (the tick the stamina is paid), so
 a whiff, a block, a parry and a stuffed windup all spend it. It decrements in the same per-tick map as `parryCooldown` (`duel.ts:128`),
-and it is fight state, not a timer outside the tick. The button draws it as a draining ring with whole seconds in the centre, and it
-cannot be pressed while the ring is draining.
+and it is fight state, not a timer outside the tick. While it cools, **SKILL alone is dimmed**: no ring, no countdown, and
+it cannot be pressed until it lights again (Lead, 2026-09-24).
 
 **How each defence resolves**, using the rules already on trunk and nothing new:
 - **Ordinary block** (a guard on the right side). Chip .4 → 10 damage; blocker stamina `blockCost` 25 + 30; posture 40. The caster is
@@ -104,7 +104,7 @@ row changes a number the player cannot see.
 | maul | pole | the head, overhead | **Guard side:** an **overhead** burning blow to 1.9 m (the maul heavy's reach *trunk*), guarded high where the reference is guarded centre. |
 
 **Impossible combos (hard, and shown on the loot panel before the graft; nothing is hidden).** The grafted left arm has **one hand's
-capacity**. With a **Shield** in the off-hand slot, the palm cannot open. Proposal: the loot panel refuses the graft while a Shield is
+capacity**. With a **Shield** in the off-hand slot, the palm cannot open. **Ruled (Strategy):** the loot panel refuses the graft while a Shield is
 worn, reading "The Witch's arm needs its hand free: take off the shield", and it refuses to wear a Shield while the arm is grafted. The
 pole family grips with that hand, and the cast is authored to run through the haft, so it is **not** an impossible combo.
 
@@ -122,10 +122,10 @@ SIM_FILES *trunk* (`tests/record-version-guard.test.ts:19`): duel, moves, ai, si
 | `src/record.ts` | The intent encoding carries the new action; the record header carries the equipped `skill`, as it carries `weapon`. **RECORD_VERSION 10 → 11.** |
 | `src/blade-paths.ts` | 4 new tables: trident, scythe, warhammer, maul (hero rig). The palm casts, the estoc's jet included, need none. |
 | `src/ai.ts` | The warden reads the green windup as a heavy-class tell: guard or parry decisions only. **No warden casts in V1.** |
-| `src/sim.ts`, `blade.ts`, `roster.ts`, `finishers.ts` | No change expected. `finishers.ts` only if the skill may land the kill: **proposal: it may, as a plain death.** |
+| `src/sim.ts`, `blade.ts`, `roster.ts`, `finishers.ts` | No change expected. The skill may land the kill, but only as a **plain death** (ruling 3), so `finishers.ts` does not change. |
 
 Outside SIM_FILES: `characters.ts` (the `Skill` role in `WEAPON_CLIPS`); `loot.ts` (a body-part slot for the arm, the graft, and the
-Shield rule); `input.ts` and `hud.ts` (the fourth button, SKILL, and the cooldown ring); `main.ts` and `match.ts` (the equipped skill
+Shield rule); `input.ts` and `hud.ts` (the fourth button, SKILL, dimmed while it cools); `main.ts` and `match.ts` (the equipped skill
 into the Match, the same way #713 wires the weapon); the fight-text lines. The **green glow, the gout flipbook and the embers belong to
 Visuals & World**; the cast and burn cues belong to **Audio**, whose sprite has 816 B of gzip headroom *trunk*, so room must be made
 first.
@@ -136,5 +136,15 @@ The one-creature Witch slice runs end to end before anything else in grafting: k
 with SKILL → replay. **The slice starts with the longsword palm cast alone**, the reference row, with the other eight rows behind it, so
 the first playable skill needs one clip, one MoveDef and no blade table.
 
-**Open, for Strategy:** the damage of 26 (it is ≥ every heavy, but +44% on the longsword's 18; the price is the 900-tick cooldown and
-the 40-tick tell), whether the skill may land the kill, and the Shield rule.
+## Strategy's rulings (2026-09-24, via Lead): #720 is the slice's working spec
+
+The *prop* numbers stay proposals until Combat's battery runs them.
+1. **The guardable override is accepted.** The player's skill follows the SKILL rule (blockable, guardable, parryable). The Witch's own
+   cast keeps `docs/briefs/witch.md`'s rule.
+2. **Damage is 26, FLAT.** It is never scaled by the weapon in hand. The weapon changes only what is seen: reach, shape, side, chain and
+   knockback. If parity fails, the lever is the cooldown or the tell, never the weapon table.
+3. **A killing blow is allowed, as a plain death.** V1 has no finisher on the skill, and the kill line reads "Witch-fire".
+4. **The Shield rule is accepted as the first impossible combo.** The loot panel shows it before the graft and refuses a Shield while the
+   arm is grafted. Pole grips are not impossible.
+
+The slice starts with the longsword palm cast alone.
