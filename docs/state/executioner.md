@@ -15,6 +15,17 @@ WeatheredStone cube (#6e6a63, scripts/build-weapon.mjs:712), reading near-white 
 byte-identical to #643's. WEAPONS fixes the head (material + bevel) in build-weapon.mjs and hands over the rebuilt donor; THIS LANE then
 rebuilds knight.glb (`node scripts/build-creatures.mjs knight`, not creature_pack.py alone: a pack-only rerun gives 5.27 MB vs the
 shipped 6.68 MB) and posts idle + mid-swing before/after stills at 375x812 for Dom before READY. Before still: artifacts/character/knight-live-idle/sheet.png.
+Weapons' head fix is PR #651 (weapons/maul-head-material @ 1100bb35: darker WeatheredStone #4a4640, RoundedBox bevel, mottled
+colour + pitted normal maps by name in build-warrior finishMaterials). Rebuild once it's on trunk; Weapons' local build gave
+knight.glb 6,967,096 B (+287 KB), 8 images, 36 clips, bind error 2.3e-6.
+
+**Next assignment (Dom order via Lead, 2026-09-24): SIGNATURE EFFECTS**, brief docs/briefs/signature-effects.md on
+origin/strategy/state-1235 (rows 5 and 7). (1) EXECUTIONER Reaping Scar: his heavy MISSES low (`AttackMissed`) and carves a curved
+scrape into the sand showing dark stone; fragments tumble; the scar stays. (2) KNIGHT Rivet Burst: a substantial `Hit` on him pops 1-2
+cosmetic rivets, the plate shudders, a dent stays. Start once WORLD's effects framework API is known (it lands first); the Rivet Burst comes
+after the maul-head rebuild. Rules: cosmetic only, keyed to existing duel events, NO sim change, the effect must tell the truth,
+marks capped and fight-only, phone-first. Receipt per effect: a 2 s clip or 3-frame strip at 375x812 + a perf line; one PR each; Dom
+says yes/no/again. If an A is impractical, take the brief's B/C and refine it.
 Answer Lead/Veteran/Combat questions. If Lead or Dom wants the great helm smaller, that's the next change (see Open).
 Do not push to #603 (`knight/six-r` @ `1db7afd5`): it's in #643's history and was held out of Run 4.
 
