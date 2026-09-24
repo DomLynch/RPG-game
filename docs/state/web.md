@@ -1,12 +1,17 @@
 ## Now — web lane, 2026-09-24 (session close at ~305k; read this first)
 
-**Pick up:** Dom picks an Arena Draw direction on draft PR #642 (A iron board · B stone wheel · C gallows plaques; PNGs also untracked
-in `mockups-arena-draw/`). When he picks: build it on its own branch (ladder chooses FIRST, then animate; ≤1.5 s; tap to skip;
-portraits only, `public/game/img/<id>.webp`; frame-budget receipt on the phone). Mockup source (not in repo): scratchpad `draw/draw3.html`.
-Queue after it, in Lead's order, ONE at a time: (3) TWO SHARE BUTTONS — "Share fight" (today's link) + "Export clip" (vertical 10–15 s
-MediaRecorder clip of the replay ending on the kill, combat audio, no touch controls, small mark, share-sheet files else save,
-reduced-gore toggle; receipt = export time + size on Dom's phone); (4) COACH MODE tactics board + Watch, only after Combat's four
-policies pass their battery. **Dom's rule for every visual feature: THREE labelled mockups first, Dom picks, then build.**
+**Pick up (Dom rulings via Lead, 2026-09-24 late morning), in order:**
+1. **DEAD LINKS MUST CONVERT — small, no mockup round, FIRST.** Dom's shared `/s/1` link is dead today. When the replay page gets a
+   record version it can't read, show the kill-frame still + the opponent's name + a PLAY NOW button that starts a fight against that
+   opponent, instead of "not playable". Small PR, tests, phone still; send the PR to Lead. Start at `src/share-store.ts` (`sharedIdFrom`)
+   and the replay/"not playable" path in main.ts; `tests/*` has the "kill links: an unknown or expired id…" test to extend.
+2. **Arena Draw BUILD — Strategy picked A** (iron roster board on a chain behind a barred frame; #642's A stills are the reference, source
+   scratchpad `draw/draw3.html`). ≤1.5 s, tap to skip, portraits `public/game/img/<id>.webp` (all ten once #644 is live), the ladder picks
+   FIRST then animates, frame-budget receipt on the phone.
+3. Share buttons — THREE mockups first ("Share fight" + "Export clip": vertical 10–15 s MediaRecorder clip ending on the kill, combat
+   audio, no touch controls, small mark, share-sheet files else save, reduced-gore toggle; receipt = export time + size on Dom's phone).
+4. Coach mode tactics board + Watch — only after Combat's four policies pass their battery.
+**Dom's rule for every visual feature: THREE labelled mockups first, Dom picks, then build.**
 
 **Done today:** #627 (cleanLoot slot-named key warns) MERGED. #639 open — static og:title/og:image on index.html so `/s/<id>` kill links
 preview in WhatsApp (no per-fight still exists anywhere; that needs Backend + Deploy). #644 open — `scripts/opponent-portraits.mjs`
@@ -14,7 +19,7 @@ preview in WhatsApp (no per-fight still exists anywhere; that needs Backend + De
 Phone pass on live fa0c27d1 (10 full sets + Veteran IV win/loss) reported to Lead: Executioner helmet missing, Shieldmaiden bare back,
 Dwarf body/arms/greaves (known) rejected with NO console warning, weapons never visible while sheathed, Knife tile has no thumb.
 
-**Open:** #639 and #644 wait for Lead's merge. #642 waits for Dom. The finisher-WAIT for the loot panel (entry below) is still unbuilt.
+**Open:** #639 and #644 wait for Lead's merge. #642: Strategy picked A (close it once the build PR is up). The finisher-WAIT for the loot panel (entry below) is still unbuilt.
 
 **Gotchas:** (a) headless Chromium on this Mac needs `--use-angle=metal --enable-gpu --ignore-gpu-blocklist` for the live game or any
 GLB render — SwiftShader blocks the main thread and the page never boots. (b) A returning guest profile has no "Enter the arena" button;
