@@ -7,7 +7,8 @@ import { OPPONENT_SIDE, registerSignature, type SignatureFrame } from './signatu
 //  - While her heavy is CHARGED, her staff head crackles: a few hot sparks jump round the tip (Dom: "sparks from the staff").
 //  - When that charged blow LANDS (a Hit or a GuardBroken carrying `charged`), a black clawed hand closes over the struck shoulder and
 //    crumbles to ash. The hit is her real melee hit; the hand only shows where it landed.
-export const GRASP = { size: 0.26, close: 0.18, hold: 0.22, crumble: 0.55 } as const;   // metres; seconds: closing, holding, crumbling
+// 0.5 m: at 0.26 m the hand was a ~20 px dark blob on a dark shirt from the fight camera (forced-red probe, 2026-09-24).
+export const GRASP = { size: 0.5, close: 0.18, hold: 0.22, crumble: 0.55 } as const;   // metres; seconds: closing, holding, crumbling
 const SPARKS = 24, ASH = 22;
 
 export const graspLands = (event: CombatEvent) =>
@@ -31,7 +32,7 @@ function handArt(): THREE.Texture | null {
       g.lineWidth = 5 + grow; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 + (64 - x1) * 0.18, y1 + 10); g.stroke();   // the claw tip hooks inward
     }
   };
-  draw('rgb(110,10,14)', 2.5);   // the rim, drawn fat underneath
+  draw('rgb(200,24,28)', 3.5);   // the rim, drawn fat underneath: a hot blood-red edge so the black reads against skin, cloth or shadow
   draw('rgb(10,6,8)', 0);
   // Break the alpha with noise: each pixel keeps a random threshold, so alphaTest rising 0 -> 1 eats the hand speck by speck.
   const image = g.getImageData(0, 0, size, size), data = image.data;
@@ -94,7 +95,10 @@ function grasp(event: CombatEvent, frame: SignatureFrame) {
   const heading = frame.fighters[victim!].body.heading, scale = frame.scale[victim!];
   const out = new THREE.Vector3(side * 0.25, 0.9, -0.35).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), heading);
   const at = bone.getWorldPosition(new THREE.Vector3()).addScaledVector(out, 0.09 * scale);
-  handBone = bone; handLocal.copy(bone.worldToLocal(at.clone())); handNormal.copy(out).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert());
+  // The hand faces back and up, toward the camera behind him: laid flat on the shoulder top it was edge-on from the fight camera and did not
+  // read at all (probe, 2026-09-24: drawn at shoulder height, visible, unseen).
+  const facing = new THREE.Vector3(side * 0.1, 0.55, -0.83).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), heading);
+  handBone = bone; handLocal.copy(bone.worldToLocal(at.clone())); handNormal.copy(facing).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert());
   handAge = 0; hand.visible = true; hand.userData.scale = scale;
 }
 
