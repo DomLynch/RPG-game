@@ -3,13 +3,14 @@ import {finisherBloodSources} from '../src/finisher-blood.ts';
 import {finisherSidePose} from '../src/camera.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Group, Triangle } from 'three';
+import { AnimationMixer, Box3, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, Group, Triangle, MeshStandardMaterial, Texture, BufferGeometry } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/combat.ts';
 import { OPPONENTS, PATHS, WEAPONS, total, type WeaponId } from '../src/moves.ts';
+import { ROSTER } from '../src/roster.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, retryTransient, transientLoadError, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
+import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, retryTransient, transientLoadError, fighterTextured, TEXTURES_MISSING, gaitWeights, swingProgress, defenceReaction, type Role } from '../src/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
   for (const speed of [NaN, Infinity, -1, 0, .1, .8, 1.7, 2.9, 3, 4, 5.2, 100]) {
@@ -829,8 +830,45 @@ test('a dropped fighter fetch is retried with back-off; a rig that parses but is
   await assert.rejects(retryTransient(async () => { calls++; throw new TypeError('Failed to fetch'); }, 3, 50, sleep), /Failed to fetch/, 'gives up after the last attempt');
   assert.equal(calls, 3); assert.deepEqual(waits, [50, 100]);
   calls = 0; waits.length = 0;
-  await assert.rejects(retryTransient(async () => { calls++; throw new Error('Warrior textures did not load'); }, 3, 50, sleep), /textures/, 'a parsed-but-wrong rig is not retried');
+  await assert.rejects(retryTransient(async () => { calls++; throw new Error('Warrior is missing Guard'); }, 3, 50, sleep), /missing Guard/, 'a parsed-but-wrong rig is not retried');
   assert.equal(calls, 1); assert.deepEqual(waits, []);
+  calls = 0; waits.length = 0;
+  // A null map is GLTFLoader swallowing a failed image decode (Sentry FRANKENDOM-C): retried like a dropped fetch, then given up on.
+  await assert.rejects(retryTransient(async () => { calls++; throw new Error(TEXTURES_MISSING); }, 3, 50, sleep), /textures/, 'missing maps are retried, then surfaced');
+  assert.equal(calls, 3); assert.deepEqual(waits, [50, 100]);
   assert.equal(transientLoadError(new TypeError('Load failed')), true); assert.equal(transientLoadError(new Error('NetworkError when attempting to fetch resource.')), true);
   assert.equal(transientLoadError(new Error('Warrior is missing Guard')), false); assert.equal(transientLoadError(new SyntaxError('Unexpected token')), false);
+});
+
+// Sentry FRANKENDOM-C ("Warrior textures did not load", 2026-09-20 on) had no test behind it: nothing walked the shipped bodies
+// through the loader's bar. Image decoding needs a browser, so the bar is held twice — its logic on synthetic scenes, and the
+// texture slots it needs read straight from every roster GLB's JSON (the player's warrior.glb included).
+test('every shipped body carries the maps loadFighter demands (CreatureBody: colour + ORM; Steel: colour + normal), and fighterTextured holds a scene to that bar', () => {
+  const bodies = new Set(['warrior', ...Object.values(ROSTER).map((o) => o.body)]);
+  for (const body of bodies) {
+    const bytes = readFileSync(new URL(`../src/assets/${body}.glb`, import.meta.url));
+    const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
+    type Node = { name?: string; mesh?: number }; type Material = { pbrMetallicRoughness?: Record<string, unknown>; normalTexture?: unknown };
+    const node = (json.nodes as Node[]).find((n) => n.name === 'CreatureBody') ?? (json.nodes as Node[]).find((n) => n.name === 'Steel');
+    assert.ok(node?.mesh !== undefined, `${body}.glb has no CreatureBody or Steel mesh`);
+    const materials = (json.meshes[node!.mesh!].primitives as { material: number }[]).map((p) => json.materials[p.material] as Material);
+    assert.ok(materials.length > 0, `${body}.glb: ${node!.name} has no primitives`);
+    for (const m of materials) {
+      assert.ok(m.pbrMetallicRoughness?.baseColorTexture, `${body}.glb: ${node!.name} has no colour map`);
+      if (node!.name === 'CreatureBody') assert.ok(m.pbrMetallicRoughness?.metallicRoughnessTexture, `${body}.glb: CreatureBody has no roughness map`);
+      else assert.ok(m.normalTexture, `${body}.glb: Steel has no normal map`);
+    }
+  }
+  const scene = (name: string, skinned: boolean, material: MeshStandardMaterial) => {
+    const mesh = skinned ? new SkinnedMesh(new BufferGeometry(), material) : new Mesh(new BufferGeometry(), material);
+    mesh.name = name;
+    const root = new Group(); root.add(mesh); return root;
+  };
+  const tex = () => new Texture();
+  assert.equal(fighterTextured(scene('CreatureBody', true, new MeshStandardMaterial({ map: tex(), roughnessMap: tex() }))), true);
+  assert.equal(fighterTextured(scene('CreatureBody', true, new MeshStandardMaterial({ map: tex() }))), false, 'a creature without its ORM map');
+  assert.equal(fighterTextured(scene('CreatureBody', true, new MeshStandardMaterial({ map: null, roughnessMap: tex() }))), false, 'a creature whose colour decode failed');
+  assert.equal(fighterTextured(scene('Steel', false, new MeshStandardMaterial({ map: tex(), normalMap: tex() }))), true);
+  assert.equal(fighterTextured(scene('Steel', false, new MeshStandardMaterial({ map: tex() }))), false, 'a kit body without its normal map');
+  assert.equal(fighterTextured(new Group()), false, 'no body at all');
 });
