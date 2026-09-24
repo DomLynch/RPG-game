@@ -153,4 +153,4 @@ export function clearWake() {
 export const wakeState = () => ({ sheets: sheets.filter((s) => s.live).length, drops: drops.filter((d) => d.live).length });
 export const signatureState = () => ({ fired, ...wakeState() });   // the capture script's probe (imported through the dev server)
 
-registerSignature({ opponent: 'pitborn', variant: 'A', name: "Butcher's Wake", when: (event) => heavyHitBy(event), fire, update, clear: clearWake });
+registerSignature({ opponent: 'pitborn', variant: 'A', name: "Butcher's Wake", blood: true, when: (event) => heavyHitBy(event), fire, update, clear: clearWake });   // a blood sheet + floor spots: stands down with blood off (#677)

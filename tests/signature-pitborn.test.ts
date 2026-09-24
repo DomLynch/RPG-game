@@ -34,3 +34,7 @@ test('the sheet grows, tears into drops, and the drops land as at most two floor
   wake.update!(1 / 60, { ...frame, yielding: true });
   assert.deepEqual(wakeState(), { sheets: 0, drops: 0 }, 'a finisher stands the wake down');
 });
+
+test("Butcher's Wake is blood: it stands down while the player has blood off", () => {
+  assert.equal(SIGNATURES.pitborn!.find((e) => e.variant === 'A')!.blood, true);
+});
