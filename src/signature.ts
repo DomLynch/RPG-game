@@ -8,9 +8,22 @@ import { surfaceHit, woundSite, type WoundHit } from './gore.ts';
 // duel already emits. Renderer-side only: nothing here reads input, writes the sim or changes a number the fight uses. An effect is
 // a pure trigger (`when`, tested under node) plus what it draws (`fire`, and `update` for anything that lives over time). The marks it
 // leaves come from capped pools that last the fight and are cleared with the fighters' wounds; the oldest mark is the one reused.
-export type SignatureMode = 'off' | 'on' | 'A' | 'B' | 'C';
+// `ship` is what players get: the variant Dom ruled for this opponent (SHIPPED), or nothing. `on` / A–C are the admin preview.
+export type SignatureMode = 'off' | 'ship' | 'on' | 'A' | 'B' | 'C';
 export type SignatureVariant = 'A' | 'B' | 'C';
-export const SIGNATURE_MODES: readonly SignatureMode[] = ['off', 'on', 'A', 'B', 'C'];
+export const SIGNATURE_MODES: readonly SignatureMode[] = ['off', 'ship', 'on', 'A', 'B', 'C'];
+// The ruled variant per opponent (Strategy for Dom, 2026-09-24): on by default for every player. An opponent missing here (the Dwarf,
+// anyone not yet ruled) shows nothing outside the admin preview. A letter whose effect is not registered yet also shows nothing.
+export const SHIPPED: Partial<Record<OpponentId, { variant: SignatureVariant; name: string }>> = {
+  nightborn: { variant: 'B', name: 'Blood Recall' },
+  executioner: { variant: 'A', name: 'The Reaping Scar' },
+  pitborn: { variant: 'A', name: "Butcher's Wake" },
+  plaguedoctor: { variant: 'B', name: 'Rot Bloom' },
+  goblin: { variant: 'C', name: 'Hooked Wound' },
+  knight: { variant: 'B', name: 'Rivet B' },   // flying rivets, no dent or socket (Rivet C closed, Strategy 2026-09-24)
+  veteran: { variant: 'C', name: 'Blade Bite' },   // shavings off the trident (Strategy YES 2026-09-24 15:40)
+  witch: { variant: 'A', name: 'The Grasp' },   // staff sparks + the crumbling claw, no blood (Strategy YES on #669 @ 72131bee)
+};
 // Hard caps per fight (brief rule 4, Lead's numbers): marks on one body, on one shield, on the floor.
 export const SIGNATURE_CAPS = { body: 6, shield: 4, floor: 8 } as const;
 export const OPPONENT_SIDE: Side = 1;   // the signature is the opponent's: the player's fighter is side 0 in every fight
@@ -21,6 +34,7 @@ export type SignatureFrame = {
   roots: readonly [THREE.Object3D | null, THREE.Object3D | null];   // each fighter's rig root (the anchor the wounds use)
   scale: readonly [number, number];                                 // body scale per side (the opponent's OPPONENTS[id].scale)
   yielding: boolean;   // a finisher (or the plain death) is playing: transient effects stand down, marks stay (brief rule 3)
+  bloodMode: 'red' | 'dark' | 'off';   // the player's blood setting: a `blood` effect never fires on off, and draws dark on dark
   marks: SignatureMarks;
 };
 export type SignatureEffect = {
@@ -31,6 +45,7 @@ export type SignatureEffect = {
   fire: (event: CombatEvent, frame: SignatureFrame) => void;
   update?: (dt: number, frame: SignatureFrame) => void;
   clear?: () => void;
+  blood?: boolean;   // the effect is blood (a stain, a spray, a drip): it stands down while the player has blood off
 };
 export type MarkSite = { bone: string; dir: [number, number, number]; radius: number };   // the struck fighter's frame: +x his left, +z his front
 // How a mark looks: the effect owns the art, the pool owns the slot and its lifetime.
@@ -50,25 +65,26 @@ export const hitOn = (event: CombatEvent) => event.type === 'Hit' && event.targe
 export const heavyHitBy = (event: CombatEvent) => hitBy(event) && isHeavy(event);
 export const defendedBy = (event: CombatEvent, type: 'Blocked' | 'Parried' | 'Dodged') => event.type === type && event.actor === OPPONENT_SIDE;
 
-// Which of an opponent's effects the mode selects: off → none, on → the A (or the first built), a letter → that variant only.
-export function pickSignature(effects: readonly SignatureEffect[] | undefined, mode: SignatureMode): SignatureEffect | null {
+// Which of an opponent's effects the mode selects: off → none, ship → the ruled variant or none, on → the A (or the first built), a letter →
+// that variant only.
+export function pickSignature(effects: readonly SignatureEffect[] | undefined, mode: SignatureMode, shipped?: SignatureVariant): SignatureEffect | null {
   if (!effects?.length || mode === 'off') return null;
+  if (mode === 'ship') return shipped ? effects.find((e) => e.variant === shipped) ?? null : null;
   if (mode === 'on') return effects.find((e) => e.variant === 'A') ?? effects[0];
   return effects.find((e) => e.variant === mode) ?? null;
 }
-// The pick main.ts hands over (`?signature=`, else the admin select's stored value) read as a mode. Unknown or absent = off: a player never
-// sees an effect Dom has not passed.
+// The pick main.ts hands over (`?signature=`, else the admin select's stored value) read as a mode. Unknown = off; absent = ship.
 export function signatureMode(asked: string | null | undefined): SignatureMode {
-  asked ??= '';
+  if (!asked) return 'ship';
   const mode = (asked.length === 1 ? asked.toUpperCase() : asked.toLowerCase()) as SignatureMode;
   return SIGNATURE_MODES.includes(mode) ? mode : 'off';
 }
 
 // Which mode applies, from `?signature=` (wins), else the admin select's value. The preview is a TEST TOOL: it counts only while the test tools
-// are open (the admins roster or ?debug, the same gate as the Arena pick). Closed tools = off, whatever the URL or a stale session says
+// are open (the admins roster or ?debug, the same gate as the Arena pick). Closed tools = ship, whatever the URL or a stale session says
 // (Lead, #655 review: a player typing ?signature=on must not see an effect Dom has not passed).
 export function resolveSignature(search: string, selected: string | null, toolsOpen: boolean): SignatureMode {
-  if (!toolsOpen) return 'off';
+  if (!toolsOpen) return 'ship';
   return signatureMode(/[?&]signature=(\w+)/.exec(search)?.[1] ?? selected);
 }
 
@@ -175,7 +191,7 @@ export function createSignatureMarks(scene: THREE.Scene) {
 export function createSignatures(scene: THREE.Scene, opponent: OpponentId) {
   const marks = createSignatureMarks(scene);
   let mode: SignatureMode = 'off', effect: SignatureEffect | null = null, fired = 0;
-  const choose = () => { effect?.clear?.(); effect = pickSignature(SIGNATURES[opponent], mode); };
+  const choose = () => { effect?.clear?.(); effect = pickSignature(SIGNATURES[opponent], mode, SHIPPED[opponent]?.variant); };
   return {
     marks,
     get mode() { return mode; },
@@ -183,7 +199,7 @@ export function createSignatures(scene: THREE.Scene, opponent: OpponentId) {
     render(dt: number, events: readonly CombatEvent[], frame: Omit<SignatureFrame, 'marks'>, eye: THREE.Vector3 | null, hidden: readonly [boolean, boolean]) {
       if (effect === null && mode !== 'off') choose();   // an effect module that registered after the scene was built
       const full = { ...frame, marks };
-      if (effect && !frame.yielding) for (const event of events) if (effect.when(event, frame.fighters)) { effect.fire(event, full); fired++; }
+      if (effect && !frame.yielding && !(effect.blood && frame.bloodMode === 'off')) for (const event of events) if (effect.when(event, frame.fighters)) { effect.fire(event, full); fired++; }
       effect?.update?.(dt, full);
       marks.update(dt, eye, hidden);
     },

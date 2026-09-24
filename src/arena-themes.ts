@@ -99,14 +99,16 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
     motes: '#cfe4e4', plain: '#101614', gateLight: 0.0, drape: false,
   },
 };
-// The owner's pick per arena (one line each): PROVISIONAL until Dom picks two of A–D (Lead 2026-09-24).
-export const ARENA_PICK: Record<1 | 2 | 3, ArenaKey> = { 1: '1', 2: 'a', 3: 'b' };
-// THE ROTATION SEAM: an opponent → an arena. The ladder band decides (rungs 1–3 Arena 1, 4–7 Arena 2, 8–10 Arena 3). Per-fight
-// random would be this one line: `return ARENA_THEMES[ARENA_PICK[(1 + Math.floor(Math.random() * 3)) as 1 | 2 | 3]]`.
+// Owner 2026-09-24 (via Strategy): "get all arenas, they are all good" — all five ride the ladder, two rungs each, in the order
+// they were made. The order is PROVISIONAL: Dom chooses the final rung → arena mapping later; that pick edits this one line.
+export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: 'a', 3: 'b', 4: 'c', 5: 'd' };
+// THE ROTATION SEAM: an opponent → an arena. The ladder band decides (rungs 1–2 Arena 1, 3–4 A, 5–6 B, 7–8 C, 9–10 D). Per-fight
+// random would be this one line: `return ARENA_THEMES[ARENA_PICK[(1 + Math.floor(Math.random() * 5)) as 1 | 2 | 3 | 4 | 5]]`.
 // Next reloads the page (main.ts), so a band change swaps the arena inside the same load that fetches the next rig: never mid-fight,
 // never on a rematch, and only one arena is ever resident.
+export const arenaBand = (rung: number): 1 | 2 | 3 | 4 | 5 => (rung <= 0 ? 1 : Math.min(5, Math.ceil(rung / 2))) as 1 | 2 | 3 | 4 | 5;
 export function arenaFor(opponent: OpponentId, override?: string): ArenaTheme {
   if (override && override in ARENA_THEMES) return ARENA_THEMES[override as ArenaKey];
   const rung = LADDER.findIndex(o => o.id === opponent) + 1;   // 0 for a held or unknown id: Arena 1
-  return ARENA_THEMES[ARENA_PICK[rung >= 8 ? 3 : rung >= 4 ? 2 : 1]];
+  return ARENA_THEMES[ARENA_PICK[arenaBand(rung)]];
 }
