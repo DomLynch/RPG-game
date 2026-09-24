@@ -4,6 +4,14 @@ Fantasy: **Fight creatures. Steal what makes them powerful. Rebuild yourself.** 
 is the post-beta / Season 2 line that brings the parked creatures back. Nothing here changes a timing: a graft grants a
 discrete move or a visible consequence, never a passive number that alters the duel's clock (the pillar holds).
 
+## Two paths at parity (Dom, 2026-09-24)
+A player may stay **pure** (human) and never feel under-powered. The pure path is the system already built: the ten-tier
+kit (rags → gold & ruby) and the gear layer (Attack on the weapon, RES on armour, capped). The **grafted** path trades gear
+slots for anatomy. Parity is by design, not by tuning: neither path changes a timing; gear gives capped numbers, grafts
+give discrete moves and visible consequence; a pure Origin in full kit and a grafted Chimera meet as equals under the cap.
+"Human" is a real branch of the evolution layer with its own identity (the best steel, the cleanest silhouette), not the
+absence of one. Grafting must never be the only way to progress.
+
 ## In (Dom: "90% amazing"; Strategy agrees)
 
 **V1 — four systems, no more**
