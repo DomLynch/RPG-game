@@ -1,4 +1,17 @@
-## Now — web lane, 2026-09-24 night (read this first)
+## Now — web lane, 2026-09-24 late night (read this first)
+
+**Opponent-reveal item STOPPED.** Dom saw the A/B/C sheet (`evidence/opponent-reveal-mockups` @ b0d64ce9) and rejected all three:
+"terrible, ugly, and crass" (relayed by Lead). Lead's order: do not iterate, build nothing, no fourth option. Strategy decides
+whether the item comes back and in what direction. Stand by for Lead.
+
+**Rejection record: the THIRD overlay rejection, after #537 and #670 (Lead's framing).** The pattern: a gold-glass or panel
+overlay drawn over the arena reads as CHEAP to Dom. #670 was the Arena Draw roster board (reverted in #694). #537's merged title is
+"Fighter readability: key + rim on the fighters; crowd, sand and wall pushed back"; that it counts as an overlay rejection is the
+Lead's record, not verified here. Tonight's three were the loot panel's own skin, over the opening, as Dom directed via Strategy,
+and they still failed. So "same skin as the loot panel" does not make an arena overlay acceptable. Do not propose card, plate or
+banner overlays over the 3D arena again without a new direction from Strategy.
+
+## Earlier — web lane, 2026-09-24 night
 
 **Waiting on Dom's pick of the opponent-reveal mockups; nothing builds until then (the rule since #670).** When Lead relays the pick,
 build that one in the loot panel's skin and nothing else.
