@@ -1,4 +1,42 @@
-## Now — web lane, 2026-09-24 (session close at ~305k; read this first)
+## Now — web lane, 2026-09-24 afternoon (session close at ~306k; read this first)
+
+**Pick up: the fight-HUD brief (Dom described it on his Centurion screenshot; Strategy + Lead ruled, NO mockups, ONE 375-wide phone
+still as the receipt, to Lead then Strategy).** Branch off trunk AFTER #664 merges (same rank row); if started earlier, rebase.
+(a) Keep the small white event line (`#combat-status`, e.g. "Stop-hit thrust hit · −17", text from src/combat.ts:147–158).
+    REMOVE the larger red-background banner: that is `#combat-status[data-threat=true]` (style.css ~755 desktop, ~1049 phone:
+    `background: #542c23cc`, border-left, padding; hud.ts:93 sets data-threat). Confirm with Lead whether only the red styling goes
+    or the "Incoming strike…" threat text too. Lead's words: "REMOVE the larger red-background banner ('Incoming strike…' block)".
+(b) The rank row (`renderRank`, main.ts ~61) is PERMANENT in the fight HUD, sitting with the health bars — start, fight and end,
+    not only `showFightRank(true)` at fight end. Note #664's `:root.endgame-hush #fight-rank` fade: decide whether it still applies.
+(c) Move the small white event line down, beneath the fighter status block (phone grid rows: .combat-hud is a 2-col grid,
+    #combat-status row 7, #fight-rank row 9, #loot-panel row 10, style.css ~1038–1062).
+(d) The player's NAME, small, at the left of the rank bar ("it's a mobile device, I don't want to clutter the screen").
+Check `scripts/endgame-hud-check.mjs` and `scripts/autopsy-browser-check.mjs` (both read #fight-rank) still pass.
+
+**Done today (all READY with Deploy, merged in order on green CI; if a merge conflicts on main.ts/style.css, Lead asks for a rebase):**
+- #656 (head 8028f11a) dead kill links convert: a retired record version re-opens once on the record's warden, shows the roster
+  portrait in a framed card + "The Nightborn fell to a longsword. Your turn." + PLAY NOW (stalled-viewer playNow).
+- #664 (head 50b44331) the rank row stays up through the arena-cam tour: new `:root.endgame-hush` (pre-settle only). Cause was
+  `endgame-fade` covering the whole tour; `?arena=b` was NOT involved (measured both).
+- #670 (head 0f9ee36f) Arena Draw A: `src/arena-draw.ts`, iron board runs 2 laps of the live rungs' silhouettes to the ladder's pick,
+  1.1 s run + 0.4 s hold, tap to skip, holds the versus card until it ends, cut on a failed rig load, never on kill links.
+  Thumbs `public/game/img/draw/<id>.webp` from `scripts/draw-thumbs.mjs`. Frame budget 375×812: p50 16.7, max 17.6 ms, 0 > 20 ms.
+  #642 (mockups) closed as superseded.
+
+**Open / not mine:** the Profile PACK row (2 open + 3 locked slots under WORN, Store moves into the pack) is allocated to WEAPONS
+(data + panel); I only review their panel against the Profile styles when it posts. Share-button mockups (3 first) and the loot
+finisher-WAIT remain queued after the HUD.
+
+**Authority (Dom, 2026-09-24 13:58):** "decision making authority, both lead dev and strategy dev" — act on either's ruling without
+waiting for Dom; if they differ, Lead on merge readiness, Strategy on scope/taste.
+
+**Gotchas:** (a)–(d) from the morning entry below still hold. (e) Screenshots stall the page ~250 ms: never measure frames in the same
+pass; for stills of an animation, hold its setTimeouts and seek `document.getAnimations()` (skip infinite ones — the versus dots).
+(f) The harness fake `Element` defaults `hidden = false`, and its scene reports 'ready' inside boot, so versus-card tests must reset
+`versus.hidden`/`dataset.out` first. (g) The harness location.href has no search string; don't assert query params on `replaced`.
+(h) quality:ci can exceed 10 min under Mac load 30–55: run it in the background.
+
+## Earlier — web lane, 2026-09-24 morning close
 
 **Pick up (Dom rulings via Lead, 2026-09-24 late morning), in order:**
 1. **DEAD LINKS MUST CONVERT — small, no mockup round, FIRST.** Dom's shared `/s/1` link is dead today. When the replay page gets a
