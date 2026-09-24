@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/duel.ts';
-import { SIGNATURE_CAPS, SIGNATURES, createSignatureMarks, createSignatures, defendedBy, heavyHitBy, hitBy, hitOn, pickSignature, registerSignature, resolveSignature, signatureMode, type SignatureEffect } from '../src/signature.ts';
+import { SIGNATURE_CAPS, SIGNATURES, createSignatureMarks, createSignatures, defendedBy, heavyHitBy, hitBy, hitOn, pickSignature, registerSignature, resolveSignature, SHIPPED, signatureMode, type SignatureEffect } from '../src/signature.ts';
 
 const hit = (actor: 0 | 1, move: string): CombatEvent => ({ tick: 1, type: 'Hit', actor, target: actor ? 0 : 1, move: move as CombatEvent['move'], location: 'torso', heading: 0 });
 const fighters = [{}, {}] as unknown as readonly [Fighter, Fighter];
@@ -30,7 +30,10 @@ test('the mode picks one effect: off none, on the A, a letter only that variant;
   assert.equal(signatureMode('a'), 'A');
   assert.equal(signatureMode('OFF'), 'off');
   assert.equal(signatureMode('lasers'), 'off');
-  assert.equal(signatureMode(null), 'off');
+  assert.equal(signatureMode(null), 'ship');
+  assert.equal(pickSignature(list, 'ship'), null, 'nothing ruled: players see nothing');
+  assert.equal(pickSignature(list, 'ship', 'B')?.variant, 'B', 'the ruled variant');
+  assert.equal(pickSignature(list, 'ship', 'C'), null, 'ruled but not registered yet: nothing');
 });
 
 test('marks are capped per body, per shield and on the floor; the oldest is the one reused, and clear empties them all', () => {
@@ -63,7 +66,7 @@ test('the frame hook fires only the chosen effect, only on its events, and stand
   registerSignature(effect('A', () => { fired += 100; }));   // a second A for the same opponent is ignored
   try {
     const signatures = createSignatures(new THREE.Scene(), 'veteran');
-    const frame = { fighters, roots: [null, null] as const, scale: [1, 1] as const, yielding: false };
+    const frame = { fighters, roots: [null, null] as const, scale: [1, 1] as const, yielding: false, bloodMode: 'red' as const };
     signatures.render(1 / 60, [hit(1, 'heavy_overhead')], frame, null, [false, false]);
     assert.equal(fired, 0, 'off by default');
     signatures.setMode(signatureMode('on'));
@@ -84,7 +87,7 @@ test('Dwarf Hammer Stamp: a landed heavy by the Dwarf stamps the struck body onc
   signatures.setMode(signatureMode('on'));
   const root = new THREE.Object3D(); for (const name of ['spine_02', 'spine_03', 'Head', 'thigh_l', 'thigh_r', 'upperarm_l', 'upperarm_r']) { const b = new THREE.Object3D(); b.name = name; b.position.y = 1; root.add(b); }
   scene.add(root);
-  const frame = { fighters: duel.fighters, roots: [root, null] as const, scale: [1, OPPONENTS.dwarf.scale] as const, yielding: false };
+  const frame = { fighters: duel.fighters, roots: [root, null] as const, scale: [1, OPPONENTS.dwarf.scale] as const, yielding: false, bloodMode: 'red' as const };
   signatures.render(1 / 60, [hit(1, 'light_right'), hit(1, 'kick'), hit(0, 'heavy_overhead')], frame, null, [false, false]);
   assert.equal(signatures.marks.count('body', 0), 0);
   signatures.render(1 / 60, [hit(1, 'heavy_overhead')], frame, null, [false, false]);
@@ -96,9 +99,29 @@ test('Dwarf Hammer Stamp: a landed heavy by the Dwarf stamps the struck body onc
 });
 
 test('the preview counts only while the test tools are open: a player typing ?signature=on sees nothing (Lead, #655 review)', () => {
-  assert.equal(resolveSignature('?signature=on', null, false), 'off');
-  assert.equal(resolveSignature('', 'on', false), 'off', 'a stale session pick is off too once the tools are closed');
+  assert.equal(resolveSignature('?signature=on', null, false), 'ship');
+  assert.equal(resolveSignature('', 'on', false), 'ship', 'a stale session pick is ignored once the tools are closed');
   assert.equal(resolveSignature('?debug&signature=on', 'off', true), 'on', 'the URL wins while the tools are open');
   assert.equal(resolveSignature('?debug', 'B', true), 'B');
-  assert.equal(resolveSignature('?debug', null, true), 'off');
+  assert.equal(resolveSignature('?debug', null, true), 'ship');
+  assert.equal(resolveSignature('?debug', 'off', true), 'off');
+});
+
+test('SHIPPED: the ruled variant is on for players, nothing unruled is, and a blood effect stands down with blood off', () => {
+  assert.deepEqual(Object.fromEntries(Object.entries(SHIPPED).map(([id, s]) => [id, s!.variant])),
+    { nightborn: 'B', executioner: 'A', pitborn: 'A', plaguedoctor: 'B', goblin: 'C', knight: 'B', veteran: 'C' });
+  assert.equal(SHIPPED.knight?.name, 'Rivet B');
+  assert.equal(SHIPPED.witch, undefined); assert.equal(SHIPPED.dwarf, undefined);
+  let fired = 0;
+  registerSignature(effect('A', () => { fired += 100; }));
+  registerSignature({ ...effect('C', () => { fired++; }), blood: true });
+  try {
+    const signatures = createSignatures(new THREE.Scene(), 'veteran');
+    signatures.setMode(resolveSignature('?signature=A', 'A', false));   // a player: the tools are closed
+    const frame = { fighters, roots: [null, null] as const, scale: [1, 1] as const, yielding: false, bloodMode: 'red' as 'red' | 'off' };
+    signatures.render(1 / 60, [hit(1, 'heavy_overhead')], frame, null, [false, false]);
+    assert.equal(fired, 1, 'the Centurion\'s ruled C, not the A the URL asked for');
+    signatures.render(1 / 60, [hit(1, 'heavy_overhead')], { ...frame, bloodMode: 'off' }, null, [false, false]);
+    assert.equal(fired, 1, 'blood off: the blood effect does not fire');
+  } finally { delete SIGNATURES.veteran; }
 });
