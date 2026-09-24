@@ -8,6 +8,38 @@ Filed as `veteran-polish.md` because that is the lane id `scripts/lane-identity.
 `CLAUDE.local.md`, so the handoff instruction (`docs/state/${lane}.md`) resolves to this file; rename both together if
 the character-name convention (`executioner.md`) is preferred.
 
+## Now — 2026-09-24 (night, handoff, context restart)
+
+**Pick up, in order:**
+
+1. **After the playtest, send READY to Deploy for #709** (`char/launch-helmet-body-carriers`, head `e3b4f218`, Strategy PASSED).
+   Include these two lines: "CI queue is not a gate" and "merge after the playtest, not the 10:00 run". **Do not push to #709**:
+   the judged head stays the judged head.
+2. **#717, the Shieldmaiden's second pass** (`char/shieldmaiden-lamellar`, `bae3bbb2`, stacked on #709): lamellar Body plus a
+   spangenhelm, sent to Lead for Strategy's judgement. Dom's two-failures rule applies. Retarget it to trunk once #709 merges.
+3. The **Centurion equip loader** stays parked until Monday's sim window (below).
+
+## Done — 2026-09-24 (evening/night)
+
+- **#691 the Witch's own Easy profile**: MERGED. Light sweeps, disengage and backsteps against the Centurion's heavies. Same
+  difficulty (hero easy brain 6/24 vs 5/24). Pinned by `tests/witch-profile.test.ts`. Lead did the RECORD_VERSION bump.
+- **#709 launch Helmet/Body carriers**: every TRELLIS-cut Helmet and Body on the Witch, Knight, Shieldmaiden and Plague Doctor, plus the
+  Knight's and Plague Doctor's whole six, replaced by built shells fitted by ray over the player (`scripts/build-warrior.mjs`, loot
+  build only). New loot test: those pieces are `@build:` and ≥ 85 % outward-wound per connected piece. loot.glb gzip 3.89 → 2.71 MB.
+  Evidence: `evidence/launch-carriers` (before/, after/, rejudge/, lamellar/).
+
+## Gotchas — 2026-09-24 (night)
+
+- **#434's area rule passes shards.** A TRELLIS cut can cover 80 % of the area while half its faces are wound inward and never draw.
+  Measure the outward-wound share (per connected piece, since one draw holds L+R) and render worn at 375 before trusting the tests.
+- **ringHull triangles come in quad pairs.** Cut them per pair or the edge saws. A helm's lower rings need a per-azimuth clamp to the
+  brow ring; clamping to the mean radius sinks the helm inside the face.
+- **The head's forward is not the feet's forward.** Use (0,0,1) minus the axis component, as the Dwarf's nasal does.
+- **Every geometry merged into one draw needs the same attributes.** A missing `uv` makes mergeGeometries return null ("reading 'getIndex'").
+- **Untextured mail reads as a grey sheet at fight size.** Build the look from geometry (lamellar rows), not material.
+- In-pit stills: `npm run build`, then `vite preview --port 5191`, then set `frankendom.fighter.v1` `loot.equipped` by paperdoll key
+  (head/chest/arms/hands/legs/feet).
+
 ## Now — 2026-09-24 (afternoon): done; next from Lead
 
 Standing by. Nothing building, nothing open from this lane except this doc PR (#583). Lead's rulings (acting with Dom's
